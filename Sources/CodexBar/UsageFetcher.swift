@@ -287,6 +287,8 @@ private final class CodexRPCClient: @unchecked Sendable {
             "\(home)/.nvm/versions/node/current/bin",
             "\(home)/.nvm/versions/node/*/bin",
             "\(home)/.npm-global/bin",
+            "\(home)/.local/share/fnm",
+            "\(home)/.fnm",
         ].joined(separator: ":")
         if let existing = env["PATH"], !existing.isEmpty {
             return "\(existing):\(defaultPath)"
