@@ -2,25 +2,26 @@
 
 May your tokens never run out—keep agent limits in view.
 
-Tiny macOS 15+ menu bar app that shows how much Codex usage you have left (5‑hour + weekly windows) and when each window resets. No Dock icon, minimal UI, dynamic bar icon in the menu bar.
+Tiny macOS 15+ menu bar app that keeps your Codex and Claude Code limits visible (5‑hour/session + weekly windows) and when each window resets. One status item per provider; enable either or both from Settings. No Dock icon, minimal UI, dynamic bar icons in the menu bar.
 
 Login story
-- **No login needed** for the core rate-limit view: we read the latest `rollout-*.jsonl` session logs under `~/.codex/sessions/…` plus `~/.codex/auth.json` to show 5h/weekly limits, reset times, and your account email/plan.
-- **Credits auto-fetched**: We read the Codex CLI `/status` output directly via a local PTY (no browser/session login needed) to show credits and limits.
+- **Codex** — Prefers the local codex app-server RPC for 5h/weekly limits + credits. Falls back to a PTY scrape of `codex /status` (auth/email/plan from the RPC or `~/.codex/auth.json`). All parsing stays on-device; no browser required.
+- **Claude Code** — Reads session + weekly + Opus usage from the Claude CLI by running `/usage` + `/status` in a local PTY (no tmux). Shows email/org/login method directly from the CLI output. No browser or network calls beyond the CLI itself.
+- **Provider detection** — On first launch we detect installed CLIs and enable Codex by default (Claude turns on when the `claude` binary is present). You can toggle either provider in Settings → General or rerun detection after installing a CLI.
 
 Icon bar mapping (grayscale)
 - Top bar: 5‑hour window when available; if weekly is exhausted, the top becomes a thick credits bar (scaled to a 1k cap) to show paid credits left.
 - Bottom bar: weekly window (a thin line). If weekly is zero you’ll see it empty under the credits bar; when weekly has budget it stays filled proportionally.
-- Errors/unknowns dim the icon; no text is drawn in the icon to stay legible.
+- Errors/unknowns dim the icon; no text is drawn in the icon to stay legible. Codex icons keep the eyelid blink; when Claude is enabled the template switches to the Claude notch/leg variant while keeping the same bar mapping.
 
 ![CodexBar Screenshot](docs/codexbar.png)
 
 ## Features
-- Reads the newest `rollout-*.jsonl` in `~/.codex/sessions/...` and extracts the latest `token_count` event (`used_percent`, `window_minutes`, `resets_at`).
-- Shows 5h + weekly windows, last-updated time, your ChatGPT account email + plan (decoded locally from `~/.codex/auth.json`), and a configurable refresh cadence.
-- Horizontal bar icon: top bar = 5h window, bottom hairline = weekly window. Filled portion shows “percent left” and dims on errors.
-- CLI-only: does not hit chatgpt.com or browsers; keeps tokens on-device.
-- Auto-update via Sparkle (Check for Updates… menu item, auto-check enabled). Feed defaults to GitHub Releases appcast (replace SupublicEDKey with your Ed25519 public key).
+- Dual providers: Codex status item (5h/weekly + credits) and Claude Code status item (session/weekly + Opus) can be shown together; Codex defaults on, Claude turns on when the CLI is present. Both sections show last-updated time and surface errors inline.
+- Codex path: prefers the codex app-server RPC (run with `-s read-only -a untrusted`) for rate limits and credits; falls back to a PTY scrape of `codex /status`, keeping cached credits when RPC is unavailable.
+- Claude path: runs `claude /usage` and `/status` in a local PTY (no tmux) to parse session/week/Opus percentages, reset strings, and account email/org/login method; debug view can copy the latest raw scrape.
+- Account line keeps data siloed: Codex plan/email come from RPC/auth.json, Claude plan/email come only from the Claude CLI output; we never mix provider identity fields.
+- Auto-update via Sparkle (Check for Updates… menu item, auto-check enabled). Feed defaults to the GitHub Releases appcast (replace SUPublicEDKey with your Ed25519 public key).
 
 ## Download
 - Ready-to-run zips are published in GitHub Releases: <https://github.com/steipete/CodexBar/releases>
@@ -33,11 +34,12 @@ open CodexBar.app
 ```
 
 Requirements:
-- Codex CLI ≥ 0.55.0 installed and logged in (`codex --version`).
-- At least one Codex prompt this session so `token_count` events exist (otherwise you’ll see “No usage yet”).
+- macOS 15+.
+- Codex: Codex CLI ≥ 0.55.0 installed and logged in (`codex --version`) to show the Codex row + credits. If your account hasn’t reported usage yet, the menu will show “No usage yet.”
+- Claude: Claude Code CLI installed (`claude --version`) and logged in via `claude login` to show the Claude row. Run at least one `/usage` so session/week numbers exist.
 
 ## Refresh cadence
-Menu → “Refresh every …” presets: Manual, 1 min, 2 min (default), 5 min. Manual still allows “Refresh now.”
+Menu → “Refresh every …” presets: Manual, 1 min, 2 min, 5 min (default), 15 min. Manual still allows “Refresh now.”
 
 ## Notarization & signing
 ```bash
@@ -46,14 +48,19 @@ export APP_STORE_CONNECT_KEY_ID="ABC123XYZ"
 export APP_STORE_CONNECT_ISSUER_ID="00000000-0000-0000-0000-000000000000"
 ./Scripts/sign-and-notarize.sh
 ```
-Outputs `CodexBar-0.4.3.zip` ready to ship. Adjust `APP_IDENTITY` in the script if needed.
+Outputs `CodexBar-<version>.zip` ready to ship. Adjust `APP_IDENTITY` in the script if needed.
 
 ## How account info is read
-`~/.codex/auth.json` is decoded locally (JWT only) to show your email + plan (Pro/Plus/Business). Nothing is sent anywhere.
+Account details stay local and per-provider:
+- Codex: email/plan come from the codex RPC response; falls back to decoding `~/.codex/auth.json` (JWT only) if the RPC is unavailable.
+- Claude: email/org/login method are pulled from the Claude CLI `/status` output.
+- We never mix provider data (no showing Claude org in Codex mode, etc.). Nothing is sent anywhere.
 
 ## Limitations / edge cases
-- If the newest session log has no `token_count` yet, you’ll see “No usage yet.” Run one Codex prompt and refresh.
-- If Codex changes the event schema, percentages may fail to parse; the menu will show the error string.
+- Codex: if Codex hasn’t returned rate limits yet, you’ll see “No usage yet.” Run one Codex prompt and refresh.
+- Codex: if the event schema changes, percentages may fail to parse; the menu will show the error string while keeping cached credits.
+- Claude: if the CLI is missing or not logged in you’ll see the CLI error (e.g., “Claude CLI is not installed” or “claude login”).
+- Claude: reset strings sometimes omit time zones; we surface the raw text when parsing fails.
 - Only arm64 build is scripted; add `--arch x86_64` if you want a universal binary.
 
 ## Release checklist
