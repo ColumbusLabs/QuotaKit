@@ -1,7 +1,7 @@
 # Changelog
 
-## 0.5.2 — Unreleased
-- Release packaging now includes uploading the dSYM archive alongside the app zip to aid crash symbolication (policy documented in shared mac release guide).
+## 0.5.2 — 2025-11-22
+- Release packaging now includes uploading the dSYM archive alongside the app zip to aid crash symbolication (policy documented in the shared mac release guide).
 - Claude PTY fallback removed: Claude probes now rely solely on `script` stdout parsing, and the generic TTY runner is trimmed to Codex `/status` handling.
 - Fixed a busy-loop on the codex RPC stderr pipe (handler now detaches on EOF), eliminating the long-running high-CPU spin reported in issue #9.
 

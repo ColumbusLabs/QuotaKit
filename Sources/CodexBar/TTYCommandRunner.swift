@@ -29,7 +29,7 @@ struct TTYCommandRunner {
         }
     }
 
-    // swiftlint:disable cyclomatic_complexity function_body_length
+    // swiftlint:disable function_body_length
     func run(binary: String, send script: String, options: Options = Options()) throws -> Result {
         guard let resolved = Self.which(binary) else { throw Error.binaryNotFound(binary) }
 
@@ -247,7 +247,7 @@ struct TTYCommandRunner {
         return Result(text: text)
     }
 
-    // swiftlint:enable cyclomatic_complexity function_body_length
+    // swiftlint:enable function_body_length
 
     static func which(_ tool: String) -> String? {
         // First try system PATH

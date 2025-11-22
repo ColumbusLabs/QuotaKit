@@ -344,7 +344,7 @@ struct UsageFetcher: Sendable {
         let rpc = try CodexRPCClient()
         defer { rpc.shutdown() }
 
-        try await rpc.initialize(clientName: "codexbar", clientVersion: "0.5.1")
+        try await rpc.initialize(clientName: "codexbar", clientVersion: "0.5.2")
         // The app-server answers on a single stdout stream, so keep requests
         // serialized to avoid starving one reader when multiple awaiters race
         // for the same pipe.
@@ -405,7 +405,7 @@ struct UsageFetcher: Sendable {
     private func loadRPCCredits() async throws -> CreditsSnapshot {
         let rpc = try CodexRPCClient()
         defer { rpc.shutdown() }
-        try await rpc.initialize(clientName: "codexbar", clientVersion: "0.5.1")
+        try await rpc.initialize(clientName: "codexbar", clientVersion: "0.5.2")
         let limits = try await rpc.fetchRateLimits().rateLimits
         guard let credits = limits.credits else { throw UsageError.noRateLimitsFound }
         let remaining = Self.parseCredits(credits.balance)
@@ -438,7 +438,7 @@ struct UsageFetcher: Sendable {
         do {
             let rpc = try CodexRPCClient()
             defer { rpc.shutdown() }
-            try await rpc.initialize(clientName: "codexbar", clientVersion: "0.5.1")
+            try await rpc.initialize(clientName: "codexbar", clientVersion: "0.5.2")
             let limits = try await rpc.fetchRateLimits()
             let data = try JSONEncoder().encode(limits)
             return String(data: data, encoding: .utf8) ?? "<unprintable>"
