@@ -1,6 +1,11 @@
 # Changelog
 
-## 0.5.1 — Unreleased
+## 0.5.2 — Unreleased
+
+## 0.5.1 — 2025-11-22
+- Debug pane now exposes the Claude parse dump toggle, keeping the captured raw scrape in memory for inspection.
+- Claude About/debug views embed the current git hash so builds can be identified precisely.
+- Minor runtime robustness tweaks in the PTY runner and usage fetcher.
 
 ## 0.5.0 — 2025-11-22
 - Codex usage/credits now use the codex app-server RPC by default (with PTY `/status` fallback when RPC is unavailable), reducing flakiness and speeding refreshes.
