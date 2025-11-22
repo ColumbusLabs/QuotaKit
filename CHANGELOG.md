@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.5.3 — 2025-11-22
+- Added a per-provider “Status Page” menu item beneath Usage that opens the provider’s live status page (OpenAI or Claude).
+
 ## 0.5.2 — 2025-11-22
 - Release packaging now includes uploading the dSYM archive alongside the app zip to aid crash symbolication (policy documented in the shared mac release guide).
 - Claude PTY fallback removed: Claude probes now rely solely on `script` stdout parsing, and the generic TTY runner is trimmed to Codex `/status` handling.

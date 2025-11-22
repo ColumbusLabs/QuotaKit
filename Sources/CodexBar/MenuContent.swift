@@ -60,6 +60,8 @@ struct MenuContent: View {
             self.actions.refresh()
         case .dashboard:
             self.actions.openDashboard()
+        case .statusPage:
+            self.actions.openStatusPage()
         case .settings:
             self.actions.openSettings()
         case .about:
@@ -75,6 +77,7 @@ struct MenuContent: View {
 struct MenuActions {
     let refresh: () -> Void
     let openDashboard: () -> Void
+    let openStatusPage: () -> Void
     let openSettings: () -> Void
     let openAbout: () -> Void
     let quit: () -> Void

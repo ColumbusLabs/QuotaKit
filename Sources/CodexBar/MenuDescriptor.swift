@@ -21,6 +21,7 @@ struct MenuDescriptor {
     enum MenuAction {
         case refresh
         case dashboard
+        case statusPage
         case settings
         case about
         case quit
@@ -160,6 +161,7 @@ struct MenuDescriptor {
             .action("Refresh now", .refresh),
             .text(self.refreshStatusText(for: provider, store: store), .secondary),
             .action("Usage Dashboard", .dashboard),
+            .action("Status Page", .statusPage),
         ])
     }
 

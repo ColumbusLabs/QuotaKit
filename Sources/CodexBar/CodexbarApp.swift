@@ -473,6 +473,18 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         NSWorkspace.shared.open(url)
     }
 
+    @objc private func openStatusPage() {
+        let preferred = self.lastMenuProvider
+            ?? (self.store.isEnabled(.codex) ? .codex : self.store.enabledProviders().first)
+
+        let provider = preferred ?? .codex
+        guard
+            let urlString = self.store.metadata(for: provider).statusPageURL,
+            let url = URL(string: urlString)
+        else { return }
+        NSWorkspace.shared.open(url)
+    }
+
     @objc private func showSettingsGeneral() { self.openSettings(tab: .general) }
 
     @objc private func showSettingsAbout() { self.openSettings(tab: .about) }
@@ -555,6 +567,7 @@ extension StatusItemController {
         switch action {
         case .refresh: (#selector(self.refreshNow), nil)
         case .dashboard: (#selector(self.openDashboard), nil)
+        case .statusPage: (#selector(self.openStatusPage), nil)
         case .settings: (#selector(self.showSettingsGeneral), nil)
         case .about: (#selector(self.showSettingsAbout), nil)
         case .quit: (#selector(self.quit), nil)

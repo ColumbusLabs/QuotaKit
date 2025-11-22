@@ -60,7 +60,8 @@ struct ProviderRegistry {
             toggleTitle: "Show Codex usage",
             cliName: "codex",
             defaultEnabled: true,
-            dashboardURL: "https://chatgpt.com/codex/settings/usage"),
+            dashboardURL: "https://chatgpt.com/codex/settings/usage",
+            statusPageURL: "https://status.openai.com/"),
         .claude: ProviderMetadata(
             id: .claude,
             displayName: "Claude",
@@ -73,6 +74,7 @@ struct ProviderRegistry {
             toggleTitle: "Show Claude Code usage",
             cliName: "claude",
             defaultEnabled: false,
-            dashboardURL: "https://console.anthropic.com/settings/billing"),
+            dashboardURL: "https://console.anthropic.com/settings/billing",
+            statusPageURL: "https://status.claude.com/"),
     ]
 }
