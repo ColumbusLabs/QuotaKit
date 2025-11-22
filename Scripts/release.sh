@@ -20,6 +20,7 @@ BUILD="$2"
 NOTES_FILE="${3:-}"
 ZIP_NAME="CodexBar-${VERSION}.zip"
 DSYM_ZIP=".build/CodexBar-${VERSION}.dSYM.zip"
+ENCLOSURE_URL="https://github.com/steipete/CodexBar/releases/download/v${VERSION}/CodexBar-${VERSION}.zip"
 
 require() {
   command -v "$1" >/dev/null || ERR "Missing required command: $1"
@@ -108,8 +109,11 @@ zip_dsym() {
 
 sign_zip() {
   LOG "Generating Sparkle signature"
-  SIGNATURE=$(echo "SMYPxE98bJ5iLdHTLHTqGKZNFcZLgrT5Hyjh79h3TaU=" | sign_update --ed-key-file - -p "$ZIP_NAME")
-  SIZE=$(stat -f%z "$ZIP_NAME")
+  local output
+  output=$(sign_update --ed-key-file "$SPARKLE_PRIVATE_KEY_FILE" "$ZIP_NAME")
+  SIGNATURE=$(printf "%s" "$output" | perl -nE 'say $1 if /sparkle:edSignature="([^"]+)"/')
+  SIZE=$(printf "%s" "$output" | perl -nE 'say $1 if /length="([^"]+)"/')
+  [[ -z "$SIGNATURE" || -z "$SIZE" ]] && ERR "sign_update failed to produce signature/size"
 }
 
 update_appcast() {
@@ -136,8 +140,23 @@ idx = xml.find(marker)
 if idx == -1:
     raise SystemExit("no <channel> in appcast")
 insert_at = xml.find("\n", idx) + 1
-path.write_text(xml[:insert_at] + entry + xml[insert_at:])
+  path.write_text(xml[:insert_at] + entry + xml[insert_at:])
 PY
+}
+
+verify_enclosure() {
+  LOG "Verifying enclosure matches appcast signature/length"
+  local tmp=/tmp/codexbar-enclosure.zip
+  rm -f "$tmp"
+  curl -L -o "$tmp" "$ENCLOSURE_URL" >/dev/null 2>&1 || ERR "Failed to download enclosure"
+  local verify
+  verify=$(sign_update --ed-key-file "$SPARKLE_PRIVATE_KEY_FILE" "$tmp")
+  local sig size
+  sig=$(printf "%s" "$verify" | perl -nE 'say $1 if /sparkle:edSignature="([^"]+)"/')
+  size=$(printf "%s" "$verify" | perl -nE 'say $1 if /length="([^"]+)"/')
+  [[ "$sig" != "$SIGNATURE" ]] && ERR "Enclosure signature mismatch (appcast $SIGNATURE vs downloaded $sig)"
+  [[ "$size" != "$SIZE" ]] && ERR "Enclosure length mismatch (appcast $SIZE vs downloaded $size)"
+  LOG "Enclosure verification ok"
 }
 
 create_tag_and_release() {
@@ -174,6 +193,7 @@ build_and_notarize
 zip_dsym
 sign_zip
 update_appcast
+verify_enclosure
 create_tag_and_release
 verify_downloads
 
