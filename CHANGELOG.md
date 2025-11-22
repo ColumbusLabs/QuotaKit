@@ -2,6 +2,7 @@
 
 ## 0.5.0 — Unreleased
 - Codex usage/credits now use the codex app-server RPC by default (with PTY `/status` fallback when RPC is unavailable), reducing flakiness and speeding refreshes.
+- Codex CLI launches seed PATH with Homebrew/bun/npm/nvm/fnm defaults to avoid ENOENT in hardened/release builds; TTY probes reuse the same PATH.
 - Claude CLI probe now runs `/usage` and `/status` in parallel (no simulated typing), captures reset strings, and uses a resilient parser (label-first with ordered fallback) while keeping org/email separate by provider.
 - TTY runner now always tears down the spawned process group (even on early Claude login prompts) to avoid leaking CLI processes.
 - Default refresh cadence is now 5 minutes, and a 15-minute option was added to the settings picker.

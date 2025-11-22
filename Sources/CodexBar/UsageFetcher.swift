@@ -302,6 +302,29 @@ private final class CodexRPCClient: @unchecked Sendable {
 struct UsageFetcher: Sendable {
     private let environment: [String: String]
 
+    /// Builds a PATH that works in hardened contexts by appending common install locations (Homebrew, bun, nvm, fnm, npm).
+    static func seededPATH(from env: [String: String]) -> String {
+        let home = NSHomeDirectory()
+        let defaultPath = [
+            "/usr/bin",
+            "/bin",
+            "/usr/sbin",
+            "/sbin",
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            "\(home)/.bun/bin",
+            "\(home)/.nvm/versions/node/current/bin",
+            "\(home)/.nvm/versions/node/*/bin",
+            "\(home)/.npm-global/bin",
+            "\(home)/.local/share/fnm",
+            "\(home)/.fnm",
+        ].joined(separator: ":")
+        if let existing = env["PATH"], !existing.isEmpty {
+            return "\(existing):\(defaultPath)"
+        }
+        return defaultPath
+    }
+
     init(environment: [String: String] = ProcessInfo.processInfo.environment) {
         self.environment = environment
     }

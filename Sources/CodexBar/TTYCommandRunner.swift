@@ -52,6 +52,8 @@ struct TTYCommandRunner {
         proc.standardInput = secondaryHandle
         proc.standardOutput = secondaryHandle
         proc.standardError = secondaryHandle
+        // Mirror RPC PATH seeding so CLIs installed via npm/nvm/fnm/bun still launch in hardened builds.
+        proc.environment = ["PATH": Self.enrichedPath()]
 
         var didLaunch = false
         try proc.run()
@@ -386,5 +388,10 @@ struct TTYCommandRunner {
             .trimmingCharacters(in: .whitespacesAndNewlines),
             !path.isEmpty else { return nil }
         return path
+    }
+
+    /// Expands PATH with the same defaults we use for Codex RPC, so TTY probes can find CLIs installed via Homebrew, bun, nvm, fnm, or npm.
+    static func enrichedPath() -> String {
+        UsageFetcher.seededPATH(from: ProcessInfo.processInfo.environment)
     }
 }
