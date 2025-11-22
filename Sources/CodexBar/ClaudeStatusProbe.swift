@@ -280,8 +280,23 @@ struct ClaudeStatusProbe {
 
             """
         }
-        let url = URL(fileURLWithPath: "/tmp/codexbar-claude-dump.txt")
-        try? body.write(to: url, atomically: true, encoding: .utf8)
+        Task { @MainActor in self.recordDump(body) }
+    }
+
+    // MARK: - Dump storage (in-memory ring buffer)
+
+    @MainActor private static var recentDumps: [String] = []
+
+    @MainActor private static func recordDump(_ text: String) {
+        if self.recentDumps.count >= 5 { self.recentDumps.removeFirst() }
+        self.recentDumps.append(text)
+    }
+
+    static func latestDumps() async -> String {
+        await MainActor.run {
+            let result = Self.recentDumps.joined(separator: "\n\n---\n\n")
+            return result.isEmpty ? "No Claude parse dumps captured yet." : result
+        }
     }
 
     private static func extractUsageErrorJSON(text: String) -> String? {
