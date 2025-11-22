@@ -4,6 +4,10 @@ CONF=${1:-release}
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 
+# Force a clean build to avoid stale binaries.
+rm -rf "$ROOT/.build"
+swift package clean >/dev/null 2>&1 || true
+
 swift build -c "$CONF" --arch arm64
 
 APP="$ROOT/CodexBar.app"
@@ -27,6 +31,7 @@ if [[ "$LOWER_CONF" == "debug" ]]; then
   AUTO_CHECKS=false
 fi
 BUILD_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -48,6 +53,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>SUPublicEDKey</key><string>AGCY8w5vHirVfGGDGc8Szc5iuOqupZSh9pMj/Qs67XI=</string>
     <key>SUEnableAutomaticChecks</key><${AUTO_CHECKS}/>
     <key>CodexBuildTimestamp</key><string>${BUILD_TIMESTAMP}</string>
+    <key>CodexGitCommit</key><string>${GIT_COMMIT}</string>
 </dict>
 </plist>
 PLIST

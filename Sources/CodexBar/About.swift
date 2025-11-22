@@ -8,6 +8,7 @@ func showAbout() {
     let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
     let versionString = build.isEmpty ? version : "\(version) (\(build))"
     let buildTimestamp = Bundle.main.object(forInfoDictionaryKey: "CodexBuildTimestamp") as? String
+    let gitCommit = Bundle.main.object(forInfoDictionaryKey: "CodexGitCommit") as? String
 
     let separator = NSAttributedString(string: " · ", attributes: [
         .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
@@ -29,7 +30,11 @@ func showAbout() {
     credits.append(separator)
     credits.append(makeLink("Email", urlString: "mailto:peter@steipete.me"))
     if let buildTimestamp, let formatted = formattedBuildTimestamp(buildTimestamp) {
-        credits.append(NSAttributedString(string: "\nBuilt \(formatted)", attributes: [
+        var builtLine = "Built \(formatted)"
+        if let gitCommit, !gitCommit.isEmpty, gitCommit != "unknown" {
+            builtLine += " (\(gitCommit))"
+        }
+        credits.append(NSAttributedString(string: "\n\(builtLine)", attributes: [
             .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
             .foregroundColor: NSColor.secondaryLabelColor,
         ]))

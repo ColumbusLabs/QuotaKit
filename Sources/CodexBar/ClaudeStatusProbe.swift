@@ -65,7 +65,14 @@ struct ClaudeStatusProbe {
         let clean = TextParsing.stripANSICodes(text)
         guard !clean.isEmpty else { throw ClaudeStatusProbeError.timedOut }
 
+        let shouldDump = ProcessInfo.processInfo.environment["DEBUG_CLAUDE_DUMP"] == "1"
+
         if let usageError = self.extractUsageError(text: clean) {
+            Self.dumpIfNeeded(
+                enabled: shouldDump,
+                reason: "usageError: \(usageError)",
+                usage: clean,
+                status: statusText)
             throw ClaudeStatusProbeError.parseFailed(usageError)
         }
 
@@ -98,6 +105,11 @@ struct ClaudeStatusProbe {
         let login = self.extractLoginMethod(text: statusText ?? "") ?? self.extractLoginMethod(text: clean)
 
         guard let sessionPct, let weeklyPct else {
+            Self.dumpIfNeeded(
+                enabled: shouldDump,
+                reason: "missing session/weekly labels",
+                usage: clean,
+                status: statusText)
             throw ClaudeStatusProbeError.parseFailed("Missing Current session or Current week (all models)")
         }
 
@@ -248,6 +260,28 @@ struct ClaudeStatusProbe {
             with: "",
             options: [.regularExpression])
         return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func dumpIfNeeded(enabled: Bool, reason: String, usage: String, status: String?) {
+        guard enabled else { return }
+        let stamp = ISO8601DateFormatter().string(from: Date())
+        var body = """
+        === Claude parse dump @ \(stamp) ===
+        Reason: \(reason)
+
+        --- usage (clean) ---
+        \(usage)
+
+        """
+        if let status {
+            body += """
+            --- status (raw/optional) ---
+            \(status)
+
+            """
+        }
+        let url = URL(fileURLWithPath: "/tmp/codexbar-claude-dump.txt")
+        try? body.write(to: url, atomically: true, encoding: .utf8)
     }
 
     private static func extractUsageErrorJSON(text: String) -> String? {
