@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.5.2 — Unreleased
+- Release packaging now includes uploading the dSYM archive alongside the app zip to aid crash symbolication (policy documented in shared mac release guide).
 
 ## 0.5.1 — 2025-11-22
 - Debug pane now exposes the Claude parse dump toggle, keeping the captured raw scrape in memory for inspection.
