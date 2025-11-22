@@ -37,6 +37,15 @@ struct GeneralPane: View {
                 Divider()
 
                 SettingsSection(contentSpacing: 6) {
+                    PreferenceToggleRow(
+                        title: "Check provider status",
+                        subtitle: "Polls OpenAI/Claude status pages and surfaces incidents in the icon and menu.",
+                        binding: self.$settings.statusChecksEnabled)
+                }
+
+                Divider()
+
+                SettingsSection(contentSpacing: 6) {
                     Text("Refresh cadence")
                         .font(.body)
                         .foregroundStyle(.secondary)

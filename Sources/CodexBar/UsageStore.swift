@@ -140,9 +140,12 @@ final class UsageStore: ObservableObject {
     var lastClaudeError: String? { self.errors[.claude] }
     func error(for provider: UsageProvider) -> String? { self.errors[provider] }
     func metadata(for provider: UsageProvider) -> ProviderMetadata { self.providerMetadata[provider]! }
-    func status(for provider: UsageProvider) -> ProviderStatus? { self.statuses[provider] }
+    func status(for provider: UsageProvider) -> ProviderStatus? {
+        guard self.settings.statusChecksEnabled else { return nil }
+        return self.statuses[provider]
+    }
     func statusIndicator(for provider: UsageProvider) -> ProviderStatusIndicator {
-        self.statuses[provider]?.indicator ?? .none
+        self.status(for: provider)?.indicator ?? .none
     }
     func version(for provider: UsageProvider) -> String? {
         switch provider {
@@ -236,6 +239,7 @@ final class UsageStore: ObservableObject {
                 Task { await self?.refresh() }
             }
             .store(in: &self.cancellables)
+
     }
 
     private func startTimer() {
@@ -314,6 +318,7 @@ final class UsageStore: ObservableObject {
     }
 
     private func refreshStatus(_ provider: UsageProvider) async {
+        guard self.settings.statusChecksEnabled else { return }
         guard let urlString = self.providerMetadata[provider]?.statusPageURL,
               let baseURL = URL(string: urlString) else { return }
 
