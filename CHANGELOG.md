@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- Pending changes.
+
 ## 0.5.3 — 2025-11-22
 - Added a per-provider “Status Page” menu item beneath Usage that opens the provider’s live status page (OpenAI or Claude).
 - Status API now refreshes alongside usage; incident states show a dot/! overlay on the status icon plus a status blurb under the menu item.
