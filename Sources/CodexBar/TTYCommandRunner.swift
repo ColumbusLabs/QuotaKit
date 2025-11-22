@@ -390,7 +390,8 @@ struct TTYCommandRunner {
         return path
     }
 
-    /// Expands PATH with the same defaults we use for Codex RPC, so TTY probes can find CLIs installed via Homebrew, bun, nvm, fnm, or npm.
+    /// Expands PATH with the same defaults we use for Codex RPC, so TTY probes can find CLIs installed via Homebrew,
+    /// bun, nvm, fnm, or npm.
     static func enrichedPath() -> String {
         UsageFetcher.seededPATH(from: ProcessInfo.processInfo.environment)
     }
