@@ -151,8 +151,20 @@ private final class CodexRPCClient: @unchecked Sendable {
     {
         let resolvedExec = TTYCommandRunner.which(executable) ?? executable
         var env = ProcessInfo.processInfo.environment
-        // Hardened runtime trims PATH; seed a sane default that includes Homebrew and bun.
-        let defaultPath = "/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin:\(NSHomeDirectory())/.bun/bin"
+        // Hardened runtime trims PATH; seed a default that covers Homebrew, bun, nvm, and npm globals.
+        let home = NSHomeDirectory()
+        let defaultPath = [
+            "/usr/bin",
+            "/bin",
+            "/usr/sbin",
+            "/sbin",
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            "\(home)/.bun/bin",
+            "\(home)/.nvm/versions/node/current/bin",
+            "\(home)/.nvm/versions/node/*/bin",
+            "\(home)/.npm-global/bin",
+        ].joined(separator: ":")
         env["PATH"] = (env["PATH"].map { "\($0):\(defaultPath)" }) ?? defaultPath
 
         self.process.environment = env
