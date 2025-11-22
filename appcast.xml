@@ -4,12 +4,12 @@
         <title>CodexBar</title>
         <item>
             <title>0.5.0</title>
-            <pubDate>Sat, 22 Nov 2025 03:02:36 +0100</pubDate>
+            <pubDate>Sat, 22 Nov 2025 02:54:06 +0100</pubDate>
             <link>https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml</link>
-            <sparkle:version>14</sparkle:version>
+            <sparkle:version>13</sparkle:version>
             <sparkle:shortVersionString>0.5.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.5.0/CodexBar-0.5.0.zip" length="2642026" type="application/octet-stream" sparkle:edSignature="ajpvkPf5XIWI347qTNldKZFe6LDb+5GajGtJQJw7Cylz4PkS7oaVh+eMjekOu23DVsd36dn1rWZgGi/9CO26Aw=="/>
+            <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.5.0/CodexBar-0.5.0.zip" length="2642060" type="application/octet-stream" sparkle:edSignature="aCv1cH6qLWvowDOcx0muOsmRplbCK3kAlgpQBkdjelNXFDBciy+49srhSu/DFVyCA21098ioEYEb3vH5to14Dw=="/>
         </item>
         <item>
             <title>0.4.2</title>
@@ -19,6 +19,11 @@
             <sparkle:shortVersionString>0.4.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.4.2/CodexBar-0.4.2.zip" length="2609814" type="application/octet-stream" sparkle:edSignature="+ZX4XuHYRUilCqCMfoDOHFCbvNzZrtVU8WahzILmGMbWrylOFkA2WRqSZ/iUDdrISwmK4AQ+Mw/1myqaYnTvBA=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.4.2/CodexBar12-11.delta" sparkle:deltaFrom="11" length="66378" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="860528" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="L+MJ/ONKEA5U9WyYEkeg/2a7ZTa2xft7mOgdjVGYZ4oWNSY3ft5v2qX3WOe0Tm4ykJHOIVAfOtCxfw971+EaDA=="/>
+                <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.4.2/CodexBar12-10.delta" sparkle:deltaFrom="10" length="78618" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="860528" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="TOrDtRK5PshjXCxqtiQaXz7jAjwjyr8LkXQES/pQE/VCfibJF9GuGvRLACWwUj6+ymHsazhEg7AybrlyO3GyBw=="/>
+                <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.4.2/CodexBar12-7.delta" sparkle:deltaFrom="7" length="243670" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="860528" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="bV347nCdXZCMsoohl+5b0nYbt20SEhsP2B1iZw4/vlBvRh6RHhlGlW84kA5MnuaH5tClBXHWcxqzFjRqPDmEAQ=="/>
+            </sparkle:deltas>
         </item>
         <item>
             <title>0.4.1</title>
@@ -28,6 +33,10 @@
             <sparkle:shortVersionString>0.4.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
             <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.4.1/CodexBar-0.4.1.zip" length="2606458" type="application/octet-stream" sparkle:edSignature="kkN3g7EdbgfHkxF2IMd5KHjQCAO+sHlRfkBRhJKrN5XMXJhFo2edltHYX9UuTmrFPYGHNN09OpJ7m6gw4KAOBQ=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.4.1/CodexBar11-10.delta" sparkle:deltaFrom="10" length="46890" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="860528" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="dS3lxi3VcgqC2IFKVWwpi7b7EugD57NXwdpenPTlAxMW3AwT2DE8oqnUwvpwAhMeL28NF3W/6ipRSMkZScBBCA=="/>
+                <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.4.1/CodexBar11-7.delta" sparkle:deltaFrom="7" length="240742" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="860528" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="I2Cmt53H8XiUMnmObq0MUMxcKK44dfHQ3p5aj5fw8pCIpnu7A4tjoD3GRurszZbO20OmS34HgSrkmKAjYbEUAg=="/>
+            </sparkle:deltas>
         </item>
     </channel>
 </rss>
