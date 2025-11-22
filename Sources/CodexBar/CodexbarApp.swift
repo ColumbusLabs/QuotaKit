@@ -380,7 +380,8 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
                 creditsRemaining: credits,
                 stale: stale,
                 style: style,
-                blink: blink)
+                blink: blink,
+                statusIndicator: self.store.statusIndicator(for: provider))
         }
     }
 

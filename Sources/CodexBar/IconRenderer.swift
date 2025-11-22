@@ -11,7 +11,8 @@ enum IconRenderer {
         creditsRemaining: Double?,
         stale: Bool,
         style: IconStyle,
-        blink: CGFloat = 0) -> NSImage
+        blink: CGFloat = 0,
+        statusIndicator: ProviderStatusIndicator = .none) -> NSImage
     {
         let image = NSImage(size: Self.size)
         image.lockFocus()
@@ -236,6 +237,7 @@ enum IconRenderer {
             drawBar(y: 2.5, remaining: bottomValue, height: bottomHeight)
         }
 
+        Self.drawStatusOverlay(indicator: statusIndicator)
         image.unlockFocus()
         image.isTemplate = true
         return image
@@ -359,6 +361,42 @@ enum IconRenderer {
         path.transform(using: transform)
         color.setFill()
         path.fill()
+    }
+
+    private static func drawStatusOverlay(indicator: ProviderStatusIndicator) {
+        guard indicator.hasIssue else { return }
+        let color = NSColor.labelColor
+
+        switch indicator {
+        case .minor, .maintenance:
+            let size: CGFloat = 4.2
+            let rect = CGRect(
+                x: Self.size.width - size - 1.2,
+                y: 1.4,
+                width: size,
+                height: size)
+            let path = NSBezierPath(ovalIn: rect)
+            color.setFill()
+            path.fill()
+        case .major, .critical, .unknown:
+            let lineRect = CGRect(
+                x: Self.size.width - 5.0,
+                y: 3.4,
+                width: 2.0,
+                height: 6.2)
+            let linePath = NSBezierPath(roundedRect: lineRect, xRadius: 0.9, yRadius: 0.9)
+            color.setFill()
+            linePath.fill()
+
+            let dotRect = CGRect(
+                x: Self.size.width - 5.0,
+                y: 1.6,
+                width: 2.0,
+                height: 2.0)
+            NSBezierPath(ovalIn: dotRect).fill()
+        case .none:
+            break
+        }
     }
 }
 

@@ -157,12 +157,18 @@ struct MenuDescriptor {
     }
 
     private static func actionsSection(for provider: UsageProvider?, store: UsageStore) -> Section {
-        Section(entries: [
+        var entries: [Entry] = [
             .action("Refresh now", .refresh),
             .text(self.refreshStatusText(for: provider, store: store), .secondary),
             .action("Usage Dashboard", .dashboard),
             .action("Status Page", .statusPage),
-        ])
+        ]
+
+        if let statusLine = self.statusLine(for: provider, store: store) {
+            entries.append(.text(statusLine, .secondary))
+        }
+
+        return Section(entries: entries)
     }
 
     private static func metaSection() -> Section {
@@ -189,6 +195,21 @@ struct MenuDescriptor {
             return UsageFormatter.updatedString(from: updated)
         }
         return "Not fetched yet"
+    }
+
+    private static func statusLine(for provider: UsageProvider?, store: UsageStore) -> String? {
+        let target = provider ?? store.enabledProviders().first
+        guard let target,
+              let status = store.status(for: target),
+              status.indicator != .none else { return nil }
+
+        let description = status.description?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let label = description?.isEmpty == false ? description! : status.indicator.label
+        if let updated = status.updatedAt {
+            let freshness = UsageFormatter.updatedString(from: updated)
+            return "Status: \(label) — \(freshness)"
+        }
+        return "Status: \(label)"
     }
 
     private static func appendRateWindow(entries: inout [Entry], title: String, window: RateWindow) {

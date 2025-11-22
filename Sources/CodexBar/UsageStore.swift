@@ -8,6 +8,39 @@ enum IconStyle {
     case combined
 }
 
+enum ProviderStatusIndicator: String {
+    case none
+    case minor
+    case major
+    case critical
+    case maintenance
+    case unknown
+
+    var hasIssue: Bool {
+        switch self {
+        case .none: false
+        default: true
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .none: "Operational"
+        case .minor: "Partial outage"
+        case .major: "Major outage"
+        case .critical: "Critical issue"
+        case .maintenance: "Maintenance"
+        case .unknown: "Status unknown"
+        }
+    }
+}
+
+struct ProviderStatus {
+    let indicator: ProviderStatusIndicator
+    let description: String?
+    let updatedAt: Date?
+}
+
 enum UsageProvider: String, CaseIterable {
     case codex
     case claude
@@ -61,6 +94,7 @@ final class UsageStore: ObservableObject {
     @Published var claudeAccountOrganization: String?
     @Published var isRefreshing = false
     @Published var debugForceAnimation = false
+    @Published private var statuses: [UsageProvider: ProviderStatus] = [:]
     @Published private(set) var probeLogs: [UsageProvider: String] = [:]
     private var lastCreditsSnapshot: CreditsSnapshot?
     private var creditsFailureStreak: Int = 0
@@ -106,6 +140,10 @@ final class UsageStore: ObservableObject {
     var lastClaudeError: String? { self.errors[.claude] }
     func error(for provider: UsageProvider) -> String? { self.errors[provider] }
     func metadata(for provider: UsageProvider) -> ProviderMetadata { self.providerMetadata[provider]! }
+    func status(for provider: UsageProvider) -> ProviderStatus? { self.statuses[provider] }
+    func statusIndicator(for provider: UsageProvider) -> ProviderStatusIndicator {
+        self.statuses[provider]?.indicator ?? .none
+    }
     func version(for provider: UsageProvider) -> String? {
         switch provider {
         case .codex: self.codexVersion
@@ -160,6 +198,7 @@ final class UsageStore: ObservableObject {
         await withTaskGroup(of: Void.self) { group in
             for provider in UsageProvider.allCases {
                 group.addTask { await self.refreshProvider(provider) }
+                group.addTask { await self.refreshStatus(provider) }
             }
             group.addTask { await self.refreshCreditsIfNeeded() }
         }
@@ -224,6 +263,7 @@ final class UsageStore: ObservableObject {
                 self.snapshots.removeValue(forKey: provider)
                 self.errors[provider] = nil
                 self.failureGates[provider]?.reset()
+                self.statuses.removeValue(forKey: provider)
             }
             return
         }
@@ -273,6 +313,26 @@ final class UsageStore: ObservableObject {
         }
     }
 
+    private func refreshStatus(_ provider: UsageProvider) async {
+        guard let urlString = self.providerMetadata[provider]?.statusPageURL,
+              let baseURL = URL(string: urlString) else { return }
+
+        do {
+            let status = try await Self.fetchStatus(from: baseURL)
+            await MainActor.run { self.statuses[provider] = status }
+        } catch {
+            // Keep the previous status to avoid flapping when the API hiccups.
+            await MainActor.run {
+                if self.statuses[provider] == nil {
+                    self.statuses[provider] = ProviderStatus(
+                        indicator: .unknown,
+                        description: error.localizedDescription,
+                        updatedAt: nil)
+                }
+            }
+        }
+    }
+
     private func refreshCreditsIfNeeded() async {
         guard self.isEnabled(.codex) else { return }
         do {
@@ -311,6 +371,51 @@ final class UsageStore: ObservableObject {
                 }
             }
         }
+    }
+
+    private static func fetchStatus(from baseURL: URL) async throws -> ProviderStatus {
+        let apiURL = baseURL.appendingPathComponent("api/v2/status.json")
+        var request = URLRequest(url: apiURL)
+        request.timeoutInterval = 10
+
+        let (data, _) = try await URLSession.shared.data(for: request, delegate: nil)
+
+        struct Response: Decodable {
+            struct Status: Decodable {
+                let indicator: String
+                let description: String?
+            }
+
+            struct Page: Decodable {
+                let updatedAt: Date?
+
+                private enum CodingKeys: String, CodingKey {
+                    case updatedAt = "updated_at"
+                }
+            }
+
+            let page: Page?
+            let status: Status
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let raw = try container.decode(String.self)
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = formatter.date(from: raw) { return date }
+            formatter.formatOptions = [.withInternetDateTime]
+            if let date = formatter.date(from: raw) { return date }
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid ISO8601 date")
+        }
+
+        let response = try decoder.decode(Response.self, from: data)
+        let indicator = ProviderStatusIndicator(rawValue: response.status.indicator) ?? .unknown
+        return ProviderStatus(
+            indicator: indicator,
+            description: response.status.description,
+            updatedAt: response.page?.updatedAt)
     }
 
     func debugDumpClaude() async {
