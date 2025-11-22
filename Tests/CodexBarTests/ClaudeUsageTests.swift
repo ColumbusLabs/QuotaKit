@@ -92,14 +92,37 @@ struct ClaudeUsageTests {
                 """)
             #expect(snap.primary.usedPercent >= 0)
         } catch {
-            // Dump raw PTY text to help debug.
-            let runner = TTYCommandRunner()
-            let res = try runner.run(
-                binary: "claude",
-                send: "/usage",
-                options: .init(rows: 60, cols: 200, timeout: 15))
-            print("RAW PTY OUTPUT BEGIN\n\(res.text)\nRAW PTY OUTPUT END")
+            // Dump raw CLI text captured via `script` to help debug.
+            let raw = try Self.captureClaudeUsageRaw(timeout: 15)
+            print("RAW CLAUDE OUTPUT BEGIN\n\(raw)\nRAW CLAUDE OUTPUT END")
             throw error
         }
+    }
+
+    private static func captureClaudeUsageRaw(timeout: TimeInterval) throws -> String {
+        let process = Process()
+        process.launchPath = "/usr/bin/script"
+        process.arguments = [
+            "-q",
+            "/dev/null",
+            "claude",
+            "/usage",
+            "--allowed-tools",
+            "",
+            "--dangerously-skip-permissions",
+        ]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+        process.standardInput = nil
+
+        try process.run()
+        DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
+            if process.isRunning { process.terminate() }
+        }
+        process.waitUntilExit()
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        return String(data: data, encoding: .utf8) ?? ""
     }
 }

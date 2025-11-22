@@ -169,6 +169,12 @@ private final class CodexRPCClient: @unchecked Sendable {
         let stderrHandle = self.stderrPipe.fileHandleForReading
         stderrHandle.readabilityHandler = { handle in
             let data = handle.availableData
+            // When the child closes stderr, availableData returns empty and will keep re-firing; clear the handler
+            // to avoid a busy read loop on the file-descriptor monitoring queue.
+            if data.isEmpty {
+                handle.readabilityHandler = nil
+                return
+            }
             guard let text = String(data: data, encoding: .utf8), !text.isEmpty else { return }
             for line in text.split(whereSeparator: \.isNewline) {
                 fputs("[codex stderr] \(line)\n", stderr)

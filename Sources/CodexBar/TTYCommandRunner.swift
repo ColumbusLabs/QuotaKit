@@ -122,16 +122,6 @@ struct TTYCommandRunner {
             if n > 0 { buffer.append(contentsOf: tmp.prefix(n)) }
         }
 
-        func containsSession() -> Bool {
-            let marker = Data("Current session".utf8)
-            return buffer.contains(marker)
-        }
-
-        func containsWeek() -> Bool {
-            let marker = Data("Current week (all models)".utf8)
-            return buffer.contains(marker)
-        }
-
         func containsCodexStatus() -> Bool {
             let markers = [
                 "Credits:",
@@ -160,191 +150,93 @@ struct TTYCommandRunner {
             return needles.contains { lower.contains($0.lowercased()) }
         }
 
-        func containsCodexReadyScreen() -> Bool {
-            // The main Codex shell shows these markers once past the update dialog.
-            let lower = String(data: buffer, encoding: .utf8)?.lowercased() ?? ""
-            return lower.contains("openai codex") && lower.contains("model:") && lower.contains("/status")
+        // Generic behavior (Codex /status and other commands).
+        usleep(400_000) // small boot grace
+        let delayInitialSend = script.trimmingCharacters(in: .whitespacesAndNewlines) == "/status"
+        if !delayInitialSend {
+            try send(script)
+            try send("\r")
+            usleep(150_000)
+            try send("\r")
+            try send("\u{1b}")
         }
 
-        if script == "/usage" {
-            // Boot loop: wait for TUI to be ready and handle first-run prompts.
-            let bootDeadline = Date().addingTimeInterval(4.0)
-            while Date() < bootDeadline {
-                readChunk()
-                respondIfCursorQuerySeen()
-                guard let text = String(data: buffer, encoding: .utf8) else { break }
-                let lower = text.lowercased()
+        var skippedCodexUpdate = false
+        var sentScript = !delayInitialSend
+        var updateSkipAttempts = 0
+        var lastEnter = Date(timeIntervalSince1970: 0)
+        var scriptSentAt: Date? = sentScript ? Date() : nil
+        var resendStatusRetries = 0
+        var enterRetries = 0
+        var sawCodexStatus = false
 
-                if lower.contains("do you trust the files in this folder") {
-                    try send("1\r"); buffer.removeAll(); usleep(300_000); continue
-                }
-                if lower.contains("select a workspace") {
-                    try send("\r"); buffer.removeAll(); usleep(300_000); continue
-                }
-                if lower.contains("telemetry") && lower.contains("(y/n)") {
-                    try send("n\r"); buffer.removeAll(); usleep(300_000); continue
-                }
-                if lower.contains("sign in") || lower
-                    .contains("login") || (lower.contains("please run") && lower.contains("claude login"))
-                {
-                    throw Error.launchFailed("Claude CLI requires login (`claude login`).")
-                }
-                if lower.contains("claude code") || lower.contains("tab to toggle") || lower.contains("try ") || !lower
-                    .isEmpty
-                {
-                    break
-                }
+        while Date() < deadline {
+            readChunk()
+            respondIfCursorQuerySeen()
+            if !skippedCodexUpdate, containsCodexUpdatePrompt() {
+                // Prompt shows options: 1) Update now, 2) Skip, 3) Skip until next version.
+                // Users report one Down + Enter is enough; follow with an extra Enter for safety, then re-run
+                // /status.
+                try? send("\u{1b}[B") // highlight option 2 (Skip)
+                usleep(120_000)
+                try? send("\r")
                 usleep(150_000)
+                try? send("\r") // if still focused on prompt, confirm again
+                try? send("/status")
+                try? send("\r")
+                updateSkipAttempts += 1
+                if updateSkipAttempts >= 1 {
+                    skippedCodexUpdate = true
+                    sentScript = false // re-send /status after dismissing
+                    scriptSentAt = nil
+                    buffer.removeAll()
+                }
+                usleep(300_000)
             }
-
-            // Send the `/usage` slash command directly so the CLI lands on the Usage tab
-            // without depending on palette search ordering. Claude sometimes drops the very
-            // first Enter when the system is busy, so we keep retrying Enter later instead
-            // of spamming other navigation keys.
-            usleep(800_000) // let the CLI finish booting before we start typing
-            try send("/usage")
-            usleep(200_000)
-            try send("\r") // initial Enter to execute the slash command
-            let afterSlashEnter = Date()
-
-            // Read until we see both session and weekly blocks. The CLI occasionally ignores Enter
-            // when the host is under load, so we keep re-sending Enter at a sane cadence instead of
-            // spraying tabs/escapes that can leave us in autocomplete.
-            var gotSession = false
-            var gotWeek = false
-            var enterRetries = 0
-            var lastEnter = afterSlashEnter
-            var resendUsageRetries = 0
-            usleep(600_000) // allow usage view to render before detection
-            while Date() < deadline {
-                readChunk()
-                respondIfCursorQuerySeen()
-                if containsSession() { gotSession = true }
-                if containsWeek() { gotWeek = true }
-                if gotSession, gotWeek { break }
-
-                // Re-press Enter roughly once per 1.5s until usage shows up or retries are exhausted.
-                if Date().timeIntervalSince(lastEnter) >= 1.5, enterRetries < 10 {
+            if !sentScript, !containsCodexUpdatePrompt() || skippedCodexUpdate {
+                try? send(script)
+                try? send("\r")
+                sentScript = true
+                scriptSentAt = Date()
+                lastEnter = Date()
+                usleep(200_000)
+                continue
+            }
+            if sentScript, !containsCodexStatus() {
+                if Date().timeIntervalSince(lastEnter) >= 1.2, enterRetries < 6 {
                     try? send("\r")
                     enterRetries += 1
                     lastEnter = Date()
                     usleep(120_000)
                     continue
                 }
-
-                // As a stronger nudge, re-send "/usage" + Enter a few times. This mirrors a human
-                // re-typing the command when the palette ignored Enter because it was busy.
-                if Date().timeIntervalSince(lastEnter) >= 3.0,
-                   enterRetries >= 2,
-                   resendUsageRetries < 3
+                if let sentAt = scriptSentAt,
+                   Date().timeIntervalSince(sentAt) >= 3.0,
+                   resendStatusRetries < 2
                 {
-                    try? send("/usage")
-                    usleep(100_000)
+                    try? send("/status")
                     try? send("\r")
-                    resendUsageRetries += 1
-                    enterRetries += 1
+                    resendStatusRetries += 1
+                    buffer.removeAll()
+                    scriptSentAt = Date()
                     lastEnter = Date()
-                    usleep(200_000)
+                    usleep(220_000)
                     continue
                 }
-
-                usleep(150_000)
             }
-            // After usage appears, read a bit longer to capture percent lines.
+            if containsCodexStatus() {
+                sawCodexStatus = true
+                break
+            }
+            usleep(120_000)
+        }
+
+        if sawCodexStatus {
             let settleDeadline = Date().addingTimeInterval(2.0)
             while Date() < settleDeadline {
                 readChunk()
-                usleep(80000)
-            }
-        } else {
-            // Generic behavior for other commands.
-            usleep(400_000) // small boot grace
-            let delayInitialSend = script.trimmingCharacters(in: .whitespacesAndNewlines) == "/status"
-            if !delayInitialSend {
-                try send(script)
-                try send("\r")
-                usleep(150_000)
-                try send("\r")
-                try send("\u{1b}")
-            }
-
-            var skippedCodexUpdate = false
-            var sentScript = !delayInitialSend
-            var updateSkipAttempts = 0
-            var lastEnter = Date(timeIntervalSince1970: 0)
-            var scriptSentAt: Date? = sentScript ? Date() : nil
-            var resendStatusRetries = 0
-            var enterRetries = 0
-            var sawCodexStatus = false
-
-            while Date() < deadline {
-                readChunk()
                 respondIfCursorQuerySeen()
-                if !skippedCodexUpdate, containsCodexUpdatePrompt() {
-                    // Prompt shows options: 1) Update now, 2) Skip, 3) Skip until next version.
-                    // Users report one Down + Enter is enough; follow with an extra Enter for safety, then re-run
-                    // /status.
-                    try? send("\u{1b}[B") // highlight option 2 (Skip)
-                    usleep(120_000)
-                    try? send("\r")
-                    usleep(150_000)
-                    try? send("\r") // if still focused on prompt, confirm again
-                    try? send("/status")
-                    try? send("\r")
-                    updateSkipAttempts += 1
-                    if updateSkipAttempts >= 1 {
-                        skippedCodexUpdate = true
-                        sentScript = false // re-send /status after dismissing
-                        scriptSentAt = nil
-                        buffer.removeAll()
-                    }
-                    usleep(300_000)
-                }
-                if !sentScript, !containsCodexUpdatePrompt() || skippedCodexUpdate {
-                    try? send(script)
-                    try? send("\r")
-                    sentScript = true
-                    scriptSentAt = Date()
-                    lastEnter = Date()
-                    usleep(200_000)
-                    continue
-                }
-                if sentScript, !containsSession(), !containsWeek(), !containsCodexStatus() {
-                    if Date().timeIntervalSince(lastEnter) >= 1.2, enterRetries < 6 {
-                        try? send("\r")
-                        enterRetries += 1
-                        lastEnter = Date()
-                        usleep(120_000)
-                        continue
-                    }
-                    if let sentAt = scriptSentAt,
-                       Date().timeIntervalSince(sentAt) >= 3.0,
-                       resendStatusRetries < 2
-                    {
-                        try? send("/status")
-                        try? send("\r")
-                        resendStatusRetries += 1
-                        buffer.removeAll()
-                        scriptSentAt = Date()
-                        lastEnter = Date()
-                        usleep(220_000)
-                        continue
-                    }
-                }
-                if containsSession() || containsWeek() || containsCodexStatus() {
-                    if containsCodexStatus() { sawCodexStatus = true }
-                    break
-                }
-                usleep(120_000)
-            }
-
-            if sawCodexStatus {
-                let settleDeadline = Date().addingTimeInterval(2.0)
-                while Date() < settleDeadline {
-                    readChunk()
-                    respondIfCursorQuerySeen()
-                    usleep(100_000)
-                }
+                usleep(100_000)
             }
         }
 
