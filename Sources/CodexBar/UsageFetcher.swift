@@ -151,21 +151,7 @@ private final class CodexRPCClient: @unchecked Sendable {
     {
         let resolvedExec = TTYCommandRunner.which(executable) ?? executable
         var env = ProcessInfo.processInfo.environment
-        // Hardened runtime trims PATH; seed a default that covers Homebrew, bun, nvm, and npm globals.
-        let home = NSHomeDirectory()
-        let defaultPath = [
-            "/usr/bin",
-            "/bin",
-            "/usr/sbin",
-            "/sbin",
-            "/opt/homebrew/bin",
-            "/usr/local/bin",
-            "\(home)/.bun/bin",
-            "\(home)/.nvm/versions/node/current/bin",
-            "\(home)/.nvm/versions/node/*/bin",
-            "\(home)/.npm-global/bin",
-        ].joined(separator: ":")
-        env["PATH"] = (env["PATH"].map { "\($0):\(defaultPath)" }) ?? defaultPath
+        env["PATH"] = Self.seededPATH(from: env)
 
         self.process.environment = env
         self.process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
@@ -285,6 +271,27 @@ private final class CodexRPCClient: @unchecked Sendable {
         default:
             nil
         }
+    }
+
+    /// Builds a PATH that works in hardened contexts by appending common install locations (Homebrew, bun, nvm, npm).
+    static func seededPATH(from env: [String: String]) -> String {
+        let home = NSHomeDirectory()
+        let defaultPath = [
+            "/usr/bin",
+            "/bin",
+            "/usr/sbin",
+            "/sbin",
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            "\(home)/.bun/bin",
+            "\(home)/.nvm/versions/node/current/bin",
+            "\(home)/.nvm/versions/node/*/bin",
+            "\(home)/.npm-global/bin",
+        ].joined(separator: ":")
+        if let existing = env["PATH"], !existing.isEmpty {
+            return "\(existing):\(defaultPath)"
+        }
+        return defaultPath
     }
 }
 
