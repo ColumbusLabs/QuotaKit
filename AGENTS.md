@@ -19,6 +19,7 @@
 ## Testing Guidelines
 - Add/extend XCTest cases under `Tests/CodexBarTests/*Tests.swift` (`FeatureNameTests` with `test_caseDescription` methods).
 - Always run `swift test` (or `./Scripts/compile_and_run.sh`) before handoff; add fixtures for new parsing/formatting scenarios.
+- After any code change, run `pnpm check` and fix all reported format/lint issues before handoff.
 
 ## Commit & PR Guidelines
 - Commit messages: short imperative clauses (e.g., “Improve usage probe”, “Fix icon dimming”); keep commits scoped.

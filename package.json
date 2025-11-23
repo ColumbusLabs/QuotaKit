@@ -7,6 +7,8 @@
     "start:release": "sh -c './Scripts/package_app.sh release && (pkill -x CodexBar || pkill -f CodexBar.app || true) && cd /Users/steipete/Projects/codexbar && open -n /Users/steipete/Projects/codexbar/CodexBar.app'",
     "lint": "swiftlint --strict",
     "format": "swiftformat Sources Tests",
+    "check": "swiftformat Sources Tests --lint && swiftlint --strict",
+    "build": "swift build",
     "test": "swift test",
     "test:tty": "swift test --filter TTYIntegrationTests",
     "test:live": "LIVE_TEST=1 swift test --filter LiveAccountTests",

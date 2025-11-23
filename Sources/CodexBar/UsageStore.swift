@@ -144,9 +144,11 @@ final class UsageStore: ObservableObject {
         guard self.settings.statusChecksEnabled else { return nil }
         return self.statuses[provider]
     }
+
     func statusIndicator(for provider: UsageProvider) -> ProviderStatusIndicator {
         self.status(for: provider)?.indicator ?? .none
     }
+
     func version(for provider: UsageProvider) -> String? {
         switch provider {
         case .codex: self.codexVersion
@@ -239,7 +241,6 @@ final class UsageStore: ObservableObject {
                 Task { await self?.refresh() }
             }
             .store(in: &self.cancellables)
-
     }
 
     private func startTimer() {
