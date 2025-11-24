@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.4 — Unreleased
+## 0.5.4 — 2025-11-24
 - Status blurb under “Status Page” no longer prefixes the text with “Status:”, keeping the incident description concise.
 - PTY runner now registers cleanup before launch so both ends of the TTY and the process group are torn down even when `Process.run()` throws (no leaked fds when spawn fails).
 
