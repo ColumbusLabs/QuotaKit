@@ -32,7 +32,11 @@ func showAbout() {
     if let buildTimestamp, let formatted = formattedBuildTimestamp(buildTimestamp) {
         var builtLine = "Built \(formatted)"
         if let gitCommit, !gitCommit.isEmpty, gitCommit != "unknown" {
-            builtLine += " (\(gitCommit))"
+            builtLine += " (\(gitCommit)"
+            #if DEBUG
+            builtLine += " DEBUG BUILD"
+            #endif
+            builtLine += ")"
         }
         credits.append(NSAttributedString(string: "\n\(builtLine)", attributes: [
             .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
