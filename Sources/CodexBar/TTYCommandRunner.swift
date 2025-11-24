@@ -55,20 +55,9 @@ struct TTYCommandRunner {
         // Mirror RPC PATH seeding so CLIs installed via npm/nvm/fnm/bun still launch in hardened builds.
         proc.environment = ["PATH": Self.enrichedPath()]
 
-        var didLaunch = false
-        try proc.run()
-        didLaunch = true
-
-        // Isolate the child into its own process group so descendant helpers can be
-        // terminated together. If this fails (e.g. process already exec'ed), we
-        // continue and fall back to single-PID termination.
-        let pid = proc.processIdentifier
-        var processGroup: pid_t?
-        if setpgid(pid, pid) == 0 {
-            processGroup = pid
-        }
-
         var cleanedUp = false
+        var didLaunch = false
+        var processGroup: pid_t?
         // Always tear down the PTY child (and its process group) even if we throw early
         // while bootstrapping the CLI (e.g. when it prompts for login/telemetry).
         func cleanup() {
@@ -108,6 +97,17 @@ struct TTYCommandRunner {
 
         // Ensure the PTY process is always torn down, even when we throw early (e.g. login prompt).
         defer { cleanup() }
+
+        try proc.run()
+        didLaunch = true
+
+        // Isolate the child into its own process group so descendant helpers can be
+        // terminated together. If this fails (e.g. process already exec'ed), we
+        // continue and fall back to single-PID termination.
+        let pid = proc.processIdentifier
+        if setpgid(pid, pid) == 0 {
+            processGroup = pid
+        }
 
         func send(_ text: String) throws {
             guard let data = text.data(using: .utf8) else { return }

@@ -2,6 +2,7 @@
 
 ## 0.5.4 — Unreleased
 - Status blurb under “Status Page” no longer prefixes the text with “Status:”, keeping the incident description concise.
+- PTY runner now registers cleanup before launch so both ends of the TTY and the process group are torn down even when `Process.run()` throws (no leaked fds when spawn fails).
 
 ## 0.5.3 — 2025-11-22
 - Added a per-provider “Status Page” menu item beneath Usage that opens the provider’s live status page (OpenAI or Claude).
