@@ -62,6 +62,8 @@ git tag v<version>
 - [ ] `./Scripts/sign-and-notarize.sh`
 - [ ] Generate Sparkle appcast with private key
   - Sparkle ed25519 private key path: `/Users/steipete/Library/CloudStorage/Dropbox/Backup/Sparkle/sparkle-private-key-KEEP-SECURE.txt` (primary) and `/Users/steipete/Library/CloudStorage/Dropbox/Backup/Sparkle-VibeTunnel/sparkle-private-key-KEEP-SECURE.txt` (older backup)
+  - Upload the dSYM archive alongside the app zip on the GitHub release; the release script now automates this and will fail if it’s missing.
+  - After publishing the release, run `Scripts/check-release-assets.sh <tag>` to confirm both the app zip and dSYM zip are present on GitHub.
   - Sign the zip with `sign_update --ed-key-file "$SPARKLE_PRIVATE_KEY_FILE" CodexBar-<ver>.zip`; use that exact signature and length in the appcast (no manual base64 copy/paste).
   - After generating the appcast, download the enclosure URL and re-run `sign_update --ed-key-file "$SPARKLE_PRIVATE_KEY_FILE" <downloaded.zip>`; abort if signature or length differs from the appcast.
 - [ ] Upload zip + appcast to feed; publish tag + GitHub release so Sparkle URL is live (avoid 404)
