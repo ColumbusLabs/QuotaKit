@@ -4,9 +4,10 @@ set -euo pipefail
 APP_NAME="CodexBar"
 APP_IDENTITY="Developer ID Application: Peter Steinberger (Y5PE65HELJ)"
 APP_BUNDLE="CodexBar.app"
-ZIP_NAME="CodexBar-0.5.5.zip"
-BUILD_NUMBER="21"
-DSYM_ZIP="CodexBar-0.5.5.dSYM.zip"
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+source "$ROOT/version.env"
+ZIP_NAME="CodexBar-${MARKETING_VERSION}.zip"
+DSYM_ZIP="CodexBar-${MARKETING_VERSION}.dSYM.zip"
 
 if [[ -z "${APP_STORE_CONNECT_API_KEY_P8:-}" || -z "${APP_STORE_CONNECT_KEY_ID:-}" || -z "${APP_STORE_CONNECT_ISSUER_ID:-}" ]]; then
   echo "Missing APP_STORE_CONNECT_* env vars (API key, key id, issuer id)." >&2

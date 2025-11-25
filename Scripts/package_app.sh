@@ -4,6 +4,9 @@ CONF=${1:-release}
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 
+# Load version info
+source "$ROOT/version.env"
+
 # Force a clean build to avoid stale binaries.
 rm -rf "$ROOT/.build"
 swift package clean >/dev/null 2>&1 || true
@@ -43,8 +46,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleIdentifier</key><string>${BUNDLE_ID}</string>
     <key>CFBundleExecutable</key><string>CodexBar</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>0.5.5</string>
-    <key>CFBundleVersion</key><string>21</string>
+    <key>CFBundleShortVersionString</key><string>${MARKETING_VERSION}</string>
+    <key>CFBundleVersion</key><string>${BUILD_NUMBER}</string>
     <key>LSMinimumSystemVersion</key><string>15.0</string>
     <key>LSUIElement</key><true/>
     <key>CFBundleIconFile</key><string>Icon</string>
