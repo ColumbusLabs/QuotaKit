@@ -78,7 +78,13 @@ struct ClaudeStatusProbe {
 
         var sessionPct = self.extractPercent(labelSubstring: "Current session", text: clean)
         var weeklyPct = self.extractPercent(labelSubstring: "Current week (all models)", text: clean)
-        var opusPct = self.extractPercent(labelSubstring: "Current week (Opus)", text: clean)
+        var opusPct = self.extractPercent(
+            labelSubstrings: [
+                "Current week (Opus)",
+                "Current week (Sonnet only)",
+                "Current week (Sonnet)",
+            ],
+            text: clean)
 
         // Fallback: order-based percent scraping if labels change or get localized.
         if sessionPct == nil || weeklyPct == nil || opusPct == nil {
@@ -136,6 +142,13 @@ struct ClaudeStatusProbe {
             for candidate in window {
                 if let pct = percentFromLine(candidate) { return pct }
             }
+        }
+        return nil
+    }
+
+    private static func extractPercent(labelSubstrings: [String], text: String) -> Int? {
+        for label in labelSubstrings {
+            if let value = self.extractPercent(labelSubstring: label, text: text) { return value }
         }
         return nil
     }

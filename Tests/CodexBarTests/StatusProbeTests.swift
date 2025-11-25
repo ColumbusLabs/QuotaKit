@@ -34,6 +34,59 @@ struct StatusProbeTests {
     @Test
     func parseClaudeStatus() throws {
         let sample = """
+        Settings: Status   Config   Usage (tab to cycle)
+
+        Current session
+        1% used  (Resets 5am (Europe/Vienna))
+        Current week (all models)
+        1% used  (Resets Dec 2 at 12am (Europe/Vienna))
+        Current week (Sonnet only)
+        1% used (Resets Dec 2 at 12am (Europe/Vienna))
+
+        Nov 24, 2025 update:
+        We've increased your limits and removed the Opus cap,
+        so you can use Opus 4.5 up to your overall limit.
+        Sonnet now has its own limit—it's set to match your previous overall limit,
+        so you can use just as much as before.
+        Account: user@example.com
+        Org: Example Org
+        """
+        let snap = try ClaudeStatusProbe.parse(text: sample)
+        #expect(snap.sessionPercentLeft == 99)
+        #expect(snap.weeklyPercentLeft == 99)
+        #expect(snap.opusPercentLeft == 99)
+        #expect(snap.accountEmail == "user@example.com")
+        #expect(snap.accountOrganization == "Example Org")
+        #expect(snap.primaryResetDescription == "Resets 5am (Europe/Vienna)")
+        #expect(snap.secondaryResetDescription == "Resets Dec 2 at 12am (Europe/Vienna)")
+        #expect(snap.opusResetDescription == "Resets Dec 2 at 12am (Europe/Vienna)")
+    }
+
+    @Test
+    func parseClaudeStatusWithANSI() throws {
+        let sample = """
+        \u{001B}[35mCurrent session\u{001B}[0m
+        40% used  (Resets 11am)
+        Current week (all models)
+        10% used  (Resets Nov 27)
+        Current week (Sonnet only)
+        0% used (Resets Nov 27)
+        Account: user@example.com
+        Org: ACME
+        \u{001B}[0m
+        """
+        let snap = try ClaudeStatusProbe.parse(text: sample)
+        #expect(snap.sessionPercentLeft == 60)
+        #expect(snap.weeklyPercentLeft == 90)
+        #expect(snap.opusPercentLeft == 100)
+        #expect(snap.primaryResetDescription == "Resets 11am")
+        #expect(snap.secondaryResetDescription == "Resets Nov 27")
+        #expect(snap.opusResetDescription == "Resets Nov 27")
+    }
+
+    @Test
+    func parseClaudeStatusLegacyOpusLabel() throws {
+        let sample = """
         Current session
         12% used  (Resets 11am)
         Current week (all models)
@@ -47,33 +100,9 @@ struct StatusProbeTests {
         #expect(snap.sessionPercentLeft == 88)
         #expect(snap.weeklyPercentLeft == 45)
         #expect(snap.opusPercentLeft == 95)
-        #expect(snap.accountEmail == "user@example.com")
-        #expect(snap.accountOrganization == "Example Org")
         #expect(snap.primaryResetDescription == "Resets 11am")
         #expect(snap.secondaryResetDescription == "Resets Nov 21")
         #expect(snap.opusResetDescription == "Resets Nov 21")
-    }
-
-    @Test
-    func parseClaudeStatusWithANSI() throws {
-        let sample = """
-        \u{001B}[35mCurrent session\u{001B}[0m
-        40% used  (Resets 11am)
-        Current week (all models)
-        10% used  (Resets Nov 27)
-        Current week (Opus)
-        0% used (Resets Nov 27)
-        Account: user@example.com
-        Org: ACME
-        \u{001B}[0m
-        """
-        let snap = try ClaudeStatusProbe.parse(text: sample)
-        #expect(snap.sessionPercentLeft == 60)
-        #expect(snap.weeklyPercentLeft == 90)
-        #expect(snap.opusPercentLeft == 100)
-        #expect(snap.primaryResetDescription == "Resets 11am")
-        #expect(snap.secondaryResetDescription == "Resets Nov 27")
-        #expect(snap.opusResetDescription == "Resets Nov 27")
     }
 
     @Test

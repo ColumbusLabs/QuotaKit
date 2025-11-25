@@ -5,13 +5,13 @@ import Testing
 @Suite
 struct ClaudeUsageTests {
     @Test
-    func parsesUsageJSON() {
+    func parsesUsageJSONWithSonnetLimit() {
         let json = """
         {
           "ok": true,
           "session_5h": { "pct_used": 1, "resets": "11am (Europe/Vienna)" },
           "week_all_models": { "pct_used": 8, "resets": "Nov 21 at 5am (Europe/Vienna)" },
-          "week_opus": { "pct_used": 0, "resets": "Nov 21 at 5am (Europe/Vienna)" }
+          "week_sonnet": { "pct_used": 0, "resets": "Nov 21 at 5am (Europe/Vienna)" }
         }
         """
         let data = Data(json.utf8)
@@ -23,7 +23,7 @@ struct ClaudeUsageTests {
     }
 
     @Test
-    func parsesOpusAndAccount() {
+    func parsesLegacyOpusAndAccount() {
         let json = """
         {
           "ok": true,
@@ -40,6 +40,23 @@ struct ClaudeUsageTests {
         #expect(snap?.opus?.resetDescription?.isEmpty == true)
         #expect(snap?.accountEmail == "steipete@gmail.com")
         #expect(snap?.accountOrganization == nil)
+    }
+
+    @Test
+    func parsesUsageJSONWhenOnlySonnetLimitIsPresent() {
+        let json = """
+        {
+          "ok": true,
+          "session_5h": { "pct_used": 3, "resets": "11am (Europe/Vienna)" },
+          "week_all_models": { "pct_used": 9, "resets": "Nov 21 at 5am (Europe/Vienna)" },
+          "week_sonnet_only": { "pct_used": 12, "resets": "Nov 22 at 5am (Europe/Vienna)" }
+        }
+        """
+        let data = Data(json.utf8)
+        let snap = ClaudeUsageFetcher.parse(json: data)
+        #expect(snap?.secondary.usedPercent == 9)
+        #expect(snap?.opus?.usedPercent == 12)
+        #expect(snap?.opus?.resetDescription == "Nov 22 at 5am (Europe/Vienna)")
     }
 
     @Test

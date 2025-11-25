@@ -67,7 +67,7 @@ struct ProviderRegistry {
             displayName: "Claude",
             sessionLabel: "Session",
             weeklyLabel: "Weekly",
-            opusLabel: "Opus",
+            opusLabel: "Sonnet",
             supportsOpus: true,
             supportsCredits: false,
             creditsHint: "",

@@ -59,6 +59,13 @@ struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             throw ClaudeUsageError.parseFailed(hint)
         }
 
+        func firstWindowDict(_ keys: [String]) -> [String: Any]? {
+            for key in keys {
+                if let dict = obj[key] as? [String: Any] { return dict }
+            }
+            return nil
+        }
+
         func makeWindow(_ dict: [String: Any]?) -> RateWindow? {
             guard let dict else { return nil }
             let pct = (dict["pct_used"] as? NSNumber)?.doubleValue ?? 0
@@ -71,8 +78,8 @@ struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         }
 
         guard
-            let session = makeWindow(obj["session_5h"] as? [String: Any]),
-            let weekAll = makeWindow(obj["week_all_models"] as? [String: Any])
+            let session = makeWindow(firstWindowDict(["session_5h"])),
+            let weekAll = makeWindow(firstWindowDict(["week_all_models", "week_all"]))
         else {
             throw ClaudeUsageError.parseFailed("missing session/weekly data")
         }
@@ -83,7 +90,12 @@ struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         let org = (rawOrg?.isEmpty ?? true) ? nil : rawOrg
         let loginMethod = (obj["login_method"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
         let opusWindow: RateWindow? = {
-            guard let opus = obj["week_opus"] as? [String: Any] else { return nil }
+            let candidates = firstWindowDict([
+                "week_sonnet",
+                "week_sonnet_only",
+                "week_opus",
+            ])
+            guard let opus = candidates else { return nil }
             let pct = (opus["pct_used"] as? NSNumber)?.doubleValue ?? 0
             let resets = opus["resets"] as? String
             return RateWindow(

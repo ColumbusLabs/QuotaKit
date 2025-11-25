@@ -93,7 +93,7 @@ struct MenuDescriptor {
             Self.appendRateWindow(entries: &entries, title: meta.sessionLabel, window: snap.primary)
             Self.appendRateWindow(entries: &entries, title: meta.weeklyLabel, window: snap.secondary)
             if meta.supportsOpus, let opus = snap.tertiary {
-                Self.appendRateWindow(entries: &entries, title: meta.opusLabel ?? "Opus", window: opus)
+                Self.appendRateWindow(entries: &entries, title: meta.opusLabel ?? "Sonnet", window: opus)
             }
         } else {
             entries.append(.text("No usage yet", .secondary))
