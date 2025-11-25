@@ -94,6 +94,7 @@ final class UsageStore: ObservableObject {
     @Published var claudeAccountOrganization: String?
     @Published var isRefreshing = false
     @Published var debugForceAnimation = false
+    @Published var pathDebugInfo: PathDebugSnapshot = .empty
     @Published private var statuses: [UsageProvider: ProviderStatus] = [:]
     @Published private(set) var probeLogs: [UsageProvider: String] = [:]
     private var lastCreditsSnapshot: CreditsSnapshot?
@@ -130,6 +131,10 @@ final class UsageStore: ObservableObject {
             claudeFetcher: claudeFetcher)
         self.bindSettings()
         self.detectVersions()
+        self.refreshPathDebugInfo()
+        LoginShellPathCache.shared.captureOnce { [weak self] _ in
+            Task { @MainActor in self?.refreshPathDebugInfo() }
+        }
         Task { await self.refresh() }
         self.startTimer()
     }
@@ -499,9 +504,18 @@ final class UsageStore: ObservableObject {
     }
 
     private nonisolated static func readCLI(_ cmd: String, args: [String]) -> String? {
+        let env = ProcessInfo.processInfo.environment
+        var pathEnv = env
+        pathEnv["PATH"] = PathBuilder.effectivePATH(purposes: [.rpc, .tty, .nodeTooling], env: env)
+
+        let resolved = cmd == "codex"
+            ? (BinaryLocator.resolveCodexBinary(env: env, loginPATH: LoginShellPathCache.shared.current) ?? cmd)
+            : cmd
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = [cmd] + args
+        process.arguments = [resolved] + args
+        process.environment = pathEnv
         let pipe = Pipe()
         process.standardOutput = pipe
         try? process.run()
@@ -512,5 +526,9 @@ final class UsageStore: ObservableObject {
             .trimmingCharacters(in: .whitespacesAndNewlines),
             !text.isEmpty else { return nil }
         return text
+    }
+
+    private func refreshPathDebugInfo() {
+        self.pathDebugInfo = PathBuilder.debugSnapshot(purposes: [.rpc, .tty, .nodeTooling])
     }
 }

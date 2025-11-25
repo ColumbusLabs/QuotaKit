@@ -250,6 +250,9 @@ struct TTYCommandRunner {
     // swiftlint:enable function_body_length
 
     static func which(_ tool: String) -> String? {
+        if tool == "codex", let located = BinaryLocator.resolveCodexBinary() {
+            return located
+        }
         // First try system PATH
         if let path = runWhich(tool) { return path }
         // Fallback to common locations (Homebrew, local bins)
@@ -285,6 +288,8 @@ struct TTYCommandRunner {
     /// Expands PATH with the same defaults we use for Codex RPC, so TTY probes can find CLIs installed via Homebrew,
     /// bun, nvm, fnm, or npm.
     static func enrichedPath() -> String {
-        UsageFetcher.seededPATH(from: ProcessInfo.processInfo.environment)
+        PathBuilder.effectivePATH(
+            purposes: [.tty, .nodeTooling],
+            env: ProcessInfo.processInfo.environment)
     }
 }

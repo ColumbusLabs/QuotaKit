@@ -149,9 +149,13 @@ private final class CodexRPCClient: @unchecked Sendable {
         executable: String = "codex",
         arguments: [String] = ["-s", "read-only", "-a", "untrusted", "app-server"]) throws
     {
-        let resolvedExec = TTYCommandRunner.which(executable) ?? executable
+        let resolvedExec = BinaryLocator.resolveCodexBinary()
+            ?? TTYCommandRunner.which(executable)
+            ?? executable
         var env = ProcessInfo.processInfo.environment
-        env["PATH"] = Self.seededPATH(from: env)
+        env["PATH"] = PathBuilder.effectivePATH(
+            purposes: [.rpc, .nodeTooling],
+            env: env)
 
         self.process.environment = env
         self.process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
@@ -278,29 +282,6 @@ private final class CodexRPCClient: @unchecked Sendable {
             nil
         }
     }
-
-    /// Builds a PATH that works in hardened contexts by appending common install locations (Homebrew, bun, nvm, npm).
-    static func seededPATH(from env: [String: String]) -> String {
-        let home = NSHomeDirectory()
-        let defaultPath = [
-            "/usr/bin",
-            "/bin",
-            "/usr/sbin",
-            "/sbin",
-            "/opt/homebrew/bin",
-            "/usr/local/bin",
-            "\(home)/.bun/bin",
-            "\(home)/.nvm/versions/node/current/bin",
-            "\(home)/.nvm/versions/node/*/bin",
-            "\(home)/.npm-global/bin",
-            "\(home)/.local/share/fnm",
-            "\(home)/.fnm",
-        ].joined(separator: ":")
-        if let existing = env["PATH"], !existing.isEmpty {
-            return "\(existing):\(defaultPath)"
-        }
-        return defaultPath
-    }
 }
 
 // MARK: - Public fetcher used by the app
@@ -308,32 +289,9 @@ private final class CodexRPCClient: @unchecked Sendable {
 struct UsageFetcher: Sendable {
     private let environment: [String: String]
 
-    /// Builds a PATH that works in hardened contexts by appending common install locations (Homebrew, bun, nvm, fnm,
-    /// npm).
-    static func seededPATH(from env: [String: String]) -> String {
-        let home = NSHomeDirectory()
-        let defaultPath = [
-            "/usr/bin",
-            "/bin",
-            "/usr/sbin",
-            "/sbin",
-            "/opt/homebrew/bin",
-            "/usr/local/bin",
-            "\(home)/.bun/bin",
-            "\(home)/.nvm/versions/node/current/bin",
-            "\(home)/.nvm/versions/node/*/bin",
-            "\(home)/.npm-global/bin",
-            "\(home)/.local/share/fnm",
-            "\(home)/.fnm",
-        ].joined(separator: ":")
-        if let existing = env["PATH"], !existing.isEmpty {
-            return "\(existing):\(defaultPath)"
-        }
-        return defaultPath
-    }
-
     init(environment: [String: String] = ProcessInfo.processInfo.environment) {
         self.environment = environment
+        LoginShellPathCache.shared.captureOnce()
     }
 
     func loadLatestUsage() async throws -> UsageSnapshot {
