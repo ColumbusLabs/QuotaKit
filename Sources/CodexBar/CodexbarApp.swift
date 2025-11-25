@@ -376,9 +376,9 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             return
         }
 
-        let blinkDuration: TimeInterval = 0.28
-        let doubleBlinkChance = 0.15
-        let doubleDelayRange: ClosedRange<TimeInterval> = 0.18...0.28
+        let blinkDuration: TimeInterval = 0.36
+        let doubleBlinkChance = 0.18
+        let doubleDelayRange: ClosedRange<TimeInterval> = 0.22...0.34
 
         for provider in UsageProvider.allCases {
             guard self.isVisible(provider), !self.shouldAnimate(provider: provider) else {
@@ -408,7 +408,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
                 } else {
                     let progress = max(0, min(elapsed / blinkDuration, 1))
                     let symmetric = progress < 0.5 ? progress * 2 : (1 - progress) * 2
-                    let eased = symmetric * symmetric * (3 - 2 * symmetric) // smoothstep
+                    let eased = pow(symmetric, 2.2) // slightly punchier than smoothstep
                     self.assignMotion(amount: CGFloat(eased), for: provider, effect: state.effect)
                 }
             } else if now >= state.nextBlink {
