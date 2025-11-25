@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.6 — Unreleased
+## 0.5.6 — 2025-11-25
 - New playful “Surprise me” option adds occasional blinks/tilts/wiggles to the menu bar icons (one random effect at a time) plus a Debug “Blink now” trigger.
 - Preferences now include an Advanced tab (refresh cadence, Surprise me toggle, Debug visibility); window height trimmed ~20% for a tighter fit.
 - Motion timing eased and lengthened so blinks/wiggles feel smoother and less twitchy.
