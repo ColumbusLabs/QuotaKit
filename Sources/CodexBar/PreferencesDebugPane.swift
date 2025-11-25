@@ -100,6 +100,53 @@ struct DebugPane: View {
                         }
                     }
                 }
+
+                SettingsSection(
+                    title: "CLI paths",
+                    caption: "Resolved Codex binary and PATH layers; startup login PATH capture (short timeout).")
+                {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Codex binary")
+                            .font(.callout.weight(.semibold))
+                        Text(self.store.pathDebugInfo.codexBinary ?? "Not found")
+                            .font(.system(.footnote, design: .monospaced))
+                            .foregroundStyle(self.store.pathDebugInfo.codexBinary == nil ? .secondary : .primary)
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Effective PATH")
+                            .font(.callout.weight(.semibold))
+                        ScrollView {
+                            Text(self.store.pathDebugInfo.effectivePATH.isEmpty
+                                ? "Unavailable"
+                                : self.store.pathDebugInfo.effectivePATH)
+                                .font(.system(.footnote, design: .monospaced))
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(6)
+                        }
+                        .frame(minHeight: 60, maxHeight: 110)
+                        .background(Color(NSColor.textBackgroundColor))
+                        .cornerRadius(6)
+                    }
+
+                    if let loginPATH = self.store.pathDebugInfo.loginShellPATH {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Login shell PATH (startup capture)")
+                                .font(.callout.weight(.semibold))
+                            ScrollView {
+                                Text(loginPATH)
+                                    .font(.system(.footnote, design: .monospaced))
+                                    .textSelection(.enabled)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(6)
+                            }
+                            .frame(minHeight: 60, maxHeight: 110)
+                            .background(Color(NSColor.textBackgroundColor))
+                            .cornerRadius(6)
+                        }
+                    }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)

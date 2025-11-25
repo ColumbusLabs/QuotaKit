@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.5 — 2025-11-25
+- Claude usage scrape now recognizes the new “Current week (Sonnet only)” bar while keeping the legacy Opus label as a fallback.
+- Menu and docs now label the Claude tertiary limit as Sonnet to match the latest CLI wording.
+- PATH seeding now uses a deterministic binary locator plus a one-shot login-shell capture at startup (no globbed nvm paths); the Debug tab shows the resolved Codex binary and effective PATH layers.
+
 ## 0.5.4 — 2025-11-24
 - Status blurb under “Status Page” no longer prefixes the text with “Status:”, keeping the incident description concise.
 - PTY runner now registers cleanup before launch so both ends of the TTY and the process group are torn down even when `Process.run()` throws (no leaked fds when spawn fails).
@@ -45,7 +50,7 @@
 - Claude probe now issues the `/usage` slash command directly to land on the Usage tab reliably and avoid palette misfires.
 
 ## 0.4.0 — 2025-11-21
-- Claude Code support: dedicated Claude menu/icon plus dual-wired menus when both providers are enabled; shows email/org/plan and Opus usage with clickable errors.
+- Claude Code support: dedicated Claude menu/icon plus dual-wired menus when both providers are enabled; shows email/org/plan and Sonnet usage with clickable errors.
 - New Preferences window: General/About tabs with provider toggles, refresh cadence, start-at-login, and always-on Quit.
 - Codex credits without web login: we now read `codex /status` in a PTY, auto-skip the update prompt, and parse session/weekly/credits; cached credits stay visible on transient timeouts.
 - Resilience: longer PTY timeouts, cached-credit fallback, one-line menu errors, and clearer parse/update messages.
