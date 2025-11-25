@@ -61,7 +61,7 @@ git tag v<version>
 - [ ] `./Scripts/build_icon.sh` if icon changed
 - [ ] `./Scripts/sign-and-notarize.sh`
 - [ ] Generate Sparkle appcast with private key
-  - Sparkle ed25519 private key path: `/Users/steipete/Library/CloudStorage/Dropbox/Backup/Sparkle-VibeTunnel/sparkle-private-key-KEEP-SECURE.txt`
+  - Sparkle ed25519 private key path: `/Users/steipete/Library/CloudStorage/Dropbox/Backup/Sparkle/sparkle-private-key-KEEP-SECURE.txt` (primary) and `/Users/steipete/Library/CloudStorage/Dropbox/Backup/Sparkle-VibeTunnel/sparkle-private-key-KEEP-SECURE.txt` (older backup)
   - Sign the zip with `sign_update --ed-key-file "$SPARKLE_PRIVATE_KEY_FILE" CodexBar-<ver>.zip`; use that exact signature and length in the appcast (no manual base64 copy/paste).
   - After generating the appcast, download the enclosure URL and re-run `sign_update --ed-key-file "$SPARKLE_PRIVATE_KEY_FILE" <downloaded.zip>`; abort if signature or length differs from the appcast.
 - [ ] Upload zip + appcast to feed; publish tag + GitHub release so Sparkle URL is live (avoid 404)
