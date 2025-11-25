@@ -13,8 +13,8 @@ TAG=${1:-$(git describe --tags --abbrev=0)}
 
 assets=$(gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[].name')
 
-zip_asset=$(printf "%s\n" "$assets" | grep -E 'CodexBar-[0-9.]+\\.zip$' || true)
-dsym_asset=$(printf "%s\n" "$assets" | grep -E 'CodexBar-[0-9.]+\\.dSYM\\.zip$' || true)
+zip_asset=$(printf "%s\n" "$assets" | grep -E '^CodexBar-[0-9]+(\\.[0-9]+)*\\.zip$' || true)
+dsym_asset=$(printf "%s\n" "$assets" | grep -E '^CodexBar-[0-9]+(\\.[0-9]+)*\\.dSYM\\.zip$' || true)
 
 if [[ -z "$zip_asset" ]]; then
   echo "ERROR: app zip missing on release $TAG" >&2
