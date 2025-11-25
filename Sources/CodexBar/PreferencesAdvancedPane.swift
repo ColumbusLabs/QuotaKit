@@ -9,15 +9,6 @@ struct AdvancedPane: View {
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
             VStack(alignment: .leading, spacing: 16) {
-                SettingsSection(contentSpacing: 10) {
-                    PreferenceToggleRow(
-                        title: "Surprise me",
-                        subtitle: "Check if you like your agents having some fun up there.",
-                        binding: self.$settings.randomBlinkEnabled)
-                }
-
-                Divider()
-
                 SettingsSection(contentSpacing: 6) {
                     Text("Refresh cadence")
                         .font(.body)
@@ -34,6 +25,15 @@ struct AdvancedPane: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
+                }
+
+                Divider()
+
+                SettingsSection(contentSpacing: 10) {
+                    PreferenceToggleRow(
+                        title: "Surprise me",
+                        subtitle: "Check if you like your agents having some fun up there.",
+                        binding: self.$settings.randomBlinkEnabled)
                 }
 
                 Divider()
