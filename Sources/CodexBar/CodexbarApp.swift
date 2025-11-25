@@ -376,9 +376,9 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             return
         }
 
-        let blinkDuration: TimeInterval = 0.18
+        let blinkDuration: TimeInterval = 0.28
         let doubleBlinkChance = 0.15
-        let doubleDelayRange: ClosedRange<TimeInterval> = 0.12...0.2
+        let doubleDelayRange: ClosedRange<TimeInterval> = 0.18...0.28
 
         for provider in UsageProvider.allCases {
             guard self.isVisible(provider), !self.shouldAnimate(provider: provider) else {
@@ -406,13 +406,10 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
                     }
                     self.clearMotion(for: provider)
                 } else {
-                    let half = blinkDuration / 2
-                    if elapsed < half {
-                        self.assignMotion(amount: CGFloat(elapsed / half), for: provider, effect: state.effect)
-                    } else {
-                        let reopen = max(0, 1 - ((elapsed - half) / half))
-                        self.assignMotion(amount: CGFloat(reopen), for: provider, effect: state.effect)
-                    }
+                    let progress = max(0, min(elapsed / blinkDuration, 1))
+                    let symmetric = progress < 0.5 ? progress * 2 : (1 - progress) * 2
+                    let eased = symmetric * symmetric * (3 - 2 * symmetric) // smoothstep
+                    self.assignMotion(amount: CGFloat(eased), for: provider, effect: state.effect)
                 }
             } else if now >= state.nextBlink {
                 state.blinkStart = now
