@@ -250,9 +250,8 @@ struct TTYCommandRunner {
     // swiftlint:enable function_body_length
 
     static func which(_ tool: String) -> String? {
-        if tool == "codex", let located = BinaryLocator.resolveCodexBinary() {
-            return located
-        }
+        if tool == "codex", let located = BinaryLocator.resolveCodexBinary() { return located }
+        if tool == "claude", let located = BinaryLocator.resolveClaudeBinary() { return located }
         // First try system PATH
         if let path = runWhich(tool) { return path }
         // Fallback to common locations (Homebrew, local bins)

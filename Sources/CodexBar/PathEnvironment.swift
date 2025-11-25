@@ -8,28 +8,63 @@ enum PathPurpose: Hashable {
 
 struct PathDebugSnapshot: Equatable {
     let codexBinary: String?
+    let claudeBinary: String?
     let effectivePATH: String
     let loginShellPATH: String?
 
-    static let empty = PathDebugSnapshot(codexBinary: nil, effectivePATH: "", loginShellPATH: nil)
+    static let empty = PathDebugSnapshot(codexBinary: nil, claudeBinary: nil, effectivePATH: "", loginShellPATH: nil)
 }
 
 enum BinaryLocator {
+    static func resolveClaudeBinary(
+        env: [String: String] = ProcessInfo.processInfo.environment,
+        loginPATH: [String]? = LoginShellPathCache.shared.current,
+        fileManager: FileManager = .default,
+        home: String = NSHomeDirectory()) -> String?
+    {
+        self.resolveBinary(
+            name: "claude",
+            overrideKey: "CLAUDE_CLI_PATH",
+            env: env,
+            loginPATH: loginPATH,
+            fileManager: fileManager,
+            home: home)
+    }
+
     static func resolveCodexBinary(
         env: [String: String] = ProcessInfo.processInfo.environment,
         loginPATH: [String]? = LoginShellPathCache.shared.current,
         fileManager: FileManager = .default,
         home: String = NSHomeDirectory()) -> String?
     {
+        self.resolveBinary(
+            name: "codex",
+            overrideKey: "CODEX_CLI_PATH",
+            env: env,
+            loginPATH: loginPATH,
+            fileManager: fileManager,
+            home: home)
+    }
+
+    // swiftlint:disable function_parameter_count
+    private static func resolveBinary(
+        name: String,
+        overrideKey: String,
+        env: [String: String],
+        loginPATH: [String]?,
+        fileManager: FileManager,
+        home: String) -> String?
+    {
+        // swiftlint:enable function_parameter_count
         // 1) Explicit override
-        if let override = env["CODEX_CLI_PATH"], fileManager.isExecutableFile(atPath: override) {
+        if let override = env[overrideKey], fileManager.isExecutableFile(atPath: override) {
             return override
         }
 
         // 2) Existing PATH
         if let existingPATH = env["PATH"],
            let pathHit = self.find(
-               "codex",
+               name,
                in: existingPATH.split(separator: ":").map(String.init),
                fileManager: fileManager)
         {
@@ -38,19 +73,19 @@ enum BinaryLocator {
 
         // 3) Login-shell PATH (captured once per launch)
         if let loginPATH,
-           let pathHit = self.find("codex", in: loginPATH, fileManager: fileManager)
+           let pathHit = self.find(name, in: loginPATH, fileManager: fileManager)
         {
             return pathHit
         }
 
         // 4) Deterministic candidates
         let directCandidates = [
-            "/opt/homebrew/bin/codex",
-            "/usr/local/bin/codex",
-            "\(home)/.local/bin/codex",
-            "\(home)/bin/codex",
-            "\(home)/.bun/bin/codex",
-            "\(home)/.npm-global/bin/codex",
+            "/opt/homebrew/bin/\(name)",
+            "/usr/local/bin/\(name)",
+            "\(home)/.local/bin/\(name)",
+            "\(home)/bin/\(name)",
+            "\(home)/.bun/bin/\(name)",
+            "\(home)/.npm-global/bin/\(name)",
         ]
         if let hit = directCandidates.first(where: { fileManager.isExecutableFile(atPath: $0) }) {
             return hit
@@ -59,14 +94,14 @@ enum BinaryLocator {
         // 5) Version managers (bounded scan)
         if let nvmHit = self.scanManagedVersions(
             root: "\(home)/.nvm/versions/node",
-            binary: "codex",
+            binary: name,
             fileManager: fileManager)
         {
             return nvmHit
         }
         if let fnmHit = self.scanManagedVersions(
             root: "\(home)/.local/share/fnm",
-            binary: "codex",
+            binary: name,
             fileManager: fileManager)
         {
             return fnmHit
@@ -83,15 +118,24 @@ enum BinaryLocator {
         home: String = NSHomeDirectory()) -> [String]
     {
         guard purposes.contains(.rpc) || purposes.contains(.tty) else { return [] }
+        var dirs: [String] = []
         if let codex = self.resolveCodexBinary(
             env: env,
             loginPATH: loginPATH,
             fileManager: fileManager,
             home: home)
         {
-            return [URL(fileURLWithPath: codex).deletingLastPathComponent().path]
+            dirs.append(URL(fileURLWithPath: codex).deletingLastPathComponent().path)
         }
-        return []
+        if let claude = self.resolveClaudeBinary(
+            env: env,
+            loginPATH: loginPATH,
+            fileManager: fileManager,
+            home: home)
+        {
+            dirs.append(URL(fileURLWithPath: claude).deletingLastPathComponent().path)
+        }
+        return dirs
     }
 
     private static func find(_ binary: String, in paths: [String], fileManager: FileManager) -> String? {
@@ -176,9 +220,11 @@ enum PathBuilder {
             loginPATH: login,
             home: home)
         let codex = BinaryLocator.resolveCodexBinary(env: env, loginPATH: login, home: home)
+        let claude = BinaryLocator.resolveClaudeBinary(env: env, loginPATH: login, home: home)
         let loginString = login?.joined(separator: ":")
         return PathDebugSnapshot(
             codexBinary: codex,
+            claudeBinary: claude,
             effectivePATH: effective,
             loginShellPATH: loginString)
     }

@@ -105,13 +105,8 @@ struct DebugPane: View {
                     title: "CLI paths",
                     caption: "Resolved Codex binary and PATH layers; startup login PATH capture (short timeout).")
                 {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Codex binary")
-                            .font(.callout.weight(.semibold))
-                        Text(self.store.pathDebugInfo.codexBinary ?? "Not found")
-                            .font(.system(.footnote, design: .monospaced))
-                            .foregroundStyle(self.store.pathDebugInfo.codexBinary == nil ? .secondary : .primary)
-                    }
+                    self.binaryRow(title: "Codex binary", value: self.store.pathDebugInfo.codexBinary)
+                    self.binaryRow(title: "Claude binary", value: self.store.pathDebugInfo.claudeBinary)
 
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Effective PATH")
@@ -206,6 +201,16 @@ struct DebugPane: View {
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.setString(text, forType: .string)
+    }
+
+    private func binaryRow(title: String, value: String?) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.callout.weight(.semibold))
+            Text(value ?? "Not found")
+                .font(.system(.footnote, design: .monospaced))
+                .foregroundStyle(value == nil ? .secondary : .primary)
+        }
     }
 
     private func loadClaudeDump() {

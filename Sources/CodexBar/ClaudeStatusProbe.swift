@@ -37,11 +37,17 @@ struct ClaudeStatusProbe {
     var timeout: TimeInterval = 20.0
 
     func fetch() async throws -> ClaudeStatusSnapshot {
-        guard TTYCommandRunner.which(self.claudeBinary) != nil else { throw ClaudeStatusProbeError.claudeNotInstalled }
+        let env = ProcessInfo.processInfo.environment
+        let resolved = BinaryLocator.resolveClaudeBinary(env: env, loginPATH: LoginShellPathCache.shared.current)
+            ?? TTYCommandRunner.which(self.claudeBinary)
+            ?? self.claudeBinary
+        guard FileManager.default.isExecutableFile(atPath: resolved) || TTYCommandRunner.which(resolved) != nil else {
+            throw ClaudeStatusProbeError.claudeNotInstalled
+        }
 
         // Run both commands in parallel; /usage provides quotas, /status may provide org/account metadata.
-        async let usageText = self.capture(subcommand: "/usage")
-        async let statusText = self.capture(subcommand: "/status")
+        async let usageText = self.capture(subcommand: "/usage", binary: resolved)
+        async let statusText = self.capture(subcommand: "/status", binary: resolved)
 
         let usage = try await usageText
         let status = try? await statusText
@@ -353,8 +359,8 @@ struct ClaudeStatusProbe {
     // MARK: - Process helpers
 
     // Run `script -q /dev/null claude <subcommand>` with a hard timeout; avoids fragile PTY keystrokes.
-    private func capture(subcommand: String) async throws -> String {
-        try await Task.detached(priority: .utility) { [claudeBinary = self.claudeBinary, timeout = self.timeout] in
+    private func capture(subcommand: String, binary: String) async throws -> String {
+        try await Task.detached(priority: .utility) { [claudeBinary = binary, timeout = self.timeout] in
             let process = Process()
             process.launchPath = "/usr/bin/script"
             process.arguments = [
@@ -370,6 +376,9 @@ struct ClaudeStatusProbe {
             process.standardOutput = pipe
             process.standardError = Pipe()
             process.standardInput = nil
+            var env = ProcessInfo.processInfo.environment
+            env["PATH"] = PathBuilder.effectivePATH(purposes: [.tty, .nodeTooling], env: env)
+            process.environment = env
 
             do {
                 try process.run()

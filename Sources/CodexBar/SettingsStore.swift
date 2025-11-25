@@ -97,8 +97,8 @@ final class SettingsStore: ObservableObject {
         guard let codexMeta = ProviderRegistry.shared.metadata[.codex],
               let claudeMeta = ProviderRegistry.shared.metadata[.claude] else { return }
 
-        let codexInstalled = TTYCommandRunner.which("codex") != nil
-        let claudeInstalled = TTYCommandRunner.which("claude") != nil
+        let codexInstalled = BinaryLocator.resolveCodexBinary() != nil
+        let claudeInstalled = BinaryLocator.resolveClaudeBinary() != nil
 
         // If neither is installed, keep Codex enabled to match previous behavior.
         let enableCodex = codexInstalled || (!codexInstalled && !claudeInstalled)
