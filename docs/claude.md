@@ -37,7 +37,7 @@ Goal: add optional Claude Code usage alongside Codex, with a Claude-themed menu 
   - We strip ANSI codes, then look for percent lines within 4 lines of these headers:
     - `Current session`
     - `Current week (all models)`
-    - `Current week (Opus)` (optional)
+    - `Current week (Sonnet only)` (optional)
   - `X% used` is converted to `% left = 100 - X`; `X% left` is used as-is.
   - If the CLI surfaces `Failed to load usage data` with a JSON blob (e.g. `authentication_error` + `token_expired`),
     we surface that message directly ("Claude CLI token expired. Run `claude login`"), rather than the generic
@@ -47,7 +47,7 @@ Goal: add optional Claude Code usage alongside Codex, with a Claude-themed menu 
 - Resilience: `ClaudeStatusProbe` retries once with a slightly longer timeout (20s + 6s) to ride out slow redraws or ignored Enter presses.
 
 ### What we display
-- Session and weekly usage bars; Opus if present.
+- Session and weekly usage bars; Sonnet-only weekly limit if present.
 - Account line prefers Claude CLI data (email + login method) and falls back to Codex auth only if Claude did not expose email. Plan is shown verbatim from Claude (no capitalization).
 
 ## Implementation steps
