@@ -1,4 +1,4 @@
-# CodexBar 🟦🟩
+# CodexBar 🎚️
 
 May your tokens never run out—keep agent limits in view.
 
