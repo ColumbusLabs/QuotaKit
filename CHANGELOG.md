@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.5.6 — Unreleased
+- _Placeholder_
+
 ## 0.5.5 — 2025-11-25
 - Claude usage scrape now recognizes the new “Current week (Sonnet only)” bar while keeping the legacy Opus label as a fallback.
 - Menu and docs now label the Claude tertiary limit as Sonnet to match the latest CLI wording.
