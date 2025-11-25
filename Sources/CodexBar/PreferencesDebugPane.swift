@@ -35,6 +35,13 @@ struct DebugPane: View {
                         self.replaySelectedAnimation()
                     }
                     .keyboardShortcut(.defaultAction)
+
+                    Button {
+                        NotificationCenter.default.post(name: .codexbarDebugBlinkNow, object: nil)
+                    } label: {
+                        Label("Blink now", systemImage: "eyes")
+                    }
+                    .controlSize(.small)
                 }
 
                 SettingsSection(

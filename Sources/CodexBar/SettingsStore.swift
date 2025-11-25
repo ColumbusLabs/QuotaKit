@@ -53,6 +53,10 @@ final class SettingsStore: ObservableObject {
         didSet { self.objectWillChange.send() }
     }
 
+    @AppStorage("randomBlinkEnabled") var randomBlinkEnabled: Bool = false {
+        didSet { self.objectWillChange.send() }
+    }
+
     /// Optional override for the loading animation pattern, exposed via the Debug tab.
     var debugLoadingPattern: LoadingPattern? {
         get { self.debugLoadingPatternRaw.flatMap(LoadingPattern.init(rawValue:)) }

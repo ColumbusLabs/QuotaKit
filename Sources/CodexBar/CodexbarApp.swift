@@ -207,12 +207,33 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     private var statusItems: [UsageProvider: NSStatusItem] = [:]
     private var lastMenuProvider: UsageProvider?
     private var blinkTask: Task<Void, Never>?
-    private var blinkAmount: CGFloat = 0
+    private var blinkStates: [UsageProvider: BlinkState] = [:]
+    private var blinkAmounts: [UsageProvider: CGFloat] = [:]
+    private var wiggleAmounts: [UsageProvider: CGFloat] = [:]
+    private var tiltAmounts: [UsageProvider: CGFloat] = [:]
+    private var blinkForceUntil: Date?
     private var cancellables = Set<AnyCancellable>()
     private let preferencesSelection: PreferencesSelection
     private var animationDisplayLink: CADisplayLink?
     private var animationPhase: Double = 0
     private var animationPattern: LoadingPattern = .knightRider
+
+    private struct BlinkState {
+        var nextBlink: Date
+        var blinkStart: Date?
+        var pendingSecondStart: Date?
+        var effect: MotionEffect = .blink
+
+        static func randomDelay() -> TimeInterval {
+            Double.random(in: 3...12)
+        }
+    }
+
+    private enum MotionEffect {
+        case blink
+        case wiggle
+        case tilt
+    }
 
     init(
         store: UsageStore,
@@ -239,6 +260,11 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             selector: #selector(self.handleDebugReplayNotification(_:)),
             name: .codexbarDebugReplayAllAnimations,
             object: nil)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(self.handleDebugBlinkNotification),
+            name: .codexbarDebugBlinkNow,
+            object: nil)
     }
 
     private func wireBindings() {
@@ -246,6 +272,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.updateIcons()
+                self?.updateBlinkingState()
             }
             .store(in: &self.cancellables)
 
@@ -253,6 +280,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.updateVisibility()
+                self?.updateBlinkingState()
             }
             .store(in: &self.cancellables)
 
@@ -260,6 +288,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.updateVisibility()
+                self?.updateBlinkingState()
             }
             .store(in: &self.cancellables)
     }
@@ -272,6 +301,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         UsageProvider.allCases.forEach { self.applyIcon(for: $0, phase: nil) }
         self.attachMenus(fallback: self.fallbackProvider)
         self.updateAnimationState()
+        self.updateBlinkingState()
     }
 
     private func updateVisibility() {
@@ -284,6 +314,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         }
         self.attachMenus(fallback: fallback)
         self.updateAnimationState()
+        self.updateBlinkingState()
     }
 
     private var fallbackProvider: UsageProvider? {
@@ -307,38 +338,153 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         }
     }
 
-    private func startBlinkingIfNeeded() {
-        let codexVisible = self.isEnabled(.codex) || self.fallbackProvider == .codex || self.store.debugForceAnimation
-        if codexVisible {
+    private func updateBlinkingState() {
+        let blinkingEnabled = self.isBlinkingAllowed()
+        let anyVisible = UsageProvider.allCases.contains { self.isVisible($0) }
+        if blinkingEnabled, anyVisible {
             if self.blinkTask == nil {
+                self.seedBlinkStatesIfNeeded()
                 self.blinkTask = Task { [weak self] in
                     while !Task.isCancelled {
-                        try? await Task.sleep(for: .milliseconds(80))
-                        await MainActor.run { [weak self] in
-                            guard let self else { return }
-                            if self.shouldAnimate(provider: .codex) { return } // skip during loading anim
-                            self.blinkAmount = self.currentBlinkAmount()
-                            self.applyIcon(for: .codex, phase: nil)
-                        }
+                        try? await Task.sleep(for: .milliseconds(75))
+                        await MainActor.run { self?.tickBlink() }
                     }
                 }
             }
         } else {
-            self.blinkTask?.cancel()
-            self.blinkTask = nil
-            self.blinkAmount = 0
+            self.stopBlinking()
         }
     }
 
-    private func currentBlinkAmount(date: Date = .init()) -> CGFloat {
-        let cycle: TimeInterval = 6.0
-        let window: TimeInterval = 0.16
-        let t = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: cycle)
-        guard t < window else { return 0 }
-        let mid = window / 2
-        let dist = abs(t - mid)
-        let normalized = max(0, 1 - dist / mid)
-        return CGFloat(normalized)
+    private func seedBlinkStatesIfNeeded() {
+        let now = Date()
+        for provider in UsageProvider.allCases where self.blinkStates[provider] == nil {
+            self.blinkStates[provider] = BlinkState(nextBlink: now.addingTimeInterval(BlinkState.randomDelay()))
+        }
+    }
+
+    private func stopBlinking() {
+        self.blinkTask?.cancel()
+        self.blinkTask = nil
+        self.blinkAmounts.removeAll()
+        UsageProvider.allCases.forEach { self.applyIcon(for: $0, phase: nil) }
+    }
+
+    private func tickBlink(now: Date = .init()) {
+        guard self.isBlinkingAllowed(at: now) else {
+            self.stopBlinking()
+            return
+        }
+
+        let blinkDuration: TimeInterval = 0.18
+        let doubleBlinkChance = 0.15
+        let doubleDelayRange: ClosedRange<TimeInterval> = 0.12...0.2
+
+        for provider in UsageProvider.allCases {
+            guard self.isVisible(provider), !self.shouldAnimate(provider: provider) else {
+                self.clearMotion(for: provider)
+                continue
+            }
+
+            var state = self
+                .blinkStates[provider] ?? BlinkState(nextBlink: now.addingTimeInterval(BlinkState.randomDelay()))
+
+            if let pendingSecond = state.pendingSecondStart, now >= pendingSecond {
+                state.blinkStart = now
+                state.pendingSecondStart = nil
+            }
+
+            if let start = state.blinkStart {
+                let elapsed = now.timeIntervalSince(start)
+                if elapsed >= blinkDuration {
+                    state.blinkStart = nil
+                    if let pending = state.pendingSecondStart, now < pending {
+                        // Wait for the planned double-blink.
+                    } else {
+                        state.pendingSecondStart = nil
+                        state.nextBlink = now.addingTimeInterval(BlinkState.randomDelay())
+                    }
+                    self.clearMotion(for: provider)
+                } else {
+                    let half = blinkDuration / 2
+                    if elapsed < half {
+                        self.assignMotion(amount: CGFloat(elapsed / half), for: provider, effect: state.effect)
+                    } else {
+                        let reopen = max(0, 1 - ((elapsed - half) / half))
+                        self.assignMotion(amount: CGFloat(reopen), for: provider, effect: state.effect)
+                    }
+                }
+            } else if now >= state.nextBlink {
+                state.blinkStart = now
+                state.effect = self.randomEffect(for: provider)
+                if state.effect == .blink, Double.random(in: 0...1) < doubleBlinkChance {
+                    state.pendingSecondStart = now.addingTimeInterval(Double.random(in: doubleDelayRange))
+                }
+                self.clearMotion(for: provider)
+            } else {
+                self.clearMotion(for: provider)
+            }
+
+            self.blinkStates[provider] = state
+            self.applyIcon(for: provider, phase: nil)
+        }
+    }
+
+    private func blinkAmount(for provider: UsageProvider) -> CGFloat {
+        guard self.isBlinkingAllowed() else { return 0 }
+        return self.blinkAmounts[provider] ?? 0
+    }
+
+    private func wiggleAmount(for provider: UsageProvider) -> CGFloat {
+        guard self.isBlinkingAllowed() else { return 0 }
+        return self.wiggleAmounts[provider] ?? 0
+    }
+
+    private func tiltAmount(for provider: UsageProvider) -> CGFloat {
+        guard self.isBlinkingAllowed() else { return 0 }
+        return self.tiltAmounts[provider] ?? 0
+    }
+
+    private func assignMotion(amount: CGFloat, for provider: UsageProvider, effect: MotionEffect) {
+        switch effect {
+        case .blink:
+            self.blinkAmounts[provider] = amount
+            self.wiggleAmounts[provider] = 0
+            self.tiltAmounts[provider] = 0
+        case .wiggle:
+            self.wiggleAmounts[provider] = amount
+            self.blinkAmounts[provider] = 0
+            self.tiltAmounts[provider] = 0
+        case .tilt:
+            self.tiltAmounts[provider] = amount
+            self.blinkAmounts[provider] = 0
+            self.wiggleAmounts[provider] = 0
+        }
+    }
+
+    private func clearMotion(for provider: UsageProvider) {
+        self.blinkAmounts[provider] = 0
+        self.wiggleAmounts[provider] = 0
+        self.tiltAmounts[provider] = 0
+    }
+
+    private func randomEffect(for provider: UsageProvider) -> MotionEffect {
+        if provider == .claude {
+            Bool.random() ? .blink : .wiggle
+        } else {
+            Bool.random() ? .blink : .tilt
+        }
+    }
+
+    private func isBlinkingAllowed(at date: Date = .init()) -> Bool {
+        if self.settings.randomBlinkEnabled { return true }
+        if let until = self.blinkForceUntil, until > date { return true }
+        self.blinkForceUntil = nil
+        return false
+    }
+
+    private func isVisible(_ provider: UsageProvider) -> Bool {
+        self.store.debugForceAnimation || self.isEnabled(provider) || self.fallbackProvider == provider
     }
 
     private func applyIcon(for provider: UsageProvider, phase: Double?) {
@@ -370,7 +516,9 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         }
 
         let style: IconStyle = self.store.style(for: provider)
-        let blink = style == .codex ? self.blinkAmount : 0
+        let blink = self.blinkAmount(for: provider)
+        let wiggle = self.wiggleAmount(for: provider)
+        let tilt = self.tiltAmount(for: provider) * .pi / 28 // limit to ~6.4°
         if let morphProgress {
             button.image = IconRenderer.makeMorphIcon(progress: morphProgress, style: style)
         } else {
@@ -381,8 +529,36 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
                 stale: stale,
                 style: style,
                 blink: blink,
+                wiggle: wiggle,
+                tilt: tilt,
                 statusIndicator: self.store.statusIndicator(for: provider))
         }
+    }
+
+    @objc private func handleDebugBlinkNotification() {
+        self.forceBlinkNow()
+    }
+
+    private func forceBlinkNow() {
+        let now = Date()
+        self.blinkForceUntil = now.addingTimeInterval(0.6)
+        self.seedBlinkStatesIfNeeded()
+
+        for provider in UsageProvider.allCases
+            where self.isVisible(provider) && !self.shouldAnimate(provider: provider)
+        {
+            var state = self
+                .blinkStates[provider] ?? BlinkState(nextBlink: now.addingTimeInterval(BlinkState.randomDelay()))
+            state.blinkStart = now
+            state.pendingSecondStart = nil
+            state.effect = self.randomEffect(for: provider)
+            state.nextBlink = now.addingTimeInterval(BlinkState.randomDelay())
+            self.blinkStates[provider] = state
+            self.assignMotion(amount: 0, for: provider, effect: state.effect)
+        }
+
+        self.updateBlinkingState()
+        self.tickBlink(now: now)
     }
 
     private func shouldAnimate(provider: UsageProvider) -> Bool {
@@ -579,6 +755,7 @@ extension StatusItemController {
 
 extension Notification.Name {
     static let codexbarOpenSettings = Notification.Name("codexbarOpenSettings")
+    static let codexbarDebugBlinkNow = Notification.Name("codexbarDebugBlinkNow")
 }
 
 // MARK: - NSMenu helpers

@@ -12,6 +12,8 @@ enum IconRenderer {
         stale: Bool,
         style: IconStyle,
         blink: CGFloat = 0,
+        wiggle: CGFloat = 0,
+        tilt: CGFloat = 0,
         statusIndicator: ProviderStatusIndicator = .none) -> NSImage
     {
         let image = NSImage(size: Self.size)
@@ -58,6 +60,15 @@ enum IconRenderer {
                 let eyeY = y + height * 0.55
                 let eyeOffset: CGFloat = width * 0.22
                 let center = x + width / 2
+
+                ctx?.saveGState()
+                if abs(tilt) > 0.0001 {
+                    // Tilt the face cluster slightly around its center and nudge upward a bit.
+                    let faceCenter = CGPoint(x: center, y: eyeY)
+                    ctx?.translateBy(x: faceCenter.x, y: faceCenter.y)
+                    ctx?.rotate(by: tilt)
+                    ctx?.translateBy(x: -faceCenter.x, y: -faceCenter.y - abs(tilt) * 1.2)
+                }
 
                 ctx?.saveGState()
                 ctx?.setBlendMode(.clear)
@@ -126,15 +137,18 @@ enum IconRenderer {
                 let hatPath = NSBezierPath(roundedRect: hatRect, xRadius: hatHeight / 2, yRadius: hatHeight / 2)
                 fillColor.withAlphaComponent(alpha).setFill()
                 hatPath.fill()
+
+                ctx?.restoreGState()
             }
 
             // Claude twist: tiny eye cutouts + side “ears” and small legs to feel more characterful.
             if addNotches {
                 let ctx = NSGraphicsContext.current?.cgContext
+                let wiggleOffset = wiggle * 0.6
                 ctx?.saveGState()
                 ctx?.setBlendMode(.clear)
                 let eyeSize: CGFloat = 1.5
-                let eyeY = y + height * 0.50
+                let eyeY = y + height * 0.50 + wiggleOffset * 0.3
                 let eyeOffset: CGFloat = 3.2
                 let center = x + width / 2
                 ctx?.addEllipse(in: CGRect(
@@ -148,6 +162,24 @@ enum IconRenderer {
                     width: eyeSize,
                     height: eyeSize))
                 ctx?.fillPath()
+
+                if blink > 0.001 {
+                    let clamped = max(0, min(blink, 1))
+                    let blinkHeight = eyeSize * clamped
+                    fillColor.withAlphaComponent(alpha).setFill()
+                    let blinkRectLeft = CGRect(
+                        x: center - eyeOffset - eyeSize / 2,
+                        y: eyeY + eyeSize / 2 - blinkHeight,
+                        width: eyeSize,
+                        height: blinkHeight)
+                    let blinkRectRight = CGRect(
+                        x: center + eyeOffset - eyeSize / 2,
+                        y: eyeY + eyeSize / 2 - blinkHeight,
+                        width: eyeSize,
+                        height: blinkHeight)
+                    NSBezierPath(ovalIn: blinkRectLeft).fill()
+                    NSBezierPath(ovalIn: blinkRectRight).fill()
+                }
 
                 // Ears: outward bumps on both ends (clear to carve) then refill to accent edges.
                 let earWidth: CGFloat = 2.6
@@ -163,10 +195,11 @@ enum IconRenderer {
 
                 // Refill outward “ears” so they protrude slightly beyond the bar using the fill color.
                 fillColor.withAlphaComponent(alpha).setFill()
+                let earWiggle = wiggleOffset
                 NSBezierPath(
                     roundedRect: CGRect(
                         x: x - 0.8,
-                        y: y + (height - earHeight) / 2,
+                        y: y + (height - earHeight) / 2 + earWiggle,
                         width: earWidth * 0.8,
                         height: earHeight),
                     xRadius: 0.9,
@@ -174,7 +207,7 @@ enum IconRenderer {
                 NSBezierPath(
                     roundedRect: CGRect(
                         x: x + width - earWidth * 0.8 + 0.8,
-                        y: y + (height - earHeight) / 2,
+                        y: y + (height - earHeight) / 2 - earWiggle,
                         width: earWidth * 0.8,
                         height: earHeight),
                     xRadius: 0.9,
@@ -185,9 +218,10 @@ enum IconRenderer {
                 let legHeight: CGFloat = 2.1
                 let legY = y - 1.4
                 let legOffsets: [CGFloat] = [-4.2, -1.4, 1.4, 4.2]
-                for offset in legOffsets {
+                for (idx, offset) in legOffsets.enumerated() {
                     let lx = center + offset - legWidth / 2
-                    NSBezierPath(rect: CGRect(x: lx, y: legY, width: legWidth, height: legHeight)).fill()
+                    let jiggle = (idx.isMultiple(of: 2) ? -wiggleOffset : wiggleOffset) * 0.6
+                    NSBezierPath(rect: CGRect(x: lx, y: legY + jiggle, width: legWidth, height: legHeight)).fill()
                 }
             }
         }
@@ -211,7 +245,7 @@ enum IconRenderer {
                 height: topHeight,
                 addNotches: style == .claude,
                 addFace: style == .codex,
-                blink: style == .codex ? blink : 0)
+                blink: blink)
             drawBar(y: 4.0, remaining: bottomValue, height: bottomHeight)
         } else {
             // Weekly exhausted/missing: show credits on top (thicker), weekly (likely 0) on bottom.
@@ -223,7 +257,7 @@ enum IconRenderer {
                     alpha: creditsAlpha,
                     addNotches: style == .claude,
                     addFace: style == .codex,
-                    blink: style == .codex ? blink : 0)
+                    blink: blink)
             } else {
                 // No credits available; fall back to 5h if present.
                 drawBar(
@@ -232,7 +266,7 @@ enum IconRenderer {
                     height: topHeight,
                     addNotches: style == .claude,
                     addFace: style == .codex,
-                    blink: style == .codex ? blink : 0)
+                    blink: blink)
             }
             drawBar(y: 2.5, remaining: bottomValue, height: bottomHeight)
         }

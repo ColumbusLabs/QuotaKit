@@ -46,6 +46,15 @@ struct GeneralPane: View {
                 Divider()
 
                 SettingsSection(contentSpacing: 6) {
+                    PreferenceToggleRow(
+                        title: "Surprise me",
+                        subtitle: "Check if you like your agents having some fun up there.",
+                        binding: self.$settings.randomBlinkEnabled)
+                }
+
+                Divider()
+
+                SettingsSection(contentSpacing: 6) {
                     Text("Refresh cadence")
                         .font(.body)
                         .foregroundStyle(.secondary)
