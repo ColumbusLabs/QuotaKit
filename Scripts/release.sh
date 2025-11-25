@@ -5,6 +5,12 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 
 source "$ROOT/version.env"
+source "$HOME/Projects/agent-scripts/release/sparkle_lib.sh"
+
+APPCAST="$ROOT/appcast.xml"
+APP_NAME="CodexBar"
+ARTIFACT_PREFIX="CodexBar-"
+BUNDLE_ID="com.steipete.codexbar"
 TAG="v${MARKETING_VERSION}"
 
 function err() { echo "ERROR: $*" >&2; exit 1; }
@@ -17,20 +23,21 @@ swiftformat Sources Tests >/dev/null
 swiftlint --strict
 swift test
 
+# Build, sign, notarize
 "$ROOT/Scripts/sign-and-notarize.sh"
 
-# Sparkle hygiene: clear caches before verification/update tests.
-rm -rf ~/Library/Caches/com.steipete.codexbar ~/Library/Caches/org.sparkle-project.Sparkle || true
+# Sparkle hygiene
+clear_sparkle_caches "$BUNDLE_ID"
 
-# Verify appcast/enclosure signature matches the published artifact.
-"$ROOT/Scripts/verify_appcast.sh" "$MARKETING_VERSION"
+# Verify appcast/enclosure
+KEY_FILE=$(clean_key "$SPARKLE_PRIVATE_KEY_FILE")
+trap 'rm -f "$KEY_FILE"' EXIT
+verify_appcast_entry "$APPCAST" "$MARKETING_VERSION" "$KEY_FILE"
 
-# Optional: run a manual live-update test from the previous release (set RUN_SPARKLE_UPDATE_TEST=1).
+# Optional live-update test
 if [[ "${RUN_SPARKLE_UPDATE_TEST:-0}" == "1" ]]; then
   PREV_TAG=$(git tag --sort=-v:refname | sed -n '2p')
-  if [[ -z "$PREV_TAG" ]]; then
-    err "RUN_SPARKLE_UPDATE_TEST=1 set but previous tag could not be determined."
-  fi
+  [[ -z "$PREV_TAG" ]] && err "RUN_SPARKLE_UPDATE_TEST=1 set but no previous tag found"
   echo "Starting live update test from $PREV_TAG -> v${MARKETING_VERSION}"
   "$ROOT/Scripts/test_live_update.sh" "$PREV_TAG" "v${MARKETING_VERSION}"
 fi
@@ -39,7 +46,7 @@ gh release create "$TAG" CodexBar-${MARKETING_VERSION}.zip CodexBar-${MARKETING_
   --title "CodexBar ${MARKETING_VERSION}" \
   --notes "See CHANGELOG.md for this release."
 
-"$ROOT/Scripts/check-release-assets.sh" "$TAG"
+check_assets "$TAG" "$ARTIFACT_PREFIX"
 
 git tag -f "$TAG"
 git push origin main --tags
