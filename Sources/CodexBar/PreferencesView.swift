@@ -3,11 +3,12 @@ import SwiftUI
 
 enum PreferencesTab: String, Hashable {
     case general
+    case advanced
     case about
     case debug
 
     static let windowWidth: CGFloat = 424
-    static let windowHeight: CGFloat = 570
+    static let windowHeight: CGFloat = 456
 
     var preferredHeight: CGFloat { PreferencesTab.windowHeight }
 }
@@ -25,6 +26,10 @@ struct PreferencesView: View {
             GeneralPane(settings: self.settings, store: self.store)
                 .tabItem { Label("General", systemImage: "gearshape") }
                 .tag(PreferencesTab.general)
+
+            AdvancedPane(settings: self.settings, store: self.store)
+                .tabItem { Label("Advanced", systemImage: "slider.horizontal.3") }
+                .tag(PreferencesTab.advanced)
 
             AboutPane(updater: self.updater)
                 .tabItem { Label("About", systemImage: "info.circle") }

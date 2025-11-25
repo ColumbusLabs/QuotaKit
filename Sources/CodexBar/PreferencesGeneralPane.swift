@@ -45,44 +45,11 @@ struct GeneralPane: View {
 
                 Divider()
 
-                SettingsSection(contentSpacing: 6) {
-                    PreferenceToggleRow(
-                        title: "Surprise me",
-                        subtitle: "Check if you like your agents having some fun up there.",
-                        binding: self.$settings.randomBlinkEnabled)
-                }
-
-                Divider()
-
-                SettingsSection(contentSpacing: 6) {
-                    Text("Refresh cadence")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                    Picker("", selection: self.$settings.refreshFrequency) {
-                        ForEach(RefreshFrequency.allCases) { option in
-                            Text(option.label).tag(option)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-
-                    if self.settings.refreshFrequency == .manual {
-                        Text("Auto-refresh is off; use the menu's Refresh command.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Divider()
-
                 SettingsSection(contentSpacing: 16) {
                     PreferenceToggleRow(
                         title: "Start at Login",
                         subtitle: "Automatically opens CodexBar when you start your Mac.",
                         binding: self.$settings.launchAtLogin)
-                    PreferenceToggleRow(
-                        title: "Show Debug Settings",
-                        subtitle: "Expose troubleshooting tools in the Debug tab.",
-                        binding: self.$settings.debugMenuEnabled)
                     HStack {
                         Spacer()
                         Button("Quit CodexBar") { NSApp.terminate(nil) }
