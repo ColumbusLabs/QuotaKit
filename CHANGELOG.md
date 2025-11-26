@@ -1,7 +1,7 @@
 # Changelog
 
 ## 0.5.7 — Unreleased
-- _Placeholder_
+- Status Page and Usage Dashboard menu actions now honor the icon you click; Codex menus no longer open the Claude status site.
 
 ## 0.5.6 — 2025-11-25
 - New playful “Surprise me” option adds occasional blinks/tilts/wiggles to the menu bar icons (one random effect at a time) plus a Debug “Blink now” trigger.
