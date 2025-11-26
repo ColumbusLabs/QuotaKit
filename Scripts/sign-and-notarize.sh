@@ -37,7 +37,7 @@ echo "Signing with $APP_IDENTITY"
 codesign --force --deep --options runtime --timestamp --sign "$APP_IDENTITY" "$APP_BUNDLE"
 
 DITTO_BIN=${DITTO_BIN:-/usr/bin/ditto}
-"$DITTO_BIN" -c -k --keepParent --sequesterRsrc "$APP_BUNDLE" "/tmp/${APP_NAME}Notarize.zip"
+"$DITTO_BIN" --norsrc -c -k --keepParent "$APP_BUNDLE" "/tmp/${APP_NAME}Notarize.zip"
 
 echo "Submitting for notarization"
 xcrun notarytool submit "/tmp/${APP_NAME}Notarize.zip" \
@@ -49,7 +49,11 @@ xcrun notarytool submit "/tmp/${APP_NAME}Notarize.zip" \
 echo "Stapling ticket"
 xcrun stapler staple "$APP_BUNDLE"
 
-"$DITTO_BIN" -c -k --keepParent "$APP_BUNDLE" "$ZIP_NAME"
+# Strip any extended attributes that would create AppleDouble files when zipping
+xattr -cr "$APP_BUNDLE"
+find "$APP_BUNDLE" -name '._*' -delete
+
+"$DITTO_BIN" --norsrc -c -k --keepParent "$APP_BUNDLE" "$ZIP_NAME"
 
 spctl -a -t exec -vv "$APP_BUNDLE"
 stapler validate "$APP_BUNDLE"
@@ -60,6 +64,6 @@ if [[ ! -d "$DSYM_PATH" ]]; then
   echo "Missing dSYM at $DSYM_PATH" >&2
   exit 1
 fi
-"$DITTO_BIN" -c -k --keepParent "$DSYM_PATH" "$DSYM_ZIP"
+"$DITTO_BIN" --norsrc -c -k --keepParent "$DSYM_PATH" "$DSYM_ZIP"
 
 echo "Done: $ZIP_NAME"
