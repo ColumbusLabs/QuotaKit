@@ -3,6 +3,15 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.5.7</title>
+            <pubDate>Wed, 26 Nov 2025 01:06:09 +0100</pubDate>
+            <link>https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml</link>
+            <sparkle:version>23</sparkle:version>
+            <sparkle:shortVersionString>0.5.7</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.5.7/CodexBar-0.5.7.zip" length="2689714" type="application/octet-stream" sparkle:edSignature="HeGqYcgOklM39l1rxeK4mqJBa9Vau18zfk/RQ2lvbOLOQ05HBdGehfRt/K+zvROdQyWkd8ze4aI02E5idmd4BA=="/>
+        </item>
+        <item>
             <title>0.5.6</title>
             <pubDate>Tue, 25 Nov 2025 12:38:19 +0100</pubDate>
             <link>https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml</link>

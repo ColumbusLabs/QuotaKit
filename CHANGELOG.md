@@ -1,6 +1,9 @@
 # Changelog
 
-## 0.5.7 — Unreleased
+## 0.5.8 — Unreleased
+- _Placeholder_
+
+## 0.5.7 — 2025-11-26
 - Status Page and Usage Dashboard menu actions now honor the icon you click; Codex menus no longer open the Claude status site.
 
 ## 0.5.6 — 2025-11-25
