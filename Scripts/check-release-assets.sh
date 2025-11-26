@@ -5,6 +5,6 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 source "$HOME/Projects/agent-scripts/release/sparkle_lib.sh"
 
 TAG=${1:-$(git describe --tags --abbrev=0)}
-ARTIFACT_PREFIX="RepoBar-"
+ARTIFACT_PREFIX="CodexBar-"
 
 check_assets "$TAG" "$ARTIFACT_PREFIX"
