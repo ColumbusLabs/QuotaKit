@@ -205,7 +205,8 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     private let account: AccountInfo
     private let updater: UpdaterProviding
     private var statusItems: [UsageProvider: NSStatusItem] = [:]
-    private var lastMenuProvider: UsageProvider?
+    private(set) var lastMenuProvider: UsageProvider?
+    private var menuProviders: [ObjectIdentifier: UsageProvider] = [:]
     private var blinkTask: Task<Void, Never>?
     private var blinkStates: [UsageProvider: BlinkState] = [:]
     private var blinkAmounts: [UsageProvider: CGFloat] = [:]
@@ -326,6 +327,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     }
 
     private func attachMenus(fallback: UsageProvider? = nil) {
+        self.menuProviders.removeAll()
         for provider in UsageProvider.allCases {
             guard let item = self.statusItems[provider] else { continue }
             if self.isEnabled(provider) {
@@ -694,8 +696,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
 // MARK: - NSMenu construction
 
 extension StatusItemController {
-    private func makeMenu(for provider: UsageProvider?) -> NSMenu {
-        self.lastMenuProvider = provider
+    func makeMenu(for provider: UsageProvider?) -> NSMenu {
         let descriptor = MenuDescriptor.build(
             provider: provider,
             store: self.store,
@@ -703,6 +704,10 @@ extension StatusItemController {
             account: self.account)
         let menu = NSMenu()
         menu.autoenablesItems = false
+        menu.delegate = self
+        if let provider {
+            self.menuProviders[ObjectIdentifier(menu)] = provider
+        }
 
         for (index, section) in descriptor.sections.enumerated() {
             for entry in section.entries {
@@ -735,6 +740,14 @@ extension StatusItemController {
             }
         }
         return menu
+    }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        if let provider = self.menuProviders[ObjectIdentifier(menu)] {
+            self.lastMenuProvider = provider
+        } else {
+            self.lastMenuProvider = self.store.enabledProviders().first ?? .codex
+        }
     }
 
     private func selector(for action: MenuDescriptor.MenuAction) -> (Selector, Any?) {
