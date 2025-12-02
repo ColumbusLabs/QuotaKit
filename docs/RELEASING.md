@@ -15,6 +15,13 @@ SwiftPM-only; package/sign/notarize manually (no Xcode project). Sparkle feed is
 ## Expectations
 - When someone says “release CodexBar”, do the entire end-to-end flow: bump versions/CHANGELOG, build, sign and notarize, upload the zip to the GitHub release, generate/update the appcast with the new signature, publish the tag/release, and verify the enclosure URL responds with 200/OK and installs via Sparkle (no 404s or stale feeds).
 
+### Release automation notes (Scripts/release.sh)
+- Always forces a fresh build/notarization (no cached artifacts) before publishing.
+- Fails fast if: git tree is dirty, the top changelog section is still “Unreleased” or mismatched, the target version already exists in the appcast, or the build number is not greater than the latest appcast entry.
+- Sparkle key probe runs up front; appcast entry + signature verified automatically after generation.
+- Release notes are extracted directly from the current changelog section and passed to the GitHub release (no manual notes flag needed).
+- Requires tools/env on PATH: `swiftformat`, `swiftlint`, `swift`, `sign_update`, `gh`, `python3`, `zip`, `curl`, plus `APP_STORE_CONNECT_*` and `SPARKLE_PRIVATE_KEY_FILE`.
+
 ## Prereqs
 - Xcode 26+ installed at `/Applications/Xcode.app` (for ictool/iconutil and SDKs).
 - Developer ID Application cert installed: `Developer ID Application: Peter Steinberger (Y5PE65HELJ)`.
@@ -64,7 +71,7 @@ git tag v<version>
 
 ## Checklist (quick)
 - [ ] Read both this file and `~/Projects/agent-scripts/docs/RELEASING-MAC.md`; resolve any conflicts toward CodexBar’s specifics.
-- [ ] Update versions (scripts/Info.plist, CHANGELOG, About text)
+- [ ] Update versions (scripts/Info.plist, CHANGELOG, About text) — changelog top section must be finalized; release script pulls notes from it automatically.
 - [ ] `swiftformat`, `swiftlint`, `swift test` (zero warnings/errors)
 - [ ] `./Scripts/build_icon.sh` if icon changed
 - [ ] `./Scripts/sign-and-notarize.sh`
