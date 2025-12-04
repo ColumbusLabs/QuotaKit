@@ -1,8 +1,8 @@
 import Foundation
 
-enum TextParsing {
+public enum TextParsing {
     /// Removes ANSI escape sequences so regex parsing works on colored terminal output.
-    static func stripANSICodes(_ text: String) -> String {
+    public static func stripANSICodes(_ text: String) -> String {
         // CSI sequences: ESC [ ... ending in 0x40–0x7E
         let pattern = #"\u001B\[[0-?]*[ -/]*[@-~]"#
         guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return text }
@@ -10,7 +10,7 @@ enum TextParsing {
         return regex.stringByReplacingMatches(in: text, options: [], range: range, withTemplate: "")
     }
 
-    static func firstNumber(pattern: String, text: String) -> Double? {
+    public static func firstNumber(pattern: String, text: String) -> Double? {
         guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return nil }
         let range = NSRange(text.startIndex..<text.endIndex, in: text)
         guard let match = regex.firstMatch(in: text, options: [], range: range),
@@ -20,12 +20,12 @@ enum TextParsing {
         return Double(raw)
     }
 
-    static func firstInt(pattern: String, text: String) -> Int? {
+    public static func firstInt(pattern: String, text: String) -> Int? {
         guard let v = firstNumber(pattern: pattern, text: text) else { return nil }
         return Int(v)
     }
 
-    static func firstLine(matching pattern: String, text: String) -> String? {
+    public static func firstLine(matching pattern: String, text: String) -> String? {
         guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return nil }
         let range = NSRange(text.startIndex..<text.endIndex, in: text)
         guard let match = regex.firstMatch(in: text, options: [], range: range),
@@ -33,12 +33,12 @@ enum TextParsing {
         return String(text[r])
     }
 
-    static func percentLeft(fromLine line: String) -> Int? {
+    public static func percentLeft(fromLine line: String) -> Int? {
         guard let pct = firstInt(pattern: #"([0-9]{1,3})%\s+left"#, text: line) else { return nil }
         return pct
     }
 
-    static func resetString(fromLine line: String) -> String? {
+    public static func resetString(fromLine line: String) -> String? {
         guard let regex = try? NSRegularExpression(pattern: #"resets?\s+(.+)"#, options: [.caseInsensitive]) else {
             return nil
         }

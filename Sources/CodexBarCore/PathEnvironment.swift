@@ -1,22 +1,33 @@
 import Foundation
 
-enum PathPurpose: Hashable {
+public enum PathPurpose: Hashable, Sendable {
     case rpc
     case tty
     case nodeTooling
 }
 
-struct PathDebugSnapshot: Equatable {
-    let codexBinary: String?
-    let claudeBinary: String?
-    let effectivePATH: String
-    let loginShellPATH: String?
+public struct PathDebugSnapshot: Equatable, Sendable {
+    public let codexBinary: String?
+    public let claudeBinary: String?
+    public let effectivePATH: String
+    public let loginShellPATH: String?
 
-    static let empty = PathDebugSnapshot(codexBinary: nil, claudeBinary: nil, effectivePATH: "", loginShellPATH: nil)
+    public static let empty = PathDebugSnapshot(
+        codexBinary: nil,
+        claudeBinary: nil,
+        effectivePATH: "",
+        loginShellPATH: nil)
+
+    public init(codexBinary: String?, claudeBinary: String?, effectivePATH: String, loginShellPATH: String?) {
+        self.codexBinary = codexBinary
+        self.claudeBinary = claudeBinary
+        self.effectivePATH = effectivePATH
+        self.loginShellPATH = loginShellPATH
+    }
 }
 
-enum BinaryLocator {
-    static func resolveClaudeBinary(
+public enum BinaryLocator {
+    public static func resolveClaudeBinary(
         env: [String: String] = ProcessInfo.processInfo.environment,
         loginPATH: [String]? = LoginShellPathCache.shared.current,
         fileManager: FileManager = .default,
@@ -31,7 +42,7 @@ enum BinaryLocator {
             home: home)
     }
 
-    static func resolveCodexBinary(
+    public static func resolveCodexBinary(
         env: [String: String] = ProcessInfo.processInfo.environment,
         loginPATH: [String]? = LoginShellPathCache.shared.current,
         fileManager: FileManager = .default,
@@ -110,7 +121,7 @@ enum BinaryLocator {
         return nil
     }
 
-    static func directories(
+    public static func directories(
         for purposes: Set<PathPurpose>,
         env: [String: String],
         loginPATH: [String]?,
@@ -160,8 +171,8 @@ enum BinaryLocator {
     }
 }
 
-enum PathBuilder {
-    static func effectivePATH(
+public enum PathBuilder {
+    public static func effectivePATH(
         purposes: Set<PathPurpose>,
         env: [String: String] = ProcessInfo.processInfo.environment,
         loginPATH: [String]? = LoginShellPathCache.shared.current,
@@ -208,7 +219,7 @@ enum PathBuilder {
         return deduped.joined(separator: ":")
     }
 
-    static func debugSnapshot(
+    public static func debugSnapshot(
         purposes: Set<PathPurpose>,
         env: [String: String] = ProcessInfo.processInfo.environment,
         home: String = NSHomeDirectory()) -> PathDebugSnapshot
@@ -266,22 +277,22 @@ enum LoginShellPathCapturer {
     }
 }
 
-final class LoginShellPathCache: @unchecked Sendable {
-    static let shared = LoginShellPathCache()
+public final class LoginShellPathCache: @unchecked Sendable {
+    public static let shared = LoginShellPathCache()
 
     private let lock = NSLock()
     private var captured: [String]?
     private var isCapturing = false
     private var callbacks: [([String]?) -> Void] = []
 
-    var current: [String]? {
+    public var current: [String]? {
         self.lock.lock()
         let value = self.captured
         self.lock.unlock()
         return value
     }
 
-    func captureOnce(
+    public func captureOnce(
         shell: String? = ProcessInfo.processInfo.environment["SHELL"],
         timeout: TimeInterval = 2.0,
         onFinish: (([String]?) -> Void)? = nil)

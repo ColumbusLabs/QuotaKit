@@ -1,4 +1,5 @@
 import AppKit
+import CodexBarCore
 import Combine
 import Foundation
 
@@ -39,27 +40,6 @@ struct ProviderStatus {
     let indicator: ProviderStatusIndicator
     let description: String?
     let updatedAt: Date?
-}
-
-enum UsageProvider: String, CaseIterable {
-    case codex
-    case claude
-}
-
-struct ProviderMetadata {
-    let id: UsageProvider
-    let displayName: String
-    let sessionLabel: String
-    let weeklyLabel: String
-    let opusLabel: String?
-    let supportsOpus: Bool
-    let supportsCredits: Bool
-    let creditsHint: String
-    let toggleTitle: String
-    let cliName: String
-    let defaultEnabled: Bool
-    let dashboardURL: String?
-    let statusPageURL: String?
 }
 
 /// Tracks consecutive failures so we can ignore a single flake when we previously had fresh data.

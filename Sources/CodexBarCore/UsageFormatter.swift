@@ -1,11 +1,11 @@
 import Foundation
 
-enum UsageFormatter {
-    static func usageLine(remaining: Double, used: Double) -> String {
+public enum UsageFormatter {
+    public static func usageLine(remaining: Double, used: Double) -> String {
         String(format: "%.0f%% left", remaining)
     }
 
-    static func resetDescription(from date: Date, now: Date = .init()) -> String {
+    public static func resetDescription(from date: Date, now: Date = .init()) -> String {
         // Human-friendly phrasing: today / tomorrow / date+time.
         let calendar = Calendar.current
         if calendar.isDate(date, inSameDayAs: now) {
@@ -19,7 +19,7 @@ enum UsageFormatter {
         return date.formatted(date: .abbreviated, time: .shortened)
     }
 
-    static func updatedString(from date: Date, now: Date = .init()) -> String {
+    public static func updatedString(from date: Date, now: Date = .init()) -> String {
         let delta = now.timeIntervalSince(date)
         if abs(delta) < 60 {
             return "Updated just now"
@@ -33,7 +33,7 @@ enum UsageFormatter {
         }
     }
 
-    static func creditsString(from value: Double) -> String {
+    public static func creditsString(from value: Double) -> String {
         let number = NumberFormatter()
         number.numberStyle = .decimal
         number.maximumFractionDigits = 2
@@ -41,7 +41,7 @@ enum UsageFormatter {
         return "\(formatted) left"
     }
 
-    static func creditEventSummary(_ event: CreditEvent) -> String {
+    public static func creditEventSummary(_ event: CreditEvent) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         let number = NumberFormatter()
@@ -51,7 +51,7 @@ enum UsageFormatter {
         return "\(formatter.string(from: event.date)) · \(event.service) · \(credits) credits"
     }
 
-    static func creditEventCompact(_ event: CreditEvent) -> String {
+    public static func creditEventCompact(_ event: CreditEvent) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d"
         let number = NumberFormatter()
@@ -61,7 +61,7 @@ enum UsageFormatter {
         return "\(formatter.string(from: event.date)) — \(event.service): \(credits)"
     }
 
-    static func creditShort(_ value: Double) -> String {
+    public static func creditShort(_ value: Double) -> String {
         if value >= 1000 {
             let k = value / 1000
             return String(format: "%.1fk", k)
@@ -69,7 +69,7 @@ enum UsageFormatter {
         return String(format: "%.0f", value)
     }
 
-    static func truncatedSingleLine(_ text: String, max: Int = 80) -> String {
+    public static func truncatedSingleLine(_ text: String, max: Int = 80) -> String {
         let single = text
             .replacingOccurrences(of: "\n", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)

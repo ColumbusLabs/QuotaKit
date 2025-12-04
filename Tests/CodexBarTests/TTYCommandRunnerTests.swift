@@ -1,3 +1,4 @@
+import CodexBarCore
 import Darwin
 import XCTest
 @testable import CodexBar

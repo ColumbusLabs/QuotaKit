@@ -1,25 +1,25 @@
 import Foundation
 import os.log
 
-struct ClaudeStatusSnapshot {
-    let sessionPercentLeft: Int?
-    let weeklyPercentLeft: Int?
-    let opusPercentLeft: Int?
-    let accountEmail: String?
-    let accountOrganization: String?
-    let loginMethod: String?
-    let primaryResetDescription: String?
-    let secondaryResetDescription: String?
-    let opusResetDescription: String?
-    let rawText: String
+public struct ClaudeStatusSnapshot: Sendable {
+    public let sessionPercentLeft: Int?
+    public let weeklyPercentLeft: Int?
+    public let opusPercentLeft: Int?
+    public let accountEmail: String?
+    public let accountOrganization: String?
+    public let loginMethod: String?
+    public let primaryResetDescription: String?
+    public let secondaryResetDescription: String?
+    public let opusResetDescription: String?
+    public let rawText: String
 }
 
-enum ClaudeStatusProbeError: LocalizedError {
+public enum ClaudeStatusProbeError: LocalizedError, Sendable {
     case claudeNotInstalled
     case parseFailed(String)
     case timedOut
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .claudeNotInstalled:
             "Claude CLI is not installed or not on PATH."
@@ -32,11 +32,16 @@ enum ClaudeStatusProbeError: LocalizedError {
 }
 
 /// Runs `claude` inside a PTY, sends `/usage`, and parses the rendered text panel.
-struct ClaudeStatusProbe {
-    var claudeBinary: String = "claude"
-    var timeout: TimeInterval = 20.0
+public struct ClaudeStatusProbe: Sendable {
+    public var claudeBinary: String = "claude"
+    public var timeout: TimeInterval = 20.0
 
-    func fetch() async throws -> ClaudeStatusSnapshot {
+    public init(claudeBinary: String = "claude", timeout: TimeInterval = 20.0) {
+        self.claudeBinary = claudeBinary
+        self.timeout = timeout
+    }
+
+    public func fetch() async throws -> ClaudeStatusSnapshot {
         let env = ProcessInfo.processInfo.environment
         let resolved = BinaryLocator.resolveClaudeBinary(env: env, loginPATH: LoginShellPathCache.shared.current)
             ?? TTYCommandRunner.which(self.claudeBinary)
@@ -46,8 +51,9 @@ struct ClaudeStatusProbe {
         }
 
         // Run both commands in parallel; /usage provides quotas, /status may provide org/account metadata.
-        async let usageText = self.capture(subcommand: "/usage", binary: resolved)
-        async let statusText = self.capture(subcommand: "/status", binary: resolved)
+        let timeout = self.timeout
+        async let usageText = Self.capture(subcommand: "/usage", binary: resolved, timeout: timeout)
+        async let statusText = Self.capture(subcommand: "/status", binary: resolved, timeout: timeout)
 
         let usage = try await usageText
         let status = try? await statusText
@@ -67,7 +73,7 @@ struct ClaudeStatusProbe {
 
     // MARK: - Parsing helpers
 
-    static func parse(text: String, statusText: String? = nil) throws -> ClaudeStatusSnapshot {
+    public static func parse(text: String, statusText: String? = nil) throws -> ClaudeStatusSnapshot {
         let clean = TextParsing.stripANSICodes(text)
         guard !clean.isEmpty else { throw ClaudeStatusProbeError.timedOut }
 
@@ -311,7 +317,7 @@ struct ClaudeStatusProbe {
         self.recentDumps.append(text)
     }
 
-    static func latestDumps() async -> String {
+    public static func latestDumps() async -> String {
         await MainActor.run {
             let result = Self.recentDumps.joined(separator: "\n\n---\n\n")
             return result.isEmpty ? "No Claude parse dumps captured yet." : result
@@ -359,8 +365,8 @@ struct ClaudeStatusProbe {
     // MARK: - Process helpers
 
     // Run `script -q /dev/null claude <subcommand>` with a hard timeout; avoids fragile PTY keystrokes.
-    private func capture(subcommand: String, binary: String) async throws -> String {
-        try await Task.detached(priority: .utility) { [claudeBinary = binary, timeout = self.timeout] in
+    private static func capture(subcommand: String, binary: String, timeout: TimeInterval) async throws -> String {
+        try await Task.detached(priority: .utility) { [claudeBinary = binary, timeout] in
             let process = Process()
             process.launchPath = "/usr/bin/script"
             process.arguments = [

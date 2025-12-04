@@ -1,27 +1,34 @@
 import Foundation
 
-struct RateWindow: Codable {
-    let usedPercent: Double
-    let windowMinutes: Int?
-    let resetsAt: Date?
+public struct RateWindow: Codable, Sendable {
+    public let usedPercent: Double
+    public let windowMinutes: Int?
+    public let resetsAt: Date?
     /// Optional textual reset description (used by Claude CLI UI scrape).
-    let resetDescription: String?
+    public let resetDescription: String?
 
-    var remainingPercent: Double {
+    public init(usedPercent: Double, windowMinutes: Int?, resetsAt: Date?, resetDescription: String?) {
+        self.usedPercent = usedPercent
+        self.windowMinutes = windowMinutes
+        self.resetsAt = resetsAt
+        self.resetDescription = resetDescription
+    }
+
+    public var remainingPercent: Double {
         max(0, 100 - self.usedPercent)
     }
 }
 
-struct UsageSnapshot {
-    let primary: RateWindow
-    let secondary: RateWindow
-    let tertiary: RateWindow?
-    let updatedAt: Date
-    let accountEmail: String?
-    let accountOrganization: String?
-    let loginMethod: String?
+public struct UsageSnapshot: Codable, Sendable {
+    public let primary: RateWindow
+    public let secondary: RateWindow
+    public let tertiary: RateWindow?
+    public let updatedAt: Date
+    public let accountEmail: String?
+    public let accountOrganization: String?
+    public let loginMethod: String?
 
-    init(
+    public init(
         primary: RateWindow,
         secondary: RateWindow,
         tertiary: RateWindow? = nil,
@@ -40,17 +47,22 @@ struct UsageSnapshot {
     }
 }
 
-struct AccountInfo: Equatable {
-    let email: String?
-    let plan: String?
+public struct AccountInfo: Equatable, Sendable {
+    public let email: String?
+    public let plan: String?
+
+    public init(email: String?, plan: String?) {
+        self.email = email
+        self.plan = plan
+    }
 }
 
-enum UsageError: LocalizedError {
+public enum UsageError: LocalizedError, Sendable {
     case noSessions
     case noRateLimitsFound
     case decodeFailed
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .noSessions:
             "No Codex sessions found yet. Run at least one Codex prompt first."
@@ -286,15 +298,15 @@ private final class CodexRPCClient: @unchecked Sendable {
 
 // MARK: - Public fetcher used by the app
 
-struct UsageFetcher: Sendable {
+public struct UsageFetcher: Sendable {
     private let environment: [String: String]
 
-    init(environment: [String: String] = ProcessInfo.processInfo.environment) {
+    public init(environment: [String: String] = ProcessInfo.processInfo.environment) {
         self.environment = environment
         LoginShellPathCache.shared.captureOnce()
     }
 
-    func loadLatestUsage() async throws -> UsageSnapshot {
+    public func loadLatestUsage() async throws -> UsageSnapshot {
         try await self.withFallback(primary: self.loadRPCUsage, secondary: self.loadTTYUsage)
     }
 
@@ -356,7 +368,7 @@ struct UsageFetcher: Sendable {
             loginMethod: nil)
     }
 
-    func loadLatestCredits() async throws -> CreditsSnapshot {
+    public func loadLatestCredits() async throws -> CreditsSnapshot {
         try await self.withFallback(primary: self.loadRPCCredits, secondary: self.loadTTYCredits)
     }
 
@@ -392,7 +404,7 @@ struct UsageFetcher: Sendable {
         }
     }
 
-    func debugRawRateLimits() async -> String {
+    public func debugRawRateLimits() async -> String {
         do {
             let rpc = try CodexRPCClient()
             defer { rpc.shutdown() }
@@ -405,7 +417,7 @@ struct UsageFetcher: Sendable {
         }
     }
 
-    func loadAccountInfo() -> AccountInfo {
+    public func loadAccountInfo() -> AccountInfo {
         // Keep using auth.json for quick startup (non-blocking, no RPC spin-up required).
         let authURL = URL(fileURLWithPath: self.environment["CODEX_HOME"] ?? "\(NSHomeDirectory())/.codex")
             .appendingPathComponent("auth.json")
@@ -450,7 +462,7 @@ struct UsageFetcher: Sendable {
         return val
     }
 
-    private static func parseJWT(_ token: String) -> [String: Any]? {
+    public static func parseJWT(_ token: String) -> [String: Any]? {
         let parts = token.split(separator: ".")
         guard parts.count >= 2 else { return nil }
         let payloadPart = parts[1]

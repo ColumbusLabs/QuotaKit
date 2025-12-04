@@ -5,6 +5,8 @@ import SwiftUI
 struct AdvancedPane: View {
     @ObservedObject var settings: SettingsStore
     @ObservedObject var store: UsageStore
+    @State private var isInstallingCLI = false
+    @State private var cliStatus: String?
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
@@ -39,6 +41,33 @@ struct AdvancedPane: View {
                 Divider()
 
                 SettingsSection(contentSpacing: 10) {
+                    HStack(spacing: 12) {
+                        Button {
+                            Task { await self.installCLI() }
+                        } label: {
+                            if self.isInstallingCLI {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Text("Install CLI")
+                            }
+                        }
+                        .disabled(self.isInstallingCLI)
+
+                        if let status = self.cliStatus {
+                            Text(status)
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                    }
+                    Text("Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+
+                SettingsSection(contentSpacing: 10) {
                     PreferenceToggleRow(
                         title: "Show Debug Settings",
                         subtitle: "Expose troubleshooting tools in the Debug tab.",
@@ -48,6 +77,71 @@ struct AdvancedPane: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
+        }
+    }
+
+    // MARK: - CLI installer
+
+    private func installCLI() async {
+        guard !self.isInstallingCLI else { return }
+        self.isInstallingCLI = true
+        defer { self.isInstallingCLI = false }
+
+        let helperURL = Bundle.main.bundleURL
+            .appendingPathComponent("Contents")
+            .appendingPathComponent("Helpers")
+            .appendingPathComponent("CodexBarCLI")
+
+        guard FileManager.default.isExecutableFile(atPath: helperURL.path) else {
+            await MainActor.run { self.cliStatus = "Helper missing; reinstall CodexBar." }
+            return
+        }
+
+        let installScript = """
+        #!/usr/bin/env bash
+        set -euo pipefail
+        HELPER="\(helperURL.path)"
+        TARGETS=("/usr/local/bin/codexbar" "/opt/homebrew/bin/codexbar")
+
+        for t in "${TARGETS[@]}"; do
+          mkdir -p "$(dirname "$t")"
+          ln -sf "$HELPER" "$t"
+          echo "Linked $t -> $HELPER"
+        done
+        """
+
+        let scriptURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("install_codexbar_cli.sh")
+
+        do {
+            defer { try? FileManager.default.removeItem(at: scriptURL) }
+            try installScript.write(to: scriptURL, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+
+            let escapedPath = scriptURL.path.replacingOccurrences(of: "\"", with: "\\\"")
+            let appleScript = "do shell script \"bash \\\"\(escapedPath)\\\"\" with administrator privileges"
+
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            process.arguments = ["-e", appleScript]
+            let stderrPipe = Pipe()
+            process.standardError = stderrPipe
+
+            try process.run()
+            process.waitUntilExit()
+            let status: String
+            if process.terminationStatus == 0 {
+                status = "Installed. Try: codexbar usage"
+            } else {
+                let data = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+                let msg = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+                status = "Failed: \(msg ?? "error")"
+            }
+            await MainActor.run {
+                self.cliStatus = status
+            }
+        } catch {
+            await MainActor.run { self.cliStatus = "Failed: \(error.localizedDescription)" }
         }
     }
 }

@@ -1,28 +1,48 @@
 import Foundation
 import os.log
 
-protocol ClaudeUsageFetching: Sendable {
+public protocol ClaudeUsageFetching: Sendable {
     func loadLatestUsage(model: String) async throws -> ClaudeUsageSnapshot
     func debugRawProbe(model: String) async -> String
     func detectVersion() -> String?
 }
 
-struct ClaudeUsageSnapshot {
-    let primary: RateWindow
-    let secondary: RateWindow
-    let opus: RateWindow?
-    let updatedAt: Date
-    let accountEmail: String?
-    let accountOrganization: String?
-    let loginMethod: String?
-    let rawText: String?
+public struct ClaudeUsageSnapshot: Sendable {
+    public let primary: RateWindow
+    public let secondary: RateWindow
+    public let opus: RateWindow?
+    public let updatedAt: Date
+    public let accountEmail: String?
+    public let accountOrganization: String?
+    public let loginMethod: String?
+    public let rawText: String?
+
+    public init(
+        primary: RateWindow,
+        secondary: RateWindow,
+        opus: RateWindow?,
+        updatedAt: Date,
+        accountEmail: String?,
+        accountOrganization: String?,
+        loginMethod: String?,
+        rawText: String?)
+    {
+        self.primary = primary
+        self.secondary = secondary
+        self.opus = opus
+        self.updatedAt = updatedAt
+        self.accountEmail = accountEmail
+        self.accountOrganization = accountOrganization
+        self.loginMethod = loginMethod
+        self.rawText = rawText
+    }
 }
 
-enum ClaudeUsageError: LocalizedError {
+public enum ClaudeUsageError: LocalizedError, Sendable {
     case claudeNotInstalled
     case parseFailed(String)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .claudeNotInstalled:
             "Claude CLI is not installed. Install it from https://docs.claude.ai/claude-code."
@@ -32,16 +52,16 @@ enum ClaudeUsageError: LocalizedError {
     }
 }
 
-struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
+public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     private let environment: [String: String]
 
-    init(environment: [String: String] = ProcessInfo.processInfo.environment) {
+    public init(environment: [String: String] = ProcessInfo.processInfo.environment) {
         self.environment = environment
     }
 
     // MARK: - Parsing helpers
 
-    static func parse(json: Data) -> ClaudeUsageSnapshot? {
+    public static func parse(json: Data) -> ClaudeUsageSnapshot? {
         guard let output = String(data: json, encoding: .utf8) else { return nil }
         return try? Self.parse(output: output)
     }
@@ -136,13 +156,13 @@ struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
 
     // MARK: - Public API
 
-    func detectVersion() -> String? {
+    public func detectVersion() -> String? {
         guard let path = Self.which("claude") else { return nil }
         return Self.readString(cmd: path, args: ["--allowed-tools", "", "--version"])?
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    func debugRawProbe(model: String = "sonnet") async -> String {
+    public func debugRawProbe(model: String = "sonnet") async -> String {
         do {
             let snap = try await self.loadViaPTY(model: model, timeout: 10)
             let opus = snap.opus?.remainingPercent ?? -1
@@ -158,7 +178,7 @@ struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         }
     }
 
-    func loadLatestUsage(model: String = "sonnet") async throws -> ClaudeUsageSnapshot {
+    public func loadLatestUsage(model: String = "sonnet") async throws -> ClaudeUsageSnapshot {
         do {
             return try await self.loadViaPTY(model: model, timeout: 10)
         } catch {

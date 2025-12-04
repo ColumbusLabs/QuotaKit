@@ -1,0 +1,85 @@
+import Foundation
+
+public enum UsageProvider: String, CaseIterable, Sendable {
+    case codex
+    case claude
+}
+
+public struct ProviderMetadata: Sendable {
+    public let id: UsageProvider
+    public let displayName: String
+    public let sessionLabel: String
+    public let weeklyLabel: String
+    public let opusLabel: String?
+    public let supportsOpus: Bool
+    public let supportsCredits: Bool
+    public let creditsHint: String
+    public let toggleTitle: String
+    public let cliName: String
+    public let defaultEnabled: Bool
+    public let dashboardURL: String?
+    public let statusPageURL: String?
+
+    public init(
+        id: UsageProvider,
+        displayName: String,
+        sessionLabel: String,
+        weeklyLabel: String,
+        opusLabel: String?,
+        supportsOpus: Bool,
+        supportsCredits: Bool,
+        creditsHint: String,
+        toggleTitle: String,
+        cliName: String,
+        defaultEnabled: Bool,
+        dashboardURL: String?,
+        statusPageURL: String?)
+    {
+        self.id = id
+        self.displayName = displayName
+        self.sessionLabel = sessionLabel
+        self.weeklyLabel = weeklyLabel
+        self.opusLabel = opusLabel
+        self.supportsOpus = supportsOpus
+        self.supportsCredits = supportsCredits
+        self.creditsHint = creditsHint
+        self.toggleTitle = toggleTitle
+        self.cliName = cliName
+        self.defaultEnabled = defaultEnabled
+        self.dashboardURL = dashboardURL
+        self.statusPageURL = statusPageURL
+    }
+}
+
+public enum ProviderDefaults {
+    public static let metadata: [UsageProvider: ProviderMetadata] = [
+        .codex: ProviderMetadata(
+            id: .codex,
+            displayName: "Codex",
+            sessionLabel: "Session",
+            weeklyLabel: "Weekly",
+            opusLabel: nil,
+            supportsOpus: false,
+            supportsCredits: true,
+            creditsHint: "Credits unavailable; keep Codex running to refresh.",
+            toggleTitle: "Show Codex usage",
+            cliName: "codex",
+            defaultEnabled: true,
+            dashboardURL: "https://chatgpt.com/codex/settings/usage",
+            statusPageURL: "https://status.openai.com/"),
+        .claude: ProviderMetadata(
+            id: .claude,
+            displayName: "Claude",
+            sessionLabel: "Session",
+            weeklyLabel: "Weekly",
+            opusLabel: "Sonnet",
+            supportsOpus: true,
+            supportsCredits: false,
+            creditsHint: "",
+            toggleTitle: "Show Claude Code usage",
+            cliName: "claude",
+            defaultEnabled: false,
+            dashboardURL: "https://console.anthropic.com/settings/billing",
+            statusPageURL: "https://status.claude.com/"),
+    ]
+}

@@ -1,21 +1,37 @@
 import Foundation
 
-struct CodexStatusSnapshot {
-    let credits: Double?
-    let fiveHourPercentLeft: Int?
-    let weeklyPercentLeft: Int?
-    let fiveHourResetDescription: String?
-    let weeklyResetDescription: String?
-    let rawText: String
+public struct CodexStatusSnapshot: Sendable {
+    public let credits: Double?
+    public let fiveHourPercentLeft: Int?
+    public let weeklyPercentLeft: Int?
+    public let fiveHourResetDescription: String?
+    public let weeklyResetDescription: String?
+    public let rawText: String
+
+    public init(
+        credits: Double?,
+        fiveHourPercentLeft: Int?,
+        weeklyPercentLeft: Int?,
+        fiveHourResetDescription: String?,
+        weeklyResetDescription: String?,
+        rawText: String)
+    {
+        self.credits = credits
+        self.fiveHourPercentLeft = fiveHourPercentLeft
+        self.weeklyPercentLeft = weeklyPercentLeft
+        self.fiveHourResetDescription = fiveHourResetDescription
+        self.weeklyResetDescription = weeklyResetDescription
+        self.rawText = rawText
+    }
 }
 
-enum CodexStatusProbeError: LocalizedError {
+public enum CodexStatusProbeError: LocalizedError, Sendable {
     case codexNotInstalled
     case parseFailed(String)
     case timedOut
     case updateRequired(String)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .codexNotInstalled:
             "Codex CLI is not installed or not on PATH."
@@ -30,11 +46,18 @@ enum CodexStatusProbeError: LocalizedError {
 }
 
 /// Runs `codex` inside a PTY, sends `/status`, captures text, and parses credits/limits.
-struct CodexStatusProbe {
-    var codexBinary: String = "codex"
-    var timeout: TimeInterval = 18.0
+public struct CodexStatusProbe {
+    public var codexBinary: String = "codex"
+    public var timeout: TimeInterval = 18.0
 
-    func fetch() async throws -> CodexStatusSnapshot {
+    public init() {}
+
+    public init(codexBinary: String = "codex", timeout: TimeInterval = 18.0) {
+        self.codexBinary = codexBinary
+        self.timeout = timeout
+    }
+
+    public func fetch() async throws -> CodexStatusSnapshot {
         guard TTYCommandRunner.which(self.codexBinary) != nil else { throw CodexStatusProbeError.codexNotInstalled }
         do {
             return try self.runAndParse(rows: 60, cols: 200, timeout: self.timeout)
@@ -51,7 +74,7 @@ struct CodexStatusProbe {
 
     // MARK: - Parsing
 
-    static func parse(text: String) throws -> CodexStatusSnapshot {
+    public static func parse(text: String) throws -> CodexStatusSnapshot {
         let clean = TextParsing.stripANSICodes(text)
         guard !clean.isEmpty else { throw CodexStatusProbeError.timedOut }
         if clean.localizedCaseInsensitiveContains("data not available yet") {

@@ -1,3 +1,4 @@
+import CodexBarCore
 import Foundation
 
 struct ProviderSpec {
@@ -11,7 +12,7 @@ struct ProviderRegistry {
 
     static let shared: ProviderRegistry = .init()
 
-    init(metadata: [UsageProvider: ProviderMetadata] = ProviderRegistry.defaultMetadata) {
+    init(metadata: [UsageProvider: ProviderMetadata] = ProviderDefaults.metadata) {
         self.metadata = metadata
     }
 
@@ -47,34 +48,5 @@ struct ProviderRegistry {
         return [.codex: codexSpec, .claude: claudeSpec]
     }
 
-    private static let defaultMetadata: [UsageProvider: ProviderMetadata] = [
-        .codex: ProviderMetadata(
-            id: .codex,
-            displayName: "Codex",
-            sessionLabel: "Session",
-            weeklyLabel: "Weekly",
-            opusLabel: nil,
-            supportsOpus: false,
-            supportsCredits: true,
-            creditsHint: "Credits unavailable; keep Codex running to refresh.",
-            toggleTitle: "Show Codex usage",
-            cliName: "codex",
-            defaultEnabled: true,
-            dashboardURL: "https://chatgpt.com/codex/settings/usage",
-            statusPageURL: "https://status.openai.com/"),
-        .claude: ProviderMetadata(
-            id: .claude,
-            displayName: "Claude",
-            sessionLabel: "Session",
-            weeklyLabel: "Weekly",
-            opusLabel: "Sonnet",
-            supportsOpus: true,
-            supportsCredits: false,
-            creditsHint: "",
-            toggleTitle: "Show Claude Code usage",
-            cliName: "claude",
-            defaultEnabled: false,
-            dashboardURL: "https://console.anthropic.com/settings/billing",
-            statusPageURL: "https://status.claude.com/"),
-    ]
+    private static let defaultMetadata: [UsageProvider: ProviderMetadata] = ProviderDefaults.metadata
 }

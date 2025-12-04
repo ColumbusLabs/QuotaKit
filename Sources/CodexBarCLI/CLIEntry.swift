@@ -1,0 +1,550 @@
+import CodexBarCore
+import Commander
+import Darwin
+import Foundation
+
+@main
+enum CodexBarCLI {
+    static func main() async {
+        let rawArgv = Array(CommandLine.arguments.dropFirst())
+        let argv = Self.effectiveArgv(rawArgv)
+
+        // Fast path: global help/version before building descriptors.
+        if let helpIndex = argv.firstIndex(where: { $0 == "-h" || $0 == "--help" }) {
+            let command = helpIndex == 0 ? argv.dropFirst().first : argv.first
+            Self.printHelp(for: command)
+        }
+        if argv.contains("-V") || argv.contains("--version") {
+            Self.printVersion()
+        }
+
+        let usageSignature = CommandSignature
+            .describe(UsageOptions())
+            .withStandardRuntimeFlags()
+
+        let descriptors: [CommandDescriptor] = [
+            CommandDescriptor(
+                name: "usage",
+                abstract: "Print usage as text or JSON",
+                discussion: nil,
+                signature: usageSignature),
+        ]
+
+        let program = Program(descriptors: descriptors)
+
+        do {
+            let invocation = try program.resolve(argv: argv)
+            switch invocation.descriptor.name {
+            case "usage":
+                await self.runUsage(invocation.parsedValues)
+            default:
+                Self.exit(code: .failure, message: "Unknown command")
+            }
+        } catch let error as CommanderProgramError {
+            Self.exit(code: .failure, message: error.description)
+        } catch {
+            Self.exit(code: .failure, message: error.localizedDescription)
+        }
+    }
+
+    // MARK: - Commands
+
+    private static func runUsage(_ values: ParsedValues) async {
+        let provider = Self.decodeProvider(from: values)
+        let format = Self.decodeFormat(from: values)
+        let includeCredits = format == .json ? true : !values.flags.contains("noCredits")
+        let includeStatus = values.flags.contains("status")
+        let pretty = values.flags.contains("pretty")
+        let useColor = Self.shouldUseColor()
+        let fetcher = UsageFetcher()
+        let claudeFetcher = ClaudeUsageFetcher()
+
+        var sections: [String] = []
+        var payload: [ProviderPayload] = []
+        var exitCode: ExitCode = .success
+
+        for p in provider.asList {
+            let versionInfo = Self.formatVersion(provider: p, raw: Self.detectVersion(for: p))
+            let header = Self.makeHeader(provider: p, version: versionInfo.version, source: versionInfo.source)
+            let status = includeStatus ? await Self.fetchStatus(for: p) : nil
+            switch await Self.fetch(
+                provider: p,
+                includeCredits: includeCredits,
+                fetcher: fetcher,
+                claudeFetcher: claudeFetcher)
+            {
+            case let .success(result):
+                switch format {
+                case .text:
+                    sections.append(CLIRenderer.renderText(
+                        provider: p,
+                        snapshot: result.usage,
+                        credits: result.credits,
+                        context: RenderContext(header: header, status: status, useColor: useColor)))
+                case .json:
+                    payload.append(ProviderPayload(
+                        provider: p,
+                        version: versionInfo.version,
+                        source: versionInfo.source,
+                        status: status,
+                        usage: result.usage,
+                        credits: result.credits))
+                }
+            case let .failure(error):
+                exitCode = Self.mapError(error)
+                Self.printError(error)
+            }
+        }
+
+        switch format {
+        case .text:
+            if !sections.isEmpty {
+                print(sections.joined(separator: "\n\n"))
+            }
+        case .json:
+            if !payload.isEmpty {
+                let encoder = JSONEncoder()
+                encoder.dateEncodingStrategy = .iso8601
+                encoder.outputFormatting = pretty ? [.prettyPrinted, .sortedKeys] : []
+                if let data = try? encoder.encode(payload),
+                   let output = String(data: data, encoding: .utf8)
+                {
+                    print(output)
+                }
+            }
+        }
+
+        Self.exit(code: exitCode)
+    }
+
+    // MARK: - Helpers
+
+    static func effectiveArgv(_ argv: [String]) -> [String] {
+        guard let first = argv.first else { return ["usage"] }
+        if first.hasPrefix("-") { return ["usage"] + argv }
+        return argv
+    }
+
+    fileprivate static func decodeProvider(from values: ParsedValues) -> ProviderSelection {
+        if let raw = values.options["provider"]?.last, let parsed = ProviderSelection(argument: raw) {
+            return parsed
+        }
+        let enabled = Self.enabledProvidersFromDefaults()
+        if enabled.count == 2 { return .both }
+        if let first = enabled.first { return ProviderSelection(provider: first) }
+        return .codex
+    }
+
+    private static func decodeFormat(from values: ParsedValues) -> OutputFormat {
+        if let raw = values.options["format"]?.last, let parsed = OutputFormat(argument: raw) {
+            return parsed
+        }
+        if values.flags.contains("json") { return .json }
+        return .text
+    }
+
+    private static func shouldUseColor() -> Bool {
+        isatty(STDOUT_FILENO) == 1
+    }
+
+    private static func detectVersion(for provider: UsageProvider) -> String? {
+        switch provider {
+        case .codex:
+            VersionDetector.codexVersion()
+        case .claude:
+            ClaudeUsageFetcher().detectVersion()
+        }
+    }
+
+    private static func formatVersion(provider: UsageProvider, raw: String?) -> (version: String?, source: String) {
+        let source = provider == .codex ? "codex-cli" : "claude"
+        guard let raw, !raw.isEmpty else { return (nil, source) }
+        if let match = raw.range(of: #"(\d+(?:\.\d+)+)"#, options: .regularExpression) {
+            let version = String(raw[match]).trimmingCharacters(in: .whitespacesAndNewlines)
+            return (version, source)
+        }
+        return (raw.trimmingCharacters(in: .whitespacesAndNewlines), source)
+    }
+
+    private static func makeHeader(provider: UsageProvider, version: String?, source: String) -> String {
+        let name = ProviderDefaults.metadata[provider]?.displayName ?? provider.rawValue.capitalized
+        if let version, !version.isEmpty {
+            return "\(name) \(version) (\(source))"
+        }
+        return "\(name) (\(source))"
+    }
+
+    private static func fetchStatus(for provider: UsageProvider) async -> ProviderStatusPayload? {
+        guard let urlString = ProviderDefaults.metadata[provider]?.statusPageURL,
+              let baseURL = URL(string: urlString) else { return nil }
+        do {
+            return try await StatusFetcher.fetch(from: baseURL)
+        } catch {
+            return ProviderStatusPayload(
+                indicator: .unknown,
+                description: error.localizedDescription,
+                updatedAt: nil,
+                url: urlString)
+        }
+    }
+
+    private static func enabledProvidersFromDefaults() -> [UsageProvider] {
+        // Prefer the app's defaults domain so CLI mirrors in-app toggles.
+        let domains = [
+            "com.steipete.codexbar",
+            "com.steipete.codexbar.debug",
+        ]
+
+        var toggles: [String: Bool] = [:]
+        for domain in domains {
+            if let dict = UserDefaults(suiteName: domain)?.dictionary(forKey: "providerToggles") as? [String: Bool],
+               !dict.isEmpty
+            {
+                toggles = dict
+                break
+            }
+        }
+
+        if toggles.isEmpty {
+            toggles = UserDefaults.standard.dictionary(forKey: "providerToggles") as? [String: Bool] ?? [:]
+        }
+
+        return ProviderDefaults.metadata.compactMap { provider, meta in
+            let isOn = toggles[meta.cliName] ?? meta.defaultEnabled
+            return isOn ? provider : nil
+        }.sorted { $0.rawValue < $1.rawValue }
+    }
+
+    private static func fetch(
+        provider: UsageProvider,
+        includeCredits: Bool,
+        fetcher: UsageFetcher,
+        claudeFetcher: ClaudeUsageFetcher) async -> Result<(usage: UsageSnapshot, credits: CreditsSnapshot?), Error>
+    {
+        do {
+            switch provider {
+            case .codex:
+                let usage = try await fetcher.loadLatestUsage()
+                let credits = includeCredits ? try? await fetcher.loadLatestCredits() : nil
+                return .success((usage, credits))
+            case .claude:
+                let usage = try await claudeFetcher.loadLatestUsage(model: "sonnet")
+                return .success((
+                    usage: UsageSnapshot(
+                        primary: usage.primary,
+                        secondary: usage.secondary,
+                        tertiary: usage.opus,
+                        updatedAt: usage.updatedAt,
+                        accountEmail: usage.accountEmail,
+                        accountOrganization: usage.accountOrganization,
+                        loginMethod: usage.loginMethod),
+                    credits: nil))
+            }
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    private static func mapError(_ error: Error) -> ExitCode {
+        switch error {
+        case TTYCommandRunner.Error.binaryNotFound,
+             CodexStatusProbeError.codexNotInstalled,
+             ClaudeUsageError.claudeNotInstalled:
+            ExitCode(2)
+        case CodexStatusProbeError.timedOut,
+             TTYCommandRunner.Error.timedOut:
+            ExitCode(4)
+        case ClaudeUsageError.parseFailed,
+             UsageError.decodeFailed,
+             UsageError.noRateLimitsFound:
+            ExitCode(3)
+        default:
+            .failure
+        }
+    }
+
+    private static func printError(_ error: Error) {
+        fputs("Error: \(error.localizedDescription)\n", stderr)
+    }
+
+    private static func exit(code: ExitCode, message: String? = nil) -> Never {
+        if let message {
+            fputs("\(message)\n", stderr)
+        }
+        Darwin.exit(code.rawValue)
+    }
+
+    static func printVersion() -> Never {
+        if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
+            print("CodexBar \(version)")
+        } else {
+            print("CodexBar")
+        }
+        Darwin.exit(0)
+    }
+
+    static func printHelp(for command: String?) -> Never {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+        switch command {
+        case "usage":
+            print("""
+            CodexBar \(version)
+
+            Usage:
+              codexbar usage [--format text|json] [--provider codex|claude|both] [--no-credits] [--pretty] [--status]
+
+            Description:
+              Print usage from enabled providers as text (default) or JSON. Honors your in-app toggles.
+
+            Examples:
+              codexbar usage
+              codexbar usage --provider claude
+              codexbar usage --format json --provider both --pretty
+              codexbar usage --status
+            """)
+        default:
+            print("""
+            CodexBar \(version)
+
+            Usage:
+              codexbar [--format text|json] [--provider codex|claude|both] [--no-credits] [--pretty] [--status]
+
+            Global flags:
+              -h, --help      Show help
+              -V, --version   Show version
+              -v, --verbose   Enable verbose logging
+              --log-level <trace|verbose|debug|info|warning|error|critical>
+              --json-output   Emit machine-readable logs
+
+            Examples:
+              codexbar
+              codexbar --format json --provider both --pretty
+              codexbar --provider claude
+            """)
+        }
+        Darwin.exit(0)
+    }
+}
+
+// MARK: - Options & decoding helpers
+
+private struct UsageOptions: CommanderParsable {
+    @Option(name: .long("provider"), help: "Provider to query: codex | claude | both")
+    var provider: ProviderSelection?
+
+    @Option(name: .long("format"), help: "Output format: text | json")
+    var format: OutputFormat?
+
+    @Flag(name: .long("json"), help: "")
+    var jsonShortcut: Bool = false
+
+    @Flag(name: .long("no-credits"), help: "Skip Codex credits line")
+    var noCredits: Bool = false
+
+    @Flag(name: .long("pretty"), help: "Pretty-print JSON output")
+    var pretty: Bool = false
+
+    @Flag(name: .long("status"), help: "Fetch and include provider status")
+    var status: Bool = false
+}
+
+private enum ProviderSelection: String, Sendable, ExpressibleFromArgument {
+    case codex
+    case claude
+    case both
+
+    init?(argument: String) {
+        switch argument.lowercased() {
+        case "codex": self = .codex
+        case "claude": self = .claude
+        case "both": self = .both
+        default: return nil
+        }
+    }
+
+    init(provider: UsageProvider) {
+        switch provider {
+        case .codex: self = .codex
+        case .claude: self = .claude
+        }
+    }
+
+    var asList: [UsageProvider] {
+        switch self {
+        case .codex: [.codex]
+        case .claude: [.claude]
+        case .both: [.codex, .claude]
+        }
+    }
+}
+
+enum OutputFormat: String, Sendable, ExpressibleFromArgument {
+    case text
+    case json
+
+    init?(argument: String) {
+        switch argument.lowercased() {
+        case "text": self = .text
+        case "json": self = .json
+        default: return nil
+        }
+    }
+}
+
+struct ProviderPayload: Encodable {
+    let provider: String
+    let version: String?
+    let source: String
+    let status: ProviderStatusPayload?
+    let usage: UsageSnapshot
+    let credits: CreditsSnapshot?
+
+    init(
+        provider: UsageProvider,
+        version: String?,
+        source: String,
+        status: ProviderStatusPayload?,
+        usage: UsageSnapshot,
+        credits: CreditsSnapshot?)
+    {
+        self.provider = provider.rawValue
+        self.version = version
+        self.source = source
+        self.status = status
+        self.usage = usage
+        self.credits = credits
+    }
+}
+
+struct ProviderStatusPayload: Encodable {
+    let indicator: ProviderStatusIndicator
+    let description: String?
+    let updatedAt: Date?
+    let url: String
+
+    enum ProviderStatusIndicator: String, Encodable {
+        case none
+        case minor
+        case major
+        case critical
+        case maintenance
+        case unknown
+
+        var label: String {
+            switch self {
+            case .none: "Operational"
+            case .minor: "Partial outage"
+            case .major: "Major outage"
+            case .critical: "Critical issue"
+            case .maintenance: "Maintenance"
+            case .unknown: "Status unknown"
+            }
+        }
+    }
+
+    var descriptionSuffix: String {
+        guard let description, !description.isEmpty else { return "" }
+        return " – \(description)"
+    }
+}
+
+private enum VersionDetector {
+    static func codexVersion() -> String? {
+        guard let path = TTYCommandRunner.which("codex") else { return nil }
+        let candidates = [
+            ["--version"],
+            ["version"],
+            ["-v"],
+        ]
+        for args in candidates {
+            if let version = Self.run(path: path, args: args) { return version }
+        }
+        return nil
+    }
+
+    private static func run(path: String, args: [String]) -> String? {
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: path)
+        proc.arguments = args
+        let out = Pipe()
+        proc.standardOutput = out
+        proc.standardError = Pipe()
+
+        do {
+            try proc.run()
+        } catch {
+            return nil
+        }
+
+        let deadline = Date().addingTimeInterval(2.0)
+        while proc.isRunning, Date() < deadline {
+            usleep(50000)
+        }
+        if proc.isRunning {
+            proc.terminate()
+            let killDeadline = Date().addingTimeInterval(0.5)
+            while proc.isRunning, Date() < killDeadline {
+                usleep(20000)
+            }
+            if proc.isRunning {
+                kill(proc.processIdentifier, SIGKILL)
+            }
+        }
+
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        guard proc.terminationStatus == 0,
+              let text = String(data: data, encoding: .utf8)?
+                  .split(whereSeparator: \.isNewline).first
+        else { return nil }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
+private enum StatusFetcher {
+    static func fetch(from baseURL: URL) async throws -> ProviderStatusPayload {
+        let apiURL = baseURL.appendingPathComponent("api/v2/status.json")
+        var request = URLRequest(url: apiURL)
+        request.timeoutInterval = 10
+
+        let (data, _) = try await URLSession.shared.data(for: request)
+
+        struct Response: Decodable {
+            struct Status: Decodable {
+                let indicator: String
+                let description: String?
+            }
+
+            struct Page: Decodable {
+                let updatedAt: Date?
+
+                private enum CodingKeys: String, CodingKey {
+                    case updatedAt = "updated_at"
+                }
+            }
+
+            let page: Page?
+            let status: Status
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let raw = try container.decode(String.self)
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = formatter.date(from: raw) { return date }
+            formatter.formatOptions = [.withInternetDateTime]
+            if let date = formatter.date(from: raw) { return date }
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid ISO8601 date")
+        }
+
+        let response = try decoder.decode(Response.self, from: data)
+        let indicator = ProviderStatusPayload.ProviderStatusIndicator(rawValue: response.status.indicator) ?? .unknown
+        return ProviderStatusPayload(
+            indicator: indicator,
+            description: response.status.description,
+            updatedAt: response.page?.updatedAt,
+            url: baseURL.absoluteString)
+    }
+}

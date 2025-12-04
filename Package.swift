@@ -8,12 +8,20 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.8.1"),
+        .package(path: "../Peekaboo/Commander"),
     ],
     targets: [
+        .target(
+            name: "CodexBarCore",
+            dependencies: [],
+            swiftSettings: [
+                .enableUpcomingFeature("StrictConcurrency"),
+            ]),
         .executableTarget(
             name: "CodexBar",
             dependencies: [
                 .product(name: "Sparkle", package: "Sparkle"),
+                "CodexBarCore",
             ],
             path: "Sources/CodexBar",
             swiftSettings: [
@@ -21,9 +29,19 @@ let package = Package(
                 .enableUpcomingFeature("StrictConcurrency"),
                 .define("ENABLE_SPARKLE"),
             ]),
+        .executableTarget(
+            name: "CodexBarCLI",
+            dependencies: [
+                "CodexBarCore",
+                .product(name: "Commander", package: "Commander"),
+            ],
+            path: "Sources/CodexBarCLI",
+            swiftSettings: [
+                .enableUpcomingFeature("StrictConcurrency"),
+            ]),
         .testTarget(
             name: "CodexBarTests",
-            dependencies: ["CodexBar"],
+            dependencies: ["CodexBar", "CodexBarCore", "CodexBarCLI"],
             path: "Tests",
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency"),

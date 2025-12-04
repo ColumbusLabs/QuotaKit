@@ -3,24 +3,31 @@ import Foundation
 
 /// Executes an interactive CLI inside a pseudo-terminal and returns all captured text.
 /// Keeps it minimal so we can reuse for Codex and Claude without tmux.
-struct TTYCommandRunner {
-    struct Result {
-        let text: String
+public struct TTYCommandRunner {
+    public struct Result: Sendable {
+        public let text: String
     }
 
-    struct Options {
-        var rows: UInt16 = 50
-        var cols: UInt16 = 160
-        var timeout: TimeInterval = 20.0
-        var extraArgs: [String] = []
+    public struct Options: Sendable {
+        public var rows: UInt16 = 50
+        public var cols: UInt16 = 160
+        public var timeout: TimeInterval = 20.0
+        public var extraArgs: [String] = []
+
+        public init(rows: UInt16 = 50, cols: UInt16 = 160, timeout: TimeInterval = 20.0, extraArgs: [String] = []) {
+            self.rows = rows
+            self.cols = cols
+            self.timeout = timeout
+            self.extraArgs = extraArgs
+        }
     }
 
-    enum Error: Swift.Error, LocalizedError {
+    public enum Error: Swift.Error, LocalizedError, Sendable {
         case binaryNotFound(String)
         case launchFailed(String)
         case timedOut
 
-        var errorDescription: String? {
+        public var errorDescription: String? {
             switch self {
             case let .binaryNotFound(bin): "Binary not found on PATH: \(bin)"
             case let .launchFailed(msg): "Failed to launch process: \(msg)"
@@ -29,8 +36,10 @@ struct TTYCommandRunner {
         }
     }
 
+    public init() {}
+
     // swiftlint:disable function_body_length
-    func run(binary: String, send script: String, options: Options = Options()) throws -> Result {
+    public func run(binary: String, send script: String, options: Options = Options()) throws -> Result {
         guard let resolved = Self.which(binary) else { throw Error.binaryNotFound(binary) }
 
         var primaryFD: Int32 = -1
@@ -249,7 +258,7 @@ struct TTYCommandRunner {
 
     // swiftlint:enable function_body_length
 
-    static func which(_ tool: String) -> String? {
+    public static func which(_ tool: String) -> String? {
         if tool == "codex", let located = BinaryLocator.resolveCodexBinary() { return located }
         if tool == "claude", let located = BinaryLocator.resolveClaudeBinary() { return located }
         // First try system PATH
@@ -286,7 +295,7 @@ struct TTYCommandRunner {
 
     /// Expands PATH with the same defaults we use for Codex RPC, so TTY probes can find CLIs installed via Homebrew,
     /// bun, nvm, fnm, or npm.
-    static func enrichedPath() -> String {
+    public static func enrichedPath() -> String {
         PathBuilder.effectivePATH(
             purposes: [.tty, .nodeTooling],
             env: ProcessInfo.processInfo.environment)

@@ -16,6 +16,7 @@ swift build -c "$CONF" --arch arm64
 APP="$ROOT/CodexBar.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
+mkdir -p "$APP/Contents/Helpers"
 
 # Convert new .icon bundle to .icns if present (macOS 14+/IconStudio export)
 ICON_SOURCE="$ROOT/Icon.icon"
@@ -63,6 +64,11 @@ PLIST
 
 cp ".build/$CONF/CodexBar" "$APP/Contents/MacOS/CodexBar"
 chmod +x "$APP/Contents/MacOS/CodexBar"
+# Ship CodexBarCLI alongside the app for easy symlinking.
+if [[ -f ".build/$CONF/CodexBarCLI" ]]; then
+  cp ".build/$CONF/CodexBarCLI" "$APP/Contents/Helpers/CodexBarCLI"
+  chmod +x "$APP/Contents/Helpers/CodexBarCLI"
+fi
 # Embed Sparkle.framework
 if [[ -d ".build/$CONF/Sparkle.framework" ]]; then
   cp -R ".build/$CONF/Sparkle.framework" "$APP/Contents/Frameworks/"

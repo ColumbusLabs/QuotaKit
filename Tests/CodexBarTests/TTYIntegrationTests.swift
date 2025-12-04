@@ -1,3 +1,4 @@
+import CodexBarCore
 import XCTest
 @testable import CodexBar
 

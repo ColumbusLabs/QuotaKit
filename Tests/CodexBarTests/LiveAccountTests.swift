@@ -1,3 +1,4 @@
+import CodexBarCore
 import Foundation
 import Testing
 import XCTest

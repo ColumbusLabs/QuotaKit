@@ -1,7 +1,9 @@
 # Changelog
 
-## 0.5.8 — Unreleased
-- _Placeholder_
+## 0.6.0 — 2025-12-04
+- New bundled CLI (`codexbar`) with single `usage` command, `--format text|json`, `--status`, and fast `-h/-V`.
+- CLI output now shows consistent headers (`Codex 0.x.y (codex-cli)`, `Claude Code <ver> (claude)`) and JSON includes `source` + `status`.
+- Advanced prefs install button symlinks `codexbar` into /usr/local/bin and /opt/homebrew/bin; docs refreshed.
 
 ## 0.5.7 — 2025-11-26
 - Status Page and Usage Dashboard menu actions now honor the icon you click; Codex menus no longer open the Claude status site.

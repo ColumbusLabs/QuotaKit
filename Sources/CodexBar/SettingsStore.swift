@@ -1,4 +1,5 @@
 import AppKit
+import CodexBarCore
 import Combine
 import ServiceManagement
 import SwiftUI
