@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.6.1 — Unreleased
+- _Placeholder_
+
 ## 0.6.0 — 2025-12-04
 - New bundled CLI (`codexbar`) with single `usage` command, `--format text|json`, `--status`, and fast `-h/-V`.
 - CLI output now shows consistent headers (`Codex 0.x.y (codex-cli)`, `Claude Code <ver> (claude)`) and JSON includes `source` + `status`.
