@@ -1,7 +1,7 @@
 # Changelog
 
 ## 0.6.1 — Unreleased
-- _Placeholder_
+- Claude CLI probes stop passing `--dangerously-skip-permissions`, aligning with the default permission prompt and avoiding hidden first-run failures.
 
 ## 0.6.0 — 2025-12-04
 - New bundled CLI (`codexbar`) with single `usage` command, `--format text|json`, `--status`, and fast `-h/-V`.
