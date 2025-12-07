@@ -1,5 +1,10 @@
 # Changelog
 
+# Changelog
+
+## 0.6.2 — Unreleased
+- _Placeholder_
+
 ## 0.6.1 — 2025-12-07
 - Claude CLI probes stop passing `--dangerously-skip-permissions`, aligning with the default permission prompt and avoiding hidden first-run failures.
 
