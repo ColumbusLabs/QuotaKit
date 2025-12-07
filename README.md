@@ -12,7 +12,7 @@ Icon bar mapping (grayscale)
 - Bottom bar: weekly window (a thin line). If weekly is zero you’ll see it empty under the credits bar; when weekly has budget it stays filled proportionally.
 - Errors/unknowns dim the icon; no text is drawn in the icon to stay legible. Codex icons keep the eyelid blink; when Claude is enabled the template switches to the Claude notch/leg variant while keeping the same bar mapping.
 
-![CodexBar Screenshot](docs/codexbar.png)
+![CodexBar Screenshot](codexbar.png)
 
 ## Features
 - Dual providers: Codex status item (5h/weekly + credits) and Claude Code status item (session/weekly + Sonnet-only weekly limit) can be shown together; Codex defaults on, Claude turns on when the CLI is present. Both sections show last-updated time and surface errors inline.

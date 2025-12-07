@@ -1,7 +1,7 @@
 # Changelog
 
 ## 0.7.0 — Unreleased
-- Add rich menu card with inline progress bars for provider usage (credit: Anton Sotkov @antons).
+- ✨ New rich menu card with inline progress bars and reset times for each provider, giving the menu a beautiful, at-a-glance dashboard feel (credit: Anton Sotkov @antons).
 
 ## 0.6.1 — 2025-12-07
 - Claude CLI probes stop passing `--dangerously-skip-permissions`, aligning with the default permission prompt and avoiding hidden first-run failures.
