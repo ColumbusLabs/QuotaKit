@@ -1,4 +1,4 @@
-# CodexBar 🎚️ - May your tokens never run out—keep agent limits in view.
+# CodexBar 🎚️ - May your tokens never run out.
 
 Tiny macOS 15+ menu bar app that keeps your Codex and Claude Code limits visible (5‑hour/session + weekly windows) and when each window resets. One status item per provider; enable either or both from Settings. No Dock icon, minimal UI, dynamic bar icons in the menu bar.
 
