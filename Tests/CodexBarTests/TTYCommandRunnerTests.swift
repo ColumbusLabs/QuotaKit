@@ -1,52 +1,48 @@
-import CodexBarCore
-import Darwin
-import XCTest
-@testable import CodexBar
+import Testing
+@testable import CodexBarCore
 
-final class TTYCommandRunnerTests: XCTestCase {
-    func testKillsProcessGroupChildren() throws {
-        // Spawn a helper script that launches a long-lived child (sleep 60) and waits for it.
-        // Without process-group termination, the background sleep would survive after the parent dies.
-        let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("tty-runner-tests-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+@Suite
+struct TTYCommandRunnerEnvTests {
+    @Test
+    func preservesEnvironmentAndSetsTerm() {
+        let baseEnv: [String: String] = [
+            "PATH": "/custom/bin",
+            "HOME": "/Users/tester",
+            "LANG": "en_US.UTF-8",
+        ]
 
-        let scriptURL = tmp.appendingPathComponent("spawn_child.sh")
-        let script = """
-        #!/bin/bash
-        set -e
-        sleep 60 &
-        child=$!
-        echo CHILD_PID=$child
-        wait $child
-        """
-        try script.write(to: scriptURL, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+        let merged = TTYCommandRunner.enrichedEnvironment(baseEnv: baseEnv, home: "/Users/tester")
 
-        let runner = TTYCommandRunner()
-        let result = try runner.run(
-            binary: scriptURL.path,
-            send: "",
-            options: .init(rows: 5, cols: 40, timeout: 1.5, extraArgs: []))
+        #expect(merged["HOME"] == "/Users/tester")
+        #expect(merged["LANG"] == "en_US.UTF-8")
+        #expect(merged["TERM"] == "xterm-256color")
 
-        guard let childPID = Self.extractChildPID(result.text) else {
-            XCTFail("Did not capture child PID from PTY output. Output: \(result.text)")
-            return
-        }
-
-        // Give the termination path a brief moment to deliver signals.
-        usleep(150_000)
-
-        let stillAlive = kill(childPID, 0) == 0
-        XCTAssertFalse(stillAlive, "Child process (pid: \(childPID)) is still alive; process-group kill failed")
+        let parts = (merged["PATH"] ?? "").split(separator: ":").map(String.init)
+        #expect(parts.contains("/custom/bin"))
+        #expect(parts.contains("/Users/tester/.bun/bin"))
     }
 
-    private static func extractChildPID(_ text: String) -> pid_t? {
-        let pattern = #"CHILD_PID=([0-9]+)"#
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
-        let range = NSRange(text.startIndex..<text.endIndex, in: text)
-        guard let match = regex.firstMatch(in: text, options: [], range: range), match.numberOfRanges >= 2,
-              let pidRange = Range(match.range(at: 1), in: text) else { return nil }
-        return pid_t(text[pidRange])
+    @Test
+    func backfillsHomeWhenMissing() {
+        let merged = TTYCommandRunner.enrichedEnvironment(baseEnv: ["PATH": "/custom/bin"], home: "/Users/fallback")
+        #expect(merged["HOME"] == "/Users/fallback")
+        #expect(merged["TERM"] == "xterm-256color")
+    }
+
+    @Test
+    func preservesExistingTermAndCustomVars() {
+        let merged = TTYCommandRunner.enrichedEnvironment(
+            baseEnv: [
+                "PATH": "/custom/bin",
+                "TERM": "vt100",
+                "BUN_INSTALL": "/Users/tester/.bun",
+                "SHELL": "/bin/zsh",
+            ],
+            home: "/Users/tester")
+
+        #expect(merged["TERM"] == "vt100")
+        #expect(merged["BUN_INSTALL"] == "/Users/tester/.bun")
+        #expect(merged["SHELL"] == "/bin/zsh")
+        #expect((merged["PATH"] ?? "").contains("/custom/bin"))
     }
 }

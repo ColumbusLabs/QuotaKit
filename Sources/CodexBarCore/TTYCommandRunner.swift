@@ -61,8 +61,10 @@ public struct TTYCommandRunner {
         proc.standardInput = secondaryHandle
         proc.standardOutput = secondaryHandle
         proc.standardError = secondaryHandle
-        // Mirror RPC PATH seeding so CLIs installed via npm/nvm/fnm/bun still launch in hardened builds.
-        proc.environment = ["PATH": Self.enrichedPath()]
+        // Mirror RPC PATH seeding so CLIs installed via npm/nvm/fnm/bun still launch in hardened builds,
+        // but keep the caller’s environment (HOME, LANG, BUN_INSTALL, etc.) so the CLIs can find their
+        // auth/config files.
+        proc.environment = Self.enrichedEnvironment()
 
         var cleanedUp = false
         var didLaunch = false
@@ -299,5 +301,23 @@ public struct TTYCommandRunner {
         PathBuilder.effectivePATH(
             purposes: [.tty, .nodeTooling],
             env: ProcessInfo.processInfo.environment)
+    }
+
+    static func enrichedEnvironment(
+        baseEnv: [String: String] = ProcessInfo.processInfo.environment,
+        home: String = NSHomeDirectory()) -> [String: String]
+    {
+        var env = baseEnv
+        env["PATH"] = PathBuilder.effectivePATH(
+            purposes: [.tty, .nodeTooling],
+            env: baseEnv,
+            home: home)
+        if env["HOME"]?.isEmpty ?? true {
+            env["HOME"] = home
+        }
+        if env["TERM"]?.isEmpty ?? true {
+            env["TERM"] = "xterm-256color"
+        }
+        return env
     }
 }
