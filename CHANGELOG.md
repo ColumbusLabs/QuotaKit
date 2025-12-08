@@ -4,6 +4,8 @@
 - PTY runner now preserves the caller’s environment (HOME/TERM/bun installs) while enriching PATH, preventing Codex/Claude
   probes from failing when CLIs are installed via bun/nvm or need their auth/config paths.
 - Added regression tests to lock in the enriched environment behavior.
+- Node manager (nvm/fnm) resolution corrected so codex/claude binaries — and their `node` — are found reliably even when
+  installed via fnm aliases or nvm defaults. Thanks @aliceisjustplaying for surfacing the gaps.
 - Fixed a first-launch crash on macOS 26 caused by the 1×1 keepalive window triggering endless constraint updates; the hidden
   window now uses a safe size and no longer spams SwiftUI state warnings.
 - Menu action rows now ship with SF Symbol icons (refresh, dashboard, status, settings, about, quit, copy error) for clearer at-a-glance affordances.

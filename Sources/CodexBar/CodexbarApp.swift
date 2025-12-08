@@ -698,13 +698,21 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
                 self.loginLogger.notice("Codex login \(outcome, privacy: .public) len=\(length)")
                 print("[CodexBar] Codex login outcome=\(outcome) len=\(length)")
             case .claude:
-                let result = await ClaudeLoginRunner.run(timeout: 120)
+                let result = await ClaudeLoginRunner.run(timeout: 15)
                 guard !Task.isCancelled else { return }
                 self.presentClaudeLoginResult(result)
                 let outcome = self.describe(result.outcome)
                 let length = result.output.count
                 self.loginLogger.notice("Claude login \(outcome, privacy: .public) len=\(length)")
-                print("[CodexBar] Claude login outcome=\(outcome) len=\(length)")
+                let preview = self.loginPreview(result.output)
+                self.loginLogger.notice("Claude login preview: \(preview, privacy: .public)")
+                print("[CodexBar] Claude login outcome=\(outcome) len=\(length) link=\(result.authLink ?? "none")")
+                if !preview.isEmpty {
+                    print("[CodexBar] Claude login output:\n\(preview)")
+                }
+                if let link = result.authLink, let url = URL(string: link) {
+                    NSWorkspace.shared.open(url)
+                }
             }
 
             await self.store.refresh()
@@ -820,6 +828,14 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         if trimmed.count <= limit { return trimmed }
         let idx = trimmed.index(trimmed.startIndex, offsetBy: limit)
         return "\(trimmed[..<idx])…"
+    }
+
+    private func loginPreview(_ text: String, limit: Int = 1200) -> String {
+        let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleaned.isEmpty { return "" }
+        if cleaned.count <= limit { return cleaned }
+        let idx = cleaned.index(cleaned.startIndex, offsetBy: limit)
+        return "\(cleaned[..<idx])…"
     }
 }
 

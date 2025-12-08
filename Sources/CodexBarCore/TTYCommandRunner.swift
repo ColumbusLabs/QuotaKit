@@ -14,11 +14,30 @@ public struct TTYCommandRunner {
         public var timeout: TimeInterval = 20.0
         public var extraArgs: [String] = []
 
-        public init(rows: UInt16 = 50, cols: UInt16 = 160, timeout: TimeInterval = 20.0, extraArgs: [String] = []) {
+        // Generic tuning knobs (harmless defaults)
+        public var sendEnterEvery: TimeInterval?
+        public var stopOnURL: Bool = false
+        public var stopOnSubstrings: [String] = []
+        public var settleAfterStop: TimeInterval = 0.25
+
+        public init(
+            rows: UInt16 = 50,
+            cols: UInt16 = 160,
+            timeout: TimeInterval = 20.0,
+            extraArgs: [String] = [],
+            sendEnterEvery: TimeInterval? = nil,
+            stopOnURL: Bool = false,
+            stopOnSubstrings: [String] = [],
+            settleAfterStop: TimeInterval = 0.25)
+        {
             self.rows = rows
             self.cols = cols
             self.timeout = timeout
             self.extraArgs = extraArgs
+            self.sendEnterEvery = sendEnterEvery
+            self.stopOnURL = stopOnURL
+            self.stopOnSubstrings = stopOnSubstrings
+            self.settleAfterStop = settleAfterStop
         }
     }
 
@@ -40,14 +59,15 @@ public struct TTYCommandRunner {
     public init() {}
 
     // swiftlint:disable function_body_length
+    // swiftlint:disable:next cyclomatic_complexity
     public func run(binary: String, send script: String, options: Options = Options()) throws -> Result {
         guard let resolved = Self.which(binary) else { throw Error.binaryNotFound(binary) }
 
         var primaryFD: Int32 = -1
         var secondaryFD: Int32 = -1
-        var term = termios()
         var win = winsize(ws_row: options.rows, ws_col: options.cols, ws_xpixel: 0, ws_ypixel: 0)
-        guard openpty(&primaryFD, &secondaryFD, nil, &term, &win) == 0 else {
+        // Pass nil termios so the OS applies default settings (ECHO/ICANON/etc.).
+        guard openpty(&primaryFD, &secondaryFD, nil, nil, &win) == 0 else {
             throw Error.launchFailed("openpty failed")
         }
         // Make primary side non-blocking so read loops don't hang when no data is available.
@@ -65,7 +85,12 @@ public struct TTYCommandRunner {
         // Mirror RPC PATH seeding so CLIs installed via npm/nvm/fnm/bun still launch in hardened builds,
         // but keep the caller’s environment (HOME, LANG, BUN_INSTALL, etc.) so the CLIs can find their
         // auth/config files.
-        proc.environment = Self.enrichedEnvironment()
+        var env = Self.enrichedEnvironment()
+        if env["CI"] == nil { env["CI"] = "0" }
+        if env["FORCE_COLOR"] == nil { env["FORCE_COLOR"] = "1" }
+        if env["COLORTERM"] == nil { env["COLORTERM"] = "truecolor" }
+        if env["LANG"]?.isEmpty ?? true { env["LANG"] = "en_US.UTF-8" }
+        proc.environment = env
 
         var cleanedUp = false
         var didLaunch = false
@@ -126,12 +151,33 @@ public struct TTYCommandRunner {
             try primaryHandle.write(contentsOf: data)
         }
 
+        let trimmed = script.trimmingCharacters(in: .whitespacesAndNewlines)
+        let isCodex = (binary == "codex")
+        let isCodexStatus = isCodex && trimmed == "/status"
+
         let deadline = Date().addingTimeInterval(options.timeout)
         var buffer = Data()
         func readChunk() {
-            var tmp = [UInt8](repeating: 0, count: 8192)
-            let n = Darwin.read(primaryFD, &tmp, tmp.count)
-            if n > 0 { buffer.append(contentsOf: tmp.prefix(n)) }
+            while true {
+                var tmp = [UInt8](repeating: 0, count: 8192)
+                let n = Darwin.read(primaryFD, &tmp, tmp.count)
+                if n > 0 {
+                    buffer.append(contentsOf: tmp.prefix(n))
+                    continue
+                }
+                break
+            }
+        }
+
+        func firstLink(in data: Data) -> String? {
+            guard let s = String(data: data, encoding: .utf8) else { return nil }
+            let pattern = #"https?://[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]+"#
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+            let range = NSRange(s.startIndex..<s.endIndex, in: s)
+            guard let match = regex.firstMatch(in: s, range: range), let r = Range(match.range, in: s) else {
+                return nil
+            }
+            return String(s[r]).trimmingCharacters(in: CharacterSet(charactersIn: ".,;:)]}>\"'"))
         }
 
         func containsCodexStatus() -> Bool {
@@ -164,7 +210,59 @@ public struct TTYCommandRunner {
 
         // Generic behavior (Codex /status and other commands).
         usleep(400_000) // small boot grace
-        let delayInitialSend = script.trimmingCharacters(in: .whitespacesAndNewlines) == "/status"
+
+        // Generic branch for non-Codex (e.g., Claude).
+        if !isCodex {
+            if !trimmed.isEmpty {
+                try send(trimmed)
+                try send("\r")
+            }
+
+            let urlNeedles = [Data("https://".utf8), Data("http://".utf8)]
+            let stopNeedles = options.stopOnSubstrings.map { Data($0.utf8) }
+            var lastEnter = Date()
+            var stoppedEarly = false
+
+            while Date() < deadline {
+                readChunk()
+                respondIfCursorQuerySeen()
+
+                if options.stopOnURL, urlNeedles.contains(where: { buffer.range(of: $0) != nil }) {
+                    stoppedEarly = true
+                    break
+                }
+                if !stopNeedles.isEmpty, stopNeedles.contains(where: { buffer.range(of: $0) != nil }) {
+                    stoppedEarly = true
+                    break
+                }
+
+                if let every = options.sendEnterEvery, Date().timeIntervalSince(lastEnter) >= every {
+                    try? send("\r")
+                    lastEnter = Date()
+                }
+
+                if !proc.isRunning { break }
+                usleep(60000)
+            }
+
+            if stoppedEarly {
+                let settle = max(0, min(options.settleAfterStop, deadline.timeIntervalSinceNow))
+                if settle > 0 {
+                    let settleDeadline = Date().addingTimeInterval(settle)
+                    while Date() < settleDeadline {
+                        readChunk()
+                        respondIfCursorQuerySeen()
+                        usleep(50000)
+                    }
+                }
+            }
+
+            let text = String(data: buffer, encoding: .utf8) ?? ""
+            guard !text.isEmpty else { throw Error.timedOut }
+            return Result(text: text)
+        }
+
+        let delayInitialSend = isCodexStatus
         if !delayInitialSend {
             try send(script)
             try send("\r")
@@ -181,6 +279,9 @@ public struct TTYCommandRunner {
         var resendStatusRetries = 0
         var enterRetries = 0
         var sawCodexStatus = false
+
+        let enterRetryLimit = 6
+        let enterInterval: TimeInterval = 1.2
 
         while Date() < deadline {
             readChunk()
@@ -215,7 +316,7 @@ public struct TTYCommandRunner {
                 continue
             }
             if sentScript, !containsCodexStatus() {
-                if Date().timeIntervalSince(lastEnter) >= 1.2, enterRetries < 6 {
+                if Date().timeIntervalSince(lastEnter) >= enterInterval, enterRetries < enterRetryLimit {
                     try? send("\r")
                     enterRetries += 1
                     lastEnter = Date()
@@ -248,13 +349,12 @@ public struct TTYCommandRunner {
             while Date() < settleDeadline {
                 readChunk()
                 respondIfCursorQuerySeen()
-                usleep(100_000)
+                usleep(80000)
             }
         }
 
-        guard let text = String(data: buffer, encoding: .utf8), !text.isEmpty else {
-            throw Error.timedOut
-        }
+        let text = String(data: buffer, encoding: .utf8) ?? ""
+        guard !text.isEmpty else { throw Error.timedOut }
 
         return Result(text: text)
     }
