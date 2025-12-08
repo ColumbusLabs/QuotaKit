@@ -104,14 +104,18 @@ public enum BinaryLocator {
 
         // 5) Version managers (bounded scan)
         if let nvmHit = self.scanManagedVersions(
-            root: "\(home)/.nvm/versions/node",
+            root: "\(env["NVM_DIR"] ?? "\(home)/.nvm")/versions/node",
             binary: name,
             fileManager: fileManager)
         {
             return nvmHit
         }
-        if let fnmHit = self.scanManagedVersions(
-            root: "\(home)/.local/share/fnm",
+        if let fnmHit = self.scanFnm(
+            roots: [
+                env["FNM_DIR"] ?? "\(home)/.local/share/fnm",
+                "\(home)/Library/Application Support/fnm",
+                "\(home)/.fnm",
+            ],
             binary: name,
             fileManager: fileManager)
         {
@@ -161,13 +165,60 @@ public enum BinaryLocator {
 
     private static func scanManagedVersions(root: String, binary: String, fileManager: FileManager) -> String? {
         guard let versions = try? fileManager.contentsOfDirectory(atPath: root) else { return nil }
-        for version in versions.sorted(by: >) { // newest first
+        for version in versions.sorted(by: self.semverDescending) {
             let candidate = "\(root)/\(version)/bin/\(binary)"
             if fileManager.isExecutableFile(atPath: candidate) {
                 return candidate
             }
         }
         return nil
+    }
+
+    /// fnm installs live under node-versions/<ver>/installation/bin and aliases/<name>/bin.
+    private static func scanFnm(roots: [String], binary: String, fileManager: FileManager) -> String? {
+        for root in roots {
+            // 1) node-versions/<ver>/installation/bin/<binary>
+            let nodeVersions = "\(root)/node-versions"
+            if let versions = try? fileManager.contentsOfDirectory(atPath: nodeVersions) {
+                for version in versions.sorted(by: self.semverDescending) {
+                    let candidate = "\(nodeVersions)/\(version)/installation/bin/\(binary)"
+                    if fileManager.isExecutableFile(atPath: candidate) {
+                        return candidate
+                    }
+                }
+            }
+
+            // 2) aliases/default|current/bin/<binary> (then other aliases)
+            let aliasesDir = "\(root)/aliases"
+            if let aliases = try? fileManager.contentsOfDirectory(atPath: aliasesDir) {
+                let preferred = ["default", "current"]
+                let ordered = preferred + aliases.filter { !preferred.contains($0) }.sorted()
+                for name in ordered {
+                    let candidate = "\(aliasesDir)/\(name)/bin/\(binary)"
+                    if fileManager.isExecutableFile(atPath: candidate) {
+                        return candidate
+                    }
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func semverDescending(_ lhs: String, _ rhs: String) -> Bool {
+        func parse(_ string: String) -> [Int] {
+            let trimmed = string.hasPrefix("v") ? String(string.dropFirst()) : string
+            return trimmed.split(separator: ".").compactMap { Int($0) }
+        }
+        let a = parse(lhs)
+        let b = parse(rhs)
+        let maxCount = max(a.count, b.count)
+        for idx in 0..<maxCount {
+            let av = idx < a.count ? a[idx] : 0
+            let bv = idx < b.count ? b[idx] : 0
+            if av == bv { continue }
+            return av > bv // descending
+        }
+        return lhs < rhs // stable tie-breaker
     }
 }
 
@@ -194,8 +245,6 @@ public enum PathBuilder {
         parts.append("\(home)/bin")
         parts.append("\(home)/.bun/bin")
         parts.append("\(home)/.npm-global/bin")
-        parts.append("\(home)/.local/share/fnm")
-        parts.append("\(home)/.fnm")
 
         // Directories for resolved binaries
         let binaries = resolvedBinaryPaths
