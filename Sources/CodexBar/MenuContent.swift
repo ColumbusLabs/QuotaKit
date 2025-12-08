@@ -48,12 +48,28 @@ struct MenuContent: View {
                 Text(text).foregroundStyle(.secondary).font(.footnote)
             }
         case let .action(title, action):
-            Button(title) { self.perform(action) }
-                .buttonStyle(.plain)
+            Button {
+                self.perform(action)
+            } label: {
+                if let icon = self.iconName(for: action) {
+                    HStack(spacing: 8) {
+                        Image(systemName: icon)
+                            .imageScale(.medium)
+                            .frame(width: 18, alignment: .center)
+                        Text(title)
+                    }
+                    .foregroundStyle(.primary)
+                } else {
+                    Text(title)
+                }
+            }
+            .buttonStyle(.plain)
         case .divider:
             Divider()
         }
     }
+
+    private func iconName(for action: MenuDescriptor.MenuAction) -> String? { action.systemImageName }
 
     private func perform(_ action: MenuDescriptor.MenuAction) {
         switch action {
@@ -63,6 +79,8 @@ struct MenuContent: View {
             self.actions.openDashboard()
         case .statusPage:
             self.actions.openStatusPage()
+        case let .switchAccount(provider):
+            self.actions.switchAccount(provider)
         case .settings:
             self.actions.openSettings()
         case .about:
@@ -79,6 +97,7 @@ struct MenuActions {
     let refresh: () -> Void
     let openDashboard: () -> Void
     let openStatusPage: () -> Void
+    let switchAccount: (UsageProvider) -> Void
     let openSettings: () -> Void
     let openAbout: () -> Void
     let quit: () -> Void

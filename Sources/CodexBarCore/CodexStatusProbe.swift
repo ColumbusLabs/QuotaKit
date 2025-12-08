@@ -34,7 +34,7 @@ public enum CodexStatusProbeError: LocalizedError, Sendable {
     public var errorDescription: String? {
         switch self {
         case .codexNotInstalled:
-            "Codex CLI is not installed or not on PATH."
+            "Codex CLI missing. Install via `npm i -g @openai/codex` (or bun install) and restart."
         case .parseFailed:
             "Could not parse Codex status; will retry shortly."
         case .timedOut:

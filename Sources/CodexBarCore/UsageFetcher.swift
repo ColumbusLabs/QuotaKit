@@ -163,7 +163,11 @@ private final class CodexRPCClient: @unchecked Sendable {
     {
         let resolvedExec = BinaryLocator.resolveCodexBinary()
             ?? TTYCommandRunner.which(executable)
-            ?? executable
+
+        guard let resolvedExec else {
+            throw RPCWireError.startFailed(
+                "Codex CLI not found. Install with `npm i -g @openai/codex` (or bun) then relaunch CodexBar.")
+        }
         var env = ProcessInfo.processInfo.environment
         env["PATH"] = PathBuilder.effectivePATH(
             purposes: [.rpc, .nodeTooling],

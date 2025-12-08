@@ -13,6 +13,17 @@ struct MenuDescriptor {
         case divider
     }
 
+    enum MenuActionSystemImage: String {
+        case refresh = "arrow.clockwise"
+        case dashboard = "chart.bar"
+        case statusPage = "waveform.path.ecg"
+        case switchAccount = "key"
+        case settings = "gearshape"
+        case about = "info.circle"
+        case quit = "xmark.rectangle"
+        case copyError = "doc.on.doc"
+    }
+
     enum TextStyle {
         case headline
         case primary
@@ -23,6 +34,7 @@ struct MenuDescriptor {
         case refresh
         case dashboard
         case statusPage
+        case switchAccount(UsageProvider)
         case settings
         case about
         case quit
@@ -160,9 +172,16 @@ struct MenuDescriptor {
     private static func actionsSection(for provider: UsageProvider?, store: UsageStore) -> Section {
         var entries: [Entry] = [
             .action("Refresh Now", .refresh),
+        ]
+
+        if let loginAction = self.switchAccountAction(for: provider, store: store) {
+            entries.append(.action("Switch Account...", loginAction))
+        }
+
+        entries.append(contentsOf: [
             .action("Usage Dashboard", .dashboard),
             .action("Status Page", .statusPage),
-        ]
+        ])
 
         if let statusLine = self.statusLine(for: provider, store: store) {
             entries.append(.text(statusLine, .secondary))
@@ -192,6 +211,19 @@ struct MenuDescriptor {
             return "\(label) — \(freshness)"
         }
         return label
+    }
+
+    private static func switchAccountAction(for provider: UsageProvider?, store: UsageStore) -> MenuAction? {
+        if let provider {
+            return .switchAccount(provider)
+        }
+        if store.isEnabled(.codex) {
+            return .switchAccount(.codex)
+        }
+        if store.isEnabled(.claude) {
+            return .switchAccount(.claude)
+        }
+        return nil
     }
 
     private static func appendRateWindow(entries: inout [Entry], title: String, window: RateWindow) {
@@ -225,4 +257,19 @@ private enum AccountFormatter {
     }
 
     static func email(_ text: String) -> String { text }
+}
+
+extension MenuDescriptor.MenuAction {
+    var systemImageName: String? {
+        switch self {
+        case .refresh: MenuDescriptor.MenuActionSystemImage.refresh.rawValue
+        case .dashboard: MenuDescriptor.MenuActionSystemImage.dashboard.rawValue
+        case .statusPage: MenuDescriptor.MenuActionSystemImage.statusPage.rawValue
+        case .switchAccount: MenuDescriptor.MenuActionSystemImage.switchAccount.rawValue
+        case .settings: MenuDescriptor.MenuActionSystemImage.settings.rawValue
+        case .about: MenuDescriptor.MenuActionSystemImage.about.rawValue
+        case .quit: MenuDescriptor.MenuActionSystemImage.quit.rawValue
+        case .copyError: MenuDescriptor.MenuActionSystemImage.copyError.rawValue
+        }
+    }
 }

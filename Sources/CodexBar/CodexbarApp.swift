@@ -1,6 +1,7 @@
 import AppKit
 import CodexBarCore
 import Combine
+import OSLog
 import QuartzCore
 import Security
 import SwiftUI
@@ -213,6 +214,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     private(set) var lastMenuProvider: UsageProvider?
     private var menuProviders: [ObjectIdentifier: UsageProvider] = [:]
     private var blinkTask: Task<Void, Never>?
+    private var loginTask: Task<Void, Never>?
     private var blinkStates: [UsageProvider: BlinkState] = [:]
     private var blinkAmounts: [UsageProvider: CGFloat] = [:]
     private var wiggleAmounts: [UsageProvider: CGFloat] = [:]
@@ -223,6 +225,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     private var animationDisplayLink: CADisplayLink?
     private var animationPhase: Double = 0
     private var animationPattern: LoadingPattern = .knightRider
+    private let loginLogger = Logger(subsystem: "com.steipete.codexbar", category: "login")
 
     private struct BlinkState {
         var nextBlink: Date
@@ -633,6 +636,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
 
     deinit {
         self.blinkTask?.cancel()
+        self.loginTask?.cancel()
         NotificationCenter.default.removeObserver(self)
     }
 
@@ -666,6 +670,48 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         NSWorkspace.shared.open(url)
     }
 
+    @objc private func runSwitchAccount(_ sender: NSMenuItem) {
+        if self.loginTask != nil {
+            self.loginLogger.notice("Switch Account tap ignored: login already in-flight")
+            print("[CodexBar] Switch Account ignored (busy)")
+            return
+        }
+
+        let rawProvider = sender.representedObject as? String
+        let provider = rawProvider.flatMap(UsageProvider.init(rawValue:)) ?? self.lastMenuProvider ?? .codex
+        self.loginLogger.notice("Switch Account tapped (provider=\(provider.rawValue, privacy: .public))")
+        print("[CodexBar] Switch Account tapped for provider=\(provider.rawValue)")
+
+        self.loginTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.loginTask = nil }
+            self.loginLogger.notice("Starting login task for \(provider.rawValue, privacy: .public)")
+            print("[CodexBar] Starting login task for \(provider.rawValue)")
+
+            switch provider {
+            case .codex:
+                let result = await CodexLoginRunner.run(timeout: 120)
+                guard !Task.isCancelled else { return }
+                self.presentCodexLoginResult(result)
+                let outcome = self.describe(result.outcome)
+                let length = result.output.count
+                self.loginLogger.notice("Codex login \(outcome, privacy: .public) len=\(length)")
+                print("[CodexBar] Codex login outcome=\(outcome) len=\(length)")
+            case .claude:
+                let result = await ClaudeLoginRunner.run(timeout: 120)
+                guard !Task.isCancelled else { return }
+                self.presentClaudeLoginResult(result)
+                let outcome = self.describe(result.outcome)
+                let length = result.output.count
+                self.loginLogger.notice("Claude login \(outcome, privacy: .public) len=\(length)")
+                print("[CodexBar] Claude login outcome=\(outcome) len=\(length)")
+            }
+
+            await self.store.refresh()
+            print("[CodexBar] Triggered refresh after login")
+        }
+    }
+
     @objc private func showSettingsGeneral() { self.openSettings(tab: .general) }
 
     @objc private func showSettingsAbout() { self.openSettings(tab: .about) }
@@ -695,6 +741,85 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             pb.clearContents()
             pb.setString(err, forType: .string)
         }
+    }
+
+    private func presentCodexLoginResult(_ result: CodexLoginRunner.Result) {
+        switch result.outcome {
+        case .success:
+            return
+        case .missingBinary:
+            self.presentCodexLoginAlert(
+                title: "Codex CLI not found",
+                message: "Install the Codex CLI (npm i -g @openai/codex) and try again.")
+        case let .launchFailed(message):
+            self.presentCodexLoginAlert(title: "Could not start codex login", message: message)
+        case .timedOut:
+            self.presentCodexLoginAlert(
+                title: "Codex login timed out",
+                message: self.trimmedLoginOutput(result.output))
+        case let .failed(status):
+            let statusLine = "codex login exited with status \(status)."
+            let message = self.trimmedLoginOutput(result.output.isEmpty ? statusLine : result.output)
+            self.presentCodexLoginAlert(title: "Codex login failed", message: message)
+        }
+    }
+
+    private func presentClaudeLoginResult(_ result: ClaudeLoginRunner.Result) {
+        switch result.outcome {
+        case .success:
+            return
+        case .missingBinary:
+            self.presentCodexLoginAlert(
+                title: "Claude CLI not found",
+                message: "Install the Claude CLI (npm i -g @anthropic-ai/claude-cli) and try again.")
+        case let .launchFailed(message):
+            self.presentCodexLoginAlert(title: "Could not start claude /login", message: message)
+        case .timedOut:
+            self.presentCodexLoginAlert(
+                title: "Claude login timed out",
+                message: self.trimmedLoginOutput(result.output))
+        case let .failed(status):
+            let statusLine = "claude /login exited with status \(status)."
+            let message = self.trimmedLoginOutput(result.output.isEmpty ? statusLine : result.output)
+            self.presentCodexLoginAlert(title: "Claude login failed", message: message)
+        }
+    }
+
+    private func describe(_ outcome: CodexLoginRunner.Result.Outcome) -> String {
+        switch outcome {
+        case .success: "success"
+        case .timedOut: "timedOut"
+        case let .failed(status): "failed(status: \(status))"
+        case .missingBinary: "missingBinary"
+        case let .launchFailed(message): "launchFailed(\(message))"
+        }
+    }
+
+    private func describe(_ outcome: ClaudeLoginRunner.Result.Outcome) -> String {
+        switch outcome {
+        case .success: "success"
+        case .timedOut: "timedOut"
+        case let .failed(status): "failed(status: \(status))"
+        case .missingBinary: "missingBinary"
+        case let .launchFailed(message): "launchFailed(\(message))"
+        }
+    }
+
+    private func presentCodexLoginAlert(title: String, message: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.runModal()
+    }
+
+    private func trimmedLoginOutput(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let limit = 600
+        if trimmed.isEmpty { return "No output captured." }
+        if trimmed.count <= limit { return trimmed }
+        let idx = trimmed.index(trimmed.startIndex, offsetBy: limit)
+        return "\(trimmed[..<idx])…"
     }
 }
 
@@ -751,6 +876,13 @@ extension StatusItemController {
                     let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
                     item.target = self
                     item.representedObject = represented
+                    if let iconName = action.systemImageName,
+                       let image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)
+                    {
+                        image.isTemplate = true
+                        image.size = NSSize(width: 16, height: 16)
+                        item.image = image
+                    }
                     menu.addItem(item)
                 case .divider:
                     menu.addItem(.separator())
@@ -776,6 +908,7 @@ extension StatusItemController {
         case .refresh: (#selector(self.refreshNow), nil)
         case .dashboard: (#selector(self.openDashboard), nil)
         case .statusPage: (#selector(self.openStatusPage), nil)
+        case let .switchAccount(provider): (#selector(self.runSwitchAccount(_:)), provider.rawValue)
         case .settings: (#selector(self.showSettingsGeneral), nil)
         case .about: (#selector(self.showSettingsAbout), nil)
         case .quit: (#selector(self.quit), nil)
