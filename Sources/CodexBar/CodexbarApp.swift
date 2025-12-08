@@ -8,22 +8,26 @@ import SwiftUI
 @main
 struct CodexBarApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var settings = SettingsStore()
+    @StateObject private var settings: SettingsStore
     @StateObject private var store: UsageStore
-    private let preferencesSelection = PreferencesSelection()
+    private let preferencesSelection: PreferencesSelection
     private let account: AccountInfo
 
     init() {
+        let preferencesSelection = PreferencesSelection()
         let settings = SettingsStore()
         let fetcher = UsageFetcher()
-        self.account = fetcher.loadAccountInfo()
+        let account = fetcher.loadAccountInfo()
+        let store = UsageStore(fetcher: fetcher, settings: settings)
+        self.preferencesSelection = preferencesSelection
         _settings = StateObject(wrappedValue: settings)
-        _store = StateObject(wrappedValue: UsageStore(fetcher: fetcher, settings: settings))
+        _store = StateObject(wrappedValue: store)
+        self.account = account
         self.appDelegate.configure(
-            store: _store.wrappedValue,
+            store: store,
             settings: settings,
-            account: self.account,
-            selection: self.preferencesSelection)
+            account: account,
+            selection: preferencesSelection)
     }
 
     @SceneBuilder
@@ -33,7 +37,7 @@ struct CodexBarApp: App {
         WindowGroup("CodexBarLifecycleKeepalive") {
             HiddenWindowView()
         }
-        .defaultSize(width: 1, height: 1)
+        .defaultSize(width: 20, height: 20)
         .windowStyle(.hiddenTitleBar)
 
         Settings {

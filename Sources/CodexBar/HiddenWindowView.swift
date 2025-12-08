@@ -5,7 +5,7 @@ struct HiddenWindowView: View {
 
     var body: some View {
         Color.clear
-            .frame(width: 1, height: 1)
+            .frame(width: 20, height: 20)
             .onReceive(NotificationCenter.default.publisher(for: .codexbarOpenSettings)) { _ in
                 Task { @MainActor in
                     self.openSettings()
@@ -21,6 +21,7 @@ struct HiddenWindowView: View {
                     window.hasShadow = false
                     window.ignoresMouseEvents = true
                     window.canHide = false
+                    window.setContentSize(NSSize(width: 20, height: 20))
                 }
             }
     }
