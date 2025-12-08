@@ -6,6 +6,7 @@ Login story
 - **Codex** — Prefers the local codex app-server RPC for 5h/weekly limits + credits. Falls back to a PTY scrape of `codex /status` (auth/email/plan from the RPC or `~/.codex/auth.json`). All parsing stays on-device; no browser required.
 - **Claude Code** — Reads session + weekly + Sonnet-only weekly usage from the Claude CLI by running `/usage` + `/status` in a local PTY (no tmux). Shows email/org/login method directly from the CLI output. No browser or network calls beyond the CLI itself.
 - **Provider detection** — On first launch we detect installed CLIs and enable Codex by default (Claude turns on when the `claude` binary is present). You can toggle either provider in Settings → General or rerun detection after installing a CLI.
+- **Privacy note** — Wondering if CodexBar scans your disk? It doesn’t; see the discussion and audit notes in [issue #12](https://github.com/steipete/CodexBar/issues/12).
 
 Icon bar mapping (grayscale)
 - Top bar: 5‑hour window when available; if weekly is exhausted, the top becomes a thick credits bar (scaled to a 1k cap) to show paid credits left.
