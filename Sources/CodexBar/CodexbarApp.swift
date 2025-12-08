@@ -5,6 +5,7 @@ import OSLog
 import QuartzCore
 import Security
 import SwiftUI
+@preconcurrency import UserNotifications
 
 @main
 struct CodexBarApp: App {
@@ -185,6 +186,7 @@ extension CodexBarApp {
     private var claudeShouldAnimate: Bool {
         self.store.isEnabled(.claude) && self.claudeSnapshot == nil && !self.store.isStale(provider: .claude)
     }
+
 }
 
 // MARK: - Status item controller (AppKit-hosted icons, SwiftUI popovers)
@@ -214,13 +216,16 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     private(set) var lastMenuProvider: UsageProvider?
     private var menuProviders: [ObjectIdentifier: UsageProvider] = [:]
     private var blinkTask: Task<Void, Never>?
-    private var loginTask: Task<Void, Never>?
+    private var loginTask: Task<Void, Never>? {
+        didSet { self.refreshMenusForLoginStateChange() }
+    }
     private var blinkStates: [UsageProvider: BlinkState] = [:]
     private var blinkAmounts: [UsageProvider: CGFloat] = [:]
     private var wiggleAmounts: [UsageProvider: CGFloat] = [:]
     private var tiltAmounts: [UsageProvider: CGFloat] = [:]
     private var blinkForceUntil: Date?
     private var cancellables = Set<AnyCancellable>()
+    private var loginPhase: LoginPhase = .idle
     private let preferencesSelection: PreferencesSelection
     private var animationDisplayLink: CADisplayLink?
     private var animationPhase: Double = 0
@@ -242,6 +247,12 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         case blink
         case wiggle
         case tilt
+    }
+
+    private enum LoginPhase {
+        case idle
+        case requesting
+        case waitingBrowser
     }
 
     init(
@@ -332,6 +343,10 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
 
     private func isEnabled(_ provider: UsageProvider) -> Bool {
         self.store.isEnabled(provider)
+    }
+
+    private func refreshMenusForLoginStateChange() {
+        self.attachMenus(fallback: self.fallbackProvider)
     }
 
     private func attachMenus(fallback: UsageProvider? = nil) {
@@ -492,6 +507,15 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
 
     private func isVisible(_ provider: UsageProvider) -> Bool {
         self.store.debugForceAnimation || self.isEnabled(provider) || self.fallbackProvider == provider
+    }
+
+    private func switchAccountSubtitle() -> String? {
+        guard self.loginTask != nil else { return nil }
+        switch self.loginPhase {
+        case .idle: return nil
+        case .requesting: return "Requesting login…"
+        case .waitingBrowser: return "Waiting in browser…"
+        }
     }
 
     private func applyIcon(for provider: UsageProvider, phase: Double?) {
@@ -685,6 +709,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         self.loginTask = Task { @MainActor [weak self] in
             guard let self else { return }
             defer { self.loginTask = nil }
+            self.loginPhase = .requesting
             self.loginLogger.notice("Starting login task for \(provider.rawValue, privacy: .public)")
             print("[CodexBar] Starting login task for \(provider.rawValue)")
 
@@ -692,19 +717,35 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             case .codex:
                 let result = await CodexLoginRunner.run(timeout: 120)
                 guard !Task.isCancelled else { return }
+                self.loginPhase = .idle
                 self.presentCodexLoginResult(result)
                 let outcome = self.describe(result.outcome)
                 let length = result.output.count
                 self.loginLogger.notice("Codex login \(outcome, privacy: .public) len=\(length)")
                 print("[CodexBar] Codex login outcome=\(outcome) len=\(length)")
+                if case .success = result.outcome {
+                    self.postLoginNotification(for: .codex)
+                }
             case .claude:
-                let result = await ClaudeLoginRunner.run(timeout: 120)
+                let phaseHandler: @Sendable (ClaudeLoginRunner.Phase) -> Void = { [weak self] phase in
+                    Task { @MainActor in
+                        switch phase {
+                        case .requesting: self?.loginPhase = .requesting
+                        case .waitingBrowser: self?.loginPhase = .waitingBrowser
+                        }
+                    }
+                }
+                let result = await ClaudeLoginRunner.run(timeout: 120, onPhaseChange: phaseHandler)
                 guard !Task.isCancelled else { return }
+                self.loginPhase = .idle
                 self.presentClaudeLoginResult(result)
                 let outcome = self.describe(result.outcome)
                 let length = result.output.count
                 self.loginLogger.notice("Claude login \(outcome, privacy: .public) len=\(length)")
                 print("[CodexBar] Claude login outcome=\(outcome) len=\(length)")
+                if case .success = result.outcome {
+                    self.postLoginNotification(for: .claude)
+                }
             }
 
             await self.store.refresh()
@@ -821,6 +862,24 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         let idx = trimmed.index(trimmed.startIndex, offsetBy: limit)
         return "\(trimmed[..<idx])…"
     }
+
+    private func postLoginNotification(for provider: UsageProvider) {
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
+            guard granted else { return }
+
+            let content = UNMutableNotificationContent()
+            content.title = provider == .claude ? "Claude login successful" : "Codex login successful"
+            content.body = "You can return to the app; authentication finished."
+
+            let request = UNNotificationRequest(
+                identifier: "codexbar-login-\(provider.rawValue)-\(UUID().uuidString)",
+                content: content,
+                trigger: nil)
+
+            center.add(request, withCompletionHandler: nil)
+        }
+    }
 }
 
 // MARK: - NSMenu construction
@@ -882,6 +941,10 @@ extension StatusItemController {
                         image.isTemplate = true
                         image.size = NSSize(width: 16, height: 16)
                         item.image = image
+                    }
+                    if case .switchAccount = action, let subtitle = self.switchAccountSubtitle() {
+                        item.subtitle = subtitle
+                        item.isEnabled = false
                     }
                     menu.addItem(item)
                 case .divider:

@@ -174,9 +174,9 @@ struct MenuDescriptor {
             .action("Refresh Now", .refresh),
         ]
 
-        if let loginAction = self.switchAccountAction(for: provider, store: store) {
-            entries.append(.action("Switch Account...", loginAction))
-        }
+        // Always show Switch Account…; pick the most relevant provider and never drop the row.
+        let loginAction = self.switchAccountTarget(for: provider, store: store)
+        entries.append(.action("Switch Account...", loginAction))
 
         entries.append(contentsOf: [
             .action("Usage Dashboard", .dashboard),
@@ -213,17 +213,11 @@ struct MenuDescriptor {
         return label
     }
 
-    private static func switchAccountAction(for provider: UsageProvider?, store: UsageStore) -> MenuAction? {
-        if let provider {
-            return .switchAccount(provider)
-        }
-        if store.isEnabled(.codex) {
-            return .switchAccount(.codex)
-        }
-        if store.isEnabled(.claude) {
-            return .switchAccount(.claude)
-        }
-        return nil
+    private static func switchAccountTarget(for provider: UsageProvider?, store: UsageStore) -> MenuAction {
+        if let provider { return .switchAccount(provider) }
+        if let enabled = store.enabledProviders().first { return .switchAccount(enabled) }
+        // Fallback to Codex then Claude so the menu item never disappears, even if probes temporarily mark both disabled.
+        return .switchAccount(store.isEnabled(.codex) ? .codex : .claude)
     }
 
     private static func appendRateWindow(entries: inout [Entry], title: String, window: RateWindow) {
@@ -262,13 +256,12 @@ private enum AccountFormatter {
 extension MenuDescriptor.MenuAction {
     var systemImageName: String? {
         switch self {
+        case .settings, .about, .quit:
+            nil
         case .refresh: MenuDescriptor.MenuActionSystemImage.refresh.rawValue
         case .dashboard: MenuDescriptor.MenuActionSystemImage.dashboard.rawValue
         case .statusPage: MenuDescriptor.MenuActionSystemImage.statusPage.rawValue
         case .switchAccount: MenuDescriptor.MenuActionSystemImage.switchAccount.rawValue
-        case .settings: MenuDescriptor.MenuActionSystemImage.settings.rawValue
-        case .about: MenuDescriptor.MenuActionSystemImage.about.rawValue
-        case .quit: MenuDescriptor.MenuActionSystemImage.quit.rawValue
         case .copyError: MenuDescriptor.MenuActionSystemImage.copyError.rawValue
         }
     }

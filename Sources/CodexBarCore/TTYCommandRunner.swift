@@ -13,12 +13,29 @@ public struct TTYCommandRunner {
         public var cols: UInt16 = 160
         public var timeout: TimeInterval = 20.0
         public var extraArgs: [String] = []
+        public var sendEnterEvery: TimeInterval?
+        public var stopOnURL: Bool
+        public var stopOnSubstrings: [String]
+        public var settleAfterStop: TimeInterval
 
-        public init(rows: UInt16 = 50, cols: UInt16 = 160, timeout: TimeInterval = 20.0, extraArgs: [String] = []) {
+        public init(
+            rows: UInt16 = 50,
+            cols: UInt16 = 160,
+            timeout: TimeInterval = 20.0,
+            extraArgs: [String] = [],
+            sendEnterEvery: TimeInterval? = nil,
+            stopOnURL: Bool = false,
+            stopOnSubstrings: [String] = [],
+            settleAfterStop: TimeInterval = 0.25)
+        {
             self.rows = rows
             self.cols = cols
             self.timeout = timeout
             self.extraArgs = extraArgs
+            self.sendEnterEvery = sendEnterEvery
+            self.stopOnURL = stopOnURL
+            self.stopOnSubstrings = stopOnSubstrings
+            self.settleAfterStop = settleAfterStop
         }
     }
 
@@ -40,14 +57,19 @@ public struct TTYCommandRunner {
     public init() {}
 
     // swiftlint:disable function_body_length
-    public func run(binary: String, send script: String, options: Options = Options()) throws -> Result {
+    // swiftlint:disable:next cyclomatic_complexity
+    public func run(
+        binary: String,
+        send script: String,
+        options: Options = Options(),
+        onURLDetected: (@Sendable () -> Void)? = nil) throws -> Result
+    {
         guard let resolved = Self.which(binary) else { throw Error.binaryNotFound(binary) }
 
         var primaryFD: Int32 = -1
         var secondaryFD: Int32 = -1
-        var term = termios()
         var win = winsize(ws_row: options.rows, ws_col: options.cols, ws_xpixel: 0, ws_ypixel: 0)
-        guard openpty(&primaryFD, &secondaryFD, nil, &term, &win) == 0 else {
+        guard openpty(&primaryFD, &secondaryFD, nil, nil, &win) == 0 else {
             throw Error.launchFailed("openpty failed")
         }
         // Make primary side non-blocking so read loops don't hang when no data is available.
@@ -127,11 +149,38 @@ public struct TTYCommandRunner {
         }
 
         let deadline = Date().addingTimeInterval(options.timeout)
+        let trimmed = script.trimmingCharacters(in: .whitespacesAndNewlines)
+        let isCodex = (binary == "codex")
+        let isCodexStatus = isCodex && trimmed == "/status"
+
         var buffer = Data()
         func readChunk() {
-            var tmp = [UInt8](repeating: 0, count: 8192)
-            let n = Darwin.read(primaryFD, &tmp, tmp.count)
-            if n > 0 { buffer.append(contentsOf: tmp.prefix(n)) }
+            while true {
+                var tmp = [UInt8](repeating: 0, count: 8192)
+                let n = Darwin.read(primaryFD, &tmp, tmp.count)
+                if n > 0 {
+                    buffer.append(contentsOf: tmp.prefix(n))
+                    continue
+                }
+                break
+            }
+        }
+
+        func firstLink(in data: Data) -> String? {
+            guard let s = String(data: data, encoding: .utf8) else { return nil }
+            let pattern = #"https?://[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]+"#
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+            let range = NSRange(s.startIndex..<s.endIndex, in: s)
+            guard let match = regex.firstMatch(in: s, range: range), let r = Range(match.range, in: s) else {
+                return nil
+            }
+            var url = String(s[r])
+            while let last = url.unicodeScalars.last,
+                  CharacterSet(charactersIn: ".,;:)]}>\"'").contains(last)
+            {
+                url.unicodeScalars.removeLast()
+            }
+            return url
         }
 
         func containsCodexStatus() -> Bool {
@@ -145,26 +194,78 @@ public struct TTYCommandRunner {
         }
 
         func respondIfCursorQuerySeen() {
-            let query = Data([0x1B, 0x5B, 0x36, 0x6E]) // ESC [ 6 n
-            if buffer.contains(query) {
-                // Pretend cursor is at 1;1, which is enough to satisfy Codex CLI's probe.
-                try? send("\u{1b}[1;1R")
-            }
+            let query = Data([0x1B, 0x5B, 0x36, 0x6E])
+            if buffer.contains(query) { try? send("\u{1b}[1;1R") }
         }
 
         func containsCodexUpdatePrompt() -> Bool {
-            let needles = [
-                "Update available!",
-                "Run bun install -g @openai/codex",
-                "0.60.1 ->",
-            ]
+            let needles = ["Update available!", "Run bun install -g @openai/codex", "0.60.1 ->"]
             let lower = String(data: buffer, encoding: .utf8)?.lowercased() ?? ""
             return needles.contains { lower.contains($0.lowercased()) }
         }
 
-        // Generic behavior (Codex /status and other commands).
         usleep(400_000) // small boot grace
-        let delayInitialSend = script.trimmingCharacters(in: .whitespacesAndNewlines) == "/status"
+
+        // Generic path for non-Codex (e.g. Claude /login)
+        if !isCodex {
+            if !trimmed.isEmpty {
+                try send(trimmed)
+                try send("\r")
+            }
+
+            let stopNeedles = options.stopOnSubstrings.map { Data($0.utf8) }
+            let urlNeedles = [Data("https://".utf8), Data("http://".utf8)]
+            var lastEnter = Date()
+            var stoppedEarly = false
+            var urlSeen = false
+
+            while Date() < deadline {
+                readChunk()
+                respondIfCursorQuerySeen()
+
+                if urlNeedles.contains(where: { buffer.range(of: $0) != nil }) {
+                    urlSeen = true
+                    if urlSeen {
+                        onURLDetected?()
+                    }
+                    if options.stopOnURL {
+                        stoppedEarly = true
+                        break
+                    }
+                }
+                if !stopNeedles.isEmpty, stopNeedles.contains(where: { buffer.range(of: $0) != nil }) {
+                    stoppedEarly = true
+                    break
+                }
+
+                if !urlSeen, let every = options.sendEnterEvery, Date().timeIntervalSince(lastEnter) >= every {
+                    try? send("\r")
+                    lastEnter = Date()
+                }
+
+                if !proc.isRunning { break }
+                usleep(60000)
+            }
+
+            if stoppedEarly {
+                let settle = max(0, min(options.settleAfterStop, deadline.timeIntervalSinceNow))
+                if settle > 0 {
+                    let settleDeadline = Date().addingTimeInterval(settle)
+                    while Date() < settleDeadline {
+                        readChunk()
+                        respondIfCursorQuerySeen()
+                        usleep(50000)
+                    }
+                }
+            }
+
+            let text = String(data: buffer, encoding: .utf8) ?? ""
+            guard !text.isEmpty else { throw Error.timedOut }
+            return Result(text: text)
+        }
+
+        // Codex-specific behavior (/status and update handling)
+        let delayInitialSend = isCodexStatus
         if !delayInitialSend {
             try send(script)
             try send("\r")
@@ -318,6 +419,15 @@ public struct TTYCommandRunner {
         }
         if env["TERM"]?.isEmpty ?? true {
             env["TERM"] = "xterm-256color"
+        }
+        if env["COLORTERM"]?.isEmpty ?? true {
+            env["COLORTERM"] = "truecolor"
+        }
+        if env["LANG"]?.isEmpty ?? true {
+            env["LANG"] = "en_US.UTF-8"
+        }
+        if env["CI"] == nil {
+            env["CI"] = "0"
         }
         return env
     }
