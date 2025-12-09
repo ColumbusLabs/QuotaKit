@@ -90,7 +90,7 @@ public enum BinaryLocator {
         }
 
         // 4) Deterministic candidates
-        let directCandidates = [
+        var directCandidates = [
             "/opt/homebrew/bin/\(name)",
             "/usr/local/bin/\(name)",
             "\(home)/.local/bin/\(name)",
@@ -98,6 +98,12 @@ public enum BinaryLocator {
             "\(home)/.bun/bin/\(name)",
             "\(home)/.npm-global/bin/\(name)",
         ]
+        if name == "claude" {
+            directCandidates.append(contentsOf: [
+                "\(home)/.claude/local/\(name)",
+                "\(home)/.claude/bin/\(name)",
+            ])
+        }
         if let hit = directCandidates.first(where: { fileManager.isExecutableFile(atPath: $0) }) {
             return hit
         }

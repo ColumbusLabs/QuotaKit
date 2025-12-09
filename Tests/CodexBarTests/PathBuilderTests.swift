@@ -208,6 +208,46 @@ struct PathBuilderTests {
         #expect(parts.contains("/login/bin"))
     }
 
+    @Test
+    func resolvesClaudeFromDotClaudeLocal() throws {
+        let temp = try makeTempDir()
+        let claudePath = temp
+            .appendingPathComponent(".claude")
+            .appendingPathComponent("local")
+            .appendingPathComponent("claude")
+            .path
+        let fm = MockFileManager(
+            executables: [claudePath],
+            directories: [:])
+
+        let resolved = BinaryLocator.resolveClaudeBinary(
+            env: [:],
+            loginPATH: nil,
+            fileManager: fm,
+            home: temp.path)
+        #expect(resolved == claudePath)
+    }
+
+    @Test
+    func resolvesClaudeFromDotClaudeBin() throws {
+        let temp = try makeTempDir()
+        let claudePath = temp
+            .appendingPathComponent(".claude")
+            .appendingPathComponent("bin")
+            .appendingPathComponent("claude")
+            .path
+        let fm = MockFileManager(
+            executables: [claudePath],
+            directories: [:])
+
+        let resolved = BinaryLocator.resolveClaudeBinary(
+            env: [:],
+            loginPATH: nil,
+            fileManager: fm,
+            home: temp.path)
+        #expect(resolved == claudePath)
+    }
+
     private func makeTempDir() throws -> URL {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)

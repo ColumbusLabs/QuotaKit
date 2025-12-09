@@ -369,12 +369,18 @@ public struct TTYCommandRunner {
         if let path = runWhich(tool) { return path }
         // Fallback to common locations (Homebrew, local bins)
         let home = NSHomeDirectory()
-        let candidates = [
+        var candidates = [
             "/opt/homebrew/bin/\(tool)",
             "/usr/local/bin/\(tool)",
             "\(home)/.local/bin/\(tool)",
             "\(home)/bin/\(tool)",
         ]
+        if tool == "claude" {
+            candidates.append(contentsOf: [
+                "\(home)/.claude/local/\(tool)",
+                "\(home)/.claude/bin/\(tool)",
+            ])
+        }
         for c in candidates where FileManager.default.isExecutableFile(atPath: c) {
             return c
         }
