@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.2 — Unreleased
+- No changes yet.
+
 ## 0.7.1 — 2025-12-09
 - PTY runner now preserves the caller’s environment (HOME/TERM/bun installs) while enriching PATH, preventing Codex/Claude
   probes from failing when CLIs are installed via bun/nvm or need their auth/config paths.
