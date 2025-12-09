@@ -219,6 +219,14 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         didSet { self.refreshMenusForLoginStateChange() }
     }
 
+    private var activeLoginProvider: UsageProvider? {
+        didSet {
+            if oldValue != self.activeLoginProvider {
+                self.refreshMenusForLoginStateChange()
+            }
+        }
+    }
+
     private var blinkStates: [UsageProvider: BlinkState] = [:]
     private var blinkAmounts: [UsageProvider: CGFloat] = [:]
     private var wiggleAmounts: [UsageProvider: CGFloat] = [:]
@@ -516,13 +524,15 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         self.store.debugForceAnimation || self.isEnabled(provider) || self.fallbackProvider == provider
     }
 
-    private func switchAccountSubtitle() -> String? {
-        guard self.loginTask != nil else { return nil }
+    private func switchAccountSubtitle(for target: UsageProvider) -> String? {
+        guard self.loginTask != nil, let provider = self.activeLoginProvider, provider == target else { return nil }
+        let base: String
         switch self.loginPhase {
         case .idle: return nil
-        case .requesting: return "Requesting login…"
-        case .waitingBrowser: return "Waiting in browser…"
+        case .requesting: base = "Requesting login…"
+        case .waitingBrowser: base = "Waiting in browser…"
         }
+        return provider == .claude ? "Claude: \(base)" : "Codex: \(base)"
     }
 
     private func applyIcon(for provider: UsageProvider, phase: Double?) {
@@ -715,7 +725,11 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
 
         self.loginTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            defer { self.loginTask = nil }
+            defer {
+                self.activeLoginProvider = nil
+                self.loginTask = nil
+            }
+            self.activeLoginProvider = provider
             self.loginPhase = .requesting
             self.loginLogger.notice("Starting login task for \(provider.rawValue, privacy: .public)")
             print("[CodexBar] Starting login task for \(provider.rawValue)")
@@ -949,7 +963,9 @@ extension StatusItemController {
                         image.size = NSSize(width: 16, height: 16)
                         item.image = image
                     }
-                    if case .switchAccount = action, let subtitle = self.switchAccountSubtitle() {
+                    if case let .switchAccount(targetProvider) = action,
+                       let subtitle = self.switchAccountSubtitle(for: targetProvider)
+                    {
                         item.subtitle = subtitle
                         item.isEnabled = false
                     }
