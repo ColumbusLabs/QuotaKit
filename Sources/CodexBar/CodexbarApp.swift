@@ -232,6 +232,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             }
         }
     }
+
     private let preferencesSelection: PreferencesSelection
     private var animationDisplayLink: CADisplayLink?
     private var animationPhase: Double = 0
