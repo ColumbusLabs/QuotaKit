@@ -130,7 +130,7 @@ struct CodexLoginRunner {
         await withTaskGroup(of: String?.self) { group -> String in
             group.addTask {
                 if #available(macOS 13.0, *) {
-                    if let data = try? await pipe.fileHandleForReading.readToEnd() { return self.decode(data) }
+                    if let data = try? pipe.fileHandleForReading.readToEnd() { return self.decode(data) }
                 }
                 let data = pipe.fileHandleForReading.readDataToEndOfFile()
                 return Self.decode(data)

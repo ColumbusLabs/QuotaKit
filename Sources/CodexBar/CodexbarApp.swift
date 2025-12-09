@@ -225,7 +225,13 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     private var tiltAmounts: [UsageProvider: CGFloat] = [:]
     private var blinkForceUntil: Date?
     private var cancellables = Set<AnyCancellable>()
-    private var loginPhase: LoginPhase = .idle
+    private var loginPhase: LoginPhase = .idle {
+        didSet {
+            if oldValue != self.loginPhase {
+                self.refreshMenusForLoginStateChange()
+            }
+        }
+    }
     private let preferencesSelection: PreferencesSelection
     private var animationDisplayLink: CADisplayLink?
     private var animationPhase: Double = 0
