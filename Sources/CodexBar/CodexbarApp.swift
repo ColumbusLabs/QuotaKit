@@ -186,7 +186,6 @@ extension CodexBarApp {
     private var claudeShouldAnimate: Bool {
         self.store.isEnabled(.claude) && self.claudeSnapshot == nil && !self.store.isStale(provider: .claude)
     }
-
 }
 
 // MARK: - Status item controller (AppKit-hosted icons, SwiftUI popovers)
@@ -219,6 +218,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     private var loginTask: Task<Void, Never>? {
         didSet { self.refreshMenusForLoginStateChange() }
     }
+
     private var blinkStates: [UsageProvider: BlinkState] = [:]
     private var blinkAmounts: [UsageProvider: CGFloat] = [:]
     private var wiggleAmounts: [UsageProvider: CGFloat] = [:]

@@ -57,7 +57,10 @@ struct ClaudeLoginRunner {
         let output: String
     }
 
-    private static func runPTY(timeout: TimeInterval, onPhaseChange: @escaping @Sendable (Phase) -> Void) throws -> PTYRunResult {
+    private static func runPTY(
+        timeout: TimeInterval,
+        onPhaseChange: @escaping @Sendable (Phase) -> Void) throws -> PTYRunResult
+    {
         let runner = TTYCommandRunner()
         var options = TTYCommandRunner.Options(rows: 50, cols: 160, timeout: timeout)
         options.extraArgs = ["/login"]

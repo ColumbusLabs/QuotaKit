@@ -216,7 +216,8 @@ struct MenuDescriptor {
     private static func switchAccountTarget(for provider: UsageProvider?, store: UsageStore) -> MenuAction {
         if let provider { return .switchAccount(provider) }
         if let enabled = store.enabledProviders().first { return .switchAccount(enabled) }
-        // Fallback to Codex then Claude so the menu item never disappears, even if probes temporarily mark both disabled.
+        // Fallback to Codex then Claude so the menu item never disappears, even if probes temporarily mark both
+        // disabled.
         return .switchAccount(store.isEnabled(.codex) ? .codex : .claude)
     }
 
