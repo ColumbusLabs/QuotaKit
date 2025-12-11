@@ -128,6 +128,17 @@ public enum BinaryLocator {
             return fnmHit
         }
 
+        if let miseHit = self.scanMise(
+            roots: [
+                env["MISE_DATA_DIR"] ?? env["RTX_DATA_DIR"] ?? "\(home)/.local/share/mise",
+                "\(home)/.mise",
+            ],
+            binary: name,
+            fileManager: fileManager)
+        {
+            return miseHit
+        }
+
         return nil
     }
 
@@ -203,6 +214,32 @@ public enum BinaryLocator {
                     let candidate = "\(aliasesDir)/\(name)/bin/\(binary)"
                     if fileManager.isExecutableFile(atPath: candidate) {
                         return candidate
+                    }
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func scanMise(roots: [String], binary: String, fileManager: FileManager) -> String? {
+        for root in roots {
+            // Shims directory is the primary lookup for mise-managed tools.
+            let shim = "\(root)/shims/\(binary)"
+            if fileManager.isExecutableFile(atPath: shim) {
+                return shim
+            }
+
+            // Fallback to installed tool locations: installs/<tool>/<version>/bin/<binary>
+            let installsRoot = "\(root)/installs"
+            guard let tools = try? fileManager.contentsOfDirectory(atPath: installsRoot) else { continue }
+            for tool in tools {
+                let toolRoot = "\(installsRoot)/\(tool)"
+                if let versions = try? fileManager.contentsOfDirectory(atPath: toolRoot) {
+                    for version in versions.sorted(by: self.semverDescending) {
+                        let candidate = "\(toolRoot)/\(version)/bin/\(binary)"
+                        if fileManager.isExecutableFile(atPath: candidate) {
+                            return candidate
+                        }
                     }
                 }
             }
