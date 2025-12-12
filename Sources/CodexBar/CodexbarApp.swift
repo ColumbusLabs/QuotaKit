@@ -692,10 +692,16 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             ?? (self.store.isEnabled(.codex) ? .codex : self.store.enabledProviders().first)
 
         let provider = preferred ?? .codex
-        guard
-            let urlString = self.store.metadata(for: provider).dashboardURL,
-            let url = URL(string: urlString)
-        else { return }
+        let meta = self.store.metadata(for: provider)
+
+        // For Claude, route subscription users to claude.ai/settings/usage instead of console billing
+        let urlString: String? = if provider == .claude, self.store.isClaudeSubscription() {
+            meta.subscriptionDashboardURL ?? meta.dashboardURL
+        } else {
+            meta.dashboardURL
+        }
+
+        guard let urlString, let url = URL(string: urlString) else { return }
         NSWorkspace.shared.open(url)
     }
 

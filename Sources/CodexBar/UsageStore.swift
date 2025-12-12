@@ -134,6 +134,27 @@ final class UsageStore: ObservableObject {
         self.status(for: provider)?.indicator ?? .none
     }
 
+    /// Returns the login method (plan type) for the specified provider, if available.
+    func loginMethod(for provider: UsageProvider) -> String? {
+        self.snapshots[provider]?.loginMethod
+    }
+
+    /// Returns true if the Claude account appears to be a subscription (Max, Pro, Ultra, Team).
+    /// Returns false for API users or when plan cannot be determined.
+    func isClaudeSubscription() -> Bool {
+        Self.isSubscriptionPlan(self.loginMethod(for: .claude))
+    }
+
+    /// Determines if a login method string indicates a Claude subscription plan.
+    /// Known subscription indicators: Max, Pro, Ultra, Team (case-insensitive).
+    nonisolated static func isSubscriptionPlan(_ loginMethod: String?) -> Bool {
+        guard let method = loginMethod?.lowercased(), !method.isEmpty else {
+            return false
+        }
+        let subscriptionIndicators = ["max", "pro", "ultra", "team"]
+        return subscriptionIndicators.contains { method.contains($0) }
+    }
+
     func version(for provider: UsageProvider) -> String? {
         switch provider {
         case .codex: self.codexVersion

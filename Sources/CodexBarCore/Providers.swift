@@ -18,6 +18,7 @@ public struct ProviderMetadata: Sendable {
     public let cliName: String
     public let defaultEnabled: Bool
     public let dashboardURL: String?
+    public let subscriptionDashboardURL: String?
     public let statusPageURL: String?
 
     public init(
@@ -33,6 +34,7 @@ public struct ProviderMetadata: Sendable {
         cliName: String,
         defaultEnabled: Bool,
         dashboardURL: String?,
+        subscriptionDashboardURL: String? = nil,
         statusPageURL: String?)
     {
         self.id = id
@@ -47,6 +49,7 @@ public struct ProviderMetadata: Sendable {
         self.cliName = cliName
         self.defaultEnabled = defaultEnabled
         self.dashboardURL = dashboardURL
+        self.subscriptionDashboardURL = subscriptionDashboardURL
         self.statusPageURL = statusPageURL
     }
 }
@@ -80,6 +83,7 @@ public enum ProviderDefaults {
             cliName: "claude",
             defaultEnabled: false,
             dashboardURL: "https://console.anthropic.com/settings/billing",
+            subscriptionDashboardURL: "https://claude.ai/settings/usage",
             statusPageURL: "https://status.claude.com/"),
     ]
 }
