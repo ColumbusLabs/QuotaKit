@@ -506,12 +506,8 @@ public struct ClaudeStatusProbe: Sendable {
                 ],
                 sendOnSubstrings: [
                     "Ready to code here?": "\r",
-                    "Esc to cancel": "\u{1b}\u{1b}",
-                ],
-                stopOnSubstrings: [
-                    "Esc to cancel",
-                ],
-                settleAfterStop: 0.35)
+                    "Press Enter to continue": "\r",
+                ])
 
             do {
                 let result = try runner.run(binary: claudeBinary, send: "", options: options)
