@@ -135,7 +135,7 @@ final class UsageStore: ObservableObject {
     }
 
     /// Returns the login method (plan type) for the specified provider, if available.
-    func loginMethod(for provider: UsageProvider) -> String? {
+    private func loginMethod(for provider: UsageProvider) -> String? {
         self.snapshots[provider]?.loginMethod
     }
 
