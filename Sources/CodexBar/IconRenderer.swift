@@ -6,6 +6,41 @@ enum IconRenderer {
     // Render to an 18×18 pt template (36×36 px at 2×) to match the system menu bar size.
     private static let outputSize = NSSize(width: 18, height: 18)
     private static let outputScale: CGFloat = 2
+    private static let canvasPx = Int(outputSize.width * outputScale)
+
+    private struct PixelGrid: Sendable {
+        let scale: CGFloat
+
+        func pt(_ px: Int) -> CGFloat {
+            CGFloat(px) / self.scale
+        }
+
+        func rect(x: Int, y: Int, w: Int, h: Int) -> CGRect {
+            CGRect(x: self.pt(x), y: self.pt(y), width: self.pt(w), height: self.pt(h))
+        }
+
+        func snapDelta(_ value: CGFloat) -> CGFloat {
+            (value * self.scale).rounded() / self.scale
+        }
+    }
+
+    private static let grid = PixelGrid(scale: outputScale)
+
+    private struct RectPx: Hashable, Sendable {
+        let x: Int
+        let y: Int
+        let w: Int
+        let h: Int
+
+        var midXPx: Int { self.x + self.w / 2 }
+        var midYPx: Int { self.y + self.h / 2 }
+
+        func rect() -> CGRect {
+            Self.grid.rect(x: self.x, y: self.y, w: self.w, h: self.h)
+        }
+
+        private static let grid = IconRenderer.grid
+    }
 
     // swiftlint:disable function_body_length
     static func makeIcon(
@@ -22,212 +57,204 @@ enum IconRenderer {
         let image = self.renderImage {
             // Keep monochrome template icons; Claude uses subtle shape cues only.
             let baseFill = NSColor.labelColor
-            let trackColor = NSColor.labelColor.withAlphaComponent(stale ? 0.28 : 0.5)
+            let trackFillAlpha: CGFloat = stale ? 0.18 : 0.28
+            let trackStrokeAlpha: CGFloat = stale ? 0.28 : 0.44
             let fillColor = baseFill.withAlphaComponent(stale ? 0.55 : 1.0)
 
+            let barWidthPx = 30 // 15 pt at 2×, uses the slot better without touching edges.
+            let barXPx = (Self.canvasPx - barWidthPx) / 2
+
             func drawBar(
-                y: CGFloat,
+                rectPx: RectPx,
                 remaining: Double?,
-                height: CGFloat,
                 alpha: CGFloat = 1.0,
                 addNotches: Bool = false,
                 addFace: Bool = false,
                 blink: CGFloat = 0)
             {
-                // Slightly wider bars to better fill the menu bar slot.
-                let width: CGFloat = 14
-                let x: CGFloat = Self.snap((self.baseSize.width - width) / 2)
-                let radius = height / 2
-                let trackRect = Self.snapRect(x: x, y: y, width: width, height: height)
-                let trackPath = NSBezierPath(roundedRect: trackRect, xRadius: radius, yRadius: radius)
-                trackColor.setStroke()
-                trackPath.lineWidth = 1.2
-                trackPath.stroke()
+                let rect = rectPx.rect()
+                // Claude reads better as a blockier critter; Codex stays as a capsule.
+                let cornerRadiusPx = addNotches ? 0 : rectPx.h / 2
+                let radius = Self.grid.pt(cornerRadiusPx)
 
-                // When remaining is unknown, do not render a full bar; draw only the track (and decorations) unless a
-                // value exists.
-                guard let rawRemaining = remaining ?? (addNotches ? 0 : nil) else { return }
-                // Clamp fill because backend might occasionally send >100 or <0.
-                let clamped = max(0, min(rawRemaining / 100, 1))
-                let fillRect = Self.snapRect(x: x, y: y, width: width * clamped, height: height)
-                let fillPath = NSBezierPath(roundedRect: fillRect, xRadius: radius, yRadius: radius)
-                fillColor.withAlphaComponent(alpha).setFill()
-                fillPath.fill()
+                let trackPath = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
+                baseFill.withAlphaComponent(trackFillAlpha * alpha).setFill()
+                trackPath.fill()
+
+                // Crisp outline: stroke an inset path so the stroke stays within pixel bounds.
+                let strokeWidthPx = 2 // 1 pt == 2 px at 2×
+                let insetPx = strokeWidthPx / 2
+                let strokeRect = Self.grid.rect(
+                    x: rectPx.x + insetPx,
+                    y: rectPx.y + insetPx,
+                    w: max(0, rectPx.w - insetPx * 2),
+                    h: max(0, rectPx.h - insetPx * 2))
+                let strokePath = NSBezierPath(
+                    roundedRect: strokeRect,
+                    xRadius: Self.grid.pt(max(0, cornerRadiusPx - insetPx)),
+                    yRadius: Self.grid.pt(max(0, cornerRadiusPx - insetPx)))
+                strokePath.lineWidth = CGFloat(strokeWidthPx) / Self.outputScale
+                baseFill.withAlphaComponent(trackStrokeAlpha * alpha).setStroke()
+                strokePath.stroke()
+
+                // Fill: clip to the capsule and paint a left-to-right rect so the progress edge is straight.
+                if let remaining {
+                    let clamped = max(0, min(remaining / 100, 1))
+                    let fillWidthPx = max(0, min(rectPx.w, Int((CGFloat(rectPx.w) * CGFloat(clamped)).rounded())))
+                    if fillWidthPx > 0 {
+                        NSGraphicsContext.current?.cgContext.saveGState()
+                        trackPath.addClip()
+                        fillColor.withAlphaComponent(alpha).setFill()
+                        NSBezierPath(
+                            rect: Self.grid.rect(
+                                x: rectPx.x,
+                                y: rectPx.y,
+                                w: fillWidthPx,
+                                h: rectPx.h)).fill()
+                        NSGraphicsContext.current?.cgContext.restoreGState()
+                    }
+                }
 
                 // Codex face: eye cutouts plus faint eyelids to give the prompt some personality.
                 if addFace {
                     let ctx = NSGraphicsContext.current?.cgContext
-                    let eyeSize: CGFloat = 2
-                    let eyeY = Self.snap(y + height * 0.55)
-                    let eyeOffset: CGFloat = 3
-                    let center = x + width / 2
+                    let eyeSizePx = 4
+                    let eyeOffsetPx = 7
+                    let eyeCenterYPx = rectPx.y + rectPx.h / 2
+                    let centerXPx = rectPx.midXPx
 
                     ctx?.saveGState()
-                    if abs(tilt) > 0.0001 {
-                        // Tilt the face cluster slightly around its center and nudge upward a bit.
-                        let faceCenter = CGPoint(x: center, y: eyeY)
-                        ctx?.translateBy(x: faceCenter.x, y: faceCenter.y)
-                        ctx?.rotate(by: tilt)
-                        ctx?.translateBy(x: -faceCenter.x, y: -faceCenter.y - abs(tilt) * 1.2)
-                    }
-
-                    ctx?.saveGState()
-                    ctx?.setBlendMode(.clear)
-                    ctx?.addEllipse(in: Self.snapRect(
-                        x: center - eyeOffset - eyeSize / 2,
-                        y: eyeY - eyeSize / 2,
-                        width: eyeSize,
-                        height: eyeSize))
-                    ctx?.addEllipse(in: Self.snapRect(
-                        x: center + eyeOffset - eyeSize / 2,
-                        y: eyeY - eyeSize / 2,
-                        width: eyeSize,
-                        height: eyeSize))
-                    ctx?.fillPath()
+                    ctx?.setShouldAntialias(false)
+                    ctx?.clear(Self.grid.rect(
+                        x: centerXPx - eyeOffsetPx - eyeSizePx / 2,
+                        y: eyeCenterYPx - eyeSizePx / 2,
+                        w: eyeSizePx,
+                        h: eyeSizePx))
+                    ctx?.clear(Self.grid.rect(
+                        x: centerXPx + eyeOffsetPx - eyeSizePx / 2,
+                        y: eyeCenterYPx - eyeSizePx / 2,
+                        w: eyeSizePx,
+                        h: eyeSizePx))
                     ctx?.restoreGState()
-
-                    // Eyelids sit slightly above the eyes; barely-there stroke to keep the icon template-friendly.
-                    let lidWidth: CGFloat = 3
-                    let lidHeight: CGFloat = 1
-                    let lidYOffset: CGFloat = 0
-                    let lidThickness: CGFloat = 1
-                    let lidColor = fillColor.withAlphaComponent(alpha * 0.9)
-
-                    func drawLid(at cx: CGFloat) {
-                        let lidRect = Self.snapRect(
-                            x: cx - lidWidth / 2,
-                            y: eyeY + lidYOffset,
-                            width: lidWidth,
-                            height: lidHeight)
-                        let lidPath = NSBezierPath(ovalIn: lidRect)
-                        lidPath.lineWidth = lidThickness
-                        lidColor.setStroke()
-                        lidPath.stroke()
-                    }
-
-                    drawLid(at: center - eyeOffset)
-                    drawLid(at: center + eyeOffset)
 
                     // Blink: refill eyes from the top down using the bar fill color.
                     if blink > 0.001 {
                         let clamped = max(0, min(blink, 1))
-                        let blinkHeight = eyeSize * clamped
+                        let blinkHeightPx = Int((CGFloat(eyeSizePx) * clamped).rounded())
                         fillColor.withAlphaComponent(alpha).setFill()
-                        let blinkRectLeft = Self.snapRect(
-                            x: center - eyeOffset - eyeSize / 2,
-                            y: eyeY + eyeSize / 2 - blinkHeight,
-                            width: eyeSize,
-                            height: blinkHeight)
-                        let blinkRectRight = Self.snapRect(
-                            x: center + eyeOffset - eyeSize / 2,
-                            y: eyeY + eyeSize / 2 - blinkHeight,
-                            width: eyeSize,
-                            height: blinkHeight)
-                        NSBezierPath(ovalIn: blinkRectLeft).fill()
-                        NSBezierPath(ovalIn: blinkRectRight).fill()
+                        let blinkRectLeft = Self.grid.rect(
+                            x: centerXPx - eyeOffsetPx - eyeSizePx / 2,
+                            y: eyeCenterYPx + eyeSizePx / 2 - blinkHeightPx,
+                            w: eyeSizePx,
+                            h: blinkHeightPx)
+                        let blinkRectRight = Self.grid.rect(
+                            x: centerXPx + eyeOffsetPx - eyeSizePx / 2,
+                            y: eyeCenterYPx + eyeSizePx / 2 - blinkHeightPx,
+                            w: eyeSizePx,
+                            h: blinkHeightPx)
+                        NSBezierPath(rect: blinkRectLeft).fill()
+                        NSBezierPath(rect: blinkRectRight).fill()
                     }
 
                     // Hat: a tiny cap hovering above the eyes to give the face more character.
-                    let hatWidth: CGFloat = 9
-                    let hatHeight: CGFloat = 2
-                    let hatRect = Self.snapRect(
-                        x: center - hatWidth / 2,
-                        y: y + height - hatHeight,
-                        width: hatWidth,
-                        height: hatHeight)
-                    let hatPath = NSBezierPath(roundedRect: hatRect, xRadius: hatHeight / 2, yRadius: hatHeight / 2)
+                    let hatWidthPx = 18
+                    let hatHeightPx = 4
+                    let hatRect = Self.grid.rect(
+                        x: centerXPx - hatWidthPx / 2,
+                        y: rectPx.y + rectPx.h - hatHeightPx,
+                        w: hatWidthPx,
+                        h: hatHeightPx)
+                    ctx?.saveGState()
+                    if abs(tilt) > 0.0001 {
+                        // Tilt only the hat; keep eyes pixel-crisp and axis-aligned.
+                        let faceCenter = CGPoint(x: Self.grid.pt(centerXPx), y: Self.grid.pt(eyeCenterYPx))
+                        ctx?.translateBy(x: faceCenter.x, y: faceCenter.y)
+                        ctx?.rotate(by: tilt)
+                        ctx?.translateBy(x: -faceCenter.x, y: -faceCenter.y - abs(tilt) * 1.2)
+                    }
                     fillColor.withAlphaComponent(alpha).setFill()
-                    hatPath.fill()
-
+                    NSBezierPath(rect: hatRect).fill()
                     ctx?.restoreGState()
                 }
 
-                // Claude twist: tiny eye cutouts + side “ears” and small legs to feel more characterful.
+                // Claude twist: blocky crab-style critter (arms + legs + vertical eyes).
                 if addNotches {
                     let ctx = NSGraphicsContext.current?.cgContext
-                    let wiggleOffset = wiggle * 0.6
-                    ctx?.saveGState()
-                    ctx?.setBlendMode(.clear)
-                    let eyeSize: CGFloat = 2
-                    let eyeY = Self.snap(y + height * 0.50 + wiggleOffset * 0.3)
-                    let eyeOffset: CGFloat = 3
-                    let center = x + width / 2
-                    ctx?.addEllipse(in: Self.snapRect(
-                        x: center - eyeOffset - eyeSize / 2,
-                        y: eyeY - eyeSize / 2,
-                        width: eyeSize,
-                        height: eyeSize))
-                    ctx?.addEllipse(in: Self.snapRect(
-                        x: center + eyeOffset - eyeSize / 2,
-                        y: eyeY - eyeSize / 2,
-                        width: eyeSize,
-                        height: eyeSize))
-                    ctx?.fillPath()
+                    let wiggleOffset = Self.grid.snapDelta(wiggle * 0.6)
+                    let wigglePx = Int((wiggleOffset * Self.outputScale).rounded())
 
-                    if blink > 0.001 {
-                        let clamped = max(0, min(blink, 1))
-                        let blinkHeight = eyeSize * clamped
-                        fillColor.withAlphaComponent(alpha).setFill()
-                        let blinkRectLeft = Self.snapRect(
-                            x: center - eyeOffset - eyeSize / 2,
-                            y: eyeY + eyeSize / 2 - blinkHeight,
-                            width: eyeSize,
-                            height: blinkHeight)
-                        let blinkRectRight = Self.snapRect(
-                            x: center + eyeOffset - eyeSize / 2,
-                            y: eyeY + eyeSize / 2 - blinkHeight,
-                            width: eyeSize,
-                            height: blinkHeight)
-                        NSBezierPath(ovalIn: blinkRectLeft).fill()
-                        NSBezierPath(ovalIn: blinkRectRight).fill()
+                    fillColor.withAlphaComponent(alpha).setFill()
+
+                    // Arms/claws: mid-height side protrusions.
+                    // Keep within the 18×18pt canvas: barX is 3px, so 3px arms reach the edge without clipping.
+                    let armWidthPx = 3
+                    let armHeightPx = max(0, rectPx.h - 6)
+                    let armYPx = rectPx.y + 3 + wigglePx / 6
+                    let leftArm = Self.grid.rect(
+                        x: rectPx.x - armWidthPx,
+                        y: armYPx,
+                        w: armWidthPx,
+                        h: armHeightPx)
+                    let rightArm = Self.grid.rect(
+                        x: rectPx.x + rectPx.w,
+                        y: armYPx,
+                        w: armWidthPx,
+                        h: armHeightPx)
+                    NSBezierPath(rect: leftArm).fill()
+                    NSBezierPath(rect: rightArm).fill()
+
+                    // Legs: 4 little pixels underneath, like a tiny crab.
+                    let legCount = 4
+                    let legWidthPx = 2
+                    let legHeightPx = 3
+                    let legYPx = rectPx.y - legHeightPx + wigglePx / 6
+                    let stepPx = max(1, rectPx.w / (legCount + 1))
+                    for idx in 0..<legCount {
+                        let cx = rectPx.x + stepPx * (idx + 1)
+                        let leg = Self.grid.rect(
+                            x: cx - legWidthPx / 2,
+                            y: legYPx,
+                            w: legWidthPx,
+                            h: legHeightPx)
+                        NSBezierPath(rect: leg).fill()
                     }
 
-                    // Ears: outward bumps on both ends (clear to carve) then refill to accent edges.
-                    let earWidth: CGFloat = 3
-                    let earHeight: CGFloat = 6
-                    ctx?.addRect(Self.snapRect(
-                        x: x - 0.6,
-                        y: y + (height - earHeight) / 2,
-                        width: earWidth,
-                        height: earHeight))
-                    ctx?.addRect(Self.snapRect(
-                        x: x + width - earWidth + 0.6,
-                        y: y + (height - earHeight) / 2,
-                        width: earWidth,
-                        height: earHeight))
-                    ctx?.fillPath()
+                    // Eyes: tall vertical cutouts near the top.
+                    let eyeWidthPx = 2
+                    let eyeHeightPx = 5
+                    let eyeOffsetPx = 6
+                    let eyeYPx = rectPx.y + rectPx.h - eyeHeightPx - 2 + wigglePx / 8
+                    ctx?.saveGState()
+                    ctx?.setShouldAntialias(false)
+                    ctx?.clear(Self.grid.rect(
+                        x: rectPx.midXPx - eyeOffsetPx - eyeWidthPx / 2,
+                        y: eyeYPx,
+                        w: eyeWidthPx,
+                        h: eyeHeightPx))
+                    ctx?.clear(Self.grid.rect(
+                        x: rectPx.midXPx + eyeOffsetPx - eyeWidthPx / 2,
+                        y: eyeYPx,
+                        w: eyeWidthPx,
+                        h: eyeHeightPx))
                     ctx?.restoreGState()
 
-                    // Refill outward “ears” so they protrude slightly beyond the bar using the fill color.
-                    fillColor.withAlphaComponent(alpha).setFill()
-                    let earWiggle = wiggleOffset
-                    NSBezierPath(
-                        roundedRect: Self.snapRect(
-                            x: x - 0.8,
-                            y: y + (height - earHeight) / 2 + earWiggle,
-                            width: earWidth * 0.8,
-                            height: earHeight),
-                        xRadius: 0.9,
-                        yRadius: 0.9).fill()
-                    NSBezierPath(
-                        roundedRect: Self.snapRect(
-                            x: x + width - earWidth * 0.8 + 0.8,
-                            y: y + (height - earHeight) / 2 - earWiggle,
-                            width: earWidth * 0.8,
-                            height: earHeight),
-                        xRadius: 0.9,
-                        yRadius: 0.9).fill()
-
-                    // Tiny legs under the bar.
-                    let legWidth: CGFloat = 2
-                    let legHeight: CGFloat = 2
-                    let legY = y - 1
-                    let legOffsets: [CGFloat] = [-4, -1, 1, 4]
-                    for (idx, offset) in legOffsets.enumerated() {
-                        let lx = center + offset - legWidth / 2
-                        let jiggle = (idx.isMultiple(of: 2) ? -wiggleOffset : wiggleOffset) * 0.6
-                        NSBezierPath(rect: Self.snapRect(x: lx, y: legY + jiggle, width: legWidth, height: legHeight))
-                            .fill()
+                    // Blink: fill the eyes from the top down (blocky).
+                    if blink > 0.001 {
+                        let clamped = max(0, min(blink, 1))
+                        let blinkHeightPx = Int((CGFloat(eyeHeightPx) * clamped).rounded())
+                        fillColor.withAlphaComponent(alpha).setFill()
+                        let leftBlink = Self.grid.rect(
+                            x: rectPx.midXPx - eyeOffsetPx - eyeWidthPx / 2,
+                            y: eyeYPx + eyeHeightPx - blinkHeightPx,
+                            w: eyeWidthPx,
+                            h: blinkHeightPx)
+                        let rightBlink = Self.grid.rect(
+                            x: rectPx.midXPx + eyeOffsetPx - eyeWidthPx / 2,
+                            y: eyeYPx + eyeHeightPx - blinkHeightPx,
+                            w: eyeWidthPx,
+                            h: blinkHeightPx)
+                        NSBezierPath(rect: leftBlink).fill()
+                        NSBezierPath(rect: rightBlink).fill()
                     }
                 }
             }
@@ -237,29 +264,27 @@ enum IconRenderer {
             let creditsRatio = creditsRemaining.map { min($0 / Self.creditsCap * 100, 100) }
 
             let weeklyAvailable = (weeklyRemaining ?? 0) > 0
-            let claudeExtraHeight: CGFloat = style == .claude ? 1 : 0
-            let creditsHeight: CGFloat = 8 + claudeExtraHeight
-            let topHeight: CGFloat = 5 + claudeExtraHeight
-            let bottomHeight: CGFloat = 3
             let creditsAlpha: CGFloat = 1.0
+            let topRectPx = RectPx(x: barXPx, y: 19, w: barWidthPx, h: 12)
+            let bottomRectPx = RectPx(x: barXPx, y: 5, w: barWidthPx, h: 8)
+            let creditsRectPx = RectPx(x: barXPx, y: 14, w: barWidthPx, h: 16)
+            let creditsBottomRectPx = RectPx(x: barXPx, y: 4, w: barWidthPx, h: 6)
 
             if weeklyAvailable {
                 // Normal: top=5h, bottom=weekly, no credits.
                 drawBar(
-                    y: 9,
+                    rectPx: topRectPx,
                     remaining: topValue,
-                    height: topHeight,
                     addNotches: style == .claude,
                     addFace: style == .codex,
                     blink: blink)
-                drawBar(y: 4, remaining: bottomValue, height: bottomHeight)
+                drawBar(rectPx: bottomRectPx, remaining: bottomValue)
             } else {
                 // Weekly exhausted/missing: show credits on top (thicker), weekly (likely 0) on bottom.
                 if let ratio = creditsRatio {
                     drawBar(
-                        y: 9,
+                        rectPx: creditsRectPx,
                         remaining: ratio,
-                        height: creditsHeight,
                         alpha: creditsAlpha,
                         addNotches: style == .claude,
                         addFace: style == .codex,
@@ -267,14 +292,13 @@ enum IconRenderer {
                 } else {
                     // No credits available; fall back to 5h if present.
                     drawBar(
-                        y: 9,
+                        rectPx: topRectPx,
                         remaining: topValue,
-                        height: topHeight,
                         addNotches: style == .claude,
                         addFace: style == .codex,
                         blink: blink)
                 }
-                drawBar(y: 3, remaining: bottomValue, height: bottomHeight)
+                drawBar(rectPx: creditsBottomRectPx, remaining: bottomValue)
             }
 
             Self.drawStatusOverlay(indicator: statusIndicator)

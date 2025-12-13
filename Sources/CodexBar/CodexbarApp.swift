@@ -284,7 +284,10 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         self.preferencesSelection = preferencesSelection
         let bar = NSStatusBar.system
         for provider in UsageProvider.allCases {
-            self.statusItems[provider] = bar.statusItem(withLength: NSStatusItem.variableLength)
+            let item = bar.statusItem(withLength: NSStatusItem.variableLength)
+            // Ensure the icon is rendered at 1:1 without resampling (crisper edges for template images).
+            item.button?.imageScaling = .scaleNone
+            self.statusItems[provider] = item
         }
         super.init()
         self.wireBindings()

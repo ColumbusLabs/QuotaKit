@@ -112,6 +112,7 @@ struct StatusIconView: View {
     var body: some View {
         Image(nsImage: self.icon)
             .renderingMode(.template)
+            .interpolation(.none)
     }
 
     private var icon: NSImage {

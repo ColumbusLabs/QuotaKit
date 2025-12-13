@@ -31,12 +31,14 @@ struct IconView: View {
                     stale: self.isStale,
                     style: self.style))
                     .renderingMode(.original)
+                    .interpolation(.none)
                     .frame(width: 20, height: 18, alignment: .center)
                     .padding(.horizontal, 2)
             } else if self.showLoadingAnimation {
                 // Loading: animate bars with the current pattern until data arrives.
                 Image(nsImage: self.loadingImage)
                     .renderingMode(.original)
+                    .interpolation(.none)
                     .frame(width: 20, height: 18, alignment: .center)
                     .padding(.horizontal, 2)
                     .onReceive(self.displayLink.$tick) { _ in
@@ -59,6 +61,7 @@ struct IconView: View {
                     stale: self.isStale,
                     style: self.style))
                     .renderingMode(.original)
+                    .interpolation(.none)
                     .frame(width: 20, height: 18, alignment: .center)
                     .padding(.horizontal, 2)
             }
