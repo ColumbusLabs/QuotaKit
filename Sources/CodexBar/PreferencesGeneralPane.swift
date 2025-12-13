@@ -6,6 +6,7 @@ import SwiftUI
 struct GeneralPane: View {
     @ObservedObject var settings: SettingsStore
     @ObservedObject var store: UsageStore
+    @State private var expandedErrors: Set<UsageProvider> = []
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
@@ -21,17 +22,26 @@ struct GeneralPane: View {
                     }
                     .padding(.bottom, 18)
 
+                    if let display = self.providerErrorDisplay(.codex) {
+                        ProviderErrorView(
+                            title: "Last Codex fetch failed:",
+                            display: display,
+                            isExpanded: self.expandedBinding(for: .codex),
+                            onCopy: { self.copyToPasteboard(display.full) })
+                            .padding(.bottom, 8)
+                    }
+
                     PreferenceToggleRow(
                         title: self.store.metadata(for: .claude).toggleTitle,
                         subtitle: self.providerSubtitle(.claude),
                         binding: self.claudeBinding)
 
-                    if let claudeError = self.providerError(.claude) {
-                        Text(claudeError)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(3)
-                            .fixedSize(horizontal: false, vertical: true)
+                    if let display = self.providerErrorDisplay(.claude) {
+                        ProviderErrorView(
+                            title: "Last Claude fetch failed:",
+                            display: display,
+                            isExpanded: self.expandedBinding(for: .claude),
+                            onCopy: { self.copyToPasteboard(display.full) })
                     }
                 }
 
@@ -102,11 +112,13 @@ struct GeneralPane: View {
         }
     }
 
-    private func providerError(_ provider: UsageProvider) -> String? {
+    private func providerErrorDisplay(_ provider: UsageProvider) -> ProviderErrorDisplay? {
         guard self.store.isStale(provider: provider), let raw = self.store.error(for: provider) else { return nil }
         let meta = self.store.metadata(for: provider)
         let prefix = "Last \(meta.displayName) fetch failed: "
-        return self.truncated(raw, prefix: prefix)
+        return ProviderErrorDisplay(
+            preview: self.truncated(raw, prefix: prefix),
+            full: raw)
     }
 
     @ViewBuilder
@@ -148,5 +160,71 @@ struct GeneralPane: View {
         let amount = snapshot.remaining.formatted(.number.precision(.fractionLength(0...2)))
         let timestamp = snapshot.updatedAt.formatted(date: .abbreviated, time: .shortened)
         return "Remaining \(amount) credits as of \(timestamp)."
+    }
+
+    private func expandedBinding(for provider: UsageProvider) -> Binding<Bool> {
+        Binding(
+            get: { self.expandedErrors.contains(provider) },
+            set: { expanded in
+                if expanded {
+                    self.expandedErrors.insert(provider)
+                } else {
+                    self.expandedErrors.remove(provider)
+                }
+            })
+    }
+
+    private func copyToPasteboard(_ text: String) {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(text, forType: .string)
+    }
+}
+
+private struct ProviderErrorDisplay: Sendable {
+    let preview: String
+    let full: String
+}
+
+@MainActor
+private struct ProviderErrorView: View {
+    let title: String
+    let display: ProviderErrorDisplay
+    @Binding var isExpanded: Bool
+    let onCopy: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(self.title)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Button {
+                self.onCopy()
+            } label: {
+                Text(self.display.preview)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .buttonStyle(.plain)
+
+            HStack(spacing: 12) {
+                Button("Copy full error") { self.onCopy() }
+                    .buttonStyle(.link)
+                Button(self.isExpanded ? "Hide details" : "Show details") { self.isExpanded.toggle() }
+                    .buttonStyle(.link)
+            }
+            .font(.footnote)
+
+            if self.isExpanded {
+                Text(self.display.full)
+                    .font(.footnote)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.leading, 2)
     }
 }
