@@ -3,7 +3,7 @@
 # Changelog
 
 ## 0.7.2 — Unreleased
-- No changes yet.
+- Claude “Open Dashboard” now routes subscription accounts (Max/Pro/Ultra/Team) to the usage page instead of the API console billing page. Thanks @auroraflux!
 
 ## 0.7.1 — 2025-12-09
 - Menu bar icons now render on a true 18 pt/2× backing with pixel-aligned bars and overlays for noticeably crisper edges.
