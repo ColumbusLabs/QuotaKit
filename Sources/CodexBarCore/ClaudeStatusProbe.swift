@@ -571,7 +571,7 @@ public struct ClaudeStatusProbe: Sendable {
 
             let stdoutPipe = Pipe()
             process.standardOutput = stdoutPipe
-            process.standardError = stdoutPipe  // Combine stderr to see expect output
+            process.standardError = stdoutPipe // Combine stderr to see expect output
 
             var env = ProcessInfo.processInfo.environment
             env["PATH"] = PathBuilder.effectivePATH(purposes: [.tty, .nodeTooling], env: env)
