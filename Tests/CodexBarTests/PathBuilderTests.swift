@@ -166,6 +166,84 @@ struct PathBuilderTests {
     }
 
     @Test
+    func resolvesCodexFromMiseShim() throws {
+        let temp = try makeTempDir()
+        let miseShim = temp
+            .appendingPathComponent(".local")
+            .appendingPathComponent("share")
+            .appendingPathComponent("mise")
+            .appendingPathComponent("shims")
+            .appendingPathComponent("codex")
+            .path
+        let fm = MockFileManager(
+            executables: [miseShim],
+            directories: [:])
+
+        let resolved = BinaryLocator.resolveCodexBinary(
+            env: [:],
+            loginPATH: nil,
+            fileManager: fm,
+            home: temp.path)
+        #expect(resolved == miseShim)
+    }
+
+    @Test
+    func resolvesCodexFromMiseInstallsPrefersNewestSemver() throws {
+        let temp = try makeTempDir()
+        let installsRoot = temp
+            .appendingPathComponent(".local")
+            .appendingPathComponent("share")
+            .appendingPathComponent("mise")
+            .appendingPathComponent("installs")
+        let nodeRoot = installsRoot.appendingPathComponent("node")
+        let oldCodex = nodeRoot
+            .appendingPathComponent("v18.0.0")
+            .appendingPathComponent("bin")
+            .appendingPathComponent("codex")
+            .path
+        let newCodex = nodeRoot
+            .appendingPathComponent("v20.0.0")
+            .appendingPathComponent("bin")
+            .appendingPathComponent("codex")
+            .path
+        let fm = MockFileManager(
+            executables: [oldCodex, newCodex],
+            directories: [
+                installsRoot.path: ["node"],
+                nodeRoot.path: ["v18.0.0", "v20.0.0"],
+            ])
+
+        let resolved = BinaryLocator.resolveCodexBinary(
+            env: [:],
+            loginPATH: nil,
+            fileManager: fm,
+            home: temp.path)
+        #expect(resolved == newCodex)
+    }
+
+    @Test
+    func resolvesCodexFromRtxDefaultRoot() throws {
+        let temp = try makeTempDir()
+        let rtxShim = temp
+            .appendingPathComponent(".local")
+            .appendingPathComponent("share")
+            .appendingPathComponent("rtx")
+            .appendingPathComponent("shims")
+            .appendingPathComponent("codex")
+            .path
+        let fm = MockFileManager(
+            executables: [rtxShim],
+            directories: [:])
+
+        let resolved = BinaryLocator.resolveCodexBinary(
+            env: [:],
+            loginPATH: nil,
+            fileManager: fm,
+            home: temp.path)
+        #expect(resolved == rtxShim)
+    }
+
+    @Test
     func prefersHigherSemverForNvm() throws {
         let temp = try makeTempDir()
         let nvmBin = temp

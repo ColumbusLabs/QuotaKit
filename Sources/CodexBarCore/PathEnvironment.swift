@@ -128,14 +128,14 @@ public enum BinaryLocator {
             return fnmHit
         }
 
-        if let miseHit = self.scanMise(
-            roots: [
-                env["MISE_DATA_DIR"] ?? env["RTX_DATA_DIR"] ?? "\(home)/.local/share/mise",
-                "\(home)/.mise",
-            ],
-            binary: name,
-            fileManager: fileManager)
-        {
+        let miseRoots = [
+            env["MISE_DATA_DIR"],
+            env["RTX_DATA_DIR"],
+            "\(home)/.local/share/mise",
+            "\(home)/.local/share/rtx",
+            "\(home)/.mise",
+        ].compactMap(\.self)
+        if let miseHit = self.scanMise(roots: miseRoots, binary: name, fileManager: fileManager) {
             return miseHit
         }
 
@@ -232,7 +232,7 @@ public enum BinaryLocator {
             // Fallback to installed tool locations: installs/<tool>/<version>/bin/<binary>
             let installsRoot = "\(root)/installs"
             guard let tools = try? fileManager.contentsOfDirectory(atPath: installsRoot) else { continue }
-            for tool in tools {
+            for tool in tools.sorted() {
                 let toolRoot = "\(installsRoot)/\(tool)"
                 if let versions = try? fileManager.contentsOfDirectory(atPath: toolRoot) {
                     for version in versions.sorted(by: self.semverDescending) {
