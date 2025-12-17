@@ -58,4 +58,40 @@ struct TTYCommandRunnerEnvTests {
         let clean = result.text.replacingOccurrences(of: "\r", with: "")
         #expect(clean.contains(dir.path))
     }
+
+    @Test
+    func autoRespondsToTrustPrompt() throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent("codexbar-tty-\(UUID().uuidString)", isDirectory: true)
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: dir) }
+
+        let scriptURL = dir.appendingPathComponent("trust.sh")
+        let script = """
+        #!/bin/sh
+        echo \"Do you trust the files in this folder?\"
+        echo \"\"
+        echo \"/Users/example/project\"
+        IFS= read -r ans
+        if [ \"$ans\" = \"y\" ] || [ \"$ans\" = \"Y\" ]; then
+          echo \"accepted\"
+        else
+          echo \"rejected:$ans\"
+        fi
+        """
+        try script.write(to: scriptURL, atomically: true, encoding: .utf8)
+        try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+
+        let runner = TTYCommandRunner()
+        let result = try runner.run(
+            binary: scriptURL.path,
+            send: "",
+            options: .init(
+                timeout: 3,
+                sendOnSubstrings: ["Do you trust the files in this folder?": "y\r"],
+                stopOnSubstrings: ["accepted", "rejected"],
+                settleAfterStop: 0.1))
+
+        #expect(result.text.contains("accepted"))
+    }
 }

@@ -208,6 +208,39 @@ struct StatusProbeTests {
     }
 
     @Test
+    func surfacesClaudeFolderTrustPrompt_withCRLFAndSpaces() {
+        let sample = "Do you trust the files in this folder?\r\n\r\n/Users/example/My Project\r\n"
+
+        do {
+            _ = try ClaudeStatusProbe.parse(text: sample)
+            #expect(Bool(false), "Parsing should fail for folder trust prompt")
+        } catch let ClaudeStatusProbeError.parseFailed(message) {
+            #expect(message.contains("/Users/example/My Project"))
+            #expect(message.contains("cd \"/Users/example/My Project\" && claude"))
+        } catch {
+            #expect(Bool(false), "Unexpected error: \(error)")
+        }
+    }
+
+    @Test
+    func surfacesClaudeFolderTrustPrompt_withoutFolderPath() {
+        let sample = """
+        Do you trust the files in this folder?
+        """
+
+        do {
+            _ = try ClaudeStatusProbe.parse(text: sample)
+            #expect(Bool(false), "Parsing should fail for folder trust prompt")
+        } catch let ClaudeStatusProbeError.parseFailed(message) {
+            let lower = message.lowercased()
+            #expect(lower.contains("trust"))
+            #expect(lower.contains("auto-accept"))
+        } catch {
+            #expect(Bool(false), "Unexpected error: \(error)")
+        }
+    }
+
+    @Test
     func parsesClaudeResetTimeOnly() {
         let now = Date(timeIntervalSince1970: 1_733_690_000)
         let parsed = ClaudeStatusProbe.parseResetDate(from: "Resets 12:59pm (Europe/Helsinki)", now: now)
