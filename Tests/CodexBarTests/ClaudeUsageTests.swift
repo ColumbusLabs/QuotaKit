@@ -19,8 +19,23 @@ struct ClaudeUsageTests {
         let snap = ClaudeUsageFetcher.parse(json: data)
         #expect(snap != nil)
         #expect(snap?.primary.usedPercent == 1)
-        #expect(snap?.secondary.usedPercent == 8)
+        #expect(snap?.secondary?.usedPercent == 8)
         #expect(snap?.primary.resetDescription == "11am (Europe/Vienna)")
+    }
+
+    @Test
+    func parsesUsageJSONWhenWeeklyMissing() {
+        let json = """
+        {
+          "ok": true,
+          "session_5h": { "pct_used": 4, "resets": "11am (Europe/Vienna)" }
+        }
+        """
+        let data = Data(json.utf8)
+        let snap = ClaudeUsageFetcher.parse(json: data)
+        #expect(snap != nil)
+        #expect(snap?.primary.usedPercent == 4)
+        #expect(snap?.secondary == nil)
     }
 
     @Test
@@ -55,7 +70,7 @@ struct ClaudeUsageTests {
         """
         let data = Data(json.utf8)
         let snap = ClaudeUsageFetcher.parse(json: data)
-        #expect(snap?.secondary.usedPercent == 9)
+        #expect(snap?.secondary?.usedPercent == 9)
         #expect(snap?.opus?.usedPercent == 12)
         #expect(snap?.opus?.resetDescription == "Nov 22 at 5am (Europe/Vienna)")
     }
@@ -98,13 +113,14 @@ struct ClaudeUsageTests {
         do {
             let snap = try await fetcher.loadLatestUsage()
             let opusUsed = snap.opus?.usedPercent ?? -1
+            let weeklyUsed = snap.secondary?.usedPercent ?? -1
             let email = snap.accountEmail ?? "nil"
             let org = snap.accountOrganization ?? "nil"
             print(
                 """
                 Live Claude usage (PTY):
                 session used \(snap.primary.usedPercent)% 
-                week used \(snap.secondary.usedPercent)% 
+                week used \(weeklyUsed)% 
                 opus \(opusUsed)% 
                 email \(email) org \(org)
                 """)

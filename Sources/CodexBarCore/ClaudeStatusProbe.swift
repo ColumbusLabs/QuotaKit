@@ -99,12 +99,18 @@ public struct ClaudeStatusProbe: Sendable {
             ],
             text: clean)
 
-        // Fallback: order-based percent scraping if labels change or get localized.
-        if sessionPct == nil || weeklyPct == nil || opusPct == nil {
+        // Fallback: order-based percent scraping when labels are present but the surrounding layout moved.
+        // Only apply the fallback when the corresponding label exists in the rendered panel; enterprise accounts
+        // may omit the weekly panel entirely, and we should treat that as "unavailable" rather than guessing.
+        let lower = clean.lowercased()
+        let hasWeeklyLabel = lower.contains("current week")
+        let hasOpusLabel = lower.contains("opus") || lower.contains("sonnet")
+
+        if sessionPct == nil || (hasWeeklyLabel && weeklyPct == nil) || (hasOpusLabel && opusPct == nil) {
             let ordered = self.allPercents(clean)
             if sessionPct == nil, ordered.indices.contains(0) { sessionPct = ordered[0] }
-            if weeklyPct == nil, ordered.indices.contains(1) { weeklyPct = ordered[1] }
-            if opusPct == nil, ordered.indices.contains(2) { opusPct = ordered[2] }
+            if hasWeeklyLabel, weeklyPct == nil, ordered.indices.contains(1) { weeklyPct = ordered[1] }
+            if hasOpusLabel, opusPct == nil, ordered.indices.contains(2) { opusPct = ordered[2] }
         }
 
         // Prefer usage text for identity; fall back to /status if present.
@@ -155,13 +161,13 @@ public struct ClaudeStatusProbe: Sendable {
         // Prefer explicit login method from /status, then fall back to /usage header heuristics.
         let login = self.extractLoginMethod(text: statusText ?? "") ?? self.extractLoginMethod(text: clean)
 
-        guard let sessionPct, let weeklyPct else {
+        guard let sessionPct else {
             Self.dumpIfNeeded(
                 enabled: shouldDump,
-                reason: "missing session/weekly labels",
+                reason: "missing session label",
                 usage: clean,
                 status: statusText)
-            throw ClaudeStatusProbeError.parseFailed("Missing Current session or Current week (all models)")
+            throw ClaudeStatusProbeError.parseFailed("Missing Current session")
         }
 
         // Capture reset strings for UI display.
@@ -183,7 +189,9 @@ public struct ClaudeStatusProbe: Sendable {
     private static func extractPercent(labelSubstring: String, text: String) -> Int? {
         let lines = text.components(separatedBy: .newlines)
         for (idx, line) in lines.enumerated() where line.lowercased().contains(labelSubstring.lowercased()) {
-            let window = lines.dropFirst(idx).prefix(4)
+            // Claude's usage panel can take a moment to render percentages (especially on enterprise accounts),
+            // so scan a larger window than the original 3–4 lines.
+            let window = lines.dropFirst(idx).prefix(12)
             for candidate in window {
                 if let pct = percentFromLine(candidate) { return pct }
             }
@@ -238,29 +246,21 @@ public struct ClaudeStatusProbe: Sendable {
         return nil
     }
 
-    // Collect percentages in the order they appear; used as a backup when labels move/rename.
+    // Collect remaining percentages in the order they appear; used as a backup when labels move/rename.
     private static func allPercents(_ text: String) -> [Int] {
-        let patterns = [
-            #"([0-9]{1,3})\p{Zs}*%\s*left"#,
-            #"([0-9]{1,3})\p{Zs}*%\s*used"#,
-            #"([0-9]{1,3})\p{Zs}*%"#,
-        ]
+        let pat = #"([0-9]{1,3})\p{Zs}*%\s*(left|used)"#
+        guard let regex = try? NSRegularExpression(pattern: pat, options: [.caseInsensitive]) else { return [] }
+        let nsrange = NSRange(text.startIndex..<text.endIndex, in: text)
         var results: [Int] = []
-        for pat in patterns {
-            guard let regex = try? NSRegularExpression(pattern: pat, options: [.caseInsensitive]) else { continue }
-            let nsrange = NSRange(text.startIndex..<text.endIndex, in: text)
-            regex.enumerateMatches(in: text, options: [], range: nsrange) { match, _, _ in
-                guard let match,
-                      let r = Range(match.range(at: 1), in: text),
-                      let val = Int(text[r]) else { return }
-                let used: Int = if pat.contains("left") {
-                    max(0, 100 - val)
-                } else {
-                    val
-                }
-                results.append(used)
-            }
-            if results.count >= 3 { break }
+        regex.enumerateMatches(in: text, options: [], range: nsrange) { match, _, _ in
+            guard let match,
+                  match.numberOfRanges >= 3,
+                  let valRange = Range(match.range(at: 1), in: text),
+                  let kindRange = Range(match.range(at: 2), in: text),
+                  let val = Int(text[valRange]) else { return }
+            let kind = text[kindRange].lowercased()
+            let remaining = kind.contains("used") ? max(0, 100 - val) : max(0, min(val, 100))
+            results.append(remaining)
         }
         return results
     }

@@ -542,7 +542,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         guard let button = self.statusItems[provider]?.button else { return }
         let snapshot = self.store.snapshot(for: provider)
         var primary = snapshot?.primary.remainingPercent
-        var weekly = snapshot?.secondary.remainingPercent
+        var weekly = snapshot?.secondary?.remainingPercent
         var credits: Double? = provider == .codex ? self.store.credits?.remaining : nil
         var stale = self.store.isStale(provider: provider)
         var morphProgress: Double?

@@ -218,11 +218,13 @@ extension UsageMenuCardView.Model {
             title: metadata.sessionLabel,
             percentLeft: Self.clamped(snapshot.primary.remainingPercent),
             resetText: Self.resetText(for: snapshot.primary)))
-        metrics.append(Metric(
-            id: "secondary",
-            title: metadata.weeklyLabel,
-            percentLeft: Self.clamped(snapshot.secondary.remainingPercent),
-            resetText: Self.resetText(for: snapshot.secondary)))
+        if let weekly = snapshot.secondary {
+            metrics.append(Metric(
+                id: "secondary",
+                title: metadata.weeklyLabel,
+                percentLeft: Self.clamped(weekly.remainingPercent),
+                resetText: Self.resetText(for: weekly)))
+        }
         if metadata.supportsOpus, let opus = snapshot.tertiary {
             metrics.append(Metric(
                 id: "tertiary",

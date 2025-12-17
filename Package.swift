@@ -8,7 +8,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.8.1"),
-        .package(url: "https://github.com/steipete/Commander", from: "0.1.0"),
+        .package(url: "https://github.com/steipete/Commander", from: "0.2.0"),
     ],
     targets: [
         .target(

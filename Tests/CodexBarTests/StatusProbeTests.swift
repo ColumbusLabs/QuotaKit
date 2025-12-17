@@ -107,6 +107,20 @@ struct StatusProbeTests {
     }
 
     @Test
+    func parseClaudeStatusEnterpriseSessionOnly() throws {
+        let sample = """
+        Current session
+        █                                                  2% used
+        Resets 3pm (Europe/Vienna)
+        """
+        let snap = try ClaudeStatusProbe.parse(text: sample)
+        #expect(snap.sessionPercentLeft == 98)
+        #expect(snap.weeklyPercentLeft == nil)
+        #expect(snap.primaryResetDescription == "Resets 3pm (Europe/Vienna)")
+        #expect(snap.secondaryResetDescription == nil)
+    }
+
+    @Test
     func parseClaudeStatusWithPlanAndAnsiNoise() throws {
         let sample = """
         Settings: Status   Config   Usage

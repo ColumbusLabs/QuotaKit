@@ -263,7 +263,8 @@ enum IconRenderer {
             let bottomValue = weeklyRemaining
             let creditsRatio = creditsRemaining.map { min($0 / Self.creditsCap * 100, 100) }
 
-            let weeklyAvailable = (weeklyRemaining ?? 0) > 0
+            let hasWeekly = (weeklyRemaining != nil)
+            let weeklyAvailable = hasWeekly && (weeklyRemaining ?? 0) > 0
             let creditsAlpha: CGFloat = 1.0
             let topRectPx = RectPx(x: barXPx, y: 19, w: barWidthPx, h: 12)
             let bottomRectPx = RectPx(x: barXPx, y: 5, w: barWidthPx, h: 8)
@@ -279,6 +280,28 @@ enum IconRenderer {
                     addFace: style == .codex,
                     blink: blink)
                 drawBar(rectPx: bottomRectPx, remaining: bottomValue)
+            } else if !hasWeekly {
+                // Weekly missing (e.g. Claude enterprise): keep normal layout but
+                // dim the bottom track to indicate N/A.
+                if topValue == nil, let ratio = creditsRatio {
+                    // Credits-only: show credits prominently (e.g. credits loaded before usage).
+                    drawBar(
+                        rectPx: creditsRectPx,
+                        remaining: ratio,
+                        alpha: creditsAlpha,
+                        addNotches: style == .claude,
+                        addFace: style == .codex,
+                        blink: blink)
+                    drawBar(rectPx: creditsBottomRectPx, remaining: nil, alpha: 0.45)
+                } else {
+                    drawBar(
+                        rectPx: topRectPx,
+                        remaining: topValue,
+                        addNotches: style == .claude,
+                        addFace: style == .codex,
+                        blink: blink)
+                    drawBar(rectPx: bottomRectPx, remaining: nil, alpha: 0.45)
+                }
             } else {
                 // Weekly exhausted/missing: show credits on top (thicker), weekly (likely 0) on bottom.
                 if let ratio = creditsRatio {

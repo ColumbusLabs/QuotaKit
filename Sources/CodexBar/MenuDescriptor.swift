@@ -104,7 +104,11 @@ struct MenuDescriptor {
 
         if let snap = store.snapshot(for: provider) {
             Self.appendRateWindow(entries: &entries, title: meta.sessionLabel, window: snap.primary)
-            Self.appendRateWindow(entries: &entries, title: meta.weeklyLabel, window: snap.secondary)
+            if let weekly = snap.secondary {
+                Self.appendRateWindow(entries: &entries, title: meta.weeklyLabel, window: weekly)
+            } else if provider == .claude {
+                entries.append(.text("Weekly usage unavailable for this account.", .secondary))
+            }
             if meta.supportsOpus, let opus = snap.tertiary {
                 Self.appendRateWindow(entries: &entries, title: meta.opusLabel ?? "Sonnet", window: opus)
             }

@@ -17,9 +17,11 @@ enum CLIRenderer {
             lines.append("Resets \(reset)")
         }
 
-        lines.append(self.rateLine(title: meta.weeklyLabel, window: snapshot.secondary))
-        if let reset = snapshot.secondary.resetDescription {
-            lines.append("Resets \(reset)")
+        if let weekly = snapshot.secondary {
+            lines.append(self.rateLine(title: meta.weeklyLabel, window: weekly))
+            if let reset = weekly.resetDescription {
+                lines.append("Resets \(reset)")
+            }
         }
 
         if meta.supportsOpus, let opus = snapshot.tertiary {

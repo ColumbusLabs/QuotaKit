@@ -40,6 +40,30 @@ struct CLISnapshotTests {
     }
 
     @Test
+    func rendersTextSnapshotForClaudeWithoutWeekly() {
+        let snap = UsageSnapshot(
+            primary: .init(usedPercent: 2, windowMinutes: nil, resetsAt: nil, resetDescription: "3pm (Europe/Vienna)"),
+            secondary: nil,
+            tertiary: nil,
+            updatedAt: Date(timeIntervalSince1970: 0),
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: nil)
+
+        let output = CLIRenderer.renderText(
+            provider: .claude,
+            snapshot: snap,
+            credits: nil,
+            context: RenderContext(
+                header: "Claude Code 2.0.69 (claude)",
+                status: nil,
+                useColor: false))
+
+        #expect(output.contains("Session: 98% left"))
+        #expect(!output.contains("Weekly:"))
+    }
+
+    @Test
     func rendersJSONPayload() throws {
         let snap = UsageSnapshot(
             primary: .init(usedPercent: 50, windowMinutes: 300, resetsAt: nil, resetDescription: nil),

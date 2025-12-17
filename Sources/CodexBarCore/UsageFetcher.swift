@@ -21,7 +21,7 @@ public struct RateWindow: Codable, Sendable {
 
 public struct UsageSnapshot: Codable, Sendable {
     public let primary: RateWindow
-    public let secondary: RateWindow
+    public let secondary: RateWindow?
     public let tertiary: RateWindow?
     public let updatedAt: Date
     public let accountEmail: String?
@@ -30,7 +30,7 @@ public struct UsageSnapshot: Codable, Sendable {
 
     public init(
         primary: RateWindow,
-        secondary: RateWindow,
+        secondary: RateWindow?,
         tertiary: RateWindow? = nil,
         updatedAt: Date,
         accountEmail: String? = nil,

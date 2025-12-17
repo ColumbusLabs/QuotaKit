@@ -9,7 +9,7 @@ public protocol ClaudeUsageFetching: Sendable {
 
 public struct ClaudeUsageSnapshot: Sendable {
     public let primary: RateWindow
-    public let secondary: RateWindow
+    public let secondary: RateWindow?
     public let opus: RateWindow?
     public let updatedAt: Date
     public let accountEmail: String?
@@ -19,7 +19,7 @@ public struct ClaudeUsageSnapshot: Sendable {
 
     public init(
         primary: RateWindow,
-        secondary: RateWindow,
+        secondary: RateWindow?,
         opus: RateWindow?,
         updatedAt: Date,
         accountEmail: String?,
@@ -97,12 +97,10 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                 resetDescription: resetText)
         }
 
-        guard
-            let session = makeWindow(firstWindowDict(["session_5h"])),
-            let weekAll = makeWindow(firstWindowDict(["week_all_models", "week_all"]))
-        else {
-            throw ClaudeUsageError.parseFailed("missing session/weekly data")
+        guard let session = makeWindow(firstWindowDict(["session_5h"])) else {
+            throw ClaudeUsageError.parseFailed("missing session data")
         }
+        let weekAll = makeWindow(firstWindowDict(["week_all_models", "week_all"]))
 
         let rawEmail = (obj["account_email"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
         let email = (rawEmail?.isEmpty ?? true) ? nil : rawEmail
@@ -168,8 +166,9 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             let opus = snap.opus?.remainingPercent ?? -1
             let email = snap.accountEmail ?? "nil"
             let org = snap.accountOrganization ?? "nil"
+            let weekly = snap.secondary?.remainingPercent ?? -1
             return """
-            session_left=\(snap.primary.remainingPercent) weekly_left=\(snap.secondary.remainingPercent)
+            session_left=\(snap.primary.remainingPercent) weekly_left=\(weekly)
             opus_left=\(opus) email \(email) org \(org)
             \(snap)
             """
@@ -209,7 +208,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         }
 
         let primary = makeWindow(pctLeft: sessionPctLeft, reset: snap.primaryResetDescription)!
-        let weekly = makeWindow(pctLeft: snap.weeklyPercentLeft, reset: snap.secondaryResetDescription)!
+        let weekly = makeWindow(pctLeft: snap.weeklyPercentLeft, reset: snap.secondaryResetDescription)
         let opus = makeWindow(pctLeft: snap.opusPercentLeft, reset: snap.opusResetDescription)
 
         return ClaudeUsageSnapshot(

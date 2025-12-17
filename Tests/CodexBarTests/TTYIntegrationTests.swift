@@ -7,7 +7,7 @@ final class TTYIntegrationTests: XCTestCase {
         let fetcher = UsageFetcher()
         do {
             let snapshot = try await fetcher.loadLatestUsage()
-            let hasData = snapshot.primary.usedPercent >= 0 && snapshot.secondary.usedPercent >= 0
+            let hasData = snapshot.primary.usedPercent >= 0 && (snapshot.secondary?.usedPercent ?? 0) >= 0
             XCTAssertTrue(hasData, "Codex RPC probe returned no usage data.")
         } catch UsageError.noRateLimitsFound {
             throw XCTSkip("Codex RPC returned no rate limits yet (likely warming up).")
@@ -25,7 +25,7 @@ final class TTYIntegrationTests: XCTestCase {
         do {
             let snapshot = try await probe.fetch()
             XCTAssertNotNil(snapshot.sessionPercentLeft, "Claude session percent missing")
-            XCTAssertNotNil(snapshot.weeklyPercentLeft, "Claude weekly percent missing")
+            // Weekly is absent for some enterprise accounts.
         } catch let ClaudeStatusProbeError.parseFailed(message) {
             throw XCTSkip("Claude PTY parse failed (likely not logged in or usage unavailable): \(message)")
         } catch ClaudeStatusProbeError.timedOut {

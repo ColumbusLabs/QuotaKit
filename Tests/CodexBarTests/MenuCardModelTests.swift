@@ -26,8 +26,8 @@ struct MenuCardModelTests {
         let updatedSnap = UsageSnapshot(
             primary: snapshot.primary,
             secondary: RateWindow(
-                usedPercent: snapshot.secondary.usedPercent,
-                windowMinutes: snapshot.secondary.windowMinutes,
+                usedPercent: snapshot.secondary!.usedPercent,
+                windowMinutes: snapshot.secondary!.windowMinutes,
                 resetsAt: now.addingTimeInterval(3600),
                 resetDescription: nil),
             tertiary: snapshot.tertiary,
