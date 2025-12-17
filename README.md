@@ -24,6 +24,7 @@ Icon bar mapping (grayscale)
 
 ## Download
 - Ready-to-run zips are published in GitHub Releases: <https://github.com/steipete/CodexBar/releases>
+- Homebrew (UI app; Sparkle disabled): `brew install --cask steipete/tap/codexbar` (update via `brew upgrade --cask steipete/tap/codexbar`)
 
 ## Build & run
 ```bash

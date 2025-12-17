@@ -69,6 +69,9 @@ git tag v<version>
 # then create GitHub release (gh release create v<version> ...)
 ```
 
+## Homebrew (Cask)
+After publishing the GitHub release, update the Homebrew cask in `../homebrew-tap` (see `docs/releasing-homebrew.md`).
+
 ## Checklist (quick)
 - [ ] Read both this file and `~/Projects/agent-scripts/docs/RELEASING-MAC.md`; resolve any conflicts toward CodexBar’s specifics.
 - [ ] Update versions (scripts/Info.plist, CHANGELOG, About text) — changelog top section must be finalized; release script pulls notes from it automatically.
