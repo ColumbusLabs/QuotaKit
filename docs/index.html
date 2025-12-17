@@ -8,41 +8,67 @@
       name="description"
       content="Tiny macOS menu bar app that keeps your Codex and Claude Code limits visible."
     />
+    <meta name="theme-color" content="#0b1016" />
+    <link rel="canonical" href="https://codexbar.app/" />
+
+    <meta property="og:title" content="CodexBar" />
+    <meta
+      property="og:description"
+      content="Tiny macOS menu bar app that keeps your Codex and Claude Code limits visible."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://codexbar.app/" />
+    <meta property="og:image" content="https://codexbar.app/codexbar.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+
     <link rel="icon" href="./icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="./icon.png" />
     <link rel="stylesheet" href="./site.css" />
   </head>
   <body>
     <main class="wrap">
-      <header class="top">
-        <div class="brand">
+      <header class="top" data-animate="1">
+        <a class="brand" href="https://github.com/steipete/CodexBar" aria-label="CodexBar on GitHub">
           <img class="mark" src="./icon.png" alt="" aria-hidden="true" width="44" height="44" />
-          <div class="name">
-            <h1>CodexBar</h1>
-            <p>Tiny macOS menu bar app for Codex + Claude Code limits.</p>
-          </div>
-        </div>
+          <span class="name">
+            <h1 class="title">CodexBar</h1>
+            <p class="tagline">Codex + Claude Code limits, always visible.</p>
+          </span>
+        </a>
         <nav class="links" aria-label="Links">
           <a class="btn primary" href="https://github.com/steipete/CodexBar/releases/latest">Download</a>
-          <a class="btn" href="https://github.com/steipete/CodexBar">GitHub</a>
+          <a class="btn ghost" href="https://github.com/steipete/CodexBar">Source</a>
         </nav>
       </header>
 
-      <section class="hero">
-        <div class="copy">
+      <section class="hero" aria-label="Overview">
+        <div class="copy" data-animate="2">
+          <div class="badges" aria-label="Highlights">
+            <span class="badge">macOS 15+</span>
+            <span class="badge">Free &amp; open source</span>
+            <span class="badge">On-device parsing</span>
+          </div>
           <h2>Stay ahead of resets.</h2>
           <p>
-            CodexBar shows your session and weekly usage windows (plus credits where available) directly in the menu bar.
-            No Dock icon, minimal UI, and all parsing stays on-device.
+            CodexBar keeps your session + weekly windows (and credits where available) in the menu bar, so you never have
+            to guess when you’re safe to ship.
           </p>
-          <p class="note">Free and open source (MIT).</p>
+          <div class="cta">
+            <a class="btn primary" href="https://github.com/steipete/CodexBar/releases/latest">Download latest</a>
+            <a class="btn" href="https://github.com/steipete/CodexBar">View on GitHub</a>
+          </div>
+          <ul class="bullets" aria-label="What it does">
+            <li>One status item per provider (Codex + Claude).</li>
+            <li>Session + weekly bars, plus reset times.</li>
+            <li>Minimal UI, no Dock icon.</li>
+          </ul>
         </div>
-        <figure class="shot">
+        <figure class="shot" data-animate="3">
           <img src="./codexbar.png" alt="CodexBar menu bar popover showing session and weekly usage." />
         </figure>
       </section>
 
-      <section class="details">
+      <section class="details" aria-label="Details" data-animate="4">
         <div class="card">
           <h3>Codex</h3>
           <p>Prefers the local app-server RPC for limits + credits, with a PTY fallback to <code>codex /status</code>.</p>
@@ -57,10 +83,11 @@
         </div>
       </section>
 
-      <footer class="foot">
+      <footer class="foot" data-animate="5">
         <p>
           Built by <a href="https://github.com/steipete">Peter Steinberger</a> •
-          <a href="https://github.com/steipete/CodexBar/blob/main/CHANGELOG.md">Changelog</a>
+          <a href="https://github.com/steipete/CodexBar/blob/main/CHANGELOG.md">Changelog</a> •
+          <a href="https://github.com/steipete/CodexBar/blob/main/LICENSE">MIT</a>
         </p>
       </footer>
     </main>
