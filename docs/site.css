@@ -108,10 +108,15 @@ code {
   width: 44px;
   height: 44px;
   border-radius: 13px;
-  border: 1px solid var(--line);
-  box-shadow: 0 10px 30px var(--shadow);
-  background: var(--panel-solid);
+  border: 0;
+  box-shadow: none;
+  background: transparent;
   object-fit: cover;
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.35));
+}
+
+.brand:hover .mark {
+  filter: drop-shadow(0 16px 34px rgba(0, 0, 0, 0.42));
 }
 
 .links {
