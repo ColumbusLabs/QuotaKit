@@ -103,6 +103,28 @@ struct CLISnapshotTests {
     }
 
     @Test
+    func encodesJSONWithSecondaryNullWhenMissing() throws {
+        let snap = UsageSnapshot(
+            primary: .init(usedPercent: 0, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            tertiary: nil,
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: nil)
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .secondsSince1970
+        let data = try encoder.encode(snap)
+        guard let json = String(data: data, encoding: .utf8) else {
+            Issue.record("Failed to decode JSON payload")
+            return
+        }
+
+        #expect(json.contains("\"secondary\":null"))
+    }
+
+    @Test
     func parsesOutputFormat() {
         #expect(OutputFormat(argument: "json") == .json)
         #expect(OutputFormat(argument: "TEXT") == .text)

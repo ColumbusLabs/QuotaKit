@@ -28,6 +28,16 @@ public struct UsageSnapshot: Codable, Sendable {
     public let accountOrganization: String?
     public let loginMethod: String?
 
+    private enum CodingKeys: String, CodingKey {
+        case primary
+        case secondary
+        case tertiary
+        case updatedAt
+        case accountEmail
+        case accountOrganization
+        case loginMethod
+    }
+
     public init(
         primary: RateWindow,
         secondary: RateWindow?,
@@ -44,6 +54,32 @@ public struct UsageSnapshot: Codable, Sendable {
         self.accountEmail = accountEmail
         self.accountOrganization = accountOrganization
         self.loginMethod = loginMethod
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.primary = try container.decode(RateWindow.self, forKey: .primary)
+        self.secondary = try container.decodeIfPresent(RateWindow.self, forKey: .secondary)
+        self.tertiary = try container.decodeIfPresent(RateWindow.self, forKey: .tertiary)
+        self.updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+        self.accountEmail = try container.decodeIfPresent(String.self, forKey: .accountEmail)
+        self.accountOrganization = try container.decodeIfPresent(String.self, forKey: .accountOrganization)
+        self.loginMethod = try container.decodeIfPresent(String.self, forKey: .loginMethod)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.primary, forKey: .primary)
+        if let secondary = self.secondary {
+            try container.encode(secondary, forKey: .secondary)
+        } else {
+            try container.encodeNil(forKey: .secondary)
+        }
+        try container.encodeIfPresent(self.tertiary, forKey: .tertiary)
+        try container.encode(self.updatedAt, forKey: .updatedAt)
+        try container.encodeIfPresent(self.accountEmail, forKey: .accountEmail)
+        try container.encodeIfPresent(self.accountOrganization, forKey: .accountOrganization)
+        try container.encodeIfPresent(self.loginMethod, forKey: .loginMethod)
     }
 }
 

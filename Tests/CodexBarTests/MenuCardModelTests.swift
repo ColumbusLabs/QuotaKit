@@ -56,6 +56,37 @@ struct MenuCardModelTests {
     }
 
     @Test
+    func claudeModelHidesWeeklyWhenUnavailable() {
+        let now = Date()
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: 2,
+                windowMinutes: nil,
+                resetsAt: now.addingTimeInterval(3600),
+                resetDescription: nil),
+            secondary: nil,
+            tertiary: nil,
+            updatedAt: now,
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: "Max")
+        let metadata = ProviderDefaults.metadata[.claude]!
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .claude,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            account: AccountInfo(email: "codex@example.com", plan: "plus"),
+            isRefreshing: false,
+            lastError: nil))
+
+        #expect(model.metrics.count == 1)
+        #expect(model.metrics.first?.title == "Session")
+        #expect(model.planText == "Max")
+    }
+
+    @Test
     func showsErrorSubtitleWhenPresent() {
         let metadata = ProviderDefaults.metadata[.codex]!
         let model = UsageMenuCardView.Model.make(.init(
