@@ -31,7 +31,7 @@
 
 html,
 body {
-  height: 100%;
+  min-height: 100%;
 }
 
 body {
@@ -44,6 +44,10 @@ body {
     radial-gradient(900px 700px at 40% 95%, rgba(63, 240, 214, 0.06), transparent 60%),
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.04) 1px, transparent 1px, transparent 72px),
     var(--bg);
+}
+
+html {
+  background: var(--bg);
 }
 
 a,
