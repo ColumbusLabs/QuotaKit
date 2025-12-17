@@ -1,6 +1,7 @@
 # Changelog
 
-## 0.7.4 — Unreleased
+## 0.8.0 — Unreleased
+- Added session quota notifications for the sliding 5-hour window (Codex + Claude): notifies when it hits 0% and when it’s available again, based only on observed refresh data (including startup when already depleted). Thanks @GKannanDev!
 
 ## 0.7.3 — 2025-12-17
 - Claude Enterprise accounts whose Claude Code `/usage` panel only shows “Current session” no longer fail parsing; weekly usage is treated as unavailable (fixes #19).

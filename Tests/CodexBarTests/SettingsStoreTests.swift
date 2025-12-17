@@ -32,4 +32,15 @@ struct SettingsStoreTests {
         #expect(storeB.refreshFrequency == .fifteenMinutes)
         #expect(storeB.refreshFrequency.seconds == 900)
     }
+
+    @Test
+    func defaultsSessionQuotaNotificationsToEnabled() {
+        let key = "sessionQuotaNotificationsEnabled"
+        let suite = "SettingsStoreTests-sessionQuotaNotifications"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let store = SettingsStore(userDefaults: defaults)
+        #expect(store.sessionQuotaNotificationsEnabled == true)
+        #expect(defaults.bool(forKey: key) == true)
+    }
 }

@@ -54,6 +54,10 @@ final class SettingsStore: ObservableObject {
         didSet { self.objectWillChange.send() }
     }
 
+    @AppStorage("sessionQuotaNotificationsEnabled") var sessionQuotaNotificationsEnabled: Bool = true {
+        didSet { self.objectWillChange.send() }
+    }
+
     @AppStorage("randomBlinkEnabled") var randomBlinkEnabled: Bool = false {
         didSet { self.objectWillChange.send() }
     }
@@ -74,6 +78,9 @@ final class SettingsStore: ObservableObject {
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
+        if userDefaults.object(forKey: "sessionQuotaNotificationsEnabled") == nil {
+            userDefaults.set(true, forKey: "sessionQuotaNotificationsEnabled")
+        }
         let raw = userDefaults.string(forKey: "refreshFrequency") ?? RefreshFrequency.fiveMinutes.rawValue
         self.refreshFrequency = RefreshFrequency(rawValue: raw) ?? .fiveMinutes
         self.toggleStore = ProviderToggleStore(userDefaults: userDefaults)

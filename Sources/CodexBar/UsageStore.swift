@@ -2,6 +2,7 @@ import AppKit
 import CodexBarCore
 import Combine
 import Foundation
+import OSLog
 
 enum IconStyle {
     case codex
@@ -84,22 +85,27 @@ final class UsageStore: ObservableObject {
     private let claudeFetcher: any ClaudeUsageFetching
     private let registry: ProviderRegistry
     private let settings: SettingsStore
+    private let sessionQuotaNotifier: SessionQuotaNotifier
+    private let sessionQuotaLogger = Logger(subsystem: "com.steipete.codexbar", category: "sessionQuota")
     private var failureGates: [UsageProvider: ConsecutiveFailureGate] = [:]
     private var providerSpecs: [UsageProvider: ProviderSpec] = [:]
     private let providerMetadata: [UsageProvider: ProviderMetadata]
     private var timerTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
+    private var lastKnownSessionRemaining: [UsageProvider: Double] = [:]
 
     init(
         fetcher: UsageFetcher,
         claudeFetcher: any ClaudeUsageFetching = ClaudeUsageFetcher(),
         settings: SettingsStore,
-        registry: ProviderRegistry = .shared)
+        registry: ProviderRegistry = .shared,
+        sessionQuotaNotifier: SessionQuotaNotifier = SessionQuotaNotifier())
     {
         self.codexFetcher = fetcher
         self.claudeFetcher = claudeFetcher
         self.settings = settings
         self.registry = registry
+        self.sessionQuotaNotifier = sessionQuotaNotifier
         self.providerMetadata = registry.metadata
         self
             .failureGates = Dictionary(uniqueKeysWithValues: UsageProvider.allCases
@@ -275,6 +281,7 @@ final class UsageStore: ObservableObject {
                 self.errors[provider] = nil
                 self.failureGates[provider]?.reset()
                 self.statuses.removeValue(forKey: provider)
+                self.lastKnownSessionRemaining.removeValue(forKey: provider)
             }
             return
         }
@@ -301,6 +308,7 @@ final class UsageStore: ObservableObject {
                 snapshot = try await task.value
             }
             await MainActor.run {
+                self.handleSessionQuotaTransition(provider: provider, snapshot: snapshot)
                 self.snapshots[provider] = snapshot
                 self.errors[provider] = nil
                 self.failureGates[provider]?.recordSuccess()
@@ -322,6 +330,61 @@ final class UsageStore: ObservableObject {
                 }
             }
         }
+    }
+
+    private func handleSessionQuotaTransition(provider: UsageProvider, snapshot: UsageSnapshot) {
+        let currentRemaining = snapshot.primary.remainingPercent
+        let previousRemaining = self.lastKnownSessionRemaining[provider]
+
+        defer { self.lastKnownSessionRemaining[provider] = currentRemaining }
+
+        guard self.settings.sessionQuotaNotificationsEnabled else {
+            if SessionQuotaNotificationLogic.isDepleted(currentRemaining) ||
+                SessionQuotaNotificationLogic.isDepleted(previousRemaining)
+            {
+                let providerText = provider.rawValue
+                let message =
+                    "notifications disabled: provider=\(providerText) " +
+                    "prev=\(previousRemaining ?? -1) curr=\(currentRemaining)"
+                self.sessionQuotaLogger.debug("\(message, privacy: .public)")
+            }
+            return
+        }
+
+        guard previousRemaining != nil else {
+            if SessionQuotaNotificationLogic.isDepleted(currentRemaining) {
+                let providerText = provider.rawValue
+                let message = "startup depleted: provider=\(providerText) curr=\(currentRemaining)"
+                self.sessionQuotaLogger.info("\(message, privacy: .public)")
+                self.sessionQuotaNotifier.post(transition: .depleted, provider: provider)
+            }
+            return
+        }
+
+        let transition = SessionQuotaNotificationLogic.transition(
+            previousRemaining: previousRemaining,
+            currentRemaining: currentRemaining)
+        guard transition != .none else {
+            if SessionQuotaNotificationLogic.isDepleted(currentRemaining) ||
+                SessionQuotaNotificationLogic.isDepleted(previousRemaining)
+            {
+                let providerText = provider.rawValue
+                let message =
+                    "no transition: provider=\(providerText) " +
+                    "prev=\(previousRemaining ?? -1) curr=\(currentRemaining)"
+                self.sessionQuotaLogger.debug("\(message, privacy: .public)")
+            }
+            return
+        }
+
+        let providerText = provider.rawValue
+        let transitionText = String(describing: transition)
+        let message =
+            "transition \(transitionText): provider=\(providerText) " +
+            "prev=\(previousRemaining ?? -1) curr=\(currentRemaining)"
+        self.sessionQuotaLogger.info("\(message, privacy: .public)")
+
+        self.sessionQuotaNotifier.post(transition: transition, provider: provider)
     }
 
     private func refreshStatus(_ provider: UsageProvider) async {

@@ -146,6 +146,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        AppNotifications.shared.requestAuthorizationOnStartup()
         self.ensureStatusController()
     }
 
@@ -894,21 +895,9 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     }
 
     private func postLoginNotification(for provider: UsageProvider) {
-        let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
-            guard granted else { return }
-
-            let content = UNMutableNotificationContent()
-            content.title = provider == .claude ? "Claude login successful" : "Codex login successful"
-            content.body = "You can return to the app; authentication finished."
-
-            let request = UNNotificationRequest(
-                identifier: "codexbar-login-\(provider.rawValue)-\(UUID().uuidString)",
-                content: content,
-                trigger: nil)
-
-            center.add(request, withCompletionHandler: nil)
-        }
+        let title = provider == .claude ? "Claude login successful" : "Codex login successful"
+        let body = "You can return to the app; authentication finished."
+        AppNotifications.shared.post(idPrefix: "login-\(provider.rawValue)", title: title, body: body)
     }
 }
 
