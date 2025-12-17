@@ -36,7 +36,7 @@ final class SessionQuotaNotifier {
 
     init() {}
 
-    func post(transition: SessionQuotaTransition, provider: UsageProvider) {
+    func post(transition: SessionQuotaTransition, provider: UsageProvider, badge: NSNumber? = nil) {
         guard transition != .none else { return }
 
         let providerName = switch provider {
@@ -57,6 +57,6 @@ final class SessionQuotaNotifier {
         let transitionText = String(describing: transition)
         let idPrefix = "session-\(providerText)-\(transitionText)"
         self.logger.info("enqueuing: prefix=\(idPrefix, privacy: .public)")
-        AppNotifications.shared.post(idPrefix: idPrefix, title: title, body: body)
+        AppNotifications.shared.post(idPrefix: idPrefix, title: title, body: body, badge: badge)
     }
 }

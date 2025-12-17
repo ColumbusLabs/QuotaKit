@@ -19,7 +19,7 @@ final class AppNotifications {
         _ = self.ensureAuthorizationTask()
     }
 
-    func post(idPrefix: String, title: String, body: String) {
+    func post(idPrefix: String, title: String, body: String, badge: NSNumber? = nil) {
         guard !Self.isRunningUnderTests else { return }
         let center = self.centerProvider()
         let logger = self.logger
@@ -34,6 +34,8 @@ final class AppNotifications {
             let content = UNMutableNotificationContent()
             content.title = title
             content.body = body
+            content.sound = .default
+            content.badge = badge
 
             let request = UNNotificationRequest(
                 identifier: "codexbar-\(idPrefix)-\(UUID().uuidString)",
@@ -78,7 +80,7 @@ final class AppNotifications {
 
         let center = self.centerProvider()
         return await withCheckedContinuation { continuation in
-            center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
+            center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
                 continuation.resume(returning: granted)
             }
         }

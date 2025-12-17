@@ -110,6 +110,34 @@ struct DebugPane: View {
                 }
 
                 SettingsSection(
+                    title: "Notifications",
+                    caption: "Trigger test notifications for the 5-hour session window (depleted/restored).")
+                {
+                    Picker("Provider", selection: self.$currentLogProvider) {
+                        Text("Codex").tag(UsageProvider.codex)
+                        Text("Claude").tag(UsageProvider.claude)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 240)
+
+                    HStack(spacing: 12) {
+                        Button {
+                            self.postSessionNotification(.depleted, provider: self.currentLogProvider)
+                        } label: {
+                            Label("Post depleted", systemImage: "bell.badge")
+                        }
+                        .controlSize(.small)
+
+                        Button {
+                            self.postSessionNotification(.restored, provider: self.currentLogProvider)
+                        } label: {
+                            Label("Post restored", systemImage: "bell")
+                        }
+                        .controlSize(.small)
+                    }
+                }
+
+                SettingsSection(
                     title: "CLI paths",
                     caption: "Resolved Codex binary and PATH layers; startup login PATH capture (short timeout).")
                 {
@@ -230,5 +258,9 @@ struct DebugPane: View {
                 self.isLoadingLog = false
             }
         }
+    }
+
+    private func postSessionNotification(_ transition: SessionQuotaTransition, provider: UsageProvider) {
+        SessionQuotaNotifier().post(transition: transition, provider: provider, badge: 1)
     }
 }
