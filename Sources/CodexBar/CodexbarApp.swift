@@ -66,6 +66,7 @@ struct CodexBarApp: App {
 protocol UpdaterProviding: AnyObject {
     var automaticallyChecksForUpdates: Bool { get set }
     var isAvailable: Bool { get }
+    var unavailableReason: String? { get }
     func checkForUpdates(_ sender: Any?)
 }
 
@@ -73,6 +74,12 @@ protocol UpdaterProviding: AnyObject {
 final class DisabledUpdaterController: UpdaterProviding {
     var automaticallyChecksForUpdates: Bool = false
     let isAvailable: Bool = false
+    let unavailableReason: String?
+
+    init(unavailableReason: String? = nil) {
+        self.unavailableReason = unavailableReason
+    }
+
     func checkForUpdates(_ sender: Any?) {}
 }
 
@@ -86,6 +93,7 @@ extension SPUStandardUpdaterController: UpdaterProviding {
     }
 
     var isAvailable: Bool { true }
+    var unavailableReason: String? { nil }
 }
 
 private func isDeveloperIDSigned(bundleURL: URL) -> Bool {
@@ -105,10 +113,22 @@ private func isDeveloperIDSigned(bundleURL: URL) -> Bool {
     return false
 }
 
+@MainActor
 private func makeUpdaterController() -> UpdaterProviding {
     let bundleURL = Bundle.main.bundleURL
     let isBundledApp = bundleURL.pathExtension == "app"
-    guard isBundledApp, isDeveloperIDSigned(bundleURL: bundleURL) else { return DisabledUpdaterController() }
+    guard isBundledApp else {
+        return DisabledUpdaterController(unavailableReason: "Updates unavailable in this build.")
+    }
+
+    if InstallOrigin.isHomebrewCask(appBundleURL: bundleURL) {
+        return DisabledUpdaterController(
+            unavailableReason: "Updates managed by Homebrew. Run: brew upgrade --cask steipete/tap/codexbar")
+    }
+
+    guard isDeveloperIDSigned(bundleURL: bundleURL) else {
+        return DisabledUpdaterController(unavailableReason: "Updates unavailable in this build.")
+    }
 
     let defaults = UserDefaults.standard
     let autoUpdateKey = "autoUpdateEnabled"

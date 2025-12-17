@@ -84,7 +84,7 @@ struct AboutPane: View {
                     Button("Check for Updates…") { self.updater.checkForUpdates(nil) }
                 }
             } else {
-                Text("Updates unavailable in this build.")
+                Text(self.updater.unavailableReason ?? "Updates unavailable in this build.")
                     .foregroundStyle(.secondary)
             }
 
