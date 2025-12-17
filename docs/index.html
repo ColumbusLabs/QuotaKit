@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CodexBar</title>
+    <meta
+      name="description"
+      content="Tiny macOS menu bar app that keeps your Codex and Claude Code limits visible."
+    />
+    <link rel="stylesheet" href="./site.css" />
+  </head>
+  <body>
+    <main class="wrap">
+      <header class="top">
+        <div class="brand">
+          <div class="mark" aria-hidden="true">CB</div>
+          <div class="name">
+            <h1>CodexBar</h1>
+            <p>Tiny macOS menu bar app for Codex + Claude Code limits.</p>
+          </div>
+        </div>
+        <nav class="links" aria-label="Links">
+          <a class="btn primary" href="https://github.com/steipete/CodexBar/releases/latest">Download</a>
+          <a class="btn" href="https://github.com/steipete/CodexBar">GitHub</a>
+        </nav>
+      </header>
+
+      <section class="hero">
+        <div class="copy">
+          <h2>Stay ahead of resets.</h2>
+          <p>
+            CodexBar shows your session and weekly usage windows (plus credits where available) directly in the menu bar.
+            No Dock icon, minimal UI, and all parsing stays on-device.
+          </p>
+          <p class="note">Free and open source (MIT).</p>
+        </div>
+        <figure class="shot">
+          <img src="./codexbar.png" alt="CodexBar menu bar popover showing session and weekly usage." />
+        </figure>
+      </section>
+
+      <section class="details">
+        <div class="card">
+          <h3>Codex</h3>
+          <p>Prefers the local app-server RPC for limits + credits, with a PTY fallback to <code>codex /status</code>.</p>
+        </div>
+        <div class="card">
+          <h3>Claude Code</h3>
+          <p>Runs <code>/usage</code> + <code>/status</code> locally and renders what the CLI reports (session + weekly).</p>
+        </div>
+        <div class="card">
+          <h3>Privacy</h3>
+          <p>Nothing is sent anywhere. It reads local CLI output and shows it in the menu bar.</p>
+        </div>
+      </section>
+
+      <footer class="foot">
+        <p>
+          Built by <a href="https://github.com/steipete">Peter Steinberger</a> •
+          <a href="https://github.com/steipete/CodexBar/blob/main/CHANGELOG.md">Changelog</a>
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>
+
