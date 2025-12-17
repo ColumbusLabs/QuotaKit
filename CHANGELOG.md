@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.3 — Unreleased
+## 0.7.3 — 2025-12-17
 - Claude Enterprise accounts whose Claude Code `/usage` panel only shows “Current session” no longer fail parsing; weekly usage is treated as unavailable (fixes #19).
 
 ## 0.7.2 — 2025-12-13
