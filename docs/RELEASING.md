@@ -70,7 +70,10 @@ git tag v<version>
 ```
 
 ## Homebrew (Cask)
-After publishing the GitHub release, update the Homebrew cask in `../homebrew-tap` (see `docs/releasing-homebrew.md`).
+CodexBar ships a Homebrew **Cask** in `../homebrew-tap`. When installed via Homebrew, CodexBar disables Sparkle and the app
+must be updated via `brew`.
+
+After publishing the GitHub release, update the tap cask (see `docs/releasing-homebrew.md`).
 
 ## Checklist (quick)
 - [ ] Read both this file and `~/Projects/agent-scripts/docs/RELEASING-MAC.md`; resolve any conflicts toward CodexBar’s specifics.
@@ -85,6 +88,10 @@ After publishing the GitHub release, update the Homebrew cask in `../homebrew-ta
   - Sign the zip with `sign_update --ed-key-file "$SPARKLE_PRIVATE_KEY_FILE" CodexBar-<ver>.zip`; use that exact signature and length in the appcast (no manual base64 copy/paste).
   - After generating the appcast, download the enclosure URL and re-run `sign_update --ed-key-file "$SPARKLE_PRIVATE_KEY_FILE" <downloaded.zip>`; abort if signature or length differs from the appcast.
 - [ ] Upload zip + appcast to feed; publish tag + GitHub release so Sparkle URL is live (avoid 404)
+- [ ] Homebrew tap: update `../homebrew-tap/Casks/codexbar.rb` (url + sha256), then verify:
+  - `brew uninstall --cask codexbar || true`
+  - `brew untap steipete/tap || true; brew tap steipete/tap`
+  - `brew install --cask steipete/tap/codexbar && open -a CodexBar`
 - [ ] Version continuity: confirm the new version is the immediate next patch/minor (no gaps) and CHANGELOG has no skipped numbers (e.g., after 0.2.0 use 0.2.1, not 0.2.2)
 - [ ] Changelog sanity: single top-level title, no duplicate version sections, versions strictly descending with no repeats
 - [ ] Release pages: title format `CodexBar <version>`, notes as Markdown list (no stray blank lines)
@@ -99,7 +106,8 @@ After publishing the GitHub release, update the Homebrew cask in `../homebrew-ta
 - [ ] Keep a previous signed build in `/Applications/CodexBar.app` to test Sparkle delta/full update to the new release
 - [ ] Manual Gatekeeper sanity: after packaging, `find CodexBar.app -name '._*'` is empty, `spctl --assess --type execute --verbose CodexBar.app` and `codesign --verify --deep --strict --verbose CodexBar.app` succeed
 - [ ] For Sparkle verification: if replacing `/Applications/CodexBar.app`, quit first, replace, relaunch, and test update
-- **Definition of “done” for a release:** all of the above are complete, the appcast/enclosure link resolves, and a previous public build can update to the new one via Sparkle. Anything short of that is not a finished release.
+- **Definition of “done” for a release:** all of the above are complete, the appcast/enclosure link resolves, Homebrew cask
+  installs, and a previous public build can update to the new one via Sparkle. Anything short of that is not a finished release.
 
 ## Troubleshooting
 - **White plate icon**: regenerate icns via `build_icon.sh` (ictool) to ensure transparent padding.
