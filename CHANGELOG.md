@@ -1,5 +1,7 @@
 # Changelog
 
+## 0.8.1 — Unreleased
+
 ## 0.8.0 — 2025-12-17
 - CodexBar is now available via Homebrew: `brew install --cask steipete/tap/codexbar` (updates via `brew upgrade --cask steipete/tap/codexbar`).
 - Added session quota notifications for the sliding 5-hour window (Codex + Claude): notifies when it hits 0% and when it’s available again, based only on observed refresh data (including startup when already depleted). Thanks @GKannanDev!

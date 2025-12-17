@@ -2,6 +2,10 @@
 
 Tiny macOS 15+ menu bar app that keeps your Codex and Claude Code limits visible (5‑hour/session + weekly windows) and when each window resets. One status item per provider; enable either or both from Settings. No Dock icon, minimal UI, dynamic bar icons in the menu bar.
 
+## Install
+- Homebrew (UI app; Sparkle disabled): `brew install --cask steipete/tap/codexbar` (update via `brew upgrade --cask steipete/tap/codexbar`)
+- Or download the ready-to-run zip from GitHub Releases: <https://github.com/steipete/CodexBar/releases>
+
 Login story
 - **Codex** — Prefers the local codex app-server RPC for 5h/weekly limits + credits. Falls back to a PTY scrape of `codex /status` (auth/email/plan from the RPC or `~/.codex/auth.json`). All parsing stays on-device; no browser required.
 - **Claude Code** — Reads session + weekly + Sonnet-only weekly usage from the Claude CLI by running `/usage` + `/status` in a local PTY (no tmux). Shows email/org/login method directly from the CLI output. No browser or network calls beyond the CLI itself.
@@ -21,10 +25,6 @@ Icon bar mapping (grayscale)
 - Claude path: runs `claude /usage` and `/status` in a local PTY (no tmux) to parse session/week/Sonnet percentages, reset strings, and account email/org/login method; debug view can copy the latest raw scrape.
 - Account line keeps data siloed: Codex plan/email come from RPC/auth.json, Claude plan/email come only from the Claude CLI output; we never mix provider identity fields.
 - Auto-update via Sparkle (Check for Updates… menu item, auto-check enabled). Feed defaults to the GitHub Releases appcast (replace SUPublicEDKey with your Ed25519 public key).
-
-## Download
-- Ready-to-run zips are published in GitHub Releases: <https://github.com/steipete/CodexBar/releases>
-- Homebrew (UI app; Sparkle disabled): `brew install --cask steipete/tap/codexbar` (update via `brew upgrade --cask steipete/tap/codexbar`)
 
 ## Build & run
 ```bash
