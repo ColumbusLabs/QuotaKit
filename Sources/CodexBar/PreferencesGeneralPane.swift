@@ -8,6 +8,7 @@ struct GeneralPane: View {
     @ObservedObject var store: UsageStore
     @State private var expandedErrors: Set<UsageProvider> = []
     @State private var openAIDashboardStatus: String?
+    @State private var showOpenAIWebFullDiskAccessAlert = false
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
@@ -179,6 +180,27 @@ struct GeneralPane: View {
                             .font(.callout)
                             .foregroundStyle(.secondary)
                             .lineLimit(4)
+
+                        if self.needsOpenAIWebFullDiskAccess(status: status) {
+                            Button("Fix: enable Full Disk Access…") {
+                                self.showOpenAIWebFullDiskAccessAlert = true
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .alert("Enable Full Disk Access", isPresented: self.$showOpenAIWebFullDiskAccessAlert) {
+                                Button("Open System Settings") { Self.openFullDiskAccessSettings() }
+                                Button("Cancel", role: .cancel) {}
+                            } message: {
+                                Text(
+                                    [
+                                        "CodexBar needs Full Disk Access to read Safari cookies " +
+                                            "(required for OpenAI web scraping).",
+                                        "System Settings → Privacy & Security → Full Disk Access " +
+                                            "→ add/enable CodexBar.",
+                                        "Then re-toggle “Access OpenAI via web” to import cookies again.",
+                                    ].joined(separator: "\n"))
+                            }
+                        }
                     } else {
                         Text(
                             "Tip: stay signed in to chatgpt.com in Safari or Chrome; CodexBar will reuse that session.")
@@ -261,6 +283,25 @@ struct GeneralPane: View {
     }
 
     // MARK: - OpenAI dashboard auth
+
+    private func needsOpenAIWebFullDiskAccess(status: String) -> Bool {
+        let s = status.lowercased()
+        return s.contains("full disk access") && s.contains("safari")
+    }
+
+    private static func openFullDiskAccessSettings() {
+        // Best-effort deep link. On macOS 13 beta it used to open the wrong pane, but this has been stable on
+        // modern macOS releases again. Fall back to the Privacy pane if needed.
+        let urls: [URL] = [
+            URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"),
+            URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy"),
+            URL(string: "x-apple.systempreferences:com.apple.preference.security"),
+        ].compactMap(\.self)
+
+        for url in urls where NSWorkspace.shared.open(url) {
+            return
+        }
+    }
 }
 
 private struct ProviderErrorDisplay: Sendable {
