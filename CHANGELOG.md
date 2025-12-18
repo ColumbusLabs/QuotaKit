@@ -6,6 +6,7 @@
 - Credits remain sourced from the Codex CLI (no web login required for credits).
 - Per-account WebKit cookie jars (keeps multiple OpenAI accounts around; auto-syncs to the Codex CLI email).
 - CLI: `codexbar usage --openai-web` fetches and emits `openaiDashboard` JSON.
+- New “Show usage as used” toggle to invert progress bars (default remains “% left”).
 
 ## 0.8.1 — 2025-12-17
 - Claude trust prompts (“Do you trust the files in this folder?”) are now auto-accepted during probes to prevent stuck refreshes.

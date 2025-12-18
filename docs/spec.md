@@ -21,7 +21,7 @@ read_when:
 
 ## UI / icon
 - `MenuBarExtra` only (LSUIElement=YES). No Dock icon. Label replaced with custom NSImage.
-- Icon: 20×18 template image; top bar = 5h window, bottom hairline = weekly window; fill represents “percent remaining.” Dimmed when last refresh failed.
+- Icon: 20×18 template image; top bar = 5h window, bottom hairline = weekly window; fill represents “percent remaining” by default (optionally “percent used” via settings). Dimmed when last refresh failed.
 - Menu shows 5h + weekly rows (percent left, used, reset time), last-updated time, account email + plan, refresh cadence picker, Refresh now, Quit.
 
 ## App structure (Swift 6, macOS 15+)
