@@ -9,7 +9,7 @@
 - New “Show usage as used” toggle to invert progress bars (default remains “% left”).
 
 ## 0.8.1 — 2025-12-17
-- Claude trust prompts (“Do you trust the files in this folder?”) are now auto-accepted during probes to prevent stuck refreshes.
+- Claude trust prompts (“Do you trust the files in this folder?”) are now auto-accepted during probes to prevent stuck refreshes. Thanks @tobihagemann!
 
 ## 0.8.0 — 2025-12-17
 - CodexBar is now available via Homebrew: `brew install --cask steipete/tap/codexbar` (updates via `brew upgrade --cask steipete/tap/codexbar`).
