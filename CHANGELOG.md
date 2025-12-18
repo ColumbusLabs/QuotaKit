@@ -8,6 +8,7 @@
 - CLI: `codexbar usage --openai-web` fetches and emits `openaiDashboard` JSON.
 - New “Show usage as used” toggle to invert progress bars (default remains “% left”).
 - Claude: fix reset parsing so “Resets …” can’t be mis-attributed to the wrong window (session vs weekly), including CR line endings; CLI no longer prints “Resets Resets …”.
+- Session (5-hour) reset times now show a relative countdown (“Resets in 3h 31m”) for Codex and Claude.
 
 ## 0.8.1 — 2025-12-17
 - Claude trust prompts (“Do you trust the files in this folder?”) are now auto-accepted during probes to prevent stuck refreshes. Thanks @tobihagemann!
