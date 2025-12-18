@@ -560,7 +560,9 @@ private final class OffscreenWebViewHost {
         window.isReleasedWhenClosed = false
         window.backgroundColor = .clear
         window.isOpaque = false
-        window.alphaValue = 0.0
+        // Keep it effectively invisible, but non-zero alpha so WebKit treats it as "visible" and doesn't
+        // stall hydration (we've observed a head-only HTML shell for minutes at alpha=0).
+        window.alphaValue = 0.01
         window.hasShadow = false
         window.ignoresMouseEvents = true
         window.level = .floating
