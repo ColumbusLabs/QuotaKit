@@ -927,6 +927,8 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
 // MARK: - NSMenu construction
 
 extension StatusItemController {
+    private static let menuCardWidth: CGFloat = 300
+
     func makeMenu(for provider: UsageProvider?) -> NSMenu {
         let targetProvider = provider ?? self.store.enabledProviders().first ?? .codex
         let descriptor = MenuDescriptor.build(
@@ -944,12 +946,16 @@ extension StatusItemController {
         if let model = self.menuCardModel(for: provider) {
             let cardView = UsageMenuCardView(model: model)
             let hosting = NSHostingView(rootView: cardView)
+            // Important: constrain width before asking SwiftUI for the fitting height, otherwise text wrapping
+            // changes the required height and the menu item becomes visually "squeezed".
+            hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: 1))
+            hosting.layoutSubtreeIfNeeded()
             let size = hosting.fittingSize
-            let width: CGFloat = 300
-            hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: size.height))
+            hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: size.height))
             let item = NSMenuItem()
             item.view = hosting
             item.isEnabled = false
+            item.representedObject = "menuCard"
             menu.addItem(item)
             if model.subtitleStyle == .info {
                 menu.addItem(.separator())
@@ -1015,6 +1021,17 @@ extension StatusItemController {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
+        // Re-measure the menu card height right before display to avoid stale/incorrect sizing when content
+        // changes (e.g. dashboard error lines causing wrapping).
+        if let item = menu.items.first(where: { ($0.representedObject as? String) == "menuCard" }),
+           let view = item.view
+        {
+            view.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: 1))
+            view.layoutSubtreeIfNeeded()
+            let height = view.fittingSize.height
+            view.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: height))
+        }
+
         if let provider = self.menuProviders[ObjectIdentifier(menu)] {
             self.lastMenuProvider = provider
         } else {
