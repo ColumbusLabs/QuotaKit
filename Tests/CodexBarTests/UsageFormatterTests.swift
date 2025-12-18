@@ -49,4 +49,18 @@ struct UsageFormatterTests {
         let reset = now.addingTimeInterval((26 * 3600) + 10)
         #expect(UsageFormatter.resetCountdownDescription(from: reset, now: now) == "in 1d 2h")
     }
+
+    @Test
+    func resetCountdown_exactHour() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let reset = now.addingTimeInterval(60 * 60)
+        #expect(UsageFormatter.resetCountdownDescription(from: reset, now: now) == "in 1h")
+    }
+
+    @Test
+    func resetCountdown_pastDate() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let reset = now.addingTimeInterval(-10)
+        #expect(UsageFormatter.resetCountdownDescription(from: reset, now: now) == "now")
+    }
 }
