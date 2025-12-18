@@ -5,6 +5,10 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
     public let codeReviewRemainingPercent: Double?
     public let creditEvents: [CreditEvent]
     public let dailyBreakdown: [OpenAIDashboardDailyBreakdown]
+    /// Usage breakdown time series from the Codex dashboard chart ("Usage breakdown", 30 days).
+    ///
+    /// This is distinct from `dailyBreakdown`, which is derived from `creditEvents` (credits usage history table).
+    public let usageBreakdown: [OpenAIDashboardDailyBreakdown]
     public let updatedAt: Date
 
     public init(
@@ -12,12 +16,14 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
         codeReviewRemainingPercent: Double?,
         creditEvents: [CreditEvent],
         dailyBreakdown: [OpenAIDashboardDailyBreakdown],
+        usageBreakdown: [OpenAIDashboardDailyBreakdown],
         updatedAt: Date)
     {
         self.signedInEmail = signedInEmail
         self.codeReviewRemainingPercent = codeReviewRemainingPercent
         self.creditEvents = creditEvents
         self.dailyBreakdown = dailyBreakdown
+        self.usageBreakdown = usageBreakdown
         self.updatedAt = updatedAt
     }
 
@@ -26,6 +32,7 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
         case codeReviewRemainingPercent
         case creditEvents
         case dailyBreakdown
+        case usageBreakdown
         case updatedAt
     }
 
@@ -40,6 +47,9 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
             [OpenAIDashboardDailyBreakdown].self,
             forKey: .dailyBreakdown)
             ?? Self.makeDailyBreakdown(from: self.creditEvents, maxDays: 30)
+        self.usageBreakdown = try container.decodeIfPresent(
+            [OpenAIDashboardDailyBreakdown].self,
+            forKey: .usageBreakdown) ?? []
         self.updatedAt = try container.decode(Date.self, forKey: .updatedAt)
     }
 

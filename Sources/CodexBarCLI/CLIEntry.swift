@@ -287,6 +287,7 @@ enum CodexBarCLI {
                 dailyBreakdown: OpenAIDashboardSnapshot.makeDailyBreakdown(
                     from: cache.snapshot.creditEvents,
                     maxDays: 30),
+                usageBreakdown: cache.snapshot.usageBreakdown,
                 updatedAt: cache.snapshot.updatedAt)
         }
         return cache.snapshot

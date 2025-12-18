@@ -57,6 +57,7 @@ struct StatusMenuTests {
             codeReviewRemainingPercent: 100,
             creditEvents: [],
             dailyBreakdown: [],
+            usageBreakdown: [],
             updatedAt: Date())
 
         let controller = StatusItemController(
@@ -98,6 +99,7 @@ struct StatusMenuTests {
             codeReviewRemainingPercent: 100,
             creditEvents: events,
             dailyBreakdown: breakdown,
+            usageBreakdown: breakdown,
             updatedAt: Date())
 
         let controller = StatusItemController(

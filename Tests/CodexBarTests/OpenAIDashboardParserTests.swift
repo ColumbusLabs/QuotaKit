@@ -74,4 +74,21 @@ struct OpenAIDashboardParserTests {
         #expect(breakdown.first?.services.first?.service == "CLI")
         #expect(abs((breakdown.first?.services.first?.creditsUsed ?? 0) - 15) < 0.0001)
     }
+
+    @Test
+    func decodesSnapshotWithoutUsageBreakdownField() throws {
+        let json = """
+        {
+          "signedInEmail": "user@example.com",
+          "codeReviewRemainingPercent": 42,
+          "creditEvents": [],
+          "dailyBreakdown": [],
+          "updatedAt": "2025-12-18T00:00:00Z"
+        }
+        """
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let snapshot = try decoder.decode(OpenAIDashboardSnapshot.self, from: Data(json.utf8))
+        #expect(snapshot.usageBreakdown.isEmpty)
+    }
 }

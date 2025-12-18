@@ -83,6 +83,7 @@ struct MenuCardModelTests {
             codeReviewRemainingPercent: 73,
             creditEvents: [],
             dailyBreakdown: [],
+            usageBreakdown: [],
             updatedAt: now)
 
         let model = UsageMenuCardView.Model.make(.init(
@@ -122,6 +123,7 @@ struct MenuCardModelTests {
             codeReviewRemainingPercent: 73,
             creditEvents: [],
             dailyBreakdown: [],
+            usageBreakdown: [],
             updatedAt: now)
         let model = UsageMenuCardView.Model.make(.init(
             provider: .codex,

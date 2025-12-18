@@ -77,6 +77,7 @@ public struct OpenAIDashboardFetcher {
         var lastFlags: (loginRequired: Bool, workspacePicker: Bool, cloudflare: Bool)?
         var codeReviewFirstSeenAt: Date?
         var creditsHeaderVisibleAt: Date?
+        var lastUsageBreakdownDebug: String?
 
         while Date() < deadline {
             let scrape = try await self.scrape(webView: webView)
@@ -126,8 +127,16 @@ public struct OpenAIDashboardFetcher {
             let codeReview = OpenAIDashboardParser.parseCodeReviewRemainingPercent(bodyText: bodyText)
             let events = OpenAIDashboardParser.parseCreditEvents(rows: scrape.rows)
             let breakdown = OpenAIDashboardSnapshot.makeDailyBreakdown(from: events, maxDays: 30)
+            let usageBreakdown = scrape.usageBreakdown
 
             if codeReview != nil, codeReviewFirstSeenAt == nil { codeReviewFirstSeenAt = Date() }
+            if codeReview != nil, usageBreakdown.isEmpty,
+               let debug = scrape.usageBreakdownDebug, !debug.isEmpty,
+               debug != lastUsageBreakdownDebug
+            {
+                lastUsageBreakdownDebug = debug
+                log("usage breakdown debug: \(debug)")
+            }
             if codeReview != nil, events.isEmpty {
                 log(
                     "credits header present=\(scrape.creditsHeaderPresent) " +
@@ -153,12 +162,22 @@ public struct OpenAIDashboardFetcher {
                 }
             }
 
-            if codeReview != nil || !events.isEmpty {
+            if codeReview != nil || !events.isEmpty || !usageBreakdown.isEmpty {
+                // The usage breakdown chart is hydrated asynchronously. When code review is already present,
+                // give it a moment to populate so the menu can show it.
+                if codeReview != nil, usageBreakdown.isEmpty {
+                    let elapsed = Date().timeIntervalSince(codeReviewFirstSeenAt ?? Date())
+                    if elapsed < 6 {
+                        try? await Task.sleep(for: .milliseconds(400))
+                        continue
+                    }
+                }
                 return OpenAIDashboardSnapshot(
                     signedInEmail: scrape.signedInEmail,
                     codeReviewRemainingPercent: codeReview,
                     creditEvents: events,
                     dailyBreakdown: breakdown,
+                    usageBreakdown: usageBreakdown,
                     updatedAt: Date())
             }
 
@@ -238,6 +257,8 @@ public struct OpenAIDashboardFetcher {
         let bodyHTML: String?
         let signedInEmail: String?
         let rows: [[String]]
+        let usageBreakdown: [OpenAIDashboardDailyBreakdown]
+        let usageBreakdownDebug: String?
         let scrollY: Double
         let scrollHeight: Double
         let viewportHeight: Double
@@ -258,6 +279,8 @@ public struct OpenAIDashboardFetcher {
                 bodyHTML: nil,
                 signedInEmail: nil,
                 rows: [],
+                usageBreakdown: [],
+                usageBreakdownDebug: nil,
                 scrollY: 0,
                 scrollHeight: 0,
                 viewportHeight: 0,
@@ -271,6 +294,18 @@ public struct OpenAIDashboardFetcher {
         let cloudflareInterstitial = (dict["cloudflareInterstitial"] as? Bool) ?? false
         let rows = (dict["rows"] as? [[String]]) ?? []
         let bodyHTML = dict["bodyHTML"] as? String
+
+        var usageBreakdown: [OpenAIDashboardDailyBreakdown] = []
+        let usageBreakdownDebug = dict["usageBreakdownDebug"] as? String
+        if let raw = dict["usageBreakdownJSON"] as? String, !raw.isEmpty {
+            do {
+                let decoder = JSONDecoder()
+                usageBreakdown = try decoder.decode([OpenAIDashboardDailyBreakdown].self, from: Data(raw.utf8))
+            } catch {
+                // Best-effort parse; ignore errors to avoid blocking other dashboard data.
+                usageBreakdown = []
+            }
+        }
 
         var signedInEmail = dict["signedInEmail"] as? String
         if let bodyHTML,
@@ -296,6 +331,8 @@ public struct OpenAIDashboardFetcher {
             bodyHTML: bodyHTML,
             signedInEmail: signedInEmail,
             rows: rows,
+            usageBreakdown: usageBreakdown,
+            usageBreakdownDebug: usageBreakdownDebug,
             scrollY: (dict["scrollY"] as? NSNumber)?.doubleValue ?? 0,
             scrollHeight: (dict["scrollHeight"] as? NSNumber)?.doubleValue ?? 0,
             viewportHeight: (dict["viewportHeight"] as? NSNumber)?.doubleValue ?? 0,
@@ -310,6 +347,249 @@ public struct OpenAIDashboardFetcher {
         const raw = el && (el.innerText || el.textContent) ? String(el.innerText || el.textContent) : '';
         return raw.trim();
       };
+      const parseHexColor = (color) => {
+        if (!color) return null;
+        const c = String(color).trim().toLowerCase();
+        if (c.startsWith('#')) {
+          if (c.length === 4) {
+            return '#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3];
+          }
+          if (c.length === 7) return c;
+          return c;
+        }
+        const m = c.match(/^rgba?\\(([^)]+)\\)$/);
+        if (m) {
+          const parts = m[1].split(',').map(x => parseFloat(x.trim())).filter(x => Number.isFinite(x));
+          if (parts.length >= 3) {
+            const r = Math.max(0, Math.min(255, Math.round(parts[0])));
+            const g = Math.max(0, Math.min(255, Math.round(parts[1])));
+            const b = Math.max(0, Math.min(255, Math.round(parts[2])));
+            const toHex = n => n.toString(16).padStart(2, '0');
+            return '#' + toHex(r) + toHex(g) + toHex(b);
+          }
+        }
+        return c;
+      };
+      const reactPropsOf = (el) => {
+        if (!el) return null;
+        try {
+          const keys = Object.keys(el);
+          const propsKey = keys.find(k => k.startsWith('__reactProps$'));
+          if (propsKey) return el[propsKey] || null;
+          const fiberKey = keys.find(k => k.startsWith('__reactFiber$'));
+          if (fiberKey) {
+            const fiber = el[fiberKey];
+            return (fiber && (fiber.memoizedProps || fiber.pendingProps)) || null;
+          }
+        } catch {}
+        return null;
+      };
+      const reactFiberOf = (el) => {
+        if (!el) return null;
+        try {
+          const keys = Object.keys(el);
+          const fiberKey = keys.find(k => k.startsWith('__reactFiber$'));
+          return fiberKey ? (el[fiberKey] || null) : null;
+        } catch {
+          return null;
+        }
+      };
+      const nestedBarMetaOf = (root) => {
+        if (!root || typeof root !== 'object') return null;
+        const queue = [root];
+        const seen = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
+        let steps = 0;
+        while (queue.length && steps < 250) {
+          const cur = queue.shift();
+          steps++;
+          if (!cur || typeof cur !== 'object') continue;
+          if (seen) {
+            if (seen.has(cur)) continue;
+            seen.add(cur);
+          }
+          if (cur.payload && (cur.dataKey || cur.name || cur.value !== undefined)) return cur;
+          const values = Array.isArray(cur) ? cur : Object.values(cur);
+          for (const v of values) {
+            if (v && typeof v === 'object') queue.push(v);
+          }
+        }
+        return null;
+      };
+      const barMetaFromElement = (el) => {
+        const direct = reactPropsOf(el);
+        if (direct && direct.payload && (direct.dataKey || direct.name || direct.value !== undefined)) return direct;
+
+        const fiber = reactFiberOf(el);
+        if (fiber) {
+          let cur = fiber;
+          for (let i = 0; i < 10 && cur; i++) {
+            const props = (cur.memoizedProps || cur.pendingProps) || null;
+            if (props && props.payload && (props.dataKey || props.name || props.value !== undefined)) return props;
+            const nested = props ? nestedBarMetaOf(props) : null;
+            if (nested) return nested;
+            cur = cur.return || null;
+          }
+        }
+
+        if (direct) {
+          const nested = nestedBarMetaOf(direct);
+          if (nested) return nested;
+        }
+        return null;
+      };
+      const dayKeyFromPayload = (payload) => {
+        if (!payload || typeof payload !== 'object') return null;
+        const keys = ['day', 'date', 'name', 'label', 'x', 'time', 'timestamp'];
+        for (const k of keys) {
+          const v = payload[k];
+          if (typeof v === 'string') {
+            const s = v.trim();
+            if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return s;
+            const iso = s.match(/^(\\d{4}-\\d{2}-\\d{2})/);
+            if (iso) return iso[1];
+          }
+          if (typeof v === 'number' && Number.isFinite(v) && (k === 'timestamp' || k === 'time' || k === 'x')) {
+            try {
+              const d = new Date(v);
+              if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+            } catch {}
+          }
+        }
+        return null;
+      };
+      const displayNameForUsageServiceKey = (raw) => {
+        const key = raw === null || raw === undefined ? '' : String(raw).trim();
+        if (!key) return key;
+        if (key.toUpperCase() === key && key.length <= 6) return key;
+        const lower = key.toLowerCase();
+        if (lower === 'cli') return 'CLI';
+        if (lower.includes('github') && lower.includes('review')) return 'GitHub Code Review';
+        const words = lower.replace(/[_-]+/g, ' ').split(' ').filter(Boolean);
+        return words.map(w => w.length <= 2 ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      };
+      const usageBreakdownJSON = (() => {
+        try {
+          if (window.__codexbarUsageBreakdownJSON) return window.__codexbarUsageBreakdownJSON;
+
+          const sections = Array.from(document.querySelectorAll('section'));
+          const usageSection = sections.find(s => {
+            const h2 = s.querySelector('h2');
+            return h2 && textOf(h2).toLowerCase().startsWith('usage breakdown');
+          });
+          if (!usageSection) return null;
+
+          const legendMap = {};
+          try {
+            const legendItems = Array.from(usageSection.querySelectorAll('div[title]'));
+            for (const item of legendItems) {
+              const title = item.getAttribute('title') ? String(item.getAttribute('title')).trim() : '';
+              const square = item.querySelector('div[style*=\"background-color\"]');
+              const color = (square && square.style && square.style.backgroundColor)
+                ? square.style.backgroundColor
+                : null;
+              const hex = parseHexColor(color);
+              if (title && hex) legendMap[hex] = title;
+            }
+          } catch {}
+
+          const totalsByDay = {}; // day -> service -> value
+          const paths = Array.from(usageSection.querySelectorAll('g.recharts-bar-rectangle path.recharts-rectangle'));
+          let debug = {
+            pathCount: paths.length,
+            sampleReactKeys: null,
+            sampleMetaKeys: null,
+            samplePayloadKeys: null,
+            sampleValuesKeys: null,
+            sampleDayKey: null
+          };
+          try {
+            const sample = paths[0] || null;
+            if (sample) {
+              const names = Object.getOwnPropertyNames(sample);
+              debug.sampleReactKeys = names.filter(k => k.includes('react')).slice(0, 10);
+              const metaSample = barMetaFromElement(sample) || barMetaFromElement(sample.parentElement) || null;
+              if (metaSample) {
+                debug.sampleMetaKeys = Object.keys(metaSample).slice(0, 12);
+                const payload = metaSample.payload || null;
+                if (payload && typeof payload === 'object') {
+                  debug.samplePayloadKeys = Object.keys(payload).slice(0, 12);
+                  debug.sampleDayKey = dayKeyFromPayload(payload);
+                  const values = payload.values || null;
+                  if (values && typeof values === 'object') {
+                    debug.sampleValuesKeys = Object.keys(values).slice(0, 12);
+                  }
+                }
+              }
+            }
+          } catch {}
+          for (const path of paths) {
+            const meta = barMetaFromElement(path) || barMetaFromElement(path.parentElement) || null;
+            if (!meta) continue;
+
+            const payload = meta.payload || null;
+            const day = dayKeyFromPayload(payload);
+            if (!day) continue;
+
+            const valuesObj = (payload && payload.values && typeof payload.values === 'object') ? payload.values : null;
+            if (valuesObj) {
+              if (!totalsByDay[day]) totalsByDay[day] = {};
+              for (const [k, v] of Object.entries(valuesObj)) {
+                if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) continue;
+                const service = displayNameForUsageServiceKey(k);
+                if (!service) continue;
+                totalsByDay[day][service] = (totalsByDay[day][service] || 0) + v;
+              }
+              continue;
+            }
+
+            let value = null;
+            if (typeof meta.value === 'number' && Number.isFinite(meta.value)) value = meta.value;
+            if (value === null && typeof meta.value === 'string') {
+              const v = parseFloat(meta.value.replace(/,/g, ''));
+              if (Number.isFinite(v)) value = v;
+            }
+            if (value === null) continue;
+
+            const fill = parseHexColor(meta.fill || path.getAttribute('fill'));
+            const service =
+              (fill && legendMap[fill]) ||
+              (typeof meta.name === 'string' && meta.name) ||
+              null;
+            if (!service) continue;
+
+            if (!totalsByDay[day]) totalsByDay[day] = {};
+            totalsByDay[day][service] = (totalsByDay[day][service] || 0) + value;
+          }
+
+          const dayKeys = Object.keys(totalsByDay).sort((a, b) => b.localeCompare(a)).slice(0, 30);
+          const breakdown = dayKeys.map(day => {
+            const servicesMap = totalsByDay[day] || {};
+            const services = Object.keys(servicesMap).map(service => ({
+              service,
+              creditsUsed: servicesMap[service]
+            })).sort((a, b) => {
+              if (a.creditsUsed === b.creditsUsed) return a.service.localeCompare(b.service);
+              return b.creditsUsed - a.creditsUsed;
+            });
+            const totalCreditsUsed = services.reduce((sum, s) => sum + (Number(s.creditsUsed) || 0), 0);
+            return { day, services, totalCreditsUsed };
+          });
+
+          const json = (breakdown.length > 0) ? JSON.stringify(breakdown) : null;
+          window.__codexbarUsageBreakdownJSON = json;
+          window.__codexbarUsageBreakdownDebug = json ? null : JSON.stringify(debug);
+          return json;
+        } catch {
+          return null;
+        }
+      })();
+      const usageBreakdownDebug = (() => {
+        try {
+          return window.__codexbarUsageBreakdownDebug || null;
+        } catch {
+          return null;
+        }
+      })();
       const bodyText = document.body ? String(document.body.innerText || '').trim() : '';
       const href = window.location ? String(window.location.href || '') : '';
       const workspacePicker = bodyText.includes('Select a workspace');
@@ -447,6 +727,8 @@ public struct OpenAIDashboardFetcher {
         bodyHTML: document.documentElement ? String(document.documentElement.outerHTML || '') : '',
         signedInEmail,
         rows,
+        usageBreakdownJSON,
+        usageBreakdownDebug,
         scrollY,
         scrollHeight,
         viewportHeight,

@@ -1082,7 +1082,7 @@ extension StatusItemController {
     }
 
     private func addUsageBreakdownSubmenu(to menu: NSMenu) {
-        let breakdown = self.store.openAIDashboard?.dailyBreakdown ?? []
+        let breakdown = self.store.openAIDashboard?.usageBreakdown ?? []
         guard !breakdown.isEmpty else { return }
 
         let item = NSMenuItem(title: "Usage breakdown (30 days)", action: nil, keyEquivalent: "")
