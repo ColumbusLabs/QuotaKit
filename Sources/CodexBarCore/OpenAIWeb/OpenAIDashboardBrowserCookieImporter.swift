@@ -72,23 +72,38 @@ public struct OpenAIDashboardBrowserCookieImporter {
 
         for candidate in candidates {
             log("Trying candidate \(candidate.label) (\(candidate.cookies.count) cookies)")
+
+            let apiEmail = await self.fetchSignedInEmailFromAPI(cookies: candidate.cookies, logger: log)
+            if let apiEmail {
+                log("Candidate \(candidate.label) API email: \(apiEmail)")
+            }
+
+            // Prefer the API email when available (fast; avoids WebKit hydration/timeout risks).
+            if let apiEmail, !apiEmail.isEmpty {
+                if apiEmail.lowercased() == targetEmail.lowercased() {
+                    matches.append((candidate, apiEmail))
+                } else {
+                    mismatches.append(FoundAccount(sourceLabel: candidate.label, email: apiEmail))
+                    // Mismatch still means we found a valid signed-in session. Persist it keyed by its email so if
+                    // the user switches Codex accounts later, we can reuse this session immediately without another
+                    // Keychain prompt.
+                    await self.persistCookies(candidate: candidate, accountEmail: apiEmail, logger: log)
+                }
+                continue
+            }
+
             let scratch = WKWebsiteDataStore.nonPersistent()
             await self.setCookies(candidate.cookies, into: scratch)
 
             do {
-                let apiEmail = await self.fetchSignedInEmailFromAPI(cookies: candidate.cookies, logger: log)
-                if let apiEmail {
-                    log("Candidate \(candidate.label) API email: \(apiEmail)")
-                }
-
                 let probe = try await OpenAIDashboardFetcher().probeUsagePage(
                     websiteDataStore: scratch,
                     logger: log,
-                    timeout: 15)
+                    timeout: 25)
                 let signedInEmail = probe.signedInEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
                 log("Candidate \(candidate.label) DOM email: \(signedInEmail ?? "unknown")")
 
-                let resolvedEmail = (apiEmail ?? signedInEmail)?.trimmingCharacters(in: .whitespacesAndNewlines)
+                let resolvedEmail = signedInEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
                 if let resolvedEmail, !resolvedEmail.isEmpty {
                     if resolvedEmail.lowercased() == targetEmail.lowercased() {
                         matches.append((candidate, resolvedEmail))
@@ -241,7 +256,7 @@ public struct OpenAIDashboardBrowserCookieImporter {
         let cookies: [HTTPCookie]
     }
 
-    private func loadCandidates(logger: (String) -> Void) async throws -> [Candidate] {
+    private func loadCandidates(logger: @escaping (String) -> Void) async throws -> [Candidate] {
         var out: [Candidate] = []
 
         // Prefer Chrome first: most users are logged in there; also triggers Keychain prompt early if needed.
@@ -261,7 +276,7 @@ public struct OpenAIDashboardBrowserCookieImporter {
         }
 
         do {
-            let safari = try SafariCookieImporter.loadChatGPTCookies()
+            let safari = try SafariCookieImporter.loadChatGPTCookies(logger: logger)
             if !safari.isEmpty {
                 let cookies = SafariCookieImporter.makeHTTPCookies(safari)
                 if !cookies.isEmpty {

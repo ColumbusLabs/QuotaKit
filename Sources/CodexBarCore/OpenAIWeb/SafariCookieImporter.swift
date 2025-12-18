@@ -27,14 +27,22 @@ enum SafariCookieImporter {
         let isHTTPOnly: Bool
     }
 
-    static func loadChatGPTCookies() throws -> [CookieRecord] {
+    static func loadChatGPTCookies(logger: ((String) -> Void)? = nil) throws -> [CookieRecord] {
         guard let url = findSafariCookieFile() else { throw ImportError.cookieFileNotFound }
+        do {
+            let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.intValue
+            logger?("Safari cookies: \(url.path) (\(size ?? -1) bytes)")
+        }
         let data = try Data(contentsOf: url)
         let records = try Self.parseBinaryCookies(data: data)
         return records.filter { record in
             let d = record.domain.lowercased()
             return d.contains("chatgpt.com") || d.contains("openai.com")
         }
+    }
+
+    static func loadChatGPTCookies() throws -> [CookieRecord] {
+        try self.loadChatGPTCookies(logger: nil)
     }
 
     static func makeHTTPCookies(_ records: [CookieRecord]) -> [HTTPCookie] {
