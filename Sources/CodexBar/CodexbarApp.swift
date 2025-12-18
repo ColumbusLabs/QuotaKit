@@ -1088,32 +1088,18 @@ extension StatusItemController {
         let item = NSMenuItem(title: "Usage breakdown (30 days)", action: nil, keyEquivalent: "")
         item.isEnabled = true
         let submenu = NSMenu()
+        let chartView = UsageBreakdownChartMenuView(breakdown: breakdown)
+        let hosting = NSHostingView(rootView: chartView)
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: 1))
+        hosting.layoutSubtreeIfNeeded()
+        let size = hosting.fittingSize
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: size.height))
 
-        for day in breakdown {
-            let dayItem = NSMenuItem(title: self.displayDay(day.day), action: nil, keyEquivalent: "")
-            let dayMenu = NSMenu()
-
-            if day.services.isEmpty {
-                let none = NSMenuItem(title: "No usage", action: nil, keyEquivalent: "")
-                none.isEnabled = false
-                dayMenu.addItem(none)
-            } else {
-                for service in day.services {
-                    let line = "\(service.service): \(self.creditsUsedString(service.creditsUsed))"
-                    let row = NSMenuItem(title: line, action: nil, keyEquivalent: "")
-                    row.isEnabled = false
-                    dayMenu.addItem(row)
-                }
-                dayMenu.addItem(.separator())
-                let totalLine = "Total: \(self.creditsUsedString(day.totalCreditsUsed))"
-                let total = NSMenuItem(title: totalLine, action: nil, keyEquivalent: "")
-                total.isEnabled = false
-                dayMenu.addItem(total)
-            }
-
-            dayItem.submenu = dayMenu
-            submenu.addItem(dayItem)
-        }
+        let chartItem = NSMenuItem()
+        chartItem.view = hosting
+        chartItem.isEnabled = false
+        chartItem.representedObject = "usageBreakdownChart"
+        submenu.addItem(chartItem)
 
         item.submenu = submenu
         menu.addItem(item)
