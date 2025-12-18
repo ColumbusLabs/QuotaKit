@@ -63,14 +63,18 @@ public struct OpenAIDashboardBrowserCookieImporter {
 
         log("Codex email: \(targetEmail)")
 
-        let candidates = try await self.loadCandidates(logger: log)
-        if candidates.isEmpty { throw ImportError.noCookiesFound }
-
-        var matches: [(candidate: Candidate, signedInEmail: String)] = []
         var mismatches: [FoundAccount] = []
-        var unknown: [Candidate] = []
+        var foundAnyCookies = false
+        var foundUnknownEmail = false
 
-        for candidate in candidates {
+        enum CandidateEvaluation {
+            case match(candidate: Candidate, signedInEmail: String)
+            case mismatch(candidate: Candidate, signedInEmail: String)
+            case unknown(candidate: Candidate)
+            case loginRequired(candidate: Candidate)
+        }
+
+        func evaluateCandidate(_ candidate: Candidate) async -> CandidateEvaluation {
             log("Trying candidate \(candidate.label) (\(candidate.cookies.count) cookies)")
 
             let apiEmail = await self.fetchSignedInEmailFromAPI(cookies: candidate.cookies, logger: log)
@@ -81,15 +85,9 @@ public struct OpenAIDashboardBrowserCookieImporter {
             // Prefer the API email when available (fast; avoids WebKit hydration/timeout risks).
             if let apiEmail, !apiEmail.isEmpty {
                 if apiEmail.lowercased() == targetEmail.lowercased() {
-                    matches.append((candidate, apiEmail))
-                } else {
-                    mismatches.append(FoundAccount(sourceLabel: candidate.label, email: apiEmail))
-                    // Mismatch still means we found a valid signed-in session. Persist it keyed by its email so if
-                    // the user switches Codex accounts later, we can reuse this session immediately without another
-                    // Keychain prompt.
-                    await self.persistCookies(candidate: candidate, accountEmail: apiEmail, logger: log)
+                    return .match(candidate: candidate, signedInEmail: apiEmail)
                 }
-                continue
+                return .mismatch(candidate: candidate, signedInEmail: apiEmail)
             }
 
             let scratch = WKWebsiteDataStore.nonPersistent()
@@ -106,32 +104,85 @@ public struct OpenAIDashboardBrowserCookieImporter {
                 let resolvedEmail = signedInEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
                 if let resolvedEmail, !resolvedEmail.isEmpty {
                     if resolvedEmail.lowercased() == targetEmail.lowercased() {
-                        matches.append((candidate, resolvedEmail))
-                    } else {
-                        mismatches.append(FoundAccount(sourceLabel: candidate.label, email: resolvedEmail))
-
-                        // Mismatch still means we found a valid signed-in session. Persist it keyed by its email
-                        // so if the user switches Codex accounts later, we can reuse this session immediately
-                        // without another Keychain prompt.
-                        await self.persistCookies(candidate: candidate, accountEmail: resolvedEmail, logger: log)
+                        return .match(candidate: candidate, signedInEmail: resolvedEmail)
                     }
-                } else {
-                    unknown.append(candidate)
+                    return .mismatch(candidate: candidate, signedInEmail: resolvedEmail)
                 }
 
+                return .unknown(candidate: candidate)
             } catch OpenAIDashboardFetcher.FetchError.loginRequired {
                 log("Candidate \(candidate.label) requires login.")
+                return .loginRequired(candidate: candidate)
             } catch {
                 log("Candidate \(candidate.label) probe error: \(error.localizedDescription)")
+                return .unknown(candidate: candidate)
             }
         }
 
-        if let selected = matches.first {
-            log("Selected \(selected.candidate.label) (matches Codex: \(selected.signedInEmail))")
-            return try await self.persist(
-                candidate: selected.candidate,
-                targetEmail: targetEmail,
-                logger: log)
+        func handleMismatch(candidate: Candidate, signedInEmail: String) async {
+            mismatches.append(FoundAccount(sourceLabel: candidate.label, email: signedInEmail))
+            // Mismatch still means we found a valid signed-in session. Persist it keyed by its email so if
+            // the user switches Codex accounts later, we can reuse this session immediately without another
+            // Keychain prompt.
+            await self.persistCookies(candidate: candidate, accountEmail: signedInEmail, logger: log)
+        }
+
+        // Safari first: avoids touching Keychain ("Chrome Safe Storage") when Safari already matches.
+        do {
+            let safari = try SafariCookieImporter.loadChatGPTCookies(logger: log)
+            if !safari.isEmpty {
+                let cookies = SafariCookieImporter.makeHTTPCookies(safari)
+                if !cookies.isEmpty {
+                    foundAnyCookies = true
+                    log("Loaded \(cookies.count) cookies from Safari (\(self.cookieSummary(cookies)))")
+                    let candidate = Candidate(label: "Safari", cookies: cookies)
+                    switch await evaluateCandidate(candidate) {
+                    case let .match(candidate, signedInEmail):
+                        log("Selected \(candidate.label) (matches Codex: \(signedInEmail))")
+                        return try await self.persist(candidate: candidate, targetEmail: targetEmail, logger: log)
+                    case let .mismatch(candidate, signedInEmail):
+                        await handleMismatch(candidate: candidate, signedInEmail: signedInEmail)
+                    case .unknown:
+                        foundUnknownEmail = true
+                    case .loginRequired:
+                        break
+                    }
+                } else {
+                    log("Safari produced 0 HTTPCookies.")
+                }
+            } else {
+                log("Safari contained 0 matching records.")
+            }
+        } catch {
+            log("Safari cookie load failed: \(error.localizedDescription)")
+        }
+
+        // Chrome fallback: may trigger Keychain prompt. Only do this if Safari didn't match.
+        do {
+            let chromeSources = try ChromeCookieImporter.loadChatGPTCookiesFromAllProfiles()
+            for source in chromeSources {
+                let cookies = ChromeCookieImporter.makeHTTPCookies(source.records)
+                if !cookies.isEmpty {
+                    foundAnyCookies = true
+                    log("Loaded \(cookies.count) cookies from \(source.label) (\(self.cookieSummary(cookies)))")
+                    let candidate = Candidate(label: source.label, cookies: cookies)
+                    switch await evaluateCandidate(candidate) {
+                    case let .match(candidate, signedInEmail):
+                        log("Selected \(candidate.label) (matches Codex: \(signedInEmail))")
+                        return try await self.persist(candidate: candidate, targetEmail: targetEmail, logger: log)
+                    case let .mismatch(candidate, signedInEmail):
+                        await handleMismatch(candidate: candidate, signedInEmail: signedInEmail)
+                    case .unknown:
+                        foundUnknownEmail = true
+                    case .loginRequired:
+                        break
+                    }
+                } else {
+                    log("Chrome source \(source.label) produced 0 HTTPCookies.")
+                }
+            }
+        } catch {
+            log("Chrome cookie load failed: \(error.localizedDescription)")
         }
 
         if !mismatches.isEmpty {
@@ -144,7 +195,7 @@ public struct OpenAIDashboardBrowserCookieImporter {
             throw ImportError.noMatchingAccount(found: found)
         }
 
-        if !unknown.isEmpty {
+        if foundUnknownEmail || foundAnyCookies {
             log("No matching browser session found (email unknown).")
             throw ImportError.noMatchingAccount(found: [])
         }
@@ -254,46 +305,6 @@ public struct OpenAIDashboardBrowserCookieImporter {
     private struct Candidate: Sendable {
         let label: String
         let cookies: [HTTPCookie]
-    }
-
-    private func loadCandidates(logger: @escaping (String) -> Void) async throws -> [Candidate] {
-        var out: [Candidate] = []
-
-        // Prefer Chrome first: most users are logged in there; also triggers Keychain prompt early if needed.
-        do {
-            let chromeSources = try ChromeCookieImporter.loadChatGPTCookiesFromAllProfiles()
-            for source in chromeSources {
-                let cookies = ChromeCookieImporter.makeHTTPCookies(source.records)
-                if !cookies.isEmpty {
-                    logger("Loaded \(cookies.count) cookies from \(source.label) (\(self.cookieSummary(cookies)))")
-                    out.append(Candidate(label: source.label, cookies: cookies))
-                } else {
-                    logger("Chrome source \(source.label) produced 0 HTTPCookies.")
-                }
-            }
-        } catch {
-            logger("Chrome cookie load failed: \(error.localizedDescription)")
-        }
-
-        do {
-            let safari = try SafariCookieImporter.loadChatGPTCookies(logger: logger)
-            if !safari.isEmpty {
-                let cookies = SafariCookieImporter.makeHTTPCookies(safari)
-                if !cookies.isEmpty {
-                    logger("Loaded \(cookies.count) cookies from Safari (\(self.cookieSummary(cookies)))")
-                    out.append(Candidate(label: "Safari", cookies: cookies))
-                } else {
-                    logger("Safari produced 0 HTTPCookies.")
-                }
-            } else {
-                logger("Safari contained 0 matching records.")
-            }
-        } catch {
-            logger("Safari cookie load failed: \(error.localizedDescription)")
-        }
-
-        logger("Candidates: \(out.map(\.label).joined(separator: ", "))")
-        return out
     }
 
     // MARK: - WebKit cookie store
