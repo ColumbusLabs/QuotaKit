@@ -14,20 +14,20 @@ enum CLIRenderer {
 
         lines.append(self.rateLine(title: meta.sessionLabel, window: snapshot.primary))
         if let reset = snapshot.primary.resetDescription {
-            lines.append("Resets \(reset)")
+            lines.append(self.resetLine(reset))
         }
 
         if let weekly = snapshot.secondary {
             lines.append(self.rateLine(title: meta.weeklyLabel, window: weekly))
             if let reset = weekly.resetDescription {
-                lines.append("Resets \(reset)")
+                lines.append(self.resetLine(reset))
             }
         }
 
         if meta.supportsOpus, let opus = snapshot.tertiary {
             lines.append(self.rateLine(title: meta.opusLabel ?? "Sonnet", window: opus))
             if let reset = opus.resetDescription {
-                lines.append("Resets \(reset)")
+                lines.append(self.resetLine(reset))
             }
         }
 
@@ -53,6 +53,12 @@ enum CLIRenderer {
     static func rateLine(title: String, window: RateWindow) -> String {
         let text = UsageFormatter.usageLine(remaining: window.remainingPercent, used: window.usedPercent)
         return "\(title): \(text)"
+    }
+
+    private static func resetLine(_ reset: String) -> String {
+        let trimmed = reset.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.lowercased().hasPrefix("resets") { return trimmed }
+        return "Resets \(trimmed)"
     }
 
     private static func colorize(

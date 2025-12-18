@@ -170,8 +170,19 @@ public struct ClaudeStatusProbe: Sendable {
             throw ClaudeStatusProbeError.parseFailed("Missing Current session")
         }
 
-        // Capture reset strings for UI display.
-        let resets = self.allResets(clean)
+        let sessionReset = self.extractReset(labelSubstring: "Current session", text: clean)
+        let weeklyReset = hasWeeklyLabel
+            ? self.extractReset(labelSubstring: "Current week (all models)", text: clean)
+            : nil
+        let opusReset = hasOpusLabel
+            ? self.extractReset(
+                labelSubstrings: [
+                    "Current week (Opus)",
+                    "Current week (Sonnet only)",
+                    "Current week (Sonnet)",
+                ],
+                text: clean)
+            : nil
 
         return ClaudeStatusSnapshot(
             sessionPercentLeft: sessionPct,
@@ -180,9 +191,9 @@ public struct ClaudeStatusProbe: Sendable {
             accountEmail: email,
             accountOrganization: org,
             loginMethod: login,
-            primaryResetDescription: resets.first,
-            secondaryResetDescription: resets.count > 1 ? resets[1] : nil,
-            opusResetDescription: resets.count > 2 ? resets[2] : nil,
+            primaryResetDescription: sessionReset,
+            secondaryResetDescription: weeklyReset,
+            opusResetDescription: opusReset,
             rawText: text + (statusText ?? ""))
     }
 
@@ -284,24 +295,55 @@ public struct ClaudeStatusProbe: Sendable {
         return results
     }
 
+    private static func extractReset(labelSubstring: String, text: String) -> String? {
+        let lines = text.components(separatedBy: .newlines)
+        for (idx, line) in lines.enumerated() where line.lowercased().contains(labelSubstring.lowercased()) {
+            let window = lines.dropFirst(idx).prefix(14)
+            for candidate in window {
+                let lower = candidate.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                if lower.hasPrefix("current "), !lower.contains(labelSubstring.lowercased()) { break }
+                if let reset = self.resetFromLine(candidate) { return reset }
+            }
+        }
+        return nil
+    }
+
+    private static func extractReset(labelSubstrings: [String], text: String) -> String? {
+        for label in labelSubstrings {
+            if let value = self.extractReset(labelSubstring: label, text: text) { return value }
+        }
+        return nil
+    }
+
+    private static func resetFromLine(_ line: String) -> String? {
+        guard let range = line.range(of: "Resets", options: [.caseInsensitive]) else { return nil }
+        let raw = String(line[range.lowerBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        return self.cleanResetLine(raw)
+    }
+
     // Capture all "Resets ..." strings to surface in the menu.
     private static func allResets(_ text: String) -> [String] {
-        let pat = #"Resets[^\n]*"#
+        let pat = #"Resets[^\r\n]*"#
         guard let regex = try? NSRegularExpression(pattern: pat, options: [.caseInsensitive]) else { return [] }
         let nsrange = NSRange(text.startIndex..<text.endIndex, in: text)
         var results: [String] = []
         regex.enumerateMatches(in: text, options: [], range: nsrange) { match, _, _ in
             guard let match,
                   let r = Range(match.range(at: 0), in: text) else { return }
-            // TTY capture sometimes appends a stray ")" at line ends; trim it to keep snapshots stable.
             let raw = String(text[r]).trimmingCharacters(in: .whitespacesAndNewlines)
-            var cleaned = raw.trimmingCharacters(in: CharacterSet(charactersIn: " )"))
-            let openCount = cleaned.count(where: { $0 == "(" })
-            let closeCount = cleaned.count(where: { $0 == ")" })
-            if openCount > closeCount { cleaned.append(")") }
-            results.append(cleaned)
+            results.append(self.cleanResetLine(raw))
         }
         return results
+    }
+
+    private static func cleanResetLine(_ raw: String) -> String {
+        // TTY capture sometimes appends a stray ")" at line ends; trim it to keep snapshots stable.
+        var cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        cleaned = cleaned.trimmingCharacters(in: CharacterSet(charactersIn: " )"))
+        let openCount = cleaned.count(where: { $0 == "(" })
+        let closeCount = cleaned.count(where: { $0 == ")" })
+        if openCount > closeCount { cleaned.append(")") }
+        return cleaned
     }
 
     /// Attempts to parse a Claude reset string into a Date, using the current year and handling optional timezones.

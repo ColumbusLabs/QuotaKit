@@ -121,6 +121,44 @@ struct StatusProbeTests {
     }
 
     @Test
+    func parseClaudeStatusResetMappings_withCRLineEndings() throws {
+        let sample =
+            "Current session\r" +
+            "██████████████████████████████████████████████████  17% used\r" +
+            "Resets 12:59pm (Europe/Paris)\r" +
+            "Current week (all models)\r" +
+            "██████████████████████████████████████████████████   4% used\r" +
+            "Resets Dec 24 at 3:59pm (Europe/Paris)\r" +
+            "Current week (Sonnet only)\r" +
+            "██████████████████████████████████████████████████   3% used\r" +
+            "Resets Dec 23 at 3:59am (Europe/Paris)\r"
+
+        let snap = try ClaudeStatusProbe.parse(text: sample)
+        #expect(snap.sessionPercentLeft == 83)
+        #expect(snap.weeklyPercentLeft == 96)
+        #expect(snap.opusPercentLeft == 97)
+        #expect(snap.primaryResetDescription == "Resets 12:59pm (Europe/Paris)")
+        #expect(snap.secondaryResetDescription == "Resets Dec 24 at 3:59pm (Europe/Paris)")
+        #expect(snap.opusResetDescription == "Resets Dec 23 at 3:59am (Europe/Paris)")
+    }
+
+    @Test
+    func parseClaudeStatusResetMappings_doesNotPromoteWeeklyResetToSession() throws {
+        let sample = """
+        Current session
+        ██████████████████████████████████████████████████  17% used
+        Current week (all models)
+        ██████████████████████████████████████████████████   4% used
+        Resets Dec 24 at 3:59pm (Europe/Paris)
+        """
+        let snap = try ClaudeStatusProbe.parse(text: sample)
+        #expect(snap.sessionPercentLeft == 83)
+        #expect(snap.weeklyPercentLeft == 96)
+        #expect(snap.primaryResetDescription == nil)
+        #expect(snap.secondaryResetDescription == "Resets Dec 24 at 3:59pm (Europe/Paris)")
+    }
+
+    @Test
     func parseClaudeStatusWithPlanAndAnsiNoise() throws {
         let sample = """
         Settings: Status   Config   Usage
