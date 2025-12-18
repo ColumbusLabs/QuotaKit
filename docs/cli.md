@@ -28,6 +28,9 @@ Use it when you need usage numbers in scripts, CI, or dashboards without UI.
   - `--no-credits` (hide Codex credits in text output).
   - `--pretty` (pretty-print JSON).
   - `--status` (fetch provider status pages and include them in output).
+  - `--openai-web` (Codex only): imports browser cookies (Chrome → Safari) and fetches OpenAI web dashboard data.
+    - `--openai-web-timeout <seconds>` (default: 60)
+    - `--openai-web-debug-dump-html` (writes HTML snapshots to `/tmp` when data is missing)
 - Global flags: `-h/--help`, `-V/--version`, `-v/--verbose`, `--log-level <trace|verbose|debug|info|warning|error|critical>`, `--json-output`.
 
 ## Example usage
@@ -37,6 +40,7 @@ codexbar --provider claude        # force Claude
 codexbar --format json --pretty   # machine output
 codexbar --format json --provider both
 codexbar --status                 # include status page indicator/description
+codexbar --provider codex --openai-web --format json --pretty
 ```
 
 ### Sample output (text)
@@ -72,7 +76,22 @@ Plan: Pro
   "accountEmail": "user@example.com",
   "accountOrganization": null,
   "loginMethod": "plus",
-  "credits": { "remaining": 112.4, "updatedAt": "2025-12-04T18:10:21Z" }
+  "credits": { "remaining": 112.4, "updatedAt": "2025-12-04T18:10:21Z" },
+  "openaiDashboard": {
+    "signedInEmail": "user@example.com",
+    "codeReviewRemainingPercent": 100,
+    "creditEvents": [
+      { "id": "00000000-0000-0000-0000-000000000000", "date": "2025-12-04T00:00:00Z", "service": "CLI", "creditsUsed": 123.45 }
+    ],
+    "dailyBreakdown": [
+      {
+        "day": "2025-12-04",
+        "services": [{ "service": "CLI", "creditsUsed": 123.45 }],
+        "totalCreditsUsed": 123.45
+      }
+    ],
+    "updatedAt": "2025-12-04T18:10:21Z"
+  }
 }
 ```
 
@@ -86,4 +105,5 @@ Plan: Pro
 ## Notes
 - CLI reuses menubar toggles when present (prefers `com.steipete.codexbar{,.debug}` defaults), otherwise defaults to Codex only.
 - Prefer Codex RPC first, then PTY fallback; Claude stays PTY-only.
+- The `openaiDashboard` JSON field is normally sourced from the app’s cached dashboard snapshot; `--openai-web` refreshes it live via WebKit.
 - Future: optional `--from-cache` flag to read the menubar app’s persisted snapshot (if/when that file lands).

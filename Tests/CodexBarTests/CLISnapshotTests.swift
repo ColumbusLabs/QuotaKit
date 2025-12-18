@@ -84,7 +84,8 @@ struct CLISnapshotTests {
                 updatedAt: Date(timeIntervalSince1970: 1_700_000_010),
                 url: "https://status.example.com"),
             usage: snap,
-            credits: nil)
+            credits: nil,
+            openaiDashboard: nil)
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .secondsSince1970
         let data = try encoder.encode(payload)

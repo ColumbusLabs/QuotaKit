@@ -1,3 +1,4 @@
+import AppKit
 import CodexBarCore
 import Commander
 import Darwin
@@ -55,6 +56,10 @@ enum CodexBarCLI {
         let includeCredits = format == .json ? true : !values.flags.contains("noCredits")
         let includeStatus = values.flags.contains("status")
         let pretty = values.flags.contains("pretty")
+        let openaiWeb = values.flags.contains("openaiWeb")
+        let openaiWebDebugDumpHTML = values.flags.contains("openaiWebDebugDumpHtml")
+        let openaiWebTimeout = Self.decodeOpenAIWebTimeout(from: values) ?? 60
+        let verbose = values.flags.contains("verbose")
         let useColor = Self.shouldUseColor()
         let fetcher = UsageFetcher()
         let claudeFetcher = ClaudeUsageFetcher()
@@ -74,13 +79,32 @@ enum CodexBarCLI {
                 claudeFetcher: claudeFetcher)
             {
             case let .success(result):
+                var dashboard: OpenAIDashboardSnapshot?
+                if p == .codex, openaiWeb {
+                    let options = OpenAIWebOptions(
+                        timeout: openaiWebTimeout,
+                        debugDumpHTML: openaiWebDebugDumpHTML,
+                        verbose: verbose)
+                    dashboard = await Self.fetchOpenAIWebDashboard(
+                        usage: result.usage,
+                        fetcher: fetcher,
+                        options: options,
+                        exitCode: &exitCode)
+                } else if format == .json, p == .codex {
+                    dashboard = Self.loadOpenAIDashboardIfAvailable(usage: result.usage, fetcher: fetcher)
+                }
+
                 switch format {
                 case .text:
-                    sections.append(CLIRenderer.renderText(
+                    var text = CLIRenderer.renderText(
                         provider: p,
                         snapshot: result.usage,
                         credits: result.credits,
-                        context: RenderContext(header: header, status: status, useColor: useColor)))
+                        context: RenderContext(header: header, status: status, useColor: useColor))
+                    if let dashboard, p == .codex {
+                        text += "\n" + Self.renderOpenAIWebDashboardText(dashboard)
+                    }
+                    sections.append(text)
                 case .json:
                     payload.append(ProviderPayload(
                         provider: p,
@@ -88,7 +112,8 @@ enum CodexBarCLI {
                         source: versionInfo.source,
                         status: status,
                         usage: result.usage,
-                        credits: result.credits))
+                        credits: result.credits,
+                        openaiDashboard: dashboard))
                 }
             case let .failure(error):
                 exitCode = Self.mapError(error)
@@ -245,6 +270,116 @@ enum CodexBarCLI {
         }
     }
 
+    private static func loadOpenAIDashboardIfAvailable(
+        usage: UsageSnapshot,
+        fetcher: UsageFetcher) -> OpenAIDashboardSnapshot?
+    {
+        guard let cache = OpenAIDashboardCacheStore.load() else { return nil }
+        let codexEmail = (usage.accountEmail ?? fetcher.loadAccountInfo().email)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let codexEmail, !codexEmail.isEmpty else { return nil }
+        if cache.accountEmail.lowercased() != codexEmail.lowercased() { return nil }
+        if cache.snapshot.dailyBreakdown.isEmpty, !cache.snapshot.creditEvents.isEmpty {
+            return OpenAIDashboardSnapshot(
+                signedInEmail: cache.snapshot.signedInEmail,
+                codeReviewRemainingPercent: cache.snapshot.codeReviewRemainingPercent,
+                creditEvents: cache.snapshot.creditEvents,
+                dailyBreakdown: OpenAIDashboardSnapshot.makeDailyBreakdown(
+                    from: cache.snapshot.creditEvents,
+                    maxDays: 30),
+                updatedAt: cache.snapshot.updatedAt)
+        }
+        return cache.snapshot
+    }
+
+    private static func decodeOpenAIWebTimeout(from values: ParsedValues) -> TimeInterval? {
+        if let raw = values.options["openaiWebTimeout"]?.last, let seconds = Double(raw) {
+            return seconds
+        }
+        return nil
+    }
+
+    private struct OpenAIWebOptions: Sendable {
+        let timeout: TimeInterval
+        let debugDumpHTML: Bool
+        let verbose: Bool
+    }
+
+    @MainActor
+    private static func fetchOpenAIWebDashboard(
+        usage: UsageSnapshot,
+        fetcher: UsageFetcher,
+        options: OpenAIWebOptions,
+        exitCode: inout ExitCode) async -> OpenAIDashboardSnapshot?
+    {
+        // Ensure AppKit is initialized before using WebKit in a CLI.
+        _ = NSApplication.shared
+
+        let codexEmail = (usage.accountEmail ?? fetcher.loadAccountInfo().email)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let codexEmail, !codexEmail.isEmpty else {
+            exitCode = .failure
+            fputs("Error: OpenAI web access requested, but Codex account email is unknown.\n", stderr)
+            return nil
+        }
+
+        var logs: [String] = []
+        let log: (String) -> Void = { line in
+            logs.append(line)
+            if logs.count > 300 { logs.removeFirst(logs.count - 300) }
+            if options.verbose {
+                fputs("\(line)\n", stderr)
+            }
+        }
+
+        do {
+            _ = try await OpenAIDashboardBrowserCookieImporter()
+                .importBestCookies(intoAccountEmail: codexEmail, logger: log)
+        } catch {
+            exitCode = .failure
+            fputs("Error: Browser cookie import failed: \(error.localizedDescription)\n", stderr)
+            if !logs.isEmpty {
+                fputs(logs.joined(separator: "\n") + "\n", stderr)
+            }
+            return nil
+        }
+
+        do {
+            let dash = try await OpenAIDashboardFetcher().loadLatestDashboard(
+                accountEmail: codexEmail,
+                logger: log,
+                debugDumpHTML: options.debugDumpHTML,
+                timeout: options.timeout)
+            OpenAIDashboardCacheStore.save(OpenAIDashboardCache(accountEmail: codexEmail, snapshot: dash))
+            return dash
+        } catch {
+            exitCode = .failure
+            fputs("Error: OpenAI web dashboard fetch failed: \(error.localizedDescription)\n", stderr)
+            if !logs.isEmpty {
+                fputs(logs.joined(separator: "\n") + "\n", stderr)
+            }
+            return nil
+        }
+    }
+
+    private static func renderOpenAIWebDashboardText(_ dash: OpenAIDashboardSnapshot) -> String {
+        var lines: [String] = []
+        if let email = dash.signedInEmail, !email.isEmpty {
+            lines.append("Web session: \(email)")
+        }
+        if let remaining = dash.codeReviewRemainingPercent {
+            let percent = Int(remaining.rounded())
+            lines.append("Code review: \(percent)% remaining")
+        }
+        if let first = dash.creditEvents.first {
+            let day = first.date.formatted(date: .abbreviated, time: .omitted)
+            lines.append("Web history: \(dash.creditEvents.count) events (latest \(day))")
+        } else {
+            lines.append("Web history: none")
+        }
+        return lines.joined(separator: "\n")
+    }
+
     private static func mapError(_ error: Error) -> ExitCode {
         switch error {
         case TTYCommandRunner.Error.binaryNotFound,
@@ -287,42 +422,55 @@ enum CodexBarCLI {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
         switch command {
         case "usage":
-            print("""
-            CodexBar \(version)
-
-            Usage:
-              codexbar usage [--format text|json] [--provider codex|claude|both] [--no-credits] [--pretty] [--status]
-
-            Description:
-              Print usage from enabled providers as text (default) or JSON. Honors your in-app toggles.
-
-            Examples:
-              codexbar usage
-              codexbar usage --provider claude
-              codexbar usage --format json --provider both --pretty
-              codexbar usage --status
-            """)
+            print(Self.usageHelp(version: version))
         default:
-            print("""
-            CodexBar \(version)
-
-            Usage:
-              codexbar [--format text|json] [--provider codex|claude|both] [--no-credits] [--pretty] [--status]
-
-            Global flags:
-              -h, --help      Show help
-              -V, --version   Show version
-              -v, --verbose   Enable verbose logging
-              --log-level <trace|verbose|debug|info|warning|error|critical>
-              --json-output   Emit machine-readable logs
-
-            Examples:
-              codexbar
-              codexbar --format json --provider both --pretty
-              codexbar --provider claude
-            """)
+            print(Self.rootHelp(version: version))
         }
         Darwin.exit(0)
+    }
+
+    private static func usageHelp(version: String) -> String {
+        """
+        CodexBar \(version)
+
+        Usage:
+          codexbar usage [--format text|json] [--provider codex|claude|both]
+                       [--no-credits] [--pretty] [--status] [--openai-web]
+
+        Description:
+          Print usage from enabled providers as text (default) or JSON. Honors your in-app toggles.
+          When --openai-web is set, CodexBar imports browser cookies (Chrome/Safari)
+          and fetches the OpenAI web dashboard.
+
+        Examples:
+          codexbar usage
+          codexbar usage --provider claude
+          codexbar usage --format json --provider both --pretty
+          codexbar usage --status
+          codexbar usage --provider codex --openai-web --format json --pretty
+        """
+    }
+
+    private static func rootHelp(version: String) -> String {
+        """
+        CodexBar \(version)
+
+        Usage:
+          codexbar [--format text|json] [--provider codex|claude|both]
+                  [--no-credits] [--pretty] [--status] [--openai-web]
+
+        Global flags:
+          -h, --help      Show help
+          -V, --version   Show version
+          -v, --verbose   Enable verbose logging
+          --log-level <trace|verbose|debug|info|warning|error|critical>
+          --json-output   Emit machine-readable logs
+
+        Examples:
+          codexbar
+          codexbar --format json --provider both --pretty
+          codexbar --provider claude
+        """
     }
 }
 
@@ -346,6 +494,15 @@ private struct UsageOptions: CommanderParsable {
 
     @Flag(name: .long("status"), help: "Fetch and include provider status")
     var status: Bool = false
+
+    @Flag(name: .long("openai-web"), help: "Fetch OpenAI web dashboard data (imports browser cookies)")
+    var openaiWeb: Bool = false
+
+    @Option(name: .long("openai-web-timeout"), help: "OpenAI web dashboard fetch timeout (seconds)")
+    var openaiWebTimeout: Double?
+
+    @Flag(name: .long("openai-web-debug-dump-html"), help: "Dump HTML snapshots to /tmp when data is missing")
+    var openaiWebDebugDumpHtml: Bool = false
 }
 
 private enum ProviderSelection: String, Sendable, ExpressibleFromArgument {
@@ -398,6 +555,7 @@ struct ProviderPayload: Encodable {
     let status: ProviderStatusPayload?
     let usage: UsageSnapshot
     let credits: CreditsSnapshot?
+    let openaiDashboard: OpenAIDashboardSnapshot?
 
     init(
         provider: UsageProvider,
@@ -405,7 +563,8 @@ struct ProviderPayload: Encodable {
         source: String,
         status: ProviderStatusPayload?,
         usage: UsageSnapshot,
-        credits: CreditsSnapshot?)
+        credits: CreditsSnapshot?,
+        openaiDashboard: OpenAIDashboardSnapshot?)
     {
         self.provider = provider.rawValue
         self.version = version
@@ -413,6 +572,7 @@ struct ProviderPayload: Encodable {
         self.status = status
         self.usage = usage
         self.credits = credits
+        self.openaiDashboard = openaiDashboard
     }
 }
 
