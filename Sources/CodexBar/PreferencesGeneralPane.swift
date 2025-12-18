@@ -22,7 +22,9 @@ struct GeneralPane: View {
                             binding: self.codexBinding)
 
                         self.codexSigningStatus()
-                        self.openAIDashboardLogin()
+                        if self.codexBinding.wrappedValue {
+                            self.openAIDashboardLogin()
+                        }
                     }
                     .padding(.bottom, 18)
 
@@ -141,11 +143,11 @@ struct GeneralPane: View {
     private func openAIDashboardLogin() -> some View {
         SettingsSection(contentSpacing: 10) {
             PreferenceToggleRow(
-                title: "Access OpenAI via web (optional)",
+                title: "Access OpenAI via web",
                 subtitle: [
                     "Adds Code review + Usage breakdown (WebKit scrape).",
+                    "Reuses your Safari/Chrome chatgpt.com session via cookies (Safari → Chrome).",
                     "Credits still come from Codex CLI.",
-                    "Imports browser cookies (Safari → Chrome).",
                 ].joined(separator: " "),
                 binding: self.$settings.openAIDashboardEnabled)
 
@@ -158,7 +160,7 @@ struct GeneralPane: View {
                             .font(.callout)
                             .foregroundStyle(.secondary)
                     } else {
-                        Text("Codex account: unknown (dashboard will not auto-sync).")
+                        Text("Codex account: unknown.")
                             .font(.callout)
                             .foregroundStyle(.secondary)
                     }
@@ -170,10 +172,6 @@ struct GeneralPane: View {
                             .font(.callout)
                             .foregroundStyle(.secondary)
                     }
-
-                    Text("On enable: imports cookies (Safari → Chrome).")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
 
                     let status = self.openAIDashboardStatus ??
                         self.store.openAIDashboardCookieImportStatus ??
@@ -210,7 +208,7 @@ struct GeneralPane: View {
                         }
                     } else {
                         Text(
-                            "Tip: stay signed in to chatgpt.com in Safari or Chrome; CodexBar will reuse that session.")
+                            "Tip: stay signed in to chatgpt.com in Safari or Chrome; CodexBar reuses that session.")
                             .font(.callout)
                             .foregroundStyle(.secondary)
                     }
