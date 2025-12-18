@@ -154,9 +154,6 @@ public struct OpenAIDashboardFetcher {
             }
 
             if codeReview != nil || !events.isEmpty {
-                if debugDumpHTML, let html = scrape.bodyHTML {
-                    Self.writeDebugArtifacts(html: html, bodyText: scrape.bodyText, logger: log)
-                }
                 return OpenAIDashboardSnapshot(
                     signedInEmail: scrape.signedInEmail,
                     codeReviewRemainingPercent: codeReview,
@@ -269,11 +266,26 @@ public struct OpenAIDashboardFetcher {
                 didScrollToCredits: false)
         }
 
-        let loginRequired = (dict["loginRequired"] as? Bool) ?? false
+        var loginRequired = (dict["loginRequired"] as? Bool) ?? false
         let workspacePicker = (dict["workspacePicker"] as? Bool) ?? false
         let cloudflareInterstitial = (dict["cloudflareInterstitial"] as? Bool) ?? false
         let rows = (dict["rows"] as? [[String]]) ?? []
-        let signedInEmail = dict["signedInEmail"] as? String
+        let bodyHTML = dict["bodyHTML"] as? String
+
+        var signedInEmail = dict["signedInEmail"] as? String
+        if let bodyHTML,
+           signedInEmail == nil || signedInEmail?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true
+        {
+            signedInEmail = OpenAIDashboardParser.parseSignedInEmailFromClientBootstrap(html: bodyHTML)
+        }
+
+        if let bodyHTML, let authStatus = OpenAIDashboardParser.parseAuthStatusFromClientBootstrap(html: bodyHTML) {
+            if authStatus.lowercased() != "logged_in" {
+                // When logged out, the SPA can render a generic landing shell without obvious auth inputs,
+                // so treat it as login-required and let the caller retry cookie import.
+                loginRequired = true
+            }
+        }
 
         return ScrapeResult(
             loginRequired: loginRequired,
@@ -281,7 +293,7 @@ public struct OpenAIDashboardFetcher {
             cloudflareInterstitial: cloudflareInterstitial,
             href: dict["href"] as? String,
             bodyText: dict["bodyText"] as? String,
-            bodyHTML: dict["bodyHTML"] as? String,
+            bodyHTML: bodyHTML,
             signedInEmail: signedInEmail,
             rows: rows,
             scrollY: (dict["scrollY"] as? NSNumber)?.doubleValue ?? 0,

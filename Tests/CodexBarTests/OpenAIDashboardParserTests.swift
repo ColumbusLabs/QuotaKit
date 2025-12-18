@@ -6,6 +6,22 @@ import Testing
 @Suite
 struct OpenAIDashboardParserTests {
     @Test
+    func parsesSignedInEmailFromClientBootstrapHTML() {
+        let html = """
+        <html>
+        <head></head>
+        <body>
+        <script type="application/json" id="client-bootstrap">
+        {"authStatus":"logged_in","session":{"user":{"email":"studpete@gmail.com"}}}
+        </script>
+        </body>
+        </html>
+        """
+        #expect(OpenAIDashboardParser.parseSignedInEmailFromClientBootstrap(html: html) == "studpete@gmail.com")
+        #expect(OpenAIDashboardParser.parseAuthStatusFromClientBootstrap(html: html) == "logged_in")
+    }
+
+    @Test
     func parsesCodeReviewRemainingPercent_inline() {
         let body = "Balance\nCode review 42% remaining\nCredits remaining 291"
         #expect(OpenAIDashboardParser.parseCodeReviewRemainingPercent(bodyText: body) == 42)
