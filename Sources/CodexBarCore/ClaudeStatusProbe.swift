@@ -102,9 +102,9 @@ public struct ClaudeStatusProbe: Sendable {
         // Fallback: order-based percent scraping when labels are present but the surrounding layout moved.
         // Only apply the fallback when the corresponding label exists in the rendered panel; enterprise accounts
         // may omit the weekly panel entirely, and we should treat that as "unavailable" rather than guessing.
-        let lower = clean.lowercased()
-        let hasWeeklyLabel = lower.contains("current week")
-        let hasOpusLabel = lower.contains("opus") || lower.contains("sonnet")
+        let normalizedLower = self.normalizedForLabelSearch(clean)
+        let hasWeeklyLabel = normalizedLower.contains("current week")
+        let hasOpusLabel = normalizedLower.contains("opus") || normalizedLower.contains("sonnet")
 
         if sessionPct == nil || (hasWeeklyLabel && weeklyPct == nil) || (hasOpusLabel && opusPct == nil) {
             let ordered = self.allPercents(clean)
@@ -199,7 +199,8 @@ public struct ClaudeStatusProbe: Sendable {
 
     private static func extractPercent(labelSubstring: String, text: String) -> Int? {
         let lines = text.components(separatedBy: .newlines)
-        for (idx, line) in lines.enumerated() where line.lowercased().contains(labelSubstring.lowercased()) {
+        let label = self.normalizedForLabelSearch(labelSubstring)
+        for (idx, line) in lines.enumerated() where self.normalizedForLabelSearch(line).contains(label) {
             // Claude's usage panel can take a moment to render percentages (especially on enterprise accounts),
             // so scan a larger window than the original 3–4 lines.
             let window = lines.dropFirst(idx).prefix(12)
@@ -297,11 +298,13 @@ public struct ClaudeStatusProbe: Sendable {
 
     private static func extractReset(labelSubstring: String, text: String) -> String? {
         let lines = text.components(separatedBy: .newlines)
-        for (idx, line) in lines.enumerated() where line.lowercased().contains(labelSubstring.lowercased()) {
+        let label = self.normalizedForLabelSearch(labelSubstring)
+        for (idx, line) in lines.enumerated() where self.normalizedForLabelSearch(line).contains(label) {
             let window = lines.dropFirst(idx).prefix(14)
             for candidate in window {
-                let lower = candidate.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                if lower.hasPrefix("current "), !lower.contains(labelSubstring.lowercased()) { break }
+                let trimmed = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
+                let normalized = self.normalizedForLabelSearch(trimmed)
+                if normalized.hasPrefix("current "), !normalized.contains(label) { break }
                 if let reset = self.resetFromLine(candidate) { return reset }
             }
         }
@@ -319,6 +322,12 @@ public struct ClaudeStatusProbe: Sendable {
         guard let range = line.range(of: "Resets", options: [.caseInsensitive]) else { return nil }
         let raw = String(line[range.lowerBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
         return self.cleanResetLine(raw)
+    }
+
+    private static func normalizedForLabelSearch(_ text: String) -> String {
+        text.lowercased()
+            .split(whereSeparator: { $0.isWhitespace })
+            .joined(separator: " ")
     }
 
     // Capture all "Resets ..." strings to surface in the menu.
@@ -480,21 +489,22 @@ public struct ClaudeStatusProbe: Sendable {
     private static func dumpIfNeeded(enabled: Bool, reason: String, usage: String, status: String?) {
         guard enabled else { return }
         let stamp = ISO8601DateFormatter().string(from: Date())
-        var body = """
-        === Claude parse dump @ \(stamp) ===
-        Reason: \(reason)
-
-        --- usage (clean) ---
-        \(usage)
-
-        """
+        var parts = [
+            "=== Claude parse dump @ \(stamp) ===",
+            "Reason: \(reason)",
+            "",
+            "--- usage (clean) ---",
+            usage,
+            "",
+        ]
         if let status {
-            body += """
-            --- status (raw/optional) ---
-            \(status)
-
-            """
+            parts.append(contentsOf: [
+                "--- status (raw/optional) ---",
+                status,
+                "",
+            ])
         }
+        let body = parts.joined(separator: "\n")
         Task { @MainActor in self.recordDump(body) }
     }
 

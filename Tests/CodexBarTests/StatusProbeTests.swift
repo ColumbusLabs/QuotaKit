@@ -123,7 +123,7 @@ struct StatusProbeTests {
     @Test
     func parseClaudeStatusResetMappings_withCRLineEndings() throws {
         let sample =
-            "Current session\r" +
+            "Current  session\r" +
             "██████████████████████████████████████████████████  17% used\r" +
             "Resets 12:59pm (Europe/Paris)\r" +
             "Current week (all models)\r" +
