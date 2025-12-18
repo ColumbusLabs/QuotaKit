@@ -621,14 +621,48 @@ final class UsageStore: ObservableObject {
                 if let signed = result.signedInEmail, !signed.isEmpty {
                     self.openAIDashboardCookieImportStatus =
                         [
-                            "Imported \(result.cookieCount) cookies from \(result.sourceLabel).",
+                            "Using \(result.sourceLabel) cookies (\(result.cookieCount)).",
                             "Signed in as \(signed) (\(matchText)).",
                         ].joined(separator: " ")
                 } else {
                     self.openAIDashboardCookieImportStatus =
-                        "Imported \(result.cookieCount) cookies from \(result.sourceLabel)."
+                        "Using \(result.sourceLabel) cookies (\(result.cookieCount))."
                 }
                 self.openAIDashboardCookieImportDebugLog = lines.joined(separator: "\n")
+            }
+        } catch let err as OpenAIDashboardBrowserCookieImporter.ImportError {
+            switch err {
+            case let .noMatchingAccount(found):
+                let foundText: String = if found.isEmpty {
+                    "no signed-in session detected in Chrome/Safari"
+                } else {
+                    found
+                        .sorted { lhs, rhs in
+                            if lhs.sourceLabel == rhs.sourceLabel { return lhs.email < rhs.email }
+                            return lhs.sourceLabel < rhs.sourceLabel
+                        }
+                        .map { "\($0.sourceLabel): \($0.email)" }
+                        .joined(separator: " • ")
+                }
+                lines.append("[\(stamp)] import mismatch: \(foundText)")
+                await MainActor.run {
+                    self.openAIDashboardCookieImportStatus =
+                        [
+                            "Browser cookies do not match Codex account (\(targetEmail)).",
+                            "Found \(foundText).",
+                        ].joined(separator: " ")
+                    self.openAIDashboardCookieImportDebugLog = lines.joined(separator: "\n")
+                    // Treat mismatch like "not logged in" for the current Codex account.
+                    self.openAIDashboardRequiresLogin = true
+                    self.openAIDashboard = nil
+                }
+            default:
+                lines.append("[\(stamp)] import failed: \(err.localizedDescription)")
+                await MainActor.run {
+                    self.openAIDashboardCookieImportStatus =
+                        "Browser cookie import failed: \(err.localizedDescription)"
+                    self.openAIDashboardCookieImportDebugLog = lines.joined(separator: "\n")
+                }
             }
         } catch {
             lines.append("[\(stamp)] import failed: \(error.localizedDescription)")

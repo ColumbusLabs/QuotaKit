@@ -3,10 +3,20 @@ import WebKit
 
 @MainActor
 public struct OpenAIDashboardBrowserCookieImporter {
+    public struct FoundAccount: Sendable, Hashable {
+        public let sourceLabel: String
+        public let email: String
+
+        public init(sourceLabel: String, email: String) {
+            self.sourceLabel = sourceLabel
+            self.email = email
+        }
+    }
+
     public enum ImportError: LocalizedError {
         case noCookiesFound
         case dashboardStillRequiresLogin
-        case noMatchingAccount(found: [String])
+        case noMatchingAccount(found: [FoundAccount])
 
         public var errorDescription: String? {
             switch self {
@@ -16,7 +26,14 @@ public struct OpenAIDashboardBrowserCookieImporter {
                 return "Browser cookies imported, but dashboard still requires login."
             case let .noMatchingAccount(found):
                 if found.isEmpty { return "No matching OpenAI web session found in browsers." }
-                return "OpenAI web session does not match Codex account. Found: \(found.joined(separator: ", "))."
+                let display = found
+                    .sorted { lhs, rhs in
+                        if lhs.sourceLabel == rhs.sourceLabel { return lhs.email < rhs.email }
+                        return lhs.sourceLabel < rhs.sourceLabel
+                    }
+                    .map { "\($0.sourceLabel)=\($0.email)" }
+                    .joined(separator: ", ")
+                return "OpenAI web session does not match Codex account. Found: \(display)."
             }
         }
     }
@@ -50,7 +67,7 @@ public struct OpenAIDashboardBrowserCookieImporter {
         if candidates.isEmpty { throw ImportError.noCookiesFound }
 
         var matches: [(candidate: Candidate, signedInEmail: String)] = []
-        var mismatches: [(candidate: Candidate, signedInEmail: String)] = []
+        var mismatches: [FoundAccount] = []
         var unknown: [Candidate] = []
 
         for candidate in candidates {
@@ -76,7 +93,12 @@ public struct OpenAIDashboardBrowserCookieImporter {
                     if resolvedEmail.lowercased() == targetEmail.lowercased() {
                         matches.append((candidate, resolvedEmail))
                     } else {
-                        mismatches.append((candidate, resolvedEmail))
+                        mismatches.append(FoundAccount(sourceLabel: candidate.label, email: resolvedEmail))
+
+                        // Mismatch still means we found a valid signed-in session. Persist it keyed by its email
+                        // so if the user switches Codex accounts later, we can reuse this session immediately
+                        // without another Keychain prompt.
+                        await self.persistCookies(candidate: candidate, accountEmail: resolvedEmail, logger: log)
                     }
                 } else {
                     unknown.append(candidate)
@@ -98,8 +120,12 @@ public struct OpenAIDashboardBrowserCookieImporter {
         }
 
         if !mismatches.isEmpty {
-            let found = Array(Set(mismatches.map(\.signedInEmail))).sorted()
-            log("No matching browser session found. Candidates signed in as: \(found.joined(separator: ", "))")
+            let found = Array(Set(mismatches)).sorted { lhs, rhs in
+                if lhs.sourceLabel == rhs.sourceLabel { return lhs.email < rhs.email }
+                return lhs.sourceLabel < rhs.sourceLabel
+            }
+            let emails = Array(Set(found.map(\.email))).sorted()
+            log("No matching browser session found. Candidates signed in as: \(emails.joined(separator: ", "))")
             throw ImportError.noMatchingAccount(found: found)
         }
 
@@ -192,7 +218,9 @@ public struct OpenAIDashboardBrowserCookieImporter {
             let matches = signed?.lowercased() == targetEmail.lowercased()
             logger("Persistent session signed in as: \(signed ?? "unknown")")
             if signed != nil, matches == false {
-                let found = signed?.isEmpty == false ? [signed!] : []
+                let found = signed?.isEmpty == false
+                    ? [FoundAccount(sourceLabel: candidate.label, email: signed!)]
+                    : []
                 throw ImportError.noMatchingAccount(found: found)
             }
             return ImportResult(
@@ -254,6 +282,13 @@ public struct OpenAIDashboardBrowserCookieImporter {
     }
 
     // MARK: - WebKit cookie store
+
+    private func persistCookies(candidate: Candidate, accountEmail: String, logger: (String) -> Void) async {
+        let store = OpenAIDashboardWebsiteDataStore.store(forAccountEmail: accountEmail)
+        await self.clearChatGPTCookies(in: store)
+        await self.setCookies(candidate.cookies, into: store)
+        logger("Persisted cookies for \(accountEmail) (source=\(candidate.label))")
+    }
 
     private func clearChatGPTCookies(in store: WKWebsiteDataStore) async {
         await withCheckedContinuation { cont in
