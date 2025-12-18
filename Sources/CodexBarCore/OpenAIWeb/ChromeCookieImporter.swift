@@ -45,15 +45,20 @@ enum ChromeCookieImporter {
     }
 
     static func loadChatGPTCookiesFromAllProfiles() throws -> [CookieSource] {
-        let root = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library")
-            .appendingPathComponent("Application Support")
-            .appendingPathComponent("Google")
-            .appendingPathComponent("Chrome")
+        let roots = self.candidateHomes().map { home in
+            home.appendingPathComponent("Library")
+                .appendingPathComponent("Application Support")
+                .appendingPathComponent("Google")
+                .appendingPathComponent("Chrome")
+        }
 
-        let candidates = Self.chromeProfileCookieDBs(root: root)
+        var candidates: [ChromeProfileCandidate] = []
+        for root in roots {
+            candidates.append(contentsOf: Self.chromeProfileCookieDBs(root: root))
+        }
         if candidates.isEmpty {
-            throw ImportError.cookieDBNotFound(path: root.path)
+            let display = roots.map(\.path).joined(separator: " • ")
+            throw ImportError.cookieDBNotFound(path: display)
         }
 
         let chromeKey = try Self.chromeSafeStorageKey()
@@ -334,6 +339,24 @@ enum ChromeCookieImporter {
             ChromeProfileCandidate(
                 label: "Chrome \(dir.lastPathComponent)",
                 cookiesDB: dir.appendingPathComponent("Cookies"))
+        }
+    }
+
+    private static func candidateHomes() -> [URL] {
+        var homes: [URL] = []
+        homes.append(FileManager.default.homeDirectoryForCurrentUser)
+        if let userHome = NSHomeDirectoryForUser(NSUserName()) {
+            homes.append(URL(fileURLWithPath: userHome))
+        }
+        if let envHome = ProcessInfo.processInfo.environment["HOME"], !envHome.isEmpty {
+            homes.append(URL(fileURLWithPath: envHome))
+        }
+        var seen = Set<String>()
+        return homes.filter { home in
+            let path = home.path
+            guard !seen.contains(path) else { return false }
+            seen.insert(path)
+            return true
         }
     }
 }

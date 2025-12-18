@@ -7,11 +7,14 @@ import Foundation
 enum SafariCookieImporter {
     enum ImportError: LocalizedError {
         case cookieFileNotFound
+        case cookieFileNotReadable(path: String)
         case invalidFile
 
         var errorDescription: String? {
             switch self {
             case .cookieFileNotFound: "Safari cookie file not found."
+            case let .cookieFileNotReadable(path):
+                "Safari cookie file exists but is not readable (\(path)). Enable Full Disk Access for CodexBar."
             case .invalidFile: "Safari cookie file is invalid."
             }
         }
@@ -28,17 +31,38 @@ enum SafariCookieImporter {
     }
 
     static func loadChatGPTCookies(logger: ((String) -> Void)? = nil) throws -> [CookieRecord] {
-        guard let url = findSafariCookieFile() else { throw ImportError.cookieFileNotFound }
-        do {
-            let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.intValue
-            logger?("Safari cookies: \(url.path) (\(size ?? -1) bytes)")
+        let candidates = self.candidateCookieFiles()
+        var lastNoPermission: String?
+        var lastReadError: String?
+
+        for url in candidates {
+            do {
+                let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.intValue
+                logger?("Safari cookies: trying \(url.path) (\(size ?? -1) bytes)")
+                let data = try Data(contentsOf: url)
+                let records = try Self.parseBinaryCookies(data: data)
+                return records.filter { record in
+                    let d = record.domain.lowercased()
+                    return d.contains("chatgpt.com") || d.contains("openai.com")
+                }
+            } catch let error as CocoaError where error.code == .fileReadNoPermission {
+                lastNoPermission = url.path
+                logger?("Safari cookies: permission denied for \(url.path)")
+                continue
+            } catch {
+                lastReadError = "\(url.path): \(error.localizedDescription)"
+                logger?("Safari cookies: failed to read \(url.path): \(error.localizedDescription)")
+                continue
+            }
         }
-        let data = try Data(contentsOf: url)
-        let records = try Self.parseBinaryCookies(data: data)
-        return records.filter { record in
-            let d = record.domain.lowercased()
-            return d.contains("chatgpt.com") || d.contains("openai.com")
+
+        if let lastNoPermission {
+            throw ImportError.cookieFileNotReadable(path: lastNoPermission)
         }
+        if let lastReadError {
+            logger?("Safari cookies: last error: \(lastReadError)")
+        }
+        throw ImportError.cookieFileNotFound
     }
 
     static func loadChatGPTCookies() throws -> [CookieRecord] {
@@ -172,18 +196,43 @@ enum SafariCookieImporter {
         return URL(string: "https://chatgpt.com")!
     }
 
-    private static func findSafariCookieFile() -> URL? {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let candidates = [
-            home.appendingPathComponent("Library/Cookies/Cookies.binarycookies"),
-            home
-                .appendingPathComponent(
-                    "Library/Containers/com.apple.Safari/Data/Library/Cookies/Cookies.binarycookies"),
-        ]
-        for url in candidates where FileManager.default.fileExists(atPath: url.path) {
-            return url
+    private static func candidateCookieFiles() -> [URL] {
+        let homes = self.candidateHomes()
+        var urls: [URL] = []
+        urls.reserveCapacity(homes.count * 2)
+        for home in homes {
+            urls.append(home.appendingPathComponent("Library/Cookies/Cookies.binarycookies"))
+            urls.append(
+                home.appendingPathComponent(
+                    "Library/Containers/com.apple.Safari/Data/Library/Cookies/Cookies.binarycookies"))
         }
-        return nil
+        // De-dup by path while keeping ordering (homeDirectoryForCurrentUser first).
+        var seen = Set<String>()
+        return urls.filter { url in
+            let path = url.path
+            guard !seen.contains(path) else { return false }
+            seen.insert(path)
+            return true
+        }
+    }
+
+    private static func candidateHomes() -> [URL] {
+        var homes: [URL] = []
+        homes.append(FileManager.default.homeDirectoryForCurrentUser)
+        if let userHome = NSHomeDirectoryForUser(NSUserName()) {
+            homes.append(URL(fileURLWithPath: userHome))
+        }
+        if let envHome = ProcessInfo.processInfo.environment["HOME"], !envHome.isEmpty {
+            homes.append(URL(fileURLWithPath: envHome))
+        }
+        // De-dup by path while keeping ordering.
+        var seen = Set<String>()
+        return homes.filter { home in
+            let path = home.path
+            guard !seen.contains(path) else { return false }
+            seen.insert(path)
+            return true
+        }
     }
 }
 
