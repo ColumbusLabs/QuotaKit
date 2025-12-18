@@ -157,12 +157,10 @@ enum CodexBarCLI {
         let enabled = Self.enabledProvidersFromDefaults()
         if enabled.count >= 3 { return .all }
         if enabled.count == 2 {
-            // Check which two are enabled
             let hasCodex = enabled.contains(.codex)
             let hasClaude = enabled.contains(.claude)
             if hasCodex, hasClaude { return .both }
-            // For other combinations, query all enabled
-            return .all
+            return .custom(enabled)
         }
         if let first = enabled.first { return ProviderSelection(provider: first) }
         return .codex
@@ -529,12 +527,13 @@ private struct UsageOptions: CommanderParsable {
     var openaiWebDebugDumpHtml: Bool = false
 }
 
-private enum ProviderSelection: String, Sendable, ExpressibleFromArgument {
+private enum ProviderSelection: Sendable, ExpressibleFromArgument {
     case codex
     case claude
     case gemini
     case both
     case all
+    case custom([UsageProvider])
 
     init?(argument: String) {
         switch argument.lowercased() {
@@ -562,6 +561,7 @@ private enum ProviderSelection: String, Sendable, ExpressibleFromArgument {
         case .gemini: [.gemini]
         case .both: [.codex, .claude]
         case .all: [.codex, .claude, .gemini]
+        case .custom(let providers): providers
         }
     }
 }
