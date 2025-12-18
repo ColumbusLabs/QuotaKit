@@ -33,6 +33,15 @@ struct AdvancedPane: View {
 
                 SettingsSection(contentSpacing: 10) {
                     PreferenceToggleRow(
+                        title: "Check provider status",
+                        subtitle: "Polls OpenAI/Claude status pages and surfaces incidents in the icon and menu.",
+                        binding: self.$settings.statusChecksEnabled)
+                }
+
+                Divider()
+
+                SettingsSection(contentSpacing: 10) {
+                    PreferenceToggleRow(
                         title: "Surprise me",
                         subtitle: "Check if you like your agents having some fun up there.",
                         binding: self.$settings.randomBlinkEnabled)

@@ -110,6 +110,31 @@ struct DebugPane: View {
                 }
 
                 SettingsSection(
+                    title: "OpenAI web access",
+                    caption: "Cookie import + WebKit scrape logs from the last “Access OpenAI via web” attempt.")
+                {
+                    HStack(spacing: 12) {
+                        Button { self.copyToPasteboard(self.store.openAIDashboardCookieImportDebugLog ?? "") } label: {
+                            Label("Copy", systemImage: "doc.on.doc")
+                        }
+                        .disabled((self.store.openAIDashboardCookieImportDebugLog ?? "").isEmpty)
+                    }
+
+                    ScrollView {
+                        Text(self.store.openAIDashboardCookieImportDebugLog?.isEmpty == false
+                            ? (self.store.openAIDashboardCookieImportDebugLog ?? "")
+                            : "No log yet. Enable “Access OpenAI via web” in General to run an import.")
+                            .font(.system(.footnote, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(8)
+                    }
+                    .frame(minHeight: 120, maxHeight: 180)
+                    .background(Color(NSColor.textBackgroundColor))
+                    .cornerRadius(6)
+                }
+
+                SettingsSection(
                     title: "Notifications",
                     caption: "Trigger test notifications for the 5-hour session window (depleted/restored).")
                 {

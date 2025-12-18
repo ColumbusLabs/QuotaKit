@@ -112,6 +112,7 @@ struct MenuDescriptor {
             if meta.supportsOpus, let opus = snap.tertiary {
                 Self.appendRateWindow(entries: &entries, title: meta.opusLabel ?? "Sonnet", window: opus)
             }
+
         } else {
             entries.append(.text("No usage yet", .secondary))
             if let err = store.error(for: provider), !err.isEmpty {

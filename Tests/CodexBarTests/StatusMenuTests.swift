@@ -42,4 +42,74 @@ struct StatusMenuTests {
         controller.menuWillOpen(unmappedMenu)
         #expect(controller.lastMenuProvider == .codex)
     }
+
+    @Test
+    func hidesOpenAIWebSubmenusWhenNoHistory() {
+        let settings = SettingsStore()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.openAIDashboardEnabled = true
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, settings: settings)
+        store.openAIDashboard = OpenAIDashboardSnapshot(
+            signedInEmail: "user@example.com",
+            codeReviewRemainingPercent: 100,
+            creditEvents: [],
+            dailyBreakdown: [],
+            updatedAt: Date())
+
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection())
+
+        let menu = controller.makeMenu(for: .codex)
+        let titles = Set(menu.items.map(\.title))
+        #expect(!titles.contains("Credits usage history"))
+        #expect(!titles.contains("Usage breakdown (30 days)"))
+    }
+
+    @Test
+    func showsOpenAIWebSubmenusWhenHistoryExists() {
+        let settings = SettingsStore()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.openAIDashboardEnabled = true
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, settings: settings)
+
+        let calendar = Calendar(identifier: .gregorian)
+        var components = DateComponents()
+        components.calendar = calendar
+        components.timeZone = TimeZone(secondsFromGMT: 0)
+        components.year = 2025
+        components.month = 12
+        components.day = 18
+        let date = components.date!
+
+        let events = [CreditEvent(date: date, service: "CLI", creditsUsed: 1)]
+        let breakdown = OpenAIDashboardSnapshot.makeDailyBreakdown(from: events, maxDays: 30)
+        store.openAIDashboard = OpenAIDashboardSnapshot(
+            signedInEmail: "user@example.com",
+            codeReviewRemainingPercent: 100,
+            creditEvents: events,
+            dailyBreakdown: breakdown,
+            updatedAt: Date())
+
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection())
+
+        let menu = controller.makeMenu(for: .codex)
+        let titles = Set(menu.items.map(\.title))
+        #expect(titles.contains("Credits usage history"))
+        #expect(titles.contains("Usage breakdown (30 days)"))
+    }
 }

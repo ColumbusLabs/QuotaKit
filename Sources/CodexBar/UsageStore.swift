@@ -69,6 +69,11 @@ final class UsageStore: ObservableObject {
     @Published private var errors: [UsageProvider: String] = [:]
     @Published var credits: CreditsSnapshot?
     @Published var lastCreditsError: String?
+    @Published var openAIDashboard: OpenAIDashboardSnapshot?
+    @Published var lastOpenAIDashboardError: String?
+    @Published private(set) var openAIDashboardRequiresLogin: Bool = false
+    @Published var openAIDashboardCookieImportStatus: String?
+    @Published var openAIDashboardCookieImportDebugLog: String?
     @Published var codexVersion: String?
     @Published var claudeVersion: String?
     @Published var claudeAccountEmail: String?
@@ -80,6 +85,10 @@ final class UsageStore: ObservableObject {
     @Published private(set) var probeLogs: [UsageProvider: String] = [:]
     private var lastCreditsSnapshot: CreditsSnapshot?
     private var creditsFailureStreak: Int = 0
+    private var lastOpenAIDashboardSnapshot: OpenAIDashboardSnapshot?
+    private var lastOpenAIDashboardTargetEmail: String?
+    private var lastOpenAIDashboardCookieImportAttemptAt: Date?
+    private var lastOpenAIDashboardCookieImportEmail: String?
 
     private let codexFetcher: UsageFetcher
     private let claudeFetcher: any ClaudeUsageFetching
@@ -87,6 +96,7 @@ final class UsageStore: ObservableObject {
     private let settings: SettingsStore
     private let sessionQuotaNotifier: SessionQuotaNotifier
     private let sessionQuotaLogger = Logger(subsystem: "com.steipete.codexbar", category: "sessionQuota")
+    private let openAIWebLogger = Logger(subsystem: "com.steipete.codexbar", category: "openai-web")
     private var failureGates: [UsageProvider: ConsecutiveFailureGate] = [:]
     private var providerSpecs: [UsageProvider: ProviderSpec] = [:]
     private let providerMetadata: [UsageProvider: ProviderMetadata]
@@ -218,6 +228,7 @@ final class UsageStore: ObservableObject {
                 group.addTask { await self.refreshStatus(provider) }
             }
             group.addTask { await self.refreshCreditsIfNeeded() }
+            group.addTask { await self.refreshOpenAIDashboardIfNeeded() }
         }
     }
 
@@ -446,6 +457,201 @@ final class UsageStore: ObservableObject {
                 }
             }
         }
+    }
+
+    private func refreshOpenAIDashboardIfNeeded() async {
+        guard self.isEnabled(.codex) else { return }
+        guard self.settings.openAIDashboardEnabled else {
+            await MainActor.run {
+                self.openAIDashboard = nil
+                self.lastOpenAIDashboardError = nil
+                self.lastOpenAIDashboardSnapshot = nil
+                self.lastOpenAIDashboardTargetEmail = nil
+                self.openAIDashboardRequiresLogin = false
+                self.openAIDashboardCookieImportStatus = nil
+                self.openAIDashboardCookieImportDebugLog = nil
+                self.lastOpenAIDashboardCookieImportAttemptAt = nil
+                self.lastOpenAIDashboardCookieImportEmail = nil
+            }
+            return
+        }
+
+        do {
+            let targetEmail = self.codexAccountEmailForOpenAIDashboard()
+            let normalized = targetEmail?.lowercased()
+            self.lastOpenAIDashboardTargetEmail = normalized
+
+            // Use a per-email persistent `WKWebsiteDataStore` so multiple dashboard sessions can coexist.
+            // Strategy:
+            // - Try the existing per-email WebKit cookie store first (fast; avoids Keychain prompts).
+            // - On login-required or account mismatch, import cookies from Chrome/Safari and retry once.
+            var dash = try await OpenAIDashboardFetcher().loadLatestDashboard(
+                accountEmail: targetEmail,
+                logger: nil,
+                debugDumpHTML: false)
+
+            if self.dashboardEmailMismatch(expected: normalized, actual: dash.signedInEmail) {
+                await self.importOpenAIDashboardCookiesIfNeeded(targetEmail: targetEmail, force: true)
+                dash = try await OpenAIDashboardFetcher().loadLatestDashboard(
+                    accountEmail: targetEmail,
+                    logger: nil,
+                    debugDumpHTML: false)
+            }
+
+            if self.dashboardEmailMismatch(expected: normalized, actual: dash.signedInEmail) {
+                let signedIn = dash.signedInEmail?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "unknown"
+                await MainActor.run {
+                    self.openAIDashboard = nil
+                    self.lastOpenAIDashboardError = [
+                        "OpenAI dashboard signed in as \(signedIn), but Codex uses \(normalized ?? "unknown").",
+                        "Switch accounts in your browser and re-enable “Access OpenAI via web”.",
+                    ].joined(separator: " ")
+                    self.openAIDashboardRequiresLogin = true
+                }
+                return
+            }
+
+            await MainActor.run {
+                self.openAIDashboard = dash
+                self.lastOpenAIDashboardError = nil
+                self.lastOpenAIDashboardSnapshot = dash
+                self.openAIDashboardRequiresLogin = false
+            }
+
+            if let email = targetEmail, !email.isEmpty {
+                OpenAIDashboardCacheStore.save(OpenAIDashboardCache(accountEmail: email, snapshot: dash))
+            }
+        } catch OpenAIDashboardFetcher.FetchError.loginRequired {
+            let targetEmail = self.codexAccountEmailForOpenAIDashboard()
+            await self.importOpenAIDashboardCookiesIfNeeded(targetEmail: targetEmail, force: true)
+            do {
+                let dash = try await OpenAIDashboardFetcher().loadLatestDashboard(
+                    accountEmail: targetEmail,
+                    logger: nil,
+                    debugDumpHTML: false)
+                await MainActor.run {
+                    self.openAIDashboard = dash
+                    self.lastOpenAIDashboardError = nil
+                    self.lastOpenAIDashboardSnapshot = dash
+                    self.openAIDashboardRequiresLogin = false
+                }
+                if let email = targetEmail, !email.isEmpty {
+                    OpenAIDashboardCacheStore.save(OpenAIDashboardCache(accountEmail: email, snapshot: dash))
+                }
+            } catch OpenAIDashboardFetcher.FetchError.loginRequired {
+                await MainActor.run {
+                    self.lastOpenAIDashboardError = [
+                        "OpenAI web access requires a signed-in chatgpt.com session.",
+                        "Sign in in Chrome or Safari, then re-enable “Access OpenAI via web”.",
+                    ].joined(separator: " ")
+                    self.openAIDashboard = self.lastOpenAIDashboardSnapshot
+                    self.openAIDashboardRequiresLogin = true
+                }
+            } catch {
+                let message = error.localizedDescription
+                await MainActor.run {
+                    if let cached = self.lastOpenAIDashboardSnapshot {
+                        self.openAIDashboard = cached
+                        let stamp = cached.updatedAt.formatted(date: .abbreviated, time: .shortened)
+                        self.lastOpenAIDashboardError =
+                            "Last OpenAI dashboard refresh failed: \(message). Cached values from \(stamp)."
+                    } else {
+                        self.lastOpenAIDashboardError = message
+                        self.openAIDashboard = nil
+                    }
+                }
+            }
+        } catch {
+            let message = error.localizedDescription
+            await MainActor.run {
+                if let cached = self.lastOpenAIDashboardSnapshot {
+                    self.openAIDashboard = cached
+                    let stamp = cached.updatedAt.formatted(date: .abbreviated, time: .shortened)
+                    self.lastOpenAIDashboardError =
+                        "Last OpenAI dashboard refresh failed: \(message). Cached values from \(stamp)."
+                } else {
+                    self.lastOpenAIDashboardError = message
+                    self.openAIDashboard = nil
+                }
+            }
+        }
+    }
+
+    func importOpenAIDashboardBrowserCookiesNow() async {
+        guard self.settings.openAIDashboardEnabled else { return }
+        let targetEmail = self.codexAccountEmailForOpenAIDashboard()
+        await self.importOpenAIDashboardCookiesIfNeeded(targetEmail: targetEmail, force: true)
+        await self.refreshOpenAIDashboardIfNeeded()
+    }
+
+    private func importOpenAIDashboardCookiesIfNeeded(targetEmail: String?, force: Bool) async {
+        guard let targetEmail, !targetEmail.isEmpty else { return }
+
+        let now = Date()
+        let lastEmail = self.lastOpenAIDashboardCookieImportEmail
+        let lastAttempt = self.lastOpenAIDashboardCookieImportAttemptAt ?? .distantPast
+
+        let shouldAttempt: Bool = if force {
+            true
+        } else {
+            self.openAIDashboardRequiresLogin &&
+                (lastEmail?.lowercased() != targetEmail.lowercased() || now.timeIntervalSince(lastAttempt) > 300)
+        }
+
+        guard shouldAttempt else { return }
+        self.lastOpenAIDashboardCookieImportEmail = targetEmail
+        self.lastOpenAIDashboardCookieImportAttemptAt = now
+
+        var lines: [String] = []
+        let stamp = now.formatted(date: .abbreviated, time: .shortened)
+        lines.append("[\(stamp)] import start (target=\(targetEmail))")
+
+        do {
+            let log: (String) -> Void = { [weak self] message in
+                guard let self else { return }
+                self.openAIWebLogger.debug("\(message, privacy: .public)")
+                lines.append(message)
+                if lines.count > 120 { lines.removeFirst(lines.count - 120) }
+            }
+
+            let result = try await OpenAIDashboardBrowserCookieImporter()
+                .importBestCookies(intoAccountEmail: targetEmail, logger: log)
+            await MainActor.run {
+                let matchText = result.matchesCodexEmail ? "matches Codex" : "does not match Codex"
+                if let signed = result.signedInEmail, !signed.isEmpty {
+                    self.openAIDashboardCookieImportStatus =
+                        [
+                            "Imported \(result.cookieCount) cookies from \(result.sourceLabel).",
+                            "Signed in as \(signed) (\(matchText)).",
+                        ].joined(separator: " ")
+                } else {
+                    self.openAIDashboardCookieImportStatus =
+                        "Imported \(result.cookieCount) cookies from \(result.sourceLabel)."
+                }
+                self.openAIDashboardCookieImportDebugLog = lines.joined(separator: "\n")
+            }
+        } catch {
+            lines.append("[\(stamp)] import failed: \(error.localizedDescription)")
+            await MainActor.run {
+                self.openAIDashboardCookieImportStatus =
+                    "Browser cookie import failed: \(error.localizedDescription)"
+                self.openAIDashboardCookieImportDebugLog = lines.joined(separator: "\n")
+            }
+        }
+    }
+
+    private func dashboardEmailMismatch(expected: String?, actual: String?) -> Bool {
+        guard let expected, !expected.isEmpty else { return false }
+        guard let raw = actual?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return false }
+        return raw.lowercased() != expected.lowercased()
+    }
+
+    func codexAccountEmailForOpenAIDashboard() -> String? {
+        let direct = self.snapshots[.codex]?.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let direct, !direct.isEmpty { return direct }
+        let fallback = self.codexFetcher.loadAccountInfo().email?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let fallback, !fallback.isEmpty { return fallback }
+        return nil
     }
 
     private static func fetchStatus(from baseURL: URL) async throws -> ProviderStatus {

@@ -7,6 +7,7 @@ struct GeneralPane: View {
     @ObservedObject var settings: SettingsStore
     @ObservedObject var store: UsageStore
     @State private var expandedErrors: Set<UsageProvider> = []
+    @State private var openAIDashboardStatus: String?
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
@@ -19,6 +20,7 @@ struct GeneralPane: View {
                             binding: self.codexBinding)
 
                         self.codexSigningStatus()
+                        self.openAIDashboardLogin()
                     }
                     .padding(.bottom, 18)
 
@@ -48,11 +50,6 @@ struct GeneralPane: View {
                 Divider()
 
                 SettingsSection(contentSpacing: 6) {
-                    PreferenceToggleRow(
-                        title: "Check provider status",
-                        subtitle: "Polls OpenAI/Claude status pages and surfaces incidents in the icon and menu.",
-                        binding: self.$settings.statusChecksEnabled)
-
                     PreferenceToggleRow(
                         title: "Session quota notifications",
                         subtitle: "Notifies when the 5-hour session quota hits 0% and when it becomes available again.",
@@ -127,6 +124,75 @@ struct GeneralPane: View {
     }
 
     @ViewBuilder
+    private func openAIDashboardLogin() -> some View {
+        SettingsSection(contentSpacing: 10) {
+            PreferenceToggleRow(
+                title: "Access OpenAI via web (optional)",
+                subtitle: [
+                    "Adds Code review + Usage breakdown (WebKit scrape).",
+                    "Credits still come from Codex CLI.",
+                    "Imports browser cookies (Chrome → Safari).",
+                ].joined(separator: " "),
+                binding: self.$settings.openAIDashboardEnabled)
+
+            if self.settings.openAIDashboardEnabled {
+                VStack(alignment: .leading, spacing: 8) {
+                    let codexEmail = self.store.codexAccountEmailForOpenAIDashboard()
+
+                    if let codexEmail, !codexEmail.isEmpty {
+                        Text("Codex account: \(codexEmail)")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Codex account: unknown (dashboard will not auto-sync).")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if let signedIn = self.store.openAIDashboard?.signedInEmail,
+                       !signedIn.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    {
+                        Text("Dashboard session: \(signedIn)")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Text("On enable: imports cookies (Chrome → Safari).")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+
+                    let status = self.openAIDashboardStatus ??
+                        self.store.openAIDashboardCookieImportStatus ??
+                        self.store.lastOpenAIDashboardError
+
+                    if let status, !status.isEmpty {
+                        Text(status)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(4)
+                    } else {
+                        Text(
+                            "Tip: stay signed in to chatgpt.com in Safari or Chrome; CodexBar will reuse that session.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .onChange(of: self.settings.openAIDashboardEnabled) { _, enabled in
+            if enabled {
+                self.openAIDashboardStatus = "Importing cookies…"
+                Task { @MainActor in
+                    await self.store.importOpenAIDashboardBrowserCookiesNow()
+                    self.openAIDashboardStatus = nil
+                }
+            } else {
+                self.openAIDashboardStatus = nil
+            }
+        }
+    }
+
+    @ViewBuilder
     private func codexSigningStatus() -> some View {
         VStack(alignment: .leading, spacing: 4) {
             if let credits = self.store.credits {
@@ -184,6 +250,8 @@ struct GeneralPane: View {
         pb.clearContents()
         pb.setString(text, forType: .string)
     }
+
+    // MARK: - OpenAI dashboard auth
 }
 
 private struct ProviderErrorDisplay: Sendable {

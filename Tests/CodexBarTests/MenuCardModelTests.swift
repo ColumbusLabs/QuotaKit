@@ -1,5 +1,6 @@
 import CodexBarCore
 import Foundation
+import SwiftUI
 import Testing
 @testable import CodexBar
 
@@ -42,6 +43,8 @@ struct MenuCardModelTests {
             snapshot: updatedSnap,
             credits: CreditsSnapshot(remaining: 12, events: [], updatedAt: now),
             creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
             account: AccountInfo(email: "codex@example.com", plan: "Plus Plan"),
             isRefreshing: false,
             lastError: nil))
@@ -51,8 +54,42 @@ struct MenuCardModelTests {
         #expect(model.metrics.first?.percentLeft == 78)
         #expect(model.planText == "Plus")
         #expect(model.subtitleText.hasPrefix("Updated"))
-        #expect(model.progressColor != .clear)
+        #expect(model.progressColor != Color.clear)
         #expect(model.metrics[1].resetText?.isEmpty == false)
+    }
+
+    @Test
+    func showsCodeReviewMetricWhenDashboardPresent() {
+        let now = Date()
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 0, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            tertiary: nil,
+            updatedAt: now,
+            accountEmail: "codex@example.com",
+            accountOrganization: nil,
+            loginMethod: nil)
+        let metadata = ProviderDefaults.metadata[.codex]!
+
+        let dashboard = OpenAIDashboardSnapshot(
+            signedInEmail: "codex@example.com",
+            codeReviewRemainingPercent: 73,
+            creditEvents: [],
+            dailyBreakdown: [],
+            updatedAt: now)
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .codex,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboard: dashboard,
+            dashboardError: nil,
+            account: AccountInfo(email: "codex@example.com", plan: nil),
+            isRefreshing: false,
+            lastError: nil))
+
+        #expect(model.metrics.contains { $0.title == "Code review" && $0.percentLeft == 73 })
     }
 
     @Test
@@ -77,6 +114,8 @@ struct MenuCardModelTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
             account: AccountInfo(email: "codex@example.com", plan: "plus"),
             isRefreshing: false,
             lastError: nil))
@@ -95,6 +134,8 @@ struct MenuCardModelTests {
             snapshot: nil,
             credits: nil,
             creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
             account: AccountInfo(email: nil, plan: nil),
             isRefreshing: false,
             lastError: "Probe failed for Codex"))
@@ -113,6 +154,8 @@ struct MenuCardModelTests {
             snapshot: nil,
             credits: nil,
             creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
             account: AccountInfo(email: "codex@example.com", plan: "plus"),
             isRefreshing: false,
             lastError: nil))

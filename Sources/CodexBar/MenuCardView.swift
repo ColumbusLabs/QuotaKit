@@ -28,6 +28,7 @@ struct UsageMenuCardView: View {
         let planText: String?
         let metrics: [Metric]
         let creditsText: String?
+        let creditsHintText: String?
         let placeholder: String?
         let progressColor: Color
     }
@@ -98,6 +99,13 @@ struct UsageMenuCardView: View {
                                 .fontWeight(.medium)
                             Text(credits)
                                 .font(.footnote)
+                            if let hint = self.model.creditsHintText, !hint.isEmpty {
+                                Text(hint)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
                         }
                     }
                 }
@@ -128,6 +136,8 @@ extension UsageMenuCardView.Model {
         let snapshot: UsageSnapshot?
         let credits: CreditsSnapshot?
         let creditsError: String?
+        let dashboard: OpenAIDashboardSnapshot?
+        let dashboardError: String?
         let account: AccountInfo
         let isRefreshing: Bool
         let lastError: String?
@@ -139,8 +149,13 @@ extension UsageMenuCardView.Model {
             snapshot: input.snapshot,
             account: input.account)
         let planText = Self.plan(for: input.provider, snapshot: input.snapshot, account: input.account)
-        let metrics = Self.metrics(metadata: input.metadata, snapshot: input.snapshot)
+        let metrics = Self.metrics(
+            provider: input.provider,
+            metadata: input.metadata,
+            snapshot: input.snapshot,
+            dashboard: input.dashboard)
         let creditsText = Self.creditsLine(metadata: input.metadata, credits: input.credits, error: input.creditsError)
+        let creditsHintText = Self.dashboardHint(provider: input.provider, error: input.dashboardError)
         let subtitle = Self.subtitle(
             snapshot: input.snapshot,
             isRefreshing: input.isRefreshing,
@@ -155,6 +170,7 @@ extension UsageMenuCardView.Model {
             planText: planText,
             metrics: metrics,
             creditsText: creditsText,
+            creditsHintText: creditsHintText,
             placeholder: placeholder,
             progressColor: Self.progressColor(for: input.provider))
     }
@@ -210,7 +226,12 @@ extension UsageMenuCardView.Model {
         return ("Not fetched yet", .info)
     }
 
-    private static func metrics(metadata: ProviderMetadata, snapshot: UsageSnapshot?) -> [Metric] {
+    private static func metrics(
+        provider: UsageProvider,
+        metadata: ProviderMetadata,
+        snapshot: UsageSnapshot?,
+        dashboard: OpenAIDashboardSnapshot?) -> [Metric]
+    {
         guard let snapshot else { return [] }
         var metrics: [Metric] = []
         metrics.append(Metric(
@@ -232,6 +253,14 @@ extension UsageMenuCardView.Model {
                 percentLeft: Self.clamped(opus.remainingPercent),
                 resetText: Self.resetText(for: opus)))
         }
+
+        if provider == .codex, let remaining = dashboard?.codeReviewRemainingPercent {
+            metrics.append(Metric(
+                id: "code-review",
+                title: "Code review",
+                percentLeft: Self.clamped(remaining),
+                resetText: nil))
+        }
         return metrics
     }
 
@@ -248,6 +277,12 @@ extension UsageMenuCardView.Model {
             return UsageFormatter.truncatedSingleLine(error, max: 80)
         }
         return metadata.creditsHint
+    }
+
+    private static func dashboardHint(provider: UsageProvider, error: String?) -> String? {
+        guard provider == .codex else { return nil }
+        guard let error, !error.isEmpty else { return nil }
+        return UsageFormatter.truncatedSingleLine(error, max: 100)
     }
 
     private static func clamped(_ value: Double) -> Double {

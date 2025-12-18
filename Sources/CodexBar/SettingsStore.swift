@@ -62,6 +62,11 @@ final class SettingsStore: ObservableObject {
         didSet { self.objectWillChange.send() }
     }
 
+    /// Optional: enable scraping the OpenAI dashboard (WebKit) for extra Codex data (code review + breakdown).
+    @AppStorage("openAIDashboardEnabled") var openAIDashboardEnabled: Bool = false {
+        didSet { self.objectWillChange.send() }
+    }
+
     /// Optional override for the loading animation pattern, exposed via the Debug tab.
     var debugLoadingPattern: LoadingPattern? {
         get { self.debugLoadingPatternRaw.flatMap(LoadingPattern.init(rawValue:)) }

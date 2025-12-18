@@ -925,6 +925,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
 
 extension StatusItemController {
     func makeMenu(for provider: UsageProvider?) -> NSMenu {
+        let targetProvider = provider ?? self.store.enabledProviders().first ?? .codex
         let descriptor = MenuDescriptor.build(
             provider: provider,
             store: self.store,
@@ -950,6 +951,17 @@ extension StatusItemController {
             if model.subtitleStyle == .info {
                 menu.addItem(.separator())
             }
+        }
+
+        if targetProvider == .codex,
+           self.settings.openAIDashboardEnabled,
+           self.store.openAIDashboard != nil,
+           self.store.openAIDashboardRequiresLogin == false
+        {
+            // Only show these when we actually have web-only data.
+            // If there is no credit usage history yet, hide both entries (requested behavior).
+            self.addUsageBreakdownSubmenu(to: menu)
+            self.addCreditsHistorySubmenu(to: menu)
         }
 
         let actionableSections = Array(descriptor.sections.suffix(2))
@@ -1022,6 +1034,99 @@ extension StatusItemController {
 }
 
 extension StatusItemController {
+    private func addCreditsHistorySubmenu(to menu: NSMenu) {
+        let events = self.store.openAIDashboard?.creditEvents ?? []
+        guard !events.isEmpty else { return }
+
+        let item = NSMenuItem(title: "Credits usage history", action: nil, keyEquivalent: "")
+        item.isEnabled = true
+        let submenu = NSMenu()
+
+        let limit = 20
+        for event in events.prefix(limit) {
+            let line = UsageFormatter.creditEventCompact(event)
+            let row = NSMenuItem(title: line, action: nil, keyEquivalent: "")
+            row.isEnabled = false
+            submenu.addItem(row)
+        }
+        if events.count > limit {
+            submenu.addItem(.separator())
+            let more = NSMenuItem(title: "Showing \(limit) of \(events.count)", action: nil, keyEquivalent: "")
+            more.isEnabled = false
+            submenu.addItem(more)
+        }
+
+        item.submenu = submenu
+        menu.addItem(item)
+        menu.addItem(.separator())
+    }
+
+    private func addUsageBreakdownSubmenu(to menu: NSMenu) {
+        let breakdown = self.store.openAIDashboard?.dailyBreakdown ?? []
+        guard !breakdown.isEmpty else { return }
+
+        let item = NSMenuItem(title: "Usage breakdown (30 days)", action: nil, keyEquivalent: "")
+        item.isEnabled = true
+        let submenu = NSMenu()
+
+        for day in breakdown {
+            let dayItem = NSMenuItem(title: self.displayDay(day.day), action: nil, keyEquivalent: "")
+            let dayMenu = NSMenu()
+
+            if day.services.isEmpty {
+                let none = NSMenuItem(title: "No usage", action: nil, keyEquivalent: "")
+                none.isEnabled = false
+                dayMenu.addItem(none)
+            } else {
+                for service in day.services {
+                    let line = "\(service.service): \(self.creditsUsedString(service.creditsUsed))"
+                    let row = NSMenuItem(title: line, action: nil, keyEquivalent: "")
+                    row.isEnabled = false
+                    dayMenu.addItem(row)
+                }
+                dayMenu.addItem(.separator())
+                let totalLine = "Total: \(self.creditsUsedString(day.totalCreditsUsed))"
+                let total = NSMenuItem(title: totalLine, action: nil, keyEquivalent: "")
+                total.isEnabled = false
+                dayMenu.addItem(total)
+            }
+
+            dayItem.submenu = dayMenu
+            submenu.addItem(dayItem)
+        }
+
+        item.submenu = submenu
+        menu.addItem(item)
+        menu.addItem(.separator())
+    }
+
+    private func displayDay(_ key: String) -> String {
+        let input = DateFormatter()
+        input.locale = Locale(identifier: "en_US_POSIX")
+        input.calendar = Calendar(identifier: .gregorian)
+        input.timeZone = TimeZone.current
+        input.dateFormat = "yyyy-MM-dd"
+
+        let output = DateFormatter()
+        output.locale = Locale.current
+        output.calendar = Calendar.current
+        output.timeZone = TimeZone.current
+        output.dateFormat = "MMM d"
+
+        if let date = input.date(from: key) {
+            return output.string(from: date)
+        }
+        return key
+    }
+
+    private func creditsUsedString(_ value: Double) -> String {
+        let number = NumberFormatter()
+        number.numberStyle = .decimal
+        number.maximumFractionDigits = 3
+        let formatted = number.string(from: NSNumber(value: value)) ?? String(Int(value))
+        return "\(formatted) credits"
+    }
+
     private func menuCardModel(for provider: UsageProvider?) -> UsageMenuCardView.Model? {
         let target = provider ?? self.store.enabledProviders().first ?? .codex
         let metadata = self.store.metadata(for: target)
@@ -1029,12 +1134,18 @@ extension StatusItemController {
         let snapshot = self.store.snapshot(for: target)
         let credits: CreditsSnapshot?
         let creditsError: String?
+        let dashboard: OpenAIDashboardSnapshot?
+        let dashboardError: String?
         if target == .codex {
             credits = self.store.credits
             creditsError = self.store.lastCreditsError
+            dashboard = self.store.openAIDashboardRequiresLogin ? nil : self.store.openAIDashboard
+            dashboardError = self.store.lastOpenAIDashboardError
         } else {
             credits = nil
             creditsError = nil
+            dashboard = nil
+            dashboardError = nil
         }
 
         let input = UsageMenuCardView.Model.Input(
@@ -1043,6 +1154,8 @@ extension StatusItemController {
             snapshot: snapshot,
             credits: credits,
             creditsError: creditsError,
+            dashboard: dashboard,
+            dashboardError: dashboardError,
             account: self.account,
             isRefreshing: self.store.isRefreshing,
             lastError: self.store.error(for: target))
