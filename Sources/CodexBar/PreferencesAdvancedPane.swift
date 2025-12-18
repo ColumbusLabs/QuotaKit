@@ -33,6 +33,15 @@ struct AdvancedPane: View {
 
                 SettingsSection(contentSpacing: 10) {
                     PreferenceToggleRow(
+                        title: "Show usage as used",
+                        subtitle: "Progress bars fill as you consume quota (instead of showing remaining).",
+                        binding: self.$settings.usageBarsShowUsed)
+                }
+
+                Divider()
+
+                SettingsSection(contentSpacing: 10) {
+                    PreferenceToggleRow(
                         title: "Check provider status",
                         subtitle: "Polls OpenAI/Claude status pages and surfaces incidents in the icon and menu.",
                         binding: self.$settings.statusChecksEnabled)
