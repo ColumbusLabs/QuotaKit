@@ -28,4 +28,25 @@ struct UsageFormatterTests {
         #expect(text.contains("Updated"))
         #expect(!text.contains("ago"))
     }
+
+    @Test
+    func resetCountdown_minutes() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let reset = now.addingTimeInterval(10 * 60 + 1)
+        #expect(UsageFormatter.resetCountdownDescription(from: reset, now: now) == "in 11m")
+    }
+
+    @Test
+    func resetCountdown_hoursAndMinutes() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let reset = now.addingTimeInterval(3 * 3600 + 31 * 60)
+        #expect(UsageFormatter.resetCountdownDescription(from: reset, now: now) == "in 3h 31m")
+    }
+
+    @Test
+    func resetCountdown_daysAndHours() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let reset = now.addingTimeInterval((26 * 3600) + 10)
+        #expect(UsageFormatter.resetCountdownDescription(from: reset, now: now) == "in 1d 2h")
+    }
 }
