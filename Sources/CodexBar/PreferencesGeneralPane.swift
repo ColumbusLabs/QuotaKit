@@ -9,6 +9,7 @@ struct GeneralPane: View {
     @State private var expandedErrors: Set<UsageProvider> = []
     @State private var openAIDashboardStatus: String?
     @State private var showOpenAIWebFullDiskAccessAlert = false
+    @State private var lastOpenAIWebFullDiskAccessRetryAt: Date?
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
@@ -85,6 +86,9 @@ struct GeneralPane: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            self.retryOpenAIWebAfterPermissionChangeIfNeeded()
         }
     }
 
@@ -188,7 +192,10 @@ struct GeneralPane: View {
                             .buttonStyle(.bordered)
                             .controlSize(.small)
                             .alert("Enable Full Disk Access", isPresented: self.$showOpenAIWebFullDiskAccessAlert) {
-                                Button("Open System Settings") { Self.openFullDiskAccessSettings() }
+                                Button("Open System Settings") {
+                                    Self.openFullDiskAccessSettings()
+                                    self.openAIDashboardStatus = "Waiting for Full Disk Access…"
+                                }
                                 Button("Cancel", role: .cancel) {}
                             } message: {
                                 Text(
@@ -287,6 +294,27 @@ struct GeneralPane: View {
     private func needsOpenAIWebFullDiskAccess(status: String) -> Bool {
         let s = status.lowercased()
         return s.contains("full disk access") && s.contains("safari")
+    }
+
+    private func retryOpenAIWebAfterPermissionChangeIfNeeded() {
+        guard self.settings.openAIDashboardEnabled else { return }
+        let status = self.openAIDashboardStatus ??
+            self.store.openAIDashboardCookieImportStatus ??
+            self.store.lastOpenAIDashboardError
+
+        guard let status, self.needsOpenAIWebFullDiskAccess(status: status) else { return }
+
+        let now = Date()
+        if let last = self.lastOpenAIWebFullDiskAccessRetryAt, now.timeIntervalSince(last) < 5 {
+            return
+        }
+        self.lastOpenAIWebFullDiskAccessRetryAt = now
+
+        self.openAIDashboardStatus = "Re-checking Full Disk Access…"
+        Task { @MainActor in
+            await self.store.importOpenAIDashboardBrowserCookiesNow()
+            self.openAIDashboardStatus = nil
+        }
     }
 
     private static func openFullDiskAccessSettings() {
