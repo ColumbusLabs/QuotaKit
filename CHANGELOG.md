@@ -2,6 +2,7 @@
 
 ## 0.9.0 — Unreleased
 - Optional OpenAI web access: reuses your signed-in browser session (Chrome/Safari cookie import) and scrapes the Codex usage dashboard.
+- Reduced Keychain prompts during web access: prefers Safari cookies when available and caches the Chrome Safe Storage key within the app session.
 - Surfaces Codex “Code review” remaining (menu progress bar) plus usage breakdown + usage history submenus when data is available.
 - Credits remain sourced from the Codex CLI (no web login required for credits).
 - Per-account WebKit cookie jars (keeps multiple OpenAI accounts around; auto-syncs to the Codex CLI email).
