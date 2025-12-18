@@ -19,6 +19,9 @@ struct StatusMenuTests {
         if let claudeMeta = registry.metadata[.claude] {
             settings.setProviderEnabled(provider: .claude, metadata: claudeMeta, enabled: false)
         }
+        if let geminiMeta = registry.metadata[.gemini] {
+            settings.setProviderEnabled(provider: .gemini, metadata: geminiMeta, enabled: false)
+        }
 
         let fetcher = UsageFetcher()
         let store = UsageStore(fetcher: fetcher, settings: settings)

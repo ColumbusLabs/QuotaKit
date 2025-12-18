@@ -25,6 +25,8 @@ struct ProviderRegistry {
     {
         let codexMeta = metadata[.codex]!
         let claudeMeta = metadata[.claude]!
+        let geminiMeta = metadata[.gemini]!
+
         let codexSpec = ProviderSpec(
             style: .codex,
             isEnabled: { settings.isProviderEnabled(provider: .codex, metadata: codexMeta) },
@@ -45,7 +47,16 @@ struct ProviderRegistry {
                     loginMethod: usage.loginMethod)
             })
 
-        return [.codex: codexSpec, .claude: claudeSpec]
+        let geminiSpec = ProviderSpec(
+            style: .gemini,
+            isEnabled: { settings.isProviderEnabled(provider: .gemini, metadata: geminiMeta) },
+            fetch: {
+                let probe = GeminiStatusProbe()
+                let snap = try await probe.fetch()
+                return snap.toUsageSnapshot()
+            })
+
+        return [.codex: codexSpec, .claude: claudeSpec, .gemini: geminiSpec]
     }
 
     private static let defaultMetadata: [UsageProvider: ProviderMetadata] = ProviderDefaults.metadata

@@ -14,6 +14,7 @@ public struct TTYCommandRunner {
         public var timeout: TimeInterval = 20.0
         public var workingDirectory: URL?
         public var extraArgs: [String] = []
+        public var initialDelay: TimeInterval = 0.4
         public var sendEnterEvery: TimeInterval?
         public var sendOnSubstrings: [String: String]
         public var stopOnURL: Bool
@@ -26,6 +27,7 @@ public struct TTYCommandRunner {
             timeout: TimeInterval = 20.0,
             workingDirectory: URL? = nil,
             extraArgs: [String] = [],
+            initialDelay: TimeInterval = 0.4,
             sendEnterEvery: TimeInterval? = nil,
             sendOnSubstrings: [String: String] = [:],
             stopOnURL: Bool = false,
@@ -37,6 +39,7 @@ public struct TTYCommandRunner {
             self.timeout = timeout
             self.workingDirectory = workingDirectory
             self.extraArgs = extraArgs
+            self.initialDelay = initialDelay
             self.sendEnterEvery = sendEnterEvery
             self.sendOnSubstrings = sendOnSubstrings
             self.stopOnURL = stopOnURL
@@ -221,7 +224,7 @@ public struct TTYCommandRunner {
             return needles.contains { lower.contains($0.lowercased()) }
         }
 
-        usleep(400_000) // small boot grace
+        usleep(UInt32(options.initialDelay * 1_000_000))
 
         // Generic path for non-Codex (e.g. Claude /login)
         if !isCodex {

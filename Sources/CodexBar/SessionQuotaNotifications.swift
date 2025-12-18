@@ -42,6 +42,7 @@ final class SessionQuotaNotifier {
         let providerName = switch provider {
         case .codex: "Codex"
         case .claude: "Claude"
+        case .gemini: "Gemini"
         }
 
         let (title, body) = switch transition {

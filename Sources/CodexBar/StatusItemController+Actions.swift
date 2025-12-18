@@ -32,10 +32,9 @@ extension StatusItemController {
             ?? (self.store.isEnabled(.codex) ? .codex : self.store.enabledProviders().first)
 
         let provider = preferred ?? .codex
-        guard
-            let urlString = self.store.metadata(for: provider).statusPageURL,
-            let url = URL(string: urlString)
-        else { return }
+        let meta = self.store.metadata(for: provider)
+        let urlString = meta.statusPageURL ?? meta.statusLinkURL
+        guard let urlString, let url = URL(string: urlString) else { return }
         NSWorkspace.shared.open(url)
     }
 
@@ -94,6 +93,17 @@ extension StatusItemController {
                 print("[CodexBar] Claude login outcome=\(outcome) len=\(length)")
                 if case .success = result.outcome {
                     self.postLoginNotification(for: .claude)
+                }
+            case .gemini:
+                let result = await GeminiLoginRunner.run()
+                guard !Task.isCancelled else { return }
+                self.loginPhase = .idle
+                self.presentGeminiLoginResult(result)
+                let outcome = self.describe(result.outcome)
+                self.loginLogger.notice("Gemini login \(outcome, privacy: .public)")
+                print("[CodexBar] Gemini login outcome=\(outcome)")
+                if case .success = result.outcome {
+                    self.postLoginNotification(for: .gemini)
                 }
             }
 
@@ -191,6 +201,27 @@ extension StatusItemController {
         }
     }
 
+    private func describe(_ outcome: GeminiLoginRunner.Result.Outcome) -> String {
+        switch outcome {
+        case .success: "success"
+        case .missingBinary: "missingBinary"
+        case let .launchFailed(message): "launchFailed(\(message))"
+        }
+    }
+
+    private func presentGeminiLoginResult(_ result: GeminiLoginRunner.Result) {
+        switch result.outcome {
+        case .success:
+            return
+        case .missingBinary:
+            self.presentLoginAlert(
+                title: "Gemini CLI not found",
+                message: "Install the Gemini CLI (npm i -g @google/gemini-cli) and try again.")
+        case let .launchFailed(message):
+            self.presentLoginAlert(title: "Could not open Terminal for Gemini", message: message)
+        }
+    }
+
     private func presentLoginAlert(title: String, message: String) {
         let alert = NSAlert()
         alert.messageText = title
@@ -209,7 +240,12 @@ extension StatusItemController {
     }
 
     private func postLoginNotification(for provider: UsageProvider) {
-        let title = provider == .claude ? "Claude login successful" : "Codex login successful"
+        let title: String
+        switch provider {
+        case .codex: title = "Codex login successful"
+        case .claude: title = "Claude login successful"
+        case .gemini: title = "Gemini login successful"
+        }
         let body = "You can return to the app; authentication finished."
         AppNotifications.shared.post(idPrefix: "login-\(provider.rawValue)", title: title, body: body)
     }

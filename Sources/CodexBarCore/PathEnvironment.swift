@@ -9,18 +9,27 @@ public enum PathPurpose: Hashable, Sendable {
 public struct PathDebugSnapshot: Equatable, Sendable {
     public let codexBinary: String?
     public let claudeBinary: String?
+    public let geminiBinary: String?
     public let effectivePATH: String
     public let loginShellPATH: String?
 
     public static let empty = PathDebugSnapshot(
         codexBinary: nil,
         claudeBinary: nil,
+        geminiBinary: nil,
         effectivePATH: "",
         loginShellPATH: nil)
 
-    public init(codexBinary: String?, claudeBinary: String?, effectivePATH: String, loginShellPATH: String?) {
+    public init(
+        codexBinary: String?,
+        claudeBinary: String?,
+        geminiBinary: String? = nil,
+        effectivePATH: String,
+        loginShellPATH: String?)
+    {
         self.codexBinary = codexBinary
         self.claudeBinary = claudeBinary
+        self.geminiBinary = geminiBinary
         self.effectivePATH = effectivePATH
         self.loginShellPATH = loginShellPATH
     }
@@ -51,6 +60,21 @@ public enum BinaryLocator {
         self.resolveBinary(
             name: "codex",
             overrideKey: "CODEX_CLI_PATH",
+            env: env,
+            loginPATH: loginPATH,
+            fileManager: fileManager,
+            home: home)
+    }
+
+    public static func resolveGeminiBinary(
+        env: [String: String] = ProcessInfo.processInfo.environment,
+        loginPATH: [String]? = LoginShellPathCache.shared.current,
+        fileManager: FileManager = .default,
+        home: String = NSHomeDirectory()) -> String?
+    {
+        self.resolveBinary(
+            name: "gemini",
+            overrideKey: "GEMINI_CLI_PATH",
             env: env,
             loginPATH: loginPATH,
             fileManager: fileManager,
@@ -140,10 +164,12 @@ public enum PathBuilder {
             home: home)
         let codex = BinaryLocator.resolveCodexBinary(env: env, loginPATH: login, home: home)
         let claude = BinaryLocator.resolveClaudeBinary(env: env, loginPATH: login, home: home)
+        let gemini = BinaryLocator.resolveGeminiBinary(env: env, loginPATH: login, home: home)
         let loginString = login?.joined(separator: ":")
         return PathDebugSnapshot(
             codexBinary: codex,
             claudeBinary: claude,
+            geminiBinary: gemini,
             effectivePATH: effective,
             loginShellPATH: loginString)
     }

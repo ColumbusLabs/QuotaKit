@@ -206,7 +206,13 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         case .requesting: base = "Requesting login…"
         case .waitingBrowser: base = "Waiting in browser…"
         }
-        return provider == .claude ? "Claude: \(base)" : "Codex: \(base)"
+        let prefix: String
+        switch provider {
+        case .codex: prefix = "Codex"
+        case .claude: prefix = "Claude"
+        case .gemini: prefix = "Gemini"
+        }
+        return "\(prefix): \(base)"
     }
 
     deinit {

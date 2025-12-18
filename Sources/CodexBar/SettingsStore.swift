@@ -117,27 +117,36 @@ final class SettingsStore: ObservableObject {
     private func runInitialProviderDetectionIfNeeded(force: Bool = false) {
         guard force || !self.providerDetectionCompleted else { return }
         guard let codexMeta = ProviderRegistry.shared.metadata[.codex],
-              let claudeMeta = ProviderRegistry.shared.metadata[.claude] else { return }
+              let claudeMeta = ProviderRegistry.shared.metadata[.claude],
+              let geminiMeta = ProviderRegistry.shared.metadata[.gemini] else { return }
 
         LoginShellPathCache.shared.captureOnce { [weak self] _ in
             Task { @MainActor in
-                self?.applyProviderDetection(codexMeta: codexMeta, claudeMeta: claudeMeta)
+                self?.applyProviderDetection(codexMeta: codexMeta, claudeMeta: claudeMeta, geminiMeta: geminiMeta)
             }
         }
     }
 
-    private func applyProviderDetection(codexMeta: ProviderMetadata, claudeMeta: ProviderMetadata) {
+    private func applyProviderDetection(
+        codexMeta: ProviderMetadata,
+        claudeMeta: ProviderMetadata,
+        geminiMeta: ProviderMetadata)
+    {
         guard !self.providerDetectionCompleted else { return }
         let codexInstalled = BinaryLocator.resolveCodexBinary() != nil
         let claudeInstalled = BinaryLocator.resolveClaudeBinary() != nil
+        let geminiInstalled = BinaryLocator.resolveGeminiBinary() != nil
 
-        // If neither is installed, keep Codex enabled to match previous behavior.
-        let enableCodex = codexInstalled || (!codexInstalled && !claudeInstalled)
+        // If none installed, keep Codex enabled to match previous behavior.
+        let noneInstalled = !codexInstalled && !claudeInstalled && !geminiInstalled
+        let enableCodex = codexInstalled || noneInstalled
         let enableClaude = claudeInstalled
+        let enableGemini = geminiInstalled
 
         self.objectWillChange.send()
         self.toggleStore.setEnabled(enableCodex, metadata: codexMeta)
         self.toggleStore.setEnabled(enableClaude, metadata: claudeMeta)
+        self.toggleStore.setEnabled(enableGemini, metadata: geminiMeta)
         self.providerDetectionCompleted = true
     }
 }

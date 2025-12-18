@@ -3,6 +3,7 @@ import Foundation
 public enum UsageProvider: String, CaseIterable, Sendable {
     case codex
     case claude
+    case gemini
 }
 
 public struct ProviderMetadata: Sendable {
@@ -19,7 +20,10 @@ public struct ProviderMetadata: Sendable {
     public let defaultEnabled: Bool
     public let dashboardURL: String?
     public let subscriptionDashboardURL: String?
+    /// Statuspage.io base URL for incident polling (append /api/v2/status.json).
     public let statusPageURL: String?
+    /// Browser-only status link (no API polling); used when statusPageURL is nil.
+    public let statusLinkURL: String?
 
     public init(
         id: UsageProvider,
@@ -35,7 +39,8 @@ public struct ProviderMetadata: Sendable {
         defaultEnabled: Bool,
         dashboardURL: String?,
         subscriptionDashboardURL: String? = nil,
-        statusPageURL: String?)
+        statusPageURL: String?,
+        statusLinkURL: String? = nil)
     {
         self.id = id
         self.displayName = displayName
@@ -51,6 +56,7 @@ public struct ProviderMetadata: Sendable {
         self.dashboardURL = dashboardURL
         self.subscriptionDashboardURL = subscriptionDashboardURL
         self.statusPageURL = statusPageURL
+        self.statusLinkURL = statusLinkURL
     }
 }
 
@@ -85,5 +91,20 @@ public enum ProviderDefaults {
             dashboardURL: "https://console.anthropic.com/settings/billing",
             subscriptionDashboardURL: "https://claude.ai/settings/usage",
             statusPageURL: "https://status.claude.com/"),
+        .gemini: ProviderMetadata(
+            id: .gemini,
+            displayName: "Gemini",
+            sessionLabel: "Pro",
+            weeklyLabel: "Flash",
+            opusLabel: nil,
+            supportsOpus: false,
+            supportsCredits: false,
+            creditsHint: "",
+            toggleTitle: "Show Gemini usage",
+            cliName: "gemini",
+            defaultEnabled: false,
+            dashboardURL: "https://gemini.google.com",
+            statusPageURL: nil,
+            statusLinkURL: "https://aistudio.google.com/status"),
     ]
 }

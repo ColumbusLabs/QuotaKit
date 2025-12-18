@@ -7,6 +7,7 @@ import OSLog
 enum IconStyle {
     case codex
     case claude
+    case gemini
     case combined
 }
 
@@ -76,6 +77,7 @@ final class UsageStore: ObservableObject {
     @Published var openAIDashboardCookieImportDebugLog: String?
     @Published var codexVersion: String?
     @Published var claudeVersion: String?
+    @Published var geminiVersion: String?
     @Published var claudeAccountEmail: String?
     @Published var claudeAccountOrganization: String?
     @Published var isRefreshing = false
@@ -177,6 +179,7 @@ final class UsageStore: ObservableObject {
         switch provider {
         case .codex: self.codexVersion
         case .claude: self.claudeVersion
+        case .gemini: self.geminiVersion
         }
     }
 
@@ -187,16 +190,22 @@ final class UsageStore: ObservableObject {
         if self.isEnabled(.claude), let claudeSnapshot {
             return claudeSnapshot
         }
+        if self.isEnabled(.gemini), let snap = self.snapshots[.gemini] {
+            return snap
+        }
         return nil
     }
 
     var iconStyle: IconStyle {
-        self.isEnabled(.claude) ? .claude : .codex
+        if self.isEnabled(.claude) { return .claude }
+        if self.isEnabled(.gemini) { return .gemini }
+        return .codex
     }
 
     var isStale: Bool {
         (self.isEnabled(.codex) && self.lastCodexError != nil) ||
-            (self.isEnabled(.claude) && self.lastClaudeError != nil)
+            (self.isEnabled(.claude) && self.lastClaudeError != nil) ||
+            (self.isEnabled(.gemini) && self.errors[.gemini] != nil)
     }
 
     func enabledProviders() -> [UsageProvider] {
@@ -303,26 +312,11 @@ final class UsageStore: ObservableObject {
         }
 
         do {
-            let snapshot: UsageSnapshot
-            if provider == .codex {
-                let task = Task(priority: .utility) { () -> UsageSnapshot in
-                    try await self.codexFetcher.loadLatestUsage()
-                }
-                snapshot = try await task.value
-            } else {
-                let task = Task(priority: .utility) { () -> UsageSnapshot in
-                    let usage = try await self.claudeFetcher.loadLatestUsage(model: "sonnet")
-                    return UsageSnapshot(
-                        primary: usage.primary,
-                        secondary: usage.secondary,
-                        tertiary: usage.opus,
-                        updatedAt: usage.updatedAt,
-                        accountEmail: usage.accountEmail,
-                        accountOrganization: usage.accountOrganization,
-                        loginMethod: usage.loginMethod)
-                }
-                snapshot = try await task.value
+            let fetchClosure = spec.fetch
+            let task = Task(priority: .utility) { () -> UsageSnapshot in
+                try await fetchClosure()
             }
+            let snapshot = try await task.value
             await MainActor.run {
                 self.handleSessionQuotaTransition(provider: provider, snapshot: snapshot)
                 self.snapshots[provider] = snapshot
@@ -837,9 +831,11 @@ final class UsageStore: ObservableObject {
         Task.detached { [claudeFetcher] in
             let codexVer = Self.readCLI("codex", args: ["-s", "read-only", "-a", "untrusted", "--version"])
             let claudeVer = claudeFetcher.detectVersion()
+            let geminiVer = Self.readCLI("gemini", args: ["--version"])
             await MainActor.run {
                 self.codexVersion = codexVer
                 self.claudeVersion = claudeVer
+                self.geminiVersion = geminiVer
             }
         }
     }
@@ -860,6 +856,10 @@ final class UsageStore: ObservableObject {
                     await self.claudeFetcher.debugRawProbe(model: "sonnet")
                 }
                 await MainActor.run { self.probeLogs[.claude] = text }
+                return text
+            case .gemini:
+                let text = "Gemini debug log not yet implemented"
+                await MainActor.run { self.probeLogs[.gemini] = text }
                 return text
             }
         }.value
@@ -882,10 +882,17 @@ final class UsageStore: ObservableObject {
         let env = ProcessInfo.processInfo.environment
         var pathEnv = env
         pathEnv["PATH"] = PathBuilder.effectivePATH(purposes: [.rpc, .tty, .nodeTooling], env: env)
+        let loginPATH = LoginShellPathCache.shared.current
 
-        let resolved = cmd == "codex"
-            ? (BinaryLocator.resolveCodexBinary(env: env, loginPATH: LoginShellPathCache.shared.current) ?? cmd)
-            : cmd
+        let resolved: String
+        switch cmd {
+        case "codex":
+            resolved = BinaryLocator.resolveCodexBinary(env: env, loginPATH: loginPATH) ?? cmd
+        case "gemini":
+            resolved = BinaryLocator.resolveGeminiBinary(env: env, loginPATH: loginPATH) ?? cmd
+        default:
+            resolved = cmd
+        }
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")

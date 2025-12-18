@@ -49,6 +49,19 @@ struct GeneralPane: View {
                             isExpanded: self.expandedBinding(for: .claude),
                             onCopy: { self.copyToPasteboard(display.full) })
                     }
+
+                    PreferenceToggleRow(
+                        title: self.store.metadata(for: .gemini).toggleTitle,
+                        subtitle: self.providerSubtitle(.gemini),
+                        binding: self.geminiBinding)
+
+                    if let display = self.providerErrorDisplay(.gemini) {
+                        ProviderErrorView(
+                            title: "Last Gemini fetch failed:",
+                            display: display,
+                            isExpanded: self.expandedBinding(for: .gemini),
+                            onCopy: { self.copyToPasteboard(display.full) })
+                    }
                 }
 
                 Divider()
@@ -87,6 +100,7 @@ struct GeneralPane: View {
 
     private var codexBinding: Binding<Bool> { self.binding(for: .codex) }
     private var claudeBinding: Binding<Bool> { self.binding(for: .claude) }
+    private var geminiBinding: Binding<Bool> { self.binding(for: .gemini) }
 
     private func binding(for provider: UsageProvider) -> Binding<Bool> {
         let meta = self.store.metadata(for: provider)

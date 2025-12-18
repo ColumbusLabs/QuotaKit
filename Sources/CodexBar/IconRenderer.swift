@@ -70,6 +70,7 @@ enum IconRenderer {
                 alpha: CGFloat = 1.0,
                 addNotches: Bool = false,
                 addFace: Bool = false,
+                addGeminiTwist: Bool = false,
                 blink: CGFloat = 0)
             {
                 let rect = rectPx.rect()
@@ -257,6 +258,133 @@ enum IconRenderer {
                         NSBezierPath(rect: rightBlink).fill()
                     }
                 }
+
+                // Gemini twist: sparkle-inspired design with prominent 4-pointed stars as eyes
+                // and decorative points extending from the bar.
+                if addGeminiTwist {
+                    let ctx = NSGraphicsContext.current?.cgContext
+                    let centerXPx = rectPx.midXPx
+                    let eyeCenterYPx = rectPx.y + rectPx.h / 2
+
+                    ctx?.saveGState()
+                    ctx?.setShouldAntialias(true)
+
+                    // 4-pointed star cutouts (Gemini sparkle eyes) - BIGGER
+                    let starSizePx = 8
+                    let eyeOffsetPx = 8
+                    let sr = Self.grid.pt(starSizePx / 2)
+                    let innerR = sr * 0.25
+
+                    func drawStarCutout(cx: CGFloat, cy: CGFloat) {
+                        let path = NSBezierPath()
+                        for i in 0..<8 {
+                            let angle = CGFloat(i) * .pi / 4 - .pi / 2
+                            let radius = (i % 2 == 0) ? sr : innerR
+                            let px = cx + cos(angle) * radius
+                            let py = cy + sin(angle) * radius
+                            if i == 0 {
+                                path.move(to: NSPoint(x: px, y: py))
+                            } else {
+                                path.line(to: NSPoint(x: px, y: py))
+                            }
+                        }
+                        path.close()
+                        path.fill()
+                    }
+
+                    let ldCx = Self.grid.pt(centerXPx - eyeOffsetPx)
+                    let rdCx = Self.grid.pt(centerXPx + eyeOffsetPx)
+                    let yCy = Self.grid.pt(eyeCenterYPx)
+
+                    // Clear star shapes for eyes
+                    ctx?.setBlendMode(.clear)
+                    drawStarCutout(cx: ldCx, cy: yCy)
+                    drawStarCutout(cx: rdCx, cy: yCy)
+                    ctx?.setBlendMode(.normal)
+
+                    // Decorative sparkle points extending from bar (sized to stay within 36px canvas)
+                    fillColor.withAlphaComponent(alpha).setFill()
+                    let pointHeightPx = 4
+                    let pointWidthPx = 4
+
+                    // Top center point (like a crown/sparkle)
+                    let topPointPath = NSBezierPath()
+                    let topCx = Self.grid.pt(centerXPx)
+                    let topBaseY = Self.grid.pt(rectPx.y + rectPx.h)
+                    let topPeakY = Self.grid.pt(rectPx.y + rectPx.h + pointHeightPx)
+                    let halfW = Self.grid.pt(pointWidthPx / 2)
+                    topPointPath.move(to: NSPoint(x: topCx - halfW, y: topBaseY))
+                    topPointPath.line(to: NSPoint(x: topCx, y: topPeakY))
+                    topPointPath.line(to: NSPoint(x: topCx + halfW, y: topBaseY))
+                    topPointPath.close()
+                    topPointPath.fill()
+
+                    // Bottom center point
+                    let bottomPointPath = NSBezierPath()
+                    let bottomBaseY = Self.grid.pt(rectPx.y)
+                    let bottomPeakY = Self.grid.pt(rectPx.y - pointHeightPx)
+                    bottomPointPath.move(to: NSPoint(x: topCx - halfW, y: bottomBaseY))
+                    bottomPointPath.line(to: NSPoint(x: topCx, y: bottomPeakY))
+                    bottomPointPath.line(to: NSPoint(x: topCx + halfW, y: bottomBaseY))
+                    bottomPointPath.close()
+                    bottomPointPath.fill()
+
+                    // Side points (max 3px to stay within canvas edge)
+                    let sidePointH = 3
+                    let sidePointW = 3
+                    let sideHalfW = Self.grid.pt(sidePointW / 2)
+                    let barMidY = Self.grid.pt(eyeCenterYPx)
+
+                    // Left side point
+                    let leftSidePath = NSBezierPath()
+                    let leftBaseX = Self.grid.pt(rectPx.x)
+                    let leftPeakX = Self.grid.pt(rectPx.x - sidePointH)
+                    leftSidePath.move(to: NSPoint(x: leftBaseX, y: barMidY - sideHalfW))
+                    leftSidePath.line(to: NSPoint(x: leftPeakX, y: barMidY))
+                    leftSidePath.line(to: NSPoint(x: leftBaseX, y: barMidY + sideHalfW))
+                    leftSidePath.close()
+                    leftSidePath.fill()
+
+                    // Right side point
+                    let rightSidePath = NSBezierPath()
+                    let rightBaseX = Self.grid.pt(rectPx.x + rectPx.w)
+                    let rightPeakX = Self.grid.pt(rectPx.x + rectPx.w + sidePointH)
+                    rightSidePath.move(to: NSPoint(x: rightBaseX, y: barMidY - sideHalfW))
+                    rightSidePath.line(to: NSPoint(x: rightPeakX, y: barMidY))
+                    rightSidePath.line(to: NSPoint(x: rightBaseX, y: barMidY + sideHalfW))
+                    rightSidePath.close()
+                    rightSidePath.fill()
+
+                    ctx?.restoreGState()
+
+                    // Blink: fill star eyes
+                    if blink > 0.001 {
+                        let clamped = max(0, min(blink, 1))
+                        fillColor.withAlphaComponent(alpha).setFill()
+                        let blinkR = sr * clamped
+                        let blinkInnerR = blinkR * 0.25
+
+                        func drawBlinkStar(cx: CGFloat, cy: CGFloat) {
+                            let path = NSBezierPath()
+                            for i in 0..<8 {
+                                let angle = CGFloat(i) * .pi / 4 - .pi / 2
+                                let radius = (i % 2 == 0) ? blinkR : blinkInnerR
+                                let px = cx + cos(angle) * radius
+                                let py = cy + sin(angle) * radius
+                                if i == 0 {
+                                    path.move(to: NSPoint(x: px, y: py))
+                                } else {
+                                    path.line(to: NSPoint(x: px, y: py))
+                                }
+                            }
+                            path.close()
+                            path.fill()
+                        }
+
+                        drawBlinkStar(cx: ldCx, cy: yCy)
+                        drawBlinkStar(cx: rdCx, cy: yCy)
+                    }
+                }
             }
 
             let topValue = primaryRemaining
@@ -278,6 +406,7 @@ enum IconRenderer {
                     remaining: topValue,
                     addNotches: style == .claude,
                     addFace: style == .codex,
+                    addGeminiTwist: style == .gemini,
                     blink: blink)
                 drawBar(rectPx: bottomRectPx, remaining: bottomValue)
             } else if !hasWeekly {
@@ -291,6 +420,7 @@ enum IconRenderer {
                         alpha: creditsAlpha,
                         addNotches: style == .claude,
                         addFace: style == .codex,
+                        addGeminiTwist: style == .gemini,
                         blink: blink)
                     drawBar(rectPx: creditsBottomRectPx, remaining: nil, alpha: 0.45)
                 } else {
@@ -299,6 +429,7 @@ enum IconRenderer {
                         remaining: topValue,
                         addNotches: style == .claude,
                         addFace: style == .codex,
+                        addGeminiTwist: style == .gemini,
                         blink: blink)
                     drawBar(rectPx: bottomRectPx, remaining: nil, alpha: 0.45)
                 }
@@ -311,6 +442,7 @@ enum IconRenderer {
                         alpha: creditsAlpha,
                         addNotches: style == .claude,
                         addFace: style == .codex,
+                        addGeminiTwist: style == .gemini,
                         blink: blink)
                 } else {
                     // No credits available; fall back to 5h if present.
@@ -319,6 +451,7 @@ enum IconRenderer {
                         remaining: topValue,
                         addNotches: style == .claude,
                         addFace: style == .codex,
+                        addGeminiTwist: style == .gemini,
                         blink: blink)
                 }
                 drawBar(rectPx: creditsBottomRectPx, remaining: bottomValue)
