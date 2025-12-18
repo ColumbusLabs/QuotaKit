@@ -140,7 +140,7 @@ struct GeneralPane: View {
                 subtitle: [
                     "Adds Code review + Usage breakdown (WebKit scrape).",
                     "Credits still come from Codex CLI.",
-                    "Imports browser cookies (Chrome → Safari).",
+                    "Imports browser cookies (Safari → Chrome).",
                 ].joined(separator: " "),
                 binding: self.$settings.openAIDashboardEnabled)
 
@@ -166,7 +166,7 @@ struct GeneralPane: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    Text("On enable: imports cookies (Chrome → Safari).")
+                    Text("On enable: imports cookies (Safari → Chrome).")
                         .font(.callout)
                         .foregroundStyle(.secondary)
 
