@@ -15,6 +15,9 @@ import SQLite3
 /// - We never persist the imported cookies ourselves. We only inject them into WebKit's `WKWebsiteDataStore`
 ///   cookie jar for the chosen CodexBar dashboard account.
 enum ChromeCookieImporter {
+    private static let chromeSafeStorageKeyLock = NSLock()
+    private nonisolated(unsafe) static var cachedChromeSafeStorageKey: Data?
+
     enum ImportError: LocalizedError {
         case cookieDBNotFound(path: String)
         case keychainDenied
@@ -164,6 +167,13 @@ enum ChromeCookieImporter {
     // MARK: - Keychain + crypto
 
     private static func chromeSafeStorageKey() throws -> Data {
+        self.chromeSafeStorageKeyLock.lock()
+        if let cached = self.cachedChromeSafeStorageKey {
+            self.chromeSafeStorageKeyLock.unlock()
+            return cached
+        }
+        self.chromeSafeStorageKeyLock.unlock()
+
         // Prefer the main Chrome label; fall back to common Chromium forks.
         let labels: [(service: String, account: String)] = [
             ("Chrome Safe Storage", "Chrome"),
@@ -205,6 +215,10 @@ enum ChromeCookieImporter {
         guard result == kCCSuccess else {
             throw ImportError.keychainDenied
         }
+
+        self.chromeSafeStorageKeyLock.lock()
+        self.cachedChromeSafeStorageKey = key
+        self.chromeSafeStorageKeyLock.unlock()
         return key
     }
 
