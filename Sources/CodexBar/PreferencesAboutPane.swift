@@ -61,7 +61,7 @@ struct AboutPane: View {
                     .foregroundStyle(.secondary)
             }
 
-            VStack(alignment: .center, spacing: 6) {
+            VStack(alignment: .center, spacing: 10) {
                 AboutLinkRow(
                     icon: "chevron.left.slash.chevron.right",
                     title: "GitHub",
@@ -92,8 +92,10 @@ struct AboutPane: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .padding(.top, 4)
+
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(.top, 4)
         .padding(.horizontal, 24)
         .padding(.bottom, 24)
