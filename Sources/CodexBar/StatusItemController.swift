@@ -28,9 +28,8 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     let settings: SettingsStore
     let account: AccountInfo
     let updater: UpdaterProviding
-    var statusItems: [UsageProvider: NSStatusItem] = [:]
+    var statusItem: NSStatusItem
     var lastMenuProvider: UsageProvider?
-    var menuProviders: [ObjectIdentifier: UsageProvider] = [:]
     var blinkTask: Task<Void, Never>?
     var loginTask: Task<Void, Never>? {
         didSet { self.refreshMenusForLoginStateChange() }
@@ -100,12 +99,10 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         self.updater = updater
         self.preferencesSelection = preferencesSelection
         let bar = NSStatusBar.system
-        for provider in UsageProvider.allCases {
-            let item = bar.statusItem(withLength: NSStatusItem.variableLength)
-            // Ensure the icon is rendered at 1:1 without resampling (crisper edges for template images).
-            item.button?.imageScaling = .scaleNone
-            self.statusItems[provider] = item
-        }
+        let item = bar.statusItem(withLength: NSStatusItem.variableLength)
+        // Ensure the icon is rendered at 1:1 without resampling (crisper edges for template images).
+        item.button?.imageScaling = .scaleNone
+        self.statusItem = item
         super.init()
         self.wireBindings()
         self.updateIcons()
@@ -149,27 +146,19 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     }
 
     private func updateIcons() {
-        UsageProvider.allCases.forEach { self.applyIcon(for: $0, phase: nil) }
-        self.attachMenus(fallback: self.fallbackProvider)
+        self.applyIcon(phase: nil)
+        self.attachMenus()
         self.updateAnimationState()
         self.updateBlinkingState()
     }
 
     private func updateVisibility() {
-        let fallback = self.fallbackProvider
-        for provider in UsageProvider.allCases {
-            let item = self.statusItems[provider]
-            let isEnabled = self.isEnabled(provider)
-            let force = self.store.debugForceAnimation
-            item?.isVisible = isEnabled || fallback == provider || force
-        }
-        self.attachMenus(fallback: fallback)
+        let anyEnabled = !self.store.enabledProviders().isEmpty
+        let force = self.store.debugForceAnimation
+        self.statusItem.isVisible = anyEnabled || force
+        self.attachMenus()
         self.updateAnimationState()
         self.updateBlinkingState()
-    }
-
-    var fallbackProvider: UsageProvider? {
-        self.store.enabledProviders().isEmpty ? .codex : nil
     }
 
     func isEnabled(_ provider: UsageProvider) -> Bool {
@@ -177,25 +166,11 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     }
 
     private func refreshMenusForLoginStateChange() {
-        self.attachMenus(fallback: self.fallbackProvider)
+        self.attachMenus()
     }
 
-    private func attachMenus(fallback: UsageProvider? = nil) {
-        self.menuProviders.removeAll()
-        for provider in UsageProvider.allCases {
-            guard let item = self.statusItems[provider] else { continue }
-            if self.isEnabled(provider) {
-                item.menu = self.makeMenu(for: provider)
-            } else if fallback == provider {
-                item.menu = self.makeMenu(for: nil)
-            } else {
-                item.menu = nil
-            }
-        }
-    }
-
-    func isVisible(_ provider: UsageProvider) -> Bool {
-        self.store.debugForceAnimation || self.isEnabled(provider) || self.fallbackProvider == provider
+    private func attachMenus() {
+        self.statusItem.menu = self.makeMenu()
     }
 
     func switchAccountSubtitle(for target: UsageProvider) -> String? {

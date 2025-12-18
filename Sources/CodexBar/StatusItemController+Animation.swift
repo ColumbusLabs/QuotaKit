@@ -5,8 +5,8 @@ import QuartzCore
 extension StatusItemController {
     func updateBlinkingState() {
         let blinkingEnabled = self.isBlinkingAllowed()
-        let anyVisible = UsageProvider.allCases.contains { self.isVisible($0) }
-        if blinkingEnabled, anyVisible {
+        let anyEnabled = !self.store.enabledProviders().isEmpty || self.store.debugForceAnimation
+        if blinkingEnabled, anyEnabled {
             if self.blinkTask == nil {
                 self.seedBlinkStatesIfNeeded()
                 self.blinkTask = Task { [weak self] in
@@ -32,7 +32,7 @@ extension StatusItemController {
         self.blinkTask?.cancel()
         self.blinkTask = nil
         self.blinkAmounts.removeAll()
-        UsageProvider.allCases.forEach { self.applyIcon(for: $0, phase: nil) }
+        self.applyIcon(phase: nil)
     }
 
     private func tickBlink(now: Date = .init()) {
@@ -46,7 +46,7 @@ extension StatusItemController {
         let doubleDelayRange: ClosedRange<TimeInterval> = 0.22...0.34
 
         for provider in UsageProvider.allCases {
-            guard self.isVisible(provider), !self.shouldAnimate(provider: provider) else {
+            guard self.isEnabled(provider), !self.shouldAnimate(provider: provider) else {
                 self.clearMotion(for: provider)
                 continue
             }
@@ -88,8 +88,8 @@ extension StatusItemController {
             }
 
             self.blinkStates[provider] = state
-            self.applyIcon(for: provider, phase: nil)
         }
+        self.applyIcon(phase: nil)
     }
 
     private func blinkAmount(for provider: UsageProvider) -> CGFloat {
@@ -145,21 +145,26 @@ extension StatusItemController {
         return false
     }
 
-    func applyIcon(for provider: UsageProvider, phase: Double?) {
-        guard let button = self.statusItems[provider]?.button else { return }
-        let snapshot = self.store.snapshot(for: provider)
+    func applyIcon(phase: Double?) {
+        guard let button = self.statusItem.button else { return }
+
+        let style = self.store.iconStyle
+        let showUsed = self.settings.usageBarsShowUsed
+        let primaryProvider = self.primaryProviderForUnifiedIcon()
+        let snapshot = self.store.snapshot(for: primaryProvider)
+
         // IconRenderer treats these values as a left-to-right "progress fill" percentage; depending on the
         // user setting we pass either "percent left" or "percent used".
-        let showUsed = self.settings.usageBarsShowUsed
         var primary = showUsed ? snapshot?.primary.usedPercent : snapshot?.primary.remainingPercent
         var weekly = showUsed ? snapshot?.secondary?.usedPercent : snapshot?.secondary?.remainingPercent
-        var credits: Double? = provider == .codex ? self.store.credits?.remaining : nil
-        var stale = self.store.isStale(provider: provider)
+        var credits: Double? = primaryProvider == .codex ? self.store.credits?.remaining : nil
+        var stale = self.store.isStale(provider: primaryProvider)
         var morphProgress: Double?
 
-        if let phase, self.shouldAnimate(provider: provider) {
+        let needsAnimation = UsageProvider.allCases.contains { self.shouldAnimate(provider: $0) }
+        if let phase, needsAnimation {
             var pattern = self.animationPattern
-            if provider == .claude, pattern == .unbraid {
+            if style == .combined, pattern == .unbraid {
                 pattern = .cylon
             }
             if pattern == .unbraid {
@@ -176,10 +181,18 @@ extension StatusItemController {
             }
         }
 
-        let style: IconStyle = self.store.style(for: provider)
-        let blink = self.blinkAmount(for: provider)
-        let wiggle = self.wiggleAmount(for: provider)
-        let tilt = self.tiltAmount(for: provider) * .pi / 28 // limit to ~6.4°
+        let blink: CGFloat = style == .combined ? 0 : self.blinkAmount(for: primaryProvider)
+        let wiggle: CGFloat = style == .combined ? 0 : self.wiggleAmount(for: primaryProvider)
+        let tilt: CGFloat = style == .combined ? 0 : self.tiltAmount(for: primaryProvider) * .pi / 28
+
+        let statusIndicator: ProviderStatusIndicator = {
+            for provider in UsageProvider.allCases {
+                let indicator = self.store.statusIndicator(for: provider)
+                if indicator.hasIssue { return indicator }
+            }
+            return .none
+        }()
+
         if let morphProgress {
             button.image = IconRenderer.makeMorphIcon(progress: morphProgress, style: style)
         } else {
@@ -192,8 +205,20 @@ extension StatusItemController {
                 blink: blink,
                 wiggle: wiggle,
                 tilt: tilt,
-                statusIndicator: self.store.statusIndicator(for: provider))
+                statusIndicator: statusIndicator)
         }
+    }
+
+    private func primaryProviderForUnifiedIcon() -> UsageProvider {
+        for provider in UsageProvider.allCases {
+            if self.store.isEnabled(provider), self.store.snapshot(for: provider) != nil {
+                return provider
+            }
+        }
+        if let enabled = self.store.enabledProviders().first {
+            return enabled
+        }
+        return .codex
     }
 
     @objc func handleDebugBlinkNotification() {
@@ -206,7 +231,7 @@ extension StatusItemController {
         self.seedBlinkStatesIfNeeded()
 
         for provider in UsageProvider.allCases
-            where self.isVisible(provider) && !self.shouldAnimate(provider: provider)
+            where self.isEnabled(provider) && !self.shouldAnimate(provider: provider)
         {
             var state = self
                 .blinkStates[provider] ?? BlinkState(nextBlink: now.addingTimeInterval(BlinkState.randomDelay()))
@@ -225,9 +250,7 @@ extension StatusItemController {
     private func shouldAnimate(provider: UsageProvider) -> Bool {
         if self.store.debugForceAnimation { return true }
 
-        let visible = self.store.debugForceAnimation || self.isEnabled(provider) || self.fallbackProvider == provider
-        guard visible else { return false }
-
+        guard self.isEnabled(provider) else { return false }
         let isStale = self.store.isStale(provider: provider)
         let hasData = self.store.snapshot(for: provider) != nil
         return !hasData && !isStale
@@ -255,13 +278,13 @@ extension StatusItemController {
             self.animationDisplayLink?.invalidate()
             self.animationDisplayLink = nil
             self.animationPhase = 0
-            UsageProvider.allCases.forEach { self.applyIcon(for: $0, phase: nil) }
+            self.applyIcon(phase: nil)
         }
     }
 
     @objc func animateIcons(_ link: CADisplayLink) {
         self.animationPhase += 0.045 // half-speed animation
-        UsageProvider.allCases.forEach { self.applyIcon(for: $0, phase: self.animationPhase) }
+        self.applyIcon(phase: self.animationPhase)
     }
 
     private func advanceAnimationPattern() {

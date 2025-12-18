@@ -7,15 +7,15 @@ import SwiftUI
 extension StatusItemController {
     private static let menuCardWidth: CGFloat = 300
 
-    func makeMenu(for provider: UsageProvider?) -> NSMenu {
-        let targetProvider = provider ?? self.store.enabledProviders().first ?? .codex
+    func makeMenu() -> NSMenu {
+        let enabledProviders = self.store.enabledProviders()
         let descriptor = MenuDescriptor.build(
-            provider: provider,
+            provider: nil,
             store: self.store,
             settings: self.settings,
             account: self.account)
         let dashboard = self.store.openAIDashboard
-        let openAIWebEligible = targetProvider == .codex &&
+        let openAIWebEligible = self.store.isEnabled(.codex) &&
             self.settings.openAIDashboardEnabled &&
             self.store.openAIDashboardRequiresLogin == false &&
             dashboard != nil
@@ -26,29 +26,30 @@ extension StatusItemController {
         let menu = NSMenu()
         menu.autoenablesItems = false
         menu.delegate = self
-        if let provider {
-            self.menuProviders[ObjectIdentifier(menu)] = provider
+
+        for (index, provider) in enabledProviders.enumerated() {
+            if let model = self.menuCardModel(for: provider) {
+                let cardView = UsageMenuCardView(model: model)
+                let hosting = NSHostingView(rootView: cardView)
+                // Important: constrain width before asking SwiftUI for the fitting height, otherwise text wrapping
+                // changes the required height and the menu item becomes visually "squeezed".
+                hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: 1))
+                hosting.layoutSubtreeIfNeeded()
+                let size = hosting.fittingSize
+                hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: size.height))
+                let item = NSMenuItem()
+                item.view = hosting
+                item.isEnabled = false
+                item.representedObject = "menuCard-\(provider.rawValue)"
+                menu.addItem(item)
+                if index < enabledProviders.count - 1 {
+                    menu.addItem(.separator())
+                }
+            }
         }
 
-        if let model = self.menuCardModel(for: provider) {
-            let cardView = UsageMenuCardView(model: model)
-            let hosting = NSHostingView(rootView: cardView)
-            // Important: constrain width before asking SwiftUI for the fitting height, otherwise text wrapping
-            // changes the required height and the menu item becomes visually "squeezed".
-            hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: 1))
-            hosting.layoutSubtreeIfNeeded()
-            let size = hosting.fittingSize
-            hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: size.height))
-            let item = NSMenuItem()
-            item.view = hosting
-            item.isEnabled = false
-            item.representedObject = "menuCard"
-            menu.addItem(item)
-            // Keep the menu visually grouped.
-            // If we show the credits history submenu, visually separate it from the menu card with a divider.
-            if hasCreditsHistory || model.subtitleStyle == .info {
-                menu.addItem(.separator())
-            }
+        if !enabledProviders.isEmpty {
+            menu.addItem(.separator())
         }
 
         if hasOpenAIWebMenuItems {
@@ -112,20 +113,16 @@ extension StatusItemController {
     func menuWillOpen(_ menu: NSMenu) {
         // Re-measure the menu card height right before display to avoid stale/incorrect sizing when content
         // changes (e.g. dashboard error lines causing wrapping).
-        if let item = menu.items.first(where: { ($0.representedObject as? String) == "menuCard" }),
-           let view = item.view
-        {
-            view.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: 1))
-            view.layoutSubtreeIfNeeded()
-            let height = view.fittingSize.height
-            view.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: height))
+        for item in menu.items where (item.representedObject as? String)?.hasPrefix("menuCard-") == true {
+            if let view = item.view {
+                view.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: 1))
+                view.layoutSubtreeIfNeeded()
+                let height = view.fittingSize.height
+                view.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: height))
+            }
         }
 
-        if let provider = self.menuProviders[ObjectIdentifier(menu)] {
-            self.lastMenuProvider = provider
-        } else {
-            self.lastMenuProvider = self.store.enabledProviders().first ?? .codex
-        }
+        self.lastMenuProvider = self.store.enabledProviders().first ?? .codex
     }
 
     private func selector(for action: MenuDescriptor.MenuAction) -> (Selector, Any?) {

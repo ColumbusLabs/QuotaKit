@@ -197,8 +197,10 @@ final class UsageStore: ObservableObject {
     }
 
     var iconStyle: IconStyle {
-        if self.isEnabled(.claude) { return .claude }
+        let enabled = self.enabledProviders()
+        if enabled.count > 1 { return .combined }
         if self.isEnabled(.gemini) { return .gemini }
+        if self.isEnabled(.claude) { return .claude }
         return .codex
     }
 

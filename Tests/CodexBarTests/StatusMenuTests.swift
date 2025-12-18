@@ -17,7 +17,7 @@ struct StatusMenuTests {
             settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: false)
         }
         if let claudeMeta = registry.metadata[.claude] {
-            settings.setProviderEnabled(provider: .claude, metadata: claudeMeta, enabled: false)
+            settings.setProviderEnabled(provider: .claude, metadata: claudeMeta, enabled: true)
         }
         if let geminiMeta = registry.metadata[.gemini] {
             settings.setProviderEnabled(provider: .gemini, metadata: geminiMeta, enabled: false)
@@ -32,16 +32,15 @@ struct StatusMenuTests {
             updater: DisabledUpdaterController(),
             preferencesSelection: PreferencesSelection())
 
-        let codexMenu = controller.makeMenu(for: .codex)
-        controller.menuWillOpen(codexMenu)
-        #expect(controller.lastMenuProvider == .codex)
-
-        let claudeMenu = controller.makeMenu(for: .claude)
+        let claudeMenu = controller.makeMenu()
         controller.menuWillOpen(claudeMenu)
         #expect(controller.lastMenuProvider == .claude)
 
-        // Unmapped menu falls back to the first enabled provider or Codex.
-        let unmappedMenu = NSMenu()
+        // No providers enabled: fall back to Codex.
+        if let claudeMeta = registry.metadata[.claude] {
+            settings.setProviderEnabled(provider: .claude, metadata: claudeMeta, enabled: false)
+        }
+        let unmappedMenu = controller.makeMenu()
         controller.menuWillOpen(unmappedMenu)
         #expect(controller.lastMenuProvider == .codex)
     }
@@ -52,6 +51,11 @@ struct StatusMenuTests {
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.openAIDashboardEnabled = true
+
+        let registry = ProviderRegistry.shared
+        if let codexMeta = registry.metadata[.codex] {
+            settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
+        }
 
         let fetcher = UsageFetcher()
         let store = UsageStore(fetcher: fetcher, settings: settings)
@@ -70,7 +74,7 @@ struct StatusMenuTests {
             updater: DisabledUpdaterController(),
             preferencesSelection: PreferencesSelection())
 
-        let menu = controller.makeMenu(for: .codex)
+        let menu = controller.makeMenu()
         let titles = Set(menu.items.map(\.title))
         #expect(!titles.contains("Credits usage history"))
         #expect(!titles.contains("Usage breakdown"))
@@ -82,6 +86,11 @@ struct StatusMenuTests {
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.openAIDashboardEnabled = true
+
+        let registry = ProviderRegistry.shared
+        if let codexMeta = registry.metadata[.codex] {
+            settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
+        }
 
         let fetcher = UsageFetcher()
         let store = UsageStore(fetcher: fetcher, settings: settings)
@@ -112,7 +121,7 @@ struct StatusMenuTests {
             updater: DisabledUpdaterController(),
             preferencesSelection: PreferencesSelection())
 
-        let menu = controller.makeMenu(for: .codex)
+        let menu = controller.makeMenu()
         let titles = Set(menu.items.map(\.title))
         #expect(titles.contains("Credits usage history"))
         #expect(titles.contains("Usage breakdown"))
