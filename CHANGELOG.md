@@ -5,12 +5,15 @@
 - Reduced Keychain prompts during web access: prefers Safari cookies when available and caches the Chrome Safe Storage key within the app session.
 - Surfaces Codex “Code review” remaining (menu progress bar) plus usage breakdown + usage history submenus when data is available.
 - OpenAI: “Usage breakdown” submenu now reflects the dashboard chart (daily usage by service), even when the credits history table is empty.
+- OpenAI web onboarding improvements: clearer permission errors plus a one-click “Enable Full Disk Access” helper and auto-retry when returning from System Settings.
+- Usage breakdown submenu: compact stacked bar chart (Swift Charts) with hover details for day/service totals.
 - Credits remain sourced from the Codex CLI (no web login required for credits).
 - Per-account WebKit cookie jars (keeps multiple OpenAI accounts around; auto-syncs to the Codex CLI email).
 - CLI: `codexbar usage --openai-web` fetches and emits `openaiDashboard` JSON.
 - New “Show usage as used” toggle to invert progress bars (default remains “% left”).
 - Claude: fix reset parsing so “Resets …” can’t be mis-attributed to the wrong window (session vs weekly), including CR line endings; CLI no longer prints “Resets Resets …”.
 - Session (5-hour) reset now shows a relative countdown (“Resets in 3h 31m”) in the menu card for Codex and Claude.
+- Preferences window height increased (~10%) to reduce scrolling in General.
 
 ## 0.8.1 — 2025-12-17
 - Claude trust prompts (“Do you trust the files in this folder?”) are now auto-accepted during probes to prevent stuck refreshes. Thanks @tobihagemann!
