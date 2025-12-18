@@ -347,7 +347,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.updateVisibility()
-                self?.updateBlinkingState()
+                self?.updateIcons()
             }
             .store(in: &self.cancellables)
     }
@@ -562,8 +562,11 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     private func applyIcon(for provider: UsageProvider, phase: Double?) {
         guard let button = self.statusItems[provider]?.button else { return }
         let snapshot = self.store.snapshot(for: provider)
-        var primary = snapshot?.primary.remainingPercent
-        var weekly = snapshot?.secondary?.remainingPercent
+        // IconRenderer treats these values as a left-to-right "progress fill" percentage; depending on the
+        // user setting we pass either "percent left" or "percent used".
+        let showUsed = self.settings.usageBarsShowUsed
+        var primary = showUsed ? snapshot?.primary.usedPercent : snapshot?.primary.remainingPercent
+        var weekly = showUsed ? snapshot?.secondary?.usedPercent : snapshot?.secondary?.remainingPercent
         var credits: Double? = provider == .codex ? self.store.credits?.remaining : nil
         var stale = self.store.isStale(provider: provider)
         var morphProgress: Double?
@@ -1158,7 +1161,8 @@ extension StatusItemController {
             dashboardError: dashboardError,
             account: self.account,
             isRefreshing: self.store.isRefreshing,
-            lastError: self.store.error(for: target))
+            lastError: self.store.error(for: target),
+            usageBarsShowUsed: self.settings.usageBarsShowUsed)
         return UsageMenuCardView.Model.make(input)
     }
 }

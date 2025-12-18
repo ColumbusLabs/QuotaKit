@@ -58,6 +58,15 @@ struct GeneralPane: View {
 
                 Divider()
 
+                SettingsSection(contentSpacing: 6) {
+                    PreferenceToggleRow(
+                        title: "Show usage as used",
+                        subtitle: "Progress bars fill as you consume quota (instead of showing remaining).",
+                        binding: self.$settings.usageBarsShowUsed)
+                }
+
+                Divider()
+
                 SettingsSection(contentSpacing: 16) {
                     PreferenceToggleRow(
                         title: "Start at Login",

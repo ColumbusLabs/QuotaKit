@@ -4,14 +4,34 @@ import SwiftUI
 /// SwiftUI card used inside the NSMenu to mirror Apple's rich menu panels.
 struct UsageMenuCardView: View {
     struct Model {
+        enum PercentStyle: String, Sendable {
+            case left
+            case used
+
+            var labelSuffix: String {
+                switch self {
+                case .left: "left"
+                case .used: "used"
+                }
+            }
+
+            var accessibilityLabel: String {
+                switch self {
+                case .left: "Usage remaining"
+                case .used: "Usage used"
+                }
+            }
+        }
+
         struct Metric: Identifiable {
             let id: String
             let title: String
-            let percentLeft: Double
+            let percent: Double
+            let percentStyle: PercentStyle
             let resetText: String?
 
             var percentLabel: String {
-                String(format: "%.0f%% left", self.percentLeft)
+                String(format: "%.0f%% %@", self.percent, self.percentStyle.labelSuffix)
             }
         }
 
@@ -79,7 +99,10 @@ struct UsageMenuCardView: View {
                             Text(metric.title)
                                 .font(.subheadline)
                                 .fontWeight(.medium)
-                            UsageProgressBar(percentLeft: metric.percentLeft, tint: self.model.progressColor)
+                            UsageProgressBar(
+                                percent: metric.percent,
+                                tint: self.model.progressColor,
+                                accessibilityLabel: metric.percentStyle.accessibilityLabel)
                             HStack(alignment: .firstTextBaseline) {
                                 Text(metric.percentLabel)
                                     .font(.footnote)
@@ -141,6 +164,7 @@ extension UsageMenuCardView.Model {
         let account: AccountInfo
         let isRefreshing: Bool
         let lastError: String?
+        let usageBarsShowUsed: Bool
     }
 
     static func make(_ input: Input) -> UsageMenuCardView.Model {
@@ -153,7 +177,8 @@ extension UsageMenuCardView.Model {
             provider: input.provider,
             metadata: input.metadata,
             snapshot: input.snapshot,
-            dashboard: input.dashboard)
+            dashboard: input.dashboard,
+            usageBarsShowUsed: input.usageBarsShowUsed)
         let creditsText = Self.creditsLine(metadata: input.metadata, credits: input.credits, error: input.creditsError)
         let creditsHintText = Self.dashboardHint(provider: input.provider, error: input.dashboardError)
         let subtitle = Self.subtitle(
@@ -230,35 +255,42 @@ extension UsageMenuCardView.Model {
         provider: UsageProvider,
         metadata: ProviderMetadata,
         snapshot: UsageSnapshot?,
-        dashboard: OpenAIDashboardSnapshot?) -> [Metric]
+        dashboard: OpenAIDashboardSnapshot?,
+        usageBarsShowUsed: Bool) -> [Metric]
     {
         guard let snapshot else { return [] }
         var metrics: [Metric] = []
+        let percentStyle: PercentStyle = usageBarsShowUsed ? .used : .left
         metrics.append(Metric(
             id: "primary",
             title: metadata.sessionLabel,
-            percentLeft: Self.clamped(snapshot.primary.remainingPercent),
+            percent: Self.clamped(usageBarsShowUsed ? snapshot.primary.usedPercent : snapshot.primary.remainingPercent),
+            percentStyle: percentStyle,
             resetText: Self.resetText(for: snapshot.primary)))
         if let weekly = snapshot.secondary {
             metrics.append(Metric(
                 id: "secondary",
                 title: metadata.weeklyLabel,
-                percentLeft: Self.clamped(weekly.remainingPercent),
+                percent: Self.clamped(usageBarsShowUsed ? weekly.usedPercent : weekly.remainingPercent),
+                percentStyle: percentStyle,
                 resetText: Self.resetText(for: weekly)))
         }
         if metadata.supportsOpus, let opus = snapshot.tertiary {
             metrics.append(Metric(
                 id: "tertiary",
                 title: metadata.opusLabel ?? "Sonnet",
-                percentLeft: Self.clamped(opus.remainingPercent),
+                percent: Self.clamped(usageBarsShowUsed ? opus.usedPercent : opus.remainingPercent),
+                percentStyle: percentStyle,
                 resetText: Self.resetText(for: opus)))
         }
 
         if provider == .codex, let remaining = dashboard?.codeReviewRemainingPercent {
+            let percent = usageBarsShowUsed ? (100 - remaining) : remaining
             metrics.append(Metric(
                 id: "code-review",
                 title: "Code review",
-                percentLeft: Self.clamped(remaining),
+                percent: Self.clamped(percent),
+                percentStyle: percentStyle,
                 resetText: nil))
         }
         return metrics

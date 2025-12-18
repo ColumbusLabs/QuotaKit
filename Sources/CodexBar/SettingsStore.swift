@@ -58,6 +58,11 @@ final class SettingsStore: ObservableObject {
         didSet { self.objectWillChange.send() }
     }
 
+    /// When enabled, progress bars show "percent used" instead of "percent left".
+    @AppStorage("usageBarsShowUsed") var usageBarsShowUsed: Bool = false {
+        didSet { self.objectWillChange.send() }
+    }
+
     @AppStorage("randomBlinkEnabled") var randomBlinkEnabled: Bool = false {
         didSet { self.objectWillChange.send() }
     }

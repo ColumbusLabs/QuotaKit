@@ -47,15 +47,61 @@ struct MenuCardModelTests {
             dashboardError: nil,
             account: AccountInfo(email: "codex@example.com", plan: "Plus Plan"),
             isRefreshing: false,
-            lastError: nil))
+            lastError: nil,
+            usageBarsShowUsed: false))
 
         #expect(model.providerName == "Codex")
         #expect(model.metrics.count == 2)
-        #expect(model.metrics.first?.percentLeft == 78)
+        #expect(model.metrics.first?.percent == 78)
         #expect(model.planText == "Plus")
         #expect(model.subtitleText.hasPrefix("Updated"))
         #expect(model.progressColor != Color.clear)
         #expect(model.metrics[1].resetText?.isEmpty == false)
+    }
+
+    @Test
+    func buildsMetricsUsingUsedPercentWhenEnabled() {
+        let now = Date()
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: 22,
+                windowMinutes: 300,
+                resetsAt: now.addingTimeInterval(3000),
+                resetDescription: nil),
+            secondary: RateWindow(
+                usedPercent: 40,
+                windowMinutes: 10080,
+                resetsAt: now.addingTimeInterval(6000),
+                resetDescription: nil),
+            updatedAt: now,
+            accountEmail: "codex@example.com",
+            loginMethod: "Plus Plan")
+        let metadata = ProviderDefaults.metadata[.codex]!
+
+        let dashboard = OpenAIDashboardSnapshot(
+            signedInEmail: "codex@example.com",
+            codeReviewRemainingPercent: 73,
+            creditEvents: [],
+            dailyBreakdown: [],
+            updatedAt: now)
+
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .codex,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboard: dashboard,
+            dashboardError: nil,
+            account: AccountInfo(email: "codex@example.com", plan: "Plus Plan"),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: true))
+
+        #expect(model.metrics.first?.title == "Session")
+        #expect(model.metrics.first?.percent == 22)
+        #expect(model.metrics.first?.percentLabel.contains("used") == true)
+        #expect(model.metrics.contains { $0.title == "Code review" && $0.percent == 27 })
     }
 
     @Test
@@ -87,9 +133,10 @@ struct MenuCardModelTests {
             dashboardError: nil,
             account: AccountInfo(email: "codex@example.com", plan: nil),
             isRefreshing: false,
-            lastError: nil))
+            lastError: nil,
+            usageBarsShowUsed: false))
 
-        #expect(model.metrics.contains { $0.title == "Code review" && $0.percentLeft == 73 })
+        #expect(model.metrics.contains { $0.title == "Code review" && $0.percent == 73 })
     }
 
     @Test
@@ -118,7 +165,8 @@ struct MenuCardModelTests {
             dashboardError: nil,
             account: AccountInfo(email: "codex@example.com", plan: "plus"),
             isRefreshing: false,
-            lastError: nil))
+            lastError: nil,
+            usageBarsShowUsed: false))
 
         #expect(model.metrics.count == 1)
         #expect(model.metrics.first?.title == "Session")
@@ -138,7 +186,8 @@ struct MenuCardModelTests {
             dashboardError: nil,
             account: AccountInfo(email: nil, plan: nil),
             isRefreshing: false,
-            lastError: "Probe failed for Codex"))
+            lastError: "Probe failed for Codex",
+            usageBarsShowUsed: false))
 
         #expect(model.subtitleStyle == .error)
         #expect(model.subtitleText.contains("Probe failed"))
@@ -158,7 +207,8 @@ struct MenuCardModelTests {
             dashboardError: nil,
             account: AccountInfo(email: "codex@example.com", plan: "plus"),
             isRefreshing: false,
-            lastError: nil))
+            lastError: nil,
+            usageBarsShowUsed: false))
 
         #expect(model.planText == nil)
         #expect(model.email.isEmpty)

@@ -2,11 +2,12 @@ import SwiftUI
 
 /// Static progress fill with no implicit animations, used inside the menu card.
 struct UsageProgressBar: View {
-    let percentLeft: Double
+    let percent: Double
     let tint: Color
+    let accessibilityLabel: String
 
     private var clamped: Double {
-        min(100, max(0, self.percentLeft))
+        min(100, max(0, self.percent))
     }
 
     var body: some View {
@@ -21,7 +22,7 @@ struct UsageProgressBar: View {
             }
         }
         .frame(height: 6)
-        .accessibilityLabel("Usage remaining")
+        .accessibilityLabel(self.accessibilityLabel)
         .accessibilityValue("\(Int(self.clamped)) percent")
         .drawingGroup()
     }
