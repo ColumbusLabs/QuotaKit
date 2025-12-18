@@ -56,6 +56,8 @@ struct UsageBreakdownChartMenuView: View {
                         MouseLocationReader { location in
                             self.updateSelection(location: location, model: model, proxy: proxy, geo: geo)
                         }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .contentShape(Rectangle())
                     }
                 }
 
@@ -222,10 +224,7 @@ struct UsageBreakdownChartMenuView: View {
 
         guard let plotAnchor = proxy.plotFrame else { return }
         let plotFrame = geo[plotAnchor]
-        guard plotFrame.contains(location) else {
-            if self.selectedDayKey != nil { self.selectedDayKey = nil }
-            return
-        }
+        guard plotFrame.contains(location) else { return }
 
         let xInPlot = location.x - plotFrame.origin.x
         guard let date: Date = proxy.value(atX: xInPlot) else { return }

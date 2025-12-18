@@ -35,7 +35,9 @@ struct MouseLocationReader: NSViewRepresentable {
             }
 
             let options: NSTrackingArea.Options = [
-                .activeInKeyWindow,
+                // NSMenu popups aren't "key windows", so `.activeInKeyWindow` would drop events and cause hover
+                // state to flicker. `.activeAlways` keeps tracking stable while the menu is open.
+                .activeAlways,
                 .inVisibleRect,
                 .mouseEnteredAndExited,
                 .mouseMoved,
