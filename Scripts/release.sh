@@ -37,6 +37,17 @@ SIGNATURE=$(sign_update --ed-key-file "$KEY_FILE" -p "${APP_NAME}-${MARKETING_VE
 SIZE=$(stat -f%z "${APP_NAME}-${MARKETING_VERSION}.zip")
 PUBDATE=$(LC_ALL=C date '+%a, %d %b %Y %H:%M:%S %z')
 
+NOTES_FILE=$(mktemp /tmp/codexbar-notes-XXXX.md)
+extract_notes_from_changelog "$MARKETING_VERSION" "$NOTES_FILE"
+trap 'rm -f "$KEY_FILE" "$NOTES_FILE"' EXIT
+
+git tag -f "$TAG"
+git push -f origin "$TAG"
+
+gh release create "$TAG" ${APP_NAME}-${MARKETING_VERSION}.zip ${APP_NAME}-${MARKETING_VERSION}.dSYM.zip \
+  --title "${APP_NAME} ${MARKETING_VERSION}" \
+  --notes-file "$NOTES_FILE"
+
 python3 - "$APPCAST" "$MARKETING_VERSION" "$BUILD_NUMBER" "$SIGNATURE" "$SIZE" "$PUBDATE" <<'PY'
 import sys, xml.etree.ElementTree as ET
 appcast, ver, build, sig, size, pub = sys.argv[1:]
@@ -62,9 +73,9 @@ PY
 
 verify_appcast_entry "$APPCAST" "$MARKETING_VERSION" "$KEY_FILE"
 
-NOTES_FILE=$(mktemp /tmp/codexbar-notes-XXXX.md)
-extract_notes_from_changelog "$MARKETING_VERSION" "$NOTES_FILE"
-trap 'rm -f "$KEY_FILE" "$NOTES_FILE"' EXIT
+git add "$APPCAST"
+git commit -m "docs: update appcast for ${MARKETING_VERSION}"
+git push origin main
 
 if [[ "${RUN_SPARKLE_UPDATE_TEST:-0}" == "1" ]]; then
   PREV_TAG=$(git tag --sort=-v:refname | sed -n '2p')
@@ -72,13 +83,8 @@ if [[ "${RUN_SPARKLE_UPDATE_TEST:-0}" == "1" ]]; then
   "$ROOT/Scripts/test_live_update.sh" "$PREV_TAG" "v${MARKETING_VERSION}"
 fi
 
-gh release create "$TAG" ${APP_NAME}-${MARKETING_VERSION}.zip ${APP_NAME}-${MARKETING_VERSION}.dSYM.zip \
-  --title "${APP_NAME} ${MARKETING_VERSION}" \
-  --notes-file "$NOTES_FILE"
-
 check_assets "$TAG" "$ARTIFACT_PREFIX"
 
-git tag -f "$TAG"
-git push origin main --tags
+git push origin --tags
 
 echo "Release ${MARKETING_VERSION} complete."
