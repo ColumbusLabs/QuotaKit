@@ -28,7 +28,7 @@ Use it when you need usage numbers in scripts, CI, or dashboards without UI.
   - `--no-credits` (hide Codex credits in text output).
   - `--pretty` (pretty-print JSON).
   - `--status` (fetch provider status pages and include them in output).
-  - `--openai-web` (Codex only): imports browser cookies (Safari → Chrome) and fetches OpenAI web dashboard data.
+- `--openai-web` (Codex only): imports browser cookies (Safari → Chrome) and fetches OpenAI web dashboard data (code review remaining, usage breakdown, credits usage history when available).
     - `--openai-web-timeout <seconds>` (default: 60)
     - `--openai-web-debug-dump-html` (writes HTML snapshots to `/tmp` when data is missing)
 - Global flags: `-h/--help`, `-V/--version`, `-v/--verbose`, `--log-level <trace|verbose|debug|info|warning|error|critical>`, `--json-output`.

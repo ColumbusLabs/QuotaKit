@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.9.0 — Unreleased
+## 0.9.0 — 2025-12-19
 - Optional OpenAI web access: reuses your signed-in Safari/Chrome session to scrape the Codex usage dashboard, including “Code review” remaining plus “Usage breakdown” and “Credits usage history” submenus (when available).
 - OpenAI web sessions are auto-synced to the Codex CLI email, support multiple accounts, and reset/re-import cookies on account switches to avoid stale cross-account data.
 - OpenAI web: “Credits usage history” waits for the lazy/virtualized table to render, so the submenu can populate even when the chart loads first.
