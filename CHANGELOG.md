@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.9.1 — Unreleased
+- CLI resolution now uses the login shell PATH directly (no more heuristic path scanning), so Codex/Claude match your shell config reliably.
 
 ## 0.9.0 — 2025-12-19
 - New optional OpenAI web access: reuses your signed-in Safari/Chrome session to show **Code review remaining**, **Usage breakdown**, and **Credits usage history** in the menu (no credentials stored).
