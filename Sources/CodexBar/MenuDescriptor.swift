@@ -182,9 +182,11 @@ struct MenuDescriptor {
             .action("Refresh Now", .refresh),
         ]
 
-        // Always show Switch Account…; pick the most relevant provider and never drop the row.
+        // Show "Add Account" if no account, "Switch Account" if logged in
         let loginAction = self.switchAccountTarget(for: provider, store: store)
-        entries.append(.action("Switch Account...", loginAction))
+        let hasAccount = self.hasAccount(for: provider, store: store)
+        let accountLabel = hasAccount ? "Switch Account..." : "Add Account..."
+        entries.append(.action(accountLabel, loginAction))
 
         entries.append(contentsOf: [
             .action("Usage Dashboard", .dashboard),
@@ -225,6 +227,11 @@ struct MenuDescriptor {
         if let provider { return .switchAccount(provider) }
         if let enabled = store.enabledProviders().first { return .switchAccount(enabled) }
         return .switchAccount(.codex)
+    }
+
+    private static func hasAccount(for provider: UsageProvider?, store: UsageStore) -> Bool {
+        let target = provider ?? store.enabledProviders().first ?? .codex
+        return store.snapshot(for: target)?.accountEmail != nil
     }
 
     private static func appendRateWindow(entries: inout [Entry], title: String, window: RateWindow) {

@@ -225,9 +225,13 @@ public struct GeminiStatusProbe: Sendable {
         let email = Self.extractEmailFromToken(creds.idToken)
         let snapshot = try Self.parseAPIResponse(data, email: email)
 
-        // Detect plan: try Drive storage quota first, fall back to model access
-        let plan = await Self.detectPlanFromStorage(accessToken: accessToken, timeout: timeout)
-            ?? Self.detectPlanFromModels(snapshot.modelQuotas)
+        // Detect plan: Workspace accounts get "Workspace", others use storage/model detection
+        let plan: String? = if Self.isWorkspaceAccount(email: email) {
+            "Workspace"
+        } else {
+            await Self.detectPlanFromStorage(accessToken: accessToken, timeout: timeout)
+                ?? Self.detectPlanFromModels(snapshot.modelQuotas)
+        }
 
         return GeminiStatusSnapshot(
             modelQuotas: snapshot.modelQuotas,
@@ -314,6 +318,15 @@ public struct GeminiStatusProbe: Sendable {
         // If user has access to any "pro" models, they're on a paid tier (AI Pro, AI Ultra, etc.)
         let hasProModels = quotas.contains { $0.modelId.lowercased().contains("pro") }
         return hasProModels ? "AI Pro" : nil
+    }
+
+    /// Check if email is a Google Workspace account (non-consumer domain).
+    private static func isWorkspaceAccount(email: String?) -> Bool {
+        guard let email, let domain = email.split(separator: "@").last?.lowercased() else {
+            return false
+        }
+        let consumerDomains = ["gmail.com", "googlemail.com"]
+        return !consumerDomains.contains(String(domain))
     }
 
     private struct OAuthCredentials {

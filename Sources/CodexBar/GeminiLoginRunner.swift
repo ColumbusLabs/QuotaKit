@@ -3,6 +3,19 @@ import CodexBarCore
 import Foundation
 
 enum GeminiLoginRunner {
+    private static let geminiConfigDir = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".gemini")
+    private static let credentialsFile = "oauth_creds.json"
+
+    private static func clearCredentials() {
+        let fm = FileManager.default
+        let filesToDelete = [credentialsFile, "google_accounts.json"]
+        for file in filesToDelete {
+            let path = self.geminiConfigDir.appendingPathComponent(file)
+            try? fm.removeItem(at: path)
+        }
+    }
+
     struct Result {
         enum Outcome {
             case success
@@ -13,7 +26,7 @@ enum GeminiLoginRunner {
         let outcome: Outcome
     }
 
-    static func run() async -> Result {
+    static func run(onCredentialsCreated: (@Sendable () -> Void)? = nil) async -> Result {
         await Task(priority: .userInitiated) {
             let env = ProcessInfo.processInfo.environment
             guard let binary = BinaryLocator.resolveGeminiBinary(
@@ -23,7 +36,15 @@ enum GeminiLoginRunner {
                 return Result(outcome: .missingBinary)
             }
 
-            // Create a temporary shell script that runs gemini (UUID avoids filename collisions)
+            // Clear existing credentials before auth (enables clean account switch)
+            Self.clearCredentials()
+
+            // Start watching for credentials file to be created
+            if let callback = onCredentialsCreated {
+                Self.watchForCredentials(callback: callback)
+            }
+
+            // Create a temporary shell script that runs gemini (auto-prompts for auth when no creds)
             let scriptContent = """
             #!/bin/bash
             cd ~
@@ -52,5 +73,23 @@ enum GeminiLoginRunner {
                 return Result(outcome: .launchFailed(error.localizedDescription))
             }
         }.value
+    }
+
+    /// Watch for credentials file to be created, then call callback once
+    private static func watchForCredentials(callback: @escaping @Sendable () -> Void, timeout: TimeInterval = 300) {
+        let credsPath = self.geminiConfigDir.appendingPathComponent(self.credentialsFile).path
+
+        DispatchQueue.global(qos: .utility).async {
+            let startTime = Date()
+            while Date().timeIntervalSince(startTime) < timeout {
+                if FileManager.default.fileExists(atPath: credsPath) {
+                    // Small delay to ensure file is fully written
+                    Thread.sleep(forTimeInterval: 0.5)
+                    callback()
+                    return
+                }
+                Thread.sleep(forTimeInterval: 1.0)
+            }
+        }
     }
 }

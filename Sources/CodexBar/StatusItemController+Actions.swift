@@ -95,16 +95,22 @@ extension StatusItemController {
                     self.postLoginNotification(for: .claude)
                 }
             case .gemini:
-                let result = await GeminiLoginRunner.run()
+                let store = self.store
+                let result = await GeminiLoginRunner.run {
+                    // Called when credentials file is created (auth complete)
+                    Task { @MainActor in
+                        await store.refresh()
+                        print("[CodexBar] Auto-refreshed after Gemini auth")
+                    }
+                }
                 guard !Task.isCancelled else { return }
                 self.loginPhase = .idle
                 self.presentGeminiLoginResult(result)
                 let outcome = self.describe(result.outcome)
                 self.loginLogger.notice("Gemini login \(outcome, privacy: .public)")
                 print("[CodexBar] Gemini login outcome=\(outcome)")
-                if case .success = result.outcome {
-                    self.postLoginNotification(for: .gemini)
-                }
+                // Refresh triggered by file watcher callback when auth completes
+                return
             }
 
             await self.store.refresh()
@@ -212,6 +218,7 @@ extension StatusItemController {
     private func presentGeminiLoginResult(_ result: GeminiLoginRunner.Result) {
         switch result.outcome {
         case .success:
+            // No alert needed - will auto-refresh when auth completes
             return
         case .missingBinary:
             self.presentLoginAlert(
