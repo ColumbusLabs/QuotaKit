@@ -47,8 +47,11 @@ extension StatusItemController {
         {
             // Only show these when we actually have web-only data.
             // If there is no credit usage history yet, hide both entries (requested behavior).
-            self.addUsageBreakdownSubmenu(to: menu)
-            self.addCreditsHistorySubmenu(to: menu)
+            let addedUsageBreakdown = self.addUsageBreakdownSubmenu(to: menu)
+            let addedCreditsHistory = self.addCreditsHistorySubmenu(to: menu)
+            if addedUsageBreakdown || addedCreditsHistory, menu.items.last?.isSeparatorItem != true {
+                menu.addItem(.separator())
+            }
         }
 
         let actionableSections = Array(descriptor.sections.suffix(2))
@@ -130,9 +133,10 @@ extension StatusItemController {
         }
     }
 
-    private func addCreditsHistorySubmenu(to menu: NSMenu) {
+    @discardableResult
+    private func addCreditsHistorySubmenu(to menu: NSMenu) -> Bool {
         let events = self.store.openAIDashboard?.creditEvents ?? []
-        guard !events.isEmpty else { return }
+        guard !events.isEmpty else { return false }
 
         let item = NSMenuItem(title: "Credits usage history", action: nil, keyEquivalent: "")
         item.isEnabled = true
@@ -154,12 +158,13 @@ extension StatusItemController {
 
         item.submenu = submenu
         menu.addItem(item)
-        menu.addItem(.separator())
+        return true
     }
 
-    private func addUsageBreakdownSubmenu(to menu: NSMenu) {
+    @discardableResult
+    private func addUsageBreakdownSubmenu(to menu: NSMenu) -> Bool {
         let breakdown = self.store.openAIDashboard?.usageBreakdown ?? []
-        guard !breakdown.isEmpty else { return }
+        guard !breakdown.isEmpty else { return false }
 
         let item = NSMenuItem(title: "Usage breakdown (30 days)", action: nil, keyEquivalent: "")
         item.isEnabled = true
@@ -179,7 +184,7 @@ extension StatusItemController {
 
         item.submenu = submenu
         menu.addItem(item)
-        menu.addItem(.separator())
+        return true
     }
 
     private func menuCardModel(for provider: UsageProvider?) -> UsageMenuCardView.Model? {
