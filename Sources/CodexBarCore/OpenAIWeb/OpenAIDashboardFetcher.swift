@@ -76,6 +76,7 @@ public struct OpenAIDashboardFetcher {
         var lastHref: String?
         var lastFlags: (loginRequired: Bool, workspacePicker: Bool, cloudflare: Bool)?
         var codeReviewFirstSeenAt: Date?
+        var anyDashboardSignalAt: Date?
         var creditsHeaderVisibleAt: Date?
         var lastUsageBreakdownDebug: String?
 
@@ -130,6 +131,11 @@ public struct OpenAIDashboardFetcher {
             let usageBreakdown = scrape.usageBreakdown
 
             if codeReview != nil, codeReviewFirstSeenAt == nil { codeReviewFirstSeenAt = Date() }
+            if anyDashboardSignalAt == nil,
+               codeReview != nil || !usageBreakdown.isEmpty || scrape.creditsHeaderPresent
+            {
+                anyDashboardSignalAt = Date()
+            }
             if codeReview != nil, usageBreakdown.isEmpty,
                let debug = scrape.usageBreakdownDebug, !debug.isEmpty,
                debug != lastUsageBreakdownDebug
@@ -137,7 +143,7 @@ public struct OpenAIDashboardFetcher {
                 lastUsageBreakdownDebug = debug
                 log("usage breakdown debug: \(debug)")
             }
-            if codeReview != nil, events.isEmpty {
+            if events.isEmpty, codeReview != nil || !usageBreakdown.isEmpty {
                 log(
                     "credits header present=\(scrape.creditsHeaderPresent) " +
                         "inViewport=\(scrape.creditsHeaderInViewport) didScroll=\(scrape.didScrollToCredits) " +
@@ -148,15 +154,19 @@ public struct OpenAIDashboardFetcher {
                     continue
                 }
 
-                // Give the (often virtualized) credits table a moment to render after hydration/scroll.
-                let elapsed = Date().timeIntervalSince(codeReviewFirstSeenAt ?? Date())
-                if scrape.creditsHeaderPresent, scrape.creditsHeaderInViewport {
-                    if creditsHeaderVisibleAt == nil { creditsHeaderVisibleAt = Date() }
-                    if Date().timeIntervalSince(creditsHeaderVisibleAt ?? Date()) < 2.5 {
-                        try? await Task.sleep(for: .milliseconds(400))
-                        continue
-                    }
-                } else if elapsed < 8 {
+                // Avoid returning early when the usage breakdown chart hydrates before the (often virtualized)
+                // credits table. When we detect a dashboard signal, give credits history a moment to appear.
+                if scrape.creditsHeaderPresent, scrape.creditsHeaderInViewport, creditsHeaderVisibleAt == nil {
+                    creditsHeaderVisibleAt = Date()
+                }
+                if Self.shouldWaitForCreditsHistory(.init(
+                    now: Date(),
+                    anyDashboardSignalAt: anyDashboardSignalAt,
+                    creditsHeaderVisibleAt: creditsHeaderVisibleAt,
+                    creditsHeaderPresent: scrape.creditsHeaderPresent,
+                    creditsHeaderInViewport: scrape.creditsHeaderInViewport,
+                    didScrollToCredits: scrape.didScrollToCredits))
+                {
                     try? await Task.sleep(for: .milliseconds(400))
                     continue
                 }
@@ -188,6 +198,34 @@ public struct OpenAIDashboardFetcher {
             Self.writeDebugArtifacts(html: html, bodyText: lastBody, logger: log)
         }
         throw FetchError.noDashboardData(body: lastBody ?? "")
+    }
+
+    struct CreditsHistoryWaitContext: Sendable {
+        let now: Date
+        let anyDashboardSignalAt: Date?
+        let creditsHeaderVisibleAt: Date?
+        let creditsHeaderPresent: Bool
+        let creditsHeaderInViewport: Bool
+        let didScrollToCredits: Bool
+    }
+
+    nonisolated static func shouldWaitForCreditsHistory(_ context: CreditsHistoryWaitContext) -> Bool {
+        if context.didScrollToCredits { return true }
+
+        // When the header is visible but rows are still empty, wait briefly for the table to render.
+        if context.creditsHeaderPresent, context.creditsHeaderInViewport {
+            if let creditsHeaderVisibleAt = context.creditsHeaderVisibleAt {
+                return context.now.timeIntervalSince(creditsHeaderVisibleAt) < 2.5
+            }
+            return true
+        }
+
+        // Header not in view yet: allow a short grace period after we first detect any dashboard signal so
+        // a scroll (or hydration) can bring the credits section into the DOM.
+        if let anyDashboardSignalAt = context.anyDashboardSignalAt {
+            return context.now.timeIntervalSince(anyDashboardSignalAt) < 6.5
+        }
+        return false
     }
 
     public func clearSessionData(accountEmail: String?) async {
@@ -634,11 +672,22 @@ public struct OpenAIDashboardFetcher {
           creditsHeaderPresent = true;
           const rect = header.getBoundingClientRect();
           creditsHeaderInViewport = rect.top >= 0 && rect.top <= viewportHeight;
-          if (!creditsHeaderInViewport && rows.length === 0 && !window.__codexbarDidScrollToCredits) {
+          if (rows.length === 0 && !window.__codexbarDidScrollToCredits) {
             window.__codexbarDidScrollToCredits = true;
+            // If the table is virtualized/lazy-loaded, we need to scroll to trigger rendering even if the
+            // header is already in view.
             header.scrollIntoView({ block: 'start', inline: 'nearest' });
+            if (creditsHeaderInViewport) {
+              window.scrollBy(0, Math.max(220, viewportHeight * 0.6));
+            }
             didScrollToCredits = true;
           }
+        } else if (rows.length === 0 && !window.__codexbarDidScrollToCredits && scrollHeight > viewportHeight * 1.5) {
+          // The credits history section often isn't part of the DOM until you scroll down. Nudge the page
+          // once so subsequent scrapes can find the header and rows.
+          window.__codexbarDidScrollToCredits = true;
+          window.scrollTo(0, Math.max(0, scrollHeight - viewportHeight - 40));
+          didScrollToCredits = true;
         }
       } catch {}
 
