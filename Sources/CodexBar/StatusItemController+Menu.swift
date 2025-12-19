@@ -44,16 +44,9 @@ extension StatusItemController {
             item.isEnabled = false
             item.representedObject = "menuCard"
             menu.addItem(item)
-            // Keep the menu visually grouped. If we show the credits history submenu, it should sit directly
-            // below the Credits line (no separator in between) with a small spacer to read as a "new line".
-            if hasCreditsHistory {
-                let spacer = NSMenuItem()
-                spacer.view = NSView(
-                    frame: NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: 12)))
-                spacer.isEnabled = false
-                spacer.representedObject = "menuCardCreditsSpacer"
-                menu.addItem(spacer)
-            } else if model.subtitleStyle == .info {
+            // Keep the menu visually grouped.
+            // If we show the credits history submenu, visually separate it from the menu card with a divider.
+            if hasCreditsHistory || model.subtitleStyle == .info {
                 menu.addItem(.separator())
             }
         }
