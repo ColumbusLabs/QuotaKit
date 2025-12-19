@@ -222,7 +222,8 @@ enum ChromeCookieImporter {
         return key
     }
 
-    private static func decryptChromiumValue(_ encryptedValue: Data, key: Data) -> String? {
+    // Exposed for tests.
+    static func decryptChromiumValue(_ encryptedValue: Data, key: Data) -> String? {
         // macOS Chrome cookies typically have `v10` prefix and AES-CBC payload.
         guard encryptedValue.count > 3 else { return nil }
         let prefix = encryptedValue.prefix(3)
@@ -260,7 +261,27 @@ enum ChromeCookieImporter {
         }
         guard status == kCCSuccess else { return nil }
         out.count = outLength
-        return String(data: out, encoding: .utf8)
+
+        // Chromium's macOS cookie encryption prefixes 32 bytes of non-UTF8 data before the actual cookie value.
+        // Other libraries strip this (see `chrome-cookies-secure` / `browser_cookie3`); we do the same so we can
+        // build valid `HTTPCookie`s from decrypted values.
+        let candidate = out.count > 32 ? out.dropFirst(32) : out[...]
+        if let decoded = String(data: Data(candidate), encoding: .utf8) {
+            return Self.cleanValue(decoded)
+        }
+        if let decoded = String(data: out, encoding: .utf8) {
+            return Self.cleanValue(decoded)
+        }
+        return nil
+    }
+
+    private static func cleanValue(_ value: String) -> String {
+        // Strip leading control chars (some decryptors still return values with a few leading bytes).
+        var i = value.startIndex
+        while i < value.endIndex, value[i].unicodeScalars.allSatisfy({ $0.value < 0x20 }) {
+            i = value.index(after: i)
+        }
+        return String(value[i...])
     }
 
     private static func findGenericPassword(service: String, account: String) -> String? {
