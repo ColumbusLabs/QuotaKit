@@ -119,6 +119,15 @@ final class SettingsStore: ObservableObject {
         guard let codexMeta = ProviderRegistry.shared.metadata[.codex],
               let claudeMeta = ProviderRegistry.shared.metadata[.claude] else { return }
 
+        LoginShellPathCache.shared.captureOnce { [weak self] _ in
+            Task { @MainActor in
+                self?.applyProviderDetection(codexMeta: codexMeta, claudeMeta: claudeMeta)
+            }
+        }
+    }
+
+    private func applyProviderDetection(codexMeta: ProviderMetadata, claudeMeta: ProviderMetadata) {
+        guard !self.providerDetectionCompleted else { return }
         let codexInstalled = BinaryLocator.resolveCodexBinary() != nil
         let claudeInstalled = BinaryLocator.resolveClaudeBinary() != nil
 

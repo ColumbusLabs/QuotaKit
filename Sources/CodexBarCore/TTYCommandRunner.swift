@@ -97,9 +97,8 @@ public struct TTYCommandRunner {
         proc.standardInput = secondaryHandle
         proc.standardOutput = secondaryHandle
         proc.standardError = secondaryHandle
-        // Mirror RPC PATH seeding so CLIs installed via npm/nvm/fnm/bun still launch in hardened builds,
-        // but keep the caller’s environment (HOME, LANG, BUN_INSTALL, etc.) so the CLIs can find their
-        // auth/config files.
+        // Use login-shell PATH when available, but keep the caller’s environment (HOME, LANG, etc.) so
+        // the CLIs can find their auth/config files.
         var env = Self.enrichedEnvironment()
         if let workingDirectory = options.workingDirectory {
             proc.currentDirectoryURL = workingDirectory
@@ -394,32 +393,16 @@ public struct TTYCommandRunner {
     public static func which(_ tool: String) -> String? {
         if tool == "codex", let located = BinaryLocator.resolveCodexBinary() { return located }
         if tool == "claude", let located = BinaryLocator.resolveClaudeBinary() { return located }
-        // First try system PATH
-        if let path = runWhich(tool) { return path }
-        // Fallback to common locations (Homebrew, local bins)
-        let home = NSHomeDirectory()
-        var candidates = [
-            "/opt/homebrew/bin/\(tool)",
-            "/usr/local/bin/\(tool)",
-            "\(home)/.local/bin/\(tool)",
-            "\(home)/bin/\(tool)",
-        ]
-        if tool == "claude" {
-            candidates.append(contentsOf: [
-                "\(home)/.claude/local/\(tool)",
-                "\(home)/.claude/bin/\(tool)",
-            ])
-        }
-        for c in candidates where FileManager.default.isExecutableFile(atPath: c) {
-            return c
-        }
-        return nil
+        return self.runWhich(tool)
     }
 
     private static func runWhich(_ tool: String) -> String? {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/which")
         proc.arguments = [tool]
+        var env = ProcessInfo.processInfo.environment
+        env["PATH"] = PathBuilder.effectivePATH(purposes: [.tty, .nodeTooling], env: env)
+        proc.environment = env
         let pipe = Pipe()
         proc.standardOutput = pipe
         try? proc.run()
@@ -432,8 +415,7 @@ public struct TTYCommandRunner {
         return path
     }
 
-    /// Expands PATH with the same defaults we use for Codex RPC, so TTY probes can find CLIs installed via Homebrew,
-    /// bun, nvm, fnm, or npm.
+    /// Uses login-shell PATH when available so TTY probes match the user's shell configuration.
     public static func enrichedPath() -> String {
         PathBuilder.effectivePATH(
             purposes: [.tty, .nodeTooling],
@@ -442,12 +424,14 @@ public struct TTYCommandRunner {
 
     static func enrichedEnvironment(
         baseEnv: [String: String] = ProcessInfo.processInfo.environment,
+        loginPATH: [String]? = LoginShellPathCache.shared.current,
         home: String = NSHomeDirectory()) -> [String: String]
     {
         var env = baseEnv
         env["PATH"] = PathBuilder.effectivePATH(
             purposes: [.tty, .nodeTooling],
             env: baseEnv,
+            loginPATH: loginPATH,
             home: home)
         if env["HOME"]?.isEmpty ?? true {
             env["HOME"] = home

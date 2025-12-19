@@ -6,347 +6,87 @@ import Testing
 @Suite
 struct PathBuilderTests {
     @Test
-    func usesExistingPathFirstAndDedupes() {
+    func prefersLoginShellPathWhenAvailable() {
         let seeded = PathBuilder.effectivePATH(
             purposes: [.rpc],
             env: ["PATH": "/custom/bin:/usr/bin"],
-            loginPATH: nil,
-            resolvedBinaryPaths: ["/tmp/codex/bin"],
-            home: "/home/test")
-        let parts = seeded.split(separator: ":").map(String.init)
-        #expect(parts.first == "/custom/bin")
-        #expect(parts.contains("/opt/homebrew/bin"))
-        #expect(parts.contains("/tmp/codex/bin"))
-        #expect(parts.count(where: { $0 == "/usr/bin" }) == 1)
+            loginPATH: ["/login/bin", "/login/alt"])
+        #expect(seeded == "/login/bin:/login/alt")
     }
 
     @Test
-    func appendsLoginShellPathWhenAvailable() {
+    func fallsBackToExistingPathWhenNoLoginPath() {
+        let seeded = PathBuilder.effectivePATH(
+            purposes: [.tty],
+            env: ["PATH": "/custom/bin:/usr/bin"],
+            loginPATH: nil)
+        #expect(seeded == "/custom/bin:/usr/bin")
+    }
+
+    @Test
+    func usesFallbackWhenNoPathAvailable() {
         let seeded = PathBuilder.effectivePATH(
             purposes: [.tty],
             env: [:],
-            loginPATH: ["/login/path/bin"],
-            resolvedBinaryPaths: [],
-            home: "/home/test")
-        let parts = seeded.split(separator: ":").map(String.init)
-        #expect(parts.first == "/usr/bin")
-        #expect(parts.contains("/login/path/bin"))
+            loginPATH: nil)
+        #expect(seeded == "/usr/bin:/bin:/usr/sbin:/sbin")
     }
 
     @Test
-    func addsResolvedBinaryDirectory() {
-        let seeded = PathBuilder.effectivePATH(
-            purposes: [.rpc],
-            env: ["PATH": "/existing/bin"],
-            loginPATH: nil,
-            resolvedBinaryPaths: ["/detected/codex"],
-            home: "/home/test")
-        let parts = seeded.split(separator: ":").map(String.init)
-        #expect(parts.contains("/detected/codex"))
-    }
-
-    @Test
-    func resolvesCodexFromEnvOverride() throws {
-        let temp = try makeTempDir()
-        let overridePath = temp.appendingPathComponent("codex").path
-        let fm = MockFileManager(
-            executables: [overridePath],
-            directories: [:])
+    func resolvesCodexFromEnvOverride() {
+        let overridePath = "/custom/bin/codex"
+        let fm = MockFileManager(executables: [overridePath])
 
         let resolved = BinaryLocator.resolveCodexBinary(
             env: ["CODEX_CLI_PATH": overridePath],
             loginPATH: nil,
             fileManager: fm,
-            home: temp.path)
+            home: "/home/test")
         #expect(resolved == overridePath)
     }
 
     @Test
-    func resolvesCodexFromNvmVersion() throws {
-        let temp = try makeTempDir()
-        let nvmBin = temp
-            .appendingPathComponent(".nvm")
-            .appendingPathComponent("versions")
-            .appendingPathComponent("node")
-            .appendingPathComponent("v18.0.0")
-            .appendingPathComponent("bin")
-        let codexPath = nvmBin.appendingPathComponent("codex").path
-        let fm = MockFileManager(
-            executables: [codexPath],
-            directories: [
-                nvmBin.deletingLastPathComponent().deletingLastPathComponent().path: ["v18.0.0"],
-            ])
-
+    func resolvesCodexFromLoginPath() {
+        let fm = MockFileManager(executables: ["/login/bin/codex"])
         let resolved = BinaryLocator.resolveCodexBinary(
-            env: [:],
-            loginPATH: nil,
-            fileManager: fm,
-            home: temp.path)
-        #expect(resolved == codexPath)
-    }
-
-    @Test
-    func resolvesCodexFromFnmNodeVersions() throws {
-        let temp = try makeTempDir()
-        let nodeVersions = temp
-            .appendingPathComponent(".local")
-            .appendingPathComponent("share")
-            .appendingPathComponent("fnm")
-            .appendingPathComponent("node-versions")
-        let codexPath = nodeVersions
-            .appendingPathComponent("v20.8.0")
-            .appendingPathComponent("installation")
-            .appendingPathComponent("bin")
-            .appendingPathComponent("codex")
-            .path
-        let fm = MockFileManager(
-            executables: [codexPath],
-            directories: [
-                nodeVersions.path: ["v20.8.0"],
-            ])
-
-        let resolved = BinaryLocator.resolveCodexBinary(
-            env: [:],
-            loginPATH: nil,
-            fileManager: fm,
-            home: temp.path)
-        #expect(resolved == codexPath)
-    }
-
-    @Test
-    func resolvesCodexFromFnmAliasDefault() throws {
-        let temp = try makeTempDir()
-        let aliases = temp
-            .appendingPathComponent(".local")
-            .appendingPathComponent("share")
-            .appendingPathComponent("fnm")
-            .appendingPathComponent("aliases")
-        let codexPath = aliases
-            .appendingPathComponent("default")
-            .appendingPathComponent("bin")
-            .appendingPathComponent("codex")
-            .path
-        let fm = MockFileManager(
-            executables: [codexPath],
-            directories: [
-                aliases.path: ["default"],
-            ])
-
-        let resolved = BinaryLocator.resolveCodexBinary(
-            env: [:],
-            loginPATH: nil,
-            fileManager: fm,
-            home: temp.path)
-        #expect(resolved == codexPath)
-    }
-
-    @Test
-    func resolvesCodexFromFnmEnvOverride() throws {
-        let temp = try makeTempDir()
-        let fnmDir = temp.appendingPathComponent("fnmdir")
-        let nodeVersions = fnmDir.appendingPathComponent("node-versions")
-        let codexPath = nodeVersions
-            .appendingPathComponent("v18.0.0")
-            .appendingPathComponent("installation")
-            .appendingPathComponent("bin")
-            .appendingPathComponent("codex")
-            .path
-        let fm = MockFileManager(
-            executables: [codexPath],
-            directories: [
-                nodeVersions.path: ["v18.0.0"],
-            ])
-
-        let resolved = BinaryLocator.resolveCodexBinary(
-            env: ["FNM_DIR": fnmDir.path],
-            loginPATH: nil,
-            fileManager: fm,
-            home: temp.path)
-        #expect(resolved == codexPath)
-    }
-
-    @Test
-    func resolvesCodexFromMiseShim() throws {
-        let temp = try makeTempDir()
-        let miseShim = temp
-            .appendingPathComponent(".local")
-            .appendingPathComponent("share")
-            .appendingPathComponent("mise")
-            .appendingPathComponent("shims")
-            .appendingPathComponent("codex")
-            .path
-        let fm = MockFileManager(
-            executables: [miseShim],
-            directories: [:])
-
-        let resolved = BinaryLocator.resolveCodexBinary(
-            env: [:],
-            loginPATH: nil,
-            fileManager: fm,
-            home: temp.path)
-        #expect(resolved == miseShim)
-    }
-
-    @Test
-    func resolvesCodexFromMiseInstallsPrefersNewestSemver() throws {
-        let temp = try makeTempDir()
-        let installsRoot = temp
-            .appendingPathComponent(".local")
-            .appendingPathComponent("share")
-            .appendingPathComponent("mise")
-            .appendingPathComponent("installs")
-        let nodeRoot = installsRoot.appendingPathComponent("node")
-        let oldCodex = nodeRoot
-            .appendingPathComponent("v18.0.0")
-            .appendingPathComponent("bin")
-            .appendingPathComponent("codex")
-            .path
-        let newCodex = nodeRoot
-            .appendingPathComponent("v20.0.0")
-            .appendingPathComponent("bin")
-            .appendingPathComponent("codex")
-            .path
-        let fm = MockFileManager(
-            executables: [oldCodex, newCodex],
-            directories: [
-                installsRoot.path: ["node"],
-                nodeRoot.path: ["v18.0.0", "v20.0.0"],
-            ])
-
-        let resolved = BinaryLocator.resolveCodexBinary(
-            env: [:],
-            loginPATH: nil,
-            fileManager: fm,
-            home: temp.path)
-        #expect(resolved == newCodex)
-    }
-
-    @Test
-    func resolvesCodexFromRtxDefaultRoot() throws {
-        let temp = try makeTempDir()
-        let rtxShim = temp
-            .appendingPathComponent(".local")
-            .appendingPathComponent("share")
-            .appendingPathComponent("rtx")
-            .appendingPathComponent("shims")
-            .appendingPathComponent("codex")
-            .path
-        let fm = MockFileManager(
-            executables: [rtxShim],
-            directories: [:])
-
-        let resolved = BinaryLocator.resolveCodexBinary(
-            env: [:],
-            loginPATH: nil,
-            fileManager: fm,
-            home: temp.path)
-        #expect(resolved == rtxShim)
-    }
-
-    @Test
-    func prefersHigherSemverForNvm() throws {
-        let temp = try makeTempDir()
-        let nvmBin = temp
-            .appendingPathComponent(".nvm")
-            .appendingPathComponent("versions")
-            .appendingPathComponent("node")
-        let oldPath = nvmBin
-            .appendingPathComponent("v9.0.0")
-            .appendingPathComponent("bin")
-            .appendingPathComponent("codex")
-            .path
-        let newPath = nvmBin
-            .appendingPathComponent("v20.0.0")
-            .appendingPathComponent("bin")
-            .appendingPathComponent("codex")
-            .path
-        let fm = MockFileManager(
-            executables: [oldPath, newPath],
-            directories: [
-                nvmBin.path: ["v9.0.0", "v20.0.0"],
-            ])
-
-        let resolved = BinaryLocator.resolveCodexBinary(
-            env: [:],
-            loginPATH: nil,
-            fileManager: fm,
-            home: temp.path)
-        #expect(resolved == newPath)
-    }
-
-    @Test
-    func includesLoginPathWhenNoExistingPath() {
-        let seeded = PathBuilder.effectivePATH(
-            purposes: [.tty],
-            env: [:],
+            env: ["PATH": "/env/bin"],
             loginPATH: ["/login/bin"],
-            resolvedBinaryPaths: [],
+            fileManager: fm,
             home: "/home/test")
-        let parts = seeded.split(separator: ":").map(String.init)
-        #expect(parts.contains("/login/bin"))
+        #expect(resolved == "/login/bin/codex")
     }
 
     @Test
-    func resolvesClaudeFromDotClaudeLocal() throws {
-        let temp = try makeTempDir()
-        let claudePath = temp
-            .appendingPathComponent(".claude")
-            .appendingPathComponent("local")
-            .appendingPathComponent("claude")
-            .path
-        let fm = MockFileManager(
-            executables: [claudePath],
-            directories: [:])
-
-        let resolved = BinaryLocator.resolveClaudeBinary(
-            env: [:],
+    func resolvesCodexFromEnvPath() {
+        let fm = MockFileManager(executables: ["/env/bin/codex"])
+        let resolved = BinaryLocator.resolveCodexBinary(
+            env: ["PATH": "/env/bin:/usr/bin"],
             loginPATH: nil,
             fileManager: fm,
-            home: temp.path)
-        #expect(resolved == claudePath)
+            home: "/home/test")
+        #expect(resolved == "/env/bin/codex")
     }
 
     @Test
-    func resolvesClaudeFromDotClaudeBin() throws {
-        let temp = try makeTempDir()
-        let claudePath = temp
-            .appendingPathComponent(".claude")
-            .appendingPathComponent("bin")
-            .appendingPathComponent("claude")
-            .path
-        let fm = MockFileManager(
-            executables: [claudePath],
-            directories: [:])
-
+    func resolvesClaudeFromLoginPath() {
+        let fm = MockFileManager(executables: ["/login/bin/claude"])
         let resolved = BinaryLocator.resolveClaudeBinary(
-            env: [:],
-            loginPATH: nil,
+            env: ["PATH": "/env/bin"],
+            loginPATH: ["/login/bin"],
             fileManager: fm,
-            home: temp.path)
-        #expect(resolved == claudePath)
-    }
-
-    private func makeTempDir() throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        return url
+            home: "/home/test")
+        #expect(resolved == "/login/bin/claude")
     }
 }
 
 private final class MockFileManager: FileManager {
     private let executables: Set<String>
-    private let dirs: [String: [String]]
 
-    init(executables: Set<String>, directories: [String: [String]]) {
+    init(executables: Set<String>) {
         self.executables = executables
-        self.dirs = directories
     }
 
     override func isExecutableFile(atPath path: String) -> Bool {
         self.executables.contains(path)
-    }
-
-    override func contentsOfDirectory(atPath path: String) throws -> [String] {
-        self.dirs[path] ?? []
     }
 }

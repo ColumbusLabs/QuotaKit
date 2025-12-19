@@ -12,20 +12,24 @@ struct TTYCommandRunnerEnvTests {
             "LANG": "en_US.UTF-8",
         ]
 
-        let merged = TTYCommandRunner.enrichedEnvironment(baseEnv: baseEnv, home: "/Users/tester")
+        let merged = TTYCommandRunner.enrichedEnvironment(
+            baseEnv: baseEnv,
+            loginPATH: nil,
+            home: "/Users/tester")
 
         #expect(merged["HOME"] == "/Users/tester")
         #expect(merged["LANG"] == "en_US.UTF-8")
         #expect(merged["TERM"] == "xterm-256color")
 
-        let parts = (merged["PATH"] ?? "").split(separator: ":").map(String.init)
-        #expect(parts.contains("/custom/bin"))
-        #expect(parts.contains("/Users/tester/.bun/bin"))
+        #expect(merged["PATH"] == "/custom/bin")
     }
 
     @Test
     func backfillsHomeWhenMissing() {
-        let merged = TTYCommandRunner.enrichedEnvironment(baseEnv: ["PATH": "/custom/bin"], home: "/Users/fallback")
+        let merged = TTYCommandRunner.enrichedEnvironment(
+            baseEnv: ["PATH": "/custom/bin"],
+            loginPATH: nil,
+            home: "/Users/fallback")
         #expect(merged["HOME"] == "/Users/fallback")
         #expect(merged["TERM"] == "xterm-256color")
     }
@@ -39,6 +43,7 @@ struct TTYCommandRunnerEnvTests {
                 "BUN_INSTALL": "/Users/tester/.bun",
                 "SHELL": "/bin/zsh",
             ],
+            loginPATH: nil,
             home: "/Users/tester")
 
         #expect(merged["TERM"] == "vt100")

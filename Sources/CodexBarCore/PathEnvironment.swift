@@ -64,7 +64,7 @@ public enum BinaryLocator {
         env: [String: String],
         loginPATH: [String]?,
         fileManager: FileManager,
-        home: String) -> String?
+        home _: String) -> String?
     {
         // swiftlint:enable function_parameter_count
         // 1) Explicit override
@@ -72,7 +72,14 @@ public enum BinaryLocator {
             return override
         }
 
-        // 2) Existing PATH
+        // 2) Login-shell PATH (captured once per launch)
+        if let loginPATH,
+           let pathHit = self.find(name, in: loginPATH, fileManager: fileManager)
+        {
+            return pathHit
+        }
+
+        // 3) Existing PATH
         if let existingPATH = env["PATH"],
            let pathHit = self.find(
                name,
@@ -82,92 +89,13 @@ public enum BinaryLocator {
             return pathHit
         }
 
-        // 3) Login-shell PATH (captured once per launch)
-        if let loginPATH,
-           let pathHit = self.find(name, in: loginPATH, fileManager: fileManager)
-        {
+        // 4) Minimal fallback
+        let fallback = ["/usr/bin", "/bin", "/usr/sbin", "/sbin"]
+        if let pathHit = self.find(name, in: fallback, fileManager: fileManager) {
             return pathHit
         }
 
-        // 4) Deterministic candidates
-        var directCandidates = [
-            "/opt/homebrew/bin/\(name)",
-            "/usr/local/bin/\(name)",
-            "\(home)/.local/bin/\(name)",
-            "\(home)/bin/\(name)",
-            "\(home)/.bun/bin/\(name)",
-            "\(home)/.npm-global/bin/\(name)",
-        ]
-        if name == "claude" {
-            directCandidates.append(contentsOf: [
-                "\(home)/.claude/local/\(name)",
-                "\(home)/.claude/bin/\(name)",
-            ])
-        }
-        if let hit = directCandidates.first(where: { fileManager.isExecutableFile(atPath: $0) }) {
-            return hit
-        }
-
-        // 5) Version managers (bounded scan)
-        if let nvmHit = self.scanManagedVersions(
-            root: "\(env["NVM_DIR"] ?? "\(home)/.nvm")/versions/node",
-            binary: name,
-            fileManager: fileManager)
-        {
-            return nvmHit
-        }
-        if let fnmHit = self.scanFnm(
-            roots: [
-                env["FNM_DIR"] ?? "\(home)/.local/share/fnm",
-                "\(home)/Library/Application Support/fnm",
-                "\(home)/.fnm",
-            ],
-            binary: name,
-            fileManager: fileManager)
-        {
-            return fnmHit
-        }
-
-        let miseRoots = [
-            env["MISE_DATA_DIR"],
-            env["RTX_DATA_DIR"],
-            "\(home)/.local/share/mise",
-            "\(home)/.local/share/rtx",
-            "\(home)/.mise",
-        ].compactMap(\.self)
-        if let miseHit = self.scanMise(roots: miseRoots, binary: name, fileManager: fileManager) {
-            return miseHit
-        }
-
         return nil
-    }
-
-    public static func directories(
-        for purposes: Set<PathPurpose>,
-        env: [String: String],
-        loginPATH: [String]?,
-        fileManager: FileManager = .default,
-        home: String = NSHomeDirectory()) -> [String]
-    {
-        guard purposes.contains(.rpc) || purposes.contains(.tty) else { return [] }
-        var dirs: [String] = []
-        if let codex = self.resolveCodexBinary(
-            env: env,
-            loginPATH: loginPATH,
-            fileManager: fileManager,
-            home: home)
-        {
-            dirs.append(URL(fileURLWithPath: codex).deletingLastPathComponent().path)
-        }
-        if let claude = self.resolveClaudeBinary(
-            env: env,
-            loginPATH: loginPATH,
-            fileManager: fileManager,
-            home: home)
-        {
-            dirs.append(URL(fileURLWithPath: claude).deletingLastPathComponent().path)
-        }
-        return dirs
     }
 
     private static func find(_ binary: String, in paths: [String], fileManager: FileManager) -> String? {
@@ -179,136 +107,24 @@ public enum BinaryLocator {
         }
         return nil
     }
-
-    private static func scanManagedVersions(root: String, binary: String, fileManager: FileManager) -> String? {
-        guard let versions = try? fileManager.contentsOfDirectory(atPath: root) else { return nil }
-        for version in versions.sorted(by: self.semverDescending) {
-            let candidate = "\(root)/\(version)/bin/\(binary)"
-            if fileManager.isExecutableFile(atPath: candidate) {
-                return candidate
-            }
-        }
-        return nil
-    }
-
-    /// fnm installs live under node-versions/<ver>/installation/bin and aliases/<name>/bin.
-    private static func scanFnm(roots: [String], binary: String, fileManager: FileManager) -> String? {
-        for root in roots {
-            // 1) node-versions/<ver>/installation/bin/<binary>
-            let nodeVersions = "\(root)/node-versions"
-            if let versions = try? fileManager.contentsOfDirectory(atPath: nodeVersions) {
-                for version in versions.sorted(by: self.semverDescending) {
-                    let candidate = "\(nodeVersions)/\(version)/installation/bin/\(binary)"
-                    if fileManager.isExecutableFile(atPath: candidate) {
-                        return candidate
-                    }
-                }
-            }
-
-            // 2) aliases/default|current/bin/<binary> (then other aliases)
-            let aliasesDir = "\(root)/aliases"
-            if let aliases = try? fileManager.contentsOfDirectory(atPath: aliasesDir) {
-                let preferred = ["default", "current"]
-                let ordered = preferred + aliases.filter { !preferred.contains($0) }.sorted()
-                for name in ordered {
-                    let candidate = "\(aliasesDir)/\(name)/bin/\(binary)"
-                    if fileManager.isExecutableFile(atPath: candidate) {
-                        return candidate
-                    }
-                }
-            }
-        }
-        return nil
-    }
-
-    private static func scanMise(roots: [String], binary: String, fileManager: FileManager) -> String? {
-        for root in roots {
-            // Shims directory is the primary lookup for mise-managed tools.
-            let shim = "\(root)/shims/\(binary)"
-            if fileManager.isExecutableFile(atPath: shim) {
-                return shim
-            }
-
-            // Fallback to installed tool locations: installs/<tool>/<version>/bin/<binary>
-            let installsRoot = "\(root)/installs"
-            guard let tools = try? fileManager.contentsOfDirectory(atPath: installsRoot) else { continue }
-            for tool in tools.sorted() {
-                let toolRoot = "\(installsRoot)/\(tool)"
-                if let versions = try? fileManager.contentsOfDirectory(atPath: toolRoot) {
-                    for version in versions.sorted(by: self.semverDescending) {
-                        let candidate = "\(toolRoot)/\(version)/bin/\(binary)"
-                        if fileManager.isExecutableFile(atPath: candidate) {
-                            return candidate
-                        }
-                    }
-                }
-            }
-        }
-        return nil
-    }
-
-    private static func semverDescending(_ lhs: String, _ rhs: String) -> Bool {
-        func parse(_ string: String) -> [Int] {
-            let trimmed = string.hasPrefix("v") ? String(string.dropFirst()) : string
-            return trimmed.split(separator: ".").compactMap { Int($0) }
-        }
-        let a = parse(lhs)
-        let b = parse(rhs)
-        let maxCount = max(a.count, b.count)
-        for idx in 0..<maxCount {
-            let av = idx < a.count ? a[idx] : 0
-            let bv = idx < b.count ? b[idx] : 0
-            if av == bv { continue }
-            return av > bv // descending
-        }
-        return lhs < rhs // stable tie-breaker
-    }
 }
 
 public enum PathBuilder {
     public static func effectivePATH(
-        purposes: Set<PathPurpose>,
+        purposes _: Set<PathPurpose>,
         env: [String: String] = ProcessInfo.processInfo.environment,
         loginPATH: [String]? = LoginShellPathCache.shared.current,
-        resolvedBinaryPaths: [String]? = nil,
-        home: String = NSHomeDirectory()) -> String
+        home _: String = NSHomeDirectory()) -> String
     {
-        var parts: [String] = []
+        if let loginPATH, !loginPATH.isEmpty {
+            return loginPATH.joined(separator: ":")
+        }
 
         if let existing = env["PATH"], !existing.isEmpty {
-            parts.append(contentsOf: existing.split(separator: ":").map(String.init))
-        } else {
-            parts.append(contentsOf: ["/usr/bin", "/bin", "/usr/sbin", "/sbin"])
+            return existing
         }
 
-        // Minimal static baseline
-        parts.append("/opt/homebrew/bin")
-        parts.append("/usr/local/bin")
-        parts.append("\(home)/.local/bin")
-        parts.append("\(home)/bin")
-        parts.append("\(home)/.bun/bin")
-        parts.append("\(home)/.npm-global/bin")
-
-        // Directories for resolved binaries
-        let binaries = resolvedBinaryPaths
-            ?? BinaryLocator.directories(for: purposes, env: env, loginPATH: loginPATH, home: home)
-        parts.append(contentsOf: binaries)
-
-        // Optional login-shell PATH captured once per launch
-        if let loginPATH {
-            parts.append(contentsOf: loginPATH)
-        }
-
-        var seen = Set<String>()
-        let deduped = parts.compactMap { part -> String? in
-            guard !part.isEmpty else { return nil }
-            if seen.insert(part).inserted {
-                return part
-            }
-            return nil
-        }
-
-        return deduped.joined(separator: ":")
+        return ["/usr/bin", "/bin", "/usr/sbin", "/sbin"].joined(separator: ":")
     }
 
     public static func debugSnapshot(
