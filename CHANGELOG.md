@@ -3,6 +3,7 @@
 ## 0.9.0 — Unreleased
 - Optional OpenAI web access: reuses your signed-in Safari/Chrome session to scrape the Codex usage dashboard, including “Code review” remaining plus “Usage breakdown” and “Credits usage history” submenus (when available).
 - OpenAI web sessions are auto-synced to the Codex CLI email, support multiple accounts, and reset/re-import cookies on account switches to avoid stale cross-account data.
+- OpenAI web: credits usage history is less flaky by waiting for the lazy/virtualized table to render (avoids a missing submenu when the chart loads first).
 - Fix Chrome cookie import (macOS v10): strip Chromium’s 32-byte decrypted prefix so signed-in Chrome sessions are detected reliably (fixes “Chrome logged in but not detected”).
 - OpenAI web onboarding improvements: clearer permission errors plus a one-click “Enable Full Disk Access” helper and auto-retry when returning from System Settings.
 - Usage breakdown submenu: compact stacked bar chart (Swift Charts) with hover details for day/service totals.
