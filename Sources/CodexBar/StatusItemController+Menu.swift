@@ -49,6 +49,12 @@ extension StatusItemController {
                 // directly below the Credits line (no separator in between).
                 if hasCreditsHistory == false {
                     menu.addItem(.separator())
+                } else {
+                    let spacer = NSMenuItem()
+                    spacer.view = NSView(frame: NSRect(origin: .zero, size: NSSize(width: 1, height: 6)))
+                    spacer.isEnabled = false
+                    spacer.representedObject = "menuCardCreditsSpacer"
+                    menu.addItem(spacer)
                 }
             }
         }
