@@ -1,0 +1,216 @@
+import AppKit
+import CodexBarCore
+import OSLog
+
+extension StatusItemController {
+    // MARK: - Actions reachable from menus
+
+    @objc func refreshNow() {
+        Task { await self.store.refresh() }
+    }
+
+    @objc func openDashboard() {
+        let preferred = self.lastMenuProvider
+            ?? (self.store.isEnabled(.codex) ? .codex : self.store.enabledProviders().first)
+
+        let provider = preferred ?? .codex
+        let meta = self.store.metadata(for: provider)
+
+        // For Claude, route subscription users to claude.ai/settings/usage instead of console billing
+        let urlString: String? = if provider == .claude, self.store.isClaudeSubscription() {
+            meta.subscriptionDashboardURL ?? meta.dashboardURL
+        } else {
+            meta.dashboardURL
+        }
+
+        guard let urlString, let url = URL(string: urlString) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    @objc func openStatusPage() {
+        let preferred = self.lastMenuProvider
+            ?? (self.store.isEnabled(.codex) ? .codex : self.store.enabledProviders().first)
+
+        let provider = preferred ?? .codex
+        guard
+            let urlString = self.store.metadata(for: provider).statusPageURL,
+            let url = URL(string: urlString)
+        else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    @objc func runSwitchAccount(_ sender: NSMenuItem) {
+        if self.loginTask != nil {
+            self.loginLogger.notice("Switch Account tap ignored: login already in-flight")
+            print("[CodexBar] Switch Account ignored (busy)")
+            return
+        }
+
+        let rawProvider = sender.representedObject as? String
+        let provider = rawProvider.flatMap(UsageProvider.init(rawValue:)) ?? self.lastMenuProvider ?? .codex
+        self.loginLogger.notice("Switch Account tapped (provider=\(provider.rawValue, privacy: .public))")
+        print("[CodexBar] Switch Account tapped for provider=\(provider.rawValue)")
+
+        self.loginTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                self.activeLoginProvider = nil
+                self.loginTask = nil
+            }
+            self.activeLoginProvider = provider
+            self.loginPhase = .requesting
+            self.loginLogger.notice("Starting login task for \(provider.rawValue, privacy: .public)")
+            print("[CodexBar] Starting login task for \(provider.rawValue)")
+
+            switch provider {
+            case .codex:
+                let result = await CodexLoginRunner.run(timeout: 120)
+                guard !Task.isCancelled else { return }
+                self.loginPhase = .idle
+                self.presentCodexLoginResult(result)
+                let outcome = self.describe(result.outcome)
+                let length = result.output.count
+                self.loginLogger.notice("Codex login \(outcome, privacy: .public) len=\(length)")
+                print("[CodexBar] Codex login outcome=\(outcome) len=\(length)")
+                if case .success = result.outcome {
+                    self.postLoginNotification(for: .codex)
+                }
+            case .claude:
+                let phaseHandler: @Sendable (ClaudeLoginRunner.Phase) -> Void = { [weak self] phase in
+                    Task { @MainActor in
+                        switch phase {
+                        case .requesting: self?.loginPhase = .requesting
+                        case .waitingBrowser: self?.loginPhase = .waitingBrowser
+                        }
+                    }
+                }
+                let result = await ClaudeLoginRunner.run(timeout: 120, onPhaseChange: phaseHandler)
+                guard !Task.isCancelled else { return }
+                self.loginPhase = .idle
+                self.presentClaudeLoginResult(result)
+                let outcome = self.describe(result.outcome)
+                let length = result.output.count
+                self.loginLogger.notice("Claude login \(outcome, privacy: .public) len=\(length)")
+                print("[CodexBar] Claude login outcome=\(outcome) len=\(length)")
+                if case .success = result.outcome {
+                    self.postLoginNotification(for: .claude)
+                }
+            }
+
+            await self.store.refresh()
+            print("[CodexBar] Triggered refresh after login")
+        }
+    }
+
+    @objc func showSettingsGeneral() { self.openSettings(tab: .general) }
+
+    @objc func showSettingsAbout() { self.openSettings(tab: .about) }
+
+    private func openSettings(tab: PreferencesTab) {
+        DispatchQueue.main.async {
+            self.preferencesSelection.tab = tab
+            NSApp.activate(ignoringOtherApps: true)
+            NotificationCenter.default.post(
+                name: .codexbarOpenSettings,
+                object: nil,
+                userInfo: ["tab": tab.rawValue])
+        }
+    }
+
+    @objc func quit() {
+        NSApp.terminate(nil)
+    }
+
+    @objc func copyError(_ sender: NSMenuItem) {
+        if let err = sender.representedObject as? String {
+            let pb = NSPasteboard.general
+            pb.clearContents()
+            pb.setString(err, forType: .string)
+        }
+    }
+
+    private func presentCodexLoginResult(_ result: CodexLoginRunner.Result) {
+        switch result.outcome {
+        case .success:
+            return
+        case .missingBinary:
+            self.presentLoginAlert(
+                title: "Codex CLI not found",
+                message: "Install the Codex CLI (npm i -g @openai/codex) and try again.")
+        case let .launchFailed(message):
+            self.presentLoginAlert(title: "Could not start codex login", message: message)
+        case .timedOut:
+            self.presentLoginAlert(
+                title: "Codex login timed out",
+                message: self.trimmedLoginOutput(result.output))
+        case let .failed(status):
+            let statusLine = "codex login exited with status \(status)."
+            let message = self.trimmedLoginOutput(result.output.isEmpty ? statusLine : result.output)
+            self.presentLoginAlert(title: "Codex login failed", message: message)
+        }
+    }
+
+    private func presentClaudeLoginResult(_ result: ClaudeLoginRunner.Result) {
+        switch result.outcome {
+        case .success:
+            return
+        case .missingBinary:
+            self.presentLoginAlert(
+                title: "Claude CLI not found",
+                message: "Install the Claude CLI (npm i -g @anthropic-ai/claude-cli) and try again.")
+        case let .launchFailed(message):
+            self.presentLoginAlert(title: "Could not start claude /login", message: message)
+        case .timedOut:
+            self.presentLoginAlert(
+                title: "Claude login timed out",
+                message: self.trimmedLoginOutput(result.output))
+        case let .failed(status):
+            let statusLine = "claude /login exited with status \(status)."
+            let message = self.trimmedLoginOutput(result.output.isEmpty ? statusLine : result.output)
+            self.presentLoginAlert(title: "Claude login failed", message: message)
+        }
+    }
+
+    private func describe(_ outcome: CodexLoginRunner.Result.Outcome) -> String {
+        switch outcome {
+        case .success: "success"
+        case .timedOut: "timedOut"
+        case let .failed(status): "failed(status: \(status))"
+        case .missingBinary: "missingBinary"
+        case let .launchFailed(message): "launchFailed(\(message))"
+        }
+    }
+
+    private func describe(_ outcome: ClaudeLoginRunner.Result.Outcome) -> String {
+        switch outcome {
+        case .success: "success"
+        case .timedOut: "timedOut"
+        case let .failed(status): "failed(status: \(status))"
+        case .missingBinary: "missingBinary"
+        case let .launchFailed(message): "launchFailed(\(message))"
+        }
+    }
+
+    private func presentLoginAlert(title: String, message: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.runModal()
+    }
+
+    private func trimmedLoginOutput(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let limit = 600
+        if trimmed.isEmpty { return "No output captured." }
+        if trimmed.count <= limit { return trimmed }
+        let idx = trimmed.index(trimmed.startIndex, offsetBy: limit)
+        return "\(trimmed[..<idx])…"
+    }
+
+    private func postLoginNotification(for provider: UsageProvider) {
+        let title = provider == .claude ? "Claude login successful" : "Codex login successful"
+        let body = "You can return to the app; authentication finished."
+        AppNotifications.shared.post(idPrefix: "login-\(provider.rawValue)", title: title, body: body)
+    }
+}
