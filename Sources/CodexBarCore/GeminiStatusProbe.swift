@@ -4,6 +4,7 @@ import os.log
 public struct GeminiModelQuota: Sendable {
     public let modelId: String
     public let percentLeft: Double
+    public let resetTime: Date?
     public let resetDescription: String?
 }
 
@@ -25,7 +26,7 @@ public struct GeminiStatusSnapshot: Sendable {
     }
 
     /// Converts Gemini quotas to a unified UsageSnapshot.
-    /// Groups quotas by tier: Pro (24h window) as primary, Flash (14h window) as secondary.
+    /// Groups quotas by tier: Pro (24h window) as primary, Flash (24h window) as secondary.
     public func toUsageSnapshot() -> UsageSnapshot {
         let lower = self.modelQuotas.map { ($0.modelId.lowercased(), $0) }
         let flashQuotas = lower.filter { $0.0.contains("flash") }.map(\.1)
@@ -37,14 +38,14 @@ public struct GeminiStatusSnapshot: Sendable {
         let primary = RateWindow(
             usedPercent: proMin.map { 100 - $0.percentLeft } ?? 0,
             windowMinutes: 1440,
-            resetsAt: nil,
+            resetsAt: proMin?.resetTime,
             resetDescription: proMin?.resetDescription)
 
         let secondary: RateWindow? = flashMin.map {
             RateWindow(
                 usedPercent: 100 - $0.percentLeft,
-                windowMinutes: 840,
-                resetsAt: nil,
+                windowMinutes: 1440,
+                resetsAt: $0.resetTime,
                 resetDescription: $0.resetDescription)
         }
 
@@ -177,12 +178,12 @@ public struct GeminiStatusProbe: Sendable {
                 log: .default,
                 type: .info,
                 "\(expiry)")
-            
+
             guard let refreshToken = creds.refreshToken else {
                 os_log("[GeminiStatusProbe] No refresh token available", log: .default, type: .error)
                 throw GeminiStatusProbeError.notLoggedIn
             }
-            
+
             accessToken = try await Self.refreshAccessToken(refreshToken: refreshToken, timeout: timeout)
         }
 
@@ -200,9 +201,9 @@ public struct GeminiStatusProbe: Sendable {
 
         // Include project ID if discovered for accurate quota
         if let projectId {
-            request.httpBody = "{\"project\": \"\(projectId)\"}".data(using: .utf8)
+            request.httpBody = Data("{\"project\": \"\(projectId)\"}".utf8)
         } else {
-            request.httpBody = "{}".data(using: .utf8)
+            request.httpBody = Data("{}".utf8)
         }
         request.timeoutInterval = timeout
 
@@ -236,7 +237,7 @@ public struct GeminiStatusProbe: Sendable {
     }
 
     private static func discoverGeminiProjectId(accessToken: String, timeout: TimeInterval) async throws -> String? {
-        guard let url = URL(string: Self.projectsEndpoint) else { return nil }
+        guard let url = URL(string: projectsEndpoint) else { return nil }
 
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
@@ -277,7 +278,7 @@ public struct GeminiStatusProbe: Sendable {
     /// Detect plan from Google Drive storage quota (most reliable method).
     /// 2 TB = AI Pro, 30 TB = AI Ultra
     private static func detectPlanFromStorage(accessToken: String, timeout: TimeInterval) async -> String? {
-        guard let url = URL(string: Self.driveAboutEndpoint) else { return nil }
+        guard let url = URL(string: driveAboutEndpoint) else { return nil }
 
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
@@ -329,9 +330,11 @@ public struct GeminiStatusProbe: Sendable {
 
     private static func extractOAuthCredentials() -> OAuthClientCredentials? {
         let env = ProcessInfo.processInfo.environment
-        
+
         // Find the gemini binary
-        guard let geminiPath = BinaryLocator.resolveGeminiBinary(env: env, loginPATH: LoginShellPathCache.shared.current)
+        guard let geminiPath = BinaryLocator.resolveGeminiBinary(
+            env: env,
+            loginPATH: LoginShellPathCache.shared.current)
             ?? TTYCommandRunner.which("gemini")
         else {
             return nil
@@ -352,15 +355,17 @@ public struct GeminiStatusProbe: Sendable {
         // Typical path: .../libexec/lib/node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/code_assist/oauth2.js
         let binDir = (realPath as NSString).deletingLastPathComponent
         let baseDir = (binDir as NSString).deletingLastPathComponent
-        
+
+        let oauthSubpath =
+            "node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/code_assist/oauth2.js"
         let possiblePaths = [
-            "\(baseDir)/libexec/lib/node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/code_assist/oauth2.js",
-            "\(baseDir)/lib/node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/code_assist/oauth2.js",
+            "\(baseDir)/libexec/lib/\(oauthSubpath)",
+            "\(baseDir)/lib/\(oauthSubpath)",
         ]
 
         for path in possiblePaths {
             if let content = try? String(contentsOfFile: path, encoding: .utf8) {
-                return parseOAuthCredentials(from: content)
+                return self.parseOAuthCredentials(from: content)
             }
         }
 
@@ -395,7 +400,7 @@ public struct GeminiStatusProbe: Sendable {
     }
 
     private static func refreshAccessToken(refreshToken: String, timeout: TimeInterval) async throws -> String {
-        guard let url = URL(string: Self.tokenRefreshEndpoint) else {
+        guard let url = URL(string: tokenRefreshEndpoint) else {
             throw GeminiStatusProbeError.apiError("Invalid token refresh URL")
         }
 
@@ -405,7 +410,10 @@ public struct GeminiStatusProbe: Sendable {
         request.timeoutInterval = timeout
 
         guard let oauthCreds = Self.extractOAuthCredentials() else {
-            os_log("[GeminiStatusProbe] Could not extract OAuth credentials from Gemini CLI", log: .default, type: .error)
+            os_log(
+                "[GeminiStatusProbe] Could not extract OAuth credentials from Gemini CLI",
+                log: .default,
+                type: .error)
             throw GeminiStatusProbeError.apiError("Could not find Gemini CLI OAuth configuration")
         }
 
@@ -546,7 +554,7 @@ public struct GeminiStatusProbe: Sendable {
         }
 
         // Group quotas by model, keeping lowest per model (input tokens usually)
-        var modelQuotaMap: [String: (fraction: Double, reset: String?)] = [:]
+        var modelQuotaMap: [String: (fraction: Double, resetString: String?)] = [:]
 
         for bucket in buckets {
             guard let modelId = bucket.modelId, let fraction = bucket.remainingFraction else { continue }
@@ -564,10 +572,12 @@ public struct GeminiStatusProbe: Sendable {
         let quotas = modelQuotaMap
             .sorted { $0.key < $1.key }
             .map { modelId, info in
-                GeminiModelQuota(
+                let resetDate = info.resetString.flatMap { Self.parseResetTime($0) }
+                return GeminiModelQuota(
                     modelId: modelId,
                     percentLeft: info.fraction * 100,
-                    resetDescription: info.reset.flatMap { Self.formatResetTime($0) })
+                    resetTime: resetDate,
+                    resetDescription: info.resetString.flatMap { Self.formatResetTime($0) })
             }
 
         let rawText = String(data: data, encoding: .utf8) ?? ""
@@ -579,17 +589,19 @@ public struct GeminiStatusProbe: Sendable {
             accountPlan: nil)
     }
 
-    private static func formatResetTime(_ isoString: String) -> String {
+    private static func parseResetTime(_ isoString: String) -> Date? {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
 
-        var date = formatter.date(from: isoString)
-        if date == nil {
-            formatter.formatOptions = [.withInternetDateTime]
-            date = formatter.date(from: isoString)
+        if let date = formatter.date(from: isoString) {
+            return date
         }
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: isoString)
+    }
 
-        guard let resetDate = date else {
+    private static func formatResetTime(_ isoString: String) -> String {
+        guard let resetDate = parseResetTime(isoString) else {
             return "Resets soon"
         }
 
@@ -622,7 +634,7 @@ public struct GeminiStatusProbe: Sendable {
             if clean.contains("Login with Google") || clean.contains("Use Gemini API key") {
                 throw GeminiStatusProbeError.notLoggedIn
             }
-            if clean.contains("Waiting for auth") && !clean.contains("Usage") {
+            if clean.contains("Waiting for auth"), !clean.contains("Usage") {
                 throw GeminiStatusProbeError.notLoggedIn
             }
             throw GeminiStatusProbeError.parseFailed("No usage data found in /stats output")
@@ -661,7 +673,11 @@ public struct GeminiStatusProbe: Sendable {
                 resetDesc = String(cleanLine[resetRange]).trimmingCharacters(in: .whitespaces)
             }
 
-            quotas.append(GeminiModelQuota(modelId: modelId, percentLeft: pct, resetDescription: resetDesc))
+            quotas.append(GeminiModelQuota(
+                modelId: modelId,
+                percentLeft: pct,
+                resetTime: nil,
+                resetDescription: resetDesc))
         }
 
         return quotas

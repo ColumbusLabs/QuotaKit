@@ -884,14 +884,13 @@ final class UsageStore: ObservableObject {
         pathEnv["PATH"] = PathBuilder.effectivePATH(purposes: [.rpc, .tty, .nodeTooling], env: env)
         let loginPATH = LoginShellPathCache.shared.current
 
-        let resolved: String
-        switch cmd {
+        let resolved: String = switch cmd {
         case "codex":
-            resolved = BinaryLocator.resolveCodexBinary(env: env, loginPATH: loginPATH) ?? cmd
+            BinaryLocator.resolveCodexBinary(env: env, loginPATH: loginPATH) ?? cmd
         case "gemini":
-            resolved = BinaryLocator.resolveGeminiBinary(env: env, loginPATH: loginPATH) ?? cmd
+            BinaryLocator.resolveGeminiBinary(env: env, loginPATH: loginPATH) ?? cmd
         default:
-            resolved = cmd
+            cmd
         }
 
         let process = Process()

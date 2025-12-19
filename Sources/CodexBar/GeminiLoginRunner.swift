@@ -2,7 +2,7 @@ import AppKit
 import CodexBarCore
 import Foundation
 
-struct GeminiLoginRunner {
+enum GeminiLoginRunner {
     struct Result {
         enum Outcome {
             case success

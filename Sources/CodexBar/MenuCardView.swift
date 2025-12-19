@@ -273,7 +273,7 @@ extension UsageMenuCardView.Model {
                 title: metadata.weeklyLabel,
                 percent: Self.clamped(usageBarsShowUsed ? weekly.usedPercent : weekly.remainingPercent),
                 percentStyle: percentStyle,
-                resetText: Self.resetText(for: weekly, prefersCountdown: false)))
+                resetText: Self.resetText(for: weekly, prefersCountdown: true)))
         }
         if metadata.supportsOpus, let opus = snapshot.tertiary {
             metrics.append(Metric(
@@ -281,7 +281,7 @@ extension UsageMenuCardView.Model {
                 title: metadata.opusLabel ?? "Sonnet",
                 percent: Self.clamped(usageBarsShowUsed ? opus.usedPercent : opus.remainingPercent),
                 percentStyle: percentStyle,
-                resetText: Self.resetText(for: opus, prefersCountdown: false)))
+                resetText: Self.resetText(for: opus, prefersCountdown: true)))
         }
 
         if provider == .codex, let remaining = dashboard?.codeReviewRemainingPercent {

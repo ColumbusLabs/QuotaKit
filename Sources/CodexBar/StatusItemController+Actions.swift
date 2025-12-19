@@ -240,11 +240,10 @@ extension StatusItemController {
     }
 
     private func postLoginNotification(for provider: UsageProvider) {
-        let title: String
-        switch provider {
-        case .codex: title = "Codex login successful"
-        case .claude: title = "Claude login successful"
-        case .gemini: title = "Gemini login successful"
+        let title = switch provider {
+        case .codex: "Codex login successful"
+        case .claude: "Claude login successful"
+        case .gemini: "Gemini login successful"
         }
         let body = "You can return to the app; authentication finished."
         AppNotifications.shared.post(idPrefix: "login-\(provider.rawValue)", title: title, body: body)

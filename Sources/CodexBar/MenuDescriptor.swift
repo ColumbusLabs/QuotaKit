@@ -231,7 +231,12 @@ struct MenuDescriptor {
         let line = UsageFormatter
             .usageLine(remaining: window.remainingPercent, used: window.usedPercent)
         entries.append(.text("\(title): \(line)", .primary))
-        if let reset = window.resetDescription { entries.append(.text(Self.resetLine(reset), .secondary)) }
+        if let date = window.resetsAt {
+            let countdown = UsageFormatter.resetCountdownDescription(from: date)
+            entries.append(.text("Resets \(countdown)", .secondary))
+        } else if let reset = window.resetDescription {
+            entries.append(.text(Self.resetLine(reset), .secondary))
+        }
     }
 
     private static func resetLine(_ reset: String) -> String {

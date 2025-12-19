@@ -75,9 +75,8 @@ struct GeminiStatusProbeTests {
 
     @Test
     func stripsANSICodesBeforeParsing() throws {
-        let output = """
-        \u{1B}[32m│\u{1B}[0m  gemini-2.5-flash                                                -       75.5% (Resets in 18h)  │
-        """
+        // swiftlint:disable:next line_length
+        let output = "\u{1B}[32m│\u{1B}[0m  gemini-2.5-flash                                                -       75.5% (Resets in 18h)  │"
         let snap = try GeminiStatusProbe.parse(text: output)
         #expect(snap.dailyPercentLeft == 75.5)
     }
@@ -159,8 +158,8 @@ struct GeminiStatusProbeTests {
         // Use controlled test data to verify min-per-tier logic
         // Model names must start with "gemini-" to match the parser regex
         let output = """
-        │  gemini-a-flash                            10       85.0% (Resets in 14h)  │
-        │  gemini-b-flash                             5       92.0% (Resets in 14h)  │
+        │  gemini-a-flash                            10       85.0% (Resets in 24h)  │
+        │  gemini-b-flash                             5       92.0% (Resets in 24h)  │
         │  gemini-c-pro                               2       95.0% (Resets in 24h)  │
         │  gemini-d-pro                               1       99.0% (Resets in 24h)  │
         """

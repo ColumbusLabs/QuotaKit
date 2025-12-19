@@ -190,11 +190,10 @@ enum CodexBarCLI {
     }
 
     private static func formatVersion(provider: UsageProvider, raw: String?) -> (version: String?, source: String) {
-        let source: String
-        switch provider {
-        case .codex: source = "codex-cli"
-        case .claude: source = "claude"
-        case .gemini: source = "gemini-cli"
+        let source = switch provider {
+        case .codex: "codex-cli"
+        case .claude: "claude"
+        case .gemini: "gemini-cli"
         }
         guard let raw, !raw.isEmpty else { return (nil, source) }
         if let match = raw.range(of: #"(\d+(?:\.\d+)+)"#, options: .regularExpression) {
@@ -412,7 +411,7 @@ enum CodexBarCLI {
         case ClaudeUsageError.parseFailed,
              UsageError.decodeFailed,
              UsageError.noRateLimitsFound,
-             GeminiStatusProbeError.parseFailed(_):
+             GeminiStatusProbeError.parseFailed:
             ExitCode(3)
         default:
             .failure
@@ -561,7 +560,7 @@ private enum ProviderSelection: Sendable, ExpressibleFromArgument {
         case .gemini: [.gemini]
         case .both: [.codex, .claude]
         case .all: [.codex, .claude, .gemini]
-        case .custom(let providers): providers
+        case let .custom(providers): providers
         }
     }
 }
