@@ -37,7 +37,7 @@ SIGNATURE=$(sign_update --ed-key-file "$KEY_FILE" -p "${APP_NAME}-${MARKETING_VE
 SIZE=$(stat -f%z "${APP_NAME}-${MARKETING_VERSION}.zip")
 PUBDATE=$(LC_ALL=C date '+%a, %d %b %Y %H:%M:%S %z')
 
-NOTES_FILE=$(mktemp /tmp/codexbar-notes-XXXX.md)
+NOTES_FILE=$(mktemp /tmp/codexbar-notes.XXXXXX.md)
 extract_notes_from_changelog "$MARKETING_VERSION" "$NOTES_FILE"
 trap 'rm -f "$KEY_FILE" "$NOTES_FILE"' EXIT
 
