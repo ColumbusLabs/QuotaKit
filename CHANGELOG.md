@@ -9,6 +9,7 @@
 - Usage breakdown submenu: compact stacked bar chart (Swift Charts) with hover details for day/service totals.
 - Credits remain sourced from the Codex CLI (no web login required for credits).
 - Per-account WebKit cookie jars (keeps multiple OpenAI accounts around; auto-syncs to the Codex CLI email).
+- Switching Codex accounts now clears the OpenAI web snapshot and re-imports cookies to avoid stale cross-account data.
 - CLI: `codexbar usage --openai-web` fetches and emits `openaiDashboard` JSON.
 - New “Show usage as used” toggle to invert progress bars (default remains “% left”, now in Advanced).
 - Claude: fix reset parsing so “Resets …” can’t be mis-attributed to the wrong window (session vs weekly), including CR line endings; CLI no longer prints “Resets Resets …”.

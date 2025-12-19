@@ -89,6 +89,7 @@ final class UsageStore: ObservableObject {
     private var lastOpenAIDashboardTargetEmail: String?
     private var lastOpenAIDashboardCookieImportAttemptAt: Date?
     private var lastOpenAIDashboardCookieImportEmail: String?
+    private var openAIWebAccountDidChange: Bool = false
 
     private let codexFetcher: UsageFetcher
     private let claudeFetcher: any ClaudeUsageFetching
@@ -229,8 +230,11 @@ final class UsageStore: ObservableObject {
                 group.addTask { await self.refreshStatus(provider) }
             }
             group.addTask { await self.refreshCreditsIfNeeded() }
-            group.addTask { await self.refreshOpenAIDashboardIfNeeded() }
         }
+
+        // OpenAI web scrape depends on the current Codex account email (which can change after login/account switch).
+        // Run this after Codex usage refresh so we don't accidentally scrape with stale credentials.
+        await self.refreshOpenAIDashboardIfNeeded()
     }
 
     /// For demo/testing: drop the snapshot so the loading animation plays, then restore the last snapshot.
@@ -460,6 +464,33 @@ final class UsageStore: ObservableObject {
         }
     }
 
+    private func applyOpenAIDashboard(_ dash: OpenAIDashboardSnapshot, targetEmail: String?) async {
+        await MainActor.run {
+            self.openAIDashboard = dash
+            self.lastOpenAIDashboardError = nil
+            self.lastOpenAIDashboardSnapshot = dash
+            self.openAIDashboardRequiresLogin = false
+        }
+
+        if let email = targetEmail, !email.isEmpty {
+            OpenAIDashboardCacheStore.save(OpenAIDashboardCache(accountEmail: email, snapshot: dash))
+        }
+    }
+
+    private func applyOpenAIDashboardFailure(message: String) async {
+        await MainActor.run {
+            if let cached = self.lastOpenAIDashboardSnapshot {
+                self.openAIDashboard = cached
+                let stamp = cached.updatedAt.formatted(date: .abbreviated, time: .shortened)
+                self.lastOpenAIDashboardError =
+                    "Last OpenAI dashboard refresh failed: \(message). Cached values from \(stamp)."
+            } else {
+                self.lastOpenAIDashboardError = message
+                self.openAIDashboard = nil
+            }
+        }
+    }
+
     private func refreshOpenAIDashboardIfNeeded() async {
         guard self.isEnabled(.codex) else { return }
         guard self.settings.openAIDashboardEnabled else {
@@ -477,6 +508,9 @@ final class UsageStore: ObservableObject {
             return
         }
 
+        let targetEmail = self.codexAccountEmailForOpenAIDashboard()
+        self.handleOpenAIWebTargetEmailChangeIfNeeded(targetEmail: targetEmail)
+
         if self.openAIWebDebugLines.isEmpty {
             self.resetOpenAIWebDebugLog(context: "refresh")
         } else {
@@ -489,14 +523,21 @@ final class UsageStore: ObservableObject {
         }
 
         do {
-            let targetEmail = self.codexAccountEmailForOpenAIDashboard()
-            let normalized = targetEmail?.lowercased()
-            self.lastOpenAIDashboardTargetEmail = normalized
+            let normalized = targetEmail?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
 
             // Use a per-email persistent `WKWebsiteDataStore` so multiple dashboard sessions can coexist.
             // Strategy:
             // - Try the existing per-email WebKit cookie store first (fast; avoids Keychain prompts).
             // - On login-required or account mismatch, import cookies from Chrome/Safari and retry once.
+            if self.openAIWebAccountDidChange, let targetEmail, !targetEmail.isEmpty {
+                // On account switches, proactively re-import cookies so we don't show stale data from the previous
+                // user.
+                await self.importOpenAIDashboardCookiesIfNeeded(targetEmail: targetEmail, force: true)
+                self.openAIWebAccountDidChange = false
+            }
+
             var dash = try await OpenAIDashboardFetcher().loadLatestDashboard(
                 accountEmail: targetEmail,
                 logger: log,
@@ -523,16 +564,7 @@ final class UsageStore: ObservableObject {
                 return
             }
 
-            await MainActor.run {
-                self.openAIDashboard = dash
-                self.lastOpenAIDashboardError = nil
-                self.lastOpenAIDashboardSnapshot = dash
-                self.openAIDashboardRequiresLogin = false
-            }
-
-            if let email = targetEmail, !email.isEmpty {
-                OpenAIDashboardCacheStore.save(OpenAIDashboardCache(accountEmail: email, snapshot: dash))
-            }
+            await self.applyOpenAIDashboard(dash, targetEmail: targetEmail)
         } catch OpenAIDashboardFetcher.FetchError.noDashboardData {
             // Often indicates a missing/stale session without an obvious login prompt. Retry once after
             // importing cookies from the user's browser.
@@ -543,28 +575,9 @@ final class UsageStore: ObservableObject {
                     accountEmail: targetEmail,
                     logger: log,
                     debugDumpHTML: true)
-                await MainActor.run {
-                    self.openAIDashboard = dash
-                    self.lastOpenAIDashboardError = nil
-                    self.lastOpenAIDashboardSnapshot = dash
-                    self.openAIDashboardRequiresLogin = false
-                }
-                if let email = targetEmail, !email.isEmpty {
-                    OpenAIDashboardCacheStore.save(OpenAIDashboardCache(accountEmail: email, snapshot: dash))
-                }
+                await self.applyOpenAIDashboard(dash, targetEmail: targetEmail)
             } catch {
-                let message = error.localizedDescription
-                await MainActor.run {
-                    if let cached = self.lastOpenAIDashboardSnapshot {
-                        self.openAIDashboard = cached
-                        let stamp = cached.updatedAt.formatted(date: .abbreviated, time: .shortened)
-                        self.lastOpenAIDashboardError =
-                            "Last OpenAI dashboard refresh failed: \(message). Cached values from \(stamp)."
-                    } else {
-                        self.lastOpenAIDashboardError = message
-                        self.openAIDashboard = nil
-                    }
-                }
+                await self.applyOpenAIDashboardFailure(message: error.localizedDescription)
             }
         } catch OpenAIDashboardFetcher.FetchError.loginRequired {
             let targetEmail = self.codexAccountEmailForOpenAIDashboard()
@@ -574,15 +587,7 @@ final class UsageStore: ObservableObject {
                     accountEmail: targetEmail,
                     logger: log,
                     debugDumpHTML: true)
-                await MainActor.run {
-                    self.openAIDashboard = dash
-                    self.lastOpenAIDashboardError = nil
-                    self.lastOpenAIDashboardSnapshot = dash
-                    self.openAIDashboardRequiresLogin = false
-                }
-                if let email = targetEmail, !email.isEmpty {
-                    OpenAIDashboardCacheStore.save(OpenAIDashboardCache(accountEmail: email, snapshot: dash))
-                }
+                await self.applyOpenAIDashboard(dash, targetEmail: targetEmail)
             } catch OpenAIDashboardFetcher.FetchError.loginRequired {
                 await MainActor.run {
                     self.lastOpenAIDashboardError = [
@@ -593,32 +598,43 @@ final class UsageStore: ObservableObject {
                     self.openAIDashboardRequiresLogin = true
                 }
             } catch {
-                let message = error.localizedDescription
-                await MainActor.run {
-                    if let cached = self.lastOpenAIDashboardSnapshot {
-                        self.openAIDashboard = cached
-                        let stamp = cached.updatedAt.formatted(date: .abbreviated, time: .shortened)
-                        self.lastOpenAIDashboardError =
-                            "Last OpenAI dashboard refresh failed: \(message). Cached values from \(stamp)."
-                    } else {
-                        self.lastOpenAIDashboardError = message
-                        self.openAIDashboard = nil
-                    }
-                }
+                await self.applyOpenAIDashboardFailure(message: error.localizedDescription)
             }
         } catch {
-            let message = error.localizedDescription
-            await MainActor.run {
-                if let cached = self.lastOpenAIDashboardSnapshot {
-                    self.openAIDashboard = cached
-                    let stamp = cached.updatedAt.formatted(date: .abbreviated, time: .shortened)
-                    self.lastOpenAIDashboardError =
-                        "Last OpenAI dashboard refresh failed: \(message). Cached values from \(stamp)."
-                } else {
-                    self.lastOpenAIDashboardError = message
-                    self.openAIDashboard = nil
-                }
-            }
+            await self.applyOpenAIDashboardFailure(message: error.localizedDescription)
+        }
+    }
+
+    // MARK: - OpenAI web account switching
+
+    /// Detect Codex account email changes and clear stale OpenAI web state so the UI can't show the wrong user.
+    /// This does not delete other per-email WebKit cookie stores (we keep multiple accounts around).
+    func handleOpenAIWebTargetEmailChangeIfNeeded(targetEmail: String?) {
+        let normalized = targetEmail?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+
+        guard let normalized, !normalized.isEmpty else { return }
+
+        let previous = self.lastOpenAIDashboardTargetEmail
+        self.lastOpenAIDashboardTargetEmail = normalized
+
+        if let previous,
+           !previous.isEmpty,
+           previous != normalized
+        {
+            let stamp = Date().formatted(date: .abbreviated, time: .shortened)
+            self.logOpenAIWeb(
+                "[\(stamp)] Codex account changed: \(previous) → \(normalized); " +
+                    "clearing OpenAI web snapshot")
+            self.openAIWebAccountDidChange = true
+            self.openAIDashboard = nil
+            self.lastOpenAIDashboardSnapshot = nil
+            self.lastOpenAIDashboardError = nil
+            self.openAIDashboardRequiresLogin = true
+            self.openAIDashboardCookieImportStatus = "Codex account changed; importing browser cookies…"
+            self.lastOpenAIDashboardCookieImportAttemptAt = nil
+            self.lastOpenAIDashboardCookieImportEmail = nil
         }
     }
 
