@@ -14,6 +14,15 @@ extension StatusItemController {
             store: self.store,
             settings: self.settings,
             account: self.account)
+        let dashboard = self.store.openAIDashboard
+        let openAIWebEligible = targetProvider == .codex &&
+            self.settings.openAIDashboardEnabled &&
+            self.store.openAIDashboardRequiresLogin == false &&
+            dashboard != nil
+        let hasCreditsHistory = openAIWebEligible && !(dashboard?.creditEvents ?? []).isEmpty
+        let hasUsageBreakdown = openAIWebEligible && !(dashboard?.usageBreakdown ?? []).isEmpty
+        let hasOpenAIWebMenuItems = hasCreditsHistory || hasUsageBreakdown
+
         let menu = NSMenu()
         menu.autoenablesItems = false
         menu.delegate = self
@@ -36,22 +45,26 @@ extension StatusItemController {
             item.representedObject = "menuCard"
             menu.addItem(item)
             if model.subtitleStyle == .info {
-                menu.addItem(.separator())
+                // Keep the menu visually grouped. If we show the credits history submenu, it should sit
+                // directly below the Credits line (no separator in between).
+                if hasCreditsHistory == false {
+                    menu.addItem(.separator())
+                }
             }
         }
 
-        if targetProvider == .codex,
-           self.settings.openAIDashboardEnabled,
-           self.store.openAIDashboard != nil,
-           self.store.openAIDashboardRequiresLogin == false
-        {
-            // Only show these when we actually have web-only data.
-            // If there is no credit usage history yet, hide both entries (requested behavior).
-            let addedUsageBreakdown = self.addUsageBreakdownSubmenu(to: menu)
-            let addedCreditsHistory = self.addCreditsHistorySubmenu(to: menu)
-            if addedUsageBreakdown || addedCreditsHistory, menu.items.last?.isSeparatorItem != true {
-                menu.addItem(.separator())
+        if hasOpenAIWebMenuItems {
+            // Only show these when we actually have OpenAI web-only data.
+            if hasCreditsHistory {
+                _ = self.addCreditsHistorySubmenu(to: menu)
+                if hasUsageBreakdown {
+                    menu.addItem(.separator())
+                }
             }
+            if hasUsageBreakdown {
+                _ = self.addUsageBreakdownSubmenu(to: menu)
+            }
+            menu.addItem(.separator())
         }
 
         let actionableSections = Array(descriptor.sections.suffix(2))
