@@ -93,6 +93,8 @@ public enum GeminiAuthType: String, Sendable {
 
 public struct GeminiStatusProbe: Sendable {
     public var timeout: TimeInterval = 10.0
+    public var homeDirectory: String
+    public var dataLoader: @Sendable (URLRequest) async throws -> (Data, URLResponse)
     private static let quotaEndpoint = "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota"
     private static let projectsEndpoint = "https://cloudresourcemanager.googleapis.com/v1/projects"
     private static let driveAboutEndpoint = "https://www.googleapis.com/drive/v3/about?fields=storageQuota"
@@ -104,14 +106,21 @@ public struct GeminiStatusProbe: Sendable {
     private static let storageLimit2TB: Int64 = 2_199_023_255_552
     private static let storageLimit30TB: Int64 = 32_985_348_833_280
 
-    public init(timeout: TimeInterval = 10.0) {
+    public init(
+        timeout: TimeInterval = 10.0,
+        homeDirectory: String = NSHomeDirectory(),
+        dataLoader: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse) = { request in
+            try await URLSession.shared.data(for: request)
+        })
+    {
         self.timeout = timeout
+        self.homeDirectory = homeDirectory
+        self.dataLoader = dataLoader
     }
 
     /// Reads the current Gemini auth type from settings.json
-    public static func currentAuthType() -> GeminiAuthType {
-        let home = NSHomeDirectory()
-        let settingsURL = URL(fileURLWithPath: home + Self.settingsPath)
+    public static func currentAuthType(homeDirectory: String = NSHomeDirectory()) -> GeminiAuthType {
+        let settingsURL = URL(fileURLWithPath: homeDirectory + Self.settingsPath)
 
         guard let data = try? Data(contentsOf: settingsURL),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -127,7 +136,7 @@ public struct GeminiStatusProbe: Sendable {
 
     public func fetch() async throws -> GeminiStatusSnapshot {
         // Block explicitly unsupported auth types; allow unknown to try OAuth creds
-        let authType = Self.currentAuthType()
+        let authType = Self.currentAuthType(homeDirectory: self.homeDirectory)
         switch authType {
         case .apiKey:
             throw GeminiStatusProbeError.unsupportedAuthType("API key")
@@ -137,7 +146,10 @@ public struct GeminiStatusProbe: Sendable {
             break
         }
 
-        let snap = try await Self.fetchViaAPI(timeout: self.timeout)
+        let snap = try await Self.fetchViaAPI(
+            timeout: self.timeout,
+            homeDirectory: self.homeDirectory,
+            dataLoader: self.dataLoader)
 
         if #available(macOS 13.0, *) {
             os_log(
@@ -151,8 +163,13 @@ public struct GeminiStatusProbe: Sendable {
 
     // MARK: - Direct API approach
 
-    private static func fetchViaAPI(timeout: TimeInterval) async throws -> GeminiStatusSnapshot {
-        let creds = try Self.loadCredentials()
+    private static func fetchViaAPI(
+        timeout: TimeInterval,
+        homeDirectory: String,
+        dataLoader: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)) async throws
+        -> GeminiStatusSnapshot
+    {
+        let creds = try Self.loadCredentials(homeDirectory: homeDirectory)
 
         if #available(macOS 13.0, *) {
             let expiryStr = creds.expiryDate.map { "\($0)" } ?? "nil"
@@ -184,11 +201,18 @@ public struct GeminiStatusProbe: Sendable {
                 throw GeminiStatusProbeError.notLoggedIn
             }
 
-            accessToken = try await Self.refreshAccessToken(refreshToken: refreshToken, timeout: timeout)
+            accessToken = try await Self.refreshAccessToken(
+                refreshToken: refreshToken,
+                timeout: timeout,
+                homeDirectory: homeDirectory,
+                dataLoader: dataLoader)
         }
 
         // Discover the Gemini project ID for accurate quota data
-        let projectId = try? await Self.discoverGeminiProjectId(accessToken: accessToken, timeout: timeout)
+        let projectId = try? await Self.discoverGeminiProjectId(
+            accessToken: accessToken,
+            timeout: timeout,
+            dataLoader: dataLoader)
 
         guard let url = URL(string: Self.quotaEndpoint) else {
             throw GeminiStatusProbeError.apiError("Invalid endpoint URL")
@@ -207,7 +231,7 @@ public struct GeminiStatusProbe: Sendable {
         }
         request.timeoutInterval = timeout
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await dataLoader(request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw GeminiStatusProbeError.apiError("Invalid response")
@@ -225,13 +249,12 @@ public struct GeminiStatusProbe: Sendable {
         let email = Self.extractEmailFromToken(creds.idToken)
         let snapshot = try Self.parseAPIResponse(data, email: email)
 
-        // Detect plan: Workspace accounts get "Workspace", others use storage/model detection
-        let plan: String? = if Self.isWorkspaceAccount(email: email) {
-            "Workspace"
-        } else {
-            await Self.detectPlanFromStorage(accessToken: accessToken, timeout: timeout)
-                ?? Self.detectPlanFromModels(snapshot.modelQuotas)
-        }
+        // Detect plan: try Drive storage quota first, fall back to model access
+        let plan = await Self.detectPlanFromStorage(
+            accessToken: accessToken,
+            timeout: timeout,
+            dataLoader: dataLoader)
+            ?? Self.detectPlanFromModels(snapshot.modelQuotas)
 
         return GeminiStatusSnapshot(
             modelQuotas: snapshot.modelQuotas,
@@ -240,14 +263,19 @@ public struct GeminiStatusProbe: Sendable {
             accountPlan: plan)
     }
 
-    private static func discoverGeminiProjectId(accessToken: String, timeout: TimeInterval) async throws -> String? {
+    private static func discoverGeminiProjectId(
+        accessToken: String,
+        timeout: TimeInterval,
+        dataLoader: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)) async throws
+        -> String?
+    {
         guard let url = URL(string: projectsEndpoint) else { return nil }
 
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = timeout
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await dataLoader(request)
 
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             return nil
@@ -281,14 +309,18 @@ public struct GeminiStatusProbe: Sendable {
 
     /// Detect plan from Google Drive storage quota (most reliable method).
     /// 2 TB = AI Pro, 30 TB = AI Ultra
-    private static func detectPlanFromStorage(accessToken: String, timeout: TimeInterval) async -> String? {
+    private static func detectPlanFromStorage(
+        accessToken: String,
+        timeout: TimeInterval,
+        dataLoader: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)) async -> String?
+    {
         guard let url = URL(string: driveAboutEndpoint) else { return nil }
 
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = timeout
 
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
+        guard let (data, response) = try? await dataLoader(request),
               let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200
         else {
@@ -318,15 +350,6 @@ public struct GeminiStatusProbe: Sendable {
         // If user has access to any "pro" models, they're on a paid tier (AI Pro, AI Ultra, etc.)
         let hasProModels = quotas.contains { $0.modelId.lowercased().contains("pro") }
         return hasProModels ? "AI Pro" : nil
-    }
-
-    /// Check if email is a Google Workspace account (non-consumer domain).
-    private static func isWorkspaceAccount(email: String?) -> Bool {
-        guard let email, let domain = email.split(separator: "@").last?.lowercased() else {
-            return false
-        }
-        let consumerDomains = ["gmail.com", "googlemail.com"]
-        return !consumerDomains.contains(String(domain))
     }
 
     private struct OAuthCredentials {
@@ -412,7 +435,13 @@ public struct GeminiStatusProbe: Sendable {
         return OAuthClientCredentials(clientId: clientId, clientSecret: clientSecret)
     }
 
-    private static func refreshAccessToken(refreshToken: String, timeout: TimeInterval) async throws -> String {
+    private static func refreshAccessToken(
+        refreshToken: String,
+        timeout: TimeInterval,
+        homeDirectory: String,
+        dataLoader: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse)) async throws
+        -> String
+    {
         guard let url = URL(string: tokenRefreshEndpoint) else {
             throw GeminiStatusProbeError.apiError("Invalid token refresh URL")
         }
@@ -438,7 +467,7 @@ public struct GeminiStatusProbe: Sendable {
         ].joined(separator: "&")
         request.httpBody = body.data(using: .utf8)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await dataLoader(request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw GeminiStatusProbeError.apiError("Invalid refresh response")
@@ -460,15 +489,14 @@ public struct GeminiStatusProbe: Sendable {
         }
 
         // Update stored credentials with new token
-        try Self.updateStoredCredentials(json)
+        try Self.updateStoredCredentials(json, homeDirectory: homeDirectory)
 
         os_log("[GeminiStatusProbe] Token refreshed successfully", log: .default, type: .info)
         return newAccessToken
     }
 
-    private static func updateStoredCredentials(_ refreshResponse: [String: Any]) throws {
-        let home = NSHomeDirectory()
-        let credsURL = URL(fileURLWithPath: home + Self.credentialsPath)
+    private static func updateStoredCredentials(_ refreshResponse: [String: Any], homeDirectory: String) throws {
+        let credsURL = URL(fileURLWithPath: homeDirectory + Self.credentialsPath)
 
         guard let existingCreds = try? Data(contentsOf: credsURL),
               var json = try? JSONSerialization.jsonObject(with: existingCreds) as? [String: Any]
@@ -491,9 +519,8 @@ public struct GeminiStatusProbe: Sendable {
         try updatedData.write(to: credsURL, options: .atomic)
     }
 
-    private static func loadCredentials() throws -> OAuthCredentials {
-        let home = NSHomeDirectory()
-        let credsURL = URL(fileURLWithPath: home + Self.credentialsPath)
+    private static func loadCredentials(homeDirectory: String) throws -> OAuthCredentials {
+        let credsURL = URL(fileURLWithPath: homeDirectory + Self.credentialsPath)
 
         guard FileManager.default.fileExists(atPath: credsURL.path) else {
             throw GeminiStatusProbeError.notLoggedIn
