@@ -57,9 +57,6 @@ extension StatusItemController {
             // Only show these when we actually have OpenAI web-only data.
             if hasCreditsHistory {
                 _ = self.addCreditsHistorySubmenu(to: menu)
-                if hasUsageBreakdown {
-                    menu.addItem(.separator())
-                }
             }
             if hasUsageBreakdown {
                 _ = self.addUsageBreakdownSubmenu(to: menu)
@@ -179,7 +176,7 @@ extension StatusItemController {
         let breakdown = self.store.openAIDashboard?.usageBreakdown ?? []
         guard !breakdown.isEmpty else { return false }
 
-        let item = NSMenuItem(title: "Usage breakdown (30 days)", action: nil, keyEquivalent: "")
+        let item = NSMenuItem(title: "Usage breakdown", action: nil, keyEquivalent: "")
         item.isEnabled = true
         let submenu = NSMenu()
         let chartView = UsageBreakdownChartMenuView(breakdown: breakdown)
