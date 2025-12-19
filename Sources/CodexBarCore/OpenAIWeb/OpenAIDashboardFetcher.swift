@@ -654,10 +654,6 @@ public struct OpenAIDashboardFetcher {
         href.includes('/login') ||
         (hasAuthInputs && loginCTA) ||
         (!hasAuthInputs && loginCTA && href.includes('chatgpt.com'));
-      const rows = Array.from(document.querySelectorAll('table tbody tr')).map(tr => {
-        const cells = Array.from(tr.querySelectorAll('td')).map(td => textOf(td));
-        return cells;
-      }).filter(r => r.length >= 3);
       const scrollY = (typeof window.scrollY === 'number') ? window.scrollY : 0;
       const scrollHeight = document.documentElement ? (document.documentElement.scrollHeight || 0) : 0;
       const viewportHeight = (typeof window.innerHeight === 'number') ? window.innerHeight : 0;
@@ -665,6 +661,7 @@ public struct OpenAIDashboardFetcher {
       let creditsHeaderPresent = false;
       let creditsHeaderInViewport = false;
       let didScrollToCredits = false;
+      let rows = [];
       try {
         const headings = Array.from(document.querySelectorAll('h1,h2,h3'));
         const header = headings.find(h => textOf(h).toLowerCase() === 'credits usage history');
@@ -672,6 +669,16 @@ public struct OpenAIDashboardFetcher {
           creditsHeaderPresent = true;
           const rect = header.getBoundingClientRect();
           creditsHeaderInViewport = rect.top >= 0 && rect.top <= viewportHeight;
+
+          // Only scrape rows from the *credits usage history* table. The page can contain other tables,
+          // and treating any <table> as credits history can prevent our scroll-to-load logic from running.
+          const container = header.closest('section') || header.parentElement || document;
+          const table = container.querySelector('table') || null;
+          const scope = table || container;
+          rows = Array.from(scope.querySelectorAll('tbody tr')).map(tr => {
+            const cells = Array.from(tr.querySelectorAll('td')).map(td => textOf(td));
+            return cells;
+          }).filter(r => r.length >= 3);
           if (rows.length === 0 && !window.__codexbarDidScrollToCredits) {
             window.__codexbarDidScrollToCredits = true;
             // If the table is virtualized/lazy-loaded, we need to scroll to trigger rendering even if the
