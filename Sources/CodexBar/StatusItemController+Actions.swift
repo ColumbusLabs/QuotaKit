@@ -216,16 +216,25 @@ extension StatusItemController {
     }
 
     private func presentGeminiLoginResult(_ result: GeminiLoginRunner.Result) {
+        guard let info = Self.geminiLoginAlertInfo(for: result) else { return }
+        self.presentLoginAlert(title: info.title, message: info.message)
+    }
+
+    struct LoginAlertInfo: Equatable, Sendable {
+        let title: String
+        let message: String
+    }
+
+    nonisolated static func geminiLoginAlertInfo(for result: GeminiLoginRunner.Result) -> LoginAlertInfo? {
         switch result.outcome {
         case .success:
-            // No alert needed - will auto-refresh when auth completes
-            return
+            nil
         case .missingBinary:
-            self.presentLoginAlert(
+            LoginAlertInfo(
                 title: "Gemini CLI not found",
                 message: "Install the Gemini CLI (npm i -g @google/gemini-cli) and try again.")
         case let .launchFailed(message):
-            self.presentLoginAlert(title: "Could not open Terminal for Gemini", message: message)
+            LoginAlertInfo(title: "Could not open Terminal for Gemini", message: message)
         }
     }
 

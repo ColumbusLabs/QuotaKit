@@ -151,10 +151,14 @@ enum CodexBarCLI {
     }
 
     fileprivate static func decodeProvider(from values: ParsedValues) -> ProviderSelection {
-        if let raw = values.options["provider"]?.last, let parsed = ProviderSelection(argument: raw) {
+        let rawOverride = values.options["provider"]?.last
+        return Self.providerSelection(rawOverride: rawOverride, enabled: Self.enabledProvidersFromDefaults())
+    }
+
+    static func providerSelection(rawOverride: String?, enabled: [UsageProvider]) -> ProviderSelection {
+        if let rawOverride, let parsed = ProviderSelection(argument: rawOverride) {
             return parsed
         }
-        let enabled = Self.enabledProvidersFromDefaults()
         if enabled.count >= 3 { return .all }
         if enabled.count == 2 {
             let hasCodex = enabled.contains(.codex)
@@ -449,7 +453,7 @@ enum CodexBarCLI {
         Darwin.exit(0)
     }
 
-    private static func usageHelp(version: String) -> String {
+    static func usageHelp(version: String) -> String {
         """
         CodexBar \(version)
 
@@ -472,7 +476,7 @@ enum CodexBarCLI {
         """
     }
 
-    private static func rootHelp(version: String) -> String {
+    static func rootHelp(version: String) -> String {
         """
         CodexBar \(version)
 
@@ -526,7 +530,7 @@ private struct UsageOptions: CommanderParsable {
     var openaiWebDebugDumpHtml: Bool = false
 }
 
-private enum ProviderSelection: Sendable, ExpressibleFromArgument {
+enum ProviderSelection: Sendable, ExpressibleFromArgument {
     case codex
     case claude
     case gemini
