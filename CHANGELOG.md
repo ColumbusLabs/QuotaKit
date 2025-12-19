@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.9.1 — Unreleased
+## 0.9.1 — 2025-12-19
 - CLI resolution now uses the login shell PATH directly (no more heuristic path scanning), so Codex/Claude match your shell config reliably.
 
 ## 0.9.0 — 2025-12-19
