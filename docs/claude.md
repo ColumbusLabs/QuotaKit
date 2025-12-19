@@ -1,34 +1,28 @@
 ---
-summary: "Plan for adding Claude Code support to CodexBar (detect, toggle, icon, menu UX)."
+summary: "Claude Code support in CodexBar: PTY probing, parsing, and UX."
 read_when:
-  - Planning or implementing Claude/dual-provider support
-  - Adjusting menu-bar icons or usage rows for Claude
-  - Estimating work for Claude CLI detection or settings
+  - Debugging Claude usage/status parsing
+  - Adjusting Claude provider UI/menu behavior
+  - Updating Claude CLI detection paths or prompts
 ---
 
-# Claude support plan (CodexBar)
+# Claude Code support (CodexBar)
 
-Goal: add optional Claude Code usage alongside Codex, with a Claude-themed menu bar icon and independent on/off toggles.
+Claude Code support is implemented: CodexBar can show Claude alongside Codex (one status item per provider) and keeps provider identity fields siloed (no Claude org/plan leaking into Codex, and vice versa).
 
-## Proposed UX
-- On launch, detect availability:
-  - Codex CLI: `codex --version`.
-  - Claude Code CLI: `claude --version`.
-- Settings: two checkboxes, “Show Codex” and “Show Claude”; display detected version number next to each (e.g., “Claude (2.0.44)” or “Not installed”).
-- Menu bar:
-- When both are enabled, render a Claude-specific template icon; inside the menu content show two usage rows (Codex 5h/weekly, Claude session/week). Keep current icon style for Codex-only, Claude icon for Claude-only.
-- If neither source is enabled, show empty/dim bars with a hint to enable a source.
-- Refresh: reuse existing cadence; Claude probe runs only if Claude is enabled and present.
+## UX
+- On launch we detect CLIs:
+  - Codex: `codex --version`
+  - Claude Code: `claude --version`
+- Settings → General: toggles for “Show Codex usage” and “Show Claude Code usage” (Claude defaults on when detected).
+- Menu: each enabled provider gets its own status item/menu card.
 
 ### Claude menu-bar icon (crab notch homage)
-- Base two-bar metaphor remains.
-- Top bar: add two 1 px “eye” cutouts spaced by 2 px; add 1 px outward bumps (“claws”) on each end; same height/weight as current.
-- Bottom bar: unchanged hairline.
-- Size: 20×18 template, 1 px padding; monochrome-friendly; substitute this template whenever Claude is enabled (or use Codex icon for Codex-only).
+- Same two-bar metaphor; template switches to the Claude “crab” style while keeping the same bar mapping.
 
 ## Data path (Claude)
 
-### How we fetch usage now (no tmux)
+### How we fetch usage (no tmux)
 - We launch the Claude CLI inside a pseudo-TTY using `TTYCommandRunner`.
 - Driver steps:
   1) Boot loop waits for the TUI header and handles first-run prompts:
@@ -56,17 +50,11 @@ Goal: add optional Claude Code usage alongside Codex, with a Claude-themed menu 
 
 ### What we display
 - Session and weekly usage bars; Sonnet-only weekly limit if present.
-- Account line prefers Claude CLI data (email + login method) and falls back to Codex auth only if Claude did not expose email. Plan is shown verbatim from Claude (no capitalization).
+- Account line uses Claude CLI data (email + org + login method). Provider identity fields stay siloed.
 
-## Implementation steps
-1) Settings model: add provider flags + detected versions; persist in UserDefaults.
-2) Detection: on startup, run `codex --version` / `claude --version` once (background) and cache strings.
-3) Provider abstraction: allow Codex, Claude, Both; gate refresh loop per selection.
-4) Bundle script: add `Resources/claude_usage_capture.sh`, mark executable at runtime before launching.
-5) ClaudeUsageFetcher: small async wrapper that runs the script, decodes JSON, maps to UI model.
-6) IconRenderer: accept a style enum; use new Claude template image when Claude is enabled (or both).
-7) Menu content: conditionally show Codex row, Claude row, or an empty-state message when none enabled.
-8) Tests: fixture JSON parsing; guard the runtime script test behind an env flag.
+## Notes
+- Reset parsing: Claude reset lines can be ambiguous; the parser keys off known “Current session / Current week …” section headers so “Resets …” cannot be attributed to the wrong window.
+- Debug: the Debug tab can copy the latest raw CLI scrape to help diagnose upstream CLI formatting changes.
 
 ## Open items / decisions
 - Which template asset to use for the Claude icon (color vs monochrome template); default to a monochrome template PDF sized 20×18.

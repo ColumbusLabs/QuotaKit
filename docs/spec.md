@@ -9,27 +9,40 @@ read_when:
 # CodexBar – implementation notes
 
 ## Data source
-- Codex: run `codex /status` inside a native PTY (no tmux, no web/cookie login). We parse the rendered rows for session/weekly limits and credits; when the CLI shows an update prompt we auto-press Down+Enter and retry.
-- Account info is decoded locally from `~/.codex/auth.json` (`id_token` JWT → `email`, `chatgpt_plan_type`); no browser scraping involved.
-- Claude: run `claude /usage` in a PTY and parse the text panel; retries enter and reports CLI errors verbosely.
+- Codex: prefer the local `codex app-server` RPC (`codex -s read-only -a untrusted app-server`) for 5-hour + weekly rate limits and credits; fall back to a PTY scrape of `codex /status` when RPC is unavailable.
+- Codex account: prefers RPC account details; falls back to decoding `~/.codex/auth.json` for email/plan when needed.
+- Claude: run `claude /usage` + `claude /status` in a native PTY and parse the text UI (session + weekly + Sonnet-only weekly when present).
+- OpenAI web (optional, Codex only): reuse an existing signed-in `chatgpt.com` browser session and scrape the Codex usage dashboard for:
+  - Code review remaining (%)
+  - Usage breakdown (dashboard chart)
+  - Credits usage history (dashboard table) when available
+
+### OpenAI web: cookie/session model
+- Opt-in toggle: Settings → General → “Access OpenAI via web”.
+- Cookie import order: Safari → Chrome (Safari first to avoid Chrome Keychain prompts when Safari matches).
+- Multiple accounts: WebKit uses a per-email persistent `WKWebsiteDataStore` so multiple OpenAI dashboard sessions can coexist.
+- Email sync: if the browser session email doesn’t match the Codex CLI email, we treat it as “not logged in” for the current Codex account (but keep the cookies for that other account so switching Codex accounts can auto-match later).
+- Privacy: no passwords stored; only existing browser cookies are reused. Web requests go to `chatgpt.com` (as your normal browser session would).
 
 ## Refresh model
-- `RefreshFrequency` presets: Manual, 1m, 2m (default), 5m; persisted in `UserDefaults`.
-- Background Task detaches on app start, wakes per cadence, calls `UsageFetcher.loadLatestUsage()`.
+- `RefreshFrequency` presets: Manual, 1m, 2m, 5m (default), 15m; persisted in `UserDefaults`.
+- Background refresh runs off-main, wakes per cadence, and updates `UsageStore` (usage + credits + optional OpenAI web scrape).
 - Manual “Refresh now” menu item always available; stale/errors are surfaced in-menu and dim the icon.
 - Optional future: auto‑seed a log if none exists via `codex exec --skip-git-repo-check --json "ping"`; currently not executed to avoid unsolicited usage.
 
 ## UI / icon
-- `MenuBarExtra` only (LSUIElement=YES). No Dock icon. Label replaced with custom NSImage.
+- NSStatusItem-based menu bar app (LSUIElement=YES). No Dock icon. Label replaced with custom NSImage.
 - Icon: 20×18 template image; top bar = 5h window, bottom hairline = weekly window; fill represents “percent remaining” by default (optionally “percent used” via settings). Dimmed when last refresh failed.
-- Menu shows 5h + weekly rows (percent left, used, reset time), last-updated time, account email + plan, refresh cadence picker, Refresh now, Quit.
+- Menu: rich card (session + weekly; resets; account/plan), plus web-only Codex rows when enabled and available:
+  - Code review remaining
+  - Usage breakdown submenu (Swift Charts)
 
 ## App structure (Swift 6, macOS 15+)
-- `UsageFetcher`: log discovery + parsing, JWT decode for account.
-- `UsageStore`: state, refresh loop, error handling.
-- `SettingsStore`: persisted cadence.
-- `IconRenderer`: template NSImage for bar.
-- Entry: `CodexBarApp`.
+- `CodexBarCore`: fetch + parse (Codex RPC, PTY runner, Claude probes, OpenAI web scraping).
+- `UsageStore`: state + refresh loop + caching + error handling.
+- `SettingsStore`: persisted cadence/toggles.
+- `StatusItemController`: NSStatusItems, menu building, menu actions, icon rendering/animations.
+- Entry: `CodexBarApp` (SwiftUI keepalive + Settings scene) + `AppDelegate` (wires status controller + Sparkle updater).
 
 ## Packaging & signing
 - `Scripts/package_app.sh`: swift build (arm64), writes `CodexBar.app` + Info.plist, copies `Icon.icns` if present; seeds Sparkle keys/feed.
@@ -37,13 +50,14 @@ read_when:
 - Sparkle: Info.plist contains `SUFeedURL` (GitHub Releases appcast) and `SUPublicEDKey` placeholder; updater is `SPUStandardUpdaterController`, menu has “Check for Updates…”.
 
 ## Limits / edge cases
-- If no `token_count` yet in the latest session, menu shows “No usage yet.”
-- Schema changes to Codex events could break parsing; errors surface in the menu.
+- Codex: if RPC reports “data not available yet”, menu keeps cached credits and shows a friendly retry message.
+- OpenAI web: Safari cookie access may require Full Disk Access; the settings UI links directly to the System Settings pane.
+- OpenAI web: dashboard layout changes can break scraping; errors surface as “OpenAI dashboard data not found” with a short body sample in settings/debug.
 - Only arm64 scripted; add x86_64/universal if desired.
 
 ## Alternatives considered
-- Fake TTY + `/status`: unnecessary; structured `token_count` already present in logs after any prompt.
-- Browser scrape of `https://chatgpt.com/codex/settings/usage`: skipped (cookie handling & brittleness).
+- PTY-only Codex parsing: retained as a fallback, but RPC is the primary path for reliability.
+- OpenAI dashboard scraping: implemented as opt-in; cookie reuse only (no credential capture UI).
 
 ## Learnings / decisions
 - About panel: `AboutPanelOptionKey.credits` needs `NSAttributedString`; we supply credits + icon safely.

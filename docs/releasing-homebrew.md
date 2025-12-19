@@ -1,3 +1,10 @@
+---
+summary: "Homebrew Cask release steps for CodexBar (Sparkle-disabled builds)."
+read_when:
+  - Publishing a CodexBar release via Homebrew
+  - Updating the Homebrew tap cask definition
+---
+
 # CodexBar Homebrew Release Playbook
 
 Homebrew is for the UI app via Cask. When installed via Homebrew, CodexBar disables Sparkle and shows a "update via brew" hint in About.
@@ -26,4 +33,3 @@ open -a CodexBar
 
 ## 4) Push tap changes
 Commit + push in the tap repo.
-

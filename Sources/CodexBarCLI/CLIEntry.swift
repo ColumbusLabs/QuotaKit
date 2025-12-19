@@ -440,7 +440,7 @@ enum CodexBarCLI {
 
         Description:
           Print usage from enabled providers as text (default) or JSON. Honors your in-app toggles.
-          When --openai-web is set, CodexBar imports browser cookies (Chrome/Safari)
+          When --openai-web is set, CodexBar imports browser cookies (Safari → Chrome)
           and fetches the OpenAI web dashboard.
 
         Examples:

@@ -46,7 +46,7 @@
           <div class="badges" aria-label="Highlights">
             <span class="badge">macOS 15+</span>
             <span class="badge">Free &amp; open source</span>
-            <span class="badge">On-device parsing</span>
+            <span class="badge">No passwords stored</span>
           </div>
           <h2>Stay ahead of resets.</h2>
           <p>
@@ -63,6 +63,7 @@
           <ul class="bullets" aria-label="What it does">
             <li>One status item per provider (Codex + Claude).</li>
             <li>Session + weekly bars, plus reset times.</li>
+            <li>Optional OpenAI web access: Code review + usage breakdown.</li>
             <li>Minimal UI, no Dock icon.</li>
           </ul>
         </div>
@@ -74,7 +75,10 @@
       <section class="details" aria-label="Details" data-animate="4">
         <div class="card">
           <h3>Codex</h3>
-          <p>Prefers the local app-server RPC for limits + credits, with a PTY fallback to <code>codex /status</code>.</p>
+          <p>
+            Prefers the local app-server RPC for limits + credits, with a PTY fallback to <code>codex /status</code>.
+            Optional: reuse your browser session to show Code review + usage breakdown.
+          </p>
         </div>
         <div class="card">
           <h3>Claude Code</h3>
@@ -82,7 +86,10 @@
         </div>
         <div class="card">
           <h3>Privacy</h3>
-          <p>Nothing is sent anywhere. It reads local CLI output and shows it in the menu bar.</p>
+          <p>
+            By default it reads local CLI output only. If you enable OpenAI web access, it reuses existing browser cookies
+            (Safari/Chrome) to fetch the dashboard — no passwords stored.
+          </p>
         </div>
       </section>
 

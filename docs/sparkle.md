@@ -9,7 +9,7 @@ read_when:
 # Sparkle integration
 
 - Framework: Sparkle 2.8.1 via SwiftPM.
-- Updater: `SPUStandardUpdaterController` owned by `AppDelegate` (see `CodexbarApp.swift`).
+- Updater: `SPUStandardUpdaterController` owned by `AppDelegate` (see `Sources/CodexBar/CodexbarApp.swift:1`).
 - Feed: `SUFeedURL` in Info.plist points to GitHub Releases appcast (`appcast.xml`).
 - Key: `SUPublicEDKey` set to `AGCY8w5vHirVfGGDGc8Szc5iuOqupZSh9pMj/Qs67XI=`. Keep the Ed25519 private key safe; use it when generating the appcast.
 - UI: menu items “Check for Updates…” and “Automatically check for updates” (toggle). Auto-check enabled by default.
@@ -24,3 +24,4 @@ read_when:
 ## Notes
 - If you change the feed host or key, update Info.plist (`SUFeedURL`, `SUPublicEDKey`) and bump the app.
 - Auto-check toggle is persisted via Sparkle; “Check for Updates…” available from the menu.
+- CodexBar disables Sparkle in Homebrew and unsigned builds; those installs should be updated via `brew` or reinstalling from Releases.

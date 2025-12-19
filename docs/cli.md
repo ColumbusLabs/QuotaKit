@@ -28,7 +28,7 @@ Use it when you need usage numbers in scripts, CI, or dashboards without UI.
   - `--no-credits` (hide Codex credits in text output).
   - `--pretty` (pretty-print JSON).
   - `--status` (fetch provider status pages and include them in output).
-  - `--openai-web` (Codex only): imports browser cookies (Chrome → Safari) and fetches OpenAI web dashboard data.
+  - `--openai-web` (Codex only): imports browser cookies (Safari → Chrome) and fetches OpenAI web dashboard data.
     - `--openai-web-timeout <seconds>` (default: 60)
     - `--openai-web-debug-dump-html` (writes HTML snapshots to `/tmp` when data is missing)
 - Global flags: `-h/--help`, `-V/--version`, `-v/--verbose`, `--log-level <trace|verbose|debug|info|warning|error|critical>`, `--json-output`.
@@ -105,5 +105,7 @@ Plan: Pro
 ## Notes
 - CLI reuses menubar toggles when present (prefers `com.steipete.codexbar{,.debug}` defaults), otherwise defaults to Codex only.
 - Prefer Codex RPC first, then PTY fallback; Claude stays PTY-only.
-- The `openaiDashboard` JSON field is normally sourced from the app’s cached dashboard snapshot; `--openai-web` refreshes it live via WebKit.
+- OpenAI web requires a signed-in `chatgpt.com` session in Safari or Chrome. No passwords are stored; CodexBar reuses cookies.
+- Safari cookie import may require granting CodexBar Full Disk Access (System Settings → Privacy & Security → Full Disk Access).
+- The `openaiDashboard` JSON field is normally sourced from the app’s cached dashboard snapshot; `--openai-web` refreshes it live via WebKit using a per-account cookie store.
 - Future: optional `--from-cache` flag to read the menubar app’s persisted snapshot (if/when that file lands).

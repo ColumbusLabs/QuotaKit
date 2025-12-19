@@ -8,6 +8,7 @@ Tiny macOS 15+ menu bar app that keeps your Codex and Claude Code limits visible
 
 Login story
 - **Codex** — Prefers the local codex app-server RPC for 5h/weekly limits + credits. Falls back to a PTY scrape of `codex /status` (auth/email/plan from the RPC or `~/.codex/auth.json`). All parsing stays on-device; no browser required.
+- **Codex (optional OpenAI web)** — Settings → General → “Access OpenAI via web” reuses an existing signed-in `chatgpt.com` session (Safari → Chrome cookie import) to show **Code review remaining** and **Usage breakdown**. No passwords stored; may require granting Full Disk Access for Safari cookie import.
 - **Claude Code** — Reads session + weekly + Sonnet-only weekly usage from the Claude CLI by running `/usage` + `/status` in a local PTY (no tmux). Shows email/org/login method directly from the CLI output. No browser or network calls beyond the CLI itself.
 - **Provider detection** — On first launch we detect installed CLIs and enable Codex by default (Claude turns on when the `claude` binary is present). You can toggle either provider in Settings → General or rerun detection after installing a CLI.
 - **Privacy note** — Wondering if CodexBar scans your disk? It doesn’t; see the discussion and audit notes in [issue #12](https://github.com/steipete/CodexBar/issues/12).
@@ -22,6 +23,7 @@ Icon bar mapping (grayscale)
 ## Features
 - Dual providers: Codex status item (5h/weekly + credits) and Claude Code status item (session/weekly + Sonnet-only weekly limit) can be shown together; Codex defaults on, Claude turns on when the CLI is present. Both sections show last-updated time and surface errors inline.
 - Codex path: prefers the codex app-server RPC (run with `-s read-only -a untrusted`) for rate limits and credits; falls back to a PTY scrape of `codex /status`, keeping cached credits when RPC is unavailable.
+- Codex optional: “Access OpenAI via web” adds Code review remaining + Usage breakdown (dashboard scrape) by reusing existing browser cookies; no passwords stored.
 - Claude path: runs `claude /usage` and `/status` in a local PTY (no tmux) to parse session/week/Sonnet percentages, reset strings, and account email/org/login method; debug view can copy the latest raw scrape.
 - Account line keeps data siloed: Codex plan/email come from RPC/auth.json, Claude plan/email come only from the Claude CLI output; we never mix provider identity fields.
 - Auto-update via Sparkle (Check for Updates… menu item, auto-check enabled). Feed defaults to the GitHub Releases appcast (replace SUPublicEDKey with your Ed25519 public key).
@@ -37,6 +39,7 @@ Requirements:
 - macOS 15+.
 - Codex: Codex CLI ≥ 0.55.0 installed and logged in (`codex --version`) to show the Codex row + credits. If your account hasn’t reported usage yet, the menu will show “No usage yet.”
 - Claude: Claude Code CLI installed (`claude --version`) and logged in via `claude login` to show the Claude row. Run at least one `/usage` so session/week numbers exist.
+- OpenAI web (optional): stay signed in to `chatgpt.com` in Safari or Chrome. Safari cookie import may require Full Disk Access (System Settings → Privacy & Security → Full Disk Access → enable CodexBar).
 
 ## Refresh cadence
 Menu → “Refresh every …” presets: Manual, 1 min, 2 min, 5 min (default), 15 min. Manual still allows “Refresh now.”
