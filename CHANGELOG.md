@@ -1,5 +1,7 @@
 # Changelog
 
+## 0.9.1 — Unreleased
+
 ## 0.9.0 — 2025-12-19
 - New optional OpenAI web access: reuses your signed-in Safari/Chrome session to show **Code review remaining**, **Usage breakdown**, and **Credits usage history** in the menu (no credentials stored).
 - Credits still come from the Codex CLI; OpenAI web access is only used for the dashboard extras above.
