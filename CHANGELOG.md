@@ -1,16 +1,14 @@
 # Changelog
 
 ## 0.9.0 — 2025-12-19
-- Optional OpenAI web access: reuses your signed-in Safari/Chrome session to scrape the Codex usage dashboard, including “Code review” remaining plus “Usage breakdown” and “Credits usage history” submenus (when available).
-- OpenAI web sessions are auto-synced to the Codex CLI email, support multiple accounts, and reset/re-import cookies on account switches to avoid stale cross-account data.
-- OpenAI web: “Credits usage history” waits for the lazy/virtualized table to render, so the submenu can populate even when the chart loads first.
-- Fix Chrome cookie import (macOS v10): strip Chromium’s 32-byte decrypted prefix so signed-in Chrome sessions are detected reliably (fixes “Chrome logged in but not detected”).
-- OpenAI web onboarding improvements: clearer permission errors plus a one-click “Enable Full Disk Access” helper and auto-retry when returning from System Settings.
-- Usage breakdown submenu: compact stacked bar chart (Swift Charts) with hover details for day/service totals.
-- CLI: `codexbar usage --openai-web` fetches and emits `openaiDashboard` JSON.
+- New optional OpenAI web access: reuses your signed-in Safari/Chrome session to show **Code review remaining**, **Usage breakdown**, and **Credits usage history** in the menu (no credentials stored).
+- Credits still come from the Codex CLI; OpenAI web access is only used for the dashboard extras above.
+- OpenAI web sessions auto-sync to the Codex CLI email, support multiple accounts, and reset/re-import cookies on account switches to avoid stale cross-account data.
+- Fix Chrome cookie import (macOS 10): signed-in Chrome sessions are detected reliably (thanks @tobihagemann!).
+- Usage breakdown submenu: compact chart with hover details for day/service totals.
 - New “Show usage as used” toggle to invert progress bars (default remains “% left”, now in Advanced).
-- Claude: fix reset parsing so “Resets …” can’t be mis-attributed to the wrong window (session vs weekly), including CR line endings; CLI no longer prints “Resets Resets …”.
 - Session (5-hour) reset now shows a relative countdown (“Resets in 3h 31m”) in the menu card for Codex and Claude.
+- Claude: fix reset parsing so “Resets …” can’t be mis-attributed to the wrong window (session vs weekly).
 
 ## 0.8.1 — 2025-12-17
 - Claude trust prompts (“Do you trust the files in this folder?”) are now auto-accepted during probes to prevent stuck refreshes. Thanks @tobihagemann!
