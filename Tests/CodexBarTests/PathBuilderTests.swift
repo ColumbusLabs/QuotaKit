@@ -68,6 +68,66 @@ struct PathBuilderTests {
     }
 
     @Test
+    func resolvesCodexFromInteractiveShell() {
+        let fm = MockFileManager(executables: ["/shell/bin/codex"])
+        let commandV: (String, String?, TimeInterval, FileManager) -> String? = { tool, shell, timeout, fileManager in
+            #expect(tool == "codex")
+            #expect(shell == "/bin/zsh")
+            #expect(timeout == 2.0)
+            _ = fileManager
+            return "/shell/bin/codex"
+        }
+
+        let resolved = BinaryLocator.resolveCodexBinary(
+            env: ["SHELL": "/bin/zsh"],
+            loginPATH: nil,
+            commandV: commandV,
+            fileManager: fm,
+            home: "/home/test")
+        #expect(resolved == "/shell/bin/codex")
+    }
+
+    @Test
+    func resolvesClaudeFromInteractiveShell() {
+        let fm = MockFileManager(executables: ["/shell/bin/claude"])
+        let commandV: (String, String?, TimeInterval, FileManager) -> String? = { tool, shell, timeout, fileManager in
+            #expect(tool == "claude")
+            #expect(shell == "/bin/zsh")
+            #expect(timeout == 2.0)
+            _ = fileManager
+            return "/shell/bin/claude"
+        }
+
+        let resolved = BinaryLocator.resolveClaudeBinary(
+            env: ["SHELL": "/bin/zsh"],
+            loginPATH: nil,
+            commandV: commandV,
+            fileManager: fm,
+            home: "/home/test")
+        #expect(resolved == "/shell/bin/claude")
+    }
+
+    @Test
+    func resolvesGeminiFromInteractiveShell() {
+        let fm = MockFileManager(executables: ["/shell/bin/gemini"])
+        let commandV: (String, String?, TimeInterval, FileManager) -> String? = { tool, shell, timeout, fileManager in
+            #expect(tool == "gemini")
+            #expect(shell == "/bin/zsh")
+            #expect(timeout == 2.0)
+            _ = fileManager
+            return "/shell/bin/gemini"
+        }
+
+        let resolved = BinaryLocator.resolveGeminiBinary(
+            env: ["SHELL": "/bin/zsh"],
+            loginPATH: nil,
+            commandV: commandV,
+            fileManager: fm,
+            home: "/home/test")
+        #expect(resolved == "/shell/bin/gemini")
+    }
+
+    @Test
     func resolvesClaudeFromLoginPath() {
         let fm = MockFileManager(executables: ["/login/bin/claude"])
         let resolved = BinaryLocator.resolveClaudeBinary(

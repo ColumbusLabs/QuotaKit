@@ -39,6 +39,7 @@ public enum BinaryLocator {
     public static func resolveClaudeBinary(
         env: [String: String] = ProcessInfo.processInfo.environment,
         loginPATH: [String]? = LoginShellPathCache.shared.current,
+        commandV: (String, String?, TimeInterval, FileManager) -> String? = ShellCommandLocator.commandV,
         fileManager: FileManager = .default,
         home: String = NSHomeDirectory()) -> String?
     {
@@ -47,6 +48,7 @@ public enum BinaryLocator {
             overrideKey: "CLAUDE_CLI_PATH",
             env: env,
             loginPATH: loginPATH,
+            commandV: commandV,
             fileManager: fileManager,
             home: home)
     }
@@ -54,6 +56,7 @@ public enum BinaryLocator {
     public static func resolveCodexBinary(
         env: [String: String] = ProcessInfo.processInfo.environment,
         loginPATH: [String]? = LoginShellPathCache.shared.current,
+        commandV: (String, String?, TimeInterval, FileManager) -> String? = ShellCommandLocator.commandV,
         fileManager: FileManager = .default,
         home: String = NSHomeDirectory()) -> String?
     {
@@ -62,6 +65,7 @@ public enum BinaryLocator {
             overrideKey: "CODEX_CLI_PATH",
             env: env,
             loginPATH: loginPATH,
+            commandV: commandV,
             fileManager: fileManager,
             home: home)
     }
@@ -69,6 +73,7 @@ public enum BinaryLocator {
     public static func resolveGeminiBinary(
         env: [String: String] = ProcessInfo.processInfo.environment,
         loginPATH: [String]? = LoginShellPathCache.shared.current,
+        commandV: (String, String?, TimeInterval, FileManager) -> String? = ShellCommandLocator.commandV,
         fileManager: FileManager = .default,
         home: String = NSHomeDirectory()) -> String?
     {
@@ -77,6 +82,7 @@ public enum BinaryLocator {
             overrideKey: "GEMINI_CLI_PATH",
             env: env,
             loginPATH: loginPATH,
+            commandV: commandV,
             fileManager: fileManager,
             home: home)
     }
@@ -87,6 +93,7 @@ public enum BinaryLocator {
         overrideKey: String,
         env: [String: String],
         loginPATH: [String]?,
+        commandV: (String, String?, TimeInterval, FileManager) -> String?,
         fileManager: FileManager,
         home _: String) -> String?
     {
@@ -113,7 +120,14 @@ public enum BinaryLocator {
             return pathHit
         }
 
-        // 4) Minimal fallback
+        // 4) Interactive login shell lookup (captures nvm/fnm/mise paths from .zshrc/.bashrc)
+        if let shellHit = commandV(name, env["SHELL"], 2.0, fileManager),
+           fileManager.isExecutableFile(atPath: shellHit)
+        {
+            return shellHit
+        }
+
+        // 5) Minimal fallback
         let fallback = ["/usr/bin", "/bin", "/usr/sbin", "/sbin"]
         if let pathHit = self.find(name, in: fallback, fileManager: fileManager) {
             return pathHit
@@ -129,6 +143,54 @@ public enum BinaryLocator {
                 return candidate
             }
         }
+        return nil
+    }
+}
+
+public enum ShellCommandLocator {
+    public static func commandV(
+        _ tool: String,
+        _ shell: String?,
+        _ timeout: TimeInterval,
+        _ fileManager: FileManager) -> String?
+    {
+        let shellPath = (shell?.isEmpty == false) ? shell! : "/bin/zsh"
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: shellPath)
+        // Interactive login shell to pick up PATH mutations from shell init (nvm/fnm/mise).
+        process.arguments = ["-l", "-i", "-c", "command -v \(tool)"]
+        let stdout = Pipe()
+        process.standardOutput = stdout
+        process.standardError = Pipe()
+        do {
+            try process.run()
+        } catch {
+            return nil
+        }
+
+        let deadline = Date().addingTimeInterval(timeout)
+        while process.isRunning, Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+
+        if process.isRunning {
+            process.terminate()
+            return nil
+        }
+
+        let data = stdout.fileHandleForReading.readDataToEndOfFile()
+        guard let text = String(data: data, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !text.isEmpty else { return nil }
+
+        let lines = text.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        for line in lines.reversed() where line.hasPrefix("/") {
+            let path = line
+            if fileManager.isExecutableFile(atPath: path) {
+                return path
+            }
+        }
+
         return nil
     }
 }
