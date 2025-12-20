@@ -84,7 +84,9 @@ struct UsageMenuCardView: View {
                 }
             }
 
-            Divider()
+            if self.hasDetails {
+                Divider()
+            }
 
             if self.model.metrics.isEmpty {
                 if let placeholder = self.model.placeholder {
@@ -139,6 +141,10 @@ struct UsageMenuCardView: View {
         .padding(.top, 4)
         .padding(.bottom, 4)
         .frame(minWidth: 300, maxWidth: 300, alignment: .leading)
+    }
+
+    private var hasDetails: Bool {
+        !self.model.metrics.isEmpty || self.model.placeholder != nil
     }
 
     private var subtitleColor: Color {

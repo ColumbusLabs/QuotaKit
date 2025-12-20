@@ -1,7 +1,7 @@
 # Changelog
 
 ## 0.10.1 — Unreleased
-- TBD.
+- Fix loading-state card spacing to avoid double separators.
 
 ## 0.10.0 — 2025-12-20
 - Gemini provider support (usage, plan detection, login flow). Thanks @381181295!
