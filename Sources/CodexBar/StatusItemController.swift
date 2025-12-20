@@ -31,7 +31,6 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var statusItem: NSStatusItem
     var statusItems: [UsageProvider: NSStatusItem] = [:]
     var lastMenuProvider: UsageProvider?
-    var selectedMenuProvider: UsageProvider?
     var menuProviders: [ObjectIdentifier: UsageProvider] = [:]
     var blinkTask: Task<Void, Never>?
     var loginTask: Task<Void, Never>? {
@@ -65,6 +64,10 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var animationPhase: Double = 0
     var animationPattern: LoadingPattern = .knightRider
     let loginLogger = Logger(subsystem: "com.steipete.codexbar", category: "login")
+    var selectedMenuProvider: UsageProvider? {
+        get { self.settings.selectedMenuProvider }
+        set { self.settings.selectedMenuProvider = newValue }
+    }
 
     struct BlinkState {
         var nextBlink: Date

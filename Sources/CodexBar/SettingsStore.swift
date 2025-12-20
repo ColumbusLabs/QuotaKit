@@ -77,12 +77,22 @@ final class SettingsStore: ObservableObject {
         didSet { self.objectWillChange.send() }
     }
 
+    @AppStorage("selectedMenuProvider") private var selectedMenuProviderRaw: String?
+
     /// Optional override for the loading animation pattern, exposed via the Debug tab.
     var debugLoadingPattern: LoadingPattern? {
         get { self.debugLoadingPatternRaw.flatMap(LoadingPattern.init(rawValue:)) }
         set {
             self.objectWillChange.send()
             self.debugLoadingPatternRaw = newValue?.rawValue
+        }
+    }
+
+    var selectedMenuProvider: UsageProvider? {
+        get { self.selectedMenuProviderRaw.flatMap(UsageProvider.init(rawValue:)) }
+        set {
+            self.objectWillChange.send()
+            self.selectedMenuProviderRaw = newValue?.rawValue
         }
     }
 
