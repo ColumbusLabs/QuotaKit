@@ -50,7 +50,10 @@ extension StatusItemController {
             dashboard != nil
         let hasCreditsHistory = openAIWebEligible && !(dashboard?.creditEvents ?? []).isEmpty
         let hasUsageBreakdown = openAIWebEligible && !(dashboard?.usageBreakdown ?? []).isEmpty
-        let hasOpenAIWebMenuItems = hasCreditsHistory || hasUsageBreakdown
+        let currentProvider = selectedProvider ?? enabledProviders.first ?? .codex
+        let hasCostHistory = self.settings.isCCUsageCostUsageEffectivelyEnabled(for: currentProvider) &&
+            (self.store.tokenSnapshot(for: currentProvider)?.daily.isEmpty == false)
+        let hasOpenAIWebMenuItems = hasCreditsHistory || hasUsageBreakdown || hasCostHistory
 
         if enabledProviders.count > 1 {
             let switcherItem = self.makeProviderSwitcherItem(
@@ -79,12 +82,15 @@ extension StatusItemController {
         }
 
         if hasOpenAIWebMenuItems {
-            // Only show these when we actually have OpenAI web-only data.
+            // Only show these when we actually have additional data.
             if hasCreditsHistory {
                 _ = self.addCreditsHistorySubmenu(to: menu)
             }
             if hasUsageBreakdown {
                 _ = self.addUsageBreakdownSubmenu(to: menu)
+            }
+            if hasCostHistory {
+                _ = self.addCostHistorySubmenu(to: menu, provider: currentProvider)
             }
             menu.addItem(.separator())
         }
@@ -375,6 +381,36 @@ extension StatusItemController {
         return true
     }
 
+    @discardableResult
+    private func addCostHistorySubmenu(to menu: NSMenu, provider: UsageProvider) -> Bool {
+        guard provider == .codex || provider == .claude else { return false }
+        guard let tokenSnapshot = self.store.tokenSnapshot(for: provider) else { return false }
+        guard !tokenSnapshot.daily.isEmpty else { return false }
+
+        let item = NSMenuItem(title: "Cost history (30 days)", action: nil, keyEquivalent: "")
+        item.isEnabled = true
+        let submenu = NSMenu()
+        let chartView = CCUsageCostChartMenuView(
+            provider: provider,
+            daily: tokenSnapshot.daily,
+            totalCostUSD: tokenSnapshot.last30DaysCostUSD)
+        let hosting = NSHostingView(rootView: chartView)
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: 1))
+        hosting.layoutSubtreeIfNeeded()
+        let size = hosting.fittingSize
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: size.height))
+
+        let chartItem = NSMenuItem()
+        chartItem.view = hosting
+        chartItem.isEnabled = false
+        chartItem.representedObject = "ccusageCostHistoryChart"
+        submenu.addItem(chartItem)
+
+        item.submenu = submenu
+        menu.addItem(item)
+        return true
+    }
+
     private func menuCardModel(for provider: UsageProvider?) -> UsageMenuCardView.Model? {
         let target = provider ?? self.store.enabledProviders().first ?? .codex
         let metadata = self.store.metadata(for: target)
@@ -384,16 +420,29 @@ extension StatusItemController {
         let creditsError: String?
         let dashboard: OpenAIDashboardSnapshot?
         let dashboardError: String?
+        let tokenSnapshot: CCUsageTokenSnapshot?
+        let tokenError: String?
         if target == .codex {
             credits = self.store.credits
             creditsError = self.store.lastCreditsError
             dashboard = self.store.openAIDashboardRequiresLogin ? nil : self.store.openAIDashboard
             dashboardError = self.store.lastOpenAIDashboardError
+            tokenSnapshot = self.store.tokenSnapshot(for: target)
+            tokenError = self.store.tokenError(for: target)
+        } else if target == .claude {
+            credits = nil
+            creditsError = nil
+            dashboard = nil
+            dashboardError = nil
+            tokenSnapshot = self.store.tokenSnapshot(for: target)
+            tokenError = self.store.tokenError(for: target)
         } else {
             credits = nil
             creditsError = nil
             dashboard = nil
             dashboardError = nil
+            tokenSnapshot = nil
+            tokenError = nil
         }
 
         let input = UsageMenuCardView.Model.Input(
@@ -404,10 +453,13 @@ extension StatusItemController {
             creditsError: creditsError,
             dashboard: dashboard,
             dashboardError: dashboardError,
+            tokenSnapshot: tokenSnapshot,
+            tokenError: tokenError,
             account: self.account,
             isRefreshing: self.store.isRefreshing,
             lastError: self.store.error(for: target),
-            usageBarsShowUsed: self.settings.usageBarsShowUsed)
+            usageBarsShowUsed: self.settings.usageBarsShowUsed,
+            tokenCostUsageEnabled: self.settings.isCCUsageCostUsageEffectivelyEnabled(for: target))
         return UsageMenuCardView.Model.make(input)
     }
 }
@@ -443,15 +495,7 @@ private final class ProviderSwitcherView: NSView {
         self.onSelect = onSelect
         super.init(frame: NSRect(x: 0, y: 0, width: width, height: 30))
 
-        let stack = NSStackView()
-        stack.orientation = .horizontal
-        stack.spacing = 6
-        stack.alignment = .centerY
-        if #available(macOS 11, *) {
-            stack.edgeInsets = NSEdgeInsets(top: 2, left: 6, bottom: 2, right: 6)
-        }
-
-        for (index, segment) in self.segments.enumerated() {
+        func makeButton(index: Int, segment: Segment) -> NSButton {
             let button = PaddedToggleButton(
                 title: segment.title,
                 target: self,
@@ -469,17 +513,67 @@ private final class ProviderSwitcherView: NSView {
             button.wantsLayer = true
             button.layer?.cornerRadius = 6
             button.state = (selected == segment.provider) ? .on : .off
-            stack.addArrangedSubview(button)
+            button.translatesAutoresizingMaskIntoConstraints = false
             self.buttons.append(button)
+            return button
         }
 
-        self.addSubview(stack)
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 8),
-            stack.centerYAnchor.constraint(equalTo: self.centerYAnchor),
-            stack.trailingAnchor.constraint(lessThanOrEqualTo: self.trailingAnchor, constant: -8),
-        ])
+        for (index, segment) in self.segments.enumerated() {
+            let button = makeButton(index: index, segment: segment)
+            self.addSubview(button)
+        }
+
+        // Keep segment widths stable across selected/unselected to avoid shifting.
+        for button in self.buttons {
+            let width = ceil(Self.maxToggleWidth(for: button))
+            if width > 0 {
+                button.widthAnchor.constraint(equalToConstant: width).isActive = true
+            }
+        }
+
+        let outerPadding: CGFloat = 14
+        let minimumGap: CGFloat = 8
+
+        if self.buttons.count == 2 {
+            let left = self.buttons[0]
+            let right = self.buttons[1]
+            let gap = right.leadingAnchor.constraint(greaterThanOrEqualTo: left.trailingAnchor, constant: minimumGap)
+            gap.priority = .defaultHigh
+            NSLayoutConstraint.activate([
+                left.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: outerPadding),
+                left.centerYAnchor.constraint(equalTo: self.centerYAnchor),
+                right.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -outerPadding),
+                right.centerYAnchor.constraint(equalTo: self.centerYAnchor),
+                gap,
+            ])
+        } else if self.buttons.count == 3 {
+            let left = self.buttons[0]
+            let mid = self.buttons[1]
+            let right = self.buttons[2]
+
+            let leftGap = mid.leadingAnchor.constraint(greaterThanOrEqualTo: left.trailingAnchor, constant: minimumGap)
+            leftGap.priority = .defaultHigh
+            let rightGap = right.leadingAnchor.constraint(
+                greaterThanOrEqualTo: mid.trailingAnchor,
+                constant: minimumGap)
+            rightGap.priority = .defaultHigh
+
+            NSLayoutConstraint.activate([
+                left.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: outerPadding),
+                left.centerYAnchor.constraint(equalTo: self.centerYAnchor),
+                mid.centerXAnchor.constraint(equalTo: self.centerXAnchor),
+                mid.centerYAnchor.constraint(equalTo: self.centerYAnchor),
+                right.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -outerPadding),
+                right.centerYAnchor.constraint(equalTo: self.centerYAnchor),
+                leftGap,
+                rightGap,
+            ])
+        } else if let first = self.buttons.first {
+            NSLayoutConstraint.activate([
+                first.centerXAnchor.constraint(equalTo: self.centerXAnchor),
+                first.centerYAnchor.constraint(equalTo: self.centerYAnchor),
+            ])
+        }
 
         self.updateButtonStyles()
     }
@@ -505,6 +599,21 @@ private final class ProviderSwitcherView: NSView {
             button.contentTintColor = isSelected ? self.selectedTextColor : self.unselectedTextColor
             button.layer?.backgroundColor = isSelected ? self.selectedBackground : self.unselectedBackground
         }
+    }
+
+    private static func maxToggleWidth(for button: NSButton) -> CGFloat {
+        let originalState = button.state
+        defer { button.state = originalState }
+
+        button.state = .off
+        button.layoutSubtreeIfNeeded()
+        let offWidth = button.fittingSize.width
+
+        button.state = .on
+        button.layoutSubtreeIfNeeded()
+        let onWidth = button.fittingSize.width
+
+        return max(offWidth, onWidth)
     }
 
     private static func paddedImage(_ image: NSImage, leading: CGFloat) -> NSImage {

@@ -63,6 +63,13 @@ final class SettingsStore: ObservableObject {
         didSet { self.objectWillChange.send() }
     }
 
+    /// Optional: show provider cost summary from ccusage CLIs (offline).
+    @AppStorage("tokenCostUsageEnabled") var ccusageCostUsageEnabled: Bool = false {
+        didSet { self.objectWillChange.send() }
+    }
+
+    @Published private(set) var ccusageAvailability: CCUsageAvailability = .init(claudePath: nil, codexPath: nil)
+
     @AppStorage("randomBlinkEnabled") var randomBlinkEnabled: Bool = false {
         didSet { self.objectWillChange.send() }
     }
@@ -101,6 +108,13 @@ final class SettingsStore: ObservableObject {
     private let userDefaults: UserDefaults
     private let toggleStore: ProviderToggleStore
 
+    struct CCUsageAvailability: Sendable, Equatable {
+        let claudePath: String?
+        let codexPath: String?
+
+        var isAnyInstalled: Bool { self.claudePath != nil || self.codexPath != nil }
+    }
+
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
         if userDefaults.object(forKey: "sessionQuotaNotificationsEnabled") == nil {
@@ -112,6 +126,7 @@ final class SettingsStore: ObservableObject {
         self.toggleStore.purgeLegacyKeys()
         LaunchAtLoginManager.setEnabled(self.launchAtLogin)
         self.runInitialProviderDetectionIfNeeded()
+        self.refreshCCUsageAvailability()
     }
 
     func isProviderEnabled(provider: UsageProvider, metadata: ProviderMetadata) -> Bool {
@@ -128,6 +143,74 @@ final class SettingsStore: ObservableObject {
     }
 
     // MARK: - Private
+
+    nonisolated static func ccusageAvailability(
+        env: [String: String] = ProcessInfo.processInfo.environment,
+        loginPATH: [String]? = LoginShellPathCache.shared.current,
+        commandV: (String, String?, TimeInterval, FileManager) -> String? = ShellCommandLocator.commandV,
+        fileManager: FileManager = .default) -> CCUsageAvailability
+    {
+        func find(_ binary: String, in paths: [String]) -> String? {
+            for path in paths where !path.isEmpty {
+                let candidate = "\(path.hasSuffix("/") ? String(path.dropLast()) : path)/\(binary)"
+                if fileManager.isExecutableFile(atPath: candidate) { return candidate }
+            }
+            return nil
+        }
+
+        func resolve(_ binary: String, hardcoded: [String]) -> String? {
+            // 1) Login-shell PATH (captured once per launch)
+            if let loginPATH,
+               let pathHit = find(binary, in: loginPATH)
+            {
+                return pathHit
+            }
+
+            // 2) Existing PATH
+            if let existingPATH = env["PATH"]?.split(separator: ":").map(String.init),
+               let pathHit = find(binary, in: existingPATH)
+            {
+                return pathHit
+            }
+
+            // 3) Interactive login shell lookup (captures nvm/fnm/mise paths from .zshrc/.bashrc)
+            if let shellHit = commandV(binary, env["SHELL"], 2.0, fileManager),
+               fileManager.isExecutableFile(atPath: shellHit)
+            {
+                return shellHit
+            }
+
+            // 4) Hardcoded locations
+            for candidate in hardcoded where fileManager.isExecutableFile(atPath: candidate) {
+                return candidate
+            }
+
+            return nil
+        }
+
+        let claudePath = resolve(
+            "ccusage",
+            hardcoded: ["/opt/homebrew/bin/ccusage", "/usr/local/bin/ccusage"])
+        let codexPath = resolve(
+            "ccusage-codex",
+            hardcoded: ["/opt/homebrew/bin/ccusage-codex", "/usr/local/bin/ccusage-codex"])
+        return CCUsageAvailability(claudePath: claudePath, codexPath: codexPath)
+    }
+
+    func isCCUsageInstalled(for provider: UsageProvider) -> Bool {
+        switch provider {
+        case .claude:
+            self.ccusageAvailability.claudePath != nil
+        case .codex:
+            self.ccusageAvailability.codexPath != nil
+        case .gemini:
+            false
+        }
+    }
+
+    func isCCUsageCostUsageEffectivelyEnabled(for provider: UsageProvider) -> Bool {
+        self.ccusageCostUsageEnabled && self.isCCUsageInstalled(for: provider)
+    }
 
     private func runInitialProviderDetectionIfNeeded(force: Bool = false) {
         guard force || !self.providerDetectionCompleted else { return }
@@ -163,6 +246,29 @@ final class SettingsStore: ObservableObject {
         self.toggleStore.setEnabled(enableClaude, metadata: claudeMeta)
         self.toggleStore.setEnabled(enableGemini, metadata: geminiMeta)
         self.providerDetectionCompleted = true
+    }
+
+    func refreshCCUsageAvailability() {
+        LoginShellPathCache.shared.captureOnce { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let availability = await Task.detached(priority: .utility) {
+                    Self.ccusageAvailability()
+                }.value
+                self.ccusageAvailability = availability
+                self.applyCCUsageDefaultIfNeeded(availability: availability)
+            }
+        }
+    }
+
+    private func applyCCUsageDefaultIfNeeded(availability: CCUsageAvailability) {
+        // @AppStorage always reads/writes UserDefaults.standard.
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: "tokenCostUsageEnabled") == nil else { return }
+        guard availability.isAnyInstalled else { return }
+        let enabledByDefault = availability.isAnyInstalled
+        defaults.set(enabledByDefault, forKey: "tokenCostUsageEnabled")
+        self.ccusageCostUsageEnabled = enabledByDefault
     }
 }
 

@@ -68,6 +68,9 @@ struct ConsecutiveFailureGate {
 final class UsageStore: ObservableObject {
     @Published private var snapshots: [UsageProvider: UsageSnapshot] = [:]
     @Published private var errors: [UsageProvider: String] = [:]
+    @Published private var tokenSnapshots: [UsageProvider: CCUsageTokenSnapshot] = [:]
+    @Published private var tokenErrors: [UsageProvider: String] = [:]
+    @Published private var tokenRefreshInFlight: Set<UsageProvider> = []
     @Published var credits: CreditsSnapshot?
     @Published var lastCreditsError: String?
     @Published var openAIDashboard: OpenAIDashboardSnapshot?
@@ -95,6 +98,7 @@ final class UsageStore: ObservableObject {
 
     private let codexFetcher: UsageFetcher
     private let claudeFetcher: any ClaudeUsageFetching
+    private let ccusageFetcher: CCUsageFetcher
     private let registry: ProviderRegistry
     private let settings: SettingsStore
     private let sessionQuotaNotifier: SessionQuotaNotifier
@@ -102,21 +106,27 @@ final class UsageStore: ObservableObject {
     private let openAIWebLogger = Logger(subsystem: "com.steipete.codexbar", category: "openai-web")
     private var openAIWebDebugLines: [String] = []
     private var failureGates: [UsageProvider: ConsecutiveFailureGate] = [:]
+    private var tokenFailureGates: [UsageProvider: ConsecutiveFailureGate] = [:]
     private var providerSpecs: [UsageProvider: ProviderSpec] = [:]
     private let providerMetadata: [UsageProvider: ProviderMetadata]
     private var timerTask: Task<Void, Never>?
+    private var tokenTimerTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
     private var lastKnownSessionRemaining: [UsageProvider: Double] = [:]
+    private var lastTokenFetchAt: [UsageProvider: Date] = [:]
+    private let tokenFetchTTL: TimeInterval = 60 * 60
 
     init(
         fetcher: UsageFetcher,
         claudeFetcher: any ClaudeUsageFetching = ClaudeUsageFetcher(),
+        ccusageFetcher: CCUsageFetcher = CCUsageFetcher(),
         settings: SettingsStore,
         registry: ProviderRegistry = .shared,
         sessionQuotaNotifier: SessionQuotaNotifier = SessionQuotaNotifier())
     {
         self.codexFetcher = fetcher
         self.claudeFetcher = claudeFetcher
+        self.ccusageFetcher = ccusageFetcher
         self.settings = settings
         self.registry = registry
         self.sessionQuotaNotifier = sessionQuotaNotifier
@@ -124,6 +134,8 @@ final class UsageStore: ObservableObject {
         self
             .failureGates = Dictionary(uniqueKeysWithValues: UsageProvider.allCases
                 .map { ($0, ConsecutiveFailureGate()) })
+        self.tokenFailureGates = Dictionary(uniqueKeysWithValues: UsageProvider.allCases
+            .map { ($0, ConsecutiveFailureGate()) })
         self.providerSpecs = registry.specs(
             settings: settings,
             metadata: self.providerMetadata,
@@ -137,6 +149,7 @@ final class UsageStore: ObservableObject {
         }
         Task { await self.refresh() }
         self.startTimer()
+        self.startTokenTimer()
     }
 
     var codexSnapshot: UsageSnapshot? { self.snapshots[.codex] }
@@ -230,7 +243,7 @@ final class UsageStore: ObservableObject {
         self.settings.isProviderEnabled(provider: provider, metadata: self.metadata(for: provider))
     }
 
-    func refresh() async {
+    func refresh(forceTokenUsage: Bool = false) async {
         guard !self.isRefreshing else { return }
         self.isRefreshing = true
         defer { self.isRefreshing = false }
@@ -242,6 +255,9 @@ final class UsageStore: ObservableObject {
             }
             group.addTask { await self.refreshCreditsIfNeeded() }
         }
+
+        // Token-cost usage can be slow; run it outside the refresh group so we don't block menu updates.
+        self.scheduleTokenRefresh(force: forceTokenUsage)
 
         // OpenAI web scrape depends on the current Codex account email (which can change after login/account switch).
         // Run this after Codex usage refresh so we don't accidentally scrape with stale credentials.
@@ -295,8 +311,28 @@ final class UsageStore: ObservableObject {
         }
     }
 
+    private func startTokenTimer() {
+        self.tokenTimerTask?.cancel()
+        let wait = self.tokenFetchTTL
+        self.tokenTimerTask = Task.detached(priority: .utility) { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(wait))
+                await self?.scheduleTokenRefresh(force: false)
+            }
+        }
+    }
+
+    private func scheduleTokenRefresh(force: Bool) {
+        for provider in UsageProvider.allCases {
+            Task { [weak self] in
+                await self?.refreshTokenUsage(provider, force: force)
+            }
+        }
+    }
+
     deinit {
         self.timerTask?.cancel()
+        self.tokenTimerTask?.cancel()
     }
 
     private func refreshProvider(_ provider: UsageProvider) async {
@@ -306,9 +342,13 @@ final class UsageStore: ObservableObject {
             await MainActor.run {
                 self.snapshots.removeValue(forKey: provider)
                 self.errors[provider] = nil
+                self.tokenSnapshots.removeValue(forKey: provider)
+                self.tokenErrors[provider] = nil
                 self.failureGates[provider]?.reset()
+                self.tokenFailureGates[provider]?.reset()
                 self.statuses.removeValue(forKey: provider)
                 self.lastKnownSessionRemaining.removeValue(forKey: provider)
+                self.lastTokenFetchAt.removeValue(forKey: provider)
             }
             return
         }
@@ -913,5 +953,103 @@ final class UsageStore: ObservableObject {
 
     private func refreshPathDebugInfo() {
         self.pathDebugInfo = PathBuilder.debugSnapshot(purposes: [.rpc, .tty, .nodeTooling])
+    }
+}
+
+extension UsageStore {
+    func tokenSnapshot(for provider: UsageProvider) -> CCUsageTokenSnapshot? {
+        self.tokenSnapshots[provider]
+    }
+
+    func tokenError(for provider: UsageProvider) -> String? {
+        self.tokenErrors[provider]
+    }
+
+    func tokenLastAttemptAt(for provider: UsageProvider) -> Date? {
+        self.lastTokenFetchAt[provider]
+    }
+
+    func isTokenRefreshInFlight(for provider: UsageProvider) -> Bool {
+        self.tokenRefreshInFlight.contains(provider)
+    }
+
+    private func refreshTokenUsage(_ provider: UsageProvider, force: Bool) async {
+        guard provider == .codex || provider == .claude else {
+            self.tokenSnapshots.removeValue(forKey: provider)
+            self.tokenErrors[provider] = nil
+            self.tokenFailureGates[provider]?.reset()
+            self.lastTokenFetchAt.removeValue(forKey: provider)
+            return
+        }
+
+        guard self.settings.ccusageCostUsageEnabled else {
+            self.tokenSnapshots.removeValue(forKey: provider)
+            self.tokenErrors[provider] = nil
+            self.tokenFailureGates[provider]?.reset()
+            self.lastTokenFetchAt.removeValue(forKey: provider)
+            return
+        }
+
+        guard self.settings.isCCUsageInstalled(for: provider) else {
+            self.tokenSnapshots.removeValue(forKey: provider)
+            self.tokenErrors[provider] = nil
+            self.tokenFailureGates[provider]?.reset()
+            self.lastTokenFetchAt.removeValue(forKey: provider)
+            return
+        }
+
+        guard self.isEnabled(provider) else {
+            self.tokenSnapshots.removeValue(forKey: provider)
+            self.tokenErrors[provider] = nil
+            self.tokenFailureGates[provider]?.reset()
+            self.lastTokenFetchAt.removeValue(forKey: provider)
+            return
+        }
+
+        guard !self.tokenRefreshInFlight.contains(provider) else { return }
+
+        let now = Date()
+        if !force,
+           let last = self.lastTokenFetchAt[provider],
+           now.timeIntervalSince(last) < self.tokenFetchTTL,
+           self.tokenSnapshots[provider] != nil
+        {
+            return
+        }
+        self.lastTokenFetchAt[provider] = now
+        self.tokenRefreshInFlight.insert(provider)
+        defer { self.tokenRefreshInFlight.remove(provider) }
+
+        do {
+            let fetcher = self.ccusageFetcher
+            let cli: CCUsageFetcher.CLI = switch provider {
+            case .codex: .codex
+            case .claude: .ccusage
+            case .gemini: .ccusage
+            }
+            let snapshot = try await Task.detached(priority: .utility) {
+                try await fetcher.loadTokenSnapshot(cli: cli, now: now)
+            }.value
+            self.tokenSnapshots[provider] = snapshot
+            self.tokenErrors[provider] = nil
+            self.tokenFailureGates[provider]?.recordSuccess()
+        } catch {
+            if let ccusageError = error as? CCUsageError,
+               case .cliNotInstalled = ccusageError
+            {
+                self.tokenSnapshots.removeValue(forKey: provider)
+                self.tokenErrors[provider] = nil
+                return
+            }
+            let hadPriorData = self.tokenSnapshots[provider] != nil
+            let shouldSurface = self.tokenFailureGates[provider]?
+                .shouldSurfaceError(onFailureWithPriorData: hadPriorData) ?? true
+            if shouldSurface {
+                self.tokenErrors[provider] = error.localizedDescription
+                self.tokenSnapshots.removeValue(forKey: provider)
+            } else {
+                self.tokenErrors[provider] = nil
+            }
+        }
     }
 }

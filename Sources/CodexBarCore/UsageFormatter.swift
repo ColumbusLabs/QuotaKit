@@ -61,6 +61,46 @@ public enum UsageFormatter {
         return "\(formatted) left"
     }
 
+    public static func usdString(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = "USD"
+        formatter.maximumFractionDigits = 2
+        formatter.minimumFractionDigits = 2
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter.string(from: NSNumber(value: value)) ?? String(format: "$%.2f", value)
+    }
+
+    public static func tokenCountString(_ value: Int) -> String {
+        let absValue = abs(value)
+        let sign = value < 0 ? "-" : ""
+
+        let units: [(threshold: Int, divisor: Double, suffix: String)] = [
+            (1_000_000_000, 1_000_000_000, "B"),
+            (1_000_000, 1_000_000, "M"),
+            (1000, 1000, "K"),
+        ]
+
+        for unit in units where absValue >= unit.threshold {
+            let scaled = Double(absValue) / unit.divisor
+            let formatted: String
+            if scaled >= 10 {
+                formatted = String(format: "%.0f", scaled)
+            } else {
+                var s = String(format: "%.1f", scaled)
+                if s.hasSuffix(".0") { s.removeLast(2) }
+                formatted = s
+            }
+            return "\(sign)\(formatted)\(unit.suffix)"
+        }
+
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.usesGroupingSeparator = true
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+    }
+
     public static func creditEventSummary(_ event: CreditEvent) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium

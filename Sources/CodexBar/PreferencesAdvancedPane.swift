@@ -1,4 +1,5 @@
 import AppKit
+import CodexBarCore
 import SwiftUI
 
 @MainActor
@@ -9,6 +10,11 @@ struct AdvancedPane: View {
     @State private var cliStatus: String?
 
     var body: some View {
+        let ccusageAvailability = self.settings.ccusageAvailability
+        let ccusageBinding = Binding(
+            get: { ccusageAvailability.isAnyInstalled ? self.settings.ccusageCostUsageEnabled : false },
+            set: { self.settings.ccusageCostUsageEnabled = $0 })
+
         ScrollView(.vertical, showsIndicators: true) {
             VStack(alignment: .leading, spacing: 16) {
                 SettingsSection(contentSpacing: 6) {
@@ -48,6 +54,42 @@ struct AdvancedPane: View {
                         title: "Surprise me",
                         subtitle: "Check if you like your agents having some fun up there.",
                         binding: self.$settings.randomBlinkEnabled)
+                }
+
+                Divider()
+
+                SettingsSection(contentSpacing: 12) {
+                    Text("Usage")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                    PreferenceToggleRow(
+                        title: "Show ccusage cost summary",
+                        subtitle: "Requires ccusage. Shows session + last 30 days cost in the menu.",
+                        binding: ccusageBinding)
+                        .disabled(!ccusageAvailability.isAnyInstalled)
+                    if ccusageAvailability.isAnyInstalled {
+                        if self.settings.ccusageCostUsageEnabled {
+                            Text("Auto-refresh: hourly · Timeout: 10m")
+                                .font(.footnote)
+                                .foregroundStyle(.tertiary)
+
+                            self.ccusageStatusLine(
+                                provider: .claude,
+                                isInstalled: ccusageAvailability.claudePath != nil)
+                            self.ccusageStatusLine(provider: .codex, isInstalled: ccusageAvailability.codexPath != nil)
+                        }
+                    } else {
+                        Text("ccusage not detected.")
+                            .font(.footnote)
+                            .foregroundStyle(.tertiary)
+                        Text("Install Claude: npm i -g ccusage")
+                            .font(.footnote)
+                            .foregroundStyle(.tertiary)
+                        Text("Install Codex: npm i -g @ccusage/codex")
+                            .font(.footnote)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
 
                 Divider()
@@ -103,6 +145,58 @@ struct AdvancedPane: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
         }
+        .onAppear { self.settings.refreshCCUsageAvailability() }
+    }
+
+    private func ccusageStatusLine(provider: UsageProvider, isInstalled: Bool) -> some View {
+        let (name, binary) = switch provider {
+        case .claude:
+            ("Claude", "ccusage")
+        case .codex:
+            ("Codex", "ccusage-codex")
+        case .gemini:
+            ("Gemini", "ccusage")
+        }
+        guard provider == .claude || provider == .codex else {
+            return Text("\(name): unsupported")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+        }
+
+        if !isInstalled {
+            return Text("\(name): not detected (\(binary))")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+        }
+        if self.store.isTokenRefreshInFlight(for: provider) {
+            return Text("\(name): detected · fetching…")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+        }
+        if let snapshot = self.store.tokenSnapshot(for: provider) {
+            let updated = UsageFormatter.updatedString(from: snapshot.updatedAt)
+            let cost = snapshot.last30DaysCostUSD.map { UsageFormatter.usdString($0) } ?? "—"
+            return Text("\(name): detected · \(updated) · 30d \(cost)")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+        }
+        if let error = self.store.tokenError(for: provider), !error.isEmpty {
+            let truncated = UsageFormatter.truncatedSingleLine(error, max: 120)
+            return Text("\(name): detected · \(truncated)")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+        }
+        if let lastAttempt = self.store.tokenLastAttemptAt(for: provider) {
+            let rel = RelativeDateTimeFormatter()
+            rel.unitsStyle = .abbreviated
+            let when = rel.localizedString(for: lastAttempt, relativeTo: Date())
+            return Text("\(name): detected · last attempt \(when)")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+        }
+        return Text("\(name): detected · no data yet")
+            .font(.footnote)
+            .foregroundStyle(.tertiary)
     }
 
     // MARK: - CLI installer

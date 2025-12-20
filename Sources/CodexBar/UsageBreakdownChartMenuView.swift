@@ -33,11 +33,20 @@ struct UsageBreakdownChartMenuView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
-                Chart(model.points) { point in
-                    BarMark(
-                        x: .value("Day", point.date, unit: .day),
-                        y: .value("Credits used", point.creditsUsed))
-                        .foregroundStyle(by: .value("Service", point.service))
+                Chart {
+                    ForEach(model.points) { point in
+                        BarMark(
+                            x: .value("Day", point.date, unit: .day),
+                            y: .value("Credits used", point.creditsUsed))
+                            .foregroundStyle(by: .value("Service", point.service))
+                    }
+                    if let peak = model.peakPoint {
+                        PointMark(
+                            x: .value("Day", peak.date, unit: .day),
+                            y: .value("Credits used", peak.creditsUsed))
+                            .symbolSize(26)
+                            .foregroundStyle(Color(nsColor: .systemYellow))
+                    }
                 }
                 .chartForegroundStyleScale(domain: model.services, range: model.serviceColors)
                 .chartYAxis(.hidden)
@@ -46,18 +55,28 @@ struct UsageBreakdownChartMenuView: View {
                         AxisGridLine().foregroundStyle(Color.clear)
                         AxisTick().foregroundStyle(Color.clear)
                         AxisValueLabel(format: .dateTime.month(.abbreviated).day())
-                            .foregroundStyle(.secondary)
+                            .font(.caption2)
+                            .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
                     }
                 }
                 .chartLegend(.hidden)
                 .frame(height: 130)
                 .chartOverlay { proxy in
                     GeometryReader { geo in
-                        MouseLocationReader { location in
-                            self.updateSelection(location: location, model: model, proxy: proxy, geo: geo)
+                        ZStack(alignment: .topLeading) {
+                            if let rect = self.selectionBandRect(model: model, proxy: proxy, geo: geo) {
+                                Rectangle()
+                                    .fill(Color.white.opacity(0.07))
+                                    .frame(width: rect.width, height: rect.height)
+                                    .position(x: rect.midX, y: rect.midY)
+                                    .allowsHitTesting(false)
+                            }
+                            MouseLocationReader { location in
+                                self.updateSelection(location: location, model: model, proxy: proxy, geo: geo)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .contentShape(Rectangle())
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .contentShape(Rectangle())
                     }
                 }
 
@@ -96,6 +115,7 @@ struct UsageBreakdownChartMenuView: View {
         let points: [Point]
         let breakdownByDayKey: [String: OpenAIDashboardDailyBreakdown]
         let dayDates: [(dayKey: String, date: Date)]
+        let peakPoint: (date: Date, creditsUsed: Double)?
         let services: [String]
         let serviceColors: [Color]
         let axisDates: [Date]
@@ -121,10 +141,19 @@ struct UsageBreakdownChartMenuView: View {
         var dayDates: [(dayKey: String, date: Date)] = []
         dayDates.reserveCapacity(sorted.count)
 
+        var peak: (date: Date, creditsUsed: Double)?
+
         for day in sorted {
             guard let date = self.dateFromDayKey(day.day) else { continue }
             breakdownByDayKey[day.day] = day
             dayDates.append((dayKey: day.day, date: date))
+            if day.totalCreditsUsed > 0 {
+                if let cur = peak {
+                    if day.totalCreditsUsed > cur.creditsUsed { peak = (date, day.totalCreditsUsed) }
+                } else {
+                    peak = (date, day.totalCreditsUsed)
+                }
+            }
             for service in day.services where service.creditsUsed > 0 {
                 points.append(Point(date: date, service: service.service, creditsUsed: service.creditsUsed))
             }
@@ -138,6 +167,7 @@ struct UsageBreakdownChartMenuView: View {
             points: points,
             breakdownByDayKey: breakdownByDayKey,
             dayDates: dayDates,
+            peakPoint: peak,
             services: services,
             serviceColors: colors,
             axisDates: axisDates)
@@ -209,6 +239,43 @@ struct UsageBreakdownChartMenuView: View {
         // Noon avoids off-by-one-day shifts if anything ends up interpreted in UTC.
         comps.hour = 12
         return comps.date
+    }
+
+    private func selectionBandRect(model: Model, proxy: ChartProxy, geo: GeometryProxy) -> CGRect? {
+        guard let key = self.selectedDayKey else { return nil }
+        guard let plotAnchor = proxy.plotFrame else { return nil }
+        let plotFrame = geo[plotAnchor]
+        guard let index = model.dayDates.firstIndex(where: { $0.dayKey == key }) else { return nil }
+        let date = model.dayDates[index].date
+        guard let x = proxy.position(forX: date) else { return nil }
+
+        func xForIndex(_ idx: Int) -> CGFloat? {
+            guard idx >= 0, idx < model.dayDates.count else { return nil }
+            return proxy.position(forX: model.dayDates[idx].date)
+        }
+
+        let xPrev = xForIndex(index - 1)
+        let xNext = xForIndex(index + 1)
+
+        let leftInPlot: CGFloat = if let xPrev {
+            (xPrev + x) / 2
+        } else if let xNext {
+            x - (xNext - x) / 2
+        } else {
+            x - 8
+        }
+
+        let rightInPlot: CGFloat = if let xNext {
+            (xNext + x) / 2
+        } else if let xPrev {
+            x + (x - xPrev) / 2
+        } else {
+            x + 8
+        }
+
+        let left = plotFrame.origin.x + min(leftInPlot, rightInPlot)
+        let right = plotFrame.origin.x + max(leftInPlot, rightInPlot)
+        return CGRect(x: left, y: plotFrame.origin.y, width: right - left, height: plotFrame.height)
     }
 
     private func updateSelection(

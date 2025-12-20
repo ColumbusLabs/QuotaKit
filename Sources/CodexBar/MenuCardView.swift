@@ -41,6 +41,13 @@ struct UsageMenuCardView: View {
             case error
         }
 
+        struct TokenUsageSection: Sendable {
+            let sessionLine: String
+            let monthLine: String
+            let hintLine: String?
+            let errorLine: String?
+        }
+
         let providerName: String
         let email: String
         let subtitleText: String
@@ -49,6 +56,7 @@ struct UsageMenuCardView: View {
         let metrics: [Metric]
         let creditsText: String?
         let creditsHintText: String?
+        let tokenUsage: TokenUsageSection?
         let placeholder: String?
         let progressColor: Color
     }
@@ -133,6 +141,34 @@ struct UsageMenuCardView: View {
                             }
                         }
                     }
+                    if self.model.creditsText != nil, self.model.tokenUsage != nil {
+                        Divider()
+                    }
+                    if let tokenUsage = self.model.tokenUsage {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Cost")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            Text(tokenUsage.sessionLine)
+                                .font(.footnote)
+                            Text(tokenUsage.monthLine)
+                                .font(.footnote)
+                            if let hint = tokenUsage.hintLine, !hint.isEmpty {
+                                Text(hint)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            if let error = tokenUsage.errorLine, !error.isEmpty {
+                                Text(error)
+                                    .font(.footnote)
+                                    .foregroundStyle(Color(nsColor: .systemRed))
+                                    .lineLimit(2)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
                 }
                 .padding(.bottom, self.model.creditsText == nil ? 8 : 2)
             }
@@ -144,7 +180,7 @@ struct UsageMenuCardView: View {
     }
 
     private var hasDetails: Bool {
-        !self.model.metrics.isEmpty || self.model.placeholder != nil
+        !self.model.metrics.isEmpty || self.model.placeholder != nil || self.model.tokenUsage != nil
     }
 
     private var subtitleColor: Color {
@@ -167,10 +203,13 @@ extension UsageMenuCardView.Model {
         let creditsError: String?
         let dashboard: OpenAIDashboardSnapshot?
         let dashboardError: String?
+        let tokenSnapshot: CCUsageTokenSnapshot?
+        let tokenError: String?
         let account: AccountInfo
         let isRefreshing: Bool
         let lastError: String?
         let usageBarsShowUsed: Bool
+        let tokenCostUsageEnabled: Bool
     }
 
     static func make(_ input: Input) -> UsageMenuCardView.Model {
@@ -187,6 +226,11 @@ extension UsageMenuCardView.Model {
             usageBarsShowUsed: input.usageBarsShowUsed)
         let creditsText = Self.creditsLine(metadata: input.metadata, credits: input.credits, error: input.creditsError)
         let creditsHintText = Self.dashboardHint(provider: input.provider, error: input.dashboardError)
+        let tokenUsage = Self.tokenUsageSection(
+            provider: input.provider,
+            enabled: input.tokenCostUsageEnabled,
+            snapshot: input.tokenSnapshot,
+            error: input.tokenError)
         let subtitle = Self.subtitle(
             snapshot: input.snapshot,
             isRefreshing: input.isRefreshing,
@@ -202,6 +246,7 @@ extension UsageMenuCardView.Model {
             metrics: metrics,
             creditsText: creditsText,
             creditsHintText: creditsHintText,
+            tokenUsage: tokenUsage,
             placeholder: placeholder,
             progressColor: Self.progressColor(for: input.provider))
     }
@@ -321,6 +366,34 @@ extension UsageMenuCardView.Model {
         guard provider == .codex else { return nil }
         guard let error, !error.isEmpty else { return nil }
         return UsageFormatter.truncatedSingleLine(error, max: 100)
+    }
+
+    private static func tokenUsageSection(
+        provider: UsageProvider,
+        enabled: Bool,
+        snapshot: CCUsageTokenSnapshot?,
+        error: String?) -> TokenUsageSection?
+    {
+        guard provider == .codex || provider == .claude else { return nil }
+        guard enabled else { return nil }
+        guard let snapshot else { return nil }
+
+        let sessionCost = snapshot.sessionCostUSD.map { UsageFormatter.usdString($0) } ?? "—"
+        let sessionTokens = snapshot.sessionTokens.map { UsageFormatter.tokenCountString($0) }
+        let sessionLine: String = {
+            if let sessionTokens {
+                return "Session: \(sessionCost) · \(sessionTokens) tokens"
+            }
+            return "Session: \(sessionCost)"
+        }()
+
+        let monthCost = snapshot.last30DaysCostUSD.map { UsageFormatter.usdString($0) } ?? "—"
+        let err = (error?.isEmpty ?? true) ? nil : UsageFormatter.truncatedSingleLine(error!, max: 120)
+        return TokenUsageSection(
+            sessionLine: sessionLine,
+            monthLine: "Last 30 days: \(monthCost)",
+            hintLine: nil,
+            errorLine: err)
     }
 
     private static func clamped(_ value: Double) -> Double {
