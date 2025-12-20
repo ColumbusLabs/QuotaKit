@@ -143,7 +143,8 @@ public struct CCUsageFetcher: Sendable {
         let df = DateFormatter()
         df.locale = Locale(identifier: "en_US_POSIX")
         df.timeZone = TimeZone.current
-        df.dateFormat = "yyyy-MM-dd"
+        // ccusage expects YYYYMMDD (Claude); @ccusage/codex accepts both.
+        df.dateFormat = "yyyyMMdd"
         return df.string(from: date)
     }
 }
