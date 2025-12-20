@@ -34,6 +34,21 @@ struct SettingsStoreTests {
     }
 
     @Test
+    func persistsSelectedMenuProviderAcrossInstances() {
+        let suite = "SettingsStoreTests-selectedMenuProvider"
+        let defaultsA = UserDefaults(suiteName: suite)!
+        defaultsA.removePersistentDomain(forName: suite)
+        let storeA = SettingsStore(userDefaults: defaultsA)
+
+        storeA.selectedMenuProvider = .claude
+
+        let defaultsB = UserDefaults(suiteName: suite)!
+        let storeB = SettingsStore(userDefaults: defaultsB)
+
+        #expect(storeB.selectedMenuProvider == .claude)
+    }
+
+    @Test
     func defaultsSessionQuotaNotificationsToEnabled() {
         let key = "sessionQuotaNotificationsEnabled"
         let suite = "SettingsStoreTests-sessionQuotaNotifications"
