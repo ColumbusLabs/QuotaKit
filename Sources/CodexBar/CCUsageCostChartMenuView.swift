@@ -37,11 +37,20 @@ struct CCUsageCostChartMenuView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } else {
-                Chart(model.points) { point in
-                    BarMark(
-                        x: .value("Day", point.date, unit: .day),
-                        y: .value("Cost", point.costUSD))
-                        .foregroundStyle(model.barColor)
+                Chart {
+                    ForEach(model.points) { point in
+                        BarMark(
+                            x: .value("Day", point.date, unit: .day),
+                            y: .value("Cost", point.costUSD))
+                            .foregroundStyle(model.barColor)
+                    }
+                    if let peak = Self.peakPoint(model: model) {
+                        PointMark(
+                            x: .value("Day", peak.date, unit: .day),
+                            y: .value("Cost", peak.costUSD))
+                            .symbolSize(26)
+                            .foregroundStyle(Color(nsColor: .systemYellow))
+                    }
                 }
                 .chartYAxis(.hidden)
                 .chartXAxis {
@@ -49,18 +58,28 @@ struct CCUsageCostChartMenuView: View {
                         AxisGridLine().foregroundStyle(Color.clear)
                         AxisTick().foregroundStyle(Color.clear)
                         AxisValueLabel(format: .dateTime.month(.abbreviated).day())
-                            .foregroundStyle(.secondary)
+                            .font(.caption2)
+                            .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
                     }
                 }
                 .chartLegend(.hidden)
                 .frame(height: 130)
                 .chartOverlay { proxy in
                     GeometryReader { geo in
-                        MouseLocationReader { location in
-                            self.updateSelection(location: location, model: model, proxy: proxy, geo: geo)
+                        ZStack(alignment: .topLeading) {
+                            if let rect = self.selectionBandRect(model: model, proxy: proxy, geo: geo) {
+                                Rectangle()
+                                    .fill(Color.white.opacity(0.07))
+                                    .frame(width: rect.width, height: rect.height)
+                                    .position(x: rect.midX, y: rect.midY)
+                                    .allowsHitTesting(false)
+                            }
+                            MouseLocationReader { location in
+                                self.updateSelection(location: location, model: model, proxy: proxy, geo: geo)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .contentShape(Rectangle())
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .contentShape(Rectangle())
                     }
                 }
 
@@ -86,9 +105,11 @@ struct CCUsageCostChartMenuView: View {
     private struct Model {
         let points: [Point]
         let pointsByDateKey: [String: Point]
+        let entriesByDateKey: [String: CCUsageDailyReport.Entry]
         let dateKeys: [(key: String, date: Date)]
         let axisDates: [Date]
         let barColor: Color
+        let peakKey: String?
     }
 
     private static func makeModel(provider: UsageProvider, daily: [CCUsageDailyReport.Entry]) -> Model {
@@ -99,16 +120,26 @@ struct CCUsageCostChartMenuView: View {
         var pointsByKey: [String: Point] = [:]
         pointsByKey.reserveCapacity(sorted.count)
 
+        var entriesByKey: [String: CCUsageDailyReport.Entry] = [:]
+        entriesByKey.reserveCapacity(sorted.count)
+
         var dateKeys: [(key: String, date: Date)] = []
         dateKeys.reserveCapacity(sorted.count)
 
+        var peak: (key: String, costUSD: Double)?
         for entry in sorted {
             guard let costUSD = entry.costUSD, costUSD > 0 else { continue }
             guard let date = self.dateFromDayKey(entry.date) else { continue }
             let point = Point(date: date, costUSD: costUSD, totalTokens: entry.totalTokens)
             points.append(point)
             pointsByKey[entry.date] = point
+            entriesByKey[entry.date] = entry
             dateKeys.append((entry.date, date))
+            if let cur = peak {
+                if costUSD > cur.costUSD { peak = (entry.date, costUSD) }
+            } else {
+                peak = (entry.date, costUSD)
+            }
         }
 
         let axisDates: [Date] = {
@@ -121,9 +152,11 @@ struct CCUsageCostChartMenuView: View {
         return Model(
             points: points,
             pointsByDateKey: pointsByKey,
+            entriesByDateKey: entriesByKey,
             dateKeys: dateKeys,
             axisDates: axisDates,
-            barColor: barColor)
+            barColor: barColor,
+            peakKey: peak?.key)
     }
 
     private static func barColor(for provider: UsageProvider) -> Color {
@@ -152,6 +185,48 @@ struct CCUsageCostChartMenuView: View {
         comps.day = day
         comps.hour = 12
         return comps.date
+    }
+
+    private static func peakPoint(model: Model) -> Point? {
+        guard let key = model.peakKey else { return nil }
+        return model.pointsByDateKey[key]
+    }
+
+    private func selectionBandRect(model: Model, proxy: ChartProxy, geo: GeometryProxy) -> CGRect? {
+        guard let key = self.selectedDateKey else { return nil }
+        guard let plotAnchor = proxy.plotFrame else { return nil }
+        let plotFrame = geo[plotAnchor]
+        guard let index = model.dateKeys.firstIndex(where: { $0.key == key }) else { return nil }
+        let date = model.dateKeys[index].date
+        guard let x = proxy.position(forX: date) else { return nil }
+
+        func xForIndex(_ idx: Int) -> CGFloat? {
+            guard idx >= 0, idx < model.dateKeys.count else { return nil }
+            return proxy.position(forX: model.dateKeys[idx].date)
+        }
+
+        let xPrev = xForIndex(index - 1)
+        let xNext = xForIndex(index + 1)
+
+        let leftInPlot: CGFloat = if let xPrev {
+            (xPrev + x) / 2
+        } else if let xNext {
+            x - (xNext - x) / 2
+        } else {
+            x - 8
+        }
+
+        let rightInPlot: CGFloat = if let xNext {
+            (xNext + x) / 2
+        } else if let xPrev {
+            x + (x - xPrev) / 2
+        } else {
+            x + 8
+        }
+
+        let left = plotFrame.origin.x + min(leftInPlot, rightInPlot)
+        let right = plotFrame.origin.x + max(leftInPlot, rightInPlot)
+        return CGRect(x: left, y: plotFrame.origin.y, width: right - left, height: plotFrame.height)
     }
 
     private func updateSelection(
@@ -203,8 +278,33 @@ struct CCUsageCostChartMenuView: View {
         let dayLabel = date.formatted(.dateTime.month(.abbreviated).day())
         let cost = UsageFormatter.usdString(point.costUSD)
         if let tokens = point.totalTokens {
+            let topModels = self.topModelsText(key: key, model: model)
+            if let topModels {
+                return "\(dayLabel): \(cost) · \(UsageFormatter.tokenCountString(tokens)) tokens · \(topModels)"
+            }
             return "\(dayLabel): \(cost) · \(UsageFormatter.tokenCountString(tokens)) tokens"
         }
+        if let topModels = self.topModelsText(key: key, model: model) {
+            return "\(dayLabel): \(cost) · \(topModels)"
+        }
         return "\(dayLabel): \(cost)"
+    }
+
+    private func topModelsText(key: String, model: Model) -> String? {
+        guard let entry = model.entriesByDateKey[key] else { return nil }
+        guard let breakdown = entry.modelBreakdowns, !breakdown.isEmpty else { return nil }
+        let parts = breakdown
+            .compactMap { item -> (name: String, costUSD: Double)? in
+                guard let costUSD = item.costUSD, costUSD > 0 else { return nil }
+                return (item.modelName, costUSD)
+            }
+            .sorted { lhs, rhs in
+                if lhs.costUSD == rhs.costUSD { return lhs.name < rhs.name }
+                return lhs.costUSD > rhs.costUSD
+            }
+            .prefix(3)
+            .map { "\($0.name) \(UsageFormatter.usdString($0.costUSD))" }
+        guard !parts.isEmpty else { return nil }
+        return "Top: \(parts.joined(separator: " · "))"
     }
 }

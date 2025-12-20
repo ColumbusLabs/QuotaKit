@@ -145,7 +145,7 @@ struct UsageMenuCardView: View {
                         Divider()
                     }
                     if let tokenUsage = self.model.tokenUsage {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text("Cost")
                                 .font(.subheadline)
                                 .fontWeight(.medium)

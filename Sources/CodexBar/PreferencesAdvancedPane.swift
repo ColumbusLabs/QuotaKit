@@ -65,7 +65,7 @@ struct AdvancedPane: View {
                         .textCase(.uppercase)
                     PreferenceToggleRow(
                         title: "Show ccusage cost summary",
-                        subtitle: "Requires ccusage. Shows session + monthly cost in the menu.",
+                        subtitle: "Requires ccusage. Shows session + last 30 days cost in the menu.",
                         binding: ccusageBinding)
                         .disabled(!ccusageAvailability.isAnyInstalled)
                     if ccusageAvailability.isAnyInstalled {
@@ -90,6 +90,9 @@ struct AdvancedPane: View {
                                 .font(.footnote)
                                 .foregroundStyle(.tertiary)
                         }
+                        Text("Gemini: no ccusage support found.")
+                            .font(.footnote)
+                            .foregroundStyle(.tertiary)
 
                         if self.settings.ccusageCostUsageEnabled {
                             Text("Auto-refresh: hourly · Timeout: 10m")

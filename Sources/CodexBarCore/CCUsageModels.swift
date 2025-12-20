@@ -23,12 +23,33 @@ public struct CCUsageTokenSnapshot: Sendable, Equatable {
 }
 
 public struct CCUsageDailyReport: Sendable, Decodable {
+    public struct ModelBreakdown: Sendable, Decodable, Equatable {
+        public let modelName: String
+        public let costUSD: Double?
+
+        private enum CodingKeys: String, CodingKey {
+            case modelName
+            case costUSD
+            case cost
+        }
+
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            self.modelName = try container.decode(String.self, forKey: .modelName)
+            self.costUSD =
+                try container.decodeIfPresent(Double.self, forKey: .costUSD)
+                ?? container.decodeIfPresent(Double.self, forKey: .cost)
+        }
+    }
+
     public struct Entry: Sendable, Decodable, Equatable {
         public let date: String
         public let inputTokens: Int?
         public let outputTokens: Int?
         public let totalTokens: Int?
         public let costUSD: Double?
+        public let modelsUsed: [String]?
+        public let modelBreakdowns: [ModelBreakdown]?
 
         private enum CodingKeys: String, CodingKey {
             case date
@@ -37,6 +58,9 @@ public struct CCUsageDailyReport: Sendable, Decodable {
             case totalTokens
             case costUSD
             case totalCost
+            case modelsUsed
+            case models
+            case modelBreakdowns
         }
 
         public init(from decoder: Decoder) throws {
@@ -48,6 +72,10 @@ public struct CCUsageDailyReport: Sendable, Decodable {
             self.costUSD =
                 try container.decodeIfPresent(Double.self, forKey: .costUSD)
                 ?? container.decodeIfPresent(Double.self, forKey: .totalCost)
+            self.modelsUsed =
+                try container.decodeIfPresent([String].self, forKey: .modelsUsed)
+                ?? container.decodeIfPresent([String].self, forKey: .models)
+            self.modelBreakdowns = try container.decodeIfPresent([ModelBreakdown].self, forKey: .modelBreakdowns)
         }
     }
 
