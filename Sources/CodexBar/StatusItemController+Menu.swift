@@ -255,6 +255,7 @@ extension StatusItemController {
                 self.lastMenuProvider = provider
                 self.populateMenu(menu)
                 self.refreshMenuCardHeights(in: menu)
+                self.applyIcon(phase: nil)
             })
         let item = NSMenuItem()
         item.view = view

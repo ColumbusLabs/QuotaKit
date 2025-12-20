@@ -273,6 +273,12 @@ extension StatusItemController {
     }
 
     private func primaryProviderForUnifiedIcon() -> UsageProvider {
+        if self.shouldMergeIcons,
+           let selected = self.selectedMenuProvider,
+           self.store.isEnabled(selected)
+        {
+            return selected
+        }
         for provider in UsageProvider.allCases {
             if self.store.isEnabled(provider), self.store.snapshot(for: provider) != nil {
                 return provider
