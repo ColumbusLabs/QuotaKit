@@ -1,6 +1,7 @@
 # Changelog
 
-## 0.9.2 — Unreleased
+## 0.10.0 — Unreleased
+- Gemini provider support (usage, plan detection, login flow). Thanks Charlie!
 
 ## 0.9.1 — 2025-12-19
 - CLI resolution now uses the login shell PATH directly (no more heuristic path scanning), so Codex/Claude match your shell config reliably.
