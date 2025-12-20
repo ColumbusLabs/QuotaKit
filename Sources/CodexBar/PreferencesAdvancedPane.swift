@@ -69,44 +69,15 @@ struct AdvancedPane: View {
                         binding: ccusageBinding)
                         .disabled(!ccusageAvailability.isAnyInstalled)
                     if ccusageAvailability.isAnyInstalled {
-                        let detected: [String] = {
-                            var items: [String] = []
-                            if ccusageAvailability.codexPath != nil { items.append("Codex") }
-                            if ccusageAvailability.claudePath != nil { items.append("Claude") }
-                            return items
-                        }()
-                        if !detected.isEmpty {
-                            Text("Detected: \(detected.joined(separator: ", "))")
-                                .font(.footnote)
-                                .foregroundStyle(.tertiary)
-                        }
-                        if ccusageAvailability.codexPath == nil {
-                            Text("Missing Codex support (ccusage-codex). Install: npm i -g @ccusage/codex")
-                                .font(.footnote)
-                                .foregroundStyle(.tertiary)
-                        }
-                        if ccusageAvailability.claudePath == nil {
-                            Text("Missing Claude support (ccusage). Install: npm i -g ccusage")
-                                .font(.footnote)
-                                .foregroundStyle(.tertiary)
-                        }
-                        Text("Gemini: no ccusage support found.")
-                            .font(.footnote)
-                            .foregroundStyle(.tertiary)
-
                         if self.settings.ccusageCostUsageEnabled {
                             Text("Auto-refresh: hourly · Timeout: 10m")
                                 .font(.footnote)
                                 .foregroundStyle(.tertiary)
 
-                            Group {
-                                if ccusageAvailability.claudePath != nil {
-                                    self.ccusageStatusLine(provider: .claude)
-                                }
-                                if ccusageAvailability.codexPath != nil {
-                                    self.ccusageStatusLine(provider: .codex)
-                                }
-                            }
+                            self.ccusageStatusLine(
+                                provider: .claude,
+                                isInstalled: ccusageAvailability.claudePath != nil)
+                            self.ccusageStatusLine(provider: .codex, isInstalled: ccusageAvailability.codexPath != nil)
                         }
                     } else {
                         Text("ccusage not detected.")
@@ -177,23 +148,41 @@ struct AdvancedPane: View {
         .onAppear { self.settings.refreshCCUsageAvailability() }
     }
 
-    private func ccusageStatusLine(provider: UsageProvider) -> some View {
-        let name = provider == .claude ? "Claude" : "Codex"
+    private func ccusageStatusLine(provider: UsageProvider, isInstalled: Bool) -> some View {
+        let (name, binary) = switch provider {
+        case .claude:
+            ("Claude", "ccusage")
+        case .codex:
+            ("Codex", "ccusage-codex")
+        case .gemini:
+            ("Gemini", "ccusage")
+        }
+        guard provider == .claude || provider == .codex else {
+            return Text("\(name): unsupported")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+        }
+
+        if !isInstalled {
+            return Text("\(name): not detected (\(binary))")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+        }
         if self.store.isTokenRefreshInFlight(for: provider) {
-            return Text("\(name): fetching…")
+            return Text("\(name): detected · fetching…")
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
         }
         if let snapshot = self.store.tokenSnapshot(for: provider) {
             let updated = UsageFormatter.updatedString(from: snapshot.updatedAt)
             let cost = snapshot.last30DaysCostUSD.map { UsageFormatter.usdString($0) } ?? "—"
-            return Text("\(name): \(updated) · 30d \(cost)")
+            return Text("\(name): detected · \(updated) · 30d \(cost)")
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
         }
         if let error = self.store.tokenError(for: provider), !error.isEmpty {
             let truncated = UsageFormatter.truncatedSingleLine(error, max: 120)
-            return Text("\(name): \(truncated)")
+            return Text("\(name): detected · \(truncated)")
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
         }
@@ -201,11 +190,11 @@ struct AdvancedPane: View {
             let rel = RelativeDateTimeFormatter()
             rel.unitsStyle = .abbreviated
             let when = rel.localizedString(for: lastAttempt, relativeTo: Date())
-            return Text("\(name): last attempt \(when)")
+            return Text("\(name): detected · last attempt \(when)")
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
         }
-        return Text("\(name): no data yet")
+        return Text("\(name): detected · no data yet")
             .font(.footnote)
             .foregroundStyle(.tertiary)
     }
