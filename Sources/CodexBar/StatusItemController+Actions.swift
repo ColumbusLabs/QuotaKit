@@ -6,7 +6,7 @@ extension StatusItemController {
     // MARK: - Actions reachable from menus
 
     @objc func refreshNow() {
-        Task { await self.store.refresh(forceTokenUsage: true) }
+        Task { await self.store.refresh() }
     }
 
     @objc func openDashboard() {
