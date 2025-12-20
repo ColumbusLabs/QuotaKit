@@ -3,6 +3,7 @@
 ## 0.10.0 — Unreleased
 - Gemini provider support (usage, plan detection, login flow). Thanks @381181295!
 - Unified menu bar icon mode with a provider switcher and Merge Icons toggle (default on when multiple providers are enabled). Thanks @ibehnam!
+- Fix regression from 0.9.1 where CLI detection failed for some installs by restoring interactive login-shell PATH loading.
 
 ## 0.9.1 — 2025-12-19
 - CLI resolution now uses the login shell PATH directly (no more heuristic path scanning), so Codex/Claude match your shell config reliably.

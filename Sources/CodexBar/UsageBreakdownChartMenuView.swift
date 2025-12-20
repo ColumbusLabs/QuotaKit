@@ -259,6 +259,9 @@ struct UsageBreakdownChartMenuView: View {
 
         let dayLabel = date.formatted(.dateTime.month(.abbreviated).day())
         let total = day.totalCreditsUsed.formatted(.number.precision(.fractionLength(0...2)))
+        if day.services.isEmpty {
+            return "\(dayLabel): \(total)"
+        }
         if day.services.count <= 1, let first = day.services.first {
             let used = first.creditsUsed.formatted(.number.precision(.fractionLength(0...2)))
             return "\(dayLabel): \(used) (\(first.service))"
