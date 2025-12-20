@@ -557,6 +557,16 @@ private final class ProviderSwitcherView: NSView {
             stack.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -8),
         ])
 
+        // Keep segment widths stable across selected/unselected to avoid shifting the centered item.
+        let stableWidth = self.buttons
+            .map { Self.maxToggleWidth(for: $0) }
+            .max() ?? 0
+        if stableWidth > 0 {
+            for button in self.buttons {
+                button.widthAnchor.constraint(equalToConstant: ceil(stableWidth)).isActive = true
+            }
+        }
+
         self.updateButtonStyles()
     }
 
@@ -581,6 +591,21 @@ private final class ProviderSwitcherView: NSView {
             button.contentTintColor = isSelected ? self.selectedTextColor : self.unselectedTextColor
             button.layer?.backgroundColor = isSelected ? self.selectedBackground : self.unselectedBackground
         }
+    }
+
+    private static func maxToggleWidth(for button: NSButton) -> CGFloat {
+        let originalState = button.state
+        defer { button.state = originalState }
+
+        button.state = .off
+        button.layoutSubtreeIfNeeded()
+        let offWidth = button.fittingSize.width
+
+        button.state = .on
+        button.layoutSubtreeIfNeeded()
+        let onWidth = button.fittingSize.width
+
+        return max(offWidth, onWidth)
     }
 
     private static func paddedImage(_ image: NSImage, leading: CGFloat) -> NSImage {
