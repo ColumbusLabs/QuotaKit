@@ -384,16 +384,22 @@ extension StatusItemController {
         let creditsError: String?
         let dashboard: OpenAIDashboardSnapshot?
         let dashboardError: String?
+        let tokenSnapshot: CCUsageTokenSnapshot?
+        let tokenError: String?
         if target == .codex {
             credits = self.store.credits
             creditsError = self.store.lastCreditsError
             dashboard = self.store.openAIDashboardRequiresLogin ? nil : self.store.openAIDashboard
             dashboardError = self.store.lastOpenAIDashboardError
+            tokenSnapshot = self.store.tokenSnapshot(for: .codex)
+            tokenError = self.store.tokenError(for: .codex)
         } else {
             credits = nil
             creditsError = nil
             dashboard = nil
             dashboardError = nil
+            tokenSnapshot = nil
+            tokenError = nil
         }
 
         let input = UsageMenuCardView.Model.Input(
@@ -404,6 +410,8 @@ extension StatusItemController {
             creditsError: creditsError,
             dashboard: dashboard,
             dashboardError: dashboardError,
+            tokenSnapshot: tokenSnapshot,
+            tokenError: tokenError,
             account: self.account,
             isRefreshing: self.store.isRefreshing,
             lastError: self.store.error(for: target),

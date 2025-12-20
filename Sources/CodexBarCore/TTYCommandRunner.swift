@@ -396,6 +396,14 @@ public struct TTYCommandRunner {
     public static func which(_ tool: String) -> String? {
         if tool == "codex", let located = BinaryLocator.resolveCodexBinary() { return located }
         if tool == "claude", let located = BinaryLocator.resolveClaudeBinary() { return located }
+        if tool == "ccusage" || tool == "ccusage-codex" {
+            let env = ProcessInfo.processInfo.environment
+            if let shellHit = ShellCommandLocator.commandV(tool, env["SHELL"], 2.0, .default),
+               FileManager.default.isExecutableFile(atPath: shellHit)
+            {
+                return shellHit
+            }
+        }
         return self.runWhich(tool)
     }
 
