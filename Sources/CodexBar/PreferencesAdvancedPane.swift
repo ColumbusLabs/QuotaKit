@@ -51,6 +51,15 @@ struct AdvancedPane: View {
 
                 SettingsSection(contentSpacing: 10) {
                     PreferenceToggleRow(
+                        title: "Merge Icons",
+                        subtitle: "Use a single menu bar icon with a provider switcher.",
+                        binding: self.$settings.mergeIcons)
+                }
+
+                Divider()
+
+                SettingsSection(contentSpacing: 10) {
+                    PreferenceToggleRow(
                         title: "Surprise me",
                         subtitle: "Check if you like your agents having some fun up there.",
                         binding: self.$settings.randomBlinkEnabled)

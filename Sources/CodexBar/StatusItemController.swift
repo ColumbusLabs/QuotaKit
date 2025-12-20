@@ -29,7 +29,10 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     let account: AccountInfo
     let updater: UpdaterProviding
     var statusItem: NSStatusItem
+    var statusItems: [UsageProvider: NSStatusItem] = [:]
     var lastMenuProvider: UsageProvider?
+    var selectedMenuProvider: UsageProvider?
+    var menuProviders: [ObjectIdentifier: UsageProvider] = [:]
     var blinkTask: Task<Void, Never>?
     var loginTask: Task<Void, Never>? {
         didSet { self.refreshMenusForLoginStateChange() }
@@ -103,6 +106,12 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         // Ensure the icon is rendered at 1:1 without resampling (crisper edges for template images).
         item.button?.imageScaling = .scaleNone
         self.statusItem = item
+        for provider in UsageProvider.allCases {
+            let providerItem = bar.statusItem(withLength: NSStatusItem.variableLength)
+            // Ensure the icon is rendered at 1:1 without resampling (crisper edges for template images).
+            providerItem.button?.imageScaling = .scaleNone
+            self.statusItems[provider] = providerItem
+        }
         super.init()
         self.wireBindings()
         self.updateIcons()
@@ -146,8 +155,13 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     }
 
     private func updateIcons() {
-        self.applyIcon(phase: nil)
-        self.attachMenus()
+        if self.shouldMergeIcons {
+            self.applyIcon(phase: nil)
+            self.attachMenus()
+        } else {
+            UsageProvider.allCases.forEach { self.applyIcon(for: $0, phase: nil) }
+            self.attachMenus(fallback: self.fallbackProvider)
+        }
         self.updateAnimationState()
         self.updateBlinkingState()
     }
@@ -155,10 +169,28 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     private func updateVisibility() {
         let anyEnabled = !self.store.enabledProviders().isEmpty
         let force = self.store.debugForceAnimation
-        self.statusItem.isVisible = anyEnabled || force
-        self.attachMenus()
+        if self.shouldMergeIcons {
+            self.statusItem.isVisible = anyEnabled || force
+            for item in self.statusItems.values {
+                item.isVisible = false
+            }
+            self.attachMenus()
+        } else {
+            self.statusItem.isVisible = false
+            let fallback = self.fallbackProvider
+            for provider in UsageProvider.allCases {
+                let item = self.statusItems[provider]
+                let isEnabled = self.isEnabled(provider)
+                item?.isVisible = isEnabled || fallback == provider || force
+            }
+            self.attachMenus(fallback: fallback)
+        }
         self.updateAnimationState()
         self.updateBlinkingState()
+    }
+
+    var fallbackProvider: UsageProvider? {
+        self.store.enabledProviders().isEmpty ? .codex : nil
     }
 
     func isEnabled(_ provider: UsageProvider) -> Bool {
@@ -166,11 +198,37 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     }
 
     private func refreshMenusForLoginStateChange() {
-        self.attachMenus()
+        if self.shouldMergeIcons {
+            self.attachMenus()
+        } else {
+            self.attachMenus(fallback: self.fallbackProvider)
+        }
     }
 
     private func attachMenus() {
         self.statusItem.menu = self.makeMenu()
+    }
+
+    private func attachMenus(fallback: UsageProvider? = nil) {
+        self.menuProviders.removeAll()
+        for provider in UsageProvider.allCases {
+            guard let item = self.statusItems[provider] else { continue }
+            if self.isEnabled(provider) {
+                item.menu = self.makeMenu(for: provider)
+            } else if fallback == provider {
+                item.menu = self.makeMenu(for: nil)
+            } else {
+                item.menu = nil
+            }
+        }
+    }
+
+    func isVisible(_ provider: UsageProvider) -> Bool {
+        self.store.debugForceAnimation || self.isEnabled(provider) || self.fallbackProvider == provider
+    }
+
+    var shouldMergeIcons: Bool {
+        self.settings.mergeIcons && self.store.enabledProviders().count > 1
     }
 
     func switchAccountSubtitle(for target: UsageProvider) -> String? {

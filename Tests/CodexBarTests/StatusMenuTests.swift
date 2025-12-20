@@ -11,6 +11,7 @@ struct StatusMenuTests {
         let settings = SettingsStore()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
+        settings.mergeIcons = true
 
         let registry = ProviderRegistry.shared
         if let codexMeta = registry.metadata[.codex] {
@@ -51,6 +52,7 @@ struct StatusMenuTests {
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.openAIDashboardEnabled = true
+        settings.mergeIcons = true
 
         let registry = ProviderRegistry.shared
         if let codexMeta = registry.metadata[.codex] {
@@ -86,6 +88,7 @@ struct StatusMenuTests {
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.openAIDashboardEnabled = true
+        settings.mergeIcons = true
 
         let registry = ProviderRegistry.shared
         if let codexMeta = registry.metadata[.codex] {
