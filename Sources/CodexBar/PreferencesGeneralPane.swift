@@ -157,32 +157,12 @@ struct GeneralPane: View {
                 binding: self.$settings.openAIDashboardEnabled)
 
             if self.settings.openAIDashboardEnabled {
-                VStack(alignment: .leading, spacing: 8) {
-                    let codexEmail = self.store.codexAccountEmailForOpenAIDashboard()
+                let status = self.openAIDashboardStatus ??
+                    self.store.openAIDashboardCookieImportStatus ??
+                    self.store.lastOpenAIDashboardError
 
-                    if let codexEmail, !codexEmail.isEmpty {
-                        Text("Codex account: \(codexEmail)")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text("Codex account: unknown.")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if let signedIn = self.store.openAIDashboard?.signedInEmail,
-                       !signedIn.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    {
-                        Text("Dashboard session: \(signedIn)")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    let status = self.openAIDashboardStatus ??
-                        self.store.openAIDashboardCookieImportStatus ??
-                        self.store.lastOpenAIDashboardError
-
-                    if let status, !status.isEmpty {
+                if let status, !status.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
                         Text(status)
                             .font(.callout)
                             .foregroundStyle(.secondary)
@@ -211,11 +191,6 @@ struct GeneralPane: View {
                                     ].joined(separator: "\n"))
                             }
                         }
-                    } else {
-                        Text(
-                            "Tip: stay signed in to chatgpt.com in Safari or Chrome; CodexBar reuses that session.")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
                     }
                 }
             }
