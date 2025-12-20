@@ -3,13 +3,13 @@ import Foundation
 public struct CCUsageTokenSnapshot: Sendable, Equatable {
     public let sessionTokens: Int?
     public let sessionCostUSD: Double?
-    public let monthCostUSD: Double?
+    public let last30DaysCostUSD: Double?
     public let updatedAt: Date
 
-    public init(sessionTokens: Int?, sessionCostUSD: Double?, monthCostUSD: Double?, updatedAt: Date) {
+    public init(sessionTokens: Int?, sessionCostUSD: Double?, last30DaysCostUSD: Double?, updatedAt: Date) {
         self.sessionTokens = sessionTokens
         self.sessionCostUSD = sessionCostUSD
-        self.monthCostUSD = monthCostUSD
+        self.last30DaysCostUSD = last30DaysCostUSD
         self.updatedAt = updatedAt
     }
 }

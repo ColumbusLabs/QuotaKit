@@ -387,11 +387,11 @@ extension UsageMenuCardView.Model {
             return "Session: \(sessionCost)"
         }()
 
-        let monthCost = snapshot.monthCostUSD.map { UsageFormatter.usdString($0) } ?? "—"
+        let monthCost = snapshot.last30DaysCostUSD.map { UsageFormatter.usdString($0) } ?? "—"
         let err = (error?.isEmpty ?? true) ? nil : UsageFormatter.truncatedSingleLine(error!, max: 120)
         return TokenUsageSection(
             sessionLine: sessionLine,
-            monthLine: "This month: \(monthCost)",
+            monthLine: "Last 30 days: \(monthCost)",
             hintLine: nil,
             errorLine: err)
     }

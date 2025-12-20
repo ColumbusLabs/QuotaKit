@@ -38,34 +38,45 @@ public struct CCUsageFetcher: Sendable {
 
         let env = TTYCommandRunner.enrichedEnvironment()
         let untilKey = Self.dayKey(from: now)
+        // Rollback/rolling window: last 30 days (inclusive).
         let sinceKey = Self.dayKey(
-            from: Calendar.current.date(byAdding: .day, value: -32, to: now) ?? now)
+            from: Calendar.current.date(byAdding: .day, value: -30, to: now) ?? now)
 
-        async let sessionReport = Self.runSession(ccusagePath: ccusagePath, env: env)
-        async let monthlyReport = Self.runMonthly(
+        async let sessionReport = Self.runSession(
+            ccusagePath: ccusagePath,
+            env: env,
+            sinceKey: sinceKey,
+            untilKey: untilKey)
+        async let dailyReport = Self.runDaily(
             ccusagePath: ccusagePath,
             env: env,
             sinceKey: sinceKey,
             untilKey: untilKey)
 
-        let (session, monthly) = try await (sessionReport, monthlyReport)
+        let (session, daily) = try await (sessionReport, dailyReport)
 
         let current = Self.selectCurrentSession(from: session.data)
-        let recentMonth = Self.selectMostRecentMonth(from: monthly.data)
+        let totalFromSummary = daily.summary?.totalCostUSD
+        let totalFromEntries = daily.data.compactMap(\.costUSD).reduce(0, +)
+        let last30DaysCostUSD = totalFromSummary ?? (totalFromEntries > 0 ? totalFromEntries : nil)
 
         return CCUsageTokenSnapshot(
             sessionTokens: current?.totalTokens,
             sessionCostUSD: current?.costUSD,
-            monthCostUSD: recentMonth?.costUSD,
+            last30DaysCostUSD: last30DaysCostUSD,
             updatedAt: now)
     }
 
-    private static func runSession(ccusagePath: String, env: [String: String]) async throws
+    private static func runSession(
+        ccusagePath: String,
+        env: [String: String],
+        sinceKey: String,
+        untilKey: String) async throws
         -> CCUsageSessionReport
     {
         let result = try await SubprocessRunner.run(
             binary: ccusagePath,
-            arguments: ["session", "--json", "--offline"],
+            arguments: ["session", "--json", "--offline", "--since", sinceKey, "--until", untilKey],
             environment: env,
             timeout: 20,
             label: "ccusage session")
@@ -80,24 +91,24 @@ public struct CCUsageFetcher: Sendable {
         }
     }
 
-    private static func runMonthly(
+    private static func runDaily(
         ccusagePath: String,
         env: [String: String],
         sinceKey: String,
-        untilKey: String) async throws -> CCUsageMonthlyReport
+        untilKey: String) async throws -> CCUsageDailyReport
     {
         let result = try await SubprocessRunner.run(
             binary: ccusagePath,
-            arguments: ["monthly", "--json", "--offline", "--since", sinceKey, "--until", untilKey],
+            arguments: ["daily", "--json", "--offline", "--since", sinceKey, "--until", untilKey],
             environment: env,
             timeout: 20,
-            label: "ccusage monthly")
+            label: "ccusage daily")
 
         guard let data = result.stdout.data(using: .utf8) else {
             throw CCUsageError.decodeFailed("empty stdout")
         }
         do {
-            return try JSONDecoder().decode(CCUsageMonthlyReport.self, from: data)
+            return try JSONDecoder().decode(CCUsageDailyReport.self, from: data)
         } catch {
             throw CCUsageError.decodeFailed(error.localizedDescription)
         }
