@@ -8,7 +8,7 @@ struct PreferenceToggleRow: View {
     @Binding var binding: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 5.4) {
             Toggle(isOn: self.$binding) {
                 Text(self.title)
                     .font(.body)
