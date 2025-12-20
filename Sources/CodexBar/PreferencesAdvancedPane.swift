@@ -9,6 +9,11 @@ struct AdvancedPane: View {
     @State private var cliStatus: String?
 
     var body: some View {
+        let ccusageAvailability = SettingsStore.ccusageAvailability()
+        let ccusageBinding = Binding(
+            get: { ccusageAvailability.isAnyInstalled ? self.settings.ccusageCostUsageEnabled : false },
+            set: { self.settings.ccusageCostUsageEnabled = $0 })
+
         ScrollView(.vertical, showsIndicators: true) {
             VStack(alignment: .leading, spacing: 16) {
                 SettingsSection(contentSpacing: 6) {
@@ -58,9 +63,41 @@ struct AdvancedPane: View {
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
                     PreferenceToggleRow(
-                        title: "Show token cost usage",
-                        subtitle: "Codex only. Requires @ccusage/codex (ccusage-codex).",
-                        binding: self.$settings.tokenCostUsageEnabled)
+                        title: "Show ccusage cost summary",
+                        subtitle: nil,
+                        binding: ccusageBinding)
+                        .disabled(!ccusageAvailability.isAnyInstalled)
+                    if ccusageAvailability.isAnyInstalled {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Status")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            Text("Codex: \(ccusageAvailability.codexPath ?? "missing")")
+                                .font(.footnote)
+                                .foregroundStyle(.tertiary)
+                            Text("Claude: \(ccusageAvailability.claudePath ?? "missing")")
+                                .font(.footnote)
+                                .foregroundStyle(.tertiary)
+                            Text("Gemini: not supported (no ccusage CLI found).")
+                                .font(.footnote)
+                                .foregroundStyle(.tertiary)
+                        }
+                    } else {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Status")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            Text("ccusage not found; install to enable.")
+                                .font(.footnote)
+                                .foregroundStyle(.tertiary)
+                            Text("Claude: npm i -g ccusage")
+                                .font(.footnote)
+                                .foregroundStyle(.tertiary)
+                            Text("Codex: npm i -g @ccusage/codex")
+                                .font(.footnote)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
                 }
 
                 Divider()

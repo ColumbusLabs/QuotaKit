@@ -391,8 +391,15 @@ extension StatusItemController {
             creditsError = self.store.lastCreditsError
             dashboard = self.store.openAIDashboardRequiresLogin ? nil : self.store.openAIDashboard
             dashboardError = self.store.lastOpenAIDashboardError
-            tokenSnapshot = self.store.tokenSnapshot(for: .codex)
-            tokenError = self.store.tokenError(for: .codex)
+            tokenSnapshot = self.store.tokenSnapshot(for: target)
+            tokenError = self.store.tokenError(for: target)
+        } else if target == .claude {
+            credits = nil
+            creditsError = nil
+            dashboard = nil
+            dashboardError = nil
+            tokenSnapshot = self.store.tokenSnapshot(for: target)
+            tokenError = self.store.tokenError(for: target)
         } else {
             credits = nil
             creditsError = nil
@@ -416,7 +423,7 @@ extension StatusItemController {
             isRefreshing: self.store.isRefreshing,
             lastError: self.store.error(for: target),
             usageBarsShowUsed: self.settings.usageBarsShowUsed,
-            tokenCostUsageEnabled: self.settings.tokenCostUsageEnabled)
+            tokenCostUsageEnabled: self.settings.isCCUsageCostUsageEffectivelyEnabled(for: target))
         return UsageMenuCardView.Model.make(input)
     }
 }

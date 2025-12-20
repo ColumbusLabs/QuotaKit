@@ -941,7 +941,7 @@ extension UsageStore {
     }
 
     private func refreshTokenUsage(_ provider: UsageProvider) async {
-        guard provider == .codex else {
+        guard provider == .codex || provider == .claude else {
             self.tokenSnapshots.removeValue(forKey: provider)
             self.tokenErrors[provider] = nil
             self.tokenFailureGates[provider]?.reset()
@@ -949,7 +949,15 @@ extension UsageStore {
             return
         }
 
-        guard self.settings.tokenCostUsageEnabled else {
+        guard self.settings.ccusageCostUsageEnabled else {
+            self.tokenSnapshots.removeValue(forKey: provider)
+            self.tokenErrors[provider] = nil
+            self.tokenFailureGates[provider]?.reset()
+            self.lastTokenFetchAt.removeValue(forKey: provider)
+            return
+        }
+
+        guard self.settings.isCCUsageInstalled(for: provider) else {
             self.tokenSnapshots.removeValue(forKey: provider)
             self.tokenErrors[provider] = nil
             self.tokenFailureGates[provider]?.reset()
@@ -976,8 +984,13 @@ extension UsageStore {
 
         do {
             let fetcher = self.ccusageFetcher
+            let cli: CCUsageFetcher.CLI = switch provider {
+            case .codex: .codex
+            case .claude: .ccusage
+            case .gemini: .ccusage
+            }
             let snapshot = try await Task.detached(priority: .utility) {
-                try await fetcher.loadTokenSnapshot(cli: CCUsageFetcher.CLI.codex, now: now)
+                try await fetcher.loadTokenSnapshot(cli: cli, now: now)
             }.value
             self.tokenSnapshots[provider] = snapshot
             self.tokenErrors[provider] = nil

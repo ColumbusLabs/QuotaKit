@@ -374,7 +374,7 @@ extension UsageMenuCardView.Model {
         snapshot: CCUsageTokenSnapshot?,
         error: String?) -> TokenUsageSection?
     {
-        guard provider == .codex else { return nil }
+        guard provider == .codex || provider == .claude else { return nil }
         guard enabled else { return nil }
 
         if let snapshot {
@@ -396,10 +396,22 @@ extension UsageMenuCardView.Model {
         }
 
         let err = (error?.isEmpty ?? true) ? nil : UsageFormatter.truncatedSingleLine(error!, max: 120)
+        let installHint: String? = if err == nil {
+            switch provider {
+            case .codex:
+                "Install @ccusage/codex to show cost usage."
+            case .claude:
+                "Install ccusage to show cost usage."
+            case .gemini:
+                nil
+            }
+        } else {
+            nil
+        }
         return TokenUsageSection(
             sessionLine: "Session: —",
             monthLine: "This month: —",
-            hintLine: err == nil ? "Install @ccusage/codex to show cost usage." : nil,
+            hintLine: installHint,
             errorLine: err)
     }
 

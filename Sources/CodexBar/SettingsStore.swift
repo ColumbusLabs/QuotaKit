@@ -63,8 +63,8 @@ final class SettingsStore: ObservableObject {
         didSet { self.objectWillChange.send() }
     }
 
-    /// Optional: show Codex token + cost usage from @ccusage/codex (offline CLI).
-    @AppStorage("tokenCostUsageEnabled") var tokenCostUsageEnabled: Bool = false {
+    /// Optional: show provider cost summary from ccusage CLIs (offline).
+    @AppStorage("tokenCostUsageEnabled") var ccusageCostUsageEnabled: Bool = false {
         didSet { self.objectWillChange.send() }
     }
 
@@ -106,13 +106,23 @@ final class SettingsStore: ObservableObject {
     private let userDefaults: UserDefaults
     private let toggleStore: ProviderToggleStore
 
+    struct CCUsageAvailability: Sendable, Equatable {
+        let claudePath: String?
+        let codexPath: String?
+
+        var isAnyInstalled: Bool { self.claudePath != nil || self.codexPath != nil }
+    }
+
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
         if userDefaults.object(forKey: "sessionQuotaNotificationsEnabled") == nil {
             userDefaults.set(true, forKey: "sessionQuotaNotificationsEnabled")
         }
         if userDefaults.object(forKey: "tokenCostUsageEnabled") == nil {
-            userDefaults.set(Self.isCCUsageCodexInstalled(), forKey: "tokenCostUsageEnabled")
+            let available = Self.ccusageAvailability().isAnyInstalled
+            userDefaults.set(available, forKey: "tokenCostUsageEnabled")
+            // @AppStorage always writes to UserDefaults.standard; set the property so the UI reflects the default.
+            self.ccusageCostUsageEnabled = available
         }
         let raw = userDefaults.string(forKey: "refreshFrequency") ?? RefreshFrequency.fiveMinutes.rawValue
         self.refreshFrequency = RefreshFrequency(rawValue: raw) ?? .fiveMinutes
@@ -137,13 +147,48 @@ final class SettingsStore: ObservableObject {
 
     // MARK: - Private
 
-    private static func isCCUsageCodexInstalled(fileManager: FileManager = .default) -> Bool {
-        if TTYCommandRunner.which("ccusage-codex") != nil { return true }
-        let candidates = [
-            "/opt/homebrew/bin/ccusage-codex",
-            "/usr/local/bin/ccusage-codex",
-        ]
-        return candidates.contains { fileManager.isExecutableFile(atPath: $0) }
+    static func ccusageAvailability(
+        env: [String: String] = ProcessInfo.processInfo.environment,
+        loginPATH: [String]? = LoginShellPathCache.shared.current,
+        fileManager: FileManager = .default) -> CCUsageAvailability
+    {
+        let existingPATH = env["PATH"]?.split(separator: ":").map(String.init)
+        let searchPaths = (loginPATH ?? []) + (existingPATH ?? [])
+
+        func resolve(_ binary: String, hardcoded: [String]) -> String? {
+            for path in searchPaths {
+                let candidate = "\(path.hasSuffix("/") ? String(path.dropLast()) : path)/\(binary)"
+                if fileManager.isExecutableFile(atPath: candidate) { return candidate }
+            }
+            for candidate in hardcoded where fileManager.isExecutableFile(atPath: candidate) {
+                return candidate
+            }
+            return nil
+        }
+
+        let claudePath = resolve(
+            "ccusage",
+            hardcoded: ["/opt/homebrew/bin/ccusage", "/usr/local/bin/ccusage"])
+        let codexPath = resolve(
+            "ccusage-codex",
+            hardcoded: ["/opt/homebrew/bin/ccusage-codex", "/usr/local/bin/ccusage-codex"])
+        return CCUsageAvailability(claudePath: claudePath, codexPath: codexPath)
+    }
+
+    func isCCUsageInstalled(for provider: UsageProvider) -> Bool {
+        let availability = Self.ccusageAvailability()
+        switch provider {
+        case .claude:
+            return availability.claudePath != nil
+        case .codex:
+            return availability.codexPath != nil
+        case .gemini:
+            return false
+        }
+    }
+
+    func isCCUsageCostUsageEffectivelyEnabled(for provider: UsageProvider) -> Bool {
+        self.ccusageCostUsageEnabled && self.isCCUsageInstalled(for: provider)
     }
 
     private func runInitialProviderDetectionIfNeeded(force: Bool = false) {
