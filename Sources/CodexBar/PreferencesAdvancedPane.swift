@@ -59,7 +59,7 @@ struct AdvancedPane: View {
                         .textCase(.uppercase)
                     PreferenceToggleRow(
                         title: "Show token cost usage",
-                        subtitle: "If @ccusage/codex is installed, show session + monthly cost in the menu.",
+                        subtitle: "Codex only. Requires @ccusage/codex (ccusage-codex).",
                         binding: self.$settings.tokenCostUsageEnabled)
                 }
 

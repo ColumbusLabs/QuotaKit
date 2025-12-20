@@ -112,7 +112,7 @@ final class SettingsStore: ObservableObject {
             userDefaults.set(true, forKey: "sessionQuotaNotificationsEnabled")
         }
         if userDefaults.object(forKey: "tokenCostUsageEnabled") == nil {
-            userDefaults.set(TTYCommandRunner.which("ccusage-codex") != nil, forKey: "tokenCostUsageEnabled")
+            userDefaults.set(Self.isCCUsageCodexInstalled(), forKey: "tokenCostUsageEnabled")
         }
         let raw = userDefaults.string(forKey: "refreshFrequency") ?? RefreshFrequency.fiveMinutes.rawValue
         self.refreshFrequency = RefreshFrequency(rawValue: raw) ?? .fiveMinutes
@@ -136,6 +136,15 @@ final class SettingsStore: ObservableObject {
     }
 
     // MARK: - Private
+
+    private static func isCCUsageCodexInstalled(fileManager: FileManager = .default) -> Bool {
+        if TTYCommandRunner.which("ccusage-codex") != nil { return true }
+        let candidates = [
+            "/opt/homebrew/bin/ccusage-codex",
+            "/usr/local/bin/ccusage-codex",
+        ]
+        return candidates.contains { fileManager.isExecutableFile(atPath: $0) }
+    }
 
     private func runInitialProviderDetectionIfNeeded(force: Bool = false) {
         guard force || !self.providerDetectionCompleted else { return }
