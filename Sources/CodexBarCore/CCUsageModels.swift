@@ -4,12 +4,20 @@ public struct CCUsageTokenSnapshot: Sendable, Equatable {
     public let sessionTokens: Int?
     public let sessionCostUSD: Double?
     public let last30DaysCostUSD: Double?
+    public let daily: [CCUsageDailyReport.Entry]
     public let updatedAt: Date
 
-    public init(sessionTokens: Int?, sessionCostUSD: Double?, last30DaysCostUSD: Double?, updatedAt: Date) {
+    public init(
+        sessionTokens: Int?,
+        sessionCostUSD: Double?,
+        last30DaysCostUSD: Double?,
+        daily: [CCUsageDailyReport.Entry],
+        updatedAt: Date)
+    {
         self.sessionTokens = sessionTokens
         self.sessionCostUSD = sessionCostUSD
         self.last30DaysCostUSD = last30DaysCostUSD
+        self.daily = daily
         self.updatedAt = updatedAt
     }
 }

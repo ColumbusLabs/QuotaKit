@@ -50,7 +50,10 @@ extension StatusItemController {
             dashboard != nil
         let hasCreditsHistory = openAIWebEligible && !(dashboard?.creditEvents ?? []).isEmpty
         let hasUsageBreakdown = openAIWebEligible && !(dashboard?.usageBreakdown ?? []).isEmpty
-        let hasOpenAIWebMenuItems = hasCreditsHistory || hasUsageBreakdown
+        let currentProvider = selectedProvider ?? enabledProviders.first ?? .codex
+        let hasCostHistory = self.settings.isCCUsageCostUsageEffectivelyEnabled(for: currentProvider) &&
+            (self.store.tokenSnapshot(for: currentProvider)?.daily.isEmpty == false)
+        let hasOpenAIWebMenuItems = hasCreditsHistory || hasUsageBreakdown || hasCostHistory
 
         if enabledProviders.count > 1 {
             let switcherItem = self.makeProviderSwitcherItem(
@@ -79,12 +82,15 @@ extension StatusItemController {
         }
 
         if hasOpenAIWebMenuItems {
-            // Only show these when we actually have OpenAI web-only data.
+            // Only show these when we actually have additional data.
             if hasCreditsHistory {
                 _ = self.addCreditsHistorySubmenu(to: menu)
             }
             if hasUsageBreakdown {
                 _ = self.addUsageBreakdownSubmenu(to: menu)
+            }
+            if hasCostHistory {
+                _ = self.addCostHistorySubmenu(to: menu, provider: currentProvider)
             }
             menu.addItem(.separator())
         }
@@ -368,6 +374,36 @@ extension StatusItemController {
         chartItem.view = hosting
         chartItem.isEnabled = false
         chartItem.representedObject = "usageBreakdownChart"
+        submenu.addItem(chartItem)
+
+        item.submenu = submenu
+        menu.addItem(item)
+        return true
+    }
+
+    @discardableResult
+    private func addCostHistorySubmenu(to menu: NSMenu, provider: UsageProvider) -> Bool {
+        guard provider == .codex || provider == .claude else { return false }
+        guard let tokenSnapshot = self.store.tokenSnapshot(for: provider) else { return false }
+        guard !tokenSnapshot.daily.isEmpty else { return false }
+
+        let item = NSMenuItem(title: "Cost history (30 days)", action: nil, keyEquivalent: "")
+        item.isEnabled = true
+        let submenu = NSMenu()
+        let chartView = CCUsageCostChartMenuView(
+            provider: provider,
+            daily: tokenSnapshot.daily,
+            totalCostUSD: tokenSnapshot.last30DaysCostUSD)
+        let hosting = NSHostingView(rootView: chartView)
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: 1))
+        hosting.layoutSubtreeIfNeeded()
+        let size = hosting.fittingSize
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: size.height))
+
+        let chartItem = NSMenuItem()
+        chartItem.view = hosting
+        chartItem.isEnabled = false
+        chartItem.representedObject = "ccusageCostHistoryChart"
         submenu.addItem(chartItem)
 
         item.submenu = submenu

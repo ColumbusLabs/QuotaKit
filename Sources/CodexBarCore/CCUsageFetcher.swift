@@ -64,6 +64,7 @@ public struct CCUsageFetcher: Sendable {
             sessionTokens: current?.totalTokens,
             sessionCostUSD: current?.costUSD,
             last30DaysCostUSD: last30DaysCostUSD,
+            daily: daily.data,
             updatedAt: now)
     }
 
