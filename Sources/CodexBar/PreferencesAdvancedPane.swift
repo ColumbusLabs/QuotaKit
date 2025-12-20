@@ -9,7 +9,7 @@ struct AdvancedPane: View {
     @State private var cliStatus: String?
 
     var body: some View {
-        let ccusageAvailability = SettingsStore.ccusageAvailability()
+        let ccusageAvailability = self.settings.ccusageAvailability
         let ccusageBinding = Binding(
             get: { ccusageAvailability.isAnyInstalled ? self.settings.ccusageCostUsageEnabled : false },
             set: { self.settings.ccusageCostUsageEnabled = $0 })
@@ -64,36 +64,27 @@ struct AdvancedPane: View {
                         .textCase(.uppercase)
                     PreferenceToggleRow(
                         title: "Show ccusage cost summary",
-                        subtitle: nil,
+                        subtitle: "Requires ccusage. Shows session + monthly cost in the menu.",
                         binding: ccusageBinding)
                         .disabled(!ccusageAvailability.isAnyInstalled)
-                    if ccusageAvailability.isAnyInstalled {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Status")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                            Text("Codex: \(ccusageAvailability.codexPath ?? "missing")")
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Status")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        Text("Codex (ccusage-codex): \(ccusageAvailability.codexPath ?? "missing")")
+                            .font(.footnote)
+                            .foregroundStyle(.tertiary)
+                        Text("Claude (ccusage): \(ccusageAvailability.claudePath ?? "missing")")
+                            .font(.footnote)
+                            .foregroundStyle(.tertiary)
+                        Text("Gemini: no ccusage support found.")
+                            .font(.footnote)
+                            .foregroundStyle(.tertiary)
+                        if !ccusageAvailability.isAnyInstalled {
+                            Text("Install Claude: npm i -g ccusage")
                                 .font(.footnote)
                                 .foregroundStyle(.tertiary)
-                            Text("Claude: \(ccusageAvailability.claudePath ?? "missing")")
-                                .font(.footnote)
-                                .foregroundStyle(.tertiary)
-                            Text("Gemini: not supported (no ccusage CLI found).")
-                                .font(.footnote)
-                                .foregroundStyle(.tertiary)
-                        }
-                    } else {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Status")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                            Text("ccusage not found; install to enable.")
-                                .font(.footnote)
-                                .foregroundStyle(.tertiary)
-                            Text("Claude: npm i -g ccusage")
-                                .font(.footnote)
-                                .foregroundStyle(.tertiary)
-                            Text("Codex: npm i -g @ccusage/codex")
+                            Text("Install Codex: npm i -g @ccusage/codex")
                                 .font(.footnote)
                                 .foregroundStyle(.tertiary)
                         }
@@ -153,6 +144,7 @@ struct AdvancedPane: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
         }
+        .onAppear { self.settings.refreshCCUsageAvailability() }
     }
 
     // MARK: - CLI installer
