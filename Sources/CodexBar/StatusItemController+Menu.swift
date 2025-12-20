@@ -497,13 +497,14 @@ private final class ProviderSwitcherView: NSView {
 
         let stack = NSStackView()
         stack.orientation = .horizontal
-        stack.spacing = 6
+        stack.spacing = 0
         stack.alignment = .centerY
+        stack.distribution = .fill
         if #available(macOS 11, *) {
             stack.edgeInsets = NSEdgeInsets(top: 2, left: 6, bottom: 2, right: 6)
         }
 
-        for (index, segment) in self.segments.enumerated() {
+        func makeButton(index: Int, segment: Segment) -> NSButton {
             let button = PaddedToggleButton(
                 title: segment.title,
                 target: self,
@@ -521,8 +522,31 @@ private final class ProviderSwitcherView: NSView {
             button.wantsLayer = true
             button.layer?.cornerRadius = 6
             button.state = (selected == segment.provider) ? .on : .off
-            stack.addArrangedSubview(button)
             self.buttons.append(button)
+            return button
+        }
+
+        func makeSpacer() -> NSView {
+            let spacer = NSView()
+            spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+            spacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            return spacer
+        }
+
+        if self.segments.count == 2 {
+            stack.addArrangedSubview(makeButton(index: 0, segment: self.segments[0]))
+            stack.addArrangedSubview(makeSpacer())
+            stack.addArrangedSubview(makeButton(index: 1, segment: self.segments[1]))
+        } else if self.segments.count == 3 {
+            stack.addArrangedSubview(makeButton(index: 0, segment: self.segments[0]))
+            stack.addArrangedSubview(makeSpacer())
+            stack.addArrangedSubview(makeButton(index: 1, segment: self.segments[1]))
+            stack.addArrangedSubview(makeSpacer())
+            stack.addArrangedSubview(makeButton(index: 2, segment: self.segments[2]))
+        } else {
+            for (index, segment) in self.segments.enumerated() {
+                stack.addArrangedSubview(makeButton(index: index, segment: segment))
+            }
         }
 
         self.addSubview(stack)
@@ -530,7 +554,7 @@ private final class ProviderSwitcherView: NSView {
         NSLayoutConstraint.activate([
             stack.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 8),
             stack.centerYAnchor.constraint(equalTo: self.centerYAnchor),
-            stack.trailingAnchor.constraint(lessThanOrEqualTo: self.trailingAnchor, constant: -8),
+            stack.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -8),
         ])
 
         self.updateButtonStyles()
