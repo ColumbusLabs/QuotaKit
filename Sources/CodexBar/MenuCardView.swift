@@ -376,42 +376,23 @@ extension UsageMenuCardView.Model {
     {
         guard provider == .codex || provider == .claude else { return nil }
         guard enabled else { return nil }
+        guard let snapshot else { return nil }
 
-        if let snapshot {
-            let sessionCost = snapshot.sessionCostUSD.map { UsageFormatter.usdString($0) } ?? "—"
-            let sessionTokens = snapshot.sessionTokens.map { UsageFormatter.tokenCountString($0) }
-            let sessionLine: String = {
-                if let sessionTokens {
-                    return "Session: \(sessionCost) · \(sessionTokens) tokens"
-                }
-                return "Session: \(sessionCost)"
-            }()
-
-            let monthCost = snapshot.monthCostUSD.map { UsageFormatter.usdString($0) } ?? "—"
-            return TokenUsageSection(
-                sessionLine: sessionLine,
-                monthLine: "This month: \(monthCost)",
-                hintLine: nil,
-                errorLine: nil)
-        }
-
-        let err = (error?.isEmpty ?? true) ? nil : UsageFormatter.truncatedSingleLine(error!, max: 120)
-        let installHint: String? = if err == nil {
-            switch provider {
-            case .codex:
-                "Install @ccusage/codex to show cost usage."
-            case .claude:
-                "Install ccusage to show cost usage."
-            case .gemini:
-                nil
+        let sessionCost = snapshot.sessionCostUSD.map { UsageFormatter.usdString($0) } ?? "—"
+        let sessionTokens = snapshot.sessionTokens.map { UsageFormatter.tokenCountString($0) }
+        let sessionLine: String = {
+            if let sessionTokens {
+                return "Session: \(sessionCost) · \(sessionTokens) tokens"
             }
-        } else {
-            nil
-        }
+            return "Session: \(sessionCost)"
+        }()
+
+        let monthCost = snapshot.monthCostUSD.map { UsageFormatter.usdString($0) } ?? "—"
+        let err = (error?.isEmpty ?? true) ? nil : UsageFormatter.truncatedSingleLine(error!, max: 120)
         return TokenUsageSection(
-            sessionLine: "Session: —",
-            monthLine: "This month: —",
-            hintLine: installHint,
+            sessionLine: sessionLine,
+            monthLine: "This month: \(monthCost)",
+            hintLine: nil,
             errorLine: err)
     }
 

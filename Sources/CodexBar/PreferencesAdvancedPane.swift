@@ -67,27 +67,38 @@ struct AdvancedPane: View {
                         subtitle: "Requires ccusage. Shows session + monthly cost in the menu.",
                         binding: ccusageBinding)
                         .disabled(!ccusageAvailability.isAnyInstalled)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Status")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        Text("Codex (ccusage-codex): \(ccusageAvailability.codexPath ?? "missing")")
-                            .font(.footnote)
-                            .foregroundStyle(.tertiary)
-                        Text("Claude (ccusage): \(ccusageAvailability.claudePath ?? "missing")")
-                            .font(.footnote)
-                            .foregroundStyle(.tertiary)
-                        Text("Gemini: no ccusage support found.")
-                            .font(.footnote)
-                            .foregroundStyle(.tertiary)
-                        if !ccusageAvailability.isAnyInstalled {
-                            Text("Install Claude: npm i -g ccusage")
-                                .font(.footnote)
-                                .foregroundStyle(.tertiary)
-                            Text("Install Codex: npm i -g @ccusage/codex")
+                    if ccusageAvailability.isAnyInstalled {
+                        let detected: [String] = {
+                            var items: [String] = []
+                            if ccusageAvailability.codexPath != nil { items.append("Codex") }
+                            if ccusageAvailability.claudePath != nil { items.append("Claude") }
+                            return items
+                        }()
+                        if !detected.isEmpty {
+                            Text("Detected: \(detected.joined(separator: ", "))")
                                 .font(.footnote)
                                 .foregroundStyle(.tertiary)
                         }
+                        if ccusageAvailability.codexPath == nil {
+                            Text("Missing Codex support (ccusage-codex). Install: npm i -g @ccusage/codex")
+                                .font(.footnote)
+                                .foregroundStyle(.tertiary)
+                        }
+                        if ccusageAvailability.claudePath == nil {
+                            Text("Missing Claude support (ccusage). Install: npm i -g ccusage")
+                                .font(.footnote)
+                                .foregroundStyle(.tertiary)
+                        }
+                    } else {
+                        Text("ccusage not detected.")
+                            .font(.footnote)
+                            .foregroundStyle(.tertiary)
+                        Text("Install Claude: npm i -g ccusage")
+                            .font(.footnote)
+                            .foregroundStyle(.tertiary)
+                        Text("Install Codex: npm i -g @ccusage/codex")
+                            .font(.footnote)
+                            .foregroundStyle(.tertiary)
                     }
                 }
 

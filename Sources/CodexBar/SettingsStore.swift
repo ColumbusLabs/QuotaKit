@@ -265,6 +265,7 @@ final class SettingsStore: ObservableObject {
         // @AppStorage always reads/writes UserDefaults.standard.
         let defaults = UserDefaults.standard
         guard defaults.object(forKey: "tokenCostUsageEnabled") == nil else { return }
+        guard availability.isAnyInstalled else { return }
         let enabledByDefault = availability.isAnyInstalled
         defaults.set(enabledByDefault, forKey: "tokenCostUsageEnabled")
         self.ccusageCostUsageEnabled = enabledByDefault
