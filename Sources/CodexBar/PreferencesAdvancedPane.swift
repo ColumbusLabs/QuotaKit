@@ -44,6 +44,10 @@ struct AdvancedPane: View {
                         title: "Merge Icons",
                         subtitle: "Use a single menu bar icon with a provider switcher.",
                         binding: self.$settings.mergeIcons)
+                    PreferenceToggleRow(
+                        title: "Surprise me",
+                        subtitle: "Check if you like your agents having some fun up there.",
+                        binding: self.$settings.randomBlinkEnabled)
                 }
 
                 Divider()
@@ -57,19 +61,6 @@ struct AdvancedPane: View {
                         title: "Check provider status",
                         subtitle: "Polls OpenAI/Claude status pages and surfaces incidents in the icon and menu.",
                         binding: self.$settings.statusChecksEnabled)
-                }
-
-                Divider()
-
-                SettingsSection(contentSpacing: 12) {
-                    Text("Fun")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-                    PreferenceToggleRow(
-                        title: "Surprise me",
-                        subtitle: "Check if you like your agents having some fun up there.",
-                        binding: self.$settings.randomBlinkEnabled)
                 }
 
                 Divider()

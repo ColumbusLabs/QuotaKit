@@ -28,9 +28,10 @@ struct GeneralPane: View {
                         self.codexSigningStatus()
                         if self.codexBinding.wrappedValue {
                             self.openAIDashboardLogin()
+                                .padding(.leading, 22)
                         }
                     }
-                    .padding(.bottom, 18)
+                    .padding(.bottom, 10)
 
                     if let display = self.providerErrorDisplay(.codex) {
                         ProviderErrorView(
