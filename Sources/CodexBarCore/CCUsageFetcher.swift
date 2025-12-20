@@ -42,18 +42,13 @@ public struct CCUsageFetcher: Sendable {
         let sinceKey = Self.dayKey(
             from: Calendar.current.date(byAdding: .day, value: -30, to: now) ?? now)
 
-        async let sessionReport = Self.runSession(
+        // Run sequentially to keep CPU/RAM spikes down on large histories.
+        let session = try await Self.runSession(
             ccusagePath: ccusagePath,
             env: env,
             sinceKey: sinceKey,
             untilKey: untilKey)
-        async let dailyReport = Self.runDaily(
-            ccusagePath: ccusagePath,
-            env: env,
-            sinceKey: sinceKey,
-            untilKey: untilKey)
-
-        let (session, daily) = try await (sessionReport, dailyReport)
+        let daily = try await Self.runDaily(ccusagePath: ccusagePath, env: env, sinceKey: sinceKey, untilKey: untilKey)
 
         let current = Self.selectCurrentSession(from: session.data)
         let totalFromSummary = daily.summary?.totalCostUSD
@@ -79,7 +74,7 @@ public struct CCUsageFetcher: Sendable {
             binary: ccusagePath,
             arguments: ["session", "--json", "--offline", "--since", sinceKey, "--until", untilKey],
             environment: env,
-            timeout: 20,
+            timeout: 10 * 60,
             label: "ccusage session")
 
         guard let data = result.stdout.data(using: .utf8) else {
@@ -102,7 +97,7 @@ public struct CCUsageFetcher: Sendable {
             binary: ccusagePath,
             arguments: ["daily", "--json", "--offline", "--since", sinceKey, "--until", untilKey],
             environment: env,
-            timeout: 20,
+            timeout: 10 * 60,
             label: "ccusage daily")
 
         guard let data = result.stdout.data(using: .utf8) else {

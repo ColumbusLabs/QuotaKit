@@ -1,4 +1,5 @@
 import AppKit
+import CodexBarCore
 import SwiftUI
 
 @MainActor
@@ -89,6 +90,21 @@ struct AdvancedPane: View {
                                 .font(.footnote)
                                 .foregroundStyle(.tertiary)
                         }
+
+                        if self.settings.ccusageCostUsageEnabled {
+                            Text("Auto-refresh: hourly · Timeout: 10m")
+                                .font(.footnote)
+                                .foregroundStyle(.tertiary)
+
+                            Group {
+                                if ccusageAvailability.claudePath != nil {
+                                    self.ccusageStatusLine(provider: .claude)
+                                }
+                                if ccusageAvailability.codexPath != nil {
+                                    self.ccusageStatusLine(provider: .codex)
+                                }
+                            }
+                        }
                     } else {
                         Text("ccusage not detected.")
                             .font(.footnote)
@@ -156,6 +172,39 @@ struct AdvancedPane: View {
             .padding(.vertical, 12)
         }
         .onAppear { self.settings.refreshCCUsageAvailability() }
+    }
+
+    private func ccusageStatusLine(provider: UsageProvider) -> some View {
+        let name = provider == .claude ? "Claude" : "Codex"
+        if self.store.isTokenRefreshInFlight(for: provider) {
+            return Text("\(name): fetching…")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+        }
+        if let snapshot = self.store.tokenSnapshot(for: provider) {
+            let updated = UsageFormatter.updatedString(from: snapshot.updatedAt)
+            let cost = snapshot.last30DaysCostUSD.map { UsageFormatter.usdString($0) } ?? "—"
+            return Text("\(name): \(updated) · 30d \(cost)")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+        }
+        if let error = self.store.tokenError(for: provider), !error.isEmpty {
+            let truncated = UsageFormatter.truncatedSingleLine(error, max: 120)
+            return Text("\(name): \(truncated)")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+        }
+        if let lastAttempt = self.store.tokenLastAttemptAt(for: provider) {
+            let rel = RelativeDateTimeFormatter()
+            rel.unitsStyle = .abbreviated
+            let when = rel.localizedString(for: lastAttempt, relativeTo: Date())
+            return Text("\(name): last attempt \(when)")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+        }
+        return Text("\(name): no data yet")
+            .font(.footnote)
+            .foregroundStyle(.tertiary)
     }
 
     // MARK: - CLI installer
