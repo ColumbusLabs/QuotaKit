@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.10.0 — Unreleased
+## 0.10.0 — 2025-12-20
 - Gemini provider support (usage, plan detection, login flow). Thanks @381181295!
 - Unified menu bar icon mode with a provider switcher and Merge Icons toggle (default on when multiple providers are enabled). Thanks @ibehnam!
 - Fix regression from 0.9.1 where CLI detection failed for some installs by restoring interactive login-shell PATH loading.
