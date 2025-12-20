@@ -1,7 +1,9 @@
 # Changelog
 
-## 0.10.1 — Unreleased
+## 0.11.0 — Unreleased
+- New optional cost display in the menu (session + last 30 days), powered by ccusage. Thanks @Xuanwo!
 - Fix loading-state card spacing to avoid double separators.
+- Gemini OAuth token refresh now supports Bun/npm installations. Thanks @ben-vargas!
 
 ## 0.10.0 — 2025-12-20
 - Gemini provider support (usage, plan detection, login flow). Thanks @381181295!
