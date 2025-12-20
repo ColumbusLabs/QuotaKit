@@ -457,7 +457,7 @@ private final class ProviderSwitcherView: NSView {
                 target: self,
                 action: #selector(self.handleSelection(_:)))
             button.tag = index
-            button.image = Self.paddedImage(segment.image, leading: 4)
+            button.image = segment.image
             button.imagePosition = .imageLeading
             button.bezelStyle = .regularSquare
             button.isBordered = false
@@ -465,7 +465,7 @@ private final class ProviderSwitcherView: NSView {
             button.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
             button.setButtonType(.toggle)
             button.contentTintColor = self.unselectedTextColor
-            button.alignment = .left
+            button.alignment = .center
             button.wantsLayer = true
             button.layer?.cornerRadius = 6
             button.state = (selected == segment.provider) ? .on : .off
@@ -505,21 +505,6 @@ private final class ProviderSwitcherView: NSView {
             button.contentTintColor = isSelected ? self.selectedTextColor : self.unselectedTextColor
             button.layer?.backgroundColor = isSelected ? self.selectedBackground : self.unselectedBackground
         }
-    }
-
-    private static func paddedImage(_ image: NSImage, leading: CGFloat) -> NSImage {
-        let size = NSSize(width: image.size.width + leading, height: image.size.height)
-        let newImage = NSImage(size: size)
-        newImage.lockFocus()
-        let y = (size.height - image.size.height) / 2
-        image.draw(
-            at: NSPoint(x: leading, y: y),
-            from: NSRect(origin: .zero, size: image.size),
-            operation: .sourceOver,
-            fraction: 1.0)
-        newImage.unlockFocus()
-        newImage.isTemplate = image.isTemplate
-        return newImage
     }
 
     private static func switcherTitle(for provider: UsageProvider) -> String {
