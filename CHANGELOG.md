@@ -2,6 +2,8 @@
 
 ## 0.11.2 — Unreleased
 - ccusage-codex cost fetch is faster and more reliable by limiting the session scan window.
+- Fix ccusage cost fetch hanging for large Codex histories by draining subprocess output while commands run.
+- Fix merged-icon loading animation when another provider is fetching (only the selected provider animates).
 - CLI PATH capture now uses an interactive login shell and merges with the app PATH, fixing missing Node/Codex/Claude/Gemini resolution for NVM-style installs.
 
 ## 0.11.1 — 2025-12-21
