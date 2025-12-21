@@ -16,7 +16,7 @@ struct UsagePaceTextTests {
 
         let text = UsagePaceText.weekly(provider: .codex, window: window, now: now)
 
-        #expect(text == "Pace: High (+7%) · 3d left")
+        #expect(text == "Pace: Ahead (+7%) · Runs out in 3d")
     }
 
     @Test
@@ -30,7 +30,7 @@ struct UsagePaceTextTests {
 
         let text = UsagePaceText.weekly(provider: .codex, window: window, now: now)
 
-        #expect(text == "Pace: Low (-33%) · Lasts to reset")
+        #expect(text == "Pace: Behind (-33%) · Lasts to reset")
     }
 
     @Test
@@ -72,6 +72,20 @@ struct UsagePaceTextTests {
             usedPercent: 5,
             windowMinutes: 10080,
             resetsAt: now.addingTimeInterval(7 * 24 * 3600),
+            resetDescription: nil)
+
+        let text = UsagePaceText.weekly(provider: .codex, window: window, now: now)
+
+        #expect(text == nil)
+    }
+
+    @Test
+    func weeklyPaceText_hidesWhenTooEarlyInWindow() {
+        let now = Date(timeIntervalSince1970: 0)
+        let window = RateWindow(
+            usedPercent: 40,
+            windowMinutes: 10080,
+            resetsAt: now.addingTimeInterval((7 * 24 * 3600) - (60 * 60)),
             resetDescription: nil)
 
         let text = UsagePaceText.weekly(provider: .codex, window: window, now: now)
