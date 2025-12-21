@@ -52,6 +52,13 @@ public enum SubprocessRunner {
         process.standardError = stderrPipe
         process.standardInput = nil
 
+        let stdoutTask = Task<Data, Never> {
+            stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+        }
+        let stderrTask = Task<Data, Never> {
+            stderrPipe.fileHandleForReading.readDataToEndOfFile()
+        }
+
         let exitCodeTask = Task<Int32, Error> {
             try await withCheckedThrowingContinuation { cont in
                 process.terminationHandler = { proc in
@@ -77,8 +84,8 @@ public enum SubprocessRunner {
                 return code
             }
 
-            let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-            let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+            let stdoutData = await stdoutTask.value
+            let stderrData = await stderrTask.value
             let stdout = String(data: stdoutData, encoding: .utf8) ?? ""
             let stderr = String(data: stderrData, encoding: .utf8) ?? ""
 
@@ -98,6 +105,10 @@ public enum SubprocessRunner {
                     kill(process.processIdentifier, SIGKILL)
                 }
             }
+            stdoutTask.cancel()
+            stderrTask.cancel()
+            stdoutPipe.fileHandleForReading.closeFile()
+            stderrPipe.fileHandleForReading.closeFile()
             throw error
         }
     }
