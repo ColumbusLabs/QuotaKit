@@ -63,32 +63,46 @@ struct AdvancedPane: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
-                    PreferenceToggleRow(
-                        title: "Show ccusage cost summary",
-                        subtitle: "Requires ccusage. Shows session + last 30 days cost in the menu.",
-                        binding: ccusageBinding)
+
+                    VStack(alignment: .leading, spacing: 5.4) {
+                        Toggle(isOn: ccusageBinding) {
+                            Text("Show ccusage cost summary")
+                                .font(.body)
+                        }
+                        .toggleStyle(.checkbox)
                         .disabled(!ccusageAvailability.isAnyInstalled)
-                    if ccusageAvailability.isAnyInstalled {
-                        if self.settings.ccusageCostUsageEnabled {
-                            Text("Auto-refresh: hourly · Timeout: 10m")
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Requires ccusage. Shows session + last 30 days cost in the menu.")
                                 .font(.footnote)
                                 .foregroundStyle(.tertiary)
+                                .fixedSize(horizontal: false, vertical: true)
 
-                            self.ccusageStatusLine(
-                                provider: .claude,
-                                isInstalled: ccusageAvailability.claudePath != nil)
-                            self.ccusageStatusLine(provider: .codex, isInstalled: ccusageAvailability.codexPath != nil)
+                            if ccusageAvailability.isAnyInstalled {
+                                if self.settings.ccusageCostUsageEnabled {
+                                    Text("Auto-refresh: hourly · Timeout: 10m")
+                                        .font(.footnote)
+                                        .foregroundStyle(.tertiary)
+
+                                    self.ccusageStatusLine(
+                                        provider: .claude,
+                                        isInstalled: ccusageAvailability.claudePath != nil)
+                                    self.ccusageStatusLine(
+                                        provider: .codex,
+                                        isInstalled: ccusageAvailability.codexPath != nil)
+                                }
+                            } else {
+                                Text("ccusage not detected.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.tertiary)
+                                Text("Install Claude: npm i -g ccusage")
+                                    .font(.footnote)
+                                    .foregroundStyle(.tertiary)
+                                Text("Install Codex: npm i -g @ccusage/codex")
+                                    .font(.footnote)
+                                    .foregroundStyle(.tertiary)
+                            }
                         }
-                    } else {
-                        Text("ccusage not detected.")
-                            .font(.footnote)
-                            .foregroundStyle(.tertiary)
-                        Text("Install Claude: npm i -g ccusage")
-                            .font(.footnote)
-                            .foregroundStyle(.tertiary)
-                        Text("Install Codex: npm i -g @ccusage/codex")
-                            .font(.footnote)
-                            .foregroundStyle(.tertiary)
                     }
                 }
 
@@ -122,14 +136,14 @@ struct AdvancedPane: View {
 
                         if let status = self.cliStatus {
                             Text(status)
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
+                                .font(.footnote)
+                                .foregroundStyle(.tertiary)
                                 .lineLimit(2)
                         }
                     }
                     Text("Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
                 }
 
                 Divider()
