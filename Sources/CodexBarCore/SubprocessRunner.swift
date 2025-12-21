@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 public enum SubprocessRunnerError: LocalizedError, Sendable {
@@ -59,22 +60,30 @@ public enum SubprocessRunner {
             stderrPipe.fileHandleForReading.readDataToEndOfFile()
         }
 
-        let exitCodeTask = Task<Int32, Error> {
-            try await withCheckedThrowingContinuation { cont in
-                process.terminationHandler = { proc in
-                    cont.resume(returning: proc.terminationStatus)
-                }
-                do {
-                    try process.run()
-                } catch {
-                    cont.resume(throwing: SubprocessRunnerError.launchFailed(error.localizedDescription))
-                }
-            }
+        do {
+            try process.run()
+        } catch {
+            stdoutTask.cancel()
+            stderrTask.cancel()
+            stdoutPipe.fileHandleForReading.closeFile()
+            stderrPipe.fileHandleForReading.closeFile()
+            throw SubprocessRunnerError.launchFailed(error.localizedDescription)
+        }
+
+        var processGroup: pid_t?
+        let pid = process.processIdentifier
+        if setpgid(pid, pid) == 0 {
+            processGroup = pid
+        }
+
+        let exitCodeTask = Task<Int32, Never> {
+            process.waitUntilExit()
+            return process.terminationStatus
         }
 
         do {
             let exitCode = try await withThrowingTaskGroup(of: Int32.self) { group in
-                group.addTask { try await exitCodeTask.value }
+                group.addTask { await exitCodeTask.value }
                 group.addTask {
                     try await Task.sleep(for: .seconds(timeout))
                     throw SubprocessRunnerError.timedOut(label)
@@ -97,14 +106,21 @@ public enum SubprocessRunner {
         } catch {
             if process.isRunning {
                 process.terminate()
+                if let pgid = processGroup {
+                    kill(-pgid, SIGTERM)
+                }
                 let killDeadline = Date().addingTimeInterval(0.4)
                 while process.isRunning, Date() < killDeadline {
                     usleep(50000)
                 }
                 if process.isRunning {
+                    if let pgid = processGroup {
+                        kill(-pgid, SIGKILL)
+                    }
                     kill(process.processIdentifier, SIGKILL)
                 }
             }
+            exitCodeTask.cancel()
             stdoutTask.cancel()
             stderrTask.cancel()
             stdoutPipe.fileHandleForReading.closeFile()

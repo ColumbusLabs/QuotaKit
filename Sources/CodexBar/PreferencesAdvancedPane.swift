@@ -73,7 +73,7 @@ struct AdvancedPane: View {
                         .disabled(!ccusageAvailability.isAnyInstalled)
 
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Requires ccusage. Shows session + last 30 days cost in the menu.")
+                            Text("Requires ccusage. Shows today + last 30 days cost in the menu.")
                                 .font(.footnote)
                                 .foregroundStyle(.tertiary)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -183,7 +183,15 @@ struct AdvancedPane: View {
                 .foregroundStyle(.tertiary)
         }
         if self.store.isTokenRefreshInFlight(for: provider) {
-            return Text("\(name): detected · fetching…")
+            let elapsed: String = {
+                guard let startedAt = self.store.tokenLastAttemptAt(for: provider) else { return "" }
+                let seconds = max(0, Date().timeIntervalSince(startedAt))
+                let formatter = DateComponentsFormatter()
+                formatter.allowedUnits = seconds < 60 ? [.second] : [.minute, .second]
+                formatter.unitsStyle = .abbreviated
+                return formatter.string(from: seconds).map { " (\($0))" } ?? ""
+            }()
+            return Text("\(name): detected · fetching…\(elapsed)")
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
         }

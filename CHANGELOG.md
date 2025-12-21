@@ -2,6 +2,8 @@
 
 ## 0.11.3 — Unreleased
 - Improve ccusage Codex cost decoding for legacy JSON “models” maps. Thanks @Xuanwo!
+- Speed up ccusage cost refresh by deriving the “Today” line from the daily report (single CLI run).
+- Serialize ccusage cost refreshes (one CLI at a time) and make timeouts/cancellation terminate the full subprocess tree.
 
 ## 0.11.2 — 2025-12-21
 - ccusage-codex cost fetch is faster and more reliable by limiting the session scan window.

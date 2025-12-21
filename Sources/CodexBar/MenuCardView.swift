@@ -382,9 +382,9 @@ extension UsageMenuCardView.Model {
         let sessionTokens = snapshot.sessionTokens.map { UsageFormatter.tokenCountString($0) }
         let sessionLine: String = {
             if let sessionTokens {
-                return "Session: \(sessionCost) · \(sessionTokens) tokens"
+                return "Today: \(sessionCost) · \(sessionTokens) tokens"
             }
-            return "Session: \(sessionCost)"
+            return "Today: \(sessionCost)"
         }()
 
         let monthCost = snapshot.last30DaysCostUSD.map { UsageFormatter.usdString($0) } ?? "—"

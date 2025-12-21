@@ -116,6 +116,7 @@ final class UsageStore: ObservableObject {
     private let sessionQuotaNotifier: SessionQuotaNotifier
     private let sessionQuotaLogger = Logger(subsystem: "com.steipete.codexbar", category: "sessionQuota")
     private let openAIWebLogger = Logger(subsystem: "com.steipete.codexbar", category: "openai-web")
+    private let tokenCostLogger = Logger(subsystem: "com.steipete.codexbar", category: "token-cost")
     private var openAIWebDebugLines: [String] = []
     private var failureGates: [UsageProvider: ConsecutiveFailureGate] = [:]
     private var tokenFailureGates: [UsageProvider: ConsecutiveFailureGate] = [:]
@@ -123,6 +124,7 @@ final class UsageStore: ObservableObject {
     private let providerMetadata: [UsageProvider: ProviderMetadata]
     private var timerTask: Task<Void, Never>?
     private var tokenTimerTask: Task<Void, Never>?
+    private var tokenRefreshSequenceTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
     private var lastKnownSessionRemaining: [UsageProvider: Double] = [:]
     private var lastTokenFetchAt: [UsageProvider: Date] = [:]
@@ -335,9 +337,23 @@ final class UsageStore: ObservableObject {
     }
 
     private func scheduleTokenRefresh(force: Bool) {
-        for provider in UsageProvider.allCases {
-            Task { [weak self] in
-                await self?.refreshTokenUsage(provider, force: force)
+        if force {
+            self.tokenRefreshSequenceTask?.cancel()
+            self.tokenRefreshSequenceTask = nil
+        } else if self.tokenRefreshSequenceTask != nil {
+            return
+        }
+
+        self.tokenRefreshSequenceTask = Task(priority: .utility) { [weak self] in
+            guard let self else { return }
+            defer {
+                Task { @MainActor [weak self] in
+                    self?.tokenRefreshSequenceTask = nil
+                }
+            }
+            for provider in UsageProvider.allCases {
+                if Task.isCancelled { break }
+                await self.refreshTokenUsage(provider, force: force)
             }
         }
     }
@@ -345,6 +361,7 @@ final class UsageStore: ObservableObject {
     deinit {
         self.timerTask?.cancel()
         self.tokenTimerTask?.cancel()
+        self.tokenRefreshSequenceTask?.cancel()
     }
 
     private func refreshProvider(_ provider: UsageProvider) async {
@@ -1032,6 +1049,11 @@ extension UsageStore {
         self.tokenRefreshInFlight.insert(provider)
         defer { self.tokenRefreshInFlight.remove(provider) }
 
+        let startedAt = Date()
+        let providerText = provider.rawValue
+        self.tokenCostLogger
+            .info("ccusage start provider=\(providerText, privacy: .public) force=\(force, privacy: .public)")
+
         do {
             let fetcher = self.ccusageFetcher
             let cli: CCUsageFetcher.CLI = switch provider {
@@ -1039,13 +1061,36 @@ extension UsageStore {
             case .claude: .ccusage
             case .gemini: .ccusage
             }
-            let snapshot = try await Task.detached(priority: .utility) {
-                try await fetcher.loadTokenSnapshot(cli: cli, now: now)
-            }.value
+            let snapshot = try await withThrowingTaskGroup(of: CCUsageTokenSnapshot.self) { group in
+                group.addTask(priority: .utility) {
+                    try await fetcher.loadTokenSnapshot(cli: cli, now: now)
+                }
+                guard let snapshot = try await group.next() else {
+                    throw CancellationError()
+                }
+                group.cancelAll()
+                return snapshot
+            }
+            let duration = Date().timeIntervalSince(startedAt)
+            let sessionCost = snapshot.sessionCostUSD.map(UsageFormatter.usdString) ?? "—"
+            let monthCost = snapshot.last30DaysCostUSD.map(UsageFormatter.usdString) ?? "—"
+            let durationText = String(format: "%.2f", duration)
+            let message =
+                "ccusage success provider=\(providerText) " +
+                "duration=\(durationText)s " +
+                "today=\(sessionCost) " +
+                "30d=\(monthCost)"
+            self.tokenCostLogger.info("\(message, privacy: .public)")
             self.tokenSnapshots[provider] = snapshot
             self.tokenErrors[provider] = nil
             self.tokenFailureGates[provider]?.recordSuccess()
         } catch {
+            if error is CancellationError { return }
+            let duration = Date().timeIntervalSince(startedAt)
+            let msg = error.localizedDescription
+            let durationText = String(format: "%.2f", duration)
+            let message = "ccusage failed provider=\(providerText) duration=\(durationText)s error=\(msg)"
+            self.tokenCostLogger.error("\(message, privacy: .public)")
             if let ccusageError = error as? CCUsageError,
                case .cliNotInstalled = ccusageError
             {

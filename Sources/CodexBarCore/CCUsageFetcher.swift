@@ -38,58 +38,39 @@ public struct CCUsageFetcher: Sendable {
 
         let env = TTYCommandRunner.enrichedEnvironment()
         let untilKey = Self.dayKey(from: now)
-        // Rolling window: last 30 days (inclusive).
-        let dailySinceKey = Self.dayKey(from: Calendar.current.date(byAdding: .day, value: -30, to: now) ?? now)
-        // Session report can be significantly slower for Codex histories; we only need the latest session.
-        let sessionSinceKey = Self.dayKey(from: Calendar.current.date(byAdding: .day, value: -3, to: now) ?? now)
-
-        // Run sequentially to keep CPU/RAM spikes down on large histories.
-        let session = try await Self.runSession(
-            ccusagePath: ccusagePath,
-            env: env,
-            sinceKey: sessionSinceKey,
-            untilKey: untilKey)
+        // Rolling window: last 30 days (inclusive). Use -29 for inclusive boundaries.
+        let dailySinceKey = Self.dayKey(from: Calendar.current.date(byAdding: .day, value: -29, to: now) ?? now)
         let daily = try await Self.runDaily(
             ccusagePath: ccusagePath,
             env: env,
             sinceKey: dailySinceKey,
             untilKey: untilKey)
+        return Self.tokenSnapshot(from: daily, now: now)
+    }
 
-        let current = Self.selectCurrentSession(from: session.data)
+    static func tokenSnapshot(from daily: CCUsageDailyReport, now: Date) -> CCUsageTokenSnapshot {
+        let currentDay = daily.data.max { lhs, rhs in
+            let lDate = CCUsageDateParser.parse(lhs.date) ?? .distantPast
+            let rDate = CCUsageDateParser.parse(rhs.date) ?? .distantPast
+            if lDate != rDate { return lDate < rDate }
+            let lCost = lhs.costUSD ?? -1
+            let rCost = rhs.costUSD ?? -1
+            if lCost != rCost { return lCost < rCost }
+            let lTokens = lhs.totalTokens ?? -1
+            let rTokens = rhs.totalTokens ?? -1
+            if lTokens != rTokens { return lTokens < rTokens }
+            return lhs.date < rhs.date
+        }
         let totalFromSummary = daily.summary?.totalCostUSD
         let totalFromEntries = daily.data.compactMap(\.costUSD).reduce(0, +)
         let last30DaysCostUSD = totalFromSummary ?? (totalFromEntries > 0 ? totalFromEntries : nil)
 
         return CCUsageTokenSnapshot(
-            sessionTokens: current?.totalTokens,
-            sessionCostUSD: current?.costUSD,
+            sessionTokens: currentDay?.totalTokens,
+            sessionCostUSD: currentDay?.costUSD,
             last30DaysCostUSD: last30DaysCostUSD,
             daily: daily.data,
             updatedAt: now)
-    }
-
-    private static func runSession(
-        ccusagePath: String,
-        env: [String: String],
-        sinceKey: String,
-        untilKey: String) async throws
-        -> CCUsageSessionReport
-    {
-        let result = try await SubprocessRunner.run(
-            binary: ccusagePath,
-            arguments: ["session", "--json", "--offline", "--since", sinceKey, "--until", untilKey],
-            environment: env,
-            timeout: 10 * 60,
-            label: "ccusage session")
-
-        guard let data = result.stdout.data(using: .utf8) else {
-            throw CCUsageError.decodeFailed("empty stdout")
-        }
-        do {
-            return try JSONDecoder().decode(CCUsageSessionReport.self, from: data)
-        } catch {
-            throw CCUsageError.decodeFailed(error.localizedDescription)
-        }
     }
 
     private static func runDaily(

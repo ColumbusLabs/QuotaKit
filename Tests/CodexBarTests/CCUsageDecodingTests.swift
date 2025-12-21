@@ -260,4 +260,91 @@ struct CCUsageDecodingTests {
         let selected = CCUsageFetcher.selectCurrentSession(from: report.data)
         #expect(selected?.session == "B")
     }
+
+    @Test
+    func tokenSnapshotSelectsMostRecentDay() throws {
+        let json = """
+        {
+          "type": "daily",
+          "data": [
+            {
+              "date": "Dec 20, 2025",
+              "totalTokens": 30,
+              "costUSD": 1.23
+            },
+            {
+              "date": "2025-12-21",
+              "totalTokens": 10,
+              "costUSD": 4.56
+            }
+          ],
+          "summary": {
+            "totalCostUSD": 5.79
+          }
+        }
+        """
+
+        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
+        let now = Date(timeIntervalSince1970: 1_766_275_200) // 2025-12-21
+        let snapshot = CCUsageFetcher.tokenSnapshot(from: report, now: now)
+        #expect(snapshot.sessionTokens == 10)
+        #expect(snapshot.sessionCostUSD == 4.56)
+        #expect(snapshot.last30DaysCostUSD == 5.79)
+        #expect(snapshot.daily.count == 2)
+        #expect(snapshot.updatedAt == now)
+    }
+
+    @Test
+    func tokenSnapshotUsesSummaryTotalCostWhenAvailable() throws {
+        let json = """
+        {
+          "type": "daily",
+          "data": [
+            { "date": "2025-12-20", "costUSD": 1.00 },
+            { "date": "2025-12-21", "costUSD": 2.00 }
+          ],
+          "summary": {
+            "totalCostUSD": 99.00
+          }
+        }
+        """
+
+        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
+        let snapshot = CCUsageFetcher.tokenSnapshot(from: report, now: Date())
+        #expect(snapshot.last30DaysCostUSD == 99.00)
+    }
+
+    @Test
+    func tokenSnapshotFallsBackToSummedEntriesWhenSummaryMissing() throws {
+        let json = """
+        {
+          "type": "daily",
+          "data": [
+            { "date": "2025-12-20", "costUSD": 1.00 },
+            { "date": "2025-12-21", "costUSD": 2.00 }
+          ]
+        }
+        """
+
+        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
+        let snapshot = CCUsageFetcher.tokenSnapshot(from: report, now: Date())
+        #expect(snapshot.last30DaysCostUSD == 3.00)
+    }
+
+    @Test
+    func tokenSnapshotReturnsNilTotalWhenNoCostsPresent() throws {
+        let json = """
+        {
+          "type": "daily",
+          "data": [
+            { "date": "2025-12-20", "totalTokens": 10 },
+            { "date": "2025-12-21", "totalTokens": 20 }
+          ]
+        }
+        """
+
+        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
+        let snapshot = CCUsageFetcher.tokenSnapshot(from: report, now: Date())
+        #expect(snapshot.last30DaysCostUSD == nil)
+    }
 }
