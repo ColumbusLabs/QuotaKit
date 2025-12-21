@@ -202,15 +202,30 @@ public enum PathBuilder {
         loginPATH: [String]? = LoginShellPathCache.shared.current,
         home _: String = NSHomeDirectory()) -> String
     {
+        var parts: [String] = []
+
         if let loginPATH, !loginPATH.isEmpty {
-            return loginPATH.joined(separator: ":")
+            parts.append(contentsOf: loginPATH)
         }
 
         if let existing = env["PATH"], !existing.isEmpty {
-            return existing
+            parts.append(contentsOf: existing.split(separator: ":").map(String.init))
         }
 
-        return ["/usr/bin", "/bin", "/usr/sbin", "/sbin"].joined(separator: ":")
+        if parts.isEmpty {
+            parts.append(contentsOf: ["/usr/bin", "/bin", "/usr/sbin", "/sbin"])
+        }
+
+        var seen = Set<String>()
+        let deduped = parts.compactMap { part -> String? in
+            guard !part.isEmpty else { return nil }
+            if seen.insert(part).inserted {
+                return part
+            }
+            return nil
+        }
+
+        return deduped.joined(separator: ":")
     }
 
     public static func debugSnapshot(
@@ -243,9 +258,10 @@ enum LoginShellPathCapturer {
         timeout: TimeInterval = 2.0) -> [String]?
     {
         let shellPath = (shell?.isEmpty == false) ? shell! : "/bin/zsh"
+        let marker = "__CODEXBAR_PATH__"
         let process = Process()
         process.executableURL = URL(fileURLWithPath: shellPath)
-        process.arguments = ["-l", "-c", "printf %s \"$PATH\""]
+        process.arguments = ["-l", "-i", "-c", "printf '\(marker)%s\(marker)' \"$PATH\""]
         let stdout = Pipe()
         process.standardOutput = stdout
         process.standardError = Pipe()
@@ -266,10 +282,23 @@ enum LoginShellPathCapturer {
         }
 
         let data = stdout.fileHandleForReading.readDataToEndOfFile()
-        guard let text = String(data: data, encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-            !text.isEmpty else { return nil }
-        return text.split(separator: ":").map(String.init)
+        guard let raw = String(data: data, encoding: .utf8),
+              !raw.isEmpty else { return nil }
+
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let extracted: String?
+        if let start = trimmed.range(of: marker),
+           let end = trimmed.range(of: marker, options: .backwards),
+           start.upperBound <= end.lowerBound
+        {
+            extracted = String(trimmed[start.upperBound..<end.lowerBound])
+        } else {
+            extracted = trimmed
+        }
+
+        guard let value = extracted?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty else { return nil }
+        return value.split(separator: ":").map(String.init)
     }
 }
 

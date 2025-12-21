@@ -6,12 +6,12 @@ import Testing
 @Suite
 struct PathBuilderTests {
     @Test
-    func prefersLoginShellPathWhenAvailable() {
+    func mergesLoginShellPathWhenAvailable() {
         let seeded = PathBuilder.effectivePATH(
             purposes: [.rpc],
             env: ["PATH": "/custom/bin:/usr/bin"],
             loginPATH: ["/login/bin", "/login/alt"])
-        #expect(seeded == "/login/bin:/login/alt")
+        #expect(seeded == "/login/bin:/login/alt:/custom/bin:/usr/bin")
     }
 
     @Test

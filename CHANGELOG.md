@@ -2,6 +2,7 @@
 
 ## 0.11.2 — Unreleased
 - ccusage-codex cost fetch is faster and more reliable by limiting the session scan window.
+- CLI PATH capture now uses an interactive login shell and merges with the app PATH, fixing missing Node/Codex/Claude/Gemini resolution for NVM-style installs.
 
 ## 0.11.1 — 2025-12-21
 - Gemini OAuth token refresh now supports Bun/npm installations. Thanks @ben-vargas!
