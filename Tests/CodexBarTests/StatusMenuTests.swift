@@ -53,10 +53,17 @@ struct StatusMenuTests {
         settings.refreshFrequency = .manual
         settings.openAIDashboardEnabled = true
         settings.mergeIcons = true
+        settings.selectedMenuProvider = .codex
 
         let registry = ProviderRegistry.shared
         if let codexMeta = registry.metadata[.codex] {
             settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
+        }
+        if let claudeMeta = registry.metadata[.claude] {
+            settings.setProviderEnabled(provider: .claude, metadata: claudeMeta, enabled: false)
+        }
+        if let geminiMeta = registry.metadata[.gemini] {
+            settings.setProviderEnabled(provider: .gemini, metadata: geminiMeta, enabled: false)
         }
 
         let fetcher = UsageFetcher()
@@ -89,10 +96,17 @@ struct StatusMenuTests {
         settings.refreshFrequency = .manual
         settings.openAIDashboardEnabled = true
         settings.mergeIcons = true
+        settings.selectedMenuProvider = .codex
 
         let registry = ProviderRegistry.shared
         if let codexMeta = registry.metadata[.codex] {
             settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
+        }
+        if let claudeMeta = registry.metadata[.claude] {
+            settings.setProviderEnabled(provider: .claude, metadata: claudeMeta, enabled: false)
+        }
+        if let geminiMeta = registry.metadata[.gemini] {
+            settings.setProviderEnabled(provider: .gemini, metadata: geminiMeta, enabled: false)
         }
 
         let fetcher = UsageFetcher()

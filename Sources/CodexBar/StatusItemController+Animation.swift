@@ -3,6 +3,14 @@ import CodexBarCore
 import QuartzCore
 
 extension StatusItemController {
+    func needsMenuBarIconAnimation() -> Bool {
+        if self.shouldMergeIcons {
+            let primaryProvider = self.primaryProviderForUnifiedIcon()
+            return self.shouldAnimate(provider: primaryProvider)
+        }
+        return UsageProvider.allCases.contains { self.shouldAnimate(provider: $0) }
+    }
+
     func updateBlinkingState() {
         let blinkingEnabled = self.isBlinkingAllowed()
         let anyEnabled = !self.store.enabledProviders().isEmpty || self.store.debugForceAnimation
@@ -173,7 +181,7 @@ extension StatusItemController {
         var stale = self.store.isStale(provider: primaryProvider)
         var morphProgress: Double?
 
-        let needsAnimation = UsageProvider.allCases.contains { self.shouldAnimate(provider: $0) }
+        let needsAnimation = self.needsMenuBarIconAnimation()
         if let phase, needsAnimation {
             var pattern = self.animationPattern
             if style == .combined, pattern == .unbraid {
@@ -327,7 +335,7 @@ extension StatusItemController {
     }
 
     func updateAnimationState() {
-        let needsAnimation = UsageProvider.allCases.contains { self.shouldAnimate(provider: $0) }
+        let needsAnimation = self.needsMenuBarIconAnimation()
         if needsAnimation {
             if self.animationDisplayLink == nil {
                 if let forced = self.settings.debugLoadingPattern {

@@ -38,6 +38,18 @@ enum ProviderStatusIndicator: String {
     }
 }
 
+#if DEBUG
+extension UsageStore {
+    func _setSnapshotForTesting(_ snapshot: UsageSnapshot?, provider: UsageProvider) {
+        self.snapshots[provider] = snapshot
+    }
+
+    func _setErrorForTesting(_ error: String?, provider: UsageProvider) {
+        self.errors[provider] = error
+    }
+}
+#endif
+
 struct ProviderStatus {
     let indicator: ProviderStatusIndicator
     let description: String?
