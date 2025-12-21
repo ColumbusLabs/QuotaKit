@@ -10,9 +10,8 @@ struct AdvancedPane: View {
     @State private var cliStatus: String?
 
     var body: some View {
-        let ccusageAvailability = self.settings.ccusageAvailability
         let ccusageBinding = Binding(
-            get: { ccusageAvailability.isAnyInstalled ? self.settings.ccusageCostUsageEnabled : false },
+            get: { self.settings.ccusageCostUsageEnabled },
             set: { self.settings.ccusageCostUsageEnabled = $0 })
 
         ScrollView(.vertical, showsIndicators: true) {
@@ -70,37 +69,20 @@ struct AdvancedPane: View {
                                 .font(.body)
                         }
                         .toggleStyle(.checkbox)
-                        .disabled(!ccusageAvailability.isAnyInstalled)
 
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Requires ccusage. Shows today + last 30 days cost in the menu.")
+                            Text("Reads local usage logs. Shows today + last 30 days cost in the menu.")
                                 .font(.footnote)
                                 .foregroundStyle(.tertiary)
                                 .fixedSize(horizontal: false, vertical: true)
 
-                            if ccusageAvailability.isAnyInstalled {
-                                if self.settings.ccusageCostUsageEnabled {
-                                    Text("Auto-refresh: hourly · Timeout: 10m")
-                                        .font(.footnote)
-                                        .foregroundStyle(.tertiary)
+                            if self.settings.ccusageCostUsageEnabled {
+                                Text("Auto-refresh: hourly · Timeout: 10m")
+                                    .font(.footnote)
+                                    .foregroundStyle(.tertiary)
 
-                                    self.ccusageStatusLine(
-                                        provider: .claude,
-                                        isInstalled: ccusageAvailability.claudePath != nil)
-                                    self.ccusageStatusLine(
-                                        provider: .codex,
-                                        isInstalled: ccusageAvailability.codexPath != nil)
-                                }
-                            } else {
-                                Text("ccusage not detected.")
-                                    .font(.footnote)
-                                    .foregroundStyle(.tertiary)
-                                Text("Install Claude: npm i -g ccusage")
-                                    .font(.footnote)
-                                    .foregroundStyle(.tertiary)
-                                Text("Install Codex: npm i -g @ccusage/codex")
-                                    .font(.footnote)
-                                    .foregroundStyle(.tertiary)
+                                self.ccusageStatusLine(provider: .claude)
+                                self.ccusageStatusLine(provider: .codex)
                             }
                         }
                     }
@@ -159,17 +141,16 @@ struct AdvancedPane: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
         }
-        .onAppear { self.settings.refreshCCUsageAvailability() }
     }
 
-    private func ccusageStatusLine(provider: UsageProvider, isInstalled: Bool) -> some View {
-        let (name, binary) = switch provider {
+    private func ccusageStatusLine(provider: UsageProvider) -> some View {
+        let name = switch provider {
         case .claude:
-            ("Claude", "ccusage")
+            "Claude"
         case .codex:
-            ("Codex", "ccusage-codex")
+            "Codex"
         case .gemini:
-            ("Gemini", "ccusage")
+            "Gemini"
         }
         guard provider == .claude || provider == .codex else {
             return Text("\(name): unsupported")
@@ -177,11 +158,6 @@ struct AdvancedPane: View {
                 .foregroundStyle(.tertiary)
         }
 
-        if !isInstalled {
-            return Text("\(name): not detected (\(binary))")
-                .font(.footnote)
-                .foregroundStyle(.tertiary)
-        }
         if self.store.isTokenRefreshInFlight(for: provider) {
             let elapsed: String = {
                 guard let startedAt = self.store.tokenLastAttemptAt(for: provider) else { return "" }
@@ -191,20 +167,20 @@ struct AdvancedPane: View {
                 formatter.unitsStyle = .abbreviated
                 return formatter.string(from: seconds).map { " (\($0))" } ?? ""
             }()
-            return Text("\(name): detected · fetching…\(elapsed)")
+            return Text("\(name): fetching…\(elapsed)")
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
         }
         if let snapshot = self.store.tokenSnapshot(for: provider) {
             let updated = UsageFormatter.updatedString(from: snapshot.updatedAt)
             let cost = snapshot.last30DaysCostUSD.map { UsageFormatter.usdString($0) } ?? "—"
-            return Text("\(name): detected · \(updated) · 30d \(cost)")
+            return Text("\(name): \(updated) · 30d \(cost)")
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
         }
         if let error = self.store.tokenError(for: provider), !error.isEmpty {
             let truncated = UsageFormatter.truncatedSingleLine(error, max: 120)
-            return Text("\(name): detected · \(truncated)")
+            return Text("\(name): \(truncated)")
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
         }
@@ -212,11 +188,11 @@ struct AdvancedPane: View {
             let rel = RelativeDateTimeFormatter()
             rel.unitsStyle = .abbreviated
             let when = rel.localizedString(for: lastAttempt, relativeTo: Date())
-            return Text("\(name): detected · last attempt \(when)")
+            return Text("\(name): last attempt \(when)")
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
         }
-        return Text("\(name): detected · no data yet")
+        return Text("\(name): no data yet")
             .font(.footnote)
             .foregroundStyle(.tertiary)
     }

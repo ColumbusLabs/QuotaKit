@@ -1,15 +1,18 @@
 import Foundation
 
 public enum CCUsageError: LocalizedError, Sendable {
-    case cliNotInstalled(binary: String, installCommand: String)
-    case decodeFailed(String)
+    case unsupportedProvider(UsageProvider)
+    case timedOut(seconds: Int)
 
     public var errorDescription: String? {
         switch self {
-        case let .cliNotInstalled(binary, installCommand):
-            "\(binary) is not installed. Install with `\(installCommand)` and restart CodexBar."
-        case let .decodeFailed(details):
-            "Could not parse ccusage output: \(details)"
+        case let .unsupportedProvider(provider):
+            return "Cost summary is not supported for \(provider.rawValue)."
+        case let .timedOut(seconds):
+            if seconds >= 60, seconds % 60 == 0 {
+                return "Cost refresh timed out after \(seconds / 60)m."
+            }
+            return "Cost refresh timed out after \(seconds)s."
         }
     }
 }
@@ -17,34 +20,32 @@ public enum CCUsageError: LocalizedError, Sendable {
 public struct CCUsageFetcher: Sendable {
     public init() {}
 
-    public enum CLI: String, Sendable {
-        case ccusage
-        case codex = "ccusage-codex"
-
-        var installCommand: String {
-            switch self {
-            case .ccusage:
-                "npm i -g ccusage"
-            case .codex:
-                "npm i -g @ccusage/codex"
-            }
-        }
-    }
-
-    public func loadTokenSnapshot(cli: CLI, now: Date = Date()) async throws -> CCUsageTokenSnapshot {
-        guard let ccusagePath = TTYCommandRunner.which(cli.rawValue) else {
-            throw CCUsageError.cliNotInstalled(binary: cli.rawValue, installCommand: cli.installCommand)
+    public func loadTokenSnapshot(
+        provider: UsageProvider,
+        now: Date = Date(),
+        forceRefresh: Bool = false) async throws -> CCUsageTokenSnapshot
+    {
+        guard provider == .codex || provider == .claude else {
+            throw CCUsageError.unsupportedProvider(provider)
         }
 
-        let env = TTYCommandRunner.enrichedEnvironment()
-        let untilKey = Self.dayKey(from: now)
+        let until = now
         // Rolling window: last 30 days (inclusive). Use -29 for inclusive boundaries.
-        let dailySinceKey = Self.dayKey(from: Calendar.current.date(byAdding: .day, value: -29, to: now) ?? now)
-        let daily = try await Self.runDaily(
-            ccusagePath: ccusagePath,
-            env: env,
-            sinceKey: dailySinceKey,
-            untilKey: untilKey)
+        let since = Calendar.current.date(byAdding: .day, value: -29, to: now) ?? now
+
+        var options = CCUsageMinScanner.Options()
+        if forceRefresh {
+            options.refreshMinIntervalSeconds = 0
+        }
+        let daily = await Task.detached(priority: .utility) {
+            CCUsageMinScanner.loadDailyReport(
+                provider: provider,
+                since: since,
+                until: until,
+                now: now,
+                options: options)
+        }.value
+
         return Self.tokenSnapshot(from: daily, now: now)
     }
 
@@ -71,29 +72,6 @@ public struct CCUsageFetcher: Sendable {
             last30DaysCostUSD: last30DaysCostUSD,
             daily: daily.data,
             updatedAt: now)
-    }
-
-    private static func runDaily(
-        ccusagePath: String,
-        env: [String: String],
-        sinceKey: String,
-        untilKey: String) async throws -> CCUsageDailyReport
-    {
-        let result = try await SubprocessRunner.run(
-            binary: ccusagePath,
-            arguments: ["daily", "--json", "--offline", "--since", sinceKey, "--until", untilKey],
-            environment: env,
-            timeout: 10 * 60,
-            label: "ccusage daily")
-
-        guard let data = result.stdout.data(using: .utf8) else {
-            throw CCUsageError.decodeFailed("empty stdout")
-        }
-        do {
-            return try JSONDecoder().decode(CCUsageDailyReport.self, from: data)
-        } catch {
-            throw CCUsageError.decodeFailed(error.localizedDescription)
-        }
     }
 
     static func selectCurrentSession(from sessions: [CCUsageSessionReport.Entry])
@@ -130,14 +108,5 @@ public struct CCUsageFetcher: Sendable {
             if lTokens != rTokens { return lTokens < rTokens }
             return lhs.month < rhs.month
         }
-    }
-
-    private static func dayKey(from date: Date) -> String {
-        let df = DateFormatter()
-        df.locale = Locale(identifier: "en_US_POSIX")
-        df.timeZone = TimeZone.current
-        // ccusage expects YYYYMMDD (Claude); @ccusage/codex accepts both.
-        df.dateFormat = "yyyyMMdd"
-        return df.string(from: date)
     }
 }

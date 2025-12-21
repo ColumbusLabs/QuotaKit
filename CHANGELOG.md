@@ -1,9 +1,8 @@
 # Changelog
 
 ## 0.11.3 — Unreleased
-- Improve ccusage Codex cost decoding for legacy JSON “models” maps. Thanks @Xuanwo!
-- Speed up ccusage cost refresh by deriving the “Today” line from the daily report (single CLI run).
-- Serialize ccusage cost refreshes (one CLI at a time) and make timeouts/cancellation terminate the full subprocess tree.
+- Vendor a lightweight ccusage scanner (Codex + Claude) to compute cost from local JSONL logs without Node CLIs.
+- Expand model normalization/pricing so newer Codex and Claude variants keep showing accurate costs.
 - Add weekly pace indicators with ahead/behind copy and runout projections when reset data is available. Thanks @Remedy92!
 
 ## 0.11.2 — 2025-12-21

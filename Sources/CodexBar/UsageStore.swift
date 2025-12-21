@@ -129,6 +129,7 @@ final class UsageStore: ObservableObject {
     private var lastKnownSessionRemaining: [UsageProvider: Double] = [:]
     private var lastTokenFetchAt: [UsageProvider: Date] = [:]
     private let tokenFetchTTL: TimeInterval = 60 * 60
+    private let tokenFetchTimeout: TimeInterval = 10 * 60
 
     init(
         fetcher: UsageFetcher,
@@ -1019,14 +1020,6 @@ extension UsageStore {
             return
         }
 
-        guard self.settings.isCCUsageInstalled(for: provider) else {
-            self.tokenSnapshots.removeValue(forKey: provider)
-            self.tokenErrors[provider] = nil
-            self.tokenFailureGates[provider]?.reset()
-            self.lastTokenFetchAt.removeValue(forKey: provider)
-            return
-        }
-
         guard self.isEnabled(provider) else {
             self.tokenSnapshots.removeValue(forKey: provider)
             self.tokenErrors[provider] = nil
@@ -1040,8 +1033,7 @@ extension UsageStore {
         let now = Date()
         if !force,
            let last = self.lastTokenFetchAt[provider],
-           now.timeIntervalSince(last) < self.tokenFetchTTL,
-           self.tokenSnapshots[provider] != nil
+           now.timeIntervalSince(last) < self.tokenFetchTTL
         {
             return
         }
@@ -1056,20 +1048,25 @@ extension UsageStore {
 
         do {
             let fetcher = self.ccusageFetcher
-            let cli: CCUsageFetcher.CLI = switch provider {
-            case .codex: .codex
-            case .claude: .ccusage
-            case .gemini: .ccusage
-            }
+            let timeoutSeconds = self.tokenFetchTimeout
             let snapshot = try await withThrowingTaskGroup(of: CCUsageTokenSnapshot.self) { group in
                 group.addTask(priority: .utility) {
-                    try await fetcher.loadTokenSnapshot(cli: cli, now: now)
+                    try await fetcher.loadTokenSnapshot(provider: provider, now: now, forceRefresh: force)
                 }
-                guard let snapshot = try await group.next() else {
-                    throw CancellationError()
+                group.addTask {
+                    try await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))
+                    throw CCUsageError.timedOut(seconds: Int(timeoutSeconds))
                 }
-                group.cancelAll()
+                defer { group.cancelAll() }
+                guard let snapshot = try await group.next() else { throw CancellationError() }
                 return snapshot
+            }
+
+            guard !snapshot.daily.isEmpty else {
+                self.tokenSnapshots.removeValue(forKey: provider)
+                self.tokenErrors[provider] = Self.tokenCostNoDataMessage(for: provider)
+                self.tokenFailureGates[provider]?.recordSuccess()
+                return
             }
             let duration = Date().timeIntervalSince(startedAt)
             let sessionCost = snapshot.sessionCostUSD.map(UsageFormatter.usdString) ?? "—"
@@ -1091,13 +1088,6 @@ extension UsageStore {
             let durationText = String(format: "%.2f", duration)
             let message = "ccusage failed provider=\(providerText) duration=\(durationText)s error=\(msg)"
             self.tokenCostLogger.error("\(message, privacy: .public)")
-            if let ccusageError = error as? CCUsageError,
-               case .cliNotInstalled = ccusageError
-            {
-                self.tokenSnapshots.removeValue(forKey: provider)
-                self.tokenErrors[provider] = nil
-                return
-            }
             let hadPriorData = self.tokenSnapshots[provider] != nil
             let shouldSurface = self.tokenFailureGates[provider]?
                 .shouldSurfaceError(onFailureWithPriorData: hadPriorData) ?? true
@@ -1107,6 +1097,25 @@ extension UsageStore {
             } else {
                 self.tokenErrors[provider] = nil
             }
+        }
+    }
+
+    private nonisolated static func tokenCostNoDataMessage(for provider: UsageProvider) -> String {
+        let fm = FileManager.default
+        let home = fm.homeDirectoryForCurrentUser.path
+
+        switch provider {
+        case .codex:
+            let root = ProcessInfo.processInfo.environment["CODEX_HOME"].flatMap { raw -> String? in
+                let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { return nil }
+                return "\(trimmed)/sessions"
+            } ?? "\(home)/.codex/sessions"
+            return "No Codex sessions found in \(root)."
+        case .claude:
+            return "No Claude usage logs found in ~/.config/claude/projects or ~/.claude/projects."
+        case .gemini:
+            return "Gemini cost summary is not supported."
         }
     }
 }

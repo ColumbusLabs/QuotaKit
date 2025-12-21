@@ -1,0 +1,217 @@
+import Foundation
+import Testing
+
+@testable import CodexBarCore
+
+@Suite
+struct CCUsageMinScannerTests {
+    @Test
+    func codexDailyReportParsesTokenCountsAndCaches() throws {
+        let env = try CCUsageMinTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2025, month: 12, day: 20)
+        let iso0 = env.isoString(for: day)
+        let iso1 = env.isoString(for: day.addingTimeInterval(1))
+        let iso2 = env.isoString(for: day.addingTimeInterval(2))
+
+        let model = "openai/gpt-5.2-codex"
+        let turnContext: [String: Any] = [
+            "type": "turn_context",
+            "timestamp": iso0,
+            "payload": [
+                "model": model,
+            ],
+        ]
+        let firstTokenCount: [String: Any] = [
+            "type": "event_msg",
+            "timestamp": iso1,
+            "payload": [
+                "type": "token_count",
+                "info": [
+                    "total_token_usage": [
+                        "input_tokens": 100,
+                        "cached_input_tokens": 20,
+                        "output_tokens": 10,
+                    ],
+                    "model": model,
+                ],
+            ],
+        ]
+
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "session.jsonl",
+            contents: env.jsonl([turnContext, firstTokenCount]))
+
+        var options = CCUsageMinScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            claudeProjectsRoots: nil,
+            cacheRoot: env.cacheRoot)
+        options.refreshMinIntervalSeconds = 0
+
+        let first = CCUsageMinScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day,
+            options: options)
+        #expect(first.data.count == 1)
+        #expect(first.data[0].modelsUsed == ["gpt-5.2"])
+        #expect(first.data[0].totalTokens == 110)
+        #expect((first.data[0].costUSD ?? 0) > 0)
+
+        let secondTokenCount: [String: Any] = [
+            "type": "event_msg",
+            "timestamp": iso2,
+            "payload": [
+                "type": "token_count",
+                "info": [
+                    "total_token_usage": [
+                        "input_tokens": 160,
+                        "cached_input_tokens": 40,
+                        "output_tokens": 16,
+                    ],
+                    "model": model,
+                ],
+            ],
+        ]
+        try env.jsonl([turnContext, firstTokenCount, secondTokenCount])
+            .write(to: fileURL, atomically: true, encoding: .utf8)
+
+        let second = CCUsageMinScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day,
+            options: options)
+        #expect(second.data.count == 1)
+        #expect(second.data[0].totalTokens == 176)
+        #expect((second.data[0].costUSD ?? 0) > (first.data[0].costUSD ?? 0))
+    }
+
+    @Test
+    func claudeDailyReportParsesUsageAndCaches() throws {
+        let env = try CCUsageMinTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2025, month: 12, day: 20)
+        let iso0 = env.isoString(for: day)
+
+        let assistant: [String: Any] = [
+            "type": "assistant",
+            "timestamp": iso0,
+            "message": [
+                "model": "claude-sonnet-4-20250514",
+                "usage": [
+                    "input_tokens": 200,
+                    "cache_creation_input_tokens": 50,
+                    "cache_read_input_tokens": 25,
+                    "output_tokens": 80,
+                ],
+            ],
+        ]
+        _ = try env.writeClaudeProjectFile(
+            relativePath: "project-a/session-a.jsonl",
+            contents: env.jsonl([assistant]))
+
+        var options = CCUsageMinScanner.Options(
+            codexSessionsRoot: nil,
+            claudeProjectsRoots: [env.claudeProjectsRoot],
+            cacheRoot: env.cacheRoot)
+        options.refreshMinIntervalSeconds = 0
+
+        let report = CCUsageMinScanner.loadDailyReport(
+            provider: .claude,
+            since: day,
+            until: day,
+            now: day,
+            options: options)
+        #expect(report.data.count == 1)
+        #expect(report.data[0].modelsUsed == ["claude-sonnet-4-20250514"])
+        #expect(report.data[0].inputTokens == 275)
+        #expect(report.data[0].outputTokens == 80)
+        #expect(report.data[0].totalTokens == 355)
+        #expect((report.data[0].costUSD ?? 0) > 0)
+    }
+}
+
+private struct CCUsageMinTestEnvironment {
+    let root: URL
+    let cacheRoot: URL
+    let codexSessionsRoot: URL
+    let claudeProjectsRoot: URL
+
+    init() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "codexbar-ccusage-min-\(UUID().uuidString)",
+            isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        self.root = root
+        self.cacheRoot = root.appendingPathComponent("cache", isDirectory: true)
+        self.codexSessionsRoot = root.appendingPathComponent("codex-sessions", isDirectory: true)
+        self.claudeProjectsRoot = root.appendingPathComponent("claude-projects", isDirectory: true)
+        try FileManager.default.createDirectory(at: self.cacheRoot, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: self.codexSessionsRoot, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: self.claudeProjectsRoot, withIntermediateDirectories: true)
+    }
+
+    func cleanup() {
+        try? FileManager.default.removeItem(at: self.root)
+    }
+
+    func makeLocalNoon(year: Int, month: Int, day: Int) throws -> Date {
+        var comps = DateComponents()
+        comps.calendar = Calendar.current
+        comps.timeZone = TimeZone.current
+        comps.year = year
+        comps.month = month
+        comps.day = day
+        comps.hour = 12
+        comps.minute = 0
+        comps.second = 0
+        guard let date = comps.date else { throw NSError(domain: "CCUsageMinTestEnvironment", code: 1) }
+        return date
+    }
+
+    func isoString(for date: Date) -> String {
+        let fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withInternetDateTime]
+        return fmt.string(from: date)
+    }
+
+    func writeCodexSessionFile(day: Date, filename: String, contents: String) throws -> URL {
+        let comps = Calendar.current.dateComponents([.year, .month, .day], from: day)
+        let y = String(format: "%04d", comps.year ?? 1970)
+        let m = String(format: "%02d", comps.month ?? 1)
+        let d = String(format: "%02d", comps.day ?? 1)
+
+        let dir = self.codexSessionsRoot
+            .appendingPathComponent(y, isDirectory: true)
+            .appendingPathComponent(m, isDirectory: true)
+            .appendingPathComponent(d, isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+
+        let url = dir.appendingPathComponent(filename, isDirectory: false)
+        try contents.write(to: url, atomically: true, encoding: .utf8)
+        return url
+    }
+
+    func writeClaudeProjectFile(relativePath: String, contents: String) throws -> URL {
+        let url = self.claudeProjectsRoot.appendingPathComponent(relativePath, isDirectory: false)
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try contents.write(to: url, atomically: true, encoding: .utf8)
+        return url
+    }
+
+    func jsonl(_ objects: [Any]) throws -> String {
+        let lines = try objects.map { obj in
+            let data = try JSONSerialization.data(withJSONObject: obj)
+            guard let text = String(bytes: data, encoding: .utf8) else {
+                throw NSError(domain: "CCUsageMinTestEnvironment", code: 2)
+            }
+            return text
+        }
+        return lines.joined(separator: "\n") + "\n"
+    }
+}

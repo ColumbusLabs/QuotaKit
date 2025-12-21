@@ -1,0 +1,706 @@
+import Foundation
+
+enum CCUsageMinScanner {
+    struct Options: Sendable {
+        var codexSessionsRoot: URL?
+        var claudeProjectsRoots: [URL]?
+        var cacheRoot: URL?
+        var refreshMinIntervalSeconds: TimeInterval = 60
+
+        init(
+            codexSessionsRoot: URL? = nil,
+            claudeProjectsRoots: [URL]? = nil,
+            cacheRoot: URL? = nil)
+        {
+            self.codexSessionsRoot = codexSessionsRoot
+            self.claudeProjectsRoots = claudeProjectsRoots
+            self.cacheRoot = cacheRoot
+        }
+    }
+
+    static func loadDailyReport(
+        provider: UsageProvider,
+        since: Date,
+        until: Date,
+        now: Date = Date(),
+        options: Options = Options()) -> CCUsageDailyReport
+    {
+        let range = CCUsageMinDayRange(since: since, until: until)
+
+        switch provider {
+        case .codex:
+            return self.loadCodexDaily(range: range, now: now, options: options)
+        case .claude:
+            return self.loadClaudeDaily(range: range, now: now, options: options)
+        case .gemini:
+            return CCUsageDailyReport(data: [], summary: nil)
+        }
+    }
+
+    // MARK: - Day keys
+
+    struct CCUsageMinDayRange: Sendable {
+        let sinceKey: String
+        let untilKey: String
+        let scanSinceKey: String
+        let scanUntilKey: String
+
+        init(since: Date, until: Date) {
+            self.sinceKey = Self.dayKey(from: since)
+            self.untilKey = Self.dayKey(from: until)
+            self.scanSinceKey = Self.dayKey(from: Calendar.current.date(byAdding: .day, value: -1, to: since) ?? since)
+            self.scanUntilKey = Self.dayKey(from: Calendar.current.date(byAdding: .day, value: 1, to: until) ?? until)
+        }
+
+        static func dayKey(from date: Date) -> String {
+            let cal = Calendar.current
+            let comps = cal.dateComponents([.year, .month, .day], from: date)
+            let y = comps.year ?? 1970
+            let m = comps.month ?? 1
+            let d = comps.day ?? 1
+            return String(format: "%04d-%02d-%02d", y, m, d)
+        }
+
+        static func isInRange(dayKey: String, since: String, until: String) -> Bool {
+            if dayKey < since { return false }
+            if dayKey > until { return false }
+            return true
+        }
+    }
+
+    // MARK: - Codex
+
+    private static func defaultCodexSessionsRoot(options: Options) -> URL {
+        if let override = options.codexSessionsRoot { return override }
+        let env = ProcessInfo.processInfo.environment["CODEX_HOME"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let env, !env.isEmpty {
+            return URL(fileURLWithPath: env).appendingPathComponent("sessions", isDirectory: true)
+        }
+        return FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".codex", isDirectory: true)
+            .appendingPathComponent("sessions", isDirectory: true)
+    }
+
+    private static func listCodexSessionFiles(root: URL, scanSinceKey: String, scanUntilKey: String) -> [URL] {
+        var out: [URL] = []
+        var date = Self.parseDayKey(scanSinceKey) ?? Date()
+        let untilDate = Self.parseDayKey(scanUntilKey) ?? date
+
+        while date <= untilDate {
+            let comps = Calendar.current.dateComponents([.year, .month, .day], from: date)
+            let y = String(format: "%04d", comps.year ?? 1970)
+            let m = String(format: "%02d", comps.month ?? 1)
+            let d = String(format: "%02d", comps.day ?? 1)
+
+            let dayDir = root.appendingPathComponent(y, isDirectory: true)
+                .appendingPathComponent(m, isDirectory: true)
+                .appendingPathComponent(d, isDirectory: true)
+
+            if let items = try? FileManager.default.contentsOfDirectory(
+                at: dayDir,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles])
+            {
+                for item in items where item.pathExtension.lowercased() == "jsonl" {
+                    out.append(item)
+                }
+            }
+
+            date = Calendar.current.date(byAdding: .day, value: 1, to: date) ?? untilDate.addingTimeInterval(1)
+        }
+
+        return out
+    }
+
+    private static func parseCodexFile(fileURL: URL, range: CCUsageMinDayRange) -> CCUsageMinFileUsage {
+        var currentModel: String?
+        var previousTotals: (input: Int, cached: Int, output: Int)?
+
+        var days: [String: [String: [Int]]] = [:]
+
+        let isoWithFractional = ISO8601DateFormatter()
+        isoWithFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let isoPlain = ISO8601DateFormatter()
+        isoPlain.formatOptions = [.withInternetDateTime]
+        func parseISO(_ text: String) -> Date? {
+            isoWithFractional.date(from: text) ?? isoPlain.date(from: text)
+        }
+
+        func add(dayKey: String, model: String, input: Int, cached: Int, output: Int) {
+            guard CCUsageMinDayRange.isInRange(dayKey: dayKey, since: range.scanSinceKey, until: range.scanUntilKey)
+            else { return }
+            let normModel = CCUsageMinPricing.normalizeCodexModel(model)
+
+            var dayModels = days[dayKey] ?? [:]
+            var packed = dayModels[normModel] ?? [0, 0, 0]
+            packed[0] = (packed[safe: 0] ?? 0) + input
+            packed[1] = (packed[safe: 1] ?? 0) + cached
+            packed[2] = (packed[safe: 2] ?? 0) + output
+            dayModels[normModel] = packed
+            days[dayKey] = dayModels
+        }
+
+        let maxLineBytes = 256 * 1024
+        let prefixBytes = 32 * 1024
+
+        try? CCUsageMinJsonl.scan(fileURL: fileURL, maxLineBytes: maxLineBytes, prefixBytes: prefixBytes) { line in
+            guard !line.bytes.isEmpty else { return }
+            guard !line.wasTruncated else { return }
+
+            guard
+                line.bytes.containsAscii(#""type":"event_msg""#)
+                || line.bytes.containsAscii(#""type":"turn_context""#)
+            else { return }
+
+            if line.bytes.containsAscii(#""type":"event_msg""#), !line.bytes.containsAscii(#""token_count""#) {
+                return
+            }
+
+            guard
+                let obj = (try? JSONSerialization.jsonObject(with: line.bytes)) as? [String: Any],
+                let type = obj["type"] as? String
+            else { return }
+
+            guard let tsText = obj["timestamp"] as? String else { return }
+            guard let ts = parseISO(tsText) else { return }
+            let dayKey = CCUsageMinDayRange.dayKey(from: ts)
+
+            if type == "turn_context" {
+                if let payload = obj["payload"] as? [String: Any] {
+                    if let model = payload["model"] as? String {
+                        currentModel = model
+                    } else if let info = payload["info"] as? [String: Any], let model = info["model"] as? String {
+                        currentModel = model
+                    }
+                }
+                return
+            }
+
+            guard type == "event_msg" else { return }
+            guard let payload = obj["payload"] as? [String: Any] else { return }
+            guard (payload["type"] as? String) == "token_count" else { return }
+
+            let info = payload["info"] as? [String: Any]
+            let modelFromInfo = info?["model"] as? String
+                ?? info?["model_name"] as? String
+                ?? payload["model"] as? String
+                ?? obj["model"] as? String
+            let model = modelFromInfo ?? currentModel ?? "gpt-5"
+
+            func toInt(_ v: Any?) -> Int {
+                if let n = v as? NSNumber { return n.intValue }
+                return 0
+            }
+
+            let total = (info?["total_token_usage"] as? [String: Any])
+            let last = (info?["last_token_usage"] as? [String: Any])
+
+            var deltaInput = 0
+            var deltaCached = 0
+            var deltaOutput = 0
+
+            if let total {
+                let input = toInt(total["input_tokens"])
+                let cached = toInt(total["cached_input_tokens"] ?? total["cache_read_input_tokens"])
+                let output = toInt(total["output_tokens"])
+
+                let prev = previousTotals
+                deltaInput = max(0, input - (prev?.input ?? 0))
+                deltaCached = max(0, cached - (prev?.cached ?? 0))
+                deltaOutput = max(0, output - (prev?.output ?? 0))
+                previousTotals = (input: input, cached: cached, output: output)
+            } else if let last {
+                deltaInput = max(0, toInt(last["input_tokens"]))
+                deltaCached = max(0, toInt(last["cached_input_tokens"] ?? last["cache_read_input_tokens"]))
+                deltaOutput = max(0, toInt(last["output_tokens"]))
+            } else {
+                return
+            }
+
+            if deltaInput == 0, deltaCached == 0, deltaOutput == 0 { return }
+            let cachedClamp = min(deltaCached, deltaInput)
+            add(dayKey: dayKey, model: model, input: deltaInput, cached: cachedClamp, output: deltaOutput)
+        }
+
+        let attrs = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)) ?? [:]
+        let mtime = (attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+        let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
+        return CCUsageMinFileUsage(
+            mtimeUnixMs: Int64(mtime * 1000),
+            size: size,
+            days: days)
+    }
+
+    private static func loadCodexDaily(range: CCUsageMinDayRange, now: Date, options: Options) -> CCUsageDailyReport {
+        var cache = CCUsageMinCacheIO.load(provider: .codex, cacheRoot: options.cacheRoot)
+        let nowMs = Int64(now.timeIntervalSince1970 * 1000)
+
+        let refreshMs = Int64(max(0, options.refreshMinIntervalSeconds) * 1000)
+        let shouldRefresh = refreshMs == 0 || cache.lastScanUnixMs == 0 || nowMs - cache.lastScanUnixMs > refreshMs
+
+        let root = self.defaultCodexSessionsRoot(options: options)
+        let files = Self.listCodexSessionFiles(
+            root: root,
+            scanSinceKey: range.scanSinceKey,
+            scanUntilKey: range.scanUntilKey)
+        let filePathsInScan = Set(files.map(\.path))
+
+        if shouldRefresh {
+            for fileURL in files {
+                let path = fileURL.path
+                let attrs = (try? FileManager.default.attributesOfItem(atPath: path)) ?? [:]
+                let mtime = (attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+                let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
+                let mtimeMs = Int64(mtime * 1000)
+
+                if let cached = cache.files[path],
+                   cached.mtimeUnixMs == mtimeMs,
+                   cached.size == size
+                {
+                    continue
+                }
+
+                if let cached = cache.files[path] {
+                    Self.applyFileDays(cache: &cache, fileDays: cached.days, sign: -1)
+                }
+
+                let parsed = Self.parseCodexFile(fileURL: fileURL, range: range)
+                cache.files[path] = parsed
+                Self.applyFileDays(cache: &cache, fileDays: parsed.days, sign: 1)
+            }
+
+            for key in cache.files.keys where !filePathsInScan.contains(key) {
+                if let old = cache.files[key] {
+                    Self.applyFileDays(cache: &cache, fileDays: old.days, sign: -1)
+                }
+                cache.files.removeValue(forKey: key)
+            }
+
+            Self.pruneDays(cache: &cache, sinceKey: range.scanSinceKey, untilKey: range.scanUntilKey)
+            cache.lastScanUnixMs = nowMs
+            CCUsageMinCacheIO.save(provider: .codex, cache: cache, cacheRoot: options.cacheRoot)
+        }
+
+        return Self.buildCodexReportFromCache(cache: cache, range: range)
+    }
+
+    private static func buildCodexReportFromCache(
+        cache: CCUsageMinCache,
+        range: CCUsageMinDayRange) -> CCUsageDailyReport
+    {
+        var entries: [CCUsageDailyReport.Entry] = []
+        var totalInput = 0
+        var totalOutput = 0
+        var totalTokens = 0
+        var totalCost: Double = 0
+        var costSeen = false
+
+        let dayKeys = cache.days.keys.sorted().filter {
+            CCUsageMinDayRange.isInRange(dayKey: $0, since: range.sinceKey, until: range.untilKey)
+        }
+
+        for day in dayKeys {
+            guard let models = cache.days[day] else { continue }
+            let modelNames = models.keys.sorted()
+
+            var dayInput = 0
+            var dayOutput = 0
+
+            var breakdown: [CCUsageDailyReport.ModelBreakdown] = []
+            var dayCost: Double = 0
+            var dayCostSeen = false
+
+            for model in modelNames {
+                let packed = models[model] ?? [0, 0, 0]
+                let input = packed[safe: 0] ?? 0
+                let cached = packed[safe: 1] ?? 0
+                let output = packed[safe: 2] ?? 0
+
+                dayInput += input
+                dayOutput += output
+
+                let cost = CCUsageMinPricing.codexCostUSD(
+                    model: model,
+                    inputTokens: input,
+                    cachedInputTokens: cached,
+                    outputTokens: output)
+                breakdown.append(CCUsageDailyReport.ModelBreakdown(modelName: model, costUSD: cost))
+                if let cost {
+                    dayCost += cost
+                    dayCostSeen = true
+                }
+            }
+
+            breakdown.sort { lhs, rhs in (rhs.costUSD ?? -1) < (lhs.costUSD ?? -1) }
+            let top = Array(breakdown.prefix(3))
+
+            let dayTotal = dayInput + dayOutput
+            let entryCost = dayCostSeen ? dayCost : nil
+            entries.append(CCUsageDailyReport.Entry(
+                date: day,
+                inputTokens: dayInput,
+                outputTokens: dayOutput,
+                totalTokens: dayTotal,
+                costUSD: entryCost,
+                modelsUsed: modelNames,
+                modelBreakdowns: top))
+
+            totalInput += dayInput
+            totalOutput += dayOutput
+            totalTokens += dayTotal
+            if let entryCost {
+                totalCost += entryCost
+                costSeen = true
+            }
+        }
+
+        let summary: CCUsageDailyReport.Summary? = entries.isEmpty
+            ? nil
+            : CCUsageDailyReport.Summary(
+                totalInputTokens: totalInput,
+                totalOutputTokens: totalOutput,
+                totalTokens: totalTokens,
+                totalCostUSD: costSeen ? totalCost : nil)
+
+        return CCUsageDailyReport(data: entries, summary: summary)
+    }
+
+    // MARK: - Claude
+
+    private static func defaultClaudeProjectsRoots(options: Options) -> [URL] {
+        if let override = options.claudeProjectsRoots { return override }
+
+        var roots: [URL] = []
+
+        if let env = ProcessInfo.processInfo.environment["CLAUDE_CONFIG_DIR"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !env.isEmpty
+        {
+            for part in env.split(separator: ",") {
+                let raw = String(part).trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !raw.isEmpty else { continue }
+                let url = URL(fileURLWithPath: raw)
+                if url.lastPathComponent == "projects" {
+                    roots.append(url)
+                } else {
+                    roots.append(url.appendingPathComponent("projects", isDirectory: true))
+                }
+            }
+        } else {
+            let home = FileManager.default.homeDirectoryForCurrentUser
+            roots.append(home.appendingPathComponent(".config/claude/projects", isDirectory: true))
+            roots.append(home.appendingPathComponent(".claude/projects", isDirectory: true))
+        }
+
+        return roots
+    }
+
+    private static func parseClaudeFile(fileURL: URL, range: CCUsageMinDayRange) -> CCUsageMinFileUsage {
+        var days: [String: [String: [Int]]] = [:]
+
+        let isoWithFractional = ISO8601DateFormatter()
+        isoWithFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let isoPlain = ISO8601DateFormatter()
+        isoPlain.formatOptions = [.withInternetDateTime]
+        func parseISO(_ text: String) -> Date? {
+            isoWithFractional.date(from: text) ?? isoPlain.date(from: text)
+        }
+
+        struct ClaudeTokens: Sendable {
+            let input: Int
+            let cacheRead: Int
+            let cacheCreate: Int
+            let output: Int
+        }
+
+        func add(dayKey: String, model: String, tokens: ClaudeTokens) {
+            guard CCUsageMinDayRange.isInRange(dayKey: dayKey, since: range.scanSinceKey, until: range.scanUntilKey)
+            else { return }
+            let normModel = CCUsageMinPricing.normalizeClaudeModel(model)
+            var dayModels = days[dayKey] ?? [:]
+            var packed = dayModels[normModel] ?? [0, 0, 0, 0]
+            packed[0] = (packed[safe: 0] ?? 0) + tokens.input
+            packed[1] = (packed[safe: 1] ?? 0) + tokens.cacheRead
+            packed[2] = (packed[safe: 2] ?? 0) + tokens.cacheCreate
+            packed[3] = (packed[safe: 3] ?? 0) + tokens.output
+            dayModels[normModel] = packed
+            days[dayKey] = dayModels
+        }
+
+        let maxLineBytes = 256 * 1024
+        let prefixBytes = 64 * 1024
+
+        try? CCUsageMinJsonl.scan(fileURL: fileURL, maxLineBytes: maxLineBytes, prefixBytes: prefixBytes) { line in
+            guard !line.bytes.isEmpty else { return }
+            guard !line.wasTruncated else { return }
+            guard line.bytes.containsAscii(#""type":"assistant""#) else { return }
+            guard line.bytes.containsAscii(#""usage""#) else { return }
+
+            guard
+                let obj = (try? JSONSerialization.jsonObject(with: line.bytes)) as? [String: Any],
+                let type = obj["type"] as? String,
+                type == "assistant"
+            else { return }
+
+            guard let tsText = obj["timestamp"] as? String else { return }
+            guard let ts = parseISO(tsText) else { return }
+            let dayKey = CCUsageMinDayRange.dayKey(from: ts)
+
+            guard let message = obj["message"] as? [String: Any] else { return }
+            guard let model = message["model"] as? String else { return }
+            guard let usage = message["usage"] as? [String: Any] else { return }
+
+            func toInt(_ v: Any?) -> Int {
+                if let n = v as? NSNumber { return n.intValue }
+                return 0
+            }
+
+            let input = max(0, toInt(usage["input_tokens"]))
+            let cacheCreate = max(0, toInt(usage["cache_creation_input_tokens"]))
+            let cacheRead = max(0, toInt(usage["cache_read_input_tokens"]))
+            let output = max(0, toInt(usage["output_tokens"]))
+            if input == 0, cacheCreate == 0, cacheRead == 0, output == 0 { return }
+
+            let tokens = ClaudeTokens(input: input, cacheRead: cacheRead, cacheCreate: cacheCreate, output: output)
+            add(dayKey: dayKey, model: model, tokens: tokens)
+        }
+
+        let attrs = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)) ?? [:]
+        let mtime = (attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+        let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
+        return CCUsageMinFileUsage(
+            mtimeUnixMs: Int64(mtime * 1000),
+            size: size,
+            days: days)
+    }
+
+    private static func loadClaudeDaily(range: CCUsageMinDayRange, now: Date, options: Options) -> CCUsageDailyReport {
+        var cache = CCUsageMinCacheIO.load(provider: .claude, cacheRoot: options.cacheRoot)
+        let nowMs = Int64(now.timeIntervalSince1970 * 1000)
+
+        let refreshMs = Int64(max(0, options.refreshMinIntervalSeconds) * 1000)
+        let shouldRefresh = refreshMs == 0 || cache.lastScanUnixMs == 0 || nowMs - cache.lastScanUnixMs > refreshMs
+
+        let roots = self.defaultClaudeProjectsRoots(options: options)
+
+        var touched: Set<String> = []
+
+        if shouldRefresh {
+            for root in roots {
+                guard FileManager.default.fileExists(atPath: root.path) else { continue }
+                let keys: [URLResourceKey] = [
+                    .isRegularFileKey,
+                    .contentModificationDateKey,
+                    .fileSizeKey,
+                ]
+
+                guard let enumerator = FileManager.default.enumerator(
+                    at: root,
+                    includingPropertiesForKeys: keys,
+                    options: [.skipsHiddenFiles, .skipsPackageDescendants])
+                else { continue }
+
+                for case let url as URL in enumerator {
+                    guard url.pathExtension.lowercased() == "jsonl" else { continue }
+                    guard let values = try? url.resourceValues(forKeys: Set(keys)) else { continue }
+                    guard values.isRegularFile == true else { continue }
+                    let size = Int64(values.fileSize ?? 0)
+                    if size <= 0 { continue }
+
+                    let mtime = values.contentModificationDate?.timeIntervalSince1970 ?? 0
+                    let mtimeMs = Int64(mtime * 1000)
+
+                    let path = url.path
+                    touched.insert(path)
+
+                    if let cached = cache.files[path],
+                       cached.mtimeUnixMs == mtimeMs,
+                       cached.size == size
+                    {
+                        continue
+                    }
+
+                    if let cached = cache.files[path] {
+                        Self.applyFileDays(cache: &cache, fileDays: cached.days, sign: -1)
+                    }
+
+                    let parsed = Self.parseClaudeFile(fileURL: url, range: range)
+                    cache.files[path] = parsed
+                    Self.applyFileDays(cache: &cache, fileDays: parsed.days, sign: 1)
+                }
+            }
+
+            for key in cache.files.keys where !touched.contains(key) {
+                if let old = cache.files[key] {
+                    Self.applyFileDays(cache: &cache, fileDays: old.days, sign: -1)
+                }
+                cache.files.removeValue(forKey: key)
+            }
+
+            Self.pruneDays(cache: &cache, sinceKey: range.scanSinceKey, untilKey: range.scanUntilKey)
+            cache.lastScanUnixMs = nowMs
+            CCUsageMinCacheIO.save(provider: .claude, cache: cache, cacheRoot: options.cacheRoot)
+        }
+
+        return Self.buildClaudeReportFromCache(cache: cache, range: range)
+    }
+
+    private static func buildClaudeReportFromCache(
+        cache: CCUsageMinCache,
+        range: CCUsageMinDayRange) -> CCUsageDailyReport
+    {
+        var entries: [CCUsageDailyReport.Entry] = []
+        var totalInput = 0
+        var totalOutput = 0
+        var totalTokens = 0
+        var totalCost: Double = 0
+        var costSeen = false
+
+        let dayKeys = cache.days.keys.sorted().filter {
+            CCUsageMinDayRange.isInRange(dayKey: $0, since: range.sinceKey, until: range.untilKey)
+        }
+
+        for day in dayKeys {
+            guard let models = cache.days[day] else { continue }
+            let modelNames = models.keys.sorted()
+
+            var dayInput = 0
+            var dayOutput = 0
+
+            var breakdown: [CCUsageDailyReport.ModelBreakdown] = []
+            var dayCost: Double = 0
+            var dayCostSeen = false
+
+            for model in modelNames {
+                let packed = models[model] ?? [0, 0, 0, 0]
+                let input = packed[safe: 0] ?? 0
+                let cacheRead = packed[safe: 1] ?? 0
+                let cacheCreate = packed[safe: 2] ?? 0
+                let output = packed[safe: 3] ?? 0
+
+                let inputTotal = input + cacheRead + cacheCreate
+                dayInput += inputTotal
+                dayOutput += output
+
+                let cost = CCUsageMinPricing.claudeCostUSD(
+                    model: model,
+                    inputTokens: input,
+                    cacheReadInputTokens: cacheRead,
+                    cacheCreationInputTokens: cacheCreate,
+                    outputTokens: output)
+                breakdown.append(CCUsageDailyReport.ModelBreakdown(modelName: model, costUSD: cost))
+                if let cost {
+                    dayCost += cost
+                    dayCostSeen = true
+                }
+            }
+
+            breakdown.sort { lhs, rhs in (rhs.costUSD ?? -1) < (lhs.costUSD ?? -1) }
+            let top = Array(breakdown.prefix(3))
+
+            let dayTotal = dayInput + dayOutput
+            let entryCost = dayCostSeen ? dayCost : nil
+            entries.append(CCUsageDailyReport.Entry(
+                date: day,
+                inputTokens: dayInput,
+                outputTokens: dayOutput,
+                totalTokens: dayTotal,
+                costUSD: entryCost,
+                modelsUsed: modelNames,
+                modelBreakdowns: top))
+
+            totalInput += dayInput
+            totalOutput += dayOutput
+            totalTokens += dayTotal
+            if let entryCost {
+                totalCost += entryCost
+                costSeen = true
+            }
+        }
+
+        let summary: CCUsageDailyReport.Summary? = entries.isEmpty
+            ? nil
+            : CCUsageDailyReport.Summary(
+                totalInputTokens: totalInput,
+                totalOutputTokens: totalOutput,
+                totalTokens: totalTokens,
+                totalCostUSD: costSeen ? totalCost : nil)
+
+        return CCUsageDailyReport(data: entries, summary: summary)
+    }
+
+    // MARK: - Shared cache mutations
+
+    private static func applyFileDays(cache: inout CCUsageMinCache, fileDays: [String: [String: [Int]]], sign: Int) {
+        for (day, models) in fileDays {
+            var dayModels = cache.days[day] ?? [:]
+            for (model, packed) in models {
+                let existing = dayModels[model] ?? []
+                let merged = Self.addPacked(a: existing, b: packed, sign: sign)
+                if merged.allSatisfy({ $0 == 0 }) {
+                    dayModels.removeValue(forKey: model)
+                } else {
+                    dayModels[model] = merged
+                }
+            }
+
+            if dayModels.isEmpty {
+                cache.days.removeValue(forKey: day)
+            } else {
+                cache.days[day] = dayModels
+            }
+        }
+    }
+
+    private static func pruneDays(cache: inout CCUsageMinCache, sinceKey: String, untilKey: String) {
+        for key in cache.days.keys where !CCUsageMinDayRange.isInRange(dayKey: key, since: sinceKey, until: untilKey) {
+            cache.days.removeValue(forKey: key)
+        }
+    }
+
+    private static func addPacked(a: [Int], b: [Int], sign: Int) -> [Int] {
+        let len = max(a.count, b.count)
+        var out: [Int] = Array(repeating: 0, count: len)
+        for idx in 0..<len {
+            let next = (a[safe: idx] ?? 0) + sign * (b[safe: idx] ?? 0)
+            out[idx] = max(0, next)
+        }
+        return out
+    }
+
+    // MARK: - Date parsing
+
+    private static func parseDayKey(_ key: String) -> Date? {
+        let parts = key.split(separator: "-")
+        guard parts.count == 3 else { return nil }
+        guard
+            let y = Int(parts[0]),
+            let m = Int(parts[1]),
+            let d = Int(parts[2])
+        else { return nil }
+
+        var comps = DateComponents()
+        comps.calendar = Calendar.current
+        comps.timeZone = TimeZone.current
+        comps.year = y
+        comps.month = m
+        comps.day = d
+        comps.hour = 12
+        return comps.date
+    }
+}
+
+extension Data {
+    fileprivate func containsAscii(_ needle: String) -> Bool {
+        guard let n = needle.data(using: .utf8) else { return false }
+        return self.range(of: n) != nil
+    }
+}
+
+extension [Int] {
+    fileprivate subscript(safe index: Int) -> Int? {
+        if index < 0 { return nil }
+        if index >= self.count { return nil }
+        return self[index]
+    }
+}

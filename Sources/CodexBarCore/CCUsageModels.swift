@@ -40,6 +40,11 @@ public struct CCUsageDailyReport: Sendable, Decodable {
                 try container.decodeIfPresent(Double.self, forKey: .costUSD)
                 ?? container.decodeIfPresent(Double.self, forKey: .cost)
         }
+
+        public init(modelName: String, costUSD: Double?) {
+            self.modelName = modelName
+            self.costUSD = costUSD
+        }
     }
 
     public struct Entry: Sendable, Decodable, Equatable {
@@ -74,6 +79,24 @@ public struct CCUsageDailyReport: Sendable, Decodable {
                 ?? container.decodeIfPresent(Double.self, forKey: .totalCost)
             self.modelsUsed = Self.decodeModelsUsed(from: container)
             self.modelBreakdowns = try container.decodeIfPresent([ModelBreakdown].self, forKey: .modelBreakdowns)
+        }
+
+        public init(
+            date: String,
+            inputTokens: Int?,
+            outputTokens: Int?,
+            totalTokens: Int?,
+            costUSD: Double?,
+            modelsUsed: [String]?,
+            modelBreakdowns: [ModelBreakdown]?)
+        {
+            self.date = date
+            self.inputTokens = inputTokens
+            self.outputTokens = outputTokens
+            self.totalTokens = totalTokens
+            self.costUSD = costUSD
+            self.modelsUsed = modelsUsed
+            self.modelBreakdowns = modelBreakdowns
         }
 
         private static func decodeModelsUsed(from container: KeyedDecodingContainer<CodingKeys>) -> [String]? {
@@ -163,6 +186,11 @@ public struct CCUsageDailyReport: Sendable, Decodable {
         } else {
             self.summary = nil
         }
+    }
+
+    public init(data: [Entry], summary: Summary?) {
+        self.data = data
+        self.summary = summary
     }
 }
 
