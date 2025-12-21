@@ -1,5 +1,7 @@
 # Changelog
 
+## 0.11.3 — Unreleased
+
 ## 0.11.2 — 2025-12-21
 - ccusage-codex cost fetch is faster and more reliable by limiting the session scan window.
 - Fix ccusage cost fetch hanging for large Codex histories by draining subprocess output while commands run.
