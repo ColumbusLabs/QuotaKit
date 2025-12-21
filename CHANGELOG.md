@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.11.1 — Unreleased
+## 0.11.1 — 2025-12-21
 - Gemini OAuth token refresh now supports Bun/npm installations. Thanks @ben-vargas!
 
 ## 0.11.0 — 2025-12-21
