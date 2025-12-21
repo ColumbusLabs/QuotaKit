@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.11.3 — Unreleased
+- Improve ccusage Codex cost decoding for legacy JSON “models” maps. Thanks @Xuanwo!
 
 ## 0.11.2 — 2025-12-21
 - ccusage-codex cost fetch is faster and more reliable by limiting the session scan window.

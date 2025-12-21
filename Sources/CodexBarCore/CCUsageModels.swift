@@ -72,16 +72,25 @@ public struct CCUsageDailyReport: Sendable, Decodable {
             self.costUSD =
                 try container.decodeIfPresent(Double.self, forKey: .costUSD)
                 ?? container.decodeIfPresent(Double.self, forKey: .totalCost)
-            if let list = (try? container.decodeIfPresent([String].self, forKey: .modelsUsed)).flatMap(\.self) {
-                self.modelsUsed = list
-            } else if let list = (try? container.decodeIfPresent([String].self, forKey: .models)).flatMap(\.self) {
-                self.modelsUsed = list
-            } else if let models = try? container.nestedContainer(keyedBy: CCUsageAnyCodingKey.self, forKey: .models) {
-                self.modelsUsed = models.allKeys.map(\.stringValue).sorted()
-            } else {
-                self.modelsUsed = nil
-            }
+            self.modelsUsed = Self.decodeModelsUsed(from: container)
             self.modelBreakdowns = try container.decodeIfPresent([ModelBreakdown].self, forKey: .modelBreakdowns)
+        }
+
+        private static func decodeModelsUsed(from container: KeyedDecodingContainer<CodingKeys>) -> [String]? {
+            func decodeStringList(_ key: CodingKeys) -> [String]? {
+                (try? container.decodeIfPresent([String].self, forKey: key)).flatMap(\.self)
+            }
+
+            if let modelsUsed = decodeStringList(.modelsUsed) { return modelsUsed }
+            if let models = decodeStringList(.models) { return models }
+
+            guard container.contains(.models) else { return nil }
+
+            guard let modelMap = try? container.nestedContainer(keyedBy: CCUsageAnyCodingKey.self, forKey: .models)
+            else { return nil }
+
+            let modelNames = modelMap.allKeys.map(\.stringValue).sorted()
+            return modelNames.isEmpty ? nil : modelNames
         }
     }
 

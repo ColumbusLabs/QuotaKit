@@ -99,6 +99,108 @@ struct CCUsageDecodingTests {
     }
 
     @Test
+    func decodesDailyReportLegacyFormatWithModelMapSorted() throws {
+        let json = """
+        {
+          "daily": [
+            {
+              "date": "Dec 20, 2025",
+              "totalTokens": 30,
+              "costUSD": 0.12,
+              "models": {
+                "z-model": { "totalTokens": 10 },
+                "a-model": { "totalTokens": 20 },
+                "m-model": { "totalTokens": 0 }
+              }
+            }
+          ]
+        }
+        """
+
+        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
+        #expect(report.data[0].modelsUsed == ["a-model", "m-model", "z-model"])
+    }
+
+    @Test
+    func decodesDailyReportLegacyFormatWithEmptyModelMapAsNil() throws {
+        let json = """
+        {
+          "daily": [
+            {
+              "date": "Dec 20, 2025",
+              "totalTokens": 30,
+              "costUSD": 0.12,
+              "models": {}
+            }
+          ]
+        }
+        """
+
+        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
+        #expect(report.data[0].modelsUsed == nil)
+    }
+
+    @Test
+    func decodesDailyReportLegacyFormatPrefersModelsUsedListOverModelsMap() throws {
+        let json = """
+        {
+          "daily": [
+            {
+              "date": "Dec 20, 2025",
+              "totalTokens": 30,
+              "costUSD": 0.12,
+              "modelsUsed": ["gpt-5.2"],
+              "models": {
+                "ignored-model": { "totalTokens": 30 }
+              }
+            }
+          ]
+        }
+        """
+
+        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
+        #expect(report.data[0].modelsUsed == ["gpt-5.2"])
+    }
+
+    @Test
+    func decodesDailyReportLegacyFormatWithModelsList() throws {
+        let json = """
+        {
+          "daily": [
+            {
+              "date": "Dec 20, 2025",
+              "totalTokens": 30,
+              "costUSD": 0.12,
+              "models": ["gpt-5.2", "gpt-5.2-mini"]
+            }
+          ]
+        }
+        """
+
+        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
+        #expect(report.data[0].modelsUsed == ["gpt-5.2", "gpt-5.2-mini"])
+    }
+
+    @Test
+    func decodesDailyReportLegacyFormatWithInvalidModelsField() throws {
+        let json = """
+        {
+          "daily": [
+            {
+              "date": "Dec 20, 2025",
+              "totalTokens": 30,
+              "costUSD": 0.12,
+              "models": "gpt-5.2"
+            }
+          ]
+        }
+        """
+
+        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
+        #expect(report.data[0].modelsUsed == nil)
+    }
+
+    @Test
     func decodesMonthlyReportLegacyFormat() throws {
         let json = """
         {
