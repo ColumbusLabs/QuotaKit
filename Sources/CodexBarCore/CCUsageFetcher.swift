@@ -38,17 +38,22 @@ public struct CCUsageFetcher: Sendable {
 
         let env = TTYCommandRunner.enrichedEnvironment()
         let untilKey = Self.dayKey(from: now)
-        // Rollback/rolling window: last 30 days (inclusive).
-        let sinceKey = Self.dayKey(
-            from: Calendar.current.date(byAdding: .day, value: -30, to: now) ?? now)
+        // Rolling window: last 30 days (inclusive).
+        let dailySinceKey = Self.dayKey(from: Calendar.current.date(byAdding: .day, value: -30, to: now) ?? now)
+        // Session report can be significantly slower for Codex histories; we only need the latest session.
+        let sessionSinceKey = Self.dayKey(from: Calendar.current.date(byAdding: .day, value: -3, to: now) ?? now)
 
         // Run sequentially to keep CPU/RAM spikes down on large histories.
         let session = try await Self.runSession(
             ccusagePath: ccusagePath,
             env: env,
-            sinceKey: sinceKey,
+            sinceKey: sessionSinceKey,
             untilKey: untilKey)
-        let daily = try await Self.runDaily(ccusagePath: ccusagePath, env: env, sinceKey: sinceKey, untilKey: untilKey)
+        let daily = try await Self.runDaily(
+            ccusagePath: ccusagePath,
+            env: env,
+            sinceKey: dailySinceKey,
+            untilKey: untilKey)
 
         let current = Self.selectCurrentSession(from: session.data)
         let totalFromSummary = daily.summary?.totalCostUSD

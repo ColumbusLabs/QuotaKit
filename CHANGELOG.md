@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.11.2 — Unreleased
+- ccusage-codex cost fetch is faster and more reliable by limiting the session scan window.
 
 ## 0.11.1 — 2025-12-21
 - Gemini OAuth token refresh now supports Bun/npm installations. Thanks @ben-vargas!
