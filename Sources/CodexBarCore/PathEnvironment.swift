@@ -286,18 +286,17 @@ enum LoginShellPathCapturer {
               !raw.isEmpty else { return nil }
 
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        let extracted: String?
-        if let start = trimmed.range(of: marker),
-           let end = trimmed.range(of: marker, options: .backwards),
-           start.upperBound <= end.lowerBound
+        let extracted = if let start = trimmed.range(of: marker),
+                           let end = trimmed.range(of: marker, options: .backwards),
+                           start.upperBound <= end.lowerBound
         {
-            extracted = String(trimmed[start.upperBound..<end.lowerBound])
+            String(trimmed[start.upperBound..<end.lowerBound])
         } else {
-            extracted = trimmed
+            trimmed
         }
 
-        guard let value = extracted?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !value.isEmpty else { return nil }
+        let value = extracted.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return nil }
         return value.split(separator: ":").map(String.init)
     }
 }
