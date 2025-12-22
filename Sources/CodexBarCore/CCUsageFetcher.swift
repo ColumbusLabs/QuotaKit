@@ -65,10 +65,14 @@ public struct CCUsageFetcher: Sendable {
         let totalFromSummary = daily.summary?.totalCostUSD
         let totalFromEntries = daily.data.compactMap(\.costUSD).reduce(0, +)
         let last30DaysCostUSD = totalFromSummary ?? (totalFromEntries > 0 ? totalFromEntries : nil)
+        let totalTokensFromSummary = daily.summary?.totalTokens
+        let totalTokensFromEntries = daily.data.compactMap(\.totalTokens).reduce(0, +)
+        let last30DaysTokens = totalTokensFromSummary ?? (totalTokensFromEntries > 0 ? totalTokensFromEntries : nil)
 
         return CCUsageTokenSnapshot(
             sessionTokens: currentDay?.totalTokens,
             sessionCostUSD: currentDay?.costUSD,
+            last30DaysTokens: last30DaysTokens,
             last30DaysCostUSD: last30DaysCostUSD,
             daily: daily.data,
             updatedAt: now)

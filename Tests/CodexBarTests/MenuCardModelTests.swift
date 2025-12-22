@@ -217,6 +217,46 @@ struct MenuCardModelTests {
     }
 
     @Test
+    func costSectionIncludesLast30DaysTokens() {
+        let now = Date()
+        let metadata = ProviderDefaults.metadata[.codex]!
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 0, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            tertiary: nil,
+            updatedAt: now,
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: nil)
+        let tokenSnapshot = CCUsageTokenSnapshot(
+            sessionTokens: 123,
+            sessionCostUSD: 1.23,
+            last30DaysTokens: 456,
+            last30DaysCostUSD: 78.9,
+            daily: [],
+            updatedAt: now)
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .codex,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: tokenSnapshot,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: false,
+            tokenCostUsageEnabled: true,
+            now: now))
+
+        #expect(model.tokenUsage?.monthLine.contains("456") == true)
+        #expect(model.tokenUsage?.monthLine.contains("tokens") == true)
+    }
+
+    @Test
     func claudeModelDoesNotLeakCodexPlan() {
         let metadata = ProviderDefaults.metadata[.claude]!
         let model = UsageMenuCardView.Model.make(.init(
