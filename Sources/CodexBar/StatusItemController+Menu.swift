@@ -53,6 +53,7 @@ extension StatusItemController {
         let currentProvider = selectedProvider ?? enabledProviders.first ?? .codex
         let hasCostHistory = self.settings.isCCUsageCostUsageEffectivelyEnabled(for: currentProvider) &&
             (self.store.tokenSnapshot(for: currentProvider)?.daily.isEmpty == false)
+        let hasOnlyCostHistory = hasCostHistory && !hasCreditsHistory && !hasUsageBreakdown
         let hasOpenAIWebMenuItems = hasCreditsHistory || hasUsageBreakdown || hasCostHistory
 
         if enabledProviders.count > 1 {
@@ -78,7 +79,9 @@ extension StatusItemController {
             item.isEnabled = false
             item.representedObject = "menuCard"
             menu.addItem(item)
-            menu.addItem(.separator())
+            if !hasOnlyCostHistory {
+                menu.addItem(.separator())
+            }
         }
 
         if hasOpenAIWebMenuItems {

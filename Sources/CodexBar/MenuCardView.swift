@@ -104,33 +104,44 @@ struct UsageMenuCardView: View {
                         .font(.subheadline)
                 }
             } else {
+                let hasUsage = !self.model.metrics.isEmpty
+                let hasCredits = self.model.creditsText != nil
+                let hasCost = self.model.tokenUsage != nil
+
                 VStack(alignment: .leading, spacing: 12) {
-                    ForEach(self.model.metrics) { metric in
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(metric.title)
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                            UsageProgressBar(
-                                percent: metric.percent,
-                                tint: self.model.progressColor,
-                                accessibilityLabel: metric.percentStyle.accessibilityLabel)
-                            HStack(alignment: .firstTextBaseline) {
-                                Text(metric.percentLabel)
-                                    .font(.footnote)
-                                Spacer()
-                                if let reset = metric.resetText {
-                                    Text(reset)
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
+                    if hasUsage {
+                        VStack(alignment: .leading, spacing: 12) {
+                            ForEach(self.model.metrics) { metric in
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(metric.title)
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                    UsageProgressBar(
+                                        percent: metric.percent,
+                                        tint: self.model.progressColor,
+                                        accessibilityLabel: metric.percentStyle.accessibilityLabel)
+                                    HStack(alignment: .firstTextBaseline) {
+                                        Text(metric.percentLabel)
+                                            .font(.footnote)
+                                        Spacer()
+                                        if let reset = metric.resetText {
+                                            Text(reset)
+                                                .font(.footnote)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    if let detail = metric.detailText {
+                                        Text(detail)
+                                            .font(.footnote)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    }
                                 }
                             }
-                            if let detail = metric.detailText {
-                                Text(detail)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
                         }
+                    }
+                    if hasUsage, hasCredits || hasCost {
+                        Divider()
                     }
                     if let credits = self.model.creditsText {
                         VStack(alignment: .leading, spacing: 2) {
@@ -148,7 +159,7 @@ struct UsageMenuCardView: View {
                             }
                         }
                     }
-                    if self.model.creditsText != nil, self.model.tokenUsage != nil {
+                    if hasCredits, hasCost {
                         Divider()
                     }
                     if let tokenUsage = self.model.tokenUsage {
