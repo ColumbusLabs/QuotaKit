@@ -4,10 +4,10 @@ import Testing
 @testable import CodexBarCore
 
 @Suite
-struct CCUsageMinScannerTests {
+struct CostUsageScannerTests {
     @Test
     func codexDailyReportParsesTokenCountsAndCaches() throws {
-        let env = try CCUsageMinTestEnvironment()
+        let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
 
         let day = try env.makeLocalNoon(year: 2025, month: 12, day: 20)
@@ -44,13 +44,13 @@ struct CCUsageMinScannerTests {
             filename: "session.jsonl",
             contents: env.jsonl([turnContext, firstTokenCount]))
 
-        var options = CCUsageMinScanner.Options(
+        var options = CostUsageScanner.Options(
             codexSessionsRoot: env.codexSessionsRoot,
             claudeProjectsRoots: nil,
             cacheRoot: env.cacheRoot)
         options.refreshMinIntervalSeconds = 0
 
-        let first = CCUsageMinScanner.loadDailyReport(
+        let first = CostUsageScanner.loadDailyReport(
             provider: .codex,
             since: day,
             until: day,
@@ -79,7 +79,7 @@ struct CCUsageMinScannerTests {
         try env.jsonl([turnContext, firstTokenCount, secondTokenCount])
             .write(to: fileURL, atomically: true, encoding: .utf8)
 
-        let second = CCUsageMinScanner.loadDailyReport(
+        let second = CostUsageScanner.loadDailyReport(
             provider: .codex,
             since: day,
             until: day,
@@ -92,7 +92,7 @@ struct CCUsageMinScannerTests {
 
     @Test
     func claudeDailyReportParsesUsageAndCaches() throws {
-        let env = try CCUsageMinTestEnvironment()
+        let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
 
         let day = try env.makeLocalNoon(year: 2025, month: 12, day: 20)
@@ -115,13 +115,13 @@ struct CCUsageMinScannerTests {
             relativePath: "project-a/session-a.jsonl",
             contents: env.jsonl([assistant]))
 
-        var options = CCUsageMinScanner.Options(
+        var options = CostUsageScanner.Options(
             codexSessionsRoot: nil,
             claudeProjectsRoots: [env.claudeProjectsRoot],
             cacheRoot: env.cacheRoot)
         options.refreshMinIntervalSeconds = 0
 
-        let report = CCUsageMinScanner.loadDailyReport(
+        let report = CostUsageScanner.loadDailyReport(
             provider: .claude,
             since: day,
             until: day,
@@ -136,7 +136,7 @@ struct CCUsageMinScannerTests {
     }
 }
 
-private struct CCUsageMinTestEnvironment {
+private struct CostUsageTestEnvironment {
     let root: URL
     let cacheRoot: URL
     let codexSessionsRoot: URL
@@ -144,7 +144,7 @@ private struct CCUsageMinTestEnvironment {
 
     init() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(
-            "codexbar-ccusage-min-\(UUID().uuidString)",
+            "codexbar-cost-usage-\(UUID().uuidString)",
             isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         self.root = root
@@ -170,7 +170,7 @@ private struct CCUsageMinTestEnvironment {
         comps.hour = 12
         comps.minute = 0
         comps.second = 0
-        guard let date = comps.date else { throw NSError(domain: "CCUsageMinTestEnvironment", code: 1) }
+        guard let date = comps.date else { throw NSError(domain: "CostUsageTestEnvironment", code: 1) }
         return date
     }
 
@@ -208,7 +208,7 @@ private struct CCUsageMinTestEnvironment {
         let lines = try objects.map { obj in
             let data = try JSONSerialization.data(withJSONObject: obj)
             guard let text = String(bytes: data, encoding: .utf8) else {
-                throw NSError(domain: "CCUsageMinTestEnvironment", code: 2)
+                throw NSError(domain: "CostUsageTestEnvironment", code: 2)
             }
             return text
         }

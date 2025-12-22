@@ -138,7 +138,7 @@ struct DebugPane: View {
 
                 SettingsSection(
                     title: "Caches",
-                    caption: "Clear cached cost scan results (ccusage-min).")
+                    caption: "Clear cached cost scan results.")
                 {
                     let isTokenRefreshActive = self.store.isTokenRefreshInFlight(for: .codex)
                         || self.store.isTokenRefreshInFlight(for: .claude)
@@ -320,7 +320,7 @@ struct DebugPane: View {
         self.costCacheStatus = nil
         defer { self.isClearingCostCache = false }
 
-        if let error = await self.store.clearCCUsageMinCache() {
+        if let error = await self.store.clearCostUsageCache() {
             self.costCacheStatus = "Failed: \(error)"
             return
         }

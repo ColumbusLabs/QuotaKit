@@ -987,18 +987,23 @@ final class UsageStore: ObservableObject {
 }
 
 extension UsageStore {
-    func clearCCUsageMinCache() async -> String? {
-        let cacheDir = Self.ccusageMinCacheDirectory()
-        let fm = FileManager.default
-
+    func clearCostUsageCache() async -> String? {
         let errorMessage: String? = await Task.detached(priority: .utility) {
-            do {
-                try fm.removeItem(at: cacheDir)
-                return nil
-            } catch let error as NSError {
-                if error.domain == NSCocoaErrorDomain, error.code == NSFileNoSuchFileError { return nil }
-                return error.localizedDescription
+            let fm = FileManager.default
+            let cacheDirs = [
+                Self.costUsageCacheDirectory(fileManager: fm),
+                Self.legacyCCUsageCacheDirectory(fileManager: fm),
+            ]
+
+            for cacheDir in cacheDirs {
+                do {
+                    try fm.removeItem(at: cacheDir)
+                } catch let error as NSError {
+                    if error.domain == NSCocoaErrorDomain, error.code == NSFileNoSuchFileError { continue }
+                    return error.localizedDescription
+                }
             }
+            return nil
         }.value
 
         guard errorMessage == nil else { return errorMessage }
@@ -1011,7 +1016,16 @@ extension UsageStore {
         return nil
     }
 
-    private nonisolated static func ccusageMinCacheDirectory(
+    private nonisolated static func costUsageCacheDirectory(
+        fileManager: FileManager = .default) -> URL
+    {
+        let root = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        return root
+            .appendingPathComponent("CodexBar", isDirectory: true)
+            .appendingPathComponent("cost-usage", isDirectory: true)
+    }
+
+    private nonisolated static func legacyCCUsageCacheDirectory(
         fileManager: FileManager = .default) -> URL
     {
         let root = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!

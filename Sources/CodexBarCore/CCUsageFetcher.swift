@@ -33,12 +33,12 @@ public struct CCUsageFetcher: Sendable {
         // Rolling window: last 30 days (inclusive). Use -29 for inclusive boundaries.
         let since = Calendar.current.date(byAdding: .day, value: -29, to: now) ?? now
 
-        var options = CCUsageMinScanner.Options()
+        var options = CostUsageScanner.Options()
         if forceRefresh {
             options.refreshMinIntervalSeconds = 0
         }
         let daily = await Task.detached(priority: .utility) {
-            CCUsageMinScanner.loadDailyReport(
+            CostUsageScanner.loadDailyReport(
                 provider: provider,
                 since: since,
                 until: until,

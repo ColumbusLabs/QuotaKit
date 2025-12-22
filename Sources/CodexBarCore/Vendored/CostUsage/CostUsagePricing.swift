@@ -1,6 +1,6 @@
 import Foundation
 
-enum CCUsageMinPricing {
+enum CostUsagePricing {
     struct CodexPricing: Sendable {
         let inputCostPerToken: Double
         let outputCostPerToken: Double

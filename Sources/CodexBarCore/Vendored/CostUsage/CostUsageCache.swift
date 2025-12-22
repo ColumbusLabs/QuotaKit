@@ -1,6 +1,6 @@
 import Foundation
 
-enum CCUsageMinCacheIO {
+enum CostUsageCacheIO {
     private static func defaultCacheRoot() -> URL {
         let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
         return root.appendingPathComponent("CodexBar", isDirectory: true)
@@ -9,20 +9,34 @@ enum CCUsageMinCacheIO {
     static func cacheFileURL(provider: UsageProvider, cacheRoot: URL? = nil) -> URL {
         let root = cacheRoot ?? self.defaultCacheRoot()
         return root
+            .appendingPathComponent("cost-usage", isDirectory: true)
+            .appendingPathComponent("\(provider.rawValue)-v1.json", isDirectory: false)
+    }
+
+    private static func legacyCacheFileURL(provider: UsageProvider, cacheRoot: URL? = nil) -> URL {
+        let root = cacheRoot ?? self.defaultCacheRoot()
+        return root
             .appendingPathComponent("ccusage-min", isDirectory: true)
             .appendingPathComponent("\(provider.rawValue)-v1.json", isDirectory: false)
     }
 
-    static func load(provider: UsageProvider, cacheRoot: URL? = nil) -> CCUsageMinCache {
+    static func load(provider: UsageProvider, cacheRoot: URL? = nil) -> CostUsageCache {
         let url = self.cacheFileURL(provider: provider, cacheRoot: cacheRoot)
-        guard let data = try? Data(contentsOf: url) else { return CCUsageMinCache() }
-        guard let decoded = try? JSONDecoder().decode(CCUsageMinCache.self, from: data)
-        else { return CCUsageMinCache() }
-        guard decoded.version == 1 else { return CCUsageMinCache() }
+        if let decoded = self.loadCache(at: url) { return decoded }
+        let legacyURL = self.legacyCacheFileURL(provider: provider, cacheRoot: cacheRoot)
+        if let legacy = self.loadCache(at: legacyURL) { return legacy }
+        return CostUsageCache()
+    }
+
+    private static func loadCache(at url: URL) -> CostUsageCache? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        guard let decoded = try? JSONDecoder().decode(CostUsageCache.self, from: data)
+        else { return nil }
+        guard decoded.version == 1 else { return nil }
         return decoded
     }
 
-    static func save(provider: UsageProvider, cache: CCUsageMinCache, cacheRoot: URL? = nil) {
+    static func save(provider: UsageProvider, cache: CostUsageCache, cacheRoot: URL? = nil) {
         let url = self.cacheFileURL(provider: provider, cacheRoot: cacheRoot)
         let dir = url.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -38,18 +52,18 @@ enum CCUsageMinCacheIO {
     }
 }
 
-struct CCUsageMinCache: Codable, Sendable {
+struct CostUsageCache: Codable, Sendable {
     var version: Int = 1
     var lastScanUnixMs: Int64 = 0
 
     // filePath -> file usage
-    var files: [String: CCUsageMinFileUsage] = [:]
+    var files: [String: CostUsageFileUsage] = [:]
 
     // dayKey -> model -> packed usage
     var days: [String: [String: [Int]]] = [:]
 }
 
-struct CCUsageMinFileUsage: Codable, Sendable {
+struct CostUsageFileUsage: Codable, Sendable {
     var mtimeUnixMs: Int64
     var size: Int64
     var days: [String: [String: [Int]]]

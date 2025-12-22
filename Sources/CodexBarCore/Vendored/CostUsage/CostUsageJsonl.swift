@@ -1,6 +1,6 @@
 import Foundation
 
-enum CCUsageMinJsonl {
+enum CostUsageJsonl {
     struct Line: Sendable {
         let bytes: Data
         let wasTruncated: Bool

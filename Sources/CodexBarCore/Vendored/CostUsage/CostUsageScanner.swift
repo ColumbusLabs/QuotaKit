@@ -1,6 +1,6 @@
 import Foundation
 
-enum CCUsageMinScanner {
+enum CostUsageScanner {
     struct Options: Sendable {
         var codexSessionsRoot: URL?
         var claudeProjectsRoots: [URL]?
@@ -25,7 +25,7 @@ enum CCUsageMinScanner {
         now: Date = Date(),
         options: Options = Options()) -> CCUsageDailyReport
     {
-        let range = CCUsageMinDayRange(since: since, until: until)
+        let range = CostUsageDayRange(since: since, until: until)
 
         switch provider {
         case .codex:
@@ -39,7 +39,7 @@ enum CCUsageMinScanner {
 
     // MARK: - Day keys
 
-    struct CCUsageMinDayRange: Sendable {
+    struct CostUsageDayRange: Sendable {
         let sinceKey: String
         let untilKey: String
         let scanSinceKey: String
@@ -112,7 +112,7 @@ enum CCUsageMinScanner {
         return out
     }
 
-    private static func parseCodexFile(fileURL: URL, range: CCUsageMinDayRange) -> CCUsageMinFileUsage {
+    private static func parseCodexFile(fileURL: URL, range: CostUsageDayRange) -> CostUsageFileUsage {
         var currentModel: String?
         var previousTotals: (input: Int, cached: Int, output: Int)?
 
@@ -127,9 +127,9 @@ enum CCUsageMinScanner {
         }
 
         func add(dayKey: String, model: String, input: Int, cached: Int, output: Int) {
-            guard CCUsageMinDayRange.isInRange(dayKey: dayKey, since: range.scanSinceKey, until: range.scanUntilKey)
+            guard CostUsageDayRange.isInRange(dayKey: dayKey, since: range.scanSinceKey, until: range.scanUntilKey)
             else { return }
-            let normModel = CCUsageMinPricing.normalizeCodexModel(model)
+            let normModel = CostUsagePricing.normalizeCodexModel(model)
 
             var dayModels = days[dayKey] ?? [:]
             var packed = dayModels[normModel] ?? [0, 0, 0]
@@ -143,7 +143,7 @@ enum CCUsageMinScanner {
         let maxLineBytes = 256 * 1024
         let prefixBytes = 32 * 1024
 
-        try? CCUsageMinJsonl.scan(fileURL: fileURL, maxLineBytes: maxLineBytes, prefixBytes: prefixBytes) { line in
+        try? CostUsageJsonl.scan(fileURL: fileURL, maxLineBytes: maxLineBytes, prefixBytes: prefixBytes) { line in
             guard !line.bytes.isEmpty else { return }
             guard !line.wasTruncated else { return }
 
@@ -163,7 +163,7 @@ enum CCUsageMinScanner {
 
             guard let tsText = obj["timestamp"] as? String else { return }
             guard let ts = parseISO(tsText) else { return }
-            let dayKey = CCUsageMinDayRange.dayKey(from: ts)
+            let dayKey = CostUsageDayRange.dayKey(from: ts)
 
             if type == "turn_context" {
                 if let payload = obj["payload"] as? [String: Any] {
@@ -225,14 +225,14 @@ enum CCUsageMinScanner {
         let attrs = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)) ?? [:]
         let mtime = (attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
         let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
-        return CCUsageMinFileUsage(
+        return CostUsageFileUsage(
             mtimeUnixMs: Int64(mtime * 1000),
             size: size,
             days: days)
     }
 
-    private static func loadCodexDaily(range: CCUsageMinDayRange, now: Date, options: Options) -> CCUsageDailyReport {
-        var cache = CCUsageMinCacheIO.load(provider: .codex, cacheRoot: options.cacheRoot)
+    private static func loadCodexDaily(range: CostUsageDayRange, now: Date, options: Options) -> CCUsageDailyReport {
+        var cache = CostUsageCacheIO.load(provider: .codex, cacheRoot: options.cacheRoot)
         let nowMs = Int64(now.timeIntervalSince1970 * 1000)
 
         let refreshMs = Int64(max(0, options.refreshMinIntervalSeconds) * 1000)
@@ -278,15 +278,15 @@ enum CCUsageMinScanner {
 
             Self.pruneDays(cache: &cache, sinceKey: range.scanSinceKey, untilKey: range.scanUntilKey)
             cache.lastScanUnixMs = nowMs
-            CCUsageMinCacheIO.save(provider: .codex, cache: cache, cacheRoot: options.cacheRoot)
+            CostUsageCacheIO.save(provider: .codex, cache: cache, cacheRoot: options.cacheRoot)
         }
 
         return Self.buildCodexReportFromCache(cache: cache, range: range)
     }
 
     private static func buildCodexReportFromCache(
-        cache: CCUsageMinCache,
-        range: CCUsageMinDayRange) -> CCUsageDailyReport
+        cache: CostUsageCache,
+        range: CostUsageDayRange) -> CCUsageDailyReport
     {
         var entries: [CCUsageDailyReport.Entry] = []
         var totalInput = 0
@@ -296,7 +296,7 @@ enum CCUsageMinScanner {
         var costSeen = false
 
         let dayKeys = cache.days.keys.sorted().filter {
-            CCUsageMinDayRange.isInRange(dayKey: $0, since: range.sinceKey, until: range.untilKey)
+            CostUsageDayRange.isInRange(dayKey: $0, since: range.sinceKey, until: range.untilKey)
         }
 
         for day in dayKeys {
@@ -319,7 +319,7 @@ enum CCUsageMinScanner {
                 dayInput += input
                 dayOutput += output
 
-                let cost = CCUsageMinPricing.codexCostUSD(
+                let cost = CostUsagePricing.codexCostUSD(
                     model: model,
                     inputTokens: input,
                     cachedInputTokens: cached,
@@ -395,7 +395,7 @@ enum CCUsageMinScanner {
         return roots
     }
 
-    private static func parseClaudeFile(fileURL: URL, range: CCUsageMinDayRange) -> CCUsageMinFileUsage {
+    private static func parseClaudeFile(fileURL: URL, range: CostUsageDayRange) -> CostUsageFileUsage {
         var days: [String: [String: [Int]]] = [:]
 
         let isoWithFractional = ISO8601DateFormatter()
@@ -414,9 +414,9 @@ enum CCUsageMinScanner {
         }
 
         func add(dayKey: String, model: String, tokens: ClaudeTokens) {
-            guard CCUsageMinDayRange.isInRange(dayKey: dayKey, since: range.scanSinceKey, until: range.scanUntilKey)
+            guard CostUsageDayRange.isInRange(dayKey: dayKey, since: range.scanSinceKey, until: range.scanUntilKey)
             else { return }
-            let normModel = CCUsageMinPricing.normalizeClaudeModel(model)
+            let normModel = CostUsagePricing.normalizeClaudeModel(model)
             var dayModels = days[dayKey] ?? [:]
             var packed = dayModels[normModel] ?? [0, 0, 0, 0]
             packed[0] = (packed[safe: 0] ?? 0) + tokens.input
@@ -430,7 +430,7 @@ enum CCUsageMinScanner {
         let maxLineBytes = 256 * 1024
         let prefixBytes = 64 * 1024
 
-        try? CCUsageMinJsonl.scan(fileURL: fileURL, maxLineBytes: maxLineBytes, prefixBytes: prefixBytes) { line in
+        try? CostUsageJsonl.scan(fileURL: fileURL, maxLineBytes: maxLineBytes, prefixBytes: prefixBytes) { line in
             guard !line.bytes.isEmpty else { return }
             guard !line.wasTruncated else { return }
             guard line.bytes.containsAscii(#""type":"assistant""#) else { return }
@@ -444,7 +444,7 @@ enum CCUsageMinScanner {
 
             guard let tsText = obj["timestamp"] as? String else { return }
             guard let ts = parseISO(tsText) else { return }
-            let dayKey = CCUsageMinDayRange.dayKey(from: ts)
+            let dayKey = CostUsageDayRange.dayKey(from: ts)
 
             guard let message = obj["message"] as? [String: Any] else { return }
             guard let model = message["model"] as? String else { return }
@@ -468,14 +468,14 @@ enum CCUsageMinScanner {
         let attrs = (try? FileManager.default.attributesOfItem(atPath: fileURL.path)) ?? [:]
         let mtime = (attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
         let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
-        return CCUsageMinFileUsage(
+        return CostUsageFileUsage(
             mtimeUnixMs: Int64(mtime * 1000),
             size: size,
             days: days)
     }
 
-    private static func loadClaudeDaily(range: CCUsageMinDayRange, now: Date, options: Options) -> CCUsageDailyReport {
-        var cache = CCUsageMinCacheIO.load(provider: .claude, cacheRoot: options.cacheRoot)
+    private static func loadClaudeDaily(range: CostUsageDayRange, now: Date, options: Options) -> CCUsageDailyReport {
+        var cache = CostUsageCacheIO.load(provider: .claude, cacheRoot: options.cacheRoot)
         let nowMs = Int64(now.timeIntervalSince1970 * 1000)
 
         let refreshMs = Int64(max(0, options.refreshMinIntervalSeconds) * 1000)
@@ -539,15 +539,15 @@ enum CCUsageMinScanner {
 
             Self.pruneDays(cache: &cache, sinceKey: range.scanSinceKey, untilKey: range.scanUntilKey)
             cache.lastScanUnixMs = nowMs
-            CCUsageMinCacheIO.save(provider: .claude, cache: cache, cacheRoot: options.cacheRoot)
+            CostUsageCacheIO.save(provider: .claude, cache: cache, cacheRoot: options.cacheRoot)
         }
 
         return Self.buildClaudeReportFromCache(cache: cache, range: range)
     }
 
     private static func buildClaudeReportFromCache(
-        cache: CCUsageMinCache,
-        range: CCUsageMinDayRange) -> CCUsageDailyReport
+        cache: CostUsageCache,
+        range: CostUsageDayRange) -> CCUsageDailyReport
     {
         var entries: [CCUsageDailyReport.Entry] = []
         var totalInput = 0
@@ -557,7 +557,7 @@ enum CCUsageMinScanner {
         var costSeen = false
 
         let dayKeys = cache.days.keys.sorted().filter {
-            CCUsageMinDayRange.isInRange(dayKey: $0, since: range.sinceKey, until: range.untilKey)
+            CostUsageDayRange.isInRange(dayKey: $0, since: range.sinceKey, until: range.untilKey)
         }
 
         for day in dayKeys {
@@ -582,7 +582,7 @@ enum CCUsageMinScanner {
                 dayInput += inputTotal
                 dayOutput += output
 
-                let cost = CCUsageMinPricing.claudeCostUSD(
+                let cost = CostUsagePricing.claudeCostUSD(
                     model: model,
                     inputTokens: input,
                     cacheReadInputTokens: cacheRead,
@@ -631,7 +631,7 @@ enum CCUsageMinScanner {
 
     // MARK: - Shared cache mutations
 
-    private static func applyFileDays(cache: inout CCUsageMinCache, fileDays: [String: [String: [Int]]], sign: Int) {
+    private static func applyFileDays(cache: inout CostUsageCache, fileDays: [String: [String: [Int]]], sign: Int) {
         for (day, models) in fileDays {
             var dayModels = cache.days[day] ?? [:]
             for (model, packed) in models {
@@ -652,8 +652,8 @@ enum CCUsageMinScanner {
         }
     }
 
-    private static func pruneDays(cache: inout CCUsageMinCache, sinceKey: String, untilKey: String) {
-        for key in cache.days.keys where !CCUsageMinDayRange.isInRange(dayKey: key, since: sinceKey, until: untilKey) {
+    private static func pruneDays(cache: inout CostUsageCache, sinceKey: String, untilKey: String) {
+        for key in cache.days.keys where !CostUsageDayRange.isInRange(dayKey: key, since: sinceKey, until: untilKey) {
             cache.days.removeValue(forKey: key)
         }
     }
