@@ -419,7 +419,7 @@ extension StatusItemController {
         let events = self.store.openAIDashboard?.creditEvents ?? []
         guard !events.isEmpty else { return false }
 
-        let item = NSMenuItem(title: "Credits usage history", action: nil, keyEquivalent: "")
+        let item = NSMenuItem(title: "Credits history", action: nil, keyEquivalent: "")
         item.isEnabled = true
         let submenu = NSMenu()
 
@@ -474,7 +474,7 @@ extension StatusItemController {
         guard let tokenSnapshot = self.store.tokenSnapshot(for: provider) else { return false }
         guard !tokenSnapshot.daily.isEmpty else { return false }
 
-        let item = NSMenuItem(title: "Cost history (30 days)", action: nil, keyEquivalent: "")
+        let item = NSMenuItem(title: "Usage history (30 days)", action: nil, keyEquivalent: "")
         item.isEnabled = true
         let submenu = NSMenu()
         let chartView = CCUsageCostChartMenuView(

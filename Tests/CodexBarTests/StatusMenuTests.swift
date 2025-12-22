@@ -85,7 +85,7 @@ struct StatusMenuTests {
 
         let menu = controller.makeMenu()
         let titles = Set(menu.items.map(\.title))
-        #expect(!titles.contains("Credits usage history"))
+        #expect(!titles.contains("Credits history"))
         #expect(!titles.contains("Usage breakdown"))
     }
 
@@ -140,7 +140,7 @@ struct StatusMenuTests {
 
         let menu = controller.makeMenu()
         let titles = Set(menu.items.map(\.title))
-        #expect(titles.contains("Credits usage history"))
+        #expect(titles.contains("Credits history"))
         #expect(titles.contains("Usage breakdown"))
     }
 }
