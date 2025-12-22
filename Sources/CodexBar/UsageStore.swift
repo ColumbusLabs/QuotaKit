@@ -987,6 +987,39 @@ final class UsageStore: ObservableObject {
 }
 
 extension UsageStore {
+    func clearCCUsageMinCache() async -> String? {
+        let cacheDir = Self.ccusageMinCacheDirectory()
+        let fm = FileManager.default
+
+        let errorMessage: String? = await Task.detached(priority: .utility) {
+            do {
+                try fm.removeItem(at: cacheDir)
+                return nil
+            } catch let error as NSError {
+                if error.domain == NSCocoaErrorDomain, error.code == NSFileNoSuchFileError { return nil }
+                return error.localizedDescription
+            }
+        }.value
+
+        guard errorMessage == nil else { return errorMessage }
+
+        self.tokenSnapshots.removeAll()
+        self.tokenErrors.removeAll()
+        self.lastTokenFetchAt.removeAll()
+        self.tokenFailureGates[.codex]?.reset()
+        self.tokenFailureGates[.claude]?.reset()
+        return nil
+    }
+
+    private nonisolated static func ccusageMinCacheDirectory(
+        fileManager: FileManager = .default) -> URL
+    {
+        let root = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        return root
+            .appendingPathComponent("CodexBar", isDirectory: true)
+            .appendingPathComponent("ccusage-min", isDirectory: true)
+    }
+
     func tokenSnapshot(for provider: UsageProvider) -> CCUsageTokenSnapshot? {
         self.tokenSnapshots[provider]
     }

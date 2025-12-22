@@ -9,6 +9,8 @@ struct DebugPane: View {
     @State private var currentLogProvider: UsageProvider = .codex
     @State private var isLoadingLog = false
     @State private var logText: String = ""
+    @State private var isClearingCostCache = false
+    @State private var costCacheStatus: String?
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
@@ -132,6 +134,29 @@ struct DebugPane: View {
                     .frame(minHeight: 120, maxHeight: 180)
                     .background(Color(NSColor.textBackgroundColor))
                     .cornerRadius(6)
+                }
+
+                SettingsSection(
+                    title: "Caches",
+                    caption: "Clear cached cost scan results (ccusage-min).")
+                {
+                    let isTokenRefreshActive = self.store.isTokenRefreshInFlight(for: .codex)
+                        || self.store.isTokenRefreshInFlight(for: .claude)
+
+                    HStack(spacing: 12) {
+                        Button {
+                            Task { await self.clearCostCache() }
+                        } label: {
+                            Label("Clear cost cache", systemImage: "trash")
+                        }
+                        .disabled(self.isClearingCostCache || isTokenRefreshActive)
+
+                        if let status = self.costCacheStatus {
+                            Text(status)
+                                .font(.footnote)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
                 }
 
                 SettingsSection(
@@ -287,5 +312,19 @@ struct DebugPane: View {
 
     private func postSessionNotification(_ transition: SessionQuotaTransition, provider: UsageProvider) {
         SessionQuotaNotifier().post(transition: transition, provider: provider, badge: 1)
+    }
+
+    private func clearCostCache() async {
+        guard !self.isClearingCostCache else { return }
+        self.isClearingCostCache = true
+        self.costCacheStatus = nil
+        defer { self.isClearingCostCache = false }
+
+        if let error = await self.store.clearCCUsageMinCache() {
+            self.costCacheStatus = "Failed: \(error)"
+            return
+        }
+
+        self.costCacheStatus = "Cleared."
     }
 }
