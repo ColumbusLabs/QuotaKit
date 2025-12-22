@@ -288,9 +288,8 @@ extension StatusItemController {
         provider: UsageProvider,
         webItems: OpenAIWebMenuItems)
     {
-        let hasUsage = !model.metrics.isEmpty
-        let hasCredits = hasUsage && model.creditsText != nil
-        let hasCost = hasUsage && model.tokenUsage != nil
+        let hasCredits = model.creditsText != nil
+        let hasCost = model.tokenUsage != nil
         let bottomPadding = CGFloat(hasCredits ? 4 : 10)
         let sectionSpacing = CGFloat(8)
         let usageBottomPadding = bottomPadding

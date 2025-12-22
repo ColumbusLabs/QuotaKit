@@ -141,8 +141,11 @@ struct StatusMenuTests {
 
         let menu = controller.makeMenu()
         controller.menuWillOpen(menu)
-        let titles = Set(menu.items.map(\.title))
-        #expect(titles.contains("Credits history"))
-        #expect(titles.contains("Usage breakdown"))
+        let usageItem = menu.items.first { ($0.representedObject as? String) == "menuCardUsage" }
+        let creditsItem = menu.items.first { ($0.representedObject as? String) == "menuCardCredits" }
+        #expect(usageItem?.submenu?.items
+            .contains { ($0.representedObject as? String) == "usageBreakdownChart" } == true)
+        #expect(creditsItem?.submenu?.items
+            .contains { ($0.representedObject as? String) == "creditsHistoryChart" } == true)
     }
 }
