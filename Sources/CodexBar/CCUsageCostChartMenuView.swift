@@ -86,9 +86,9 @@ struct CCUsageCostChartMenuView: View {
                 Text(self.detailText(model: model))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
-                    .frame(height: 16, alignment: .leading)
+                    .frame(height: 32, alignment: .leading)
             }
 
             if let total = self.totalCostUSD {
