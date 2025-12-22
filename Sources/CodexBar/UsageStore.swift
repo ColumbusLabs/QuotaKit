@@ -3,6 +3,9 @@ import CodexBarCore
 import Combine
 import Foundation
 import OSLog
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 enum IconStyle {
     case codex
@@ -277,6 +280,7 @@ final class UsageStore: ObservableObject {
         // OpenAI web scrape depends on the current Codex account email (which can change after login/account switch).
         // Run this after Codex usage refresh so we don't accidentally scrape with stale credentials.
         await self.refreshOpenAIDashboardIfNeeded(force: forceTokenUsage)
+        self.persistWidgetSnapshot(reason: "refresh")
     }
 
     /// For demo/testing: drop the snapshot so the loading animation plays, then restore the last snapshot.
@@ -1139,6 +1143,7 @@ extension UsageStore {
             self.tokenSnapshots[provider] = snapshot
             self.tokenErrors[provider] = nil
             self.tokenFailureGates[provider]?.recordSuccess()
+            self.persistWidgetSnapshot(reason: "token-usage")
         } catch {
             if error is CancellationError { return }
             let duration = Date().timeIntervalSince(startedAt)
@@ -1175,5 +1180,62 @@ extension UsageStore {
         case .gemini:
             return "Gemini cost summary is not supported."
         }
+    }
+
+    private func persistWidgetSnapshot(reason: String) {
+        let snapshot = self.makeWidgetSnapshot()
+        Task.detached(priority: .utility) {
+            WidgetSnapshotStore.save(snapshot)
+        }
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
+    }
+
+    private func makeWidgetSnapshot() -> WidgetSnapshot {
+        let entries = UsageProvider.allCases.compactMap { provider in
+            self.makeWidgetEntry(for: provider)
+        }
+        return WidgetSnapshot(entries: entries, generatedAt: Date())
+    }
+
+    private func makeWidgetEntry(for provider: UsageProvider) -> WidgetSnapshot.ProviderEntry? {
+        guard let snapshot = self.snapshots[provider] else { return nil }
+
+        let tokenSnapshot = self.tokenSnapshots[provider]
+        let dailyUsage = tokenSnapshot?.daily.map { entry in
+            WidgetSnapshot.DailyUsagePoint(
+                dayKey: entry.date,
+                totalTokens: entry.totalTokens,
+                costUSD: entry.costUSD)
+        } ?? []
+
+        let tokenUsage = Self.widgetTokenUsageSummary(from: tokenSnapshot)
+        let creditsRemaining = provider == .codex ? self.credits?.remaining : nil
+        let codeReviewRemaining = provider == .codex ? self.openAIDashboard?.codeReviewRemainingPercent : nil
+
+        return WidgetSnapshot.ProviderEntry(
+            provider: provider,
+            updatedAt: snapshot.updatedAt,
+            primary: snapshot.primary,
+            secondary: snapshot.secondary,
+            tertiary: snapshot.tertiary,
+            creditsRemaining: creditsRemaining,
+            codeReviewRemainingPercent: codeReviewRemaining,
+            tokenUsage: tokenUsage,
+            dailyUsage: dailyUsage)
+    }
+
+    private nonisolated static func widgetTokenUsageSummary(
+        from snapshot: CCUsageTokenSnapshot?) -> WidgetSnapshot.TokenUsageSummary?
+    {
+        guard let snapshot else { return nil }
+        let fallbackTokens = snapshot.daily.compactMap(\.totalTokens).reduce(0, +)
+        let monthTokensValue = snapshot.last30DaysTokens ?? (fallbackTokens > 0 ? fallbackTokens : nil)
+        return WidgetSnapshot.TokenUsageSummary(
+            sessionCostUSD: snapshot.sessionCostUSD,
+            sessionTokens: snapshot.sessionTokens,
+            last30DaysCostUSD: snapshot.last30DaysCostUSD,
+            last30DaysTokens: monthTokensValue)
     }
 }

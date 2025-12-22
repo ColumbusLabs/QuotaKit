@@ -1,0 +1,333 @@
+import CodexBarCore
+import SwiftUI
+import WidgetKit
+
+struct CodexBarUsageWidgetView: View {
+    @Environment(\.widgetFamily) private var family
+    let entry: CodexBarWidgetEntry
+
+    var body: some View {
+        let providerEntry = self.entry.snapshot.entries.first { $0.provider == self.entry.provider }
+        ZStack {
+            Color.black.opacity(0.02)
+            if let providerEntry {
+                self.content(providerEntry: providerEntry)
+            } else {
+                self.emptyState
+            }
+        }
+        .containerBackground(.fill.tertiary, for: .widget)
+    }
+
+    @ViewBuilder
+    private func content(providerEntry: WidgetSnapshot.ProviderEntry) -> some View {
+        switch self.family {
+        case .systemSmall:
+            SmallUsageView(entry: providerEntry)
+        case .systemMedium:
+            MediumUsageView(entry: providerEntry)
+        default:
+            LargeUsageView(entry: providerEntry)
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Open CodexBar")
+                .font(.body)
+                .fontWeight(.semibold)
+            Text("Usage data will appear once the app refreshes.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+    }
+}
+
+struct CodexBarHistoryWidgetView: View {
+    @Environment(\.widgetFamily) private var family
+    let entry: CodexBarWidgetEntry
+
+    var body: some View {
+        let providerEntry = self.entry.snapshot.entries.first { $0.provider == self.entry.provider }
+        ZStack {
+            Color.black.opacity(0.02)
+            if let providerEntry {
+                HistoryView(entry: providerEntry, isLarge: self.family == .systemLarge)
+            } else {
+                self.emptyState
+            }
+        }
+        .containerBackground(.fill.tertiary, for: .widget)
+    }
+
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Open CodexBar")
+                .font(.body)
+                .fontWeight(.semibold)
+            Text("Usage history will appear after a refresh.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+    }
+}
+
+private struct SmallUsageView: View {
+    let entry: WidgetSnapshot.ProviderEntry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HeaderView(provider: self.entry.provider, updatedAt: self.entry.updatedAt)
+            UsageBarRow(
+                title: ProviderDefaults.metadata[self.entry.provider]?.sessionLabel ?? "Session",
+                percentLeft: self.entry.primary?.remainingPercent,
+                color: WidgetColors.color(for: self.entry.provider))
+            UsageBarRow(
+                title: ProviderDefaults.metadata[self.entry.provider]?.weeklyLabel ?? "Weekly",
+                percentLeft: self.entry.secondary?.remainingPercent,
+                color: WidgetColors.color(for: self.entry.provider))
+            if let codeReview = entry.codeReviewRemainingPercent {
+                UsageBarRow(
+                    title: "Code review",
+                    percentLeft: codeReview,
+                    color: WidgetColors.color(for: self.entry.provider))
+            }
+        }
+        .padding(12)
+    }
+}
+
+private struct MediumUsageView: View {
+    let entry: WidgetSnapshot.ProviderEntry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HeaderView(provider: self.entry.provider, updatedAt: self.entry.updatedAt)
+            UsageBarRow(
+                title: ProviderDefaults.metadata[self.entry.provider]?.sessionLabel ?? "Session",
+                percentLeft: self.entry.primary?.remainingPercent,
+                color: WidgetColors.color(for: self.entry.provider))
+            UsageBarRow(
+                title: ProviderDefaults.metadata[self.entry.provider]?.weeklyLabel ?? "Weekly",
+                percentLeft: self.entry.secondary?.remainingPercent,
+                color: WidgetColors.color(for: self.entry.provider))
+            if let credits = entry.creditsRemaining {
+                ValueLine(title: "Credits", value: WidgetFormat.credits(credits))
+            }
+            if let token = entry.tokenUsage {
+                ValueLine(
+                    title: "Today",
+                    value: WidgetFormat.costAndTokens(cost: token.sessionCostUSD, tokens: token.sessionTokens))
+            }
+        }
+        .padding(12)
+    }
+}
+
+private struct LargeUsageView: View {
+    let entry: WidgetSnapshot.ProviderEntry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HeaderView(provider: self.entry.provider, updatedAt: self.entry.updatedAt)
+            UsageBarRow(
+                title: ProviderDefaults.metadata[self.entry.provider]?.sessionLabel ?? "Session",
+                percentLeft: self.entry.primary?.remainingPercent,
+                color: WidgetColors.color(for: self.entry.provider))
+            UsageBarRow(
+                title: ProviderDefaults.metadata[self.entry.provider]?.weeklyLabel ?? "Weekly",
+                percentLeft: self.entry.secondary?.remainingPercent,
+                color: WidgetColors.color(for: self.entry.provider))
+            if let codeReview = entry.codeReviewRemainingPercent {
+                UsageBarRow(
+                    title: "Code review",
+                    percentLeft: codeReview,
+                    color: WidgetColors.color(for: self.entry.provider))
+            }
+            if let credits = entry.creditsRemaining {
+                ValueLine(title: "Credits", value: WidgetFormat.credits(credits))
+            }
+            if let token = entry.tokenUsage {
+                VStack(alignment: .leading, spacing: 4) {
+                    ValueLine(
+                        title: "Today",
+                        value: WidgetFormat.costAndTokens(cost: token.sessionCostUSD, tokens: token.sessionTokens))
+                    ValueLine(
+                        title: "30d",
+                        value: WidgetFormat.costAndTokens(
+                            cost: token.last30DaysCostUSD,
+                            tokens: token.last30DaysTokens))
+                }
+            }
+            UsageHistoryChart(points: self.entry.dailyUsage, color: WidgetColors.color(for: self.entry.provider))
+                .frame(height: 50)
+        }
+        .padding(12)
+    }
+}
+
+private struct HistoryView: View {
+    let entry: WidgetSnapshot.ProviderEntry
+    let isLarge: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HeaderView(provider: self.entry.provider, updatedAt: self.entry.updatedAt)
+            UsageHistoryChart(points: self.entry.dailyUsage, color: WidgetColors.color(for: self.entry.provider))
+                .frame(height: self.isLarge ? 90 : 60)
+            if let token = entry.tokenUsage {
+                ValueLine(
+                    title: "Today",
+                    value: WidgetFormat.costAndTokens(cost: token.sessionCostUSD, tokens: token.sessionTokens))
+                ValueLine(
+                    title: "30d",
+                    value: WidgetFormat.costAndTokens(cost: token.last30DaysCostUSD, tokens: token.last30DaysTokens))
+            }
+        }
+        .padding(12)
+    }
+}
+
+private struct HeaderView: View {
+    let provider: UsageProvider
+    let updatedAt: Date
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(ProviderDefaults.metadata[self.provider]?.displayName ?? self.provider.rawValue.capitalized)
+                .font(.body)
+                .fontWeight(.semibold)
+            Spacer()
+            Text(WidgetFormat.relativeDate(self.updatedAt))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct UsageBarRow: View {
+    let title: String
+    let percentLeft: Double?
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(self.title)
+                    .font(.caption)
+                Spacer()
+                Text(WidgetFormat.percent(self.percentLeft))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            GeometryReader { proxy in
+                let width = max(0, min(1, (percentLeft ?? 0) / 100)) * proxy.size.width
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.primary.opacity(0.08))
+                    Capsule().fill(self.color).frame(width: width)
+                }
+            }
+            .frame(height: 6)
+        }
+    }
+}
+
+private struct ValueLine: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(self.title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(self.value)
+                .font(.caption)
+        }
+    }
+}
+
+private struct UsageHistoryChart: View {
+    let points: [WidgetSnapshot.DailyUsagePoint]
+    let color: Color
+
+    var body: some View {
+        let values = self.points.map { point -> Double in
+            if let cost = point.costUSD { return cost }
+            return Double(point.totalTokens ?? 0)
+        }
+        let maxValue = values.max() ?? 0
+        HStack(alignment: .bottom, spacing: 2) {
+            ForEach(values.indices, id: \.self) { index in
+                let value = values[index]
+                let height = maxValue > 0 ? CGFloat(value / maxValue) : 0
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(self.color.opacity(0.85))
+                    .frame(maxWidth: .infinity)
+                    .scaleEffect(x: 1, y: height, anchor: .bottom)
+                    .animation(.easeOut(duration: 0.2), value: height)
+            }
+        }
+    }
+}
+
+enum WidgetColors {
+    static func color(for provider: UsageProvider) -> Color {
+        switch provider {
+        case .codex:
+            Color(red: 73 / 255, green: 163 / 255, blue: 176 / 255)
+        case .claude:
+            Color(red: 204 / 255, green: 124 / 255, blue: 94 / 255)
+        case .gemini:
+            Color(red: 171 / 255, green: 135 / 255, blue: 234 / 255)
+        }
+    }
+}
+
+enum WidgetFormat {
+    static func percent(_ value: Double?) -> String {
+        guard let value else { return "—" }
+        return String(format: "%.0f%%", value)
+    }
+
+    static func credits(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 2
+        formatter.minimumFractionDigits = 0
+        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.2f", value)
+    }
+
+    static func costAndTokens(cost: Double?, tokens: Int?) -> String {
+        let costText = cost.map(self.usd) ?? "—"
+        if let tokens {
+            return "\(costText) · \(self.tokenCount(tokens))"
+        }
+        return costText
+    }
+
+    static func usd(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = "USD"
+        formatter.maximumFractionDigits = 2
+        formatter.minimumFractionDigits = 2
+        return formatter.string(from: NSNumber(value: value)) ?? String(format: "$%.2f", value)
+    }
+
+    static func tokenCount(_ value: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 0
+        let raw = formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+        return "\(raw) tokens"
+    }
+
+    static func relativeDate(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
