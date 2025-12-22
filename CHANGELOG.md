@@ -1,12 +1,12 @@
 # Changelog
 
 ## 0.12.0 — Unreleased
+- Widgets: add WidgetKit extension backed by a shared app‑group usage snapshot.
 - New local cost usage tracking (Codex + Claude) via a lightweight scanner inspired by ccusage (MIT) — computes cost from local JSONL logs without Node CLIs. Thanks @ryoppippi!
 - Cost summary now includes last‑30‑days tokens; weekly pace indicators (with runout copy) hide when usage is fully depleted. Thanks @Remedy92!
 - Claude: PTY probes now stop after idle, auto‑clean on restart, and run under a watchdog to avoid runaway CLI processes.
 - Menu polish: group history under card sections, simplify history labels, and refresh menus live while open.
 - Performance: faster usage log scanning + cost parsing; cache menu icons and speed up OpenAI dashboard parsing.
-- Widgets: add WidgetKit extension backed by a shared app‑group usage snapshot.
 
 ## 0.11.2 — 2025-12-21
 - ccusage-codex cost fetch is faster and more reliable by limiting the session scan window.
