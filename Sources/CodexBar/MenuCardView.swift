@@ -314,20 +314,18 @@ struct UsageMenuCardCreditsSectionView: View {
 
     var body: some View {
         if let credits = self.model.creditsText {
-            VStack(alignment: .leading, spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Credits")
-                        .font(.body)
-                        .fontWeight(.medium)
-                    Text(credits)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Credits")
+                    .font(.body)
+                    .fontWeight(.medium)
+                Text(credits)
+                    .font(.caption)
+                if let hint = self.model.creditsHintText, !hint.isEmpty {
+                    Text(hint)
                         .font(.footnote)
-                    if let hint = self.model.creditsHintText, !hint.isEmpty {
-                        Text(hint)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 if self.showBottomDivider {
                     Divider()
