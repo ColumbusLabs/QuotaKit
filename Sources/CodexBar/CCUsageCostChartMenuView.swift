@@ -83,12 +83,22 @@ struct CCUsageCostChartMenuView: View {
                     }
                 }
 
-                Text(self.detailText(model: model))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(height: 32, alignment: .leading)
+                let detail = self.detailLines(model: model)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(detail.primary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(height: 16, alignment: .leading)
+                    Text(detail.secondary ?? " ")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(height: 16, alignment: .leading)
+                        .opacity(detail.secondary == nil ? 0 : 1)
+                }
             }
 
             if let total = self.totalCostUSD {
@@ -267,27 +277,24 @@ struct CCUsageCostChartMenuView: View {
         return best?.key
     }
 
-    private func detailText(model: Model) -> String {
+    private func detailLines(model: Model) -> (primary: String, secondary: String?) {
         guard let key = self.selectedDateKey,
               let point = model.pointsByDateKey[key],
               let date = Self.dateFromDayKey(key)
         else {
-            return "Hover a bar for details"
+            return ("Hover a bar for details", nil)
         }
 
         let dayLabel = date.formatted(.dateTime.month(.abbreviated).day())
         let cost = UsageFormatter.usdString(point.costUSD)
         if let tokens = point.totalTokens {
-            let topModels = self.topModelsText(key: key, model: model)
-            if let topModels {
-                return "\(dayLabel): \(cost) · \(UsageFormatter.tokenCountString(tokens)) tokens · \(topModels)"
-            }
-            return "\(dayLabel): \(cost) · \(UsageFormatter.tokenCountString(tokens)) tokens"
+            let primary = "\(dayLabel): \(cost) · \(UsageFormatter.tokenCountString(tokens)) tokens"
+            let secondary = self.topModelsText(key: key, model: model)
+            return (primary, secondary)
         }
-        if let topModels = self.topModelsText(key: key, model: model) {
-            return "\(dayLabel): \(cost) · \(topModels)"
-        }
-        return "\(dayLabel): \(cost)"
+        let primary = "\(dayLabel): \(cost)"
+        let secondary = self.topModelsText(key: key, model: model)
+        return (primary, secondary)
     }
 
     private func topModelsText(key: String, model: Model) -> String? {
