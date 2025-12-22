@@ -18,6 +18,13 @@ let package = Package(
                 .enableUpcomingFeature("StrictConcurrency"),
             ]),
         .executableTarget(
+            name: "CodexBarClaudeWatchdog",
+            dependencies: [],
+            path: "Sources/CodexBarClaudeWatchdog",
+            swiftSettings: [
+                .enableUpcomingFeature("StrictConcurrency"),
+            ]),
+        .executableTarget(
             name: "CodexBar",
             dependencies: [
                 .product(name: "Sparkle", package: "Sparkle"),

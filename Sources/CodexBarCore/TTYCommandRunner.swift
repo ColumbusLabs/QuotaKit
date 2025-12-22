@@ -70,6 +70,48 @@ public struct TTYCommandRunner {
 
     public init() {}
 
+    private static func locateBundledHelper(_ name: String) -> String? {
+        let fm = FileManager.default
+
+        func isExecutable(_ path: String) -> Bool {
+            fm.isExecutableFile(atPath: path)
+        }
+
+        if let override = ProcessInfo.processInfo.environment["CODEXBAR_HELPER_\(name.uppercased())"],
+           isExecutable(override)
+        {
+            return override
+        }
+
+        func candidate(inAppBundleURL appURL: URL) -> String? {
+            let path = appURL
+                .appendingPathComponent("Contents", isDirectory: true)
+                .appendingPathComponent("Helpers", isDirectory: true)
+                .appendingPathComponent(name, isDirectory: false)
+                .path
+            return isExecutable(path) ? path : nil
+        }
+
+        let mainURL = Bundle.main.bundleURL
+        if mainURL.pathExtension == "app", let found = candidate(inAppBundleURL: mainURL) { return found }
+
+        if let argv0 = CommandLine.arguments.first {
+            var url = URL(fileURLWithPath: argv0)
+            if !argv0.hasPrefix("/") {
+                url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(argv0)
+            }
+            var probe = url
+            for _ in 0..<6 {
+                let parent = probe.deletingLastPathComponent()
+                if parent.pathExtension == "app", let found = candidate(inAppBundleURL: parent) { return found }
+                if parent.path == probe.path { break }
+                probe = parent
+            }
+        }
+
+        return nil
+    }
+
     // swiftlint:disable function_body_length
     // swiftlint:disable:next cyclomatic_complexity
     public func run(
@@ -100,8 +142,16 @@ public struct TTYCommandRunner {
         let secondaryHandle = FileHandle(fileDescriptor: secondaryFD, closeOnDealloc: true)
 
         let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: resolved)
-        proc.arguments = options.extraArgs
+        let resolvedURL = URL(fileURLWithPath: resolved)
+        if resolvedURL.lastPathComponent == "claude",
+           let watchdog = Self.locateBundledHelper("CodexBarClaudeWatchdog")
+        {
+            proc.executableURL = URL(fileURLWithPath: watchdog)
+            proc.arguments = ["--", resolved] + options.extraArgs
+        } else {
+            proc.executableURL = resolvedURL
+            proc.arguments = options.extraArgs
+        }
         proc.standardInput = secondaryHandle
         proc.standardOutput = secondaryHandle
         proc.standardError = secondaryHandle

@@ -69,6 +69,11 @@ if [[ -f ".build/$CONF/CodexBarCLI" ]]; then
   cp ".build/$CONF/CodexBarCLI" "$APP/Contents/Helpers/CodexBarCLI"
   chmod +x "$APP/Contents/Helpers/CodexBarCLI"
 fi
+# Watchdog helper: ensures `claude` probes die when CodexBar crashes/gets killed.
+if [[ -f ".build/$CONF/CodexBarClaudeWatchdog" ]]; then
+  cp ".build/$CONF/CodexBarClaudeWatchdog" "$APP/Contents/Helpers/CodexBarClaudeWatchdog"
+  chmod +x "$APP/Contents/Helpers/CodexBarClaudeWatchdog"
+fi
 # Embed Sparkle.framework
 if [[ -d ".build/$CONF/Sparkle.framework" ]]; then
   cp -R ".build/$CONF/Sparkle.framework" "$APP/Contents/Frameworks/"
