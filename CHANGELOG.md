@@ -1,7 +1,7 @@
 # Changelog
 
 ## 0.11.3 — Unreleased
-- Vendor a lightweight ccusage scanner (Codex + Claude) to compute cost from local JSONL logs without Node CLIs.
+- New local cost usage tracking (Codex + Claude) via a lightweight scanner inspired by ccusage (MIT) — computes cost from local JSONL logs without Node CLIs. Thanks @ryoppippi!
 - Expand model normalization/pricing so newer Codex and Claude variants keep showing accurate costs.
 - Add weekly pace indicators with ahead/behind copy and runout projections when reset data is available. Thanks @Remedy92!
 

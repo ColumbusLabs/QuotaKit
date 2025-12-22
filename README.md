@@ -77,4 +77,6 @@ See [CHANGELOG.md](CHANGELOG.md).
 - 🧳 [MCPorter](https://mcporter.dev) — TypeScript toolkit + CLI for Model Context Protocol servers.
 - Cross-promote: Download CodexBar at [codexbar.app](https://codexbar.app) and Trimmy at [trimmy.app](https://trimmy.app).
 
+Inspired by [ccusage](https://github.com/ryoppippi/ccusage) (MIT), specifically the cost usage tracking.
+
 License: MIT • Peter Steinberger ([steipete](https://twitter.com/steipete))
