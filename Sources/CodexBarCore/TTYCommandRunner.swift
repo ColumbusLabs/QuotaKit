@@ -12,6 +12,9 @@ public struct TTYCommandRunner {
         public var rows: UInt16 = 50
         public var cols: UInt16 = 160
         public var timeout: TimeInterval = 20.0
+        /// Stop early once output has been idle for this long (only for non-Codex flows).
+        /// Useful for interactive TUIs that render once and then wait for input indefinitely.
+        public var idleTimeout: TimeInterval?
         public var workingDirectory: URL?
         public var extraArgs: [String] = []
         public var initialDelay: TimeInterval = 0.4
@@ -25,6 +28,7 @@ public struct TTYCommandRunner {
             rows: UInt16 = 50,
             cols: UInt16 = 160,
             timeout: TimeInterval = 20.0,
+            idleTimeout: TimeInterval? = nil,
             workingDirectory: URL? = nil,
             extraArgs: [String] = [],
             initialDelay: TimeInterval = 0.4,
@@ -37,6 +41,7 @@ public struct TTYCommandRunner {
             self.rows = rows
             self.cols = cols
             self.timeout = timeout
+            self.idleTimeout = idleTimeout
             self.workingDirectory = workingDirectory
             self.extraArgs = extraArgs
             self.initialDelay = initialDelay
@@ -240,9 +245,14 @@ public struct TTYCommandRunner {
             var stoppedEarly = false
             var urlSeen = false
             var triggeredSends = Set<Data>()
+            var lastOutputAt = Date()
 
             while Date() < deadline {
+                let beforeCount = buffer.count
                 readChunk()
+                if buffer.count != beforeCount {
+                    lastOutputAt = Date()
+                }
                 respondIfCursorQuerySeen()
 
                 if !sendNeedles.isEmpty {
@@ -265,6 +275,13 @@ public struct TTYCommandRunner {
                     }
                 }
                 if !stopNeedles.isEmpty, stopNeedles.contains(where: { buffer.range(of: $0) != nil }) {
+                    stoppedEarly = true
+                    break
+                }
+                if let idleTimeout = options.idleTimeout,
+                   !buffer.isEmpty,
+                   Date().timeIntervalSince(lastOutputAt) >= idleTimeout
+                {
                     stoppedEarly = true
                     break
                 }

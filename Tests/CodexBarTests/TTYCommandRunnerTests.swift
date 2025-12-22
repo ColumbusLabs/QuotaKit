@@ -99,4 +99,32 @@ struct TTYCommandRunnerEnvTests {
 
         #expect(result.text.contains("accepted"))
     }
+
+    @Test
+    func stopsWhenOutputIsIdle() throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent("codexbar-tty-\(UUID().uuidString)", isDirectory: true)
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: dir) }
+
+        let scriptURL = dir.appendingPathComponent("idle.sh")
+        let script = """
+        #!/bin/sh
+        echo "hello"
+        sleep 10
+        """
+        try script.write(to: scriptURL, atomically: true, encoding: .utf8)
+        try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+
+        let runner = TTYCommandRunner()
+        let startedAt = Date()
+        let result = try runner.run(
+            binary: scriptURL.path,
+            send: "",
+            options: .init(timeout: 6, idleTimeout: 0.2))
+        let elapsed = Date().timeIntervalSince(startedAt)
+
+        #expect(result.text.contains("hello"))
+        #expect(elapsed < 3.0)
+    }
 }

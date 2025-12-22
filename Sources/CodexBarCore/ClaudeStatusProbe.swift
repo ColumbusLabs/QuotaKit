@@ -584,6 +584,7 @@ public struct ClaudeStatusProbe: Sendable {
             let runner = TTYCommandRunner()
             let options = TTYCommandRunner.Options(
                 timeout: timeout,
+                idleTimeout: 0.6,
                 workingDirectory: Self.probeWorkingDirectoryURL(),
                 extraArgs: [
                     subcommand,
