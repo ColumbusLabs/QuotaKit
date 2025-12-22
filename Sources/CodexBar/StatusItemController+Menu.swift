@@ -70,7 +70,7 @@ extension StatusItemController {
             self.settings.openAIDashboardEnabled &&
             self.store.openAIDashboardRequiresLogin == false &&
             dashboard != nil
-        let hasCreditsHistory = openAIWebEligible && !(dashboard?.creditEvents ?? []).isEmpty
+        let hasCreditsHistory = openAIWebEligible && !(dashboard?.dailyBreakdown ?? []).isEmpty
         let hasUsageBreakdown = openAIWebEligible && !(dashboard?.usageBreakdown ?? []).isEmpty
         let hasCostHistory = self.settings.isCCUsageCostUsageEffectivelyEnabled(for: currentProvider) &&
             (self.store.tokenSnapshot(for: currentProvider)?.daily.isEmpty == false)
@@ -375,26 +375,24 @@ extension StatusItemController {
 
     @discardableResult
     private func addCreditsHistorySubmenu(to menu: NSMenu) -> Bool {
-        let events = self.store.openAIDashboard?.creditEvents ?? []
-        guard !events.isEmpty else { return false }
+        let breakdown = self.store.openAIDashboard?.dailyBreakdown ?? []
+        guard !breakdown.isEmpty else { return false }
 
         let item = NSMenuItem(title: "Credits history", action: nil, keyEquivalent: "")
         item.isEnabled = true
         let submenu = NSMenu()
+        let chartView = CreditsHistoryChartMenuView(breakdown: breakdown)
+        let hosting = NSHostingView(rootView: chartView)
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: 1))
+        hosting.layoutSubtreeIfNeeded()
+        let size = hosting.fittingSize
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: size.height))
 
-        let limit = 20
-        for event in events.prefix(limit) {
-            let line = UsageFormatter.creditEventCompact(event)
-            let row = NSMenuItem(title: line, action: nil, keyEquivalent: "")
-            row.isEnabled = false
-            submenu.addItem(row)
-        }
-        if events.count > limit {
-            submenu.addItem(.separator())
-            let more = NSMenuItem(title: "Showing \(limit) of \(events.count)", action: nil, keyEquivalent: "")
-            more.isEnabled = false
-            submenu.addItem(more)
-        }
+        let chartItem = NSMenuItem()
+        chartItem.view = hosting
+        chartItem.isEnabled = false
+        chartItem.representedObject = "creditsHistoryChart"
+        submenu.addItem(chartItem)
 
         item.submenu = submenu
         menu.addItem(item)
