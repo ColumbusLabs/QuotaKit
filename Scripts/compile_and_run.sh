@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reset CodexBar: kill running instances, build, test, package, relaunch, verify.
+# Reset CodexBar: kill running instances, build, package, relaunch, verify.
 
 set -euo pipefail
 
@@ -8,6 +8,11 @@ APP_BUNDLE="${ROOT_DIR}/CodexBar.app"
 APP_PROCESS_PATTERN="CodexBar.app/Contents/MacOS/CodexBar"
 DEBUG_PROCESS_PATTERN="${ROOT_DIR}/.build/debug/CodexBar"
 RELEASE_PROCESS_PATTERN="${ROOT_DIR}/.build/release/CodexBar"
+LOCK_KEY="$(printf '%s' "${ROOT_DIR}" | shasum -a 256 | cut -c1-8)"
+LOCK_DIR="${TMPDIR:-/tmp}/codexbar-compile-and-run-${LOCK_KEY}"
+LOCK_PID_FILE="${LOCK_DIR}/pid"
+WAIT_FOR_LOCK=0
+RUN_TESTS=0
 
 log()  { printf '%s\n' "$*"; }
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -19,6 +24,42 @@ run_step() {
     fail "${label} failed"
   fi
 }
+
+cleanup() {
+  if [[ -d "${LOCK_DIR}" ]]; then
+    rm -rf "${LOCK_DIR}"
+  fi
+}
+
+acquire_lock() {
+  while true; do
+    if mkdir "${LOCK_DIR}" 2>/dev/null; then
+      echo "$$" > "${LOCK_PID_FILE}"
+      return 0
+    fi
+
+    local existing_pid=""
+    if [[ -f "${LOCK_PID_FILE}" ]]; then
+      existing_pid="$(cat "${LOCK_PID_FILE}" 2>/dev/null || true)"
+    fi
+
+    if [[ -n "${existing_pid}" ]] && kill -0 "${existing_pid}" 2>/dev/null; then
+      if [[ "${WAIT_FOR_LOCK}" == "1" ]]; then
+        log "==> Another agent is compiling (pid ${existing_pid}); waiting..."
+        while kill -0 "${existing_pid}" 2>/dev/null; do
+          sleep 1
+        done
+        continue
+      fi
+      log "==> Another agent is compiling (pid ${existing_pid}); re-run with --wait."
+      exit 0
+    fi
+
+    rm -rf "${LOCK_DIR}"
+  done
+}
+
+trap cleanup EXIT INT TERM
 
 kill_claude_probes() {
   # CodexBar spawns `claude /usage` + `/status` in a PTY; if we kill the app mid-probe we can orphan them.
@@ -44,20 +85,38 @@ kill_all_codexbar() {
   done
 }
 
-# 1) Kill all running CodexBar instances (debug, release, bundled).
+# 1) Ensure a single runner instance.
+for arg in "$@"; do
+  case "${arg}" in
+    --wait|-w) WAIT_FOR_LOCK=1 ;;
+    --test|-t) RUN_TESTS=1 ;;
+    --help|-h)
+      log "Usage: $(basename "$0") [--wait] [--test]"
+      exit 0
+      ;;
+    *)
+      ;;
+  esac
+done
+
+acquire_lock
+
+# 2) Kill all running CodexBar instances (debug, release, bundled).
 log "==> Killing existing CodexBar instances"
 kill_all_codexbar
 kill_claude_probes
 
-# 2) Build, test, package.
+# 3) Build, package.
 run_step "swift build" swift build -q
-run_step "swift test" swift test -q
+if [[ "${RUN_TESTS}" == "1" ]]; then
+  run_step "swift test" swift test -q
+fi
 run_step "package app" "${ROOT_DIR}/scripts/package_app.sh"
 
-# 3) Launch the packaged app.
+# 4) Launch the packaged app.
 run_step "launch app" open "${APP_BUNDLE}"
 
-# 4) Verify the app stays up for at least 1s.
+# 5) Verify the app stays up for at least 1s.
 sleep 1
 if pgrep -f "${APP_PROCESS_PATTERN}" >/dev/null 2>&1; then
   log "OK: CodexBar is running."
