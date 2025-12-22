@@ -114,7 +114,7 @@ struct UsageMenuCardView: View {
                             ForEach(self.model.metrics) { metric in
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(metric.title)
-                                        .font(.subheadline)
+                                        .font(.body)
                                         .fontWeight(.medium)
                                     UsageProgressBar(
                                         percent: metric.percent,
@@ -146,7 +146,7 @@ struct UsageMenuCardView: View {
                     if let credits = self.model.creditsText {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Credits")
-                                .font(.subheadline)
+                                .font(.body)
                                 .fontWeight(.medium)
                             Text(credits)
                                 .font(.footnote)
@@ -165,7 +165,7 @@ struct UsageMenuCardView: View {
                     if let tokenUsage = self.model.tokenUsage {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Cost")
-                                .font(.subheadline)
+                                .font(.body)
                                 .fontWeight(.medium)
                             Text(tokenUsage.sessionLine)
                                 .font(.footnote)
@@ -188,13 +188,13 @@ struct UsageMenuCardView: View {
                         }
                     }
                 }
-                .padding(.bottom, self.model.creditsText == nil ? 8 : 2)
+                .padding(.bottom, self.model.creditsText == nil ? 6 : 0)
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 4)
-        .padding(.bottom, 4)
-        .frame(minWidth: 300, maxWidth: 300, alignment: .leading)
+        .padding(.top, 2)
+        .padding(.bottom, 2)
+        .frame(minWidth: 310, maxWidth: 310, alignment: .leading)
     }
 
     private var hasDetails: Bool {
@@ -257,7 +257,7 @@ struct UsageMenuCardUsageSectionView: View {
                     ForEach(self.model.metrics) { metric in
                         VStack(alignment: .leading, spacing: 6) {
                             Text(metric.title)
-                                .font(.subheadline)
+                                .font(.body)
                                 .fontWeight(.medium)
                             UsageProgressBar(
                                 percent: metric.percent,
@@ -288,9 +288,9 @@ struct UsageMenuCardUsageSectionView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 4)
+        .padding(.top, 2)
         .padding(.bottom, self.bottomPadding)
-        .frame(minWidth: 300, maxWidth: 300, alignment: .leading)
+        .frame(minWidth: 310, maxWidth: 310, alignment: .leading)
     }
 
     private var hasDetails: Bool {
@@ -317,7 +317,7 @@ struct UsageMenuCardCreditsSectionView: View {
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Credits")
-                        .font(.subheadline)
+                        .font(.body)
                         .fontWeight(.medium)
                     Text(credits)
                         .font(.footnote)
@@ -336,7 +336,7 @@ struct UsageMenuCardCreditsSectionView: View {
             .padding(.horizontal, 16)
             .padding(.top, self.topPadding)
             .padding(.bottom, self.bottomPadding)
-            .frame(minWidth: 300, maxWidth: 300, alignment: .leading)
+            .frame(minWidth: 310, maxWidth: 310, alignment: .leading)
         }
     }
 }
@@ -350,12 +350,12 @@ struct UsageMenuCardCostSectionView: View {
         if let tokenUsage = self.model.tokenUsage {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Cost")
-                    .font(.subheadline)
+                    .font(.body)
                     .fontWeight(.medium)
                 Text(tokenUsage.sessionLine)
-                    .font(.footnote)
+                    .font(.caption)
                 Text(tokenUsage.monthLine)
-                    .font(.footnote)
+                    .font(.caption)
                 if let hint = tokenUsage.hintLine, !hint.isEmpty {
                     Text(hint)
                         .font(.footnote)
@@ -374,7 +374,7 @@ struct UsageMenuCardCostSectionView: View {
             .padding(.horizontal, 16)
             .padding(.top, self.topPadding)
             .padding(.bottom, self.bottomPadding)
-            .frame(minWidth: 300, maxWidth: 300, alignment: .leading)
+            .frame(minWidth: 310, maxWidth: 310, alignment: .leading)
         }
     }
 }

@@ -30,23 +30,6 @@ enum CostUsageScanner {
         let parsedBytes: Int64
     }
 
-    private final class ISO8601FormatterBox: @unchecked Sendable {
-        let lock = NSLock()
-        let withFractional: ISO8601DateFormatter = {
-            let fmt = ISO8601DateFormatter()
-            fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            return fmt
-        }()
-
-        let plain: ISO8601DateFormatter = {
-            let fmt = ISO8601DateFormatter()
-            fmt.formatOptions = [.withInternetDateTime]
-            return fmt
-        }()
-    }
-
-    private static let isoBox = ISO8601FormatterBox()
-
     static func loadDailyReport(
         provider: UsageProvider,
         since: Date,
@@ -98,12 +81,6 @@ enum CostUsageScanner {
     }
 
     // MARK: - Codex
-
-    private static func parseISO(_ text: String) -> Date? {
-        self.isoBox.lock.lock()
-        defer { Self.isoBox.lock.unlock() }
-        return self.isoBox.withFractional.date(from: text) ?? self.isoBox.plain.date(from: text)
-    }
 
     private static func defaultCodexSessionsRoot(options: Options) -> URL {
         if let override = options.codexSessionsRoot { return override }
@@ -200,8 +177,7 @@ enum CostUsageScanner {
                 else { return }
 
                 guard let tsText = obj["timestamp"] as? String else { return }
-                guard let ts = Self.parseISO(tsText) else { return }
-                let dayKey = CostUsageDayRange.dayKey(from: ts)
+                guard let dayKey = Self.dayKeyFromTimestamp(tsText) ?? Self.dayKeyFromParsedISO(tsText) else { return }
 
                 if type == "turn_context" {
                     if let payload = obj["payload"] as? [String: Any] {
@@ -513,8 +489,7 @@ enum CostUsageScanner {
                 else { return }
 
                 guard let tsText = obj["timestamp"] as? String else { return }
-                guard let ts = Self.parseISO(tsText) else { return }
-                let dayKey = CostUsageDayRange.dayKey(from: ts)
+                guard let dayKey = Self.dayKeyFromTimestamp(tsText) ?? Self.dayKeyFromParsedISO(tsText) else { return }
 
                 guard let message = obj["message"] as? [String: Any] else { return }
                 guard let model = message["model"] as? String else { return }
@@ -538,6 +513,182 @@ enum CostUsageScanner {
         return ClaudeParseResult(days: days, parsedBytes: parsedBytes)
     }
 
+    private static func claudeRootCandidates(for rootPath: String) -> [String] {
+        if rootPath.hasPrefix("/var/") {
+            return ["/private" + rootPath, rootPath]
+        }
+        if rootPath.hasPrefix("/private/var/") {
+            let trimmed = String(rootPath.dropFirst("/private".count))
+            return [rootPath, trimmed]
+        }
+        return [rootPath]
+    }
+
+    private final class ClaudeScanState {
+        var cache: CostUsageCache
+        var rootCache: [String: Int64]
+        var touched: Set<String>
+
+        init(cache: CostUsageCache) {
+            self.cache = cache
+            self.rootCache = cache.roots ?? [:]
+            self.touched = []
+        }
+    }
+
+    private static func processClaudeFile(
+        url: URL,
+        size: Int64,
+        mtimeMs: Int64,
+        range: CostUsageDayRange,
+        state: ClaudeScanState)
+    {
+        let path = url.path
+        state.touched.insert(path)
+
+        if let cached = state.cache.files[path],
+           cached.mtimeUnixMs == mtimeMs,
+           cached.size == size
+        {
+            return
+        }
+
+        if let cached = state.cache.files[path] {
+            let startOffset = cached.parsedBytes ?? cached.size
+            let canIncremental = size > cached.size && startOffset > 0 && startOffset <= size
+            if canIncremental {
+                let delta = Self.parseClaudeFile(
+                    fileURL: url,
+                    range: range,
+                    startOffset: startOffset)
+                if !delta.days.isEmpty {
+                    Self.applyFileDays(cache: &state.cache, fileDays: delta.days, sign: 1)
+                }
+
+                var mergedDays = cached.days
+                Self.mergeFileDays(existing: &mergedDays, delta: delta.days)
+                state.cache.files[path] = Self.makeFileUsage(
+                    mtimeUnixMs: mtimeMs,
+                    size: size,
+                    days: mergedDays,
+                    parsedBytes: delta.parsedBytes)
+                return
+            }
+
+            Self.applyFileDays(cache: &state.cache, fileDays: cached.days, sign: -1)
+        }
+
+        let parsed = Self.parseClaudeFile(fileURL: url, range: range)
+        let usage = Self.makeFileUsage(
+            mtimeUnixMs: mtimeMs,
+            size: size,
+            days: parsed.days,
+            parsedBytes: parsed.parsedBytes)
+        state.cache.files[path] = usage
+        Self.applyFileDays(cache: &state.cache, fileDays: usage.days, sign: 1)
+    }
+
+    private static func scanClaudeRoot(
+        root: URL,
+        range: CostUsageDayRange,
+        state: ClaudeScanState)
+    {
+        let rootPath = root.path
+        let rootCandidates = Self.claudeRootCandidates(for: rootPath)
+        let prefixes = Set(rootCandidates).map { path in
+            path.hasSuffix("/") ? path : "\(path)/"
+        }
+        let rootExists = rootCandidates.contains { FileManager.default.fileExists(atPath: $0) }
+        let canonicalRootPath = rootCandidates.first(where: {
+            FileManager.default.fileExists(atPath: $0)
+        }) ?? rootPath
+
+        guard rootExists else {
+            let stale = state.cache.files.keys.filter { path in
+                prefixes.contains(where: { path.hasPrefix($0) })
+            }
+            for path in stale {
+                if let old = state.cache.files[path] {
+                    Self.applyFileDays(cache: &state.cache, fileDays: old.days, sign: -1)
+                }
+                state.cache.files.removeValue(forKey: path)
+            }
+            for candidate in rootCandidates {
+                state.rootCache.removeValue(forKey: candidate)
+            }
+            return
+        }
+
+        let rootAttrs = (try? FileManager.default.attributesOfItem(atPath: canonicalRootPath)) ?? [:]
+        let rootMtime = (rootAttrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+        let rootMtimeMs = Int64(rootMtime * 1000)
+        let cachedRootMtime = rootCandidates.compactMap { state.rootCache[$0] }.first
+        let canSkipEnumeration = cachedRootMtime == rootMtimeMs && rootMtimeMs > 0
+
+        if canSkipEnumeration {
+            let cachedPaths = state.cache.files.keys.filter { path in
+                prefixes.contains(where: { path.hasPrefix($0) })
+            }
+            for path in cachedPaths {
+                guard FileManager.default.fileExists(atPath: path) else {
+                    if let old = state.cache.files[path] {
+                        Self.applyFileDays(cache: &state.cache, fileDays: old.days, sign: -1)
+                    }
+                    state.cache.files.removeValue(forKey: path)
+                    continue
+                }
+                let attrs = (try? FileManager.default.attributesOfItem(atPath: path)) ?? [:]
+                let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
+                if size <= 0 { continue }
+                let mtime = (attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+                let mtimeMs = Int64(mtime * 1000)
+                Self.processClaudeFile(
+                    url: URL(fileURLWithPath: path),
+                    size: size,
+                    mtimeMs: mtimeMs,
+                    range: range,
+                    state: state)
+            }
+            return
+        }
+
+        let keys: [URLResourceKey] = [
+            .isRegularFileKey,
+            .contentModificationDateKey,
+            .fileSizeKey,
+        ]
+
+        guard let enumerator = FileManager.default.enumerator(
+            at: root,
+            includingPropertiesForKeys: keys,
+            options: [.skipsHiddenFiles, .skipsPackageDescendants])
+        else { return }
+
+        for case let url as URL in enumerator {
+            guard url.pathExtension.lowercased() == "jsonl" else { continue }
+            guard let values = try? url.resourceValues(forKeys: Set(keys)) else { continue }
+            guard values.isRegularFile == true else { continue }
+            let size = Int64(values.fileSize ?? 0)
+            if size <= 0 { continue }
+
+            let mtime = values.contentModificationDate?.timeIntervalSince1970 ?? 0
+            let mtimeMs = Int64(mtime * 1000)
+            Self.processClaudeFile(
+                url: url,
+                size: size,
+                mtimeMs: mtimeMs,
+                range: range,
+                state: state)
+        }
+
+        if rootMtimeMs > 0 {
+            state.rootCache[canonicalRootPath] = rootMtimeMs
+            for candidate in rootCandidates where candidate != canonicalRootPath {
+                state.rootCache.removeValue(forKey: candidate)
+            }
+        }
+    }
+
     private static func loadClaudeDaily(range: CostUsageDayRange, now: Date, options: Options) -> CCUsageDailyReport {
         var cache = CostUsageCacheIO.load(provider: .claude, cacheRoot: options.cacheRoot)
         let nowMs = Int64(now.timeIntervalSince1970 * 1000)
@@ -550,75 +701,18 @@ enum CostUsageScanner {
         var touched: Set<String> = []
 
         if shouldRefresh {
+            let scanState = ClaudeScanState(cache: cache)
+
             for root in roots {
-                guard FileManager.default.fileExists(atPath: root.path) else { continue }
-                let keys: [URLResourceKey] = [
-                    .isRegularFileKey,
-                    .contentModificationDateKey,
-                    .fileSizeKey,
-                ]
-
-                guard let enumerator = FileManager.default.enumerator(
-                    at: root,
-                    includingPropertiesForKeys: keys,
-                    options: [.skipsHiddenFiles, .skipsPackageDescendants])
-                else { continue }
-
-                for case let url as URL in enumerator {
-                    guard url.pathExtension.lowercased() == "jsonl" else { continue }
-                    guard let values = try? url.resourceValues(forKeys: Set(keys)) else { continue }
-                    guard values.isRegularFile == true else { continue }
-                    let size = Int64(values.fileSize ?? 0)
-                    if size <= 0 { continue }
-
-                    let mtime = values.contentModificationDate?.timeIntervalSince1970 ?? 0
-                    let mtimeMs = Int64(mtime * 1000)
-
-                    let path = url.path
-                    touched.insert(path)
-
-                    if let cached = cache.files[path],
-                       cached.mtimeUnixMs == mtimeMs,
-                       cached.size == size
-                    {
-                        continue
-                    }
-
-                    if let cached = cache.files[path] {
-                        let startOffset = cached.parsedBytes ?? cached.size
-                        let canIncremental = size > cached.size && startOffset > 0 && startOffset <= size
-                        if canIncremental {
-                            let delta = Self.parseClaudeFile(
-                                fileURL: url,
-                                range: range,
-                                startOffset: startOffset)
-                            if !delta.days.isEmpty {
-                                Self.applyFileDays(cache: &cache, fileDays: delta.days, sign: 1)
-                            }
-
-                            var mergedDays = cached.days
-                            Self.mergeFileDays(existing: &mergedDays, delta: delta.days)
-                            cache.files[path] = Self.makeFileUsage(
-                                mtimeUnixMs: mtimeMs,
-                                size: size,
-                                days: mergedDays,
-                                parsedBytes: delta.parsedBytes)
-                            continue
-                        }
-
-                        Self.applyFileDays(cache: &cache, fileDays: cached.days, sign: -1)
-                    }
-
-                    let parsed = Self.parseClaudeFile(fileURL: url, range: range)
-                    let usage = Self.makeFileUsage(
-                        mtimeUnixMs: mtimeMs,
-                        size: size,
-                        days: parsed.days,
-                        parsedBytes: parsed.parsedBytes)
-                    cache.files[path] = usage
-                    Self.applyFileDays(cache: &cache, fileDays: usage.days, sign: 1)
-                }
+                Self.scanClaudeRoot(
+                    root: root,
+                    range: range,
+                    state: scanState)
             }
+
+            cache = scanState.cache
+            touched = scanState.touched
+            cache.roots = scanState.rootCache.isEmpty ? nil : scanState.rootCache
 
             for key in cache.files.keys where !touched.contains(key) {
                 if let old = cache.files[key] {
@@ -829,7 +923,15 @@ extension Data {
 }
 
 extension [Int] {
-    fileprivate subscript(safe index: Int) -> Int? {
+    subscript(safe index: Int) -> Int? {
+        if index < 0 { return nil }
+        if index >= self.count { return nil }
+        return self[index]
+    }
+}
+
+extension [UInt8] {
+    subscript(safe index: Int) -> UInt8? {
         if index < 0 { return nil }
         if index >= self.count { return nil }
         return self[index]

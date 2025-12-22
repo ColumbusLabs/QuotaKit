@@ -276,7 +276,7 @@ final class UsageStore: ObservableObject {
 
         // OpenAI web scrape depends on the current Codex account email (which can change after login/account switch).
         // Run this after Codex usage refresh so we don't accidentally scrape with stale credentials.
-        await self.refreshOpenAIDashboardIfNeeded()
+        await self.refreshOpenAIDashboardIfNeeded(force: forceTokenUsage)
     }
 
     /// For demo/testing: drop the snapshot so the loading animation plays, then restore the last snapshot.
@@ -557,7 +557,7 @@ final class UsageStore: ObservableObject {
         }
     }
 
-    private func refreshOpenAIDashboardIfNeeded() async {
+    private func refreshOpenAIDashboardIfNeeded(force: Bool = false) async {
         guard self.isEnabled(.codex) else { return }
         guard self.settings.openAIDashboardEnabled else {
             await MainActor.run {
@@ -576,6 +576,17 @@ final class UsageStore: ObservableObject {
 
         let targetEmail = self.codexAccountEmailForOpenAIDashboard()
         self.handleOpenAIWebTargetEmailChangeIfNeeded(targetEmail: targetEmail)
+
+        let now = Date()
+        let minInterval = max(self.settings.refreshFrequency.seconds ?? 0, 120)
+        if !force,
+           !self.openAIWebAccountDidChange,
+           self.lastOpenAIDashboardError == nil,
+           let snapshot = self.lastOpenAIDashboardSnapshot,
+           now.timeIntervalSince(snapshot.updatedAt) < minInterval
+        {
+            return
+        }
 
         if self.openAIWebDebugLines.isEmpty {
             self.resetOpenAIWebDebugLog(context: "refresh")
@@ -709,7 +720,7 @@ final class UsageStore: ObservableObject {
         self.resetOpenAIWebDebugLog(context: "manual import")
         let targetEmail = self.codexAccountEmailForOpenAIDashboard()
         await self.importOpenAIDashboardCookiesIfNeeded(targetEmail: targetEmail, force: true)
-        await self.refreshOpenAIDashboardIfNeeded()
+        await self.refreshOpenAIDashboardIfNeeded(force: true)
     }
 
     private func importOpenAIDashboardCookiesIfNeeded(targetEmail: String?, force: Bool) async {

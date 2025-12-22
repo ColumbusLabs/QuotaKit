@@ -136,6 +136,71 @@ struct CostUsageScannerTests {
     }
 
     @Test
+    func claudeDailyReportRefreshesWhenFileChanges() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2025, month: 12, day: 20)
+        let iso0 = env.isoString(for: day)
+        let iso1 = env.isoString(for: day.addingTimeInterval(1))
+
+        let model = "claude-sonnet-4-20250514"
+        let first: [String: Any] = [
+            "type": "assistant",
+            "timestamp": iso0,
+            "message": [
+                "model": model,
+                "usage": [
+                    "input_tokens": 200,
+                    "cache_creation_input_tokens": 50,
+                    "cache_read_input_tokens": 25,
+                    "output_tokens": 80,
+                ],
+            ],
+        ]
+        let fileURL = try env.writeClaudeProjectFile(
+            relativePath: "project-a/session-a.jsonl",
+            contents: env.jsonl([first]))
+
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: nil,
+            claudeProjectsRoots: [env.claudeProjectsRoot],
+            cacheRoot: env.cacheRoot)
+        options.refreshMinIntervalSeconds = 0
+
+        let firstReport = CostUsageScanner.loadDailyReport(
+            provider: .claude,
+            since: day,
+            until: day,
+            now: day,
+            options: options)
+        #expect(firstReport.data.first?.totalTokens == 355)
+
+        let second: [String: Any] = [
+            "type": "assistant",
+            "timestamp": iso1,
+            "message": [
+                "model": model,
+                "usage": [
+                    "input_tokens": 40,
+                    "cache_creation_input_tokens": 10,
+                    "cache_read_input_tokens": 5,
+                    "output_tokens": 20,
+                ],
+            ],
+        ]
+        try env.jsonl([first, second]).write(to: fileURL, atomically: true, encoding: .utf8)
+
+        let secondReport = CostUsageScanner.loadDailyReport(
+            provider: .claude,
+            since: day,
+            until: day,
+            now: day,
+            options: options)
+        #expect(secondReport.data.first?.totalTokens == 430)
+    }
+
+    @Test
     func codexIncrementalParsingUsesPreviousTotals() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
@@ -272,6 +337,20 @@ struct CostUsageScannerTests {
         #expect(packed[1] == 5)
         #expect(packed[2] == 10)
         #expect(packed[3] == 20)
+    }
+
+    @Test
+    func dayKeyFromTimestampMatchesISOParsing() {
+        let timestamps = [
+            "2025-12-20T23:59:59Z",
+            "2025-12-20T23:59:59+02:00",
+        ]
+
+        for ts in timestamps {
+            let expected = CostUsageScanner.dayKeyFromParsedISO(ts)
+            let fast = CostUsageScanner.dayKeyFromTimestamp(ts)
+            #expect(fast == expected)
+        }
     }
 }
 

@@ -5,7 +5,7 @@ import SwiftUI
 // MARK: - NSMenu construction
 
 extension StatusItemController {
-    private static let menuCardWidth: CGFloat = 300
+    private static let menuCardWidth: CGFloat = 310
     private struct OpenAIWebMenuItems {
         let hasUsageBreakdown: Bool
         let hasCreditsHistory: Bool
@@ -332,8 +332,8 @@ extension StatusItemController {
         let hasUsage = !model.metrics.isEmpty
         let hasCredits = hasUsage && model.creditsText != nil
         let hasCost = hasUsage && model.tokenUsage != nil
-        let bottomPadding = CGFloat(hasCredits ? 6 : 12)
-        let sectionSpacing = CGFloat(12)
+        let bottomPadding = CGFloat(hasCredits ? 4 : 10)
+        let sectionSpacing = CGFloat(8)
         let usageBottomPadding = bottomPadding
 
         let usageView = UsageMenuCardUsageSectionView(

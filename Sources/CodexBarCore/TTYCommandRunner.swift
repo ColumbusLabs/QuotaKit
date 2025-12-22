@@ -334,6 +334,7 @@ public struct TTYCommandRunner {
                 [cursorQuery.count]
             let maxNeedle = needleLengths.max() ?? cursorQuery.count
             var scanBuffer = RollingBuffer(maxNeedle: maxNeedle)
+            var nextCursorCheckAt = Date(timeIntervalSince1970: 0)
             var lastEnter = Date()
             var stoppedEarly = false
             var urlSeen = false
@@ -346,8 +347,12 @@ public struct TTYCommandRunner {
                     lastOutputAt = Date()
                 }
                 let scanData = scanBuffer.append(newData)
-                if !scanData.isEmpty, scanData.range(of: cursorQuery) != nil {
+                if Date() >= nextCursorCheckAt,
+                   !scanData.isEmpty,
+                   scanData.range(of: cursorQuery) != nil
+                {
                     try? send("\u{1b}[1;1R")
+                    nextCursorCheckAt = Date().addingTimeInterval(1.0)
                 }
 
                 if !sendNeedles.isEmpty {
@@ -397,8 +402,12 @@ public struct TTYCommandRunner {
                     while Date() < settleDeadline {
                         let newData = readChunk()
                         let scanData = scanBuffer.append(newData)
-                        if !scanData.isEmpty, scanData.range(of: cursorQuery) != nil {
+                        if Date() >= nextCursorCheckAt,
+                           !scanData.isEmpty,
+                           scanData.range(of: cursorQuery) != nil
+                        {
                             try? send("\u{1b}[1;1R")
+                            nextCursorCheckAt = Date().addingTimeInterval(1.0)
                         }
                         usleep(50000)
                     }
@@ -443,12 +452,17 @@ public struct TTYCommandRunner {
         let updateMaxNeedle = updateNeedleLengths.max() ?? 0
         var statusScanBuffer = RollingBuffer(maxNeedle: statusMaxNeedle)
         var updateScanBuffer = RollingBuffer(maxNeedle: updateMaxNeedle)
+        var nextCursorCheckAt = Date(timeIntervalSince1970: 0)
 
         while Date() < deadline {
             let newData = readChunk()
             let scanData = statusScanBuffer.append(newData)
-            if !scanData.isEmpty, scanData.range(of: cursorQuery) != nil {
+            if Date() >= nextCursorCheckAt,
+               !scanData.isEmpty,
+               scanData.range(of: cursorQuery) != nil
+            {
                 try? send("\u{1b}[1;1R")
+                nextCursorCheckAt = Date().addingTimeInterval(1.0)
             }
             if !scanData.isEmpty, !sawCodexStatus {
                 if statusMarkers.contains(where: { scanData.range(of: $0) != nil }) {
@@ -456,7 +470,7 @@ public struct TTYCommandRunner {
                 }
             }
 
-            if !newData.isEmpty {
+            if !skippedCodexUpdate, !sawCodexUpdatePrompt, !newData.isEmpty {
                 let lowerData = Self.lowercasedASCII(newData)
                 let lowerScan = updateScanBuffer.append(lowerData)
                 if !sawCodexUpdatePrompt {
@@ -532,8 +546,12 @@ public struct TTYCommandRunner {
             while Date() < settleDeadline {
                 let newData = readChunk()
                 let scanData = statusScanBuffer.append(newData)
-                if !scanData.isEmpty, scanData.range(of: cursorQuery) != nil {
+                if Date() >= nextCursorCheckAt,
+                   !scanData.isEmpty,
+                   scanData.range(of: cursorQuery) != nil
+                {
                     try? send("\u{1b}[1;1R")
+                    nextCursorCheckAt = Date().addingTimeInterval(1.0)
                 }
                 usleep(100_000)
             }
