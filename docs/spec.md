@@ -36,6 +36,7 @@ read_when:
 - Menu: rich card (session + weekly; resets; account/plan), plus web-only Codex rows when enabled and available:
   - Code review remaining
   - Usage breakdown submenu (Swift Charts)
+- Widgets (macOS WidgetKit): optional usage/credits/history widgets powered by a shared app-group snapshot.
 
 ## App structure (Swift 6, macOS 15+)
 - `CodexBarCore`: fetch + parse (Codex RPC, PTY runner, Claude probes, OpenAI web scraping).
@@ -43,6 +44,7 @@ read_when:
 - `SettingsStore`: persisted cadence/toggles.
 - `StatusItemController`: NSStatusItems, menu building, menu actions, icon rendering/animations.
 - Entry: `CodexBarApp` (SwiftUI keepalive + Settings scene) + `AppDelegate` (wires status controller + Sparkle updater).
+- Widget data: `WidgetSnapshotStore` writes a compact JSON snapshot to an app-group container for WidgetKit extensions.
 
 ## Packaging & signing
 - `Scripts/package_app.sh`: swift build (arm64), writes `CodexBar.app` + Info.plist, copies `Icon.icns` if present; seeds Sparkle keys/feed.
