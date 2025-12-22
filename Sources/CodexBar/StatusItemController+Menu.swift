@@ -267,7 +267,14 @@ extension StatusItemController {
     }
 
     private func makeMenuCardItem(_ view: some View, id: String, submenu: NSMenu? = nil) -> NSMenuItem {
-        let hosting = NSHostingView(rootView: view)
+        let highlightState = MenuCardHighlightState()
+        let wrapped = MenuCardSectionContainerView(
+            highlight: highlightState,
+            showsSubmenuIndicator: submenu != nil)
+        {
+            view
+        }
+        let hosting = MenuCardItemHostingView(rootView: wrapped, highlightState: highlightState)
         // Important: constrain width before asking SwiftUI for the fitting height, otherwise text wrapping
         // changes the required height and the menu item becomes visually "squeezed".
         hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: 1))
@@ -362,6 +369,102 @@ extension StatusItemController {
         case .about: (#selector(self.showSettingsAbout), nil)
         case .quit: (#selector(self.quit), nil)
         case let .copyError(message): (#selector(self.copyError(_:)), message)
+        }
+    }
+
+    private final class MenuCardHighlightState: ObservableObject {
+        @Published var isHighlighted = false
+    }
+
+    private final class MenuCardItemHostingView<Content: View>: NSHostingView<Content> {
+        private let highlightState: MenuCardHighlightState
+        private var trackingArea: NSTrackingArea?
+
+        init(rootView: Content, highlightState: MenuCardHighlightState) {
+            self.highlightState = highlightState
+            super.init(rootView: rootView)
+        }
+
+        @MainActor
+        required init(rootView: Content) {
+            self.highlightState = MenuCardHighlightState()
+            super.init(rootView: rootView)
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+
+        override func viewWillDraw() {
+            super.viewWillDraw()
+            self.syncHighlight()
+        }
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            if let trackingArea {
+                self.removeTrackingArea(trackingArea)
+            }
+            let area = NSTrackingArea(
+                rect: self.bounds,
+                options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+                owner: self,
+                userInfo: nil)
+            self.addTrackingArea(area)
+            self.trackingArea = area
+        }
+
+        override func mouseEntered(with event: NSEvent) {
+            super.mouseEntered(with: event)
+            self.highlightState.isHighlighted = true
+        }
+
+        override func mouseExited(with event: NSEvent) {
+            super.mouseExited(with: event)
+            self.highlightState.isHighlighted = false
+        }
+
+        private func syncHighlight() {
+            let highlighted = self.enclosingMenuItem?.isHighlighted ?? false
+            if self.highlightState.isHighlighted != highlighted {
+                self.highlightState.isHighlighted = highlighted
+            }
+        }
+    }
+
+    private struct MenuCardSectionContainerView<Content: View>: View {
+        @ObservedObject var highlight: MenuCardHighlightState
+        let showsSubmenuIndicator: Bool
+        let content: Content
+
+        init(
+            highlight: MenuCardHighlightState,
+            showsSubmenuIndicator: Bool,
+            @ViewBuilder content: () -> Content)
+        {
+            self.highlight = highlight
+            self.showsSubmenuIndicator = showsSubmenuIndicator
+            self.content = content()
+        }
+
+        var body: some View {
+            ZStack(alignment: .topTrailing) {
+                self.content
+                if self.showsSubmenuIndicator {
+                    Image(systemName: "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 8)
+                        .padding(.trailing, 10)
+                        .opacity(self.highlight.isHighlighted ? 0.9 : 0.5)
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(self.highlight.isHighlighted
+                        ? Color(nsColor: .selectedContentBackgroundColor).opacity(0.16)
+                        : .clear))
         }
     }
 
