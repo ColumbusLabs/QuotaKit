@@ -293,6 +293,7 @@ extension StatusItemController {
         let bottomPadding = CGFloat(hasCredits ? 4 : 10)
         let sectionSpacing = CGFloat(8)
         let usageBottomPadding = bottomPadding
+        let creditsBottomPadding = webItems.hasCreditsHistory ? sectionSpacing : bottomPadding
 
         let usageView = UsageMenuCardUsageSectionView(
             model: model,
@@ -312,7 +313,7 @@ extension StatusItemController {
                 model: model,
                 showBottomDivider: false,
                 topPadding: sectionSpacing,
-                bottomPadding: bottomPadding)
+                bottomPadding: creditsBottomPadding)
             menu.addItem(self.makeMenuCardItem(creditsView, id: "menuCardCredits"))
         }
 
