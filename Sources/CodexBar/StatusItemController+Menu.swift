@@ -266,7 +266,7 @@ extension StatusItemController {
         }
     }
 
-    private func makeMenuCardItem(_ view: some View, id: String) -> NSMenuItem {
+    private func makeMenuCardItem(_ view: some View, id: String, submenu: NSMenu? = nil) -> NSMenuItem {
         let hosting = NSHostingView(rootView: view)
         // Important: constrain width before asking SwiftUI for the fitting height, otherwise text wrapping
         // changes the required height and the menu item becomes visually "squeezed".
@@ -276,8 +276,9 @@ extension StatusItemController {
         hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: size.height))
         let item = NSMenuItem()
         item.view = hosting
-        item.isEnabled = false
+        item.isEnabled = submenu != nil
         item.representedObject = id
+        item.submenu = submenu
         return item
     }
 
@@ -299,11 +300,9 @@ extension StatusItemController {
             model: model,
             showBottomDivider: false,
             bottomPadding: usageBottomPadding)
-        menu.addItem(self.makeMenuCardItem(usageView, id: "menuCardUsage"))
+        let usageSubmenu = webItems.hasUsageBreakdown ? self.makeUsageBreakdownSubmenu() : nil
+        menu.addItem(self.makeMenuCardItem(usageView, id: "menuCardUsage", submenu: usageSubmenu))
 
-        if webItems.hasUsageBreakdown {
-            _ = self.addUsageBreakdownSubmenu(to: menu)
-        }
         if hasCredits || hasCost {
             menu.addItem(.separator())
         }
@@ -314,11 +313,8 @@ extension StatusItemController {
                 showBottomDivider: false,
                 topPadding: sectionSpacing,
                 bottomPadding: creditsBottomPadding)
-            menu.addItem(self.makeMenuCardItem(creditsView, id: "menuCardCredits"))
-        }
-
-        if webItems.hasCreditsHistory {
-            _ = self.addCreditsHistorySubmenu(to: menu)
+            let creditsSubmenu = webItems.hasCreditsHistory ? self.makeCreditsHistorySubmenu() : nil
+            menu.addItem(self.makeMenuCardItem(creditsView, id: "menuCardCredits", submenu: creditsSubmenu))
         }
         if hasCost {
             menu.addItem(.separator())
@@ -329,11 +325,8 @@ extension StatusItemController {
                 model: model,
                 topPadding: sectionSpacing,
                 bottomPadding: bottomPadding)
-            menu.addItem(self.makeMenuCardItem(costView, id: "menuCardCost"))
-        }
-
-        if webItems.hasCostHistory {
-            _ = self.addCostHistorySubmenu(to: menu, provider: provider)
+            let costSubmenu = webItems.hasCostHistory ? self.makeCostHistorySubmenu(provider: provider) : nil
+            menu.addItem(self.makeMenuCardItem(costView, id: "menuCardCost", submenu: costSubmenu))
         }
     }
 
@@ -375,25 +368,9 @@ extension StatusItemController {
 
     @discardableResult
     private func addCreditsHistorySubmenu(to menu: NSMenu) -> Bool {
-        let breakdown = self.store.openAIDashboard?.dailyBreakdown ?? []
-        guard !breakdown.isEmpty else { return false }
-
+        guard let submenu = self.makeCreditsHistorySubmenu() else { return false }
         let item = NSMenuItem(title: "Credits history", action: nil, keyEquivalent: "")
         item.isEnabled = true
-        let submenu = NSMenu()
-        let chartView = CreditsHistoryChartMenuView(breakdown: breakdown)
-        let hosting = NSHostingView(rootView: chartView)
-        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: 1))
-        hosting.layoutSubtreeIfNeeded()
-        let size = hosting.fittingSize
-        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: size.height))
-
-        let chartItem = NSMenuItem()
-        chartItem.view = hosting
-        chartItem.isEnabled = false
-        chartItem.representedObject = "creditsHistoryChart"
-        submenu.addItem(chartItem)
-
         item.submenu = submenu
         menu.addItem(item)
         return true
@@ -401,11 +378,28 @@ extension StatusItemController {
 
     @discardableResult
     private func addUsageBreakdownSubmenu(to menu: NSMenu) -> Bool {
-        let breakdown = self.store.openAIDashboard?.usageBreakdown ?? []
-        guard !breakdown.isEmpty else { return false }
-
+        guard let submenu = self.makeUsageBreakdownSubmenu() else { return false }
         let item = NSMenuItem(title: "Usage breakdown", action: nil, keyEquivalent: "")
         item.isEnabled = true
+        item.submenu = submenu
+        menu.addItem(item)
+        return true
+    }
+
+    @discardableResult
+    private func addCostHistorySubmenu(to menu: NSMenu, provider: UsageProvider) -> Bool {
+        guard let submenu = self.makeCostHistorySubmenu(provider: provider) else { return false }
+        let item = NSMenuItem(title: "Usage history (30 days)", action: nil, keyEquivalent: "")
+        item.isEnabled = true
+        item.submenu = submenu
+        menu.addItem(item)
+        return true
+    }
+
+    private func makeUsageBreakdownSubmenu() -> NSMenu? {
+        let breakdown = self.store.openAIDashboard?.usageBreakdown ?? []
+        guard !breakdown.isEmpty else { return nil }
+
         let submenu = NSMenu()
         let chartView = UsageBreakdownChartMenuView(breakdown: breakdown)
         let hosting = NSHostingView(rootView: chartView)
@@ -419,20 +413,34 @@ extension StatusItemController {
         chartItem.isEnabled = false
         chartItem.representedObject = "usageBreakdownChart"
         submenu.addItem(chartItem)
-
-        item.submenu = submenu
-        menu.addItem(item)
-        return true
+        return submenu
     }
 
-    @discardableResult
-    private func addCostHistorySubmenu(to menu: NSMenu, provider: UsageProvider) -> Bool {
-        guard provider == .codex || provider == .claude else { return false }
-        guard let tokenSnapshot = self.store.tokenSnapshot(for: provider) else { return false }
-        guard !tokenSnapshot.daily.isEmpty else { return false }
+    private func makeCreditsHistorySubmenu() -> NSMenu? {
+        let breakdown = self.store.openAIDashboard?.dailyBreakdown ?? []
+        guard !breakdown.isEmpty else { return nil }
 
-        let item = NSMenuItem(title: "Usage history (30 days)", action: nil, keyEquivalent: "")
-        item.isEnabled = true
+        let submenu = NSMenu()
+        let chartView = CreditsHistoryChartMenuView(breakdown: breakdown)
+        let hosting = NSHostingView(rootView: chartView)
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: 1))
+        hosting.layoutSubtreeIfNeeded()
+        let size = hosting.fittingSize
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: size.height))
+
+        let chartItem = NSMenuItem()
+        chartItem.view = hosting
+        chartItem.isEnabled = false
+        chartItem.representedObject = "creditsHistoryChart"
+        submenu.addItem(chartItem)
+        return submenu
+    }
+
+    private func makeCostHistorySubmenu(provider: UsageProvider) -> NSMenu? {
+        guard provider == .codex || provider == .claude else { return nil }
+        guard let tokenSnapshot = self.store.tokenSnapshot(for: provider) else { return nil }
+        guard !tokenSnapshot.daily.isEmpty else { return nil }
+
         let submenu = NSMenu()
         let chartView = CCUsageCostChartMenuView(
             provider: provider,
@@ -449,10 +457,7 @@ extension StatusItemController {
         chartItem.isEnabled = false
         chartItem.representedObject = "ccusageCostHistoryChart"
         submenu.addItem(chartItem)
-
-        item.submenu = submenu
-        menu.addItem(item)
-        return true
+        return submenu
     }
 
     private func menuCardModel(for provider: UsageProvider?) -> UsageMenuCardView.Model? {
