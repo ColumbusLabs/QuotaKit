@@ -21,13 +21,15 @@ final class TTYIntegrationTests: XCTestCase {
             throw XCTSkip("Claude CLI not installed; skipping live PTY probe.")
         }
 
-        let probe = ClaudeStatusProbe(claudeBinary: "claude", timeout: 10)
+        let fetcher = ClaudeUsageFetcher()
         do {
-            let snapshot = try await probe.fetch()
-            XCTAssertNotNil(snapshot.sessionPercentLeft, "Claude session percent missing")
+            let snapshot = try await fetcher.loadLatestUsage()
+            XCTAssertNotNil(snapshot.primary.remainingPercent, "Claude session percent missing")
             // Weekly is absent for some enterprise accounts.
-        } catch let ClaudeStatusProbeError.parseFailed(message) {
+        } catch let ClaudeUsageError.parseFailed(message) {
             throw XCTSkip("Claude PTY parse failed (likely not logged in or usage unavailable): \(message)")
+        } catch ClaudeUsageError.claudeNotInstalled {
+            throw XCTSkip("Claude CLI not installed; skipping live PTY probe.")
         } catch ClaudeStatusProbeError.timedOut {
             throw XCTSkip("Claude PTY probe timed out; skipping.")
         } catch let TTYCommandRunner.Error.launchFailed(message) where message.contains("login") {
