@@ -33,6 +33,23 @@ struct CodexBarTests {
     }
 
     @Test
+    func iconRendererCachesStaticIcons() {
+        let first = IconRenderer.makeIcon(
+            primaryRemaining: 42,
+            weeklyRemaining: 17,
+            creditsRemaining: 250,
+            stale: false,
+            style: .codex)
+        let second = IconRenderer.makeIcon(
+            primaryRemaining: 42,
+            weeklyRemaining: 17,
+            creditsRemaining: 250,
+            stale: false,
+            style: .codex)
+        #expect(first === second)
+    }
+
+    @Test
     func iconRendererCodexEyesPunchThroughWhenUnknown() {
         // Regression: when remaining is nil, CoreGraphics inherits the previous fill alpha which caused
         // destinationOut “eyes” to become semi-transparent instead of fully punched through.

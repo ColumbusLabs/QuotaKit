@@ -32,6 +32,11 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var statusItems: [UsageProvider: NSStatusItem] = [:]
     var lastMenuProvider: UsageProvider?
     var menuProviders: [ObjectIdentifier: UsageProvider] = [:]
+    var menuContentVersion: Int = 0
+    var menuVersions: [ObjectIdentifier: Int] = [:]
+    var mergedMenu: NSMenu?
+    var providerMenus: [UsageProvider: NSMenu] = [:]
+    var fallbackMenu: NSMenu?
     var blinkTask: Task<Void, Never>?
     var loginTask: Task<Void, Never>? {
         didSet { self.refreshMenusForLoginStateChange() }
@@ -135,6 +140,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         self.store.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
+                self?.invalidateMenus()
                 self?.updateIcons()
                 self?.updateBlinkingState()
             }
@@ -151,10 +157,15 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         self.settings.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
+                self?.invalidateMenus()
                 self?.updateVisibility()
                 self?.updateIcons()
             }
             .store(in: &self.cancellables)
+    }
+
+    private func invalidateMenus() {
+        self.menuContentVersion &+= 1
     }
 
     private func updateIcons() {
@@ -201,6 +212,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     }
 
     private func refreshMenusForLoginStateChange() {
+        self.invalidateMenus()
         if self.shouldMergeIcons {
             self.attachMenus()
         } else {
@@ -209,17 +221,25 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     }
 
     private func attachMenus() {
-        self.statusItem.menu = self.makeMenu()
+        if self.mergedMenu == nil {
+            self.mergedMenu = self.makeMenu()
+        }
+        self.statusItem.menu = self.mergedMenu
     }
 
     private func attachMenus(fallback: UsageProvider? = nil) {
-        self.menuProviders.removeAll()
         for provider in UsageProvider.allCases {
             guard let item = self.statusItems[provider] else { continue }
             if self.isEnabled(provider) {
-                item.menu = self.makeMenu(for: provider)
+                if self.providerMenus[provider] == nil {
+                    self.providerMenus[provider] = self.makeMenu(for: provider)
+                }
+                item.menu = self.providerMenus[provider]
             } else if fallback == provider {
-                item.menu = self.makeMenu(for: nil)
+                if self.fallbackMenu == nil {
+                    self.fallbackMenu = self.makeMenu(for: nil)
+                }
+                item.menu = self.fallbackMenu
             } else {
                 item.menu = nil
             }

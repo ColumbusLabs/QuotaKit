@@ -73,6 +73,27 @@ public struct ClaudeStatusProbe: Sendable {
 
     // MARK: - Parsing helpers
 
+    private struct LabelSearchContext {
+        let lines: [String]
+        let normalizedLines: [String]
+        let normalizedData: Data
+
+        init(text: String) {
+            self.lines = text.components(separatedBy: .newlines)
+            self.normalizedLines = self.lines.map { ClaudeStatusProbe.normalizedForLabelSearch($0) }
+            let normalized = ClaudeStatusProbe.normalizedForLabelSearch(text)
+            self.normalizedData = Data(normalized.utf8)
+        }
+
+        func contains(_ needle: Data) -> Bool {
+            self.normalizedData.range(of: needle) != nil
+        }
+    }
+
+    private static let weeklyLabelNeedle = Data("current week".utf8)
+    private static let opusLabelNeedle = Data("opus".utf8)
+    private static let sonnetLabelNeedle = Data("sonnet".utf8)
+
     public static func parse(text: String, statusText: String? = nil) throws -> ClaudeStatusSnapshot {
         let clean = TextParsing.stripANSICodes(text)
         let statusClean = statusText.map(TextParsing.stripANSICodes)
@@ -89,22 +110,23 @@ public struct ClaudeStatusProbe: Sendable {
             throw ClaudeStatusProbeError.parseFailed(usageError)
         }
 
-        var sessionPct = self.extractPercent(labelSubstring: "Current session", text: clean)
-        var weeklyPct = self.extractPercent(labelSubstring: "Current week (all models)", text: clean)
+        let labelContext = LabelSearchContext(text: clean)
+
+        var sessionPct = self.extractPercent(labelSubstring: "Current session", context: labelContext)
+        var weeklyPct = self.extractPercent(labelSubstring: "Current week (all models)", context: labelContext)
         var opusPct = self.extractPercent(
             labelSubstrings: [
                 "Current week (Opus)",
                 "Current week (Sonnet only)",
                 "Current week (Sonnet)",
             ],
-            text: clean)
+            context: labelContext)
 
         // Fallback: order-based percent scraping when labels are present but the surrounding layout moved.
         // Only apply the fallback when the corresponding label exists in the rendered panel; enterprise accounts
         // may omit the weekly panel entirely, and we should treat that as "unavailable" rather than guessing.
-        let normalizedLower = self.normalizedForLabelSearch(clean)
-        let hasWeeklyLabel = normalizedLower.contains("current week")
-        let hasOpusLabel = normalizedLower.contains("opus") || normalizedLower.contains("sonnet")
+        let hasWeeklyLabel = labelContext.contains(Self.weeklyLabelNeedle)
+        let hasOpusLabel = labelContext.contains(Self.opusLabelNeedle) || labelContext.contains(Self.sonnetLabelNeedle)
 
         if sessionPct == nil || (hasWeeklyLabel && weeklyPct == nil) || (hasOpusLabel && opusPct == nil) {
             let ordered = self.allPercents(clean)
@@ -170,9 +192,9 @@ public struct ClaudeStatusProbe: Sendable {
             throw ClaudeStatusProbeError.parseFailed("Missing Current session")
         }
 
-        let sessionReset = self.extractReset(labelSubstring: "Current session", text: clean)
+        let sessionReset = self.extractReset(labelSubstring: "Current session", context: labelContext)
         let weeklyReset = hasWeeklyLabel
-            ? self.extractReset(labelSubstring: "Current week (all models)", text: clean)
+            ? self.extractReset(labelSubstring: "Current week (all models)", context: labelContext)
             : nil
         let opusReset = hasOpusLabel
             ? self.extractReset(
@@ -181,7 +203,7 @@ public struct ClaudeStatusProbe: Sendable {
                     "Current week (Sonnet only)",
                     "Current week (Sonnet)",
                 ],
-                text: clean)
+                context: labelContext)
             : nil
 
         return ClaudeStatusSnapshot(
@@ -197,10 +219,10 @@ public struct ClaudeStatusProbe: Sendable {
             rawText: text + (statusText ?? ""))
     }
 
-    private static func extractPercent(labelSubstring: String, text: String) -> Int? {
-        let lines = text.components(separatedBy: .newlines)
+    private static func extractPercent(labelSubstring: String, context: LabelSearchContext) -> Int? {
+        let lines = context.lines
         let label = self.normalizedForLabelSearch(labelSubstring)
-        for (idx, line) in lines.enumerated() where self.normalizedForLabelSearch(line).contains(label) {
+        for (idx, normalizedLine) in context.normalizedLines.enumerated() where normalizedLine.contains(label) {
             // Claude's usage panel can take a moment to render percentages (especially on enterprise accounts),
             // so scan a larger window than the original 3–4 lines.
             let window = lines.dropFirst(idx).prefix(12)
@@ -211,9 +233,9 @@ public struct ClaudeStatusProbe: Sendable {
         return nil
     }
 
-    private static func extractPercent(labelSubstrings: [String], text: String) -> Int? {
+    private static func extractPercent(labelSubstrings: [String], context: LabelSearchContext) -> Int? {
         for label in labelSubstrings {
-            if let value = self.extractPercent(labelSubstring: label, text: text) { return value }
+            if let value = self.extractPercent(labelSubstring: label, context: context) { return value }
         }
         return nil
     }
@@ -296,10 +318,10 @@ public struct ClaudeStatusProbe: Sendable {
         return results
     }
 
-    private static func extractReset(labelSubstring: String, text: String) -> String? {
-        let lines = text.components(separatedBy: .newlines)
+    private static func extractReset(labelSubstring: String, context: LabelSearchContext) -> String? {
+        let lines = context.lines
         let label = self.normalizedForLabelSearch(labelSubstring)
-        for (idx, line) in lines.enumerated() where self.normalizedForLabelSearch(line).contains(label) {
+        for (idx, normalizedLine) in context.normalizedLines.enumerated() where normalizedLine.contains(label) {
             let window = lines.dropFirst(idx).prefix(14)
             for candidate in window {
                 let trimmed = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -311,9 +333,9 @@ public struct ClaudeStatusProbe: Sendable {
         return nil
     }
 
-    private static func extractReset(labelSubstrings: [String], text: String) -> String? {
+    private static func extractReset(labelSubstrings: [String], context: LabelSearchContext) -> String? {
         for label in labelSubstrings {
-            if let value = self.extractReset(labelSubstring: label, text: text) { return value }
+            if let value = self.extractReset(labelSubstring: label, context: context) { return value }
         }
         return nil
     }

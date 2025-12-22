@@ -19,29 +19,40 @@ extension StatusItemController {
         let menu = NSMenu()
         menu.autoenablesItems = false
         menu.delegate = self
-        self.populateMenu(menu)
         return menu
     }
 
     func menuWillOpen(_ menu: NSMenu) {
+        let provider: UsageProvider?
         if self.shouldMergeIcons {
             self.selectedMenuProvider = self.resolvedMenuProvider()
             self.lastMenuProvider = self.selectedMenuProvider ?? .codex
-            self.refreshMenuCardHeights(in: menu)
+            provider = self.selectedMenuProvider
         } else {
-            self.refreshMenuCardHeights(in: menu)
             if let provider = self.menuProviders[ObjectIdentifier(menu)] {
                 self.lastMenuProvider = provider
-            } else {
+                provider = provider
+            } else if menu === self.fallbackMenu {
                 self.lastMenuProvider = self.store.enabledProviders().first ?? .codex
+                provider = nil
+            } else {
+                let resolved = self.store.enabledProviders().first ?? .codex
+                self.lastMenuProvider = resolved
+                provider = resolved
             }
         }
+
+        if self.menuNeedsRefresh(menu) {
+            self.populateMenu(menu, provider: provider)
+            self.markMenuFresh(menu)
+        }
+        self.refreshMenuCardHeights(in: menu)
     }
 
-    private func populateMenu(_ menu: NSMenu) {
+    private func populateMenu(_ menu: NSMenu, provider: UsageProvider?) {
         menu.removeAllItems()
 
-        let selectedProvider = self.resolvedMenuProvider()
+        let selectedProvider = provider
         let enabledProviders = self.store.enabledProviders()
         let descriptor = MenuDescriptor.build(
             provider: selectedProvider,
@@ -49,19 +60,19 @@ extension StatusItemController {
             settings: self.settings,
             account: self.account)
         let dashboard = self.store.openAIDashboard
-        let openAIWebEligible = selectedProvider == .codex &&
+        let currentProvider = selectedProvider ?? enabledProviders.first ?? .codex
+        let openAIWebEligible = currentProvider == .codex &&
             self.settings.openAIDashboardEnabled &&
             self.store.openAIDashboardRequiresLogin == false &&
             dashboard != nil
         let hasCreditsHistory = openAIWebEligible && !(dashboard?.creditEvents ?? []).isEmpty
         let hasUsageBreakdown = openAIWebEligible && !(dashboard?.usageBreakdown ?? []).isEmpty
-        let currentProvider = selectedProvider ?? enabledProviders.first ?? .codex
         let hasCostHistory = self.settings.isCCUsageCostUsageEffectivelyEnabled(for: currentProvider) &&
             (self.store.tokenSnapshot(for: currentProvider)?.daily.isEmpty == false)
         let hasOpenAIWebMenuItems = hasCreditsHistory || hasUsageBreakdown || hasCostHistory
         var addedOpenAIWebItems = false
 
-        if enabledProviders.count > 1 {
+        if self.shouldMergeIcons, enabledProviders.count > 1 {
             let switcherItem = self.makeProviderSwitcherItem(
                 providers: enabledProviders,
                 selected: selectedProvider,
@@ -151,109 +162,11 @@ extension StatusItemController {
     }
 
     func makeMenu(for provider: UsageProvider?) -> NSMenu {
-        let targetProvider = provider ?? self.store.enabledProviders().first ?? .codex
-        let descriptor = MenuDescriptor.build(
-            provider: provider,
-            store: self.store,
-            settings: self.settings,
-            account: self.account)
-        let dashboard = self.store.openAIDashboard
-        let openAIWebEligible = targetProvider == .codex &&
-            self.settings.openAIDashboardEnabled &&
-            self.store.openAIDashboardRequiresLogin == false &&
-            dashboard != nil
-        let hasCreditsHistory = openAIWebEligible && !(dashboard?.creditEvents ?? []).isEmpty
-        let hasUsageBreakdown = openAIWebEligible && !(dashboard?.usageBreakdown ?? []).isEmpty
-        let hasCostHistory = self.settings.isCCUsageCostUsageEffectivelyEnabled(for: targetProvider) &&
-            (self.store.tokenSnapshot(for: targetProvider)?.daily.isEmpty == false)
-        let hasOpenAIWebMenuItems = hasCreditsHistory || hasUsageBreakdown || hasCostHistory
-        var addedOpenAIWebItems = false
-
         let menu = NSMenu()
         menu.autoenablesItems = false
         menu.delegate = self
         if let provider {
             self.menuProviders[ObjectIdentifier(menu)] = provider
-        }
-
-        if let model = self.menuCardModel(for: provider) {
-            if hasOpenAIWebMenuItems {
-                let webItems = OpenAIWebMenuItems(
-                    hasUsageBreakdown: hasUsageBreakdown,
-                    hasCreditsHistory: hasCreditsHistory,
-                    hasCostHistory: hasCostHistory)
-                self.addMenuCardSections(
-                    to: menu,
-                    model: model,
-                    provider: targetProvider,
-                    webItems: webItems)
-                addedOpenAIWebItems = true
-            } else {
-                menu.addItem(self.makeMenuCardItem(UsageMenuCardView(model: model), id: "menuCard"))
-                // Keep the menu visually grouped.
-                menu.addItem(.separator())
-            }
-        }
-
-        if hasOpenAIWebMenuItems {
-            if !addedOpenAIWebItems {
-                // Only show these when we actually have additional data.
-                if hasUsageBreakdown {
-                    _ = self.addUsageBreakdownSubmenu(to: menu)
-                }
-                if hasCreditsHistory {
-                    _ = self.addCreditsHistorySubmenu(to: menu)
-                }
-                if hasCostHistory {
-                    _ = self.addCostHistorySubmenu(to: menu, provider: targetProvider)
-                }
-            }
-            menu.addItem(.separator())
-        }
-
-        let actionableSections = Array(descriptor.sections.suffix(2))
-        for (index, section) in actionableSections.enumerated() {
-            for entry in section.entries {
-                switch entry {
-                case let .text(text, style):
-                    let item = NSMenuItem(title: text, action: nil, keyEquivalent: "")
-                    item.isEnabled = false
-                    if style == .headline {
-                        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .semibold)
-                        item.attributedTitle = NSAttributedString(string: text, attributes: [.font: font])
-                    } else if style == .secondary {
-                        let font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
-                        item.attributedTitle = NSAttributedString(
-                            string: text,
-                            attributes: [.font: font, .foregroundColor: NSColor.secondaryLabelColor])
-                    }
-                    menu.addItem(item)
-                case let .action(title, action):
-                    let (selector, represented) = self.selector(for: action)
-                    let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
-                    item.target = self
-                    item.representedObject = represented
-                    if let iconName = action.systemImageName,
-                       let image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)
-                    {
-                        image.isTemplate = true
-                        image.size = NSSize(width: 16, height: 16)
-                        item.image = image
-                    }
-                    if case let .switchAccount(targetProvider) = action,
-                       let subtitle = self.switchAccountSubtitle(for: targetProvider)
-                    {
-                        item.subtitle = subtitle
-                        item.isEnabled = false
-                    }
-                    menu.addItem(item)
-                case .divider:
-                    menu.addItem(.separator())
-                }
-            }
-            if index < actionableSections.count - 1 {
-                menu.addItem(.separator())
-            }
         }
         return menu
     }
@@ -274,7 +187,8 @@ extension StatusItemController {
                 guard let self, let menu else { return }
                 self.selectedMenuProvider = provider
                 self.lastMenuProvider = provider
-                self.populateMenu(menu)
+                self.populateMenu(menu, provider: provider)
+                self.markMenuFresh(menu)
                 self.refreshMenuCardHeights(in: menu)
                 self.applyIcon(phase: nil)
             })
@@ -291,6 +205,16 @@ extension StatusItemController {
             return selected
         }
         return enabled.first
+    }
+
+    private func menuNeedsRefresh(_ menu: NSMenu) -> Bool {
+        let key = ObjectIdentifier(menu)
+        return self.menuVersions[key] != self.menuContentVersion
+    }
+
+    private func markMenuFresh(_ menu: NSMenu) {
+        let key = ObjectIdentifier(menu)
+        self.menuVersions[key] = self.menuContentVersion
     }
 
     private func refreshMenuCardHeights(in menu: NSMenu) {

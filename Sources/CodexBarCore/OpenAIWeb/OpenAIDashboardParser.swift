@@ -62,13 +62,7 @@ public enum OpenAIDashboardParser {
 
     public static func parseCodeReviewRemainingPercent(bodyText: String) -> Double? {
         let cleaned = bodyText.replacingOccurrences(of: "\r", with: "\n")
-        let patterns = [
-            #"Code\s*review[^0-9%]*([0-9]{1,3})%\s*remaining"#,
-            #"Core\s*review[^0-9%]*([0-9]{1,3})%\s*remaining"#,
-        ]
-
-        for pattern in patterns {
-            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { continue }
+        for regex in self.codeReviewRegexes {
             let range = NSRange(cleaned.startIndex..<cleaned.endIndex, in: cleaned)
             guard let match = regex.firstMatch(in: cleaned, options: [], range: range),
                   match.numberOfRanges >= 2,
@@ -80,9 +74,7 @@ public enum OpenAIDashboardParser {
     }
 
     public static func parseCreditEvents(rows: [[String]]) -> [CreditEvent] {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "MMM d, yyyy"
+        let formatter = self.creditDateFormatter()
 
         return rows.compactMap { row in
             guard row.count >= 3 else { return nil }
@@ -106,17 +98,71 @@ public enum OpenAIDashboardParser {
 
     // MARK: - Private
 
+    private static let codeReviewRegexes: [NSRegularExpression] = {
+        let patterns = [
+            #"Code\s*review[^0-9%]*([0-9]{1,3})%\s*remaining"#,
+            #"Core\s*review[^0-9%]*([0-9]{1,3})%\s*remaining"#,
+        ]
+        return patterns.compactMap { pattern in
+            try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
+        }
+    }()
+
+    private static let creditDateFormatterKey = "OpenAIDashboardParser.creditDateFormatter"
+    private static let clientBootstrapNeedle = Data("id=\"client-bootstrap\"".utf8)
+    private static let scriptCloseNeedle = Data("</script>".utf8)
+
+    private static func creditDateFormatter() -> DateFormatter {
+        let threadDict = Thread.current.threadDictionary
+        if let cached = threadDict[self.creditDateFormatterKey] as? DateFormatter {
+            return cached
+        }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "MMM d, yyyy"
+        threadDict[self.creditDateFormatterKey] = formatter
+        return formatter
+    }
+
     private static func clientBootstrapJSONData(fromHTML html: String) -> Data? {
-        let needle = "id=\"client-bootstrap\""
-        guard let idRange = html.range(of: needle) else { return nil }
+        let data = Data(html.utf8)
+        guard let idRange = data.range(of: self.clientBootstrapNeedle) else { return nil }
 
-        // Find the end of the opening <script ...> tag.
-        guard let openTagEnd = html[idRange.lowerBound...].firstIndex(of: ">") else { return nil }
-        let contentStart = html.index(after: openTagEnd)
+        guard let openTagEnd = data[idRange.upperBound...].firstIndex(of: UInt8(ascii: ">")) else { return nil }
+        let contentStart = data.index(after: openTagEnd)
+        guard let closeRange = data.range(of: self.scriptCloseNeedle, range: contentStart..<data.endIndex) else {
+            return nil
+        }
+        let rawData = data[contentStart..<closeRange.lowerBound]
+        let trimmed = self.trimASCIIWhitespace(Data(rawData))
+        return trimmed.isEmpty ? nil : trimmed
+    }
 
-        guard let closeRange = html.range(of: "</script>", range: contentStart..<html.endIndex) else { return nil }
-        let raw = html[contentStart..<closeRange.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !raw.isEmpty else { return nil }
-        return Data(raw.utf8)
+    private static func trimASCIIWhitespace(_ data: Data) -> Data {
+        guard !data.isEmpty else { return data }
+        var start = data.startIndex
+        var end = data.endIndex
+
+        while start < end, data[start].isASCIIWhitespace {
+            start = data.index(after: start)
+        }
+        while end > start {
+            let prev = data.index(before: end)
+            if data[prev].isASCIIWhitespace {
+                end = prev
+            } else {
+                break
+            }
+        }
+        return data.subdata(in: start..<end)
+    }
+}
+
+extension UInt8 {
+    fileprivate var isASCIIWhitespace: Bool {
+        switch self {
+        case 9, 10, 13, 32: true
+        default: false
+        }
     }
 }

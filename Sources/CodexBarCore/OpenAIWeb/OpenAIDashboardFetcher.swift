@@ -67,8 +67,10 @@ public struct OpenAIDashboardFetcher {
         debugDumpHTML: Bool = false,
         timeout: TimeInterval = 60) async throws -> OpenAIDashboardSnapshot
     {
-        let (webView, host, log) = try await self.makeWebView(websiteDataStore: websiteDataStore, logger: logger)
-        defer { host.close() }
+        let lease = try await self.makeWebView(websiteDataStore: websiteDataStore, logger: logger)
+        defer { lease.release() }
+        let webView = lease.webView
+        let log = lease.log
 
         let deadline = Date().addingTimeInterval(timeout)
         var lastBody: String?
@@ -229,6 +231,8 @@ public struct OpenAIDashboardFetcher {
     }
 
     public func clearSessionData(accountEmail: String?) async {
+        let store = OpenAIDashboardWebsiteDataStore.store(forAccountEmail: accountEmail)
+        OpenAIDashboardWebViewCache.shared.evict(websiteDataStore: store)
         await OpenAIDashboardWebsiteDataStore.clearStore(forAccountEmail: accountEmail)
     }
 
@@ -237,8 +241,10 @@ public struct OpenAIDashboardFetcher {
         logger: ((String) -> Void)? = nil,
         timeout: TimeInterval = 30) async throws -> ProbeResult
     {
-        let (webView, host, log) = try await self.makeWebView(websiteDataStore: websiteDataStore, logger: logger)
-        defer { host.close() }
+        let lease = try await self.makeWebView(websiteDataStore: websiteDataStore, logger: logger)
+        defer { lease.release() }
+        let webView = lease.webView
+        let log = lease.log
 
         let deadline = Date().addingTimeInterval(timeout)
         var lastBody: String?
@@ -306,7 +312,7 @@ public struct OpenAIDashboardFetcher {
     }
 
     private func scrape(webView: WKWebView) async throws -> ScrapeResult {
-        let any = try await webView.evaluateJavaScript(Self.scrapeScript)
+        let any = try await webView.evaluateJavaScript(openAIDashboardScrapeScript)
         guard let dict = any as? [String: Any] else {
             return ScrapeResult(
                 loginRequired: true,
@@ -379,7 +385,268 @@ public struct OpenAIDashboardFetcher {
             didScrollToCredits: (dict["didScrollToCredits"] as? Bool) ?? false)
     }
 
-    private static let scrapeScript = """
+    private func makeWebView(
+        websiteDataStore: WKWebsiteDataStore,
+        logger: ((String) -> Void)?) async throws -> OpenAIDashboardWebViewLease
+    {
+        try await OpenAIDashboardWebViewCache.shared.acquire(
+            websiteDataStore: websiteDataStore,
+            usageURL: self.usageURL,
+            logger: logger)
+    }
+
+    private static func writeDebugArtifacts(html: String, bodyText: String?, logger: (String) -> Void) {
+        let stamp = Int(Date().timeIntervalSince1970)
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+        let htmlURL = dir.appendingPathComponent("codex-openai-dashboard-\(stamp).html")
+        do {
+            try html.write(to: htmlURL, atomically: true, encoding: .utf8)
+            logger("Dumped HTML: \(htmlURL.path)")
+        } catch {
+            logger("Failed to dump HTML: \(error.localizedDescription)")
+        }
+
+        if let bodyText, !bodyText.isEmpty {
+            let textURL = dir.appendingPathComponent("codex-openai-dashboard-\(stamp).txt")
+            do {
+                try bodyText.write(to: textURL, atomically: true, encoding: .utf8)
+                logger("Dumped text: \(textURL.path)")
+            } catch {
+                logger("Failed to dump text: \(error.localizedDescription)")
+            }
+        }
+    }
+}
+
+private struct OpenAIDashboardWebViewLease {
+    let webView: WKWebView
+    let log: (String) -> Void
+    let release: () -> Void
+}
+
+@MainActor
+private final class OpenAIDashboardWebViewCache {
+    static let shared = OpenAIDashboardWebViewCache()
+
+    private final class Entry {
+        let webView: WKWebView
+        let host: OffscreenWebViewHost
+        var lastUsedAt: Date
+        var isBusy: Bool
+
+        init(webView: WKWebView, host: OffscreenWebViewHost, lastUsedAt: Date, isBusy: Bool) {
+            self.webView = webView
+            self.host = host
+            self.lastUsedAt = lastUsedAt
+            self.isBusy = isBusy
+        }
+    }
+
+    private var entries: [ObjectIdentifier: Entry] = [:]
+    private let idleTimeout: TimeInterval = 10 * 60
+
+    func acquire(
+        websiteDataStore: WKWebsiteDataStore,
+        usageURL: URL,
+        logger: ((String) -> Void)?) async throws -> OpenAIDashboardWebViewLease
+    {
+        let now = Date()
+        self.prune(now: now)
+
+        let log: (String) -> Void = { message in
+            logger?("[webview] \(message)")
+        }
+        let key = ObjectIdentifier(websiteDataStore)
+
+        if let entry = self.entries[key] {
+            if entry.isBusy {
+                log("Cached WebView busy; using a temporary WebView.")
+                let (webView, host) = self.makeWebView(websiteDataStore: websiteDataStore)
+                do {
+                    try await self.prepareWebView(webView, usageURL: usageURL)
+                } catch {
+                    host.close()
+                    throw error
+                }
+                return OpenAIDashboardWebViewLease(
+                    webView: webView,
+                    log: log,
+                    release: { host.close() })
+            }
+
+            entry.isBusy = true
+            entry.lastUsedAt = now
+            do {
+                try await self.prepareWebView(entry.webView, usageURL: usageURL)
+            } catch {
+                entry.isBusy = false
+                entry.lastUsedAt = Date()
+                throw error
+            }
+
+            return OpenAIDashboardWebViewLease(
+                webView: entry.webView,
+                log: log,
+                release: { [weak self, weak entry] in
+                    guard let self, let entry else { return }
+                    entry.isBusy = false
+                    entry.lastUsedAt = Date()
+                    self.prune(now: Date())
+                })
+        }
+
+        let (webView, host) = self.makeWebView(websiteDataStore: websiteDataStore)
+        let entry = Entry(webView: webView, host: host, lastUsedAt: now, isBusy: true)
+        self.entries[key] = entry
+
+        do {
+            try await self.prepareWebView(webView, usageURL: usageURL)
+        } catch {
+            self.entries.removeValue(forKey: key)
+            host.close()
+            throw error
+        }
+
+        return OpenAIDashboardWebViewLease(
+            webView: webView,
+            log: log,
+            release: { [weak self, weak entry] in
+                guard let self, let entry else { return }
+                entry.isBusy = false
+                entry.lastUsedAt = Date()
+                self.prune(now: Date())
+            })
+    }
+
+    func evict(websiteDataStore: WKWebsiteDataStore) {
+        let key = ObjectIdentifier(websiteDataStore)
+        guard let entry = self.entries.removeValue(forKey: key) else { return }
+        entry.host.close()
+    }
+
+    private func prune(now: Date) {
+        let expired = self.entries.filter { _, entry in
+            !entry.isBusy && now.timeIntervalSince(entry.lastUsedAt) > self.idleTimeout
+        }
+        for (key, entry) in expired {
+            entry.host.close()
+            self.entries.removeValue(forKey: key)
+        }
+    }
+
+    private func makeWebView(websiteDataStore: WKWebsiteDataStore) -> (WKWebView, OffscreenWebViewHost) {
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = websiteDataStore
+
+        let webView = WKWebView(frame: .zero, configuration: config)
+        let host = OffscreenWebViewHost(webView: webView)
+        return (webView, host)
+    }
+
+    private func prepareWebView(_ webView: WKWebView, usageURL: URL) async throws {
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            let delegate = NavigationDelegate { result in
+                cont.resume(with: result)
+            }
+            webView.navigationDelegate = delegate
+            webView.codexNavigationDelegate = delegate
+            _ = webView.load(URLRequest(url: usageURL))
+        }
+    }
+}
+
+// MARK: - Navigation helper (revived from the old credits scraper)
+
+@MainActor
+final class NavigationDelegate: NSObject, WKNavigationDelegate {
+    private let completion: (Result<Void, Error>) -> Void
+    private var hasCompleted: Bool = false
+    static var associationKey: UInt8 = 0
+
+    init(completion: @escaping (Result<Void, Error>) -> Void) {
+        self.completion = completion
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        self.completeOnce(.success(()))
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        self.completeOnce(.failure(error))
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        self.completeOnce(.failure(error))
+    }
+
+    private func completeOnce(_ result: Result<Void, Error>) {
+        guard !self.hasCompleted else { return }
+        self.hasCompleted = true
+        self.completion(result)
+    }
+}
+
+// MARK: - Offscreen WebKit host
+
+@MainActor
+private final class OffscreenWebViewHost {
+    private let window: NSWindow
+
+    init(webView: WKWebView) {
+        // WebKit throttles timers/RAF aggressively when a WKWebView is not considered "visible".
+        // The Codex usage page uses streaming SSR + client hydration; if RAF is throttled, the
+        // dashboard never becomes part of the visible DOM and `document.body.innerText` stays tiny.
+        //
+        // Keep a transparent (mouse-ignoring) window *on-screen* for a short time while scraping.
+        let visibleFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 900, height: 700)
+        let width: CGFloat = min(1200, visibleFrame.width)
+        let height: CGFloat = min(1600, visibleFrame.height)
+        let frame = NSRect(x: visibleFrame.maxX - width, y: visibleFrame.minY, width: width, height: height)
+        let window = NSWindow(
+            contentRect: frame,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false)
+        window.isReleasedWhenClosed = false
+        window.backgroundColor = .clear
+        window.isOpaque = false
+        // Keep it effectively invisible, but non-zero alpha so WebKit treats it as "visible" and doesn't
+        // stall hydration (we've observed a head-only HTML shell for minutes at alpha=0).
+        window.alphaValue = 0.01
+        window.hasShadow = false
+        window.ignoresMouseEvents = true
+        window.level = .floating
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        window.isExcludedFromWindowsMenu = true
+        window.contentView = webView
+        window.orderFrontRegardless()
+
+        self.window = window
+    }
+
+    func close() {
+        self.window.orderOut(nil)
+        self.window.close()
+    }
+}
+
+extension WKWebView {
+    var codexNavigationDelegate: NavigationDelegate? {
+        get {
+            objc_getAssociatedObject(self, &NavigationDelegate.associationKey) as? NavigationDelegate
+        }
+        set {
+            objc_setAssociatedObject(
+                self,
+                &NavigationDelegate.associationKey,
+                newValue,
+                .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+    }
+}
+
+private let openAIDashboardScrapeScript = """
+
     (() => {
       const textOf = el => {
         const raw = el && (el.innerText || el.textContent) ? String(el.innerText || el.textContent) : '';
@@ -793,142 +1060,5 @@ public struct OpenAIDashboardFetcher {
         didScrollToCredits
       };
     })();
-    """
-
-    private func makeWebView(
-        websiteDataStore: WKWebsiteDataStore,
-        logger: ((String) -> Void)?) async throws -> (WKWebView, OffscreenWebViewHost, (String) -> Void)
-    {
-        let config = WKWebViewConfiguration()
-        config.websiteDataStore = websiteDataStore
-
-        let webView = WKWebView(frame: .zero, configuration: config)
-        let host = OffscreenWebViewHost(webView: webView)
-        let log: (String) -> Void = { message in
-            logger?("[webview] \(message)")
-        }
-        _ = webView.load(URLRequest(url: self.usageURL))
-
-        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
-            let delegate = NavigationDelegate { result in
-                cont.resume(with: result)
-            }
-            webView.navigationDelegate = delegate
-            webView.codexNavigationDelegate = delegate
-        }
-
-        return (webView, host, log)
-    }
-
-    private static func writeDebugArtifacts(html: String, bodyText: String?, logger: (String) -> Void) {
-        let stamp = Int(Date().timeIntervalSince1970)
-        let dir = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-        let htmlURL = dir.appendingPathComponent("codex-openai-dashboard-\(stamp).html")
-        do {
-            try html.write(to: htmlURL, atomically: true, encoding: .utf8)
-            logger("Dumped HTML: \(htmlURL.path)")
-        } catch {
-            logger("Failed to dump HTML: \(error.localizedDescription)")
-        }
-
-        if let bodyText, !bodyText.isEmpty {
-            let textURL = dir.appendingPathComponent("codex-openai-dashboard-\(stamp).txt")
-            do {
-                try bodyText.write(to: textURL, atomically: true, encoding: .utf8)
-                logger("Dumped text: \(textURL.path)")
-            } catch {
-                logger("Failed to dump text: \(error.localizedDescription)")
-            }
-        }
-    }
-}
-
-// MARK: - Navigation helper (revived from the old credits scraper)
-
-@MainActor
-final class NavigationDelegate: NSObject, WKNavigationDelegate {
-    private let completion: (Result<Void, Error>) -> Void
-    private var hasCompleted: Bool = false
-    static var associationKey: UInt8 = 0
-
-    init(completion: @escaping (Result<Void, Error>) -> Void) {
-        self.completion = completion
-    }
-
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        self.completeOnce(.success(()))
-    }
-
-    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        self.completeOnce(.failure(error))
-    }
-
-    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        self.completeOnce(.failure(error))
-    }
-
-    private func completeOnce(_ result: Result<Void, Error>) {
-        guard !self.hasCompleted else { return }
-        self.hasCompleted = true
-        self.completion(result)
-    }
-}
-
-// MARK: - Offscreen WebKit host
-
-@MainActor
-private final class OffscreenWebViewHost {
-    private let window: NSWindow
-
-    init(webView: WKWebView) {
-        // WebKit throttles timers/RAF aggressively when a WKWebView is not considered "visible".
-        // The Codex usage page uses streaming SSR + client hydration; if RAF is throttled, the
-        // dashboard never becomes part of the visible DOM and `document.body.innerText` stays tiny.
-        //
-        // Keep a transparent (mouse-ignoring) window *on-screen* for a short time while scraping.
-        let visibleFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 900, height: 700)
-        let width: CGFloat = min(1200, visibleFrame.width)
-        let height: CGFloat = min(1600, visibleFrame.height)
-        let frame = NSRect(x: visibleFrame.maxX - width, y: visibleFrame.minY, width: width, height: height)
-        let window = NSWindow(
-            contentRect: frame,
-            styleMask: [.borderless],
-            backing: .buffered,
-            defer: false)
-        window.isReleasedWhenClosed = false
-        window.backgroundColor = .clear
-        window.isOpaque = false
-        // Keep it effectively invisible, but non-zero alpha so WebKit treats it as "visible" and doesn't
-        // stall hydration (we've observed a head-only HTML shell for minutes at alpha=0).
-        window.alphaValue = 0.01
-        window.hasShadow = false
-        window.ignoresMouseEvents = true
-        window.level = .floating
-        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        window.isExcludedFromWindowsMenu = true
-        window.contentView = webView
-        window.orderFrontRegardless()
-
-        self.window = window
-    }
-
-    func close() {
-        self.window.orderOut(nil)
-        self.window.close()
-    }
-}
-
-extension WKWebView {
-    var codexNavigationDelegate: NavigationDelegate? {
-        get {
-            objc_getAssociatedObject(self, &NavigationDelegate.associationKey) as? NavigationDelegate
-        }
-        set {
-            objc_setAssociatedObject(
-                self,
-                &NavigationDelegate.associationKey,
-                newValue,
-                .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        }
-    }
-}
+    
+"""
