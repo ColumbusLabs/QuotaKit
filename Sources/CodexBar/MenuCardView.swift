@@ -210,6 +210,175 @@ struct UsageMenuCardView: View {
     }
 }
 
+struct UsageMenuCardUsageSectionView: View {
+    let model: UsageMenuCardView.Model
+    let showBottomDivider: Bool
+    let bottomPadding: CGFloat
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(self.model.providerName)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Spacer()
+                Text(self.model.email)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            HStack(alignment: .top) {
+                Text(self.model.subtitleText)
+                    .font(.footnote)
+                    .foregroundStyle(self.subtitleColor)
+                    .lineLimit(1)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer()
+                if let plan = self.model.planText {
+                    Text(plan)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            if self.hasDetails {
+                Divider()
+            }
+
+            if self.model.metrics.isEmpty {
+                if let placeholder = self.model.placeholder {
+                    Text(placeholder)
+                        .foregroundStyle(.secondary)
+                        .font(.subheadline)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(self.model.metrics) { metric in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(metric.title)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            UsageProgressBar(
+                                percent: metric.percent,
+                                tint: self.model.progressColor,
+                                accessibilityLabel: metric.percentStyle.accessibilityLabel)
+                            HStack(alignment: .firstTextBaseline) {
+                                Text(metric.percentLabel)
+                                    .font(.footnote)
+                                Spacer()
+                                if let reset = metric.resetText {
+                                    Text(reset)
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            if let detail = metric.detailText {
+                                Text(detail)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
+                    if self.showBottomDivider {
+                        Divider()
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 4)
+        .padding(.bottom, self.bottomPadding)
+        .frame(minWidth: 300, maxWidth: 300, alignment: .leading)
+    }
+
+    private var hasDetails: Bool {
+        !self.model.metrics.isEmpty || self.model.placeholder != nil || self.model.tokenUsage != nil
+    }
+
+    private var subtitleColor: Color {
+        switch self.model.subtitleStyle {
+        case .info: .secondary
+        case .loading: .secondary
+        case .error: Color(nsColor: .systemRed)
+        }
+    }
+}
+
+struct UsageMenuCardCreditsSectionView: View {
+    let model: UsageMenuCardView.Model
+    let showBottomDivider: Bool
+    let topPadding: CGFloat
+    let bottomPadding: CGFloat
+
+    var body: some View {
+        if let credits = self.model.creditsText {
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Credits")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Text(credits)
+                        .font(.footnote)
+                    if let hint = self.model.creditsHintText, !hint.isEmpty {
+                        Text(hint)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                if self.showBottomDivider {
+                    Divider()
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, self.topPadding)
+            .padding(.bottom, self.bottomPadding)
+            .frame(minWidth: 300, maxWidth: 300, alignment: .leading)
+        }
+    }
+}
+
+struct UsageMenuCardCostSectionView: View {
+    let model: UsageMenuCardView.Model
+    let topPadding: CGFloat
+    let bottomPadding: CGFloat
+
+    var body: some View {
+        if let tokenUsage = self.model.tokenUsage {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Cost")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Text(tokenUsage.sessionLine)
+                    .font(.footnote)
+                Text(tokenUsage.monthLine)
+                    .font(.footnote)
+                if let hint = tokenUsage.hintLine, !hint.isEmpty {
+                    Text(hint)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let error = tokenUsage.errorLine, !error.isEmpty {
+                    Text(error)
+                        .font(.footnote)
+                        .foregroundStyle(Color(nsColor: .systemRed))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, self.topPadding)
+            .padding(.bottom, self.bottomPadding)
+            .frame(minWidth: 300, maxWidth: 300, alignment: .leading)
+        }
+    }
+}
+
 // MARK: - Model factory
 
 extension UsageMenuCardView.Model {
