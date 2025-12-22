@@ -92,4 +92,18 @@ struct UsagePaceTextTests {
 
         #expect(text == nil)
     }
+
+    @Test
+    func weeklyPaceText_hidesWhenUsageIsDepleted() {
+        let now = Date(timeIntervalSince1970: 0)
+        let window = RateWindow(
+            usedPercent: 100,
+            windowMinutes: 10080,
+            resetsAt: now.addingTimeInterval(2 * 24 * 3600),
+            resetDescription: nil)
+
+        let text = UsagePaceText.weekly(provider: .codex, window: window, now: now)
+
+        #expect(text == nil)
+    }
 }
