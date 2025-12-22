@@ -35,8 +35,36 @@ enum IconRenderer {
         let indicator: Int
     }
 
-    private static var iconCache: [IconCacheKey: NSImage] = [:]
-    private static var iconCacheOrder: [IconCacheKey] = []
+    private final class IconCacheStore: @unchecked Sendable {
+        private var cache: [IconCacheKey: NSImage] = [:]
+        private var order: [IconCacheKey] = []
+        private let lock = NSLock()
+
+        func cachedIcon(for key: IconCacheKey) -> NSImage? {
+            self.lock.lock()
+            defer { self.lock.unlock() }
+            guard let image = self.cache[key] else { return nil }
+            if let idx = self.order.firstIndex(of: key) {
+                self.order.remove(at: idx)
+                self.order.append(key)
+            }
+            return image
+        }
+
+        func storeIcon(_ image: NSImage, for key: IconCacheKey, limit: Int) {
+            self.lock.lock()
+            defer { self.lock.unlock() }
+            self.cache[key] = image
+            self.order.removeAll { $0 == key }
+            self.order.append(key)
+            while self.order.count > limit {
+                let oldest = self.order.removeFirst()
+                self.cache.removeValue(forKey: oldest)
+            }
+        }
+    }
+
+    private static let iconCacheStore = IconCacheStore()
     private static let iconCacheLimit = 64
 
     private struct RectPx: Hashable, Sendable {
@@ -538,22 +566,11 @@ enum IconRenderer {
     }
 
     private static func cachedIcon(for key: IconCacheKey) -> NSImage? {
-        guard let image = self.iconCache[key] else { return nil }
-        if let idx = self.iconCacheOrder.firstIndex(of: key) {
-            self.iconCacheOrder.remove(at: idx)
-            self.iconCacheOrder.append(key)
-        }
-        return image
+        self.iconCacheStore.cachedIcon(for: key)
     }
 
     private static func storeIcon(_ image: NSImage, for key: IconCacheKey) {
-        self.iconCache[key] = image
-        self.iconCacheOrder.removeAll { $0 == key }
-        self.iconCacheOrder.append(key)
-        while self.iconCacheOrder.count > self.iconCacheLimit {
-            let oldest = self.iconCacheOrder.removeFirst()
-            self.iconCache.removeValue(forKey: oldest)
-        }
+        self.iconCacheStore.storeIcon(image, for: key, limit: self.iconCacheLimit)
     }
 
     private static func drawUnbraidMorph(t: Double, style: IconStyle) {

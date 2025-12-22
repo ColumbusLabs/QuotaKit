@@ -3,9 +3,6 @@ import CodexBarCore
 import Combine
 import Foundation
 import OSLog
-#if canImport(WidgetKit)
-import WidgetKit
-#endif
 
 enum IconStyle {
     case codex
@@ -81,11 +78,11 @@ struct ConsecutiveFailureGate {
 
 @MainActor
 final class UsageStore: ObservableObject {
-    @Published private var snapshots: [UsageProvider: UsageSnapshot] = [:]
-    @Published private var errors: [UsageProvider: String] = [:]
-    @Published private var tokenSnapshots: [UsageProvider: CCUsageTokenSnapshot] = [:]
-    @Published private var tokenErrors: [UsageProvider: String] = [:]
-    @Published private var tokenRefreshInFlight: Set<UsageProvider> = []
+    @Published private(set) var snapshots: [UsageProvider: UsageSnapshot] = [:]
+    @Published private(set) var errors: [UsageProvider: String] = [:]
+    @Published private(set) var tokenSnapshots: [UsageProvider: CCUsageTokenSnapshot] = [:]
+    @Published private(set) var tokenErrors: [UsageProvider: String] = [:]
+    @Published private(set) var tokenRefreshInFlight: Set<UsageProvider> = []
     @Published var credits: CreditsSnapshot?
     @Published var lastCreditsError: String?
     @Published var openAIDashboard: OpenAIDashboardSnapshot?
@@ -101,7 +98,7 @@ final class UsageStore: ObservableObject {
     @Published var isRefreshing = false
     @Published var debugForceAnimation = false
     @Published var pathDebugInfo: PathDebugSnapshot = .empty
-    @Published private var statuses: [UsageProvider: ProviderStatus] = [:]
+    @Published private(set) var statuses: [UsageProvider: ProviderStatus] = [:]
     @Published private(set) var probeLogs: [UsageProvider: String] = [:]
     private var lastCreditsSnapshot: CreditsSnapshot?
     private var creditsFailureStreak: Int = 0
@@ -130,7 +127,7 @@ final class UsageStore: ObservableObject {
     private var tokenRefreshSequenceTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
     private var lastKnownSessionRemaining: [UsageProvider: Double] = [:]
-    private var lastTokenFetchAt: [UsageProvider: Date] = [:]
+    private(set) var lastTokenFetchAt: [UsageProvider: Date] = [:]
     private let tokenFetchTTL: TimeInterval = 60 * 60
     private let tokenFetchTimeout: TimeInterval = 10 * 60
 
@@ -168,21 +165,6 @@ final class UsageStore: ObservableObject {
         Task { await self.refresh() }
         self.startTimer()
         self.startTokenTimer()
-    }
-
-    var codexSnapshot: UsageSnapshot? { self.snapshots[.codex] }
-    var claudeSnapshot: UsageSnapshot? { self.snapshots[.claude] }
-    var lastCodexError: String? { self.errors[.codex] }
-    var lastClaudeError: String? { self.errors[.claude] }
-    func error(for provider: UsageProvider) -> String? { self.errors[provider] }
-    func metadata(for provider: UsageProvider) -> ProviderMetadata { self.providerMetadata[provider]! }
-    func status(for provider: UsageProvider) -> ProviderStatus? {
-        guard self.settings.statusChecksEnabled else { return nil }
-        return self.statuses[provider]
-    }
-
-    func statusIndicator(for provider: UsageProvider) -> ProviderStatusIndicator {
-        self.status(for: provider)?.indicator ?? .none
     }
 
     /// Returns the login method (plan type) for the specified provider, if available.
@@ -243,6 +225,14 @@ final class UsageStore: ObservableObject {
 
     func enabledProviders() -> [UsageProvider] {
         UsageProvider.allCases.filter { self.isEnabled($0) }
+    }
+
+    var statusChecksEnabled: Bool {
+        self.settings.statusChecksEnabled
+    }
+
+    func metadata(for provider: UsageProvider) -> ProviderMetadata {
+        self.providerMetadata[provider]!
     }
 
     func snapshot(for provider: UsageProvider) -> UsageSnapshot? {
@@ -995,13 +985,13 @@ final class UsageStore: ObservableObject {
             !text.isEmpty else { return nil }
         return text
     }
-
-    private func refreshPathDebugInfo() {
-        self.pathDebugInfo = PathBuilder.debugSnapshot(purposes: [.rpc, .tty, .nodeTooling])
-    }
 }
 
 extension UsageStore {
+    private func refreshPathDebugInfo() {
+        self.pathDebugInfo = PathBuilder.debugSnapshot(purposes: [.rpc, .tty, .nodeTooling])
+    }
+
     func clearCostUsageCache() async -> String? {
         let errorMessage: String? = await Task.detached(priority: .utility) {
             let fm = FileManager.default
@@ -1029,40 +1019,6 @@ extension UsageStore {
         self.tokenFailureGates[.codex]?.reset()
         self.tokenFailureGates[.claude]?.reset()
         return nil
-    }
-
-    private nonisolated static func costUsageCacheDirectory(
-        fileManager: FileManager = .default) -> URL
-    {
-        let root = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        return root
-            .appendingPathComponent("CodexBar", isDirectory: true)
-            .appendingPathComponent("cost-usage", isDirectory: true)
-    }
-
-    private nonisolated static func legacyCCUsageCacheDirectory(
-        fileManager: FileManager = .default) -> URL
-    {
-        let root = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        return root
-            .appendingPathComponent("CodexBar", isDirectory: true)
-            .appendingPathComponent("ccusage-min", isDirectory: true)
-    }
-
-    func tokenSnapshot(for provider: UsageProvider) -> CCUsageTokenSnapshot? {
-        self.tokenSnapshots[provider]
-    }
-
-    func tokenError(for provider: UsageProvider) -> String? {
-        self.tokenErrors[provider]
-    }
-
-    func tokenLastAttemptAt(for provider: UsageProvider) -> Date? {
-        self.lastTokenFetchAt[provider]
-    }
-
-    func isTokenRefreshInFlight(for provider: UsageProvider) -> Bool {
-        self.tokenRefreshInFlight.contains(provider)
     }
 
     private func refreshTokenUsage(_ provider: UsageProvider, force: Bool) async {
@@ -1161,81 +1117,5 @@ extension UsageStore {
                 self.tokenErrors[provider] = nil
             }
         }
-    }
-
-    private nonisolated static func tokenCostNoDataMessage(for provider: UsageProvider) -> String {
-        let fm = FileManager.default
-        let home = fm.homeDirectoryForCurrentUser.path
-
-        switch provider {
-        case .codex:
-            let root = ProcessInfo.processInfo.environment["CODEX_HOME"].flatMap { raw -> String? in
-                let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty else { return nil }
-                return "\(trimmed)/sessions"
-            } ?? "\(home)/.codex/sessions"
-            return "No Codex sessions found in \(root)."
-        case .claude:
-            return "No Claude usage logs found in ~/.config/claude/projects or ~/.claude/projects."
-        case .gemini:
-            return "Gemini cost summary is not supported."
-        }
-    }
-
-    private func persistWidgetSnapshot(reason: String) {
-        let snapshot = self.makeWidgetSnapshot()
-        Task.detached(priority: .utility) {
-            WidgetSnapshotStore.save(snapshot)
-        }
-        #if canImport(WidgetKit)
-        WidgetCenter.shared.reloadAllTimelines()
-        #endif
-    }
-
-    private func makeWidgetSnapshot() -> WidgetSnapshot {
-        let entries = UsageProvider.allCases.compactMap { provider in
-            self.makeWidgetEntry(for: provider)
-        }
-        return WidgetSnapshot(entries: entries, generatedAt: Date())
-    }
-
-    private func makeWidgetEntry(for provider: UsageProvider) -> WidgetSnapshot.ProviderEntry? {
-        guard let snapshot = self.snapshots[provider] else { return nil }
-
-        let tokenSnapshot = self.tokenSnapshots[provider]
-        let dailyUsage = tokenSnapshot?.daily.map { entry in
-            WidgetSnapshot.DailyUsagePoint(
-                dayKey: entry.date,
-                totalTokens: entry.totalTokens,
-                costUSD: entry.costUSD)
-        } ?? []
-
-        let tokenUsage = Self.widgetTokenUsageSummary(from: tokenSnapshot)
-        let creditsRemaining = provider == .codex ? self.credits?.remaining : nil
-        let codeReviewRemaining = provider == .codex ? self.openAIDashboard?.codeReviewRemainingPercent : nil
-
-        return WidgetSnapshot.ProviderEntry(
-            provider: provider,
-            updatedAt: snapshot.updatedAt,
-            primary: snapshot.primary,
-            secondary: snapshot.secondary,
-            tertiary: snapshot.tertiary,
-            creditsRemaining: creditsRemaining,
-            codeReviewRemainingPercent: codeReviewRemaining,
-            tokenUsage: tokenUsage,
-            dailyUsage: dailyUsage)
-    }
-
-    private nonisolated static func widgetTokenUsageSummary(
-        from snapshot: CCUsageTokenSnapshot?) -> WidgetSnapshot.TokenUsageSummary?
-    {
-        guard let snapshot else { return nil }
-        let fallbackTokens = snapshot.daily.compactMap(\.totalTokens).reduce(0, +)
-        let monthTokensValue = snapshot.last30DaysTokens ?? (fallbackTokens > 0 ? fallbackTokens : nil)
-        return WidgetSnapshot.TokenUsageSummary(
-            sessionCostUSD: snapshot.sessionCostUSD,
-            sessionTokens: snapshot.sessionTokens,
-            last30DaysCostUSD: snapshot.last30DaysCostUSD,
-            last30DaysTokens: monthTokensValue)
     }
 }

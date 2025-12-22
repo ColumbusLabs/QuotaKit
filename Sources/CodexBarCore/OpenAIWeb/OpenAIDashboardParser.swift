@@ -130,7 +130,11 @@ public enum OpenAIDashboardParser {
 
         guard let openTagEnd = data[idRange.upperBound...].firstIndex(of: UInt8(ascii: ">")) else { return nil }
         let contentStart = data.index(after: openTagEnd)
-        guard let closeRange = data.range(of: self.scriptCloseNeedle, range: contentStart..<data.endIndex) else {
+        guard let closeRange = data.range(
+            of: self.scriptCloseNeedle,
+            options: [],
+            in: contentStart..<data.endIndex)
+        else {
             return nil
         }
         let rawData = data[contentStart..<closeRange.lowerBound]
