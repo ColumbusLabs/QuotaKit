@@ -402,7 +402,9 @@ extension UsageMenuCardView.Model {
         }()
 
         let monthCost = snapshot.last30DaysCostUSD.map { UsageFormatter.usdString($0) } ?? "—"
-        let monthTokens = snapshot.last30DaysTokens.map { UsageFormatter.tokenCountString($0) }
+        let fallbackTokens = snapshot.daily.compactMap(\.totalTokens).reduce(0, +)
+        let monthTokensValue = snapshot.last30DaysTokens ?? (fallbackTokens > 0 ? fallbackTokens : nil)
+        let monthTokens = monthTokensValue.map { UsageFormatter.tokenCountString($0) }
         let monthLine: String = {
             if let monthTokens {
                 return "Last 30 days: \(monthCost) · \(monthTokens) tokens"
