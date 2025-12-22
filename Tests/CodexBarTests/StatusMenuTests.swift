@@ -84,6 +84,7 @@ struct StatusMenuTests {
             preferencesSelection: PreferencesSelection())
 
         let menu = controller.makeMenu()
+        controller.menuWillOpen(menu)
         let titles = Set(menu.items.map(\.title))
         #expect(!titles.contains("Credits history"))
         #expect(!titles.contains("Usage breakdown"))
@@ -139,6 +140,7 @@ struct StatusMenuTests {
             preferencesSelection: PreferencesSelection())
 
         let menu = controller.makeMenu()
+        controller.menuWillOpen(menu)
         let titles = Set(menu.items.map(\.title))
         #expect(titles.contains("Credits history"))
         #expect(titles.contains("Usage breakdown"))

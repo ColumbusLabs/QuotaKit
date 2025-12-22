@@ -37,6 +37,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var mergedMenu: NSMenu?
     var providerMenus: [UsageProvider: NSMenu] = [:]
     var fallbackMenu: NSMenu?
+    var openMenus: [ObjectIdentifier: NSMenu] = [:]
     var blinkTask: Task<Void, Never>?
     var loginTask: Task<Void, Never>? {
         didSet { self.refreshMenusForLoginStateChange() }
@@ -166,6 +167,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
 
     private func invalidateMenus() {
         self.menuContentVersion &+= 1
+        self.refreshOpenMenusIfNeeded()
     }
 
     private func updateIcons() {

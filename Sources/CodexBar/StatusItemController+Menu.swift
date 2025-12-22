@@ -23,15 +23,15 @@ extension StatusItemController {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
-        let provider: UsageProvider?
+        var provider: UsageProvider?
         if self.shouldMergeIcons {
             self.selectedMenuProvider = self.resolvedMenuProvider()
             self.lastMenuProvider = self.selectedMenuProvider ?? .codex
             provider = self.selectedMenuProvider
         } else {
-            if let provider = self.menuProviders[ObjectIdentifier(menu)] {
-                self.lastMenuProvider = provider
-                provider = provider
+            if let menuProvider = self.menuProviders[ObjectIdentifier(menu)] {
+                self.lastMenuProvider = menuProvider
+                provider = menuProvider
             } else if menu === self.fallbackMenu {
                 self.lastMenuProvider = self.store.enabledProviders().first ?? .codex
                 provider = nil
@@ -47,6 +47,11 @@ extension StatusItemController {
             self.markMenuFresh(menu)
         }
         self.refreshMenuCardHeights(in: menu)
+        self.openMenus[ObjectIdentifier(menu)] = menu
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        self.openMenus.removeValue(forKey: ObjectIdentifier(menu))
     }
 
     private func populateMenu(_ menu: NSMenu, provider: UsageProvider?) {
@@ -215,6 +220,35 @@ extension StatusItemController {
     private func markMenuFresh(_ menu: NSMenu) {
         let key = ObjectIdentifier(menu)
         self.menuVersions[key] = self.menuContentVersion
+    }
+
+    func refreshOpenMenusIfNeeded() {
+        guard !self.openMenus.isEmpty else { return }
+        for (key, menu) in self.openMenus {
+            guard key == ObjectIdentifier(menu) else {
+                self.openMenus.removeValue(forKey: key)
+                continue
+            }
+            if self.menuNeedsRefresh(menu) {
+                let provider = self.menuProvider(for: menu)
+                self.populateMenu(menu, provider: provider)
+                self.markMenuFresh(menu)
+                self.refreshMenuCardHeights(in: menu)
+            }
+        }
+    }
+
+    private func menuProvider(for menu: NSMenu) -> UsageProvider? {
+        if self.shouldMergeIcons {
+            return self.selectedMenuProvider ?? self.resolvedMenuProvider()
+        }
+        if let provider = self.menuProviders[ObjectIdentifier(menu)] {
+            return provider
+        }
+        if menu === self.fallbackMenu {
+            return nil
+        }
+        return self.store.enabledProviders().first ?? .codex
     }
 
     private func refreshMenuCardHeights(in menu: NSMenu) {
