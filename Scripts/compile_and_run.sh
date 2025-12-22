@@ -20,6 +20,13 @@ run_step() {
   fi
 }
 
+kill_claude_probes() {
+  # CodexBar spawns `claude /usage` + `/status` in a PTY; if we kill the app mid-probe we can orphan them.
+  pkill -f "claude (/status|/usage) --allowed-tools" 2>/dev/null || true
+  sleep 0.2
+  pkill -9 -f "claude (/status|/usage) --allowed-tools" 2>/dev/null || true
+}
+
 kill_all_codexbar() {
   for _ in {1..10}; do
     pkill -f "${APP_PROCESS_PATTERN}" 2>/dev/null || true
@@ -40,6 +47,7 @@ kill_all_codexbar() {
 # 1) Kill all running CodexBar instances (debug, release, bundled).
 log "==> Killing existing CodexBar instances"
 kill_all_codexbar
+kill_claude_probes
 
 # 2) Build, test, package.
 run_step "swift build" swift build -q
