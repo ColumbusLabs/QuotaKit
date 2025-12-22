@@ -53,7 +53,6 @@ extension StatusItemController {
         let currentProvider = selectedProvider ?? enabledProviders.first ?? .codex
         let hasCostHistory = self.settings.isCCUsageCostUsageEffectivelyEnabled(for: currentProvider) &&
             (self.store.tokenSnapshot(for: currentProvider)?.daily.isEmpty == false)
-        let hasOnlyCostHistory = hasCostHistory && !hasCreditsHistory && !hasUsageBreakdown
         let hasOpenAIWebMenuItems = hasCreditsHistory || hasUsageBreakdown || hasCostHistory
 
         if enabledProviders.count > 1 {
@@ -79,18 +78,18 @@ extension StatusItemController {
             item.isEnabled = false
             item.representedObject = "menuCard"
             menu.addItem(item)
-            if !hasOnlyCostHistory {
+            if !hasOpenAIWebMenuItems {
                 menu.addItem(.separator())
             }
         }
 
         if hasOpenAIWebMenuItems {
             // Only show these when we actually have additional data.
-            if hasCreditsHistory {
-                _ = self.addCreditsHistorySubmenu(to: menu)
-            }
             if hasUsageBreakdown {
                 _ = self.addUsageBreakdownSubmenu(to: menu)
+            }
+            if hasCreditsHistory {
+                _ = self.addCreditsHistorySubmenu(to: menu)
             }
             if hasCostHistory {
                 _ = self.addCostHistorySubmenu(to: menu, provider: currentProvider)
@@ -158,7 +157,9 @@ extension StatusItemController {
             dashboard != nil
         let hasCreditsHistory = openAIWebEligible && !(dashboard?.creditEvents ?? []).isEmpty
         let hasUsageBreakdown = openAIWebEligible && !(dashboard?.usageBreakdown ?? []).isEmpty
-        let hasOpenAIWebMenuItems = hasCreditsHistory || hasUsageBreakdown
+        let hasCostHistory = self.settings.isCCUsageCostUsageEffectivelyEnabled(for: targetProvider) &&
+            (self.store.tokenSnapshot(for: targetProvider)?.daily.isEmpty == false)
+        let hasOpenAIWebMenuItems = hasCreditsHistory || hasUsageBreakdown || hasCostHistory
 
         let menu = NSMenu()
         menu.autoenablesItems = false
@@ -182,19 +183,21 @@ extension StatusItemController {
             item.representedObject = "menuCard"
             menu.addItem(item)
             // Keep the menu visually grouped.
-            // If we show the credits history submenu, visually separate it from the menu card with a divider.
-            if hasCreditsHistory || model.subtitleStyle == .info {
+            if !hasOpenAIWebMenuItems {
                 menu.addItem(.separator())
             }
         }
 
         if hasOpenAIWebMenuItems {
-            // Only show these when we actually have OpenAI web-only data.
+            // Only show these when we actually have additional data.
+            if hasUsageBreakdown {
+                _ = self.addUsageBreakdownSubmenu(to: menu)
+            }
             if hasCreditsHistory {
                 _ = self.addCreditsHistorySubmenu(to: menu)
             }
-            if hasUsageBreakdown {
-                _ = self.addUsageBreakdownSubmenu(to: menu)
+            if hasCostHistory {
+                _ = self.addCostHistorySubmenu(to: menu, provider: targetProvider)
             }
             menu.addItem(.separator())
         }
