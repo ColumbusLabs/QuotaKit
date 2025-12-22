@@ -582,9 +582,10 @@ public struct ClaudeStatusProbe: Sendable {
     private static func capture(subcommand: String, binary: String, timeout: TimeInterval) async throws -> String {
         try await Task.detached(priority: .utility) { [claudeBinary = binary, timeout] in
             let runner = TTYCommandRunner()
+            let stopOnSubstrings = subcommand == "/usage" ? ["Current session"] : []
             let options = TTYCommandRunner.Options(
                 timeout: timeout,
-                idleTimeout: 0.6,
+                idleTimeout: 3.0,
                 workingDirectory: Self.probeWorkingDirectoryURL(),
                 extraArgs: [
                     subcommand,
@@ -595,7 +596,8 @@ public struct ClaudeStatusProbe: Sendable {
                     "Do you trust the files in this folder?": "y\r",
                     "Ready to code here?": "\r",
                     "Press Enter to continue": "\r",
-                ])
+                ],
+                stopOnSubstrings: stopOnSubstrings)
 
             do {
                 let result = try runner.run(binary: claudeBinary, send: "", options: options)
