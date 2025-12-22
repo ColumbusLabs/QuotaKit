@@ -293,7 +293,7 @@ extension StatusItemController {
         let bottomPadding = CGFloat(hasCredits ? 4 : 10)
         let sectionSpacing = CGFloat(8)
         let usageBottomPadding = bottomPadding
-        let creditsBottomPadding = webItems.hasCreditsHistory ? sectionSpacing : bottomPadding
+        let creditsBottomPadding = bottomPadding
 
         let usageView = UsageMenuCardUsageSectionView(
             model: model,

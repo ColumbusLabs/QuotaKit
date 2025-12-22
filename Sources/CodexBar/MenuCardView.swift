@@ -56,6 +56,7 @@ struct UsageMenuCardView: View {
         let planText: String?
         let metrics: [Metric]
         let creditsText: String?
+        let creditsRemaining: Double?
         let creditsHintText: String?
         let tokenUsage: TokenUsageSection?
         let placeholder: String?
@@ -144,20 +145,11 @@ struct UsageMenuCardView: View {
                         Divider()
                     }
                     if let credits = self.model.creditsText {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Credits")
-                                .font(.body)
-                                .fontWeight(.medium)
-                            Text(credits)
-                                .font(.footnote)
-                            if let hint = self.model.creditsHintText, !hint.isEmpty {
-                                Text(hint)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(2)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
+                        CreditsBarContent(
+                            creditsText: credits,
+                            creditsRemaining: self.model.creditsRemaining,
+                            hintText: self.model.creditsHintText,
+                            progressColor: self.model.progressColor)
                     }
                     if hasCredits, hasCost {
                         Divider()
@@ -315,18 +307,11 @@ struct UsageMenuCardCreditsSectionView: View {
     var body: some View {
         if let credits = self.model.creditsText {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Credits")
-                    .font(.body)
-                    .fontWeight(.medium)
-                Text(credits)
-                    .font(.caption)
-                if let hint = self.model.creditsHintText, !hint.isEmpty {
-                    Text(hint)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                CreditsBarContent(
+                    creditsText: credits,
+                    creditsRemaining: self.model.creditsRemaining,
+                    hintText: self.model.creditsHintText,
+                    progressColor: self.model.progressColor)
                 if self.showBottomDivider {
                     Divider()
                 }
@@ -335,6 +320,58 @@ struct UsageMenuCardCreditsSectionView: View {
             .padding(.top, self.topPadding)
             .padding(.bottom, self.bottomPadding)
             .frame(minWidth: 310, maxWidth: 310, alignment: .leading)
+        }
+    }
+}
+
+private struct CreditsBarContent: View {
+    private static let fullScaleTokens: Double = 1000
+
+    let creditsText: String
+    let creditsRemaining: Double?
+    let hintText: String?
+    let progressColor: Color
+
+    private var percentLeft: Double? {
+        guard let creditsRemaining else { return nil }
+        let percent = (creditsRemaining / Self.fullScaleTokens) * 100
+        return min(100, max(0, percent))
+    }
+
+    private var scaleText: String {
+        let scale = UsageFormatter.tokenCountString(Int(Self.fullScaleTokens))
+        return "\(scale) tokens"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Credits")
+                .font(.body)
+                .fontWeight(.medium)
+            if let percentLeft {
+                UsageProgressBar(
+                    percent: percentLeft,
+                    tint: self.progressColor,
+                    accessibilityLabel: "Credits remaining")
+                HStack(alignment: .firstTextBaseline) {
+                    Text(self.creditsText)
+                        .font(.caption)
+                    Spacer()
+                    Text(self.scaleText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Text(self.creditsText)
+                    .font(.caption)
+            }
+            if let hintText, !hintText.isEmpty {
+                Text(hintText)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 }
@@ -426,6 +463,7 @@ extension UsageMenuCardView.Model {
             planText: planText,
             metrics: metrics,
             creditsText: creditsText,
+            creditsRemaining: input.credits?.remaining,
             creditsHintText: creditsHintText,
             tokenUsage: tokenUsage,
             placeholder: placeholder,
