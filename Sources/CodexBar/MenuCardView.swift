@@ -66,7 +66,7 @@ struct UsageMenuCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(self.model.providerName)
                         .font(.headline)
@@ -76,7 +76,7 @@ struct UsageMenuCardView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
-                HStack(alignment: .top) {
+                HStack(alignment: .firstTextBaseline) {
                     Text(self.model.subtitleText)
                         .font(.footnote)
                         .foregroundStyle(self.subtitleColor)
