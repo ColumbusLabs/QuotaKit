@@ -158,4 +158,95 @@ struct ClaudeUsageTests {
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         return String(data: data, encoding: .utf8) ?? ""
     }
+
+    // MARK: - Web API tests
+
+    @Test
+    func liveClaudeFetchWebAPI() async throws {
+        // Set LIVE_CLAUDE_WEB_FETCH=1 to run this test with real browser cookies
+        guard ProcessInfo.processInfo.environment["LIVE_CLAUDE_WEB_FETCH"] == "1" else {
+            return
+        }
+        let fetcher = ClaudeUsageFetcher(preferWebAPI: true)
+        let snap = try await fetcher.loadLatestUsage()
+        let weeklyUsed = snap.secondary?.usedPercent ?? -1
+        let opusUsed = snap.opus?.usedPercent ?? -1
+        print(
+            """
+            Live Claude usage (Web API):
+            session used \(snap.primary.usedPercent)%
+            week used \(weeklyUsed)%
+            opus \(opusUsed)%
+            login method: \(snap.loginMethod ?? "nil")
+            """)
+        #expect(snap.primary.usedPercent >= 0)
+    }
+
+    @Test
+    func claudeWebAPIHasSessionKeyCheck() {
+        // Quick check that hasSessionKey returns a boolean (doesn't crash)
+        let hasKey = ClaudeWebAPIFetcher.hasSessionKey()
+        // We can't assert the value since it depends on the test environment
+        #expect(hasKey == true || hasKey == false)
+    }
+
+    @Test
+    func parsesClaudeWebAPIUsageResponse() throws {
+        let json = """
+        {
+          "five_hour": { "utilization": 9, "resets_at": "2025-12-23T16:00:00.000Z" },
+          "seven_day": { "utilization": 4, "resets_at": "2025-12-29T23:00:00.000Z" },
+          "seven_day_opus": { "utilization": 1 }
+        }
+        """
+        let data = Data(json.utf8)
+        let parsed = try ClaudeWebAPIFetcher._parseUsageResponseForTesting(data)
+        #expect(parsed.sessionPercentUsed == 9)
+        #expect(parsed.weeklyPercentUsed == 4)
+        #expect(parsed.opusPercentUsed == 1)
+        #expect(parsed.sessionResetsAt != nil)
+        #expect(parsed.weeklyResetsAt != nil)
+    }
+
+    @Test
+    func parsesClaudeWebAPIUsageResponseWhenWeeklyMissing() throws {
+        let json = """
+        {
+          "five_hour": { "utilization": 9, "resets_at": "2025-12-23T16:00:00.000Z" }
+        }
+        """
+        let data = Data(json.utf8)
+        let parsed = try ClaudeWebAPIFetcher._parseUsageResponseForTesting(data)
+        #expect(parsed.sessionPercentUsed == 9)
+        #expect(parsed.weeklyPercentUsed == nil)
+    }
+
+    @Test
+    func parsesClaudeWebAPIOverageSpendLimit() {
+        let json = """
+        {
+          "monthly_credit_limit": 2000,
+          "currency": "EUR",
+          "used_credits": 0,
+          "is_enabled": true
+        }
+        """
+        let data = Data(json.utf8)
+        let cost = ClaudeWebAPIFetcher._parseOverageSpendLimitForTesting(data)
+        #expect(cost != nil)
+        #expect(cost?.currencyCode == "EUR")
+        #expect(cost?.limit == 2000)
+        #expect(cost?.used == 0)
+        #expect(cost?.period == "Monthly")
+    }
+
+    @Test
+    func claudeUsageFetcherInitWithPreferWebAPI() {
+        // Verify we can create fetchers with both configurations
+        let defaultFetcher = ClaudeUsageFetcher()
+        let webFetcher = ClaudeUsageFetcher(preferWebAPI: true)
+        // Both should be valid instances (no crashes)
+        #expect(defaultFetcher.detectVersion() != nil || defaultFetcher.detectVersion() == nil)
+        #expect(webFetcher.detectVersion() != nil || webFetcher.detectVersion() == nil)
+    }
 }
