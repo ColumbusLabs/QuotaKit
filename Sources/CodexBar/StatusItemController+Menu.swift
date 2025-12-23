@@ -487,7 +487,10 @@ extension StatusItemController {
         }
 
         var body: some View {
+            // AppKit reserves space for submenu indicators even when using custom menu item views.
+            // Reserve matching trailing space so text wrapping (and therefore fitting height) is stable.
             self.content
+                .padding(.trailing, self.showsSubmenuIndicator ? 18 : 0)
                 .environment(\.menuItemHighlighted, self.highlightState.isHighlighted)
                 .foregroundStyle(MenuHighlightStyle.primary(self.highlightState.isHighlighted))
                 .background(alignment: .topLeading) {
