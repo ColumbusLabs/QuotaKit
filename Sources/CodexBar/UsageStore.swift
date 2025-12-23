@@ -49,6 +49,7 @@ extension UsageStore {
             _ = self.settings.ccusageCostUsageEnabled
             _ = self.settings.randomBlinkEnabled
             _ = self.settings.openAIDashboardEnabled
+            _ = self.settings.claudeWebExtrasEnabled
             _ = self.settings.mergeIcons
             _ = self.settings.selectedMenuProvider
             _ = self.settings.debugLoadingPattern
@@ -966,6 +967,7 @@ final class UsageStore {
             return cached
         }
 
+        let claudeWebEnabled = self.settings.claudeWebExtrasEnabled
         return await Task.detached(priority: .utility) { () -> String in
             switch provider {
             case .codex:
@@ -974,7 +976,44 @@ final class UsageStore {
                 return raw
             case .claude:
                 let text = await self.runWithTimeout(seconds: 15) {
-                    await self.claudeFetcher.debugRawProbe(model: "sonnet")
+                    if claudeWebEnabled {
+                        var lines: [String] = []
+                        lines.append("strategy=web-first (Augment Claude via web: enabled)")
+
+                        let hasKey = ClaudeWebAPIFetcher.hasSessionKey { msg in lines.append(msg) }
+                        lines.append("hasSessionKey=\(hasKey)")
+                        lines.append("")
+
+                        do {
+                            let web = try await ClaudeWebAPIFetcher.fetchUsage { msg in lines.append(msg) }
+                            lines.append("")
+                            lines.append("Web API summary:")
+                            lines.append("session_used=\(web.sessionPercentUsed)% resetsAt=\(web.sessionResetsAt?.description ?? "nil")")
+                            if let weekly = web.weeklyPercentUsed {
+                                lines.append("weekly_used=\(weekly)% resetsAt=\(web.weeklyResetsAt?.description ?? "nil")")
+                            } else {
+                                lines.append("weekly_used=nil")
+                            }
+                            lines.append("opus_used=\(web.opusPercentUsed?.description ?? "nil")")
+                            if let extra = web.extraUsageCost {
+                                lines.append(
+                                    "extra_usage used=\(extra.used) limit=\(extra.limit) currency=\(extra.currencyCode) " +
+                                        "period=\(extra.period ?? "nil") resetsAt=\(extra.resetsAt?.description ?? "nil")")
+                            } else {
+                                lines.append("extra_usage=nil")
+                            }
+                            return lines.joined(separator: "\n")
+                        } catch {
+                            lines.append("Web API failed: \(error.localizedDescription)")
+                            lines.append("Falling back to Claude CLI probe…")
+                            let cli = await self.claudeFetcher.debugRawProbe(model: "sonnet")
+                            lines.append("")
+                            lines.append(cli)
+                            return lines.joined(separator: "\n")
+                        }
+                    }
+
+                    return await self.claudeFetcher.debugRawProbe(model: "sonnet")
                 }
                 await MainActor.run { self.probeLogs[.claude] = text }
                 return text
