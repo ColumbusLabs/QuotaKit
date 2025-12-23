@@ -312,7 +312,7 @@ struct CCUsageCostChartMenuView: View {
         let parts = breakdown
             .compactMap { item -> (name: String, costUSD: Double)? in
                 guard let costUSD = item.costUSD, costUSD > 0 else { return nil }
-                return (item.modelName, costUSD)
+                return (UsageFormatter.modelDisplayName(item.modelName), costUSD)
             }
             .sorted { lhs, rhs in
                 if lhs.costUSD == rhs.costUSD { return lhs.name < rhs.name }

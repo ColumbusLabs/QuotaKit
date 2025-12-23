@@ -138,6 +138,30 @@ public enum UsageFormatter {
         return "\(single[..<idx])…"
     }
 
+    public static func modelDisplayName(_ raw: String) -> String {
+        var cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else { return raw }
+
+        let patterns = [
+            #"(?:-|\s)\d{8}$"#,
+            #"(?:-|\s)\d{4}-\d{2}-\d{2}$"#,
+            #"\s\d{4}\s\d{4}$"#,
+        ]
+
+        for pattern in patterns {
+            if let range = cleaned.range(of: pattern, options: .regularExpression) {
+                cleaned.removeSubrange(range)
+                break
+            }
+        }
+
+        if let trailing = cleaned.range(of: #"[ \t-]+$"#, options: .regularExpression) {
+            cleaned.removeSubrange(trailing)
+        }
+
+        return cleaned.isEmpty ? raw : cleaned
+    }
+
     /// Cleans a provider plan string: strip ANSI/bracket noise, drop boilerplate words, collapse whitespace, and
     /// ensure a leading capital if the result starts lowercase.
     public static func cleanPlanName(_ text: String) -> String {

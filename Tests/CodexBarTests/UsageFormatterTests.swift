@@ -63,4 +63,12 @@ struct UsageFormatterTests {
         let reset = now.addingTimeInterval(-10)
         #expect(UsageFormatter.resetCountdownDescription(from: reset, now: now) == "now")
     }
+
+    @Test
+    func modelDisplayNameStripsTrailingDates() {
+        #expect(UsageFormatter.modelDisplayName("claude-opus-4-5-20251101") == "claude-opus-4-5")
+        #expect(UsageFormatter.modelDisplayName("gpt-4o-2024-08-06") == "gpt-4o")
+        #expect(UsageFormatter.modelDisplayName("Claude Opus 4.5 2025 1101") == "Claude Opus 4.5")
+        #expect(UsageFormatter.modelDisplayName("claude-sonnet-4-5") == "claude-sonnet-4-5")
+    }
 }
