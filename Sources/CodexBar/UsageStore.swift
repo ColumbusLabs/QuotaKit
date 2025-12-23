@@ -97,6 +97,14 @@ extension UsageStore {
         self.snapshots[provider] = snapshot
     }
 
+    func _setTokenSnapshotForTesting(_ snapshot: CCUsageTokenSnapshot?, provider: UsageProvider) {
+        self.tokenSnapshots[provider] = snapshot
+    }
+
+    func _setTokenErrorForTesting(_ error: String?, provider: UsageProvider) {
+        self.tokenErrors[provider] = error
+    }
+
     func _setErrorForTesting(_ error: String?, provider: UsageProvider) {
         self.errors[provider] = error
     }

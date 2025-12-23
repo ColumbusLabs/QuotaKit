@@ -150,4 +150,139 @@ struct StatusMenuTests {
         #expect(creditsItem?.submenu?.items
             .contains { ($0.representedObject as? String) == "creditsHistoryChart" } == true)
     }
+
+    @Test
+    func showsCreditsBeforeCostInCodexMenuCardSections() {
+        let settings = SettingsStore()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.openAIDashboardEnabled = true
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .codex
+        settings.ccusageCostUsageEnabled = true
+
+        let registry = ProviderRegistry.shared
+        if let codexMeta = registry.metadata[.codex] {
+            settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
+        }
+        if let claudeMeta = registry.metadata[.claude] {
+            settings.setProviderEnabled(provider: .claude, metadata: claudeMeta, enabled: false)
+        }
+        if let geminiMeta = registry.metadata[.gemini] {
+            settings.setProviderEnabled(provider: .gemini, metadata: geminiMeta, enabled: false)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, settings: settings)
+        store.credits = CreditsSnapshot(remaining: 100, events: [], updatedAt: Date())
+        store.openAIDashboard = OpenAIDashboardSnapshot(
+            signedInEmail: "user@example.com",
+            codeReviewRemainingPercent: 100,
+            creditEvents: [],
+            dailyBreakdown: [],
+            usageBreakdown: [],
+            creditsPurchaseURL: nil,
+            updatedAt: Date())
+        store._setTokenSnapshotForTesting(CCUsageTokenSnapshot(
+            sessionTokens: 123,
+            sessionCostUSD: 0.12,
+            last30DaysTokens: 123,
+            last30DaysCostUSD: 1.23,
+            daily: [
+                CCUsageDailyReport.Entry(
+                    date: "2025-12-23",
+                    inputTokens: nil,
+                    outputTokens: nil,
+                    totalTokens: 123,
+                    costUSD: 1.23,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil),
+            ],
+            updatedAt: Date()), provider: .codex)
+
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection())
+
+        let menu = controller.makeMenu()
+        controller.menuWillOpen(menu)
+        let ids = menu.items.compactMap { $0.representedObject as? String }
+        let creditsIndex = ids.firstIndex(of: "menuCardCredits")
+        let costIndex = ids.firstIndex(of: "menuCardCost")
+        #expect(creditsIndex != nil)
+        #expect(costIndex != nil)
+        #expect(creditsIndex! < costIndex!)
+    }
+
+    @Test
+    func showsExtraUsageForClaudeWhenUsingMenuCardSections() {
+        let settings = SettingsStore()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .claude
+        settings.ccusageCostUsageEnabled = true
+        settings.claudeWebExtrasEnabled = true
+
+        let registry = ProviderRegistry.shared
+        if let codexMeta = registry.metadata[.codex] {
+            settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: false)
+        }
+        if let claudeMeta = registry.metadata[.claude] {
+            settings.setProviderEnabled(provider: .claude, metadata: claudeMeta, enabled: true)
+        }
+        if let geminiMeta = registry.metadata[.gemini] {
+            settings.setProviderEnabled(provider: .gemini, metadata: geminiMeta, enabled: false)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, settings: settings)
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 10, windowMinutes: nil, resetsAt: nil, resetDescription: "Resets soon"),
+            secondary: nil,
+            tertiary: nil,
+            providerCost: ProviderCostSnapshot(
+                used: 0,
+                limit: 2000,
+                currencyCode: "EUR",
+                period: "Monthly",
+                resetsAt: nil,
+                updatedAt: Date()),
+            updatedAt: Date(),
+            accountEmail: "user@example.com",
+            accountOrganization: nil,
+            loginMethod: "web")
+        store._setSnapshotForTesting(snapshot, provider: .claude)
+        store._setTokenSnapshotForTesting(CCUsageTokenSnapshot(
+            sessionTokens: 123,
+            sessionCostUSD: 0.12,
+            last30DaysTokens: 123,
+            last30DaysCostUSD: 1.23,
+            daily: [
+                CCUsageDailyReport.Entry(
+                    date: "2025-12-23",
+                    inputTokens: nil,
+                    outputTokens: nil,
+                    totalTokens: 123,
+                    costUSD: 1.23,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil),
+            ],
+            updatedAt: Date()), provider: .claude)
+
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection())
+
+        let menu = controller.makeMenu()
+        controller.menuWillOpen(menu)
+        let ids = menu.items.compactMap { $0.representedObject as? String }
+        #expect(ids.contains("menuCardExtraUsage"))
+    }
 }
