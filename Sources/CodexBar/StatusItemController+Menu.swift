@@ -348,7 +348,18 @@ extension StatusItemController {
             menu.addItem(.separator())
         }
 
+        if hasCost {
+            let costView = UsageMenuCardCostSectionView(
+                model: model,
+                topPadding: sectionSpacing,
+                bottomPadding: bottomPadding)
+            let costSubmenu = webItems.hasCostHistory ? self.makeCostHistorySubmenu(provider: provider) : nil
+            menu.addItem(self.makeMenuCardItem(costView, id: "menuCardCost", submenu: costSubmenu))
+        }
         if hasCredits {
+            if hasCost {
+                menu.addItem(.separator())
+            }
             let creditsView = UsageMenuCardCreditsSectionView(
                 model: model,
                 showBottomDivider: false,
@@ -362,18 +373,6 @@ extension StatusItemController {
             if provider == .codex {
                 menu.addItem(self.makeBuyCreditsItem())
             }
-        }
-        if hasCost {
-            menu.addItem(.separator())
-        }
-
-        if hasCost {
-            let costView = UsageMenuCardCostSectionView(
-                model: model,
-                topPadding: sectionSpacing,
-                bottomPadding: bottomPadding)
-            let costSubmenu = webItems.hasCostHistory ? self.makeCostHistorySubmenu(provider: provider) : nil
-            menu.addItem(self.makeMenuCardItem(costView, id: "menuCardCost", submenu: costSubmenu))
         }
     }
 
