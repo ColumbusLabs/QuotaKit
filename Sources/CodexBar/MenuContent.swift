@@ -4,8 +4,8 @@ import SwiftUI
 
 @MainActor
 struct MenuContent: View {
-    @ObservedObject var store: UsageStore
-    @ObservedObject var settings: SettingsStore
+    @Bindable var store: UsageStore
+    @Bindable var settings: SettingsStore
     let account: AccountInfo
     let updater: UpdaterProviding
     let provider: UsageProvider?
@@ -106,7 +106,7 @@ struct MenuActions {
 
 @MainActor
 struct StatusIconView: View {
-    @ObservedObject var store: UsageStore
+    @Bindable var store: UsageStore
     let provider: UsageProvider
 
     var body: some View {

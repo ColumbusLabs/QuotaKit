@@ -9,7 +9,7 @@ struct IconView: View {
     let showLoadingAnimation: Bool
     let style: IconStyle
     @State private var phase: CGFloat = 0
-    @StateObject private var displayLink = DisplayLinkDriver()
+    @State private var displayLink = DisplayLinkDriver()
     @State private var pattern: LoadingPattern = .knightRider
     @State private var debugCycle = false
     @State private var cycleIndex = 0
@@ -41,7 +41,7 @@ struct IconView: View {
                     .interpolation(.none)
                     .frame(width: 20, height: 18, alignment: .center)
                     .padding(.horizontal, 2)
-                    .onReceive(self.displayLink.$tick) { _ in
+                    .onChange(of: self.displayLink.tick) { _, _ in
                         self.phase += 0.09 // half-speed animation
                         if self.debugCycle {
                             self.cycleCounter += 1

@@ -4,8 +4,8 @@ import SwiftUI
 
 @MainActor
 struct DebugPane: View {
-    @ObservedObject var settings: SettingsStore
-    @ObservedObject var store: UsageStore
+    @Bindable var settings: SettingsStore
+    @Bindable var store: UsageStore
     @State private var currentLogProvider: UsageProvider = .codex
     @State private var isLoadingLog = false
     @State private var logText: String = ""

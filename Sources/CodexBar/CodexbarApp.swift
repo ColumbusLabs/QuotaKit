@@ -1,6 +1,5 @@
 import AppKit
 import CodexBarCore
-import Combine
 import OSLog
 import QuartzCore
 import Security
@@ -9,8 +8,8 @@ import SwiftUI
 @main
 struct CodexBarApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var settings: SettingsStore
-    @StateObject private var store: UsageStore
+    @State private var settings: SettingsStore
+    @State private var store: UsageStore
     private let preferencesSelection: PreferencesSelection
     private let account: AccountInfo
 
@@ -21,8 +20,8 @@ struct CodexBarApp: App {
         let account = fetcher.loadAccountInfo()
         let store = UsageStore(fetcher: fetcher, settings: settings)
         self.preferencesSelection = preferencesSelection
-        _settings = StateObject(wrappedValue: settings)
-        _store = StateObject(wrappedValue: store)
+        _settings = State(wrappedValue: settings)
+        _store = State(wrappedValue: store)
         self.account = account
         self.appDelegate.configure(
             store: store,

@@ -1,6 +1,6 @@
 import AppKit
 import CodexBarCore
-import Combine
+import Observation
 import OSLog
 import QuartzCore
 import SwiftUI
@@ -43,6 +43,8 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         didSet { self.refreshMenusForLoginStateChange() }
     }
 
+    var creditsPurchaseWindow: OpenAICreditsPurchaseWindowController?
+
     var activeLoginProvider: UsageProvider? {
         didSet {
             if oldValue != self.activeLoginProvider {
@@ -56,7 +58,6 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var wiggleAmounts: [UsageProvider: CGFloat] = [:]
     var tiltAmounts: [UsageProvider: CGFloat] = [:]
     var blinkForceUntil: Date?
-    private var cancellables = Set<AnyCancellable>()
     var loginPhase: LoginPhase = .idle {
         didSet {
             if oldValue != self.loginPhase {
@@ -138,31 +139,50 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     }
 
     private func wireBindings() {
-        self.store.objectWillChange
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.invalidateMenus()
-                self?.updateIcons()
-                self?.updateBlinkingState()
-            }
-            .store(in: &self.cancellables)
+        self.observeStoreChanges()
+        self.observeDebugForceAnimation()
+        self.observeSettingsChanges()
+    }
 
-        self.store.$debugForceAnimation
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.updateVisibility()
-                self?.updateBlinkingState()
+    private func observeStoreChanges() {
+        withObservationTracking {
+            _ = self.store.menuObservationToken
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.observeStoreChanges()
+                self.invalidateMenus()
+                self.updateIcons()
+                self.updateBlinkingState()
             }
-            .store(in: &self.cancellables)
+        }
+    }
 
-        self.settings.objectWillChange
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.invalidateMenus()
-                self?.updateVisibility()
-                self?.updateIcons()
+    private func observeDebugForceAnimation() {
+        withObservationTracking {
+            _ = self.store.debugForceAnimation
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.observeDebugForceAnimation()
+                self.updateVisibility()
+                self.updateBlinkingState()
             }
-            .store(in: &self.cancellables)
+        }
+    }
+
+    private func observeSettingsChanges() {
+        withObservationTracking {
+            _ = self.settings.menuObservationToken
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.observeSettingsChanges()
+                self.invalidateMenus()
+                self.updateVisibility()
+                self.updateIcons()
+            }
+        }
     }
 
     private func invalidateMenus() {

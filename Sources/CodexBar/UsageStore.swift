@@ -1,7 +1,7 @@
 import AppKit
 import CodexBarCore
-import Combine
 import Foundation
+import Observation
 import OSLog
 
 enum IconStyle {
@@ -9,6 +9,58 @@ enum IconStyle {
     case claude
     case gemini
     case combined
+}
+
+// MARK: - Observation helpers
+
+@MainActor
+extension UsageStore {
+    var menuObservationToken: Int {
+        _ = self.snapshots
+        _ = self.errors
+        _ = self.tokenSnapshots
+        _ = self.tokenErrors
+        _ = self.tokenRefreshInFlight
+        _ = self.credits
+        _ = self.lastCreditsError
+        _ = self.openAIDashboard
+        _ = self.lastOpenAIDashboardError
+        _ = self.openAIDashboardRequiresLogin
+        _ = self.openAIDashboardCookieImportStatus
+        _ = self.openAIDashboardCookieImportDebugLog
+        _ = self.codexVersion
+        _ = self.claudeVersion
+        _ = self.geminiVersion
+        _ = self.claudeAccountEmail
+        _ = self.claudeAccountOrganization
+        _ = self.isRefreshing
+        _ = self.pathDebugInfo
+        _ = self.statuses
+        _ = self.probeLogs
+        return 0
+    }
+
+    func observeSettingsChanges() {
+        withObservationTracking {
+            _ = self.settings.refreshFrequency
+            _ = self.settings.statusChecksEnabled
+            _ = self.settings.sessionQuotaNotificationsEnabled
+            _ = self.settings.usageBarsShowUsed
+            _ = self.settings.ccusageCostUsageEnabled
+            _ = self.settings.randomBlinkEnabled
+            _ = self.settings.openAIDashboardEnabled
+            _ = self.settings.mergeIcons
+            _ = self.settings.selectedMenuProvider
+            _ = self.settings.debugLoadingPattern
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.observeSettingsChanges()
+                self.startTimer()
+                await self.refresh()
+            }
+        }
+    }
 }
 
 enum ProviderStatusIndicator: String {
@@ -77,59 +129,61 @@ struct ConsecutiveFailureGate {
 }
 
 @MainActor
-final class UsageStore: ObservableObject {
-    @Published private(set) var snapshots: [UsageProvider: UsageSnapshot] = [:]
-    @Published private(set) var errors: [UsageProvider: String] = [:]
-    @Published private(set) var tokenSnapshots: [UsageProvider: CCUsageTokenSnapshot] = [:]
-    @Published private(set) var tokenErrors: [UsageProvider: String] = [:]
-    @Published private(set) var tokenRefreshInFlight: Set<UsageProvider> = []
-    @Published var credits: CreditsSnapshot?
-    @Published var lastCreditsError: String?
-    @Published var openAIDashboard: OpenAIDashboardSnapshot?
-    @Published var lastOpenAIDashboardError: String?
-    @Published private(set) var openAIDashboardRequiresLogin: Bool = false
-    @Published var openAIDashboardCookieImportStatus: String?
-    @Published var openAIDashboardCookieImportDebugLog: String?
-    @Published var codexVersion: String?
-    @Published var claudeVersion: String?
-    @Published var geminiVersion: String?
-    @Published var claudeAccountEmail: String?
-    @Published var claudeAccountOrganization: String?
-    @Published var isRefreshing = false
-    @Published var debugForceAnimation = false
-    @Published var pathDebugInfo: PathDebugSnapshot = .empty
-    @Published private(set) var statuses: [UsageProvider: ProviderStatus] = [:]
-    @Published private(set) var probeLogs: [UsageProvider: String] = [:]
-    private var lastCreditsSnapshot: CreditsSnapshot?
-    private var creditsFailureStreak: Int = 0
-    private var lastOpenAIDashboardSnapshot: OpenAIDashboardSnapshot?
-    private var lastOpenAIDashboardTargetEmail: String?
-    private var lastOpenAIDashboardCookieImportAttemptAt: Date?
-    private var lastOpenAIDashboardCookieImportEmail: String?
-    private var openAIWebAccountDidChange: Bool = false
+@Observable
+final class UsageStore {
+    private(set) var snapshots: [UsageProvider: UsageSnapshot] = [:]
+    private(set) var errors: [UsageProvider: String] = [:]
+    private(set) var tokenSnapshots: [UsageProvider: CCUsageTokenSnapshot] = [:]
+    private(set) var tokenErrors: [UsageProvider: String] = [:]
+    private(set) var tokenRefreshInFlight: Set<UsageProvider> = []
+    var credits: CreditsSnapshot?
+    var lastCreditsError: String?
+    var openAIDashboard: OpenAIDashboardSnapshot?
+    var lastOpenAIDashboardError: String?
+    private(set) var openAIDashboardRequiresLogin: Bool = false
+    var openAIDashboardCookieImportStatus: String?
+    var openAIDashboardCookieImportDebugLog: String?
+    var codexVersion: String?
+    var claudeVersion: String?
+    var geminiVersion: String?
+    var claudeAccountEmail: String?
+    var claudeAccountOrganization: String?
+    var isRefreshing = false
+    var debugForceAnimation = false
+    var pathDebugInfo: PathDebugSnapshot = .empty
+    private(set) var statuses: [UsageProvider: ProviderStatus] = [:]
+    private(set) var probeLogs: [UsageProvider: String] = [:]
+    @ObservationIgnored private var lastCreditsSnapshot: CreditsSnapshot?
+    @ObservationIgnored private var creditsFailureStreak: Int = 0
+    @ObservationIgnored private var lastOpenAIDashboardSnapshot: OpenAIDashboardSnapshot?
+    @ObservationIgnored private var lastOpenAIDashboardTargetEmail: String?
+    @ObservationIgnored private var lastOpenAIDashboardCookieImportAttemptAt: Date?
+    @ObservationIgnored private var lastOpenAIDashboardCookieImportEmail: String?
+    @ObservationIgnored private var openAIWebAccountDidChange: Bool = false
 
-    private let codexFetcher: UsageFetcher
-    private let claudeFetcher: any ClaudeUsageFetching
-    private let ccusageFetcher: CCUsageFetcher
-    private let registry: ProviderRegistry
-    private let settings: SettingsStore
-    private let sessionQuotaNotifier: SessionQuotaNotifier
-    private let sessionQuotaLogger = Logger(subsystem: "com.steipete.codexbar", category: "sessionQuota")
-    private let openAIWebLogger = Logger(subsystem: "com.steipete.codexbar", category: "openai-web")
-    private let tokenCostLogger = Logger(subsystem: "com.steipete.codexbar", category: "token-cost")
-    private var openAIWebDebugLines: [String] = []
-    private var failureGates: [UsageProvider: ConsecutiveFailureGate] = [:]
-    private var tokenFailureGates: [UsageProvider: ConsecutiveFailureGate] = [:]
-    private var providerSpecs: [UsageProvider: ProviderSpec] = [:]
-    private let providerMetadata: [UsageProvider: ProviderMetadata]
-    private var timerTask: Task<Void, Never>?
-    private var tokenTimerTask: Task<Void, Never>?
-    private var tokenRefreshSequenceTask: Task<Void, Never>?
-    private var cancellables = Set<AnyCancellable>()
-    private var lastKnownSessionRemaining: [UsageProvider: Double] = [:]
-    private(set) var lastTokenFetchAt: [UsageProvider: Date] = [:]
-    private let tokenFetchTTL: TimeInterval = 60 * 60
-    private let tokenFetchTimeout: TimeInterval = 10 * 60
+    @ObservationIgnored private let codexFetcher: UsageFetcher
+    @ObservationIgnored private let claudeFetcher: any ClaudeUsageFetching
+    @ObservationIgnored private let ccusageFetcher: CCUsageFetcher
+    @ObservationIgnored private let registry: ProviderRegistry
+    @ObservationIgnored private let settings: SettingsStore
+    @ObservationIgnored private let sessionQuotaNotifier: SessionQuotaNotifier
+    @ObservationIgnored private let sessionQuotaLogger = Logger(
+        subsystem: "com.steipete.codexbar",
+        category: "sessionQuota")
+    @ObservationIgnored private let openAIWebLogger = Logger(subsystem: "com.steipete.codexbar", category: "openai-web")
+    @ObservationIgnored private let tokenCostLogger = Logger(subsystem: "com.steipete.codexbar", category: "token-cost")
+    @ObservationIgnored private var openAIWebDebugLines: [String] = []
+    @ObservationIgnored private var failureGates: [UsageProvider: ConsecutiveFailureGate] = [:]
+    @ObservationIgnored private var tokenFailureGates: [UsageProvider: ConsecutiveFailureGate] = [:]
+    @ObservationIgnored private var providerSpecs: [UsageProvider: ProviderSpec] = [:]
+    @ObservationIgnored private let providerMetadata: [UsageProvider: ProviderMetadata]
+    @ObservationIgnored private var timerTask: Task<Void, Never>?
+    @ObservationIgnored private var tokenTimerTask: Task<Void, Never>?
+    @ObservationIgnored private var tokenRefreshSequenceTask: Task<Void, Never>?
+    @ObservationIgnored private var lastKnownSessionRemaining: [UsageProvider: Double] = [:]
+    @ObservationIgnored private(set) var lastTokenFetchAt: [UsageProvider: Date] = [:]
+    @ObservationIgnored private let tokenFetchTTL: TimeInterval = 60 * 60
+    @ObservationIgnored private let tokenFetchTimeout: TimeInterval = 10 * 60
 
     init(
         fetcher: UsageFetcher,
@@ -294,17 +348,7 @@ final class UsageStore: ObservableObject {
     // MARK: - Private
 
     private func bindSettings() {
-        self.settings.$refreshFrequency
-            .sink { [weak self] _ in
-                self?.startTimer()
-            }
-            .store(in: &self.cancellables)
-
-        self.settings.objectWillChange
-            .sink { [weak self] _ in
-                Task { await self?.refresh() }
-            }
-            .store(in: &self.cancellables)
+        self.observeSettingsChanges()
     }
 
     private func startTimer() {

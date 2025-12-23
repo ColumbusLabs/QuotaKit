@@ -4,8 +4,8 @@ import SwiftUI
 
 @MainActor
 struct AdvancedPane: View {
-    @ObservedObject var settings: SettingsStore
-    @ObservedObject var store: UsageStore
+    @Bindable var settings: SettingsStore
+    @Bindable var store: UsageStore
     @State private var isInstallingCLI = false
     @State private var cliStatus: String?
 

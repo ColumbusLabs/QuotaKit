@@ -4,8 +4,8 @@ import SwiftUI
 
 @MainActor
 struct GeneralPane: View {
-    @ObservedObject var settings: SettingsStore
-    @ObservedObject var store: UsageStore
+    @Bindable var settings: SettingsStore
+    @Bindable var store: UsageStore
     @State private var expandedErrors: Set<UsageProvider> = []
     @State private var openAIDashboardStatus: String?
     @State private var showOpenAIWebFullDiskAccessAlert = false

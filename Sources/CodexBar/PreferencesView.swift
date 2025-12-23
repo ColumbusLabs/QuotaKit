@@ -15,10 +15,10 @@ enum PreferencesTab: String, Hashable {
 
 @MainActor
 struct PreferencesView: View {
-    @ObservedObject var settings: SettingsStore
-    @ObservedObject var store: UsageStore
+    @Bindable var settings: SettingsStore
+    @Bindable var store: UsageStore
     let updater: UpdaterProviding
-    @ObservedObject var selection: PreferencesSelection
+    @Bindable var selection: PreferencesSelection
     @State private var contentHeight: CGFloat = PreferencesTab.general.preferredHeight
 
     var body: some View {

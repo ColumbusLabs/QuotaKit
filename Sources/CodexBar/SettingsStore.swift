@@ -1,8 +1,7 @@
 import AppKit
 import CodexBarCore
-import Combine
+import Observation
 import ServiceManagement
-import SwiftUI
 
 enum RefreshFrequency: String, CaseIterable, Identifiable {
     case manual
@@ -35,60 +34,83 @@ enum RefreshFrequency: String, CaseIterable, Identifiable {
 }
 
 @MainActor
-final class SettingsStore: ObservableObject {
-    @Published var refreshFrequency: RefreshFrequency {
+@Observable
+final class SettingsStore {
+    var refreshFrequency: RefreshFrequency {
         didSet { self.userDefaults.set(self.refreshFrequency.rawValue, forKey: "refreshFrequency") }
     }
 
-    @AppStorage("launchAtLogin") var launchAtLogin: Bool = false {
-        didSet { LaunchAtLoginManager.setEnabled(self.launchAtLogin) }
+    var launchAtLogin: Bool {
+        didSet {
+            self.userDefaults.set(self.launchAtLogin, forKey: "launchAtLogin")
+            LaunchAtLoginManager.setEnabled(self.launchAtLogin)
+        }
     }
 
     /// Hidden toggle to reveal debug-only menu items (enable via defaults write com.steipete.CodexBar debugMenuEnabled
     /// -bool YES).
-    @AppStorage("debugMenuEnabled") var debugMenuEnabled: Bool = false
-
-    @AppStorage("debugLoadingPattern") private var debugLoadingPatternRaw: String?
-
-    @AppStorage("statusChecksEnabled") var statusChecksEnabled: Bool = true {
-        didSet { self.objectWillChange.send() }
+    var debugMenuEnabled: Bool {
+        didSet { self.userDefaults.set(self.debugMenuEnabled, forKey: "debugMenuEnabled") }
     }
 
-    @AppStorage("sessionQuotaNotificationsEnabled") var sessionQuotaNotificationsEnabled: Bool = true {
-        didSet { self.objectWillChange.send() }
+    private var debugLoadingPatternRaw: String? {
+        didSet {
+            if let raw = self.debugLoadingPatternRaw {
+                self.userDefaults.set(raw, forKey: "debugLoadingPattern")
+            } else {
+                self.userDefaults.removeObject(forKey: "debugLoadingPattern")
+            }
+        }
+    }
+
+    var statusChecksEnabled: Bool {
+        didSet { self.userDefaults.set(self.statusChecksEnabled, forKey: "statusChecksEnabled") }
+    }
+
+    var sessionQuotaNotificationsEnabled: Bool {
+        didSet {
+            self.userDefaults.set(self.sessionQuotaNotificationsEnabled, forKey: "sessionQuotaNotificationsEnabled")
+        }
     }
 
     /// When enabled, progress bars show "percent used" instead of "percent left".
-    @AppStorage("usageBarsShowUsed") var usageBarsShowUsed: Bool = false {
-        didSet { self.objectWillChange.send() }
+    var usageBarsShowUsed: Bool {
+        didSet { self.userDefaults.set(self.usageBarsShowUsed, forKey: "usageBarsShowUsed") }
     }
 
     /// Optional: show provider cost summary from local usage logs (Codex + Claude).
-    @AppStorage("tokenCostUsageEnabled") var ccusageCostUsageEnabled: Bool = false {
-        didSet { self.objectWillChange.send() }
+    var ccusageCostUsageEnabled: Bool {
+        didSet { self.userDefaults.set(self.ccusageCostUsageEnabled, forKey: "tokenCostUsageEnabled") }
     }
 
-    @AppStorage("randomBlinkEnabled") var randomBlinkEnabled: Bool = false {
-        didSet { self.objectWillChange.send() }
+    var randomBlinkEnabled: Bool {
+        didSet { self.userDefaults.set(self.randomBlinkEnabled, forKey: "randomBlinkEnabled") }
     }
 
     /// Optional: enable scraping the OpenAI dashboard (WebKit) for extra Codex data (code review + breakdown).
-    @AppStorage("openAIDashboardEnabled") var openAIDashboardEnabled: Bool = false {
-        didSet { self.objectWillChange.send() }
+    var openAIDashboardEnabled: Bool {
+        didSet { self.userDefaults.set(self.openAIDashboardEnabled, forKey: "openAIDashboardEnabled") }
     }
 
     /// Optional: collapse provider icons into a single menu bar item with an in-menu switcher.
-    @AppStorage("mergeIcons") var mergeIcons: Bool = true {
-        didSet { self.objectWillChange.send() }
+    var mergeIcons: Bool {
+        didSet { self.userDefaults.set(self.mergeIcons, forKey: "mergeIcons") }
     }
 
-    @AppStorage("selectedMenuProvider") private var selectedMenuProviderRaw: String?
+    private var selectedMenuProviderRaw: String? {
+        didSet {
+            if let raw = self.selectedMenuProviderRaw {
+                self.userDefaults.set(raw, forKey: "selectedMenuProvider")
+            } else {
+                self.userDefaults.removeObject(forKey: "selectedMenuProvider")
+            }
+        }
+    }
 
     /// Optional override for the loading animation pattern, exposed via the Debug tab.
     var debugLoadingPattern: LoadingPattern? {
         get { self.debugLoadingPatternRaw.flatMap(LoadingPattern.init(rawValue:)) }
         set {
-            self.objectWillChange.send()
             self.debugLoadingPatternRaw = newValue?.rawValue
         }
     }
@@ -96,23 +118,53 @@ final class SettingsStore: ObservableObject {
     var selectedMenuProvider: UsageProvider? {
         get { self.selectedMenuProviderRaw.flatMap(UsageProvider.init(rawValue:)) }
         set {
-            self.objectWillChange.send()
             self.selectedMenuProviderRaw = newValue?.rawValue
         }
     }
 
-    @AppStorage("providerDetectionCompleted") private var providerDetectionCompleted: Bool = false
+    var menuObservationToken: Int {
+        _ = self.refreshFrequency
+        _ = self.launchAtLogin
+        _ = self.debugMenuEnabled
+        _ = self.statusChecksEnabled
+        _ = self.sessionQuotaNotificationsEnabled
+        _ = self.usageBarsShowUsed
+        _ = self.ccusageCostUsageEnabled
+        _ = self.randomBlinkEnabled
+        _ = self.openAIDashboardEnabled
+        _ = self.mergeIcons
+        _ = self.debugLoadingPattern
+        _ = self.selectedMenuProvider
+        _ = self.providerToggleRevision
+        return 0
+    }
 
-    private let userDefaults: UserDefaults
-    private let toggleStore: ProviderToggleStore
+    private var providerDetectionCompleted: Bool {
+        didSet { self.userDefaults.set(self.providerDetectionCompleted, forKey: "providerDetectionCompleted") }
+    }
+
+    @ObservationIgnored private let userDefaults: UserDefaults
+    @ObservationIgnored private let toggleStore: ProviderToggleStore
+    private var providerToggleRevision: Int = 0
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
-        if userDefaults.object(forKey: "sessionQuotaNotificationsEnabled") == nil {
-            userDefaults.set(true, forKey: "sessionQuotaNotificationsEnabled")
-        }
         let raw = userDefaults.string(forKey: "refreshFrequency") ?? RefreshFrequency.fiveMinutes.rawValue
         self.refreshFrequency = RefreshFrequency(rawValue: raw) ?? .fiveMinutes
+        self.launchAtLogin = userDefaults.object(forKey: "launchAtLogin") as? Bool ?? false
+        self.debugMenuEnabled = userDefaults.object(forKey: "debugMenuEnabled") as? Bool ?? false
+        self.debugLoadingPatternRaw = userDefaults.string(forKey: "debugLoadingPattern")
+        self.statusChecksEnabled = userDefaults.object(forKey: "statusChecksEnabled") as? Bool ?? true
+        self.sessionQuotaNotificationsEnabled = userDefaults.object(
+            forKey: "sessionQuotaNotificationsEnabled") as? Bool ?? true
+        self.usageBarsShowUsed = userDefaults.object(forKey: "usageBarsShowUsed") as? Bool ?? false
+        self.ccusageCostUsageEnabled = userDefaults.object(forKey: "tokenCostUsageEnabled") as? Bool ?? false
+        self.randomBlinkEnabled = userDefaults.object(forKey: "randomBlinkEnabled") as? Bool ?? false
+        self.openAIDashboardEnabled = userDefaults.object(forKey: "openAIDashboardEnabled") as? Bool ?? false
+        self.mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true
+        self.selectedMenuProviderRaw = userDefaults.string(forKey: "selectedMenuProvider")
+        self.providerDetectionCompleted = userDefaults.object(
+            forKey: "providerDetectionCompleted") as? Bool ?? false
         self.toggleStore = ProviderToggleStore(userDefaults: userDefaults)
         self.toggleStore.purgeLegacyKeys()
         LaunchAtLoginManager.setEnabled(self.launchAtLogin)
@@ -121,11 +173,12 @@ final class SettingsStore: ObservableObject {
     }
 
     func isProviderEnabled(provider: UsageProvider, metadata: ProviderMetadata) -> Bool {
-        self.toggleStore.isEnabled(metadata: metadata)
+        _ = self.providerToggleRevision
+        return self.toggleStore.isEnabled(metadata: metadata)
     }
 
     func setProviderEnabled(provider: UsageProvider, metadata: ProviderMetadata, enabled: Bool) {
-        self.objectWillChange.send()
+        self.providerToggleRevision &+= 1
         self.toggleStore.setEnabled(enabled, metadata: metadata)
     }
 
@@ -168,7 +221,7 @@ final class SettingsStore: ObservableObject {
         let enableClaude = claudeInstalled
         let enableGemini = geminiInstalled
 
-        self.objectWillChange.send()
+        self.providerToggleRevision &+= 1
         self.toggleStore.setEnabled(enableCodex, metadata: codexMeta)
         self.toggleStore.setEnabled(enableClaude, metadata: claudeMeta)
         self.toggleStore.setEnabled(enableGemini, metadata: geminiMeta)
@@ -176,7 +229,7 @@ final class SettingsStore: ObservableObject {
     }
 
     private func applyTokenCostDefaultIfNeeded() {
-        // @AppStorage always reads/writes UserDefaults.standard.
+        // Settings are persisted in UserDefaults.standard.
         guard UserDefaults.standard.object(forKey: "tokenCostUsageEnabled") == nil else { return }
 
         Task { @MainActor [weak self] in
