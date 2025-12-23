@@ -492,34 +492,14 @@ extension StatusItemController {
                 }
         }
 
-        private struct MenuSelectionMaterialBackground: NSViewRepresentable {
-            let cornerRadius: CGFloat
-
-            func makeNSView(context: Context) -> NSVisualEffectView {
-                let view = NSVisualEffectView()
-                view.material = .selection
-                view.blendingMode = .withinWindow
-                view.state = .active
-                view.isEmphasized = true
-                view.wantsLayer = true
-                view.layer?.cornerRadius = cornerRadius
-                if #available(macOS 13.0, *) {
-                    view.layer?.cornerCurve = .continuous
-                }
-                view.layer?.masksToBounds = true
-                return view
-            }
-
-            func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
-        }
-
         @ViewBuilder
         private var highlightBackground: some View {
             GeometryReader { proxy in
                 let topInset: CGFloat = 1
                 let bottomInset: CGFloat = 1
                 let height = max(0, proxy.size.height - self.highlightExclusionHeight - topInset - bottomInset)
-                MenuSelectionMaterialBackground(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(MenuHighlightStyle.selectionBackground(self.highlightState.isHighlighted))
                     .frame(height: height, alignment: .top)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.horizontal, 6)
