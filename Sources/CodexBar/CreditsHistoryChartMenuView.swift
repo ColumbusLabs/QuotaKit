@@ -39,10 +39,11 @@ struct CreditsHistoryChartMenuView: View {
                             .foregroundStyle(Self.barColor)
                     }
                     if let peak = Self.peakPoint(model: model) {
-                        PointMark(
+                        let capStart = max(peak.creditsUsed - Self.capHeight(maxValue: model.maxCreditsUsed), 0)
+                        BarMark(
                             x: .value("Day", peak.date, unit: .day),
-                            y: .value("Credits used", peak.creditsUsed))
-                            .symbolSize(26)
+                            yStart: .value("Cap start", capStart),
+                            yEnd: .value("Cap end", peak.creditsUsed))
                             .foregroundStyle(Color(nsColor: .systemYellow))
                     }
                 }
@@ -114,9 +115,13 @@ struct CreditsHistoryChartMenuView: View {
         let axisDates: [Date]
         let peakKey: String?
         let totalCreditsUsed: Double?
+        let maxCreditsUsed: Double
     }
 
     private static let barColor = Color(red: 73 / 255, green: 163 / 255, blue: 176 / 255)
+    private static func capHeight(maxValue: Double) -> Double {
+        maxValue * 0.05
+    }
 
     private static func makeModel(from breakdown: [OpenAIDashboardDailyBreakdown]) -> Model {
         let sorted = breakdown.sorted { lhs, rhs in lhs.day < rhs.day }
@@ -135,6 +140,7 @@ struct CreditsHistoryChartMenuView: View {
 
         var totalCreditsUsed: Double = 0
         var peak: (key: String, creditsUsed: Double)?
+        var maxCreditsUsed: Double = 0
 
         for day in sorted {
             guard let date = self.dateFromDayKey(day.day) else { continue }
@@ -150,6 +156,7 @@ struct CreditsHistoryChartMenuView: View {
                 } else {
                     peak = (day.day, day.totalCreditsUsed)
                 }
+                maxCreditsUsed = max(maxCreditsUsed, day.totalCreditsUsed)
             }
         }
 
@@ -166,7 +173,8 @@ struct CreditsHistoryChartMenuView: View {
             dayDates: dayDates,
             axisDates: axisDates,
             peakKey: peak?.key,
-            totalCreditsUsed: totalCreditsUsed > 0 ? totalCreditsUsed : nil)
+            totalCreditsUsed: totalCreditsUsed > 0 ? totalCreditsUsed : nil,
+            maxCreditsUsed: maxCreditsUsed)
     }
 
     private static func dateFromDayKey(_ key: String) -> Date? {

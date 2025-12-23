@@ -45,10 +45,11 @@ struct CCUsageCostChartMenuView: View {
                             .foregroundStyle(model.barColor)
                     }
                     if let peak = Self.peakPoint(model: model) {
-                        PointMark(
+                        let capStart = max(peak.costUSD - Self.capHeight(maxValue: model.maxCostUSD), 0)
+                        BarMark(
                             x: .value("Day", peak.date, unit: .day),
-                            y: .value("Cost", peak.costUSD))
-                            .symbolSize(26)
+                            yStart: .value("Cap start", capStart),
+                            yEnd: .value("Cap end", peak.costUSD))
                             .foregroundStyle(Color(nsColor: .systemYellow))
                     }
                 }
@@ -120,6 +121,11 @@ struct CCUsageCostChartMenuView: View {
         let axisDates: [Date]
         let barColor: Color
         let peakKey: String?
+        let maxCostUSD: Double
+    }
+
+    private static func capHeight(maxValue: Double) -> Double {
+        maxValue * 0.05
     }
 
     private static func makeModel(provider: UsageProvider, daily: [CCUsageDailyReport.Entry]) -> Model {
@@ -137,6 +143,7 @@ struct CCUsageCostChartMenuView: View {
         dateKeys.reserveCapacity(sorted.count)
 
         var peak: (key: String, costUSD: Double)?
+        var maxCostUSD: Double = 0
         for entry in sorted {
             guard let costUSD = entry.costUSD, costUSD > 0 else { continue }
             guard let date = self.dateFromDayKey(entry.date) else { continue }
@@ -150,6 +157,7 @@ struct CCUsageCostChartMenuView: View {
             } else {
                 peak = (entry.date, costUSD)
             }
+            maxCostUSD = max(maxCostUSD, costUSD)
         }
 
         let axisDates: [Date] = {
@@ -166,7 +174,8 @@ struct CCUsageCostChartMenuView: View {
             dateKeys: dateKeys,
             axisDates: axisDates,
             barColor: barColor,
-            peakKey: peak?.key)
+            peakKey: peak?.key,
+            maxCostUSD: maxCostUSD)
     }
 
     private static func barColor(for provider: UsageProvider) -> Color {

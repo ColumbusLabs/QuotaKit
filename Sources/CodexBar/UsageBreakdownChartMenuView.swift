@@ -41,10 +41,11 @@ struct UsageBreakdownChartMenuView: View {
                             .foregroundStyle(by: .value("Service", point.service))
                     }
                     if let peak = model.peakPoint {
-                        PointMark(
+                        let capStart = max(peak.creditsUsed - Self.capHeight(maxValue: model.maxCreditsUsed), 0)
+                        BarMark(
                             x: .value("Day", peak.date, unit: .day),
-                            y: .value("Credits used", peak.creditsUsed))
-                            .symbolSize(26)
+                            yStart: .value("Cap start", capStart),
+                            yEnd: .value("Cap end", peak.creditsUsed))
                             .foregroundStyle(Color(nsColor: .systemYellow))
                     }
                 }
@@ -129,6 +130,7 @@ struct UsageBreakdownChartMenuView: View {
         let services: [String]
         let serviceColors: [Color]
         let axisDates: [Date]
+        let maxCreditsUsed: Double
 
         func color(for service: String) -> Color {
             guard let idx = self.services.firstIndex(of: service), idx < self.serviceColors.count else {
@@ -152,6 +154,7 @@ struct UsageBreakdownChartMenuView: View {
         dayDates.reserveCapacity(sorted.count)
 
         var peak: (date: Date, creditsUsed: Double)?
+        var maxCreditsUsed: Double = 0
 
         for day in sorted {
             guard let date = self.dateFromDayKey(day.day) else { continue }
@@ -163,6 +166,7 @@ struct UsageBreakdownChartMenuView: View {
                 } else {
                     peak = (date, day.totalCreditsUsed)
                 }
+                maxCreditsUsed = max(maxCreditsUsed, day.totalCreditsUsed)
             }
             for service in day.services where service.creditsUsed > 0 {
                 points.append(Point(date: date, service: service.service, creditsUsed: service.creditsUsed))
@@ -180,7 +184,12 @@ struct UsageBreakdownChartMenuView: View {
             peakPoint: peak,
             services: services,
             serviceColors: colors,
-            axisDates: axisDates)
+            axisDates: axisDates,
+            maxCreditsUsed: maxCreditsUsed)
+    }
+
+    private static func capHeight(maxValue: Double) -> Double {
+        maxValue * 0.05
     }
 
     private static func serviceOrder(from breakdown: [OpenAIDashboardDailyBreakdown]) -> [String] {
