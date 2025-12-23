@@ -43,7 +43,7 @@ extension StatusItemController {
         guard let urlString,
               let url = URL(string: urlString) else { return }
 
-        let autoStart = purchaseURL == nil
+        let autoStart = true
         let accountEmail = self.store.codexAccountEmailForOpenAIDashboard()
         let controller = self.creditsPurchaseWindow ?? OpenAICreditsPurchaseWindowController()
         controller.show(purchaseURL: url, accountEmail: accountEmail, autoStartPurchase: autoStart)
