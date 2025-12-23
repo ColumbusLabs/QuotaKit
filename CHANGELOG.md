@@ -2,6 +2,7 @@
 
 ## 0.12.1 — Unreleased
 - Menu: custom menu items now use the native selection highlight color (plus matching selection text/track colors).
+- Charts: boost hover highlight contrast for credits/usage history bands.
 
 ## 0.12.0 — 2025-12-23
 - Widgets: add WidgetKit extension backed by a shared app‑group usage snapshot.
