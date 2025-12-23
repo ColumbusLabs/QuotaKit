@@ -494,7 +494,7 @@ extension StatusItemController {
                 let bottomInset: CGFloat = 1
                 let height = max(0, proxy.size.height - self.highlightExclusionHeight - topInset - bottomInset)
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(MenuHighlightStyle.selectionBackground)
+                    .fill(MenuHighlightStyle.selectionBackground(self.highlightState.isHighlighted))
                     .frame(height: height, alignment: .top)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.horizontal, 6)

@@ -12,8 +12,7 @@ extension EnvironmentValues {
 }
 
 enum MenuHighlightStyle {
-    static let selectionBackground = Color(nsColor: .controlAccentColor)
-    static let selectionText = Color.white
+    static let selectionText = Color(nsColor: .selectedMenuItemTextColor)
 
     static func primary(_ highlighted: Bool) -> Color {
         highlighted ? Self.selectionText : .primary
@@ -33,5 +32,9 @@ enum MenuHighlightStyle {
 
     static func progressTint(_ highlighted: Bool, fallback: Color) -> Color {
         highlighted ? Self.selectionText : fallback
+    }
+
+    static func selectionBackground(_ highlighted: Bool) -> Color {
+        highlighted ? Color(nsColor: .selectedMenuItemColor) : .clear
     }
 }
