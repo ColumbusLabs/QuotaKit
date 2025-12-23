@@ -36,6 +36,7 @@ read_when:
 - Menu: rich card (session + weekly; resets; account/plan), plus web-only Codex rows when enabled and available:
   - Code review remaining
   - Usage breakdown submenu (Swift Charts)
+- Menu card: Codex-only “Buy Credits…” sits in the credits/cost block and opens a centered in-app ChatGPT purchase window.
 - Widgets (macOS WidgetKit): optional usage/credits/history widgets powered by a shared app-group snapshot.
 
 ## App structure (Swift 6, macOS 15+)

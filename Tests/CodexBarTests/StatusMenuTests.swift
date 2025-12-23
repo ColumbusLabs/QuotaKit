@@ -74,6 +74,7 @@ struct StatusMenuTests {
             creditEvents: [],
             dailyBreakdown: [],
             usageBreakdown: [],
+            creditsPurchaseURL: nil,
             updatedAt: Date())
 
         let controller = StatusItemController(
@@ -130,6 +131,7 @@ struct StatusMenuTests {
             creditEvents: events,
             dailyBreakdown: breakdown,
             usageBreakdown: breakdown,
+            creditsPurchaseURL: nil,
             updatedAt: Date())
 
         let controller = StatusItemController(

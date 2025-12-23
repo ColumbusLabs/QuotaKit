@@ -64,6 +64,12 @@ struct UsageMenuCardView: View {
     }
 
     let model: Model
+    let buyCreditsAction: (() -> Void)?
+
+    init(model: Model, buyCreditsAction: (() -> Void)? = nil) {
+        self.model = model
+        self.buyCreditsAction = buyCreditsAction
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -149,7 +155,8 @@ struct UsageMenuCardView: View {
                             creditsText: credits,
                             creditsRemaining: self.model.creditsRemaining,
                             hintText: self.model.creditsHintText,
-                            progressColor: self.model.progressColor)
+                            progressColor: self.model.progressColor,
+                            buyCreditsAction: self.buyCreditsAction)
                     }
                     if hasCredits, hasCost {
                         Divider()
@@ -202,10 +209,9 @@ struct UsageMenuCardView: View {
     }
 }
 
-struct UsageMenuCardUsageSectionView: View {
+struct UsageMenuCardHeaderSectionView: View {
     let model: UsageMenuCardView.Model
-    let showBottomDivider: Bool
-    let bottomPadding: CGFloat
+    let showDivider: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -218,7 +224,7 @@ struct UsageMenuCardUsageSectionView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
-            HStack(alignment: .top) {
+            HStack(alignment: .firstTextBaseline) {
                 Text(self.model.subtitleText)
                     .font(.footnote)
                     .foregroundStyle(self.subtitleColor)
@@ -234,59 +240,13 @@ struct UsageMenuCardUsageSectionView: View {
                 }
             }
 
-            if self.hasDetails {
+            if self.showDivider {
                 Divider()
-            }
-
-            if self.model.metrics.isEmpty {
-                if let placeholder = self.model.placeholder {
-                    Text(placeholder)
-                        .foregroundStyle(.secondary)
-                        .font(.subheadline)
-                }
-            } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(self.model.metrics) { metric in
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(metric.title)
-                                .font(.body)
-                                .fontWeight(.medium)
-                            UsageProgressBar(
-                                percent: metric.percent,
-                                tint: self.model.progressColor,
-                                accessibilityLabel: metric.percentStyle.accessibilityLabel)
-                            HStack(alignment: .firstTextBaseline) {
-                                Text(metric.percentLabel)
-                                    .font(.footnote)
-                                Spacer()
-                                if let reset = metric.resetText {
-                                    Text(reset)
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            if let detail = metric.detailText {
-                                Text(detail)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                        }
-                    }
-                    if self.showBottomDivider {
-                        Divider()
-                    }
-                }
             }
         }
         .padding(.horizontal, 16)
         .padding(.top, 2)
-        .padding(.bottom, self.bottomPadding)
         .frame(minWidth: 310, maxWidth: 310, alignment: .leading)
-    }
-
-    private var hasDetails: Bool {
-        !self.model.metrics.isEmpty || self.model.placeholder != nil || self.model.tokenUsage != nil
     }
 
     private var subtitleColor: Color {
@@ -298,11 +258,79 @@ struct UsageMenuCardUsageSectionView: View {
     }
 }
 
+struct UsageMenuCardUsageSectionView: View {
+    let model: UsageMenuCardView.Model
+    let showBottomDivider: Bool
+    let bottomPadding: CGFloat
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if self.model.metrics.isEmpty {
+                if let placeholder = self.model.placeholder {
+                    Text(placeholder)
+                        .foregroundStyle(.secondary)
+                        .font(.subheadline)
+                }
+            } else {
+                ForEach(self.model.metrics) { metric in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(metric.title)
+                            .font(.body)
+                            .fontWeight(.medium)
+                        UsageProgressBar(
+                            percent: metric.percent,
+                            tint: self.model.progressColor,
+                            accessibilityLabel: metric.percentStyle.accessibilityLabel)
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(metric.percentLabel)
+                                .font(.footnote)
+                            Spacer()
+                            if let reset = metric.resetText {
+                                Text(reset)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        if let detail = metric.detailText {
+                            Text(detail)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+            }
+            if self.showBottomDivider {
+                Divider()
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+        .padding(.bottom, self.bottomPadding)
+        .frame(minWidth: 310, maxWidth: 310, alignment: .leading)
+    }
+}
+
 struct UsageMenuCardCreditsSectionView: View {
     let model: UsageMenuCardView.Model
     let showBottomDivider: Bool
     let topPadding: CGFloat
     let bottomPadding: CGFloat
+    let buyCreditsAction: (() -> Void)?
+
+    init(
+        model: UsageMenuCardView.Model,
+        showBottomDivider: Bool,
+        topPadding: CGFloat,
+        bottomPadding: CGFloat,
+        buyCreditsAction: (() -> Void)? = nil)
+    {
+        self.model = model
+        self.showBottomDivider = showBottomDivider
+        self.topPadding = topPadding
+        self.bottomPadding = bottomPadding
+        self.buyCreditsAction = buyCreditsAction
+    }
 
     var body: some View {
         if let credits = self.model.creditsText {
@@ -311,7 +339,8 @@ struct UsageMenuCardCreditsSectionView: View {
                     creditsText: credits,
                     creditsRemaining: self.model.creditsRemaining,
                     hintText: self.model.creditsHintText,
-                    progressColor: self.model.progressColor)
+                    progressColor: self.model.progressColor,
+                    buyCreditsAction: self.buyCreditsAction)
                 if self.showBottomDivider {
                     Divider()
                 }
@@ -331,6 +360,7 @@ private struct CreditsBarContent: View {
     let creditsRemaining: Double?
     let hintText: String?
     let progressColor: Color
+    let buyCreditsAction: (() -> Void)?
 
     private var percentLeft: Double? {
         guard let creditsRemaining else { return nil }
@@ -372,7 +402,24 @@ private struct CreditsBarContent: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            if let buyCreditsAction {
+                BuyCreditsButton(action: buyCreditsAction)
+                    .padding(.top, 2)
+            }
         }
+    }
+}
+
+private struct BuyCreditsButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: self.action) {
+            Label("Buy Credits...", systemImage: "plus.circle")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
     }
 }
 

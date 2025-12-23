@@ -9,6 +9,7 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
     ///
     /// This is distinct from `dailyBreakdown`, which is derived from `creditEvents` (credits usage history table).
     public let usageBreakdown: [OpenAIDashboardDailyBreakdown]
+    public let creditsPurchaseURL: String?
     public let updatedAt: Date
 
     public init(
@@ -17,6 +18,7 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
         creditEvents: [CreditEvent],
         dailyBreakdown: [OpenAIDashboardDailyBreakdown],
         usageBreakdown: [OpenAIDashboardDailyBreakdown],
+        creditsPurchaseURL: String?,
         updatedAt: Date)
     {
         self.signedInEmail = signedInEmail
@@ -24,6 +26,7 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
         self.creditEvents = creditEvents
         self.dailyBreakdown = dailyBreakdown
         self.usageBreakdown = usageBreakdown
+        self.creditsPurchaseURL = creditsPurchaseURL
         self.updatedAt = updatedAt
     }
 
@@ -33,6 +36,7 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
         case creditEvents
         case dailyBreakdown
         case usageBreakdown
+        case creditsPurchaseURL
         case updatedAt
     }
 
@@ -50,6 +54,7 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
         self.usageBreakdown = try container.decodeIfPresent(
             [OpenAIDashboardDailyBreakdown].self,
             forKey: .usageBreakdown) ?? []
+        self.creditsPurchaseURL = try container.decodeIfPresent(String.self, forKey: .creditsPurchaseURL)
         self.updatedAt = try container.decode(Date.self, forKey: .updatedAt)
     }
 

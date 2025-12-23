@@ -1,5 +1,6 @@
 import AppKit
 import CodexBarCore
+import Observation
 import SwiftUI
 
 // MARK: - NSMenu construction
@@ -52,6 +53,16 @@ extension StatusItemController {
 
     func menuDidClose(_ menu: NSMenu) {
         self.openMenus.removeValue(forKey: ObjectIdentifier(menu))
+        for menuItem in menu.items {
+            (menuItem.view as? MenuCardHighlighting)?.setHighlighted(false)
+        }
+    }
+
+    func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
+        for menuItem in menu.items {
+            let highlighted = menuItem == item && menuItem.isEnabled
+            (menuItem.view as? MenuCardHighlighting)?.setHighlighted(highlighted)
+        }
     }
 
     private func populateMenu(_ menu: NSMenu, provider: UsageProvider?) {
@@ -99,7 +110,12 @@ extension StatusItemController {
                     webItems: webItems)
                 addedOpenAIWebItems = true
             } else {
-                menu.addItem(self.makeMenuCardItem(UsageMenuCardView(model: model), id: "menuCard"))
+                let buyCreditsAction: (() -> Void)? = currentProvider == .codex
+                    ? { [weak self] in self?.openCreditsPurchase() }
+                    : nil
+                menu.addItem(self.makeMenuCardItem(
+                    UsageMenuCardView(model: model, buyCreditsAction: buyCreditsAction),
+                    id: "menuCard"))
                 menu.addItem(.separator())
             }
         }
@@ -269,7 +285,7 @@ extension StatusItemController {
     private func makeMenuCardItem(_ view: some View, id: String, submenu: NSMenu? = nil) -> NSMenuItem {
         let highlightState = MenuCardHighlightState()
         let wrapped = MenuCardSectionContainerView(
-            highlight: highlightState,
+            highlightState: highlightState,
             showsSubmenuIndicator: submenu != nil)
         {
             view
@@ -286,6 +302,10 @@ extension StatusItemController {
         item.isEnabled = submenu != nil
         item.representedObject = id
         item.submenu = submenu
+        if submenu != nil {
+            item.target = self
+            item.action = #selector(self.menuCardNoOp(_:))
+        }
         return item
     }
 
@@ -295,6 +315,7 @@ extension StatusItemController {
         provider: UsageProvider,
         webItems: OpenAIWebMenuItems)
     {
+        let hasUsageBlock = !model.metrics.isEmpty || model.placeholder != nil
         let hasCredits = model.creditsText != nil
         let hasCost = model.tokenUsage != nil
         let bottomPadding = CGFloat(hasCredits ? 4 : 10)
@@ -302,23 +323,34 @@ extension StatusItemController {
         let usageBottomPadding = bottomPadding
         let creditsBottomPadding = bottomPadding
 
-        let usageView = UsageMenuCardUsageSectionView(
+        let headerView = UsageMenuCardHeaderSectionView(
             model: model,
-            showBottomDivider: false,
-            bottomPadding: usageBottomPadding)
-        let usageSubmenu = webItems.hasUsageBreakdown ? self.makeUsageBreakdownSubmenu() : nil
-        menu.addItem(self.makeMenuCardItem(usageView, id: "menuCardUsage", submenu: usageSubmenu))
+            showDivider: hasUsageBlock)
+        menu.addItem(self.makeMenuCardItem(headerView, id: "menuCardHeader"))
+
+        if hasUsageBlock {
+            let usageView = UsageMenuCardUsageSectionView(
+                model: model,
+                showBottomDivider: false,
+                bottomPadding: usageBottomPadding)
+            let usageSubmenu = webItems.hasUsageBreakdown ? self.makeUsageBreakdownSubmenu() : nil
+            menu.addItem(self.makeMenuCardItem(usageView, id: "menuCardUsage", submenu: usageSubmenu))
+        }
 
         if hasCredits || hasCost {
             menu.addItem(.separator())
         }
 
         if hasCredits {
+            let buyCreditsAction: (() -> Void)? = provider == .codex
+                ? { [weak self] in self?.openCreditsPurchase() }
+                : nil
             let creditsView = UsageMenuCardCreditsSectionView(
                 model: model,
                 showBottomDivider: false,
                 topPadding: sectionSpacing,
-                bottomPadding: creditsBottomPadding)
+                bottomPadding: creditsBottomPadding,
+                buyCreditsAction: buyCreditsAction)
             let creditsSubmenu = webItems.hasCreditsHistory ? self.makeCreditsHistorySubmenu() : nil
             menu.addItem(self.makeMenuCardItem(creditsView, id: "menuCardCredits", submenu: creditsSubmenu))
         }
@@ -372,20 +404,26 @@ extension StatusItemController {
         }
     }
 
-    private final class MenuCardHighlightState: ObservableObject {
-        @Published var isHighlighted = false
+    @MainActor
+    private protocol MenuCardHighlighting: AnyObject {
+        func setHighlighted(_ highlighted: Bool)
     }
 
-    private final class MenuCardItemHostingView<Content: View>: NSHostingView<Content> {
+    @MainActor
+    @Observable
+    fileprivate final class MenuCardHighlightState {
+        var isHighlighted = false
+    }
+
+    @MainActor
+    private final class MenuCardItemHostingView<Content: View>: NSHostingView<Content>, MenuCardHighlighting {
         private let highlightState: MenuCardHighlightState
-        private var trackingArea: NSTrackingArea?
 
         init(rootView: Content, highlightState: MenuCardHighlightState) {
             self.highlightState = highlightState
             super.init(rootView: rootView)
         }
 
-        @MainActor
         required init(rootView: Content) {
             self.highlightState = MenuCardHighlightState()
             super.init(rootView: rootView)
@@ -396,60 +434,35 @@ extension StatusItemController {
             fatalError("init(coder:) has not been implemented")
         }
 
-        override func viewWillDraw() {
-            super.viewWillDraw()
-            self.syncHighlight()
-        }
-
-        override func updateTrackingAreas() {
-            super.updateTrackingAreas()
-            if let trackingArea {
-                self.removeTrackingArea(trackingArea)
-            }
-            let area = NSTrackingArea(
-                rect: self.bounds,
-                options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
-                owner: self,
-                userInfo: nil)
-            self.addTrackingArea(area)
-            self.trackingArea = area
-        }
-
-        override func mouseEntered(with event: NSEvent) {
-            super.mouseEntered(with: event)
-            self.highlightState.isHighlighted = true
-        }
-
-        override func mouseExited(with event: NSEvent) {
-            super.mouseExited(with: event)
-            self.highlightState.isHighlighted = false
-        }
-
-        private func syncHighlight() {
-            let highlighted = self.enclosingMenuItem?.isHighlighted ?? false
-            if self.highlightState.isHighlighted != highlighted {
-                self.highlightState.isHighlighted = highlighted
-            }
+        func setHighlighted(_ highlighted: Bool) {
+            guard self.highlightState.isHighlighted != highlighted else { return }
+            self.highlightState.isHighlighted = highlighted
         }
     }
 
     private struct MenuCardSectionContainerView<Content: View>: View {
-        @ObservedObject var highlight: MenuCardHighlightState
+        @Bindable var highlightState: MenuCardHighlightState
         let showsSubmenuIndicator: Bool
         let content: Content
 
         init(
-            highlight: MenuCardHighlightState,
+            highlightState: MenuCardHighlightState,
             showsSubmenuIndicator: Bool,
             @ViewBuilder content: () -> Content)
         {
-            self.highlight = highlight
+            self.highlightState = highlightState
             self.showsSubmenuIndicator = showsSubmenuIndicator
             self.content = content()
         }
 
         var body: some View {
             ZStack(alignment: .topTrailing) {
+                if self.highlightState.isHighlighted {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color(nsColor: .selectedContentBackgroundColor))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                }
                 self.content
                 if self.showsSubmenuIndicator {
                     Image(systemName: "chevron.right")
@@ -457,14 +470,8 @@ extension StatusItemController {
                         .foregroundStyle(.secondary)
                         .padding(.top, 8)
                         .padding(.trailing, 10)
-                        .opacity(self.highlight.isHighlighted ? 0.9 : 0.5)
                 }
             }
-            .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(self.highlight.isHighlighted
-                        ? Color(nsColor: .selectedContentBackgroundColor).opacity(0.16)
-                        : .clear))
         }
     }
 
@@ -613,6 +620,10 @@ extension StatusItemController {
             tokenCostUsageEnabled: self.settings.isCCUsageCostUsageEffectivelyEnabled(for: target),
             now: Date())
         return UsageMenuCardView.Model.make(input)
+    }
+
+    @objc private func menuCardNoOp(_ sender: NSMenuItem) {
+        _ = sender
     }
 }
 

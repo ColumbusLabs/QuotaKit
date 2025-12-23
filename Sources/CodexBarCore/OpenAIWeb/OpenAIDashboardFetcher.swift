@@ -81,6 +81,7 @@ public struct OpenAIDashboardFetcher {
         var anyDashboardSignalAt: Date?
         var creditsHeaderVisibleAt: Date?
         var lastUsageBreakdownDebug: String?
+        var lastCreditsPurchaseURL: String?
 
         while Date() < deadline {
             let scrape = try await self.scrape(webView: webView)
@@ -145,6 +146,10 @@ public struct OpenAIDashboardFetcher {
                 lastUsageBreakdownDebug = debug
                 log("usage breakdown debug: \(debug)")
             }
+            if let purchaseURL = scrape.creditsPurchaseURL, purchaseURL != lastCreditsPurchaseURL {
+                lastCreditsPurchaseURL = purchaseURL
+                log("credits purchase url: \(purchaseURL)")
+            }
             if events.isEmpty, codeReview != nil || !usageBreakdown.isEmpty {
                 log(
                     "credits header present=\(scrape.creditsHeaderPresent) " +
@@ -190,6 +195,7 @@ public struct OpenAIDashboardFetcher {
                     creditEvents: events,
                     dailyBreakdown: breakdown,
                     usageBreakdown: usageBreakdown,
+                    creditsPurchaseURL: scrape.creditsPurchaseURL,
                     updatedAt: Date())
             }
 
@@ -300,6 +306,7 @@ public struct OpenAIDashboardFetcher {
         let bodyText: String?
         let bodyHTML: String?
         let signedInEmail: String?
+        let creditsPurchaseURL: String?
         let rows: [[String]]
         let usageBreakdown: [OpenAIDashboardDailyBreakdown]
         let usageBreakdownDebug: String?
@@ -322,6 +329,7 @@ public struct OpenAIDashboardFetcher {
                 bodyText: nil,
                 bodyHTML: nil,
                 signedInEmail: nil,
+                creditsPurchaseURL: nil,
                 rows: [],
                 usageBreakdown: [],
                 usageBreakdownDebug: nil,
@@ -374,6 +382,7 @@ public struct OpenAIDashboardFetcher {
             bodyText: dict["bodyText"] as? String,
             bodyHTML: bodyHTML,
             signedInEmail: signedInEmail,
+            creditsPurchaseURL: dict["creditsPurchaseURL"] as? String,
             rows: rows,
             usageBreakdown: usageBreakdown,
             usageBreakdownDebug: usageBreakdownDebug,
@@ -742,6 +751,109 @@ private let openAIDashboardScrapeScript = """
         }
         return null;
       };
+      const normalizeHref = (raw) => {
+        if (!raw) return null;
+        const href = String(raw).trim();
+        if (!href) return null;
+        if (href.startsWith('http://') || href.startsWith('https://')) return href;
+        if (href.startsWith('//')) return window.location.protocol + href;
+        if (href.startsWith('/')) return window.location.origin + href;
+        return window.location.origin + '/' + href;
+      };
+      const isLikelyCreditsURL = (raw) => {
+        if (!raw) return false;
+        try {
+          const url = new URL(raw, window.location.origin);
+          if (!url.host || !url.host.includes('chatgpt.com')) return false;
+          const path = url.pathname.toLowerCase();
+          return (
+            path.includes('settings') ||
+            path.includes('usage') ||
+            path.includes('billing') ||
+            path.includes('credits')
+          );
+        } catch {
+          return false;
+        }
+      };
+      const purchaseTextMatches = (text) => {
+        const lower = String(text || '').trim().toLowerCase();
+        if (!lower || !lower.includes('credit')) return false;
+        return (
+          lower.includes('buy') ||
+          lower.includes('add') ||
+          lower.includes('purchase') ||
+          lower.includes('top up') ||
+          lower.includes('top-up')
+        );
+      };
+      const elementLabel = (el) => {
+        if (!el) return '';
+        return (
+          textOf(el) ||
+          el.getAttribute('aria-label') ||
+          el.getAttribute('title') ||
+          ''
+        );
+      };
+      const urlFromProps = (props) => {
+        if (!props || typeof props !== 'object') return null;
+        const candidates = [
+          props.href,
+          props.to,
+          props.url,
+          props.link,
+          props.destination,
+          props.navigateTo
+        ];
+        for (const candidate of candidates) {
+          if (typeof candidate === 'string' && candidate.trim()) {
+            return normalizeHref(candidate);
+          }
+        }
+        return null;
+      };
+      const purchaseURLFromElement = (el) => {
+        if (!el) return null;
+        const isAnchor = el.tagName && el.tagName.toLowerCase() === 'a';
+        const anchor = isAnchor ? el : (el.closest ? el.closest('a') : null);
+        const anchorHref = anchor ? anchor.getAttribute('href') : null;
+        const dataHref = el.getAttribute
+          ? (el.getAttribute('data-href') ||
+            el.getAttribute('data-url') ||
+            el.getAttribute('data-link') ||
+            el.getAttribute('data-destination'))
+          : null;
+        const propHref = urlFromProps(reactPropsOf(el)) || urlFromProps(reactPropsOf(anchor));
+        const normalized = normalizeHref(anchorHref || dataHref || propHref);
+        return normalized && isLikelyCreditsURL(normalized) ? normalized : null;
+      };
+      const pickLikelyPurchaseButton = (buttons) => {
+        if (!buttons || buttons.length === 0) return null;
+        const labeled = buttons.find(btn => {
+          const label = elementLabel(btn);
+          if (purchaseTextMatches(label)) return true;
+          const aria = String(btn.getAttribute('aria-label') || '').toLowerCase();
+          return aria.includes('credit') || aria.includes('buy') || aria.includes('add');
+        });
+        return labeled || buttons[0];
+      };
+      const findCreditsPurchaseButton = () => {
+        const nodes = Array.from(document.querySelectorAll('h1,h2,h3,div,span,p'));
+        const labelMatch = nodes.find(node => {
+          const lower = textOf(node).toLowerCase();
+          return lower === 'credits remaining' || (lower.includes('credits') && lower.includes('remaining'));
+        });
+        if (!labelMatch) return null;
+        let cur = labelMatch;
+        for (let i = 0; i < 6 && cur; i++) {
+          const buttons = Array.from(cur.querySelectorAll('button, a'));
+          const picked = pickLikelyPurchaseButton(buttons);
+          if (picked) return picked;
+          cur = cur.parentElement;
+        }
+        return null;
+      };
       const dayKeyFromPayload = (payload) => {
         if (!payload || typeof payload !== 'object') return null;
         const keys = ['day', 'date', 'name', 'label', 'x', 'time', 'timestamp'];
@@ -965,6 +1077,39 @@ private let openAIDashboardScrapeScript = """
         }
       } catch {}
 
+      let creditsPurchaseURL = null;
+      try {
+        const creditsButton = findCreditsPurchaseButton();
+        if (creditsButton) {
+          const url = purchaseURLFromElement(creditsButton);
+          if (url) creditsPurchaseURL = url;
+        }
+        const candidates = Array.from(document.querySelectorAll('a, button'));
+        for (const node of candidates) {
+          const label = elementLabel(node);
+          if (!purchaseTextMatches(label)) continue;
+          const url = purchaseURLFromElement(node);
+          if (url) {
+            creditsPurchaseURL = url;
+            break;
+          }
+        }
+        if (!creditsPurchaseURL) {
+          const anchors = Array.from(document.querySelectorAll('a[href]'));
+          for (const anchor of anchors) {
+            const label = elementLabel(anchor);
+            const href = anchor.getAttribute('href') || '';
+            const hrefLooksRelevant = /credits|billing/i.test(href);
+            if (!hrefLooksRelevant && !purchaseTextMatches(label)) continue;
+            const url = normalizeHref(href);
+            if (url) {
+              creditsPurchaseURL = url;
+              break;
+            }
+          }
+        }
+      } catch {}
+
       let signedInEmail = null;
       try {
         const next = window.__NEXT_DATA__ || null;
@@ -1049,6 +1194,7 @@ private let openAIDashboardScrapeScript = """
         bodyText,
         bodyHTML: document.documentElement ? String(document.documentElement.outerHTML || '') : '',
         signedInEmail,
+        creditsPurchaseURL,
         rows,
         usageBreakdownJSON,
         usageBreakdownDebug,

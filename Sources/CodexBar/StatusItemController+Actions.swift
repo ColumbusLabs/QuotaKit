@@ -27,6 +27,34 @@ extension StatusItemController {
         NSWorkspace.shared.open(url)
     }
 
+    @objc func openCreditsPurchase() {
+        let preferred = self.lastMenuProvider
+            ?? (self.store.isEnabled(.codex) ? .codex : self.store.enabledProviders().first)
+        let provider = preferred ?? .codex
+        guard provider == .codex else { return }
+
+        let dashboardURL = self.store.metadata(for: .codex).dashboardURL
+        let purchaseURL = Self.sanitizedCreditsPurchaseURL(self.store.openAIDashboard?.creditsPurchaseURL)
+        let urlString = purchaseURL ?? dashboardURL
+        guard let urlString,
+              let url = URL(string: urlString) else { return }
+
+        let autoStart = true
+        let accountEmail = self.store.codexAccountEmailForOpenAIDashboard()
+        let controller = self.creditsPurchaseWindow ?? OpenAICreditsPurchaseWindowController()
+        controller.show(purchaseURL: url, accountEmail: accountEmail, autoStartPurchase: autoStart)
+        self.creditsPurchaseWindow = controller
+    }
+
+    private static func sanitizedCreditsPurchaseURL(_ raw: String?) -> String? {
+        guard let raw, let url = URL(string: raw) else { return nil }
+        guard let host = url.host?.lowercased(), host.contains("chatgpt.com") else { return nil }
+        let path = url.path.lowercased()
+        let allowed = ["settings", "usage", "billing", "credits"]
+        guard allowed.contains(where: { path.contains($0) }) else { return nil }
+        return url.absoluteString
+    }
+
     @objc func openStatusPage() {
         let preferred = self.lastMenuProvider
             ?? (self.store.isEnabled(.codex) ? .codex : self.store.enabledProviders().first)

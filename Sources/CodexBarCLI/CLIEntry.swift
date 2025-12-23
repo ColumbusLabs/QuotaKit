@@ -308,6 +308,7 @@ enum CodexBarCLI {
                     from: cache.snapshot.creditEvents,
                     maxDays: 30),
                 usageBreakdown: cache.snapshot.usageBreakdown,
+                creditsPurchaseURL: cache.snapshot.creditsPurchaseURL,
                 updatedAt: cache.snapshot.updatedAt)
         }
         return cache.snapshot

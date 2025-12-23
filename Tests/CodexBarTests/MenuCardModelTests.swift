@@ -88,6 +88,7 @@ struct MenuCardModelTests {
             creditEvents: [],
             dailyBreakdown: [],
             usageBreakdown: [],
+            creditsPurchaseURL: nil,
             updatedAt: now)
 
         let model = UsageMenuCardView.Model.make(.init(
@@ -132,6 +133,7 @@ struct MenuCardModelTests {
             creditEvents: [],
             dailyBreakdown: [],
             usageBreakdown: [],
+            creditsPurchaseURL: nil,
             updatedAt: now)
         let model = UsageMenuCardView.Model.make(.init(
             provider: .codex,

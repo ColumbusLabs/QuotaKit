@@ -21,6 +21,7 @@ struct OpenAIWebAccountSwitchTests {
             creditEvents: [],
             dailyBreakdown: [],
             usageBreakdown: [],
+            creditsPurchaseURL: nil,
             updatedAt: Date())
 
         store.handleOpenAIWebTargetEmailChangeIfNeeded(targetEmail: "b@example.com")
@@ -44,6 +45,7 @@ struct OpenAIWebAccountSwitchTests {
             creditEvents: [],
             dailyBreakdown: [],
             usageBreakdown: [],
+            creditsPurchaseURL: nil,
             updatedAt: Date())
         store.openAIDashboard = dash
 
