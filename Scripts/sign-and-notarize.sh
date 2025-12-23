@@ -33,8 +33,21 @@ trap 'rm -f /tmp/codexbar-api-key.p8 /tmp/${APP_NAME}Notarize.zip' EXIT
 swift build -c release --arch arm64
 ./Scripts/package_app.sh release
 
+ENTITLEMENTS_DIR="$ROOT/.build/entitlements"
+APP_ENTITLEMENTS="${ENTITLEMENTS_DIR}/CodexBar.entitlements"
+WIDGET_ENTITLEMENTS="${ENTITLEMENTS_DIR}/CodexBarWidget.entitlements"
+
 echo "Signing with $APP_IDENTITY"
-codesign --force --deep --options runtime --timestamp --sign "$APP_IDENTITY" "$APP_BUNDLE"
+if [[ -d "$APP_BUNDLE/Contents/PlugIns/CodexBarWidget.appex" ]]; then
+  codesign --force --timestamp --options runtime --sign "$APP_IDENTITY" \
+    --entitlements "$WIDGET_ENTITLEMENTS" \
+    "$APP_BUNDLE/Contents/PlugIns/CodexBarWidget.appex/Contents/MacOS/CodexBarWidget"
+  codesign --force --timestamp --options runtime --sign "$APP_IDENTITY" \
+    "$APP_BUNDLE/Contents/PlugIns/CodexBarWidget.appex"
+fi
+codesign --force --timestamp --options runtime --sign "$APP_IDENTITY" \
+  --entitlements "$APP_ENTITLEMENTS" \
+  "$APP_BUNDLE"
 
 DITTO_BIN=${DITTO_BIN:-/usr/bin/ditto}
 "$DITTO_BIN" --norsrc -c -k --keepParent "$APP_BUNDLE" "/tmp/${APP_NAME}Notarize.zip"

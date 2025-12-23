@@ -16,7 +16,7 @@ swift build -c "$CONF" --arch arm64
 APP="$ROOT/CodexBar.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
-mkdir -p "$APP/Contents/Helpers"
+mkdir -p "$APP/Contents/Helpers" "$APP/Contents/PlugIns"
 
 # Convert new .icon bundle to .icns if present (macOS 14+/IconStudio export)
 ICON_SOURCE="$ROOT/Icon.icon"
@@ -34,6 +34,41 @@ if [[ "$LOWER_CONF" == "debug" ]]; then
   FEED_URL=""
   AUTO_CHECKS=false
 fi
+WIDGET_BUNDLE_ID="${BUNDLE_ID}.widget"
+APP_GROUP_ID="group.com.steipete.codexbar"
+if [[ "$BUNDLE_ID" == *".debug"* ]]; then
+  APP_GROUP_ID="group.com.steipete.codexbar.debug"
+fi
+ENTITLEMENTS_DIR="$ROOT/.build/entitlements"
+APP_ENTITLEMENTS="${ENTITLEMENTS_DIR}/CodexBar.entitlements"
+WIDGET_ENTITLEMENTS="${ENTITLEMENTS_DIR}/CodexBarWidget.entitlements"
+mkdir -p "$ENTITLEMENTS_DIR"
+cat > "$APP_ENTITLEMENTS" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>${APP_GROUP_ID}</string>
+    </array>
+</dict>
+</plist>
+PLIST
+cat > "$WIDGET_ENTITLEMENTS" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+    <key>com.apple.security.application-groups</key>
+    <array>
+        <string>${APP_GROUP_ID}</string>
+    </array>
+</dict>
+</plist>
+PLIST
 BUILD_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
@@ -74,6 +109,33 @@ if [[ -f ".build/$CONF/CodexBarClaudeWatchdog" ]]; then
   cp ".build/$CONF/CodexBarClaudeWatchdog" "$APP/Contents/Helpers/CodexBarClaudeWatchdog"
   chmod +x "$APP/Contents/Helpers/CodexBarClaudeWatchdog"
 fi
+if [[ -f ".build/$CONF/CodexBarWidget" ]]; then
+  WIDGET_APP="$APP/Contents/PlugIns/CodexBarWidget.appex"
+  mkdir -p "$WIDGET_APP/Contents/MacOS" "$WIDGET_APP/Contents/Resources"
+  cat > "$WIDGET_APP/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key><string>CodexBarWidget</string>
+    <key>CFBundleDisplayName</key><string>CodexBar</string>
+    <key>CFBundleIdentifier</key><string>${WIDGET_BUNDLE_ID}</string>
+    <key>CFBundleExecutable</key><string>CodexBarWidget</string>
+    <key>CFBundlePackageType</key><string>XPC!</string>
+    <key>CFBundleShortVersionString</key><string>${MARKETING_VERSION}</string>
+    <key>CFBundleVersion</key><string>${BUILD_NUMBER}</string>
+    <key>LSMinimumSystemVersion</key><string>15.0</string>
+    <key>NSExtension</key>
+    <dict>
+        <key>NSExtensionPointIdentifier</key><string>com.apple.widgetkit-extension</string>
+        <key>NSExtensionPrincipalClass</key><string>\$(PRODUCT_MODULE_NAME).CodexBarWidgetBundle</string>
+    </dict>
+</dict>
+</plist>
+PLIST
+  cp ".build/$CONF/CodexBarWidget" "$WIDGET_APP/Contents/MacOS/CodexBarWidget"
+  chmod +x "$WIDGET_APP/Contents/MacOS/CodexBarWidget"
+fi
 # Embed Sparkle.framework
 if [[ -d ".build/$CONF/Sparkle.framework" ]]; then
   cp -R ".build/$CONF/Sparkle.framework" "$APP/Contents/Frameworks/"
@@ -81,8 +143,8 @@ if [[ -d ".build/$CONF/Sparkle.framework" ]]; then
   install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/CodexBar"
   # Re-sign Sparkle and all nested components with Developer ID + timestamp
   SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
-  CODESIGN_ID="${APP_IDENTITY:-Developer ID Application: Peter Steinberger (Y5PE65HELJ)}"
-  function resign() { codesign --force --timestamp --options runtime --sign "$CODESIGN_ID" "$1"; }
+CODESIGN_ID="${APP_IDENTITY:-Developer ID Application: Peter Steinberger (Y5PE65HELJ)}"
+function resign() { codesign --force --timestamp --options runtime --sign "$CODESIGN_ID" "$1"; }
   # Sign innermost binaries first, then the framework root to seal resources
   resign "$SPARKLE"
   resign "$SPARKLE/Versions/B/Sparkle"
@@ -105,8 +167,18 @@ fi
 xattr -cr "$APP"
 find "$APP" -name '._*' -delete
 
+# Sign widget extension if present
+if [[ -d "${APP}/Contents/PlugIns/CodexBarWidget.appex" ]]; then
+  codesign --force --timestamp --options runtime --sign "$CODESIGN_ID" \
+    --entitlements "$WIDGET_ENTITLEMENTS" \
+    "$APP/Contents/PlugIns/CodexBarWidget.appex/Contents/MacOS/CodexBarWidget"
+  codesign --force --timestamp --options runtime --sign "$CODESIGN_ID" \
+    "$APP/Contents/PlugIns/CodexBarWidget.appex"
+fi
+
 # Finally sign the app bundle itself
-CODESIGN_ID="${APP_IDENTITY:-Developer ID Application: Peter Steinberger (Y5PE65HELJ)}"
-codesign --force --timestamp --options runtime --sign "$CODESIGN_ID" "$APP"
+codesign --force --timestamp --options runtime --sign "$CODESIGN_ID" \
+  --entitlements "$APP_ENTITLEMENTS" \
+  "$APP"
 
 echo "Created $APP"
