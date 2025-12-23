@@ -5,6 +5,7 @@ struct UsageProgressBar: View {
     let percent: Double
     let tint: Color
     let accessibilityLabel: String
+    @Environment(\.menuItemHighlighted) private var isHighlighted
 
     private var clamped: Double {
         min(100, max(0, self.percent))
@@ -15,9 +16,9 @@ struct UsageProgressBar: View {
             let fillWidth = proxy.size.width * self.clamped / 100
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Color.secondary.opacity(0.25))
+                    .fill(MenuHighlightStyle.progressTrack(self.isHighlighted))
                 Capsule()
-                    .fill(self.tint)
+                    .fill(MenuHighlightStyle.progressTint(self.isHighlighted, fallback: self.tint))
                     .frame(width: fillWidth)
             }
         }

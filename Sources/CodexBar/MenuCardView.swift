@@ -64,6 +64,7 @@ struct UsageMenuCardView: View {
     }
 
     let model: Model
+    @Environment(\.menuItemHighlighted) private var isHighlighted
 
     init(model: Model) {
         self.model = model
@@ -80,7 +81,7 @@ struct UsageMenuCardView: View {
             if self.model.metrics.isEmpty {
                 if let placeholder = self.model.placeholder {
                     Text(placeholder)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                         .font(.subheadline)
                 }
             } else {
@@ -107,13 +108,13 @@ struct UsageMenuCardView: View {
                                         if let reset = metric.resetText {
                                             Text(reset)
                                                 .font(.footnote)
-                                                .foregroundStyle(.secondary)
+                                                .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                                         }
                                     }
                                     if let detail = metric.detailText {
                                         Text(detail)
                                             .font(.footnote)
-                                            .foregroundStyle(.secondary)
+                                            .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                                             .lineLimit(1)
                                     }
                                 }
@@ -145,14 +146,14 @@ struct UsageMenuCardView: View {
                             if let hint = tokenUsage.hintLine, !hint.isEmpty {
                                 Text(hint)
                                     .font(.footnote)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                                     .lineLimit(2)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             if let error = tokenUsage.errorLine, !error.isEmpty {
                                 Text(error)
                                     .font(.footnote)
-                                    .foregroundStyle(Color(nsColor: .systemRed))
+                                    .foregroundStyle(MenuHighlightStyle.error(self.isHighlighted))
                                     .lineLimit(2)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
@@ -175,6 +176,7 @@ struct UsageMenuCardView: View {
 
 private struct UsageMenuCardHeaderView: View {
     let model: UsageMenuCardView.Model
+    @Environment(\.menuItemHighlighted) private var isHighlighted
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -185,7 +187,7 @@ private struct UsageMenuCardHeaderView: View {
                 Spacer()
                 Text(self.model.email)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
             }
             HStack(alignment: .firstTextBaseline) {
                 Text(self.model.subtitleText)
@@ -198,7 +200,7 @@ private struct UsageMenuCardHeaderView: View {
                 if let plan = self.model.planText {
                     Text(plan)
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                         .lineLimit(1)
                 }
             }
@@ -207,9 +209,9 @@ private struct UsageMenuCardHeaderView: View {
 
     private var subtitleColor: Color {
         switch self.model.subtitleStyle {
-        case .info: .secondary
-        case .loading: .secondary
-        case .error: Color(nsColor: .systemRed)
+        case .info: MenuHighlightStyle.secondary(self.isHighlighted)
+        case .loading: MenuHighlightStyle.secondary(self.isHighlighted)
+        case .error: MenuHighlightStyle.error(self.isHighlighted)
         }
     }
 }
@@ -236,13 +238,14 @@ struct UsageMenuCardUsageSectionView: View {
     let model: UsageMenuCardView.Model
     let showBottomDivider: Bool
     let bottomPadding: CGFloat
+    @Environment(\.menuItemHighlighted) private var isHighlighted
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if self.model.metrics.isEmpty {
                 if let placeholder = self.model.placeholder {
                     Text(placeholder)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                         .font(.subheadline)
                 }
             } else {
@@ -262,13 +265,13 @@ struct UsageMenuCardUsageSectionView: View {
                             if let reset = metric.resetText {
                                 Text(reset)
                                     .font(.footnote)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                             }
                         }
                         if let detail = metric.detailText {
                             Text(detail)
                                 .font(.footnote)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                                 .lineLimit(1)
                         }
                     }
@@ -330,6 +333,7 @@ private struct CreditsBarContent: View {
     let creditsRemaining: Double?
     let hintText: String?
     let progressColor: Color
+    @Environment(\.menuItemHighlighted) private var isHighlighted
 
     private var percentLeft: Double? {
         guard let creditsRemaining else { return nil }
@@ -358,7 +362,7 @@ private struct CreditsBarContent: View {
                     Spacer()
                     Text(self.scaleText)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                 }
             } else {
                 Text(self.creditsText)
@@ -367,7 +371,7 @@ private struct CreditsBarContent: View {
             if let hintText, !hintText.isEmpty {
                 Text(hintText)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -379,6 +383,7 @@ struct UsageMenuCardCostSectionView: View {
     let model: UsageMenuCardView.Model
     let topPadding: CGFloat
     let bottomPadding: CGFloat
+    @Environment(\.menuItemHighlighted) private var isHighlighted
 
     var body: some View {
         if let tokenUsage = self.model.tokenUsage {
@@ -393,14 +398,14 @@ struct UsageMenuCardCostSectionView: View {
                 if let hint = tokenUsage.hintLine, !hint.isEmpty {
                     Text(hint)
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if let error = tokenUsage.errorLine, !error.isEmpty {
                     Text(error)
                         .font(.footnote)
-                        .foregroundStyle(Color(nsColor: .systemRed))
+                        .foregroundStyle(MenuHighlightStyle.error(self.isHighlighted))
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                 }

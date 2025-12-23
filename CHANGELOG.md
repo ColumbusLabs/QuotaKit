@@ -1,7 +1,7 @@
 # Changelog
 
 ## 0.12.1 — Unreleased
-- (nothing yet)
+- Menu: custom menu items now use full selection highlight with inverted white text and bars.
 
 ## 0.12.0 — 2025-12-23
 - Widgets: add WidgetKit extension backed by a shared app‑group usage snapshot.

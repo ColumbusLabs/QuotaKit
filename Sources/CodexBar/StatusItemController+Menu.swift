@@ -469,6 +469,8 @@ extension StatusItemController {
 
         var body: some View {
             self.content
+                .environment(\.menuItemHighlighted, self.highlightState.isHighlighted)
+                .foregroundStyle(MenuHighlightStyle.primary(self.highlightState.isHighlighted))
                 .background(alignment: .topLeading) {
                     if self.highlightState.isHighlighted {
                         self.highlightBackground
@@ -478,7 +480,7 @@ extension StatusItemController {
                     if self.showsSubmenuIndicator {
                         Image(systemName: "chevron.right")
                             .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(MenuHighlightStyle.secondary(self.highlightState.isHighlighted))
                             .padding(.top, 8)
                             .padding(.trailing, 10)
                     }
@@ -492,7 +494,7 @@ extension StatusItemController {
                 let bottomInset: CGFloat = 1
                 let height = max(0, proxy.size.height - self.highlightExclusionHeight - topInset - bottomInset)
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color(nsColor: .controlAccentColor).opacity(0.18))
+                    .fill(MenuHighlightStyle.selectionBackground)
                     .frame(height: height, alignment: .top)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.horizontal, 6)
@@ -676,9 +678,9 @@ private final class ProviderSwitcherView: NSView {
     private let segments: [Segment]
     private let onSelect: (UsageProvider) -> Void
     private var buttons: [NSButton] = []
-    private let selectedBackground = NSColor.labelColor.withAlphaComponent(0.12).cgColor
+    private let selectedBackground = NSColor.controlAccentColor.cgColor
     private let unselectedBackground = NSColor.clear.cgColor
-    private let selectedTextColor = NSColor.labelColor
+    private let selectedTextColor = NSColor.white
     private let unselectedTextColor = NSColor.secondaryLabelColor
 
     init(
