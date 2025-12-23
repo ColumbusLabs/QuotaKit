@@ -26,13 +26,13 @@ public enum ClaudeWebAPIFetcher {
                 "No Claude session key found in browser cookies."
             case .invalidSessionKey:
                 "Invalid Claude session key format."
-            case .networkError(let error):
+            case let .networkError(error):
                 "Network error: \(error.localizedDescription)"
             case .invalidResponse:
                 "Invalid response from Claude API."
             case .unauthorized:
                 "Unauthorized. Your Claude session may have expired."
-            case .serverError(let code):
+            case let .serverError(code):
                 "Claude API error: HTTP \(code)"
             case .noOrganization:
                 "No Claude organization found for this account."
@@ -55,8 +55,8 @@ public enum ClaudeWebAPIFetcher {
             weeklyPercentUsed: Double?,
             weeklyResetsAt: Date?,
             opusPercentUsed: Double?,
-            extraUsageCost: ProviderCostSnapshot?
-        ) {
+            extraUsageCost: ProviderCostSnapshot?)
+        {
             self.sessionPercentUsed = sessionPercentUsed
             self.sessionResetsAt = sessionResetsAt
             self.weeklyPercentUsed = weeklyPercentUsed
@@ -99,7 +99,7 @@ public enum ClaudeWebAPIFetcher {
     /// Checks if we can find a Claude session key in browser cookies without making API calls.
     public static func hasSessionKey(logger: ((String) -> Void)? = nil) -> Bool {
         do {
-            _ = try extractSessionKey(logger: logger)
+            _ = try self.extractSessionKey(logger: logger)
             return true
         } catch {
             return false
@@ -115,8 +115,7 @@ public enum ClaudeWebAPIFetcher {
         do {
             let safariRecords = try SafariCookieImporter.loadCookies(
                 matchingDomains: ["claude.ai"],
-                logger: log
-            )
+                logger: log)
             if let sessionKey = findSessionKey(in: safariRecords.map { record in
                 (name: record.name, value: record.value)
             }) {
@@ -130,8 +129,7 @@ public enum ClaudeWebAPIFetcher {
         // Try Chrome (may trigger Keychain prompt)
         do {
             let chromeSources = try ChromeCookieImporter.loadCookiesFromAllProfiles(
-                matchingDomains: ["claude.ai"]
-            )
+                matchingDomains: ["claude.ai"])
             for source in chromeSources {
                 if let sessionKey = findSessionKey(in: source.records.map { record in
                     (name: record.name, value: record.value)
@@ -148,13 +146,11 @@ public enum ClaudeWebAPIFetcher {
     }
 
     private static func findSessionKey(in cookies: [(name: String, value: String)]) -> String? {
-        for cookie in cookies {
-            if cookie.name == "sessionKey" {
-                let value = cookie.value.trimmingCharacters(in: .whitespacesAndNewlines)
-                // Validate it looks like a Claude session key
-                if value.hasPrefix("sk-ant-") {
-                    return value
-                }
+        for cookie in cookies where cookie.name == "sessionKey" {
+            let value = cookie.value.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Validate it looks like a Claude session key
+            if value.hasPrefix("sk-ant-") {
+                return value
             }
         }
         return nil
@@ -164,8 +160,8 @@ public enum ClaudeWebAPIFetcher {
 
     private static func fetchOrganizationId(
         sessionKey: String,
-        logger: ((String) -> Void)? = nil
-    ) async throws -> String {
+        logger: ((String) -> Void)? = nil) async throws -> String
+    {
         let url = URL(string: "\(baseURL)/organizations")!
         var request = URLRequest(url: url)
         request.setValue("sessionKey=\(sessionKey)", forHTTPHeaderField: "Cookie")
@@ -186,7 +182,8 @@ public enum ClaudeWebAPIFetcher {
             // Parse organizations array - look for uuid field
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
                   let firstOrg = json.first,
-                  let uuid = firstOrg["uuid"] as? String else {
+                  let uuid = firstOrg["uuid"] as? String
+            else {
                 throw FetchError.noOrganization
             }
             return uuid
@@ -200,8 +197,8 @@ public enum ClaudeWebAPIFetcher {
     private static func fetchUsageData(
         orgId: String,
         sessionKey: String,
-        logger: ((String) -> Void)? = nil
-    ) async throws -> WebUsageData {
+        logger: ((String) -> Void)? = nil) async throws -> WebUsageData
+    {
         let url = URL(string: "\(baseURL)/organizations/\(orgId)/usage")!
         var request = URLRequest(url: url)
         request.setValue("sessionKey=\(sessionKey)", forHTTPHeaderField: "Cookie")
@@ -219,7 +216,7 @@ public enum ClaudeWebAPIFetcher {
 
         switch httpResponse.statusCode {
         case 200:
-            return try parseUsageResponse(data)
+            return try self.parseUsageResponse(data)
         case 401, 403:
             throw FetchError.unauthorized
         default:
@@ -240,7 +237,7 @@ public enum ClaudeWebAPIFetcher {
                 sessionPercent = Double(utilization)
             }
             if let resetsAt = fiveHour["resets_at"] as? String {
-                sessionResets = parseISO8601Date(resetsAt)
+                sessionResets = self.parseISO8601Date(resetsAt)
             }
         }
         guard let sessionPercent else {
@@ -256,7 +253,7 @@ public enum ClaudeWebAPIFetcher {
                 weeklyPercent = Double(utilization)
             }
             if let resetsAt = sevenDay["resets_at"] as? String {
-                weeklyResets = parseISO8601Date(resetsAt)
+                weeklyResets = self.parseISO8601Date(resetsAt)
             }
         }
 
@@ -274,8 +271,7 @@ public enum ClaudeWebAPIFetcher {
             weeklyPercentUsed: weeklyPercent,
             weeklyResetsAt: weeklyResets,
             opusPercentUsed: opusPercent,
-            extraUsageCost: nil
-        )
+            extraUsageCost: nil)
     }
 
     // MARK: - Extra usage cost (Claude "Extra")
@@ -298,8 +294,8 @@ public enum ClaudeWebAPIFetcher {
     private static func fetchExtraUsageCost(
         orgId: String,
         sessionKey: String,
-        logger: ((String) -> Void)? = nil
-    ) async -> ProviderCostSnapshot? {
+        logger: ((String) -> Void)? = nil) async -> ProviderCostSnapshot?
+    {
         let url = URL(string: "\(baseURL)/organizations/\(orgId)/overage_spend_limit")!
         var request = URLRequest(url: url)
         request.setValue("sessionKey=\(sessionKey)", forHTTPHeaderField: "Cookie")
@@ -335,17 +331,18 @@ public enum ClaudeWebAPIFetcher {
             updatedAt: Date())
     }
 
-#if DEBUG
+    #if DEBUG
+
     // MARK: - Test hooks (DEBUG-only)
 
     public static func _parseUsageResponseForTesting(_ data: Data) throws -> WebUsageData {
-        try Self.parseUsageResponse(data)
+        try self.parseUsageResponse(data)
     }
 
     public static func _parseOverageSpendLimitForTesting(_ data: Data) -> ProviderCostSnapshot? {
-        Self.parseOverageSpendLimit(data)
+        self.parseOverageSpendLimit(data)
     }
-#endif
+    #endif
 
     private static func parseISO8601Date(_ string: String) -> Date? {
         let formatter = ISO8601DateFormatter()

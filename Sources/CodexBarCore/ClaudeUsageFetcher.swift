@@ -66,8 +66,8 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     ///                   Falls back to CLI scraping if web API fails. (default: false)
     public init(
         environment: [String: String] = ProcessInfo.processInfo.environment,
-        preferWebAPI: Bool = false
-    ) {
+        preferWebAPI: Bool = false)
+    {
         self.environment = environment
         self.preferWebAPI = preferWebAPI
     }
@@ -231,16 +231,14 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             usedPercent: webData.sessionPercentUsed,
             windowMinutes: 5 * 60,
             resetsAt: webData.sessionResetsAt,
-            resetDescription: webData.sessionResetsAt.map { Self.formatResetDate($0) }
-        )
+            resetDescription: webData.sessionResetsAt.map { Self.formatResetDate($0) })
 
         let secondary: RateWindow? = webData.weeklyPercentUsed.map { pct in
             RateWindow(
                 usedPercent: pct,
                 windowMinutes: 7 * 24 * 60,
                 resetsAt: webData.weeklyResetsAt,
-                resetDescription: webData.weeklyResetsAt.map { Self.formatResetDate($0) }
-            )
+                resetDescription: webData.weeklyResetsAt.map { Self.formatResetDate($0) })
         }
 
         let opus: RateWindow? = webData.opusPercentUsed.map { opusPct in
@@ -248,8 +246,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                 usedPercent: opusPct,
                 windowMinutes: 7 * 24 * 60,
                 resetsAt: webData.weeklyResetsAt,
-                resetDescription: webData.weeklyResetsAt.map { Self.formatResetDate($0) }
-            )
+                resetDescription: webData.weeklyResetsAt.map { Self.formatResetDate($0) })
         }
 
         return ClaudeUsageSnapshot(
@@ -261,8 +258,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             accountEmail: nil, // Web API doesn't provide account info
             accountOrganization: nil,
             loginMethod: nil,
-            rawText: nil
-        )
+            rawText: nil)
     }
 
     private static func formatResetDate(_ date: Date) -> String {

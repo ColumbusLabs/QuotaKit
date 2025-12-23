@@ -31,7 +31,7 @@ enum SafariCookieImporter {
     }
 
     static func loadChatGPTCookies(logger: ((String) -> Void)? = nil) throws -> [CookieRecord] {
-        try loadCookies(matchingDomains: ["chatgpt.com", "openai.com"], logger: logger)
+        try self.loadCookies(matchingDomains: ["chatgpt.com", "openai.com"], logger: logger)
     }
 
     static func loadChatGPTCookies() throws -> [CookieRecord] {
@@ -45,8 +45,8 @@ enum SafariCookieImporter {
     /// - Returns: Array of matching cookie records
     static func loadCookies(
         matchingDomains domains: [String],
-        logger: ((String) -> Void)? = nil
-    ) throws -> [CookieRecord] {
+        logger: ((String) -> Void)? = nil) throws -> [CookieRecord]
+    {
         let candidates = self.candidateCookieFiles()
         var lastNoPermission: String?
         var lastReadError: String?

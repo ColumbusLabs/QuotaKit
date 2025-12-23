@@ -48,7 +48,7 @@ enum ChromeCookieImporter {
     }
 
     static func loadChatGPTCookiesFromAllProfiles() throws -> [CookieSource] {
-        try loadCookiesFromAllProfiles(matchingDomains: ["chatgpt.com", "openai.com"])
+        try self.loadCookiesFromAllProfiles(matchingDomains: ["chatgpt.com", "openai.com"])
     }
 
     /// Loads cookies from all Chrome profiles matching the given domains.
@@ -77,8 +77,7 @@ enum ChromeCookieImporter {
             let records = try Self.readCookiesFromLockedChromeDB(
                 sourceDB: candidate.cookiesDB,
                 key: chromeKey,
-                matchingDomains: domains
-            )
+                matchingDomains: domains)
             guard !records.isEmpty else { return nil }
             return CookieSource(label: candidate.label, records: records)
         }
@@ -87,14 +86,17 @@ enum ChromeCookieImporter {
     // MARK: - DB copy helper
 
     private static func readCookiesFromLockedChromeDB(sourceDB: URL, key: Data) throws -> [CookieRecord] {
-        try readCookiesFromLockedChromeDB(sourceDB: sourceDB, key: key, matchingDomains: ["chatgpt.com", "openai.com"])
+        try self.readCookiesFromLockedChromeDB(
+            sourceDB: sourceDB,
+            key: key,
+            matchingDomains: ["chatgpt.com", "openai.com"])
     }
 
     private static func readCookiesFromLockedChromeDB(
         sourceDB: URL,
         key: Data,
-        matchingDomains: [String]
-    ) throws -> [CookieRecord] {
+        matchingDomains: [String]) throws -> [CookieRecord]
+    {
         // Chrome keeps the DB locked; copy the DB (and wal/shm when present) to a temp folder before reading.
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("codexbar-chrome-cookies-\(UUID().uuidString)", isDirectory: true)
@@ -119,14 +121,14 @@ enum ChromeCookieImporter {
     // MARK: - SQLite read
 
     private static func readCookies(fromDB path: String, key: Data) throws -> [CookieRecord] {
-        try readCookies(fromDB: path, key: key, matchingDomains: ["chatgpt.com", "openai.com"])
+        try self.readCookies(fromDB: path, key: key, matchingDomains: ["chatgpt.com", "openai.com"])
     }
 
     private static func readCookies(
         fromDB path: String,
         key: Data,
-        matchingDomains: [String]
-    ) throws -> [CookieRecord] {
+        matchingDomains: [String]) throws -> [CookieRecord]
+    {
         var db: OpaquePointer?
         if sqlite3_open_v2(path, &db, SQLITE_OPEN_READONLY, nil) != SQLITE_OK {
             throw ImportError.sqliteFailed(message: String(cString: sqlite3_errmsg(db)))
