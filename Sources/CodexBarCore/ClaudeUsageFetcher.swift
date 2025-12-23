@@ -11,6 +11,7 @@ public struct ClaudeUsageSnapshot: Sendable {
     public let primary: RateWindow
     public let secondary: RateWindow?
     public let opus: RateWindow?
+    public let providerCost: ProviderCostSnapshot?
     public let updatedAt: Date
     public let accountEmail: String?
     public let accountOrganization: String?
@@ -21,6 +22,7 @@ public struct ClaudeUsageSnapshot: Sendable {
         primary: RateWindow,
         secondary: RateWindow?,
         opus: RateWindow?,
+        providerCost: ProviderCostSnapshot? = nil,
         updatedAt: Date,
         accountEmail: String?,
         accountOrganization: String?,
@@ -30,6 +32,7 @@ public struct ClaudeUsageSnapshot: Sendable {
         self.primary = primary
         self.secondary = secondary
         self.opus = opus
+        self.providerCost = providerCost
         self.updatedAt = updatedAt
         self.accountEmail = accountEmail
         self.accountOrganization = accountOrganization
@@ -54,9 +57,19 @@ public enum ClaudeUsageError: LocalizedError, Sendable {
 
 public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     private let environment: [String: String]
+    private let preferWebAPI: Bool
 
-    public init(environment: [String: String] = ProcessInfo.processInfo.environment) {
+    /// Creates a new ClaudeUsageFetcher.
+    /// - Parameters:
+    ///   - environment: Process environment (default: current process environment)
+    ///   - preferWebAPI: If true, tries to fetch usage via claude.ai web API using browser cookies first.
+    ///                   Falls back to CLI scraping if web API fails. (default: false)
+    public init(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        preferWebAPI: Bool = false
+    ) {
         self.environment = environment
+        self.preferWebAPI = preferWebAPI
     }
 
     // MARK: - Parsing helpers
@@ -126,6 +139,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             primary: session,
             secondary: weekAll,
             opus: opusWindow,
+            providerCost: nil,
             updatedAt: Date(),
             accountEmail: email,
             accountOrganization: org,
@@ -179,11 +193,83 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     }
 
     public func loadLatestUsage(model: String = "sonnet") async throws -> ClaudeUsageSnapshot {
+        // Try web API first if enabled (faster, no PTY needed)
+        if self.preferWebAPI {
+            do {
+                return try await self.loadViaWebAPI()
+            } catch {
+                // Fall through to CLI scraping
+                if #available(macOS 13.0, *) {
+                    os_log(
+                        "[ClaudeUsageFetcher] Web API failed, falling back to CLI: %{public}@",
+                        log: .default,
+                        type: .info,
+                        error.localizedDescription)
+                }
+            }
+        }
+
+        // CLI scraping path (original behavior)
         do {
             return try await self.loadViaPTY(model: model, timeout: 10)
         } catch {
             return try await self.loadViaPTY(model: model, timeout: 24)
         }
+    }
+
+    // MARK: - Web API path (uses browser cookies)
+
+    private func loadViaWebAPI() async throws -> ClaudeUsageSnapshot {
+        let webData = try await ClaudeWebAPIFetcher.fetchUsage { msg in
+            if #available(macOS 13.0, *) {
+                os_log("%{public}@", log: .default, type: .debug, msg)
+            }
+        }
+
+        // Convert web API data to ClaudeUsageSnapshot format
+        let primary = RateWindow(
+            usedPercent: webData.sessionPercentUsed,
+            windowMinutes: 5 * 60,
+            resetsAt: webData.sessionResetsAt,
+            resetDescription: webData.sessionResetsAt.map { Self.formatResetDate($0) }
+        )
+
+        let secondary: RateWindow? = webData.weeklyPercentUsed.map { pct in
+            RateWindow(
+                usedPercent: pct,
+                windowMinutes: 7 * 24 * 60,
+                resetsAt: webData.weeklyResetsAt,
+                resetDescription: webData.weeklyResetsAt.map { Self.formatResetDate($0) }
+            )
+        }
+
+        let opus: RateWindow? = webData.opusPercentUsed.map { opusPct in
+            RateWindow(
+                usedPercent: opusPct,
+                windowMinutes: 7 * 24 * 60,
+                resetsAt: webData.weeklyResetsAt,
+                resetDescription: webData.weeklyResetsAt.map { Self.formatResetDate($0) }
+            )
+        }
+
+        return ClaudeUsageSnapshot(
+            primary: primary,
+            secondary: secondary,
+            opus: opus,
+            providerCost: webData.extraUsageCost,
+            updatedAt: Date(),
+            accountEmail: nil, // Web API doesn't provide account info
+            accountOrganization: nil,
+            loginMethod: nil,
+            rawText: nil
+        )
+    }
+
+    private static func formatResetDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d 'at' h:mma"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter.string(from: date)
     }
 
     // MARK: - PTY-based probe (no tmux)
@@ -216,6 +302,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             primary: primary,
             secondary: weekly,
             opus: opus,
+            providerCost: nil,
             updatedAt: Date(),
             accountEmail: snap.accountEmail,
             accountOrganization: snap.accountOrganization,

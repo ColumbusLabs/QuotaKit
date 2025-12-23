@@ -71,6 +71,16 @@ public enum UsageFormatter {
         return formatter.string(from: NSNumber(value: value)) ?? String(format: "$%.2f", value)
     }
 
+    public static func currencyString(_ value: Double, currencyCode: String) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = currencyCode
+        formatter.maximumFractionDigits = 2
+        formatter.minimumFractionDigits = 2
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter.string(from: NSNumber(value: value)) ?? "\(currencyCode) \(String(format: "%.2f", value))"
+    }
+
     public static func tokenCountString(_ value: Int) -> String {
         let absValue = abs(value)
         let sign = value < 0 ? "-" : ""

@@ -23,6 +23,7 @@ public struct UsageSnapshot: Codable, Sendable {
     public let primary: RateWindow
     public let secondary: RateWindow?
     public let tertiary: RateWindow?
+    public let providerCost: ProviderCostSnapshot?
     public let updatedAt: Date
     public let accountEmail: String?
     public let accountOrganization: String?
@@ -32,6 +33,7 @@ public struct UsageSnapshot: Codable, Sendable {
         case primary
         case secondary
         case tertiary
+        case providerCost
         case updatedAt
         case accountEmail
         case accountOrganization
@@ -42,6 +44,7 @@ public struct UsageSnapshot: Codable, Sendable {
         primary: RateWindow,
         secondary: RateWindow?,
         tertiary: RateWindow? = nil,
+        providerCost: ProviderCostSnapshot? = nil,
         updatedAt: Date,
         accountEmail: String? = nil,
         accountOrganization: String? = nil,
@@ -50,6 +53,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.primary = primary
         self.secondary = secondary
         self.tertiary = tertiary
+        self.providerCost = providerCost
         self.updatedAt = updatedAt
         self.accountEmail = accountEmail
         self.accountOrganization = accountOrganization
@@ -61,6 +65,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.primary = try container.decode(RateWindow.self, forKey: .primary)
         self.secondary = try container.decodeIfPresent(RateWindow.self, forKey: .secondary)
         self.tertiary = try container.decodeIfPresent(RateWindow.self, forKey: .tertiary)
+        self.providerCost = try container.decodeIfPresent(ProviderCostSnapshot.self, forKey: .providerCost)
         self.updatedAt = try container.decode(Date.self, forKey: .updatedAt)
         self.accountEmail = try container.decodeIfPresent(String.self, forKey: .accountEmail)
         self.accountOrganization = try container.decodeIfPresent(String.self, forKey: .accountOrganization)
@@ -76,6 +81,7 @@ public struct UsageSnapshot: Codable, Sendable {
             try container.encodeNil(forKey: .secondary)
         }
         try container.encodeIfPresent(self.tertiary, forKey: .tertiary)
+        try container.encodeIfPresent(self.providerCost, forKey: .providerCost)
         try container.encode(self.updatedAt, forKey: .updatedAt)
         try container.encodeIfPresent(self.accountEmail, forKey: .accountEmail)
         try container.encodeIfPresent(self.accountOrganization, forKey: .accountOrganization)

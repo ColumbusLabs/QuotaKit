@@ -31,6 +31,22 @@ enum SafariCookieImporter {
     }
 
     static func loadChatGPTCookies(logger: ((String) -> Void)? = nil) throws -> [CookieRecord] {
+        try loadCookies(matchingDomains: ["chatgpt.com", "openai.com"], logger: logger)
+    }
+
+    static func loadChatGPTCookies() throws -> [CookieRecord] {
+        try self.loadChatGPTCookies(logger: nil)
+    }
+
+    /// Loads cookies from Safari matching the given domains.
+    /// - Parameters:
+    ///   - domains: Array of domain patterns to match (e.g., ["claude.ai"])
+    ///   - logger: Optional logging closure for debugging
+    /// - Returns: Array of matching cookie records
+    static func loadCookies(
+        matchingDomains domains: [String],
+        logger: ((String) -> Void)? = nil
+    ) throws -> [CookieRecord] {
         let candidates = self.candidateCookieFiles()
         var lastNoPermission: String?
         var lastReadError: String?
@@ -43,7 +59,7 @@ enum SafariCookieImporter {
                 let records = try Self.parseBinaryCookies(data: data)
                 return records.filter { record in
                     let d = record.domain.lowercased()
-                    return d.contains("chatgpt.com") || d.contains("openai.com")
+                    return domains.contains { d.contains($0.lowercased()) }
                 }
             } catch let error as CocoaError where error.code == .fileReadNoPermission {
                 lastNoPermission = url.path
@@ -63,10 +79,6 @@ enum SafariCookieImporter {
             logger?("Safari cookies: last error: \(lastReadError)")
         }
         throw ImportError.cookieFileNotFound
-    }
-
-    static func loadChatGPTCookies() throws -> [CookieRecord] {
-        try self.loadChatGPTCookies(logger: nil)
     }
 
     static func makeHTTPCookies(_ records: [CookieRecord]) -> [HTTPCookie] {

@@ -48,6 +48,13 @@ enum ChromeCookieImporter {
     }
 
     static func loadChatGPTCookiesFromAllProfiles() throws -> [CookieSource] {
+        try loadCookiesFromAllProfiles(matchingDomains: ["chatgpt.com", "openai.com"])
+    }
+
+    /// Loads cookies from all Chrome profiles matching the given domains.
+    /// - Parameter matchingDomains: Array of domain patterns to match (e.g., ["claude.ai"])
+    /// - Returns: Array of cookie sources with matching records
+    static func loadCookiesFromAllProfiles(matchingDomains domains: [String]) throws -> [CookieSource] {
         let roots = self.candidateHomes().map { home in
             home.appendingPathComponent("Library")
                 .appendingPathComponent("Application Support")
@@ -67,7 +74,11 @@ enum ChromeCookieImporter {
         let chromeKey = try Self.chromeSafeStorageKey()
         return try candidates.compactMap { candidate in
             guard FileManager.default.fileExists(atPath: candidate.cookiesDB.path) else { return nil }
-            let records = try Self.readCookiesFromLockedChromeDB(sourceDB: candidate.cookiesDB, key: chromeKey)
+            let records = try Self.readCookiesFromLockedChromeDB(
+                sourceDB: candidate.cookiesDB,
+                key: chromeKey,
+                matchingDomains: domains
+            )
             guard !records.isEmpty else { return nil }
             return CookieSource(label: candidate.label, records: records)
         }
@@ -76,6 +87,14 @@ enum ChromeCookieImporter {
     // MARK: - DB copy helper
 
     private static func readCookiesFromLockedChromeDB(sourceDB: URL, key: Data) throws -> [CookieRecord] {
+        try readCookiesFromLockedChromeDB(sourceDB: sourceDB, key: key, matchingDomains: ["chatgpt.com", "openai.com"])
+    }
+
+    private static func readCookiesFromLockedChromeDB(
+        sourceDB: URL,
+        key: Data,
+        matchingDomains: [String]
+    ) throws -> [CookieRecord] {
         // Chrome keeps the DB locked; copy the DB (and wal/shm when present) to a temp folder before reading.
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("codexbar-chrome-cookies-\(UUID().uuidString)", isDirectory: true)
@@ -94,22 +113,32 @@ enum ChromeCookieImporter {
 
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
-        return try Self.readCookies(fromDB: copiedDB.path, key: key)
+        return try Self.readCookies(fromDB: copiedDB.path, key: key, matchingDomains: matchingDomains)
     }
 
     // MARK: - SQLite read
 
     private static func readCookies(fromDB path: String, key: Data) throws -> [CookieRecord] {
+        try readCookies(fromDB: path, key: key, matchingDomains: ["chatgpt.com", "openai.com"])
+    }
+
+    private static func readCookies(
+        fromDB path: String,
+        key: Data,
+        matchingDomains: [String]
+    ) throws -> [CookieRecord] {
         var db: OpaquePointer?
         if sqlite3_open_v2(path, &db, SQLITE_OPEN_READONLY, nil) != SQLITE_OK {
             throw ImportError.sqliteFailed(message: String(cString: sqlite3_errmsg(db)))
         }
         defer { sqlite3_close(db) }
 
+        // Build WHERE clause dynamically for the given domains
+        let conditions = matchingDomains.map { "host_key LIKE '%\($0)%'" }.joined(separator: " OR ")
         let sql = """
         SELECT host_key, name, path, expires_utc, is_secure, is_httponly, value, encrypted_value
         FROM cookies
-        WHERE host_key LIKE '%chatgpt.com%' OR host_key LIKE '%openai.com%'
+        WHERE \(conditions)
         """
 
         var stmt: OpaquePointer?
