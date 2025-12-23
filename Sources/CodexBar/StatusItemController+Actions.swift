@@ -9,6 +9,10 @@ extension StatusItemController {
         Task { await self.store.refresh(forceTokenUsage: true) }
     }
 
+    @objc func installUpdate() {
+        self.updater.checkForUpdates(nil)
+    }
+
     @objc func openDashboard() {
         let preferred = self.lastMenuProvider
             ?? (self.store.isEnabled(.codex) ? .codex : self.store.enabledProviders().first)

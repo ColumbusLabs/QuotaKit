@@ -1,5 +1,6 @@
 import AppKit
 import CodexBarCore
+import Observation
 import OSLog
 import QuartzCore
 import Security
@@ -63,16 +64,20 @@ struct CodexBarApp: App {
 @MainActor
 protocol UpdaterProviding: AnyObject {
     var automaticallyChecksForUpdates: Bool { get set }
+    var automaticallyDownloadsUpdates: Bool { get set }
     var isAvailable: Bool { get }
     var unavailableReason: String? { get }
+    var updateStatus: UpdateStatus { get }
     func checkForUpdates(_ sender: Any?)
 }
 
 // No-op updater used for debug builds and non-bundled runs to suppress Sparkle dialogs.
 final class DisabledUpdaterController: UpdaterProviding {
     var automaticallyChecksForUpdates: Bool = false
+    var automaticallyDownloadsUpdates: Bool = false
     let isAvailable: Bool = false
     let unavailableReason: String?
+    let updateStatus = UpdateStatus()
 
     init(unavailableReason: String? = nil) {
         self.unavailableReason = unavailableReason
@@ -81,17 +86,89 @@ final class DisabledUpdaterController: UpdaterProviding {
     func checkForUpdates(_ sender: Any?) {}
 }
 
+@MainActor
+@Observable
+final class UpdateStatus {
+    static let disabled = UpdateStatus()
+    var isUpdateReady: Bool
+
+    init(isUpdateReady: Bool = false) {
+        self.isUpdateReady = isUpdateReady
+    }
+}
+
 #if canImport(Sparkle) && ENABLE_SPARKLE
 import Sparkle
 
-extension SPUStandardUpdaterController: UpdaterProviding {
+@MainActor
+final class SparkleUpdaterController: NSObject, UpdaterProviding, SPUUpdaterDelegate {
+    private lazy var controller = SPUStandardUpdaterController(
+        startingUpdater: false,
+        updaterDelegate: self,
+        userDriverDelegate: nil)
+    let updateStatus = UpdateStatus()
+    let unavailableReason: String? = nil
+
+    init(savedAutoUpdate: Bool) {
+        super.init()
+        let updater = self.controller.updater
+        updater.automaticallyChecksForUpdates = savedAutoUpdate
+        updater.automaticallyDownloadsUpdates = savedAutoUpdate
+        self.controller.startUpdater()
+    }
+
     var automaticallyChecksForUpdates: Bool {
-        get { self.updater.automaticallyChecksForUpdates }
-        set { self.updater.automaticallyChecksForUpdates = newValue }
+        get { self.controller.updater.automaticallyChecksForUpdates }
+        set { self.controller.updater.automaticallyChecksForUpdates = newValue }
+    }
+
+    var automaticallyDownloadsUpdates: Bool {
+        get { self.controller.updater.automaticallyDownloadsUpdates }
+        set { self.controller.updater.automaticallyDownloadsUpdates = newValue }
     }
 
     var isAvailable: Bool { true }
-    var unavailableReason: String? { nil }
+
+    func checkForUpdates(_ sender: Any?) {
+        self.controller.checkForUpdates(sender)
+    }
+
+    nonisolated func updater(_ updater: SPUUpdater, didDownloadUpdate item: SUAppcastItem) {
+        Task { @MainActor in
+            self.updateStatus.isUpdateReady = true
+        }
+    }
+
+    nonisolated func updater(_ updater: SPUUpdater, failedToDownloadUpdate item: SUAppcastItem, error: Error) {
+        Task { @MainActor in
+            self.updateStatus.isUpdateReady = false
+        }
+    }
+
+    nonisolated func userDidCancelDownload(_ updater: SPUUpdater) {
+        Task { @MainActor in
+            self.updateStatus.isUpdateReady = false
+        }
+    }
+
+    nonisolated func updater(
+        _ updater: SPUUpdater,
+        userDidMake choice: SPUUserUpdateChoice,
+        forUpdate updateItem: SUAppcastItem,
+        state: SPUUserUpdateState)
+    {
+        let downloaded = state.stage == .downloaded
+        Task { @MainActor in
+            switch choice {
+            case .install, .skip:
+                self.updateStatus.isUpdateReady = false
+            case .dismiss:
+                self.updateStatus.isUpdateReady = downloaded
+            @unknown default:
+                self.updateStatus.isUpdateReady = false
+            }
+        }
+    }
 }
 
 private func isDeveloperIDSigned(bundleURL: URL) -> Bool {
@@ -132,14 +209,7 @@ private func makeUpdaterController() -> UpdaterProviding {
     let autoUpdateKey = "autoUpdateEnabled"
     // Default to true for first launch; fall back to saved preference thereafter.
     let savedAutoUpdate = (defaults.object(forKey: autoUpdateKey) as? Bool) ?? true
-
-    let controller = SPUStandardUpdaterController(
-        startingUpdater: false,
-        updaterDelegate: nil,
-        userDriverDelegate: nil)
-    controller.updater.automaticallyChecksForUpdates = savedAutoUpdate
-    controller.startUpdater()
-    return controller
+    return SparkleUpdaterController(savedAutoUpdate: savedAutoUpdate)
 }
 #else
 private func makeUpdaterController() -> UpdaterProviding {

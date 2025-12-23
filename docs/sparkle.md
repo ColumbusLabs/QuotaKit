@@ -12,7 +12,7 @@ read_when:
 - Updater: `SPUStandardUpdaterController` owned by `AppDelegate` (see `Sources/CodexBar/CodexbarApp.swift:1`).
 - Feed: `SUFeedURL` in Info.plist points to GitHub Releases appcast (`appcast.xml`).
 - Key: `SUPublicEDKey` set to `AGCY8w5vHirVfGGDGc8Szc5iuOqupZSh9pMj/Qs67XI=`. Keep the Ed25519 private key safe; use it when generating the appcast.
-- UI: menu items “Check for Updates…” and “Automatically check for updates” (toggle). Auto-check enabled by default.
+- UI: auto-check toggle (About) enables auto-downloads; menu only shows “Update ready, restart now?” once an update is downloaded.
 - LSUIElement: works; updater window will show when checking. App is non-sandboxed.
 
 ## Release flow
@@ -23,5 +23,5 @@ read_when:
 
 ## Notes
 - If you change the feed host or key, update Info.plist (`SUFeedURL`, `SUPublicEDKey`) and bump the app.
-- Auto-check toggle is persisted via Sparkle; “Check for Updates…” available from the menu.
+- Auto-check toggle is persisted via Sparkle; manual “Check for Updates…” remains in About.
 - CodexBar disables Sparkle in Homebrew and unsigned builds; those installs should be updated via `brew` or reinstalling from Releases.

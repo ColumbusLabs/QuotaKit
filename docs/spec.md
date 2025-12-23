@@ -50,7 +50,7 @@ read_when:
 ## Packaging & signing
 - `Scripts/package_app.sh`: swift build (arm64), writes `CodexBar.app` + Info.plist, copies `Icon.icns` if present; seeds Sparkle keys/feed.
 - `Scripts/sign-and-notarize.sh`: uses APP_STORE_CONNECT_* creds and Developer ID identity (`Y5PE65HELJ`) to sign, notarize, staple, zip (`CodexBar-0.1.0.zip`). Adjust identity/versions as needed.
-- Sparkle: Info.plist contains `SUFeedURL` (GitHub Releases appcast) and `SUPublicEDKey` placeholder; updater is `SPUStandardUpdaterController`, menu has “Check for Updates…”.
+- Sparkle: Info.plist contains `SUFeedURL` (GitHub Releases appcast) and `SUPublicEDKey` placeholder; updater is `SPUStandardUpdaterController`, menu shows “Update ready, restart now?” only when a download is ready.
 
 ## Limits / edge cases
 - Codex: if RPC reports “data not available yet”, menu keeps cached credits and shows a friendly retry message.

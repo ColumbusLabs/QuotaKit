@@ -26,7 +26,7 @@ Icon bar mapping (grayscale)
 - Codex optional: “Access OpenAI via web” adds Code review remaining + Usage breakdown + Credits usage history (dashboard scrape) by reusing existing browser cookies; no passwords stored.
 - Claude path: runs `claude /usage` and `/status` in a local PTY (no tmux) to parse session/week/Sonnet percentages, reset strings, and account email/org/login method; debug view can copy the latest raw scrape.
 - Account line keeps data siloed: Codex plan/email come from RPC/auth.json, Claude plan/email come only from the Claude CLI output; we never mix provider identity fields.
-- Auto-update via Sparkle (Check for Updates… menu item, auto-check enabled). Feed defaults to the GitHub Releases appcast (replace SUPublicEDKey with your Ed25519 public key).
+- Auto-update via Sparkle (auto-check + auto-download; menu shows “Update ready, restart now?” once downloaded). Feed defaults to the GitHub Releases appcast (replace SUPublicEDKey with your Ed25519 public key).
 
 ## Build & run
 ```bash

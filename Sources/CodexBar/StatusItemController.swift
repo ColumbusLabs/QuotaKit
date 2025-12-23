@@ -142,6 +142,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         self.observeStoreChanges()
         self.observeDebugForceAnimation()
         self.observeSettingsChanges()
+        self.observeUpdaterChanges()
     }
 
     private func observeStoreChanges() {
@@ -181,6 +182,18 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
                 self.invalidateMenus()
                 self.updateVisibility()
                 self.updateIcons()
+            }
+        }
+    }
+
+    private func observeUpdaterChanges() {
+        withObservationTracking {
+            _ = self.updater.updateStatus.isUpdateReady
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.observeUpdaterChanges()
+                self.invalidateMenus()
             }
         }
     }
