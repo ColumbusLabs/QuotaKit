@@ -74,7 +74,8 @@ extension StatusItemController {
             provider: selectedProvider,
             store: self.store,
             settings: self.settings,
-            account: self.account)
+            account: self.account,
+            updateReady: self.updater.updateStatus.isUpdateReady)
         let dashboard = self.store.openAIDashboard
         let currentProvider = selectedProvider ?? enabledProviders.first ?? .codex
         let openAIWebEligible = currentProvider == .codex &&
@@ -110,12 +111,12 @@ extension StatusItemController {
                     webItems: webItems)
                 addedOpenAIWebItems = true
             } else {
-                let buyCreditsAction: (() -> Void)? = currentProvider == .codex
-                    ? { [weak self] in self?.openCreditsPurchase() }
-                    : nil
                 menu.addItem(self.makeMenuCardItem(
-                    UsageMenuCardView(model: model, buyCreditsAction: buyCreditsAction),
+                    UsageMenuCardView(model: model),
                     id: "menuCard"))
+                if currentProvider == .codex, model.creditsText != nil {
+                    menu.addItem(self.makeBuyCreditsItem())
+                }
                 menu.addItem(.separator())
             }
         }
@@ -348,22 +349,19 @@ extension StatusItemController {
         }
 
         if hasCredits {
-            let buyCreditsAction: (() -> Void)? = provider == .codex
-                ? { [weak self] in self?.openCreditsPurchase() }
-                : nil
-            let highlightExclusion = buyCreditsAction == nil ? 0 : Self.buyCreditsHighlightExclusion
             let creditsView = UsageMenuCardCreditsSectionView(
                 model: model,
                 showBottomDivider: false,
                 topPadding: sectionSpacing,
-                bottomPadding: creditsBottomPadding,
-                buyCreditsAction: buyCreditsAction)
+                bottomPadding: creditsBottomPadding)
             let creditsSubmenu = webItems.hasCreditsHistory ? self.makeCreditsHistorySubmenu() : nil
             menu.addItem(self.makeMenuCardItem(
                 creditsView,
                 id: "menuCardCredits",
-                submenu: creditsSubmenu,
-                highlightExclusionHeight: highlightExclusion))
+                submenu: creditsSubmenu))
+            if provider == .codex {
+                menu.addItem(self.makeBuyCreditsItem())
+            }
         }
         if hasCost {
             menu.addItem(.separator())
@@ -404,6 +402,7 @@ extension StatusItemController {
 
     private func selector(for action: MenuDescriptor.MenuAction) -> (Selector, Any?) {
         switch action {
+        case .installUpdate: (#selector(self.installUpdate), nil)
         case .refresh: (#selector(self.refreshNow), nil)
         case .dashboard: (#selector(self.openDashboard), nil)
         case .statusPage: (#selector(self.openStatusPage), nil)
@@ -419,8 +418,6 @@ extension StatusItemController {
     private protocol MenuCardHighlighting: AnyObject {
         func setHighlighted(_ highlighted: Bool)
     }
-
-    private static let buyCreditsHighlightExclusion: CGFloat = 24
 
     @MainActor
     @Observable
@@ -492,14 +489,11 @@ extension StatusItemController {
         @ViewBuilder
         private var highlightBackground: some View {
             GeometryReader { proxy in
-                let topInset: CGFloat = 2
-                let bottomInset: CGFloat = 3
+                let topInset: CGFloat = 1
+                let bottomInset: CGFloat = 1
                 let height = max(0, proxy.size.height - self.highlightExclusionHeight - topInset - bottomInset)
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
                     .fill(Color(nsColor: .controlAccentColor).opacity(0.18))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .strokeBorder(Color(nsColor: .controlAccentColor).opacity(0.28), lineWidth: 1))
                     .frame(height: height, alignment: .top)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.horizontal, 6)
@@ -508,6 +502,17 @@ extension StatusItemController {
             }
             .allowsHitTesting(false)
         }
+    }
+
+    private func makeBuyCreditsItem() -> NSMenuItem {
+        let item = NSMenuItem(title: "Buy Credits...", action: #selector(self.openCreditsPurchase), keyEquivalent: "")
+        item.target = self
+        if let image = NSImage(systemSymbolName: "plus.circle", accessibilityDescription: nil) {
+            image.isTemplate = true
+            image.size = NSSize(width: 16, height: 16)
+            item.image = image
+        }
+        return item
     }
 
     @discardableResult

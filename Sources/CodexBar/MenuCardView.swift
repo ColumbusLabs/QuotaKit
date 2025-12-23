@@ -64,11 +64,9 @@ struct UsageMenuCardView: View {
     }
 
     let model: Model
-    let buyCreditsAction: (() -> Void)?
 
-    init(model: Model, buyCreditsAction: (() -> Void)? = nil) {
+    init(model: Model) {
         self.model = model
-        self.buyCreditsAction = buyCreditsAction
     }
 
     var body: some View {
@@ -130,8 +128,7 @@ struct UsageMenuCardView: View {
                             creditsText: credits,
                             creditsRemaining: self.model.creditsRemaining,
                             hintText: self.model.creditsHintText,
-                            progressColor: self.model.progressColor,
-                            buyCreditsAction: self.buyCreditsAction)
+                            progressColor: self.model.progressColor)
                     }
                     if hasCredits, hasCost {
                         Divider()
@@ -174,14 +171,13 @@ struct UsageMenuCardView: View {
     private var hasDetails: Bool {
         !self.model.metrics.isEmpty || self.model.placeholder != nil || self.model.tokenUsage != nil
     }
-
 }
 
 private struct UsageMenuCardHeaderView: View {
     let model: UsageMenuCardView.Model
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 3) {
             HStack(alignment: .firstTextBaseline) {
                 Text(self.model.providerName)
                     .font(.headline)
@@ -234,7 +230,6 @@ struct UsageMenuCardHeaderSectionView: View {
         .padding(.top, 2)
         .frame(minWidth: 310, maxWidth: 310, alignment: .leading)
     }
-
 }
 
 struct UsageMenuCardUsageSectionView: View {
@@ -295,20 +290,17 @@ struct UsageMenuCardCreditsSectionView: View {
     let showBottomDivider: Bool
     let topPadding: CGFloat
     let bottomPadding: CGFloat
-    let buyCreditsAction: (() -> Void)?
 
     init(
         model: UsageMenuCardView.Model,
         showBottomDivider: Bool,
         topPadding: CGFloat,
-        bottomPadding: CGFloat,
-        buyCreditsAction: (() -> Void)? = nil)
+        bottomPadding: CGFloat)
     {
         self.model = model
         self.showBottomDivider = showBottomDivider
         self.topPadding = topPadding
         self.bottomPadding = bottomPadding
-        self.buyCreditsAction = buyCreditsAction
     }
 
     var body: some View {
@@ -318,8 +310,7 @@ struct UsageMenuCardCreditsSectionView: View {
                     creditsText: credits,
                     creditsRemaining: self.model.creditsRemaining,
                     hintText: self.model.creditsHintText,
-                    progressColor: self.model.progressColor,
-                    buyCreditsAction: self.buyCreditsAction)
+                    progressColor: self.model.progressColor)
                 if self.showBottomDivider {
                     Divider()
                 }
@@ -339,7 +330,6 @@ private struct CreditsBarContent: View {
     let creditsRemaining: Double?
     let hintText: String?
     let progressColor: Color
-    let buyCreditsAction: (() -> Void)?
 
     private var percentLeft: Double? {
         guard let creditsRemaining else { return nil }
@@ -381,24 +371,7 @@ private struct CreditsBarContent: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            if let buyCreditsAction {
-                BuyCreditsButton(action: buyCreditsAction)
-                    .padding(.top, 2)
-            }
         }
-    }
-}
-
-private struct BuyCreditsButton: View {
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: self.action) {
-            Label("Buy Credits...", systemImage: "plus.circle")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-        .buttonStyle(.plain)
     }
 }
 
