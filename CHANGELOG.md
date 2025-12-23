@@ -9,6 +9,8 @@
 - Performance: faster usage log scanning + cost parsing; cache menu icons and speed up OpenAI dashboard parsing.
 - Sparkle: auto-download updates when auto-check is enabled, and only show the restart menu entry once an update is ready.
 - Widgets: experimental WidgetKit extension (may require restarting the widget gallery/Dock to appear).
+- Credits: show credits as a progress bar and add a credits history chart when OpenAI web data is available.
+- Credits: move “Buy Credits…” into its own menu item and improve auto-start checkout flow.
 
 ## 0.11.2 — 2025-12-21
 - ccusage-codex cost fetch is faster and more reliable by limiting the session scan window.
