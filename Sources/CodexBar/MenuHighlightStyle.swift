@@ -35,6 +35,6 @@ enum MenuHighlightStyle {
     }
 
     static func selectionBackground(_ highlighted: Bool) -> Color {
-        highlighted ? Color(nsColor: .selectedMenuItemColor) : .clear
+        highlighted ? Color(nsColor: .selectedContentBackgroundColor) : .clear
     }
 }
