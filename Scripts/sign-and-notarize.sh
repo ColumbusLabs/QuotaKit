@@ -38,6 +38,14 @@ APP_ENTITLEMENTS="${ENTITLEMENTS_DIR}/CodexBar.entitlements"
 WIDGET_ENTITLEMENTS="${ENTITLEMENTS_DIR}/CodexBarWidget.entitlements"
 
 echo "Signing with $APP_IDENTITY"
+if [[ -f "$APP_BUNDLE/Contents/Helpers/CodexBarCLI" ]]; then
+  codesign --force --timestamp --options runtime --sign "$APP_IDENTITY" \
+    "$APP_BUNDLE/Contents/Helpers/CodexBarCLI"
+fi
+if [[ -f "$APP_BUNDLE/Contents/Helpers/CodexBarClaudeWatchdog" ]]; then
+  codesign --force --timestamp --options runtime --sign "$APP_IDENTITY" \
+    "$APP_BUNDLE/Contents/Helpers/CodexBarClaudeWatchdog"
+fi
 if [[ -d "$APP_BUNDLE/Contents/PlugIns/CodexBarWidget.appex" ]]; then
   codesign --force --timestamp --options runtime --sign "$APP_IDENTITY" \
     --entitlements "$WIDGET_ENTITLEMENTS" \
