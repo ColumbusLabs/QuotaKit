@@ -9,6 +9,7 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
     private static let autoStartScript = """
     (() => {
       if (window.__codexbarAutoBuyCreditsStarted) return 'already';
+      const buttonSelector = 'button, a, [role="button"], input[type="button"], input[type="submit"]';
       const textOf = el => {
         const raw = el && (el.innerText || el.textContent) ? String(el.innerText || el.textContent) : '';
         return raw.trim();
@@ -24,19 +25,78 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
           lower.includes('top-up')
         );
       };
+      const matchesAddMore = text => {
+        const lower = String(text || '').toLowerCase();
+        return lower.includes('add more');
+      };
       const labelFor = el => {
         if (!el) return '';
-        return textOf(el) || el.getAttribute('aria-label') || el.getAttribute('title') || '';
+        return textOf(el) || el.getAttribute('aria-label') || el.getAttribute('title') || el.value || '';
+      };
+      const clickButton = (el) => {
+        if (!el) return false;
+        try {
+          el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+        } catch {
+          try {
+            el.click();
+          } catch {
+            return false;
+          }
+        }
+        return true;
       };
       const pickLikelyButton = (buttons) => {
         if (!buttons || buttons.length === 0) return null;
         const labeled = buttons.find(btn => {
           const label = labelFor(btn);
-          if (matches(label)) return true;
+          if (matches(label) || matchesAddMore(label)) return true;
           const aria = String(btn.getAttribute('aria-label') || '').toLowerCase();
           return aria.includes('credit') || aria.includes('buy') || aria.includes('add');
         });
         return labeled || buttons[0];
+      };
+      const findAddMoreButton = () => {
+        const buttons = Array.from(document.querySelectorAll(buttonSelector));
+        return buttons.find(btn => matchesAddMore(labelFor(btn))) || null;
+      };
+      const findNextButton = () => {
+        const buttons = Array.from(document.querySelectorAll(buttonSelector));
+        return buttons.find(btn => {
+          const label = labelFor(btn).toLowerCase();
+          return label === 'next' || label.startsWith('next ');
+        }) || null;
+      };
+      const isDisabled = (el) => {
+        if (!el) return true;
+        if (el.disabled) return true;
+        const ariaDisabled = String(el.getAttribute('aria-disabled') || '').toLowerCase();
+        if (ariaDisabled === 'true') return true;
+        if (el.classList && (el.classList.contains('disabled') || el.classList.contains('is-disabled'))) {
+          return true;
+        }
+        return false;
+      };
+      const clickNextIfReady = () => {
+        const nextButton = findNextButton();
+        if (!nextButton) return false;
+        if (isDisabled(nextButton)) return false;
+        const rect = nextButton.getBoundingClientRect ? nextButton.getBoundingClientRect() : null;
+        if (rect && (rect.width < 2 || rect.height < 2)) return false;
+        return clickButton(nextButton);
+      };
+      const startNextPolling = (initialDelay = 1200, interval = 500, maxAttempts = 60) => {
+        if (window.__codexbarNextPolling) return;
+        window.__codexbarNextPolling = true;
+        setTimeout(() => {
+          let attempts = 0;
+          const nextTimer = setInterval(() => {
+            attempts += 1;
+            if (clickNextIfReady() || attempts >= maxAttempts) {
+              clearInterval(nextTimer);
+            }
+          }, interval);
+        }, initialDelay);
       };
       const findCreditsCardButton = () => {
         const nodes = Array.from(document.querySelectorAll('h1,h2,h3,div,span,p'));
@@ -47,37 +107,39 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
         if (!labelMatch) return null;
         let cur = labelMatch;
         for (let i = 0; i < 6 && cur; i++) {
-          const buttons = Array.from(cur.querySelectorAll('button, a'));
-          const picked = pickLikelyButton(buttons);
-          if (picked) return picked;
-          cur = cur.parentElement;
-        }
+        const buttons = Array.from(cur.querySelectorAll(buttonSelector));
+        const picked = pickLikelyButton(buttons);
+        if (picked) return picked;
+        cur = cur.parentElement;
+      }
         return null;
       };
       const findAndClick = () => {
+        const addMoreButton = findAddMoreButton();
+        if (addMoreButton) {
+          clickButton(addMoreButton);
+          return true;
+        }
         const cardButton = findCreditsCardButton();
-        if (cardButton) {
-          cardButton.click();
-          return true;
-        }
-        const candidates = Array.from(document.querySelectorAll('button, a'));
-        for (const node of candidates) {
-          const label = labelFor(node);
-          if (!matches(label)) continue;
-          node.click();
-          return true;
-        }
-        return false;
+        if (!cardButton) return false;
+        return clickButton(cardButton);
       };
       if (findAndClick()) {
         window.__codexbarAutoBuyCreditsStarted = true;
+        startNextPolling();
         return 'clicked';
       }
+      startNextPolling(1500);
       let attempts = 0;
       const maxAttempts = 14;
       const timer = setInterval(() => {
         attempts += 1;
-        if (findAndClick() || attempts >= maxAttempts) {
+        if (findAndClick()) {
+          startNextPolling();
+          clearInterval(timer);
+          return;
+        }
+        if (attempts >= maxAttempts) {
           clearInterval(timer);
         }
       }, 500);

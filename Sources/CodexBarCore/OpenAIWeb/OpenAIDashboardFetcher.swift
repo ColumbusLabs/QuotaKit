@@ -778,7 +778,9 @@ private let openAIDashboardScrapeScript = """
       };
       const purchaseTextMatches = (text) => {
         const lower = String(text || '').trim().toLowerCase();
-        if (!lower || !lower.includes('credit')) return false;
+        if (!lower) return false;
+        if (lower.includes('add more')) return true;
+        if (!lower.includes('credit')) return false;
         return (
           lower.includes('buy') ||
           lower.includes('add') ||
