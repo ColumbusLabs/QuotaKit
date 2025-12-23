@@ -128,7 +128,7 @@ if [[ -f ".build/$CONF/CodexBarWidget" ]]; then
     <key>NSExtension</key>
     <dict>
         <key>NSExtensionPointIdentifier</key><string>com.apple.widgetkit-extension</string>
-        <key>NSExtensionPrincipalClass</key><string>\$(PRODUCT_MODULE_NAME).CodexBarWidgetBundle</string>
+        <key>NSExtensionPrincipalClass</key><string>CodexBarWidget.CodexBarWidgetBundle</string>
     </dict>
 </dict>
 </plist>
@@ -173,6 +173,7 @@ if [[ -d "${APP}/Contents/PlugIns/CodexBarWidget.appex" ]]; then
     --entitlements "$WIDGET_ENTITLEMENTS" \
     "$APP/Contents/PlugIns/CodexBarWidget.appex/Contents/MacOS/CodexBarWidget"
   codesign --force --timestamp --options runtime --sign "$CODESIGN_ID" \
+    --entitlements "$WIDGET_ENTITLEMENTS" \
     "$APP/Contents/PlugIns/CodexBarWidget.appex"
 fi
 

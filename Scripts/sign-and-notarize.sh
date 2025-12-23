@@ -43,6 +43,7 @@ if [[ -d "$APP_BUNDLE/Contents/PlugIns/CodexBarWidget.appex" ]]; then
     --entitlements "$WIDGET_ENTITLEMENTS" \
     "$APP_BUNDLE/Contents/PlugIns/CodexBarWidget.appex/Contents/MacOS/CodexBarWidget"
   codesign --force --timestamp --options runtime --sign "$APP_IDENTITY" \
+    --entitlements "$WIDGET_ENTITLEMENTS" \
     "$APP_BUNDLE/Contents/PlugIns/CodexBarWidget.appex"
 fi
 codesign --force --timestamp --options runtime --sign "$APP_IDENTITY" \
