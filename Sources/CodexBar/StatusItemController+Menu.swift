@@ -282,11 +282,17 @@ extension StatusItemController {
         }
     }
 
-    private func makeMenuCardItem(_ view: some View, id: String, submenu: NSMenu? = nil) -> NSMenuItem {
+    private func makeMenuCardItem(
+        _ view: some View,
+        id: String,
+        submenu: NSMenu? = nil,
+        highlightExclusionHeight: CGFloat = 0) -> NSMenuItem
+    {
         let highlightState = MenuCardHighlightState()
         let wrapped = MenuCardSectionContainerView(
             highlightState: highlightState,
-            showsSubmenuIndicator: submenu != nil)
+            showsSubmenuIndicator: submenu != nil,
+            highlightExclusionHeight: highlightExclusionHeight)
         {
             view
         }
@@ -345,6 +351,7 @@ extension StatusItemController {
             let buyCreditsAction: (() -> Void)? = provider == .codex
                 ? { [weak self] in self?.openCreditsPurchase() }
                 : nil
+            let highlightExclusion = buyCreditsAction == nil ? 0 : Self.buyCreditsHighlightExclusion
             let creditsView = UsageMenuCardCreditsSectionView(
                 model: model,
                 showBottomDivider: false,
@@ -352,7 +359,11 @@ extension StatusItemController {
                 bottomPadding: creditsBottomPadding,
                 buyCreditsAction: buyCreditsAction)
             let creditsSubmenu = webItems.hasCreditsHistory ? self.makeCreditsHistorySubmenu() : nil
-            menu.addItem(self.makeMenuCardItem(creditsView, id: "menuCardCredits", submenu: creditsSubmenu))
+            menu.addItem(self.makeMenuCardItem(
+                creditsView,
+                id: "menuCardCredits",
+                submenu: creditsSubmenu,
+                highlightExclusionHeight: highlightExclusion))
         }
         if hasCost {
             menu.addItem(.separator())
@@ -409,6 +420,8 @@ extension StatusItemController {
         func setHighlighted(_ highlighted: Bool)
     }
 
+    private static let buyCreditsHighlightExclusion: CGFloat = 24
+
     @MainActor
     @Observable
     fileprivate final class MenuCardHighlightState {
@@ -443,38 +456,57 @@ extension StatusItemController {
     private struct MenuCardSectionContainerView<Content: View>: View {
         @Bindable var highlightState: MenuCardHighlightState
         let showsSubmenuIndicator: Bool
+        let highlightExclusionHeight: CGFloat
         let content: Content
 
         init(
             highlightState: MenuCardHighlightState,
             showsSubmenuIndicator: Bool,
+            highlightExclusionHeight: CGFloat = 0,
             @ViewBuilder content: () -> Content)
         {
             self.highlightState = highlightState
             self.showsSubmenuIndicator = showsSubmenuIndicator
+            self.highlightExclusionHeight = highlightExclusionHeight
             self.content = content()
         }
 
         var body: some View {
-            ZStack(alignment: .topTrailing) {
-                if self.highlightState.isHighlighted {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(Color(nsColor: .unemphasizedSelectedContentBackgroundColor))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .stroke(Color(nsColor: .separatorColor).opacity(0.35), lineWidth: 1))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
+            self.content
+                .background(alignment: .topLeading) {
+                    if self.highlightState.isHighlighted {
+                        self.highlightBackground
+                    }
                 }
-                self.content
-                if self.showsSubmenuIndicator {
-                    Image(systemName: "chevron.right")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 8)
-                        .padding(.trailing, 10)
+                .overlay(alignment: .topTrailing) {
+                    if self.showsSubmenuIndicator {
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 8)
+                            .padding(.trailing, 10)
+                    }
                 }
+        }
+
+        @ViewBuilder
+        private var highlightBackground: some View {
+            GeometryReader { proxy in
+                let topInset: CGFloat = 2
+                let bottomInset: CGFloat = 3
+                let height = max(0, proxy.size.height - self.highlightExclusionHeight - topInset - bottomInset)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color(nsColor: .controlAccentColor).opacity(0.18))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .strokeBorder(Color(nsColor: .controlAccentColor).opacity(0.28), lineWidth: 1))
+                    .frame(height: height, alignment: .top)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.horizontal, 6)
+                    .padding(.top, topInset)
+                    .padding(.bottom, bottomInset)
             }
+            .allowsHitTesting(false)
         }
     }
 
