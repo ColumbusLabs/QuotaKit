@@ -49,6 +49,7 @@ read_when:
 
 ## Packaging & signing
 - `Scripts/package_app.sh`: swift build (arm64), writes `CodexBar.app` + Info.plist, copies `Icon.icns` if present; seeds Sparkle keys/feed.
+- Bundles `CodexBarWidget.appex` (WidgetKit extension) when built, and signs it with App Group entitlements so widgets can read the shared snapshot.
 - `Scripts/sign-and-notarize.sh`: uses APP_STORE_CONNECT_* creds and Developer ID identity (`Y5PE65HELJ`) to sign, notarize, staple, zip (`CodexBar-0.1.0.zip`). Adjust identity/versions as needed.
 - Sparkle: Info.plist contains `SUFeedURL` (GitHub Releases appcast) and `SUPublicEDKey` placeholder; updater is `SPUStandardUpdaterController`, menu shows “Update ready, restart now?” only when a download is ready.
 
