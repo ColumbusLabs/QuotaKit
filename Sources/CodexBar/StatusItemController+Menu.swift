@@ -459,7 +459,10 @@ extension StatusItemController {
             ZStack(alignment: .topTrailing) {
                 if self.highlightState.isHighlighted {
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(Color(nsColor: .selectedContentBackgroundColor))
+                        .fill(Color(nsColor: .unemphasizedSelectedContentBackgroundColor))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .stroke(Color(nsColor: .separatorColor).opacity(0.35), lineWidth: 1))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                 }
