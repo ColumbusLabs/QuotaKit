@@ -4,11 +4,17 @@ import OSLog
 import WebKit
 
 @MainActor
-final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigationDelegate {
+final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigationDelegate, WKScriptMessageHandler {
     private static let defaultSize = NSSize(width: 980, height: 760)
+    private static let logHandlerName = "codexbarLog"
     private static let autoStartScript = """
     (() => {
       if (window.__codexbarAutoBuyCreditsStarted) return 'already';
+      const log = (...args) => {
+        try {
+          window.webkit?.messageHandlers?.codexbarLog?.postMessage(args);
+        } catch {}
+      };
       const buttonSelector = 'button, a, [role="button"], input[type="button"], input[type="submit"]';
       const textOf = el => {
         const raw = el && (el.innerText || el.textContent) ? String(el.innerText || el.textContent) : '';
@@ -32,6 +38,32 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
       const labelFor = el => {
         if (!el) return '';
         return textOf(el) || el.getAttribute('aria-label') || el.getAttribute('title') || el.value || '';
+      };
+      const summarize = el => {
+        if (!el) return null;
+        return {
+          tag: el.tagName,
+          type: el.getAttribute('type'),
+          role: el.getAttribute('role'),
+          label: labelFor(el),
+          aria: el.getAttribute('aria-label'),
+          disabled: isDisabled(el),
+          href: el.getAttribute('href'),
+          testId: el.getAttribute('data-testid'),
+          className: (el.className && String(el.className).slice(0, 120)) || ''
+        };
+      };
+      const collectButtons = () => {
+        const results = new Set();
+        const addAll = (root) => {
+          if (!root || !root.querySelectorAll) return;
+          root.querySelectorAll(buttonSelector).forEach(el => results.add(el));
+        };
+        addAll(document);
+        document.querySelectorAll('*').forEach(el => {
+          if (el.shadowRoot) addAll(el.shadowRoot);
+        });
+        return Array.from(results);
       };
       const clickButton = (el) => {
         if (!el) return false;
@@ -57,11 +89,11 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
         return labeled || buttons[0];
       };
       const findAddMoreButton = () => {
-        const buttons = Array.from(document.querySelectorAll(buttonSelector));
+        const buttons = collectButtons();
         return buttons.find(btn => matchesAddMore(labelFor(btn))) || null;
       };
       const findNextButton = () => {
-        const buttons = Array.from(document.querySelectorAll(buttonSelector));
+        const buttons = collectButtons();
         return buttons.find(btn => {
           if (btn.type && String(btn.type).toLowerCase() === 'submit') return true;
           const label = labelFor(btn).toLowerCase();
@@ -128,6 +160,14 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
           let attempts = 0;
           const nextTimer = setInterval(() => {
             attempts += 1;
+            if (attempts % 5 === 0) {
+              const nextButton = findNextButton();
+              log('next_poll', {
+                attempts,
+                found: Boolean(nextButton),
+                summary: summarize(nextButton)
+              });
+            }
             if (clickNextIfReady() || attempts >= maxAttempts) {
               clearInterval(nextTimer);
             }
@@ -154,36 +194,61 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
         if (!labelMatch) return null;
         let cur = labelMatch;
         for (let i = 0; i < 6 && cur; i++) {
-        const buttons = Array.from(cur.querySelectorAll(buttonSelector));
-        const picked = pickLikelyButton(buttons);
-        if (picked) return picked;
-        cur = cur.parentElement;
-      }
+          const buttons = Array.from(cur.querySelectorAll(buttonSelector));
+          const picked = pickLikelyButton(buttons);
+          if (picked) return picked;
+          cur = cur.parentElement;
+        }
         return null;
       };
       const findAndClick = () => {
         const addMoreButton = findAddMoreButton();
         if (addMoreButton) {
+          log('add_more_click', summarize(addMoreButton));
           clickButton(addMoreButton);
           return true;
         }
         const cardButton = findCreditsCardButton();
         if (!cardButton) return false;
+        log('credits_card_click', summarize(cardButton));
         return clickButton(cardButton);
       };
+      const logDialogButtons = () => {
+        const dialog = document.querySelector('[role=\"dialog\"], dialog, [aria-modal=\"true\"]');
+        if (!dialog) return;
+        const buttons = Array.from(dialog.querySelectorAll(buttonSelector)).map(summarize).filter(Boolean);
+        if (buttons.length) {
+          log('dialog_buttons', { count: buttons.length, buttons: buttons.slice(0, 6) });
+        }
+      };
+      log('auto_start', { href: location.href, ready: document.readyState });
+      const iframeSources = Array.from(document.querySelectorAll('iframe'))
+        .map(frame => frame.getAttribute('src') || '')
+        .filter(Boolean)
+        .slice(0, 6);
+      if (iframeSources.length) {
+        log('iframes', iframeSources);
+      }
+      const shadowHostCount = Array.from(document.querySelectorAll('*')).filter(el => el.shadowRoot).length;
+      if (shadowHostCount > 0) {
+        log('shadow_roots', { count: shadowHostCount });
+      }
       if (findAndClick()) {
         window.__codexbarAutoBuyCreditsStarted = true;
         startNextPolling();
         observeNextButton();
+        logDialogButtons();
         return 'clicked';
       }
       startNextPolling(500);
       observeNextButton();
+      logDialogButtons();
       let attempts = 0;
       const maxAttempts = 14;
       const timer = setInterval(() => {
         attempts += 1;
         if (findAndClick()) {
+          logDialogButtons();
           startNextPolling();
           clearInterval(timer);
           return;
@@ -201,9 +266,11 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
     private var webView: WKWebView?
     private var accountEmail: String?
     private var pendingAutoStart = false
+    private let logHandler = WeakScriptMessageHandler()
 
     init() {
         super.init(window: nil)
+        self.logHandler.delegate = self
     }
 
     @available(*, unavailable)
@@ -226,6 +293,7 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
 
     private func buildWindow() {
         let config = WKWebViewConfiguration()
+        config.userContentController.add(self.logHandler, name: Self.logHandlerName)
         config.websiteDataStore = OpenAIDashboardWebsiteDataStore.store(forAccountEmail: self.accountEmail)
 
         let webView = WKWebView(frame: .zero, configuration: config)
@@ -277,6 +345,12 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
         }
     }
 
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == Self.logHandlerName else { return }
+        let payload = String(describing: message.body)
+        self.logger.debug("Auto-buy log: \(payload, privacy: .public)")
+    }
+
     private static func normalizeEmail(_ email: String?) -> String? {
         guard let raw = email?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return nil }
         return raw.lowercased()
@@ -288,5 +362,13 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
         let height = min(Self.defaultSize.height, visible.height * 0.88)
         let origin = NSPoint(x: visible.midX - width / 2, y: visible.midY - height / 2)
         return NSRect(origin: origin, size: NSSize(width: width, height: height))
+    }
+}
+
+private final class WeakScriptMessageHandler: NSObject, WKScriptMessageHandler {
+    weak var delegate: WKScriptMessageHandler?
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        self.delegate?.userContentController(userContentController, didReceive: message)
     }
 }
