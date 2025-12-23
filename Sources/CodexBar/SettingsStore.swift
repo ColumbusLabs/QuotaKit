@@ -92,6 +92,11 @@ final class SettingsStore {
         didSet { self.userDefaults.set(self.openAIDashboardEnabled, forKey: "openAIDashboardEnabled") }
     }
 
+    /// Optional: augment Claude usage with claude.ai web API (via Safari/Chrome cookies), incl. "Extra usage" spend.
+    var claudeWebExtrasEnabled: Bool {
+        didSet { self.userDefaults.set(self.claudeWebExtrasEnabled, forKey: "claudeWebExtrasEnabled") }
+    }
+
     /// Optional: collapse provider icons into a single menu bar item with an in-menu switcher.
     var mergeIcons: Bool {
         didSet { self.userDefaults.set(self.mergeIcons, forKey: "mergeIcons") }
@@ -132,6 +137,7 @@ final class SettingsStore {
         _ = self.ccusageCostUsageEnabled
         _ = self.randomBlinkEnabled
         _ = self.openAIDashboardEnabled
+        _ = self.claudeWebExtrasEnabled
         _ = self.mergeIcons
         _ = self.debugLoadingPattern
         _ = self.selectedMenuProvider
@@ -165,6 +171,7 @@ final class SettingsStore {
         self.ccusageCostUsageEnabled = userDefaults.object(forKey: "tokenCostUsageEnabled") as? Bool ?? false
         self.randomBlinkEnabled = userDefaults.object(forKey: "randomBlinkEnabled") as? Bool ?? false
         self.openAIDashboardEnabled = userDefaults.object(forKey: "openAIDashboardEnabled") as? Bool ?? false
+        self.claudeWebExtrasEnabled = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false
         self.mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true
         self.selectedMenuProviderRaw = userDefaults.string(forKey: "selectedMenuProvider")
         self.providerDetectionCompleted = userDefaults.object(

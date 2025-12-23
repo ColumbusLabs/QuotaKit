@@ -49,6 +49,12 @@ struct UsageMenuCardView: View {
             let errorLine: String?
         }
 
+        struct ProviderCostSection: Sendable {
+            let title: String
+            let percentUsed: Double
+            let spendLine: String
+        }
+
         let providerName: String
         let email: String
         let subtitleText: String
@@ -58,6 +64,7 @@ struct UsageMenuCardView: View {
         let creditsText: String?
         let creditsRemaining: Double?
         let creditsHintText: String?
+        let providerCost: ProviderCostSection?
         let tokenUsage: TokenUsageSection?
         let placeholder: String?
         let progressColor: Color
@@ -87,7 +94,8 @@ struct UsageMenuCardView: View {
             } else {
                 let hasUsage = !self.model.metrics.isEmpty
                 let hasCredits = self.model.creditsText != nil
-                let hasCost = self.model.tokenUsage != nil
+                let hasProviderCost = self.model.providerCost != nil
+                let hasCost = self.model.tokenUsage != nil || hasProviderCost
 
                 VStack(alignment: .leading, spacing: 12) {
                     if hasUsage {
@@ -134,6 +142,14 @@ struct UsageMenuCardView: View {
                     if hasCredits, hasCost {
                         Divider()
                     }
+                    if let providerCost = self.model.providerCost {
+                        ProviderCostContent(
+                            section: providerCost,
+                            progressColor: self.model.progressColor)
+                    }
+                    if hasProviderCost, self.model.tokenUsage != nil {
+                        Divider()
+                    }
                     if let tokenUsage = self.model.tokenUsage {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Cost")
@@ -170,7 +186,8 @@ struct UsageMenuCardView: View {
     }
 
     private var hasDetails: Bool {
-        !self.model.metrics.isEmpty || self.model.placeholder != nil || self.model.tokenUsage != nil
+        !self.model.metrics.isEmpty || self.model.placeholder != nil || self.model.tokenUsage != nil ||
+            self.model.providerCost != nil
     }
 }
 
@@ -212,6 +229,32 @@ private struct UsageMenuCardHeaderView: View {
         case .info: MenuHighlightStyle.secondary(self.isHighlighted)
         case .loading: MenuHighlightStyle.secondary(self.isHighlighted)
         case .error: MenuHighlightStyle.error(self.isHighlighted)
+        }
+    }
+}
+
+private struct ProviderCostContent: View {
+    let section: UsageMenuCardView.Model.ProviderCostSection
+    let progressColor: Color
+    @Environment(\.menuItemHighlighted) private var isHighlighted
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(self.section.title)
+                .font(.body)
+                .fontWeight(.medium)
+            UsageProgressBar(
+                percent: self.section.percentUsed,
+                tint: self.progressColor,
+                accessibilityLabel: "Extra usage spent")
+            HStack(alignment: .firstTextBaseline) {
+                Text(self.section.spendLine)
+                    .font(.footnote)
+                Spacer()
+                Text(String(format: "%.0f%% used", min(100, max(0, self.section.percentUsed))))
+                    .font(.footnote)
+                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+            }
         }
     }
 }
@@ -386,34 +429,61 @@ struct UsageMenuCardCostSectionView: View {
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
     var body: some View {
-        if let tokenUsage = self.model.tokenUsage {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Cost")
-                    .font(.body)
-                    .fontWeight(.medium)
-                Text(tokenUsage.sessionLine)
-                    .font(.caption)
-                Text(tokenUsage.monthLine)
-                    .font(.caption)
-                if let hint = tokenUsage.hintLine, !hint.isEmpty {
-                    Text(hint)
-                        .font(.footnote)
-                        .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
+        let hasTokenCost = self.model.tokenUsage != nil
+        return Group {
+            if hasTokenCost {
+                VStack(alignment: .leading, spacing: 10) {
+                    if let tokenUsage = self.model.tokenUsage {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Cost")
+                                .font(.body)
+                                .fontWeight(.medium)
+                            Text(tokenUsage.sessionLine)
+                                .font(.caption)
+                            Text(tokenUsage.monthLine)
+                                .font(.caption)
+                            if let hint = tokenUsage.hintLine, !hint.isEmpty {
+                                Text(hint)
+                                    .font(.footnote)
+                                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+                                    .lineLimit(2)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            if let error = tokenUsage.errorLine, !error.isEmpty {
+                                Text(error)
+                                    .font(.footnote)
+                                    .foregroundStyle(MenuHighlightStyle.error(self.isHighlighted))
+                                    .lineLimit(2)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
                 }
-                if let error = tokenUsage.errorLine, !error.isEmpty {
-                    Text(error)
-                        .font(.footnote)
-                        .foregroundStyle(MenuHighlightStyle.error(self.isHighlighted))
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                .padding(.horizontal, 16)
+                .padding(.top, self.topPadding)
+                .padding(.bottom, self.bottomPadding)
+                .frame(minWidth: 310, maxWidth: 310, alignment: .leading)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, self.topPadding)
-            .padding(.bottom, self.bottomPadding)
-            .frame(minWidth: 310, maxWidth: 310, alignment: .leading)
+        }
+    }
+}
+
+struct UsageMenuCardExtraUsageSectionView: View {
+    let model: UsageMenuCardView.Model
+    let topPadding: CGFloat
+    let bottomPadding: CGFloat
+
+    var body: some View {
+        Group {
+            if let providerCost = self.model.providerCost {
+                ProviderCostContent(
+                    section: providerCost,
+                    progressColor: self.model.progressColor)
+                    .padding(.horizontal, 16)
+                    .padding(.top, self.topPadding)
+                    .padding(.bottom, self.bottomPadding)
+                    .frame(minWidth: 310, maxWidth: 310, alignment: .leading)
+            }
         }
     }
 }
@@ -448,6 +518,7 @@ extension UsageMenuCardView.Model {
         let metrics = Self.metrics(input: input)
         let creditsText = Self.creditsLine(metadata: input.metadata, credits: input.credits, error: input.creditsError)
         let creditsHintText = Self.dashboardHint(provider: input.provider, error: input.dashboardError)
+        let providerCost = Self.providerCostSection(provider: input.provider, cost: input.snapshot?.providerCost)
         let tokenUsage = Self.tokenUsageSection(
             provider: input.provider,
             enabled: input.tokenCostUsageEnabled,
@@ -469,6 +540,7 @@ extension UsageMenuCardView.Model {
             creditsText: creditsText,
             creditsRemaining: input.credits?.remaining,
             creditsHintText: creditsHintText,
+            providerCost: providerCost,
             tokenUsage: tokenUsage,
             placeholder: placeholder,
             progressColor: Self.progressColor(for: input.provider))
@@ -626,6 +698,24 @@ extension UsageMenuCardView.Model {
             monthLine: monthLine,
             hintLine: nil,
             errorLine: err)
+    }
+
+    private static func providerCostSection(
+        provider: UsageProvider,
+        cost: ProviderCostSnapshot?
+    ) -> ProviderCostSection? {
+        guard provider == .claude else { return nil }
+        guard let cost else { return nil }
+        guard cost.limit > 0 else { return nil }
+
+        let used = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
+        let limit = UsageFormatter.currencyString(cost.limit, currencyCode: cost.currencyCode)
+        let percentUsed = Self.clamped((cost.used / cost.limit) * 100)
+
+        return ProviderCostSection(
+            title: "Extra usage",
+            percentUsed: percentUsed,
+            spendLine: "This month: \(used) / \(limit)")
     }
 
     private static func clamped(_ value: Double) -> Double {

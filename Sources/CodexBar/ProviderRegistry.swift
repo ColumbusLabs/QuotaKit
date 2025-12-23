@@ -36,11 +36,16 @@ struct ProviderRegistry {
             style: .claude,
             isEnabled: { settings.isProviderEnabled(provider: .claude, metadata: claudeMeta) },
             fetch: {
-                let usage = try await claudeFetcher.loadLatestUsage(model: "sonnet")
+                let fetcher: any ClaudeUsageFetching = settings.claudeWebExtrasEnabled
+                    ? ClaudeUsageFetcher(preferWebAPI: true)
+                    : claudeFetcher
+
+                let usage = try await fetcher.loadLatestUsage(model: "sonnet")
                 return UsageSnapshot(
                     primary: usage.primary,
                     secondary: usage.secondary,
                     tertiary: usage.opus,
+                    providerCost: usage.providerCost,
                     updatedAt: usage.updatedAt,
                     accountEmail: usage.accountEmail,
                     accountOrganization: usage.accountOrganization,

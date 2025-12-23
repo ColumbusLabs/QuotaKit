@@ -47,6 +47,11 @@ struct GeneralPane: View {
                         subtitle: self.providerSubtitle(.claude),
                         binding: self.claudeBinding)
 
+                    if self.claudeBinding.wrappedValue {
+                        self.claudeWebExtras()
+                            .padding(.leading, 22)
+                    }
+
                     if let display = self.providerErrorDisplay(.claude) {
                         ProviderErrorView(
                             title: "Last Claude fetch failed:",
@@ -161,11 +166,11 @@ struct GeneralPane: View {
     private func openAIDashboardLogin() -> some View {
         SettingsSection(contentSpacing: 10) {
             PreferenceToggleRow(
-                title: "Access OpenAI via web",
+                title: "Augment Codex via web",
                 subtitle: [
-                    "Adds Code review + Usage breakdown (WebKit scrape).",
-                    "Reuses your Safari/Chrome chatgpt.com session via cookies (Safari → Chrome).",
-                    "Credits still come from Codex CLI.",
+                    "Uses your Safari/Chrome session cookies to add extra dashboard fields.",
+                    "Adds Code review + Usage breakdown.",
+                    "Safari → Chrome.",
                 ].joined(separator: " "),
                 binding: self.$settings.openAIDashboardEnabled)
 
@@ -218,6 +223,20 @@ struct GeneralPane: View {
             } else {
                 self.openAIDashboardStatus = nil
             }
+        }
+    }
+
+    @ViewBuilder
+    private func claudeWebExtras() -> some View {
+        SettingsSection(contentSpacing: 10) {
+            PreferenceToggleRow(
+                title: "Augment Claude via web",
+                subtitle: [
+                    "Uses your Safari/Chrome session cookies to add extra dashboard fields.",
+                    "Adds reset timestamps + Extra usage spend/limit.",
+                    "Safari → Chrome.",
+                ].joined(separator: " "),
+                binding: self.$settings.claudeWebExtrasEnabled)
         }
     }
 

@@ -121,6 +121,11 @@ struct MenuDescriptor {
                 Self.appendRateWindow(entries: &entries, title: meta.opusLabel ?? "Sonnet", window: opus)
             }
 
+            if provider == .claude, let cost = snap.providerCost {
+                let used = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
+                let limit = UsageFormatter.currencyString(cost.limit, currencyCode: cost.currencyCode)
+                entries.append(.text("Extra usage: \(used) / \(limit)", .primary))
+            }
         } else {
             entries.append(.text("No usage yet", .secondary))
             if let err = store.error(for: provider), !err.isEmpty {
@@ -140,6 +145,7 @@ struct MenuDescriptor {
                 entries.append(.text(hint, .secondary))
             }
         }
+
         return Section(entries: entries)
     }
 
