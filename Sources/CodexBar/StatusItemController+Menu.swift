@@ -324,6 +324,7 @@ extension StatusItemController {
     {
         let hasUsageBlock = !model.metrics.isEmpty || model.placeholder != nil
         let hasCredits = model.creditsText != nil
+        let hasExtraUsage = model.providerCost != nil
         let hasCost = model.tokenUsage != nil
         let bottomPadding = CGFloat(hasCredits ? 4 : 10)
         let sectionSpacing = CGFloat(8)
@@ -344,20 +345,12 @@ extension StatusItemController {
             menu.addItem(self.makeMenuCardItem(usageView, id: "menuCardUsage", submenu: usageSubmenu))
         }
 
-        if hasCredits || hasCost {
+        if hasCredits || hasExtraUsage || hasCost {
             menu.addItem(.separator())
         }
 
-        if hasCost {
-            let costView = UsageMenuCardCostSectionView(
-                model: model,
-                topPadding: sectionSpacing,
-                bottomPadding: bottomPadding)
-            let costSubmenu = webItems.hasCostHistory ? self.makeCostHistorySubmenu(provider: provider) : nil
-            menu.addItem(self.makeMenuCardItem(costView, id: "menuCardCost", submenu: costSubmenu))
-        }
         if hasCredits {
-            if hasCost {
+            if hasExtraUsage || hasCost {
                 menu.addItem(.separator())
             }
             let creditsView = UsageMenuCardCreditsSectionView(
@@ -373,6 +366,27 @@ extension StatusItemController {
             if provider == .codex {
                 menu.addItem(self.makeBuyCreditsItem())
             }
+        }
+        if hasExtraUsage {
+            if hasCredits {
+                menu.addItem(.separator())
+            }
+            let extraUsageView = UsageMenuCardExtraUsageSectionView(
+                model: model,
+                topPadding: sectionSpacing,
+                bottomPadding: bottomPadding)
+            menu.addItem(self.makeMenuCardItem(extraUsageView, id: "menuCardExtraUsage"))
+        }
+        if hasCost {
+            if hasCredits || hasExtraUsage {
+                menu.addItem(.separator())
+            }
+            let costView = UsageMenuCardCostSectionView(
+                model: model,
+                topPadding: sectionSpacing,
+                bottomPadding: bottomPadding)
+            let costSubmenu = webItems.hasCostHistory ? self.makeCostHistorySubmenu(provider: provider) : nil
+            menu.addItem(self.makeMenuCardItem(costView, id: "menuCardCost", submenu: costSubmenu))
         }
     }
 
