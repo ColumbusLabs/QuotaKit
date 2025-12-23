@@ -7,6 +7,8 @@ import WebKit
 final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigationDelegate, WKScriptMessageHandler {
     private static let defaultSize = NSSize(width: 980, height: 760)
     private static let logHandlerName = "codexbarLog"
+    private static let debugLogURL = URL(fileURLWithPath: NSTemporaryDirectory())
+        .appendingPathComponent("codexbar-buy-credits.log")
     private static let autoStartScript = """
     (() => {
       if (window.__codexbarAutoBuyCreditsStarted) return 'already';
@@ -16,6 +18,17 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
         } catch {}
       };
       const buttonSelector = 'button, a, [role="button"], input[type="button"], input[type="submit"]';
+      const isVisible = (el) => {
+        if (!el || !el.getBoundingClientRect) return false;
+        const rect = el.getBoundingClientRect();
+        if (rect.width < 2 || rect.height < 2) return false;
+        const style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+        if (style) {
+          if (style.display === 'none' || style.visibility === 'hidden') return false;
+          if (parseFloat(style.opacity || '1') === 0) return false;
+        }
+        return true;
+      };
       const textOf = el => {
         const raw = el && (el.innerText || el.textContent) ? String(el.innerText || el.textContent) : '';
         return raw.trim();
@@ -63,7 +76,25 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
         document.querySelectorAll('*').forEach(el => {
           if (el.shadowRoot) addAll(el.shadowRoot);
         });
+        document.querySelectorAll('iframe').forEach(frame => {
+          try {
+            const doc = frame.contentDocument;
+            if (!doc) return;
+            addAll(doc);
+            doc.querySelectorAll('*').forEach(el => {
+              if (el.shadowRoot) addAll(el.shadowRoot);
+            });
+          } catch {}
+        });
         return Array.from(results);
+      };
+      const findDialogNextButton = () => {
+        const dialog = document.querySelector('[role=\"dialog\"], dialog, [aria-modal=\"true\"]');
+        if (!dialog) return null;
+        const buttons = Array.from(dialog.querySelectorAll(buttonSelector));
+        const labeled = buttons.filter(btn => labelFor(btn).toLowerCase().startsWith('next'));
+        const visible = labeled.find(isVisible);
+        return visible || labeled[0] || null;
       };
       const clickButton = (el) => {
         if (!el) return false;
@@ -72,6 +103,28 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
         } catch {
           try {
             el.click();
+          } catch {
+            return false;
+          }
+        }
+        return true;
+      };
+      const triggerPointerClick = (el) => {
+        if (!el) return false;
+        const rect = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+        if (!rect) return false;
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        const events = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'];
+        for (const type of events) {
+          try {
+            el.dispatchEvent(new MouseEvent(type, {
+              bubbles: true,
+              cancelable: true,
+              view: window,
+              clientX: x,
+              clientY: y
+            }));
           } catch {
             return false;
           }
@@ -93,12 +146,17 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
         return buttons.find(btn => matchesAddMore(labelFor(btn))) || null;
       };
       const findNextButton = () => {
+        const dialogNext = findDialogNextButton();
+        if (dialogNext) return dialogNext;
         const buttons = collectButtons();
-        return buttons.find(btn => {
-          if (btn.type && String(btn.type).toLowerCase() === 'submit') return true;
+        const labeled = buttons.filter(btn => {
           const label = labelFor(btn).toLowerCase();
           return label === 'next' || label.startsWith('next ');
-        }) || null;
+        });
+        const visible = labeled.find(isVisible);
+        if (visible) return visible;
+        const submit = buttons.find(btn => btn.type && String(btn.type).toLowerCase() === 'submit' && isVisible(btn));
+        return submit || labeled[0] || null;
       };
       const isDisabled = (el) => {
         if (!el) return true;
@@ -142,20 +200,39 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
         }
         return false;
       };
-      const clickNextIfReady = () => {
+      const clickNextIfReady = (attempts) => {
         const nextButton = findNextButton();
-        if (!nextButton) return false;
-        if (isDisabled(nextButton)) return false;
-        const rect = nextButton.getBoundingClientRect ? nextButton.getBoundingClientRect() : null;
-        if (rect && (rect.width < 2 || rect.height < 2)) return false;
+        if (!nextButton) {
+          if (attempts && attempts % 5 === 0) log('next_missing', { attempts });
+          return false;
+        }
+        if (isDisabled(nextButton)) {
+          if (attempts && attempts % 5 === 0) log('next_disabled', summarize(nextButton));
+          return false;
+        }
+        if (!isVisible(nextButton)) {
+          if (attempts && attempts % 5 === 0) log('next_hidden', summarize(nextButton));
+          return false;
+        }
         nextButton.focus?.();
-        if (requestSubmit(nextButton)) return true;
-        if (clickButton(nextButton)) return true;
+        if (requestSubmit(nextButton)) {
+          log('next_submit', summarize(nextButton));
+          return true;
+        }
+        if (triggerPointerClick(nextButton)) {
+          log('next_pointer', summarize(nextButton));
+          return true;
+        }
+        if (clickButton(nextButton)) {
+          log('next_click', summarize(nextButton));
+          return true;
+        }
         return forceClickElement(nextButton);
       };
       const startNextPolling = (initialDelay = 500, interval = 500, maxAttempts = 90) => {
         if (window.__codexbarNextPolling) return;
         window.__codexbarNextPolling = true;
+        log('start_next_poll', { initialDelay, interval, maxAttempts });
         setTimeout(() => {
           let attempts = 0;
           const nextTimer = setInterval(() => {
@@ -168,7 +245,7 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
                 summary: summarize(nextButton)
               });
             }
-            if (clickNextIfReady() || attempts >= maxAttempts) {
+            if (clickNextIfReady(attempts) || attempts >= maxAttempts) {
               clearInterval(nextTimer);
             }
           }, interval);
@@ -177,7 +254,7 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
       const observeNextButton = () => {
         if (window.__codexbarNextObserver || !window.MutationObserver) return;
         const observer = new MutationObserver(() => {
-          if (clickNextIfReady()) {
+          if (clickNextIfReady(1)) {
             observer.disconnect();
             window.__codexbarNextObserver = null;
           }
@@ -215,10 +292,30 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
       };
       const logDialogButtons = () => {
         const dialog = document.querySelector('[role=\"dialog\"], dialog, [aria-modal=\"true\"]');
-        if (!dialog) return;
-        const buttons = Array.from(dialog.querySelectorAll(buttonSelector)).map(summarize).filter(Boolean);
-        if (buttons.length) {
-          log('dialog_buttons', { count: buttons.length, buttons: buttons.slice(0, 6) });
+        if (dialog) {
+          const buttons = Array.from(dialog.querySelectorAll(buttonSelector)).map(summarize).filter(Boolean);
+          if (buttons.length) {
+            log('dialog_buttons', { count: buttons.length, buttons: buttons.slice(0, 6) });
+          }
+          const nextButton = findDialogNextButton();
+          if (nextButton) {
+            log('dialog_next', summarize(nextButton));
+            setTimeout(() => clickNextIfReady(1), 100);
+          }
+          return;
+        }
+        const candidates = collectButtons()
+          .map(summarize)
+          .filter(Boolean)
+          .filter(entry => {
+            const label = (entry.label || '').toLowerCase();
+            return label.includes('next')
+              || label.includes('continue')
+              || label.includes('confirm')
+              || label.includes('buy');
+          });
+        if (candidates.length) {
+          log('button_candidates', { count: candidates.length, buttons: candidates.slice(0, 8) });
         }
       };
       log('auto_start', { href: location.href, ready: document.readyState });
@@ -284,6 +381,14 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
             self.accountEmail = normalizedEmail
             self.buildWindow()
         }
+        Self.resetDebugLog()
+        let accountValue = normalizedEmail ?? "nil"
+        Self.appendDebugLog(
+            "show autoStart=\(autoStartPurchase) url=\(purchaseURL.absoluteString) account=\(accountValue)")
+        self.logger.debug("Show buy credits window")
+        self.logger.debug("Auto-start purchase: \(autoStartPurchase, privacy: .public)")
+        self.logger.debug("Purchase URL: \(purchaseURL.absoluteString, privacy: .public)")
+        self.logger.debug("Account email: \(accountValue, privacy: .public)")
         self.pendingAutoStart = autoStartPurchase
         self.load(url: purchaseURL)
         self.window?.center()
@@ -334,12 +439,17 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard self.pendingAutoStart else { return }
         self.pendingAutoStart = false
+        let currentURL = webView.url?.absoluteString ?? "unknown"
+        Self.appendDebugLog("didFinish url=\(currentURL)")
+        self.logger.debug("Buy credits navigation finished (url=\(currentURL, privacy: .public))")
         webView.evaluateJavaScript(Self.autoStartScript) { [logger] result, error in
             if let error {
+                Self.appendDebugLog("autoStart error=\(error.localizedDescription)")
                 logger.debug("Auto-start purchase failed: \(error.localizedDescription, privacy: .public)")
                 return
             }
             if let result {
+                Self.appendDebugLog("autoStart result=\(String(describing: result))")
                 logger.debug("Auto-start purchase result: \(String(describing: result), privacy: .public)")
             }
         }
@@ -348,6 +458,7 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.name == Self.logHandlerName else { return }
         let payload = String(describing: message.body)
+        Self.appendDebugLog("js \(payload)")
         self.logger.debug("Auto-buy log: \(payload, privacy: .public)")
     }
 
@@ -362,6 +473,25 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
         let height = min(Self.defaultSize.height, visible.height * 0.88)
         let origin = NSPoint(x: visible.midX - width / 2, y: visible.midY - height / 2)
         return NSRect(origin: origin, size: NSSize(width: width, height: height))
+    }
+
+    private static func appendDebugLog(_ message: String) {
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+        let line = "[\(timestamp)] \(message)\n"
+        guard let data = line.data(using: .utf8) else { return }
+        if FileManager.default.fileExists(atPath: Self.debugLogURL.path) {
+            if let handle = try? FileHandle(forWritingTo: Self.debugLogURL) {
+                handle.seekToEndOfFile()
+                handle.write(data)
+                try? handle.close()
+            }
+        } else {
+            try? data.write(to: Self.debugLogURL, options: .atomic)
+        }
+    }
+
+    private static func resetDebugLog() {
+        try? FileManager.default.removeItem(at: self.debugLogURL)
     }
 }
 
