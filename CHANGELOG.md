@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.12.0 — Unreleased
+## 0.12.0 — 2025-12-23
 - Widgets: add WidgetKit extension backed by a shared app‑group usage snapshot.
 - New local cost usage tracking (Codex + Claude) via a lightweight scanner inspired by ccusage (MIT) — computes cost from local JSONL logs without Node CLIs. Thanks @ryoppippi!
 - Cost summary now includes last‑30‑days tokens; weekly pace indicators (with runout copy) hide when usage is fully depleted. Thanks @Remedy92!
