@@ -11,6 +11,15 @@ struct DebugPane: View {
     @State private var logText: String = ""
     @State private var isClearingCostCache = false
     @State private var costCacheStatus: String?
+    #if DEBUG
+    @State private var currentErrorProvider: UsageProvider = .codex
+    @State private var simulatedErrorText: String = """
+    Simulated error for testing layout.
+    Second line.
+    Third line.
+    Fourth line.
+    """
+    #endif
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
@@ -186,6 +195,63 @@ struct DebugPane: View {
                         .controlSize(.small)
                     }
                 }
+
+                #if DEBUG
+                SettingsSection(
+                    title: "Error simulation",
+                    caption: "Inject a fake error message into the menu card for layout testing.")
+                {
+                    Picker("Provider", selection: self.$currentErrorProvider) {
+                        Text("Codex").tag(UsageProvider.codex)
+                        Text("Claude").tag(UsageProvider.claude)
+                        Text("Gemini").tag(UsageProvider.gemini)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 240)
+
+                    TextField("Simulated error text", text: self.$simulatedErrorText, axis: .vertical)
+                        .lineLimit(4)
+
+                    HStack(spacing: 12) {
+                        Button {
+                            self.store._setErrorForTesting(
+                                self.simulatedErrorText,
+                                provider: self.currentErrorProvider)
+                        } label: {
+                            Label("Set menu error", systemImage: "exclamationmark.triangle")
+                        }
+                        .controlSize(.small)
+
+                        Button {
+                            self.store._setErrorForTesting(nil, provider: self.currentErrorProvider)
+                        } label: {
+                            Label("Clear menu error", systemImage: "xmark.circle")
+                        }
+                        .controlSize(.small)
+                    }
+
+                    let supportsTokenError = self.currentErrorProvider == .codex || self.currentErrorProvider == .claude
+                    HStack(spacing: 12) {
+                        Button {
+                            self.store._setTokenErrorForTesting(
+                                self.simulatedErrorText,
+                                provider: self.currentErrorProvider)
+                        } label: {
+                            Label("Set cost error", systemImage: "banknote")
+                        }
+                        .controlSize(.small)
+                        .disabled(!supportsTokenError)
+
+                        Button {
+                            self.store._setTokenErrorForTesting(nil, provider: self.currentErrorProvider)
+                        } label: {
+                            Label("Clear cost error", systemImage: "xmark.circle")
+                        }
+                        .controlSize(.small)
+                        .disabled(!supportsTokenError)
+                    }
+                }
+                #endif
 
                 SettingsSection(
                     title: "CLI paths",
