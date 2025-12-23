@@ -72,33 +72,8 @@ struct UsageMenuCardView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(self.model.providerName)
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                    Spacer()
-                    Text(self.model.email)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                HStack(alignment: .firstTextBaseline) {
-                    Text(self.model.subtitleText)
-                        .font(.footnote)
-                        .foregroundStyle(self.subtitleColor)
-                        .lineLimit(1)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer()
-                    if let plan = self.model.planText {
-                        Text(plan)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-            }
+        VStack(alignment: .leading, spacing: 6) {
+            UsageMenuCardHeaderView(model: self.model)
 
             if self.hasDetails {
                 Divider()
@@ -200,21 +175,13 @@ struct UsageMenuCardView: View {
         !self.model.metrics.isEmpty || self.model.placeholder != nil || self.model.tokenUsage != nil
     }
 
-    private var subtitleColor: Color {
-        switch self.model.subtitleStyle {
-        case .info: .secondary
-        case .loading: .secondary
-        case .error: Color(nsColor: .systemRed)
-        }
-    }
 }
 
-struct UsageMenuCardHeaderSectionView: View {
+private struct UsageMenuCardHeaderView: View {
     let model: UsageMenuCardView.Model
-    let showDivider: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
                 Text(self.model.providerName)
                     .font(.headline)
@@ -239,6 +206,25 @@ struct UsageMenuCardHeaderSectionView: View {
                         .lineLimit(1)
                 }
             }
+        }
+    }
+
+    private var subtitleColor: Color {
+        switch self.model.subtitleStyle {
+        case .info: .secondary
+        case .loading: .secondary
+        case .error: Color(nsColor: .systemRed)
+        }
+    }
+}
+
+struct UsageMenuCardHeaderSectionView: View {
+    let model: UsageMenuCardView.Model
+    let showDivider: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            UsageMenuCardHeaderView(model: self.model)
 
             if self.showDivider {
                 Divider()
@@ -249,13 +235,6 @@ struct UsageMenuCardHeaderSectionView: View {
         .frame(minWidth: 310, maxWidth: 310, alignment: .leading)
     }
 
-    private var subtitleColor: Color {
-        switch self.model.subtitleStyle {
-        case .info: .secondary
-        case .loading: .secondary
-        case .error: Color(nsColor: .systemRed)
-        }
-    }
 }
 
 struct UsageMenuCardUsageSectionView: View {
