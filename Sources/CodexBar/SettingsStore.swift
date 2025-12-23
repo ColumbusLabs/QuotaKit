@@ -155,8 +155,12 @@ final class SettingsStore {
         self.debugMenuEnabled = userDefaults.object(forKey: "debugMenuEnabled") as? Bool ?? false
         self.debugLoadingPatternRaw = userDefaults.string(forKey: "debugLoadingPattern")
         self.statusChecksEnabled = userDefaults.object(forKey: "statusChecksEnabled") as? Bool ?? true
-        self.sessionQuotaNotificationsEnabled = userDefaults.object(
-            forKey: "sessionQuotaNotificationsEnabled") as? Bool ?? true
+        let sessionQuotaNotificationsDefault = userDefaults.object(
+            forKey: "sessionQuotaNotificationsEnabled") as? Bool
+        self.sessionQuotaNotificationsEnabled = sessionQuotaNotificationsDefault ?? true
+        if sessionQuotaNotificationsDefault == nil {
+            self.userDefaults.set(true, forKey: "sessionQuotaNotificationsEnabled")
+        }
         self.usageBarsShowUsed = userDefaults.object(forKey: "usageBarsShowUsed") as? Bool ?? false
         self.ccusageCostUsageEnabled = userDefaults.object(forKey: "tokenCostUsageEnabled") as? Bool ?? false
         self.randomBlinkEnabled = userDefaults.object(forKey: "randomBlinkEnabled") as? Bool ?? false
