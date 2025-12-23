@@ -1,3 +1,4 @@
+import AppIntents
 import CodexBarCore
 import SwiftUI
 import WidgetKit
@@ -7,9 +8,9 @@ enum ProviderChoice: String, AppEnum {
     case claude
     case gemini
 
-    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Provider")
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Provider")
 
-    static var caseDisplayRepresentations: [ProviderChoice: DisplayRepresentation] = [
+    static let caseDisplayRepresentations: [ProviderChoice: DisplayRepresentation] = [
         .codex: DisplayRepresentation(title: "Codex"),
         .claude: DisplayRepresentation(title: "Claude"),
         .gemini: DisplayRepresentation(title: "Gemini"),
@@ -29,9 +30,9 @@ enum CompactMetric: String, AppEnum {
     case todayCost
     case last30DaysCost
 
-    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Metric")
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Metric")
 
-    static var caseDisplayRepresentations: [CompactMetric: DisplayRepresentation] = [
+    static let caseDisplayRepresentations: [CompactMetric: DisplayRepresentation] = [
         .credits: DisplayRepresentation(title: "Credits left"),
         .todayCost: DisplayRepresentation(title: "Today cost"),
         .last30DaysCost: DisplayRepresentation(title: "30d cost"),
@@ -39,8 +40,8 @@ enum CompactMetric: String, AppEnum {
 }
 
 struct ProviderSelectionIntent: AppIntent, WidgetConfigurationIntent {
-    static var title: LocalizedStringResource = "Provider"
-    static var description = IntentDescription("Select the provider to display in the widget.")
+    static let title: LocalizedStringResource = "Provider"
+    static let description = IntentDescription("Select the provider to display in the widget.")
 
     @Parameter(title: "Provider")
     var provider: ProviderChoice
@@ -51,8 +52,8 @@ struct ProviderSelectionIntent: AppIntent, WidgetConfigurationIntent {
 }
 
 struct CompactMetricSelectionIntent: AppIntent, WidgetConfigurationIntent {
-    static var title: LocalizedStringResource = "Provider + Metric"
-    static var description = IntentDescription("Select the provider and metric to display.")
+    static let title: LocalizedStringResource = "Provider + Metric"
+    static let description = IntentDescription("Select the provider and metric to display.")
 
     @Parameter(title: "Provider")
     var provider: ProviderChoice
