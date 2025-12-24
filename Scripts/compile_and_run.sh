@@ -114,7 +114,7 @@ if [[ "${RUN_TESTS}" == "1" ]]; then
   run_step "swift test" swift test -q
 fi
 if [[ "${DEBUG_LLDB}" == "1" ]]; then
-  run_step "package app" CODEXBAR_ALLOW_LLDB=1 "${ROOT_DIR}/scripts/package_app.sh" debug
+  run_step "package app" env CODEXBAR_ALLOW_LLDB=1 "${ROOT_DIR}/scripts/package_app.sh" debug
 else
   run_step "package app" "${ROOT_DIR}/scripts/package_app.sh"
 fi
