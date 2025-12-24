@@ -27,6 +27,7 @@ SwiftPM-only; package/sign/notarize manually (no Xcode project). Sparkle feed is
 - Developer ID Application cert installed: `Developer ID Application: Peter Steinberger (Y5PE65HELJ)`.
 - ASC API creds in env: `APP_STORE_CONNECT_API_KEY_P8`, `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`.
 - Sparkle keys: public key already in Info.plist; private key path set via `SPARKLE_PRIVATE_KEY_FILE` when generating appcast.
+- Ensure shell has release env vars loaded (usually `source ~/.profile`) before running `Scripts/release.sh`.
 
 ## Icon (glass .icon → .icns)
 ```
