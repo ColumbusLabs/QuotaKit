@@ -26,6 +26,7 @@ struct ProviderRegistry {
         let codexMeta = metadata[.codex]!
         let claudeMeta = metadata[.claude]!
         let geminiMeta = metadata[.gemini]!
+        let antigravityMeta = metadata[.antigravity]!
 
         let codexSpec = ProviderSpec(
             style: .codex,
@@ -61,7 +62,21 @@ struct ProviderRegistry {
                 return snap.toUsageSnapshot()
             })
 
-        return [.codex: codexSpec, .claude: claudeSpec, .gemini: geminiSpec]
+        let antigravitySpec = ProviderSpec(
+            style: .antigravity,
+            isEnabled: { settings.isProviderEnabled(provider: .antigravity, metadata: antigravityMeta) },
+            fetch: {
+                let probe = AntigravityStatusProbe()
+                let snap = try await probe.fetch()
+                return try snap.toUsageSnapshot()
+            })
+
+        return [
+            .codex: codexSpec,
+            .claude: claudeSpec,
+            .gemini: geminiSpec,
+            .antigravity: antigravitySpec,
+        ]
     }
 
     private static let defaultMetadata: [UsageProvider: ProviderMetadata] = ProviderDefaults.metadata

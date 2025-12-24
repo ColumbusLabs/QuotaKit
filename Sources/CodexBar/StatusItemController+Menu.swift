@@ -859,6 +859,7 @@ private final class ProviderSwitcherView: NSView {
         case .codex: "Codex"
         case .claude: "Claude"
         case .gemini: "Gemini"
+        case .antigravity: "Antigravity"
         }
     }
 }

@@ -143,6 +143,12 @@ extension StatusItemController {
                 print("[CodexBar] Gemini login outcome=\(outcome)")
                 // Refresh triggered by file watcher callback when auth completes
                 return
+            case .antigravity:
+                self.loginPhase = .idle
+                self.presentLoginAlert(
+                    title: "Antigravity login is managed in the app",
+                    message: "Open Antigravity to sign in, then refresh CodexBar.")
+                return
             }
 
             await self.store.refresh()
@@ -292,6 +298,7 @@ extension StatusItemController {
         case .codex: "Codex login successful"
         case .claude: "Claude login successful"
         case .gemini: "Gemini login successful"
+        case .antigravity: "Antigravity login successful"
         }
         let body = "You can return to the app; authentication finished."
         AppNotifications.shared.post(idPrefix: "login-\(provider.rawValue)", title: title, body: body)

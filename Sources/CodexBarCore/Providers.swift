@@ -4,6 +4,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case codex
     case claude
     case gemini
+    case antigravity
 }
 
 public struct ProviderMetadata: Sendable {
@@ -106,5 +107,20 @@ public enum ProviderDefaults {
             dashboardURL: "https://gemini.google.com",
             statusPageURL: nil,
             statusLinkURL: "https://aistudio.google.com/status"),
+        .antigravity: ProviderMetadata(
+            id: .antigravity,
+            displayName: "Antigravity",
+            sessionLabel: "Claude",
+            weeklyLabel: "Gemini Pro",
+            opusLabel: "Gemini Flash",
+            supportsOpus: true,
+            supportsCredits: false,
+            creditsHint: "",
+            toggleTitle: "Show Antigravity usage",
+            cliName: "antigravity",
+            defaultEnabled: false,
+            dashboardURL: nil,
+            statusPageURL: nil,
+            statusLinkURL: nil),
     ]
 }

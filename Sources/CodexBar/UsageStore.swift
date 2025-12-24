@@ -8,6 +8,7 @@ enum IconStyle {
     case codex
     case claude
     case gemini
+    case antigravity
     case combined
 }
 
@@ -31,6 +32,7 @@ extension UsageStore {
         _ = self.codexVersion
         _ = self.claudeVersion
         _ = self.geminiVersion
+        _ = self.antigravityVersion
         _ = self.claudeAccountEmail
         _ = self.claudeAccountOrganization
         _ = self.isRefreshing
@@ -155,6 +157,7 @@ final class UsageStore {
     var codexVersion: String?
     var claudeVersion: String?
     var geminiVersion: String?
+    var antigravityVersion: String?
     var claudeAccountEmail: String?
     var claudeAccountOrganization: String?
     var isRefreshing = false
@@ -256,6 +259,7 @@ final class UsageStore {
         case .codex: self.codexVersion
         case .claude: self.claudeVersion
         case .gemini: self.geminiVersion
+        case .antigravity: self.antigravityVersion
         }
     }
 
@@ -269,12 +273,16 @@ final class UsageStore {
         if self.isEnabled(.gemini), let snap = self.snapshots[.gemini] {
             return snap
         }
+        if self.isEnabled(.antigravity), let snap = self.snapshots[.antigravity] {
+            return snap
+        }
         return nil
     }
 
     var iconStyle: IconStyle {
         let enabled = self.enabledProviders()
         if enabled.count > 1 { return .combined }
+        if self.isEnabled(.antigravity) { return .antigravity }
         if self.isEnabled(.gemini) { return .gemini }
         if self.isEnabled(.claude) { return .claude }
         return .codex
@@ -283,7 +291,8 @@ final class UsageStore {
     var isStale: Bool {
         (self.isEnabled(.codex) && self.lastCodexError != nil) ||
             (self.isEnabled(.claude) && self.lastClaudeError != nil) ||
-            (self.isEnabled(.gemini) && self.errors[.gemini] != nil)
+            (self.isEnabled(.gemini) && self.errors[.gemini] != nil) ||
+            (self.isEnabled(.antigravity) && self.errors[.antigravity] != nil)
     }
 
     func enabledProviders() -> [UsageProvider] {
@@ -1030,6 +1039,10 @@ extension UsageStore {
                 let text = "Gemini debug log not yet implemented"
                 await MainActor.run { self.probeLogs[.gemini] = text }
                 return text
+            case .antigravity:
+                let text = "Antigravity debug log not yet implemented"
+                await MainActor.run { self.probeLogs[.antigravity] = text }
+                return text
             }
         }.value
     }
@@ -1052,10 +1065,12 @@ extension UsageStore {
             let codexVer = Self.readCLI("codex", args: ["-s", "read-only", "-a", "untrusted", "--version"])
             let claudeVer = claudeFetcher.detectVersion()
             let geminiVer = Self.readCLI("gemini", args: ["--version"])
+            let antigravityVer = await AntigravityStatusProbe.detectVersion()
             await MainActor.run {
                 self.codexVersion = codexVer
                 self.claudeVersion = claudeVer
                 self.geminiVersion = geminiVer
+                self.antigravityVersion = antigravityVer
             }
         }
     }

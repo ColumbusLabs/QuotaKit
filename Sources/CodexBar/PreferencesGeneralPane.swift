@@ -72,6 +72,19 @@ struct GeneralPane: View {
                             isExpanded: self.expandedBinding(for: .gemini),
                             onCopy: { self.copyToPasteboard(display.full) })
                     }
+
+                    PreferenceToggleRow(
+                        title: self.store.metadata(for: .antigravity).toggleTitle,
+                        subtitle: self.providerSubtitle(.antigravity),
+                        binding: self.antigravityBinding)
+
+                    if let display = self.providerErrorDisplay(.antigravity) {
+                        ProviderErrorView(
+                            title: "Last Antigravity fetch failed:",
+                            display: display,
+                            isExpanded: self.expandedBinding(for: .antigravity),
+                            onCopy: { self.copyToPasteboard(display.full) })
+                    }
                 }
 
                 Divider()
@@ -119,6 +132,7 @@ struct GeneralPane: View {
     private var codexBinding: Binding<Bool> { self.binding(for: .codex) }
     private var claudeBinding: Binding<Bool> { self.binding(for: .claude) }
     private var geminiBinding: Binding<Bool> { self.binding(for: .gemini) }
+    private var antigravityBinding: Binding<Bool> { self.binding(for: .antigravity) }
 
     private func binding(for provider: UsageProvider) -> Binding<Bool> {
         let meta = self.store.metadata(for: provider)

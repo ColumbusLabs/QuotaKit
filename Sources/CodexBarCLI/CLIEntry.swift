@@ -190,6 +190,8 @@ enum CodexBarCLI {
             ClaudeUsageFetcher().detectVersion()
         case .gemini:
             VersionDetector.geminiVersion()
+        case .antigravity:
+            nil
         }
     }
 
@@ -198,6 +200,7 @@ enum CodexBarCLI {
         case .codex: "codex-cli"
         case .claude: "claude"
         case .gemini: "gemini-cli"
+        case .antigravity: "antigravity"
         }
         guard let raw, !raw.isEmpty else { return (nil, source) }
         if let match = raw.range(of: #"(\d+(?:\.\d+)+)"#, options: .regularExpression) {
@@ -284,6 +287,10 @@ enum CodexBarCLI {
                 let probe = GeminiStatusProbe()
                 let snap = try await probe.fetch()
                 return .success((usage: snap.toUsageSnapshot(), credits: nil))
+            case .antigravity:
+                let probe = AntigravityStatusProbe()
+                let snap = try await probe.fetch()
+                return .success((usage: try snap.toUsageSnapshot(), credits: nil))
             }
         } catch {
             return .failure(error)
@@ -535,6 +542,7 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
     case codex
     case claude
     case gemini
+    case antigravity
     case both
     case all
     case custom([UsageProvider])
@@ -544,6 +552,7 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
         case "codex": self = .codex
         case "claude": self = .claude
         case "gemini": self = .gemini
+        case "antigravity": self = .antigravity
         case "both": self = .both
         case "all": self = .all
         default: return nil
@@ -555,6 +564,7 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
         case .codex: self = .codex
         case .claude: self = .claude
         case .gemini: self = .gemini
+        case .antigravity: self = .antigravity
         }
     }
 
@@ -563,8 +573,9 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
         case .codex: [.codex]
         case .claude: [.claude]
         case .gemini: [.gemini]
+        case .antigravity: [.antigravity]
         case .both: [.codex, .claude]
-        case .all: [.codex, .claude, .gemini]
+        case .all: [.codex, .claude, .gemini, .antigravity]
         case let .custom(providers): providers
         }
     }

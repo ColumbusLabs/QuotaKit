@@ -353,6 +353,8 @@ enum WidgetColors {
             Color(red: 204 / 255, green: 124 / 255, blue: 94 / 255)
         case .gemini:
             Color(red: 171 / 255, green: 135 / 255, blue: 234 / 255)
+        case .antigravity:
+            Color(red: 96 / 255, green: 186 / 255, blue: 126 / 255)
         }
     }
 }

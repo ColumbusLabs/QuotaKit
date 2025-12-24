@@ -52,6 +52,8 @@ extension UsageStore {
             return "No Claude usage logs found in ~/.config/claude/projects or ~/.claude/projects."
         case .gemini:
             return "Gemini cost summary is not supported."
+        case .antigravity:
+            return "Antigravity cost summary is not supported."
         }
     }
 }

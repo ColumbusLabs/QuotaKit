@@ -114,6 +114,7 @@ enum IconRenderer {
                     addNotches: Bool = false,
                     addFace: Bool = false,
                     addGeminiTwist: Bool = false,
+                    addAntigravityTwist: Bool = false,
                     blink: CGFloat = 0)
                 {
                     let rect = rectPx.rect()
@@ -428,6 +429,19 @@ enum IconRenderer {
                             drawBlinkStar(cx: rdCx, cy: yCy)
                         }
                     }
+
+                    if addAntigravityTwist {
+                        let dotSizePx = 3
+                        let dotOffsetXPx = rectPx.x + rectPx.w + 2
+                        let dotOffsetYPx = rectPx.y + rectPx.h - 2
+                        fillColor.withAlphaComponent(alpha).setFill()
+                        let dotRect = Self.grid.rect(
+                            x: dotOffsetXPx - dotSizePx / 2,
+                            y: dotOffsetYPx - dotSizePx / 2,
+                            w: dotSizePx,
+                            h: dotSizePx)
+                        NSBezierPath(ovalIn: dotRect).fill()
+                    }
                 }
 
                 let topValue = primaryRemaining
@@ -449,7 +463,8 @@ enum IconRenderer {
                         remaining: topValue,
                         addNotches: style == .claude,
                         addFace: style == .codex,
-                        addGeminiTwist: style == .gemini,
+                        addGeminiTwist: style == .gemini || style == .antigravity,
+                        addAntigravityTwist: style == .antigravity,
                         blink: blink)
                     drawBar(rectPx: bottomRectPx, remaining: bottomValue)
                 } else if !hasWeekly {
@@ -463,7 +478,8 @@ enum IconRenderer {
                             alpha: creditsAlpha,
                             addNotches: style == .claude,
                             addFace: style == .codex,
-                            addGeminiTwist: style == .gemini,
+                            addGeminiTwist: style == .gemini || style == .antigravity,
+                            addAntigravityTwist: style == .antigravity,
                             blink: blink)
                         drawBar(rectPx: creditsBottomRectPx, remaining: nil, alpha: 0.45)
                     } else {
@@ -472,7 +488,8 @@ enum IconRenderer {
                             remaining: topValue,
                             addNotches: style == .claude,
                             addFace: style == .codex,
-                            addGeminiTwist: style == .gemini,
+                            addGeminiTwist: style == .gemini || style == .antigravity,
+                            addAntigravityTwist: style == .antigravity,
                             blink: blink)
                         drawBar(rectPx: bottomRectPx, remaining: nil, alpha: 0.45)
                     }
@@ -485,7 +502,8 @@ enum IconRenderer {
                             alpha: creditsAlpha,
                             addNotches: style == .claude,
                             addFace: style == .codex,
-                            addGeminiTwist: style == .gemini,
+                            addGeminiTwist: style == .gemini || style == .antigravity,
+                            addAntigravityTwist: style == .antigravity,
                             blink: blink)
                     } else {
                         // No credits available; fall back to 5h if present.
@@ -494,7 +512,8 @@ enum IconRenderer {
                             remaining: topValue,
                             addNotches: style == .claude,
                             addFace: style == .codex,
-                            addGeminiTwist: style == .gemini,
+                            addGeminiTwist: style == .gemini || style == .antigravity,
+                            addAntigravityTwist: style == .antigravity,
                             blink: blink)
                     }
                     drawBar(rectPx: creditsBottomRectPx, remaining: bottomValue)
@@ -550,7 +569,8 @@ enum IconRenderer {
         case .codex: 0
         case .claude: 1
         case .gemini: 2
-        case .combined: 3
+        case .antigravity: 3
+        case .combined: 4
         }
     }
 

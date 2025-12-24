@@ -207,11 +207,16 @@ final class SettingsStore {
         guard force || !self.providerDetectionCompleted else { return }
         guard let codexMeta = ProviderRegistry.shared.metadata[.codex],
               let claudeMeta = ProviderRegistry.shared.metadata[.claude],
-              let geminiMeta = ProviderRegistry.shared.metadata[.gemini] else { return }
+              let geminiMeta = ProviderRegistry.shared.metadata[.gemini],
+              let antigravityMeta = ProviderRegistry.shared.metadata[.antigravity] else { return }
 
         LoginShellPathCache.shared.captureOnce { [weak self] _ in
             Task { @MainActor in
-                self?.applyProviderDetection(codexMeta: codexMeta, claudeMeta: claudeMeta, geminiMeta: geminiMeta)
+                await self?.applyProviderDetection(
+                    codexMeta: codexMeta,
+                    claudeMeta: claudeMeta,
+                    geminiMeta: geminiMeta,
+                    antigravityMeta: antigravityMeta)
             }
         }
     }
@@ -219,23 +224,27 @@ final class SettingsStore {
     private func applyProviderDetection(
         codexMeta: ProviderMetadata,
         claudeMeta: ProviderMetadata,
-        geminiMeta: ProviderMetadata)
+        geminiMeta: ProviderMetadata,
+        antigravityMeta: ProviderMetadata) async
     {
         guard !self.providerDetectionCompleted else { return }
         let codexInstalled = BinaryLocator.resolveCodexBinary() != nil
         let claudeInstalled = BinaryLocator.resolveClaudeBinary() != nil
         let geminiInstalled = BinaryLocator.resolveGeminiBinary() != nil
+        let antigravityRunning = await AntigravityStatusProbe.isRunning()
 
         // If none installed, keep Codex enabled to match previous behavior.
-        let noneInstalled = !codexInstalled && !claudeInstalled && !geminiInstalled
+        let noneInstalled = !codexInstalled && !claudeInstalled && !geminiInstalled && !antigravityRunning
         let enableCodex = codexInstalled || noneInstalled
         let enableClaude = claudeInstalled
         let enableGemini = geminiInstalled
+        let enableAntigravity = antigravityRunning
 
         self.providerToggleRevision &+= 1
         self.toggleStore.setEnabled(enableCodex, metadata: codexMeta)
         self.toggleStore.setEnabled(enableClaude, metadata: claudeMeta)
         self.toggleStore.setEnabled(enableGemini, metadata: geminiMeta)
+        self.toggleStore.setEnabled(enableAntigravity, metadata: antigravityMeta)
         self.providerDetectionCompleted = true
     }
 

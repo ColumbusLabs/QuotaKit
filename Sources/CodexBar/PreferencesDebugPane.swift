@@ -205,6 +205,7 @@ struct DebugPane: View {
                         Text("Codex").tag(UsageProvider.codex)
                         Text("Claude").tag(UsageProvider.claude)
                         Text("Gemini").tag(UsageProvider.gemini)
+                        Text("Antigravity").tag(UsageProvider.antigravity)
                     }
                     .pickerStyle(.segmented)
                     .frame(width: 240)

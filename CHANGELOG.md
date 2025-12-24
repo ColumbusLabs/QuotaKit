@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.13.1 — Unreleased
+- Antigravity: add a local quota provider for Antigravity’s language server (Claude + Gemini model quotas) with a toggle in Settings.
 - Fix OpenAI web dashboard scrape ghosting a faint overlay on the desktop (WebKit keepalive window).
 
 ## 0.13.0 — 2025-12-24

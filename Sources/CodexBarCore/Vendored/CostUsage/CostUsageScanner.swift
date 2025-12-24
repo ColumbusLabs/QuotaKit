@@ -46,6 +46,8 @@ enum CostUsageScanner {
             return self.loadClaudeDaily(range: range, now: now, options: options)
         case .gemini:
             return CCUsageDailyReport(data: [], summary: nil)
+        case .antigravity:
+            return CCUsageDailyReport(data: [], summary: nil)
         }
     }
 

@@ -571,7 +571,7 @@ extension UsageMenuCardView.Model {
         case .codex:
             if let email = snapshot?.accountEmail, !email.isEmpty { return email }
             if let email = account.email, !email.isEmpty { return email }
-        case .claude, .gemini:
+        case .claude, .gemini, .antigravity:
             if let email = snapshot?.accountEmail, !email.isEmpty { return email }
         }
         return ""
@@ -582,7 +582,7 @@ extension UsageMenuCardView.Model {
         case .codex:
             if let plan = snapshot?.loginMethod, !plan.isEmpty { return self.planDisplay(plan) }
             if let plan = account.plan, !plan.isEmpty { return Self.planDisplay(plan) }
-        case .claude, .gemini:
+        case .claude, .gemini, .antigravity:
             if let plan = snapshot?.loginMethod, !plan.isEmpty { return self.planDisplay(plan) }
         }
         return nil
@@ -747,6 +747,8 @@ extension UsageMenuCardView.Model {
             Color(red: 204 / 255, green: 124 / 255, blue: 94 / 255)
         case .gemini:
             Color(red: 171 / 255, green: 135 / 255, blue: 234 / 255) // #AB87EA
+        case .antigravity:
+            Color(red: 96 / 255, green: 186 / 255, blue: 126 / 255)
         }
     }
 

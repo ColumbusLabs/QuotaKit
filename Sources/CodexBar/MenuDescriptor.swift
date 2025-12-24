@@ -75,6 +75,9 @@ struct MenuDescriptor {
                 codex: nil,
                 account: account,
                 preferClaude: false))
+        case .antigravity?:
+            sections.append(Self.usageSection(for: .antigravity, store: store))
+            sections.append(Self.accountSectionForSnapshot(store.snapshot(for: .antigravity)))
         case nil:
             var addedUsage = false
             for enabledProvider in store.enabledProviders() {
@@ -146,6 +149,17 @@ struct MenuDescriptor {
             }
         }
 
+        return Section(entries: entries)
+    }
+
+    private static func accountSectionForSnapshot(_ snapshot: UsageSnapshot?) -> Section {
+        var entries: [Entry] = []
+        let emailText = snapshot?.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
+        entries.append(.text("Account: \(emailText?.isEmpty == false ? emailText! : "Unknown")", .secondary))
+
+        if let plan = snapshot?.loginMethod, !plan.isEmpty {
+            entries.append(.text("Plan: \(AccountFormatter.plan(plan))", .secondary))
+        }
         return Section(entries: entries)
     }
 
