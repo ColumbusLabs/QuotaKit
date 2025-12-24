@@ -20,7 +20,7 @@ public struct AntigravityStatusSnapshot: Sendable {
     public let accountPlan: String?
 
     public func toUsageSnapshot() throws -> UsageSnapshot {
-        let ordered = Self.selectModels(modelQuotas)
+        let ordered = Self.selectModels(self.modelQuotas)
         guard let primaryQuota = ordered.first else {
             throw AntigravityStatusProbeError.parseFailed("No quota models available")
         }
@@ -51,11 +51,14 @@ public struct AntigravityStatusSnapshot: Sendable {
         if let claude = models.first(where: { Self.isClaudeWithoutThinking($0.label) }) {
             ordered.append(claude)
         }
-        if let pro = models.first(where: { Self.isGeminiProLow($0.label) }), !ordered.contains(where: { $0.label == pro.label }) {
+        if let pro = models.first(where: { Self.isGeminiProLow($0.label) }),
+           !ordered.contains(where: { $0.label == pro.label })
+        {
             ordered.append(pro)
         }
         if let flash = models.first(where: { Self.isGeminiFlash($0.label) }),
-           !ordered.contains(where: { $0.label == flash.label }) {
+           !ordered.contains(where: { $0.label == flash.label })
+        {
             ordered.append(flash)
         }
         if ordered.isEmpty {
@@ -135,24 +138,25 @@ public struct AntigravityStatusProbe: Sendable {
             ports: ports,
             csrfToken: processInfo.csrfToken,
             timeout: self.timeout)
+        let context = RequestContext(
+            httpsPort: connectPort,
+            httpPort: processInfo.extensionPort,
+            csrfToken: processInfo.csrfToken,
+            timeout: self.timeout)
 
         do {
             let response = try await Self.makeRequest(
-                path: Self.getUserStatusPath,
-                body: Self.defaultRequestBody(),
-                httpsPort: connectPort,
-                httpPort: processInfo.extensionPort,
-                csrfToken: processInfo.csrfToken,
-                timeout: self.timeout)
+                payload: RequestPayload(
+                    path: Self.getUserStatusPath,
+                    body: Self.defaultRequestBody()),
+                context: context)
             return try Self.parseUserStatusResponse(response)
         } catch {
             let response = try await Self.makeRequest(
-                path: Self.commandModelConfigPath,
-                body: Self.defaultRequestBody(),
-                httpsPort: connectPort,
-                httpPort: processInfo.extensionPort,
-                csrfToken: processInfo.csrfToken,
-                timeout: self.timeout)
+                payload: RequestPayload(
+                    path: Self.commandModelConfigPath,
+                    body: Self.defaultRequestBody()),
+                context: context)
             return try Self.parseCommandModelResponse(response)
         }
     }
@@ -165,17 +169,19 @@ public struct AntigravityStatusProbe: Sendable {
             csrfToken: processInfo.csrfToken,
             timeout: self.timeout)
         let response = try await Self.makeRequest(
-            path: Self.getUserStatusPath,
-            body: Self.defaultRequestBody(),
-            httpsPort: connectPort,
-            httpPort: processInfo.extensionPort,
-            csrfToken: processInfo.csrfToken,
-            timeout: self.timeout)
+            payload: RequestPayload(
+                path: Self.getUserStatusPath,
+                body: Self.defaultRequestBody()),
+            context: RequestContext(
+                httpsPort: connectPort,
+                httpPort: processInfo.extensionPort,
+                csrfToken: processInfo.csrfToken,
+                timeout: self.timeout))
         return try Self.parsePlanInfoSummary(response)
     }
 
     public static func isRunning(timeout: TimeInterval = 4.0) async -> Bool {
-        (try? await detectProcessInfo(timeout: timeout)) != nil
+        await (try? self.detectProcessInfo(timeout: timeout)) != nil
     }
 
     public static func detectVersion(timeout: TimeInterval = 4.0) async -> String? {
@@ -252,7 +258,6 @@ public struct AntigravityStatusProbe: Sendable {
         return "\(code.rawValue)"
     }
 
-
     private static func parseDate(_ value: String) -> Date? {
         if let date = ISO8601DateFormatter().date(from: value) {
             return date
@@ -325,7 +330,7 @@ public struct AntigravityStatusProbe: Sendable {
     }
 
     private static func extractPort(_ flag: String, from command: String) -> Int? {
-        guard let raw = Self.extractFlag(flag, from: command) else { return nil }
+        guard let raw = extractFlag(flag, from: command) else { return nil }
         return Int(raw)
     }
 
@@ -384,23 +389,38 @@ public struct AntigravityStatusProbe: Sendable {
         timeout: TimeInterval) async -> Bool
     {
         do {
-            _ = try await Self.makeRequest(
-                path: Self.unleashPath,
-                body: Self.unleashRequestBody(),
-                httpsPort: port,
-                httpPort: nil,
-                csrfToken: csrfToken,
-                timeout: timeout)
+            _ = try await self.makeRequest(
+                payload: RequestPayload(
+                    path: self.unleashPath,
+                    body: self.unleashRequestBody()),
+                context: RequestContext(
+                    httpsPort: port,
+                    httpPort: nil,
+                    csrfToken: csrfToken,
+                    timeout: timeout))
             return true
         } catch {
             if #available(macOS 13.0, *) {
-                Self.log.debug("[Antigravity] Port \(port) probe failed: \(error.localizedDescription, privacy: .public)")
+                self.log
+                    .debug("[Antigravity] Port \(port) probe failed: \(error.localizedDescription, privacy: .public)")
             }
             return false
         }
     }
 
     // MARK: - HTTP
+
+    private struct RequestPayload {
+        let path: String
+        let body: [String: Any]
+    }
+
+    private struct RequestContext: Sendable {
+        let httpsPort: Int
+        let httpPort: Int?
+        let csrfToken: String
+        let timeout: TimeInterval
+    }
 
     private static func defaultRequestBody() -> [String: Any] {
         [
@@ -432,58 +452,48 @@ public struct AntigravityStatusProbe: Sendable {
     }
 
     private static func makeRequest(
-        path: String,
-        body: [String: Any],
-        httpsPort: Int,
-        httpPort: Int?,
-        csrfToken: String,
-        timeout: TimeInterval) async throws -> Data
+        payload: RequestPayload,
+        context: RequestContext) async throws -> Data
     {
         do {
-            return try await Self.sendRequest(
+            return try await self.sendRequest(
                 scheme: "https",
-                port: httpsPort,
-                path: path,
-                body: body,
-                csrfToken: csrfToken,
-                timeout: timeout)
+                port: context.httpsPort,
+                payload: payload,
+                context: context)
         } catch {
-            guard let httpPort, httpPort != httpsPort else { throw error }
+            guard let httpPort = context.httpPort, httpPort != context.httpsPort else { throw error }
             return try await Self.sendRequest(
                 scheme: "http",
                 port: httpPort,
-                path: path,
-                body: body,
-                csrfToken: csrfToken,
-                timeout: timeout)
+                payload: payload,
+                context: context)
         }
     }
 
     private static func sendRequest(
         scheme: String,
         port: Int,
-        path: String,
-        body: [String: Any],
-        csrfToken: String,
-        timeout: TimeInterval) async throws -> Data
+        payload: RequestPayload,
+        context: RequestContext) async throws -> Data
     {
-        guard let url = URL(string: "\(scheme)://127.0.0.1:\(port)\(path)") else {
+        guard let url = URL(string: "\(scheme)://127.0.0.1:\(port)\(payload.path)") else {
             throw AntigravityStatusProbeError.apiError("Invalid URL")
         }
 
-        let payload = try JSONSerialization.data(withJSONObject: body, options: [])
+        let body = try JSONSerialization.data(withJSONObject: payload.body, options: [])
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.httpBody = payload
-        request.timeoutInterval = timeout
+        request.httpBody = body
+        request.timeoutInterval = context.timeout
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(String(payload.count), forHTTPHeaderField: "Content-Length")
+        request.setValue(String(body.count), forHTTPHeaderField: "Content-Length")
         request.setValue("1", forHTTPHeaderField: "Connect-Protocol-Version")
-        request.setValue(csrfToken, forHTTPHeaderField: "X-Codeium-Csrf-Token")
+        request.setValue(context.csrfToken, forHTTPHeaderField: "X-Codeium-Csrf-Token")
 
         let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = timeout
-        config.timeoutIntervalForResource = timeout
+        config.timeoutIntervalForRequest = context.timeout
+        config.timeoutIntervalForResource = context.timeout
         let session = URLSession(configuration: config, delegate: InsecureSessionDelegate(), delegateQueue: nil)
         defer { session.invalidateAndCancel() }
 
@@ -548,7 +558,7 @@ private struct PlanInfo: Decodable {
             displayName,
             productName,
             planName,
-            planShortName
+            planShortName,
         ]
         for candidate in candidates {
             guard let value = candidate?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
