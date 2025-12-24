@@ -85,6 +85,7 @@ struct CLISnapshotTests {
                 url: "https://status.example.com"),
             usage: snap,
             credits: nil,
+            antigravityPlanInfo: nil,
             openaiDashboard: nil)
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .secondsSince1970
