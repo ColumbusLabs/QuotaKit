@@ -241,6 +241,19 @@ struct ClaudeUsageTests {
     }
 
     @Test
+    func parsesClaudeWebAPIOrganizationsResponse() throws {
+        let json = """
+        [
+          { "uuid": "org-123", "name": "Example Org", "capabilities": [] }
+        ]
+        """
+        let data = Data(json.utf8)
+        let org = try ClaudeWebAPIFetcher._parseOrganizationsResponseForTesting(data)
+        #expect(org.id == "org-123")
+        #expect(org.name == "Example Org")
+    }
+
+    @Test
     func claudeUsageFetcherInitWithPreferWebAPI() {
         // Verify we can create fetchers with both configurations
         let defaultFetcher = ClaudeUsageFetcher()
