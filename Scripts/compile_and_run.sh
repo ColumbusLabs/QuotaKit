@@ -122,7 +122,9 @@ fi
 # 4) Launch the packaged app.
 log "==> launch app"
 if ! open -n "${APP_BUNDLE}"; then
-  log "WARN: launch app returned non-zero; verifying process state."
+  log "WARN: launch app returned non-zero; falling back to direct binary launch."
+  "${APP_BUNDLE}/Contents/MacOS/CodexBar" >/dev/null 2>&1 &
+  disown
 fi
 
 # 5) Verify the app stays up for at least 1s.
