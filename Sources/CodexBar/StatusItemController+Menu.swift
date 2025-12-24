@@ -754,8 +754,8 @@ private final class ProviderSwitcherView: NSView {
             }
         }
 
-        let outerPadding: CGFloat = 10
-        let minimumGap: CGFloat = 6
+        let outerPadding: CGFloat = 6
+        let minimumGap: CGFloat = 4
 
         if self.buttons.count == 2 {
             let left = self.buttons[0]
