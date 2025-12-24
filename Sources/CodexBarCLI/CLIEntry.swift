@@ -299,7 +299,7 @@ enum CodexBarCLI {
             case .antigravity:
                 let probe = AntigravityStatusProbe()
                 let snap = try await probe.fetch()
-                return .success((usage: try snap.toUsageSnapshot(), credits: nil))
+                return try .success((usage: snap.toUsageSnapshot(), credits: nil))
             }
         } catch {
             return .failure(error)
