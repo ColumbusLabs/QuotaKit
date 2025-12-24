@@ -287,17 +287,22 @@ public struct AntigravityStatusProbe: Sendable {
             label: "antigravity-ps")
 
         let lines = result.stdout.split(separator: "\n")
+        var sawAntigravity = false
         for line in lines {
             let text = String(line)
             guard let match = Self.matchProcessLine(text) else { continue }
             let lower = match.command.lowercased()
             guard lower.contains(Self.processName) else { continue }
             guard Self.isAntigravityCommandLine(lower) else { continue }
+            sawAntigravity = true
             guard let token = Self.extractFlag("--csrf_token", from: match.command) else { continue }
             let port = Self.extractPort("--extension_server_port", from: match.command)
             return ProcessInfoResult(pid: match.pid, extensionPort: port, csrfToken: token, commandLine: match.command)
         }
 
+        if sawAntigravity {
+            throw AntigravityStatusProbeError.missingCSRFToken
+        }
         throw AntigravityStatusProbeError.notRunning
     }
 
