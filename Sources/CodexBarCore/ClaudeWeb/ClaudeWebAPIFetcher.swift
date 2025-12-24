@@ -22,6 +22,18 @@ public enum ClaudeWebAPIFetcher {
         }
     }
 
+    public struct SessionKeyInfo: Sendable {
+        public let key: String
+        public let sourceLabel: String
+        public let cookieCount: Int
+
+        public init(key: String, sourceLabel: String, cookieCount: Int) {
+            self.key = key
+            self.sourceLabel = sourceLabel
+            self.cookieCount = cookieCount
+        }
+    }
+
     public enum FetchError: LocalizedError, Sendable {
         case noSessionKeyFound
         case invalidSessionKey
@@ -104,9 +116,18 @@ public enum ClaudeWebAPIFetcher {
     public static func fetchUsage(logger: ((String) -> Void)? = nil) async throws -> WebUsageData {
         let log: (String) -> Void = { msg in logger?("[claude-web] \(msg)") }
 
-        // Try to get session key from browsers
-        let sessionKey = try extractSessionKey(logger: log)
-        log("Found session key: \(sessionKey.prefix(20))...")
+        let sessionInfo = try extractSessionKeyInfo(logger: log)
+        log("Found session key: \(sessionInfo.key.prefix(20))...")
+
+        return try await self.fetchUsage(using: sessionInfo, logger: log)
+    }
+
+    public static func fetchUsage(
+        using sessionKeyInfo: SessionKeyInfo,
+        logger: ((String) -> Void)? = nil) async throws -> WebUsageData
+    {
+        let log: (String) -> Void = { msg in logger?(msg) }
+        let sessionKey = sessionKeyInfo.key
 
         // Fetch organization info
         let organization = try await fetchOrganizationInfo(sessionKey: sessionKey, logger: log)
@@ -165,7 +186,8 @@ public enum ClaudeWebAPIFetcher {
         logger: ((String) -> Void)? = nil) async throws -> [ProbeResult]
     {
         let log: (String) -> Void = { msg in logger?("[claude-probe] \(msg)") }
-        let sessionKey = try extractSessionKey(logger: log)
+        let sessionInfo = try extractSessionKeyInfo(logger: log)
+        let sessionKey = sessionInfo.key
         let organization = try? await fetchOrganizationInfo(sessionKey: sessionKey, logger: log)
         let expanded = endpoints.map { endpoint -> String in
             var url = endpoint
@@ -227,16 +249,20 @@ public enum ClaudeWebAPIFetcher {
     /// Checks if we can find a Claude session key in browser cookies without making API calls.
     public static func hasSessionKey(logger: ((String) -> Void)? = nil) -> Bool {
         do {
-            _ = try self.extractSessionKey(logger: logger)
+            _ = try self.sessionKeyInfo(logger: logger)
             return true
         } catch {
             return false
         }
     }
 
+    public static func sessionKeyInfo(logger: ((String) -> Void)? = nil) throws -> SessionKeyInfo {
+        try self.extractSessionKeyInfo(logger: logger)
+    }
+
     // MARK: - Session Key Extraction
 
-    private static func extractSessionKey(logger: ((String) -> Void)? = nil) throws -> String {
+    private static func extractSessionKeyInfo(logger: ((String) -> Void)? = nil) throws -> SessionKeyInfo {
         let log: (String) -> Void = { msg in logger?(msg) }
 
         // Try Safari first (doesn't require Keychain access)
@@ -248,7 +274,7 @@ public enum ClaudeWebAPIFetcher {
                 (name: record.name, value: record.value)
             }) {
                 log("Found sessionKey in Safari")
-                return sessionKey
+                return SessionKeyInfo(key: sessionKey, sourceLabel: "Safari", cookieCount: safariRecords.count)
             }
         } catch {
             log("Safari cookie load failed: \(error.localizedDescription)")
@@ -263,7 +289,7 @@ public enum ClaudeWebAPIFetcher {
                     (name: record.name, value: record.value)
                 }) {
                     log("Found sessionKey in \(source.label)")
-                    return sessionKey
+                    return SessionKeyInfo(key: sessionKey, sourceLabel: source.label, cookieCount: source.records.count)
                 }
             }
         } catch {
