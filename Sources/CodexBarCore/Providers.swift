@@ -116,7 +116,7 @@ public enum ProviderDefaults {
             supportsOpus: true,
             supportsCredits: false,
             creditsHint: "",
-            toggleTitle: "Show Antigravity usage",
+            toggleTitle: "Show Antigravity usage (experimental)",
             cliName: "antigravity",
             defaultEnabled: false,
             dashboardURL: nil,

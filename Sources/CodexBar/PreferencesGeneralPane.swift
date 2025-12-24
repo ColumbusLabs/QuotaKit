@@ -162,9 +162,13 @@ struct GeneralPane: View {
 
         if cliName == "codex" {
             return "\(versionText) • \(usageText)"
-        } else {
-            return "\(cliName) \(versionText) • \(usageText)"
         }
+
+        var detail = "\(cliName) \(versionText) • \(usageText)"
+        if provider == .antigravity {
+            detail += " • experimental"
+        }
+        return detail
     }
 
     private func providerErrorDisplay(_ provider: UsageProvider) -> ProviderErrorDisplay? {
