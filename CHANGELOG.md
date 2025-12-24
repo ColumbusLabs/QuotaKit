@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.13.1 — Unreleased
+- Fix OpenAI web dashboard scrape ghosting a faint overlay on the desktop (WebKit keepalive window).
 
 ## 0.13.0 — 2025-12-24
 - Claude: add optional web-first usage via Safari/Chrome cookies (no CLI fallback) including “Extra usage” budget bar.

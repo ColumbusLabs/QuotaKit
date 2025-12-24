@@ -22,6 +22,25 @@ public struct OpenAIDashboardFetcher {
 
     public init() {}
 
+    public nonisolated static func offscreenHostWindowFrame(for visibleFrame: CGRect) -> CGRect {
+        let width: CGFloat = min(1200, visibleFrame.width)
+        let height: CGFloat = min(1600, visibleFrame.height)
+
+        // Keep the WebView "visible" for WebKit hydration, but never show it to the user.
+        // Place the window almost entirely off-screen; leave only a 1×1 px intersection.
+        let sliver: CGFloat = 1
+        return CGRect(
+            x: visibleFrame.maxX - sliver,
+            y: visibleFrame.maxY - sliver,
+            width: width,
+            height: height)
+    }
+
+    public nonisolated static func offscreenHostAlphaValue() -> CGFloat {
+        // Must be > 0 or WebKit can throttle hydration/timers on the Codex usage SPA.
+        0.001
+    }
+
     public struct ProbeResult: Sendable {
         public let href: String?
         public let loginRequired: Bool
@@ -471,6 +490,7 @@ private final class OpenAIDashboardWebViewCache {
             if entry.isBusy {
                 log("Cached WebView busy; using a temporary WebView.")
                 let (webView, host) = self.makeWebView(websiteDataStore: websiteDataStore)
+                host.show()
                 do {
                     try await self.prepareWebView(webView, usageURL: usageURL)
                 } catch {
@@ -485,11 +505,13 @@ private final class OpenAIDashboardWebViewCache {
 
             entry.isBusy = true
             entry.lastUsedAt = now
+            entry.host.show()
             do {
                 try await self.prepareWebView(entry.webView, usageURL: usageURL)
             } catch {
                 entry.isBusy = false
                 entry.lastUsedAt = Date()
+                entry.host.hide()
                 throw error
             }
 
@@ -500,6 +522,7 @@ private final class OpenAIDashboardWebViewCache {
                     guard let self, let entry else { return }
                     entry.isBusy = false
                     entry.lastUsedAt = Date()
+                    entry.host.hide()
                     self.prune(now: Date())
                 })
         }
@@ -507,6 +530,7 @@ private final class OpenAIDashboardWebViewCache {
         let (webView, host) = self.makeWebView(websiteDataStore: websiteDataStore)
         let entry = Entry(webView: webView, host: host, lastUsedAt: now, isBusy: true)
         self.entries[key] = entry
+        host.show()
 
         do {
             try await self.prepareWebView(webView, usageURL: usageURL)
@@ -523,6 +547,7 @@ private final class OpenAIDashboardWebViewCache {
                 guard let self, let entry else { return }
                 entry.isBusy = false
                 entry.lastUsedAt = Date()
+                entry.host.hide()
                 self.prune(now: Date())
             })
     }
@@ -606,11 +631,10 @@ private final class OffscreenWebViewHost {
         // The Codex usage page uses streaming SSR + client hydration; if RAF is throttled, the
         // dashboard never becomes part of the visible DOM and `document.body.innerText` stays tiny.
         //
-        // Keep a transparent (mouse-ignoring) window *on-screen* for a short time while scraping.
+        // Keep a transparent (mouse-ignoring) window technically "on-screen" while scraping, but
+        // place it almost entirely off-screen so we never ghost-render dashboard UI over the desktop.
         let visibleFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 900, height: 700)
-        let width: CGFloat = min(1200, visibleFrame.width)
-        let height: CGFloat = min(1600, visibleFrame.height)
-        let frame = NSRect(x: visibleFrame.maxX - width, y: visibleFrame.minY, width: width, height: height)
+        let frame = OpenAIDashboardFetcher.offscreenHostWindowFrame(for: visibleFrame)
         let window = NSWindow(
             contentRect: frame,
             styleMask: [.borderless],
@@ -621,16 +645,23 @@ private final class OffscreenWebViewHost {
         window.isOpaque = false
         // Keep it effectively invisible, but non-zero alpha so WebKit treats it as "visible" and doesn't
         // stall hydration (we've observed a head-only HTML shell for minutes at alpha=0).
-        window.alphaValue = 0.01
+        window.alphaValue = OpenAIDashboardFetcher.offscreenHostAlphaValue()
         window.hasShadow = false
         window.ignoresMouseEvents = true
         window.level = .floating
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         window.isExcludedFromWindowsMenu = true
         window.contentView = webView
-        window.orderFrontRegardless()
 
         self.window = window
+    }
+
+    func show() {
+        self.window.orderFrontRegardless()
+    }
+
+    func hide() {
+        self.window.orderOut(nil)
     }
 
     func close() {
