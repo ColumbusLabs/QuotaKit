@@ -358,7 +358,14 @@ public struct TTYCommandRunner {
                 if !sendNeedles.isEmpty {
                     for item in sendNeedles where !triggeredSends.contains(item.needle) {
                         if scanData.range(of: item.needle) != nil {
-                            try? primaryHandle.write(contentsOf: item.keys)
+                            if let keysString = String(data: item.keys, encoding: .utf8) {
+                                let normalized = keysString.contains("\n")
+                                    ? keysString
+                                    : keysString.replacingOccurrences(of: "\r", with: "\n")
+                                try? send(normalized)
+                            } else {
+                                try? primaryHandle.write(contentsOf: item.keys)
+                            }
                             triggeredSends.insert(item.needle)
                         }
                     }
