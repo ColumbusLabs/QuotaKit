@@ -25,6 +25,8 @@ public struct ProviderMetadata: Sendable {
     public let statusPageURL: String?
     /// Browser-only status link (no API polling); used when statusPageURL is nil.
     public let statusLinkURL: String?
+    /// Google Workspace product ID for status polling (appsstatus dashboard).
+    public let statusWorkspaceProductID: String?
 
     public init(
         id: UsageProvider,
@@ -41,7 +43,8 @@ public struct ProviderMetadata: Sendable {
         dashboardURL: String?,
         subscriptionDashboardURL: String? = nil,
         statusPageURL: String?,
-        statusLinkURL: String? = nil)
+        statusLinkURL: String? = nil,
+        statusWorkspaceProductID: String? = nil)
     {
         self.id = id
         self.displayName = displayName
@@ -58,6 +61,7 @@ public struct ProviderMetadata: Sendable {
         self.subscriptionDashboardURL = subscriptionDashboardURL
         self.statusPageURL = statusPageURL
         self.statusLinkURL = statusLinkURL
+        self.statusWorkspaceProductID = statusWorkspaceProductID
     }
 }
 
@@ -106,7 +110,8 @@ public enum ProviderDefaults {
             defaultEnabled: false,
             dashboardURL: "https://gemini.google.com",
             statusPageURL: nil,
-            statusLinkURL: "https://aistudio.google.com/status"),
+            statusLinkURL: "https://www.google.com/appsstatus/dashboard/products/npdyhgECDJ6tB66MxXyo",
+            statusWorkspaceProductID: "npdyhgECDJ6tB66MxXyo"),
         .antigravity: ProviderMetadata(
             id: .antigravity,
             displayName: "Antigravity",
@@ -121,6 +126,7 @@ public enum ProviderDefaults {
             defaultEnabled: false,
             dashboardURL: nil,
             statusPageURL: nil,
-            statusLinkURL: nil),
+            statusLinkURL: "https://www.google.com/appsstatus/dashboard/products/npdyhgECDJ6tB66MxXyo",
+            statusWorkspaceProductID: "npdyhgECDJ6tB66MxXyo"),
     ]
 }

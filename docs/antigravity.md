@@ -53,6 +53,7 @@ CodexBar treats Antigravity as a local-provider quota source. Data is pulled fro
 ## Settings and toggles
 - General: "Show Antigravity usage" toggle.
 - Autodetect: enabled if Antigravity language server is detected running.
+- Status checks: uses Google Workspace Gemini status incidents for the status badge.
 - No web scraping or login flow; switch account button surfaces a guidance alert.
 
 ## CLI behavior

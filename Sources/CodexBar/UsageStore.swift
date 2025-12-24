@@ -527,11 +527,17 @@ final class UsageStore {
 
     private func refreshStatus(_ provider: UsageProvider) async {
         guard self.settings.statusChecksEnabled else { return }
-        guard let urlString = self.providerMetadata[provider]?.statusPageURL,
-              let baseURL = URL(string: urlString) else { return }
+        guard let meta = self.providerMetadata[provider] else { return }
 
         do {
-            let status = try await Self.fetchStatus(from: baseURL)
+            let status: ProviderStatus
+            if let urlString = meta.statusPageURL, let baseURL = URL(string: urlString) {
+                status = try await Self.fetchStatus(from: baseURL)
+            } else if let productID = meta.statusWorkspaceProductID {
+                status = try await Self.fetchWorkspaceStatus(productID: productID)
+            } else {
+                return
+            }
             await MainActor.run { self.statuses[provider] = status }
         } catch {
             // Keep the previous status to avoid flapping when the API hiccups.
@@ -890,51 +896,6 @@ final class UsageStore {
         let fallback = self.codexFetcher.loadAccountInfo().email?.trimmingCharacters(in: .whitespacesAndNewlines)
         if let fallback, !fallback.isEmpty { return fallback }
         return nil
-    }
-
-    private static func fetchStatus(from baseURL: URL) async throws -> ProviderStatus {
-        let apiURL = baseURL.appendingPathComponent("api/v2/status.json")
-        var request = URLRequest(url: apiURL)
-        request.timeoutInterval = 10
-
-        let (data, _) = try await URLSession.shared.data(for: request, delegate: nil)
-
-        struct Response: Decodable {
-            struct Status: Decodable {
-                let indicator: String
-                let description: String?
-            }
-
-            struct Page: Decodable {
-                let updatedAt: Date?
-
-                private enum CodingKeys: String, CodingKey {
-                    case updatedAt = "updated_at"
-                }
-            }
-
-            let page: Page?
-            let status: Status
-        }
-
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .custom { decoder in
-            let container = try decoder.singleValueContainer()
-            let raw = try container.decode(String.self)
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = formatter.date(from: raw) { return date }
-            formatter.formatOptions = [.withInternetDateTime]
-            if let date = formatter.date(from: raw) { return date }
-            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid ISO8601 date")
-        }
-
-        let response = try decoder.decode(Response.self, from: data)
-        let indicator = ProviderStatusIndicator(rawValue: response.status.indicator) ?? .unknown
-        return ProviderStatus(
-            indicator: indicator,
-            description: response.status.description,
-            updatedAt: response.page?.updatedAt)
     }
 }
 
