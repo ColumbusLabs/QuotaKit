@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 CONF=${1:-release}
+ALLOW_LLDB=${CODEXBAR_ALLOW_LLDB:-0}
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 
@@ -43,6 +44,10 @@ ENTITLEMENTS_DIR="$ROOT/.build/entitlements"
 APP_ENTITLEMENTS="${ENTITLEMENTS_DIR}/CodexBar.entitlements"
 WIDGET_ENTITLEMENTS="${ENTITLEMENTS_DIR}/CodexBarWidget.entitlements"
 mkdir -p "$ENTITLEMENTS_DIR"
+if [[ "$ALLOW_LLDB" == "1" && "$LOWER_CONF" != "debug" ]]; then
+  echo "ERROR: CODEXBAR_ALLOW_LLDB requires debug configuration" >&2
+  exit 1
+fi
 cat > "$APP_ENTITLEMENTS" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -52,6 +57,7 @@ cat > "$APP_ENTITLEMENTS" <<PLIST
     <array>
         <string>${APP_GROUP_ID}</string>
     </array>
+    $(if [[ "$ALLOW_LLDB" == "1" ]]; then echo "    <key>com.apple.security.get-task-allow</key><true/>"; fi)
 </dict>
 </plist>
 PLIST
@@ -143,8 +149,14 @@ if [[ -d ".build/$CONF/Sparkle.framework" ]]; then
   install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/CodexBar"
   # Re-sign Sparkle and all nested components with Developer ID + timestamp
   SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
-CODESIGN_ID="${APP_IDENTITY:-Developer ID Application: Peter Steinberger (Y5PE65HELJ)}"
-function resign() { codesign --force --timestamp --options runtime --sign "$CODESIGN_ID" "$1"; }
+if [[ "$ALLOW_LLDB" == "1" ]]; then
+  CODESIGN_ID="-"
+  CODESIGN_ARGS=(--force --sign "$CODESIGN_ID")
+else
+  CODESIGN_ID="${APP_IDENTITY:-Developer ID Application: Peter Steinberger (Y5PE65HELJ)}"
+  CODESIGN_ARGS=(--force --timestamp --options runtime --sign "$CODESIGN_ID")
+fi
+function resign() { codesign "${CODESIGN_ARGS[@]}" "$1"; }
   # Sign innermost binaries first, then the framework root to seal resources
   resign "$SPARKLE"
   resign "$SPARKLE/Versions/B/Sparkle"
@@ -169,16 +181,16 @@ find "$APP" -name '._*' -delete
 
 # Sign widget extension if present
 if [[ -d "${APP}/Contents/PlugIns/CodexBarWidget.appex" ]]; then
-  codesign --force --timestamp --options runtime --sign "$CODESIGN_ID" \
+  codesign "${CODESIGN_ARGS[@]}" \
     --entitlements "$WIDGET_ENTITLEMENTS" \
     "$APP/Contents/PlugIns/CodexBarWidget.appex/Contents/MacOS/CodexBarWidget"
-  codesign --force --timestamp --options runtime --sign "$CODESIGN_ID" \
+  codesign "${CODESIGN_ARGS[@]}" \
     --entitlements "$WIDGET_ENTITLEMENTS" \
     "$APP/Contents/PlugIns/CodexBarWidget.appex"
 fi
 
 # Finally sign the app bundle itself
-codesign --force --timestamp --options runtime --sign "$CODESIGN_ID" \
+codesign "${CODESIGN_ARGS[@]}" \
   --entitlements "$APP_ENTITLEMENTS" \
   "$APP"
 

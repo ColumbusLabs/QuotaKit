@@ -13,6 +13,7 @@ LOCK_DIR="${TMPDIR:-/tmp}/codexbar-compile-and-run-${LOCK_KEY}"
 LOCK_PID_FILE="${LOCK_DIR}/pid"
 WAIT_FOR_LOCK=0
 RUN_TESTS=0
+DEBUG_LLDB=0
 
 log()  { printf '%s\n' "$*"; }
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -90,8 +91,9 @@ for arg in "$@"; do
   case "${arg}" in
     --wait|-w) WAIT_FOR_LOCK=1 ;;
     --test|-t) RUN_TESTS=1 ;;
+    --debug-lldb) DEBUG_LLDB=1 ;;
     --help|-h)
-      log "Usage: $(basename "$0") [--wait] [--test]"
+      log "Usage: $(basename "$0") [--wait] [--test] [--debug-lldb]"
       exit 0
       ;;
     *)
@@ -111,7 +113,11 @@ run_step "swift build" swift build -q
 if [[ "${RUN_TESTS}" == "1" ]]; then
   run_step "swift test" swift test -q
 fi
-run_step "package app" "${ROOT_DIR}/scripts/package_app.sh"
+if [[ "${DEBUG_LLDB}" == "1" ]]; then
+  run_step "package app" CODEXBAR_ALLOW_LLDB=1 "${ROOT_DIR}/scripts/package_app.sh" debug
+else
+  run_step "package app" "${ROOT_DIR}/scripts/package_app.sh"
+fi
 
 # 4) Launch the packaged app.
 run_step "launch app" open "${APP_BUNDLE}"
