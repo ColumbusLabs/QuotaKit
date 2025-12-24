@@ -23,7 +23,7 @@ Claude Code support is implemented: CodexBar can show Claude alongside Codex (on
 ## Data path (Claude)
 
 ### How we fetch usage (no tmux)
-- We launch the Claude CLI inside a pseudo-TTY using `TTYCommandRunner`.
+- We launch a single Claude CLI session inside a pseudo-TTY and keep it alive between refreshes to avoid warm-up churn.
 - Driver steps:
   1) Boot loop waits for the TUI header and handles first-run prompts:
      - “Do you trust the files in this folder” → send `1` + Enter

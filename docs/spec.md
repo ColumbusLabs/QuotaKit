@@ -11,7 +11,7 @@ read_when:
 ## Data source
 - Codex: prefer the local `codex app-server` RPC (`codex -s read-only -a untrusted app-server`) for 5-hour + weekly rate limits and credits; fall back to a PTY scrape of `codex /status` when RPC is unavailable.
 - Codex account: prefers RPC account details; falls back to decoding `~/.codex/auth.json` for email/plan when needed.
-- Claude: run `claude /usage` + `claude /status` in a native PTY and parse the text UI (session + weekly + Sonnet-only weekly when present).
+- Claude: run `/usage` + `/status` through a single long-lived Claude PTY session and parse the text UI (session + weekly + Sonnet-only weekly when present).
 - OpenAI web (optional, Codex only): reuse an existing signed-in `chatgpt.com` browser session and scrape the Codex usage dashboard for:
   - Code review remaining (%)
   - Usage breakdown (dashboard chart)

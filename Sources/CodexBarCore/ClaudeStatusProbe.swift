@@ -62,13 +62,10 @@ public struct ClaudeStatusProbe: Sendable {
             throw ClaudeStatusProbeError.claudeNotInstalled
         }
 
-        // Run both commands in parallel; /usage provides quotas, /status may provide org/account metadata.
+        // Run commands sequentially through a shared Claude session to avoid warm-up churn.
         let timeout = self.timeout
-        async let usageText = Self.capture(subcommand: "/usage", binary: resolved, timeout: timeout)
-        async let statusText = Self.capture(subcommand: "/status", binary: resolved, timeout: timeout)
-
-        let usage = try await usageText
-        let status = try? await statusText
+        let usage = try await Self.capture(subcommand: "/usage", binary: resolved, timeout: timeout)
+        let status = try? await Self.capture(subcommand: "/status", binary: resolved, timeout: min(timeout, 12))
         let snap = try Self.parse(text: usage, statusText: status)
 
         if #available(macOS 13.0, *) {
@@ -620,7 +617,7 @@ public struct ClaudeStatusProbe: Sendable {
 
     // MARK: - Process helpers
 
-    private static func probeWorkingDirectoryURL() -> URL {
+    static func probeWorkingDirectoryURL() -> URL {
         let fm = FileManager.default
         let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first ?? fm.temporaryDirectory
         let dir = base
@@ -636,38 +633,26 @@ public struct ClaudeStatusProbe: Sendable {
 
     // Run claude CLI inside a PTY so we can respond to interactive permission prompts.
     private static func capture(subcommand: String, binary: String, timeout: TimeInterval) async throws -> String {
-        try await Task.detached(priority: .utility) { [claudeBinary = binary, timeout] in
-            let runner = TTYCommandRunner()
-            let stopOnSubstrings = subcommand == "/usage" ? ["Current session"] : []
-            let options = TTYCommandRunner.Options(
+        let stopOnSubstrings = subcommand == "/usage" ? ["Current session"] : []
+        do {
+            return try await ClaudeCLISession.shared.capture(
+                subcommand: subcommand,
+                binary: binary,
                 timeout: timeout,
                 idleTimeout: 3.0,
-                workingDirectory: Self.probeWorkingDirectoryURL(),
-                extraArgs: [
-                    subcommand,
-                    "--allowed-tools",
-                    "",
-                ],
-                sendOnSubstrings: [
-                    "Do you trust the files in this folder?": "y\r",
-                    "Ready to code here?": "\r",
-                    "Press Enter to continue": "\r",
-                ],
-                stopOnSubstrings: stopOnSubstrings)
-
-            do {
-                let result = try runner.run(binary: claudeBinary, send: "", options: options)
-                return result.text
-            } catch let error as TTYCommandRunner.Error {
-                switch error {
-                case .binaryNotFound:
-                    throw ClaudeStatusProbeError.claudeNotInstalled
-                case .timedOut:
-                    throw ClaudeStatusProbeError.timedOut
-                case .launchFailed:
-                    throw ClaudeStatusProbeError.claudeNotInstalled
-                }
-            }
-        }.value
+                stopOnSubstrings: stopOnSubstrings,
+                settleAfterStop: subcommand == "/usage" ? 2.0 : 0.25,
+                sendEnterEvery: nil)
+        } catch ClaudeCLISession.SessionError.processExited {
+            await ClaudeCLISession.shared.reset()
+            throw ClaudeStatusProbeError.timedOut
+        } catch ClaudeCLISession.SessionError.timedOut {
+            throw ClaudeStatusProbeError.timedOut
+        } catch ClaudeCLISession.SessionError.launchFailed(_) {
+            throw ClaudeStatusProbeError.claudeNotInstalled
+        } catch {
+            await ClaudeCLISession.shared.reset()
+            throw error
+        }
     }
 }

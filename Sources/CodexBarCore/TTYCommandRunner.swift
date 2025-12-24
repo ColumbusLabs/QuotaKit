@@ -121,7 +121,7 @@ public struct TTYCommandRunner {
         return out
     }
 
-    private static func locateBundledHelper(_ name: String) -> String? {
+    static func locateBundledHelper(_ name: String) -> String? {
         let fm = FileManager.default
 
         func isExecutable(_ path: String) -> Bool {
