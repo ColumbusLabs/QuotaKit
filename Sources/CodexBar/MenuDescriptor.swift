@@ -213,10 +213,11 @@ struct MenuDescriptor {
         let accountLabel = hasAccount ? "Switch Account..." : "Add Account..."
         entries.append(.action(accountLabel, loginAction))
 
-        entries.append(contentsOf: [
-            .action("Usage Dashboard", .dashboard),
-            .action("Status Page", .statusPage),
-        ])
+        let dashboardTarget = provider ?? store.enabledProviders().first
+        if dashboardTarget == .codex || dashboardTarget == .claude {
+            entries.append(.action("Usage Dashboard", .dashboard))
+        }
+        entries.append(.action("Status Page", .statusPage))
 
         if let statusLine = self.statusLine(for: provider, store: store) {
             entries.append(.text(statusLine, .secondary))
