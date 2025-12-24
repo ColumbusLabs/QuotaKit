@@ -191,7 +191,7 @@ public struct AntigravityStatusProbe: Sendable {
 
     // MARK: - Parsing
 
-    static func parseUserStatusResponse(_ data: Data) throws -> AntigravityStatusSnapshot {
+    public static func parseUserStatusResponse(_ data: Data) throws -> AntigravityStatusSnapshot {
         let decoder = JSONDecoder()
         let response = try decoder.decode(UserStatusResponse.self, from: data)
         if let invalid = Self.invalidCode(response.code) {
