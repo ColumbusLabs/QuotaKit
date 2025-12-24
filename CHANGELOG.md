@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.13.0 — Unreleased
+## 0.13.0 — 2025-12-24
 - Claude: add optional web-first usage via Safari/Chrome cookies (no CLI fallback) including “Extra usage” budget bar.
 - Claude: web identity now uses `/api/account` for email + plan (via rate_limit_tier).
 - Settings: standardize “Augment … via web” copy for Codex + Claude web cookie features.
