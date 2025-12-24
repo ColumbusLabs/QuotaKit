@@ -1,8 +1,10 @@
 # Changelog
 
 ## 0.13.1 — Unreleased
+- Status: poll Google Workspace incidents for Gemini and Antigravity.
 - Antigravity: add a local quota provider for Antigravity’s language server (Claude + Gemini model quotas) with a toggle in Settings.
 - Fix OpenAI web dashboard scrape ghosting a faint overlay on the desktop (WebKit keepalive window).
+- Claude: fix Extra usage spend/limit values (API returns cents); add tests.
 
 ## 0.13.0 — 2025-12-24
 - Claude: add optional web-first usage via Safari/Chrome cookies (no CLI fallback) including “Extra usage” budget bar.

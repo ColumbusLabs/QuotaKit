@@ -24,7 +24,7 @@ struct PreferencesView: View {
 
     var body: some View {
         TabView(selection: self.$selection.tab) {
-            GeneralPane(settings: self.settings)
+            GeneralPane(settings: self.settings, store: self.store)
                 .tabItem { Label("General", systemImage: "gearshape") }
                 .tag(PreferencesTab.general)
 
@@ -32,7 +32,7 @@ struct PreferencesView: View {
                 .tabItem { Label("Providers", systemImage: "square.grid.2x2") }
                 .tag(PreferencesTab.providers)
 
-            AdvancedPane(settings: self.settings, store: self.store)
+            AdvancedPane(settings: self.settings)
                 .tabItem { Label("Advanced", systemImage: "slider.horizontal.3") }
                 .tag(PreferencesTab.advanced)
 
