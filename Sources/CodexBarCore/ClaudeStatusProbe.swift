@@ -14,6 +14,18 @@ public struct ClaudeStatusSnapshot: Sendable {
     public let rawText: String
 }
 
+public struct ClaudeAccountIdentity: Sendable {
+    public let accountEmail: String?
+    public let accountOrganization: String?
+    public let loginMethod: String?
+
+    public init(accountEmail: String?, accountOrganization: String?, loginMethod: String?) {
+        self.accountEmail = accountEmail
+        self.accountOrganization = accountOrganization
+        self.loginMethod = loginMethod
+    }
+}
+
 public enum ClaudeStatusProbeError: LocalizedError, Sendable {
     case claudeNotInstalled
     case parseFailed(String)
@@ -135,53 +147,7 @@ public struct ClaudeStatusProbe: Sendable {
             if hasOpusLabel, opusPct == nil, ordered.indices.contains(2) { opusPct = ordered[2] }
         }
 
-        // Prefer usage text for identity; fall back to /status if present.
-        let emailPatterns = [
-            #"(?i)Account:\s+([^\s@]+@[^\s@]+)"#,
-            #"(?i)Email:\s+([^\s@]+@[^\s@]+)"#,
-        ]
-        let looseEmailPatterns = [
-            #"(?i)Account:\s+(\S+)"#,
-            #"(?i)Email:\s+(\S+)"#,
-        ]
-        let email = emailPatterns
-            .compactMap { self.extractFirst(pattern: $0, text: clean) }
-            .first
-            ?? emailPatterns
-            .compactMap { self.extractFirst(pattern: $0, text: statusClean ?? "") }
-            .first
-            ?? looseEmailPatterns
-            .compactMap { self.extractFirst(pattern: $0, text: clean) }
-            .first
-            ?? looseEmailPatterns
-            .compactMap { self.extractFirst(pattern: $0, text: statusClean ?? "") }
-            .first
-            ?? self.extractFirst(
-                pattern: #"(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"#,
-                text: clean)
-            ?? self.extractFirst(
-                pattern: #"(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"#,
-                text: statusClean ?? "")
-        let orgPatterns = [
-            #"(?i)Org:\s*(.+)"#,
-            #"(?i)Organization:\s*(.+)"#,
-        ]
-        let orgRaw = orgPatterns
-            .compactMap { self.extractFirst(pattern: $0, text: clean) }
-            .first
-            ?? orgPatterns
-            .compactMap { self.extractFirst(pattern: $0, text: statusClean ?? "") }
-            .first
-        let org: String? = {
-            guard let orgText = orgRaw?.trimmingCharacters(in: .whitespacesAndNewlines), !orgText.isEmpty else {
-                return nil
-            }
-            // Suppress org if it’s just the email prefix (common in CLI panels).
-            if let email, orgText.lowercased().hasPrefix(email.lowercased()) { return nil }
-            return orgText
-        }()
-        // Prefer explicit login method from /status, then fall back to /usage header heuristics.
-        let login = self.extractLoginMethod(text: statusText ?? "") ?? self.extractLoginMethod(text: clean)
+        let identity = Self.parseIdentity(usageText: clean, statusText: statusClean)
 
         guard let sessionPct else {
             Self.dumpIfNeeded(
@@ -210,13 +176,31 @@ public struct ClaudeStatusProbe: Sendable {
             sessionPercentLeft: sessionPct,
             weeklyPercentLeft: weeklyPct,
             opusPercentLeft: opusPct,
-            accountEmail: email,
-            accountOrganization: org,
-            loginMethod: login,
+            accountEmail: identity.accountEmail,
+            accountOrganization: identity.accountOrganization,
+            loginMethod: identity.loginMethod,
             primaryResetDescription: sessionReset,
             secondaryResetDescription: weeklyReset,
             opusResetDescription: opusReset,
             rawText: text + (statusText ?? ""))
+    }
+
+    public static func parseIdentity(usageText: String?, statusText: String?) -> ClaudeAccountIdentity {
+        let usageClean = usageText.map(TextParsing.stripANSICodes) ?? ""
+        let statusClean = statusText.map(TextParsing.stripANSICodes)
+        return self.extractIdentity(usageText: usageClean, statusText: statusClean)
+    }
+
+    public static func fetchIdentity(timeout: TimeInterval = 12.0) async throws -> ClaudeAccountIdentity {
+        let env = ProcessInfo.processInfo.environment
+        let resolved = BinaryLocator.resolveClaudeBinary(env: env, loginPATH: LoginShellPathCache.shared.current)
+            ?? TTYCommandRunner.which("claude")
+            ?? "claude"
+        guard FileManager.default.isExecutableFile(atPath: resolved) || TTYCommandRunner.which(resolved) != nil else {
+            throw ClaudeStatusProbeError.claudeNotInstalled
+        }
+        let statusText = try await Self.capture(subcommand: "/status", binary: resolved, timeout: timeout)
+        return Self.parseIdentity(usageText: nil, statusText: statusText)
     }
 
     private static func extractPercent(labelSubstring: String, context: LabelSearchContext) -> Int? {
@@ -262,6 +246,56 @@ public struct ClaudeStatusProbe: Sendable {
               match.numberOfRanges >= 2,
               let r = Range(match.range(at: 1), in: text) else { return nil }
         return String(text[r]).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func extractIdentity(usageText: String, statusText: String?) -> ClaudeAccountIdentity {
+        let emailPatterns = [
+            #"(?i)Account:\s+([^\s@]+@[^\s@]+)"#,
+            #"(?i)Email:\s+([^\s@]+@[^\s@]+)"#,
+        ]
+        let looseEmailPatterns = [
+            #"(?i)Account:\s+(\S+)"#,
+            #"(?i)Email:\s+(\S+)"#,
+        ]
+        let email = emailPatterns
+            .compactMap { self.extractFirst(pattern: $0, text: usageText) }
+            .first
+            ?? emailPatterns
+            .compactMap { self.extractFirst(pattern: $0, text: statusText ?? "") }
+            .first
+            ?? looseEmailPatterns
+            .compactMap { self.extractFirst(pattern: $0, text: usageText) }
+            .first
+            ?? looseEmailPatterns
+            .compactMap { self.extractFirst(pattern: $0, text: statusText ?? "") }
+            .first
+            ?? self.extractFirst(
+                pattern: #"(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"#,
+                text: usageText)
+            ?? self.extractFirst(
+                pattern: #"(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"#,
+                text: statusText ?? "")
+        let orgPatterns = [
+            #"(?i)Org:\s*(.+)"#,
+            #"(?i)Organization:\s*(.+)"#,
+        ]
+        let orgRaw = orgPatterns
+            .compactMap { self.extractFirst(pattern: $0, text: usageText) }
+            .first
+            ?? orgPatterns
+            .compactMap { self.extractFirst(pattern: $0, text: statusText ?? "") }
+            .first
+        let org: String? = {
+            guard let orgText = orgRaw?.trimmingCharacters(in: .whitespacesAndNewlines), !orgText.isEmpty else {
+                return nil
+            }
+            // Suppress org if it’s just the email prefix (common in CLI panels).
+            if let email, orgText.lowercased().hasPrefix(email.lowercased()) { return nil }
+            return orgText
+        }()
+        // Prefer explicit login method from /status, then fall back to /usage header heuristics.
+        let login = self.extractLoginMethod(text: statusText ?? "") ?? self.extractLoginMethod(text: usageText)
+        return ClaudeAccountIdentity(accountEmail: email, accountOrganization: org, loginMethod: login)
     }
 
     private static func extractUsageError(text: String) -> String? {

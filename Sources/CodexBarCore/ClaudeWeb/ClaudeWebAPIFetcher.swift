@@ -11,6 +11,16 @@ import Foundation
 public enum ClaudeWebAPIFetcher {
     private static let baseURL = "https://claude.ai/api"
 
+    public struct OrganizationInfo: Sendable {
+        public let id: String
+        public let name: String?
+
+        public init(id: String, name: String?) {
+            self.id = id
+            self.name = name
+        }
+    }
+
     public enum FetchError: LocalizedError, Sendable {
         case noSessionKeyFound
         case invalidSessionKey
@@ -48,6 +58,7 @@ public enum ClaudeWebAPIFetcher {
         public let weeklyResetsAt: Date?
         public let opusPercentUsed: Double?
         public let extraUsageCost: ProviderCostSnapshot?
+        public let accountOrganization: String?
 
         public init(
             sessionPercentUsed: Double,
@@ -55,7 +66,8 @@ public enum ClaudeWebAPIFetcher {
             weeklyPercentUsed: Double?,
             weeklyResetsAt: Date?,
             opusPercentUsed: Double?,
-            extraUsageCost: ProviderCostSnapshot?)
+            extraUsageCost: ProviderCostSnapshot?,
+            accountOrganization: String?)
         {
             self.sessionPercentUsed = sessionPercentUsed
             self.sessionResetsAt = sessionResetsAt
@@ -63,6 +75,7 @@ public enum ClaudeWebAPIFetcher {
             self.weeklyResetsAt = weeklyResetsAt
             self.opusPercentUsed = opusPercentUsed
             self.extraUsageCost = extraUsageCost
+            self.accountOrganization = accountOrganization
         }
     }
 
@@ -77,13 +90,14 @@ public enum ClaudeWebAPIFetcher {
         let sessionKey = try extractSessionKey(logger: log)
         log("Found session key: \(sessionKey.prefix(20))...")
 
-        // Fetch organization ID
-        let orgId = try await fetchOrganizationId(sessionKey: sessionKey, logger: log)
-        log("Organization ID: \(orgId)")
+        // Fetch organization info
+        let organization = try await fetchOrganizationInfo(sessionKey: sessionKey, logger: log)
+        log("Organization ID: \(organization.id)")
+        if let name = organization.name { log("Organization name: \(name)") }
 
-        var usage = try await fetchUsageData(orgId: orgId, sessionKey: sessionKey, logger: log)
+        var usage = try await fetchUsageData(orgId: organization.id, sessionKey: sessionKey, logger: log)
         if usage.extraUsageCost == nil,
-           let extra = await fetchExtraUsageCost(orgId: orgId, sessionKey: sessionKey, logger: log)
+           let extra = await fetchExtraUsageCost(orgId: organization.id, sessionKey: sessionKey, logger: log)
         {
             usage = WebUsageData(
                 sessionPercentUsed: usage.sessionPercentUsed,
@@ -91,7 +105,18 @@ public enum ClaudeWebAPIFetcher {
                 weeklyPercentUsed: usage.weeklyPercentUsed,
                 weeklyResetsAt: usage.weeklyResetsAt,
                 opusPercentUsed: usage.opusPercentUsed,
-                extraUsageCost: extra)
+                extraUsageCost: extra,
+                accountOrganization: usage.accountOrganization)
+        }
+        if usage.accountOrganization == nil, let name = organization.name {
+            usage = WebUsageData(
+                sessionPercentUsed: usage.sessionPercentUsed,
+                sessionResetsAt: usage.sessionResetsAt,
+                weeklyPercentUsed: usage.weeklyPercentUsed,
+                weeklyResetsAt: usage.weeklyResetsAt,
+                opusPercentUsed: usage.opusPercentUsed,
+                extraUsageCost: usage.extraUsageCost,
+                accountOrganization: name)
         }
         return usage
     }
@@ -158,9 +183,9 @@ public enum ClaudeWebAPIFetcher {
 
     // MARK: - API Calls
 
-    private static func fetchOrganizationId(
+    private static func fetchOrganizationInfo(
         sessionKey: String,
-        logger: ((String) -> Void)? = nil) async throws -> String
+        logger: ((String) -> Void)? = nil) async throws -> OrganizationInfo
     {
         let url = URL(string: "\(baseURL)/organizations")!
         var request = URLRequest(url: url)
@@ -179,14 +204,7 @@ public enum ClaudeWebAPIFetcher {
 
         switch httpResponse.statusCode {
         case 200:
-            // Parse organizations array - look for uuid field
-            guard let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
-                  let firstOrg = json.first,
-                  let uuid = firstOrg["uuid"] as? String
-            else {
-                throw FetchError.noOrganization
-            }
-            return uuid
+            return try self.parseOrganizationResponse(data)
         case 401, 403:
             throw FetchError.unauthorized
         default:
@@ -271,7 +289,8 @@ public enum ClaudeWebAPIFetcher {
             weeklyPercentUsed: weeklyPercent,
             weeklyResetsAt: weeklyResets,
             opusPercentUsed: opusPercent,
-            extraUsageCost: nil)
+            extraUsageCost: nil,
+            accountOrganization: nil)
     }
 
     // MARK: - Extra usage cost (Claude "Extra")
@@ -339,6 +358,10 @@ public enum ClaudeWebAPIFetcher {
         try self.parseUsageResponse(data)
     }
 
+    public static func _parseOrganizationsResponseForTesting(_ data: Data) throws -> OrganizationInfo {
+        try self.parseOrganizationResponse(data)
+    }
+
     public static func _parseOverageSpendLimitForTesting(_ data: Data) -> ProviderCostSnapshot? {
         self.parseOverageSpendLimit(data)
     }
@@ -353,5 +376,20 @@ public enum ClaudeWebAPIFetcher {
         // Try without fractional seconds
         formatter.formatOptions = [.withInternetDateTime]
         return formatter.date(from: string)
+    }
+
+    private struct OrganizationResponse: Decodable {
+        let uuid: String
+        let name: String?
+    }
+
+    private static func parseOrganizationResponse(_ data: Data) throws -> OrganizationInfo {
+        guard let organizations = try? JSONDecoder().decode([OrganizationResponse].self, from: data) else {
+            throw FetchError.invalidResponse
+        }
+        guard let first = organizations.first else { throw FetchError.noOrganization }
+        let name = first.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sanitized = (name?.isEmpty ?? true) ? nil : name
+        return OrganizationInfo(id: first.uuid, name: sanitized)
     }
 }
