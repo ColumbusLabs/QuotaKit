@@ -120,7 +120,10 @@ else
 fi
 
 # 4) Launch the packaged app.
-run_step "launch app" open "${APP_BUNDLE}"
+log "==> launch app"
+if ! open -n "${APP_BUNDLE}"; then
+  log "WARN: launch app returned non-zero; verifying process state."
+fi
 
 # 5) Verify the app stays up for at least 1s.
 sleep 1
