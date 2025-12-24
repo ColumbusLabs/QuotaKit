@@ -193,21 +193,8 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     }
 
     public func loadLatestUsage(model: String = "sonnet") async throws -> ClaudeUsageSnapshot {
-        // Try web API first if enabled (faster, no PTY needed)
-        if self.preferWebAPI {
-            do {
-                return try await self.loadViaWebAPI()
-            } catch {
-                // Fall through to CLI scraping
-                if #available(macOS 13.0, *) {
-                    os_log(
-                        "[ClaudeUsageFetcher] Web API failed, falling back to CLI: %{public}@",
-                        log: .default,
-                        type: .info,
-                        error.localizedDescription)
-                }
-            }
-        }
+        // Web API only when enabled (no CLI fallback in this mode).
+        if self.preferWebAPI { return try await self.loadViaWebAPI() }
 
         // CLI scraping path (original behavior)
         do {
@@ -225,9 +212,6 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                 os_log("%{public}@", log: .default, type: .debug, msg)
             }
         }
-        let cliIdentity = await self.loadCLIIdentity(timeout: 8)
-        let identity = Self.mergeIdentity(webOrganization: webData.accountOrganization, cliIdentity: cliIdentity)
-
         // Convert web API data to ClaudeUsageSnapshot format
         let primary = RateWindow(
             usedPercent: webData.sessionPercentUsed,
@@ -257,74 +241,10 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             opus: opus,
             providerCost: webData.extraUsageCost,
             updatedAt: Date(),
-            accountEmail: identity.accountEmail,
-            accountOrganization: identity.accountOrganization,
-            loginMethod: identity.loginMethod,
+            accountEmail: webData.accountEmail,
+            accountOrganization: webData.accountOrganization,
+            loginMethod: webData.loginMethod,
             rawText: nil)
-    }
-
-    private func loadCLIIdentity(timeout: TimeInterval) async -> ClaudeAccountIdentity? {
-        guard TTYCommandRunner.which("claude") != nil else { return nil }
-        do {
-            return try await ClaudeStatusProbe.fetchIdentity(timeout: timeout)
-        } catch {
-            if #available(macOS 13.0, *) {
-                os_log(
-                    "[ClaudeUsageFetcher] CLI identity fetch failed: %{public}@",
-                    log: .default,
-                    type: .info,
-                    error.localizedDescription)
-            }
-            return nil
-        }
-    }
-
-    private static func mergeIdentity(
-        webOrganization: String?,
-        cliIdentity: ClaudeAccountIdentity?) -> ClaudeAccountIdentity
-    {
-        let webOrg = Self.sanitizeOrg(webOrganization)
-        var accountEmail: String?
-        var accountOrganization = webOrg
-        var loginMethod: String?
-
-        if let cliIdentity {
-            let cliOrg = Self.sanitizeOrg(cliIdentity.accountOrganization)
-            let canAdopt: Bool = if let webOrg, let cliOrg {
-                Self.normalizeOrg(webOrg) == Self.normalizeOrg(cliOrg)
-            } else if webOrg == nil {
-                true
-            } else {
-                true
-            }
-
-            if canAdopt {
-                accountEmail = cliIdentity.accountEmail
-                loginMethod = cliIdentity.loginMethod
-                if accountOrganization == nil { accountOrganization = cliOrg }
-            } else if #available(macOS 13.0, *) {
-                os_log(
-                    "[ClaudeUsageFetcher] Skipping CLI identity due to org mismatch (web=%{public}@ cli=%{public}@)",
-                    log: .default,
-                    type: .info,
-                    webOrg ?? "nil",
-                    cliOrg ?? "nil")
-            }
-        }
-
-        return ClaudeAccountIdentity(
-            accountEmail: accountEmail,
-            accountOrganization: accountOrganization,
-            loginMethod: loginMethod)
-    }
-
-    private static func sanitizeOrg(_ value: String?) -> String? {
-        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return (trimmed?.isEmpty ?? true) ? nil : trimmed
-    }
-
-    private static func normalizeOrg(_ value: String) -> String {
-        value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     private static func formatResetDate(_ date: Date) -> String {

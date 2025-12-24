@@ -53,6 +53,15 @@ let package = Package(
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency"),
             ]),
+        .executableTarget(
+            name: "CodexBarClaudeWebProbe",
+            dependencies: [
+                "CodexBarCore",
+            ],
+            path: "Sources/CodexBarClaudeWebProbe",
+            swiftSettings: [
+                .enableUpcomingFeature("StrictConcurrency"),
+            ]),
         .testTarget(
             name: "CodexBarTests",
             dependencies: ["CodexBar", "CodexBarCore", "CodexBarCLI"],

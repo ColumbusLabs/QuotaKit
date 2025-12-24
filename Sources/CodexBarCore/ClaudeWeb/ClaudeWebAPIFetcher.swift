@@ -10,6 +10,7 @@ import Foundation
 /// - `GET https://claude.ai/api/organizations/{org_id}/usage` → usage percentages + reset times
 public enum ClaudeWebAPIFetcher {
     private static let baseURL = "https://claude.ai/api"
+    private static let maxProbeBytes = 200_000
 
     public struct OrganizationInfo: Sendable {
         public let id: String
@@ -59,6 +60,8 @@ public enum ClaudeWebAPIFetcher {
         public let opusPercentUsed: Double?
         public let extraUsageCost: ProviderCostSnapshot?
         public let accountOrganization: String?
+        public let accountEmail: String?
+        public let loginMethod: String?
 
         public init(
             sessionPercentUsed: Double,
@@ -67,7 +70,9 @@ public enum ClaudeWebAPIFetcher {
             weeklyResetsAt: Date?,
             opusPercentUsed: Double?,
             extraUsageCost: ProviderCostSnapshot?,
-            accountOrganization: String?)
+            accountOrganization: String?,
+            accountEmail: String?,
+            loginMethod: String?)
         {
             self.sessionPercentUsed = sessionPercentUsed
             self.sessionResetsAt = sessionResetsAt
@@ -76,7 +81,20 @@ public enum ClaudeWebAPIFetcher {
             self.opusPercentUsed = opusPercentUsed
             self.extraUsageCost = extraUsageCost
             self.accountOrganization = accountOrganization
+            self.accountEmail = accountEmail
+            self.loginMethod = loginMethod
         }
+    }
+
+    public struct ProbeResult: Sendable {
+        public let url: String
+        public let statusCode: Int?
+        public let contentType: String?
+        public let topLevelKeys: [String]
+        public let emails: [String]
+        public let planHints: [String]
+        public let notableFields: [String]
+        public let bodyPreview: String?
     }
 
     // MARK: - Public API
@@ -106,7 +124,21 @@ public enum ClaudeWebAPIFetcher {
                 weeklyResetsAt: usage.weeklyResetsAt,
                 opusPercentUsed: usage.opusPercentUsed,
                 extraUsageCost: extra,
-                accountOrganization: usage.accountOrganization)
+                accountOrganization: usage.accountOrganization,
+                accountEmail: usage.accountEmail,
+                loginMethod: usage.loginMethod)
+        }
+        if let account = await fetchAccountInfo(sessionKey: sessionKey, orgId: organization.id, logger: log) {
+            usage = WebUsageData(
+                sessionPercentUsed: usage.sessionPercentUsed,
+                sessionResetsAt: usage.sessionResetsAt,
+                weeklyPercentUsed: usage.weeklyPercentUsed,
+                weeklyResetsAt: usage.weeklyResetsAt,
+                opusPercentUsed: usage.opusPercentUsed,
+                extraUsageCost: usage.extraUsageCost,
+                accountOrganization: usage.accountOrganization,
+                accountEmail: account.email,
+                loginMethod: account.loginMethod)
         }
         if usage.accountOrganization == nil, let name = organization.name {
             usage = WebUsageData(
@@ -116,9 +148,80 @@ public enum ClaudeWebAPIFetcher {
                 weeklyResetsAt: usage.weeklyResetsAt,
                 opusPercentUsed: usage.opusPercentUsed,
                 extraUsageCost: usage.extraUsageCost,
-                accountOrganization: name)
+                accountOrganization: name,
+                accountEmail: usage.accountEmail,
+                loginMethod: usage.loginMethod)
         }
         return usage
+    }
+
+    /// Probes a list of endpoints using the current claude.ai session cookies.
+    /// - Parameters:
+    ///   - endpoints: Absolute URLs or "/api/..." paths. Supports "{orgId}" placeholder.
+    ///   - includePreview: When true, includes a truncated response preview in results.
+    public static func probeEndpoints(
+        _ endpoints: [String],
+        includePreview: Bool = false,
+        logger: ((String) -> Void)? = nil) async throws -> [ProbeResult]
+    {
+        let log: (String) -> Void = { msg in logger?("[claude-probe] \(msg)") }
+        let sessionKey = try extractSessionKey(logger: log)
+        let organization = try? await fetchOrganizationInfo(sessionKey: sessionKey, logger: log)
+        let expanded = endpoints.map { endpoint -> String in
+            var url = endpoint
+            if let orgId = organization?.id {
+                url = url.replacingOccurrences(of: "{orgId}", with: orgId)
+            }
+            if url.hasPrefix("/") {
+                url = "https://claude.ai\(url)"
+            }
+            return url
+        }
+
+        var results: [ProbeResult] = []
+        results.reserveCapacity(expanded.count)
+
+        for endpoint in expanded {
+            guard let url = URL(string: endpoint) else { continue }
+            var request = URLRequest(url: url)
+            request.setValue("sessionKey=\(sessionKey)", forHTTPHeaderField: "Cookie")
+            request.setValue("application/json, text/html;q=0.9, */*;q=0.8", forHTTPHeaderField: "Accept")
+            request.httpMethod = "GET"
+            request.timeoutInterval = 20
+
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                let http = response as? HTTPURLResponse
+                let contentType = http?.allHeaderFields["Content-Type"] as? String
+                let truncated = data.prefix(Self.maxProbeBytes)
+                let body = String(data: truncated, encoding: .utf8) ?? ""
+
+                let parsed = Self.parseProbeBody(data: data, fallbackText: body, contentType: contentType)
+                let preview = includePreview ? parsed.preview : nil
+
+                results.append(ProbeResult(
+                    url: endpoint,
+                    statusCode: http?.statusCode,
+                    contentType: contentType,
+                    topLevelKeys: parsed.keys,
+                    emails: parsed.emails,
+                    planHints: parsed.planHints,
+                    notableFields: parsed.notableFields,
+                    bodyPreview: preview))
+            } catch {
+                results.append(ProbeResult(
+                    url: endpoint,
+                    statusCode: nil,
+                    contentType: nil,
+                    topLevelKeys: [],
+                    emails: [],
+                    planHints: [],
+                    notableFields: [],
+                    bodyPreview: "Error: \(error.localizedDescription)"))
+            }
+        }
+
+        return results
     }
 
     /// Checks if we can find a Claude session key in browser cookies without making API calls.
@@ -290,7 +393,9 @@ public enum ClaudeWebAPIFetcher {
             weeklyResetsAt: weeklyResets,
             opusPercentUsed: opusPercent,
             extraUsageCost: nil,
-            accountOrganization: nil)
+            accountOrganization: nil,
+            accountEmail: nil,
+            loginMethod: nil)
     }
 
     // MARK: - Extra usage cost (Claude "Extra")
@@ -365,6 +470,10 @@ public enum ClaudeWebAPIFetcher {
     public static func _parseOverageSpendLimitForTesting(_ data: Data) -> ProviderCostSnapshot? {
         self.parseOverageSpendLimit(data)
     }
+
+    public static func _parseAccountInfoForTesting(_ data: Data, orgId: String?) -> WebAccountInfo? {
+        self.parseAccountInfo(data, orgId: orgId)
+    }
     #endif
 
     private static func parseISO8601Date(_ string: String) -> Date? {
@@ -391,5 +500,212 @@ public enum ClaudeWebAPIFetcher {
         let name = first.name?.trimmingCharacters(in: .whitespacesAndNewlines)
         let sanitized = (name?.isEmpty ?? true) ? nil : name
         return OrganizationInfo(id: first.uuid, name: sanitized)
+    }
+
+    public struct WebAccountInfo: Sendable {
+        public let email: String?
+        public let loginMethod: String?
+
+        public init(email: String?, loginMethod: String?) {
+            self.email = email
+            self.loginMethod = loginMethod
+        }
+    }
+
+    private struct AccountResponse: Decodable {
+        let emailAddress: String?
+        let memberships: [Membership]?
+
+        enum CodingKeys: String, CodingKey {
+            case emailAddress = "email_address"
+            case memberships
+        }
+
+        struct Membership: Decodable {
+            let organization: Organization
+
+            struct Organization: Decodable {
+                let uuid: String?
+                let name: String?
+                let rateLimitTier: String?
+                let billingType: String?
+
+                enum CodingKeys: String, CodingKey {
+                    case uuid
+                    case name
+                    case rateLimitTier = "rate_limit_tier"
+                    case billingType = "billing_type"
+                }
+            }
+        }
+    }
+
+    private static func fetchAccountInfo(
+        sessionKey: String,
+        orgId: String?,
+        logger: ((String) -> Void)? = nil) async -> WebAccountInfo?
+    {
+        let url = URL(string: "\(baseURL)/account")!
+        var request = URLRequest(url: url)
+        request.setValue("sessionKey=\(sessionKey)", forHTTPHeaderField: "Cookie")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.httpMethod = "GET"
+        request.timeoutInterval = 15
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else { return nil }
+            logger?("Account API status: \(httpResponse.statusCode)")
+            guard httpResponse.statusCode == 200 else { return nil }
+            return Self.parseAccountInfo(data, orgId: orgId)
+        } catch {
+            return nil
+        }
+    }
+
+    private static func parseAccountInfo(_ data: Data, orgId: String?) -> WebAccountInfo? {
+        guard let response = try? JSONDecoder().decode(AccountResponse.self, from: data) else { return nil }
+        let email = response.emailAddress?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let membership = Self.selectMembership(response.memberships, orgId: orgId)
+        let plan = Self.inferPlan(
+            rateLimitTier: membership?.organization.rateLimitTier,
+            billingType: membership?.organization.billingType)
+        return WebAccountInfo(email: email, loginMethod: plan)
+    }
+
+    private static func selectMembership(
+        _ memberships: [AccountResponse.Membership]?,
+        orgId: String?) -> AccountResponse.Membership?
+    {
+        guard let memberships, !memberships.isEmpty else { return nil }
+        if let orgId {
+            if let match = memberships.first(where: { $0.organization.uuid == orgId }) { return match }
+        }
+        return memberships.first
+    }
+
+    private static func inferPlan(rateLimitTier: String?, billingType: String?) -> String? {
+        let tier = rateLimitTier?.lowercased() ?? ""
+        let billing = billingType?.lowercased() ?? ""
+        if tier.contains("max") { return "Claude Max" }
+        if tier.contains("pro") { return "Claude Pro" }
+        if tier.contains("team") { return "Claude Team" }
+        if tier.contains("enterprise") { return "Claude Enterprise" }
+        if billing.contains("stripe"), tier.contains("claude") { return "Claude Pro" }
+        return nil
+    }
+
+    private struct ProbeParseResult: Sendable {
+        let keys: [String]
+        let emails: [String]
+        let planHints: [String]
+        let notableFields: [String]
+        let preview: String?
+    }
+
+    private static func parseProbeBody(
+        data: Data,
+        fallbackText: String,
+        contentType: String?) -> ProbeParseResult
+    {
+        let trimmed = fallbackText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let looksJSON = (contentType?.lowercased().contains("application/json") ?? false) ||
+            trimmed.hasPrefix("{") || trimmed.hasPrefix("[")
+
+        var keys: [String] = []
+        var notableFields: [String] = []
+        if looksJSON, let json = try? JSONSerialization.jsonObject(with: data) {
+            if let dict = json as? [String: Any] {
+                keys = dict.keys.sorted()
+            } else if let array = json as? [[String: Any]], let first = array.first {
+                keys = first.keys.sorted()
+            }
+            notableFields = Self.extractNotableFields(from: json)
+        }
+
+        let emails = Self.extractEmails(from: trimmed)
+        let planHints = Self.extractPlanHints(from: trimmed)
+        let preview = trimmed.isEmpty ? nil : String(trimmed.prefix(500))
+        return ProbeParseResult(
+            keys: keys,
+            emails: emails,
+            planHints: planHints,
+            notableFields: notableFields,
+            preview: preview)
+    }
+
+    private static func extractEmails(from text: String) -> [String] {
+        let pattern = #"(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return [] }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        var results: [String] = []
+        regex.enumerateMatches(in: text, options: [], range: range) { match, _, _ in
+            guard let match, let r = Range(match.range(at: 0), in: text) else { return }
+            let value = String(text[r]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !value.isEmpty { results.append(value) }
+        }
+        return Array(Set(results)).sorted()
+    }
+
+    private static func extractPlanHints(from text: String) -> [String] {
+        let pattern = #"(?i)\b(max|pro|team|ultra|enterprise)\b"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return [] }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        var results: [String] = []
+        regex.enumerateMatches(in: text, options: [], range: range) { match, _, _ in
+            guard let match, let r = Range(match.range(at: 1), in: text) else { return }
+            let value = String(text[r]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !value.isEmpty { results.append(value) }
+        }
+        return Array(Set(results)).sorted()
+    }
+
+    private static func extractNotableFields(from json: Any) -> [String] {
+        let pattern = #"(?i)(plan|tier|subscription|seat|billing|product)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return [] }
+        var results: [String] = []
+
+        func keyMatches(_ key: String) -> Bool {
+            let range = NSRange(key.startIndex..<key.endIndex, in: key)
+            return regex.firstMatch(in: key, options: [], range: range) != nil
+        }
+
+        func appendValue(_ keyPath: String, value: Any) {
+            if results.count >= 40 { return }
+            let rendered: String
+            switch value {
+            case let str as String:
+                rendered = str
+            case let num as NSNumber:
+                rendered = num.stringValue
+            case let bool as Bool:
+                rendered = bool ? "true" : "false"
+            default:
+                return
+            }
+            let trimmed = rendered.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return }
+            results.append("\(keyPath)=\(trimmed)")
+        }
+
+        func walk(_ value: Any, path: String) {
+            if let dict = value as? [String: Any] {
+                for (key, nested) in dict {
+                    let nextPath = path.isEmpty ? key : "\(path).\(key)"
+                    if keyMatches(key) {
+                        appendValue(nextPath, value: nested)
+                    }
+                    walk(nested, path: nextPath)
+                }
+            } else if let array = value as? [Any] {
+                for (idx, nested) in array.enumerated() {
+                    let nextPath = "\(path)[\(idx)]"
+                    walk(nested, path: nextPath)
+                }
+            }
+        }
+
+        walk(json, path: "")
+        return results
     }
 }

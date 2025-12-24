@@ -254,6 +254,89 @@ struct ClaudeUsageTests {
     }
 
     @Test
+    func parsesClaudeWebAPIAccountInfo() {
+        let json = """
+        {
+          "email_address": "steipete@gmail.com",
+          "memberships": [
+            {
+              "organization": {
+                "uuid": "org-123",
+                "name": "Example Org",
+                "rate_limit_tier": "default_claude_max_20x",
+                "billing_type": "stripe_subscription"
+              }
+            }
+          ]
+        }
+        """
+        let data = Data(json.utf8)
+        let info = ClaudeWebAPIFetcher._parseAccountInfoForTesting(data, orgId: "org-123")
+        #expect(info?.email == "steipete@gmail.com")
+        #expect(info?.loginMethod == "Claude Max")
+    }
+
+    @Test
+    func parsesClaudeWebAPIAccountInfoSelectsMatchingOrg() {
+        let json = """
+        {
+          "email_address": "steipete@gmail.com",
+          "memberships": [
+            {
+              "organization": {
+                "uuid": "org-other",
+                "name": "Other Org",
+                "rate_limit_tier": "claude_pro",
+                "billing_type": "stripe_subscription"
+              }
+            },
+            {
+              "organization": {
+                "uuid": "org-123",
+                "name": "Example Org",
+                "rate_limit_tier": "claude_team",
+                "billing_type": "stripe_subscription"
+              }
+            }
+          ]
+        }
+        """
+        let data = Data(json.utf8)
+        let info = ClaudeWebAPIFetcher._parseAccountInfoForTesting(data, orgId: "org-123")
+        #expect(info?.loginMethod == "Claude Team")
+    }
+
+    @Test
+    func parsesClaudeWebAPIAccountInfoFallsBackToFirstMembership() {
+        let json = """
+        {
+          "email_address": "steipete@gmail.com",
+          "memberships": [
+            {
+              "organization": {
+                "uuid": "org-first",
+                "name": "First Org",
+                "rate_limit_tier": "claude_enterprise",
+                "billing_type": "invoice"
+              }
+            },
+            {
+              "organization": {
+                "uuid": "org-second",
+                "name": "Second Org",
+                "rate_limit_tier": "claude_pro",
+                "billing_type": "stripe_subscription"
+              }
+            }
+          ]
+        }
+        """
+        let data = Data(json.utf8)
+        let info = ClaudeWebAPIFetcher._parseAccountInfoForTesting(data, orgId: nil)
+        #expect(info?.loginMethod == "Claude Enterprise")
+    }
+
+    @Test
     func claudeUsageFetcherInitWithPreferWebAPI() {
         // Verify we can create fetchers with both configurations
         let defaultFetcher = ClaudeUsageFetcher()

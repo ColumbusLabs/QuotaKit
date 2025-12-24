@@ -1,10 +1,12 @@
 # Changelog
 
 ## 0.13.0 — Unreleased
-- Claude: add optional web-first usage via Safari/Chrome cookies (with CLI fallback) including “Extra usage” budget bar.
+- Claude: add optional web-first usage via Safari/Chrome cookies (no CLI fallback) including “Extra usage” budget bar.
+- Claude: web identity now uses `/api/account` for email + plan (via rate_limit_tier).
 - Settings: standardize “Augment … via web” copy for Codex + Claude web cookie features.
-- Debug: Claude dump now shows web/CLI strategy, cookie discovery, HTTP status codes, and parsed summary.
-- Tests: add unit coverage for Claude web API usage + overage parsing.
+- Debug: Claude dump now shows web strategy, cookie discovery, HTTP status codes, and parsed summary.
+- Dev: add Claude web probe CLI to enumerate endpoints/fields using browser cookies.
+- Tests: add unit coverage for Claude web API usage, overage, and account parsing.
 - Menu: custom menu items now use the native selection highlight color (plus matching selection text/track colors).
 - Charts: boost hover highlight contrast for credits/usage history bands.
 - Menu: reorder Codex blocks to show credits before cost.
