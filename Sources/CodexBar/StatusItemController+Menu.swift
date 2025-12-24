@@ -6,11 +6,16 @@ import SwiftUI
 // MARK: - NSMenu construction
 
 extension StatusItemController {
-    private static let menuCardWidth: CGFloat = 310
+    private static let menuCardBaseWidth: CGFloat = 310
     private struct OpenAIWebMenuItems {
         let hasUsageBreakdown: Bool
         let hasCreditsHistory: Bool
         let hasCostHistory: Bool
+    }
+
+    private func menuCardWidth(for providers: [UsageProvider]) -> CGFloat {
+        guard self.shouldMergeIcons, providers.count >= 4 else { return Self.menuCardBaseWidth }
+        return ceil(Self.menuCardBaseWidth * 1.1)
     }
 
     func makeMenu() -> NSMenu {
@@ -108,12 +113,14 @@ extension StatusItemController {
                     to: menu,
                     model: model,
                     provider: currentProvider,
+                    width: self.menuCardWidth(for: enabledProviders),
                     webItems: webItems)
                 addedOpenAIWebItems = true
             } else {
                 menu.addItem(self.makeMenuCardItem(
                     UsageMenuCardView(model: model),
-                    id: "menuCard"))
+                    id: "menuCard",
+                    width: self.menuCardWidth(for: enabledProviders)))
                 if currentProvider == .codex, model.creditsText != nil {
                     menu.addItem(self.makeBuyCreditsItem())
                 }
@@ -201,7 +208,7 @@ extension StatusItemController {
         let view = ProviderSwitcherView(
             providers: providers,
             selected: selected,
-            width: Self.menuCardWidth,
+            width: self.menuCardWidth(for: providers),
             iconProvider: { [weak self] provider in
                 self?.switcherIcon(for: provider) ?? NSImage()
             },
@@ -276,16 +283,21 @@ extension StatusItemController {
         }
         for item in cardItems {
             guard let view = item.view else { continue }
-            view.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: 1))
+            view.frame = NSRect(
+                origin: .zero,
+                size: NSSize(width: self.menuCardWidth(for: self.store.enabledProviders()), height: 1))
             view.layoutSubtreeIfNeeded()
             let height = view.fittingSize.height
-            view.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: height))
+            view.frame = NSRect(
+                origin: .zero,
+                size: NSSize(width: self.menuCardWidth(for: self.store.enabledProviders()), height: height))
         }
     }
 
     private func makeMenuCardItem(
         _ view: some View,
         id: String,
+        width: CGFloat,
         submenu: NSMenu? = nil,
         highlightExclusionHeight: CGFloat = 0) -> NSMenuItem
     {
@@ -300,10 +312,10 @@ extension StatusItemController {
         let hosting = MenuCardItemHostingView(rootView: wrapped, highlightState: highlightState)
         // Important: constrain width before asking SwiftUI for the fitting height, otherwise text wrapping
         // changes the required height and the menu item becomes visually "squeezed".
-        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: 1))
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: 1))
         hosting.layoutSubtreeIfNeeded()
         let size = hosting.fittingSize
-        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: size.height))
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: size.height))
         let item = NSMenuItem()
         item.view = hosting
         item.isEnabled = submenu != nil
@@ -320,6 +332,7 @@ extension StatusItemController {
         to menu: NSMenu,
         model: UsageMenuCardView.Model,
         provider: UsageProvider,
+        width: CGFloat,
         webItems: OpenAIWebMenuItems)
     {
         let hasUsageBlock = !model.metrics.isEmpty || model.placeholder != nil
@@ -334,7 +347,7 @@ extension StatusItemController {
         let headerView = UsageMenuCardHeaderSectionView(
             model: model,
             showDivider: hasUsageBlock)
-        menu.addItem(self.makeMenuCardItem(headerView, id: "menuCardHeader"))
+        menu.addItem(self.makeMenuCardItem(headerView, id: "menuCardHeader", width: width))
 
         if hasUsageBlock {
             let usageView = UsageMenuCardUsageSectionView(
@@ -342,7 +355,11 @@ extension StatusItemController {
                 showBottomDivider: false,
                 bottomPadding: usageBottomPadding)
             let usageSubmenu = webItems.hasUsageBreakdown ? self.makeUsageBreakdownSubmenu() : nil
-            menu.addItem(self.makeMenuCardItem(usageView, id: "menuCardUsage", submenu: usageSubmenu))
+            menu.addItem(self.makeMenuCardItem(
+                usageView,
+                id: "menuCardUsage",
+                width: width,
+                submenu: usageSubmenu))
         }
 
         if hasCredits || hasExtraUsage || hasCost {
@@ -362,6 +379,7 @@ extension StatusItemController {
             menu.addItem(self.makeMenuCardItem(
                 creditsView,
                 id: "menuCardCredits",
+                width: width,
                 submenu: creditsSubmenu))
             if provider == .codex {
                 menu.addItem(self.makeBuyCreditsItem())
@@ -375,7 +393,10 @@ extension StatusItemController {
                 model: model,
                 topPadding: sectionSpacing,
                 bottomPadding: bottomPadding)
-            menu.addItem(self.makeMenuCardItem(extraUsageView, id: "menuCardExtraUsage"))
+            menu.addItem(self.makeMenuCardItem(
+                extraUsageView,
+                id: "menuCardExtraUsage",
+                width: width))
         }
         if hasCost {
             if hasCredits || hasExtraUsage {
@@ -386,7 +407,11 @@ extension StatusItemController {
                 topPadding: sectionSpacing,
                 bottomPadding: bottomPadding)
             let costSubmenu = webItems.hasCostHistory ? self.makeCostHistorySubmenu(provider: provider) : nil
-            menu.addItem(self.makeMenuCardItem(costView, id: "menuCardCost", submenu: costSubmenu))
+            menu.addItem(self.makeMenuCardItem(
+                costView,
+                id: "menuCardCost",
+                width: width,
+                submenu: costSubmenu))
         }
     }
 
@@ -567,15 +592,16 @@ extension StatusItemController {
 
     private func makeUsageBreakdownSubmenu() -> NSMenu? {
         let breakdown = self.store.openAIDashboard?.usageBreakdown ?? []
+        let width = self.menuCardWidth(for: self.store.enabledProviders())
         guard !breakdown.isEmpty else { return nil }
 
         let submenu = NSMenu()
-        let chartView = UsageBreakdownChartMenuView(breakdown: breakdown)
+        let chartView = UsageBreakdownChartMenuView(breakdown: breakdown, width: width)
         let hosting = MenuHostingView(rootView: chartView)
-        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: 1))
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: 1))
         hosting.layoutSubtreeIfNeeded()
         let size = hosting.fittingSize
-        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: size.height))
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: size.height))
 
         let chartItem = NSMenuItem()
         chartItem.view = hosting
@@ -587,15 +613,16 @@ extension StatusItemController {
 
     private func makeCreditsHistorySubmenu() -> NSMenu? {
         let breakdown = self.store.openAIDashboard?.dailyBreakdown ?? []
+        let width = self.menuCardWidth(for: self.store.enabledProviders())
         guard !breakdown.isEmpty else { return nil }
 
         let submenu = NSMenu()
-        let chartView = CreditsHistoryChartMenuView(breakdown: breakdown)
+        let chartView = CreditsHistoryChartMenuView(breakdown: breakdown, width: width)
         let hosting = MenuHostingView(rootView: chartView)
-        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: 1))
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: 1))
         hosting.layoutSubtreeIfNeeded()
         let size = hosting.fittingSize
-        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: size.height))
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: size.height))
 
         let chartItem = NSMenuItem()
         chartItem.view = hosting
@@ -607,6 +634,7 @@ extension StatusItemController {
 
     private func makeCostHistorySubmenu(provider: UsageProvider) -> NSMenu? {
         guard provider == .codex || provider == .claude else { return nil }
+        let width = self.menuCardWidth(for: self.store.enabledProviders())
         guard let tokenSnapshot = self.store.tokenSnapshot(for: provider) else { return nil }
         guard !tokenSnapshot.daily.isEmpty else { return nil }
 
@@ -614,12 +642,13 @@ extension StatusItemController {
         let chartView = CCUsageCostChartMenuView(
             provider: provider,
             daily: tokenSnapshot.daily,
-            totalCostUSD: tokenSnapshot.last30DaysCostUSD)
+            totalCostUSD: tokenSnapshot.last30DaysCostUSD,
+            width: width)
         let hosting = MenuHostingView(rootView: chartView)
-        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: 1))
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: 1))
         hosting.layoutSubtreeIfNeeded()
         let size = hosting.fittingSize
-        hosting.frame = NSRect(origin: .zero, size: NSSize(width: Self.menuCardWidth, height: size.height))
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: size.height))
 
         let chartItem = NSMenuItem()
         chartItem.view = hosting

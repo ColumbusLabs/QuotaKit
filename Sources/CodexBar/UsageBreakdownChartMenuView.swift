@@ -19,10 +19,12 @@ struct UsageBreakdownChartMenuView: View {
     }
 
     private let breakdown: [OpenAIDashboardDailyBreakdown]
+    private let width: CGFloat
     @State private var selectedDayKey: String?
 
-    init(breakdown: [OpenAIDashboardDailyBreakdown]) {
+    init(breakdown: [OpenAIDashboardDailyBreakdown], width: CGFloat) {
         self.breakdown = breakdown
+        self.width = width
     }
 
     var body: some View {
@@ -119,7 +121,7 @@ struct UsageBreakdownChartMenuView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .frame(minWidth: 300, maxWidth: 300, alignment: .leading)
+        .frame(minWidth: self.width, maxWidth: self.width, alignment: .leading)
     }
 
     private struct Model {

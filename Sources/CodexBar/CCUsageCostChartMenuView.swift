@@ -21,12 +21,14 @@ struct CCUsageCostChartMenuView: View {
     private let provider: UsageProvider
     private let daily: [CCUsageDailyReport.Entry]
     private let totalCostUSD: Double?
+    private let width: CGFloat
     @State private var selectedDateKey: String?
 
-    init(provider: UsageProvider, daily: [CCUsageDailyReport.Entry], totalCostUSD: Double?) {
+    init(provider: UsageProvider, daily: [CCUsageDailyReport.Entry], totalCostUSD: Double?, width: CGFloat) {
         self.provider = provider
         self.daily = daily
         self.totalCostUSD = totalCostUSD
+        self.width = width
     }
 
     var body: some View {
@@ -110,7 +112,7 @@ struct CCUsageCostChartMenuView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .frame(minWidth: 300, maxWidth: 300, alignment: .leading)
+        .frame(minWidth: self.width, maxWidth: self.width, alignment: .leading)
     }
 
     private struct Model {
