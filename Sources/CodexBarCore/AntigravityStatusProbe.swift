@@ -173,7 +173,8 @@ public struct AntigravityStatusProbe: Sendable {
         let modelConfigs = userStatus.cascadeModelConfigData?.clientModelConfigs ?? []
         let models = modelConfigs.compactMap(Self.quotaFromConfig(_:))
         let email = userStatus.email
-        let planName = userStatus.planStatus?.planInfo?.preferredName
+        let rawPlanName = userStatus.planStatus?.planInfo?.preferredName
+        let planName = Self.normalizedPlanName(rawPlanName, models: models)
 
         return AntigravityStatusSnapshot(
             modelQuotas: models,
@@ -207,6 +208,18 @@ public struct AntigravityStatusProbe: Sendable {
         guard let code else { return nil }
         if code.isOK { return nil }
         return "\(code.rawValue)"
+    }
+
+    private static func normalizedPlanName(_ name: String?, models: [AntigravityModelQuota]) -> String? {
+        guard let name else { return nil }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if trimmed.caseInsensitiveCompare("Pro") == .orderedSame,
+           models.contains(where: { $0.label.lowercased().contains("claude") })
+        {
+            return "Google AI Ultra"
+        }
+        return trimmed
     }
 
     private static func parseDate(_ value: String) -> Date? {

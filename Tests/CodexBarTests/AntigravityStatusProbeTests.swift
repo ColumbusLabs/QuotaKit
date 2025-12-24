@@ -10,8 +10,7 @@ final class AntigravityStatusProbeTests: XCTestCase {
             "email": "test@example.com",
             "planStatus": {
               "planInfo": {
-                "planName": "Pro",
-                "planDisplayName": "Google AI Ultra"
+                "planName": "Pro"
               }
             },
             "cascadeModelConfigData": {
