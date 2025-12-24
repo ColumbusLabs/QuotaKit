@@ -80,6 +80,14 @@ public struct AntigravityStatusSnapshot: Sendable {
     }
 }
 
+public struct AntigravityPlanInfoSummary: Sendable, Codable, Equatable {
+    public let planName: String?
+    public let planDisplayName: String?
+    public let displayName: String?
+    public let productName: String?
+    public let planShortName: String?
+}
+
 public enum AntigravityStatusProbeError: LocalizedError, Sendable, Equatable {
     case notRunning
     case missingCSRFToken
@@ -149,6 +157,23 @@ public struct AntigravityStatusProbe: Sendable {
         }
     }
 
+    public func fetchPlanInfoSummary() async throws -> AntigravityPlanInfoSummary? {
+        let processInfo = try await Self.detectProcessInfo(timeout: self.timeout)
+        let ports = try await Self.listeningPorts(pid: processInfo.pid, timeout: self.timeout)
+        let connectPort = try await Self.findWorkingPort(
+            ports: ports,
+            csrfToken: processInfo.csrfToken,
+            timeout: self.timeout)
+        let response = try await Self.makeRequest(
+            path: Self.getUserStatusPath,
+            body: Self.defaultRequestBody(),
+            httpsPort: connectPort,
+            httpPort: processInfo.extensionPort,
+            csrfToken: processInfo.csrfToken,
+            timeout: self.timeout)
+        return try Self.parsePlanInfoSummary(response)
+    }
+
     public static func isRunning(timeout: TimeInterval = 4.0) async -> Bool {
         (try? await detectProcessInfo(timeout: timeout)) != nil
     }
@@ -173,13 +198,30 @@ public struct AntigravityStatusProbe: Sendable {
         let modelConfigs = userStatus.cascadeModelConfigData?.clientModelConfigs ?? []
         let models = modelConfigs.compactMap(Self.quotaFromConfig(_:))
         let email = userStatus.email
-        let rawPlanName = userStatus.planStatus?.planInfo?.preferredName
-        let planName = Self.normalizedPlanName(rawPlanName, models: models)
+        let planName = userStatus.planStatus?.planInfo?.preferredName
 
         return AntigravityStatusSnapshot(
             modelQuotas: models,
             accountEmail: email,
             accountPlan: planName)
+    }
+
+    static func parsePlanInfoSummary(_ data: Data) throws -> AntigravityPlanInfoSummary? {
+        let decoder = JSONDecoder()
+        let response = try decoder.decode(UserStatusResponse.self, from: data)
+        if let invalid = Self.invalidCode(response.code) {
+            throw AntigravityStatusProbeError.apiError(invalid)
+        }
+        guard let userStatus = response.userStatus else {
+            throw AntigravityStatusProbeError.parseFailed("Missing userStatus")
+        }
+        guard let planInfo = userStatus.planStatus?.planInfo else { return nil }
+        return AntigravityPlanInfoSummary(
+            planName: planInfo.planName,
+            planDisplayName: planInfo.planDisplayName,
+            displayName: planInfo.displayName,
+            productName: planInfo.productName,
+            planShortName: planInfo.planShortName)
     }
 
     static func parseCommandModelResponse(_ data: Data) throws -> AntigravityStatusSnapshot {
@@ -210,17 +252,6 @@ public struct AntigravityStatusProbe: Sendable {
         return "\(code.rawValue)"
     }
 
-    private static func normalizedPlanName(_ name: String?, models: [AntigravityModelQuota]) -> String? {
-        guard let name else { return nil }
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        if trimmed.caseInsensitiveCompare("Pro") == .orderedSame,
-           models.contains(where: { $0.label.lowercased().contains("claude") })
-        {
-            return "Google AI Ultra"
-        }
-        return trimmed
-    }
 
     private static func parseDate(_ value: String) -> Date? {
         if let date = ISO8601DateFormatter().date(from: value) {

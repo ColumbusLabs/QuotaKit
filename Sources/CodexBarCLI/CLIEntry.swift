@@ -57,6 +57,7 @@ enum CodexBarCLI {
         let includeStatus = values.flags.contains("status")
         let pretty = values.flags.contains("pretty")
         let openaiWeb = values.flags.contains("openaiWeb")
+        let antigravityPlanDebug = values.flags.contains("antigravityPlanDebug")
         let openaiWebDebugDumpHTML = values.flags.contains("openaiWebDebugDumpHtml")
         let openaiWebTimeout = Self.decodeOpenAIWebTimeout(from: values) ?? 60
         let verbose = values.flags.contains("verbose")
@@ -72,6 +73,7 @@ enum CodexBarCLI {
             let versionInfo = Self.formatVersion(provider: p, raw: Self.detectVersion(for: p))
             let header = Self.makeHeader(provider: p, version: versionInfo.version, source: versionInfo.source)
             let status = includeStatus ? await Self.fetchStatus(for: p) : nil
+            var antigravityPlanInfo: AntigravityPlanInfoSummary?
             switch await Self.fetch(
                 provider: p,
                 includeCredits: includeCredits,
@@ -79,6 +81,12 @@ enum CodexBarCLI {
                 claudeFetcher: claudeFetcher)
             {
             case let .success(result):
+                if antigravityPlanDebug, p == .antigravity {
+                    antigravityPlanInfo = try? await AntigravityStatusProbe().fetchPlanInfoSummary()
+                    if format == .text, let info = antigravityPlanInfo {
+                        Self.printAntigravityPlanInfo(info)
+                    }
+                }
                 var dashboard: OpenAIDashboardSnapshot?
                 if p == .codex, openaiWeb {
                     let options = OpenAIWebOptions(
@@ -113,6 +121,7 @@ enum CodexBarCLI {
                         status: status,
                         usage: result.usage,
                         credits: result.credits,
+                        antigravityPlanInfo: antigravityPlanInfo,
                         openaiDashboard: dashboard))
                 }
             case let .failure(error):
@@ -434,6 +443,21 @@ enum CodexBarCLI {
         fputs("Error: \(error.localizedDescription)\n", stderr)
     }
 
+    private static func printAntigravityPlanInfo(_ info: AntigravityPlanInfoSummary) {
+        let fields: [(String, String?)] = [
+            ("planName", info.planName),
+            ("planDisplayName", info.planDisplayName),
+            ("displayName", info.displayName),
+            ("productName", info.productName),
+            ("planShortName", info.planShortName),
+        ]
+        fputs("Antigravity plan info:\n", stderr)
+        for (label, value) in fields {
+            guard let value, !value.isEmpty else { continue }
+            fputs("  \(label): \(value)\n", stderr)
+        }
+    }
+
     private static func exit(code: ExitCode, message: String? = nil) -> Never {
         if let message {
             fputs("\(message)\n", stderr)
@@ -466,8 +490,8 @@ enum CodexBarCLI {
         CodexBar \(version)
 
         Usage:
-          codexbar usage [--format text|json] [--provider codex|claude|gemini|both|all]
-                       [--no-credits] [--pretty] [--status] [--openai-web]
+          codexbar usage [--format text|json] [--provider codex|claude|gemini|antigravity|both|all]
+                       [--no-credits] [--pretty] [--status] [--openai-web] [--antigravity-plan-debug]
 
         Description:
           Print usage from enabled providers as text (default) or JSON. Honors your in-app toggles.
@@ -489,8 +513,8 @@ enum CodexBarCLI {
         CodexBar \(version)
 
         Usage:
-          codexbar [--format text|json] [--provider codex|claude|gemini|both|all]
-                  [--no-credits] [--pretty] [--status] [--openai-web]
+          codexbar [--format text|json] [--provider codex|claude|gemini|antigravity|both|all]
+                  [--no-credits] [--pretty] [--status] [--openai-web] [--antigravity-plan-debug]
 
         Global flags:
           -h, --help      Show help
@@ -536,6 +560,9 @@ private struct UsageOptions: CommanderParsable {
 
     @Flag(name: .long("openai-web-debug-dump-html"), help: "Dump HTML snapshots to /tmp when data is missing")
     var openaiWebDebugDumpHtml: Bool = false
+
+    @Flag(name: .long("antigravity-plan-debug"), help: "Emit Antigravity planInfo fields (debug)")
+    var antigravityPlanDebug: Bool = false
 }
 
 enum ProviderSelection: Sendable, ExpressibleFromArgument {
@@ -601,6 +628,7 @@ struct ProviderPayload: Encodable {
     let status: ProviderStatusPayload?
     let usage: UsageSnapshot
     let credits: CreditsSnapshot?
+    let antigravityPlanInfo: AntigravityPlanInfoSummary?
     let openaiDashboard: OpenAIDashboardSnapshot?
 
     init(
@@ -610,6 +638,7 @@ struct ProviderPayload: Encodable {
         status: ProviderStatusPayload?,
         usage: UsageSnapshot,
         credits: CreditsSnapshot?,
+        antigravityPlanInfo: AntigravityPlanInfoSummary?,
         openaiDashboard: OpenAIDashboardSnapshot?)
     {
         self.provider = provider.rawValue
@@ -618,6 +647,7 @@ struct ProviderPayload: Encodable {
         self.status = status
         self.usage = usage
         self.credits = credits
+        self.antigravityPlanInfo = antigravityPlanInfo
         self.openaiDashboard = openaiDashboard
     }
 }
