@@ -10,7 +10,8 @@ final class AntigravityStatusProbeTests: XCTestCase {
             "email": "test@example.com",
             "planStatus": {
               "planInfo": {
-                "planName": "Pro"
+                "planName": "Pro",
+                "planDisplayName": "Google AI Ultra"
               }
             },
             "cascadeModelConfigData": {
@@ -39,7 +40,7 @@ final class AntigravityStatusProbeTests: XCTestCase {
         let data = Data(json.utf8)
         let snapshot = try AntigravityStatusProbe.parseUserStatusResponse(data)
         XCTAssertEqual(snapshot.accountEmail, "test@example.com")
-        XCTAssertEqual(snapshot.accountPlan, "Pro")
+        XCTAssertEqual(snapshot.accountPlan, "Google AI Ultra")
         XCTAssertEqual(snapshot.modelQuotas.count, 3)
 
         let usage = try snapshot.toUsageSnapshot()

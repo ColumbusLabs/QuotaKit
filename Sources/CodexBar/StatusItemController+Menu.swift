@@ -754,8 +754,8 @@ private final class ProviderSwitcherView: NSView {
             }
         }
 
-        let outerPadding: CGFloat = 14
-        let minimumGap: CGFloat = 8
+        let outerPadding: CGFloat = 10
+        let minimumGap: CGFloat = 6
 
         if self.buttons.count == 2 {
             let left = self.buttons[0]
@@ -790,6 +790,20 @@ private final class ProviderSwitcherView: NSView {
                 right.centerYAnchor.constraint(equalTo: self.centerYAnchor),
                 leftGap,
                 rightGap,
+            ])
+        } else if self.buttons.count >= 4 {
+            let stack = NSStackView(views: self.buttons)
+            stack.orientation = .horizontal
+            stack.alignment = .centerY
+            stack.distribution = .equalSpacing
+            stack.spacing = minimumGap
+            stack.translatesAutoresizingMaskIntoConstraints = false
+            self.addSubview(stack)
+
+            NSLayoutConstraint.activate([
+                stack.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: outerPadding),
+                stack.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -outerPadding),
+                stack.centerYAnchor.constraint(equalTo: self.centerYAnchor),
             ])
         } else if let first = self.buttons.first {
             NSLayoutConstraint.activate([

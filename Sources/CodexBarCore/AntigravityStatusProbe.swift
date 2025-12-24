@@ -173,7 +173,7 @@ public struct AntigravityStatusProbe: Sendable {
         let modelConfigs = userStatus.cascadeModelConfigData?.clientModelConfigs ?? []
         let models = modelConfigs.compactMap(Self.quotaFromConfig(_:))
         let email = userStatus.email
-        let planName = userStatus.planStatus?.planInfo?.planName
+        let planName = userStatus.planStatus?.planInfo?.preferredName
 
         return AntigravityStatusSnapshot(
             modelQuotas: models,
@@ -493,6 +493,25 @@ private struct PlanStatus: Decodable {
 
 private struct PlanInfo: Decodable {
     let planName: String?
+    let planDisplayName: String?
+    let displayName: String?
+    let productName: String?
+    let planShortName: String?
+
+    var preferredName: String? {
+        let candidates = [
+            planDisplayName,
+            displayName,
+            productName,
+            planName,
+            planShortName
+        ]
+        for candidate in candidates {
+            guard let value = candidate?.trimmingCharacters(in: .whitespacesAndNewlines) else { continue }
+            if !value.isEmpty { return value }
+        }
+        return nil
+    }
 }
 
 private struct ModelConfigData: Decodable {
