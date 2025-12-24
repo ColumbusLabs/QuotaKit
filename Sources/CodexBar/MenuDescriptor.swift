@@ -208,10 +208,12 @@ struct MenuDescriptor {
         ]
 
         // Show "Add Account" if no account, "Switch Account" if logged in
-        let loginAction = self.switchAccountTarget(for: provider, store: store)
-        let hasAccount = self.hasAccount(for: provider, store: store)
-        let accountLabel = hasAccount ? "Switch Account..." : "Add Account..."
-        entries.append(.action(accountLabel, loginAction))
+        if (provider ?? store.enabledProviders().first) != .antigravity {
+            let loginAction = self.switchAccountTarget(for: provider, store: store)
+            let hasAccount = self.hasAccount(for: provider, store: store)
+            let accountLabel = hasAccount ? "Switch Account..." : "Add Account..."
+            entries.append(.action(accountLabel, loginAction))
+        }
 
         let dashboardTarget = provider ?? store.enabledProviders().first
         if dashboardTarget == .codex || dashboardTarget == .claude {
