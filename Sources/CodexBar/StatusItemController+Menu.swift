@@ -754,8 +754,8 @@ private final class ProviderSwitcherView: NSView {
             }
         }
 
-        let outerPadding: CGFloat = 6
-        let minimumGap: CGFloat = 4
+        let outerPadding: CGFloat = 3
+        let minimumGap: CGFloat = 2
 
         if self.buttons.count == 2 {
             let left = self.buttons[0]
@@ -879,7 +879,7 @@ private final class ProviderSwitcherView: NSView {
 }
 
 private final class PaddedToggleButton: NSButton {
-    private let contentPadding = NSEdgeInsets(top: 3, left: 8, bottom: 3, right: 8)
+    private let contentPadding = NSEdgeInsets(top: 2, left: 5, bottom: 2, right: 5)
 
     override var intrinsicContentSize: NSSize {
         let size = super.intrinsicContentSize
