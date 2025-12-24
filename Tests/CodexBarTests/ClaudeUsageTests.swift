@@ -235,9 +235,26 @@ struct ClaudeUsageTests {
         let cost = ClaudeWebAPIFetcher._parseOverageSpendLimitForTesting(data)
         #expect(cost != nil)
         #expect(cost?.currencyCode == "EUR")
-        #expect(cost?.limit == 2000)
+        #expect(cost?.limit == 20)
         #expect(cost?.used == 0)
         #expect(cost?.period == "Monthly")
+    }
+
+    @Test
+    func parsesClaudeWebAPIOverageSpendLimitCents() {
+        let json = """
+        {
+          "monthly_credit_limit": 12345,
+          "currency": "USD",
+          "used_credits": 6789,
+          "is_enabled": true
+        }
+        """
+        let data = Data(json.utf8)
+        let cost = ClaudeWebAPIFetcher._parseOverageSpendLimitForTesting(data)
+        #expect(cost?.currencyCode == "USD")
+        #expect(cost?.limit == 123.45)
+        #expect(cost?.used == 67.89)
     }
 
     @Test

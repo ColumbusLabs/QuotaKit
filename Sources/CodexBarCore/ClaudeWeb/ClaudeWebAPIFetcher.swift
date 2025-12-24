@@ -472,9 +472,12 @@ public enum ClaudeWebAPIFetcher {
               let currency = decoded.currency,
               !currency.isEmpty else { return nil }
 
+        let usedAmount = used / 100.0
+        let limitAmount = limit / 100.0
+
         return ProviderCostSnapshot(
-            used: used,
-            limit: limit,
+            used: usedAmount,
+            limit: limitAmount,
             currencyCode: currency,
             period: "Monthly",
             resetsAt: nil,
