@@ -922,7 +922,7 @@ private final class ProviderSwitcherView: NSView {
 }
 
 private final class PaddedToggleButton: NSButton {
-    private let contentPadding = NSEdgeInsets(top: 2, left: 5, bottom: 2, right: 5)
+    private let contentPadding = NSEdgeInsets(top: 4, left: 7, bottom: 4, right: 7)
 
     override var intrinsicContentSize: NSSize {
         let size = super.intrinsicContentSize
