@@ -13,9 +13,16 @@ extension StatusItemController {
         let hasCostHistory: Bool
     }
 
-    private func menuCardWidth(for providers: [UsageProvider]) -> CGFloat {
-        guard self.shouldMergeIcons, providers.count >= 4 else { return Self.menuCardBaseWidth }
-        return ceil(Self.menuCardBaseWidth * 1.1)
+    private func menuCardWidth(for providers: [UsageProvider], menu: NSMenu? = nil) -> CGFloat {
+        let fallbackWidth: CGFloat = if self.shouldMergeIcons, providers.count >= 4 {
+            ceil(Self.menuCardBaseWidth * 1.1)
+        } else {
+            Self.menuCardBaseWidth
+        }
+        guard let menu else { return fallbackWidth }
+        let window = menu.items.compactMap { $0.view?.window }.first
+        let width = window?.contentLayoutRect.width ?? 0
+        return width > 0 ? width : fallbackWidth
     }
 
     func makeMenu() -> NSMenu {
@@ -75,6 +82,7 @@ extension StatusItemController {
 
         let selectedProvider = provider
         let enabledProviders = self.store.enabledProviders()
+        let menuWidth = self.menuCardWidth(for: enabledProviders, menu: menu)
         let descriptor = MenuDescriptor.build(
             provider: selectedProvider,
             store: self.store,
@@ -113,14 +121,14 @@ extension StatusItemController {
                     to: menu,
                     model: model,
                     provider: currentProvider,
-                    width: self.menuCardWidth(for: enabledProviders),
+                    width: menuWidth,
                     webItems: webItems)
                 addedOpenAIWebItems = true
             } else {
                 menu.addItem(self.makeMenuCardItem(
-                    UsageMenuCardView(model: model),
+                    UsageMenuCardView(model: model, width: menuWidth),
                     id: "menuCard",
-                    width: self.menuCardWidth(for: enabledProviders)))
+                    width: menuWidth))
                 if currentProvider == .codex, model.creditsText != nil {
                     menu.addItem(self.makeBuyCreditsItem())
                 }
@@ -208,7 +216,7 @@ extension StatusItemController {
         let view = ProviderSwitcherView(
             providers: providers,
             selected: selected,
-            width: self.menuCardWidth(for: providers),
+            width: self.menuCardWidth(for: providers, menu: menu),
             iconProvider: { [weak self] provider in
                 self?.switcherIcon(for: provider) ?? NSImage()
             },
@@ -285,12 +293,12 @@ extension StatusItemController {
             guard let view = item.view else { continue }
             view.frame = NSRect(
                 origin: .zero,
-                size: NSSize(width: self.menuCardWidth(for: self.store.enabledProviders()), height: 1))
+                size: NSSize(width: self.menuCardWidth(for: self.store.enabledProviders(), menu: menu), height: 1))
             view.layoutSubtreeIfNeeded()
             let height = view.fittingSize.height
             view.frame = NSRect(
                 origin: .zero,
-                size: NSSize(width: self.menuCardWidth(for: self.store.enabledProviders()), height: height))
+                size: NSSize(width: self.menuCardWidth(for: self.store.enabledProviders(), menu: menu), height: height))
         }
     }
 
@@ -346,14 +354,16 @@ extension StatusItemController {
 
         let headerView = UsageMenuCardHeaderSectionView(
             model: model,
-            showDivider: hasUsageBlock)
+            showDivider: hasUsageBlock,
+            width: width)
         menu.addItem(self.makeMenuCardItem(headerView, id: "menuCardHeader", width: width))
 
         if hasUsageBlock {
             let usageView = UsageMenuCardUsageSectionView(
                 model: model,
                 showBottomDivider: false,
-                bottomPadding: usageBottomPadding)
+                bottomPadding: usageBottomPadding,
+                width: width)
             let usageSubmenu = webItems.hasUsageBreakdown ? self.makeUsageBreakdownSubmenu() : nil
             menu.addItem(self.makeMenuCardItem(
                 usageView,
@@ -374,7 +384,8 @@ extension StatusItemController {
                 model: model,
                 showBottomDivider: false,
                 topPadding: sectionSpacing,
-                bottomPadding: creditsBottomPadding)
+                bottomPadding: creditsBottomPadding,
+                width: width)
             let creditsSubmenu = webItems.hasCreditsHistory ? self.makeCreditsHistorySubmenu() : nil
             menu.addItem(self.makeMenuCardItem(
                 creditsView,
@@ -392,7 +403,8 @@ extension StatusItemController {
             let extraUsageView = UsageMenuCardExtraUsageSectionView(
                 model: model,
                 topPadding: sectionSpacing,
-                bottomPadding: bottomPadding)
+                bottomPadding: bottomPadding,
+                width: width)
             menu.addItem(self.makeMenuCardItem(
                 extraUsageView,
                 id: "menuCardExtraUsage",
@@ -405,7 +417,8 @@ extension StatusItemController {
             let costView = UsageMenuCardCostSectionView(
                 model: model,
                 topPadding: sectionSpacing,
-                bottomPadding: bottomPadding)
+                bottomPadding: bottomPadding,
+                width: width)
             let costSubmenu = webItems.hasCostHistory ? self.makeCostHistorySubmenu(provider: provider) : nil
             menu.addItem(self.makeMenuCardItem(
                 costView,

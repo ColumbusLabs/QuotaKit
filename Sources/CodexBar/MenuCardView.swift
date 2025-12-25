@@ -74,10 +74,12 @@ struct UsageMenuCardView: View {
     }
 
     let model: Model
+    let width: CGFloat
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
-    init(model: Model) {
+    init(model: Model, width: CGFloat) {
         self.model = model
+        self.width = width
     }
 
     var body: some View {
@@ -189,7 +191,7 @@ struct UsageMenuCardView: View {
         .padding(.horizontal, 16)
         .padding(.top, 2)
         .padding(.bottom, 2)
-        .frame(minWidth: 310, maxWidth: 310, alignment: .leading)
+        .frame(minWidth: self.width, maxWidth: self.width, alignment: .leading)
     }
 
     private var hasDetails: Bool {
@@ -269,6 +271,7 @@ private struct ProviderCostContent: View {
 struct UsageMenuCardHeaderSectionView: View {
     let model: UsageMenuCardView.Model
     let showDivider: Bool
+    let width: CGFloat
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -280,7 +283,7 @@ struct UsageMenuCardHeaderSectionView: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 2)
-        .frame(minWidth: 310, maxWidth: 310, alignment: .leading)
+        .frame(minWidth: self.width, maxWidth: self.width, alignment: .leading)
     }
 }
 
@@ -288,6 +291,7 @@ struct UsageMenuCardUsageSectionView: View {
     let model: UsageMenuCardView.Model
     let showBottomDivider: Bool
     let bottomPadding: CGFloat
+    let width: CGFloat
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
     var body: some View {
@@ -334,7 +338,7 @@ struct UsageMenuCardUsageSectionView: View {
         .padding(.horizontal, 16)
         .padding(.top, 10)
         .padding(.bottom, self.bottomPadding)
-        .frame(minWidth: 310, maxWidth: 310, alignment: .leading)
+        .frame(minWidth: self.width, maxWidth: self.width, alignment: .leading)
     }
 }
 
@@ -343,17 +347,20 @@ struct UsageMenuCardCreditsSectionView: View {
     let showBottomDivider: Bool
     let topPadding: CGFloat
     let bottomPadding: CGFloat
+    let width: CGFloat
 
     init(
         model: UsageMenuCardView.Model,
         showBottomDivider: Bool,
         topPadding: CGFloat,
-        bottomPadding: CGFloat)
+        bottomPadding: CGFloat,
+        width: CGFloat)
     {
         self.model = model
         self.showBottomDivider = showBottomDivider
         self.topPadding = topPadding
         self.bottomPadding = bottomPadding
+        self.width = width
     }
 
     var body: some View {
@@ -372,7 +379,7 @@ struct UsageMenuCardCreditsSectionView: View {
             .padding(.horizontal, 16)
             .padding(.top, self.topPadding)
             .padding(.bottom, self.bottomPadding)
-            .frame(minWidth: 310, maxWidth: 310, alignment: .leading)
+            .frame(minWidth: self.width, maxWidth: self.width, alignment: .leading)
         }
     }
 }
@@ -438,6 +445,7 @@ struct UsageMenuCardCostSectionView: View {
     let model: UsageMenuCardView.Model
     let topPadding: CGFloat
     let bottomPadding: CGFloat
+    let width: CGFloat
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
     var body: some View {
@@ -477,7 +485,7 @@ struct UsageMenuCardCostSectionView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, self.topPadding)
                 .padding(.bottom, self.bottomPadding)
-                .frame(minWidth: 310, maxWidth: 310, alignment: .leading)
+                .frame(minWidth: self.width, maxWidth: self.width, alignment: .leading)
             }
         }
     }
@@ -487,6 +495,7 @@ struct UsageMenuCardExtraUsageSectionView: View {
     let model: UsageMenuCardView.Model
     let topPadding: CGFloat
     let bottomPadding: CGFloat
+    let width: CGFloat
 
     var body: some View {
         Group {
@@ -497,7 +506,7 @@ struct UsageMenuCardExtraUsageSectionView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, self.topPadding)
                     .padding(.bottom, self.bottomPadding)
-                    .frame(minWidth: 310, maxWidth: 310, alignment: .leading)
+                    .frame(minWidth: self.width, maxWidth: self.width, alignment: .leading)
             }
         }
     }
