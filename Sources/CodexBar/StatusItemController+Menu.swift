@@ -7,6 +7,7 @@ import SwiftUI
 
 extension StatusItemController {
     private static let menuCardBaseWidth: CGFloat = 310
+    private static let menuCardFourProviderWidth: CGFloat = 330
     private struct OpenAIWebMenuItems {
         let hasUsageBreakdown: Bool
         let hasCreditsHistory: Bool
