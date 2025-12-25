@@ -71,6 +71,12 @@ enum CodexBarCLI {
         let fetcher = UsageFetcher()
         let claudeFetcher = ClaudeUsageFetcher()
 
+        #if !os(macOS)
+        if openaiWeb {
+            Self.exit(code: .failure, message: "Error: --openai-web is only supported on macOS.")
+        }
+        #endif
+
         var sections: [String] = []
         var payload: [ProviderPayload] = []
         var exitCode: ExitCode = .success
