@@ -110,8 +110,8 @@ public enum ProviderDefaults {
             cliName: "cursor",
             defaultEnabled: false,
             dashboardURL: "https://cursor.com/dashboard?tab=usage",
-            statusPageURL: nil,
-            statusLinkURL: "https://status.cursor.com"),
+            statusPageURL: "https://status.cursor.com",
+            statusLinkURL: nil),
         .gemini: ProviderMetadata(
             id: .gemini,
             displayName: "Gemini",

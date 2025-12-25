@@ -35,6 +35,7 @@ read_when:
 - Fallback: stored session from "Add Account" WebKit login flow.
 - Shows plan usage percentage, on-demand usage, and billing cycle reset.
 - Supports Pro, Enterprise, Team, and Hobby membership types.
+- Status: Statuspage.io (Cursor).
 - Details in `docs/cursor.md`.
 
 See also: `docs/claude.md`, `docs/antigravity.md`, `docs/cursor.md`.
