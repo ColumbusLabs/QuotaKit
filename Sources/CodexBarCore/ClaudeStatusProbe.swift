@@ -1,7 +1,4 @@
 import Foundation
-#if canImport(os.log)
-import os.log
-#endif
 
 public struct ClaudeStatusSnapshot: Sendable {
     public let sessionPercentLeft: Int?
@@ -49,6 +46,7 @@ public enum ClaudeStatusProbeError: LocalizedError, Sendable {
 public struct ClaudeStatusProbe: Sendable {
     public var claudeBinary: String = "claude"
     public var timeout: TimeInterval = 20.0
+    private static let log = CodexBarLog.logger("claude-probe")
 
     public init(claudeBinary: String = "claude", timeout: TimeInterval = 20.0) {
         self.claudeBinary = claudeBinary
@@ -70,17 +68,11 @@ public struct ClaudeStatusProbe: Sendable {
         let status = try? await Self.capture(subcommand: "/status", binary: resolved, timeout: min(timeout, 12))
         let snap = try Self.parse(text: usage, statusText: status)
 
-        #if canImport(os.log)
-        if #available(macOS 13.0, *) {
-            os_log(
-                "[ClaudeStatusProbe] CLI scrape ok — session %d%% left, week %d%% left, opus %d%% left",
-                log: .default,
-                type: .info,
-                snap.sessionPercentLeft ?? -1,
-                snap.weeklyPercentLeft ?? -1,
-                snap.opusPercentLeft ?? -1)
-        }
-        #endif
+        Self.log.info("Claude CLI scrape ok", metadata: [
+            "sessionPercentLeft": "\(snap.sessionPercentLeft ?? -1)",
+            "weeklyPercentLeft": "\(snap.weeklyPercentLeft ?? -1)",
+            "opusPercentLeft": "\(snap.opusPercentLeft ?? -1)",
+        ])
         return snap
     }
 

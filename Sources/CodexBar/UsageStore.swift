@@ -2,7 +2,6 @@ import AppKit
 import CodexBarCore
 import Foundation
 import Observation
-import OSLog
 
 enum IconStyle {
     case codex
@@ -179,11 +178,9 @@ final class UsageStore {
     @ObservationIgnored private let registry: ProviderRegistry
     @ObservationIgnored private let settings: SettingsStore
     @ObservationIgnored private let sessionQuotaNotifier: SessionQuotaNotifier
-    @ObservationIgnored private let sessionQuotaLogger = Logger(
-        subsystem: "com.steipete.codexbar",
-        category: "sessionQuota")
-    @ObservationIgnored private let openAIWebLogger = Logger(subsystem: "com.steipete.codexbar", category: "openai-web")
-    @ObservationIgnored private let tokenCostLogger = Logger(subsystem: "com.steipete.codexbar", category: "token-cost")
+    @ObservationIgnored private let sessionQuotaLogger = CodexBarLog.logger("sessionQuota")
+    @ObservationIgnored private let openAIWebLogger = CodexBarLog.logger("openai-web")
+    @ObservationIgnored private let tokenCostLogger = CodexBarLog.logger("token-cost")
     @ObservationIgnored private var openAIWebDebugLines: [String] = []
     @ObservationIgnored private var failureGates: [UsageProvider: ConsecutiveFailureGate] = [:]
     @ObservationIgnored private var tokenFailureGates: [UsageProvider: ConsecutiveFailureGate] = [:]
@@ -484,7 +481,7 @@ final class UsageStore {
                 let message =
                     "notifications disabled: provider=\(providerText) " +
                     "prev=\(previousRemaining ?? -1) curr=\(currentRemaining)"
-                self.sessionQuotaLogger.debug("\(message, privacy: .public)")
+                self.sessionQuotaLogger.debug(message)
             }
             return
         }
@@ -493,7 +490,7 @@ final class UsageStore {
             if SessionQuotaNotificationLogic.isDepleted(currentRemaining) {
                 let providerText = provider.rawValue
                 let message = "startup depleted: provider=\(providerText) curr=\(currentRemaining)"
-                self.sessionQuotaLogger.info("\(message, privacy: .public)")
+                self.sessionQuotaLogger.info(message)
                 self.sessionQuotaNotifier.post(transition: .depleted, provider: provider)
             }
             return
@@ -510,7 +507,7 @@ final class UsageStore {
                 let message =
                     "no transition: provider=\(providerText) " +
                     "prev=\(previousRemaining ?? -1) curr=\(currentRemaining)"
-                self.sessionQuotaLogger.debug("\(message, privacy: .public)")
+                self.sessionQuotaLogger.debug(message)
             }
             return
         }
@@ -520,7 +517,7 @@ final class UsageStore {
         let message =
             "transition \(transitionText): provider=\(providerText) " +
             "prev=\(previousRemaining ?? -1) curr=\(currentRemaining)"
-        self.sessionQuotaLogger.info("\(message, privacy: .public)")
+        self.sessionQuotaLogger.info(message)
 
         self.sessionQuotaNotifier.post(transition: transition, provider: provider)
     }
@@ -876,7 +873,7 @@ final class UsageStore {
     }
 
     private func logOpenAIWeb(_ message: String) {
-        self.openAIWebLogger.debug("\(message, privacy: .public)")
+        self.openAIWebLogger.debug(message)
         self.openAIWebDebugLines.append(message)
         if self.openAIWebDebugLines.count > 240 {
             self.openAIWebDebugLines.removeFirst(self.openAIWebDebugLines.count - 240)
@@ -1141,7 +1138,7 @@ extension UsageStore {
         let startedAt = Date()
         let providerText = provider.rawValue
         self.tokenCostLogger
-            .info("ccusage start provider=\(providerText, privacy: .public) force=\(force, privacy: .public)")
+            .info("ccusage start provider=\(providerText) force=\(force)")
 
         do {
             let fetcher = self.ccusageFetcher
@@ -1174,7 +1171,7 @@ extension UsageStore {
                 "duration=\(durationText)s " +
                 "today=\(sessionCost) " +
                 "30d=\(monthCost)"
-            self.tokenCostLogger.info("\(message, privacy: .public)")
+            self.tokenCostLogger.info(message)
             self.tokenSnapshots[provider] = snapshot
             self.tokenErrors[provider] = nil
             self.tokenFailureGates[provider]?.recordSuccess()
@@ -1185,7 +1182,7 @@ extension UsageStore {
             let msg = error.localizedDescription
             let durationText = String(format: "%.2f", duration)
             let message = "ccusage failed provider=\(providerText) duration=\(durationText)s error=\(msg)"
-            self.tokenCostLogger.error("\(message, privacy: .public)")
+            self.tokenCostLogger.error(message)
             let hadPriorData = self.tokenSnapshots[provider] != nil
             let shouldSurface = self.tokenFailureGates[provider]?
                 .shouldSurfaceError(onFailureWithPriorData: hadPriorData) ?? true

@@ -1,5 +1,5 @@
+import CodexBarCore
 import Foundation
-import OSLog
 @preconcurrency import UserNotifications
 
 @MainActor
@@ -7,7 +7,7 @@ final class AppNotifications {
     static let shared = AppNotifications()
 
     private let centerProvider: @Sendable () -> UNUserNotificationCenter
-    private let logger = Logger(subsystem: "com.steipete.codexbar", category: "notifications")
+    private let logger = CodexBarLog.logger("notifications")
     private var authorizationTask: Task<Bool, Never>?
 
     init(centerProvider: @escaping @Sendable () -> UNUserNotificationCenter = { UNUserNotificationCenter.current() }) {
@@ -27,7 +27,7 @@ final class AppNotifications {
         Task { @MainActor in
             let granted = await self.ensureAuthorized()
             guard granted else {
-                logger.debug("not authorized; skipping post: prefix=\(idPrefix, privacy: .public)")
+                logger.debug("not authorized; skipping post", metadata: ["prefix": idPrefix])
                 return
             }
 
@@ -42,13 +42,12 @@ final class AppNotifications {
                 content: content,
                 trigger: nil)
 
-            logger.info("posting: prefix=\(idPrefix, privacy: .public)")
+            logger.info("posting", metadata: ["prefix": idPrefix])
             do {
                 try await center.add(request)
             } catch {
                 let errorText = String(describing: error)
-                logger
-                    .debug("failed to post: prefix=\(idPrefix, privacy: .public) error=\(errorText, privacy: .public)")
+                logger.error("failed to post", metadata: ["prefix": idPrefix, "error": errorText])
             }
         }
     }

@@ -1,7 +1,6 @@
 import AppKit
 import CodexBarCore
 import Observation
-import OSLog
 import QuartzCore
 import SwiftUI
 
@@ -70,7 +69,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var animationDisplayLink: CADisplayLink?
     var animationPhase: Double = 0
     var animationPattern: LoadingPattern = .knightRider
-    let loginLogger = Logger(subsystem: "com.steipete.codexbar", category: "login")
+    let loginLogger = CodexBarLog.logger("login")
     var selectedMenuProvider: UsageProvider? {
         get { self.settings.selectedMenuProvider }
         set { self.settings.selectedMenuProvider = newValue }

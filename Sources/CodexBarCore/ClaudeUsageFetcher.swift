@@ -1,7 +1,4 @@
 import Foundation
-#if canImport(os.log)
-import os.log
-#endif
 
 public protocol ClaudeUsageFetching: Sendable {
     func loadLatestUsage(model: String) async throws -> ClaudeUsageSnapshot
@@ -60,6 +57,7 @@ public enum ClaudeUsageError: LocalizedError, Sendable {
 public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     private let environment: [String: String]
     private let preferWebAPI: Bool
+    private static let log = CodexBarLog.logger("claude-usage")
 
     /// Creates a new ClaudeUsageFetcher.
     /// - Parameters:
@@ -210,11 +208,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
 
     private func loadViaWebAPI() async throws -> ClaudeUsageSnapshot {
         let webData = try await ClaudeWebAPIFetcher.fetchUsage { msg in
-            #if canImport(os.log)
-            if #available(macOS 13.0, *) {
-                os_log("%{public}@", log: .default, type: .debug, msg)
-            }
-            #endif
+            Self.log.debug(msg)
         }
         // Convert web API data to ClaudeUsageSnapshot format
         let primary = RateWindow(

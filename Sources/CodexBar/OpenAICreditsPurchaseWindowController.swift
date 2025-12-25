@@ -1,6 +1,5 @@
 import AppKit
 import CodexBarCore
-import OSLog
 import WebKit
 
 @MainActor
@@ -359,7 +358,7 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
     })();
     """
 
-    private let logger = Logger(subsystem: "com.steipete.codexbar", category: "creditsPurchase")
+    private let logger = CodexBarLog.logger("creditsPurchase")
     private var webView: WKWebView?
     private var accountEmail: String?
     private var pendingAutoStart = false
@@ -386,9 +385,9 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
         Self.appendDebugLog(
             "show autoStart=\(autoStartPurchase) url=\(purchaseURL.absoluteString) account=\(accountValue)")
         self.logger.debug("Show buy credits window")
-        self.logger.debug("Auto-start purchase: \(autoStartPurchase, privacy: .public)")
-        self.logger.debug("Purchase URL: \(purchaseURL.absoluteString, privacy: .public)")
-        self.logger.debug("Account email: \(accountValue, privacy: .public)")
+        self.logger.debug("Auto-start purchase", metadata: ["enabled": autoStartPurchase ? "1" : "0"])
+        self.logger.debug("Purchase URL", metadata: ["url": purchaseURL.absoluteString])
+        self.logger.debug("Account email", metadata: ["email": accountValue])
         self.pendingAutoStart = autoStartPurchase
         self.load(url: purchaseURL)
         self.window?.center()
@@ -441,16 +440,16 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
         self.pendingAutoStart = false
         let currentURL = webView.url?.absoluteString ?? "unknown"
         Self.appendDebugLog("didFinish url=\(currentURL)")
-        self.logger.debug("Buy credits navigation finished (url=\(currentURL, privacy: .public))")
+        self.logger.debug("Buy credits navigation finished", metadata: ["url": currentURL])
         webView.evaluateJavaScript(Self.autoStartScript) { [logger] result, error in
             if let error {
                 Self.appendDebugLog("autoStart error=\(error.localizedDescription)")
-                logger.debug("Auto-start purchase failed: \(error.localizedDescription, privacy: .public)")
+                logger.error("Auto-start purchase failed", metadata: ["error": error.localizedDescription])
                 return
             }
             if let result {
                 Self.appendDebugLog("autoStart result=\(String(describing: result))")
-                logger.debug("Auto-start purchase result: \(String(describing: result), privacy: .public)")
+                logger.debug("Auto-start purchase result", metadata: ["result": String(describing: result)])
             }
         }
     }
@@ -459,7 +458,7 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
         guard message.name == Self.logHandlerName else { return }
         let payload = String(describing: message.body)
         Self.appendDebugLog("js \(payload)")
-        self.logger.debug("Auto-buy log: \(payload, privacy: .public)")
+        self.logger.debug("Auto-buy log", metadata: ["payload": payload])
     }
 
     private static func normalizeEmail(_ email: String?) -> String? {

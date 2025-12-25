@@ -1,6 +1,5 @@
 import CodexBarCore
 import Foundation
-import OSLog
 @preconcurrency import UserNotifications
 
 enum SessionQuotaTransition: Equatable, Sendable {
@@ -32,7 +31,7 @@ enum SessionQuotaNotificationLogic {
 
 @MainActor
 final class SessionQuotaNotifier {
-    private let logger = Logger(subsystem: "com.steipete.codexbar", category: "sessionQuotaNotifications")
+    private let logger = CodexBarLog.logger("sessionQuotaNotifications")
 
     init() {}
 
@@ -58,7 +57,7 @@ final class SessionQuotaNotifier {
         let providerText = provider.rawValue
         let transitionText = String(describing: transition)
         let idPrefix = "session-\(providerText)-\(transitionText)"
-        self.logger.info("enqueuing: prefix=\(idPrefix, privacy: .public)")
+        self.logger.info("enqueuing", metadata: ["prefix": idPrefix])
         AppNotifications.shared.post(idPrefix: idPrefix, title: title, body: body, badge: badge)
     }
 }

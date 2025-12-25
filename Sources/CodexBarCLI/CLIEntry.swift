@@ -44,6 +44,7 @@ enum CodexBarCLI {
 
         do {
             let invocation = try program.resolve(argv: argv)
+            Self.bootstrapLogging(values: invocation.parsedValues)
             switch invocation.descriptor.name {
             case "usage":
                 await self.runUsage(invocation.parsedValues)
@@ -167,6 +168,14 @@ enum CodexBarCLI {
     }
 
     // MARK: - Helpers
+
+    private static func bootstrapLogging(values: ParsedValues) {
+        let isJSON = values.flags.contains("jsonOutput")
+        let verbose = values.flags.contains("verbose")
+        let rawLevel = values.options["logLevel"]?.last
+        let level = CodexBarLog.parseLevel(rawLevel) ?? (verbose ? .debug : .info)
+        CodexBarLog.bootstrapIfNeeded(.init(destination: .stderr, level: level, json: isJSON))
+    }
 
     static func effectiveArgv(_ argv: [String]) -> [String] {
         guard let first = argv.first else { return ["usage"] }

@@ -1,7 +1,6 @@
 import AppKit
 import CodexBarCore
 import Observation
-import OSLog
 import QuartzCore
 import Security
 import SwiftUI
@@ -15,6 +14,13 @@ struct CodexBarApp: App {
     private let account: AccountInfo
 
     init() {
+        let env = ProcessInfo.processInfo.environment
+        let level = CodexBarLog.parseLevel(env["CODEXBAR_LOG_LEVEL"]) ?? .info
+        CodexBarLog.bootstrapIfNeeded(.init(
+            destination: .oslog(subsystem: "com.steipete.codexbar"),
+            level: level,
+            json: false))
+
         let preferencesSelection = PreferencesSelection()
         let settings = SettingsStore()
         let fetcher = UsageFetcher()

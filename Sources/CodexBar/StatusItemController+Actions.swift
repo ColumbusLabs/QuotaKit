@@ -1,6 +1,5 @@
 import AppKit
 import CodexBarCore
-import OSLog
 
 extension StatusItemController {
     // MARK: - Actions reachable from menus
@@ -72,14 +71,14 @@ extension StatusItemController {
 
     @objc func runSwitchAccount(_ sender: NSMenuItem) {
         if self.loginTask != nil {
-            self.loginLogger.notice("Switch Account tap ignored: login already in-flight")
+            self.loginLogger.info("Switch Account tap ignored: login already in-flight")
             print("[CodexBar] Switch Account ignored (busy)")
             return
         }
 
         let rawProvider = sender.representedObject as? String
         let provider = rawProvider.flatMap(UsageProvider.init(rawValue:)) ?? self.lastMenuProvider ?? .codex
-        self.loginLogger.notice("Switch Account tapped (provider=\(provider.rawValue, privacy: .public))")
+        self.loginLogger.info("Switch Account tapped", metadata: ["provider": provider.rawValue])
         print("[CodexBar] Switch Account tapped for provider=\(provider.rawValue)")
 
         self.loginTask = Task { @MainActor [weak self] in
@@ -90,7 +89,7 @@ extension StatusItemController {
             }
             self.activeLoginProvider = provider
             self.loginPhase = .requesting
-            self.loginLogger.notice("Starting login task for \(provider.rawValue, privacy: .public)")
+            self.loginLogger.info("Starting login task", metadata: ["provider": provider.rawValue])
             print("[CodexBar] Starting login task for \(provider.rawValue)")
 
             switch provider {
@@ -101,7 +100,7 @@ extension StatusItemController {
                 self.presentCodexLoginResult(result)
                 let outcome = self.describe(result.outcome)
                 let length = result.output.count
-                self.loginLogger.notice("Codex login \(outcome, privacy: .public) len=\(length)")
+                self.loginLogger.info("Codex login", metadata: ["outcome": outcome, "length": "\(length)"])
                 print("[CodexBar] Codex login outcome=\(outcome) len=\(length)")
                 if case .success = result.outcome {
                     self.postLoginNotification(for: .codex)
@@ -121,7 +120,7 @@ extension StatusItemController {
                 self.presentClaudeLoginResult(result)
                 let outcome = self.describe(result.outcome)
                 let length = result.output.count
-                self.loginLogger.notice("Claude login \(outcome, privacy: .public) len=\(length)")
+                self.loginLogger.info("Claude login", metadata: ["outcome": outcome, "length": "\(length)"])
                 print("[CodexBar] Claude login outcome=\(outcome) len=\(length)")
                 if case .success = result.outcome {
                     self.postLoginNotification(for: .claude)
@@ -139,7 +138,7 @@ extension StatusItemController {
                 self.loginPhase = .idle
                 self.presentGeminiLoginResult(result)
                 let outcome = self.describe(result.outcome)
-                self.loginLogger.notice("Gemini login \(outcome, privacy: .public)")
+                self.loginLogger.info("Gemini login", metadata: ["outcome": outcome])
                 print("[CodexBar] Gemini login outcome=\(outcome)")
                 // Refresh triggered by file watcher callback when auth completes
                 return
