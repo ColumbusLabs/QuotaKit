@@ -7,7 +7,6 @@ import SwiftUI
 
 extension StatusItemController {
     private static let menuCardBaseWidth: CGFloat = 310
-    private static let menuCardFourProviderWidth: CGFloat = 350
     private struct OpenAIWebMenuItems {
         let hasUsageBreakdown: Bool
         let hasCreditsHistory: Bool
@@ -15,11 +14,7 @@ extension StatusItemController {
     }
 
     private func menuCardWidth(for providers: [UsageProvider], menu: NSMenu? = nil) -> CGFloat {
-        let fallbackWidth: CGFloat = if self.shouldMergeIcons, providers.count > 4 {
-            ceil(Self.menuCardBaseWidth * 1.05)
-        } else {
-            Self.menuCardBaseWidth
-        }
+        let fallbackWidth = Self.menuCardBaseWidth
         guard let menu else { return fallbackWidth }
         let window = menu.items.compactMap { $0.view?.window }.first
         let width = window?.contentLayoutRect.width ?? 0
