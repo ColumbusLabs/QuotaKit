@@ -1048,18 +1048,24 @@ private final class StackedToggleButton: NSButton {
     }
 
     override var title: String {
-        get { super.title }
+        get { "" }
         set {
             super.title = ""
+            super.alternateTitle = ""
+            super.attributedTitle = NSAttributedString(string: "")
+            super.attributedAlternateTitle = NSAttributedString(string: "")
             self.titleField.stringValue = newValue
+            self.invalidateIntrinsicContentSize()
         }
     }
 
     override var image: NSImage? {
-        get { super.image }
+        get { nil }
         set {
             super.image = nil
+            super.alternateImage = nil
             self.iconView.image = newValue
+            self.invalidateIntrinsicContentSize()
         }
     }
 
@@ -1072,11 +1078,11 @@ private final class StackedToggleButton: NSButton {
 
     init(title: String, image: NSImage, target: AnyObject?, action: Selector?) {
         super.init(frame: .zero)
-        self.titleField.stringValue = title
-        self.iconView.image = image
         self.target = target
         self.action = action
         self.configure()
+        self.title = title
+        self.image = image
     }
 
     @available(*, unavailable)
