@@ -64,6 +64,20 @@ struct ProvidersPane: View {
                     }
 
                     PreferenceToggleRow(
+                        title: self.store.metadata(for: .cursor).toggleTitle,
+                        subtitle: self.providerSubtitle(.cursor),
+                        binding: self.cursorBinding)
+                        .padding(.bottom, 5)
+
+                    if let display = self.providerErrorDisplay(.cursor) {
+                        ProviderErrorView(
+                            title: "Last Cursor fetch failed:",
+                            display: display,
+                            isExpanded: self.expandedBinding(for: .cursor),
+                            onCopy: { self.copyToPasteboard(display.full) })
+                    }
+
+                    PreferenceToggleRow(
                         title: self.store.metadata(for: .gemini).toggleTitle,
                         subtitle: self.providerSubtitle(.gemini),
                         binding: self.geminiBinding)
@@ -88,20 +102,6 @@ struct ProvidersPane: View {
                             title: "Last Antigravity fetch failed:",
                             display: display,
                             isExpanded: self.expandedBinding(for: .antigravity),
-                            onCopy: { self.copyToPasteboard(display.full) })
-                    }
-
-                    PreferenceToggleRow(
-                        title: self.store.metadata(for: .cursor).toggleTitle,
-                        subtitle: self.providerSubtitle(.cursor),
-                        binding: self.cursorBinding)
-                        .padding(.bottom, 5)
-
-                    if let display = self.providerErrorDisplay(.cursor) {
-                        ProviderErrorView(
-                            title: "Last Cursor fetch failed:",
-                            display: display,
-                            isExpanded: self.expandedBinding(for: .cursor),
                             onCopy: { self.copyToPasteboard(display.full) })
                     }
                 }

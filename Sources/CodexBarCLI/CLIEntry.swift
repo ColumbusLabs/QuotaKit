@@ -670,7 +670,7 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
         case .antigravity: [.antigravity]
         case .cursor: [.cursor]
         case .both: [.codex, .claude]
-        case .all: [.codex, .claude, .gemini, .antigravity, .cursor]
+        case .all: [.codex, .claude, .cursor, .gemini, .antigravity]
         case let .custom(providers): providers
         }
     }
