@@ -7,7 +7,7 @@ import SwiftUI
 
 extension StatusItemController {
     private static let menuCardBaseWidth: CGFloat = 310
-    private static let menuCardFourProviderWidth: CGFloat = 330
+    private static let menuCardFourProviderWidth: CGFloat = 350
     private struct OpenAIWebMenuItems {
         let hasUsageBreakdown: Bool
         let hasCreditsHistory: Bool
@@ -767,7 +767,7 @@ private final class ProviderSwitcherView: NSView {
                 target: self,
                 action: #selector(self.handleSelection(_:)))
             button.tag = index
-            button.image = Self.paddedImage(segment.image, leading: 3)
+            button.image = Self.paddedImage(segment.image, leading: 1)
             button.imagePosition = .imageLeading
             button.bezelStyle = .regularSquare
             button.isBordered = false
@@ -797,8 +797,8 @@ private final class ProviderSwitcherView: NSView {
             }
         }
 
-        let outerPadding: CGFloat = 3
-        let minimumGap: CGFloat = 2
+        let outerPadding: CGFloat = 12
+        let minimumGap: CGFloat = 1
 
         if self.buttons.count == 2 {
             let left = self.buttons[0]
