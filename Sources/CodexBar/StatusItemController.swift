@@ -201,6 +201,11 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     private func invalidateMenus() {
         self.menuContentVersion &+= 1
         self.refreshOpenMenusIfNeeded()
+        Task { @MainActor in
+            // AppKit can ignore menu mutations while tracking; retry on the next run loop.
+            await Task.yield()
+            self.refreshOpenMenusIfNeeded()
+        }
     }
 
     private func updateIcons() {
