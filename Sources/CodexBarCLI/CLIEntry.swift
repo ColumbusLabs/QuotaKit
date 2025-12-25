@@ -9,6 +9,9 @@ import Darwin
 import Glibc
 #endif
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 @main
 enum CodexBarCLI {
@@ -416,7 +419,7 @@ enum CodexBarCLI {
         _ = fetcher
         _ = options
         exitCode = .failure
-        fputs("Error: OpenAI web access is only supported on macOS.\n", stderr)
+        self.writeStderr("Error: OpenAI web access is only supported on macOS.\n")
         return nil
         #endif
     }
@@ -461,7 +464,7 @@ enum CodexBarCLI {
     }
 
     private static func printError(_ error: Error) {
-        fputs("Error: \(error.localizedDescription)\n", stderr)
+        self.writeStderr("Error: \(error.localizedDescription)\n")
     }
 
     private static func printAntigravityPlanInfo(_ info: AntigravityPlanInfoSummary) {
@@ -472,18 +475,23 @@ enum CodexBarCLI {
             ("productName", info.productName),
             ("planShortName", info.planShortName),
         ]
-        fputs("Antigravity plan info:\n", stderr)
+        self.writeStderr("Antigravity plan info:\n")
         for (label, value) in fields {
             guard let value, !value.isEmpty else { continue }
-            fputs("  \(label): \(value)\n", stderr)
+            self.writeStderr("  \(label): \(value)\n")
         }
     }
 
     private static func exit(code: ExitCode, message: String? = nil) -> Never {
         if let message {
-            fputs("\(message)\n", stderr)
+            self.writeStderr("\(message)\n")
         }
         Self.platformExit(code.rawValue)
+    }
+
+    private static func writeStderr(_ string: String) {
+        guard let data = string.data(using: .utf8) else { return }
+        FileHandle.standardError.write(data)
     }
 
     static func printVersion() -> Never {
