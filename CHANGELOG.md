@@ -1,5 +1,7 @@
 # Changelog
 
+## 0.14.1 — Unreleased
+
 ## 0.14.0 — 2025-12-25
 - Antigravity: new local provider for the Antigravity language server (Claude + Gemini quotas) with an experimental toggle; improved plan display + debug output; clearer not-running/port errors; hide account switch.
 - Status: poll Google Workspace incidents for Gemini + Antigravity; Status Page opens the Workspace status page.
