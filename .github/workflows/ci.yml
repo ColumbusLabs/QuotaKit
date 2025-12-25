@@ -70,6 +70,9 @@ jobs:
       - name: Build CodexBarCLI (release, static Swift stdlib)
         run: swift build -c release --product CodexBarCLI --static-swift-stdlib
 
+      - name: Swift Test (Linux only)
+        run: swift test --test-product CodexBarLinuxTests --parallel
+
       - name: Smoke test CodexBarCLI
         shell: bash
         run: |
@@ -78,3 +81,9 @@ jobs:
           BIN="$BIN_DIR/CodexBarCLI"
           "$BIN" --help >/dev/null
           "$BIN" --version >/dev/null
+          if "$BIN" usage --provider codex --openai-web >/dev/null 2>&1; then
+            echo "Expected --openai-web to fail on Linux"
+            exit 1
+          fi
+          "$BIN" usage --provider codex --openai-web >/dev/null 2> /tmp/codexbarcli-stderr.txt || true
+          grep -q "only supported on macOS" /tmp/codexbarcli-stderr.txt
