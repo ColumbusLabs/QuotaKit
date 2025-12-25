@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 #if canImport(os.log)
 import os.log
 #endif
@@ -544,11 +547,13 @@ private final class InsecureSessionDelegate: NSObject, URLSessionDelegate {
         didReceive challenge: URLAuthenticationChallenge,
         completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void)
     {
+        #if os(macOS)
         if let trust = challenge.protectionSpace.serverTrust {
             completionHandler(.useCredential, URLCredential(trust: trust))
-        } else {
-            completionHandler(.performDefaultHandling, nil)
+            return
         }
+        #endif
+        completionHandler(.performDefaultHandling, nil)
     }
 }
 

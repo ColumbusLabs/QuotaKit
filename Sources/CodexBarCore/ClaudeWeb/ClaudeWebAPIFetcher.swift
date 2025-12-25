@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// Fetches Claude usage data directly from the claude.ai API using browser session cookies.
 ///
@@ -37,6 +40,7 @@ public enum ClaudeWebAPIFetcher {
     public enum FetchError: LocalizedError, Sendable {
         case noSessionKeyFound
         case invalidSessionKey
+        case notSupportedOnThisPlatform
         case networkError(Error)
         case invalidResponse
         case unauthorized
@@ -49,6 +53,8 @@ public enum ClaudeWebAPIFetcher {
                 "No Claude session key found in browser cookies."
             case .invalidSessionKey:
                 "Invalid Claude session key format."
+            case .notSupportedOnThisPlatform:
+                "Claude web fetching is only supported on macOS."
             case let .networkError(error):
                 "Network error: \(error.localizedDescription)"
             case .invalidResponse:
@@ -110,6 +116,8 @@ public enum ClaudeWebAPIFetcher {
     }
 
     // MARK: - Public API
+
+    #if os(macOS)
 
     /// Attempts to fetch Claude usage data using cookies extracted from browsers.
     /// Tries Safari first, then Chrome.
@@ -737,4 +745,35 @@ public enum ClaudeWebAPIFetcher {
         walk(json, path: "")
         return results
     }
+
+    #else
+
+    public static func fetchUsage(logger: ((String) -> Void)? = nil) async throws -> WebUsageData {
+        throw FetchError.notSupportedOnThisPlatform
+    }
+
+    public static func fetchUsage(
+        using sessionKeyInfo: SessionKeyInfo,
+        logger: ((String) -> Void)? = nil) async throws -> WebUsageData
+    {
+        throw FetchError.notSupportedOnThisPlatform
+    }
+
+    public static func probeEndpoints(
+        _ endpoints: [String],
+        includePreview: Bool = false,
+        logger: ((String) -> Void)? = nil) async throws -> [ProbeResult]
+    {
+        throw FetchError.notSupportedOnThisPlatform
+    }
+
+    public static func hasSessionKey(logger: ((String) -> Void)? = nil) -> Bool {
+        false
+    }
+
+    public static func sessionKeyInfo(logger: ((String) -> Void)? = nil) throws -> SessionKeyInfo {
+        throw FetchError.notSupportedOnThisPlatform
+    }
+
+    #endif
 }
