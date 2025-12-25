@@ -329,7 +329,10 @@ public struct TTYCommandRunner {
             }
 
             let stopNeedles = options.stopOnSubstrings.map { Data($0.utf8) }
-            let sendNeedles = options.sendOnSubstrings.map { (needle: Data($0.key.utf8), keys: Data($0.value.utf8)) }
+            let sendNeedles = options.sendOnSubstrings.map { (
+                needle: Data($0.key.utf8),
+                needleString: $0.key,
+                keys: Data($0.value.utf8)) }
             let urlNeedles = [Data("https://".utf8), Data("http://".utf8)]
             let needleLengths =
                 stopNeedles.map(\.count) +
@@ -343,12 +346,19 @@ public struct TTYCommandRunner {
             var stoppedEarly = false
             var urlSeen = false
             var triggeredSends = Set<Data>()
+            var recentText = ""
             var lastOutputAt = Date()
 
             while Date() < deadline {
                 let newData = readChunk()
                 if !newData.isEmpty {
                     lastOutputAt = Date()
+                    if let chunkText = String(bytes: newData, encoding: .utf8) {
+                        recentText += chunkText
+                        if recentText.count > 8192 {
+                            recentText.removeFirst(recentText.count - 8192)
+                        }
+                    }
                 }
                 let scanData = scanBuffer.append(newData)
                 if Date() >= nextCursorCheckAt,
@@ -360,8 +370,12 @@ public struct TTYCommandRunner {
                 }
 
                 if !sendNeedles.isEmpty {
+                    let recentTextCollapsed = recentText.replacingOccurrences(of: "\r", with: "")
                     for item in sendNeedles where !triggeredSends.contains(item.needle) {
-                        if scanData.range(of: item.needle) != nil {
+                        let matched = scanData.range(of: item.needle) != nil ||
+                            recentText.contains(item.needleString) ||
+                            recentTextCollapsed.contains(item.needleString)
+                        if matched {
                             if let keysString = String(data: item.keys, encoding: .utf8) {
                                 let normalized = keysString.contains("\n")
                                     ? keysString
