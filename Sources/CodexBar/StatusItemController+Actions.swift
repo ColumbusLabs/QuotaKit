@@ -148,6 +148,30 @@ extension StatusItemController {
                     title: "Antigravity login is managed in the app",
                     message: "Open Antigravity to sign in, then refresh CodexBar.")
                 return
+            case .cursor:
+                let cursorRunner = CursorLoginRunner()
+                let phaseHandler: @Sendable (CursorLoginRunner.Phase) -> Void = { [weak self] phase in
+                    Task { @MainActor in
+                        switch phase {
+                        case .loading, .waitingLogin:
+                            self?.loginPhase = .waitingBrowser
+                        case .success:
+                            self?.loginPhase = .idle
+                        case .failed:
+                            self?.loginPhase = .idle
+                        }
+                    }
+                }
+                let result = await cursorRunner.run(onPhaseChange: phaseHandler)
+                guard !Task.isCancelled else { return }
+                self.loginPhase = .idle
+                self.presentCursorLoginResult(result)
+                let outcome = self.describe(result.outcome)
+                self.loginLogger.notice("Cursor login \(outcome, privacy: .public)")
+                print("[CodexBar] Cursor login outcome=\(outcome)")
+                if case .success = result.outcome {
+                    self.postLoginNotification(for: .cursor)
+                }
             }
 
             await self.store.refresh()
@@ -298,8 +322,29 @@ extension StatusItemController {
         case .claude: "Claude login successful"
         case .gemini: "Gemini login successful"
         case .antigravity: "Antigravity login successful"
+        case .cursor: "Cursor login successful"
         }
         let body = "You can return to the app; authentication finished."
         AppNotifications.shared.post(idPrefix: "login-\(provider.rawValue)", title: title, body: body)
+    }
+
+    private func presentCursorLoginResult(_ result: CursorLoginRunner.Result) {
+        switch result.outcome {
+        case .success:
+            return
+        case .cancelled:
+            // User closed the window; no alert needed
+            return
+        case let .failed(message):
+            self.presentLoginAlert(title: "Cursor login failed", message: message)
+        }
+    }
+
+    private func describe(_ outcome: CursorLoginRunner.Result.Outcome) -> String {
+        switch outcome {
+        case .success: "success"
+        case .cancelled: "cancelled"
+        case let .failed(message): "failed(\(message))"
+        }
     }
 }
