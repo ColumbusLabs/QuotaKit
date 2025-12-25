@@ -535,7 +535,7 @@ public struct CursorStatusProbe: Sendable {
         return try decoder.decode(CursorUserInfo.self, from: data)
     }
 
-    private func parseUsageSummary(_ summary: CursorUsageSummary, userInfo: CursorUserInfo?) -> CursorStatusSnapshot {
+    func parseUsageSummary(_ summary: CursorUsageSummary, userInfo: CursorUserInfo?) -> CursorStatusSnapshot {
         // Parse billing cycle end date
         let billingCycleEnd: Date? = summary.billingCycleEnd.flatMap { dateString in
             let formatter = ISO8601DateFormatter()
@@ -543,11 +543,18 @@ public struct CursorStatusProbe: Sendable {
             return formatter.date(from: dateString) ?? ISO8601DateFormatter().date(from: dateString)
         }
 
-        // Convert cents to USD
-        let planUsed = Double(summary.individualUsage?.plan?.used ?? 0) / 100.0
-        let planLimit = Double(summary.individualUsage?.plan?.limit ?? 0) / 100.0
-        let planPercentUsed = summary.individualUsage?.plan?.totalPercentUsed
-            ?? (planLimit > 0 ? (planUsed / planLimit) * 100 : 0)
+        // Convert cents to USD (plan percent derives from raw values to avoid percent unit mismatches).
+        let planUsedRaw = Double(summary.individualUsage?.plan?.used ?? 0)
+        let planLimitRaw = Double(summary.individualUsage?.plan?.limit ?? 0)
+        let planUsed = planUsedRaw / 100.0
+        let planLimit = planLimitRaw / 100.0
+        let planPercentUsed: Double = if planLimitRaw > 0 {
+            (planUsedRaw / planLimitRaw) * 100
+        } else if let totalPercentUsed = summary.individualUsage?.plan?.totalPercentUsed {
+            totalPercentUsed <= 1 ? totalPercentUsed * 100 : totalPercentUsed
+        } else {
+            0
+        }
 
         let onDemandUsed = Double(summary.individualUsage?.onDemand?.used ?? 0) / 100.0
         let onDemandLimit: Double? = summary.individualUsage?.onDemand?.limit.map { Double($0) / 100.0 }

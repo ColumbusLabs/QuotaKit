@@ -120,6 +120,64 @@ struct CursorStatusProbeTests {
     // MARK: - Snapshot Conversion
 
     @Test
+    func prefersPlanRatioOverPercentField() {
+        let snapshot = CursorStatusProbe()
+            .parseUsageSummary(
+                CursorUsageSummary(
+                    billingCycleStart: nil,
+                    billingCycleEnd: nil,
+                    membershipType: "enterprise",
+                    limitType: nil,
+                    isUnlimited: false,
+                    autoModelSelectedDisplayMessage: nil,
+                    namedModelSelectedDisplayMessage: nil,
+                    individualUsage: CursorIndividualUsage(
+                        plan: CursorPlanUsage(
+                            enabled: true,
+                            used: 4900,
+                            limit: 50000,
+                            remaining: nil,
+                            breakdown: nil,
+                            autoPercentUsed: nil,
+                            apiPercentUsed: nil,
+                            totalPercentUsed: 0.40625),
+                        onDemand: nil),
+                    teamUsage: nil),
+                userInfo: nil)
+
+        #expect(snapshot.planPercentUsed == 9.8)
+    }
+
+    @Test
+    func usesPercentFieldWhenLimitMissing() {
+        let snapshot = CursorStatusProbe()
+            .parseUsageSummary(
+                CursorUsageSummary(
+                    billingCycleStart: nil,
+                    billingCycleEnd: nil,
+                    membershipType: "pro",
+                    limitType: nil,
+                    isUnlimited: false,
+                    autoModelSelectedDisplayMessage: nil,
+                    namedModelSelectedDisplayMessage: nil,
+                    individualUsage: CursorIndividualUsage(
+                        plan: CursorPlanUsage(
+                            enabled: true,
+                            used: 0,
+                            limit: nil,
+                            remaining: nil,
+                            breakdown: nil,
+                            autoPercentUsed: nil,
+                            apiPercentUsed: nil,
+                            totalPercentUsed: 0.5),
+                        onDemand: nil),
+                    teamUsage: nil),
+                userInfo: nil)
+
+        #expect(snapshot.planPercentUsed == 50.0)
+    }
+
+    @Test
     func convertsSnapshotToUsageSnapshot() {
         let snapshot = CursorStatusSnapshot(
             planPercentUsed: 45.0,
