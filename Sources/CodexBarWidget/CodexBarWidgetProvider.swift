@@ -7,6 +7,7 @@ enum ProviderChoice: String, AppEnum {
     case codex
     case claude
     case gemini
+    case antigravity
 
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Provider")
 
@@ -14,6 +15,7 @@ enum ProviderChoice: String, AppEnum {
         .codex: DisplayRepresentation(title: "Codex"),
         .claude: DisplayRepresentation(title: "Claude"),
         .gemini: DisplayRepresentation(title: "Gemini"),
+        .antigravity: DisplayRepresentation(title: "Antigravity"),
     ]
 
     var provider: UsageProvider {
@@ -21,6 +23,16 @@ enum ProviderChoice: String, AppEnum {
         case .codex: .codex
         case .claude: .claude
         case .gemini: .gemini
+        case .antigravity: .antigravity
+        }
+    }
+
+    init?(provider: UsageProvider) {
+        switch provider {
+        case .codex: self = .codex
+        case .claude: self = .claude
+        case .gemini: self = .gemini
+        case .antigravity: self = .antigravity
         }
     }
 }
@@ -48,6 +60,26 @@ struct ProviderSelectionIntent: AppIntent, WidgetConfigurationIntent {
 
     init() {
         self.provider = .codex
+    }
+}
+
+struct SwitchWidgetProviderIntent: AppIntent {
+    static let title: LocalizedStringResource = "Switch Provider"
+    static let description = IntentDescription("Switch the provider shown in the widget.")
+
+    @Parameter(title: "Provider")
+    var provider: ProviderChoice
+
+    init() {}
+
+    init(provider: ProviderChoice) {
+        self.provider = provider
+    }
+
+    func perform() async throws -> some IntentResult {
+        WidgetSelectionStore.saveSelectedProvider(self.provider.provider)
+        WidgetCenter.shared.reloadAllTimelines()
+        return .result()
     }
 }
 
@@ -80,6 +112,13 @@ struct CodexBarCompactEntry: TimelineEntry {
     let snapshot: WidgetSnapshot
 }
 
+struct CodexBarSwitcherEntry: TimelineEntry {
+    let date: Date
+    let provider: UsageProvider
+    let availableProviders: [UsageProvider]
+    let snapshot: WidgetSnapshot
+}
+
 struct CodexBarTimelineProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> CodexBarWidgetEntry {
         CodexBarWidgetEntry(
@@ -105,6 +144,49 @@ struct CodexBarTimelineProvider: AppIntentTimelineProvider {
         let entry = CodexBarWidgetEntry(date: Date(), provider: provider, snapshot: snapshot)
         let refresh = Date().addingTimeInterval(30 * 60)
         return Timeline(entries: [entry], policy: .after(refresh))
+    }
+}
+
+struct CodexBarSwitcherTimelineProvider: TimelineProvider {
+    func placeholder(in context: Context) -> CodexBarSwitcherEntry {
+        let snapshot = WidgetPreviewData.snapshot()
+        let providers = self.availableProviders(from: snapshot)
+        return CodexBarSwitcherEntry(
+            date: Date(),
+            provider: providers.first ?? .codex,
+            availableProviders: providers,
+            snapshot: snapshot)
+    }
+
+    func getSnapshot(in context: Context, completion: @escaping (CodexBarSwitcherEntry) -> Void) {
+        completion(self.makeEntry())
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<CodexBarSwitcherEntry>) -> Void) {
+        let entry = self.makeEntry()
+        let refresh = Date().addingTimeInterval(30 * 60)
+        completion(Timeline(entries: [entry], policy: .after(refresh)))
+    }
+
+    private func makeEntry() -> CodexBarSwitcherEntry {
+        let snapshot = WidgetSnapshotStore.load() ?? WidgetPreviewData.snapshot()
+        let providers = self.availableProviders(from: snapshot)
+        let stored = WidgetSelectionStore.loadSelectedProvider()
+        let selected = providers.first { $0 == stored } ?? providers.first ?? .codex
+        if selected != stored {
+            WidgetSelectionStore.saveSelectedProvider(selected)
+        }
+        return CodexBarSwitcherEntry(
+            date: Date(),
+            provider: selected,
+            availableProviders: providers,
+            snapshot: snapshot)
+    }
+
+    private func availableProviders(from snapshot: WidgetSnapshot) -> [UsageProvider] {
+        let enabled = snapshot.enabledProviders
+        let providers = enabled.isEmpty ? snapshot.entries.map(\.provider) : enabled
+        return providers.isEmpty ? [.codex] : providers
     }
 }
 

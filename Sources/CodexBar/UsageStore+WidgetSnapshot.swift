@@ -9,17 +9,20 @@ extension UsageStore {
         let snapshot = self.makeWidgetSnapshot()
         Task.detached(priority: .utility) {
             WidgetSnapshotStore.save(snapshot)
+            #if canImport(WidgetKit)
+            await MainActor.run {
+                WidgetCenter.shared.reloadAllTimelines()
+            }
+            #endif
         }
-        #if canImport(WidgetKit)
-        WidgetCenter.shared.reloadAllTimelines()
-        #endif
     }
 
     private func makeWidgetSnapshot() -> WidgetSnapshot {
+        let enabledProviders = self.enabledProviders()
         let entries = UsageProvider.allCases.compactMap { provider in
             self.makeWidgetEntry(for: provider)
         }
-        return WidgetSnapshot(entries: entries, generatedAt: Date())
+        return WidgetSnapshot(entries: entries, enabledProviders: enabledProviders, generatedAt: Date())
     }
 
     private func makeWidgetEntry(for provider: UsageProvider) -> WidgetSnapshot.ProviderEntry? {

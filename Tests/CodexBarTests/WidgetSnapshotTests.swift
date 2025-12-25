@@ -24,7 +24,10 @@ struct WidgetSnapshotTests {
                 WidgetSnapshot.DailyUsagePoint(dayKey: "2025-12-20", totalTokens: 1200, costUSD: 12.3),
             ])
 
-        let snapshot = WidgetSnapshot(entries: [entry], generatedAt: Date())
+        let snapshot = WidgetSnapshot(
+            entries: [entry],
+            enabledProviders: [.codex, .claude],
+            generatedAt: Date())
 
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -37,5 +40,6 @@ struct WidgetSnapshotTests {
         #expect(decoded.entries.count == 1)
         #expect(decoded.entries.first?.provider == .codex)
         #expect(decoded.entries.first?.tokenUsage?.sessionTokens == 1200)
+        #expect(decoded.enabledProviders == [.codex, .claude])
     }
 }

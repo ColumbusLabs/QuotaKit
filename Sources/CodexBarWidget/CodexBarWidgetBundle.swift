@@ -4,9 +4,26 @@ import WidgetKit
 @main
 struct CodexBarWidgetBundle: WidgetBundle {
     var body: some Widget {
+        CodexBarSwitcherWidget()
         CodexBarUsageWidget()
         CodexBarHistoryWidget()
         CodexBarCompactWidget()
+    }
+}
+
+struct CodexBarSwitcherWidget: Widget {
+    private let kind = "CodexBarSwitcherWidget"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(
+            kind: self.kind,
+            provider: CodexBarSwitcherTimelineProvider())
+        { entry in
+            CodexBarSwitcherWidgetView(entry: entry)
+        }
+        .configurationDisplayName("CodexBar Switcher")
+        .description("Usage widget with a provider switcher.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
 
