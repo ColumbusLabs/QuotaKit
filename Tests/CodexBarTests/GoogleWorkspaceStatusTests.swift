@@ -3,6 +3,7 @@ import Testing
 @testable import CodexBar
 
 @Suite
+@MainActor
 struct GoogleWorkspaceStatusTests {
     private let productID = "npdyhgECDJ6tB66MxXyo"
 
