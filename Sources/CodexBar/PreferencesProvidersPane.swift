@@ -176,10 +176,8 @@ struct ProvidersPane: View {
 
     private func providerErrorDisplay(_ provider: UsageProvider) -> ProviderErrorDisplay? {
         guard self.store.isStale(provider: provider), let raw = self.store.error(for: provider) else { return nil }
-        let meta = self.store.metadata(for: provider)
-        let prefix = "Last \(meta.displayName) fetch failed: "
         return ProviderErrorDisplay(
-            preview: self.truncated(raw, prefix: prefix),
+            preview: self.truncated(raw, prefix: ""),
             full: raw)
     }
 
@@ -394,28 +392,32 @@ private struct ProviderErrorView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(self.title)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.secondary)
-
-            Button {
-                self.onCopy()
-            } label: {
-                Text(self.display.preview)
-                    .font(.footnote)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(self.title)
+                    .font(.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
+                Spacer()
+                Button {
+                    self.onCopy()
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Copy error")
             }
-            .buttonStyle(.plain)
 
-            HStack(spacing: 12) {
-                Button("Copy full error") { self.onCopy() }
-                    .buttonStyle(.link)
+            Text(self.display.preview)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if self.display.preview != self.display.full {
                 Button(self.isExpanded ? "Hide details" : "Show details") { self.isExpanded.toggle() }
                     .buttonStyle(.link)
+                    .font(.footnote)
             }
-            .font(.footnote)
 
             if self.isExpanded {
                 Text(self.display.full)
