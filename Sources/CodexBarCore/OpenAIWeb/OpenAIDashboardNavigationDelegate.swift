@@ -32,7 +32,6 @@ final class NavigationDelegate: NSObject, WKNavigationDelegate {
         self.completion(result)
     }
 }
-#endif
 
 extension WKWebView {
     var codexNavigationDelegate: NavigationDelegate? {
@@ -48,3 +47,5 @@ extension WKWebView {
         }
     }
 }
+
+#endif

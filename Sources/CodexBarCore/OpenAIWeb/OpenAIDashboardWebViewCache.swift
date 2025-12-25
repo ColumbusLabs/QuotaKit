@@ -8,7 +8,6 @@ struct OpenAIDashboardWebViewLease {
     let log: (String) -> Void
     let release: () -> Void
 }
-#endif
 
 @MainActor
 final class OpenAIDashboardWebViewCache {
@@ -194,3 +193,5 @@ private final class OffscreenWebViewHost {
         self.window.close()
     }
 }
+
+#endif
