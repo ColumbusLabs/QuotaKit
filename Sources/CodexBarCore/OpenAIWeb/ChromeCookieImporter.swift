@@ -56,19 +56,24 @@ enum ChromeCookieImporter {
     /// - Parameter matchingDomains: Array of domain patterns to match (e.g., ["claude.ai"])
     /// - Returns: Array of cookie sources with matching records
     static func loadCookiesFromAllProfiles(matchingDomains domains: [String]) throws -> [CookieSource] {
-        let roots = self.candidateHomes().map { home in
-            home.appendingPathComponent("Library")
+        let roots: [(url: URL, labelPrefix: String)] = self.candidateHomes().flatMap { home in
+            let appSupport = home
+                .appendingPathComponent("Library")
                 .appendingPathComponent("Application Support")
-                .appendingPathComponent("Google")
-                .appendingPathComponent("Chrome")
+            return [
+                (appSupport.appendingPathComponent("Google").appendingPathComponent("Chrome"), "Chrome"),
+                (appSupport.appendingPathComponent("Google").appendingPathComponent("Chrome Beta"), "Chrome Beta"),
+                (appSupport.appendingPathComponent("Google").appendingPathComponent("Chrome Canary"), "Chrome Canary"),
+                (appSupport.appendingPathComponent("Chromium"), "Chromium"),
+            ]
         }
 
         var candidates: [ChromeProfileCandidate] = []
         for root in roots {
-            candidates.append(contentsOf: Self.chromeProfileCookieDBs(root: root))
+            candidates.append(contentsOf: Self.chromeProfileCookieDBs(root: root.url, labelPrefix: root.labelPrefix))
         }
         if candidates.isEmpty {
-            let display = roots.map(\.path).joined(separator: " • ")
+            let display = roots.map(\.url.path).joined(separator: " • ")
             throw ImportError.cookieDBNotFound(path: display)
         }
 
@@ -385,7 +390,7 @@ enum ChromeCookieImporter {
         let cookiesDB: URL
     }
 
-    private static func chromeProfileCookieDBs(root: URL) -> [ChromeProfileCandidate] {
+    private static func chromeProfileCookieDBs(root: URL, labelPrefix: String) -> [ChromeProfileCandidate] {
         // Common profile directories: "Default", "Profile 1", ..., plus possible custom profile dirs.
         guard let entries = try? FileManager.default.contentsOfDirectory(
             at: root,
@@ -402,10 +407,18 @@ enum ChromeCookieImporter {
         }
         .sorted { $0.lastPathComponent < $1.lastPathComponent }
 
-        return profileDirs.map { dir in
-            ChromeProfileCandidate(
-                label: "Chrome \(dir.lastPathComponent)",
-                cookiesDB: dir.appendingPathComponent("Cookies"))
+        return profileDirs.flatMap { dir in
+            let labelBase = "\(labelPrefix) \(dir.lastPathComponent)"
+            let cookiesDB = dir.appendingPathComponent("Cookies")
+            let networkCookiesDB = dir.appendingPathComponent("Network").appendingPathComponent("Cookies")
+            return [
+                ChromeProfileCandidate(
+                    label: "\(labelBase) (Network)",
+                    cookiesDB: networkCookiesDB),
+                ChromeProfileCandidate(
+                    label: labelBase,
+                    cookiesDB: cookiesDB),
+            ]
         }
     }
 

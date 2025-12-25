@@ -142,7 +142,7 @@ extension CursorLoginRunner: WKNavigationDelegate {
             }
 
             // Check if on dashboard (login successful)
-            if urlString.contains("cursor.com/dashboard") && !self.hasCompletedLogin {
+            if urlString.contains("cursor.com/dashboard"), !self.hasCompletedLogin {
                 await self.captureSessionCookies()
             }
         }
@@ -157,7 +157,7 @@ extension CursorLoginRunner: WKNavigationDelegate {
             let urlString = url.absoluteString
 
             // Detect redirect to dashboard after login
-            if urlString.contains("cursor.com/dashboard") && !self.hasCompletedLogin {
+            if urlString.contains("cursor.com/dashboard"), !self.hasCompletedLogin {
                 // Wait a moment for cookies to be set, then capture
                 try? await Task.sleep(nanoseconds: 500_000_000)
                 await self.captureSessionCookies()
@@ -204,4 +204,3 @@ extension CursorLoginRunner: NSWindowDelegate {
         }
     }
 }
-

@@ -1,6 +1,8 @@
 # Changelog
 
 ## 0.14.1 — Unreleased
+- Cursor: add new usage provider with browser cookie auth (cursor.com + cursor.sh), on-demand bar support, and dashboard access.
+- Cursor: keep stored sessions on transient failures; clear only on invalid auth.
 - Preferences: fix Advanced Display checkboxes and move the Quit button to the bottom of General.
 - Widgets: add a new “CodexBar Switcher” widget that lets you switch providers and remember the selection.
 - Menu: add a bit more padding to the provider switcher selection.

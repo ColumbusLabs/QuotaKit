@@ -141,8 +141,33 @@ struct CursorStatusProbeTests {
         #expect(usageSnapshot.accountEmail == "user@example.com")
         #expect(usageSnapshot.loginMethod == "Cursor Pro")
         #expect(usageSnapshot.secondary != nil)
-        #expect(usageSnapshot.providerCost != nil)
+        #expect(usageSnapshot.secondary?.usedPercent == 5.0)
+        #expect(usageSnapshot.providerCost?.used == 25.0)
+        #expect(usageSnapshot.providerCost?.limit == 500.0)
         #expect(usageSnapshot.providerCost?.currencyCode == "USD")
+    }
+
+    @Test
+    func usesIndividualOnDemandWhenNoTeamUsage() {
+        let snapshot = CursorStatusSnapshot(
+            planPercentUsed: 10.0,
+            planUsedUSD: 5.0,
+            planLimitUSD: 50.0,
+            onDemandUsedUSD: 12.0,
+            onDemandLimitUSD: 60.0,
+            teamOnDemandUsedUSD: nil,
+            teamOnDemandLimitUSD: nil,
+            billingCycleEnd: nil,
+            membershipType: "pro",
+            accountEmail: nil,
+            accountName: nil,
+            rawJSON: nil)
+
+        let usageSnapshot = snapshot.toUsageSnapshot()
+
+        #expect(usageSnapshot.secondary?.usedPercent == 20.0)
+        #expect(usageSnapshot.providerCost?.used == 12.0)
+        #expect(usageSnapshot.providerCost?.limit == 60.0)
     }
 
     @Test
@@ -196,7 +221,8 @@ struct CursorStatusProbeTests {
         // Should still have provider cost
         #expect(usageSnapshot.providerCost != nil)
         #expect(usageSnapshot.providerCost?.used == 10.0)
-        // Secondary should be nil when no team limit
+        #expect(usageSnapshot.providerCost?.limit == 0.0)
+        // Secondary should be nil when no on-demand limit
         #expect(usageSnapshot.secondary == nil)
     }
 
@@ -237,4 +263,3 @@ struct CursorStatusProbeTests {
         await store.clearCookies()
     }
 }
-

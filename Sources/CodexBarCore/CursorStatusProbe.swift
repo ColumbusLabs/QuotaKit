@@ -5,6 +5,12 @@ import os.log
 
 /// Imports Cursor session cookies from Safari/Chrome browsers
 public enum CursorCookieImporter {
+    private static let sessionCookieNames: Set<String> = [
+        "WorkosCursorSessionToken",
+        "__Secure-next-auth.session-token",
+        "next-auth.session-token",
+    ]
+
     public struct SessionInfo: Sendable {
         public let cookies: [HTTPCookie]
         public let sourceLabel: String
@@ -26,12 +32,16 @@ public enum CursorCookieImporter {
         // Try Safari first
         do {
             let safariRecords = try SafariCookieImporter.loadCookies(
-                matchingDomains: ["cursor.com"],
+                matchingDomains: ["cursor.com", "cursor.sh"],
                 logger: log)
             if !safariRecords.isEmpty {
                 let httpCookies = SafariCookieImporter.makeHTTPCookies(safariRecords)
-                log("Found \(httpCookies.count) Cursor cookies in Safari")
-                return SessionInfo(cookies: httpCookies, sourceLabel: "Safari")
+                if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
+                    log("Found \(httpCookies.count) Cursor cookies in Safari")
+                    return SessionInfo(cookies: httpCookies, sourceLabel: "Safari")
+                } else {
+                    log("Safari cookies found, but no Cursor session cookie present")
+                }
             }
         } catch {
             log("Safari cookie import failed: \(error.localizedDescription)")
@@ -40,32 +50,34 @@ public enum CursorCookieImporter {
         // Try Chrome
         do {
             let chromeSources = try ChromeCookieImporter.loadCookiesFromAllProfiles(
-                matchingDomains: ["cursor.com"])
-            for source in chromeSources {
-                if !source.records.isEmpty {
-                    let httpCookies = source.records.compactMap { record -> HTTPCookie? in
-                        // Chrome uses hostKey instead of domain
-                        let domain = record.hostKey.hasPrefix(".") ? String(record.hostKey.dropFirst()) : record.hostKey
-                        var props: [HTTPCookiePropertyKey: Any] = [
-                            .domain: domain,
-                            .path: record.path,
-                            .name: record.name,
-                            .value: record.value,
-                            .secure: record.isSecure,
-                        ]
-                        if record.isHTTPOnly {
-                            props[.init("HttpOnly")] = "TRUE"
-                        }
-                        // Chrome expiresUTC is in microseconds since 1601-01-01
-                        if record.expiresUTC > 0 {
-                            // Convert Chrome timestamp to Unix timestamp
-                            let unixTimestamp = Double(record.expiresUTC - 11_644_473_600_000_000) / 1_000_000
-                            props[.expires] = Date(timeIntervalSince1970: unixTimestamp)
-                        }
-                        return HTTPCookie(properties: props)
+                matchingDomains: ["cursor.com", "cursor.sh"])
+            for source in chromeSources where !source.records.isEmpty {
+                let httpCookies = source.records.compactMap { record -> HTTPCookie? in
+                    // Chrome uses hostKey instead of domain
+                    let domain = record.hostKey.hasPrefix(".") ? String(record.hostKey.dropFirst()) : record.hostKey
+                    var props: [HTTPCookiePropertyKey: Any] = [
+                        .domain: domain,
+                        .path: record.path,
+                        .name: record.name,
+                        .value: record.value,
+                        .secure: record.isSecure,
+                    ]
+                    if record.isHTTPOnly {
+                        props[.init("HttpOnly")] = "TRUE"
                     }
+                    // Chrome expiresUTC is in microseconds since 1601-01-01
+                    if record.expiresUTC > 0 {
+                        // Convert Chrome timestamp to Unix timestamp
+                        let unixTimestamp = Double(record.expiresUTC - 11_644_473_600_000_000) / 1_000_000
+                        props[.expires] = Date(timeIntervalSince1970: unixTimestamp)
+                    }
+                    return HTTPCookie(properties: props)
+                }
+                if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
                     log("Found \(httpCookies.count) Cursor cookies in \(source.label)")
                     return SessionInfo(cookies: httpCookies, sourceLabel: source.label)
+                } else {
+                    log("Chrome source \(source.label) has no Cursor session cookie")
                 }
             }
         } catch {
@@ -224,13 +236,25 @@ public struct CursorStatusSnapshot: Sendable {
             resetsAt: self.billingCycleEnd,
             resetDescription: self.billingCycleEnd.map { Self.formatResetDate($0) })
 
-        // Secondary: On-demand usage as percentage of team limit (if applicable)
-        let secondary: RateWindow? = if let teamLimit = self.teamOnDemandLimitUSD,
-                                         teamLimit > 0,
-                                         let teamUsed = self.teamOnDemandUsedUSD
+        let resolvedOnDemandUsed: Double
+        let resolvedOnDemandLimit: Double?
+
+        if let teamLimit = self.teamOnDemandLimitUSD,
+           let teamUsed = self.teamOnDemandUsedUSD
+        {
+            resolvedOnDemandUsed = teamUsed
+            resolvedOnDemandLimit = teamLimit
+        } else {
+            resolvedOnDemandUsed = self.onDemandUsedUSD
+            resolvedOnDemandLimit = self.onDemandLimitUSD
+        }
+
+        // Secondary: On-demand usage as percentage of limit (team when present, else individual)
+        let secondary: RateWindow? = if let limit = resolvedOnDemandLimit,
+                                        limit > 0
         {
             RateWindow(
-                usedPercent: (teamUsed / teamLimit) * 100,
+                usedPercent: (resolvedOnDemandUsed / limit) * 100,
                 windowMinutes: nil,
                 resetsAt: self.billingCycleEnd,
                 resetDescription: self.billingCycleEnd.map { Self.formatResetDate($0) })
@@ -239,10 +263,10 @@ public struct CursorStatusSnapshot: Sendable {
         }
 
         // Provider cost snapshot for on-demand usage
-        let providerCost: ProviderCostSnapshot? = if self.onDemandUsedUSD > 0 || (self.teamOnDemandUsedUSD ?? 0) > 0 {
+        let providerCost: ProviderCostSnapshot? = if resolvedOnDemandUsed > 0 {
             ProviderCostSnapshot(
-                used: self.onDemandUsedUSD,
-                limit: self.onDemandLimitUSD ?? self.teamOnDemandLimitUSD ?? 0,
+                used: resolvedOnDemandUsed,
+                limit: resolvedOnDemandLimit ?? 0,
                 currencyCode: "USD",
                 period: "monthly",
                 resetsAt: self.billingCycleEnd,
@@ -360,7 +384,11 @@ public actor CursorSessionStore {
                 } else if let url = value as? URL {
                     serializable[keyString] = url.absoluteString
                     serializable[keyString + "_isURL"] = true
-                } else if JSONSerialization.isValidJSONObject([value]) || value is String || value is Bool || value is NSNumber {
+                } else if JSONSerialization.isValidJSONObject([value]) ||
+                    value is String ||
+                    value is Bool ||
+                    value is NSNumber
+                {
                     serializable[keyString] = value
                 }
             }
@@ -436,9 +464,13 @@ public struct CursorStatusProbe: Sendable {
             do {
                 return try await self.fetchWithCookieHeader(cookieHeader)
             } catch {
-                // Clear invalid stored cookies
-                await CursorSessionStore.shared.clearCookies()
-                log("Stored session invalid, cleared")
+                if case CursorStatusProbeError.notLoggedIn = error {
+                    // Clear only when auth is invalid; keep for transient failures.
+                    await CursorSessionStore.shared.clearCookies()
+                    log("Stored session invalid, cleared")
+                } else {
+                    log("Stored session failed: \(error.localizedDescription)")
+                }
             }
         }
 
@@ -481,7 +513,8 @@ public struct CursorStatusProbe: Sendable {
             return try decoder.decode(CursorUsageSummary.self, from: data)
         } catch {
             let rawJSON = String(data: data, encoding: .utf8) ?? "<binary>"
-            throw CursorStatusProbeError.parseFailed("JSON decode failed: \(error.localizedDescription). Raw: \(rawJSON.prefix(200))")
+            throw CursorStatusProbeError
+                .parseFailed("JSON decode failed: \(error.localizedDescription). Raw: \(rawJSON.prefix(200))")
         }
     }
 
@@ -537,4 +570,3 @@ public struct CursorStatusProbe: Sendable {
             rawJSON: nil)
     }
 }
-

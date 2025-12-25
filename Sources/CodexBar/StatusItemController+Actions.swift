@@ -167,7 +167,7 @@ extension StatusItemController {
                 self.loginPhase = .idle
                 self.presentCursorLoginResult(result)
                 let outcome = self.describe(result.outcome)
-                self.loginLogger.notice("Cursor login \(outcome, privacy: .public)")
+                self.loginLogger.info("Cursor login", metadata: ["outcome": outcome])
                 print("[CodexBar] Cursor login outcome=\(outcome)")
                 if case .success = result.outcome {
                     self.postLoginNotification(for: .cursor)

@@ -26,7 +26,7 @@ Cursor support is implemented: CodexBar can show Cursor usage alongside other pr
 1. **Primary: Browser cookie import**
    - Safari: reads `~/Library/Cookies/Cookies.binarycookies`
    - Chrome: reads encrypted SQLite cookie DB from `~/Library/Application Support/Google/Chrome/*/Cookies`
-   - Requires cookies for `cursor.com` domain
+   - Requires cookies for `cursor.com` + `cursor.sh` domains
 
 2. **Fallback: Stored session**
    - If browser cookies unavailable, uses session stored via "Add Account" login flow
@@ -72,4 +72,3 @@ Cursor support is implemented: CodexBar can show Cursor usage alongside other pr
 | `hobby` | Cursor Hobby |
 | `team` | Cursor Team |
 | `enterprise` | Cursor Enterprise |
-
