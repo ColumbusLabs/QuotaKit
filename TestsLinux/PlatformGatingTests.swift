@@ -6,16 +6,16 @@ struct PlatformGatingTests {
     @Test
     func claudeWebFetcher_isNotSupportedOnLinux() async {
         #if os(Linux)
-        let error = #expect(throws: ClaudeWebAPIFetcher.FetchError.self) {
+        let error = await #expect(throws: ClaudeWebAPIFetcher.FetchError.self) {
             _ = try await ClaudeWebAPIFetcher.fetchUsage()
         }
-        if let error, case .notSupportedOnThisPlatform = error {
-            #expect(true)
-        } else {
-            #expect(false)
-        }
+        let isExpectedError = error.map { thrown in
+            if case .notSupportedOnThisPlatform = thrown { return true }
+            return false
+        } ?? false
+        #expect(isExpectedError)
         #else
-        #expect(true)
+        #expect(Bool(true))
         #endif
     }
 
@@ -24,7 +24,7 @@ struct PlatformGatingTests {
         #if os(Linux)
         #expect(ClaudeWebAPIFetcher.hasSessionKey() == false)
         #else
-        #expect(true)
+        #expect(Bool(true))
         #endif
     }
 
@@ -34,13 +34,13 @@ struct PlatformGatingTests {
         let error = #expect(throws: ClaudeWebAPIFetcher.FetchError.self) {
             _ = try ClaudeWebAPIFetcher.sessionKeyInfo()
         }
-        if let error, case .notSupportedOnThisPlatform = error {
-            #expect(true)
-        } else {
-            #expect(false)
-        }
+        let isExpectedError = error.map { thrown in
+            if case .notSupportedOnThisPlatform = thrown { return true }
+            return false
+        } ?? false
+        #expect(isExpectedError)
         #else
-        #expect(true)
+        #expect(Bool(true))
         #endif
     }
 }
