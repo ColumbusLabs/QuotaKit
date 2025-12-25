@@ -27,7 +27,6 @@ struct ProvidersPane: View {
                             binding: self.codexBinding)
                             .padding(.bottom, 5)
 
-                        self.codexSigningStatus()
                         if self.codexBinding.wrappedValue {
                             self.openAIDashboardLogin()
                                 .padding(.leading, 22)
@@ -271,32 +270,6 @@ struct ProvidersPane: View {
         }
     }
 
-    @ViewBuilder
-    private func codexSigningStatus() -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if let credits = self.store.credits {
-                Text("Codex credits")
-                    .font(.footnote.weight(.semibold))
-                Text(self.creditsSummary(credits))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            } else {
-                let hint = self.store.lastCreditsError ?? "Credits unavailable; keep Codex running to refresh."
-                Text(hint)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            if let lastError = self.store.lastCreditsError {
-                Text(self.truncated(lastError, prefix: ""))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(3)
-                    .truncationMode(.tail)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
     private func refreshClaudeWebStatus() {
         let expectedEmail = self.store.snapshot(for: .claude)?.accountEmail?
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -344,12 +317,6 @@ struct ProvidersPane: View {
             message = "\(message[..<idx])…"
         }
         return prefix + message
-    }
-
-    private func creditsSummary(_ snapshot: CreditsSnapshot) -> String {
-        let amount = snapshot.remaining.formatted(.number.precision(.fractionLength(0...2)))
-        let timestamp = snapshot.updatedAt.formatted(date: .abbreviated, time: .shortened)
-        return "Remaining \(amount) credits as of \(timestamp)."
     }
 
     private func expandedBinding(for provider: UsageProvider) -> Binding<Bool> {
