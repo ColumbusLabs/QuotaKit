@@ -10,6 +10,7 @@
 - CLI: `--openai-web` is macOS-only; Linux prints an error and exits.
 - Core: Linux CLI builds now compile (mac-only WebKit/logging gated; FoundationNetworking imports where needed).
 - Tests: cover alias fallback resolution for Codex/Claude and add Linux platform gating coverage (run in CI).
+- Docs: expand CLI docs for Linux install + flags.
 
 ## 0.14.0 — 2025-12-25
 - Antigravity: new local provider for the Antigravity language server (Claude + Gemini quotas) with an experimental toggle; improved plan display + debug output; clearer not-running/port errors; hide account switch.

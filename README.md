@@ -35,6 +35,11 @@ swift build -c release          # or debug for development
 open CodexBar.app
 ```
 
+## CLI
+- macOS: Preferences → Advanced → “Install CLI” installs `codexbar` to `/usr/local/bin` + `/opt/homebrew/bin`.
+- Linux: download `CodexBarCLI-<tag>-linux-<arch>.tar.gz` from GitHub Releases (x86_64 + aarch64) and run `./codexbar`.
+- Docs: see `docs/cli.md`.
+
 Requirements:
 - macOS 15+.
 - Codex: Codex CLI ≥ 0.55.0 installed and logged in (`codex --version`) to show the Codex row + credits. If your account hasn’t reported usage yet, the menu will show “No usage yet.”

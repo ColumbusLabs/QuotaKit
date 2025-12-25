@@ -16,6 +16,16 @@ Use it when you need usage numbers in scripts, CI, or dashboards without UI.
 - From the repo: `./bin/install-codexbar-cli.sh` (same symlink targets).
 - Manual: `ln -sf "/Applications/CodexBar.app/Contents/Helpers/CodexBarCLI" /usr/local/bin/codexbar`.
 
+### Linux install
+- Download `CodexBarCLI-<tag>-linux-<arch>.tar.gz` from GitHub Releases (x86_64 + aarch64).
+- Extract; run `./codexbar` (symlink) or `./CodexBarCLI`.
+
+```
+tar -xzf CodexBarCLI-0.14.1-linux-x86_64.tar.gz
+./codexbar --version
+./codexbar usage --format json --pretty
+```
+
 ## Build
 - `./Scripts/package_app.sh` (or `./Scripts/compile_and_run.sh`) bundles `CodexBarCLI` into `CodexBar.app/Contents/Helpers/CodexBarCLI`.
 - Standalone: `swift build -c release --product CodexBarCLI` (binary at `./.build/release/CodexBarCLI`).
@@ -24,19 +34,22 @@ Use it when you need usage numbers in scripts, CI, or dashboards without UI.
 ## Command
 - `codexbar` defaults to the `usage` command.
   - `--format text|json` (default: text).
-  - `--provider codex|claude|both` (default: your in-app toggles; falls back to Codex).
+  - `--provider codex|claude|gemini|antigravity|both|all` (default: your in-app toggles; falls back to Codex).
   - `--no-credits` (hide Codex credits in text output).
   - `--pretty` (pretty-print JSON).
   - `--status` (fetch provider status pages and include them in output).
+  - `--antigravity-plan-debug` (debug: print Antigravity planInfo fields to stderr).
 - `--openai-web` (Codex only): imports browser cookies (Safari → Chrome) and fetches OpenAI web dashboard data (code review remaining, usage breakdown, credits usage history when available).
     - `--openai-web-timeout <seconds>` (default: 60)
     - `--openai-web-debug-dump-html` (writes HTML snapshots to `/tmp` when data is missing)
+    - Linux: `--openai-web` is not supported; CLI prints an error and exits non-zero.
 - Global flags: `-h/--help`, `-V/--version`, `-v/--verbose`, `--log-level <trace|verbose|debug|info|warning|error|critical>`, `--json-output`.
 
 ## Example usage
 ```
 codexbar                          # text, respects app toggles
 codexbar --provider claude        # force Claude
+codexbar --provider all           # query all providers (honors your logins/toggles)
 codexbar --format json --pretty   # machine output
 codexbar --format json --provider both
 codexbar --status                 # include status page indicator/description
@@ -95,7 +108,7 @@ Plan: Pro
 }
 ```
 
-## Exit codes (proposed)
+## Exit codes
 - 0: success
 - 2: provider missing (binary not on PATH)
 - 3: parse/format error
