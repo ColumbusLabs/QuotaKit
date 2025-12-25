@@ -9,7 +9,7 @@ struct GoogleWorkspaceStatusTests {
 
     @Test
     func parseWorkspaceStatusSelectsWorstIncident() throws {
-        let data = Data("""
+        let data = Data(#"""
         [
           {
             "id": "inc-1",
@@ -38,7 +38,7 @@ struct GoogleWorkspaceStatusTests {
             }
           }
         ]
-        """.utf8)
+        """#.utf8)
 
         let status = try UsageStore.parseGoogleWorkspaceStatus(data: data, productID: self.productID)
         #expect(status.indicator == .critical)
@@ -48,7 +48,7 @@ struct GoogleWorkspaceStatusTests {
 
     @Test
     func parseWorkspaceStatusIgnoresResolvedIncidents() throws {
-        let data = Data("""
+        let data = Data(#"""
         [
           {
             "id": "inc-3",
@@ -64,7 +64,7 @@ struct GoogleWorkspaceStatusTests {
             }
           }
         ]
-        """.utf8)
+        """#.utf8)
 
         let status = try UsageStore.parseGoogleWorkspaceStatus(data: data, productID: self.productID)
         #expect(status.indicator == .none)
