@@ -32,11 +32,6 @@ probe_sparkle_key "$KEY_FILE"
 
 clear_sparkle_caches "$BUNDLE_ID"
 
-echo "Generating Sparkle signature for appcast entry"
-SIGNATURE=$(sign_update --ed-key-file "$KEY_FILE" -p "${APP_NAME}-${MARKETING_VERSION}.zip")
-SIZE=$(stat -f%z "${APP_NAME}-${MARKETING_VERSION}.zip")
-PUBDATE=$(LC_ALL=C date '+%a, %d %b %Y %H:%M:%S %z')
-
 NOTES_FILE=$(mktemp /tmp/codexbar-notes.XXXXXX.md)
 extract_notes_from_changelog "$MARKETING_VERSION" "$NOTES_FILE"
 trap 'rm -f "$KEY_FILE" "$NOTES_FILE"' EXIT
@@ -48,28 +43,10 @@ gh release create "$TAG" ${APP_NAME}-${MARKETING_VERSION}.zip ${APP_NAME}-${MARK
   --title "${APP_NAME} ${MARKETING_VERSION}" \
   --notes-file "$NOTES_FILE"
 
-python3 - "$APPCAST" "$MARKETING_VERSION" "$BUILD_NUMBER" "$SIGNATURE" "$SIZE" "$PUBDATE" <<'PY'
-import sys, xml.etree.ElementTree as ET
-appcast, ver, build, sig, size, pub = sys.argv[1:]
-tree = ET.parse(appcast)
-root = tree.getroot()
-ns = {"sparkle": "http://www.andymatuschak.org/xml-namespaces/sparkle"}
-channel = root.find("./channel")
-item = ET.Element("item")
-ET.SubElement(item, "title").text = ver
-ET.SubElement(item, "pubDate").text = pub
-ET.SubElement(item, "link").text = "https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml"
-ET.SubElement(item, "{http://www.andymatuschak.org/xml-namespaces/sparkle}version").text = build
-ET.SubElement(item, "{http://www.andymatuschak.org/xml-namespaces/sparkle}shortVersionString").text = ver
-ET.SubElement(item, "{http://www.andymatuschak.org/xml-namespaces/sparkle}minimumSystemVersion").text = "15.0"
-enc = ET.SubElement(item, "enclosure")
-enc.set("url", f"https://github.com/steipete/CodexBar/releases/download/v{ver}/CodexBar-{ver}.zip")
-enc.set("length", size)
-enc.set("type", "application/octet-stream")
-enc.set("{http://www.andymatuschak.org/xml-namespaces/sparkle}edSignature", sig)
-channel.insert(1, item)  # after title
-tree.write(appcast, encoding="utf-8", xml_declaration=True)
-PY
+SPARKLE_PRIVATE_KEY_FILE="$KEY_FILE" \
+  "$ROOT/Scripts/make_appcast.sh" \
+  "${APP_NAME}-${MARKETING_VERSION}.zip" \
+  "https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml"
 
 verify_appcast_entry "$APPCAST" "$MARKETING_VERSION" "$KEY_FILE"
 

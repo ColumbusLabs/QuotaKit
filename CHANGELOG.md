@@ -1,10 +1,14 @@
 # Changelog
 
 ## 0.13.1 — Unreleased
-- Status: poll Google Workspace incidents for Gemini and Antigravity.
-- Antigravity: add a local quota provider for Antigravity’s language server (Claude + Gemini model quotas) with a toggle in Settings.
-- Fix OpenAI web dashboard scrape ghosting a faint overlay on the desktop (WebKit keepalive window).
-- Claude: fix Extra usage spend/limit values (API returns cents); add tests.
+- Antigravity: new local provider for the Antigravity language server (Claude + Gemini quotas) with an experimental toggle; improved plan display + debug output; clearer not-running/port errors; hide account switch.
+- Status: poll Google Workspace incidents for Gemini + Antigravity; Status Page opens the Workspace status page.
+- Settings: add Providers tab; move ccusage + status toggles to General; keep display controls in Advanced.
+- Menu/UI: widen the menu for four providers; cards/charts adapt to menu width; tighten provider switcher/toggle spacing; keep menus refreshed while open.
+- Gemini: hide the dashboard action when unsupported.
+- Claude: fix Extra usage spend/limit units (cents); improve CLI probe stability; surface web session info in Debug.
+- OpenAI web: fix dashboard ghost overlay on desktop (WebKit keepalive window).
+- Debug: add a debug-lldb build mode for troubleshooting.
 
 ## 0.13.0 — 2025-12-24
 - Claude: add optional web-first usage via Safari/Chrome cookies (no CLI fallback) including “Extra usage” budget bar.

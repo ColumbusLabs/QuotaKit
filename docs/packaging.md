@@ -10,7 +10,8 @@ read_when:
 ## Scripts
 - `Scripts/package_app.sh`: builds arm64, writes `CodexBar.app`, seeds Sparkle keys/feed.
 - `Scripts/sign-and-notarize.sh`: signs, notarizes, staples, zips.
-- `Scripts/make_appcast.sh`: generates Sparkle appcast.
+- `Scripts/make_appcast.sh`: generates Sparkle appcast and embeds HTML release notes.
+- `Scripts/changelog-to-html.sh`: converts the per-version changelog section to HTML for Sparkle.
 
 ## Bundle contents
 - `CodexBarWidget.appex` bundled with app-group entitlements.
