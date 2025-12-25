@@ -70,4 +70,12 @@ let package = Package(
                 .enableUpcomingFeature("StrictConcurrency"),
                 .enableExperimentalFeature("SwiftTesting"),
             ]),
+        .testTarget(
+            name: "CodexBarLinuxTests",
+            dependencies: ["CodexBarCore", "CodexBarCLI"],
+            path: "TestsLinux",
+            swiftSettings: [
+                .enableUpcomingFeature("StrictConcurrency"),
+                .enableExperimentalFeature("SwiftTesting"),
+            ]),
     ])
