@@ -50,10 +50,11 @@ jobs:
 
           BIN_DIR="$(swift build -c release --product CodexBarCLI --static-swift-stdlib --show-bin-path)"
           OUT_DIR="$(mktemp -d)"
-          install -m 0755 "$BIN_DIR/CodexBarCLI" "$OUT_DIR/codexbar"
+          install -m 0755 "$BIN_DIR/CodexBarCLI" "$OUT_DIR/CodexBarCLI"
+          ln -s "CodexBarCLI" "$OUT_DIR/codexbar"
 
-          ASSET="codexbar-${TAG}-linux-${ARCH}.tar.gz"
-          (cd "$OUT_DIR" && tar czf "$ASSET" codexbar)
+          ASSET="CodexBarCLI-${TAG}-linux-${ARCH}.tar.gz"
+          (cd "$OUT_DIR" && tar czf "$ASSET" CodexBarCLI codexbar)
           sha256sum "$OUT_DIR/$ASSET" > "$OUT_DIR/$ASSET.sha256"
 
           echo "out_dir=$OUT_DIR" >> "$GITHUB_OUTPUT"
