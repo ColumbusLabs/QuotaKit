@@ -78,6 +78,9 @@ struct MenuDescriptor {
         case .antigravity?:
             sections.append(Self.usageSection(for: .antigravity, store: store))
             sections.append(Self.accountSectionForSnapshot(store.snapshot(for: .antigravity)))
+        case .cursor?:
+            sections.append(Self.usageSection(for: .cursor, store: store))
+            sections.append(Self.accountSectionForSnapshot(store.snapshot(for: .cursor)))
         case nil:
             var addedUsage = false
             for enabledProvider in store.enabledProviders() {
@@ -128,6 +131,16 @@ struct MenuDescriptor {
                 let used = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
                 let limit = UsageFormatter.currencyString(cost.limit, currencyCode: cost.currencyCode)
                 entries.append(.text("Extra usage: \(used) / \(limit)", .primary))
+            }
+
+            if provider == .cursor, let cost = snap.providerCost {
+                let used = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
+                if cost.limit > 0 {
+                    let limitStr = UsageFormatter.currencyString(cost.limit, currencyCode: cost.currencyCode)
+                    entries.append(.text("On-Demand: \(used) / \(limitStr)", .primary))
+                } else {
+                    entries.append(.text("On-Demand: \(used)", .primary))
+                }
             }
         } else {
             entries.append(.text("No usage yet", .secondary))
@@ -216,7 +229,7 @@ struct MenuDescriptor {
         }
 
         let dashboardTarget = provider ?? store.enabledProviders().first
-        if dashboardTarget == .codex || dashboardTarget == .claude {
+        if dashboardTarget == .codex || dashboardTarget == .claude || dashboardTarget == .cursor {
             entries.append(.action("Usage Dashboard", .dashboard))
         }
         entries.append(.action("Status Page", .statusPage))

@@ -109,6 +109,8 @@ struct GeneralPane: View {
             "Gemini"
         case .antigravity:
             "Antigravity"
+        case .cursor:
+            "Cursor"
         }
         guard provider == .claude || provider == .codex else {
             return Text("\(name): unsupported")

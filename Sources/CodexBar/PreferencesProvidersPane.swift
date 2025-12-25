@@ -90,6 +90,20 @@ struct ProvidersPane: View {
                             isExpanded: self.expandedBinding(for: .antigravity),
                             onCopy: { self.copyToPasteboard(display.full) })
                     }
+
+                    PreferenceToggleRow(
+                        title: self.store.metadata(for: .cursor).toggleTitle,
+                        subtitle: self.providerSubtitle(.cursor),
+                        binding: self.cursorBinding)
+                        .padding(.bottom, 5)
+
+                    if let display = self.providerErrorDisplay(.cursor) {
+                        ProviderErrorView(
+                            title: "Last Cursor fetch failed:",
+                            display: display,
+                            isExpanded: self.expandedBinding(for: .cursor),
+                            onCopy: { self.copyToPasteboard(display.full) })
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -117,6 +131,7 @@ struct ProvidersPane: View {
     private var claudeBinding: Binding<Bool> { self.binding(for: .claude) }
     private var geminiBinding: Binding<Bool> { self.binding(for: .gemini) }
     private var antigravityBinding: Binding<Bool> { self.binding(for: .antigravity) }
+    private var cursorBinding: Binding<Bool> { self.binding(for: .cursor) }
 
     private func binding(for provider: UsageProvider) -> Binding<Bool> {
         let meta = self.store.metadata(for: provider)
@@ -146,6 +161,11 @@ struct ProvidersPane: View {
 
         if cliName == "codex" {
             return "\(versionText) • \(usageText)"
+        }
+
+        // Cursor is web-based, no CLI version to detect
+        if provider == .cursor {
+            return "web • \(usageText)"
         }
 
         var detail = "\(cliName) \(versionText) • \(usageText)"
