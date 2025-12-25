@@ -5,8 +5,9 @@
 - Widgets: add a new “CodexBar Switcher” widget that lets you switch providers and remember the selection.
 - Menu: add a bit more padding to the provider switcher selection.
 - Dev: `compile_and_run.sh` now force-kills old instances to avoid launching duplicates.
-- CI: build and publish Linux `CodexBarCLI` release assets (x86_64 + aarch64).
+- CI: build and publish Linux `CodexBarCLI` release assets (x86_64 + aarch64) as `CodexBarCLI-<tag>-linux-<arch>.tar.gz` (+ `.sha256`).
 - CLI: add alias fallback for Codex/Claude detection when PATH lookups fail.
+- CLI: `--openai-web` is macOS-only; Linux prints an error.
 - Tests: cover alias fallback resolution for Codex/Claude.
 
 ## 0.14.0 — 2025-12-25
