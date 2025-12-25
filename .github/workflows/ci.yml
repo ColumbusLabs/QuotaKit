@@ -9,7 +9,7 @@ jobs:
   lint-build-test:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Select Xcode 26.1.1 (if present) or fallback to default
         run: |
@@ -53,7 +53,7 @@ jobs:
             runs-on: ubuntu-24.04-arm
     runs-on: ${{ matrix.runs-on }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Runner info
         run: |
@@ -81,9 +81,9 @@ jobs:
           BIN="$BIN_DIR/CodexBarCLI"
           "$BIN" --help >/dev/null
           "$BIN" --version >/dev/null
-          if "$BIN" usage --provider codex --openai-web >/dev/null 2>&1; then
-            echo "Expected --openai-web to fail on Linux"
+          if "$BIN" usage --provider codex --web >/dev/null 2>&1; then
+            echo "Expected --web to fail on Linux"
             exit 1
           fi
-          "$BIN" usage --provider codex --openai-web >/dev/null 2> /tmp/codexbarcli-stderr.txt || true
+          "$BIN" usage --provider codex --web >/dev/null 2> /tmp/codexbarcli-stderr.txt || true
           grep -q "only supported on macOS" /tmp/codexbarcli-stderr.txt
