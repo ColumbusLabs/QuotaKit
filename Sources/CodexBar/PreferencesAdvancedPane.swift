@@ -31,6 +31,19 @@ struct AdvancedPane: View {
 
                 Divider()
 
+                SettingsSection(contentSpacing: 12) {
+                    Text("Display")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                    PreferenceToggleRow(
+                        title: "Surprise me",
+                        subtitle: "Check if you like your agents having some fun up there.",
+                        binding: self.$settings.randomBlinkEnabled)
+                }
+
+                Divider()
+
                 SettingsSection(contentSpacing: 10) {
                     HStack(spacing: 12) {
                         Button {

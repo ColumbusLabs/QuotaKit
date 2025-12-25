@@ -56,10 +56,6 @@ struct GeneralPane: View {
                         title: "Merge Icons",
                         subtitle: "Use a single menu bar icon with a provider switcher.",
                         binding: self.$settings.mergeIcons)
-                    PreferenceToggleRow(
-                        title: "Surprise me",
-                        subtitle: "Check if you like your agents having some fun up there.",
-                        binding: self.$settings.randomBlinkEnabled)
                 }
 
                 Divider()

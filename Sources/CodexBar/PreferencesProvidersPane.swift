@@ -20,11 +20,12 @@ struct ProvidersPane: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 12) {
                         PreferenceToggleRow(
                             title: self.store.metadata(for: .codex).toggleTitle,
                             subtitle: self.providerSubtitle(.codex),
                             binding: self.codexBinding)
+                            .padding(.bottom, 5)
 
                         self.codexSigningStatus()
                         if self.codexBinding.wrappedValue {
@@ -47,6 +48,7 @@ struct ProvidersPane: View {
                         title: self.store.metadata(for: .claude).toggleTitle,
                         subtitle: self.providerSubtitle(.claude),
                         binding: self.claudeBinding)
+                        .padding(.bottom, 5)
 
                     if self.claudeBinding.wrappedValue {
                         self.claudeWebExtras()
@@ -65,6 +67,7 @@ struct ProvidersPane: View {
                         title: self.store.metadata(for: .gemini).toggleTitle,
                         subtitle: self.providerSubtitle(.gemini),
                         binding: self.geminiBinding)
+                        .padding(.bottom, 5)
 
                     if let display = self.providerErrorDisplay(.gemini) {
                         ProviderErrorView(
@@ -78,6 +81,7 @@ struct ProvidersPane: View {
                         title: self.store.metadata(for: .antigravity).toggleTitle,
                         subtitle: self.providerSubtitle(.antigravity),
                         binding: self.antigravityBinding)
+                        .padding(.bottom, 5)
 
                     if let display = self.providerErrorDisplay(.antigravity) {
                         ProviderErrorView(
@@ -178,7 +182,7 @@ struct ProvidersPane: View {
                     self.store.lastOpenAIDashboardError
 
                 if let status, !status.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 12) {
                         Text(status)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
