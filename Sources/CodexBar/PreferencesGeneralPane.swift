@@ -19,13 +19,6 @@ struct GeneralPane: View {
                         title: "Start at Login",
                         subtitle: "Automatically opens CodexBar when you start your Mac.",
                         binding: self.$settings.launchAtLogin)
-                    HStack {
-                        Spacer()
-                        Button("Quit CodexBar") { NSApp.terminate(nil) }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.large)
-                    }
-                    .padding(.top, 16)
                 }
 
                 Divider()
@@ -87,6 +80,17 @@ struct GeneralPane: View {
                         subtitle: "Notifies when the 5-hour session quota hits 0% and when it becomes " +
                             "available again.",
                         binding: self.$settings.sessionQuotaNotificationsEnabled)
+                }
+
+                Divider()
+
+                SettingsSection(contentSpacing: 12) {
+                    HStack {
+                        Spacer()
+                        Button("Quit CodexBar") { NSApp.terminate(nil) }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.large)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

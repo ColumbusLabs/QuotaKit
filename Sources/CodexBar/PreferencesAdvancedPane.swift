@@ -18,18 +18,6 @@ struct AdvancedPane: View {
                     Picker("", selection: self.$settings.refreshFrequency) {
                         ForEach(RefreshFrequency.allCases) { option in
                             Text(option.label).tag(option)
-                            PreferenceToggleRow(
-                                title: "Show usage as used",
-                                subtitle: "Progress bars fill as you consume quota (instead of showing remaining).",
-                                binding: self.$settings.usageBarsShowUsed)
-                            PreferenceToggleRow(
-                                title: "Merge Icons",
-                                subtitle: "Use a single menu bar icon with a provider switcher.",
-                                binding: self.$settings.mergeIcons)
-                            PreferenceToggleRow(
-                                title: "Surprise me",
-                                subtitle: "Check if you like your agents having some fun up there.",
-                                binding: self.$settings.randomBlinkEnabled)
                         }
                     }
                     .pickerStyle(.segmented)
@@ -39,6 +27,27 @@ struct AdvancedPane: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
+                }
+
+                Divider()
+
+                SettingsSection(contentSpacing: 12) {
+                    Text("Display")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                    PreferenceToggleRow(
+                        title: "Show usage as used",
+                        subtitle: "Progress bars fill as you consume quota (instead of showing remaining).",
+                        binding: self.$settings.usageBarsShowUsed)
+                    PreferenceToggleRow(
+                        title: "Merge Icons",
+                        subtitle: "Use a single menu bar icon with a provider switcher.",
+                        binding: self.$settings.mergeIcons)
+                    PreferenceToggleRow(
+                        title: "Surprise me",
+                        subtitle: "Check if you like your agents having some fun up there.",
+                        binding: self.$settings.randomBlinkEnabled)
                 }
 
                 Divider()
