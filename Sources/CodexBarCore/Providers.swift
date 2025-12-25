@@ -110,7 +110,7 @@ public enum ProviderDefaults {
             defaultEnabled: false,
             dashboardURL: "https://gemini.google.com",
             statusPageURL: nil,
-            statusLinkURL: "https://www.google.com/appsstatus/dashboard/products/npdyhgECDJ6tB66MxXyo",
+            statusLinkURL: "https://www.google.com/appsstatus/dashboard/products/npdyhgECDJ6tB66MxXyo/history",
             statusWorkspaceProductID: "npdyhgECDJ6tB66MxXyo"),
         .antigravity: ProviderMetadata(
             id: .antigravity,
@@ -126,7 +126,7 @@ public enum ProviderDefaults {
             defaultEnabled: false,
             dashboardURL: nil,
             statusPageURL: nil,
-            statusLinkURL: "https://www.google.com/appsstatus/dashboard/products/npdyhgECDJ6tB66MxXyo",
+            statusLinkURL: "https://www.google.com/appsstatus/dashboard/products/npdyhgECDJ6tB66MxXyo/history",
             statusWorkspaceProductID: "npdyhgECDJ6tB66MxXyo"),
     ]
 }
