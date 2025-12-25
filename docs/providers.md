@@ -1,5 +1,5 @@
 ---
-summary: "Provider data sources and parsing overview (Codex, Claude, Gemini, Antigravity)."
+summary: "Provider data sources and parsing overview (Codex, Claude, Gemini, Antigravity, Cursor)."
 read_when:
   - Adding or modifying provider fetch/parsing
   - Adjusting provider labels, toggles, or metadata
@@ -29,4 +29,12 @@ read_when:
 - Status: Google Workspace incidents for Gemini (same product feed).
 - Details in `docs/antigravity.md`.
 
-See also: `docs/claude.md`, `docs/antigravity.md`.
+## Cursor
+- Web-based: fetches usage from cursor.com API using browser session cookies.
+- Cookie import: Safari (Cookies.binarycookies) → Chrome (encrypted SQLite DB).
+- Fallback: stored session from "Add Account" WebKit login flow.
+- Shows plan usage percentage, on-demand usage, and billing cycle reset.
+- Supports Pro, Enterprise, Team, and Hobby membership types.
+- Details in `docs/cursor.md`.
+
+See also: `docs/claude.md`, `docs/antigravity.md`, `docs/cursor.md`.
