@@ -738,7 +738,6 @@ private final class ProviderSwitcherView: NSView {
         let provider: UsageProvider
         let image: NSImage
         let title: String
-        let tooltip: String
     }
 
     private let segments: [Segment]
@@ -766,8 +765,7 @@ private final class ProviderSwitcherView: NSView {
             return Segment(
                 provider: provider,
                 image: iconProvider(provider),
-                title: fullTitle,
-                tooltip: fullTitle)
+                title: fullTitle)
         }
         self.onSelect = onSelect
         self.showsIcons = showsIcons
@@ -817,7 +815,7 @@ private final class ProviderSwitcherView: NSView {
             button.wantsLayer = true
             button.layer?.cornerRadius = 6
             button.state = (selected == segment.provider) ? .on : .off
-            button.toolTip = segment.tooltip
+            button.toolTip = nil
             button.translatesAutoresizingMaskIntoConstraints = false
             self.buttons.append(button)
             return button
