@@ -789,7 +789,7 @@ private final class ProviderSwitcherView: NSView {
                     image: segment.image,
                     target: self,
                     action: #selector(self.handleSelection(_:)))
-                stacked.stackCenterYOffset = 3
+                stacked.stackCenterYOffset = 1
                 button = stacked
             } else {
                 button = PaddedToggleButton(
