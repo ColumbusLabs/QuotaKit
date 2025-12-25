@@ -8,6 +8,7 @@
 - CI: build and publish Linux `CodexBarCLI` release assets (x86_64 + aarch64) as `CodexBarCLI-<tag>-linux-<arch>.tar.gz` (+ `.sha256`).
 - CLI: add alias fallback for Codex/Claude detection when PATH lookups fail.
 - CLI: `--openai-web` is macOS-only; Linux prints an error.
+- Core: make Linux CLI builds compile by gating OSLog usage.
 - Tests: cover alias fallback resolution for Codex/Claude.
 
 ## 0.14.0 — 2025-12-25
