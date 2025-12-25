@@ -52,20 +52,6 @@ struct AdvancedPane: View {
 
                 Divider()
 
-                SettingsSection(contentSpacing: 12) {
-                    Text("Status")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-                    PreferenceToggleRow(
-                        title: "Check provider status",
-                        subtitle: "Polls OpenAI/Claude status pages and Google Workspace for " +
-                            "Gemini/Antigravity, surfacing incidents in the icon and menu.",
-                        binding: self.$settings.statusChecksEnabled)
-                }
-
-                Divider()
-
                 SettingsSection(contentSpacing: 10) {
                     HStack(spacing: 12) {
                         Button {
