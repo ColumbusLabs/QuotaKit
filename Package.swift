@@ -9,12 +9,15 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.8.1"),
         .package(url: "https://github.com/steipete/Commander", from: "0.2.0"),
+        .package(url: "https://github.com/apple/swift-log", from: "1.8.0"),
     ],
     targets: {
         var targets: [Target] = [
             .target(
                 name: "CodexBarCore",
-                dependencies: [],
+                dependencies: [
+                    .product(name: "Logging", package: "swift-log"),
+                ],
                 swiftSettings: [
                     .enableUpcomingFeature("StrictConcurrency"),
                 ]),
