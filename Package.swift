@@ -12,57 +12,22 @@ let package = Package(
     ],
     targets: {
         var targets: [Target] = [
-        .target(
-            name: "CodexBarCore",
-            dependencies: [],
-            swiftSettings: [
-                .enableUpcomingFeature("StrictConcurrency"),
-            ]),
-        .executableTarget(
-            name: "CodexBarClaudeWatchdog",
-            dependencies: [],
-            path: "Sources/CodexBarClaudeWatchdog",
-            swiftSettings: [
-                .enableUpcomingFeature("StrictConcurrency"),
-            ]),
-        .executableTarget(
-            name: "CodexBar",
-            dependencies: [
-                .product(name: "Sparkle", package: "Sparkle"),
-                "CodexBarCore",
-            ],
-            path: "Sources/CodexBar",
-            swiftSettings: [
-                // Opt into Swift 6 strict concurrency (approachable migration path).
-                .enableUpcomingFeature("StrictConcurrency"),
-                .define("ENABLE_SPARKLE"),
-            ]),
-        .executableTarget(
-            name: "CodexBarWidget",
-            dependencies: ["CodexBarCore"],
-            path: "Sources/CodexBarWidget",
-            swiftSettings: [
-                .enableUpcomingFeature("StrictConcurrency"),
-            ]),
-        .executableTarget(
-            name: "CodexBarCLI",
-            dependencies: [
-                "CodexBarCore",
-                .product(name: "Commander", package: "Commander"),
-            ],
-            path: "Sources/CodexBarCLI",
-            swiftSettings: [
-                .enableUpcomingFeature("StrictConcurrency"),
-            ]),
-        .executableTarget(
-            name: "CodexBarClaudeWebProbe",
-            dependencies: [
-                "CodexBarCore",
-            ],
-            path: "Sources/CodexBarClaudeWebProbe",
-            swiftSettings: [
-                .enableUpcomingFeature("StrictConcurrency"),
-            ]),
+            .target(
+                name: "CodexBarCore",
+                dependencies: [],
+                swiftSettings: [
+                    .enableUpcomingFeature("StrictConcurrency"),
+                ]),
+            .executableTarget(
+                name: "CodexBarCLI",
+                dependencies: [
+                    "CodexBarCore",
+                    .product(name: "Commander", package: "Commander"),
+                ],
+                path: "Sources/CodexBarCLI",
+                swiftSettings: [
+                    .enableUpcomingFeature("StrictConcurrency"),
+                ]),
         .testTarget(
             name: "CodexBarLinuxTests",
             dependencies: ["CodexBarCore", "CodexBarCLI"],
@@ -74,6 +39,42 @@ let package = Package(
         ]
 
         #if os(macOS)
+        targets.append(contentsOf: [
+            .executableTarget(
+                name: "CodexBarClaudeWatchdog",
+                dependencies: [],
+                path: "Sources/CodexBarClaudeWatchdog",
+                swiftSettings: [
+                    .enableUpcomingFeature("StrictConcurrency"),
+                ]),
+            .executableTarget(
+                name: "CodexBar",
+                dependencies: [
+                    .product(name: "Sparkle", package: "Sparkle"),
+                    "CodexBarCore",
+                ],
+                path: "Sources/CodexBar",
+                swiftSettings: [
+                    // Opt into Swift 6 strict concurrency (approachable migration path).
+                    .enableUpcomingFeature("StrictConcurrency"),
+                    .define("ENABLE_SPARKLE"),
+                ]),
+            .executableTarget(
+                name: "CodexBarWidget",
+                dependencies: ["CodexBarCore"],
+                path: "Sources/CodexBarWidget",
+                swiftSettings: [
+                    .enableUpcomingFeature("StrictConcurrency"),
+                ]),
+            .executableTarget(
+                name: "CodexBarClaudeWebProbe",
+                dependencies: ["CodexBarCore"],
+                path: "Sources/CodexBarClaudeWebProbe",
+                swiftSettings: [
+                    .enableUpcomingFeature("StrictConcurrency"),
+                ]),
+        ])
+
         targets.append(.testTarget(
             name: "CodexBarTests",
             dependencies: ["CodexBar", "CodexBarCore", "CodexBarCLI"],
