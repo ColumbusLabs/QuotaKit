@@ -65,18 +65,18 @@ enum CodexBarCLI {
         let includeCredits = format == .json ? true : !values.flags.contains("noCredits")
         let includeStatus = values.flags.contains("status")
         let pretty = values.flags.contains("pretty")
-        let openaiWeb = values.flags.contains("openaiWeb")
+        let web = values.flags.contains("web")
         let antigravityPlanDebug = values.flags.contains("antigravityPlanDebug")
-        let openaiWebDebugDumpHTML = values.flags.contains("openaiWebDebugDumpHtml")
-        let openaiWebTimeout = Self.decodeOpenAIWebTimeout(from: values) ?? 60
+        let webDebugDumpHTML = values.flags.contains("webDebugDumpHtml")
+        let webTimeout = Self.decodeWebTimeout(from: values) ?? 60
         let verbose = values.flags.contains("verbose")
         let useColor = Self.shouldUseColor()
         let fetcher = UsageFetcher()
-        let claudeFetcher = ClaudeUsageFetcher()
+        let claudeFetcher = ClaudeUsageFetcher(preferWebAPI: web)
 
         #if !os(macOS)
-        if openaiWeb {
-            Self.exit(code: .failure, message: "Error: --openai-web is only supported on macOS.")
+        if web {
+            Self.exit(code: .failure, message: "Error: --web is only supported on macOS.")
         }
         #endif
 
@@ -103,10 +103,10 @@ enum CodexBarCLI {
                     }
                 }
                 var dashboard: OpenAIDashboardSnapshot?
-                if p == .codex, openaiWeb {
+                if p == .codex, web {
                     let options = OpenAIWebOptions(
-                        timeout: openaiWebTimeout,
-                        debugDumpHTML: openaiWebDebugDumpHTML,
+                        timeout: webTimeout,
+                        debugDumpHTML: webDebugDumpHTML,
                         verbose: verbose)
                     dashboard = await Self.fetchOpenAIWebDashboard(
                         usage: result.usage,
@@ -345,8 +345,8 @@ enum CodexBarCLI {
         return cache.snapshot
     }
 
-    private static func decodeOpenAIWebTimeout(from values: ParsedValues) -> TimeInterval? {
-        if let raw = values.options["openaiWebTimeout"]?.last, let seconds = Double(raw) {
+    private static func decodeWebTimeout(from values: ParsedValues) -> TimeInterval? {
+        if let raw = values.options["webTimeout"]?.last, let seconds = Double(raw) {
             return seconds
         }
         return nil
@@ -528,12 +528,14 @@ enum CodexBarCLI {
 
         Usage:
           codexbar usage [--format text|json] [--provider codex|claude|gemini|antigravity|both|all]
-                       [--no-credits] [--pretty] [--status] [--openai-web] [--antigravity-plan-debug]
+                       [--no-credits] [--pretty] [--status] [--web] [--web-timeout <seconds>]
+                       [--web-debug-dump-html] [--antigravity-plan-debug]
 
         Description:
           Print usage from enabled providers as text (default) or JSON. Honors your in-app toggles.
-          When --openai-web is set (macOS only), CodexBar imports browser cookies (Safari → Chrome)
-          and fetches the OpenAI web dashboard.
+          When --web is set (macOS only), CodexBar uses browser cookies to fetch web-backed data:
+          - Codex: OpenAI web dashboard (credits history, code review remaining, usage breakdown)
+          - Claude: claude.ai API (session + weekly usage, plus account metadata when available)
 
         Examples:
           codexbar usage
@@ -541,7 +543,7 @@ enum CodexBarCLI {
           codexbar usage --provider gemini
           codexbar usage --format json --provider all --pretty
           codexbar usage --status
-          codexbar usage --provider codex --openai-web --format json --pretty
+          codexbar usage --provider codex --web --format json --pretty
         """
     }
 
@@ -551,7 +553,8 @@ enum CodexBarCLI {
 
         Usage:
           codexbar [--format text|json] [--provider codex|claude|gemini|antigravity|both|all]
-                  [--no-credits] [--pretty] [--status] [--openai-web] [--antigravity-plan-debug]
+                  [--no-credits] [--pretty] [--status] [--web] [--web-timeout <seconds>]
+                  [--web-debug-dump-html] [--antigravity-plan-debug]
 
         Global flags:
           -h, --help      Show help
@@ -571,15 +574,15 @@ enum CodexBarCLI {
 // MARK: - Options & decoding helpers
 
 private struct UsageOptions: CommanderParsable {
-    private static let openAIWebHelp: String = {
+    private static let webHelp: String = {
         #if os(macOS)
-        "Fetch OpenAI web dashboard data (imports browser cookies)"
+        "Fetch web-backed usage data (uses browser cookies)"
         #else
-        "Fetch OpenAI web dashboard data (macOS only)"
+        "Fetch web-backed usage data (macOS only)"
         #endif
     }()
 
-    @Option(name: .long("provider"), help: "Provider to query: codex | claude | gemini | both | all")
+    @Option(name: .long("provider"), help: "Provider to query: codex | claude | gemini | antigravity | both | all")
     var provider: ProviderSelection?
 
     @Option(name: .long("format"), help: "Output format: text | json")
@@ -597,14 +600,14 @@ private struct UsageOptions: CommanderParsable {
     @Flag(name: .long("status"), help: "Fetch and include provider status")
     var status: Bool = false
 
-    @Flag(name: .long("openai-web"), help: Self.openAIWebHelp)
-    var openaiWeb: Bool = false
+    @Flag(name: .long("web"), help: Self.webHelp)
+    var web: Bool = false
 
-    @Option(name: .long("openai-web-timeout"), help: "OpenAI web dashboard fetch timeout (seconds)")
-    var openaiWebTimeout: Double?
+    @Option(name: .long("web-timeout"), help: "Web fetch timeout (seconds) (Codex only)")
+    var webTimeout: Double?
 
-    @Flag(name: .long("openai-web-debug-dump-html"), help: "Dump HTML snapshots to /tmp when data is missing")
-    var openaiWebDebugDumpHtml: Bool = false
+    @Flag(name: .long("web-debug-dump-html"), help: "Dump HTML snapshots to /tmp when Codex dashboard data is missing")
+    var webDebugDumpHtml: Bool = false
 
     @Flag(name: .long("antigravity-plan-debug"), help: "Emit Antigravity planInfo fields (debug)")
     var antigravityPlanDebug: Bool = false

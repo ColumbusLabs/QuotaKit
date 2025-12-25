@@ -16,6 +16,18 @@ struct CLIProviderSelectionTests {
     }
 
     @Test
+    func helpMentionsWebFlag() {
+        let usage = CodexBarCLI.usageHelp(version: "0.0.0")
+        let root = CodexBarCLI.rootHelp(version: "0.0.0")
+        #expect(usage.contains("--web"))
+        #expect(root.contains("--web"))
+        #expect(usage.contains("--web-timeout"))
+        #expect(usage.contains("--web-debug-dump-html"))
+        #expect(!usage.contains("--openai-web"))
+        #expect(!root.contains("--openai-web"))
+    }
+
+    @Test
     func providerSelectionRespectsOverride() {
         let selection = CodexBarCLI.providerSelection(rawOverride: "gemini", enabled: [.codex, .claude])
         #expect(selection.asList == [.gemini])
