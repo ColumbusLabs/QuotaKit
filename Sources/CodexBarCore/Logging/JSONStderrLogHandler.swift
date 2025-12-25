@@ -52,7 +52,7 @@ struct JSONStderrLogHandler: LogHandler {
 
         guard let data = try? self.encoder.encode(payload),
               let text = String(data: data, encoding: .utf8) else { return }
-        fputs(text + "\n", stderr)
+        Self.writeStderr(text + "\n")
     }
 }
 
@@ -66,4 +66,14 @@ private struct JSONLogLine: Encodable {
     let function: String
     let line: UInt
     let metadata: [String: String]?
+}
+
+extension JSONStderrLogHandler {
+    private static func writeStderr(_ text: String) {
+        let bytes = Array(text.utf8)
+        bytes.withUnsafeBytes { buffer in
+            guard let baseAddress = buffer.baseAddress else { return }
+            _ = write(STDERR_FILENO, baseAddress, buffer.count)
+        }
+    }
 }
