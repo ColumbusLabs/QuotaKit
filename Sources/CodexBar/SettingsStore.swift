@@ -102,6 +102,11 @@ final class SettingsStore {
         didSet { self.userDefaults.set(self.mergeIcons, forKey: "mergeIcons") }
     }
 
+    /// Optional: show provider icons in the in-menu switcher.
+    var switcherShowsIcons: Bool {
+        didSet { self.userDefaults.set(self.switcherShowsIcons, forKey: "switcherShowsIcons") }
+    }
+
     private var selectedMenuProviderRaw: String? {
         didSet {
             if let raw = self.selectedMenuProviderRaw {
@@ -139,6 +144,7 @@ final class SettingsStore {
         _ = self.openAIDashboardEnabled
         _ = self.claudeWebExtrasEnabled
         _ = self.mergeIcons
+        _ = self.switcherShowsIcons
         _ = self.debugLoadingPattern
         _ = self.selectedMenuProvider
         _ = self.providerToggleRevision
@@ -173,6 +179,7 @@ final class SettingsStore {
         self.openAIDashboardEnabled = userDefaults.object(forKey: "openAIDashboardEnabled") as? Bool ?? false
         self.claudeWebExtrasEnabled = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false
         self.mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true
+        self.switcherShowsIcons = userDefaults.object(forKey: "switcherShowsIcons") as? Bool ?? true
         self.selectedMenuProviderRaw = userDefaults.string(forKey: "selectedMenuProvider")
         self.providerDetectionCompleted = userDefaults.object(
             forKey: "providerDetectionCompleted") as? Bool ?? false

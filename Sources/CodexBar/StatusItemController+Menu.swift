@@ -15,15 +15,15 @@ extension StatusItemController {
     }
 
     private func menuCardWidth(for providers: [UsageProvider], menu: NSMenu? = nil) -> CGFloat {
-        let fallbackWidth: CGFloat = if self.shouldMergeIcons, providers.count >= 4 {
-            ceil(Self.menuCardBaseWidth * 1.1)
+        let fallbackWidth: CGFloat = if self.shouldMergeIcons, providers.count > 4 {
+            ceil(Self.menuCardBaseWidth * 1.05)
         } else {
             Self.menuCardBaseWidth
         }
         guard let menu else { return fallbackWidth }
         let window = menu.items.compactMap { $0.view?.window }.first
         let width = window?.contentLayoutRect.width ?? 0
-        return width > 0 ? width : fallbackWidth
+        return width > 0 ? max(width, fallbackWidth) : fallbackWidth
     }
 
     func makeMenu() -> NSMenu {
@@ -218,8 +218,12 @@ extension StatusItemController {
             providers: providers,
             selected: selected,
             width: self.menuCardWidth(for: providers, menu: menu),
+            showsIcons: self.settings.switcherShowsIcons,
             iconProvider: { [weak self] provider in
                 self?.switcherIcon(for: provider) ?? NSImage()
+            },
+            weeklyRemainingProvider: { [weak self] provider in
+                self?.switcherWeeklyRemaining(for: provider)
             },
             onSelect: { [weak self, weak menu] provider in
                 guard let self, let menu else { return }
@@ -450,6 +454,10 @@ extension StatusItemController {
             statusIndicator: indicator)
         image.isTemplate = true
         return image
+    }
+
+    private func switcherWeeklyRemaining(for provider: UsageProvider) -> Double? {
+        self.store.snapshot(for: provider)?.secondary?.remainingPercent
     }
 
     private func selector(for action: MenuDescriptor.MenuAction) -> (Selector, Any?) {
@@ -735,31 +743,43 @@ private final class ProviderSwitcherView: NSView {
         let provider: UsageProvider
         let image: NSImage
         let title: String
+        let tooltip: String
     }
 
     private let segments: [Segment]
     private let onSelect: (UsageProvider) -> Void
+    private let showsIcons: Bool
+    private let weeklyRemainingProvider: (UsageProvider) -> Double?
     private var buttons: [NSButton] = []
     private let selectedBackground = NSColor.controlAccentColor.cgColor
     private let unselectedBackground = NSColor.clear.cgColor
     private let selectedTextColor = NSColor.white
     private let unselectedTextColor = NSColor.secondaryLabelColor
+    private let stackedIcons: Bool
 
     init(
         providers: [UsageProvider],
         selected: UsageProvider?,
         width: CGFloat,
+        showsIcons: Bool,
         iconProvider: (UsageProvider) -> NSImage,
+        weeklyRemainingProvider: @escaping (UsageProvider) -> Double?,
         onSelect: @escaping (UsageProvider) -> Void)
     {
         self.segments = providers.map { provider in
-            Segment(
+            let fullTitle = Self.switcherTitle(for: provider)
+            return Segment(
                 provider: provider,
                 image: iconProvider(provider),
-                title: Self.switcherTitle(for: provider))
+                title: fullTitle,
+                tooltip: fullTitle)
         }
         self.onSelect = onSelect
-        super.init(frame: NSRect(x: 0, y: 0, width: width, height: 30))
+        self.showsIcons = showsIcons
+        self.weeklyRemainingProvider = weeklyRemainingProvider
+        self.stackedIcons = showsIcons && providers.count > 3
+        let height: CGFloat = self.stackedIcons ? 46 : 30
+        super.init(frame: NSRect(x: 0, y: 0, width: width, height: height))
 
         func makeButton(index: Int, segment: Segment) -> NSButton {
             let button = PaddedToggleButton(
@@ -767,8 +787,24 @@ private final class ProviderSwitcherView: NSView {
                 target: self,
                 action: #selector(self.handleSelection(_:)))
             button.tag = index
-            button.image = Self.paddedImage(segment.image, leading: 1)
-            button.imagePosition = .imageLeading
+            if self.stackedIcons {
+                button.contentPadding = NSEdgeInsets(top: 6, left: 7, bottom: 3, right: 7)
+            }
+            if self.showsIcons {
+                if self.stackedIcons {
+                    button.image = segment.image
+                    button.imagePosition = .imageAbove
+                } else {
+                    button.image = Self.paddedImage(segment.image, leading: 1)
+                    button.imagePosition = .imageLeading
+                }
+                button.imageScaling = .scaleProportionallyDown
+            } else {
+                button.image = nil
+                button.imagePosition = .noImage
+                let remaining = self.weeklyRemainingProvider(segment.provider)
+                self.addWeeklyIndicator(to: button, remainingPercent: remaining)
+            }
             button.bezelStyle = .regularSquare
             button.isBordered = false
             button.controlSize = .small
@@ -779,6 +815,7 @@ private final class ProviderSwitcherView: NSView {
             button.wantsLayer = true
             button.layer?.cornerRadius = 6
             button.state = (selected == segment.provider) ? .on : .off
+            button.toolTip = segment.tooltip
             button.translatesAutoresizingMaskIntoConstraints = false
             self.buttons.append(button)
             return button
@@ -911,6 +948,45 @@ private final class ProviderSwitcherView: NSView {
         return newImage
     }
 
+    private func addWeeklyIndicator(to view: NSView, remainingPercent: Double?) {
+        let track = NSView()
+        track.wantsLayer = true
+        track.layer?.backgroundColor = NSColor.tertiaryLabelColor.cgColor
+        track.layer?.cornerRadius = 1
+        track.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(track)
+
+        let fill = NSView()
+        fill.wantsLayer = true
+        fill.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
+        fill.layer?.cornerRadius = 1
+        fill.translatesAutoresizingMaskIntoConstraints = false
+        track.addSubview(fill)
+
+        let ratio: CGFloat = if let remainingPercent {
+            CGFloat(max(0, min(1, remainingPercent / 100)))
+        } else {
+            0
+        }
+
+        NSLayoutConstraint.activate([
+            track.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 8),
+            track.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -8),
+            track.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -3),
+            track.heightAnchor.constraint(equalToConstant: 2),
+            fill.leadingAnchor.constraint(equalTo: track.leadingAnchor),
+            fill.topAnchor.constraint(equalTo: track.topAnchor),
+            fill.bottomAnchor.constraint(equalTo: track.bottomAnchor),
+        ])
+
+        fill.widthAnchor.constraint(equalTo: track.widthAnchor, multiplier: ratio).isActive = true
+
+        if remainingPercent == nil {
+            track.isHidden = true
+            fill.isHidden = true
+        }
+    }
+
     private static func switcherTitle(for provider: UsageProvider) -> String {
         switch provider {
         case .codex: "Codex"
@@ -923,7 +999,17 @@ private final class ProviderSwitcherView: NSView {
 }
 
 private final class PaddedToggleButton: NSButton {
-    private let contentPadding = NSEdgeInsets(top: 4, left: 7, bottom: 4, right: 7)
+    var contentPadding = NSEdgeInsets(top: 4, left: 7, bottom: 4, right: 7) {
+        didSet {
+            if oldValue.top != self.contentPadding.top ||
+                oldValue.left != self.contentPadding.left ||
+                oldValue.bottom != self.contentPadding.bottom ||
+                oldValue.right != self.contentPadding.right
+            {
+                self.invalidateIntrinsicContentSize()
+            }
+        }
+    }
 
     override var intrinsicContentSize: NSSize {
         let size = super.intrinsicContentSize

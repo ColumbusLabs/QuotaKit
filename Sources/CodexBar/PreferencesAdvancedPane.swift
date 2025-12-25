@@ -45,6 +45,12 @@ struct AdvancedPane: View {
                         subtitle: "Use a single menu bar icon with a provider switcher.",
                         binding: self.$settings.mergeIcons)
                     PreferenceToggleRow(
+                        title: "Switcher shows icons",
+                        subtitle: "Show provider icons in the switcher (otherwise show a weekly progress line).",
+                        binding: self.$settings.switcherShowsIcons)
+                        .disabled(!self.settings.mergeIcons)
+                        .opacity(self.settings.mergeIcons ? 1 : 0.5)
+                    PreferenceToggleRow(
                         title: "Surprise me",
                         subtitle: "Check if you like your agents having some fun up there.",
                         binding: self.$settings.randomBlinkEnabled)
