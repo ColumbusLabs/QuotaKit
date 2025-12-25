@@ -28,6 +28,8 @@ final class TTYIntegrationTests: XCTestCase {
             // Weekly is absent for some enterprise accounts.
         } catch let ClaudeUsageError.parseFailed(message) {
             throw XCTSkip("Claude PTY parse failed (likely not logged in or usage unavailable): \(message)")
+        } catch let ClaudeStatusProbeError.parseFailed(message) {
+            throw XCTSkip("Claude status parse failed (likely not logged in or usage unavailable): \(message)")
         } catch ClaudeUsageError.claudeNotInstalled {
             throw XCTSkip("Claude CLI not installed; skipping live PTY probe.")
         } catch ClaudeStatusProbeError.timedOut {
