@@ -52,6 +52,7 @@ struct MenuCardModelTests {
             lastError: nil,
             usageBarsShowUsed: false,
             tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
             now: now))
 
         #expect(model.providerName == "Codex")
@@ -106,6 +107,7 @@ struct MenuCardModelTests {
             lastError: nil,
             usageBarsShowUsed: true,
             tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
             now: now))
 
         #expect(model.metrics.first?.title == "Session")
@@ -150,6 +152,7 @@ struct MenuCardModelTests {
             lastError: nil,
             usageBarsShowUsed: false,
             tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
             now: now))
 
         #expect(model.metrics.contains { $0.title == "Code review" && $0.percent == 73 })
@@ -186,6 +189,7 @@ struct MenuCardModelTests {
             lastError: nil,
             usageBarsShowUsed: false,
             tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
             now: now))
 
         #expect(model.metrics.count == 1)
@@ -211,6 +215,7 @@ struct MenuCardModelTests {
             lastError: "Probe failed for Codex",
             usageBarsShowUsed: false,
             tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
             now: Date()))
 
         #expect(model.subtitleStyle == .error)
@@ -252,6 +257,7 @@ struct MenuCardModelTests {
             lastError: nil,
             usageBarsShowUsed: false,
             tokenCostUsageEnabled: true,
+            showOptionalCreditsAndExtraUsage: true,
             now: now))
 
         #expect(model.tokenUsage?.monthLine.contains("456") == true)
@@ -276,9 +282,79 @@ struct MenuCardModelTests {
             lastError: nil,
             usageBarsShowUsed: false,
             tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
             now: Date()))
 
         #expect(model.planText == nil)
         #expect(model.email.isEmpty)
+    }
+
+    @Test
+    func hidesCodexCreditsWhenDisabled() {
+        let now = Date()
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 0, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            tertiary: nil,
+            updatedAt: now,
+            accountEmail: "codex@example.com",
+            accountOrganization: nil,
+            loginMethod: nil)
+        let metadata = ProviderDefaults.metadata[.codex]!
+
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .codex,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: CreditsSnapshot(remaining: 12, events: [], updatedAt: now),
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: "codex@example.com", plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: false,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: false,
+            now: now))
+
+        #expect(model.creditsText == nil)
+    }
+
+    @Test
+    func hidesClaudeExtraUsageWhenDisabled() {
+        let now = Date()
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 0, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            tertiary: nil,
+            providerCost: ProviderCostSnapshot(used: 12, limit: 200, currencyCode: "USD", updatedAt: now),
+            updatedAt: now,
+            accountEmail: "claude@example.com",
+            accountOrganization: nil,
+            loginMethod: nil)
+        let metadata = ProviderDefaults.metadata[.claude]!
+
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .claude,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: false,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: false,
+            now: now))
+
+        #expect(model.providerCost == nil)
     }
 }
