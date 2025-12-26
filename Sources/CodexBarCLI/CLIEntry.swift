@@ -249,6 +249,8 @@ enum CodexBarCLI {
             nil
         case .cursor:
             nil
+        case .factory:
+            nil
         }
     }
 
@@ -260,6 +262,7 @@ enum CodexBarCLI {
         case .gemini: "gemini-cli"
         case .antigravity: "antigravity"
         case .cursor: "cursor"
+        case .factory: "factory"
         }
         guard let raw, !raw.isEmpty else { return (nil, source) }
         if let match = raw.range(of: #"(\d+(?:\.\d+)+)"#, options: .regularExpression) {
@@ -479,6 +482,10 @@ enum CodexBarCLI {
                 return try .success((usage: snap.toUsageSnapshot(), credits: nil))
             case .cursor:
                 let probe = CursorStatusProbe()
+                let snap = try await probe.fetch()
+                return .success((usage: snap.toUsageSnapshot(), credits: nil))
+            case .factory:
+                let probe = FactoryStatusProbe()
                 let snap = try await probe.fetch()
                 return .success((usage: snap.toUsageSnapshot(), credits: nil))
             }
@@ -893,6 +900,7 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
     case gemini
     case antigravity
     case cursor
+    case factory
     case both
     case all
     case custom([UsageProvider])
@@ -905,6 +913,7 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
         case "gemini": self = .gemini
         case "antigravity": self = .antigravity
         case "cursor": self = .cursor
+        case "factory": self = .factory
         case "both": self = .both
         case "all": self = .all
         default: return nil
@@ -919,6 +928,7 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
         case .gemini: self = .gemini
         case .antigravity: self = .antigravity
         case .cursor: self = .cursor
+        case .factory: self = .factory
         }
     }
 
@@ -930,8 +940,9 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
         case .gemini: [.gemini]
         case .antigravity: [.antigravity]
         case .cursor: [.cursor]
+        case .factory: [.factory]
         case .both: [.codex, .claude]
-        case .all: [.codex, .claude, .zai, .cursor, .gemini, .antigravity]
+        case .all: [.codex, .claude, .zai, .cursor, .gemini, .antigravity, .factory]
         case let .custom(providers): providers
         }
     }

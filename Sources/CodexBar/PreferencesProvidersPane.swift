@@ -136,6 +136,8 @@ struct ProvidersPane: View {
             return "api"
         case .antigravity:
             return "local"
+        case .factory:
+            return "web"
         }
     }
 

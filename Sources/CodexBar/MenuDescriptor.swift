@@ -84,6 +84,9 @@ struct MenuDescriptor {
         case .cursor?:
             sections.append(Self.usageSection(for: .cursor, store: store, settings: settings))
             sections.append(Self.accountSectionForSnapshot(store.snapshot(for: .cursor)))
+        case .factory?:
+            sections.append(Self.usageSection(for: .factory, store: store, settings: settings))
+            sections.append(Self.accountSectionForSnapshot(store.snapshot(for: .factory)))
         case nil:
             var addedUsage = false
             for enabledProvider in store.enabledProviders() {
@@ -244,7 +247,7 @@ struct MenuDescriptor {
         }
 
         let dashboardTarget = provider ?? store.enabledProviders().first
-        if dashboardTarget == .codex || dashboardTarget == .claude || dashboardTarget == .cursor {
+        if dashboardTarget == .codex || dashboardTarget == .claude || dashboardTarget == .cursor || dashboardTarget == .factory {
             entries.append(.action("Usage Dashboard", .dashboard))
         }
         entries.append(.action("Status Page", .statusPage))

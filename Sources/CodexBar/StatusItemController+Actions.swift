@@ -245,6 +245,7 @@ extension StatusItemController {
         case .gemini: "Gemini login successful"
         case .antigravity: "Antigravity login successful"
         case .cursor: "Cursor login successful"
+        case .factory: "Factory login successful"
         }
         let body = "You can return to the app; authentication finished."
         AppNotifications.shared.post(idPrefix: "login-\(provider.rawValue)", title: title, body: body)

@@ -38,6 +38,7 @@ enum ProviderChoice: String, AppEnum {
         case .antigravity: self = .antigravity
         case .cursor: return nil // Cursor not yet supported in widgets
         case .zai: self = .zai
+        case .factory: return nil // Factory not yet supported in widgets
         }
     }
 }

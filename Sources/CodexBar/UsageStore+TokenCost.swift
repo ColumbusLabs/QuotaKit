@@ -58,6 +58,8 @@ extension UsageStore {
             return "Antigravity cost summary is not supported."
         case .cursor:
             return "Cursor cost summary is not supported."
+        case .factory:
+            return "Factory cost summary is not supported."
         }
     }
 }
