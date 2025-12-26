@@ -215,13 +215,15 @@ private struct UsageMenuCardHeaderView: View {
                     .font(.subheadline)
                     .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
             }
-            HStack(alignment: .firstTextBaseline) {
+            let subtitleAlignment: VerticalAlignment = self.model.subtitleStyle == .error ? .top : .firstTextBaseline
+            HStack(alignment: subtitleAlignment) {
                 Text(self.model.subtitleText)
                     .font(.footnote)
                     .foregroundStyle(self.subtitleColor)
                     .lineLimit(self.model.subtitleStyle == .error ? 4 : 1)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
                 Spacer()
                 if let plan = self.model.planText {
                     Text(plan)
