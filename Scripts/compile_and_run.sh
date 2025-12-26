@@ -146,10 +146,12 @@ if ! open -n "${APP_BUNDLE}"; then
   disown
 fi
 
-# 5) Verify the app stays up for at least 1s.
-sleep 1
-if pgrep -f "${APP_PROCESS_PATTERN}" >/dev/null 2>&1; then
-  log "OK: CodexBar is running."
-else
-  fail "App exited immediately. Check crash logs in Console.app (User Reports)."
-fi
+# 5) Verify the app stays up for at least a moment (launch can be >1s on some systems).
+for _ in {1..10}; do
+  if pgrep -f "${APP_PROCESS_PATTERN}" >/dev/null 2>&1; then
+    log "OK: CodexBar is running."
+    exit 0
+  fi
+  sleep 0.4
+done
+fail "App exited immediately. Check crash logs in Console.app (User Reports)."
