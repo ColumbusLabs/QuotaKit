@@ -8,7 +8,7 @@ read_when:
 
 # CodexBar CLI
 
-A lightweight Commander-based CLI that mirrors the menubar app’s data paths (Codex RPC → PTY fallback; Claude PTY with optional web-first mode).
+A lightweight Commander-based CLI that mirrors the menubar app’s data paths (Codex RPC → PTY fallback; Claude OAuth by default with web/CLI overrides).
 Use it when you need usage numbers in scripts, CI, or dashboards without UI.
 
 ## Install
@@ -43,8 +43,9 @@ tar -xzf CodexBarCLI-0.14.1-linux-x86_64.tar.gz
     - Codex: OpenAI web dashboard (code review remaining, usage breakdown, credits usage history when available).
         - `--web-timeout <seconds>` (default: 60)
         - `--web-debug-dump-html` (writes HTML snapshots to `/tmp` when data is missing)
-    - Claude: claude.ai API (session + weekly usage, plus account metadata when available).
+    - Claude: claude.ai API (session + weekly usage, plus account metadata when available) unless overridden.
     - Linux: `--web` is not supported; CLI prints an error and exits non-zero.
+- `--claude-source <oauth|web|cli>`: override Claude’s data source (OAuth default).
 - Global flags: `-h/--help`, `-V/--version`, `-v/--verbose`, `--log-level <trace|verbose|debug|info|warning|error|critical>`, `--json-output`.
 
 ## Example usage
@@ -119,7 +120,7 @@ Plan: Pro
 
 ## Notes
 - CLI reuses menubar toggles when present (prefers `com.steipete.codexbar{,.debug}` defaults), otherwise defaults to Codex only.
-- Prefer Codex RPC first, then PTY fallback; Claude defaults to PTY scraping unless `--web` is set.
+- Prefer Codex RPC first, then PTY fallback; Claude defaults to OAuth unless `--claude-source` overrides (or `--web` is set).
 - OpenAI web requires a signed-in `chatgpt.com` session in Safari or Chrome. No passwords are stored; CodexBar reuses cookies.
 - Safari cookie import may require granting CodexBar Full Disk Access (System Settings → Privacy & Security → Full Disk Access).
 - The `openaiDashboard` JSON field is normally sourced from the app’s cached dashboard snapshot; `--web` refreshes it live via WebKit using a per-account cookie store.

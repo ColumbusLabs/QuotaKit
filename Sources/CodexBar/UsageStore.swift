@@ -52,6 +52,7 @@ extension UsageStore {
             _ = self.settings.randomBlinkEnabled
             _ = self.settings.openAIDashboardEnabled
             _ = self.settings.claudeWebExtrasEnabled
+            _ = self.settings.claudeUsageDataSource
             _ = self.settings.mergeIcons
             _ = self.settings.selectedMenuProvider
             _ = self.settings.debugLoadingPattern

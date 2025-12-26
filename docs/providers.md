@@ -16,7 +16,10 @@ read_when:
 - Status: Statuspage.io (OpenAI).
 
 ## Claude
-- Long-lived PTY session runs `/usage` + `/status` and parses CLI output.
+- Primary: OAuth usage API (`https://api.anthropic.com/api/oauth/usage`) using Claude CLI credentials
+  (keychain first, then `~/.claude/.credentials.json`).
+- Optional: web cookie enrichment for Extra usage spend/limit (see `docs/claude.md`).
+- Fallback sources (debug-selectable): Claude web API (cookies) or CLI PTY `/usage` + `/status` parsing.
 - Handles Sonnet-only weekly bar when present; legacy Opus label fallback.
 - Status: Statuspage.io (Anthropic).
 

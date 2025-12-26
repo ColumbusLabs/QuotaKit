@@ -57,6 +57,19 @@ struct DebugPane: View {
                 }
 
                 SettingsSection(
+                    title: "Claude data source",
+                    caption: "Debug override for Claude usage fetching.")
+                {
+                    Picker("Source", selection: self.$settings.claudeUsageDataSource) {
+                        ForEach(ClaudeUsageDataSource.allCases) { source in
+                            Text(source.displayName).tag(source)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 240)
+                }
+
+                SettingsSection(
                     title: "Probe logs",
                     caption: "Fetch the latest PTY scrape for Codex or Claude; Copy keeps the full text.")
                 {

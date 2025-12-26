@@ -251,8 +251,8 @@ struct ProvidersPane: View {
             PreferenceToggleRow(
                 title: "Augment Claude via web",
                 subtitle: [
-                    "Uses your Safari/Chrome session cookies to add extra dashboard fields.",
-                    "Adds reset timestamps + Extra usage spend/limit.",
+                    "Uses Safari/Chrome session cookies to add extra dashboard fields on top of OAuth.",
+                    "Adds Extra usage spend/limit.",
                     "Safari → Chrome.",
                 ].joined(separator: " "),
                 binding: self.$settings.claudeWebExtrasEnabled)

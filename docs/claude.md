@@ -22,7 +22,18 @@ Claude Code support is implemented: CodexBar can show Claude alongside Codex (on
 
 ## Data path (Claude)
 
-### How we fetch usage (no tmux)
+### OAuth API (default)
+- Uses Claude CLI OAuth credentials (Keychain `Claude Code-credentials` first, then `~/.claude/.credentials.json`).
+- Calls `GET https://api.anthropic.com/api/oauth/usage` with `anthropic-beta: oauth-2025-04-20`.
+- Maps `five_hour` → session, `seven_day` → weekly, `seven_day_sonnet`/`seven_day_opus` → model-specific weekly.
+- Extra usage credits (if present) surface as `ProviderCostSnapshot` in the menu.
+- If the OAuth token is expired/missing, we surface a direct “run `claude` to refresh” error.
+
+### Web cookie enrichment (optional)
+- When “Augment Claude via web” is enabled, we attempt to read Safari/Chrome cookies and fetch
+  Claude web extras (Extra usage spend/limit). This is best-effort and does not override identity fields.
+
+### CLI PTY fallback (debug)
 - We launch a single Claude CLI session inside a pseudo-TTY and keep it alive between refreshes to avoid warm-up churn.
 - Driver steps:
   1) Boot loop waits for the TUI header and handles first-run prompts:
@@ -65,6 +76,7 @@ Claude Code support is implemented: CodexBar can show Claude alongside Codex (on
 - Quick live probe: `LIVE_CLAUDE_FETCH=1 swift test --filter liveClaudeFetchPTY` (prints raw PTY output on failure).
 - Manually drive the runner: `swift run claude-probe` (if you add a temporary target) or reuse the TTYCommandRunner from a Swift REPL.
 - Check the raw text: log the buffer before ANSI stripping if parsing fails—look for stuck autocomplete lists instead of the Usage pane.
+- Debug data source selector: Preferences → Debug → “Claude data source” (OAuth/Web/CLI).
 - Things that commonly break:
   - Claude CLI not logged in (`claude login` needed).
   - CLI auth token expired: the Usage pane shows `Error: Failed to load usage data: {"error_code":"token_expired", …}`;

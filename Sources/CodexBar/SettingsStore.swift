@@ -97,6 +97,16 @@ final class SettingsStore {
         didSet { self.userDefaults.set(self.claudeWebExtrasEnabled, forKey: "claudeWebExtrasEnabled") }
     }
 
+    private var claudeUsageDataSourceRaw: String? {
+        didSet {
+            if let raw = self.claudeUsageDataSourceRaw {
+                self.userDefaults.set(raw, forKey: "claudeUsageDataSource")
+            } else {
+                self.userDefaults.removeObject(forKey: "claudeUsageDataSource")
+            }
+        }
+    }
+
     /// Optional: collapse provider icons into a single menu bar item with an in-menu switcher.
     var mergeIcons: Bool {
         didSet { self.userDefaults.set(self.mergeIcons, forKey: "mergeIcons") }
@@ -132,6 +142,11 @@ final class SettingsStore {
         }
     }
 
+    var claudeUsageDataSource: ClaudeUsageDataSource {
+        get { ClaudeUsageDataSource(rawValue: self.claudeUsageDataSourceRaw ?? "") ?? .oauth }
+        set { self.claudeUsageDataSourceRaw = newValue.rawValue }
+    }
+
     var menuObservationToken: Int {
         _ = self.refreshFrequency
         _ = self.launchAtLogin
@@ -143,6 +158,7 @@ final class SettingsStore {
         _ = self.randomBlinkEnabled
         _ = self.openAIDashboardEnabled
         _ = self.claudeWebExtrasEnabled
+        _ = self.claudeUsageDataSource
         _ = self.mergeIcons
         _ = self.switcherShowsIcons
         _ = self.debugLoadingPattern
@@ -178,6 +194,8 @@ final class SettingsStore {
         self.randomBlinkEnabled = userDefaults.object(forKey: "randomBlinkEnabled") as? Bool ?? false
         self.openAIDashboardEnabled = userDefaults.object(forKey: "openAIDashboardEnabled") as? Bool ?? false
         self.claudeWebExtrasEnabled = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false
+        let claudeSourceRaw = userDefaults.string(forKey: "claudeUsageDataSource")
+        self.claudeUsageDataSourceRaw = claudeSourceRaw ?? ClaudeUsageDataSource.oauth.rawValue
         self.mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true
         self.switcherShowsIcons = userDefaults.object(forKey: "switcherShowsIcons") as? Bool ?? true
         self.selectedMenuProviderRaw = userDefaults.string(forKey: "selectedMenuProvider")

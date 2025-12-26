@@ -67,13 +67,15 @@ enum CodexBarCLI {
         let includeStatus = values.flags.contains("status")
         let pretty = values.flags.contains("pretty")
         let web = values.flags.contains("web")
+        let claudeSourceOverride = Self.decodeClaudeSource(from: values)
         let antigravityPlanDebug = values.flags.contains("antigravityPlanDebug")
         let webDebugDumpHTML = values.flags.contains("webDebugDumpHtml")
         let webTimeout = Self.decodeWebTimeout(from: values) ?? 60
         let verbose = values.flags.contains("verbose")
         let useColor = Self.shouldUseColor()
         let fetcher = UsageFetcher()
-        let claudeFetcher = ClaudeUsageFetcher(preferWebAPI: web)
+        let claudeSource = claudeSourceOverride ?? (web ? .web : .oauth)
+        let claudeFetcher = ClaudeUsageFetcher(dataSource: claudeSource)
 
         #if !os(macOS)
         if web {
@@ -368,6 +370,11 @@ enum CodexBarCLI {
         return nil
     }
 
+    private static func decodeClaudeSource(from values: ParsedValues) -> ClaudeUsageDataSource? {
+        guard let raw = values.options["claudeSource"]?.last else { return nil }
+        return ClaudeUsageDataSource(argument: raw)
+    }
+
     private struct OpenAIWebOptions: Sendable {
         let timeout: TimeInterval
         let debugDumpHTML: Bool
@@ -470,6 +477,7 @@ enum CodexBarCLI {
              GeminiStatusProbeError.timedOut:
             ExitCode(4)
         case ClaudeUsageError.parseFailed,
+             ClaudeUsageError.oauthFailed,
              UsageError.decodeFailed,
              UsageError.noRateLimitsFound,
              GeminiStatusProbeError.parseFailed:
@@ -544,14 +552,14 @@ enum CodexBarCLI {
 
         Usage:
           codexbar usage [--format text|json] [--provider codex|claude|gemini|antigravity|both|all]
-                       [--no-credits] [--pretty] [--status] [--web] [--web-timeout <seconds>]
-                       [--web-debug-dump-html] [--antigravity-plan-debug]
+                       [--no-credits] [--pretty] [--status] [--web] [--claude-source <oauth|web|cli>]
+                       [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
 
         Description:
           Print usage from enabled providers as text (default) or JSON. Honors your in-app toggles.
           When --web is set (macOS only), CodexBar uses browser cookies to fetch web-backed data:
           - Codex: OpenAI web dashboard (credits history, code review remaining, usage breakdown)
-          - Claude: claude.ai API (session + weekly usage, plus account metadata when available)
+          - Claude: claude.ai API (unless --claude-source overrides)
 
         Examples:
           codexbar usage
@@ -569,8 +577,8 @@ enum CodexBarCLI {
 
         Usage:
           codexbar [--format text|json] [--provider codex|claude|gemini|antigravity|both|all]
-                  [--no-credits] [--pretty] [--status] [--web] [--web-timeout <seconds>]
-                  [--web-debug-dump-html] [--antigravity-plan-debug]
+                  [--no-credits] [--pretty] [--status] [--web] [--claude-source <oauth|web|cli>]
+                  [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
 
         Global flags:
           -h, --help      Show help
@@ -619,6 +627,9 @@ private struct UsageOptions: CommanderParsable {
     @Flag(name: .long("web"), help: Self.webHelp)
     var web: Bool = false
 
+    @Option(name: .long("claude-source"), help: "Claude usage source: oauth | web | cli")
+    var claudeSource: String?
+
     @Option(name: .long("web-timeout"), help: "Web fetch timeout (seconds) (Codex only)")
     var webTimeout: Double?
 
@@ -627,6 +638,17 @@ private struct UsageOptions: CommanderParsable {
 
     @Flag(name: .long("antigravity-plan-debug"), help: "Emit Antigravity planInfo fields (debug)")
     var antigravityPlanDebug: Bool = false
+}
+
+extension ClaudeUsageDataSource {
+    fileprivate init?(argument: String) {
+        switch argument.lowercased() {
+        case "oauth": self = .oauth
+        case "web": self = .web
+        case "cli": self = .cli
+        default: return nil
+        }
+    }
 }
 
 enum ProviderSelection: Sendable, ExpressibleFromArgument {

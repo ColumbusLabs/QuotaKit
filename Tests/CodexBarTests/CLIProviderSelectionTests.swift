@@ -21,6 +21,8 @@ struct CLIProviderSelectionTests {
         let root = CodexBarCLI.rootHelp(version: "0.0.0")
         #expect(usage.contains("--web"))
         #expect(root.contains("--web"))
+        #expect(usage.contains("--claude-source"))
+        #expect(root.contains("--claude-source"))
         #expect(usage.contains("--web-timeout"))
         #expect(usage.contains("--web-debug-dump-html"))
         #expect(!usage.contains("--openai-web"))

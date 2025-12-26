@@ -21,7 +21,7 @@ final class TTYIntegrationTests: XCTestCase {
             throw XCTSkip("Claude CLI not installed; skipping live PTY probe.")
         }
 
-        let fetcher = ClaudeUsageFetcher()
+        let fetcher = ClaudeUsageFetcher(dataSource: .cli)
         do {
             let snapshot = try await fetcher.loadLatestUsage()
             XCTAssertNotNil(snapshot.primary.remainingPercent, "Claude session percent missing")

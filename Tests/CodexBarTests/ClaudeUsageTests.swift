@@ -109,7 +109,7 @@ struct ClaudeUsageTests {
         guard ProcessInfo.processInfo.environment["LIVE_CLAUDE_FETCH"] == "1" else {
             return
         }
-        let fetcher = ClaudeUsageFetcher()
+        let fetcher = ClaudeUsageFetcher(dataSource: .cli)
         do {
             let snap = try await fetcher.loadLatestUsage()
             let opusUsed = snap.opus?.usedPercent ?? -1
@@ -167,7 +167,7 @@ struct ClaudeUsageTests {
         guard ProcessInfo.processInfo.environment["LIVE_CLAUDE_WEB_FETCH"] == "1" else {
             return
         }
-        let fetcher = ClaudeUsageFetcher(preferWebAPI: true)
+        let fetcher = ClaudeUsageFetcher(dataSource: .web)
         let snap = try await fetcher.loadLatestUsage()
         let weeklyUsed = snap.secondary?.usedPercent ?? -1
         let opusUsed = snap.opus?.usedPercent ?? -1
@@ -354,12 +354,14 @@ struct ClaudeUsageTests {
     }
 
     @Test
-    func claudeUsageFetcherInitWithPreferWebAPI() {
+    func claudeUsageFetcherInitWithDataSources() {
         // Verify we can create fetchers with both configurations
         let defaultFetcher = ClaudeUsageFetcher()
-        let webFetcher = ClaudeUsageFetcher(preferWebAPI: true)
+        let webFetcher = ClaudeUsageFetcher(dataSource: .web)
+        let cliFetcher = ClaudeUsageFetcher(dataSource: .cli)
         // Both should be valid instances (no crashes)
         #expect(defaultFetcher.detectVersion() != nil || defaultFetcher.detectVersion() == nil)
         #expect(webFetcher.detectVersion() != nil || webFetcher.detectVersion() == nil)
+        #expect(cliFetcher.detectVersion() != nil || cliFetcher.detectVersion() == nil)
     }
 }

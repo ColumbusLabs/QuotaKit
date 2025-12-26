@@ -43,6 +43,7 @@ public struct ClaudeUsageSnapshot: Sendable {
 public enum ClaudeUsageError: LocalizedError, Sendable {
     case claudeNotInstalled
     case parseFailed(String)
+    case oauthFailed(String)
 
     public var errorDescription: String? {
         switch self {
@@ -50,26 +51,31 @@ public enum ClaudeUsageError: LocalizedError, Sendable {
             "Claude CLI is not installed. Install it from https://docs.claude.ai/claude-code."
         case let .parseFailed(details):
             "Could not parse Claude usage: \(details)"
+        case let .oauthFailed(details):
+            details
         }
     }
 }
 
 public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     private let environment: [String: String]
-    private let preferWebAPI: Bool
+    private let dataSource: ClaudeUsageDataSource
+    private let useWebExtras: Bool
     private static let log = CodexBarLog.logger("claude-usage")
 
     /// Creates a new ClaudeUsageFetcher.
     /// - Parameters:
     ///   - environment: Process environment (default: current process environment)
-    ///   - preferWebAPI: If true, tries to fetch usage via claude.ai web API using browser cookies first.
-    ///                   Falls back to CLI scraping if web API fails. (default: false)
+    ///   - dataSource: Usage data source (default: OAuth API).
+    ///   - useWebExtras: If true, attempts to enrich usage with Claude web data (cookies).
     public init(
         environment: [String: String] = ProcessInfo.processInfo.environment,
-        preferWebAPI: Bool = false)
+        dataSource: ClaudeUsageDataSource = .oauth,
+        useWebExtras: Bool = false)
     {
         self.environment = environment
-        self.preferWebAPI = preferWebAPI
+        self.dataSource = dataSource
+        self.useWebExtras = useWebExtras
     }
 
     // MARK: - Parsing helpers
@@ -193,15 +199,107 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     }
 
     public func loadLatestUsage(model: String = "sonnet") async throws -> ClaudeUsageSnapshot {
-        // Web API only when enabled (no CLI fallback in this mode).
-        if self.preferWebAPI { return try await self.loadViaWebAPI() }
-
-        // CLI scraping path (original behavior)
-        do {
-            return try await self.loadViaPTY(model: model, timeout: 10)
-        } catch {
-            return try await self.loadViaPTY(model: model, timeout: 24)
+        switch self.dataSource {
+        case .oauth:
+            var snap = try await self.loadViaOAuth()
+            snap = await self.applyWebExtrasIfNeeded(to: snap)
+            return snap
+        case .web:
+            return try await self.loadViaWebAPI()
+        case .cli:
+            do {
+                var snap = try await self.loadViaPTY(model: model, timeout: 10)
+                snap = await self.applyWebExtrasIfNeeded(to: snap)
+                return snap
+            } catch {
+                var snap = try await self.loadViaPTY(model: model, timeout: 24)
+                snap = await self.applyWebExtrasIfNeeded(to: snap)
+                return snap
+            }
         }
+    }
+
+    // MARK: - OAuth API path
+
+    private func loadViaOAuth() async throws -> ClaudeUsageSnapshot {
+        do {
+            let creds = try ClaudeOAuthCredentialsStore.load()
+            if creds.isExpired {
+                throw ClaudeUsageError.oauthFailed("Claude OAuth token expired. Run `claude` to refresh.")
+            }
+            let usage = try await ClaudeOAuthUsageFetcher.fetchUsage(accessToken: creds.accessToken)
+            return try Self.mapOAuthUsage(usage, credentials: creds)
+        } catch let error as ClaudeUsageError {
+            throw error
+        } catch let error as ClaudeOAuthCredentialsError {
+            throw ClaudeUsageError.oauthFailed(error.localizedDescription)
+        } catch let error as ClaudeOAuthFetchError {
+            throw ClaudeUsageError.oauthFailed(error.localizedDescription)
+        } catch {
+            throw ClaudeUsageError.oauthFailed(error.localizedDescription)
+        }
+    }
+
+    private static func mapOAuthUsage(
+        _ usage: OAuthUsageResponse,
+        credentials: ClaudeOAuthCredentials) throws -> ClaudeUsageSnapshot
+    {
+        func makeWindow(_ window: OAuthUsageWindow?, windowMinutes: Int?) -> RateWindow? {
+            guard let window,
+                  let utilization = window.utilization
+            else { return nil }
+            let resetDate = ClaudeOAuthUsageFetcher.parseISO8601Date(window.resetsAt)
+            let resetDescription = resetDate.map(Self.formatResetDate)
+            return RateWindow(
+                usedPercent: utilization,
+                windowMinutes: windowMinutes,
+                resetsAt: resetDate,
+                resetDescription: resetDescription)
+        }
+
+        guard let primary = makeWindow(usage.fiveHour, windowMinutes: 5 * 60) else {
+            throw ClaudeUsageError.parseFailed("missing session data")
+        }
+
+        let weekly = makeWindow(usage.sevenDay, windowMinutes: 7 * 24 * 60)
+        let modelSpecific = makeWindow(
+            usage.sevenDaySonnet ?? usage.sevenDayOpus,
+            windowMinutes: 7 * 24 * 60)
+
+        return ClaudeUsageSnapshot(
+            primary: primary,
+            secondary: weekly,
+            opus: modelSpecific,
+            providerCost: Self.oauthExtraUsageCost(usage.extraUsage),
+            updatedAt: Date(),
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: Self.inferPlan(rateLimitTier: credentials.rateLimitTier),
+            rawText: nil)
+    }
+
+    private static func oauthExtraUsageCost(_ extra: OAuthExtraUsage?) -> ProviderCostSnapshot? {
+        guard let extra, extra.isEnabled == true else { return nil }
+        guard let used = extra.usedCredits,
+              let limit = extra.monthlyLimit else { return nil }
+        let currency = extra.currency?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let code = (currency?.isEmpty ?? true) ? "USD" : currency!
+        return ProviderCostSnapshot(
+            used: used,
+            limit: limit,
+            currencyCode: code,
+            period: "Monthly",
+            resetsAt: nil,
+            updatedAt: Date())
+    }
+
+    private static func inferPlan(rateLimitTier: String?) -> String? {
+        let tier = rateLimitTier?.lowercased() ?? ""
+        if tier.contains("max") { return "Claude Max" }
+        if tier.contains("pro") { return "Claude Pro" }
+        if tier.contains("team") { return "Claude Team" }
+        if tier.contains("enterprise") { return "Claude Enterprise" }
+        return nil
     }
 
     // MARK: - Web API path (uses browser cookies)
@@ -290,6 +388,31 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             rawText: snap.rawText)
     }
 
+    private func applyWebExtrasIfNeeded(to snapshot: ClaudeUsageSnapshot) async -> ClaudeUsageSnapshot {
+        guard self.useWebExtras, self.dataSource != .web else { return snapshot }
+        do {
+            let webData = try await ClaudeWebAPIFetcher.fetchUsage { msg in
+                Self.log.debug(msg)
+            }
+            // Only merge cost extras; keep identity fields from the primary data source.
+            if snapshot.providerCost == nil, let extra = webData.extraUsageCost {
+                return ClaudeUsageSnapshot(
+                    primary: snapshot.primary,
+                    secondary: snapshot.secondary,
+                    opus: snapshot.opus,
+                    providerCost: extra,
+                    updatedAt: snapshot.updatedAt,
+                    accountEmail: snapshot.accountEmail,
+                    accountOrganization: snapshot.accountOrganization,
+                    loginMethod: snapshot.loginMethod,
+                    rawText: snapshot.rawText)
+            }
+        } catch {
+            Self.log.debug("Claude web extras fetch failed: \(error.localizedDescription)")
+        }
+        return snapshot
+    }
+
     // MARK: - Process helpers
 
     private static func which(_ tool: String) -> String? {
@@ -321,3 +444,21 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         return String(data: data, encoding: .utf8)
     }
 }
+
+#if DEBUG
+extension ClaudeUsageFetcher {
+    public static func _mapOAuthUsageForTesting(
+        _ data: Data,
+        rateLimitTier: String? = nil) throws -> ClaudeUsageSnapshot
+    {
+        let usage = try ClaudeOAuthUsageFetcher.decodeUsageResponse(data)
+        let creds = ClaudeOAuthCredentials(
+            accessToken: "test",
+            refreshToken: nil,
+            expiresAt: Date().addingTimeInterval(3600),
+            scopes: [],
+            rateLimitTier: rateLimitTier)
+        return try Self.mapOAuthUsage(usage, credentials: creds)
+    }
+}
+#endif
