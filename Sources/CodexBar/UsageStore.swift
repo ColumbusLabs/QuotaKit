@@ -1106,8 +1106,13 @@ extension UsageStore {
                 await MainActor.run { self.probeLogs[.claude] = text }
                 return text
             case .zai:
-                let token = ZaiSettingsReader.apiToken()
-                let text = "Z_AI_API_KEY=\(token == nil ? "missing" : "present")"
+                let settingsToken = await MainActor.run {
+                    self.settings.zaiAPIToken.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                let envToken = ZaiSettingsReader.apiToken()
+                let hasAny = !settingsToken.isEmpty || envToken != nil
+                let source = !settingsToken.isEmpty ? "keychain" : (envToken != nil ? "env" : "none")
+                let text = "Z_AI_API_KEY=\(hasAny ? "present" : "missing") source=\(source)"
                 await MainActor.run { self.probeLogs[.zai] = text }
                 return text
             case .gemini:

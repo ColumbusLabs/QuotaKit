@@ -5,20 +5,15 @@ import Testing
 @Suite
 struct ZaiSettingsReaderTests {
     @Test
-    func parseProfileReadsToken() {
-        let text = """
-        export Z_AI_API_KEY=abc123
-        """
-        #expect(ZaiSettingsReader.parseProfile(text) == "abc123")
+    func apiTokenReadsFromEnvironment() {
+        let token = ZaiSettingsReader.apiToken(environment: ["Z_AI_API_KEY": "abc123"])
+        #expect(token == "abc123")
     }
 
     @Test
-    func parseProfileHandlesQuotesAndComments() {
-        let text = """
-        # comment line
-        export Z_AI_API_KEY=\"token-xyz\" # trailing comment
-        """
-        #expect(ZaiSettingsReader.parseProfile(text) == "token-xyz")
+    func apiTokenStripsQuotes() {
+        let token = ZaiSettingsReader.apiToken(environment: ["Z_AI_API_KEY": "\"token-xyz\""])
+        #expect(token == "token-xyz")
     }
 }
 

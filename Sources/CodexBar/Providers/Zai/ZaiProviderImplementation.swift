@@ -1,3 +1,4 @@
+import AppKit
 import CodexBarCore
 import Foundation
 
@@ -7,11 +8,44 @@ struct ZaiProviderImplementation: ProviderImplementation {
 
     func makeFetch(context: ProviderBuildContext) -> @Sendable () async throws -> UsageSnapshot {
         {
-            guard let apiKey = ZaiSettingsReader.apiToken() else {
+            let fromSettings = await MainActor.run {
+                context.settings.zaiAPIToken.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            let apiKey = !fromSettings.isEmpty ? fromSettings : ZaiSettingsReader.apiToken()
+            guard let apiKey else {
                 throw ZaiSettingsError.missingToken
             }
             let usage = try await ZaiUsageFetcher.fetchUsage(apiKey: apiKey)
             return usage.toUsageSnapshot()
         }
+    }
+
+    @MainActor
+    func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
+        let dashboardURL = context.store.metadata(for: .zai).dashboardURL
+        let actions: [ProviderSettingsActionDescriptor] = [
+            ProviderSettingsActionDescriptor(
+                id: "open-dashboard",
+                title: "Open dashboard",
+                style: .link,
+                isVisible: { dashboardURL != nil },
+                perform: {
+                    guard let dashboardURL else { return }
+                    guard let url = URL(string: dashboardURL) else { return }
+                    _ = NSWorkspace.shared.open(url)
+                }),
+        ]
+
+        return [
+            ProviderSettingsFieldDescriptor(
+                id: "zai-api-token",
+                title: "API token",
+                subtitle: "Stored in Keychain. Paste the token from the z.ai dashboard.",
+                kind: .secure,
+                placeholder: "Paste token…",
+                binding: context.stringBinding(\.zaiAPIToken),
+                actions: actions,
+                isVisible: nil),
+        ]
     }
 }
