@@ -3,12 +3,13 @@ import CodexBarCore
 import SwiftUI
 
 private enum ProviderTableMetrics {
-    static let rowSpacing: CGFloat = 8
     static let columnSpacing: CGFloat = 12
     static let sourceWidth: CGFloat = 90
     static let statusWidth: CGFloat = 120
     static let enabledWidth: CGFloat = 70
-    static let rowCornerRadius: CGFloat = 12
+    static let rowHorizontalPadding: CGFloat = 12
+    static let rowVerticalPadding: CGFloat = 10
+    static let indent: CGFloat = 16
 }
 
 @MainActor
@@ -254,6 +255,23 @@ private struct ProviderTableHeaderView: View {
 
 @MainActor
 private struct ProviderTableView: View {
+    private enum Row: Identifiable {
+        case provider(UsageProvider)
+        case toggle(provider: UsageProvider, toggle: ProviderSettingsToggleDescriptor)
+        case error(provider: UsageProvider, display: ProviderErrorDisplay)
+
+        var id: String {
+            switch self {
+            case let .provider(provider):
+                "provider.\(provider.rawValue)"
+            case let .toggle(provider, toggle):
+                "toggle.\(provider.rawValue).\(toggle.id)"
+            case let .error(provider, _):
+                "error.\(provider.rawValue)"
+            }
+        }
+    }
+
     let providers: [UsageProvider]
     @Bindable var store: UsageStore
     let isEnabled: (UsageProvider) -> Binding<Bool>
@@ -266,33 +284,64 @@ private struct ProviderTableView: View {
     let onCopyError: (String) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: ProviderTableMetrics.rowSpacing) {
-            ForEach(self.providers, id: \.rawValue) { provider in
-                ProviderTableProviderRowView(
-                    provider: provider,
-                    store: self.store,
-                    isEnabled: self.isEnabled(provider),
-                    subtitle: self.subtitle(provider),
-                    sourceLabel: self.sourceLabel(provider),
-                    statusLabel: self.statusLabel(provider))
-                    .providerTableRowChrome()
-
-                if self.isEnabled(provider).wrappedValue {
-                    ForEach(self.settingsToggles(provider)) { toggle in
-                        ProviderTableToggleRowView(toggle: toggle)
-                            .providerTableRowChrome()
-                    }
-                }
-
-                if let display = self.errorDisplay(provider) {
-                    ProviderTableErrorRowView(
-                        title: "Last \(self.store.metadata(for: provider).displayName) fetch failed:",
-                        display: display,
-                        isExpanded: self.isErrorExpanded(provider),
-                        onCopy: { self.onCopyError(display.full) })
-                        .providerTableRowChrome()
+        let rows = self.rows()
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(rows.enumerated()), id: \.element.id) { idx, row in
+                self.render(row: row)
+                    .padding(.horizontal, ProviderTableMetrics.rowHorizontalPadding)
+                    .padding(.vertical, ProviderTableMetrics.rowVerticalPadding)
+                if idx != rows.count - 1 {
+                    Divider()
+                        .opacity(0.35)
                 }
             }
+        }
+        .background(Color(nsColor: .controlBackgroundColor).opacity(0.25))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color(nsColor: .separatorColor).opacity(0.35), lineWidth: 1))
+    }
+
+    private func rows() -> [Row] {
+        var rows: [Row] = []
+        for provider in self.providers {
+            rows.append(.provider(provider))
+
+            if self.isEnabled(provider).wrappedValue {
+                for toggle in self.settingsToggles(provider) {
+                    rows.append(.toggle(provider: provider, toggle: toggle))
+                }
+            }
+
+            if let display = self.errorDisplay(provider) {
+                rows.append(.error(provider: provider, display: display))
+            }
+        }
+        return rows
+    }
+
+    @ViewBuilder
+    private func render(row: Row) -> some View {
+        switch row {
+        case let .provider(provider):
+            ProviderTableProviderRowView(
+                provider: provider,
+                store: self.store,
+                isEnabled: self.isEnabled(provider),
+                subtitle: self.subtitle(provider),
+                sourceLabel: self.sourceLabel(provider),
+                statusLabel: self.statusLabel(provider))
+        case let .toggle(provider, toggle):
+            ProviderTableToggleRowView(
+                provider: provider,
+                toggle: toggle)
+        case let .error(provider, display):
+            ProviderTableErrorRowView(
+                title: "Last \(self.store.metadata(for: provider).displayName) fetch failed:",
+                display: display,
+                isExpanded: self.isErrorExpanded(provider),
+                onCopy: { self.onCopyError(display.full) })
         }
     }
 }
@@ -307,7 +356,7 @@ private struct ProviderTableProviderRowView: View {
     let statusLabel: String
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: ProviderTableMetrics.columnSpacing) {
+        HStack(alignment: .center, spacing: ProviderTableMetrics.columnSpacing) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(self.store.metadata(for: self.provider).displayName)
                     .font(.body.weight(.medium))
@@ -338,10 +387,11 @@ private struct ProviderTableProviderRowView: View {
 
 @MainActor
 private struct ProviderTableToggleRowView: View {
+    let provider: UsageProvider
     let toggle: ProviderSettingsToggleDescriptor
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: ProviderTableMetrics.columnSpacing) {
+        HStack(alignment: .top, spacing: ProviderTableMetrics.columnSpacing) {
             VStack(alignment: .leading, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(self.toggle.title)
@@ -377,7 +427,7 @@ private struct ProviderTableToggleRowView: View {
                     }
                 }
             }
-            .padding(.leading, 16)
+            .padding(.leading, ProviderTableMetrics.indent)
             .frame(maxWidth: .infinity, alignment: .leading)
 
             Color.clear
@@ -430,7 +480,7 @@ private struct ProviderTableErrorRowView: View {
     let onCopy: () -> Void
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: ProviderTableMetrics.columnSpacing) {
+        HStack(alignment: .top, spacing: ProviderTableMetrics.columnSpacing) {
             ProviderErrorView(
                 title: self.title,
                 display: self.display,
@@ -510,17 +560,5 @@ private struct ProviderSettingsConfirmationState: Identifiable {
         self.message = confirmation.message
         self.confirmTitle = confirmation.confirmTitle
         self.onConfirm = confirmation.onConfirm
-    }
-}
-
-extension View {
-    fileprivate func providerTableRowChrome() -> some View {
-        self
-            .padding(10)
-            .background(Color(nsColor: .controlBackgroundColor).opacity(0.35))
-            .clipShape(RoundedRectangle(cornerRadius: ProviderTableMetrics.rowCornerRadius, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: ProviderTableMetrics.rowCornerRadius, style: .continuous)
-                    .stroke(Color(nsColor: .separatorColor).opacity(0.35), lineWidth: 1))
     }
 }
