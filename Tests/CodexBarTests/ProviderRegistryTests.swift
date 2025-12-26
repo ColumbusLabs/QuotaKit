@@ -7,6 +7,13 @@ import Testing
 @Suite
 struct ProviderRegistryTests {
     @Test
+    func implementationsCoverAllProviders() {
+        let ids = Set(ProviderCatalog.all.map(\.id))
+        #expect(ids.count == ProviderCatalog.all.count)
+        #expect(ids == Set(UsageProvider.allCases))
+    }
+
+    @Test
     func defaultsEnableCodexAndDisableClaude() {
         let defaults = UserDefaults(suiteName: "ProviderRegistryTests-defaults")!
         defaults.removePersistentDomain(forName: "ProviderRegistryTests-defaults")
@@ -60,7 +67,7 @@ struct ProviderRegistryTests {
         let settings = SettingsStore(userDefaults: defaults)
         settings.debugMenuEnabled = false
 
-        let strategy = ProviderRegistry.claudeUsageStrategy(settings: settings, hasWebSession: { true })
+        let strategy = ClaudeProviderImplementation.usageStrategy(settings: settings, hasWebSession: { true })
 
         #expect(strategy.dataSource == .web)
         #expect(strategy.useWebExtras == false)
@@ -73,7 +80,7 @@ struct ProviderRegistryTests {
         let settings = SettingsStore(userDefaults: defaults)
         settings.debugMenuEnabled = false
 
-        let strategy = ProviderRegistry.claudeUsageStrategy(settings: settings, hasWebSession: { false })
+        let strategy = ClaudeProviderImplementation.usageStrategy(settings: settings, hasWebSession: { false })
 
         #expect(strategy.dataSource == .cli)
         #expect(strategy.useWebExtras == false)
@@ -87,7 +94,7 @@ struct ProviderRegistryTests {
         settings.debugMenuEnabled = true
         settings.claudeUsageDataSource = .oauth
 
-        let strategy = ProviderRegistry.claudeUsageStrategy(settings: settings, hasWebSession: { false })
+        let strategy = ClaudeProviderImplementation.usageStrategy(settings: settings, hasWebSession: { false })
 
         #expect(strategy.dataSource == .oauth)
         #expect(strategy.useWebExtras == false)
@@ -102,9 +109,16 @@ struct ProviderRegistryTests {
         settings.claudeUsageDataSource = .cli
         settings.claudeWebExtrasEnabled = true
 
-        let strategy = ProviderRegistry.claudeUsageStrategy(settings: settings, hasWebSession: { true })
+        let strategy = ClaudeProviderImplementation.usageStrategy(settings: settings, hasWebSession: { true })
 
         #expect(strategy.dataSource == .cli)
         #expect(strategy.useWebExtras == true)
+    }
+
+    @Test
+    func providerCatalogLookupsExistForAllProviders() {
+        for provider in UsageProvider.allCases {
+            #expect(ProviderCatalog.implementation(for: provider) != nil)
+        }
     }
 }

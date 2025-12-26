@@ -1,4 +1,5 @@
 import CodexBarCore
+import Foundation
 import Testing
 @testable import CodexBarCLI
 
@@ -19,14 +20,20 @@ struct CLIProviderSelectionTests {
     func helpMentionsSourceFlag() {
         let usage = CodexBarCLI.usageHelp(version: "0.0.0")
         let root = CodexBarCLI.rootHelp(version: "0.0.0")
+
+        func tokens(_ text: String) -> [String] {
+            let split = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "[]|,"))
+            return text.components(separatedBy: split).filter { !$0.isEmpty }
+        }
+
         #expect(usage.contains("--source"))
         #expect(root.contains("--source"))
         #expect(usage.contains("--web-timeout"))
         #expect(usage.contains("--web-debug-dump-html"))
-        #expect(!usage.contains("--web"))
-        #expect(!root.contains("--web"))
-        #expect(!usage.contains("--claude-source"))
-        #expect(!root.contains("--claude-source"))
+        #expect(!tokens(usage).contains("--web"))
+        #expect(!tokens(root).contains("--web"))
+        #expect(!tokens(usage).contains("--claude-source"))
+        #expect(!tokens(root).contains("--claude-source"))
     }
 
     @Test
