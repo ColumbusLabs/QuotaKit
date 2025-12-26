@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.14.1 — Unreleased
+- Providers: Codex, Claude Code, Cursor, Gemini, Antigravity, z.ai.
 - Codex: OpenAI web dashboard is now the primary source for usage + credits; CLI fallback only when no matching cookies exist.
 - Claude: prefer claude.ai web API via cookies with CLI fallback when no session cookies are found; OAuth is debug-only.
 - CLI: replace `--web`/`--claude-source` with `--source` (auto/web/cli/oauth); auto falls back only when cookies are missing.
