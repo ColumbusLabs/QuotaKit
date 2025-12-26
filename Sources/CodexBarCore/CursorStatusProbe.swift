@@ -1,5 +1,4 @@
 import Foundation
-import os.log
 
 // MARK: - Cursor Cookie Importer
 
