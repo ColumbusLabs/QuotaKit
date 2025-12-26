@@ -405,10 +405,7 @@ public struct TTYCommandRunner {
                             recentTextCollapsed.contains(item.needleString)
                         if matched {
                             if let keysString = String(data: item.keys, encoding: .utf8) {
-                                let normalized = keysString.contains("\n")
-                                    ? keysString
-                                    : keysString.replacingOccurrences(of: "\r", with: "\n")
-                                try? send(normalized)
+                                try? send(keysString)
                             } else {
                                 try? writeAllToPrimary(item.keys)
                             }
