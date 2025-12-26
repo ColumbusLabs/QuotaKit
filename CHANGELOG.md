@@ -7,6 +7,7 @@
 - Preferences: hide “Augment Claude via web” unless Claude usage source is CLI; rename the cost toggle to “Show cost summary”.
 - Widgets: add a new “CodexBar Switcher” widget that lets you switch providers and remember the selection.
 - Menu: provider switcher now uses crisp brand icons with equal-width segments and a per-provider weekly remaining indicator.
+- Menu: tighten provider switcher sizing and increase spacing between label and weekly indicator bar.
 - Menu: SwiftUI menu cards and chart submenus now expand to the available menu width.
 - Dev: `compile_and_run.sh` now force-kills old instances to avoid launching duplicates.
 - Dev: `compile_and_run.sh` now waits for slow launches (polling for the process).
@@ -15,6 +16,8 @@
 - CLI: rename `--openai-web` → `--web` (macOS-only; Linux prints an error and exits).
 - Claude: default to Claude Code OAuth usage API (credentials from Keychain or `~/.claude/.credentials.json`), with Debug selector + `--claude-source` CLI override (OAuth/Web/CLI).
 - Core: Linux CLI builds now compile (mac-only WebKit/logging gated; FoundationNetworking imports where needed).
+- Core: fix CI flake for Claude trust prompts by making PTY writes fully reliable.
+- Core: Cursor provider is macOS-only (Linux CLI builds stub it).
 - Tests: cover alias fallback resolution for Codex/Claude and add Linux platform gating coverage (run in CI).
 - Docs: expand CLI docs for Linux install + flags.
 
