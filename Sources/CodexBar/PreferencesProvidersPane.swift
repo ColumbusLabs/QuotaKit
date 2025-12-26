@@ -2,6 +2,15 @@ import AppKit
 import CodexBarCore
 import SwiftUI
 
+private enum ProviderTableMetrics {
+    static let rowSpacing: CGFloat = 8
+    static let columnSpacing: CGFloat = 12
+    static let sourceWidth: CGFloat = 90
+    static let statusWidth: CGFloat = 120
+    static let enabledWidth: CGFloat = 70
+    static let rowCornerRadius: CGFloat = 12
+}
+
 @MainActor
 struct ProvidersPane: View {
     @Bindable var settings: SettingsStore
@@ -226,15 +235,15 @@ struct ProvidersPane: View {
 
 private struct ProviderTableHeaderView: View {
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: ProviderTableMetrics.columnSpacing) {
             Text("Provider")
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text("Source")
-                .frame(width: 90, alignment: .leading)
+                .frame(width: ProviderTableMetrics.sourceWidth, alignment: .leading)
             Text("Status")
-                .frame(width: 120, alignment: .leading)
+                .frame(width: ProviderTableMetrics.statusWidth, alignment: .leading)
             Text("Enabled")
-                .frame(width: 70, alignment: .trailing)
+                .frame(width: ProviderTableMetrics.enabledWidth, alignment: .trailing)
         }
         .font(.caption)
         .foregroundStyle(.secondary)
@@ -257,109 +266,83 @@ private struct ProviderTableView: View {
     let onCopyError: (String) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: ProviderTableMetrics.rowSpacing) {
             ForEach(self.providers, id: \.rawValue) { provider in
-                ProviderTableRowView(
+                ProviderTableProviderRowView(
                     provider: provider,
                     store: self.store,
                     isEnabled: self.isEnabled(provider),
                     subtitle: self.subtitle(provider),
                     sourceLabel: self.sourceLabel(provider),
-                    statusLabel: self.statusLabel(provider),
-                    settingsToggles: self.settingsToggles(provider),
-                    errorDisplay: self.errorDisplay(provider),
-                    isErrorExpanded: self.isErrorExpanded(provider),
-                    onCopyError: self.onCopyError)
+                    statusLabel: self.statusLabel(provider))
+                    .providerTableRowChrome()
+
+                if self.isEnabled(provider).wrappedValue {
+                    ForEach(self.settingsToggles(provider)) { toggle in
+                        ProviderTableToggleRowView(toggle: toggle)
+                            .providerTableRowChrome()
+                    }
+                }
+
+                if let display = self.errorDisplay(provider) {
+                    ProviderTableErrorRowView(
+                        title: "Last \(self.store.metadata(for: provider).displayName) fetch failed:",
+                        display: display,
+                        isExpanded: self.isErrorExpanded(provider),
+                        onCopy: { self.onCopyError(display.full) })
+                        .providerTableRowChrome()
+                }
             }
         }
     }
 }
 
 @MainActor
-private struct ProviderTableRowView: View {
+private struct ProviderTableProviderRowView: View {
     let provider: UsageProvider
     @Bindable var store: UsageStore
     @Binding var isEnabled: Bool
     let subtitle: String
     let sourceLabel: String
     let statusLabel: String
-    let settingsToggles: [ProviderSettingsToggleDescriptor]
-    let errorDisplay: ProviderErrorDisplay?
-    @Binding var isErrorExpanded: Bool
-    let onCopyError: (String) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(self.store.metadata(for: self.provider).displayName)
-                        .font(.body.weight(.medium))
-                    Text(self.subtitle)
-                        .font(.footnote)
-                        .foregroundStyle(.tertiary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Text(self.sourceLabel)
+        HStack(alignment: .firstTextBaseline, spacing: ProviderTableMetrics.columnSpacing) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(self.store.metadata(for: self.provider).displayName)
+                    .font(.body.weight(.medium))
+                Text(self.subtitle)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 90, alignment: .leading)
-
-                Text(self.statusLabel)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 120, alignment: .leading)
-
-                Toggle("", isOn: self.$isEnabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .frame(width: 70, alignment: .trailing)
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            if self.isEnabled {
-                if !self.settingsToggles.isEmpty {
-                    ProviderSettingsExpandedTableView(toggles: self.settingsToggles)
-                }
-            }
+            Text(self.sourceLabel)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .frame(width: ProviderTableMetrics.sourceWidth, alignment: .leading)
 
-            if let errorDisplay {
-                ProviderErrorView(
-                    title: "Last \(self.store.metadata(for: self.provider).displayName) fetch failed:",
-                    display: errorDisplay,
-                    isExpanded: self.$isErrorExpanded,
-                    onCopy: { self.onCopyError(errorDisplay.full) })
-            }
-        }
-        .padding(10)
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.35))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color(nsColor: .separatorColor).opacity(0.35), lineWidth: 1))
-    }
-}
+            Text(self.statusLabel)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .frame(width: ProviderTableMetrics.statusWidth, alignment: .leading)
 
-@MainActor
-private struct ProviderSettingsExpandedTableView: View {
-    let toggles: [ProviderSettingsToggleDescriptor]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(self.toggles) { toggle in
-                ProviderSettingsToggleRowView(toggle: toggle)
-            }
+            Toggle("", isOn: self.$isEnabled)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .frame(width: ProviderTableMetrics.enabledWidth, alignment: .trailing)
         }
     }
 }
 
 @MainActor
-private struct ProviderSettingsToggleRowView: View {
+private struct ProviderTableToggleRowView: View {
     let toggle: ProviderSettingsToggleDescriptor
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .firstTextBaseline, spacing: ProviderTableMetrics.columnSpacing) {
+            VStack(alignment: .leading, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(self.toggle.title)
                         .font(.body.weight(.medium))
@@ -368,44 +351,46 @@ private struct ProviderSettingsToggleRowView: View {
                         .foregroundStyle(.tertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
 
-                Toggle("", isOn: self.toggle.binding)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-            }
+                if self.toggle.binding.wrappedValue {
+                    if let status = self.toggle.statusText?(), !status.isEmpty {
+                        Text(status)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(4)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
 
-            if self.toggle.binding.wrappedValue {
-                if let status = self.toggle.statusText?(), !status.isEmpty {
-                    Text(status)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(4)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                let actions = self.toggle.actions.filter { $0.isVisible?() ?? true }
-                if !actions.isEmpty {
-                    HStack(spacing: 10) {
-                        ForEach(actions) { action in
-                            Button(action.title) {
-                                Task { @MainActor in
-                                    await action.perform()
+                    let actions = self.toggle.actions.filter { $0.isVisible?() ?? true }
+                    if !actions.isEmpty {
+                        HStack(spacing: 10) {
+                            ForEach(actions) { action in
+                                Button(action.title) {
+                                    Task { @MainActor in
+                                        await action.perform()
+                                    }
                                 }
+                                .applyProviderSettingsButtonStyle(action.style)
+                                .controlSize(.small)
                             }
-                            .applyProviderSettingsButtonStyle(action.style)
-                            .controlSize(.small)
                         }
                     }
                 }
             }
+            .padding(.leading, 16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Color.clear
+                .frame(width: ProviderTableMetrics.sourceWidth)
+
+            Color.clear
+                .frame(width: ProviderTableMetrics.statusWidth)
+
+            Toggle("", isOn: self.toggle.binding)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .frame(width: ProviderTableMetrics.enabledWidth, alignment: .trailing)
         }
-        .padding(10)
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.2))
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color(nsColor: .separatorColor).opacity(0.25), lineWidth: 1))
         .onChange(of: self.toggle.binding.wrappedValue) { _, enabled in
             guard let onChange = self.toggle.onChange else { return }
             Task { @MainActor in
@@ -435,6 +420,34 @@ extension View {
 private struct ProviderErrorDisplay: Sendable {
     let preview: String
     let full: String
+}
+
+@MainActor
+private struct ProviderTableErrorRowView: View {
+    let title: String
+    let display: ProviderErrorDisplay
+    @Binding var isExpanded: Bool
+    let onCopy: () -> Void
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: ProviderTableMetrics.columnSpacing) {
+            ProviderErrorView(
+                title: self.title,
+                display: self.display,
+                isExpanded: self.$isExpanded,
+                onCopy: self.onCopy)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Color.clear
+                .frame(width: ProviderTableMetrics.sourceWidth)
+
+            Color.clear
+                .frame(width: ProviderTableMetrics.statusWidth)
+
+            Color.clear
+                .frame(width: ProviderTableMetrics.enabledWidth)
+        }
+    }
 }
 
 @MainActor
@@ -497,5 +510,17 @@ private struct ProviderSettingsConfirmationState: Identifiable {
         self.message = confirmation.message
         self.confirmTitle = confirmation.confirmTitle
         self.onConfirm = confirmation.onConfirm
+    }
+}
+
+extension View {
+    fileprivate func providerTableRowChrome() -> some View {
+        self
+            .padding(10)
+            .background(Color(nsColor: .controlBackgroundColor).opacity(0.35))
+            .clipShape(RoundedRectangle(cornerRadius: ProviderTableMetrics.rowCornerRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: ProviderTableMetrics.rowCornerRadius, style: .continuous)
+                    .stroke(Color(nsColor: .separatorColor).opacity(0.35), lineWidth: 1))
     }
 }
