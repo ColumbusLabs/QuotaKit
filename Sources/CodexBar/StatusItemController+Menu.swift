@@ -901,7 +901,14 @@ private final class ProviderSwitcherView: NSView {
             self.addSubview(button)
         }
 
-        let uniformSegmentWidth = self.applyUniformSegmentWidth(maxAllowedWidth: maxAllowedSegmentWidth)
+        if self.stackedIcons {
+            self.applyNonUniformSegmentWidths(
+                totalWidth: width,
+                outerPadding: outerPadding,
+                minimumGap: minimumGap)
+        } else {
+            _ = self.applyUniformSegmentWidth(maxAllowedWidth: maxAllowedSegmentWidth)
+        }
 
         if self.buttons.count == 2 {
             let left = self.buttons[0]
@@ -959,12 +966,6 @@ private final class ProviderSwitcherView: NSView {
                 first.centerYAnchor.constraint(equalTo: self.centerYAnchor),
             ])
         }
-
-        let requiredWidth = outerPadding * 2 +
-            uniformSegmentWidth * CGFloat(self.buttons.count) +
-            minimumGap * CGFloat(max(0, self.buttons.count - 1))
-
-        _ = requiredWidth
         if width > 0 {
             self.preferredWidth = width
             self.frame.size.width = width
@@ -1058,6 +1059,67 @@ private final class ProviderSwitcherView: NSView {
         return finalWidth
     }
 
+    private func applyNonUniformSegmentWidths(
+        totalWidth: CGFloat,
+        outerPadding: CGFloat,
+        minimumGap: CGFloat)
+    {
+        guard !self.buttons.isEmpty else { return }
+
+        let count = self.buttons.count
+        let available = totalWidth -
+            outerPadding * 2 -
+            minimumGap * CGFloat(max(0, count - 1))
+        guard available > 0 else { return }
+
+        func evenFloor(_ value: CGFloat) -> CGFloat {
+            var v = floor(value)
+            if Int(v) % 2 != 0 { v -= 1 }
+            return v
+        }
+
+        let desired = self.buttons.map { ceil(Self.maxToggleWidth(for: $0)) }
+        let desiredSum = desired.reduce(0, +)
+        let avg = floor(available / CGFloat(count))
+        let minWidth = max(24, min(40, avg))
+
+        var widths: [CGFloat]
+        if desiredSum <= available {
+            widths = desired
+        } else {
+            let totalCapacity = max(0, desiredSum - minWidth * CGFloat(count))
+            if totalCapacity <= 0 {
+                widths = Array(repeating: available / CGFloat(count), count: count)
+            } else {
+                let overflow = desiredSum - available
+                widths = desired.map { desiredWidth in
+                    let capacity = max(0, desiredWidth - minWidth)
+                    let shrink = overflow * (capacity / totalCapacity)
+                    return desiredWidth - shrink
+                }
+            }
+        }
+
+        widths = widths.map { max(minWidth, evenFloor($0)) }
+        var used = widths.reduce(0, +)
+
+        while available - used >= 2 {
+            let candidates = widths.indices.filter { index in
+                widths[index] + 2 <= desired[index]
+            }
+            guard let best = candidates.max(by: { lhs, rhs in
+                (desired[lhs] - widths[lhs]) < (desired[rhs] - widths[rhs])
+            }) else { break }
+
+            widths[best] += 2
+            used += 2
+        }
+
+        for (index, button) in self.buttons.enumerated() where index < widths.count {
+            button.widthAnchor.constraint(equalToConstant: widths[index]).isActive = true
+        }
+    }
+
     private static func maxAllowedUniformSegmentWidth(
         for totalWidth: CGFloat,
         count: Int,
@@ -1108,8 +1170,8 @@ private final class ProviderSwitcherView: NSView {
         let ratio = CGFloat(max(0, min(1, remainingPercent / 100)))
 
         NSLayoutConstraint.activate([
-            track.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 7),
-            track.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -7),
+            track.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 6),
+            track.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -6),
             track.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -1),
             track.heightAnchor.constraint(equalToConstant: 4),
             fill.leadingAnchor.constraint(equalTo: track.leadingAnchor),
@@ -1186,7 +1248,7 @@ private final class StackedToggleButton: NSButton {
     private var paddingConstraints: [NSLayoutConstraint] = []
     private var iconSizeConstraints: [NSLayoutConstraint] = []
 
-    var contentPadding = NSEdgeInsets(top: 2, left: 4, bottom: 2, right: 4) {
+    var contentPadding = NSEdgeInsets(top: 2, left: 3, bottom: 2, right: 3) {
         didSet {
             self.paddingConstraints.first { $0.firstAttribute == .top }?.constant = self.contentPadding.top
             self.paddingConstraints.first { $0.firstAttribute == .leading }?.constant = self.contentPadding.left
