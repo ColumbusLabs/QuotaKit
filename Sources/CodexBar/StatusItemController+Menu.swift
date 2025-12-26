@@ -16,7 +16,7 @@ extension StatusItemController {
     private func menuCardWidth(for providers: [UsageProvider], menu: NSMenu? = nil) -> CGFloat {
         _ = menu
         if providers.count >= 7 {
-            return (Self.menuCardBaseWidth * 1.1).rounded()
+            return (Self.menuCardBaseWidth * 1.15).rounded()
         }
         return Self.menuCardBaseWidth
     }
@@ -312,14 +312,11 @@ extension StatusItemController {
         }
         for item in cardItems {
             guard let view = item.view else { continue }
+            let width = self.menuCardWidth(for: self.store.enabledProviders(), menu: menu)
+            let height = self.menuCardHeight(for: view, width: width)
             view.frame = NSRect(
                 origin: .zero,
-                size: NSSize(width: self.menuCardWidth(for: self.store.enabledProviders(), menu: menu), height: 1))
-            view.layoutSubtreeIfNeeded()
-            let height = view.fittingSize.height
-            view.frame = NSRect(
-                origin: .zero,
-                size: NSSize(width: self.menuCardWidth(for: self.store.enabledProviders(), menu: menu), height: height))
+                size: NSSize(width: width, height: height))
         }
     }
 
@@ -341,10 +338,8 @@ extension StatusItemController {
         let hosting = MenuCardItemHostingView(rootView: wrapped, highlightState: highlightState)
         // Important: constrain width before asking SwiftUI for the fitting height, otherwise text wrapping
         // changes the required height and the menu item becomes visually "squeezed".
-        hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: 1))
-        hosting.layoutSubtreeIfNeeded()
-        let size = hosting.fittingSize
-        hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: size.height))
+        let height = self.menuCardHeight(for: hosting, width: width)
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: height))
         let item = NSMenuItem()
         item.view = hosting
         item.isEnabled = submenu != nil
@@ -355,6 +350,13 @@ extension StatusItemController {
             item.action = #selector(self.menuCardNoOp(_:))
         }
         return item
+    }
+
+    private func menuCardHeight(for view: NSView, width: CGFloat) -> CGFloat {
+        view.frame = NSRect(origin: .zero, size: NSSize(width: width, height: 1))
+        view.layoutSubtreeIfNeeded()
+        let height = view.fittingSize.height
+        return max(1, ceil(height + 2))
     }
 
     private func addMenuCardSections(
