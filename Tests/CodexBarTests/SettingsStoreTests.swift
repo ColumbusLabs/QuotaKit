@@ -98,7 +98,8 @@ struct SettingsStoreTests {
         #expect(storeA.orderedProviders() == [.gemini, .codex, .claude, .zai, .cursor, .antigravity])
 
         // Move one provider; ensure it's persisted across instances.
-        storeA.moveProvider(fromOffsets: IndexSet(integer: 4), toOffset: 0)
+        let antigravityIndex = storeA.orderedProviders().firstIndex(of: .antigravity)!
+        storeA.moveProvider(fromOffsets: IndexSet(integer: antigravityIndex), toOffset: 0)
 
         let defaultsB = UserDefaults(suiteName: suite)!
         defaultsB.set(true, forKey: "providerDetectionCompleted")
