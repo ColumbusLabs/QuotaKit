@@ -1,6 +1,6 @@
 import Foundation
 
-public struct RateWindow: Codable, Sendable {
+public struct RateWindow: Codable, Equatable, Sendable {
     public let usedPercent: Double
     public let windowMinutes: Int?
     public let resetsAt: Date?
