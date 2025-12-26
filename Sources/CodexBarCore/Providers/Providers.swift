@@ -173,7 +173,7 @@ public enum ProviderDefaults {
             cliName: "factory",
             defaultEnabled: false,
             dashboardURL: "https://app.factory.ai/settings/billing",
-            statusPageURL: nil,
-            statusLinkURL: "https://factory.ai"),
+            statusPageURL: "https://status.factory.ai",
+            statusLinkURL: nil),
     ]
 }

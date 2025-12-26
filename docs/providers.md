@@ -54,6 +54,6 @@ read_when:
 - Cookie import: Safari → Chrome → Firefox; requires factory.ai/app.factory.ai cookies.
 - Fallback: stored session cookies persisted by CodexBar.
 - Shows Standard + Premium usage and billing period reset.
-- Status: no public status integration yet (link only).
+- Status: status page at `https://status.factory.ai`.
 
 See also: `docs/claude.md`, `docs/antigravity.md`, `docs/cursor.md`.
