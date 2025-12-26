@@ -940,7 +940,7 @@ private final class ProviderSwitcherView: NSView {
 
         let uniformSegmentWidth = self.applyUniformSegmentWidth()
 
-        let outerPadding: CGFloat = 8
+        let outerPadding: CGFloat = 6
         let minimumGap: CGFloat = 1
 
         if self.buttons.count == 2 {
@@ -987,8 +987,9 @@ private final class ProviderSwitcherView: NSView {
             self.addSubview(stack)
 
             NSLayoutConstraint.activate([
-                stack.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: outerPadding),
-                stack.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -outerPadding),
+                stack.centerXAnchor.constraint(equalTo: self.centerXAnchor),
+                stack.leadingAnchor.constraint(greaterThanOrEqualTo: self.leadingAnchor, constant: outerPadding),
+                stack.trailingAnchor.constraint(lessThanOrEqualTo: self.trailingAnchor, constant: -outerPadding),
                 stack.topAnchor.constraint(equalTo: self.topAnchor),
                 stack.bottomAnchor.constraint(equalTo: self.bottomAnchor),
             ])
@@ -1069,8 +1070,8 @@ private final class ProviderSwitcherView: NSView {
                 let font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
                 let titleWidth = ceil((self.segments[index].title as NSString).size(withAttributes: [.font: font])
                     .width)
-                let contentPadding: CGFloat = 5 + 5
-                let extraSlack: CGFloat = 2
+                let contentPadding: CGFloat = 4 + 4
+                let extraSlack: CGFloat = 1
                 desiredWidths.append(ceil(titleWidth + contentPadding + extraSlack))
             } else {
                 desiredWidths.append(ceil(Self.maxToggleWidth(for: button)))
@@ -1127,7 +1128,7 @@ private final class ProviderSwitcherView: NSView {
         NSLayoutConstraint.activate([
             track.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 7),
             track.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -7),
-            track.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -2),
+            track.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -1),
             track.heightAnchor.constraint(equalToConstant: 4),
             fill.leadingAnchor.constraint(equalTo: track.leadingAnchor),
             fill.topAnchor.constraint(equalTo: track.topAnchor),
@@ -1203,7 +1204,7 @@ private final class StackedToggleButton: NSButton {
     private var paddingConstraints: [NSLayoutConstraint] = []
     private var iconSizeConstraints: [NSLayoutConstraint] = []
 
-    var contentPadding = NSEdgeInsets(top: 2, left: 5, bottom: 2, right: 5) {
+    var contentPadding = NSEdgeInsets(top: 2, left: 4, bottom: 2, right: 4) {
         didSet {
             self.paddingConstraints.first { $0.firstAttribute == .top }?.constant = self.contentPadding.top
             self.paddingConstraints.first { $0.firstAttribute == .leading }?.constant = self.contentPadding.left
@@ -1301,7 +1302,7 @@ private final class StackedToggleButton: NSButton {
             constant: -self.contentPadding.right)
         let bottom = self.stack.bottomAnchor.constraint(
             lessThanOrEqualTo: self.bottomAnchor,
-            constant: -(self.contentPadding.bottom + 5))
+            constant: -(self.contentPadding.bottom + 8))
         self.paddingConstraints = [top, leading, trailing, bottom]
 
         NSLayoutConstraint.activate(self.paddingConstraints + self.iconSizeConstraints)
