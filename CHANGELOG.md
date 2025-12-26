@@ -8,7 +8,7 @@
 - Widgets: add a new “CodexBar Switcher” widget that lets you switch providers and remember the selection.
 - Menu: provider switcher now uses crisp brand icons with equal-width segments and a per-provider weekly remaining indicator.
 - Menu: tighten provider switcher sizing and increase spacing between label and weekly indicator bar.
-- Menu: SwiftUI menu cards and chart submenus now expand to the available menu width.
+- Menu: provider switcher no longer forces a wider menu when many providers are enabled; segments clamp to the menu width.
 - Dev: `compile_and_run.sh` now force-kills old instances to avoid launching duplicates.
 - Dev: `compile_and_run.sh` now waits for slow launches (polling for the process).
 - CI: build/test Linux `CodexBarCLI` (x86_64 + aarch64) and publish release assets as `CodexBarCLI-<tag>-linux-<arch>.tar.gz` (+ `.sha256`).
