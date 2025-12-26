@@ -4,9 +4,12 @@
 - Cursor: add new usage provider with browser cookie auth (cursor.com + cursor.sh), on-demand bar support, and dashboard access.
 - Cursor: keep stored sessions on transient failures; clear only on invalid auth.
 - Preferences: fix Advanced Display checkboxes and move the Quit button to the bottom of General.
+- Preferences: hide “Augment Claude via web” unless Claude usage source is CLI; rename the cost toggle to “Show cost summary”.
 - Widgets: add a new “CodexBar Switcher” widget that lets you switch providers and remember the selection.
-- Menu: add a bit more padding to the provider switcher selection.
+- Menu: provider switcher now uses crisp brand icons with equal-width segments and a per-provider weekly remaining indicator.
+- Menu: SwiftUI menu cards and chart submenus now expand to the available menu width.
 - Dev: `compile_and_run.sh` now force-kills old instances to avoid launching duplicates.
+- Dev: `compile_and_run.sh` now waits for slow launches (polling for the process).
 - CI: build/test Linux `CodexBarCLI` (x86_64 + aarch64) and publish release assets as `CodexBarCLI-<tag>-linux-<arch>.tar.gz` (+ `.sha256`).
 - CLI: add alias fallback for Codex/Claude detection when PATH lookups fail.
 - CLI: rename `--openai-web` → `--web` (macOS-only; Linux prints an error and exits).
