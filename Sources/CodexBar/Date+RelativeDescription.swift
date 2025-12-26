@@ -19,4 +19,3 @@ extension Date {
         return RelativeTimeFormatters.full.localizedString(for: self, relativeTo: now)
     }
 }
-

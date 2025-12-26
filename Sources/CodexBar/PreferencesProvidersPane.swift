@@ -71,9 +71,6 @@ struct ProvidersPane: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Providers")
                 .font(.headline)
-            Text("Enable or disable usage providers. Providers may offer additional settings when enabled.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         }
     }
 
