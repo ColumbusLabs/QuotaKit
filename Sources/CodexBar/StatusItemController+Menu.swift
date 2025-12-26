@@ -1278,7 +1278,7 @@ private final class StackedToggleButton: NSButton {
 
         self.stack.orientation = .vertical
         self.stack.alignment = .centerX
-        self.stack.spacing = 1
+        self.stack.spacing = 0
         self.stack.translatesAutoresizingMaskIntoConstraints = false
         self.stack.addArrangedSubview(self.iconView)
         self.stack.addArrangedSubview(self.titleField)
@@ -1302,7 +1302,7 @@ private final class StackedToggleButton: NSButton {
             constant: -self.contentPadding.right)
         let bottom = self.stack.bottomAnchor.constraint(
             lessThanOrEqualTo: self.bottomAnchor,
-            constant: -(self.contentPadding.bottom + 8))
+            constant: -(self.contentPadding.bottom + 4))
         self.paddingConstraints = [top, leading, trailing, bottom]
 
         NSLayoutConstraint.activate(self.paddingConstraints + self.iconSizeConstraints)
