@@ -62,7 +62,7 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
-    func codexExposesOpenAIWebToggle() {
+    func codexDoesNotExposeOpenAIWebToggle() {
         let defaults = UserDefaults(suiteName: "ProviderSettingsDescriptorTests-codex")!
         defaults.removePersistentDomain(forName: "ProviderSettingsDescriptorTests-codex")
         let settings = SettingsStore(userDefaults: defaults)
@@ -84,7 +84,7 @@ struct ProviderSettingsDescriptorTests {
             requestConfirmation: { _ in })
 
         let toggles = CodexProviderImplementation().settingsToggles(context: context)
-        #expect(toggles.map(\.id).contains("codex.openaiWeb"))
+        #expect(toggles.isEmpty)
     }
 
     @Test

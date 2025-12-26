@@ -50,7 +50,6 @@ extension UsageStore {
             _ = self.settings.usageBarsShowUsed
             _ = self.settings.ccusageCostUsageEnabled
             _ = self.settings.randomBlinkEnabled
-            _ = self.settings.openAIDashboardEnabled
             _ = self.settings.claudeWebExtrasEnabled
             _ = self.settings.claudeUsageDataSource
             _ = self.settings.mergeIcons
@@ -331,17 +330,12 @@ final class UsageStore {
         self.isRefreshing = true
         defer { self.isRefreshing = false }
 
-        let preferWebForCodex = self.settings.openAIDashboardEnabled
         await withTaskGroup(of: Void.self) { group in
             for provider in UsageProvider.allCases {
-                if provider != .codex || !preferWebForCodex {
-                    group.addTask { await self.refreshProvider(provider) }
-                }
+                group.addTask { await self.refreshProvider(provider) }
                 group.addTask { await self.refreshStatus(provider) }
             }
-            if !preferWebForCodex {
-                group.addTask { await self.refreshCreditsIfNeeded() }
-            }
+            group.addTask { await self.refreshCreditsIfNeeded() }
         }
 
         // Token-cost usage can be slow; run it outside the refresh group so we don't block menu updates.
@@ -351,11 +345,9 @@ final class UsageStore {
         // Run this after Codex usage refresh so we don't accidentally scrape with stale credentials.
         await self.refreshOpenAIDashboardIfNeeded(force: forceTokenUsage)
 
-        if preferWebForCodex {
-            if self.openAIDashboardRequiresLogin {
-                await self.refreshProvider(.codex)
-                await self.refreshCreditsIfNeeded()
-            }
+        if self.openAIDashboardRequiresLogin {
+            await self.refreshProvider(.codex)
+            await self.refreshCreditsIfNeeded()
         }
 
         self.persistWidgetSnapshot(reason: "refresh")
@@ -647,8 +639,7 @@ final class UsageStore {
     }
 
     private func refreshOpenAIDashboardIfNeeded(force: Bool = false) async {
-        guard self.isEnabled(.codex) else { return }
-        guard self.settings.openAIDashboardEnabled else {
+        guard self.isEnabled(.codex) else {
             await MainActor.run {
                 self.openAIDashboard = nil
                 self.lastOpenAIDashboardError = nil
@@ -822,7 +813,6 @@ final class UsageStore {
     }
 
     func importOpenAIDashboardBrowserCookiesNow() async {
-        guard self.settings.openAIDashboardEnabled else { return }
         self.resetOpenAIWebDebugLog(context: "manual import")
         let targetEmail = self.codexAccountEmailForOpenAIDashboard()
         _ = await self.importOpenAIDashboardCookiesIfNeeded(targetEmail: targetEmail, force: true)

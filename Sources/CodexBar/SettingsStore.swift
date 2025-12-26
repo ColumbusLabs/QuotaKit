@@ -87,11 +87,6 @@ final class SettingsStore {
         didSet { self.userDefaults.set(self.randomBlinkEnabled, forKey: "randomBlinkEnabled") }
     }
 
-    /// Optional: enable scraping the OpenAI dashboard (WebKit) for extra Codex data (code review + breakdown).
-    var openAIDashboardEnabled: Bool {
-        didSet { self.userDefaults.set(self.openAIDashboardEnabled, forKey: "openAIDashboardEnabled") }
-    }
-
     /// Optional: augment Claude usage with claude.ai web API (via Safari/Chrome/Firefox cookies),
     /// incl. "Extra usage" spend.
     var claudeWebExtrasEnabled: Bool {
@@ -169,7 +164,6 @@ final class SettingsStore {
         _ = self.usageBarsShowUsed
         _ = self.ccusageCostUsageEnabled
         _ = self.randomBlinkEnabled
-        _ = self.openAIDashboardEnabled
         _ = self.claudeWebExtrasEnabled
         _ = self.showOptionalCreditsAndExtraUsage
         _ = self.claudeUsageDataSource
@@ -206,7 +200,6 @@ final class SettingsStore {
         self.usageBarsShowUsed = userDefaults.object(forKey: "usageBarsShowUsed") as? Bool ?? false
         self.ccusageCostUsageEnabled = userDefaults.object(forKey: "tokenCostUsageEnabled") as? Bool ?? false
         self.randomBlinkEnabled = userDefaults.object(forKey: "randomBlinkEnabled") as? Bool ?? false
-        self.openAIDashboardEnabled = userDefaults.object(forKey: "openAIDashboardEnabled") as? Bool ?? false
         self.claudeWebExtrasEnabled = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false
         let creditsExtrasDefault = userDefaults.object(forKey: "showOptionalCreditsAndExtraUsage") as? Bool
         self.showOptionalCreditsAndExtraUsage = creditsExtrasDefault ?? true

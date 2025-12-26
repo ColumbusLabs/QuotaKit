@@ -51,7 +51,6 @@ struct StatusMenuTests {
         let settings = SettingsStore()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
-        settings.openAIDashboardEnabled = true
         settings.mergeIcons = true
         settings.selectedMenuProvider = .codex
 
@@ -96,7 +95,6 @@ struct StatusMenuTests {
         let settings = SettingsStore()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
-        settings.openAIDashboardEnabled = true
         settings.mergeIcons = true
         settings.selectedMenuProvider = .codex
 
@@ -156,7 +154,6 @@ struct StatusMenuTests {
         let settings = SettingsStore()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
-        settings.openAIDashboardEnabled = true
         settings.mergeIcons = true
         settings.selectedMenuProvider = .codex
         settings.ccusageCostUsageEnabled = true

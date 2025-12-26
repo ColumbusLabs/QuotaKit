@@ -10,7 +10,6 @@ struct OpenAIWebAccountSwitchTests {
     func clearsDashboardWhenCodexEmailChanges() {
         let settings = SettingsStore()
         settings.refreshFrequency = .manual
-        settings.openAIDashboardEnabled = true
 
         let store = UsageStore(fetcher: UsageFetcher(), settings: settings)
 
@@ -34,7 +33,6 @@ struct OpenAIWebAccountSwitchTests {
     func keepsDashboardWhenCodexEmailStaysSame() {
         let settings = SettingsStore()
         settings.refreshFrequency = .manual
-        settings.openAIDashboardEnabled = true
 
         let store = UsageStore(fetcher: UsageFetcher(), settings: settings)
 
