@@ -219,7 +219,7 @@ private struct UsageMenuCardHeaderView: View {
                 Text(self.model.subtitleText)
                     .font(.footnote)
                     .foregroundStyle(self.subtitleColor)
-                    .lineLimit(1)
+                    .lineLimit(self.model.subtitleStyle == .error ? 4 : 1)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer()
@@ -617,7 +617,7 @@ extension UsageMenuCardView.Model {
         lastError: String?) -> (text: String, style: SubtitleStyle)
     {
         if let lastError, !lastError.isEmpty {
-            return (UsageFormatter.truncatedSingleLine(lastError, max: 80), .error)
+            return (lastError.trimmingCharacters(in: .whitespacesAndNewlines), .error)
         }
 
         if isRefreshing, snapshot == nil {
@@ -697,7 +697,7 @@ extension UsageMenuCardView.Model {
             return UsageFormatter.creditsString(from: credits.remaining)
         }
         if let error, !error.isEmpty {
-            return UsageFormatter.truncatedSingleLine(error, max: 80)
+            return error.trimmingCharacters(in: .whitespacesAndNewlines)
         }
         return metadata.creditsHint
     }
