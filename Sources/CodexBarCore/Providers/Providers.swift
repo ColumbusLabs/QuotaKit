@@ -110,7 +110,7 @@ public enum ProviderDefaults {
             toggleTitle: "Show z.ai usage",
             cliName: "zai",
             defaultEnabled: false,
-            dashboardURL: nil,
+            dashboardURL: "https://z.ai/manage-apikey/subscription",
             statusPageURL: nil),
         .cursor: ProviderMetadata(
             id: .cursor,

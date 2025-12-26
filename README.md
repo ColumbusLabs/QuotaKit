@@ -13,7 +13,7 @@ Login story
 - **Cursor** — Fetches plan usage and on-demand usage from cursor.com API using browser session cookies (Safari → Chrome → Firefox). Requires cursor.com + cursor.sh cookies; shows included plan percentage, on-demand spend, and billing cycle reset time. Supports Pro, Enterprise, and other membership types. No CLI required; just stay signed in to cursor.com in your browser.
 - **Gemini** — Uses the Gemini CLI `/stats` output for quota, with OAuth-backed API fetches for plan/limits.
 - **Antigravity** — Local Antigravity language server probe; conservative parsing and no external auth.
-- **z.ai** — Calls the z.ai quota API using `Z_AI_API_KEY` from `~/.profile` to show Tokens + MCP windows.
+- **z.ai** — Calls the z.ai quota API using `Z_AI_API_KEY` from `~/.profile` to show Tokens + MCP windows; dashboard: https://z.ai/manage-apikey/subscription
 - **Provider detection** — On first launch we detect installed CLIs and enable Codex by default (Claude turns on when the `claude` binary is present). Toggle providers in Settings → Providers or rerun detection after installing a CLI.
 - **Privacy note** — Wondering if CodexBar scans your disk? It doesn't; see the discussion and audit notes in [issue #12](https://github.com/steipete/CodexBar/issues/12).
 

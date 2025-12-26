@@ -28,6 +28,7 @@ read_when:
 ## z.ai
 - API: `https://api.z.ai/api/monitor/usage/quota/limit` using `Z_AI_API_KEY` from `~/.profile`.
 - Shows token and MCP usage windows from the quota limits response.
+- Dashboard: `https://z.ai/manage-apikey/subscription`
 - Status: no public status integration yet.
 
 ## Gemini
