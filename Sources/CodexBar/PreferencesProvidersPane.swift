@@ -4,8 +4,9 @@ import SwiftUI
 
 private enum ProviderListMetrics {
     static let rowSpacing: CGFloat = 12
-    static let rowInsetsProvider = EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
-    static let rowInsetsDetail = EdgeInsets(top: 6, leading: 28, bottom: 6, trailing: 12)
+    static let rowInsets = EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0)
+    static let checkboxSize: CGFloat = 18
+    static let iconSize: CGFloat = 18
 }
 
 @MainActor
@@ -36,8 +37,6 @@ struct ProvidersPane: View {
                 onCopyError: { text in self.copyToPasteboard(text) })
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             self.runSettingsDidBecomeActiveHooks()
         }
@@ -119,8 +118,7 @@ struct ProvidersPane: View {
     private func providerSourceLabel(_ provider: UsageProvider) -> String {
         switch provider {
         case .codex:
-            if self.settings.openAIDashboardEnabled { return "web + cli" }
-            return "cli"
+            return "auto"
         case .claude:
             if self.settings.debugMenuEnabled {
                 return self.settings.claudeUsageDataSource.rawValue
@@ -238,7 +236,6 @@ private struct ProviderListView: View {
     private enum Row: Identifiable {
         case provider(UsageProvider)
         case toggle(provider: UsageProvider, toggle: ProviderSettingsToggleDescriptor)
-        case error(provider: UsageProvider, display: ProviderErrorDisplay)
 
         var id: String {
             switch self {
@@ -246,8 +243,6 @@ private struct ProviderListView: View {
                 "provider.\(provider.rawValue)"
             case let .toggle(provider, toggle):
                 "toggle.\(provider.rawValue).\(toggle.id)"
-            case let .error(provider, _):
-                "error.\(provider.rawValue)"
             }
         }
     }
@@ -267,18 +262,10 @@ private struct ProviderListView: View {
         let rows = self.rows()
         List(rows) { row in
             self.render(row: row)
-                .listRowInsets(self.insets(for: row))
+                .listRowInsets(ProviderListMetrics.rowInsets)
         }
-        .listStyle(.inset)
-    }
-
-    private func insets(for row: Row) -> EdgeInsets {
-        switch row {
-        case .provider:
-            ProviderListMetrics.rowInsetsProvider
-        case .toggle, .error:
-            ProviderListMetrics.rowInsetsDetail
-        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
     }
 
     private func rows() -> [Row] {
@@ -290,10 +277,6 @@ private struct ProviderListView: View {
                 for toggle in self.settingsToggles(provider) {
                     rows.append(.toggle(provider: provider, toggle: toggle))
                 }
-            }
-
-            if let display = self.errorDisplay(provider) {
-                rows.append(.error(provider: provider, display: display))
             }
         }
         return rows
@@ -309,17 +292,35 @@ private struct ProviderListView: View {
                 isEnabled: self.isEnabled(provider),
                 subtitle: self.subtitle(provider),
                 sourceLabel: self.sourceLabel(provider),
-                statusLabel: self.statusLabel(provider))
+                statusLabel: self.statusLabel(provider),
+                errorDisplay: self.isEnabled(provider).wrappedValue ? self.errorDisplay(provider) : nil,
+                isErrorExpanded: self.isErrorExpanded(provider),
+                onCopyError: self.onCopyError)
         case let .toggle(provider, toggle):
             ProviderListToggleRowView(
                 provider: provider,
                 toggle: toggle)
-        case let .error(provider, display):
-            ProviderListErrorRowView(
-                title: "Last \(self.store.metadata(for: provider).displayName) fetch failed:",
-                display: display,
-                isExpanded: self.isErrorExpanded(provider),
-                onCopy: { self.onCopyError(display.full) })
+        }
+    }
+}
+
+@MainActor
+private struct ProviderListBrandIcon: View {
+    let provider: UsageProvider
+
+    var body: some View {
+        if let brand = ProviderBrandIcon.image(for: self.provider) {
+            Image(nsImage: brand)
+                .resizable()
+                .scaledToFit()
+                .frame(width: ProviderListMetrics.iconSize, height: ProviderListMetrics.iconSize)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+        } else {
+            Image(systemName: "circle.dotted")
+                .font(.system(size: ProviderListMetrics.iconSize, weight: .regular))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
         }
     }
 }
@@ -332,29 +333,61 @@ private struct ProviderListProviderRowView: View {
     let subtitle: String
     let sourceLabel: String
     let statusLabel: String
+    let errorDisplay: ProviderErrorDisplay?
+    @Binding var isErrorExpanded: Bool
+    let onCopyError: (String) -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: ProviderListMetrics.rowSpacing) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(self.store.metadata(for: self.provider).displayName)
-                    .font(.subheadline.bold())
-                Text(self.subtitle)
-                    .font(.footnote)
-                    .foregroundStyle(.tertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: 8) {
-                    Text(self.sourceLabel)
-                    Text(self.statusLabel)
-                }
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        let titleIndent = ProviderListMetrics.iconSize + 8
+        let isRefreshing = self.store.refreshingProviders.contains(self.provider)
 
+        HStack(alignment: .top, spacing: ProviderListMetrics.rowSpacing) {
             Toggle("", isOn: self.$isEnabled)
                 .labelsHidden()
-                .toggleStyle(.switch)
+                .toggleStyle(.checkbox)
                 .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        ProviderListBrandIcon(provider: self.provider)
+                            .padding(.top, 1)
+                        Text(self.store.metadata(for: self.provider).displayName)
+                            .font(.subheadline.bold())
+                    }
+                    Text(self.subtitle)
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.leading, titleIndent)
+                    HStack(spacing: 8) {
+                        Text(self.sourceLabel)
+                        if isRefreshing {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Refreshing…")
+                        } else {
+                            Text(self.statusLabel)
+                        }
+                    }
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, titleIndent)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { self.isEnabled.toggle() }
+
+                if let errorDisplay {
+                    ProviderErrorView(
+                        title: "Last \(self.store.metadata(for: self.provider).displayName) fetch failed:",
+                        display: errorDisplay,
+                        isExpanded: self.$isErrorExpanded,
+                        onCopy: { self.onCopyError(errorDisplay.full) })
+                        .padding(.top, 8)
+                        .padding(.leading, titleIndent)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
@@ -366,6 +399,14 @@ private struct ProviderListToggleRowView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: ProviderListMetrics.rowSpacing) {
+            Toggle("", isOn: self.toggle.binding)
+                .labelsHidden()
+                .toggleStyle(.checkbox)
+                .padding(.top, 2)
+
+            Color.clear
+                .frame(width: ProviderListMetrics.iconSize, height: ProviderListMetrics.iconSize)
+
             VStack(alignment: .leading, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(self.toggle.title)
@@ -402,11 +443,6 @@ private struct ProviderListToggleRowView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-
-            Toggle("", isOn: self.toggle.binding)
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .padding(.top, 2)
         }
         .onChange(of: self.toggle.binding.wrappedValue) { _, enabled in
             guard let onChange = self.toggle.onChange else { return }
@@ -437,25 +473,6 @@ extension View {
 private struct ProviderErrorDisplay: Sendable {
     let preview: String
     let full: String
-}
-
-@MainActor
-private struct ProviderListErrorRowView: View {
-    let title: String
-    let display: ProviderErrorDisplay
-    @Binding var isExpanded: Bool
-    let onCopy: () -> Void
-
-    var body: some View {
-        HStack(alignment: .top, spacing: ProviderListMetrics.rowSpacing) {
-            ProviderErrorView(
-                title: self.title,
-                display: self.display,
-                isExpanded: self.$isExpanded,
-                onCopy: self.onCopy)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
 }
 
 @MainActor

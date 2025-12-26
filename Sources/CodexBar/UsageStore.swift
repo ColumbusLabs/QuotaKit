@@ -36,6 +36,7 @@ extension UsageStore {
         _ = self.claudeAccountEmail
         _ = self.claudeAccountOrganization
         _ = self.isRefreshing
+        _ = self.refreshingProviders
         _ = self.pathDebugInfo
         _ = self.statuses
         _ = self.probeLogs
@@ -162,6 +163,7 @@ final class UsageStore {
     var claudeAccountEmail: String?
     var claudeAccountOrganization: String?
     var isRefreshing = false
+    private(set) var refreshingProviders: Set<UsageProvider> = []
     var debugForceAnimation = false
     var pathDebugInfo: PathDebugSnapshot = .empty
     private(set) var statuses: [UsageProvider: ProviderStatus] = [:]
@@ -433,6 +435,7 @@ final class UsageStore {
         guard let spec = self.providerSpecs[provider] else { return }
 
         if !spec.isEnabled() {
+            self.refreshingProviders.remove(provider)
             await MainActor.run {
                 self.snapshots.removeValue(forKey: provider)
                 self.errors[provider] = nil
@@ -446,6 +449,9 @@ final class UsageStore {
             }
             return
         }
+
+        self.refreshingProviders.insert(provider)
+        defer { self.refreshingProviders.remove(provider) }
 
         do {
             let fetchClosure = spec.fetch
