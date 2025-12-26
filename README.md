@@ -36,6 +36,9 @@ swift build -c release          # or debug for development
 open CodexBar.app
 ```
 
+## Adding a provider
+- Start here: `docs/provider.md` (provider authoring guide + target architecture).
+
 ## CLI
 - macOS: Preferences → Advanced → “Install CLI” installs `codexbar` to `/usr/local/bin` + `/opt/homebrew/bin`.
 - Linux: download `CodexBarCLI-<tag>-linux-<arch>.tar.gz` from GitHub Releases (x86_64 + aarch64) and run `./codexbar`.
