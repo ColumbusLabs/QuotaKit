@@ -263,6 +263,7 @@ final class UsageStore {
         case .gemini: self.geminiVersion
         case .antigravity: self.antigravityVersion
         case .cursor: self.cursorVersion
+        case .factory: nil
         }
     }
 
@@ -1105,6 +1106,10 @@ extension UsageStore {
             case .cursor:
                 let text = "Cursor debug log not yet implemented"
                 await MainActor.run { self.probeLogs[.cursor] = text }
+                return text
+            case .factory:
+                let text = "Factory debug log not yet implemented"
+                await MainActor.run { self.probeLogs[.factory] = text }
                 return text
             }
         }.value

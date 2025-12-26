@@ -34,6 +34,7 @@ enum ProviderChoice: String, AppEnum {
         case .gemini: self = .gemini
         case .antigravity: self = .antigravity
         case .cursor: return nil // Cursor not yet supported in widgets
+        case .factory: return nil // Factory not yet supported in widgets
         }
     }
 }

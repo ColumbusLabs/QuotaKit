@@ -40,6 +40,7 @@ enum ProviderBrandIcon {
         case .codex: "ProviderIcon-codex"
         case .claude: "ProviderIcon-claude"
         case .cursor: "ProviderIcon-cursor"
+        case .factory: "ProviderIcon-factory"
         case .gemini: "ProviderIcon-gemini"
         case .antigravity: "ProviderIcon-antigravity"
         }
