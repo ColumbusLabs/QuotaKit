@@ -1,6 +1,9 @@
 # Changelog
 
 ## 0.14.1 — Unreleased
+- Codex: OpenAI web dashboard is now the primary source for usage + credits; CLI fallback only when no matching cookies exist.
+- Claude: prefer claude.ai web API via cookies with CLI fallback when no session cookies are found; OAuth is debug-only.
+- CLI: replace `--web`/`--claude-source` with `--source` (auto/web/cli/oauth); auto falls back only when cookies are missing.
 - Cursor: add new usage provider with browser cookie auth (cursor.com + cursor.sh), on-demand bar support, and dashboard access.
 - Cursor: keep stored sessions on transient failures; clear only on invalid auth.
 - Preferences: fix Advanced Display checkboxes and move the Quit button to the bottom of General.
@@ -15,7 +18,6 @@
 - Dev: `compile_and_run.sh` now waits for slow launches (polling for the process).
 - CI: build/test Linux `CodexBarCLI` (x86_64 + aarch64) and publish release assets as `CodexBarCLI-<tag>-linux-<arch>.tar.gz` (+ `.sha256`).
 - CLI: add alias fallback for Codex/Claude detection when PATH lookups fail.
-- CLI: rename `--openai-web` → `--web` (macOS-only; Linux prints an error and exits).
 - Claude: default to Claude Code OAuth usage API (credentials from Keychain or `~/.claude/.credentials.json`), with Debug selector + `--claude-source` CLI override (OAuth/Web/CLI).
 - OpenAI web: allow importing any signed-in browser session when Codex email is unknown (first-run friendly).
 - Core: Linux CLI builds now compile (mac-only WebKit/logging gated; FoundationNetworking imports where needed).

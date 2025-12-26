@@ -81,7 +81,7 @@
           <ul class="bullets" aria-label="What it does">
             <li>One status item per provider (Codex + Claude).</li>
             <li>Session + weekly bars, plus reset times.</li>
-            <li>Optional OpenAI web access: Code review + usage breakdown.</li>
+            <li>Web-backed limits + credits via browser cookies (Codex + Claude).</li>
             <li>Minimal UI, no Dock icon.</li>
           </ul>
         </div>
@@ -94,19 +94,22 @@
         <div class="card">
           <h3>Codex</h3>
           <p>
-            Prefers the local app-server RPC for limits + credits, with a PTY fallback to <code>codex /status</code>.
-            Optional: reuse your browser session to show Code review + usage breakdown.
+            Uses the OpenAI web dashboard when enabled, with local RPC + PTY fallback to <code>codex /status</code> if
+            cookies are missing. The web view shows limits + credits + code review + usage breakdown.
           </p>
         </div>
         <div class="card">
           <h3>Claude Code</h3>
-          <p>Runs <code>/usage</code> + <code>/status</code> locally and renders what the CLI reports (session + weekly).</p>
+          <p>
+            Prefers the claude.ai web API via browser cookies, and falls back to the local CLI (<code>/usage</code> +
+            <code>/status</code>) when no session cookies are found.
+          </p>
         </div>
         <div class="card">
           <h3>Privacy</h3>
           <p>
-            By default it reads local CLI output only. If you enable OpenAI web access, it reuses existing browser cookies
-            (Safari/Chrome) to fetch the dashboard — no passwords stored.
+            Reuses existing browser cookies (Safari/Chrome) for OpenAI + Claude dashboards — no passwords stored. When
+            cookies are missing, CodexBar falls back to local CLI output.
           </p>
         </div>
       </section>

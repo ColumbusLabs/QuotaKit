@@ -9,17 +9,19 @@ read_when:
 # Providers
 
 ## Codex
-- Primary: local `codex app-server` RPC for 5-hour + weekly limits and credits.
-- Fallback: PTY scrape of `codex /status` if RPC unavailable.
-- Account identity: prefer RPC; fall back to `~/.codex/auth.json`.
-- Optional OpenAI web integration for dashboard extras (see `docs/web-integration.md`).
+- Primary (when OpenAI web enabled): OpenAI web dashboard for usage limits + credits.
+- CLI fallback only when no matching web cookies (RPC for 5-hour + weekly limits and credits).
+- Secondary fallback: PTY scrape of `codex /status` if RPC unavailable.
+- Account identity: prefer web when enabled; otherwise RPC; fall back to `~/.codex/auth.json`.
+- OpenAI web integration uses browser cookies and can replace CLI data (see `docs/web-integration.md`).
 - Status: Statuspage.io (OpenAI).
 
 ## Claude
-- Primary: OAuth usage API (`https://api.anthropic.com/api/oauth/usage`) using Claude CLI credentials
+- Primary: Claude web API (cookies).
+- CLI fallback only when no Claude web cookies are found.
+- Debug-only override: OAuth usage API (`https://api.anthropic.com/api/oauth/usage`) using Claude CLI credentials
   (keychain first, then `~/.claude/.credentials.json`).
-- Optional: web cookie enrichment for Extra usage spend/limit (see `docs/claude.md`).
-- Fallback sources (debug-selectable): Claude web API (cookies) or CLI PTY `/usage` + `/status` parsing.
+- Optional (debug): web cookie enrichment for Extra usage spend/limit when the CLI source is forced (see `docs/claude.md`).
 - Handles Sonnet-only weekly bar when present; legacy Opus label fallback.
 - Status: Statuspage.io (Anthropic).
 

@@ -8,7 +8,7 @@ read_when:
 
 # CodexBar CLI
 
-A lightweight Commander-based CLI that mirrors the menubar app’s data paths (Codex RPC → PTY fallback; Claude OAuth by default with web/CLI overrides).
+A lightweight Commander-based CLI that mirrors the menubar app’s data paths (Codex web/RPC → PTY fallback; Claude web by default with CLI fallback and OAuth debug).
 Use it when you need usage numbers in scripts, CI, or dashboards without UI.
 
 ## Install
@@ -39,13 +39,16 @@ tar -xzf CodexBarCLI-0.14.1-linux-x86_64.tar.gz
   - `--pretty` (pretty-print JSON).
   - `--status` (fetch provider status pages and include them in output).
   - `--antigravity-plan-debug` (debug: print Antigravity planInfo fields to stderr).
-- `--web` (macOS only): uses browser cookies to fetch web-backed data.
-    - Codex: OpenAI web dashboard (code review remaining, usage breakdown, credits usage history when available).
+- `--source <auto|web|cli|oauth>` (default: `auto`).
+    - `auto` (macOS only): uses browser cookies for Codex + Claude, with CLI fallback only when cookies are missing.
+    - `web` (macOS only): web-only; no CLI fallback.
+    - `cli`: CLI-only (Codex RPC → PTY fallback; Claude PTY).
+    - `oauth`: Claude OAuth only (debug); no fallback. Not supported for Codex.
+    - Codex web: OpenAI web dashboard (usage limits, credits remaining, code review remaining, usage breakdown).
         - `--web-timeout <seconds>` (default: 60)
         - `--web-debug-dump-html` (writes HTML snapshots to `/tmp` when data is missing)
-    - Claude: claude.ai API (session + weekly usage, plus account metadata when available) unless overridden.
-    - Linux: `--web` is not supported; CLI prints an error and exits non-zero.
-- `--claude-source <oauth|web|cli>`: override Claude’s data source (OAuth default).
+    - Claude web: claude.ai API (session + weekly usage, plus account metadata when available).
+    - Linux: `web/auto` are not supported; CLI prints an error and exits non-zero.
 - Global flags: `-h/--help`, `-V/--version`, `-v/--verbose`, `--log-level <trace|verbose|debug|info|warning|error|critical>`, `--json-output`.
 
 ## Example usage
@@ -56,7 +59,7 @@ codexbar --provider all           # query all providers (honors your logins/togg
 codexbar --format json --pretty   # machine output
 codexbar --format json --provider both
 codexbar --status                 # include status page indicator/description
-codexbar --provider codex --web --format json --pretty
+codexbar --provider codex --source web --format json --pretty
 ```
 
 ### Sample output (text)
@@ -120,8 +123,8 @@ Plan: Pro
 
 ## Notes
 - CLI reuses menubar toggles when present (prefers `com.steipete.codexbar{,.debug}` defaults), otherwise defaults to Codex only.
-- Prefer Codex RPC first, then PTY fallback; Claude defaults to OAuth unless `--claude-source` overrides (or `--web` is set).
+- Prefer Codex RPC first, then PTY fallback; Claude defaults to web with CLI fallback when cookies are missing.
 - OpenAI web requires a signed-in `chatgpt.com` session in Safari or Chrome. No passwords are stored; CodexBar reuses cookies.
 - Safari cookie import may require granting CodexBar Full Disk Access (System Settings → Privacy & Security → Full Disk Access).
-- The `openaiDashboard` JSON field is normally sourced from the app’s cached dashboard snapshot; `--web` refreshes it live via WebKit using a per-account cookie store.
+- The `openaiDashboard` JSON field is normally sourced from the app’s cached dashboard snapshot; `--source auto|web` refreshes it live via WebKit using a per-account cookie store.
 - Future: optional `--from-cache` flag to read the menubar app’s persisted snapshot (if/when that file lands).

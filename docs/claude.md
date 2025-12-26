@@ -22,18 +22,12 @@ Claude Code support is implemented: CodexBar can show Claude alongside Codex (on
 
 ## Data path (Claude)
 
-### OAuth API (default)
-- Uses Claude CLI OAuth credentials (Keychain `Claude Code-credentials` first, then `~/.claude/.credentials.json`).
-- Calls `GET https://api.anthropic.com/api/oauth/usage` with `anthropic-beta: oauth-2025-04-20`.
-- Maps `five_hour` → session, `seven_day` → weekly, `seven_day_sonnet`/`seven_day_opus` → model-specific weekly.
-- Extra usage credits (if present) surface as `ProviderCostSnapshot` in the menu.
-- If the OAuth token is expired/missing, we surface a direct “run `claude` to refresh” error.
+### Web API (default)
+- Uses your browser session cookies (Safari → Chrome) to call the claude.ai API.
+- Provides session + weekly usage, Opus weekly usage when present, Extra usage cost, and account metadata.
+- If no Claude web cookies are found, CodexBar falls back to the CLI probe.
 
-### Web cookie enrichment (optional)
-- When “Augment Claude via web” is enabled, we attempt to read Safari/Chrome cookies and fetch
-  Claude web extras (Extra usage spend/limit). This is best-effort and does not override identity fields.
-
-### CLI PTY fallback (debug)
+### CLI PTY fallback (no cookies)
 - We launch a single Claude CLI session inside a pseudo-TTY and keep it alive between refreshes to avoid warm-up churn.
 - Driver steps:
   1) Boot loop waits for the TUI header and handles first-run prompts:
@@ -58,6 +52,18 @@ Claude Code support is implemented: CodexBar can show Claude alongside Codex (on
   - We also extract `Account:` and `Org:` lines when present.
 - Strictness: if Session or Weekly blocks are missing, parsing fails loudly (no silent “100% left” defaults).
 - Resilience: `ClaudeStatusProbe` retries once with a slightly longer timeout (20s + 6s) to ride out slow redraws or ignored Enter presses.
+
+### OAuth API (debug only)
+- Uses Claude CLI OAuth credentials (Keychain `Claude Code-credentials` first, then `~/.claude/.credentials.json`).
+- Calls `GET https://api.anthropic.com/api/oauth/usage` with `anthropic-beta: oauth-2025-04-20`.
+- Maps `five_hour` → session, `seven_day` → weekly, `seven_day_sonnet`/`seven_day_opus` → model-specific weekly.
+- Extra usage credits (if present) surface as `ProviderCostSnapshot` in the menu.
+- Enabled via the Debug tab data-source picker or `codexbar --claude-source oauth`.
+- No automatic fallback; errors surface directly.
+
+### Web cookie enrichment (optional, debug)
+- When the Claude source is forced to CLI and “Augment Claude via web” is enabled, we attempt to read Safari/Chrome
+  cookies and fetch Extra usage spend/limit. This is best-effort and does not override identity fields.
 
 ### What we display
 - Session and weekly usage bars; Sonnet-only weekly limit if present.

@@ -9,12 +9,17 @@ read_when:
 # OpenAI web integration (Codex)
 
 ## What it adds
+- Usage limits (5‑hour + weekly).
+- Credits remaining (balance).
 - Code review remaining (%).
 - Usage breakdown (dashboard chart).
 - Credits usage history table (when present).
 
+When enabled, CodexBar uses the web dashboard for Codex usage + credits and only falls back to the Codex CLI when no matching
+browser cookies are found.
+
 ## Opt-in + privacy
-- Toggle: Settings → General → “Access OpenAI via web”.
+- Toggle: Settings → Providers → “Use Codex via web”.
 - Reuses existing browser cookies; no credentials stored.
 - Web requests go to `chatgpt.com` (same as your browser session).
 
