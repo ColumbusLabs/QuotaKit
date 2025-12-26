@@ -147,6 +147,7 @@ code {
 .btn.primary {
   border-color: transparent;
   background: linear-gradient(135deg, rgba(63, 240, 214, 0.65), rgba(45, 91, 255, 0.62));
+  background-clip: padding-box;
 }
 
 .btn.ghost {
