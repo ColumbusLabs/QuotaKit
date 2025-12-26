@@ -14,52 +14,9 @@ extension StatusItemController {
     }
 
     private func menuCardWidth(for providers: [UsageProvider], menu: NSMenu? = nil) -> CGFloat {
-        let fallbackWidth = Self.menuCardBaseWidth
-        let switcherMinimumWidth = self.providerSwitcherMinimumWidth(for: providers)
-        guard let menu else { return fallbackWidth }
-        let window = menu.items.compactMap { $0.view?.window }.first
-        let width = window?.contentLayoutRect.width ?? 0
-        let resolved = width > 0 ? max(width, fallbackWidth) : fallbackWidth
-        return max(resolved, switcherMinimumWidth)
-    }
-
-    private func providerSwitcherMinimumWidth(for providers: [UsageProvider]) -> CGFloat {
-        guard self.shouldMergeIcons,
-              self.settings.switcherShowsIcons,
-              providers.count > 3
-        else { return 0 }
-
-        func even(_ value: CGFloat) -> CGFloat {
-            let ceilValue = ceil(value)
-            return ceilValue.truncatingRemainder(dividingBy: 2) == 0 ? ceilValue : ceilValue + 1
-        }
-
-        // When we show stacked (icon over title) segments, each button wants its own "natural" width.
-        // If the menu is narrower than the total, AppKit compresses/scales the content -> blurry/clipped.
-        let font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
-        let iconWidth: CGFloat = 16
-        let contentPadding: CGFloat = 7 + 7 + 10
-        let outerPadding: CGFloat = 12
-        let minimumGap: CGFloat = 1
-
-        let buttonWidths = providers.map { provider -> CGFloat in
-            let title = switch provider {
-            case .codex: "Codex"
-            case .claude: "Claude"
-            case .gemini: "Gemini"
-            case .antigravity: "Antigravity"
-            case .cursor: "Cursor"
-            }
-            let titleWidth = ceil((title as NSString).size(withAttributes: [.font: font]).width) + 2
-            return even(max(iconWidth, titleWidth) + contentPadding)
-        }
-
-        let total = outerPadding * 2 +
-            buttonWidths.reduce(0, +) +
-            minimumGap * CGFloat(max(0, providers.count - 1))
-
-        // Extra slack to avoid glyph clipping (AppKit sometimes trims a pixel on the right edge).
-        return even(total + 26)
+        _ = providers
+        _ = menu
+        return Self.menuCardBaseWidth
     }
 
     func makeMenu() -> NSMenu {
@@ -678,7 +635,7 @@ extension StatusItemController {
 
     private func makeUsageBreakdownSubmenu() -> NSMenu? {
         let breakdown = self.store.openAIDashboard?.usageBreakdown ?? []
-        let width = max(Self.menuCardBaseWidth, self.providerSwitcherMinimumWidth(for: self.store.enabledProviders()))
+        let width = Self.menuCardBaseWidth
         guard !breakdown.isEmpty else { return nil }
 
         let submenu = NSMenu()
@@ -700,7 +657,7 @@ extension StatusItemController {
 
     private func makeCreditsHistorySubmenu() -> NSMenu? {
         let breakdown = self.store.openAIDashboard?.dailyBreakdown ?? []
-        let width = max(Self.menuCardBaseWidth, self.providerSwitcherMinimumWidth(for: self.store.enabledProviders()))
+        let width = Self.menuCardBaseWidth
         guard !breakdown.isEmpty else { return nil }
 
         let submenu = NSMenu()
@@ -722,7 +679,7 @@ extension StatusItemController {
 
     private func makeCostHistorySubmenu(provider: UsageProvider) -> NSMenu? {
         guard provider == .codex || provider == .claude else { return nil }
-        let width = max(Self.menuCardBaseWidth, self.providerSwitcherMinimumWidth(for: self.store.enabledProviders()))
+        let width = Self.menuCardBaseWidth
         guard let tokenSnapshot = self.store.tokenSnapshot(for: provider) else { return nil }
         guard !tokenSnapshot.daily.isEmpty else { return nil }
 
@@ -761,10 +718,7 @@ extension StatusItemController {
 
     private func refreshHostedSubviewHeights(in menu: NSMenu) {
         let enabledProviders = self.store.enabledProviders()
-        let fallbackWidth = max(Self.menuCardBaseWidth, self.providerSwitcherMinimumWidth(for: enabledProviders))
-        let width = self.menuCardWidth(for: enabledProviders, menu: menu) > 0 ? self.menuCardWidth(
-            for: enabledProviders,
-            menu: menu) : fallbackWidth
+        let width = self.menuCardWidth(for: enabledProviders, menu: menu)
 
         for item in menu.items {
             guard let view = item.view else { continue }
@@ -871,6 +825,7 @@ private final class ProviderSwitcherView: NSView {
         self.segments = providers.map { provider in
             let fullTitle = Self.switcherTitle(for: provider)
             let icon = iconProvider(provider)
+            icon.isTemplate = true
             // Avoid any resampling: we ship exact 16pt/32px assets for crisp rendering.
             icon.size = NSSize(width: 16, height: 16)
             return Segment(
@@ -885,6 +840,14 @@ private final class ProviderSwitcherView: NSView {
         let height: CGFloat = self.stackedIcons ? 36 : 30
         self.preferredWidth = width
         super.init(frame: NSRect(x: 0, y: 0, width: width, height: height))
+
+        let outerPadding: CGFloat = 4
+        let minimumGap: CGFloat = 1
+        let maxAllowedSegmentWidth = Self.maxAllowedUniformSegmentWidth(
+            for: width,
+            count: self.segments.count,
+            outerPadding: outerPadding,
+            minimumGap: minimumGap)
 
         func makeButton(index: Int, segment: Segment) -> NSButton {
             let button: NSButton
@@ -938,10 +901,7 @@ private final class ProviderSwitcherView: NSView {
             self.addSubview(button)
         }
 
-        let uniformSegmentWidth = self.applyUniformSegmentWidth()
-
-        let outerPadding: CGFloat = 6
-        let minimumGap: CGFloat = 1
+        let uniformSegmentWidth = self.applyUniformSegmentWidth(maxAllowedWidth: maxAllowedSegmentWidth)
 
         if self.buttons.count == 2 {
             let left = self.buttons[0]
@@ -1004,10 +964,10 @@ private final class ProviderSwitcherView: NSView {
             uniformSegmentWidth * CGFloat(self.buttons.count) +
             minimumGap * CGFloat(max(0, self.buttons.count - 1))
 
-        let resolvedWidth = ceil(max(width, requiredWidth))
-        if resolvedWidth > 0 {
-            self.preferredWidth = resolvedWidth
-            self.frame.size.width = resolvedWidth
+        _ = requiredWidth
+        if width > 0 {
+            self.preferredWidth = width
+            self.frame.size.width = width
         }
 
         self.updateButtonStyles()
@@ -1057,7 +1017,7 @@ private final class ProviderSwitcherView: NSView {
         return max(offWidth, onWidth)
     }
 
-    private func applyUniformSegmentWidth() -> CGFloat {
+    private func applyUniformSegmentWidth(maxAllowedWidth: CGFloat) -> CGFloat {
         guard !self.buttons.isEmpty else { return 0 }
 
         var desiredWidths: [CGFloat] = []
@@ -1080,14 +1040,36 @@ private final class ProviderSwitcherView: NSView {
 
         let maxDesired = desiredWidths.max() ?? 0
         let evenMaxDesired = maxDesired.truncatingRemainder(dividingBy: 2) == 0 ? maxDesired : maxDesired + 1
+        let evenMaxAllowed = maxAllowedWidth > 0
+            ? (maxAllowedWidth.truncatingRemainder(dividingBy: 2) == 0 ? maxAllowedWidth : maxAllowedWidth - 1)
+            : 0
+        let finalWidth: CGFloat = if evenMaxAllowed > 0 {
+            min(evenMaxDesired, evenMaxAllowed)
+        } else {
+            evenMaxDesired
+        }
 
-        if evenMaxDesired > 0 {
+        if finalWidth > 0 {
             for button in self.buttons {
-                button.widthAnchor.constraint(equalToConstant: evenMaxDesired).isActive = true
+                button.widthAnchor.constraint(equalToConstant: finalWidth).isActive = true
             }
         }
 
-        return evenMaxDesired
+        return finalWidth
+    }
+
+    private static func maxAllowedUniformSegmentWidth(
+        for totalWidth: CGFloat,
+        count: Int,
+        outerPadding: CGFloat,
+        minimumGap: CGFloat) -> CGFloat
+    {
+        guard count > 0 else { return 0 }
+        let available = totalWidth -
+            outerPadding * 2 -
+            minimumGap * CGFloat(max(0, count - 1))
+        guard available > 0 else { return 0 }
+        return floor(available / CGFloat(count))
     }
 
     private static func paddedImage(_ image: NSImage, leading: CGFloat) -> NSImage {
@@ -1271,7 +1253,7 @@ private final class StackedToggleButton: NSButton {
 
         self.iconView.imageScaling = .scaleNone
         self.iconView.translatesAutoresizingMaskIntoConstraints = false
-        self.titleField.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize - 1)
+        self.titleField.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize - 2)
         self.titleField.alignment = .center
         self.titleField.lineBreakMode = .byTruncatingTail
         self.setContentTintColor(NSColor.secondaryLabelColor)
