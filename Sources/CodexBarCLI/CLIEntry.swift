@@ -66,20 +66,28 @@ enum CodexBarCLI {
         let includeCredits = format == .json ? true : !values.flags.contains("noCredits")
         let includeStatus = values.flags.contains("status")
         let pretty = values.flags.contains("pretty")
-        let web = values.flags.contains("web")
-        let claudeSourceOverride = Self.decodeClaudeSource(from: values)
+        let sourceModeRaw = values.options["source"]?.last
+        let parsedSourceMode = Self.decodeSourceMode(from: values)
+        if sourceModeRaw != nil, parsedSourceMode == nil {
+            Self.exit(code: .failure, message: "Error: --source must be auto|web|cli|oauth.")
+        }
+        let sourceMode = parsedSourceMode ?? .auto
         let antigravityPlanDebug = values.flags.contains("antigravityPlanDebug")
         let webDebugDumpHTML = values.flags.contains("webDebugDumpHtml")
         let webTimeout = Self.decodeWebTimeout(from: values) ?? 60
         let verbose = values.flags.contains("verbose")
         let useColor = Self.shouldUseColor()
         let fetcher = UsageFetcher()
-        let claudeSource = claudeSourceOverride ?? (web ? .web : .oauth)
+        let claudeSource: ClaudeUsageDataSource = switch sourceMode {
+        case .oauth: .oauth
+        case .cli: .cli
+        case .web, .auto: .cli
+        }
         let claudeFetcher = ClaudeUsageFetcher(dataSource: claudeSource)
 
         #if !os(macOS)
-        if web {
-            Self.exit(code: .failure, message: "Error: --web is only supported on macOS.")
+        if sourceMode.usesWeb {
+            Self.exit(code: .failure, message: "Error: --source web/auto is only supported on macOS.")
         }
         #endif
 
@@ -87,17 +95,30 @@ enum CodexBarCLI {
         var payload: [ProviderPayload] = []
         var exitCode: ExitCode = .success
 
+        let fetchContext = ProviderFetchContext(
+            includeCredits: includeCredits,
+            sourceMode: sourceMode,
+            webTimeout: webTimeout,
+            webDebugDumpHTML: webDebugDumpHTML,
+            verbose: verbose,
+            fetcher: fetcher,
+            claudeFetcher: claudeFetcher)
+
         for p in provider.asList {
-            let versionInfo = Self.formatVersion(provider: p, raw: Self.detectVersion(for: p))
-            let header = Self.makeHeader(provider: p, version: versionInfo.version, source: versionInfo.source)
             let status = includeStatus ? await Self.fetchStatus(for: p) : nil
             var antigravityPlanInfo: AntigravityPlanInfoSummary?
-            switch await Self.fetch(
+            var dashboard: OpenAIDashboardSnapshot?
+            var sourceOverride: String?
+            var fetchResult: Result<(usage: UsageSnapshot, credits: CreditsSnapshot?), Error>
+
+            let outcome = await Self.fetchProviderUsage(
                 provider: p,
-                includeCredits: includeCredits,
-                fetcher: fetcher,
-                claudeFetcher: claudeFetcher)
-            {
+                context: fetchContext)
+            fetchResult = outcome.result
+            dashboard = outcome.dashboard
+            sourceOverride = outcome.sourceOverride
+
+            switch fetchResult {
             case let .success(result):
                 if antigravityPlanDebug, p == .antigravity {
                     antigravityPlanInfo = try? await AntigravityStatusProbe().fetchPlanInfoSummary()
@@ -105,20 +126,17 @@ enum CodexBarCLI {
                         Self.printAntigravityPlanInfo(info)
                     }
                 }
-                var dashboard: OpenAIDashboardSnapshot?
-                if p == .codex, web {
-                    let options = OpenAIWebOptions(
-                        timeout: webTimeout,
-                        debugDumpHTML: webDebugDumpHTML,
-                        verbose: verbose)
-                    dashboard = await Self.fetchOpenAIWebDashboard(
-                        usage: result.usage,
-                        fetcher: fetcher,
-                        options: options,
-                        exitCode: &exitCode)
-                } else if format == .json, p == .codex {
+
+                if dashboard == nil, format == .json, p == .codex {
                     dashboard = Self.loadOpenAIDashboardIfAvailable(usage: result.usage, fetcher: fetcher)
                 }
+
+                let shouldDetectVersion = sourceOverride == nil
+                let versionInfo = Self.formatVersion(
+                    provider: p,
+                    raw: shouldDetectVersion ? Self.detectVersion(for: p) : nil)
+                let source = sourceOverride ?? versionInfo.source
+                let header = Self.makeHeader(provider: p, version: versionInfo.version, source: source)
 
                 switch format {
                 case .text:
@@ -127,7 +145,7 @@ enum CodexBarCLI {
                         snapshot: result.usage,
                         credits: result.credits,
                         context: RenderContext(header: header, status: status, useColor: useColor))
-                    if let dashboard, p == .codex {
+                    if let dashboard, p == .codex, sourceMode.usesWeb {
                         text += "\n" + Self.renderOpenAIWebDashboardText(dashboard)
                     }
                     sections.append(text)
@@ -135,7 +153,7 @@ enum CodexBarCLI {
                     payload.append(ProviderPayload(
                         provider: p,
                         version: versionInfo.version,
-                        source: versionInfo.source,
+                        source: source,
                         status: status,
                         usage: result.usage,
                         credits: result.credits,
@@ -297,6 +315,108 @@ enum CodexBarCLI {
         }.sorted { $0.rawValue < $1.rawValue }
     }
 
+    private static func fetchProviderUsage(
+        provider: UsageProvider,
+        context: ProviderFetchContext) async -> ProviderFetchOutcome
+    {
+        if provider == .codex, context.sourceMode == .oauth {
+            return ProviderFetchOutcome(
+                result: .failure(SourceSelectionError.unsupported(provider: "codex", source: context.sourceMode)),
+                dashboard: nil,
+                sourceOverride: nil)
+        }
+
+        if provider == .codex, context.sourceMode.usesWeb {
+            let options = OpenAIWebOptions(
+                timeout: context.webTimeout,
+                debugDumpHTML: context.webDebugDumpHTML,
+                verbose: context.verbose)
+            let webLogger = await MainActor.run { WebLogBuffer(verbose: context.verbose) }
+            let log: @MainActor (String) -> Void = { line in
+                webLogger.append(line)
+            }
+            do {
+                let webResult = try await Self.fetchOpenAIWebCodex(
+                    fetcher: context.fetcher,
+                    options: options,
+                    logger: log)
+                return ProviderFetchOutcome(
+                    result: .success((usage: webResult.usage, credits: webResult.credits)),
+                    dashboard: webResult.dashboard,
+                    sourceOverride: "openai-web")
+            } catch {
+                let webLogs = await webLogger.snapshot()
+                if context.sourceMode == .auto, Self.shouldFallbackToCodexCLI(for: error) {
+                    Self.writeStderr(
+                        "Warning: OpenAI web cookies unavailable (\(error.localizedDescription)). " +
+                            "Falling back to Codex CLI.\n")
+                    if !webLogs.isEmpty {
+                        Self.writeStderr(webLogs.joined(separator: "\n") + "\n")
+                    }
+                    let result = await Self.fetch(
+                        provider: provider,
+                        includeCredits: context.includeCredits,
+                        fetcher: context.fetcher,
+                        claudeFetcher: context.claudeFetcher)
+                    return ProviderFetchOutcome(result: result, dashboard: nil, sourceOverride: nil)
+                }
+                if !webLogs.isEmpty {
+                    Self.writeStderr(webLogs.joined(separator: "\n") + "\n")
+                }
+                return ProviderFetchOutcome(result: .failure(error), dashboard: nil, sourceOverride: nil)
+            }
+        }
+
+        if provider == .claude, context.sourceMode.usesWeb {
+            do {
+                let webUsage = try await ClaudeUsageFetcher(dataSource: .web).loadLatestUsage(model: "sonnet")
+                let snapshot = UsageSnapshot(
+                    primary: webUsage.primary,
+                    secondary: webUsage.secondary,
+                    tertiary: webUsage.opus,
+                    updatedAt: webUsage.updatedAt,
+                    accountEmail: webUsage.accountEmail,
+                    accountOrganization: webUsage.accountOrganization,
+                    loginMethod: webUsage.loginMethod)
+                return ProviderFetchOutcome(
+                    result: .success((usage: snapshot, credits: nil)),
+                    dashboard: nil,
+                    sourceOverride: nil)
+            } catch {
+                if context.sourceMode == .auto, self.shouldFallbackToClaudeCLI(for: error) {
+                    self.writeStderr(
+                        "Warning: Claude web cookies unavailable (\(error.localizedDescription)). " +
+                            "Falling back to Claude CLI.\n")
+                    let result = await Self.fetch(
+                        provider: provider,
+                        includeCredits: context.includeCredits,
+                        fetcher: context.fetcher,
+                        claudeFetcher: context.claudeFetcher)
+                    return ProviderFetchOutcome(result: result, dashboard: nil, sourceOverride: nil)
+                }
+                return ProviderFetchOutcome(result: .failure(error), dashboard: nil, sourceOverride: nil)
+            }
+        }
+
+        let result = await Self.fetch(
+            provider: provider,
+            includeCredits: context.includeCredits,
+            fetcher: context.fetcher,
+            claudeFetcher: context.claudeFetcher)
+        return ProviderFetchOutcome(result: result, dashboard: nil, sourceOverride: nil)
+    }
+
+    private enum SourceSelectionError: LocalizedError {
+        case unsupported(provider: String, source: SourceMode)
+
+        var errorDescription: String? {
+            switch self {
+            case let .unsupported(provider, source):
+                "Source '\(source.rawValue)' is not supported for \(provider)."
+            }
+        }
+    }
+
     private static func fetch(
         provider: UsageProvider,
         includeCredits: Bool,
@@ -370,9 +490,46 @@ enum CodexBarCLI {
         return nil
     }
 
-    private static func decodeClaudeSource(from values: ParsedValues) -> ClaudeUsageDataSource? {
-        guard let raw = values.options["claudeSource"]?.last else { return nil }
-        return ClaudeUsageDataSource(argument: raw)
+    private static func decodeSourceMode(from values: ParsedValues) -> SourceMode? {
+        guard let raw = values.options["source"]?.last else { return nil }
+        return SourceMode(argument: raw)
+    }
+
+    private struct ProviderFetchOutcome: Sendable {
+        let result: Result<(usage: UsageSnapshot, credits: CreditsSnapshot?), Error>
+        let dashboard: OpenAIDashboardSnapshot?
+        let sourceOverride: String?
+    }
+
+    private struct ProviderFetchContext: Sendable {
+        let includeCredits: Bool
+        let sourceMode: SourceMode
+        let webTimeout: TimeInterval
+        let webDebugDumpHTML: Bool
+        let verbose: Bool
+        let fetcher: UsageFetcher
+        let claudeFetcher: ClaudeUsageFetcher
+    }
+
+    private enum SourceMode: String, CaseIterable, Sendable {
+        case auto
+        case web
+        case cli
+        case oauth
+
+        var usesWeb: Bool {
+            self == .auto || self == .web
+        }
+
+        init?(argument: String) {
+            switch argument.lowercased() {
+            case "auto": self = .auto
+            case "web": self = .web
+            case "cli": self = .cli
+            case "oauth": self = .oauth
+            default: return nil
+            }
+        }
     }
 
     private struct OpenAIWebOptions: Sendable {
@@ -382,69 +539,131 @@ enum CodexBarCLI {
     }
 
     @MainActor
-    private static func fetchOpenAIWebDashboard(
-        usage: UsageSnapshot,
+    private final class WebLogBuffer {
+        private var lines: [String] = []
+        private let maxCount: Int
+        private let verbose: Bool
+
+        init(maxCount: Int = 300, verbose: Bool) {
+            self.maxCount = maxCount
+            self.verbose = verbose
+        }
+
+        func append(_ line: String) {
+            self.lines.append(line)
+            if self.lines.count > self.maxCount {
+                self.lines.removeFirst(self.lines.count - self.maxCount)
+            }
+            if self.verbose {
+                fputs("\(line)\n", stderr)
+            }
+        }
+
+        func snapshot() -> [String] {
+            self.lines
+        }
+    }
+
+    private struct OpenAIWebCodexResult: Sendable {
+        let usage: UsageSnapshot
+        let credits: CreditsSnapshot?
+        let dashboard: OpenAIDashboardSnapshot
+    }
+
+    private enum OpenAIWebCodexError: LocalizedError {
+        case missingUsage
+
+        var errorDescription: String? {
+            switch self {
+            case .missingUsage:
+                "OpenAI web dashboard did not include usage limits."
+            }
+        }
+    }
+
+    @MainActor
+    private static func fetchOpenAIWebCodex(
         fetcher: UsageFetcher,
         options: OpenAIWebOptions,
-        exitCode: inout ExitCode) async -> OpenAIDashboardSnapshot?
+        logger: @MainActor @escaping (String) -> Void) async throws -> OpenAIWebCodexResult
+    {
+        let accountEmail = fetcher.loadAccountInfo().email?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let dashboard = try await Self.fetchOpenAIWebDashboard(
+            accountEmail: accountEmail,
+            fetcher: fetcher,
+            options: options,
+            logger: logger)
+        guard let usage = dashboard.toUsageSnapshot(accountEmail: accountEmail) else {
+            throw OpenAIWebCodexError.missingUsage
+        }
+        let credits = dashboard.toCreditsSnapshot()
+        return OpenAIWebCodexResult(usage: usage, credits: credits, dashboard: dashboard)
+    }
+
+    @MainActor
+    private static func fetchOpenAIWebDashboard(
+        accountEmail: String?,
+        fetcher: UsageFetcher,
+        options: OpenAIWebOptions,
+        logger: @MainActor @escaping (String) -> Void) async throws -> OpenAIDashboardSnapshot
     {
         #if os(macOS)
         // Ensure AppKit is initialized before using WebKit in a CLI.
         _ = NSApplication.shared
 
-        let codexEmail = (usage.accountEmail ?? fetcher.loadAccountInfo().email)?
+        let trimmed = accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fallback = fetcher.loadAccountInfo().email?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let codexEmail = trimmed?.isEmpty == false ? trimmed : (fallback?.isEmpty == false ? fallback : nil)
+        let allowAnyAccount = codexEmail == nil
+
+        let importResult = try await OpenAIDashboardBrowserCookieImporter()
+            .importBestCookies(intoAccountEmail: codexEmail, allowAnyAccount: allowAnyAccount, logger: logger)
+        let effectiveEmail = codexEmail ?? importResult.signedInEmail?
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let codexEmail, !codexEmail.isEmpty else {
-            exitCode = .failure
-            fputs("Error: OpenAI web access requested, but Codex account email is unknown.\n", stderr)
-            return nil
-        }
 
-        var logs: [String] = []
-        let log: (String) -> Void = { line in
-            logs.append(line)
-            if logs.count > 300 { logs.removeFirst(logs.count - 300) }
-            if options.verbose {
-                fputs("\(line)\n", stderr)
-            }
+        let dash = try await OpenAIDashboardFetcher().loadLatestDashboard(
+            accountEmail: effectiveEmail,
+            logger: logger,
+            debugDumpHTML: options.debugDumpHTML,
+            timeout: options.timeout)
+        let cacheEmail = effectiveEmail ?? dash.signedInEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let cacheEmail, !cacheEmail.isEmpty {
+            OpenAIDashboardCacheStore.save(OpenAIDashboardCache(accountEmail: cacheEmail, snapshot: dash))
         }
-
-        do {
-            _ = try await OpenAIDashboardBrowserCookieImporter()
-                .importBestCookies(intoAccountEmail: codexEmail, logger: log)
-        } catch {
-            exitCode = .failure
-            fputs("Error: Browser cookie import failed: \(error.localizedDescription)\n", stderr)
-            if !logs.isEmpty {
-                fputs(logs.joined(separator: "\n") + "\n", stderr)
-            }
-            return nil
-        }
-
-        do {
-            let dash = try await OpenAIDashboardFetcher().loadLatestDashboard(
-                accountEmail: codexEmail,
-                logger: log,
-                debugDumpHTML: options.debugDumpHTML,
-                timeout: options.timeout)
-            OpenAIDashboardCacheStore.save(OpenAIDashboardCache(accountEmail: codexEmail, snapshot: dash))
-            return dash
-        } catch {
-            exitCode = .failure
-            fputs("Error: OpenAI web dashboard fetch failed: \(error.localizedDescription)\n", stderr)
-            if !logs.isEmpty {
-                fputs(logs.joined(separator: "\n") + "\n", stderr)
-            }
-            return nil
-        }
+        return dash
         #else
-        _ = usage
+        _ = accountEmail
         _ = fetcher
         _ = options
-        exitCode = .failure
-        self.writeStderr("Error: OpenAI web access is only supported on macOS.\n")
-        return nil
+        _ = logger
+        throw OpenAIDashboardFetcher.FetchError.noDashboardData(
+            body: "OpenAI web dashboard fetch is only supported on macOS.")
         #endif
+    }
+
+    static func shouldFallbackToCodexCLI(for error: Error) -> Bool {
+        if let importError = error as? OpenAIDashboardBrowserCookieImporter.ImportError {
+            switch importError {
+            case .noCookiesFound,
+                 .browserAccessDenied,
+                 .dashboardStillRequiresLogin,
+                 .noMatchingAccount:
+                return true
+            }
+        }
+
+        if let fetchError = error as? OpenAIDashboardFetcher.FetchError {
+            if case .loginRequired = fetchError { return true }
+        }
+
+        return false
+    }
+
+    static func shouldFallbackToClaudeCLI(for error: Error) -> Bool {
+        if let fetchError = error as? ClaudeWebAPIFetcher.FetchError {
+            if case .noSessionKeyFound = fetchError { return true }
+        }
+        return false
     }
 
     private static func renderOpenAIWebDashboardText(_ dash: OpenAIDashboardSnapshot) -> String {
@@ -552,14 +771,16 @@ enum CodexBarCLI {
 
         Usage:
           codexbar usage [--format text|json] [--provider codex|claude|gemini|antigravity|both|all]
-                       [--no-credits] [--pretty] [--status] [--web] [--claude-source <oauth|web|cli>]
+                       [--no-credits] [--pretty] [--status] [--source <auto|web|cli|oauth>]
                        [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
 
         Description:
           Print usage from enabled providers as text (default) or JSON. Honors your in-app toggles.
-          When --web is set (macOS only), CodexBar uses browser cookies to fetch web-backed data:
-          - Codex: OpenAI web dashboard (credits history, code review remaining, usage breakdown)
-          - Claude: claude.ai API (unless --claude-source overrides)
+          When --source is auto/web (macOS only), CodexBar uses browser cookies to fetch web-backed data:
+          - Codex: OpenAI web dashboard (usage limits, credits remaining, code review remaining, usage breakdown).
+            Auto falls back to Codex CLI only when cookies are missing.
+          - Claude: claude.ai API.
+            Auto falls back to Claude CLI only when cookies are missing.
 
         Examples:
           codexbar usage
@@ -567,7 +788,7 @@ enum CodexBarCLI {
           codexbar usage --provider gemini
           codexbar usage --format json --provider all --pretty
           codexbar usage --status
-          codexbar usage --provider codex --web --format json --pretty
+          codexbar usage --provider codex --source web --format json --pretty
         """
     }
 
@@ -577,7 +798,7 @@ enum CodexBarCLI {
 
         Usage:
           codexbar [--format text|json] [--provider codex|claude|gemini|antigravity|both|all]
-                  [--no-credits] [--pretty] [--status] [--web] [--claude-source <oauth|web|cli>]
+                  [--no-credits] [--pretty] [--status] [--source <auto|web|cli|oauth>]
                   [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
 
         Global flags:
@@ -598,11 +819,11 @@ enum CodexBarCLI {
 // MARK: - Options & decoding helpers
 
 private struct UsageOptions: CommanderParsable {
-    private static let webHelp: String = {
+    private static let sourceHelp: String = {
         #if os(macOS)
-        "Fetch web-backed usage data (uses browser cookies)"
+        "Data source: auto | web | cli | oauth (auto uses web then falls back on missing cookies)"
         #else
-        "Fetch web-backed usage data (macOS only)"
+        "Data source: auto | web | cli | oauth (web/auto are macOS only)"
         #endif
     }()
 
@@ -624,13 +845,10 @@ private struct UsageOptions: CommanderParsable {
     @Flag(name: .long("status"), help: "Fetch and include provider status")
     var status: Bool = false
 
-    @Flag(name: .long("web"), help: Self.webHelp)
-    var web: Bool = false
+    @Option(name: .long("source"), help: Self.sourceHelp)
+    var source: String?
 
-    @Option(name: .long("claude-source"), help: "Claude usage source: oauth | web | cli")
-    var claudeSource: String?
-
-    @Option(name: .long("web-timeout"), help: "Web fetch timeout (seconds) (Codex only)")
+    @Option(name: .long("web-timeout"), help: "Web fetch timeout (seconds) (Codex only; source=auto|web)")
     var webTimeout: Double?
 
     @Flag(name: .long("web-debug-dump-html"), help: "Dump HTML snapshots to /tmp when Codex dashboard data is missing")
@@ -638,17 +856,6 @@ private struct UsageOptions: CommanderParsable {
 
     @Flag(name: .long("antigravity-plan-debug"), help: "Emit Antigravity planInfo fields (debug)")
     var antigravityPlanDebug: Bool = false
-}
-
-extension ClaudeUsageDataSource {
-    fileprivate init?(argument: String) {
-        switch argument.lowercased() {
-        case "oauth": self = .oauth
-        case "web": self = .web
-        case "cli": self = .cli
-        default: return nil
-        }
-    }
 }
 
 enum ProviderSelection: Sendable, ExpressibleFromArgument {
