@@ -69,7 +69,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.secondary = try container.decodeIfPresent(RateWindow.self, forKey: .secondary)
         self.tertiary = try container.decodeIfPresent(RateWindow.self, forKey: .tertiary)
         self.providerCost = try container.decodeIfPresent(ProviderCostSnapshot.self, forKey: .providerCost)
-        self.zaiUsage = nil  // Not persisted, fetched fresh each time
+        self.zaiUsage = nil // Not persisted, fetched fresh each time
         self.updatedAt = try container.decode(Date.self, forKey: .updatedAt)
         self.accountEmail = try container.decodeIfPresent(String.self, forKey: .accountEmail)
         self.accountOrganization = try container.decodeIfPresent(String.self, forKey: .accountOrganization)

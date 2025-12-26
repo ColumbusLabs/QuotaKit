@@ -1,5 +1,5 @@
-import Foundation
 import CodexBarCore
+import Foundation
 import Testing
 @testable import CodexBar
 
@@ -95,7 +95,7 @@ struct SettingsStoreTests {
 
         let storeA = SettingsStore(userDefaults: defaultsA)
 
-        #expect(storeA.orderedProviders() == [.gemini, .codex, .claude, .cursor, .antigravity])
+        #expect(storeA.orderedProviders() == [.gemini, .codex, .claude, .zai, .cursor, .antigravity])
 
         // Move one provider; ensure it's persisted across instances.
         storeA.moveProvider(fromOffsets: IndexSet(integer: 4), toOffset: 0)

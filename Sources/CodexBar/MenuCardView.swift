@@ -57,13 +57,6 @@ struct UsageMenuCardView: View {
             let spendLine: String
         }
 
-        struct ZaiUsageSection: Sendable {
-            let tokenLimitLine: String
-            let tokenLimitDetailLine: String?
-            let timeLimitLine: String
-            let timeLimitDetailLine: String?
-        }
-
         let providerName: String
         let email: String
         let subtitleText: String
@@ -76,7 +69,6 @@ struct UsageMenuCardView: View {
         let creditsHintCopyText: String?
         let providerCost: ProviderCostSection?
         let tokenUsage: TokenUsageSection?
-        let zaiUsage: ZaiUsageSection?
         let placeholder: String?
         let progressColor: Color
     }
@@ -109,7 +101,6 @@ struct UsageMenuCardView: View {
                 let hasCredits = self.model.creditsText != nil
                 let hasProviderCost = self.model.providerCost != nil
                 let hasCost = self.model.tokenUsage != nil || hasProviderCost
-                let hasZaiUsage = self.model.zaiUsage != nil
 
                 VStack(alignment: .leading, spacing: 12) {
                     if hasUsage {
@@ -143,7 +134,7 @@ struct UsageMenuCardView: View {
                             }
                         }
                     }
-                    if hasUsage, hasCredits || hasCost || hasZaiUsage {
+                    if hasUsage, hasCredits || hasCost {
                         Divider()
                     }
                     if let credits = self.model.creditsText {
@@ -154,7 +145,7 @@ struct UsageMenuCardView: View {
                             hintCopyText: self.model.creditsHintCopyText,
                             progressColor: self.model.progressColor)
                     }
-                    if hasCredits, hasCost || hasZaiUsage {
+                    if hasCredits, hasCost {
                         Divider()
                     }
                     if let providerCost = self.model.providerCost {
@@ -193,30 +184,6 @@ struct UsageMenuCardView: View {
                             }
                         }
                     }
-                    if (hasCost || hasProviderCost), hasZaiUsage {
-                        Divider()
-                    }
-                    if let zaiUsage = self.model.zaiUsage {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("z.ai Stats")
-                                .font(.body)
-                                .fontWeight(.medium)
-                            Text(zaiUsage.tokenLimitLine)
-                                .font(.footnote)
-                            if let tokenDetail = zaiUsage.tokenLimitDetailLine, !tokenDetail.isEmpty {
-                                Text(tokenDetail)
-                                    .font(.footnote)
-                                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                            }
-                            Text(zaiUsage.timeLimitLine)
-                                .font(.footnote)
-                            if let timeDetail = zaiUsage.timeLimitDetailLine, !timeDetail.isEmpty {
-                                Text(timeDetail)
-                                    .font(.footnote)
-                                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                            }
-                        }
-                    }
                 }
                 .padding(.bottom, self.model.creditsText == nil ? 6 : 0)
             }
@@ -229,7 +196,7 @@ struct UsageMenuCardView: View {
 
     private var hasDetails: Bool {
         !self.model.metrics.isEmpty || self.model.placeholder != nil || self.model.tokenUsage != nil ||
-            self.model.providerCost != nil || self.model.zaiUsage != nil
+            self.model.providerCost != nil
     }
 }
 
@@ -590,7 +557,6 @@ extension UsageMenuCardView.Model {
             enabled: input.tokenCostUsageEnabled,
             snapshot: input.tokenSnapshot,
             error: input.tokenError)
-        let zaiUsage = Self.zaiUsageSection(snapshot: input.snapshot)
         let subtitle = Self.subtitle(
             snapshot: input.snapshot,
             isRefreshing: input.isRefreshing,
@@ -610,7 +576,6 @@ extension UsageMenuCardView.Model {
             creditsHintCopyText: (input.dashboardError?.isEmpty ?? true) ? nil : input.dashboardError,
             providerCost: providerCost,
             tokenUsage: tokenUsage,
-            zaiUsage: zaiUsage,
             placeholder: placeholder,
             progressColor: Self.progressColor(for: input.provider))
     }
@@ -624,7 +589,7 @@ extension UsageMenuCardView.Model {
         case .codex:
             if let email = snapshot?.accountEmail, !email.isEmpty { return email }
             if let email = account.email, !email.isEmpty { return email }
-        case .claude, .gemini, .antigravity, .cursor:
+        case .claude, .zai, .gemini, .antigravity, .cursor:
             if let email = snapshot?.accountEmail, !email.isEmpty { return email }
         }
         return ""
@@ -635,7 +600,7 @@ extension UsageMenuCardView.Model {
         case .codex:
             if let plan = snapshot?.loginMethod, !plan.isEmpty { return self.planDisplay(plan) }
             if let plan = account.plan, !plan.isEmpty { return Self.planDisplay(plan) }
-        case .claude, .gemini, .antigravity, .cursor:
+        case .claude, .zai, .gemini, .antigravity, .cursor:
             if let plan = snapshot?.loginMethod, !plan.isEmpty { return self.planDisplay(plan) }
         }
         return nil
@@ -670,6 +635,9 @@ extension UsageMenuCardView.Model {
         guard let snapshot = input.snapshot else { return [] }
         var metrics: [Metric] = []
         let percentStyle: PercentStyle = input.usageBarsShowUsed ? .used : .left
+        let zaiUsage = input.provider == .zai ? snapshot.zaiUsage : nil
+        let zaiTokenDetail = Self.zaiLimitDetailText(limit: zaiUsage?.tokenLimit)
+        let zaiTimeDetail = Self.zaiLimitDetailText(limit: zaiUsage?.timeLimit)
         metrics.append(Metric(
             id: "primary",
             title: input.metadata.sessionLabel,
@@ -677,7 +645,7 @@ extension UsageMenuCardView.Model {
                 input.usageBarsShowUsed ? snapshot.primary.usedPercent : snapshot.primary.remainingPercent),
             percentStyle: percentStyle,
             resetText: Self.resetText(for: snapshot.primary, prefersCountdown: true),
-            detailText: nil))
+            detailText: input.provider == .zai ? zaiTokenDetail : nil))
         if let weekly = snapshot.secondary {
             let paceText = UsagePaceText.weekly(provider: input.provider, window: weekly, now: input.now)
             metrics.append(Metric(
@@ -686,7 +654,7 @@ extension UsageMenuCardView.Model {
                 percent: Self.clamped(input.usageBarsShowUsed ? weekly.usedPercent : weekly.remainingPercent),
                 percentStyle: percentStyle,
                 resetText: Self.resetText(for: weekly, prefersCountdown: true),
-                detailText: paceText))
+                detailText: input.provider == .zai ? zaiTimeDetail : paceText))
         }
         if input.metadata.supportsOpus, let opus = snapshot.tertiary {
             metrics.append(Metric(
@@ -709,6 +677,14 @@ extension UsageMenuCardView.Model {
                 detailText: nil))
         }
         return metrics
+    }
+
+    private static func zaiLimitDetailText(limit: ZaiLimitEntry?) -> String? {
+        guard let limit else { return nil }
+        let currentStr = UsageFormatter.tokenCountString(limit.currentValue)
+        let usageStr = UsageFormatter.tokenCountString(limit.usage)
+        let remainingStr = UsageFormatter.tokenCountString(limit.remaining)
+        return "\(currentStr) / \(usageStr) (\(remainingStr) remaining)"
     }
 
     private static func creditsLine(
@@ -788,47 +764,6 @@ extension UsageMenuCardView.Model {
             spendLine: "This month: \(used) / \(limit)")
     }
 
-    private static func zaiUsageSection(snapshot: UsageSnapshot?) -> ZaiUsageSection? {
-        guard let zaiUsage = snapshot?.zaiUsage, zaiUsage.isValid else { return nil }
-
-        var tokenLimitLine: String?
-        var tokenLimitDetailLine: String?
-        var timeLimitLine: String?
-        var timeLimitDetailLine: String?
-
-        if let tokenLimit = zaiUsage.tokenLimit {
-            let currentStr = UsageFormatter.tokenCountString(tokenLimit.currentValue)
-            let usageStr = UsageFormatter.tokenCountString(tokenLimit.usage)
-            let remainingStr = UsageFormatter.tokenCountString(tokenLimit.remaining)
-            tokenLimitLine = "5-hour usage: \(currentStr) / \(usageStr) ( \(remainingStr) remaining)"
-
-            if let resetTime = tokenLimit.nextResetTime {
-                tokenLimitDetailLine = "Resets \(UsageFormatter.resetDescription(from: resetTime))"
-            }
-        }
-
-        if let timeLimit = zaiUsage.timeLimit {
-            let currentStr = UsageFormatter.tokenCountString(timeLimit.currentValue)
-            let usageStr = UsageFormatter.tokenCountString(timeLimit.usage)
-            let remainingStr = UsageFormatter.tokenCountString(timeLimit.remaining)
-            timeLimitLine = "MCP Usage: \(currentStr) / \(usageStr) ( \(remainingStr) remaining) (monthly)"
-
-            // Show usage details if available
-            if !timeLimit.usageDetails.isEmpty {
-                let details = timeLimit.usageDetails.map { "\($0.modelCode): \($0.usage)" }.joined(separator: ", ")
-                timeLimitDetailLine = "Details: \(details)"
-            }
-        }
-
-        guard tokenLimitLine != nil || timeLimitLine != nil else { return nil }
-
-        return ZaiUsageSection(
-            tokenLimitLine: tokenLimitLine ?? "",
-            tokenLimitDetailLine: tokenLimitDetailLine,
-            timeLimitLine: timeLimitLine ?? "",
-            timeLimitDetailLine: timeLimitDetailLine)
-    }
-
     private static func clamped(_ value: Double) -> Double {
         min(100, max(0, value))
     }
@@ -839,6 +774,8 @@ extension UsageMenuCardView.Model {
             Color(red: 73 / 255, green: 163 / 255, blue: 176 / 255)
         case .claude:
             Color(red: 204 / 255, green: 124 / 255, blue: 94 / 255)
+        case .zai:
+            Color(red: 232 / 255, green: 90 / 255, blue: 106 / 255)
         case .gemini:
             Color(red: 171 / 255, green: 135 / 255, blue: 234 / 255) // #AB87EA
         case .antigravity:

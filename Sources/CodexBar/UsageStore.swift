@@ -6,6 +6,7 @@ import Observation
 enum IconStyle {
     case codex
     case claude
+    case zai
     case gemini
     case antigravity
     case cursor
@@ -32,6 +33,7 @@ extension UsageStore {
         _ = self.codexVersion
         _ = self.claudeVersion
         _ = self.geminiVersion
+        _ = self.zaiVersion
         _ = self.antigravityVersion
         _ = self.claudeAccountEmail
         _ = self.claudeAccountOrganization
@@ -158,6 +160,7 @@ final class UsageStore {
     var codexVersion: String?
     var claudeVersion: String?
     var geminiVersion: String?
+    var zaiVersion: String?
     var antigravityVersion: String?
     var cursorVersion: String?
     var claudeAccountEmail: String?
@@ -259,6 +262,7 @@ final class UsageStore {
         switch provider {
         case .codex: self.codexVersion
         case .claude: self.claudeVersion
+        case .zai: self.zaiVersion
         case .gemini: self.geminiVersion
         case .antigravity: self.antigravityVersion
         case .cursor: self.cursorVersion
@@ -272,10 +276,16 @@ final class UsageStore {
         if self.isEnabled(.claude), let claudeSnapshot {
             return claudeSnapshot
         }
+        if self.isEnabled(.zai), let snap = self.snapshots[.zai] {
+            return snap
+        }
         if self.isEnabled(.gemini), let snap = self.snapshots[.gemini] {
             return snap
         }
         if self.isEnabled(.antigravity), let snap = self.snapshots[.antigravity] {
+            return snap
+        }
+        if self.isEnabled(.cursor), let snap = self.snapshots[.cursor] {
             return snap
         }
         return nil
@@ -287,6 +297,7 @@ final class UsageStore {
         if self.isEnabled(.cursor) { return .cursor }
         if self.isEnabled(.antigravity) { return .antigravity }
         if self.isEnabled(.gemini) { return .gemini }
+        if self.isEnabled(.zai) { return .zai }
         if self.isEnabled(.claude) { return .claude }
         return .codex
     }
@@ -294,6 +305,7 @@ final class UsageStore {
     var isStale: Bool {
         (self.isEnabled(.codex) && self.lastCodexError != nil) ||
             (self.isEnabled(.claude) && self.lastClaudeError != nil) ||
+            (self.isEnabled(.zai) && self.errors[.zai] != nil) ||
             (self.isEnabled(.gemini) && self.errors[.gemini] != nil) ||
             (self.isEnabled(.antigravity) && self.errors[.antigravity] != nil) ||
             (self.isEnabled(.cursor) && self.errors[.cursor] != nil)
@@ -1026,25 +1038,18 @@ extension UsageStore {
                     let hasKey = ClaudeWebAPIFetcher.hasSessionKey { msg in lines.append(msg) }
 
                     let strategy: ClaudeUsageStrategy = {
-                        // Check if z.ai is configured
-                        let claudeSettings = ClaudeSettingsReader.readSettings()
-                        let isZaiConfigured = claudeSettings.isZaiConfigured
-                        if isZaiConfigured {
-                            return ClaudeUsageStrategy(dataSource: .oauth, useWebExtras: false, isZaiConfigured: true)
-                        }
-
                         if claudeDebugMenuEnabled {
                             let selected = claudeUsageDataSource
                             if selected == .oauth {
-                                return ClaudeUsageStrategy(dataSource: .oauth, useWebExtras: false, isZaiConfigured: false)
+                                return ClaudeUsageStrategy(dataSource: .oauth, useWebExtras: false)
                             }
                             if selected == .web, !hasKey {
-                                return ClaudeUsageStrategy(dataSource: .cli, useWebExtras: false, isZaiConfigured: false)
+                                return ClaudeUsageStrategy(dataSource: .cli, useWebExtras: false)
                             }
                             let useExtras = selected == .cli && claudeWebExtrasEnabled && hasKey
-                            return ClaudeUsageStrategy(dataSource: selected, useWebExtras: useExtras, isZaiConfigured: false)
+                            return ClaudeUsageStrategy(dataSource: selected, useWebExtras: useExtras)
                         }
-                        return ClaudeUsageStrategy(dataSource: hasKey ? .web : .cli, useWebExtras: false, isZaiConfigured: false)
+                        return ClaudeUsageStrategy(dataSource: hasKey ? .web : .cli, useWebExtras: false)
                     }()
 
                     lines.append("strategy=\(strategy.dataSource.rawValue)")
@@ -1100,6 +1105,11 @@ extension UsageStore {
                 }
                 await MainActor.run { self.probeLogs[.claude] = text }
                 return text
+            case .zai:
+                let token = ZaiSettingsReader.apiToken()
+                let text = "Z_AI_API_KEY=\(token == nil ? "missing" : "present")"
+                await MainActor.run { self.probeLogs[.zai] = text }
+                return text
             case .gemini:
                 let text = "Gemini debug log not yet implemented"
                 await MainActor.run { self.probeLogs[.gemini] = text }
@@ -1139,6 +1149,7 @@ extension UsageStore {
                 self.codexVersion = codexVer
                 self.claudeVersion = claudeVer
                 self.geminiVersion = geminiVer
+                self.zaiVersion = nil
                 self.antigravityVersion = antigravityVer
             }
         }

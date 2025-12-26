@@ -110,6 +110,9 @@ struct ProvidersPane: View {
         if provider == .cursor {
             return "web • \(usageText)"
         }
+        if provider == .zai {
+            return "api • \(usageText)"
+        }
 
         var detail = "\(cliName) \(versionText) • \(usageText)"
         if provider == .antigravity {
@@ -127,6 +130,8 @@ struct ProvidersPane: View {
                 return self.settings.claudeUsageDataSource.rawValue
             }
             return "auto"
+        case .zai:
+            return "api"
         case .cursor:
             return "web"
         case .gemini:

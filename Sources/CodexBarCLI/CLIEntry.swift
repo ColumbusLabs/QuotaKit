@@ -241,6 +241,8 @@ enum CodexBarCLI {
             VersionDetector.codexVersion()
         case .claude:
             ClaudeUsageFetcher().detectVersion()
+        case .zai:
+            nil
         case .gemini:
             VersionDetector.geminiVersion()
         case .antigravity:
@@ -254,6 +256,7 @@ enum CodexBarCLI {
         let source = switch provider {
         case .codex: "codex-cli"
         case .claude: "claude"
+        case .zai: "zai"
         case .gemini: "gemini-cli"
         case .antigravity: "antigravity"
         case .cursor: "cursor"
@@ -367,65 +370,22 @@ enum CodexBarCLI {
             }
         }
 
-        if provider == .claude {
-            // Check if z.ai is configured first
-            let claudeSettings = ClaudeSettingsReader.readSettings()
-            if claudeSettings.isZaiConfigured {
-                if let apiKey = claudeSettings.apiToken {
-                    do {
-                        let zaiUsage = try await ZaiUsageFetcher.fetchUsage(apiKey: apiKey)
-
-                        // Convert z.ai usage to a UsageSnapshot format
-                        let tokenLimit = zaiUsage.tokenLimit
-                        let timeLimit = zaiUsage.timeLimit
-
-                        let primaryPercent: Double
-                        let secondaryPercent: Double?
-
-                        if let tokenLimit = tokenLimit {
-                            primaryPercent = tokenLimit.percentage
-                            secondaryPercent = timeLimit?.percentage
-                        } else if let timeLimit = timeLimit {
-                            primaryPercent = timeLimit.percentage
-                            secondaryPercent = nil
-                        } else {
-                            primaryPercent = 0
-                            secondaryPercent = nil
-                        }
-
-                        let primary = RateWindow(
-                            usedPercent: primaryPercent,
-                            windowMinutes: tokenLimit?.unit == .hours ? 300 : nil,
-                            resetsAt: tokenLimit?.nextResetTime,
-                            resetDescription: "5-hour window")
-
-                        let secondary: RateWindow? = secondaryPercent.map { pct in
-                            RateWindow(
-                                usedPercent: pct,
-                                windowMinutes: nil,
-                                resetsAt: nil,
-                                resetDescription: "Monthly")
-                        }
-
-                        let snapshot = UsageSnapshot(
-                            primary: primary,
-                            secondary: secondary,
-                            tertiary: nil,
-                            providerCost: nil,
-                            zaiUsage: zaiUsage,
-                            updatedAt: zaiUsage.updatedAt,
-                            accountEmail: nil,
-                            accountOrganization: nil,
-                            loginMethod: "z.ai Coding Plan")
-
-                        return ProviderFetchOutcome(
-                            result: .success((usage: snapshot, credits: nil)),
-                            dashboard: nil,
-                            sourceOverride: "z.ai")
-                    } catch {
-                        return ProviderFetchOutcome(result: .failure(error), dashboard: nil, sourceOverride: nil)
-                    }
-                }
+        if provider == .zai {
+            guard let apiKey = ZaiSettingsReader.apiToken() else {
+                return ProviderFetchOutcome(
+                    result: .failure(ZaiSettingsError.missingToken),
+                    dashboard: nil,
+                    sourceOverride: nil)
+            }
+            do {
+                let zaiUsage = try await ZaiUsageFetcher.fetchUsage(apiKey: apiKey)
+                let snapshot = zaiUsage.toUsageSnapshot()
+                return ProviderFetchOutcome(
+                    result: .success((usage: snapshot, credits: nil)),
+                    dashboard: nil,
+                    sourceOverride: "zai")
+            } catch {
+                return ProviderFetchOutcome(result: .failure(error), dashboard: nil, sourceOverride: nil)
             }
         }
 
@@ -499,12 +459,16 @@ enum CodexBarCLI {
                         secondary: usage.secondary,
                         tertiary: usage.opus,
                         providerCost: usage.providerCost,
-                        zaiUsage: usage.zaiUsage,
                         updatedAt: usage.updatedAt,
                         accountEmail: usage.accountEmail,
                         accountOrganization: usage.accountOrganization,
                         loginMethod: usage.loginMethod),
                     credits: nil))
+            case .zai:
+                let apiKey = ZaiSettingsReader.apiToken()
+                guard let apiKey else { return .failure(ZaiSettingsError.missingToken) }
+                let usage = try await ZaiUsageFetcher.fetchUsage(apiKey: apiKey)
+                return .success((usage: usage.toUsageSnapshot(), credits: nil))
             case .gemini:
                 let probe = GeminiStatusProbe()
                 let snap = try await probe.fetch()
@@ -834,7 +798,7 @@ enum CodexBarCLI {
         CodexBar \(version)
 
         Usage:
-          codexbar usage [--format text|json] [--provider codex|claude|gemini|antigravity|both|all]
+          codexbar usage [--format text|json] [--provider codex|claude|zai|gemini|antigravity|both|all]
                        [--no-credits] [--pretty] [--status] [--source <auto|web|cli|oauth>]
                        [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
 
@@ -861,7 +825,7 @@ enum CodexBarCLI {
         CodexBar \(version)
 
         Usage:
-          codexbar [--format text|json] [--provider codex|claude|gemini|antigravity|both|all]
+          codexbar [--format text|json] [--provider codex|claude|zai|gemini|antigravity|both|all]
                   [--no-credits] [--pretty] [--status] [--source <auto|web|cli|oauth>]
                   [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
 
@@ -925,6 +889,7 @@ private struct UsageOptions: CommanderParsable {
 enum ProviderSelection: Sendable, ExpressibleFromArgument {
     case codex
     case claude
+    case zai
     case gemini
     case antigravity
     case cursor
@@ -936,6 +901,7 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
         switch argument.lowercased() {
         case "codex": self = .codex
         case "claude": self = .claude
+        case "zai", "z.ai": self = .zai
         case "gemini": self = .gemini
         case "antigravity": self = .antigravity
         case "cursor": self = .cursor
@@ -949,6 +915,7 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
         switch provider {
         case .codex: self = .codex
         case .claude: self = .claude
+        case .zai: self = .zai
         case .gemini: self = .gemini
         case .antigravity: self = .antigravity
         case .cursor: self = .cursor
@@ -959,11 +926,12 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
         switch self {
         case .codex: [.codex]
         case .claude: [.claude]
+        case .zai: [.zai]
         case .gemini: [.gemini]
         case .antigravity: [.antigravity]
         case .cursor: [.cursor]
         case .both: [.codex, .claude]
-        case .all: [.codex, .claude, .cursor, .gemini, .antigravity]
+        case .all: [.codex, .claude, .zai, .cursor, .gemini, .antigravity]
         case let .custom(providers): providers
         }
     }

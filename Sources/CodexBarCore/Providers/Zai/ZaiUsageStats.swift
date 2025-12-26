@@ -49,6 +49,58 @@ public struct ZaiLimitEntry: Sendable {
     }
 }
 
+extension ZaiLimitEntry {
+    public var usedPercent: Double {
+        if let computed = self.computedUsedPercent {
+            return computed
+        }
+        return self.percentage
+    }
+
+    public var windowMinutes: Int? {
+        guard self.number > 0 else { return nil }
+        switch self.unit {
+        case .minutes:
+            return self.number
+        case .hours:
+            return self.number * 60
+        case .days:
+            return self.number * 24 * 60
+        case .unknown:
+            return nil
+        }
+    }
+
+    public var windowDescription: String? {
+        guard self.number > 0 else { return nil }
+        let unitLabel: String? = switch self.unit {
+        case .minutes: "minute"
+        case .hours: "hour"
+        case .days: "day"
+        case .unknown: nil
+        }
+        guard let unitLabel else { return nil }
+        let suffix = self.number == 1 ? unitLabel : "\(unitLabel)s"
+        return "\(self.number) \(suffix)"
+    }
+
+    public var windowLabel: String? {
+        guard let description = self.windowDescription else { return nil }
+        return "\(description) window"
+    }
+
+    private var computedUsedPercent: Double? {
+        guard self.usage > 0 else { return nil }
+        let limit = max(0, self.usage)
+        guard limit > 0 else { return nil }
+
+        let usedFromRemaining = limit - self.remaining
+        let used = max(0, min(limit, max(usedFromRemaining, self.currentValue)))
+        let percent = (Double(used) / Double(limit)) * 100
+        return min(100, max(0, percent))
+    }
+}
+
 /// Usage detail for MCP tools
 public struct ZaiUsageDetail: Sendable, Codable {
     public let modelCode: String
@@ -74,7 +126,50 @@ public struct ZaiUsageSnapshot: Sendable {
 
     /// Returns true if this snapshot contains valid z.ai data
     public var isValid: Bool {
-        tokenLimit != nil || timeLimit != nil
+        self.tokenLimit != nil || self.timeLimit != nil
+    }
+}
+
+extension ZaiUsageSnapshot {
+    public func toUsageSnapshot() -> UsageSnapshot {
+        let primaryLimit = self.tokenLimit ?? self.timeLimit
+        let secondaryLimit = (self.tokenLimit != nil && self.timeLimit != nil) ? self.timeLimit : nil
+
+        let primary = primaryLimit.map { Self.rateWindow(for: $0) } ?? RateWindow(
+            usedPercent: 0,
+            windowMinutes: nil,
+            resetsAt: nil,
+            resetDescription: nil)
+        let secondary = secondaryLimit.map { Self.rateWindow(for: $0) }
+
+        return UsageSnapshot(
+            primary: primary,
+            secondary: secondary,
+            tertiary: nil,
+            providerCost: nil,
+            zaiUsage: self,
+            updatedAt: self.updatedAt,
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: "z.ai")
+    }
+
+    private static func rateWindow(for limit: ZaiLimitEntry) -> RateWindow {
+        RateWindow(
+            usedPercent: limit.usedPercent,
+            windowMinutes: limit.type == .tokensLimit ? limit.windowMinutes : nil,
+            resetsAt: limit.nextResetTime,
+            resetDescription: self.resetDescription(for: limit))
+    }
+
+    private static func resetDescription(for limit: ZaiLimitEntry) -> String? {
+        if let label = limit.windowLabel {
+            return label
+        }
+        if limit.type == .timeLimit {
+            return "Monthly"
+        }
+        return nil
     }
 }
 
@@ -85,7 +180,7 @@ private struct ZaiQuotaLimitResponse: Codable {
     let data: ZaiQuotaLimitData
     let success: Bool
 
-    var isSuccess: Bool { success && code == 200 }
+    var isSuccess: Bool { self.success && self.code == 200 }
 }
 
 private struct ZaiQuotaLimitData: Codable {
@@ -106,16 +201,16 @@ private struct ZaiLimitRaw: Codable {
     func toLimitEntry() -> ZaiLimitEntry? {
         guard let limitType = ZaiLimitType(rawValue: type) else { return nil }
         let limitUnit = ZaiLimitUnit(rawValue: unit) ?? .unknown
-        let nextReset = nextResetTime.map { Date(timeIntervalSince1970: TimeInterval($0) / 1000) }
+        let nextReset = self.nextResetTime.map { Date(timeIntervalSince1970: TimeInterval($0) / 1000) }
         return ZaiLimitEntry(
             type: limitType,
             unit: limitUnit,
-            number: number,
-            usage: usage,
-            currentValue: currentValue,
-            remaining: remaining,
-            percentage: Double(percentage),
-            usageDetails: usageDetails ?? [],
+            number: self.number,
+            usage: self.usage,
+            currentValue: self.currentValue,
+            remaining: self.remaining,
+            percentage: Double(self.percentage),
+            usageDetails: self.usageDetails ?? [],
             nextResetTime: nextReset)
     }
 }
@@ -203,13 +298,13 @@ public enum ZaiUsageError: LocalizedError, Sendable {
     public var errorDescription: String? {
         switch self {
         case .invalidCredentials:
-            return "Invalid z.ai API credentials"
+            "Invalid z.ai API credentials"
         case let .networkError(message):
-            return "z.ai network error: \(message)"
+            "z.ai network error: \(message)"
         case let .apiError(message):
-            return "z.ai API error: \(message)"
+            "z.ai API error: \(message)"
         case let .parseFailed(message):
-            return "Failed to parse z.ai response: \(message)"
+            "Failed to parse z.ai response: \(message)"
         }
     }
 }
