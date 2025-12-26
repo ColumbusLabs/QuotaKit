@@ -191,7 +191,7 @@ struct UsageMenuCardView: View {
         .padding(.horizontal, 16)
         .padding(.top, 2)
         .padding(.bottom, 2)
-        .frame(minWidth: self.width, maxWidth: self.width, alignment: .leading)
+        .frame(minWidth: self.width, maxWidth: .infinity, alignment: .leading)
     }
 
     private var hasDetails: Bool {
@@ -283,7 +283,7 @@ struct UsageMenuCardHeaderSectionView: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 2)
-        .frame(minWidth: self.width, maxWidth: self.width, alignment: .leading)
+        .frame(minWidth: self.width, maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -338,7 +338,7 @@ struct UsageMenuCardUsageSectionView: View {
         .padding(.horizontal, 16)
         .padding(.top, 10)
         .padding(.bottom, self.bottomPadding)
-        .frame(minWidth: self.width, maxWidth: self.width, alignment: .leading)
+        .frame(minWidth: self.width, maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -379,7 +379,7 @@ struct UsageMenuCardCreditsSectionView: View {
             .padding(.horizontal, 16)
             .padding(.top, self.topPadding)
             .padding(.bottom, self.bottomPadding)
-            .frame(minWidth: self.width, maxWidth: self.width, alignment: .leading)
+            .frame(minWidth: self.width, maxWidth: .infinity, alignment: .leading)
         }
     }
 }
@@ -485,7 +485,7 @@ struct UsageMenuCardCostSectionView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, self.topPadding)
                 .padding(.bottom, self.bottomPadding)
-                .frame(minWidth: self.width, maxWidth: self.width, alignment: .leading)
+                .frame(minWidth: self.width, maxWidth: .infinity, alignment: .leading)
             }
         }
     }
@@ -506,7 +506,7 @@ struct UsageMenuCardExtraUsageSectionView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, self.topPadding)
                     .padding(.bottom, self.bottomPadding)
-                    .frame(minWidth: self.width, maxWidth: self.width, alignment: .leading)
+                    .frame(minWidth: self.width, maxWidth: .infinity, alignment: .leading)
             }
         }
     }

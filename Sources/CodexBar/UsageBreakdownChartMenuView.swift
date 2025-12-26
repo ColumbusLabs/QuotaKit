@@ -121,7 +121,7 @@ struct UsageBreakdownChartMenuView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .frame(minWidth: self.width, maxWidth: self.width, alignment: .leading)
+        .frame(minWidth: self.width, maxWidth: .infinity, alignment: .leading)
     }
 
     private struct Model {

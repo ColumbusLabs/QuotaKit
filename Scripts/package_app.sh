@@ -175,6 +175,12 @@ if [[ -f "$ICON_TARGET" ]]; then
   cp "$ICON_TARGET" "$APP/Contents/Resources/Icon.icns"
 fi
 
+# Bundle app resources (provider icons, etc.).
+APP_RESOURCES_DIR="$ROOT/Sources/CodexBar/Resources"
+if [[ -d "$APP_RESOURCES_DIR" ]]; then
+  cp -R "$APP_RESOURCES_DIR/." "$APP/Contents/Resources/"
+fi
+
 # Strip extended attributes to prevent AppleDouble (._*) files that break code sealing
 xattr -cr "$APP"
 find "$APP" -name '._*' -delete

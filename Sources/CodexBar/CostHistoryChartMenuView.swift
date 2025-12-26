@@ -3,7 +3,9 @@ import CodexBarCore
 import SwiftUI
 
 @MainActor
-struct CCUsageCostChartMenuView: View {
+struct CostHistoryChartMenuView: View {
+    typealias DailyEntry = CCUsageDailyReport.Entry
+
     private struct Point: Identifiable {
         let id: String
         let date: Date
@@ -19,12 +21,12 @@ struct CCUsageCostChartMenuView: View {
     }
 
     private let provider: UsageProvider
-    private let daily: [CCUsageDailyReport.Entry]
+    private let daily: [DailyEntry]
     private let totalCostUSD: Double?
     private let width: CGFloat
     @State private var selectedDateKey: String?
 
-    init(provider: UsageProvider, daily: [CCUsageDailyReport.Entry], totalCostUSD: Double?, width: CGFloat) {
+    init(provider: UsageProvider, daily: [DailyEntry], totalCostUSD: Double?, width: CGFloat) {
         self.provider = provider
         self.daily = daily
         self.totalCostUSD = totalCostUSD
@@ -112,13 +114,13 @@ struct CCUsageCostChartMenuView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .frame(minWidth: self.width, maxWidth: self.width, alignment: .leading)
+        .frame(minWidth: self.width, maxWidth: .infinity, alignment: .leading)
     }
 
     private struct Model {
         let points: [Point]
         let pointsByDateKey: [String: Point]
-        let entriesByDateKey: [String: CCUsageDailyReport.Entry]
+        let entriesByDateKey: [String: DailyEntry]
         let dateKeys: [(key: String, date: Date)]
         let axisDates: [Date]
         let barColor: Color
@@ -132,7 +134,7 @@ struct CCUsageCostChartMenuView: View {
         maxValue * 0.05
     }
 
-    private static func makeModel(provider: UsageProvider, daily: [CCUsageDailyReport.Entry]) -> Model {
+    private static func makeModel(provider: UsageProvider, daily: [DailyEntry]) -> Model {
         let sorted = daily.sorted { lhs, rhs in lhs.date < rhs.date }
         var points: [Point] = []
         points.reserveCapacity(sorted.count)
@@ -140,7 +142,7 @@ struct CCUsageCostChartMenuView: View {
         var pointsByKey: [String: Point] = [:]
         pointsByKey.reserveCapacity(sorted.count)
 
-        var entriesByKey: [String: CCUsageDailyReport.Entry] = [:]
+        var entriesByKey: [String: DailyEntry] = [:]
         entriesByKey.reserveCapacity(sorted.count)
 
         var dateKeys: [(key: String, date: Date)] = []
