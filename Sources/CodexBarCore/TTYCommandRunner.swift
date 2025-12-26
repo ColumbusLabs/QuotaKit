@@ -196,6 +196,34 @@ public struct TTYCommandRunner {
         let primaryHandle = FileHandle(fileDescriptor: primaryFD, closeOnDealloc: true)
         let secondaryHandle = FileHandle(fileDescriptor: secondaryFD, closeOnDealloc: true)
 
+        func writeAllToPrimary(_ data: Data) throws {
+            try data.withUnsafeBytes { rawBytes in
+                guard let baseAddress = rawBytes.baseAddress else { return }
+                var offset = 0
+                var retries = 0
+                while offset < rawBytes.count {
+                    let written = write(primaryFD, baseAddress.advanced(by: offset), rawBytes.count - offset)
+                    if written > 0 {
+                        offset += written
+                        retries = 0
+                        continue
+                    }
+                    if written == 0 { break }
+
+                    let err = errno
+                    if err == EAGAIN || err == EWOULDBLOCK {
+                        retries += 1
+                        if retries > 200 {
+                            throw Error.launchFailed("write to PTY would block")
+                        }
+                        usleep(5000)
+                        continue
+                    }
+                    throw Error.launchFailed("write to PTY failed: \(String(cString: strerror(err)))")
+                }
+            }
+        }
+
         let proc = Process()
         let resolvedURL = URL(fileURLWithPath: resolved)
         if resolvedURL.lastPathComponent == "claude",
@@ -230,7 +258,7 @@ public struct TTYCommandRunner {
 
             if didLaunch, proc.isRunning {
                 let exitData = Data("/exit\n".utf8)
-                try? primaryHandle.write(contentsOf: exitData)
+                try? writeAllToPrimary(exitData)
             }
 
             try? primaryHandle.close()
@@ -275,7 +303,7 @@ public struct TTYCommandRunner {
 
         func send(_ text: String) throws {
             guard let data = text.data(using: .utf8) else { return }
-            try primaryHandle.write(contentsOf: data)
+            try writeAllToPrimary(data)
         }
 
         let deadline = Date().addingTimeInterval(options.timeout)
@@ -382,7 +410,7 @@ public struct TTYCommandRunner {
                                     : keysString.replacingOccurrences(of: "\r", with: "\n")
                                 try? send(normalized)
                             } else {
-                                try? primaryHandle.write(contentsOf: item.keys)
+                                try? writeAllToPrimary(item.keys)
                             }
                             triggeredSends.insert(item.needle)
                         }
