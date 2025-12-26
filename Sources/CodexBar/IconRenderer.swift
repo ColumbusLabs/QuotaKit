@@ -115,6 +115,7 @@ enum IconRenderer {
                     addFace: Bool = false,
                     addGeminiTwist: Bool = false,
                     addAntigravityTwist: Bool = false,
+                    addFactoryTwist: Bool = false,
                     blink: CGFloat = 0)
                 {
                     let rect = rectPx.rect()
@@ -442,6 +443,113 @@ enum IconRenderer {
                             h: dotSizePx)
                         NSBezierPath(ovalIn: dotRect).fill()
                     }
+
+                    // Factory twist: 8-pointed asterisk/gear-like eyes with cog teeth accents
+                    if addFactoryTwist {
+                        let ctx = NSGraphicsContext.current?.cgContext
+                        let centerXPx = rectPx.midXPx
+                        let eyeCenterYPx = rectPx.y + rectPx.h / 2
+
+                        ctx?.saveGState()
+                        ctx?.setShouldAntialias(true)
+
+                        // 8-pointed asterisk cutouts (Factory gear-like eyes)
+                        let starSizePx = 7
+                        let eyeOffsetPx = 8
+                        let sr = Self.grid.pt(starSizePx / 2)
+                        let innerR = sr * 0.3
+
+                        func drawAsteriskCutout(cx: CGFloat, cy: CGFloat) {
+                            let path = NSBezierPath()
+                            // 8 points for the asterisk
+                            for i in 0..<16 {
+                                let angle = CGFloat(i) * .pi / 8 - .pi / 2
+                                let radius = (i % 2 == 0) ? sr : innerR
+                                let px = cx + cos(angle) * radius
+                                let py = cy + sin(angle) * radius
+                                if i == 0 {
+                                    path.move(to: NSPoint(x: px, y: py))
+                                } else {
+                                    path.line(to: NSPoint(x: px, y: py))
+                                }
+                            }
+                            path.close()
+                            path.fill()
+                        }
+
+                        let ldCx = Self.grid.pt(centerXPx - eyeOffsetPx)
+                        let rdCx = Self.grid.pt(centerXPx + eyeOffsetPx)
+                        let yCy = Self.grid.pt(eyeCenterYPx)
+
+                        // Clear asterisk shapes for eyes
+                        ctx?.setBlendMode(.clear)
+                        drawAsteriskCutout(cx: ldCx, cy: yCy)
+                        drawAsteriskCutout(cx: rdCx, cy: yCy)
+                        ctx?.setBlendMode(.normal)
+
+                        // Small gear teeth on top and bottom edges
+                        fillColor.withAlphaComponent(alpha).setFill()
+                        let toothWidthPx = 3
+                        let toothHeightPx = 2
+
+                        // Top teeth (2 small rectangles)
+                        let topY = Self.grid.pt(rectPx.y + rectPx.h)
+                        let tooth1X = Self.grid.pt(centerXPx - 5 - toothWidthPx / 2)
+                        let tooth2X = Self.grid.pt(centerXPx + 5 - toothWidthPx / 2)
+                        NSBezierPath(rect: CGRect(
+                            x: tooth1X,
+                            y: topY,
+                            width: Self.grid.pt(toothWidthPx),
+                            height: Self.grid.pt(toothHeightPx))).fill()
+                        NSBezierPath(rect: CGRect(
+                            x: tooth2X,
+                            y: topY,
+                            width: Self.grid.pt(toothWidthPx),
+                            height: Self.grid.pt(toothHeightPx))).fill()
+
+                        // Bottom teeth
+                        let bottomY = Self.grid.pt(rectPx.y - toothHeightPx)
+                        NSBezierPath(rect: CGRect(
+                            x: tooth1X,
+                            y: bottomY,
+                            width: Self.grid.pt(toothWidthPx),
+                            height: Self.grid.pt(toothHeightPx))).fill()
+                        NSBezierPath(rect: CGRect(
+                            x: tooth2X,
+                            y: bottomY,
+                            width: Self.grid.pt(toothWidthPx),
+                            height: Self.grid.pt(toothHeightPx))).fill()
+
+                        ctx?.restoreGState()
+
+                        // Blink: fill asterisk eyes
+                        if blink > 0.001 {
+                            let clamped = max(0, min(blink, 1))
+                            fillColor.withAlphaComponent(alpha).setFill()
+                            let blinkR = sr * clamped
+                            let blinkInnerR = blinkR * 0.3
+
+                            func drawBlinkAsterisk(cx: CGFloat, cy: CGFloat) {
+                                let path = NSBezierPath()
+                                for i in 0..<16 {
+                                    let angle = CGFloat(i) * .pi / 8 - .pi / 2
+                                    let radius = (i % 2 == 0) ? blinkR : blinkInnerR
+                                    let px = cx + cos(angle) * radius
+                                    let py = cy + sin(angle) * radius
+                                    if i == 0 {
+                                        path.move(to: NSPoint(x: px, y: py))
+                                    } else {
+                                        path.line(to: NSPoint(x: px, y: py))
+                                    }
+                                }
+                                path.close()
+                                path.fill()
+                            }
+
+                            drawBlinkAsterisk(cx: ldCx, cy: yCy)
+                            drawBlinkAsterisk(cx: rdCx, cy: yCy)
+                        }
+                    }
                 }
 
                 let topValue = primaryRemaining
@@ -465,6 +573,7 @@ enum IconRenderer {
                         addFace: style == .codex,
                         addGeminiTwist: style == .gemini || style == .antigravity,
                         addAntigravityTwist: style == .antigravity,
+                        addFactoryTwist: style == .factory,
                         blink: blink)
                     drawBar(rectPx: bottomRectPx, remaining: bottomValue)
                 } else if !hasWeekly {
@@ -480,6 +589,7 @@ enum IconRenderer {
                             addFace: style == .codex,
                             addGeminiTwist: style == .gemini || style == .antigravity,
                             addAntigravityTwist: style == .antigravity,
+                            addFactoryTwist: style == .factory,
                             blink: blink)
                         drawBar(rectPx: creditsBottomRectPx, remaining: nil, alpha: 0.45)
                     } else {
@@ -490,6 +600,7 @@ enum IconRenderer {
                             addFace: style == .codex,
                             addGeminiTwist: style == .gemini || style == .antigravity,
                             addAntigravityTwist: style == .antigravity,
+                            addFactoryTwist: style == .factory,
                             blink: blink)
                         drawBar(rectPx: bottomRectPx, remaining: nil, alpha: 0.45)
                     }
@@ -504,6 +615,7 @@ enum IconRenderer {
                             addFace: style == .codex,
                             addGeminiTwist: style == .gemini || style == .antigravity,
                             addAntigravityTwist: style == .antigravity,
+                            addFactoryTwist: style == .factory,
                             blink: blink)
                     } else {
                         // No credits available; fall back to 5h if present.
@@ -514,6 +626,7 @@ enum IconRenderer {
                             addFace: style == .codex,
                             addGeminiTwist: style == .gemini || style == .antigravity,
                             addAntigravityTwist: style == .antigravity,
+                            addFactoryTwist: style == .factory,
                             blink: blink)
                     }
                     drawBar(rectPx: creditsBottomRectPx, remaining: bottomValue)
@@ -572,6 +685,7 @@ enum IconRenderer {
         case .antigravity: 3
         case .cursor: 4
         case .combined: 5
+        case .factory: 6
         }
     }
 

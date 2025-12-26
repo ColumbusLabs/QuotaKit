@@ -12,6 +12,7 @@ enum ProviderCatalog {
         CursorProviderImplementation(),
         GeminiProviderImplementation(),
         AntigravityProviderImplementation(),
+        FactoryProviderImplementation(),
     ]
 
     /// Lookup for a single provider implementation.

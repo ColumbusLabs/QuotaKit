@@ -6,6 +6,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case cursor
     case gemini
     case antigravity
+    case factory
 }
 
 public struct ProviderMetadata: Sendable {
@@ -144,5 +145,20 @@ public enum ProviderDefaults {
             statusPageURL: nil,
             statusLinkURL: "https://www.google.com/appsstatus/dashboard/products/npdyhgECDJ6tB66MxXyo/history",
             statusWorkspaceProductID: "npdyhgECDJ6tB66MxXyo"),
+        .factory: ProviderMetadata(
+            id: .factory,
+            displayName: "Droid",
+            sessionLabel: "Standard",
+            weeklyLabel: "Premium",
+            opusLabel: nil,
+            supportsOpus: false,
+            supportsCredits: false,
+            creditsHint: "",
+            toggleTitle: "Show Factory/Droid usage",
+            cliName: "factory",
+            defaultEnabled: false,
+            dashboardURL: "https://app.factory.ai/settings/billing",
+            statusPageURL: nil,
+            statusLinkURL: "https://factory.ai"),
     ]
 }

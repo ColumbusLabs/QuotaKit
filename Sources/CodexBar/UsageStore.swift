@@ -9,6 +9,7 @@ enum IconStyle {
     case gemini
     case antigravity
     case cursor
+    case factory
     case combined
 }
 
