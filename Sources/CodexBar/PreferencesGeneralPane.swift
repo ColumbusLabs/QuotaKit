@@ -114,7 +114,7 @@ struct GeneralPane: View {
         case .cursor:
             "Cursor"
         case .factory:
-            "Factory"
+            "Droid"
         }
         guard provider == .claude || provider == .codex else {
             return Text("\(name): unsupported")

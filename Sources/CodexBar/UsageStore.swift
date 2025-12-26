@@ -1130,7 +1130,7 @@ extension UsageStore {
                 await MainActor.run { self.probeLogs[.cursor] = text }
                 return text
             case .factory:
-                let text = "Factory debug log not yet implemented"
+                let text = "Droid debug log not yet implemented"
                 await MainActor.run { self.probeLogs[.factory] = text }
                 return text
             }

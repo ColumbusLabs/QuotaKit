@@ -308,7 +308,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         case .gemini: "Gemini"
         case .antigravity: "Antigravity"
         case .cursor: "Cursor"
-        case .factory: "Factory"
+        case .factory: "Droid"
         }
         return "\(prefix): \(base)"
     }

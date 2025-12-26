@@ -59,7 +59,7 @@ extension UsageStore {
         case .cursor:
             return "Cursor cost summary is not supported."
         case .factory:
-            return "Factory cost summary is not supported."
+            return "Droid cost summary is not supported."
         }
     }
 }

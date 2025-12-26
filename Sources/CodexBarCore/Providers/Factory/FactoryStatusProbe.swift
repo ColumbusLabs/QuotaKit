@@ -484,7 +484,9 @@ public struct FactoryStatusProbe: Sendable {
         do {
             let session = try FactoryCookieImporter.importSession(logger: log)
             log("Using cookies from \(session.sourceLabel)")
-            return try await self.fetchWithCookieHeader(session.cookieHeader)
+            let snapshot = try await self.fetchWithCookieHeader(session.cookieHeader)
+            await FactorySessionStore.shared.setCookies(session.cookies)
+            return snapshot
         } catch {
             log("Browser cookie import failed: \(error.localizedDescription)")
         }

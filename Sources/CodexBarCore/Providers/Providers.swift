@@ -169,7 +169,7 @@ public enum ProviderDefaults {
             supportsOpus: false,
             supportsCredits: false,
             creditsHint: "",
-            toggleTitle: "Show Factory/Droid usage",
+            toggleTitle: "Show Droid usage",
             cliName: "factory",
             defaultEnabled: false,
             dashboardURL: "https://app.factory.ai/settings/billing",
