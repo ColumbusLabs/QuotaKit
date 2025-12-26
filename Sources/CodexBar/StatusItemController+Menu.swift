@@ -954,9 +954,8 @@ private final class ProviderSwitcherView: NSView {
             self.addSubview(stack)
 
             NSLayoutConstraint.activate([
-                stack.centerXAnchor.constraint(equalTo: self.centerXAnchor),
-                stack.leadingAnchor.constraint(greaterThanOrEqualTo: self.leadingAnchor, constant: outerPadding),
-                stack.trailingAnchor.constraint(lessThanOrEqualTo: self.trailingAnchor, constant: -outerPadding),
+                stack.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: outerPadding),
+                stack.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -outerPadding),
                 stack.topAnchor.constraint(equalTo: self.topAnchor),
                 stack.bottomAnchor.constraint(equalTo: self.bottomAnchor),
             ])
@@ -1104,13 +1103,18 @@ private final class ProviderSwitcherView: NSView {
         var used = widths.reduce(0, +)
 
         while available - used >= 2 {
-            let candidates = widths.indices.filter { index in
-                widths[index] + 2 <= desired[index]
+            if let best = widths.indices
+                .filter({ desired[$0] - widths[$0] >= 2 })
+                .max(by: { lhs, rhs in
+                    (desired[lhs] - widths[lhs]) < (desired[rhs] - widths[rhs])
+                })
+            {
+                widths[best] += 2
+                used += 2
+                continue
             }
-            guard let best = candidates.max(by: { lhs, rhs in
-                (desired[lhs] - widths[lhs]) < (desired[rhs] - widths[rhs])
-            }) else { break }
 
+            guard let best = widths.indices.min(by: { lhs, rhs in widths[lhs] < widths[rhs] }) else { break }
             widths[best] += 2
             used += 2
         }
@@ -1248,7 +1252,7 @@ private final class StackedToggleButton: NSButton {
     private var paddingConstraints: [NSLayoutConstraint] = []
     private var iconSizeConstraints: [NSLayoutConstraint] = []
 
-    var contentPadding = NSEdgeInsets(top: 2, left: 3, bottom: 2, right: 3) {
+    var contentPadding = NSEdgeInsets(top: 2, left: 4, bottom: 2, right: 4) {
         didSet {
             self.paddingConstraints.first { $0.firstAttribute == .top }?.constant = self.contentPadding.top
             self.paddingConstraints.first { $0.firstAttribute == .leading }?.constant = self.contentPadding.left
