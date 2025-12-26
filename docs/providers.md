@@ -1,5 +1,5 @@
 ---
-summary: "Provider data sources and parsing overview (Codex, Claude, Gemini, Antigravity, Cursor)."
+summary: "Provider data sources and parsing overview (Codex, Claude, Gemini, Antigravity, Cursor, Droid/Factory)."
 read_when:
   - Adding or modifying provider fetch/parsing
   - Adjusting provider labels, toggles, or metadata
@@ -48,5 +48,12 @@ read_when:
 - Supports Pro, Enterprise, Team, and Hobby membership types.
 - Status: Statuspage.io (Cursor).
 - Details in `docs/cursor.md`.
+
+## Droid (Factory)
+- Web-based: fetches usage from app.factory.ai API using browser session cookies.
+- Cookie import: Safari → Chrome → Firefox; requires factory.ai/app.factory.ai cookies.
+- Fallback: stored session cookies persisted by CodexBar.
+- Shows Standard + Premium usage and billing period reset.
+- Status: no public status integration yet (link only).
 
 See also: `docs/claude.md`, `docs/antigravity.md`, `docs/cursor.md`.
