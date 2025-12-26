@@ -7,6 +7,11 @@ struct ProviderSpec {
     let fetch: () async throws -> UsageSnapshot
 }
 
+struct ClaudeUsageStrategy: Equatable {
+    let dataSource: ClaudeUsageDataSource
+    let useWebExtras: Bool
+}
+
 struct ProviderRegistry {
     let metadata: [UsageProvider: ProviderMetadata]
 
@@ -14,6 +19,29 @@ struct ProviderRegistry {
 
     init(metadata: [UsageProvider: ProviderMetadata] = ProviderDefaults.metadata) {
         self.metadata = metadata
+    }
+
+    @MainActor
+    static func claudeUsageStrategy(
+        settings: SettingsStore,
+        hasWebSession: () -> Bool = { ClaudeWebAPIFetcher.hasSessionKey() }) -> ClaudeUsageStrategy
+    {
+        if settings.debugMenuEnabled {
+            let dataSource = settings.claudeUsageDataSource
+            if dataSource == .oauth {
+                return ClaudeUsageStrategy(dataSource: dataSource, useWebExtras: false)
+            }
+            let hasSession = hasWebSession()
+            if dataSource == .web, !hasSession {
+                return ClaudeUsageStrategy(dataSource: .cli, useWebExtras: false)
+            }
+            let useWebExtras = dataSource == .cli && settings.claudeWebExtrasEnabled && hasSession
+            return ClaudeUsageStrategy(dataSource: dataSource, useWebExtras: useWebExtras)
+        }
+
+        let hasSession = hasWebSession()
+        let dataSource: ClaudeUsageDataSource = hasSession ? .web : .cli
+        return ClaudeUsageStrategy(dataSource: dataSource, useWebExtras: false)
     }
 
     @MainActor
@@ -38,10 +66,9 @@ struct ProviderRegistry {
             style: .claude,
             isEnabled: { settings.isProviderEnabled(provider: .claude, metadata: claudeMeta) },
             fetch: {
-                let dataSource = settings.claudeUsageDataSource
-                let useWebExtras = settings.claudeWebExtrasEnabled && dataSource == .cli
+                let strategy = Self.claudeUsageStrategy(settings: settings)
                 let fetcher: any ClaudeUsageFetching = if claudeFetcher is ClaudeUsageFetcher {
-                    ClaudeUsageFetcher(dataSource: dataSource, useWebExtras: useWebExtras)
+                    ClaudeUsageFetcher(dataSource: strategy.dataSource, useWebExtras: strategy.useWebExtras)
                 } else {
                     claudeFetcher
                 }

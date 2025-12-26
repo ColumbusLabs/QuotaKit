@@ -52,4 +52,59 @@ struct ProviderRegistryTests {
             claudeFetcher: ClaudeUsageFetcher())
         #expect(specs.keys.count == UsageProvider.allCases.count)
     }
+
+    @Test
+    func claudeStrategyPrefersWebWhenSessionAvailable() {
+        let defaults = UserDefaults(suiteName: "ProviderRegistryTests-claude-web")!
+        defaults.removePersistentDomain(forName: "ProviderRegistryTests-claude-web")
+        let settings = SettingsStore(userDefaults: defaults)
+        settings.debugMenuEnabled = false
+
+        let strategy = ProviderRegistry.claudeUsageStrategy(settings: settings, hasWebSession: { true })
+
+        #expect(strategy.dataSource == .web)
+        #expect(strategy.useWebExtras == false)
+    }
+
+    @Test
+    func claudeStrategyFallsBackToCLIWhenNoSession() {
+        let defaults = UserDefaults(suiteName: "ProviderRegistryTests-claude-cli")!
+        defaults.removePersistentDomain(forName: "ProviderRegistryTests-claude-cli")
+        let settings = SettingsStore(userDefaults: defaults)
+        settings.debugMenuEnabled = false
+
+        let strategy = ProviderRegistry.claudeUsageStrategy(settings: settings, hasWebSession: { false })
+
+        #expect(strategy.dataSource == .cli)
+        #expect(strategy.useWebExtras == false)
+    }
+
+    @Test
+    func claudeStrategyRespectsOAuthInDebug() {
+        let defaults = UserDefaults(suiteName: "ProviderRegistryTests-claude-oauth")!
+        defaults.removePersistentDomain(forName: "ProviderRegistryTests-claude-oauth")
+        let settings = SettingsStore(userDefaults: defaults)
+        settings.debugMenuEnabled = true
+        settings.claudeUsageDataSource = .oauth
+
+        let strategy = ProviderRegistry.claudeUsageStrategy(settings: settings, hasWebSession: { false })
+
+        #expect(strategy.dataSource == .oauth)
+        #expect(strategy.useWebExtras == false)
+    }
+
+    @Test
+    func claudeStrategyEnablesWebExtrasOnlyWithSession() {
+        let defaults = UserDefaults(suiteName: "ProviderRegistryTests-claude-extras")!
+        defaults.removePersistentDomain(forName: "ProviderRegistryTests-claude-extras")
+        let settings = SettingsStore(userDefaults: defaults)
+        settings.debugMenuEnabled = true
+        settings.claudeUsageDataSource = .cli
+        settings.claudeWebExtrasEnabled = true
+
+        let strategy = ProviderRegistry.claudeUsageStrategy(settings: settings, hasWebSession: { true })
+
+        #expect(strategy.dataSource == .cli)
+        #expect(strategy.useWebExtras == true)
+    }
 }

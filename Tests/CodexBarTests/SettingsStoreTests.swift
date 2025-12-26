@@ -58,4 +58,15 @@ struct SettingsStoreTests {
         #expect(store.sessionQuotaNotificationsEnabled == true)
         #expect(defaults.bool(forKey: key) == true)
     }
+
+    @Test
+    func defaultsClaudeUsageSourceToWeb() {
+        let suite = "SettingsStoreTests-claude-source"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+
+        let store = SettingsStore(userDefaults: defaults)
+
+        #expect(store.claudeUsageDataSource == .web)
+    }
 }

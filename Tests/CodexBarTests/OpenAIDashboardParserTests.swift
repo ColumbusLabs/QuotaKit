@@ -34,6 +34,46 @@ struct OpenAIDashboardParserTests {
     }
 
     @Test
+    func parsesCreditsRemaining() {
+        let body = "Balance\nCredits remaining 1,234.56\nUsage"
+        let value = OpenAIDashboardParser.parseCreditsRemaining(bodyText: body)
+        #expect(abs((value ?? 0) - 1234.56) < 0.001)
+    }
+
+    @Test
+    func parsesRateLimits() {
+        let body = """
+        Usage limits
+        5h limit
+        72% remaining
+        Resets today at 2:15 PM
+        Weekly limit
+        41% remaining
+        Resets Fri at 9:00 AM
+        """
+        let limits = OpenAIDashboardParser.parseRateLimits(bodyText: body)
+        #expect(abs((limits.primary?.usedPercent ?? 0) - 28) < 0.001)
+        #expect(limits.primary?.windowMinutes == 300)
+        #expect(limits.primary?.resetDescription?.lowercased().contains("resets") == true)
+        #expect(abs((limits.secondary?.usedPercent ?? 0) - 59) < 0.001)
+        #expect(limits.secondary?.windowMinutes == 10080)
+    }
+
+    @Test
+    func parsesPlanFromClientBootstrap() {
+        let html = """
+        <html>
+        <body>
+        <script type="application/json" id="client-bootstrap">
+        {"session":{"user":{"email":"user@example.com"}},"planType":"plus"}
+        </script>
+        </body>
+        </html>
+        """
+        #expect(OpenAIDashboardParser.parsePlanFromHTML(html: html) == "Plus")
+    }
+
+    @Test
     func parsesCreditEventsFromTableRows() {
         let rows: [[String]] = [
             ["Dec 18, 2025", "CLI", "397.205 credits"],

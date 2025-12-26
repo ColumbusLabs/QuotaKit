@@ -331,12 +331,17 @@ final class UsageStore {
         self.isRefreshing = true
         defer { self.isRefreshing = false }
 
+        let preferWebForCodex = self.settings.openAIDashboardEnabled
         await withTaskGroup(of: Void.self) { group in
             for provider in UsageProvider.allCases {
-                group.addTask { await self.refreshProvider(provider) }
+                if provider != .codex || !preferWebForCodex {
+                    group.addTask { await self.refreshProvider(provider) }
+                }
                 group.addTask { await self.refreshStatus(provider) }
             }
-            group.addTask { await self.refreshCreditsIfNeeded() }
+            if !preferWebForCodex {
+                group.addTask { await self.refreshCreditsIfNeeded() }
+            }
         }
 
         // Token-cost usage can be slow; run it outside the refresh group so we don't block menu updates.
@@ -345,6 +350,14 @@ final class UsageStore {
         // OpenAI web scrape depends on the current Codex account email (which can change after login/account switch).
         // Run this after Codex usage refresh so we don't accidentally scrape with stale credentials.
         await self.refreshOpenAIDashboardIfNeeded(force: forceTokenUsage)
+
+        if preferWebForCodex {
+            if self.openAIDashboardRequiresLogin {
+                await self.refreshProvider(.codex)
+                await self.refreshCreditsIfNeeded()
+            }
+        }
+
         self.persistWidgetSnapshot(reason: "refresh")
     }
 
@@ -601,6 +614,17 @@ final class UsageStore {
             self.lastOpenAIDashboardError = nil
             self.lastOpenAIDashboardSnapshot = dash
             self.openAIDashboardRequiresLogin = false
+            if let usage = dash.toUsageSnapshot(accountEmail: targetEmail) {
+                self.snapshots[.codex] = usage
+                self.errors[.codex] = nil
+                self.failureGates[.codex]?.recordSuccess()
+            }
+            if let credits = dash.toCreditsSnapshot() {
+                self.credits = credits
+                self.lastCreditsSnapshot = credits
+                self.lastCreditsError = nil
+                self.creditsFailureStreak = 0
+            }
         }
 
         if let email = targetEmail, !email.isEmpty {
@@ -668,6 +692,7 @@ final class UsageStore {
             let normalized = targetEmail?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .lowercased()
+            var effectiveEmail = targetEmail
 
             // Use a per-email persistent `WKWebsiteDataStore` so multiple dashboard sessions can coexist.
             // Strategy:
@@ -676,19 +701,29 @@ final class UsageStore {
             if self.openAIWebAccountDidChange, let targetEmail, !targetEmail.isEmpty {
                 // On account switches, proactively re-import cookies so we don't show stale data from the previous
                 // user.
-                await self.importOpenAIDashboardCookiesIfNeeded(targetEmail: targetEmail, force: true)
+                if let imported = await self.importOpenAIDashboardCookiesIfNeeded(
+                    targetEmail: targetEmail,
+                    force: true)
+                {
+                    effectiveEmail = imported
+                }
                 self.openAIWebAccountDidChange = false
             }
 
             var dash = try await OpenAIDashboardFetcher().loadLatestDashboard(
-                accountEmail: targetEmail,
+                accountEmail: effectiveEmail,
                 logger: log,
                 debugDumpHTML: false)
 
             if self.dashboardEmailMismatch(expected: normalized, actual: dash.signedInEmail) {
-                await self.importOpenAIDashboardCookiesIfNeeded(targetEmail: targetEmail, force: true)
+                if let imported = await self.importOpenAIDashboardCookiesIfNeeded(
+                    targetEmail: targetEmail,
+                    force: true)
+                {
+                    effectiveEmail = imported
+                }
                 dash = try await OpenAIDashboardFetcher().loadLatestDashboard(
-                    accountEmail: targetEmail,
+                    accountEmail: effectiveEmail,
                     logger: log,
                     debugDumpHTML: false)
             }
@@ -706,30 +741,36 @@ final class UsageStore {
                 return
             }
 
-            await self.applyOpenAIDashboard(dash, targetEmail: targetEmail)
+            await self.applyOpenAIDashboard(dash, targetEmail: effectiveEmail)
         } catch OpenAIDashboardFetcher.FetchError.noDashboardData {
             // Often indicates a missing/stale session without an obvious login prompt. Retry once after
             // importing cookies from the user's browser.
             let targetEmail = self.codexAccountEmailForOpenAIDashboard()
-            await self.importOpenAIDashboardCookiesIfNeeded(targetEmail: targetEmail, force: true)
+            var effectiveEmail = targetEmail
+            if let imported = await self.importOpenAIDashboardCookiesIfNeeded(targetEmail: targetEmail, force: true) {
+                effectiveEmail = imported
+            }
             do {
                 let dash = try await OpenAIDashboardFetcher().loadLatestDashboard(
-                    accountEmail: targetEmail,
+                    accountEmail: effectiveEmail,
                     logger: log,
                     debugDumpHTML: true)
-                await self.applyOpenAIDashboard(dash, targetEmail: targetEmail)
+                await self.applyOpenAIDashboard(dash, targetEmail: effectiveEmail)
             } catch {
                 await self.applyOpenAIDashboardFailure(message: error.localizedDescription)
             }
         } catch OpenAIDashboardFetcher.FetchError.loginRequired {
             let targetEmail = self.codexAccountEmailForOpenAIDashboard()
-            await self.importOpenAIDashboardCookiesIfNeeded(targetEmail: targetEmail, force: true)
+            var effectiveEmail = targetEmail
+            if let imported = await self.importOpenAIDashboardCookiesIfNeeded(targetEmail: targetEmail, force: true) {
+                effectiveEmail = imported
+            }
             do {
                 let dash = try await OpenAIDashboardFetcher().loadLatestDashboard(
-                    accountEmail: targetEmail,
+                    accountEmail: effectiveEmail,
                     logger: log,
                     debugDumpHTML: true)
-                await self.applyOpenAIDashboard(dash, targetEmail: targetEmail)
+                await self.applyOpenAIDashboard(dash, targetEmail: effectiveEmail)
             } catch OpenAIDashboardFetcher.FetchError.loginRequired {
                 await MainActor.run {
                     self.lastOpenAIDashboardError = [
@@ -784,12 +825,13 @@ final class UsageStore {
         guard self.settings.openAIDashboardEnabled else { return }
         self.resetOpenAIWebDebugLog(context: "manual import")
         let targetEmail = self.codexAccountEmailForOpenAIDashboard()
-        await self.importOpenAIDashboardCookiesIfNeeded(targetEmail: targetEmail, force: true)
+        _ = await self.importOpenAIDashboardCookiesIfNeeded(targetEmail: targetEmail, force: true)
         await self.refreshOpenAIDashboardIfNeeded(force: true)
     }
 
-    private func importOpenAIDashboardCookiesIfNeeded(targetEmail: String?, force: Bool) async {
-        guard let targetEmail, !targetEmail.isEmpty else { return }
+    private func importOpenAIDashboardCookiesIfNeeded(targetEmail: String?, force: Bool) async -> String? {
+        let normalizedTarget = targetEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let allowAnyAccount = normalizedTarget == nil || normalizedTarget?.isEmpty == true
 
         let now = Date()
         let lastEmail = self.lastOpenAIDashboardCookieImportEmail
@@ -798,16 +840,22 @@ final class UsageStore {
         let shouldAttempt: Bool = if force {
             true
         } else {
-            self.openAIDashboardRequiresLogin &&
-                (lastEmail?.lowercased() != targetEmail.lowercased() || now.timeIntervalSince(lastAttempt) > 300)
+            if allowAnyAccount {
+                now.timeIntervalSince(lastAttempt) > 300
+            } else {
+                self.openAIDashboardRequiresLogin &&
+                    (lastEmail?.lowercased() != normalizedTarget?.lowercased() || now
+                        .timeIntervalSince(lastAttempt) > 300)
+            }
         }
 
-        guard shouldAttempt else { return }
-        self.lastOpenAIDashboardCookieImportEmail = targetEmail
+        guard shouldAttempt else { return normalizedTarget }
+        self.lastOpenAIDashboardCookieImportEmail = normalizedTarget
         self.lastOpenAIDashboardCookieImportAttemptAt = now
 
         let stamp = now.formatted(date: .abbreviated, time: .shortened)
-        self.logOpenAIWeb("[\(stamp)] import start (target=\(targetEmail))")
+        let targetLabel = normalizedTarget ?? "unknown"
+        self.logOpenAIWeb("[\(stamp)] import start (target=\(targetLabel))")
 
         do {
             let log: (String) -> Void = { [weak self] message in
@@ -816,20 +864,36 @@ final class UsageStore {
             }
 
             let result = try await OpenAIDashboardBrowserCookieImporter()
-                .importBestCookies(intoAccountEmail: targetEmail, logger: log)
+                .importBestCookies(
+                    intoAccountEmail: normalizedTarget,
+                    allowAnyAccount: allowAnyAccount,
+                    logger: log)
+            let effectiveEmail = result.signedInEmail?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .isEmpty == false
+                ? result.signedInEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
+                : normalizedTarget
+            self.lastOpenAIDashboardCookieImportEmail = effectiveEmail ?? normalizedTarget
             await MainActor.run {
+                let signed = result.signedInEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
                 let matchText = result.matchesCodexEmail ? "matches Codex" : "does not match Codex"
-                if let signed = result.signedInEmail, !signed.isEmpty {
+                if let signed, !signed.isEmpty {
                     self.openAIDashboardCookieImportStatus =
-                        [
-                            "Using \(result.sourceLabel) cookies (\(result.cookieCount)).",
-                            "Signed in as \(signed) (\(matchText)).",
-                        ].joined(separator: " ")
+                        allowAnyAccount
+                            ? [
+                                "Using \(result.sourceLabel) cookies (\(result.cookieCount)).",
+                                "Signed in as \(signed).",
+                            ].joined(separator: " ")
+                            : [
+                                "Using \(result.sourceLabel) cookies (\(result.cookieCount)).",
+                                "Signed in as \(signed) (\(matchText)).",
+                            ].joined(separator: " ")
                 } else {
                     self.openAIDashboardCookieImportStatus =
                         "Using \(result.sourceLabel) cookies (\(result.cookieCount))."
                 }
             }
+            return effectiveEmail
         } catch let err as OpenAIDashboardBrowserCookieImporter.ImportError {
             switch err {
             case let .noMatchingAccount(found):
@@ -846,20 +910,27 @@ final class UsageStore {
                 }
                 self.logOpenAIWeb("[\(stamp)] import mismatch: \(foundText)")
                 await MainActor.run {
-                    self.openAIDashboardCookieImportStatus =
-                        [
-                            "Browser cookies do not match Codex account (\(targetEmail)).",
+                    self.openAIDashboardCookieImportStatus = allowAnyAccount
+                        ? [
+                            "No signed-in OpenAI web session found.",
+                            "Found \(foundText).",
+                        ].joined(separator: " ")
+                        : [
+                            "Browser cookies do not match Codex account (\(normalizedTarget ?? "unknown")).",
                             "Found \(foundText).",
                         ].joined(separator: " ")
                     // Treat mismatch like "not logged in" for the current Codex account.
                     self.openAIDashboardRequiresLogin = true
                     self.openAIDashboard = nil
                 }
-            default:
+            case .noCookiesFound,
+                 .browserAccessDenied,
+                 .dashboardStillRequiresLogin:
                 self.logOpenAIWeb("[\(stamp)] import failed: \(err.localizedDescription)")
                 await MainActor.run {
                     self.openAIDashboardCookieImportStatus =
                         "Browser cookie import failed: \(err.localizedDescription)"
+                    self.openAIDashboardRequiresLogin = true
                 }
             }
         } catch {
@@ -869,6 +940,7 @@ final class UsageStore {
                     "Browser cookie import failed: \(error.localizedDescription)"
             }
         }
+        return nil
     }
 
     private func resetOpenAIWebDebugLog(context: String) {
@@ -898,6 +970,10 @@ final class UsageStore {
         if let direct, !direct.isEmpty { return direct }
         let fallback = self.codexFetcher.loadAccountInfo().email?.trimmingCharacters(in: .whitespacesAndNewlines)
         if let fallback, !fallback.isEmpty { return fallback }
+        let cached = self.openAIDashboard?.signedInEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let cached, !cached.isEmpty { return cached }
+        let imported = self.lastOpenAIDashboardCookieImportEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let imported, !imported.isEmpty { return imported }
         return nil
     }
 }
@@ -939,7 +1015,9 @@ extension UsageStore {
             return cached
         }
 
-        let claudeWebEnabled = self.settings.claudeWebExtrasEnabled
+        let claudeWebExtrasEnabled = self.settings.claudeWebExtrasEnabled
+        let claudeUsageDataSource = self.settings.claudeUsageDataSource
+        let claudeDebugMenuEnabled = self.settings.debugMenuEnabled
         return await Task.detached(priority: .utility) { () -> String in
             switch provider {
             case .codex:
@@ -948,14 +1026,33 @@ extension UsageStore {
                 return raw
             case .claude:
                 let text = await self.runWithTimeout(seconds: 15) {
-                    if claudeWebEnabled {
-                        var lines: [String] = []
-                        lines.append("strategy=web-first (Augment Claude via web: enabled)")
+                    var lines: [String] = []
+                    let hasKey = ClaudeWebAPIFetcher.hasSessionKey { msg in lines.append(msg) }
 
-                        let hasKey = ClaudeWebAPIFetcher.hasSessionKey { msg in lines.append(msg) }
-                        lines.append("hasSessionKey=\(hasKey)")
-                        lines.append("")
+                    let strategy: ClaudeUsageStrategy = {
+                        if claudeDebugMenuEnabled {
+                            let selected = claudeUsageDataSource
+                            if selected == .oauth {
+                                return ClaudeUsageStrategy(dataSource: .oauth, useWebExtras: false)
+                            }
+                            if selected == .web, !hasKey {
+                                return ClaudeUsageStrategy(dataSource: .cli, useWebExtras: false)
+                            }
+                            let useExtras = selected == .cli && claudeWebExtrasEnabled && hasKey
+                            return ClaudeUsageStrategy(dataSource: selected, useWebExtras: useExtras)
+                        }
+                        return ClaudeUsageStrategy(dataSource: hasKey ? .web : .cli, useWebExtras: false)
+                    }()
 
+                    lines.append("strategy=\(strategy.dataSource.rawValue)")
+                    lines.append("hasSessionKey=\(hasKey)")
+                    if strategy.useWebExtras {
+                        lines.append("web_extras=enabled")
+                    }
+                    lines.append("")
+
+                    switch strategy.dataSource {
+                    case .web:
                         do {
                             let web = try await ClaudeWebAPIFetcher.fetchUsage { msg in lines.append(msg) }
                             lines.append("")
@@ -987,15 +1084,16 @@ extension UsageStore {
                             return lines.joined(separator: "\n")
                         } catch {
                             lines.append("Web API failed: \(error.localizedDescription)")
-                            lines.append("Falling back to Claude CLI probe…")
-                            let cli = await self.claudeFetcher.debugRawProbe(model: "sonnet")
-                            lines.append("")
-                            lines.append(cli)
                             return lines.joined(separator: "\n")
                         }
+                    case .cli:
+                        let cli = await self.claudeFetcher.debugRawProbe(model: "sonnet")
+                        lines.append(cli)
+                        return lines.joined(separator: "\n")
+                    case .oauth:
+                        lines.append("OAuth override selected (debug).")
+                        return lines.joined(separator: "\n")
                     }
-
-                    return await self.claudeFetcher.debugRawProbe(model: "sonnet")
                 }
                 await MainActor.run { self.probeLogs[.claude] = text }
                 return text

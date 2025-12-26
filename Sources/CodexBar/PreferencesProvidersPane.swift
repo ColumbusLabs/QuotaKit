@@ -195,9 +195,9 @@ struct ProvidersPane: View {
     private func openAIDashboardLogin() -> some View {
         SettingsSection(contentSpacing: 10) {
             PreferenceToggleRow(
-                title: "Augment Codex via web",
+                title: "Use Codex via web",
                 subtitle: [
-                    "Uses your Safari/Chrome session cookies to add extra dashboard fields.",
+                    "Uses your Safari/Chrome session cookies for Codex usage + credits.",
                     "Adds Code review + Usage breakdown.",
                     "Safari → Chrome.",
                 ].joined(separator: " "),

@@ -240,6 +240,10 @@ public struct OpenAIDashboardBrowserCookieImporter {
             log("Selected \(candidate.label) (signed in: \(signedInEmail))")
             return try? await self.persist(candidate: candidate, targetEmail: signedInEmail, logger: log)
         case .unknown:
+            if allowAnyAccount {
+                log("Selected \(candidate.label) (signed in: unknown)")
+                return try? await self.persistToDefaultStore(candidate: candidate, logger: log)
+            }
             diagnostics.foundUnknownEmail = true
             return nil
         case .loginRequired:
@@ -407,6 +411,32 @@ public struct OpenAIDashboardBrowserCookieImporter {
                 cookieCount: candidate.cookies.count,
                 signedInEmail: signed,
                 matchesCodexEmail: matches)
+        } catch OpenAIDashboardFetcher.FetchError.loginRequired {
+            logger("Selected \(candidate.label) but dashboard still requires login.")
+            throw ImportError.dashboardStillRequiresLogin
+        }
+    }
+
+    private func persistToDefaultStore(
+        candidate: Candidate,
+        logger: @escaping (String) -> Void) async throws -> ImportResult
+    {
+        let persistent = OpenAIDashboardWebsiteDataStore.store(forAccountEmail: nil)
+        await self.clearChatGPTCookies(in: persistent)
+        await self.setCookies(candidate.cookies, into: persistent)
+
+        do {
+            let probe = try await OpenAIDashboardFetcher().probeUsagePage(
+                websiteDataStore: persistent,
+                logger: logger,
+                timeout: 20)
+            let signed = probe.signedInEmail?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            logger("Persistent session signed in as: \(signed ?? "unknown")")
+            return ImportResult(
+                sourceLabel: candidate.label,
+                cookieCount: candidate.cookies.count,
+                signedInEmail: signed,
+                matchesCodexEmail: false)
         } catch OpenAIDashboardFetcher.FetchError.loginRequired {
             logger("Selected \(candidate.label) but dashboard still requires login.")
             throw ImportError.dashboardStillRequiresLogin

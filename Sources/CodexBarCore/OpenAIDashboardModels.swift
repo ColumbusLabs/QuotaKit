@@ -10,6 +10,10 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
     /// This is distinct from `dailyBreakdown`, which is derived from `creditEvents` (credits usage history table).
     public let usageBreakdown: [OpenAIDashboardDailyBreakdown]
     public let creditsPurchaseURL: String?
+    public let primaryLimit: RateWindow?
+    public let secondaryLimit: RateWindow?
+    public let creditsRemaining: Double?
+    public let accountPlan: String?
     public let updatedAt: Date
 
     public init(
@@ -19,6 +23,10 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
         dailyBreakdown: [OpenAIDashboardDailyBreakdown],
         usageBreakdown: [OpenAIDashboardDailyBreakdown],
         creditsPurchaseURL: String?,
+        primaryLimit: RateWindow? = nil,
+        secondaryLimit: RateWindow? = nil,
+        creditsRemaining: Double? = nil,
+        accountPlan: String? = nil,
         updatedAt: Date)
     {
         self.signedInEmail = signedInEmail
@@ -27,6 +35,10 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
         self.dailyBreakdown = dailyBreakdown
         self.usageBreakdown = usageBreakdown
         self.creditsPurchaseURL = creditsPurchaseURL
+        self.primaryLimit = primaryLimit
+        self.secondaryLimit = secondaryLimit
+        self.creditsRemaining = creditsRemaining
+        self.accountPlan = accountPlan
         self.updatedAt = updatedAt
     }
 
@@ -37,6 +49,10 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
         case dailyBreakdown
         case usageBreakdown
         case creditsPurchaseURL
+        case primaryLimit
+        case secondaryLimit
+        case creditsRemaining
+        case accountPlan
         case updatedAt
     }
 
@@ -55,6 +71,10 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
             [OpenAIDashboardDailyBreakdown].self,
             forKey: .usageBreakdown) ?? []
         self.creditsPurchaseURL = try container.decodeIfPresent(String.self, forKey: .creditsPurchaseURL)
+        self.primaryLimit = try container.decodeIfPresent(RateWindow.self, forKey: .primaryLimit)
+        self.secondaryLimit = try container.decodeIfPresent(RateWindow.self, forKey: .secondaryLimit)
+        self.creditsRemaining = try container.decodeIfPresent(Double.self, forKey: .creditsRemaining)
+        self.accountPlan = try container.decodeIfPresent(String.self, forKey: .accountPlan)
         self.updatedAt = try container.decode(Date.self, forKey: .updatedAt)
     }
 
@@ -86,6 +106,28 @@ public struct OpenAIDashboardSnapshot: Codable, Equatable, Sendable {
             let total = services.reduce(0) { $0 + $1.creditsUsed }
             return OpenAIDashboardDailyBreakdown(day: day, services: services, totalCreditsUsed: total)
         }
+    }
+}
+
+extension OpenAIDashboardSnapshot {
+    public func toUsageSnapshot(accountEmail: String? = nil, accountPlan: String? = nil) -> UsageSnapshot? {
+        guard let primaryLimit else { return nil }
+        let resolvedEmail = accountEmail ?? self.signedInEmail
+        let resolvedPlan = accountPlan ?? self.accountPlan
+        return UsageSnapshot(
+            primary: primaryLimit,
+            secondary: self.secondaryLimit,
+            tertiary: nil,
+            providerCost: nil,
+            updatedAt: self.updatedAt,
+            accountEmail: resolvedEmail,
+            accountOrganization: nil,
+            loginMethod: resolvedPlan)
+    }
+
+    public func toCreditsSnapshot() -> CreditsSnapshot? {
+        guard let creditsRemaining else { return nil }
+        return CreditsSnapshot(remaining: creditsRemaining, events: self.creditEvents, updatedAt: self.updatedAt)
     }
 }
 
