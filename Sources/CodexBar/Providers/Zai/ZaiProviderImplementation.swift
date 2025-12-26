@@ -22,21 +22,7 @@ struct ZaiProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
-        let dashboardURL = context.store.metadata(for: .zai).dashboardURL
-        let actions: [ProviderSettingsActionDescriptor] = [
-            ProviderSettingsActionDescriptor(
-                id: "open-dashboard",
-                title: "Open dashboard",
-                style: .link,
-                isVisible: { dashboardURL != nil },
-                perform: {
-                    guard let dashboardURL else { return }
-                    guard let url = URL(string: dashboardURL) else { return }
-                    _ = NSWorkspace.shared.open(url)
-                }),
-        ]
-
-        return [
+        [
             ProviderSettingsFieldDescriptor(
                 id: "zai-api-token",
                 title: "API token",
@@ -44,7 +30,7 @@ struct ZaiProviderImplementation: ProviderImplementation {
                 kind: .secure,
                 placeholder: "Paste token…",
                 binding: context.stringBinding(\.zaiAPIToken),
-                actions: actions,
+                actions: [],
                 isVisible: nil),
         ]
     }
