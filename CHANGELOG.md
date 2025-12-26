@@ -10,6 +10,7 @@
 - CI: build/test Linux `CodexBarCLI` (x86_64 + aarch64) and publish release assets as `CodexBarCLI-<tag>-linux-<arch>.tar.gz` (+ `.sha256`).
 - CLI: add alias fallback for Codex/Claude detection when PATH lookups fail.
 - CLI: rename `--openai-web` → `--web` (macOS-only; Linux prints an error and exits).
+- Claude: default to Claude Code OAuth usage API (credentials from Keychain or `~/.claude/.credentials.json`), with Debug selector + `--claude-source` CLI override (OAuth/Web/CLI).
 - Core: Linux CLI builds now compile (mac-only WebKit/logging gated; FoundationNetworking imports where needed).
 - Tests: cover alias fallback resolution for Codex/Claude and add Linux platform gating coverage (run in CI).
 - Docs: expand CLI docs for Linux install + flags.
