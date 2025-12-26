@@ -538,15 +538,19 @@ private final class InsecureSessionDelegate: NSObject, URLSessionDelegate {
     func urlSession(
         _ session: URLSession,
         didReceive challenge: URLAuthenticationChallenge,
-        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void)
+        completionHandler: @escaping @MainActor @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void)
     {
         #if os(macOS)
         if let trust = challenge.protectionSpace.serverTrust {
-            completionHandler(.useCredential, URLCredential(trust: trust))
+            Task { @MainActor in
+                completionHandler(.useCredential, URLCredential(trust: trust))
+            }
             return
         }
         #endif
-        completionHandler(.performDefaultHandling, nil)
+        Task { @MainActor in
+            completionHandler(.performDefaultHandling, nil)
+        }
     }
 }
 
