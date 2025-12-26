@@ -92,90 +92,11 @@ extension StatusItemController {
             self.loginLogger.info("Starting login task", metadata: ["provider": provider.rawValue])
             print("[CodexBar] Starting login task for \(provider.rawValue)")
 
-            switch provider {
-            case .codex:
-                let result = await CodexLoginRunner.run(timeout: 120)
-                guard !Task.isCancelled else { return }
-                self.loginPhase = .idle
-                self.presentCodexLoginResult(result)
-                let outcome = self.describe(result.outcome)
-                let length = result.output.count
-                self.loginLogger.info("Codex login", metadata: ["outcome": outcome, "length": "\(length)"])
-                print("[CodexBar] Codex login outcome=\(outcome) len=\(length)")
-                if case .success = result.outcome {
-                    self.postLoginNotification(for: .codex)
-                }
-            case .claude:
-                let phaseHandler: @Sendable (ClaudeLoginRunner.Phase) -> Void = { [weak self] phase in
-                    Task { @MainActor in
-                        switch phase {
-                        case .requesting: self?.loginPhase = .requesting
-                        case .waitingBrowser: self?.loginPhase = .waitingBrowser
-                        }
-                    }
-                }
-                let result = await ClaudeLoginRunner.run(timeout: 120, onPhaseChange: phaseHandler)
-                guard !Task.isCancelled else { return }
-                self.loginPhase = .idle
-                self.presentClaudeLoginResult(result)
-                let outcome = self.describe(result.outcome)
-                let length = result.output.count
-                self.loginLogger.info("Claude login", metadata: ["outcome": outcome, "length": "\(length)"])
-                print("[CodexBar] Claude login outcome=\(outcome) len=\(length)")
-                if case .success = result.outcome {
-                    self.postLoginNotification(for: .claude)
-                }
-            case .gemini:
-                let store = self.store
-                let result = await GeminiLoginRunner.run {
-                    // Called when credentials file is created (auth complete)
-                    Task { @MainActor in
-                        await store.refresh()
-                        print("[CodexBar] Auto-refreshed after Gemini auth")
-                    }
-                }
-                guard !Task.isCancelled else { return }
-                self.loginPhase = .idle
-                self.presentGeminiLoginResult(result)
-                let outcome = self.describe(result.outcome)
-                self.loginLogger.info("Gemini login", metadata: ["outcome": outcome])
-                print("[CodexBar] Gemini login outcome=\(outcome)")
-                // Refresh triggered by file watcher callback when auth completes
-                return
-            case .antigravity:
-                self.loginPhase = .idle
-                self.presentLoginAlert(
-                    title: "Antigravity login is managed in the app",
-                    message: "Open Antigravity to sign in, then refresh CodexBar.")
-                return
-            case .cursor:
-                let cursorRunner = CursorLoginRunner()
-                let phaseHandler: @Sendable (CursorLoginRunner.Phase) -> Void = { [weak self] phase in
-                    Task { @MainActor in
-                        switch phase {
-                        case .loading, .waitingLogin:
-                            self?.loginPhase = .waitingBrowser
-                        case .success:
-                            self?.loginPhase = .idle
-                        case .failed:
-                            self?.loginPhase = .idle
-                        }
-                    }
-                }
-                let result = await cursorRunner.run(onPhaseChange: phaseHandler)
-                guard !Task.isCancelled else { return }
-                self.loginPhase = .idle
-                self.presentCursorLoginResult(result)
-                let outcome = self.describe(result.outcome)
-                self.loginLogger.info("Cursor login", metadata: ["outcome": outcome])
-                print("[CodexBar] Cursor login outcome=\(outcome)")
-                if case .success = result.outcome {
-                    self.postLoginNotification(for: .cursor)
-                }
+            let shouldRefresh = await self.runLoginFlow(provider: provider)
+            if shouldRefresh {
+                await self.store.refresh()
+                print("[CodexBar] Triggered refresh after login")
             }
-
-            await self.store.refresh()
-            print("[CodexBar] Triggered refresh after login")
         }
     }
 
@@ -206,7 +127,7 @@ extension StatusItemController {
         }
     }
 
-    private func presentCodexLoginResult(_ result: CodexLoginRunner.Result) {
+    func presentCodexLoginResult(_ result: CodexLoginRunner.Result) {
         switch result.outcome {
         case .success:
             return
@@ -227,7 +148,7 @@ extension StatusItemController {
         }
     }
 
-    private func presentClaudeLoginResult(_ result: ClaudeLoginRunner.Result) {
+    func presentClaudeLoginResult(_ result: ClaudeLoginRunner.Result) {
         switch result.outcome {
         case .success:
             return
@@ -248,7 +169,7 @@ extension StatusItemController {
         }
     }
 
-    private func describe(_ outcome: CodexLoginRunner.Result.Outcome) -> String {
+    func describe(_ outcome: CodexLoginRunner.Result.Outcome) -> String {
         switch outcome {
         case .success: "success"
         case .timedOut: "timedOut"
@@ -258,7 +179,7 @@ extension StatusItemController {
         }
     }
 
-    private func describe(_ outcome: ClaudeLoginRunner.Result.Outcome) -> String {
+    func describe(_ outcome: ClaudeLoginRunner.Result.Outcome) -> String {
         switch outcome {
         case .success: "success"
         case .timedOut: "timedOut"
@@ -268,7 +189,7 @@ extension StatusItemController {
         }
     }
 
-    private func describe(_ outcome: GeminiLoginRunner.Result.Outcome) -> String {
+    func describe(_ outcome: GeminiLoginRunner.Result.Outcome) -> String {
         switch outcome {
         case .success: "success"
         case .missingBinary: "missingBinary"
@@ -276,7 +197,7 @@ extension StatusItemController {
         }
     }
 
-    private func presentGeminiLoginResult(_ result: GeminiLoginRunner.Result) {
+    func presentGeminiLoginResult(_ result: GeminiLoginRunner.Result) {
         guard let info = Self.geminiLoginAlertInfo(for: result) else { return }
         self.presentLoginAlert(title: info.title, message: info.message)
     }
@@ -299,7 +220,7 @@ extension StatusItemController {
         }
     }
 
-    private func presentLoginAlert(title: String, message: String) {
+    func presentLoginAlert(title: String, message: String) {
         let alert = NSAlert()
         alert.messageText = title
         alert.informativeText = message
@@ -316,7 +237,7 @@ extension StatusItemController {
         return "\(trimmed[..<idx])…"
     }
 
-    private func postLoginNotification(for provider: UsageProvider) {
+    func postLoginNotification(for provider: UsageProvider) {
         let title = switch provider {
         case .codex: "Codex login successful"
         case .claude: "Claude login successful"
@@ -328,7 +249,7 @@ extension StatusItemController {
         AppNotifications.shared.post(idPrefix: "login-\(provider.rawValue)", title: title, body: body)
     }
 
-    private func presentCursorLoginResult(_ result: CursorLoginRunner.Result) {
+    func presentCursorLoginResult(_ result: CursorLoginRunner.Result) {
         switch result.outcome {
         case .success:
             return
@@ -340,7 +261,7 @@ extension StatusItemController {
         }
     }
 
-    private func describe(_ outcome: CursorLoginRunner.Result.Outcome) -> String {
+    func describe(_ outcome: CursorLoginRunner.Result.Outcome) -> String {
         switch outcome {
         case .success: "success"
         case .cancelled: "cancelled"

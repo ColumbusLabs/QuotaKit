@@ -7,11 +7,6 @@ struct ProviderSpec {
     let fetch: () async throws -> UsageSnapshot
 }
 
-struct ClaudeUsageStrategy: Equatable {
-    let dataSource: ClaudeUsageDataSource
-    let useWebExtras: Bool
-}
-
 struct ProviderRegistry {
     let metadata: [UsageProvider: ProviderMetadata]
 
@@ -22,103 +17,37 @@ struct ProviderRegistry {
     }
 
     @MainActor
-    static func claudeUsageStrategy(
-        settings: SettingsStore,
-        hasWebSession: () -> Bool = { ClaudeWebAPIFetcher.hasSessionKey() }) -> ClaudeUsageStrategy
-    {
-        if settings.debugMenuEnabled {
-            let dataSource = settings.claudeUsageDataSource
-            if dataSource == .oauth {
-                return ClaudeUsageStrategy(dataSource: dataSource, useWebExtras: false)
-            }
-            let hasSession = hasWebSession()
-            if dataSource == .web, !hasSession {
-                return ClaudeUsageStrategy(dataSource: .cli, useWebExtras: false)
-            }
-            let useWebExtras = dataSource == .cli && settings.claudeWebExtrasEnabled && hasSession
-            return ClaudeUsageStrategy(dataSource: dataSource, useWebExtras: useWebExtras)
-        }
-
-        let hasSession = hasWebSession()
-        let dataSource: ClaudeUsageDataSource = hasSession ? .web : .cli
-        return ClaudeUsageStrategy(dataSource: dataSource, useWebExtras: false)
-    }
-
-    @MainActor
     func specs(
         settings: SettingsStore,
         metadata: [UsageProvider: ProviderMetadata],
         codexFetcher: UsageFetcher,
         claudeFetcher: any ClaudeUsageFetching) -> [UsageProvider: ProviderSpec]
     {
-        let codexMeta = metadata[.codex]!
-        let claudeMeta = metadata[.claude]!
-        let geminiMeta = metadata[.gemini]!
-        let antigravityMeta = metadata[.antigravity]!
-        let cursorMeta = metadata[.cursor]!
+        let context = ProviderBuildContext(
+            settings: settings,
+            metadata: metadata,
+            codexFetcher: codexFetcher,
+            claudeFetcher: claudeFetcher)
 
-        let codexSpec = ProviderSpec(
-            style: .codex,
-            isEnabled: { settings.isProviderEnabled(provider: .codex, metadata: codexMeta) },
-            fetch: { try await codexFetcher.loadLatestUsage() })
+        let implementationsByID: [UsageProvider: any ProviderImplementation] = Dictionary(
+            uniqueKeysWithValues: ProviderCatalog.all.map { ($0.id, $0) })
 
-        let claudeSpec = ProviderSpec(
-            style: .claude,
-            isEnabled: { settings.isProviderEnabled(provider: .claude, metadata: claudeMeta) },
-            fetch: {
-                let strategy = Self.claudeUsageStrategy(settings: settings)
-                let fetcher: any ClaudeUsageFetching = if claudeFetcher is ClaudeUsageFetcher {
-                    ClaudeUsageFetcher(dataSource: strategy.dataSource, useWebExtras: strategy.useWebExtras)
-                } else {
-                    claudeFetcher
-                }
+        var specs: [UsageProvider: ProviderSpec] = [:]
+        specs.reserveCapacity(UsageProvider.allCases.count)
 
-                let usage = try await fetcher.loadLatestUsage(model: "sonnet")
-                return UsageSnapshot(
-                    primary: usage.primary,
-                    secondary: usage.secondary,
-                    tertiary: usage.opus,
-                    providerCost: usage.providerCost,
-                    updatedAt: usage.updatedAt,
-                    accountEmail: usage.accountEmail,
-                    accountOrganization: usage.accountOrganization,
-                    loginMethod: usage.loginMethod)
-            })
+        for provider in UsageProvider.allCases {
+            guard let impl = implementationsByID[provider] else {
+                fatalError("Missing ProviderImplementation for \(provider.rawValue)")
+            }
+            let meta = metadata[provider]!
+            let spec = ProviderSpec(
+                style: impl.style,
+                isEnabled: { settings.isProviderEnabled(provider: provider, metadata: meta) },
+                fetch: impl.makeFetch(context: context))
+            specs[provider] = spec
+        }
 
-        let geminiSpec = ProviderSpec(
-            style: .gemini,
-            isEnabled: { settings.isProviderEnabled(provider: .gemini, metadata: geminiMeta) },
-            fetch: {
-                let probe = GeminiStatusProbe()
-                let snap = try await probe.fetch()
-                return snap.toUsageSnapshot()
-            })
-
-        let antigravitySpec = ProviderSpec(
-            style: .antigravity,
-            isEnabled: { settings.isProviderEnabled(provider: .antigravity, metadata: antigravityMeta) },
-            fetch: {
-                let probe = AntigravityStatusProbe()
-                let snap = try await probe.fetch()
-                return try snap.toUsageSnapshot()
-            })
-
-        let cursorSpec = ProviderSpec(
-            style: .cursor,
-            isEnabled: { settings.isProviderEnabled(provider: .cursor, metadata: cursorMeta) },
-            fetch: {
-                let probe = CursorStatusProbe()
-                let snap = try await probe.fetch()
-                return snap.toUsageSnapshot()
-            })
-
-        return [
-            .codex: codexSpec,
-            .claude: claudeSpec,
-            .gemini: geminiSpec,
-            .antigravity: antigravitySpec,
-            .cursor: cursorSpec,
-        ]
+        return specs
     }
 
     private static let defaultMetadata: [UsageProvider: ProviderMetadata] = ProviderDefaults.metadata

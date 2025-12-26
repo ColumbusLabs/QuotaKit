@@ -151,7 +151,12 @@ final class SettingsStore {
 
     var claudeUsageDataSource: ClaudeUsageDataSource {
         get { ClaudeUsageDataSource(rawValue: self.claudeUsageDataSourceRaw ?? "") ?? .web }
-        set { self.claudeUsageDataSourceRaw = newValue.rawValue }
+        set {
+            self.claudeUsageDataSourceRaw = newValue.rawValue
+            if newValue != .cli {
+                self.claudeWebExtrasEnabled = false
+            }
+        }
     }
 
     var menuObservationToken: Int {
@@ -219,6 +224,9 @@ final class SettingsStore {
         LaunchAtLoginManager.setEnabled(self.launchAtLogin)
         self.runInitialProviderDetectionIfNeeded()
         self.applyTokenCostDefaultIfNeeded()
+        if self.claudeUsageDataSource != .cli {
+            self.claudeWebExtrasEnabled = false
+        }
     }
 
     func isProviderEnabled(provider: UsageProvider, metadata: ProviderMetadata) -> Bool {

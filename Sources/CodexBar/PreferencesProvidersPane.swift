@@ -7,10 +7,11 @@ struct ProvidersPane: View {
     @Bindable var settings: SettingsStore
     @Bindable var store: UsageStore
     @State private var expandedErrors: Set<UsageProvider> = []
-    @State private var openAIDashboardStatus: String?
-    @State private var showOpenAIWebFullDiskAccessAlert = false
-    @State private var lastOpenAIWebFullDiskAccessRetryAt: Date?
-    @State private var claudeWebStatus: String?
+    @State private var settingsStatusTextByID: [String: String] = [:]
+    @State private var settingsLastAppActiveRunAtByID: [String: Date] = [:]
+    @State private var activeConfirmation: ProviderSettingsConfirmationState?
+
+    private var providers: [UsageProvider] { UsageProvider.allCases }
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
@@ -20,90 +21,22 @@ struct ProvidersPane: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
+                    ProviderTableHeaderView()
+
                     VStack(alignment: .leading, spacing: 12) {
-                        PreferenceToggleRow(
-                            title: self.store.metadata(for: .codex).toggleTitle,
-                            subtitle: self.providerSubtitle(.codex),
-                            binding: self.codexBinding)
-                            .padding(.bottom, 5)
-
-                        if self.codexBinding.wrappedValue {
-                            self.openAIDashboardLogin()
-                                .padding(.leading, 22)
+                        ForEach(self.providers, id: \.rawValue) { provider in
+                            ProviderTableRowView(
+                                provider: provider,
+                                store: self.store,
+                                isEnabled: self.binding(for: provider),
+                                subtitle: self.providerSubtitle(provider),
+                                sourceLabel: self.providerSourceLabel(provider),
+                                statusLabel: self.providerStatusLabel(provider),
+                                settingsToggles: self.extraSettingsToggles(for: provider),
+                                errorDisplay: self.providerErrorDisplay(provider),
+                                isErrorExpanded: self.expandedBinding(for: provider),
+                                onCopyError: { text in self.copyToPasteboard(text) })
                         }
-                    }
-                    .padding(.bottom, 10)
-
-                    if let display = self.providerErrorDisplay(.codex) {
-                        ProviderErrorView(
-                            title: "Last Codex fetch failed:",
-                            display: display,
-                            isExpanded: self.expandedBinding(for: .codex),
-                            onCopy: { self.copyToPasteboard(display.full) })
-                            .padding(.bottom, 8)
-                    }
-
-                    PreferenceToggleRow(
-                        title: self.store.metadata(for: .claude).toggleTitle,
-                        subtitle: self.providerSubtitle(.claude),
-                        binding: self.claudeBinding)
-                        .padding(.bottom, 5)
-
-                    if self.claudeBinding.wrappedValue {
-                        if self.settings.claudeUsageDataSource == .cli {
-                            self.claudeWebExtras()
-                                .padding(.leading, 22)
-                        }
-                    }
-
-                    if let display = self.providerErrorDisplay(.claude) {
-                        ProviderErrorView(
-                            title: "Last Claude fetch failed:",
-                            display: display,
-                            isExpanded: self.expandedBinding(for: .claude),
-                            onCopy: { self.copyToPasteboard(display.full) })
-                    }
-
-                    PreferenceToggleRow(
-                        title: self.store.metadata(for: .cursor).toggleTitle,
-                        subtitle: self.providerSubtitle(.cursor),
-                        binding: self.cursorBinding)
-                        .padding(.bottom, 5)
-
-                    if let display = self.providerErrorDisplay(.cursor) {
-                        ProviderErrorView(
-                            title: "Last Cursor fetch failed:",
-                            display: display,
-                            isExpanded: self.expandedBinding(for: .cursor),
-                            onCopy: { self.copyToPasteboard(display.full) })
-                    }
-
-                    PreferenceToggleRow(
-                        title: self.store.metadata(for: .gemini).toggleTitle,
-                        subtitle: self.providerSubtitle(.gemini),
-                        binding: self.geminiBinding)
-                        .padding(.bottom, 5)
-
-                    if let display = self.providerErrorDisplay(.gemini) {
-                        ProviderErrorView(
-                            title: "Last Gemini fetch failed:",
-                            display: display,
-                            isExpanded: self.expandedBinding(for: .gemini),
-                            onCopy: { self.copyToPasteboard(display.full) })
-                    }
-
-                    PreferenceToggleRow(
-                        title: self.store.metadata(for: .antigravity).toggleTitle,
-                        subtitle: self.providerSubtitle(.antigravity),
-                        binding: self.antigravityBinding)
-                        .padding(.bottom, 5)
-
-                    if let display = self.providerErrorDisplay(.antigravity) {
-                        ProviderErrorView(
-                            title: "Last Antigravity fetch failed:",
-                            display: display,
-                            isExpanded: self.expandedBinding(for: .antigravity),
-                            onCopy: { self.copyToPasteboard(display.full) })
                     }
                 }
             }
@@ -111,36 +44,31 @@ struct ProvidersPane: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
         }
-        .onAppear {
-            if self.settings.claudeUsageDataSource == .cli,
-               self.settings.claudeWebExtrasEnabled
-            {
-                self.refreshClaudeWebStatus()
-            }
-        }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            self.retryOpenAIWebAfterPermissionChangeIfNeeded()
+            self.runSettingsDidBecomeActiveHooks()
         }
-        .onChange(of: self.settings.claudeWebExtrasEnabled) { _, enabled in
-            if enabled, self.settings.claudeUsageDataSource == .cli {
-                self.refreshClaudeWebStatus()
-            } else {
-                self.claudeWebStatus = nil
-            }
-        }
-        .onChange(of: self.settings.claudeUsageDataSource) { _, dataSource in
-            if dataSource != .cli {
-                self.settings.claudeWebExtrasEnabled = false
-                self.claudeWebStatus = nil
-            }
-        }
+        .alert(
+            self.activeConfirmation?.title ?? "",
+            isPresented: Binding(
+                get: { self.activeConfirmation != nil },
+                set: { isPresented in
+                    if !isPresented { self.activeConfirmation = nil }
+                }),
+            actions: {
+                if let active = self.activeConfirmation {
+                    Button(active.confirmTitle) {
+                        active.onConfirm()
+                        self.activeConfirmation = nil
+                    }
+                    Button("Cancel", role: .cancel) { self.activeConfirmation = nil }
+                }
+            },
+            message: {
+                if let active = self.activeConfirmation {
+                    Text(active.message)
+                }
+            })
     }
-
-    private var codexBinding: Binding<Bool> { self.binding(for: .codex) }
-    private var claudeBinding: Binding<Bool> { self.binding(for: .claude) }
-    private var geminiBinding: Binding<Bool> { self.binding(for: .gemini) }
-    private var antigravityBinding: Binding<Bool> { self.binding(for: .antigravity) }
-    private var cursorBinding: Binding<Bool> { self.binding(for: .cursor) }
 
     private func binding(for provider: UsageProvider) -> Binding<Bool> {
         let meta = self.store.metadata(for: provider)
@@ -184,6 +112,35 @@ struct ProvidersPane: View {
         return detail
     }
 
+    private func providerSourceLabel(_ provider: UsageProvider) -> String {
+        switch provider {
+        case .codex:
+            if self.settings.openAIDashboardEnabled { return "web + cli" }
+            return "cli"
+        case .claude:
+            if self.settings.debugMenuEnabled {
+                return self.settings.claudeUsageDataSource.rawValue
+            }
+            return "auto"
+        case .cursor:
+            return "web"
+        case .gemini:
+            return "api"
+        case .antigravity:
+            return "local"
+        }
+    }
+
+    private func providerStatusLabel(_ provider: UsageProvider) -> String {
+        if let snapshot = self.store.snapshot(for: provider) {
+            return snapshot.updatedAt.formatted(date: .abbreviated, time: .shortened)
+        }
+        if self.store.isStale(provider: provider) {
+            return "failed"
+        }
+        return "not yet"
+    }
+
     private func providerErrorDisplay(_ provider: UsageProvider) -> ProviderErrorDisplay? {
         guard self.store.isStale(provider: provider), let raw = self.store.error(for: provider) else { return nil }
         return ProviderErrorDisplay(
@@ -191,131 +148,57 @@ struct ProvidersPane: View {
             full: raw)
     }
 
-    @ViewBuilder
-    private func openAIDashboardLogin() -> some View {
-        SettingsSection(contentSpacing: 10) {
-            PreferenceToggleRow(
-                title: "Use Codex via web",
-                subtitle: [
-                    "Uses your Safari/Chrome session cookies for Codex usage + credits.",
-                    "Adds Code review + Usage breakdown.",
-                    "Safari → Chrome.",
-                ].joined(separator: " "),
-                binding: self.$settings.openAIDashboardEnabled)
+    private func extraSettingsToggles(for provider: UsageProvider) -> [ProviderSettingsToggleDescriptor] {
+        guard let impl = ProviderCatalog.implementation(for: provider) else { return [] }
+        let context = self.makeSettingsContext(provider: provider)
+        return impl.settingsToggles(context: context)
+            .filter { $0.isVisible?() ?? true }
+    }
 
-            if self.settings.openAIDashboardEnabled {
-                let status = self.openAIDashboardStatus ??
-                    self.store.openAIDashboardCookieImportStatus ??
-                    self.store.lastOpenAIDashboardError
-
-                if let status, !status.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(status)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(4)
-
-                        if self.needsOpenAIWebFullDiskAccess(status: status) {
-                            Button("Fix: enable Full Disk Access…") {
-                                self.showOpenAIWebFullDiskAccessAlert = true
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                            .alert("Enable Full Disk Access", isPresented: self.$showOpenAIWebFullDiskAccessAlert) {
-                                Button("Open System Settings") {
-                                    Self.openFullDiskAccessSettings()
-                                    self.openAIDashboardStatus = "Waiting for Full Disk Access…"
-                                }
-                                Button("Cancel", role: .cancel) {}
-                            } message: {
-                                Text(
-                                    [
-                                        "CodexBar needs Full Disk Access to read Safari cookies " +
-                                            "(required for OpenAI web scraping).",
-                                        "System Settings → Privacy & Security → Full Disk Access " +
-                                            "→ add/enable CodexBar.",
-                                        "Then re-toggle “Access OpenAI via web” to import cookies again.",
-                                    ].joined(separator: "\n"))
-                            }
-                        }
-                    }
+    private func makeSettingsContext(provider: UsageProvider) -> ProviderSettingsContext {
+        ProviderSettingsContext(
+            provider: provider,
+            settings: self.settings,
+            store: self.store,
+            boolBinding: { keyPath in
+                Binding(
+                    get: { self.settings[keyPath: keyPath] },
+                    set: { self.settings[keyPath: keyPath] = $0 })
+            },
+            statusText: { id in
+                self.settingsStatusTextByID[id]
+            },
+            setStatusText: { id, text in
+                if let text {
+                    self.settingsStatusTextByID[id] = text
+                } else {
+                    self.settingsStatusTextByID.removeValue(forKey: id)
                 }
-            }
-        }
-        .onChange(of: self.settings.openAIDashboardEnabled) { _, enabled in
-            if enabled {
-                self.openAIDashboardStatus = "Importing cookies…"
+            },
+            lastAppActiveRunAt: { id in
+                self.settingsLastAppActiveRunAtByID[id]
+            },
+            setLastAppActiveRunAt: { id, date in
+                if let date {
+                    self.settingsLastAppActiveRunAtByID[id] = date
+                } else {
+                    self.settingsLastAppActiveRunAtByID.removeValue(forKey: id)
+                }
+            },
+            requestConfirmation: { confirmation in
+                self.activeConfirmation = ProviderSettingsConfirmationState(confirmation: confirmation)
+            })
+    }
+
+    private func runSettingsDidBecomeActiveHooks() {
+        for provider in UsageProvider.allCases {
+            for toggle in self.extraSettingsToggles(for: provider) {
+                guard let hook = toggle.onAppDidBecomeActive else { continue }
                 Task { @MainActor in
-                    await self.store.importOpenAIDashboardBrowserCookiesNow()
-                    self.openAIDashboardStatus = nil
-                }
-            } else {
-                self.openAIDashboardStatus = nil
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func claudeWebExtras() -> some View {
-        SettingsSection(contentSpacing: 10) {
-            PreferenceToggleRow(
-                title: "Augment Claude via web",
-                subtitle: [
-                    "Uses Safari/Chrome session cookies to add extra dashboard fields on top of OAuth.",
-                    "Adds Extra usage spend/limit.",
-                    "Safari → Chrome.",
-                ].joined(separator: " "),
-                binding: self.$settings.claudeWebExtrasEnabled)
-
-            if self.settings.claudeWebExtrasEnabled {
-                if let status = self.claudeWebStatus, !status.isEmpty {
-                    Text(status)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(4)
+                    await hook()
                 }
             }
         }
-    }
-
-    private func refreshClaudeWebStatus() {
-        let expectedEmail = self.store.snapshot(for: .claude)?.accountEmail?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        self.claudeWebStatus = "Checking Claude cookies…"
-        Task { @MainActor in
-            let status = await self.loadClaudeWebStatus(expectedEmail: expectedEmail)
-            self.claudeWebStatus = status
-        }
-    }
-
-    private func loadClaudeWebStatus(expectedEmail: String?) async -> String {
-        await Task.detached(priority: .utility) {
-            do {
-                let info = try ClaudeWebAPIFetcher.sessionKeyInfo()
-                var parts = ["Using \(info.sourceLabel) cookies (\(info.cookieCount))."]
-
-                do {
-                    let usage = try await ClaudeWebAPIFetcher.fetchUsage(using: info)
-                    if let rawEmail = usage.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines),
-                       !rawEmail.isEmpty
-                    {
-                        if let expectedEmail, !expectedEmail.isEmpty {
-                            let matches = rawEmail.lowercased() == expectedEmail.lowercased()
-                            let matchText = matches ? "matches Claude" : "does not match Claude"
-                            parts.append("Signed in as \(rawEmail) (\(matchText)).")
-                        } else {
-                            parts.append("Signed in as \(rawEmail).")
-                        }
-                    }
-                } catch {
-                    parts.append("Signed-in status unavailable: \(error.localizedDescription)")
-                }
-
-                return parts.joined(separator: " ")
-            } catch {
-                return "Browser cookie import failed: \(error.localizedDescription)"
-            }
-        }.value
     }
 
     private func truncated(_ text: String, prefix: String, maxLength: Int = 160) -> String {
@@ -344,46 +227,155 @@ struct ProvidersPane: View {
         pb.clearContents()
         pb.setString(text, forType: .string)
     }
+}
 
-    // MARK: - OpenAI dashboard auth
-
-    private func needsOpenAIWebFullDiskAccess(status: String) -> Bool {
-        let s = status.lowercased()
-        return s.contains("full disk access") && s.contains("safari")
-    }
-
-    private func retryOpenAIWebAfterPermissionChangeIfNeeded() {
-        guard self.settings.openAIDashboardEnabled else { return }
-        let status = self.openAIDashboardStatus ??
-            self.store.openAIDashboardCookieImportStatus ??
-            self.store.lastOpenAIDashboardError
-
-        guard let status, self.needsOpenAIWebFullDiskAccess(status: status) else { return }
-
-        let now = Date()
-        if let last = self.lastOpenAIWebFullDiskAccessRetryAt, now.timeIntervalSince(last) < 5 {
-            return
+private struct ProviderTableHeaderView: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            Text("Provider")
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text("Source")
+                .frame(width: 90, alignment: .leading)
+            Text("Status")
+                .frame(width: 120, alignment: .leading)
+            Text("Enabled")
+                .frame(width: 70, alignment: .trailing)
         }
-        self.lastOpenAIWebFullDiskAccessRetryAt = now
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .textCase(.uppercase)
+        .padding(.bottom, 2)
+    }
+}
 
-        self.openAIDashboardStatus = "Re-checking Full Disk Access…"
-        Task { @MainActor in
-            await self.store.importOpenAIDashboardBrowserCookiesNow()
-            self.openAIDashboardStatus = nil
+@MainActor
+private struct ProviderTableRowView: View {
+    let provider: UsageProvider
+    @Bindable var store: UsageStore
+    @Binding var isEnabled: Bool
+    let subtitle: String
+    let sourceLabel: String
+    let statusLabel: String
+    let settingsToggles: [ProviderSettingsToggleDescriptor]
+    let errorDisplay: ProviderErrorDisplay?
+    @Binding var isErrorExpanded: Bool
+    let onCopyError: (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(self.store.metadata(for: self.provider).displayName)
+                        .font(.body.weight(.medium))
+                    Text(self.subtitle)
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text(self.sourceLabel)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 90, alignment: .leading)
+
+                Text(self.statusLabel)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 120, alignment: .leading)
+
+                Toggle("", isOn: self.$isEnabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .frame(width: 70, alignment: .trailing)
+            }
+
+            if self.isEnabled {
+                if !self.settingsToggles.isEmpty {
+                    ProviderSettingsExtrasView(toggles: self.settingsToggles)
+                        .padding(.leading, 12)
+                }
+            }
+
+            if let errorDisplay {
+                ProviderErrorView(
+                    title: "Last \(self.store.metadata(for: self.provider).displayName) fetch failed:",
+                    display: errorDisplay,
+                    isExpanded: self.$isErrorExpanded,
+                    onCopy: { self.onCopyError(errorDisplay.full) })
+            }
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .background(Color(nsColor: .controlBackgroundColor).opacity(0.35))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color(nsColor: .separatorColor).opacity(0.35), lineWidth: 1))
+    }
+}
+
+@MainActor
+private struct ProviderSettingsExtrasView: View {
+    let toggles: [ProviderSettingsToggleDescriptor]
+
+    var body: some View {
+        SettingsSection(contentSpacing: 10) {
+            ForEach(self.toggles) { toggle in
+                VStack(alignment: .leading, spacing: 12) {
+                    PreferenceToggleRow(
+                        title: toggle.title,
+                        subtitle: toggle.subtitle,
+                        binding: toggle.binding)
+
+                    if toggle.binding.wrappedValue {
+                        if let status = toggle.statusText?(), !status.isEmpty {
+                            Text(status)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(4)
+                        }
+
+                        let actions = toggle.actions.filter { $0.isVisible?() ?? true }
+                        if !actions.isEmpty {
+                            HStack(spacing: 10) {
+                                ForEach(actions) { action in
+                                    Button(action.title) {
+                                        Task { @MainActor in
+                                            await action.perform()
+                                        }
+                                    }
+                                    .applyProviderSettingsButtonStyle(action.style)
+                                    .controlSize(.small)
+                                }
+                            }
+                        }
+                    }
+                }
+                .onChange(of: toggle.binding.wrappedValue) { _, enabled in
+                    guard let onChange = toggle.onChange else { return }
+                    Task { @MainActor in
+                        await onChange(enabled)
+                    }
+                }
+                .task(id: toggle.binding.wrappedValue) {
+                    guard toggle.binding.wrappedValue else { return }
+                    guard let onAppear = toggle.onAppearWhenEnabled else { return }
+                    await onAppear()
+                }
+            }
         }
     }
+}
 
-    private static func openFullDiskAccessSettings() {
-        // Best-effort deep link. On macOS 13 beta it used to open the wrong pane, but this has been stable on
-        // modern macOS releases again. Fall back to the Privacy pane if needed.
-        let urls: [URL] = [
-            URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"),
-            URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy"),
-            URL(string: "x-apple.systempreferences:com.apple.preference.security"),
-        ].compactMap(\.self)
-
-        for url in urls where NSWorkspace.shared.open(url) {
-            return
+extension View {
+    @ViewBuilder
+    fileprivate func applyProviderSettingsButtonStyle(_ style: ProviderSettingsActionDescriptor.Style) -> some View {
+        switch style {
+        case .bordered:
+            self.buttonStyle(.bordered)
+        case .link:
+            self.buttonStyle(.link)
         }
     }
 }
@@ -437,5 +429,21 @@ private struct ProviderErrorView: View {
             }
         }
         .padding(.leading, 2)
+    }
+}
+
+@MainActor
+private struct ProviderSettingsConfirmationState: Identifiable {
+    let id = UUID()
+    let title: String
+    let message: String
+    let confirmTitle: String
+    let onConfirm: () -> Void
+
+    init(confirmation: ProviderSettingsConfirmation) {
+        self.title = confirmation.title
+        self.message = confirmation.message
+        self.confirmTitle = confirmation.confirmTitle
+        self.onConfirm = confirmation.onConfirm
     }
 }
