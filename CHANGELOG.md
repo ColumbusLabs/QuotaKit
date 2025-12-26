@@ -5,20 +5,25 @@
 - Cursor: keep stored sessions on transient failures; clear only on invalid auth.
 - Preferences: fix Advanced Display checkboxes and move the Quit button to the bottom of General.
 - Preferences: hide “Augment Claude via web” unless Claude usage source is CLI; rename the cost toggle to “Show cost summary”.
+- Preferences: add an Advanced toggle to show/hide optional Codex Credits + Claude Extra usage sections (on by default).
 - Widgets: add a new “CodexBar Switcher” widget that lets you switch providers and remember the selection.
 - Menu: provider switcher now uses crisp brand icons with equal-width segments and a per-provider weekly remaining indicator.
 - Menu: tighten provider switcher sizing and increase spacing between label and weekly indicator bar.
 - Menu: provider switcher no longer forces a wider menu when many providers are enabled; segments clamp to the menu width.
+- Menu: provider switcher now aligns to the same horizontal padding grid as the menu cards when space allows.
 - Dev: `compile_and_run.sh` now force-kills old instances to avoid launching duplicates.
 - Dev: `compile_and_run.sh` now waits for slow launches (polling for the process).
 - CI: build/test Linux `CodexBarCLI` (x86_64 + aarch64) and publish release assets as `CodexBarCLI-<tag>-linux-<arch>.tar.gz` (+ `.sha256`).
 - CLI: add alias fallback for Codex/Claude detection when PATH lookups fail.
 - CLI: rename `--openai-web` → `--web` (macOS-only; Linux prints an error and exits).
 - Claude: default to Claude Code OAuth usage API (credentials from Keychain or `~/.claude/.credentials.json`), with Debug selector + `--claude-source` CLI override (OAuth/Web/CLI).
+- OpenAI web: allow importing any signed-in browser session when Codex email is unknown (first-run friendly).
 - Core: Linux CLI builds now compile (mac-only WebKit/logging gated; FoundationNetworking imports where needed).
 - Core: fix CI flake for Claude trust prompts by making PTY writes fully reliable.
 - Core: Cursor provider is macOS-only (Linux CLI builds stub it).
+- Core: make `RateWindow` equatable (used by OpenAI dashboard snapshots and tests).
 - Tests: cover alias fallback resolution for Codex/Claude and add Linux platform gating coverage (run in CI).
+- Tests: cover hiding Codex Credits + Claude Extra usage via the Advanced toggle.
 - Docs: expand CLI docs for Linux install + flags.
 
 ## 0.14.0 — 2025-12-25
