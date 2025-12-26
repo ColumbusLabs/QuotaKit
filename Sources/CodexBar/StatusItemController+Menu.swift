@@ -841,7 +841,10 @@ private final class ProviderSwitcherView: NSView {
         self.preferredWidth = width
         super.init(frame: NSRect(x: 0, y: 0, width: width, height: height))
 
-        let outerPadding: CGFloat = 4
+        let outerPadding: CGFloat = Self.switcherOuterPadding(
+            for: width,
+            count: self.segments.count,
+            minimumGap: 1)
         let minimumGap: CGFloat = 1
         let maxAllowedSegmentWidth = Self.maxAllowedUniformSegmentWidth(
             for: width,
@@ -976,6 +979,26 @@ private final class ProviderSwitcherView: NSView {
         }
 
         self.updateButtonStyles()
+    }
+
+    private static func switcherOuterPadding(for width: CGFloat, count: Int, minimumGap: CGFloat) -> CGFloat {
+        // Align with the card's left/right content grid when possible.
+        let preferred: CGFloat = 16
+        let reduced: CGFloat = 10
+        let minimal: CGFloat = 6
+
+        func averageButtonWidth(outerPadding: CGFloat) -> CGFloat {
+            let available = width - outerPadding * 2 - minimumGap * CGFloat(max(0, count - 1))
+            guard count > 0 else { return 0 }
+            return available / CGFloat(count)
+        }
+
+        // Only sacrifice padding when we'd otherwise squeeze buttons into unreadable widths.
+        let minimumComfortableAverage: CGFloat = count >= 5 ? 46 : 54
+
+        if averageButtonWidth(outerPadding: preferred) >= minimumComfortableAverage { return preferred }
+        if averageButtonWidth(outerPadding: reduced) >= minimumComfortableAverage { return reduced }
+        return minimal
     }
 
     @available(*, unavailable)
