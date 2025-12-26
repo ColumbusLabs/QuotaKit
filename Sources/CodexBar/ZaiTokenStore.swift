@@ -2,7 +2,7 @@ import CodexBarCore
 import Foundation
 import Security
 
-protocol ZaiTokenStoring {
+protocol ZaiTokenStoring: Sendable {
     func loadToken() throws -> String?
     func storeToken(_ token: String?) throws
 }

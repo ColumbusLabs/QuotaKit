@@ -411,16 +411,23 @@ final class SettingsStore {
     private func schedulePersistZaiAPIToken() {
         self.zaiTokenPersistTask?.cancel()
         let token = self.zaiAPIToken
-        self.zaiTokenPersistTask = Task { @MainActor [weak self] in
+        let tokenStore = self.zaiTokenStore
+        self.zaiTokenPersistTask = Task { @MainActor in
             do {
                 try await Task.sleep(nanoseconds: 350_000_000)
             } catch {
                 return
             }
-            guard let self else { return }
-            do {
-                try self.zaiTokenStore.storeToken(token)
-            } catch {
+            guard !Task.isCancelled else { return }
+            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
+                do {
+                    try tokenStore.storeToken(token)
+                    return nil
+                } catch {
+                    return error
+                }
+            }.value
+            if let error {
                 // Keep value in memory; persist best-effort.
                 CodexBarLog.logger("zai-token-store").error("Failed to persist z.ai token: \(error)")
             }
