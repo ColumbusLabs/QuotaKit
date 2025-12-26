@@ -95,8 +95,8 @@ struct ProvidersPane: View {
 
         let usageText: String
         if let snapshot = self.store.snapshot(for: provider) {
-            let timestamp = snapshot.updatedAt.formatted(date: .abbreviated, time: .shortened)
-            usageText = "usage fetched \(timestamp)"
+            let relative = snapshot.updatedAt.relativeDescription()
+            usageText = "usage fetched \(relative)"
         } else if self.store.isStale(provider: provider) {
             usageText = "last fetch failed"
         } else {
