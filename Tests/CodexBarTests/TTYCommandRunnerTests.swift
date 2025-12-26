@@ -93,7 +93,8 @@ struct TTYCommandRunnerEnvTests {
             send: "",
             options: .init(
                 timeout: 3,
-                sendOnSubstrings: ["Do you trust the files in this folder?": "y\r"],
+                // Use LF for portability: some PTY/termios setups do not translate CR → NL for shell reads.
+                sendOnSubstrings: ["Do you trust the files in this folder?": "y\n"],
                 stopOnSubstrings: ["accepted", "rejected"],
                 settleAfterStop: 0.1))
 
