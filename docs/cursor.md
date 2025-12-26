@@ -26,6 +26,7 @@ Cursor support is implemented: CodexBar can show Cursor usage alongside other pr
 1. **Primary: Browser cookie import**
    - Safari: reads `~/Library/Cookies/Cookies.binarycookies`
    - Chrome: reads encrypted SQLite cookie DB from `~/Library/Application Support/Google/Chrome/*/Cookies`
+   - Firefox: reads SQLite cookie DB from `~/Library/Application Support/Firefox/Profiles/*/cookies.sqlite`
    - Requires cookies for `cursor.com` + `cursor.sh` domains
 
 2. **Fallback: Stored session**
@@ -53,13 +54,17 @@ Cursor support is implemented: CodexBar can show Cursor usage alongside other pr
 - Prompts for Keychain access on first use
 - Supports multiple Chrome profiles
 
+### Firefox
+- Reads `cookies.sqlite` (no Keychain prompt)
+- Supports multiple Firefox profiles
+
 ## Notes
 - No CLI required: Cursor is entirely web-based.
 - Session cookies typically valid for extended periods; re-login rarely needed.
 - Provider identity stays siloed: Cursor email/plan never leak into other providers.
 
 ## Debugging tips
-- Check browser login: visit `https://cursor.com/dashboard` in Safari/Chrome to verify signed-in state.
+- Check browser login: visit `https://cursor.com/dashboard` in Safari/Chrome/Firefox to verify signed-in state.
 - Safari cookie permission: System Settings → Privacy & Security → Full Disk Access → enable CodexBar.
 - Chrome Keychain prompt: allow CodexBar to access "Chrome Safe Storage" when prompted.
 - Settings → Providers shows the last fetch error inline under the Cursor toggle.

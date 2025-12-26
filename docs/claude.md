@@ -23,7 +23,7 @@ Claude Code support is implemented: CodexBar can show Claude alongside Codex (on
 ## Data path (Claude)
 
 ### Web API (default)
-- Uses your browser session cookies (Safari → Chrome) to call the claude.ai API.
+- Uses your browser session cookies (Safari → Chrome → Firefox) to call the claude.ai API.
 - Provides session + weekly usage, Opus weekly usage when present, Extra usage cost, and account metadata.
 - If no Claude web cookies are found, CodexBar falls back to the CLI probe.
 
@@ -62,7 +62,7 @@ Claude Code support is implemented: CodexBar can show Claude alongside Codex (on
 - No automatic fallback; errors surface directly.
 
 ### Web cookie enrichment (optional, debug)
-- When the Claude source is forced to CLI and “Augment Claude via web” is enabled, we attempt to read Safari/Chrome
+- When the Claude source is forced to CLI and “Augment Claude via web” is enabled, we attempt to read Safari/Chrome/Firefox
   cookies and fetch Extra usage spend/limit. This is best-effort and does not override identity fields.
 
 ### What we display

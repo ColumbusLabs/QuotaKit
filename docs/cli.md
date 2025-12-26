@@ -124,7 +124,7 @@ Plan: Pro
 ## Notes
 - CLI reuses menubar toggles when present (prefers `com.steipete.codexbar{,.debug}` defaults), otherwise defaults to Codex only.
 - Prefer Codex RPC first, then PTY fallback; Claude defaults to web with CLI fallback when cookies are missing.
-- OpenAI web requires a signed-in `chatgpt.com` session in Safari or Chrome. No passwords are stored; CodexBar reuses cookies.
+- OpenAI web requires a signed-in `chatgpt.com` session in Safari, Chrome, or Firefox. No passwords are stored; CodexBar reuses cookies.
 - Safari cookie import may require granting CodexBar Full Disk Access (System Settings → Privacy & Security → Full Disk Access).
 - The `openaiDashboard` JSON field is normally sourced from the app’s cached dashboard snapshot; `--source auto|web` refreshes it live via WebKit using a per-account cookie store.
 - Future: optional `--from-cache` flag to read the menubar app’s persisted snapshot (if/when that file lands).

@@ -6,7 +6,7 @@ import FoundationNetworking
 /// Fetches Claude usage data directly from the claude.ai API using browser session cookies.
 ///
 /// This approach mirrors what Claude Usage Tracker does, but automatically extracts the session key
-/// from Chrome/Safari cookies instead of requiring manual setup.
+/// from Safari/Chrome/Firefox cookies instead of requiring manual setup.
 ///
 /// API endpoints used:
 /// - `GET https://claude.ai/api/organizations` → get org UUID
@@ -120,7 +120,7 @@ public enum ClaudeWebAPIFetcher {
     #if os(macOS)
 
     /// Attempts to fetch Claude usage data using cookies extracted from browsers.
-    /// Tries Safari first, then Chrome.
+    /// Tries Safari first, then Chrome, then Firefox.
     public static func fetchUsage(logger: ((String) -> Void)? = nil) async throws -> WebUsageData {
         let log: (String) -> Void = { msg in logger?("[claude-web] \(msg)") }
 
@@ -302,6 +302,22 @@ public enum ClaudeWebAPIFetcher {
             }
         } catch {
             log("Chrome cookie load failed: \(error.localizedDescription)")
+        }
+
+        // Try Firefox
+        do {
+            let firefoxSources = try FirefoxCookieImporter.loadCookiesFromAllProfiles(
+                matchingDomains: ["claude.ai"])
+            for source in firefoxSources {
+                if let sessionKey = findSessionKey(in: source.records.map { record in
+                    (name: record.name, value: record.value)
+                }) {
+                    log("Found sessionKey in \(source.label)")
+                    return SessionKeyInfo(key: sessionKey, sourceLabel: source.label, cookieCount: source.records.count)
+                }
+            }
+        } catch {
+            log("Firefox cookie load failed: \(error.localizedDescription)")
         }
 
         throw FetchError.noSessionKeyFound

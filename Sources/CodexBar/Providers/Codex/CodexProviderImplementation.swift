@@ -47,9 +47,9 @@ struct CodexProviderImplementation: ProviderImplementation {
             id: id,
             title: "Use Codex via web",
             subtitle: [
-                "Uses your Safari/Chrome session cookies for Codex usage + credits.",
+                "Uses your Safari/Chrome/Firefox session cookies for Codex usage + credits.",
                 "Adds Code review + Usage breakdown.",
-                "Safari → Chrome.",
+                "Safari → Chrome → Firefox.",
             ].joined(separator: " "),
             binding: context.boolBinding(\.openAIDashboardEnabled),
             statusText: statusText,

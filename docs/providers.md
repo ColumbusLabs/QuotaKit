@@ -36,7 +36,7 @@ read_when:
 
 ## Cursor
 - Web-based: fetches usage from cursor.com API using browser session cookies.
-- Cookie import: Safari (Cookies.binarycookies) → Chrome (encrypted SQLite DB); requires cursor.com + cursor.sh cookies.
+- Cookie import: Safari (Cookies.binarycookies) → Chrome (encrypted SQLite DB) → Firefox (cookies.sqlite); requires cursor.com + cursor.sh cookies.
 - Fallback: stored session from "Add Account" WebKit login flow.
 - Shows plan usage percentage, on-demand usage, and billing cycle reset.
 - Supports Pro, Enterprise, Team, and Hobby membership types.

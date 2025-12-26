@@ -8,9 +8,9 @@ Tiny macOS 15+ menu bar app that keeps your Codex and Claude Code limits visible
 
 Login story
 - **Codex** — Prefers the local codex app-server RPC for 5h/weekly limits + credits. Falls back to a PTY scrape of `codex /status` (auth/email/plan from the RPC or `~/.codex/auth.json`). All parsing stays on-device; no browser required.
-- **Codex (optional OpenAI web)** — Settings → General → "Access OpenAI via web" reuses an existing signed-in `chatgpt.com` session (Safari → Chrome cookie import) to show **Code review remaining**, **Usage breakdown**, and **Credits usage history** (when available). No passwords stored; may require granting Full Disk Access for Safari cookie import.
+- **Codex (optional OpenAI web)** — Settings → General → "Access OpenAI via web" reuses an existing signed-in `chatgpt.com` session (Safari → Chrome → Firefox cookie import) to show **Code review remaining**, **Usage breakdown**, and **Credits usage history** (when available). No passwords stored; may require granting Full Disk Access for Safari cookie import.
 - **Claude Code** — Reads session + weekly + Sonnet-only weekly usage from the Claude CLI by running `/usage` + `/status` in a local PTY (no tmux). Shows email/org/login method directly from the CLI output. No browser or network calls beyond the CLI itself.
-- **Cursor** — Fetches plan usage and on-demand usage from cursor.com API using browser session cookies (Safari → Chrome). Requires cursor.com + cursor.sh cookies; shows included plan percentage, on-demand spend, and billing cycle reset time. Supports Pro, Enterprise, and other membership types. No CLI required; just stay signed in to cursor.com in your browser.
+- **Cursor** — Fetches plan usage and on-demand usage from cursor.com API using browser session cookies (Safari → Chrome → Firefox). Requires cursor.com + cursor.sh cookies; shows included plan percentage, on-demand spend, and billing cycle reset time. Supports Pro, Enterprise, and other membership types. No CLI required; just stay signed in to cursor.com in your browser.
 - **Provider detection** — On first launch we detect installed CLIs and enable Codex by default (Claude turns on when the `claude` binary is present). You can toggle either provider in Settings → General or rerun detection after installing a CLI.
 - **Privacy note** — Wondering if CodexBar scans your disk? It doesn't; see the discussion and audit notes in [issue #12](https://github.com/steipete/CodexBar/issues/12).
 
@@ -48,7 +48,7 @@ Requirements:
 - macOS 15+.
 - Codex: Codex CLI ≥ 0.55.0 installed and logged in (`codex --version`) to show the Codex row + credits. If your account hasn’t reported usage yet, the menu will show “No usage yet.”
 - Claude: Claude Code CLI installed (`claude --version`) and logged in via `claude login` to show the Claude row. Run at least one `/usage` so session/week numbers exist.
-- OpenAI web (optional): stay signed in to `chatgpt.com` in Safari or Chrome. Safari cookie import may require Full Disk Access (System Settings → Privacy & Security → Full Disk Access → enable CodexBar).
+- OpenAI web (optional): stay signed in to `chatgpt.com` in Safari, Chrome, or Firefox. Safari cookie import may require Full Disk Access (System Settings → Privacy & Security → Full Disk Access → enable CodexBar).
 
 ## Refresh cadence
 Menu → “Refresh every …” presets: Manual, 1 min, 2 min, 5 min (default), 15 min. Manual still allows “Refresh now.”

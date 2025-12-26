@@ -105,6 +105,14 @@ public struct OpenAIDashboardBrowserCookieImporter {
         {
             return match
         }
+        if let match = await self.tryFirefox(
+            targetEmail: normalizedTarget,
+            allowAnyAccount: allowAnyAccount,
+            log: log,
+            diagnostics: &diagnostics)
+        {
+            return match
+        }
 
         if !diagnostics.mismatches.isEmpty {
             let found = Array(Set(diagnostics.mismatches)).sorted { lhs, rhs in
@@ -208,6 +216,41 @@ public struct OpenAIDashboardBrowserCookieImporter {
             return nil
         } catch {
             log("Chrome cookie load failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private func tryFirefox(
+        targetEmail: String?,
+        allowAnyAccount: Bool,
+        log: @escaping (String) -> Void,
+        diagnostics: inout ImportDiagnostics) async -> ImportResult?
+    {
+        // Firefox fallback: no Keychain, but still only after Safari/Chrome.
+        do {
+            let firefoxSources = try FirefoxCookieImporter.loadChatGPTCookiesFromAllProfiles()
+            for source in firefoxSources {
+                let cookies = FirefoxCookieImporter.makeHTTPCookies(source.records)
+                if cookies.isEmpty {
+                    log("Firefox source \(source.label) produced 0 HTTPCookies.")
+                    continue
+                }
+                diagnostics.foundAnyCookies = true
+                log("Loaded \(cookies.count) cookies from \(source.label) (\(self.cookieSummary(cookies)))")
+                let candidate = Candidate(label: source.label, cookies: cookies)
+                if let match = await self.applyCandidate(
+                    candidate,
+                    targetEmail: targetEmail,
+                    allowAnyAccount: allowAnyAccount,
+                    log: log,
+                    diagnostics: &diagnostics)
+                {
+                    return match
+                }
+            }
+            return nil
+        } catch {
+            log("Firefox cookie load failed: \(error.localizedDescription)")
             return nil
         }
     }

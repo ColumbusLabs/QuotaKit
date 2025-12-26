@@ -20,9 +20,9 @@ struct ClaudeProviderImplementation: ProviderImplementation {
             id: id,
             title: "Augment Claude via web",
             subtitle: [
-                "Uses Safari/Chrome session cookies to add extra dashboard fields on top of OAuth.",
+                "Uses Safari/Chrome/Firefox session cookies to add extra dashboard fields on top of OAuth.",
                 "Adds Extra usage spend/limit.",
-                "Safari → Chrome.",
+                "Safari → Chrome → Firefox.",
             ].joined(separator: " "),
             binding: context.boolBinding(\.claudeWebExtrasEnabled),
             statusText: statusText,
