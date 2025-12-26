@@ -858,6 +858,13 @@ private final class ProviderSwitcherView: NSView {
                     target: self,
                     action: #selector(self.handleSelection(_:)))
                 button = stacked
+            } else if self.showsIcons {
+                let inline = InlineIconToggleButton(
+                    title: segment.title,
+                    image: segment.image,
+                    target: self,
+                    action: #selector(self.handleSelection(_:)))
+                button = inline
             } else {
                 button = PaddedToggleButton(
                     title: segment.title,
@@ -869,9 +876,7 @@ private final class ProviderSwitcherView: NSView {
                 if self.stackedIcons {
                     // StackedToggleButton manages its own image view.
                 } else {
-                    button.image = Self.paddedImage(segment.image, leading: 1)
-                    button.imagePosition = .imageLeading
-                    button.imageScaling = .scaleNone
+                    // InlineIconToggleButton manages its own image view.
                 }
             } else {
                 button.image = nil
@@ -999,6 +1004,7 @@ private final class ProviderSwitcherView: NSView {
             button.layer?.backgroundColor = isSelected ? self.selectedBackground : self.unselectedBackground
             self.updateWeeklyIndicatorVisibility(for: button)
             (button as? StackedToggleButton)?.setContentTintColor(button.contentTintColor)
+            (button as? InlineIconToggleButton)?.setContentTintColor(button.contentTintColor)
         }
     }
 
@@ -1242,6 +1248,119 @@ private final class PaddedToggleButton: NSButton {
         return NSSize(
             width: size.width + self.contentPadding.left + self.contentPadding.right,
             height: size.height + self.contentPadding.top + self.contentPadding.bottom)
+    }
+}
+
+private final class InlineIconToggleButton: NSButton {
+    private let iconView = NSImageView()
+    private let titleField = NSTextField(labelWithString: "")
+    private let stack = NSStackView()
+    private var paddingConstraints: [NSLayoutConstraint] = []
+    private var iconSizeConstraints: [NSLayoutConstraint] = []
+
+    var contentPadding = NSEdgeInsets(top: 4, left: 7, bottom: 4, right: 7) {
+        didSet {
+            self.paddingConstraints.first { $0.firstAttribute == .top }?.constant = self.contentPadding.top
+            self.paddingConstraints.first { $0.firstAttribute == .leading }?.constant = self.contentPadding.left
+            self.paddingConstraints.first { $0.firstAttribute == .trailing }?.constant = -self.contentPadding.right
+            self.paddingConstraints.first { $0.firstAttribute == .bottom }?.constant = -(self.contentPadding.bottom + 4)
+            self.invalidateIntrinsicContentSize()
+        }
+    }
+
+    override var title: String {
+        get { "" }
+        set {
+            super.title = ""
+            super.alternateTitle = ""
+            super.attributedTitle = NSAttributedString(string: "")
+            super.attributedAlternateTitle = NSAttributedString(string: "")
+            self.titleField.stringValue = newValue
+            self.invalidateIntrinsicContentSize()
+        }
+    }
+
+    override var image: NSImage? {
+        get { nil }
+        set {
+            super.image = nil
+            super.alternateImage = nil
+            self.iconView.image = newValue
+            self.invalidateIntrinsicContentSize()
+        }
+    }
+
+    func setContentTintColor(_ color: NSColor?) {
+        self.iconView.contentTintColor = color
+        self.titleField.textColor = color
+    }
+
+    override var intrinsicContentSize: NSSize {
+        let size = self.stack.fittingSize
+        return NSSize(
+            width: size.width + self.contentPadding.left + self.contentPadding.right,
+            height: size.height + self.contentPadding.top + self.contentPadding.bottom)
+    }
+
+    init(title: String, image: NSImage, target: AnyObject?, action: Selector?) {
+        super.init(frame: .zero)
+        self.target = target
+        self.action = action
+        self.configure()
+        self.title = title
+        self.image = image
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    private func configure() {
+        self.bezelStyle = .regularSquare
+        self.isBordered = false
+        self.setButtonType(.toggle)
+        self.controlSize = .small
+        self.wantsLayer = true
+
+        self.iconView.imageScaling = .scaleNone
+        self.iconView.translatesAutoresizingMaskIntoConstraints = false
+        self.titleField.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        self.titleField.alignment = .left
+        self.titleField.lineBreakMode = .byTruncatingTail
+        self.titleField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        self.titleField.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        self.setContentTintColor(NSColor.secondaryLabelColor)
+
+        self.stack.orientation = .horizontal
+        self.stack.alignment = .centerY
+        self.stack.spacing = 1
+        self.stack.translatesAutoresizingMaskIntoConstraints = false
+        self.stack.addArrangedSubview(self.iconView)
+        self.stack.addArrangedSubview(self.titleField)
+        self.addSubview(self.stack)
+
+        let iconWidth = self.iconView.widthAnchor.constraint(equalToConstant: 16)
+        let iconHeight = self.iconView.heightAnchor.constraint(equalToConstant: 16)
+        self.iconSizeConstraints = [iconWidth, iconHeight]
+
+        let top = self.stack.topAnchor.constraint(
+            equalTo: self.topAnchor,
+            constant: self.contentPadding.top)
+        let leading = self.stack.leadingAnchor.constraint(
+            greaterThanOrEqualTo: self.leadingAnchor,
+            constant: self.contentPadding.left)
+        let trailing = self.stack.trailingAnchor.constraint(
+            lessThanOrEqualTo: self.trailingAnchor,
+            constant: -self.contentPadding.right)
+        let centerX = self.stack.centerXAnchor.constraint(equalTo: self.centerXAnchor)
+        centerX.priority = .defaultHigh
+        let bottom = self.stack.bottomAnchor.constraint(
+            lessThanOrEqualTo: self.bottomAnchor,
+            constant: -(self.contentPadding.bottom + 4))
+        self.paddingConstraints = [top, leading, trailing, bottom, centerX]
+
+        NSLayoutConstraint.activate(self.paddingConstraints + self.iconSizeConstraints)
     }
 }
 
