@@ -1,9 +1,8 @@
 # Changelog
 
-## 0.14.1 — Unreleased
+## 0.15.0 — Unreleased
 - Droid (Factory): new provider with Standard + Premium usage via browser cookies, plus dashboard + status links. Thanks @shashank-factory!
 - Menu: allow multi-line error messages in the provider subtitle (up to 4 lines).
-- Providers: default ordering now places Droid before z.ai.
 - Providers: Codex, Claude Code, Cursor, Gemini, Antigravity, z.ai.
 - Codex: OpenAI web dashboard is now the primary source for usage + credits; CLI fallback only when no matching cookies exist.
 - Claude: prefer claude.ai web API via cookies with CLI fallback when no session cookies are found; OAuth is debug-only.
