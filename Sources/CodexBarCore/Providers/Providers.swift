@@ -3,11 +3,11 @@ import Foundation
 public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case codex
     case claude
+    case factory
     case zai
     case cursor
     case gemini
     case antigravity
-    case factory
 }
 
 public struct ProviderMetadata: Sendable {

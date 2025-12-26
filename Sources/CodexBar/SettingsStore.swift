@@ -288,6 +288,11 @@ final class SettingsStore {
             seen = Set(ordered)
         }
 
+        if !seen.contains(.factory), let zaiIndex = ordered.firstIndex(of: .zai) {
+            ordered.insert(.factory, at: zaiIndex)
+            seen.insert(.factory)
+        }
+
         for provider in UsageProvider.allCases where !seen.contains(provider) {
             ordered.append(provider)
         }
