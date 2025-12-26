@@ -31,7 +31,7 @@ struct GeneralPane: View {
 
                     VStack(alignment: .leading, spacing: 5.4) {
                         Toggle(isOn: self.$settings.ccusageCostUsageEnabled) {
-                            Text("Show ccusage cost summary")
+                            Text("Show cost summary")
                                 .font(.body)
                         }
                         .toggleStyle(.checkbox)
@@ -47,8 +47,8 @@ struct GeneralPane: View {
                                     .font(.footnote)
                                     .foregroundStyle(.tertiary)
 
-                                self.ccusageStatusLine(provider: .claude)
-                                self.ccusageStatusLine(provider: .codex)
+                                self.costStatusLine(provider: .claude)
+                                self.costStatusLine(provider: .codex)
                             }
                         }
                     }
@@ -99,7 +99,7 @@ struct GeneralPane: View {
         }
     }
 
-    private func ccusageStatusLine(provider: UsageProvider) -> some View {
+    private func costStatusLine(provider: UsageProvider) -> some View {
         let name = switch provider {
         case .claude:
             "Claude"

@@ -50,8 +50,10 @@ struct ProvidersPane: View {
                         .padding(.bottom, 5)
 
                     if self.claudeBinding.wrappedValue {
-                        self.claudeWebExtras()
-                            .padding(.leading, 22)
+                        if self.settings.claudeUsageDataSource == .cli {
+                            self.claudeWebExtras()
+                                .padding(.leading, 22)
+                        }
                     }
 
                     if let display = self.providerErrorDisplay(.claude) {
@@ -110,7 +112,9 @@ struct ProvidersPane: View {
             .padding(.vertical, 12)
         }
         .onAppear {
-            if self.settings.claudeWebExtrasEnabled {
+            if self.settings.claudeUsageDataSource == .cli,
+               self.settings.claudeWebExtrasEnabled
+            {
                 self.refreshClaudeWebStatus()
             }
         }
@@ -118,9 +122,15 @@ struct ProvidersPane: View {
             self.retryOpenAIWebAfterPermissionChangeIfNeeded()
         }
         .onChange(of: self.settings.claudeWebExtrasEnabled) { _, enabled in
-            if enabled {
+            if enabled, self.settings.claudeUsageDataSource == .cli {
                 self.refreshClaudeWebStatus()
             } else {
+                self.claudeWebStatus = nil
+            }
+        }
+        .onChange(of: self.settings.claudeUsageDataSource) { _, dataSource in
+            if dataSource != .cli {
+                self.settings.claudeWebExtrasEnabled = false
                 self.claudeWebStatus = nil
             }
         }

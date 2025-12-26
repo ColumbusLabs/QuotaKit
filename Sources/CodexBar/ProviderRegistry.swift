@@ -39,8 +39,9 @@ struct ProviderRegistry {
             isEnabled: { settings.isProviderEnabled(provider: .claude, metadata: claudeMeta) },
             fetch: {
                 let dataSource = settings.claudeUsageDataSource
+                let useWebExtras = settings.claudeWebExtrasEnabled && dataSource == .cli
                 let fetcher: any ClaudeUsageFetching = if claudeFetcher is ClaudeUsageFetcher {
-                    ClaudeUsageFetcher(dataSource: dataSource, useWebExtras: settings.claudeWebExtrasEnabled)
+                    ClaudeUsageFetcher(dataSource: dataSource, useWebExtras: useWebExtras)
                 } else {
                     claudeFetcher
                 }
