@@ -97,6 +97,13 @@ final class SettingsStore {
         didSet { self.userDefaults.set(self.claudeWebExtrasEnabled, forKey: "claudeWebExtrasEnabled") }
     }
 
+    /// Optional: show Codex credits + Claude extra usage sections in the menu UI.
+    var showOptionalCreditsAndExtraUsage: Bool {
+        didSet {
+            self.userDefaults.set(self.showOptionalCreditsAndExtraUsage, forKey: "showOptionalCreditsAndExtraUsage")
+        }
+    }
+
     private var claudeUsageDataSourceRaw: String? {
         didSet {
             if let raw = self.claudeUsageDataSourceRaw {
@@ -158,6 +165,7 @@ final class SettingsStore {
         _ = self.randomBlinkEnabled
         _ = self.openAIDashboardEnabled
         _ = self.claudeWebExtrasEnabled
+        _ = self.showOptionalCreditsAndExtraUsage
         _ = self.claudeUsageDataSource
         _ = self.mergeIcons
         _ = self.switcherShowsIcons
@@ -194,6 +202,11 @@ final class SettingsStore {
         self.randomBlinkEnabled = userDefaults.object(forKey: "randomBlinkEnabled") as? Bool ?? false
         self.openAIDashboardEnabled = userDefaults.object(forKey: "openAIDashboardEnabled") as? Bool ?? false
         self.claudeWebExtrasEnabled = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false
+        let creditsExtrasDefault = userDefaults.object(forKey: "showOptionalCreditsAndExtraUsage") as? Bool
+        self.showOptionalCreditsAndExtraUsage = creditsExtrasDefault ?? true
+        if creditsExtrasDefault == nil {
+            self.userDefaults.set(true, forKey: "showOptionalCreditsAndExtraUsage")
+        }
         let claudeSourceRaw = userDefaults.string(forKey: "claudeUsageDataSource")
         self.claudeUsageDataSourceRaw = claudeSourceRaw ?? ClaudeUsageDataSource.oauth.rawValue
         self.mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true

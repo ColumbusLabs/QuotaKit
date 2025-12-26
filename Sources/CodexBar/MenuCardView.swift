@@ -530,6 +530,7 @@ extension UsageMenuCardView.Model {
         let lastError: String?
         let usageBarsShowUsed: Bool
         let tokenCostUsageEnabled: Bool
+        let showOptionalCreditsAndExtraUsage: Bool
         let now: Date
     }
 
@@ -540,9 +541,17 @@ extension UsageMenuCardView.Model {
             account: input.account)
         let planText = Self.plan(for: input.provider, snapshot: input.snapshot, account: input.account)
         let metrics = Self.metrics(input: input)
-        let creditsText = Self.creditsLine(metadata: input.metadata, credits: input.credits, error: input.creditsError)
+        let creditsText: String? = if input.provider == .codex, !input.showOptionalCreditsAndExtraUsage {
+            nil
+        } else {
+            Self.creditsLine(metadata: input.metadata, credits: input.credits, error: input.creditsError)
+        }
         let creditsHintText = Self.dashboardHint(provider: input.provider, error: input.dashboardError)
-        let providerCost = Self.providerCostSection(provider: input.provider, cost: input.snapshot?.providerCost)
+        let providerCost: ProviderCostSection? = if input.provider == .claude, !input.showOptionalCreditsAndExtraUsage {
+            nil
+        } else {
+            Self.providerCostSection(provider: input.provider, cost: input.snapshot?.providerCost)
+        }
         let tokenUsage = Self.tokenUsageSection(
             provider: input.provider,
             enabled: input.tokenCostUsageEnabled,

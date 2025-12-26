@@ -778,6 +778,7 @@ extension StatusItemController {
             lastError: self.store.error(for: target),
             usageBarsShowUsed: self.settings.usageBarsShowUsed,
             tokenCostUsageEnabled: self.settings.isCCUsageCostUsageEffectivelyEnabled(for: target),
+            showOptionalCreditsAndExtraUsage: self.settings.showOptionalCreditsAndExtraUsage,
             now: Date())
         return UsageMenuCardView.Model.make(input)
     }

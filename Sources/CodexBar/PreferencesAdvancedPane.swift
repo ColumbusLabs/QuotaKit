@@ -41,6 +41,10 @@ struct AdvancedPane: View {
                         subtitle: "Progress bars fill as you consume quota (instead of showing remaining).",
                         binding: self.$settings.usageBarsShowUsed)
                     PreferenceToggleRow(
+                        title: "Show credits + extra usage",
+                        subtitle: "Show Codex Credits and Claude Extra usage sections in the menu.",
+                        binding: self.$settings.showOptionalCreditsAndExtraUsage)
+                    PreferenceToggleRow(
                         title: "Merge Icons",
                         subtitle: "Use a single menu bar icon with a provider switcher.",
                         binding: self.$settings.mergeIcons)

@@ -55,36 +55,36 @@ struct MenuDescriptor {
 
         switch provider {
         case .codex?:
-            sections.append(Self.usageSection(for: .codex, store: store))
+            sections.append(Self.usageSection(for: .codex, store: store, settings: settings))
             sections.append(Self.accountSection(
                 claude: nil,
                 codex: store.snapshot(for: .codex),
                 account: account,
                 preferClaude: false))
         case .claude?:
-            sections.append(Self.usageSection(for: .claude, store: store))
+            sections.append(Self.usageSection(for: .claude, store: store, settings: settings))
             sections.append(Self.accountSection(
                 claude: store.snapshot(for: .claude),
                 codex: store.snapshot(for: .codex),
                 account: account,
                 preferClaude: true))
         case .gemini?:
-            sections.append(Self.usageSection(for: .gemini, store: store))
+            sections.append(Self.usageSection(for: .gemini, store: store, settings: settings))
             sections.append(Self.accountSection(
                 claude: nil,
                 codex: nil,
                 account: account,
                 preferClaude: false))
         case .antigravity?:
-            sections.append(Self.usageSection(for: .antigravity, store: store))
+            sections.append(Self.usageSection(for: .antigravity, store: store, settings: settings))
             sections.append(Self.accountSectionForSnapshot(store.snapshot(for: .antigravity)))
         case .cursor?:
-            sections.append(Self.usageSection(for: .cursor, store: store))
+            sections.append(Self.usageSection(for: .cursor, store: store, settings: settings))
             sections.append(Self.accountSectionForSnapshot(store.snapshot(for: .cursor)))
         case nil:
             var addedUsage = false
             for enabledProvider in store.enabledProviders() {
-                sections.append(Self.usageSection(for: enabledProvider, store: store))
+                sections.append(Self.usageSection(for: enabledProvider, store: store, settings: settings))
                 addedUsage = true
             }
             if addedUsage {
@@ -104,7 +104,11 @@ struct MenuDescriptor {
         return MenuDescriptor(sections: sections)
     }
 
-    private static func usageSection(for provider: UsageProvider, store: UsageStore) -> Section {
+    private static func usageSection(
+        for provider: UsageProvider,
+        store: UsageStore,
+        settings: SettingsStore) -> Section
+    {
         let meta = store.metadata(for: provider)
         var entries: [Entry] = []
         let headlineText: String = {
@@ -127,7 +131,10 @@ struct MenuDescriptor {
                 Self.appendRateWindow(entries: &entries, title: meta.opusLabel ?? "Sonnet", window: opus)
             }
 
-            if provider == .claude, let cost = snap.providerCost {
+            if settings.showOptionalCreditsAndExtraUsage,
+               provider == .claude,
+               let cost = snap.providerCost
+            {
                 let used = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
                 let limit = UsageFormatter.currencyString(cost.limit, currencyCode: cost.currencyCode)
                 entries.append(.text("Extra usage: \(used) / \(limit)", .primary))
@@ -150,7 +157,10 @@ struct MenuDescriptor {
             }
         }
 
-        if meta.supportsCredits, provider == .codex {
+        if settings.showOptionalCreditsAndExtraUsage,
+           meta.supportsCredits,
+           provider == .codex
+        {
             if let credits = store.credits {
                 entries.append(.text("Credits: \(UsageFormatter.creditsString(from: credits.remaining))", .primary))
                 if let latest = credits.events.first {
