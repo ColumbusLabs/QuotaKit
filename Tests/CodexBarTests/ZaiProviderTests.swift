@@ -42,7 +42,11 @@ struct ZaiUsageSnapshotTests {
             percentage: 50,
             usageDetails: [],
             nextResetTime: nil)
-        let snapshot = ZaiUsageSnapshot(tokenLimit: tokenLimit, timeLimit: timeLimit, updatedAt: reset)
+        let snapshot = ZaiUsageSnapshot(
+            tokenLimit: tokenLimit,
+            timeLimit: timeLimit,
+            planName: nil,
+            updatedAt: reset)
 
         let usage = snapshot.toUsageSnapshot()
 

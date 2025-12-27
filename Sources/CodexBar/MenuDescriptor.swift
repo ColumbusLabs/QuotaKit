@@ -70,7 +70,6 @@ struct MenuDescriptor {
                 preferClaude: true))
         case .zai?:
             sections.append(Self.usageSection(for: .zai, store: store, settings: settings))
-            sections.append(Self.accountSectionForSnapshot(store.snapshot(for: .zai)))
         case .gemini?:
             sections.append(Self.usageSection(for: .gemini, store: store, settings: settings))
             sections.append(Self.accountSection(

@@ -116,11 +116,13 @@ public struct ZaiUsageDetail: Sendable, Codable {
 public struct ZaiUsageSnapshot: Sendable {
     public let tokenLimit: ZaiLimitEntry?
     public let timeLimit: ZaiLimitEntry?
+    public let planName: String?
     public let updatedAt: Date
 
-    public init(tokenLimit: ZaiLimitEntry?, timeLimit: ZaiLimitEntry?, updatedAt: Date) {
+    public init(tokenLimit: ZaiLimitEntry?, timeLimit: ZaiLimitEntry?, planName: String?, updatedAt: Date) {
         self.tokenLimit = tokenLimit
         self.timeLimit = timeLimit
+        self.planName = planName
         self.updatedAt = updatedAt
     }
 
@@ -142,6 +144,8 @@ extension ZaiUsageSnapshot {
             resetDescription: nil)
         let secondary = secondaryLimit.map { Self.rateWindow(for: $0) }
 
+        let planName = self.planName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let loginMethod = (planName?.isEmpty ?? true) ? nil : planName
         return UsageSnapshot(
             primary: primary,
             secondary: secondary,
@@ -151,7 +155,7 @@ extension ZaiUsageSnapshot {
             updatedAt: self.updatedAt,
             accountEmail: nil,
             accountOrganization: nil,
-            loginMethod: "z.ai")
+            loginMethod: loginMethod)
     }
 
     private static func rateWindow(for limit: ZaiLimitEntry) -> RateWindow {
@@ -174,7 +178,7 @@ extension ZaiUsageSnapshot {
 }
 
 /// Z.ai quota limit API response
-private struct ZaiQuotaLimitResponse: Codable {
+private struct ZaiQuotaLimitResponse: Decodable {
     let code: Int
     let msg: String
     let data: ZaiQuotaLimitData
@@ -183,8 +187,30 @@ private struct ZaiQuotaLimitResponse: Codable {
     var isSuccess: Bool { self.success && self.code == 200 }
 }
 
-private struct ZaiQuotaLimitData: Codable {
+private struct ZaiQuotaLimitData: Decodable {
     let limits: [ZaiLimitRaw]
+    let planName: String?
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.limits = try container.decode([ZaiLimitRaw].self, forKey: .limits)
+        let rawPlan = try [
+            container.decodeIfPresent(String.self, forKey: .planName),
+            container.decodeIfPresent(String.self, forKey: .plan),
+            container.decodeIfPresent(String.self, forKey: .planType),
+            container.decodeIfPresent(String.self, forKey: .packageName),
+        ].compactMap(\.self).first
+        let trimmed = rawPlan?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.planName = (trimmed?.isEmpty ?? true) ? nil : trimmed
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case limits
+        case planName
+        case plan
+        case planType = "plan_type"
+        case packageName
+    }
 }
 
 private struct ZaiLimitRaw: Codable {
@@ -275,6 +301,7 @@ public struct ZaiUsageFetcher: Sendable {
             return ZaiUsageSnapshot(
                 tokenLimit: tokenLimit,
                 timeLimit: timeLimit,
+                planName: apiResponse.data.planName,
                 updatedAt: Date())
         } catch let error as DecodingError {
             Self.log.error("z.ai JSON decoding error: \(error.localizedDescription)")
