@@ -362,6 +362,7 @@ public actor FactorySessionStore {
     private var bearerToken: String?
     private var refreshToken: String?
     private let fileURL: URL
+    private var didLoadFromDisk = false
 
     private init() {
         let fm = FileManager.default
@@ -370,38 +371,43 @@ public actor FactorySessionStore {
         let dir = appSupport.appendingPathComponent("CodexBar", isDirectory: true)
         try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
         self.fileURL = dir.appendingPathComponent("factory-session.json")
-
-        Task { await self.loadFromDisk() }
     }
 
     public func setCookies(_ cookies: [HTTPCookie]) {
+        self.didLoadFromDisk = true
         self.sessionCookies = cookies
         self.saveToDisk()
     }
 
     public func getCookies() -> [HTTPCookie] {
-        self.sessionCookies
+        self.loadFromDiskIfNeeded()
+        return self.sessionCookies
     }
 
     public func setBearerToken(_ token: String?) {
+        self.didLoadFromDisk = true
         self.bearerToken = token
         self.saveToDisk()
     }
 
     public func getBearerToken() -> String? {
-        self.bearerToken
+        self.loadFromDiskIfNeeded()
+        return self.bearerToken
     }
 
     public func setRefreshToken(_ token: String?) {
+        self.didLoadFromDisk = true
         self.refreshToken = token
         self.saveToDisk()
     }
 
     public func getRefreshToken() -> String? {
-        self.refreshToken
+        self.loadFromDiskIfNeeded()
+        return self.refreshToken
     }
 
     public func clearSession() {
+        self.didLoadFromDisk = true
         self.sessionCookies = []
         self.bearerToken = nil
         self.refreshToken = nil
@@ -409,7 +415,8 @@ public actor FactorySessionStore {
     }
 
     public func hasValidSession() -> Bool {
-        !self.sessionCookies.isEmpty || self.bearerToken != nil || self.refreshToken != nil
+        self.loadFromDiskIfNeeded()
+        return !self.sessionCookies.isEmpty || self.bearerToken != nil || self.refreshToken != nil
     }
 
     private func saveToDisk() {
@@ -488,6 +495,12 @@ public actor FactorySessionStore {
             return HTTPCookie(properties: cookieProps)
         }
     }
+
+    private func loadFromDiskIfNeeded() {
+        guard !self.didLoadFromDisk else { return }
+        self.didLoadFromDisk = true
+        self.loadFromDisk()
+    }
 }
 
 // MARK: - Factory Status Probe
@@ -534,11 +547,14 @@ public struct FactoryStatusProbe: Sendable {
         var lastError: Error?
 
         let attempts: [FetchAttemptResult] = await [
-            self.attemptBrowserCookies(logger: log),
+            self.attemptBrowserCookies(logger: log, sources: [.safari]),
             self.attemptStoredCookies(logger: log),
             self.attemptStoredBearer(logger: log),
             self.attemptStoredRefreshToken(logger: log),
             self.attemptLocalStorageTokens(logger: log),
+            self.attemptWorkOSCookies(logger: log, sources: [.safari]),
+            self.attemptBrowserCookies(logger: log, sources: [.chrome, .firefox]),
+            self.attemptWorkOSCookies(logger: log, sources: [.chrome, .firefox]),
         ]
 
         for result in attempts {
@@ -562,10 +578,13 @@ public struct FactoryStatusProbe: Sendable {
         case skipped
     }
 
-    private func attemptBrowserCookies(logger: @escaping (String) -> Void) async -> FetchAttemptResult {
+    private func attemptBrowserCookies(
+        logger: @escaping (String) -> Void,
+        sources: [BrowserCookieSource]) async -> FetchAttemptResult
+    {
         do {
             var lastError: Error?
-            for browserSource in factoryCookieImportOrder.sources {
+            for browserSource in sources {
                 let sessions = try FactoryCookieImporter.importSessions(from: browserSource, logger: logger)
                 for session in sessions {
                     logger("Using cookies from \(session.sourceLabel)")
@@ -660,6 +679,47 @@ public struct FactoryStatusProbe: Sendable {
         return .skipped
     }
 
+    private func attemptWorkOSCookies(
+        logger: @escaping (String) -> Void,
+        sources: [BrowserCookieSource]) async -> FetchAttemptResult
+    {
+        let log: (String) -> Void = { msg in logger("[factory-workos] \(msg)") }
+        var lastError: Error?
+
+        for browserSource in sources {
+            do {
+                let sources = try BrowserCookieImporter.loadCookieSources(
+                    from: browserSource,
+                    matchingDomains: ["workos.com"],
+                    logger: log)
+                for source in sources where !source.records.isEmpty {
+                    let cookies = BrowserCookieImporter.makeHTTPCookies(source.records)
+                    guard !cookies.isEmpty else { continue }
+                    log("Using WorkOS cookies from \(source.label)")
+                    do {
+                        let auth = try await self.fetchWorkOSAccessTokenWithCookies(
+                            cookies: cookies,
+                            logger: logger)
+                        await FactorySessionStore.shared.setBearerToken(auth.access_token)
+                        if let refreshToken = auth.refresh_token {
+                            await FactorySessionStore.shared.setRefreshToken(refreshToken)
+                        }
+                        return try await .success(self.fetchWithBearerToken(auth.access_token, logger: logger))
+                    } catch {
+                        lastError = error
+                        log("WorkOS cookie auth failed for \(source.label): \(error.localizedDescription)")
+                    }
+                }
+            } catch {
+                log("\(browserSource.displayName) WorkOS cookie import failed: \(error.localizedDescription)")
+                lastError = error
+            }
+        }
+
+        if let lastError { return .failure(lastError) }
+        return .skipped
+    }
+
     private func fetchWithWorkOSRefreshToken(
         _ refreshToken: String,
         organizationID: String?,
@@ -707,14 +767,25 @@ public struct FactoryStatusProbe: Sendable {
         do {
             return try await self.fetchWithCookieHeader(header, bearerToken: bearerToken, baseURL: baseURL)
         } catch let error as FactoryStatusProbeError {
+            if case .notLoggedIn = error, bearerToken != nil {
+                logger("Retrying without Authorization header")
+                return try await self.fetchWithCookieHeader(header, bearerToken: nil, baseURL: baseURL)
+            }
             guard case let .networkError(message) = error,
-                  message.contains("HTTP 409"),
-                  message.localizedCaseInsensitiveContains("stale token")
+                  message.contains("HTTP 409")
             else {
                 throw error
             }
 
             var lastError: Error? = error
+            if bearerToken != nil {
+                logger("Retrying without Authorization header (HTTP 409)")
+                do {
+                    return try await self.fetchWithCookieHeader(header, bearerToken: nil, baseURL: baseURL)
+                } catch {
+                    lastError = error
+                }
+            }
 
             let retries: [(String, (HTTPCookie) -> Bool)] = [
                 ("Retrying without access-token cookies", { !Self.staleTokenCookieNames.contains($0.name) }),
@@ -1020,6 +1091,73 @@ public struct FactoryStatusProbe: Sendable {
             let body = String(data: data, encoding: .utf8)?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? "<binary>"
             let snippet = body.isEmpty ? "" : ": \(body.prefix(200))"
+            throw FactoryStatusProbeError.networkError("WorkOS HTTP \(httpResponse.statusCode)\(snippet)")
+        }
+
+        let decoder = JSONDecoder()
+        return try decoder.decode(WorkOSAuthResponse.self, from: data)
+    }
+
+    private func fetchWorkOSAccessTokenWithCookies(
+        cookies: [HTTPCookie],
+        logger: (String) -> Void) async throws -> WorkOSAuthResponse
+    {
+        let cookieHeader = Self.cookieHeader(from: cookies)
+        guard !cookieHeader.isEmpty else {
+            throw FactoryStatusProbeError.networkError("Missing WorkOS cookies")
+        }
+
+        var lastError: Error?
+        for clientID in Self.workosClientIDs {
+            do {
+                return try await self.fetchWorkOSAccessTokenWithCookies(
+                    cookieHeader: cookieHeader,
+                    organizationID: nil,
+                    clientID: clientID)
+            } catch {
+                lastError = error
+                logger("WorkOS cookie auth failed for client \(clientID): \(error.localizedDescription)")
+            }
+        }
+        if let lastError { throw lastError }
+        throw FactoryStatusProbeError.networkError("WorkOS cookie auth failed")
+    }
+
+    private func fetchWorkOSAccessTokenWithCookies(
+        cookieHeader: String,
+        organizationID: String?,
+        clientID: String) async throws -> WorkOSAuthResponse
+    {
+        guard let url = URL(string: "https://api.workos.com/user_management/authenticate") else {
+            throw FactoryStatusProbeError.networkError("WorkOS auth URL unavailable")
+        }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = self.timeout
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+
+        var body: [String: Any] = [
+            "client_id": clientID,
+            "grant_type": "refresh_token",
+            "useCookie": true,
+        ]
+        if let organizationID {
+            body["organization_id"] = organizationID
+        }
+        request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw FactoryStatusProbeError.networkError("Invalid WorkOS response")
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            let bodyText = String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? "<binary>"
+            let snippet = bodyText.isEmpty ? "" : ": \(bodyText.prefix(200))"
             throw FactoryStatusProbeError.networkError("WorkOS HTTP \(httpResponse.statusCode)\(snippet)")
         }
 

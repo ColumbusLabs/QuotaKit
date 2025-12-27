@@ -274,11 +274,15 @@ enum FactoryLocalStorageImporter {
         }
         defer { sqlite3_close(db) }
 
-        let tables = self.fetchTableNames(db: db)
+        sqlite3_busy_timeout(db, 250)
+        let tables = self.fetchTableNames(db: db, logger: logger)
+        if tables.isEmpty {
+            logger?("Safari local storage table lookup returned no tables")
+        }
         let table = tables
             .contains("ItemTable") ? "ItemTable" : (tables.contains("localstorage") ? "localstorage" : nil)
         guard let table else {
-            logger?("Safari local storage missing ItemTable/localstorage tables")
+            logger?("Safari local storage missing ItemTable/localstorage tables (found: \(tables.sorted()))")
             return nil
         }
 
@@ -312,15 +316,28 @@ enum FactoryLocalStorageImporter {
         return json["org_id"] as? String
     }
 
-    private static func fetchTableNames(db: OpaquePointer?) -> Set<String> {
+    private static func fetchTableNames(db: OpaquePointer?, logger: ((String) -> Void)? = nil) -> Set<String> {
         let sql = "SELECT name FROM sqlite_master WHERE type='table'"
         var stmt: OpaquePointer?
-        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
+            if let c = sqlite3_errmsg(db) {
+                logger?("Safari local storage table query failed: \(String(cString: c))")
+            }
+            return []
+        }
         defer { sqlite3_finalize(stmt) }
         var names = Set<String>()
-        while sqlite3_step(stmt) == SQLITE_ROW {
-            if let c = sqlite3_column_text(stmt, 0) {
-                names.insert(String(cString: c))
+        while true {
+            let step = sqlite3_step(stmt)
+            if step == SQLITE_ROW {
+                if let c = sqlite3_column_text(stmt, 0) {
+                    names.insert(String(cString: c))
+                }
+            } else {
+                if step != SQLITE_DONE, let c = sqlite3_errmsg(db) {
+                    logger?("Safari local storage table query failed: \(String(cString: c))")
+                }
+                break
             }
         }
         return names
