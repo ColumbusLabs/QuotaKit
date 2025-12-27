@@ -536,22 +536,32 @@ public struct AntigravityStatusProbe: Sendable {
 
 private final class InsecureSessionDelegate: NSObject {}
 
-extension InsecureSessionDelegate: URLSessionDelegate {}
-
-extension InsecureSessionDelegate {
+extension InsecureSessionDelegate: URLSessionTaskDelegate {
     func urlSession(
         _ session: URLSession,
+        task: URLSessionTask,
         didReceive challenge: URLAuthenticationChallenge,
-        completionHandler: @escaping @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void)
+        completionHandler: @escaping @MainActor @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void)
+    {
+        let result = self.challengeResult(challenge)
+        Task { @MainActor in
+            completionHandler(result.disposition, result.credential)
+        }
+    }
+}
+
+extension InsecureSessionDelegate {
+    private func challengeResult(_ challenge: URLAuthenticationChallenge) -> (
+        disposition: URLSession.AuthChallengeDisposition,
+        credential: URLCredential?)
     {
         #if canImport(FoundationNetworking)
-        completionHandler(.performDefaultHandling, nil)
+        return (.performDefaultHandling, nil)
         #else
         if let trust = challenge.protectionSpace.serverTrust {
-            completionHandler(.useCredential, URLCredential(trust: trust))
-            return
+            return (.useCredential, URLCredential(trust: trust))
         }
-        completionHandler(.performDefaultHandling, nil)
+        return (.performDefaultHandling, nil)
         #endif
     }
 }
