@@ -28,6 +28,11 @@
 - Providers: support Arc browser cookies for Factory/Droid (and other Chromium-based cookie imports).
 - Providers: accept Auth.js secure session cookies for Factory/Droid login detection.
 - Providers: accept Factory auth session cookies (session/access-token) for Droid.
+- Droid: surface Factory API errors instead of masking them as missing sessions.
+- Droid: retry auth without access-token cookies when Factory flags a stale token.
+- Droid: try all detected browser profiles before giving up.
+- Providers: hide z.ai in the menu until an API key is set.
+- Menu: keep the refresh row from dismissing the menu.
 - Antigravity: fix lsof port filtering by ANDing listen + pid conditions. Thanks @shaw-baobao!
 - Claude: default to Claude Code OAuth usage API (credentials from Keychain or `~/.claude/.credentials.json`), with Debug selector + `--claude-source` CLI override (OAuth/Web/CLI).
 - OpenAI web: allow importing any signed-in browser session when Codex email is unknown (first-run friendly).
