@@ -1094,37 +1094,38 @@ private final class ProviderSwitcherView: NSView {
             let widths = self.segmentWidths.isEmpty
                 ? self.buttons.map { ceil($0.fittingSize.width) }
                 : self.segmentWidths
-            let totalWidth = widths.reduce(0, +) + minimumGap * CGFloat(max(0, widths.count - 1))
+            let layoutWidth = self.preferredWidth > 0 ? self.preferredWidth : self.bounds.width
+            let availableWidth = max(0, layoutWidth - outerPadding * 2)
+            let gaps = max(1, widths.count - 1)
+            let computedGap = gaps > 0
+                ? max(minimumGap, (availableWidth - widths.reduce(0, +)) / CGFloat(gaps))
+                : 0
             let rowContainer = NSView()
             rowContainer.translatesAutoresizingMaskIntoConstraints = false
             self.addSubview(rowContainer)
 
-            let leading = rowContainer.leadingAnchor.constraint(
-                greaterThanOrEqualTo: self.leadingAnchor,
-                constant: outerPadding)
-            leading.priority = .defaultHigh
-            let trailing = rowContainer.trailingAnchor.constraint(
-                lessThanOrEqualTo: self.trailingAnchor,
-                constant: -outerPadding)
-            trailing.priority = .defaultHigh
-
             NSLayoutConstraint.activate([
-                rowContainer.centerXAnchor.constraint(equalTo: self.centerXAnchor),
                 rowContainer.topAnchor.constraint(equalTo: self.topAnchor),
                 rowContainer.bottomAnchor.constraint(equalTo: self.bottomAnchor),
-                rowContainer.widthAnchor.constraint(equalToConstant: totalWidth),
-                leading,
-                trailing,
+                rowContainer.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: outerPadding),
+                rowContainer.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -outerPadding),
             ])
 
             var xOffset: CGFloat = 0
             for (index, button) in self.buttons.enumerated() {
                 let width = index < widths.count ? widths[index] : 0
-                NSLayoutConstraint.activate([
-                    button.leadingAnchor.constraint(equalTo: rowContainer.leadingAnchor, constant: xOffset),
-                    button.centerYAnchor.constraint(equalTo: rowContainer.centerYAnchor),
-                ])
-                xOffset += width + minimumGap
+                if self.stackedIcons {
+                    NSLayoutConstraint.activate([
+                        button.leadingAnchor.constraint(equalTo: rowContainer.leadingAnchor, constant: xOffset),
+                        button.topAnchor.constraint(equalTo: rowContainer.topAnchor),
+                    ])
+                } else {
+                    NSLayoutConstraint.activate([
+                        button.leadingAnchor.constraint(equalTo: rowContainer.leadingAnchor, constant: xOffset),
+                        button.centerYAnchor.constraint(equalTo: rowContainer.centerYAnchor),
+                    ])
+                }
+                xOffset += width + computedGap
             }
             return
         }
@@ -1147,27 +1148,22 @@ private final class ProviderSwitcherView: NSView {
         let bottomButtons = Array(self.buttons.dropFirst(splitIndex))
 
         let columns = max(topButtons.count, bottomButtons.count)
-        let totalWidth = uniformWidth * CGFloat(columns) + minimumGap * CGFloat(max(0, columns - 1))
+        let layoutWidth = self.preferredWidth > 0 ? self.preferredWidth : self.bounds.width
+        let availableWidth = max(0, layoutWidth - outerPadding * 2)
+        let gaps = max(1, columns - 1)
+        let totalWidth = uniformWidth * CGFloat(columns)
+        let computedGap = gaps > 0
+            ? max(minimumGap, (availableWidth - totalWidth) / CGFloat(gaps))
+            : 0
         let gridContainer = NSView()
         gridContainer.translatesAutoresizingMaskIntoConstraints = false
         self.addSubview(gridContainer)
 
-        let leading = gridContainer.leadingAnchor.constraint(
-            greaterThanOrEqualTo: self.leadingAnchor,
-            constant: outerPadding)
-        leading.priority = .defaultHigh
-        let trailing = gridContainer.trailingAnchor.constraint(
-            lessThanOrEqualTo: self.trailingAnchor,
-            constant: -outerPadding)
-        trailing.priority = .defaultHigh
-
         NSLayoutConstraint.activate([
-            gridContainer.centerXAnchor.constraint(equalTo: self.centerXAnchor),
             gridContainer.topAnchor.constraint(equalTo: self.topAnchor),
             gridContainer.bottomAnchor.constraint(equalTo: self.bottomAnchor),
-            gridContainer.widthAnchor.constraint(equalToConstant: totalWidth),
-            leading,
-            trailing,
+            gridContainer.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: outerPadding),
+            gridContainer.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -outerPadding),
         ])
 
         let topRow = NSView()
@@ -1191,7 +1187,7 @@ private final class ProviderSwitcherView: NSView {
         ])
 
         for index in 0..<columns {
-            let xOffset = CGFloat(index) * (uniformWidth + minimumGap)
+            let xOffset = CGFloat(index) * (uniformWidth + computedGap)
             if index < topButtons.count {
                 let button = topButtons[index]
                 NSLayoutConstraint.activate([
