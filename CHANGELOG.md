@@ -17,7 +17,7 @@
 - Preferences: hide “Augment Claude via web” unless Claude usage source is CLI; rename the cost toggle to “Show cost summary”.
 - Preferences: add an Advanced toggle to show/hide optional Codex Credits + Claude Extra usage sections (on by default).
 - Widgets: add a new “CodexBar Switcher” widget that lets you switch providers and remember the selection.
-- Menu: provider switcher now uses crisp brand icons with equal-width segments and a per-provider weekly remaining indicator.
+- Menu: provider switcher now uses crisp brand icons with equal-width segments and a per-provider usage indicator.
 - Menu: tighten provider switcher sizing and increase spacing between label and weekly indicator bar.
 - Menu: provider switcher no longer forces a wider menu when many providers are enabled; segments clamp to the menu width.
 - Menu: provider switcher now aligns to the same horizontal padding grid as the menu cards when space allows.
@@ -36,7 +36,8 @@
 - Droid: fall back to auth.factory.ai endpoints when cookies live on the auth host.
 - Droid: use WorkOS refresh tokens from browser local storage when cookies fail.
 - Droid: read WorkOS refresh tokens from Safari local storage.
-- Droid: avoid Chrome Safe Storage prompts when Safari sessions are available.
+- Droid: try stored/WorkOS tokens before Chrome cookies to reduce Chrome Safe Storage prompts.
+- Menu: provider switcher bars now track primary quotas (Plan/Tokens/Pro), with Premium shown for Droid.
 - Providers: hide z.ai in the menu until an API key is set.
 - Menu: refresh runs automatically when opening the menu with a short retry (refresh row removed).
 - Menu: hide the Status Page row when a provider has no status URL.

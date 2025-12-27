@@ -507,7 +507,13 @@ extension StatusItemController {
 
     private func switcherWeeklyRemaining(for provider: UsageProvider) -> Double? {
         let snapshot = self.store.snapshot(for: provider)
-        let window = snapshot?.secondary ?? snapshot?.primary
+        let window: RateWindow?
+        switch provider {
+        case .factory:
+            window = snapshot?.secondary ?? snapshot?.primary
+        case .codex, .claude, .zai, .gemini, .antigravity, .cursor:
+            window = snapshot?.primary ?? snapshot?.secondary
+        }
         guard let window else { return nil }
         if self.settings.usageBarsShowUsed {
             return window.usedPercent
