@@ -226,6 +226,17 @@ private struct UsageMenuCardHeaderView: View {
                     .layoutPriority(1)
                     .padding(.bottom, self.model.subtitleStyle == .error ? 4 : 0)
                 Spacer()
+                if self.model.subtitleStyle == .error, !self.model.subtitleText.isEmpty {
+                    Image(systemName: "doc.on.doc")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+                        .padding(4)
+                        .contentShape(Rectangle())
+                        .overlay {
+                            ClickToCopyOverlay(copyText: self.model.subtitleText)
+                        }
+                        .accessibilityLabel("Copy error")
+                }
                 if let plan = self.model.planText {
                     Text(plan)
                         .font(.footnote)
