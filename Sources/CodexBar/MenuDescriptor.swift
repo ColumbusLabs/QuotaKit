@@ -232,9 +232,7 @@ struct MenuDescriptor {
     }
 
     private static func actionsSection(for provider: UsageProvider?, store: UsageStore) -> Section {
-        var entries: [Entry] = [
-            .action("Refresh Now", .refresh),
-        ]
+        var entries: [Entry] = []
 
         // Show "Add Account" if no account, "Switch Account" if logged in
         if (provider ?? store.enabledProviders().first) != .antigravity,

@@ -7,6 +7,7 @@ import SwiftUI
 
 extension StatusItemController {
     private static let menuCardBaseWidth: CGFloat = 310
+    private static let menuOpenRefreshDelay: Duration = .seconds(1.2)
     private struct OpenAIWebMenuItems {
         let hasUsageBreakdown: Bool
         let hasCreditsHistory: Bool
@@ -68,6 +69,7 @@ extension StatusItemController {
         }
         self.refreshMenuCardHeights(in: menu)
         self.openMenus[ObjectIdentifier(menu)] = menu
+        self.scheduleOpenMenuRefresh(for: menu)
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             guard self.openMenus[ObjectIdentifier(menu)] != nil else { return }
@@ -77,6 +79,7 @@ extension StatusItemController {
 
     func menuDidClose(_ menu: NSMenu) {
         self.openMenus.removeValue(forKey: ObjectIdentifier(menu))
+        self.menuRefreshTasks.removeValue(forKey: ObjectIdentifier(menu))?.cancel()
         for menuItem in menu.items {
             (menuItem.view as? MenuCardHighlighting)?.setHighlighted(false)
         }
@@ -181,35 +184,24 @@ extension StatusItemController {
                     }
                     menu.addItem(item)
                 case let .action(title, action):
-                    if case .refresh = action {
-                        let item = self.makePersistentActionItem(
-                            title: title,
-                            systemImageName: action.systemImageName,
-                            width: menuWidth)
-                        { [weak self] in
-                            self?.refreshNow()
-                        }
-                        menu.addItem(item)
-                    } else {
-                        let (selector, represented) = self.selector(for: action)
-                        let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
-                        item.target = self
-                        item.representedObject = represented
-                        if let iconName = action.systemImageName,
-                           let image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)
-                        {
-                            image.isTemplate = true
-                            image.size = NSSize(width: 16, height: 16)
-                            item.image = image
-                        }
-                        if case let .switchAccount(targetProvider) = action,
-                           let subtitle = self.switchAccountSubtitle(for: targetProvider)
-                        {
-                            item.subtitle = subtitle
-                            item.isEnabled = false
-                        }
-                        menu.addItem(item)
+                    let (selector, represented) = self.selector(for: action)
+                    let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
+                    item.target = self
+                    item.representedObject = represented
+                    if let iconName = action.systemImageName,
+                       let image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)
+                    {
+                        image.isTemplate = true
+                        image.size = NSSize(width: 16, height: 16)
+                        item.image = image
                     }
+                    if case let .switchAccount(targetProvider) = action,
+                       let subtitle = self.switchAccountSubtitle(for: targetProvider)
+                    {
+                        item.subtitle = subtitle
+                        item.isEnabled = false
+                    }
+                    menu.addItem(item)
                 case .divider:
                     menu.addItem(.separator())
                 }
@@ -257,27 +249,6 @@ extension StatusItemController {
             })
         let item = NSMenuItem()
         item.view = view
-        item.isEnabled = false
-        return item
-    }
-
-    private func makePersistentActionItem(
-        title: String,
-        systemImageName: String?,
-        width: CGFloat,
-        action: @escaping () -> Void) -> NSMenuItem
-    {
-        let view = MenuActionRowView(
-            title: title,
-            systemImageName: systemImageName,
-            action: action)
-        let hosting = MenuHostingView(rootView: view)
-        hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: 1))
-        hosting.layoutSubtreeIfNeeded()
-        let size = hosting.fittingSize
-        hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: size.height))
-        let item = NSMenuItem()
-        item.view = hosting
         item.isEnabled = false
         return item
     }
@@ -334,6 +305,24 @@ extension StatusItemController {
             return nil
         }
         return self.store.enabledProviders().first ?? .codex
+    }
+
+    private func scheduleOpenMenuRefresh(for menu: NSMenu) {
+        self.refreshNow()
+        let key = ObjectIdentifier(menu)
+        self.menuRefreshTasks[key]?.cancel()
+        self.menuRefreshTasks[key] = Task { @MainActor [weak self, weak menu] in
+            guard let self, let menu else { return }
+            try? await Task.sleep(for: Self.menuOpenRefreshDelay)
+            guard !Task.isCancelled else { return }
+            guard self.openMenus[ObjectIdentifier(menu)] != nil else { return }
+            guard !self.store.isRefreshing else { return }
+            let provider = self.menuProvider(for: menu) ?? self.resolvedMenuProvider()
+            let isStale = provider.map { self.store.isStale(provider: $0) } ?? self.store.isStale
+            let hasSnapshot = provider.map { self.store.snapshot(for: $0) != nil } ?? true
+            guard isStale || !hasSnapshot else { return }
+            self.refreshNow()
+        }
     }
 
     private func refreshMenuCardHeights(in menu: NSMenu) {

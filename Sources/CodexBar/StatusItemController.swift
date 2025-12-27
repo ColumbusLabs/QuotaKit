@@ -37,6 +37,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var providerMenus: [UsageProvider: NSMenu] = [:]
     var fallbackMenu: NSMenu?
     var openMenus: [ObjectIdentifier: NSMenu] = [:]
+    var menuRefreshTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
     var blinkTask: Task<Void, Never>?
     var loginTask: Task<Void, Never>? {
         didSet { self.refreshMenusForLoginStateChange() }
