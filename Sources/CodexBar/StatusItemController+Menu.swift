@@ -166,7 +166,12 @@ extension StatusItemController {
             menu.addItem(.separator())
         }
 
-        let actionableSections = Array(descriptor.sections.suffix(2))
+        let actionableSections = descriptor.sections.filter { section in
+            section.entries.contains { entry in
+                if case .action = entry { return true }
+                return false
+            }
+        }
         for (index, section) in actionableSections.enumerated() {
             for entry in section.entries {
                 switch entry {
@@ -507,12 +512,11 @@ extension StatusItemController {
 
     private func switcherWeeklyRemaining(for provider: UsageProvider) -> Double? {
         let snapshot = self.store.snapshot(for: provider)
-        let window: RateWindow?
-        switch provider {
+        let window: RateWindow? = switch provider {
         case .factory:
-            window = snapshot?.secondary ?? snapshot?.primary
+            snapshot?.secondary ?? snapshot?.primary
         case .codex, .claude, .zai, .gemini, .antigravity, .cursor:
-            window = snapshot?.primary ?? snapshot?.secondary
+            snapshot?.primary ?? snapshot?.secondary
         }
         guard let window else { return nil }
         if self.settings.usageBarsShowUsed {
