@@ -363,6 +363,11 @@ public struct OpenAIDashboardBrowserCookieImporter {
             if allowAnyAccount { return .loggedIn(candidate: candidate, signedInEmail: apiEmail) }
         }
 
+        if !self.hasSessionCookies(candidate.cookies) {
+            log("Candidate \(candidate.label) missing session cookies; skipping")
+            return .loginRequired(candidate: candidate)
+        }
+
         let scratch = WKWebsiteDataStore.nonPersistent()
         await self.setCookies(candidate.cookies, into: scratch)
 
@@ -393,6 +398,17 @@ public struct OpenAIDashboardBrowserCookieImporter {
             log("Candidate \(candidate.label) probe error: \(error.localizedDescription)")
             return .unknown(candidate: candidate)
         }
+    }
+
+    private func hasSessionCookies(_ cookies: [HTTPCookie]) -> Bool {
+        for cookie in cookies {
+            let name = cookie.name.lowercased()
+            if name.contains("session-token") || name.contains("authjs") || name.contains("next-auth") {
+                return true
+            }
+            if name == "_account" { return true }
+        }
+        return false
     }
 
     private func handleMismatch(

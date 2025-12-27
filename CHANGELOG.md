@@ -39,6 +39,7 @@
 - Droid: try stored/WorkOS tokens before Chrome cookies to reduce Chrome Safe Storage prompts.
 - Menu: provider switcher bars now track primary quotas (Plan/Tokens/Pro), with Premium shown for Droid.
 - Menu: avoid duplicate summary blocks when a provider has no action rows.
+- OpenAI web: ignore cookie sets without session tokens to avoid false-positive dashboard fetches.
 - Providers: hide z.ai in the menu until an API key is set.
 - Menu: refresh runs automatically when opening the menu with a short retry (refresh row removed).
 - Menu: hide the Status Page row when a provider has no status URL.
