@@ -181,24 +181,35 @@ extension StatusItemController {
                     }
                     menu.addItem(item)
                 case let .action(title, action):
-                    let (selector, represented) = self.selector(for: action)
-                    let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
-                    item.target = self
-                    item.representedObject = represented
-                    if let iconName = action.systemImageName,
-                       let image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)
-                    {
-                        image.isTemplate = true
-                        image.size = NSSize(width: 16, height: 16)
-                        item.image = image
+                    if case .refresh = action {
+                        let item = self.makePersistentActionItem(
+                            title: title,
+                            systemImageName: action.systemImageName,
+                            width: menuWidth)
+                        { [weak self] in
+                            self?.refreshNow()
+                        }
+                        menu.addItem(item)
+                    } else {
+                        let (selector, represented) = self.selector(for: action)
+                        let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
+                        item.target = self
+                        item.representedObject = represented
+                        if let iconName = action.systemImageName,
+                           let image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)
+                        {
+                            image.isTemplate = true
+                            image.size = NSSize(width: 16, height: 16)
+                            item.image = image
+                        }
+                        if case let .switchAccount(targetProvider) = action,
+                           let subtitle = self.switchAccountSubtitle(for: targetProvider)
+                        {
+                            item.subtitle = subtitle
+                            item.isEnabled = false
+                        }
+                        menu.addItem(item)
                     }
-                    if case let .switchAccount(targetProvider) = action,
-                       let subtitle = self.switchAccountSubtitle(for: targetProvider)
-                    {
-                        item.subtitle = subtitle
-                        item.isEnabled = false
-                    }
-                    menu.addItem(item)
                 case .divider:
                     menu.addItem(.separator())
                 }
@@ -246,6 +257,27 @@ extension StatusItemController {
             })
         let item = NSMenuItem()
         item.view = view
+        item.isEnabled = false
+        return item
+    }
+
+    private func makePersistentActionItem(
+        title: String,
+        systemImageName: String?,
+        width: CGFloat,
+        action: @escaping () -> Void) -> NSMenuItem
+    {
+        let view = MenuActionRowView(
+            title: title,
+            systemImageName: systemImageName,
+            action: action)
+        let hosting = MenuHostingView(rootView: view)
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: 1))
+        hosting.layoutSubtreeIfNeeded()
+        let size = hosting.fittingSize
+        hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: size.height))
+        let item = NSMenuItem()
+        item.view = hosting
         item.isEnabled = false
         return item
     }
