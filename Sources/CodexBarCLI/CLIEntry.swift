@@ -832,7 +832,8 @@ enum CodexBarCLI {
         CodexBar \(version)
 
         Usage:
-          codexbar usage [--format text|json] [--provider codex|claude|zai|gemini|antigravity|both|all]
+          codexbar usage [--format text|json]
+                       [--provider codex|claude|zai|gemini|antigravity|cursor|factory|copilot|both|all]
                        [--no-credits] [--pretty] [--status] [--source <auto|web|cli|oauth>]
                        [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
 
@@ -859,7 +860,8 @@ enum CodexBarCLI {
         CodexBar \(version)
 
         Usage:
-          codexbar [--format text|json] [--provider codex|claude|zai|gemini|antigravity|both|all]
+          codexbar [--format text|json]
+                  [--provider codex|claude|zai|gemini|antigravity|cursor|factory|copilot|both|all]
                   [--no-credits] [--pretty] [--status] [--source <auto|web|cli|oauth>]
                   [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
 
@@ -889,7 +891,10 @@ private struct UsageOptions: CommanderParsable {
         #endif
     }()
 
-    @Option(name: .long("provider"), help: "Provider to query: codex | claude | gemini | antigravity | both | all")
+    @Option(
+        name: .long("provider"),
+        help: "Provider to query: codex | claude | zai | gemini | antigravity | cursor | " +
+            "factory | copilot | both | all")
     var provider: ProviderSelection?
 
     @Option(name: .long("format"), help: "Output format: text | json")
@@ -958,7 +963,7 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
         case .antigravity: self = .antigravity
         case .cursor: self = .cursor
         case .factory: self = .factory
-        case .copilot: self = .copilot // Custom case not directly supported by arg parser unless we add it
+        case .copilot: self = .copilot
         }
     }
 

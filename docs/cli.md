@@ -34,7 +34,7 @@ tar -xzf CodexBarCLI-0.14.1-linux-x86_64.tar.gz
 ## Command
 - `codexbar` defaults to the `usage` command.
   - `--format text|json` (default: text).
-  - `--provider codex|claude|gemini|antigravity|both|all` (default: your in-app toggles; falls back to Codex).
+- `--provider codex|claude|zai|gemini|antigravity|cursor|factory|copilot|both|all` (default: your in-app toggles; falls back to Codex).
   - `--no-credits` (hide Codex credits in text output).
   - `--pretty` (pretty-print JSON).
   - `--status` (fetch provider status pages and include them in output).
@@ -58,6 +58,7 @@ codexbar --provider claude        # force Claude
 codexbar --provider all           # query all providers (honors your logins/toggles)
 codexbar --format json --pretty   # machine output
 codexbar --format json --provider both
+COPILOT_API_TOKEN=... codexbar --provider copilot --format json --pretty
 codexbar --status                 # include status page indicator/description
 codexbar --provider codex --source web --format json --pretty
 ```
@@ -123,6 +124,7 @@ Plan: Pro
 
 ## Notes
 - CLI reuses menubar toggles when present (prefers `com.steipete.codexbar{,.debug}` defaults), otherwise defaults to Codex only.
+- Copilot CLI queries require `COPILOT_API_TOKEN` (GitHub OAuth token).
 - Prefer Codex RPC first, then PTY fallback; Claude defaults to web with CLI fallback when cookies are missing.
 - OpenAI web requires a signed-in `chatgpt.com` session in Safari, Chrome, or Firefox. No passwords are stored; CodexBar reuses cookies.
 - Safari cookie import may require granting CodexBar Full Disk Access (System Settings → Privacy & Security → Full Disk Access).
