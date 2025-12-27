@@ -26,6 +26,8 @@
 - CI: build/test Linux `CodexBarCLI` (x86_64 + aarch64) and publish release assets as `CodexBarCLI-<tag>-linux-<arch>.tar.gz` (+ `.sha256`).
 - CLI: add alias fallback for Codex/Claude detection when PATH lookups fail.
 - Providers: support Arc browser cookies for Factory/Droid (and other Chromium-based cookie imports).
+- Providers: accept Auth.js secure session cookies for Factory/Droid login detection.
+- Providers: accept Factory auth session cookies (session/access-token) for Droid.
 - Antigravity: fix lsof port filtering by ANDing listen + pid conditions. Thanks @shaw-baobao!
 - Claude: default to Claude Code OAuth usage API (credentials from Keychain or `~/.claude/.credentials.json`), with Debug selector + `--claude-source` CLI override (OAuth/Web/CLI).
 - OpenAI web: allow importing any signed-in browser session when Codex email is unknown (first-run friendly).

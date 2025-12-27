@@ -10,8 +10,11 @@ public enum FactoryCookieImporter {
         "wos-session",
         "__Secure-next-auth.session-token",
         "next-auth.session-token",
+        "__Secure-authjs.session-token",
         "__Host-authjs.csrf-token",
         "authjs.session-token",
+        "session",
+        "access-token",
     ]
 
     public struct SessionInfo: Sendable {
