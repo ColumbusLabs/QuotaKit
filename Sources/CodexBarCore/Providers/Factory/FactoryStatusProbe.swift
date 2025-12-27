@@ -17,6 +17,13 @@ public enum FactoryCookieImporter {
         "access-token",
     ]
 
+    private static let authSessionCookieNames: Set<String> = [
+        "__Secure-next-auth.session-token",
+        "next-auth.session-token",
+        "__Secure-authjs.session-token",
+        "authjs.session-token",
+    ]
+
     public struct SessionInfo: Sendable {
         public let cookies: [HTTPCookie]
         public let sourceLabel: String
@@ -45,6 +52,7 @@ public enum FactoryCookieImporter {
                 let httpCookies = SafariCookieImporter.makeHTTPCookies(safariRecords)
                 if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
                     log("Found \(httpCookies.count) Factory cookies in Safari")
+                    log("Safari cookie names: \(self.cookieNames(from: httpCookies))")
                     sessions.append(SessionInfo(cookies: httpCookies, sourceLabel: "Safari"))
                 } else {
                     log("Safari cookies found, but no Factory session cookie present")
@@ -79,6 +87,7 @@ public enum FactoryCookieImporter {
                 }
                 if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
                     log("Found \(httpCookies.count) Factory cookies in \(source.label)")
+                    log("Chrome cookie names: \(self.cookieNames(from: httpCookies))")
                     sessions.append(SessionInfo(cookies: httpCookies, sourceLabel: source.label))
                 } else {
                     log("Chrome source \(source.label) has no Factory session cookie")
@@ -112,6 +121,7 @@ public enum FactoryCookieImporter {
                 }
                 if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
                     log("Found \(httpCookies.count) Factory cookies in \(source.label)")
+                    log("Firefox cookie names: \(self.cookieNames(from: httpCookies))")
                     sessions.append(SessionInfo(cookies: httpCookies, sourceLabel: source.label))
                 } else {
                     log("Firefox source \(source.label) has no Factory session cookie")
@@ -143,6 +153,11 @@ public enum FactoryCookieImporter {
         } catch {
             return false
         }
+    }
+
+    private static func cookieNames(from cookies: [HTTPCookie]) -> String {
+        let names = Set(cookies.map { "\($0.name)@\($0.domain)" }).sorted()
+        return names.joined(separator: ", ")
     }
 }
 
@@ -489,6 +504,16 @@ public struct FactoryStatusProbe: Sendable {
         "access-token",
         "__recent_auth",
     ]
+    private static let sessionCookieNames: Set<String> = [
+        "session",
+        "wos-session",
+    ]
+    private static let authSessionCookieNames: Set<String> = [
+        "__Secure-next-auth.session-token",
+        "next-auth.session-token",
+        "__Secure-authjs.session-token",
+        "authjs.session-token",
+    ]
 
     public init(baseURL: URL = URL(string: "https://app.factory.ai")!, timeout: TimeInterval = 15.0) {
         self.baseURL = baseURL
@@ -554,10 +579,52 @@ public struct FactoryStatusProbe: Sendable {
                 throw error
             }
 
-            let filtered = cookies.filter { !Self.staleTokenCookieNames.contains($0.name) }
-            guard filtered.count < cookies.count else { throw error }
-            logger("Retrying without access-token cookies")
-            return try await self.fetchWithCookieHeader(Self.cookieHeader(from: filtered))
+            var lastError: Error? = error
+
+            let retries: [(String, (HTTPCookie) -> Bool)] = [
+                ("Retrying without access-token cookies", { !Self.staleTokenCookieNames.contains($0.name) }),
+                ("Retrying without session cookies", { !Self.sessionCookieNames.contains($0.name) }),
+                ("Retrying without access-token/session cookies", {
+                    !Self.staleTokenCookieNames.contains($0.name) && !Self.sessionCookieNames.contains($0.name)
+                }),
+            ]
+
+            for (label, predicate) in retries {
+                let filtered = cookies.filter(predicate)
+                guard filtered.count < cookies.count else { continue }
+                logger(label)
+                do {
+                    return try await self.fetchWithCookieHeader(Self.cookieHeader(from: filtered))
+                } catch let retryError as FactoryStatusProbeError {
+                    switch retryError {
+                    case let .networkError(retryMessage)
+                        where retryMessage.contains("HTTP 409") &&
+                        retryMessage.localizedCaseInsensitiveContains("stale token"):
+                        lastError = retryError
+                        continue
+                    case .notLoggedIn:
+                        lastError = retryError
+                        continue
+                    default:
+                        throw retryError
+                    }
+                }
+            }
+
+            let authOnly = cookies.filter {
+                Self.authSessionCookieNames.contains($0.name) || $0.name == "__Host-authjs.csrf-token"
+            }
+            if !authOnly.isEmpty, authOnly.count < cookies.count {
+                logger("Retrying with auth session cookies only")
+                do {
+                    return try await self.fetchWithCookieHeader(Self.cookieHeader(from: authOnly))
+                } catch let retryError as FactoryStatusProbeError {
+                    lastError = retryError
+                }
+            }
+
+            if let lastError { throw lastError }
+            throw error
         } catch {
             throw error
         }
