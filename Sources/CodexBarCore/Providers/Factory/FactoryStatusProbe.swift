@@ -512,7 +512,10 @@ public struct FactoryStatusProbe: Sendable {
     static let appBaseURL = URL(string: "https://app.factory.ai")!
     static let authBaseURL = URL(string: "https://auth.factory.ai")!
     static let apiBaseURL = URL(string: "https://api.factory.ai")!
-    private static let workosClientID = "client_01HNM792M5G5G1A2THWPXKFMXB"
+    private static let workosClientIDs = [
+        "client_01HXRMBQ9BJ3E7QSTQ9X2PHVB7",
+        "client_01HNM792M5G5G1A2THWPXKFMXB",
+    ]
 
     private struct WorkOSAuthResponse: Decodable, Sendable {
         let access_token: String
@@ -561,18 +564,9 @@ public struct FactoryStatusProbe: Sendable {
 
     private func attemptBrowserCookies(logger: @escaping (String) -> Void) async -> FetchAttemptResult {
         do {
-            let hasSafariLocalStorageToken = FactoryLocalStorageImporter.hasSafariWorkOSRefreshToken()
             var lastError: Error?
-            var hadSafariSession = false
             for browserSource in factoryCookieImportOrder.sources {
-                if browserSource == .chrome, hasSafariLocalStorageToken || hadSafariSession {
-                    logger("Skipping Chrome cookie import to avoid Keychain prompt (Safari session present)")
-                    continue
-                }
                 let sessions = try FactoryCookieImporter.importSessions(from: browserSource, logger: logger)
-                if browserSource == .safari {
-                    hadSafariSession = !sessions.isEmpty
-                }
                 for session in sessions {
                     logger("Using cookies from \(session.sourceLabel)")
                     do {
@@ -624,7 +618,10 @@ public struct FactoryStatusProbe: Sendable {
         guard let refreshToken = await FactorySessionStore.shared.getRefreshToken() else { return .skipped }
         logger("Using stored WorkOS refresh token")
         do {
-            return try await .success(self.fetchWithWorkOSRefreshToken(refreshToken, logger: logger))
+            return try await .success(self.fetchWithWorkOSRefreshToken(
+                refreshToken,
+                organizationID: nil,
+                logger: logger))
         } catch {
             if self.isInvalidGrant(error) {
                 await FactorySessionStore.shared.setRefreshToken(nil)
@@ -648,7 +645,10 @@ public struct FactoryStatusProbe: Sendable {
                 }
             }
             do {
-                return try await .success(self.fetchWithWorkOSRefreshToken(token.refreshToken, logger: logger))
+                return try await .success(self.fetchWithWorkOSRefreshToken(
+                    token.refreshToken,
+                    organizationID: token.organizationID,
+                    logger: logger))
             } catch {
                 if self.isInvalidGrant(error) {
                     await FactorySessionStore.shared.setRefreshToken(nil)
@@ -662,9 +662,12 @@ public struct FactoryStatusProbe: Sendable {
 
     private func fetchWithWorkOSRefreshToken(
         _ refreshToken: String,
+        organizationID: String?,
         logger: (String) -> Void) async throws -> FactoryStatusSnapshot
     {
-        let auth = try await self.fetchWorkOSAccessToken(refreshToken: refreshToken)
+        let auth = try await self.fetchWorkOSAccessToken(
+            refreshToken: refreshToken,
+            organizationID: organizationID)
         await FactorySessionStore.shared.setBearerToken(auth.access_token)
         if let newRefresh = auth.refresh_token {
             await FactorySessionStore.shared.setRefreshToken(newRefresh)
@@ -808,6 +811,8 @@ public struct FactoryStatusProbe: Sendable {
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("https://app.factory.ai", forHTTPHeaderField: "Origin")
+        request.setValue("https://app.factory.ai/", forHTTPHeaderField: "Referer")
         if !cookieHeader.isEmpty {
             request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
         }
@@ -855,6 +860,8 @@ public struct FactoryStatusProbe: Sendable {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("https://app.factory.ai", forHTTPHeaderField: "Origin")
+        request.setValue("https://app.factory.ai/", forHTTPHeaderField: "Referer")
         if !cookieHeader.isEmpty {
             request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
         }
@@ -908,9 +915,7 @@ public struct FactoryStatusProbe: Sendable {
             candidates.append(Self.authBaseURL)
         }
         candidates.append(Self.apiBaseURL)
-        if cookieDomains.contains("app.factory.ai") {
-            candidates.append(Self.appBaseURL)
-        }
+        candidates.append(Self.appBaseURL)
         candidates.append(baseURL)
 
         var seen = Set<String>()
@@ -925,12 +930,16 @@ public struct FactoryStatusProbe: Sendable {
     private static func bearerToken(from cookies: [HTTPCookie]) -> String? {
         let accessToken = cookies.first(where: { $0.name == "access-token" })?.value
         let sessionToken = cookies.first(where: { Self.authSessionCookieNames.contains($0.name) })?.value
+        let legacySession = cookies.first(where: { $0.name == "session" })?.value
 
         if let accessToken, accessToken.contains(".") {
             return accessToken
         }
         if let sessionToken, sessionToken.contains(".") {
             return sessionToken
+        }
+        if let legacySession, legacySession.contains(".") {
+            return legacySession
         }
         return accessToken ?? sessionToken
     }
@@ -958,7 +967,30 @@ public struct FactoryStatusProbe: Sendable {
         throw FactoryStatusProbeError.notLoggedIn
     }
 
-    private func fetchWorkOSAccessToken(refreshToken: String) async throws -> WorkOSAuthResponse {
+    private func fetchWorkOSAccessToken(
+        refreshToken: String,
+        organizationID: String?) async throws -> WorkOSAuthResponse
+    {
+        var lastError: Error?
+        for clientID in Self.workosClientIDs {
+            do {
+                return try await self.fetchWorkOSAccessToken(
+                    refreshToken: refreshToken,
+                    organizationID: organizationID,
+                    clientID: clientID)
+            } catch {
+                lastError = error
+            }
+        }
+        if let lastError { throw lastError }
+        throw FactoryStatusProbeError.networkError("WorkOS auth failed")
+    }
+
+    private func fetchWorkOSAccessToken(
+        refreshToken: String,
+        organizationID: String?,
+        clientID: String) async throws -> WorkOSAuthResponse
+    {
         guard let url = URL(string: "https://api.workos.com/user_management/authenticate") else {
             throw FactoryStatusProbeError.networkError("WorkOS auth URL unavailable")
         }
@@ -969,11 +1001,14 @@ public struct FactoryStatusProbe: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let body: [String: Any] = [
-            "client_id": Self.workosClientID,
+        var body: [String: Any] = [
+            "client_id": clientID,
             "grant_type": "refresh_token",
             "refresh_token": refreshToken,
         ]
+        if let organizationID {
+            body["organization_id"] = organizationID
+        }
         request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
 
         let (data, response) = try await URLSession.shared.data(for: request)

@@ -8,6 +8,7 @@ enum FactoryLocalStorageImporter {
     struct TokenInfo: Sendable {
         let refreshToken: String
         let accessToken: String?
+        let organizationID: String?
         let sourceLabel: String
     }
 
@@ -37,6 +38,7 @@ enum FactoryLocalStorageImporter {
             tokens.append(TokenInfo(
                 refreshToken: token.refreshToken,
                 accessToken: token.accessToken,
+                organizationID: token.organizationID,
                 sourceLabel: candidate.label))
         }
 
@@ -208,6 +210,7 @@ enum FactoryLocalStorageImporter {
     private struct WorkOSTokenMatch: Sendable {
         let refreshToken: String
         let accessToken: String?
+        let organizationID: String?
     }
 
     private static func readWorkOSToken(from levelDBURL: URL) -> WorkOSTokenMatch? {
@@ -251,7 +254,11 @@ enum FactoryLocalStorageImporter {
             in: contents,
             pattern: "workos:access-token[^A-Za-z0-9_-]*([A-Za-z0-9_-]{20,})")
 
-        return WorkOSTokenMatch(refreshToken: refreshToken, accessToken: accessToken)
+        let organizationID = self.extractOrganizationID(from: accessToken)
+        return WorkOSTokenMatch(
+            refreshToken: refreshToken,
+            accessToken: accessToken,
+            organizationID: organizationID)
     }
 
     private static func readWorkOSTokenFromSafariSQLite(
@@ -282,7 +289,27 @@ enum FactoryLocalStorageImporter {
         }
         let accessToken = self.fetchLocalStorageValue(db: db, table: table, key: "workos:access-token")
 
-        return WorkOSTokenMatch(refreshToken: refreshToken, accessToken: accessToken)
+        let organizationID = self.extractOrganizationID(from: accessToken)
+        return WorkOSTokenMatch(
+            refreshToken: refreshToken,
+            accessToken: accessToken,
+            organizationID: organizationID)
+    }
+
+    private static func extractOrganizationID(from accessToken: String?) -> String? {
+        guard let accessToken, accessToken.contains(".") else { return nil }
+        let parts = accessToken.split(separator: ".")
+        guard parts.count == 3 else { return nil }
+        let payload = String(parts[1])
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        let padded = payload + String(repeating: "=", count: (4 - payload.count % 4) % 4)
+        guard let data = Data(base64Encoded: padded),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else {
+            return nil
+        }
+        return json["org_id"] as? String
     }
 
     private static func fetchTableNames(db: OpaquePointer?) -> Set<String> {
