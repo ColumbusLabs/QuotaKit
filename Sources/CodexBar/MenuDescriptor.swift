@@ -104,7 +104,10 @@ struct MenuDescriptor {
             }
         }
 
-        sections.append(Self.actionsSection(for: provider, store: store))
+        let actions = Self.actionsSection(for: provider, store: store)
+        if !actions.entries.isEmpty {
+            sections.append(actions)
+        }
         sections.append(Self.metaSection(updateReady: updateReady))
 
         return MenuDescriptor(sections: sections)
@@ -233,6 +236,8 @@ struct MenuDescriptor {
 
     private static func actionsSection(for provider: UsageProvider?, store: UsageStore) -> Section {
         var entries: [Entry] = []
+        let targetProvider = provider ?? store.enabledProviders().first
+        let metadata = targetProvider.map { store.metadata(for: $0) }
 
         // Show "Add Account" if no account, "Switch Account" if logged in
         if (provider ?? store.enabledProviders().first) != .antigravity,
@@ -244,13 +249,15 @@ struct MenuDescriptor {
             entries.append(.action(accountLabel, loginAction))
         }
 
-        let dashboardTarget = provider ?? store.enabledProviders().first
-        if dashboardTarget == .codex || dashboardTarget == .claude || dashboardTarget == .cursor || dashboardTarget ==
-            .factory
+        if let dashboardTarget = targetProvider,
+           dashboardTarget == .codex || dashboardTarget == .claude || dashboardTarget == .cursor ||
+           dashboardTarget == .factory
         {
             entries.append(.action("Usage Dashboard", .dashboard))
         }
-        entries.append(.action("Status Page", .statusPage))
+        if metadata?.statusPageURL != nil || metadata?.statusLinkURL != nil {
+            entries.append(.action("Status Page", .statusPage))
+        }
 
         if let statusLine = self.statusLine(for: provider, store: store) {
             entries.append(.text(statusLine, .secondary))
