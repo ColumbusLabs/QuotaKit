@@ -2,8 +2,8 @@ import Foundation
 
 #if os(macOS)
 
-private let factoryCookieImportOrder: BrowserCookieImportOrder =
-    ProviderDefaults.metadata[.factory]?.browserCookieOrder ?? .safariChromeFirefox
+private let factoryCookieImportOrder: [BrowserCookieSource] =
+    ProviderDefaults.metadata[.factory]?.browserCookieOrder ?? BrowserCookieSourceDefaults.importOrder
 
 // MARK: - Factory Cookie Importer
 
@@ -50,7 +50,7 @@ public enum FactoryCookieImporter {
         var sessions: [SessionInfo] = []
 
         let cookieDomains = ["factory.ai", "app.factory.ai", "auth.factory.ai"]
-        for browserSource in factoryCookieImportOrder.sources {
+        for browserSource in factoryCookieImportOrder {
             do {
                 let sources = try BrowserCookieImporter.loadCookieSources(
                     from: browserSource,

@@ -14,8 +14,8 @@ import FoundationNetworking
 public enum ClaudeWebAPIFetcher {
     private static let baseURL = "https://claude.ai/api"
     private static let maxProbeBytes = 200_000
-    private static let cookieImportOrder: BrowserCookieImportOrder =
-        ProviderDefaults.metadata[.claude]?.browserCookieOrder ?? .safariChromeFirefox
+    private static let cookieImportOrder: [BrowserCookieSource] =
+        ProviderDefaults.metadata[.claude]?.browserCookieOrder ?? BrowserCookieSourceDefaults.importOrder
 
     public struct OrganizationInfo: Sendable {
         public let id: String
@@ -277,7 +277,7 @@ public enum ClaudeWebAPIFetcher {
 
         let cookieDomains = ["claude.ai"]
 
-        for browserSource in Self.cookieImportOrder.sources {
+        for browserSource in Self.cookieImportOrder {
             do {
                 let sources = try BrowserCookieImporter.loadCookieSources(
                     from: browserSource,

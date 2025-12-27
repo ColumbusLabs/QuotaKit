@@ -2,8 +2,8 @@ import Foundation
 
 #if os(macOS)
 
-private let cursorCookieImportOrder: BrowserCookieImportOrder =
-    ProviderDefaults.metadata[.cursor]?.browserCookieOrder ?? .safariChromeFirefox
+private let cursorCookieImportOrder: [BrowserCookieSource] =
+    ProviderDefaults.metadata[.cursor]?.browserCookieOrder ?? BrowserCookieSourceDefaults.importOrder
 
 // MARK: - Cursor Cookie Importer
 
@@ -34,7 +34,7 @@ public enum CursorCookieImporter {
         let log: (String) -> Void = { msg in logger?("[cursor-cookie] \(msg)") }
 
         let cookieDomains = ["cursor.com", "cursor.sh"]
-        for browserSource in cursorCookieImportOrder.sources {
+        for browserSource in cursorCookieImportOrder {
             do {
                 let sources = try BrowserCookieImporter.loadCookieSources(
                     from: browserSource,

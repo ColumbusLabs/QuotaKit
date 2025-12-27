@@ -14,35 +14,25 @@ public enum BrowserCookieSource: String, Sendable {
     }
 }
 
-public enum BrowserCookieImportOrder: Sendable {
-    case safariChromeFirefox
+public enum BrowserCookieSourceDefaults {
+    public static let importOrder: [BrowserCookieSource] = [.safari, .chrome, .firefox]
+}
 
-    public var sources: [BrowserCookieSource] {
-        switch self {
-        case .safariChromeFirefox:
-            [.safari, .chrome, .firefox]
-        }
-    }
-
+extension Collection<BrowserCookieSource> {
     public var displayLabel: String {
-        switch self {
-        case .safariChromeFirefox:
-            "Safari → Chrome → Firefox"
-        }
+        map(\.displayName).joined(separator: " \u{2192} ")
     }
 
     public var shortLabel: String {
-        switch self {
-        case .safariChromeFirefox:
-            "Safari/Chrome/Firefox"
-        }
+        map(\.displayName).joined(separator: "/")
     }
 
     public var loginHint: String {
-        switch self {
-        case .safariChromeFirefox:
-            "Safari, Chrome, or Firefox"
-        }
+        let names = map(\.displayName)
+        guard let last = names.last else { return "browser" }
+        if names.count == 1 { return last }
+        if names.count == 2 { return "\(names[0]) or \(last)" }
+        return "\(names.dropLast().joined(separator: ", ")), or \(last)"
     }
 }
 
