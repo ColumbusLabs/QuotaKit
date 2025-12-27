@@ -886,11 +886,15 @@ private final class ProviderSwitcherView: NSView {
     private let weeklyRemainingProvider: (UsageProvider) -> Double?
     private var buttons: [NSButton] = []
     private var weeklyIndicators: [ObjectIdentifier: WeeklyIndicator] = [:]
+    private var segmentWidths: [CGFloat] = []
     private let selectedBackground = NSColor.controlAccentColor.cgColor
     private let unselectedBackground = NSColor.clear.cgColor
     private let selectedTextColor = NSColor.white
     private let unselectedTextColor = NSColor.secondaryLabelColor
     private let stackedIcons: Bool
+    private let useTwoRows: Bool
+    private let rowSpacing: CGFloat
+    private let rowHeight: CGFloat
     private var preferredWidth: CGFloat = 0
 
     init(
@@ -902,6 +906,7 @@ private final class ProviderSwitcherView: NSView {
         weeklyRemainingProvider: @escaping (UsageProvider) -> Double?,
         onSelect: @escaping (UsageProvider) -> Void)
     {
+        let minimumGap: CGFloat = 1
         self.segments = providers.map { provider in
             let fullTitle = Self.switcherTitle(for: provider)
             let icon = iconProvider(provider)
@@ -917,18 +922,35 @@ private final class ProviderSwitcherView: NSView {
         self.showsIcons = showsIcons
         self.weeklyRemainingProvider = weeklyRemainingProvider
         self.stackedIcons = showsIcons && providers.count > 3
-        let height: CGFloat = self.stackedIcons ? 36 : 30
+        let initialOuterPadding = Self.switcherOuterPadding(
+            for: width,
+            count: self.segments.count,
+            minimumGap: minimumGap)
+        let initialMaxAllowedSegmentWidth = Self.maxAllowedUniformSegmentWidth(
+            for: width,
+            count: self.segments.count,
+            outerPadding: initialOuterPadding,
+            minimumGap: minimumGap)
+        self.useTwoRows = Self.shouldUseTwoRows(
+            count: self.segments.count,
+            maxAllowedSegmentWidth: initialMaxAllowedSegmentWidth,
+            stackedIcons: self.stackedIcons)
+        self.rowSpacing = self.stackedIcons ? 4 : 2
+        self.rowHeight = self.stackedIcons ? 36 : 30
+        let height: CGFloat = self.useTwoRows ? (self.rowHeight * 2 + self.rowSpacing) : self.rowHeight
         self.preferredWidth = width
         super.init(frame: NSRect(x: 0, y: 0, width: width, height: height))
 
+        let layoutCount = self.useTwoRows
+            ? Int(ceil(Double(self.segments.count) / 2.0))
+            : self.segments.count
         let outerPadding: CGFloat = Self.switcherOuterPadding(
             for: width,
-            count: self.segments.count,
-            minimumGap: 1)
-        let minimumGap: CGFloat = 1
+            count: layoutCount,
+            minimumGap: minimumGap)
         let maxAllowedSegmentWidth = Self.maxAllowedUniformSegmentWidth(
             for: width,
-            count: self.segments.count,
+            count: layoutCount,
             outerPadding: outerPadding,
             minimumGap: minimumGap)
 
@@ -989,13 +1011,43 @@ private final class ProviderSwitcherView: NSView {
             self.addSubview(button)
         }
 
-        if self.stackedIcons {
-            self.applyNonUniformSegmentWidths(
+        let uniformWidth: CGFloat
+        if self.useTwoRows || !self.stackedIcons {
+            uniformWidth = self.applyUniformSegmentWidth(maxAllowedWidth: maxAllowedSegmentWidth)
+            if uniformWidth > 0 {
+                self.segmentWidths = Array(repeating: uniformWidth, count: self.buttons.count)
+            }
+        } else {
+            self.segmentWidths = self.applyNonUniformSegmentWidths(
                 totalWidth: width,
                 outerPadding: outerPadding,
                 minimumGap: minimumGap)
-        } else {
-            _ = self.applyUniformSegmentWidth(maxAllowedWidth: maxAllowedSegmentWidth)
+            uniformWidth = 0
+        }
+
+        self.applyLayout(
+            outerPadding: outerPadding,
+            minimumGap: minimumGap,
+            uniformWidth: uniformWidth)
+        if width > 0 {
+            self.preferredWidth = width
+            self.frame.size.width = width
+        }
+
+        self.updateButtonStyles()
+    }
+
+    private func applyLayout(
+        outerPadding: CGFloat,
+        minimumGap: CGFloat,
+        uniformWidth: CGFloat)
+    {
+        if self.useTwoRows {
+            self.applyTwoRowLayout(
+                outerPadding: outerPadding,
+                minimumGap: minimumGap,
+                uniformWidth: uniformWidth)
+            return
         }
 
         if self.buttons.count == 2 {
@@ -1010,7 +1062,10 @@ private final class ProviderSwitcherView: NSView {
                 right.centerYAnchor.constraint(equalTo: self.centerYAnchor),
                 gap,
             ])
-        } else if self.buttons.count == 3 {
+            return
+        }
+
+        if self.buttons.count == 3 {
             let left = self.buttons[0]
             let mid = self.buttons[1]
             let right = self.buttons[2]
@@ -1032,33 +1087,136 @@ private final class ProviderSwitcherView: NSView {
                 leftGap,
                 rightGap,
             ])
-        } else if self.buttons.count >= 4 {
-            let stack = NSStackView(views: self.buttons)
-            stack.orientation = .horizontal
-            stack.alignment = self.stackedIcons ? .top : .centerY
-            stack.distribution = .fill
-            stack.spacing = minimumGap
-            stack.translatesAutoresizingMaskIntoConstraints = false
-            self.addSubview(stack)
+            return
+        }
+
+        if self.buttons.count >= 4 {
+            let widths = self.segmentWidths.isEmpty
+                ? self.buttons.map { ceil($0.fittingSize.width) }
+                : self.segmentWidths
+            let totalWidth = widths.reduce(0, +) + minimumGap * CGFloat(max(0, widths.count - 1))
+            let rowContainer = NSView()
+            rowContainer.translatesAutoresizingMaskIntoConstraints = false
+            self.addSubview(rowContainer)
+
+            let leading = rowContainer.leadingAnchor.constraint(
+                greaterThanOrEqualTo: self.leadingAnchor,
+                constant: outerPadding)
+            leading.priority = .defaultHigh
+            let trailing = rowContainer.trailingAnchor.constraint(
+                lessThanOrEqualTo: self.trailingAnchor,
+                constant: -outerPadding)
+            trailing.priority = .defaultHigh
 
             NSLayoutConstraint.activate([
-                stack.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: outerPadding),
-                stack.trailingAnchor.constraint(equalTo: self.trailingAnchor, constant: -outerPadding),
-                stack.topAnchor.constraint(equalTo: self.topAnchor),
-                stack.bottomAnchor.constraint(equalTo: self.bottomAnchor),
+                rowContainer.centerXAnchor.constraint(equalTo: self.centerXAnchor),
+                rowContainer.topAnchor.constraint(equalTo: self.topAnchor),
+                rowContainer.bottomAnchor.constraint(equalTo: self.bottomAnchor),
+                rowContainer.widthAnchor.constraint(equalToConstant: totalWidth),
+                leading,
+                trailing,
             ])
-        } else if let first = self.buttons.first {
+
+            var xOffset: CGFloat = 0
+            for (index, button) in self.buttons.enumerated() {
+                let width = index < widths.count ? widths[index] : 0
+                NSLayoutConstraint.activate([
+                    button.leadingAnchor.constraint(equalTo: rowContainer.leadingAnchor, constant: xOffset),
+                    button.centerYAnchor.constraint(equalTo: rowContainer.centerYAnchor),
+                ])
+                xOffset += width + minimumGap
+            }
+            return
+        }
+
+        if let first = self.buttons.first {
             NSLayoutConstraint.activate([
                 first.centerXAnchor.constraint(equalTo: self.centerXAnchor),
                 first.centerYAnchor.constraint(equalTo: self.centerYAnchor),
             ])
         }
-        if width > 0 {
-            self.preferredWidth = width
-            self.frame.size.width = width
-        }
+    }
 
-        self.updateButtonStyles()
+    private func applyTwoRowLayout(
+        outerPadding: CGFloat,
+        minimumGap: CGFloat,
+        uniformWidth: CGFloat)
+    {
+        let splitIndex = Int(ceil(Double(self.buttons.count) / 2.0))
+        let topButtons = Array(self.buttons.prefix(splitIndex))
+        let bottomButtons = Array(self.buttons.dropFirst(splitIndex))
+
+        let columns = max(topButtons.count, bottomButtons.count)
+        let totalWidth = uniformWidth * CGFloat(columns) + minimumGap * CGFloat(max(0, columns - 1))
+        let gridContainer = NSView()
+        gridContainer.translatesAutoresizingMaskIntoConstraints = false
+        self.addSubview(gridContainer)
+
+        let leading = gridContainer.leadingAnchor.constraint(
+            greaterThanOrEqualTo: self.leadingAnchor,
+            constant: outerPadding)
+        leading.priority = .defaultHigh
+        let trailing = gridContainer.trailingAnchor.constraint(
+            lessThanOrEqualTo: self.trailingAnchor,
+            constant: -outerPadding)
+        trailing.priority = .defaultHigh
+
+        NSLayoutConstraint.activate([
+            gridContainer.centerXAnchor.constraint(equalTo: self.centerXAnchor),
+            gridContainer.topAnchor.constraint(equalTo: self.topAnchor),
+            gridContainer.bottomAnchor.constraint(equalTo: self.bottomAnchor),
+            gridContainer.widthAnchor.constraint(equalToConstant: totalWidth),
+            leading,
+            trailing,
+        ])
+
+        let topRow = NSView()
+        topRow.translatesAutoresizingMaskIntoConstraints = false
+        gridContainer.addSubview(topRow)
+
+        let bottomRow = NSView()
+        bottomRow.translatesAutoresizingMaskIntoConstraints = false
+        gridContainer.addSubview(bottomRow)
+
+        NSLayoutConstraint.activate([
+            topRow.leadingAnchor.constraint(equalTo: gridContainer.leadingAnchor),
+            topRow.trailingAnchor.constraint(equalTo: gridContainer.trailingAnchor),
+            topRow.topAnchor.constraint(equalTo: gridContainer.topAnchor),
+            topRow.heightAnchor.constraint(equalToConstant: self.rowHeight),
+            bottomRow.leadingAnchor.constraint(equalTo: gridContainer.leadingAnchor),
+            bottomRow.trailingAnchor.constraint(equalTo: gridContainer.trailingAnchor),
+            bottomRow.bottomAnchor.constraint(equalTo: gridContainer.bottomAnchor),
+            bottomRow.heightAnchor.constraint(equalToConstant: self.rowHeight),
+            bottomRow.topAnchor.constraint(equalTo: topRow.bottomAnchor, constant: self.rowSpacing),
+        ])
+
+        for index in 0..<columns {
+            let xOffset = CGFloat(index) * (uniformWidth + minimumGap)
+            if index < topButtons.count {
+                let button = topButtons[index]
+                NSLayoutConstraint.activate([
+                    button.leadingAnchor.constraint(equalTo: gridContainer.leadingAnchor, constant: xOffset),
+                    button.centerYAnchor.constraint(equalTo: topRow.centerYAnchor),
+                ])
+            }
+            if index < bottomButtons.count {
+                let button = bottomButtons[index]
+                NSLayoutConstraint.activate([
+                    button.leadingAnchor.constraint(equalTo: gridContainer.leadingAnchor, constant: xOffset),
+                    button.centerYAnchor.constraint(equalTo: bottomRow.centerYAnchor),
+                ])
+            }
+        }
+    }
+
+    private static func shouldUseTwoRows(
+        count: Int,
+        maxAllowedSegmentWidth: CGFloat,
+        stackedIcons: Bool) -> Bool
+    {
+        guard count > 1 else { return false }
+        let minimumComfortableAverage: CGFloat = stackedIcons ? 44 : 54
+        return maxAllowedSegmentWidth < minimumComfortableAverage
     }
 
     private static func switcherOuterPadding(for width: CGFloat, count: Int, minimumGap: CGFloat) -> CGFloat {
@@ -1167,18 +1325,19 @@ private final class ProviderSwitcherView: NSView {
         return finalWidth
     }
 
+    @discardableResult
     private func applyNonUniformSegmentWidths(
         totalWidth: CGFloat,
         outerPadding: CGFloat,
-        minimumGap: CGFloat)
+        minimumGap: CGFloat) -> [CGFloat]
     {
-        guard !self.buttons.isEmpty else { return }
+        guard !self.buttons.isEmpty else { return [] }
 
         let count = self.buttons.count
         let available = totalWidth -
             outerPadding * 2 -
             minimumGap * CGFloat(max(0, count - 1))
-        guard available > 0 else { return }
+        guard available > 0 else { return [] }
 
         func evenFloor(_ value: CGFloat) -> CGFloat {
             var v = floor(value)
@@ -1231,6 +1390,8 @@ private final class ProviderSwitcherView: NSView {
         for (index, button) in self.buttons.enumerated() where index < widths.count {
             button.widthAnchor.constraint(equalToConstant: widths[index]).isActive = true
         }
+
+        return widths
     }
 
     private static func maxAllowedUniformSegmentWidth(
@@ -1340,255 +1501,4 @@ private final class ProviderSwitcherView: NSView {
         case .copilot: "Copilot"
         }
     }
-}
-
-private final class PaddedToggleButton: NSButton {
-    var contentPadding = NSEdgeInsets(top: 4, left: 7, bottom: 4, right: 7) {
-        didSet {
-            if oldValue.top != self.contentPadding.top ||
-                oldValue.left != self.contentPadding.left ||
-                oldValue.bottom != self.contentPadding.bottom ||
-                oldValue.right != self.contentPadding.right
-            {
-                self.invalidateIntrinsicContentSize()
-            }
-        }
-    }
-
-    override var intrinsicContentSize: NSSize {
-        let size = super.intrinsicContentSize
-        return NSSize(
-            width: size.width + self.contentPadding.left + self.contentPadding.right,
-            height: size.height + self.contentPadding.top + self.contentPadding.bottom)
-    }
-}
-
-private final class InlineIconToggleButton: NSButton {
-    private let iconView = NSImageView()
-    private let titleField = NSTextField(labelWithString: "")
-    private let stack = NSStackView()
-    private var paddingConstraints: [NSLayoutConstraint] = []
-    private var iconSizeConstraints: [NSLayoutConstraint] = []
-
-    var contentPadding = NSEdgeInsets(top: 4, left: 7, bottom: 4, right: 7) {
-        didSet {
-            self.paddingConstraints.first { $0.firstAttribute == .top }?.constant = self.contentPadding.top
-            self.paddingConstraints.first { $0.firstAttribute == .leading }?.constant = self.contentPadding.left
-            self.paddingConstraints.first { $0.firstAttribute == .trailing }?.constant = -self.contentPadding.right
-            self.paddingConstraints.first { $0.firstAttribute == .bottom }?.constant = -(self.contentPadding.bottom + 4)
-            self.invalidateIntrinsicContentSize()
-        }
-    }
-
-    override var title: String {
-        get { "" }
-        set {
-            super.title = ""
-            super.alternateTitle = ""
-            super.attributedTitle = NSAttributedString(string: "")
-            super.attributedAlternateTitle = NSAttributedString(string: "")
-            self.titleField.stringValue = newValue
-            self.invalidateIntrinsicContentSize()
-        }
-    }
-
-    override var image: NSImage? {
-        get { nil }
-        set {
-            super.image = nil
-            super.alternateImage = nil
-            self.iconView.image = newValue
-            self.invalidateIntrinsicContentSize()
-        }
-    }
-
-    func setContentTintColor(_ color: NSColor?) {
-        self.iconView.contentTintColor = color
-        self.titleField.textColor = color
-    }
-
-    override var intrinsicContentSize: NSSize {
-        let size = self.stack.fittingSize
-        return NSSize(
-            width: size.width + self.contentPadding.left + self.contentPadding.right,
-            height: size.height + self.contentPadding.top + self.contentPadding.bottom)
-    }
-
-    init(title: String, image: NSImage, target: AnyObject?, action: Selector?) {
-        super.init(frame: .zero)
-        self.target = target
-        self.action = action
-        self.configure()
-        self.title = title
-        self.image = image
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        nil
-    }
-
-    private func configure() {
-        self.bezelStyle = .regularSquare
-        self.isBordered = false
-        self.setButtonType(.toggle)
-        self.controlSize = .small
-        self.wantsLayer = true
-
-        self.iconView.imageScaling = .scaleNone
-        self.iconView.translatesAutoresizingMaskIntoConstraints = false
-        self.titleField.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
-        self.titleField.alignment = .left
-        self.titleField.lineBreakMode = .byTruncatingTail
-        self.titleField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        self.titleField.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        self.setContentTintColor(NSColor.secondaryLabelColor)
-
-        self.stack.orientation = .horizontal
-        self.stack.alignment = .centerY
-        self.stack.spacing = 1
-        self.stack.translatesAutoresizingMaskIntoConstraints = false
-        self.stack.addArrangedSubview(self.iconView)
-        self.stack.addArrangedSubview(self.titleField)
-        self.addSubview(self.stack)
-
-        let iconWidth = self.iconView.widthAnchor.constraint(equalToConstant: 16)
-        let iconHeight = self.iconView.heightAnchor.constraint(equalToConstant: 16)
-        self.iconSizeConstraints = [iconWidth, iconHeight]
-
-        let top = self.stack.topAnchor.constraint(
-            equalTo: self.topAnchor,
-            constant: self.contentPadding.top)
-        let leading = self.stack.leadingAnchor.constraint(
-            greaterThanOrEqualTo: self.leadingAnchor,
-            constant: self.contentPadding.left)
-        let trailing = self.stack.trailingAnchor.constraint(
-            lessThanOrEqualTo: self.trailingAnchor,
-            constant: -self.contentPadding.right)
-        let centerX = self.stack.centerXAnchor.constraint(equalTo: self.centerXAnchor)
-        centerX.priority = .defaultHigh
-        let bottom = self.stack.bottomAnchor.constraint(
-            lessThanOrEqualTo: self.bottomAnchor,
-            constant: -(self.contentPadding.bottom + 4))
-        self.paddingConstraints = [top, leading, trailing, bottom, centerX]
-
-        NSLayoutConstraint.activate(self.paddingConstraints + self.iconSizeConstraints)
-    }
-}
-
-private final class StackedToggleButton: NSButton {
-    private let iconView = NSImageView()
-    private let titleField = NSTextField(labelWithString: "")
-    private let stack = NSStackView()
-    private var paddingConstraints: [NSLayoutConstraint] = []
-    private var iconSizeConstraints: [NSLayoutConstraint] = []
-
-    var contentPadding = NSEdgeInsets(top: 2, left: 4, bottom: 2, right: 4) {
-        didSet {
-            self.paddingConstraints.first { $0.firstAttribute == .top }?.constant = self.contentPadding.top
-            self.paddingConstraints.first { $0.firstAttribute == .leading }?.constant = self.contentPadding.left
-            self.paddingConstraints.first { $0.firstAttribute == .trailing }?.constant = -self.contentPadding.right
-            self.paddingConstraints.first { $0.firstAttribute == .bottom }?.constant = -self.contentPadding.bottom
-            self.invalidateIntrinsicContentSize()
-        }
-    }
-
-    override var title: String {
-        get { "" }
-        set {
-            super.title = ""
-            super.alternateTitle = ""
-            super.attributedTitle = NSAttributedString(string: "")
-            super.attributedAlternateTitle = NSAttributedString(string: "")
-            self.titleField.stringValue = newValue
-            self.invalidateIntrinsicContentSize()
-        }
-    }
-
-    override var image: NSImage? {
-        get { nil }
-        set {
-            super.image = nil
-            super.alternateImage = nil
-            self.iconView.image = newValue
-            self.invalidateIntrinsicContentSize()
-        }
-    }
-
-    func setContentTintColor(_ color: NSColor?) {
-        self.iconView.contentTintColor = color
-        self.titleField.textColor = color
-    }
-
-    override var intrinsicContentSize: NSSize {
-        let size = self.stack.fittingSize
-        return NSSize(
-            width: size.width + self.contentPadding.left + self.contentPadding.right,
-            height: size.height + self.contentPadding.top + self.contentPadding.bottom)
-    }
-
-    init(title: String, image: NSImage, target: AnyObject?, action: Selector?) {
-        super.init(frame: .zero)
-        self.target = target
-        self.action = action
-        self.configure()
-        self.title = title
-        self.image = image
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        nil
-    }
-
-    private func configure() {
-        self.bezelStyle = .regularSquare
-        self.isBordered = false
-        self.setButtonType(.toggle)
-        self.controlSize = .small
-        self.wantsLayer = true
-
-        self.iconView.imageScaling = .scaleNone
-        self.iconView.translatesAutoresizingMaskIntoConstraints = false
-        self.titleField.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize - 2)
-        self.titleField.alignment = .center
-        self.titleField.lineBreakMode = .byTruncatingTail
-        self.setContentTintColor(NSColor.secondaryLabelColor)
-
-        self.stack.orientation = .vertical
-        self.stack.alignment = .centerX
-        self.stack.spacing = 0
-        self.stack.translatesAutoresizingMaskIntoConstraints = false
-        self.stack.addArrangedSubview(self.iconView)
-        self.stack.addArrangedSubview(self.titleField)
-        self.addSubview(self.stack)
-
-        let iconWidth = self.iconView.widthAnchor.constraint(equalToConstant: 16)
-        let iconHeight = self.iconView.heightAnchor.constraint(equalToConstant: 16)
-        self.iconSizeConstraints = [iconWidth, iconHeight]
-
-        // Avoid subpixel centering: pin from the top so the icon sits on whole-point coordinates.
-        // Force an even layout width (button width minus padding) so the icon doesn't land on 0.5pt centers.
-        // Reserve some bottom space for the "weekly remaining" indicator line.
-        let top = self.stack.topAnchor.constraint(
-            equalTo: self.topAnchor,
-            constant: self.contentPadding.top)
-        let leading = self.stack.leadingAnchor.constraint(
-            equalTo: self.leadingAnchor,
-            constant: self.contentPadding.left)
-        let trailing = self.stack.trailingAnchor.constraint(
-            equalTo: self.trailingAnchor,
-            constant: -self.contentPadding.right)
-        let bottom = self.stack.bottomAnchor.constraint(
-            lessThanOrEqualTo: self.bottomAnchor,
-            constant: -(self.contentPadding.bottom + 4))
-        self.paddingConstraints = [top, leading, trailing, bottom]
-
-        NSLayoutConstraint.activate(self.paddingConstraints + self.iconSizeConstraints)
-    }
-}
-
-extension Notification.Name {
-    static let codexbarOpenSettings = Notification.Name("codexbarOpenSettings")
-    static let codexbarDebugBlinkNow = Notification.Name("codexbarDebugBlinkNow")
 }
