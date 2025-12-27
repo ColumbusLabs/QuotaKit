@@ -33,6 +33,7 @@
 - Droid: try all detected browser profiles before giving up.
 - Providers: hide z.ai in the menu until an API key is set.
 - Menu: keep the refresh row from dismissing the menu.
+- Menu: align switcher bar with the “show usage as used” toggle.
 - Antigravity: fix lsof port filtering by ANDing listen + pid conditions. Thanks @shaw-baobao!
 - Claude: default to Claude Code OAuth usage API (credentials from Keychain or `~/.claude/.credentials.json`), with Debug selector + `--claude-source` CLI override (OAuth/Web/CLI).
 - OpenAI web: allow importing any signed-in browser session when Codex email is unknown (first-run friendly).
