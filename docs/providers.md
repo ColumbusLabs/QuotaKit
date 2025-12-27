@@ -17,9 +17,10 @@ read_when:
 - Status: Statuspage.io (OpenAI).
 
 ## Claude
-- Primary: Claude web API (cookies).
-- CLI fallback only when no Claude web cookies are found.
-- Debug-only override: OAuth usage API (`https://api.anthropic.com/api/oauth/usage`) using Claude CLI credentials
+- Primary: Claude OAuth usage API when CLI credentials are available.
+- Web API (cookies) fallback when OAuth is missing.
+- CLI fallback only when no OAuth credentials or Claude web cookies are found.
+- Debug override: OAuth usage API (`https://api.anthropic.com/api/oauth/usage`) using Claude CLI credentials.
   (keychain first, then `~/.claude/.credentials.json`).
 - Optional (debug): web cookie enrichment for Extra usage spend/limit when the CLI source is forced (see `docs/claude.md`).
 - Handles Sonnet-only weekly bar when present; legacy Opus label fallback.
