@@ -286,6 +286,7 @@ struct UsageMenuCardHeaderSectionView: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 2)
+        .padding(.bottom, self.model.subtitleStyle == .error ? 2 : 0)
         .frame(minWidth: self.width, maxWidth: .infinity, alignment: .leading)
     }
 }
