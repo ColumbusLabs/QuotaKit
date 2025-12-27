@@ -26,12 +26,11 @@ enum FactoryLocalStorageImporter {
 
         let candidates = safariCandidates + chromeCandidates
         for candidate in candidates {
-            let match: WorkOSTokenMatch?
-            switch candidate.kind {
+            let match: WorkOSTokenMatch? = switch candidate.kind {
             case let .chromeLevelDB(levelDBURL):
-                match = self.readWorkOSToken(from: levelDBURL)
+                self.readWorkOSToken(from: levelDBURL)
             case let .safariSQLite(dbURL):
-                match = self.readWorkOSTokenFromSafariSQLite(dbURL: dbURL, logger: log)
+                self.readWorkOSTokenFromSafariSQLite(dbURL: dbURL, logger: log)
             }
             guard let token = match else { continue }
             log("Found WorkOS refresh token in \(candidate.label)")
@@ -87,8 +86,7 @@ enum FactoryLocalStorageImporter {
                         .appendingPathComponent("com.openai.atlas")
                         .appendingPathComponent("browser-data")
                         .appendingPathComponent("host"),
-                    "ChatGPT Atlas"
-                ),
+                    "ChatGPT Atlas"),
                 (appSupport.appendingPathComponent("Chromium"), "Chromium"),
             ]
         }
@@ -167,12 +165,11 @@ enum FactoryLocalStorageImporter {
 
         var seen = Set<String>()
         return candidates.filter { candidate in
-            let key: String
-            switch candidate.kind {
+            let key: String = switch candidate.kind {
             case let .chromeLevelDB(url):
-                key = url.path
+                url.path
             case let .safariSQLite(url):
-                key = url.path
+                url.path
             }
             if seen.contains(key) { return false }
             seen.insert(key)
@@ -182,8 +179,8 @@ enum FactoryLocalStorageImporter {
 
     private static func extractSafariOriginHost(from ascii: String) -> String? {
         let targets = ["app.factory.ai", "auth.factory.ai", "factory.ai"]
-        for host in targets {
-            if ascii.contains(host) { return host }
+        for host in targets where ascii.contains(host) {
+            return host
         }
         return nil
     }
@@ -271,7 +268,8 @@ enum FactoryLocalStorageImporter {
         defer { sqlite3_close(db) }
 
         let tables = self.fetchTableNames(db: db)
-        let table = tables.contains("ItemTable") ? "ItemTable" : (tables.contains("localstorage") ? "localstorage" : nil)
+        let table = tables
+            .contains("ItemTable") ? "ItemTable" : (tables.contains("localstorage") ? "localstorage" : nil)
         guard let table else {
             logger?("Safari local storage missing ItemTable/localstorage tables")
             return nil
