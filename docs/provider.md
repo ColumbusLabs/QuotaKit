@@ -10,70 +10,83 @@ read_when:
 
 Goal: adding a provider should feel like:
 - add one folder
-- implement one fetcher
-- register one descriptor
+- define one descriptor + strategies
+- add one implementation (UI hooks only)
 - done (tests + docs)
 
-This doc is both:
-- **how it works today** (CodexBar 2025-12)
-- **target shape** (what we should refactor towards)
+This doc describes the **current provider architecture** (post-macro registry) and the exact steps to add a new provider.
 
 ## Terms
 - **Provider**: a source of usage/quota/status data (Codex, Claude, Gemini, Antigravity, Cursor, …).
+- **Descriptor**: the single source of truth for labels, URLs, defaults, and fetch strategies.
+- **Fetch strategy**: one concrete way to obtain usage (CLI, web cookies, OAuth API, local probe, etc.).
 - **Host APIs**: shared capabilities we provide to providers (Keychain, browser cookies, PTY, HTTP, WebView scrape, token-cost).
 - **Identity fields**: email/org/plan/loginMethod. Must stay **siloed per provider**.
 
-## Current architecture (today)
-- `Sources/CodexBarCore`: probes + fetchers + parsing + shared utilities.
-- `Sources/CodexBar`: registry + settings + UI.
-- Provider IDs are compile-time: `UsageProvider` enum.
-- Provider wiring:
-  - metadata: `ProviderDefaults.metadata`
-  - fetching: `ProviderRegistry.specs(...)` → `ProviderSpec.fetch` producing `UsageSnapshot`
+## Architecture overview (now)
+- `Sources/CodexBarCore`: provider descriptors + fetch strategies + probes + parsing + shared utilities.
+- `Sources/CodexBar`: UI/state + provider implementations (settings/login/menu hooks only).
+- Provider IDs are compile-time: `UsageProvider` enum (used for persistence + widgets).
+- Provider wiring is descriptor-driven:
+  - `ProviderDescriptor` owns labels, URLs, default enablement, and fetch pipeline.
+  - `ProviderFetchStrategy` objects implement concrete fetch paths.
+  - CLI + app both call the same descriptor/fetch pipeline.
 
 Common building blocks already exist:
 - PTY: `TTYCommandRunner`
 - subprocess: `SubprocessRunner`
 - cookie import: `BrowserCookieImporter` (Safari/Chrome/Firefox adapters)
 - OpenAI dashboard web scrape: `OpenAIDashboardFetcher` (WKWebView + JS)
-- token cost: `CCUsageFetcher`
+- cost usage: local log scanner (Codex + Claude)
 
-Pain today:
-- adding a provider requires touching many `switch provider` sites (UI + icon + settings + menu actions).
-- shared primitives exist, but not presented as a clear “host API surface”.
+The old “switch provider” wiring is gone. Everything should be driven by the descriptor and its strategies.
 
-## Target architecture (what we should refactor towards)
+## Provider descriptor (source of truth)
 
-### 1) “Provider descriptor” is the source of truth
 Introduce a single descriptor per provider:
-- `id` (stable string or enum wrapper)
-- display/labels/URLs
-- capabilities (supportsCredits, supportsStatusPolling, supportsTokenCost, supportsWebLogin, etc.)
-- status strategy (Statuspage vs Workspace product feed vs link-only)
-- icon/branding metadata
+- `id` (stable `UsageProvider`)
+- display/labels/URLs (menu title, dashboard URL, status URL)
+- UI branding (icon name, primary color)
+- capabilities (supportsCredits, supportsTokenCost, supportsStatusPolling, supportsLogin)
+- fetch pipeline (ordered strategies + resolution rules)
+- CLI metadata (cliName, aliases, allowed `--source` modes, version provider)
 
 UI and settings should become descriptor-driven:
 - no provider-specific branching for labels/links/toggle titles
 - minimal provider-specific UI (only when a provider truly needs bespoke UX)
 
-### 2) Host APIs are explicit, small, testable
+## Fetch strategies
+
+A provider declares a pipeline of strategies, in priority order. Each strategy:
+- advertises a `kind` (cli, web cookies, oauth, api token, local probe, web dashboard)
+- declares availability (checks settings, cookies, env vars, installed CLI)
+- fetches `UsageSnapshot` (and optional credits/dashboard)
+- can be filtered by CLI `--source` or app settings
+
+The pipeline resolves to the best available strategy, and falls back on failure when allowed.
+
+## Host APIs are explicit, small, testable
 Expose a narrow set of protocols/structs that provider implementations can use:
 - `KeychainAPI`: read-only, allowlisted service/account pairs
 - `BrowserCookieAPI`: import cookies by domain list; returns cookie header + diagnostics
 - `PTYAPI`: run CLI interactions with timeouts + “send on substring” + stop rules
 - `HTTPAPI`: URLSession wrapper with domain allowlist + standard headers + tracing
 - `WebViewScrapeAPI`: WKWebView lease + `evaluateJavaScript` + snapshot dumping
-- `TokenCostAPI`: `ccusage` integration (Codex/Claude today; extend later)
+- `TokenCostAPI`: Cost Usage local-log integration (Codex/Claude today; extend later)
 - `StatusAPI`: status polling helpers (Statuspage + Workspace incidents)
 - `LoggerAPI`: scoped logger + redaction helpers
 
 Rule: providers do not talk to `FileManager`, `Security`, or “browser internals” directly unless they *are* the host API implementation.
 
-### 3) Provider-specific code lives in one place
-Organize provider code by folder, so it’s obvious what is “provider” vs “host”:
-- `Sources/CodexBarCore/Host/*` (shared host APIs + implementations)
-- `Sources/CodexBarCore/Providers/<ProviderID>/*` (provider-specific probes/parsers/models)
-- `Sources/CodexBar/Providers/*` (provider-specific UI bits only; prefer generic UI)
+## Provider-specific code layout
+- `Sources/CodexBarCore/Providers/<ProviderID>/`
+  - `<ProviderID>Descriptor.swift` (descriptor + strategy pipeline)
+  - `<ProviderID>Strategies.swift` (strategy implementations)
+  - `<ProviderID>Probe.swift` / `<ProviderID>Fetcher.swift`
+  - `<ProviderID>Models.swift`
+  - `<ProviderID>Parser.swift` (if text/HTML parsing)
+- `Sources/CodexBar/Providers/<ProviderID>/`
+  - `<ProviderID>ProviderImplementation.swift` (settings/login UI hooks only)
 
 ## Guardrails (non-negotiable)
 - Identity silo: never display identity/plan fields from provider A inside provider B UI.
@@ -81,36 +94,33 @@ Organize provider code by folder, so it’s obvious what is “provider” vs �
 - Reliability: providers must be timeout-bounded; no unbounded waits on network/PTY/UI.
 - Degradation: prefer cached data over flapping; show clear errors when stale.
 
-## Adding a new provider (today)
+## Adding a new provider (current flow)
 
 Checklist:
 - Add `UsageProvider` case in `Sources/CodexBarCore/Providers/Providers.swift`.
-- Add `ProviderMetadata` entry in `ProviderDefaults.metadata` (app-side defaults/labels).
-- Implement probe/fetcher in `Sources/CodexBarCore/Providers/<ProviderID>/` returning `UsageSnapshot`.
-  - Prefer a small `*Probe` struct with `fetch() async throws -> <Snapshot>`.
-  - Add `<Snapshot>.toUsageSnapshot()` mapping.
-- Add app implementation in `Sources/CodexBar/Providers/<ProviderID>/` conforming to `ProviderImplementation`.
-- Register it in `Sources/CodexBar/Providers/Shared/ProviderCatalog.swift`.
-- Optional: expose shared settings toggles via `ProviderImplementation.settingsToggles(context:)` (no custom views).
-- UI touchpoints should be rare now: icon style + login flow + any truly unique UX.
-- Status: add status URL/product ID in metadata; `UsageStore.refreshStatus` uses this.
-- Tests: add or extend tests in `Tests/CodexBarTests` for parsing + registry/metadata.
-- Docs: update `docs/provider.md` with auth story + quirks.
-
-## Adding a new provider (target shape)
-(Once refactor lands.)
-- Create `Sources/CodexBarCore/Providers/<id>/`:
-  - `<id>Provider.swift` (descriptor)
-  - `<id>Probe.swift` / `<id>Fetcher.swift`
-  - `<id>Models.swift` (snapshot types)
-  - `<id>Parser.swift` (if text/HTML parsing)
-- Implement `ProviderImplementation` using injected Host APIs (no direct Keychain/cookie/WKWebView calls).
-- Register descriptor in a single `ProviderCatalog` list.
-- UI + settings auto-populate from the catalog; no additional switches.
-- Add tests for:
-  - snapshot mapping → `UsageSnapshot`
-  - error mapping / timeout behavior
-  - identity silo (provider can’t write into other provider state)
+- Create `Sources/CodexBarCore/Providers/<ProviderID>/`:
+  - `<ProviderID>Descriptor.swift`: define `ProviderDescriptor` + fetch pipeline.
+  - `<ProviderID>Strategies.swift`: implement one or more `ProviderFetchStrategy`.
+  - `<ProviderID>Probe.swift` / `<ProviderID>Fetcher.swift`: concrete fetcher logic.
+  - `<ProviderID>Models.swift`: snapshot structs.
+  - `<ProviderID>Parser.swift` (if needed).
+- Attach `@ProviderRegistration` to the descriptor or implementation (macro auto-registers).
+  - No manual list edits.
+- Add `Sources/CodexBar/Providers/<ProviderID>/<ProviderID>ProviderImplementation.swift`:
+  - `ProviderImplementation` only for settings/login UI hooks.
+- Add icons + color in descriptor:
+  - `iconName` must match `ProviderIcon-<id>` asset.
+  - Color used in menu cards + switcher.
+- If CLI-specific behavior is needed:
+  - add `cliName`, `cliAliases`, `sourceModes`, `versionProvider` in descriptor.
+  - strategies decide which `--source` modes apply.
+- Tests:
+  - `UsageSnapshot` mapping unit tests
+  - strategy availability + fallback tests
+  - CLI provider parsing (aliases + --source validation)
+- Docs:
+  - add provider section in `docs/providers.md` with data source + auth notes
+  - update `docs/provider.md` if the pipeline model changes
 
 ## UI notes (Providers settings)
 Current: checkboxes per provider.

@@ -1,5 +1,5 @@
 ---
-summary: "Provider data sources and parsing overview (Codex, Claude, Gemini, Antigravity, Cursor, Droid/Factory)."
+summary: "Provider data sources and parsing overview (Codex, Claude, Gemini, Antigravity, Cursor, Droid/Factory, z.ai, Copilot)."
 read_when:
   - Adding or modifying provider fetch/parsing
   - Adjusting provider labels, toggles, or metadata
@@ -9,52 +9,56 @@ read_when:
 # Providers
 
 ## Codex
-- Primary (when OpenAI web enabled): OpenAI web dashboard for usage limits + credits.
-- CLI fallback only when no matching web cookies (RPC for 5-hour + weekly limits and credits).
-- Secondary fallback: PTY scrape of `codex /status` if RPC unavailable.
-- Account identity: prefer web when enabled; otherwise RPC; fall back to `~/.codex/auth.json`.
-- OpenAI web integration uses browser cookies and can replace CLI data (see `docs/web-integration.md`).
+- Web dashboard (when enabled): `https://chatgpt.com/codex/settings/usage` via WebView + browser cookies.
+- CLI RPC default: `codex ... app-server` JSON-RPC (`account/read`, `account/rateLimits/read`).
+- CLI PTY fallback: `/status` scrape.
+- Local cost usage: scans `~/.codex/sessions/**/*.jsonl` (last 30 days).
 - Status: Statuspage.io (OpenAI).
+- Details: `docs/codex.md`.
 
 ## Claude
-- Primary: Claude OAuth usage API when CLI credentials are available.
-- Web API (cookies) fallback when OAuth is missing.
-- CLI fallback only when no OAuth credentials or Claude web cookies are found.
-- Debug override: OAuth usage API (`https://api.anthropic.com/api/oauth/usage`) using Claude CLI credentials.
-  (keychain first, then `~/.claude/.credentials.json`).
-- Optional (debug): web cookie enrichment for Extra usage spend/limit when the CLI source is forced (see `docs/claude.md`).
-- Handles Sonnet-only weekly bar when present; legacy Opus label fallback.
+- OAuth API (preferred when CLI credentials exist).
+- Web API (browser cookies) fallback when OAuth missing.
+- CLI PTY fallback when OAuth + web are unavailable.
+- Optional web extras when CLI forced (Extra usage spend/limit).
+- Local cost usage: scans `~/.config/claude/projects/**/*.jsonl` (last 30 days).
 - Status: Statuspage.io (Anthropic).
+- Details: `docs/claude.md`.
 
 ## z.ai
-- API: `https://api.z.ai/api/monitor/usage/quota/limit` using an API token stored in Keychain (Preferences → Providers → z.ai).
-- Shows token and MCP usage windows from the quota limits response.
-- Dashboard: `https://z.ai/manage-apikey/subscription`
-- Status: no public status integration yet.
+- API token from Keychain or `Z_AI_API_KEY` env var.
+- `GET https://api.z.ai/api/monitor/usage/quota/limit`.
+- Status: none yet.
+- Details: `docs/zai.md`.
 
 ## Gemini
-- CLI `/stats` parsing for quota; OAuth-backed API fetch for plan/limits.
-- Status: Google Workspace incidents for the Gemini product.
+- OAuth-backed quota API (`retrieveUserQuota`) using Gemini CLI credentials.
+- Token refresh via Google OAuth if expired.
+- Tier detection via `loadCodeAssist`.
+- Status: Google Workspace incidents (Gemini product).
+- Details: `docs/gemini.md`.
 
 ## Antigravity
-- Local Antigravity language server probe; internal protocol, conservative parsing.
-- Status: Google Workspace incidents for Gemini (same product feed).
-- Details in `docs/antigravity.md`.
+- Local Antigravity language server (internal protocol, HTTPS on localhost).
+- `GetUserStatus` primary; `GetCommandModelConfigs` fallback.
+- Status: Google Workspace incidents (Gemini product).
+- Details: `docs/antigravity.md`.
 
 ## Cursor
-- Web-based: fetches usage from cursor.com API using browser session cookies.
-- Cookie import: Safari (Cookies.binarycookies) → Chrome (encrypted SQLite DB) → Firefox (cookies.sqlite); requires cursor.com + cursor.sh cookies.
-- Fallback: stored session from "Add Account" WebKit login flow.
-- Shows plan usage percentage, on-demand usage, and billing cycle reset.
-- Supports Pro, Enterprise, Team, and Hobby membership types.
+- Web API via browser cookies (`cursor.com` + `cursor.sh`).
+- Fallback: stored WebKit session.
 - Status: Statuspage.io (Cursor).
-- Details in `docs/cursor.md`.
+- Details: `docs/cursor.md`.
 
 ## Droid (Factory)
-- Web-based: fetches usage from app.factory.ai (and auth/api hosts when needed) using browser session cookies or WorkOS refresh tokens from local storage.
-- Cookie import: Safari → Chrome → Firefox; requires factory.ai/app.factory.ai cookies (plus ChatGPT Atlas browser data when installed).
-- Fallback: stored session cookies persisted by CodexBar.
-- Shows Standard + Premium usage and billing period reset.
-- Status: status page at `https://status.factory.ai`.
+- Web API via Factory cookies, bearer tokens, and WorkOS refresh tokens.
+- Multiple fallback strategies (cookies → stored tokens → local storage → WorkOS cookies).
+- Status: `https://status.factory.ai`.
+- Details: `docs/factory.md`.
 
-See also: `docs/claude.md`, `docs/antigravity.md`, `docs/cursor.md`.
+## Copilot
+- GitHub device flow OAuth token + `api.github.com/copilot_internal/user`.
+- Status: Statuspage.io (GitHub).
+- Details: `docs/copilot.md`.
+
+See also: `docs/provider.md` for architecture notes.
