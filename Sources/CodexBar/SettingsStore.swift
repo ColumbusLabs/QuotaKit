@@ -132,6 +132,11 @@ final class SettingsStore {
         didSet { self.schedulePersistZaiAPIToken() }
     }
 
+    /// Copilot API token (stored in Keychain).
+    var copilotAPIToken: String {
+        didSet { self.schedulePersistCopilotAPIToken() }
+    }
+
     private var selectedMenuProviderRaw: String? {
         didSet {
             if let raw = self.selectedMenuProviderRaw {
@@ -183,6 +188,7 @@ final class SettingsStore {
         _ = self.mergeIcons
         _ = self.switcherShowsIcons
         _ = self.zaiAPIToken
+        _ = self.copilotAPIToken
         _ = self.debugLoadingPattern
         _ = self.selectedMenuProvider
         _ = self.providerToggleRevision
@@ -197,11 +203,18 @@ final class SettingsStore {
     @ObservationIgnored private let toggleStore: ProviderToggleStore
     @ObservationIgnored private let zaiTokenStore: any ZaiTokenStoring
     @ObservationIgnored private var zaiTokenPersistTask: Task<Void, Never>?
+    @ObservationIgnored private let copilotTokenStore: any CopilotTokenStoring
+    @ObservationIgnored private var copilotTokenPersistTask: Task<Void, Never>?
     private var providerToggleRevision: Int = 0
 
-    init(userDefaults: UserDefaults = .standard, zaiTokenStore: any ZaiTokenStoring = KeychainZaiTokenStore()) {
+    init(
+        userDefaults: UserDefaults = .standard,
+        zaiTokenStore: any ZaiTokenStoring = KeychainZaiTokenStore(),
+        copilotTokenStore: any CopilotTokenStoring = KeychainCopilotTokenStore())
+    {
         self.userDefaults = userDefaults
         self.zaiTokenStore = zaiTokenStore
+        self.copilotTokenStore = copilotTokenStore
         self.providerOrderRaw = userDefaults.stringArray(forKey: "providerOrder") ?? []
         let raw = userDefaults.string(forKey: "refreshFrequency") ?? RefreshFrequency.fiveMinutes.rawValue
         self.refreshFrequency = RefreshFrequency(rawValue: raw) ?? .fiveMinutes
@@ -229,6 +242,7 @@ final class SettingsStore {
         self.mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true
         self.switcherShowsIcons = userDefaults.object(forKey: "switcherShowsIcons") as? Bool ?? true
         self.zaiAPIToken = (try? zaiTokenStore.loadToken()) ?? ""
+        self.copilotAPIToken = (try? copilotTokenStore.loadToken()) ?? ""
         self.selectedMenuProviderRaw = userDefaults.string(forKey: "selectedMenuProvider")
         self.providerDetectionCompleted = userDefaults.object(
             forKey: "providerDetectionCompleted") as? Bool ?? false
@@ -435,6 +449,31 @@ final class SettingsStore {
             if let error {
                 // Keep value in memory; persist best-effort.
                 CodexBarLog.logger("zai-token-store").error("Failed to persist z.ai token: \(error)")
+            }
+        }
+    }
+
+    private func schedulePersistCopilotAPIToken() {
+        self.copilotTokenPersistTask?.cancel()
+        let token = self.copilotAPIToken
+        let tokenStore = self.copilotTokenStore
+        self.copilotTokenPersistTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 350_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
+                do {
+                    try tokenStore.storeToken(token)
+                    return nil
+                } catch {
+                    return error
+                }
+            }.value
+            if let error {
+                CodexBarLog.logger("copilot-token-store").error("Failed to persist Copilot token: \(error)")
             }
         }
     }

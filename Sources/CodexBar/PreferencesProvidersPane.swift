@@ -135,6 +135,8 @@ struct ProvidersPane: View {
             "local"
         case .factory:
             "web"
+        case .copilot:
+            "api"
         }
     }
 

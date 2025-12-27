@@ -86,8 +86,12 @@ struct MenuDescriptor {
         case .factory?:
             sections.append(Self.usageSection(for: .factory, store: store, settings: settings))
             sections.append(Self.accountSectionForSnapshot(store.snapshot(for: .factory)))
+        case .copilot?:
+            sections.append(Self.usageSection(for: .copilot, store: store, settings: settings))
+            sections.append(Self.accountSectionForSnapshot(store.snapshot(for: .copilot)))
         case nil:
             var addedUsage = false
+
             for enabledProvider in store.enabledProviders() {
                 sections.append(Self.usageSection(for: enabledProvider, store: store, settings: settings))
                 addedUsage = true

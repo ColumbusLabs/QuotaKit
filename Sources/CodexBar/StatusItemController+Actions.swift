@@ -246,6 +246,7 @@ extension StatusItemController {
         case .antigravity: "Antigravity login successful"
         case .cursor: "Cursor login successful"
         case .factory: "Droid login successful"
+        case .copilot: "Copilot login successful"
         }
         let body = "You can return to the app; authentication finished."
         AppNotifications.shared.post(idPrefix: "login-\(provider.rawValue)", title: title, body: body)

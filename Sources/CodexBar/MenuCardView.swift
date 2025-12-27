@@ -593,7 +593,7 @@ extension UsageMenuCardView.Model {
         case .codex:
             if let email = snapshot?.accountEmail, !email.isEmpty { return email }
             if let email = account.email, !email.isEmpty { return email }
-        case .claude, .zai, .gemini, .antigravity, .cursor, .factory:
+        case .claude, .zai, .gemini, .antigravity, .cursor, .factory, .copilot:
             if let email = snapshot?.accountEmail, !email.isEmpty { return email }
         }
         return ""
@@ -604,7 +604,7 @@ extension UsageMenuCardView.Model {
         case .codex:
             if let plan = snapshot?.loginMethod, !plan.isEmpty { return self.planDisplay(plan) }
             if let plan = account.plan, !plan.isEmpty { return Self.planDisplay(plan) }
-        case .claude, .zai, .gemini, .antigravity, .cursor, .factory:
+        case .claude, .zai, .gemini, .antigravity, .cursor, .factory, .copilot:
             if let plan = snapshot?.loginMethod, !plan.isEmpty { return self.planDisplay(plan) }
         }
         return nil
@@ -788,6 +788,8 @@ extension UsageMenuCardView.Model {
             Color(red: 0 / 255, green: 191 / 255, blue: 165 / 255) // #00BFA5 - Cursor teal
         case .factory:
             Color(red: 255 / 255, green: 107 / 255, blue: 53 / 255) // Factory orange
+        case .copilot:
+            Color(red: 168 / 255, green: 85 / 255, blue: 247 / 255) // Purple
         }
     }
 

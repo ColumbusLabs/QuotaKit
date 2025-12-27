@@ -9,6 +9,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case cursor
     case gemini
     case antigravity
+    case copilot
 }
 
 public struct ProviderMetadata: Sendable {
@@ -167,6 +168,20 @@ public enum ProviderDefaults {
             statusPageURL: nil,
             statusLinkURL: "https://www.google.com/appsstatus/dashboard/products/npdyhgECDJ6tB66MxXyo/history",
             statusWorkspaceProductID: "npdyhgECDJ6tB66MxXyo"),
+        .copilot: ProviderMetadata(
+            id: .copilot,
+            displayName: "Copilot",
+            sessionLabel: "Premium",
+            weeklyLabel: "Chat",
+            opusLabel: nil,
+            supportsOpus: false,
+            supportsCredits: false,
+            creditsHint: "",
+            toggleTitle: "Show Copilot usage",
+            cliName: "copilot",
+            defaultEnabled: false,
+            dashboardURL: "https://github.com/settings/copilot",
+            statusPageURL: "https://www.githubstatus.com/"),
         .factory: ProviderMetadata(
             id: .factory,
             displayName: "Droid",

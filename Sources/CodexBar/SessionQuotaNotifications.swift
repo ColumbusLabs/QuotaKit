@@ -46,6 +46,7 @@ final class SessionQuotaNotifier {
         case .antigravity: "Antigravity"
         case .cursor: "Cursor"
         case .factory: "Droid"
+        case .copilot: "Copilot"
         }
 
         let (title, body) = switch transition {

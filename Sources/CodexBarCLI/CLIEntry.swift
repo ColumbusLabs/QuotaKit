@@ -251,6 +251,8 @@ enum CodexBarCLI {
             nil
         case .factory:
             nil
+        case .copilot:
+            nil
         }
     }
 
@@ -263,6 +265,7 @@ enum CodexBarCLI {
         case .antigravity: "antigravity"
         case .cursor: "cursor"
         case .factory: "factory"
+        case .copilot: "copilot"
         }
         guard let raw, !raw.isEmpty else { return (nil, source) }
         if let match = raw.range(of: #"(\d+(?:\.\d+)+)"#, options: .regularExpression) {
@@ -504,6 +507,14 @@ enum CodexBarCLI {
                 let probe = FactoryStatusProbe()
                 let snap = try await probe.fetch()
                 return .success((usage: snap.toUsageSnapshot(), credits: nil))
+            case .copilot:
+                let env = ProcessInfo.processInfo.environment
+                guard let token = env["COPILOT_API_TOKEN"], !token.isEmpty else {
+                    return .failure(URLError(.userAuthenticationRequired)) // Or custom error
+                }
+                let fetcher = CopilotUsageFetcher(token: token)
+                let snap = try await fetcher.fetch()
+                return .success((usage: snap, credits: nil))
             }
         } catch {
             return .failure(error)
@@ -821,7 +832,8 @@ enum CodexBarCLI {
         CodexBar \(version)
 
         Usage:
-          codexbar usage [--format text|json] [--provider codex|claude|zai|gemini|antigravity|both|all]
+          codexbar usage [--format text|json]
+                       [--provider codex|claude|zai|gemini|antigravity|cursor|factory|copilot|both|all]
                        [--no-credits] [--pretty] [--status] [--source <auto|web|cli|oauth>]
                        [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
 
@@ -848,7 +860,8 @@ enum CodexBarCLI {
         CodexBar \(version)
 
         Usage:
-          codexbar [--format text|json] [--provider codex|claude|zai|gemini|antigravity|both|all]
+          codexbar [--format text|json]
+                  [--provider codex|claude|zai|gemini|antigravity|cursor|factory|copilot|both|all]
                   [--no-credits] [--pretty] [--status] [--source <auto|web|cli|oauth>]
                   [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
 
@@ -878,7 +891,10 @@ private struct UsageOptions: CommanderParsable {
         #endif
     }()
 
-    @Option(name: .long("provider"), help: "Provider to query: codex | claude | gemini | antigravity | both | all")
+    @Option(
+        name: .long("provider"),
+        help: "Provider to query: codex | claude | zai | gemini | antigravity | cursor | " +
+            "factory | copilot | both | all")
     var provider: ProviderSelection?
 
     @Option(name: .long("format"), help: "Output format: text | json")
@@ -917,6 +933,7 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
     case antigravity
     case cursor
     case factory
+    case copilot
     case both
     case all
     case custom([UsageProvider])
@@ -930,6 +947,7 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
         case "antigravity": self = .antigravity
         case "cursor": self = .cursor
         case "factory": self = .factory
+        case "copilot": self = .copilot
         case "both": self = .both
         case "all": self = .all
         default: return nil
@@ -945,6 +963,7 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
         case .antigravity: self = .antigravity
         case .cursor: self = .cursor
         case .factory: self = .factory
+        case .copilot: self = .copilot
         }
     }
 
@@ -957,8 +976,9 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
         case .antigravity: [.antigravity]
         case .cursor: [.cursor]
         case .factory: [.factory]
+        case .copilot: [.copilot]
         case .both: [.codex, .claude]
-        case .all: [.codex, .claude, .zai, .cursor, .gemini, .antigravity, .factory]
+        case .all: [.codex, .claude, .zai, .cursor, .gemini, .antigravity, .factory, .copilot]
         case let .custom(providers): providers
         }
     }

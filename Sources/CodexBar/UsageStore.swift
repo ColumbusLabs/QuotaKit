@@ -12,6 +12,7 @@ enum IconStyle {
     case antigravity
     case cursor
     case factory
+    case copilot
     case combined
 }
 
@@ -269,6 +270,7 @@ final class UsageStore {
         case .antigravity: self.antigravityVersion
         case .cursor: self.cursorVersion
         case .factory: nil
+        case .copilot: nil
         }
     }
 
@@ -291,6 +293,12 @@ final class UsageStore {
         if self.isEnabled(.cursor), let snap = self.snapshots[.cursor] {
             return snap
         }
+        if self.isEnabled(.factory), let snap = self.snapshots[.factory] {
+            return snap
+        }
+        if self.isEnabled(.copilot), let snap = self.snapshots[.copilot] {
+            return snap
+        }
         return nil
     }
 
@@ -302,6 +310,8 @@ final class UsageStore {
         if self.isEnabled(.gemini) { return .gemini }
         if self.isEnabled(.zai) { return .zai }
         if self.isEnabled(.claude) { return .claude }
+        if self.isEnabled(.factory) { return .factory }
+        if self.isEnabled(.copilot) { return .copilot }
         return .codex
     }
 
@@ -311,7 +321,9 @@ final class UsageStore {
             (self.isEnabled(.zai) && self.errors[.zai] != nil) ||
             (self.isEnabled(.gemini) && self.errors[.gemini] != nil) ||
             (self.isEnabled(.antigravity) && self.errors[.antigravity] != nil) ||
-            (self.isEnabled(.cursor) && self.errors[.cursor] != nil)
+            (self.isEnabled(.cursor) && self.errors[.cursor] != nil) ||
+            (self.isEnabled(.factory) && self.errors[.factory] != nil) ||
+            (self.isEnabled(.copilot) && self.errors[.copilot] != nil)
     }
 
     func enabledProviders() -> [UsageProvider] {
@@ -1145,6 +1157,10 @@ extension UsageStore {
             case .factory:
                 let text = "Droid debug log not yet implemented"
                 await MainActor.run { self.probeLogs[.factory] = text }
+                return text
+            case .copilot:
+                let text = "Copilot debug log not yet implemented"
+                await MainActor.run { self.probeLogs[.copilot] = text }
                 return text
             }
         }.value

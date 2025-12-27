@@ -14,6 +14,7 @@ enum ProviderCatalog {
         GeminiProviderImplementation(),
         AntigravityProviderImplementation(),
         FactoryProviderImplementation(),
+        CopilotProviderImplementation(),
     ]
 
     /// Lookup for a single provider implementation.
