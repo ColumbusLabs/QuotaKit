@@ -374,10 +374,12 @@ extension StatusItemController {
     }
 
     private func menuCardHeight(for view: NSView, width: CGFloat) -> CGFloat {
-        view.frame = NSRect(origin: .zero, size: NSSize(width: width, height: 1))
+        let maxHeight = CGFloat(10000)
+        view.frame = NSRect(origin: .zero, size: NSSize(width: width, height: maxHeight))
+        view.invalidateIntrinsicContentSize()
         view.layoutSubtreeIfNeeded()
-        let height = view.fittingSize.height
-        return max(1, ceil(height + 2))
+        let fitting = view.fittingSize.height
+        return max(1, ceil(fitting + 6))
     }
 
     private func addMenuCardSections(
