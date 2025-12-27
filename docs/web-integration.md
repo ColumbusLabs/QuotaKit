@@ -24,7 +24,8 @@ browser cookies are found.
 - Web requests go to `chatgpt.com` (same as your browser session).
 
 ## Cookie/session model
-- Import order: Safari → Chrome → Firefox (Safari first to avoid Chrome Keychain prompts when Safari matches).
+- Import order follows provider metadata (currently Safari → Chrome → Firefox; Safari first to avoid Chrome Keychain prompts
+  when Safari matches).
 - Chromium-based forks (including ChatGPT Atlas) are read via the Chrome importer when installed.
 - WebKit uses per-email `WKWebsiteDataStore` so multiple accounts can coexist.
 - Email mismatch: if browser email ≠ Codex CLI email, treat as not logged in for that account (cookies retained for later match).

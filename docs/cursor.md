@@ -24,6 +24,7 @@ Cursor support is implemented: CodexBar can show Cursor usage alongside other pr
 ### How we fetch usage (cookie-based)
 
 1. **Primary: Browser cookie import**
+   - Import order follows provider metadata (currently Safari → Chrome → Firefox).
    - Safari: reads `~/Library/Cookies/Cookies.binarycookies`
    - Chrome: reads encrypted SQLite cookie DB from `~/Library/Application Support/Google/Chrome/*/Cookies`
    - Firefox: reads SQLite cookie DB from `~/Library/Application Support/Firefox/Profiles/*/cookies.sqlite`
@@ -64,7 +65,8 @@ Cursor support is implemented: CodexBar can show Cursor usage alongside other pr
 - Provider identity stays siloed: Cursor email/plan never leak into other providers.
 
 ## Debugging tips
-- Check browser login: visit `https://cursor.com/dashboard` in Safari/Chrome/Firefox to verify signed-in state.
+- Check browser login: visit `https://cursor.com/dashboard` in a supported browser
+  (order: Safari → Chrome → Firefox) to verify signed-in state.
 - Safari cookie permission: System Settings → Privacy & Security → Full Disk Access → enable CodexBar.
 - Chrome Keychain prompt: allow CodexBar to access "Chrome Safe Storage" when prompted.
 - Settings → Providers shows the last fetch error inline under the Cursor toggle.
