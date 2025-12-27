@@ -31,6 +31,8 @@
 - Droid: surface Factory API errors instead of masking them as missing sessions.
 - Droid: retry auth without access-token cookies when Factory flags a stale token.
 - Droid: try all detected browser profiles before giving up.
+- Droid: fall back to auth.factory.ai endpoints when cookies live on the auth host.
+- Droid: use WorkOS refresh tokens from browser local storage when cookies fail.
 - Providers: hide z.ai in the menu until an API key is set.
 - Menu: refresh runs automatically when opening the menu with a short retry (refresh row removed).
 - Menu: hide the Status Page row when a provider has no status URL.

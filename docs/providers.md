@@ -50,7 +50,7 @@ read_when:
 - Details in `docs/cursor.md`.
 
 ## Droid (Factory)
-- Web-based: fetches usage from app.factory.ai API using browser session cookies.
+- Web-based: fetches usage from app.factory.ai (and auth/api hosts when needed) using browser session cookies or WorkOS refresh tokens from local storage.
 - Cookie import: Safari → Chrome → Firefox; requires factory.ai/app.factory.ai cookies.
 - Fallback: stored session cookies persisted by CodexBar.
 - Shows Standard + Premium usage and billing period reset.
