@@ -4,6 +4,7 @@
 - Droid (Factory): new provider with Standard + Premium usage via browser cookies, plus dashboard + status links. Thanks @shashank-factory!
 - Menu: allow multi-line error messages in the provider subtitle (up to 4 lines).
 - Menu: fix subtitle sizing for multi-line error states.
+- Menu: avoid clipping on multi-line error subtitles.
 - Menu: widen the menu card when 7+ providers are enabled.
 - Providers: Codex, Claude Code, Cursor, Gemini, Antigravity, z.ai.
 - Codex: OpenAI web dashboard is now the primary source for usage + credits; CLI fallback only when no matching cookies exist.

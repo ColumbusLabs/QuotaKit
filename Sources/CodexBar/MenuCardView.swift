@@ -224,6 +224,7 @@ private struct UsageMenuCardHeaderView: View {
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                     .layoutPriority(1)
+                    .padding(.bottom, self.model.subtitleStyle == .error ? 2 : 0)
                 Spacer()
                 if let plan = self.model.planText {
                     Text(plan)
