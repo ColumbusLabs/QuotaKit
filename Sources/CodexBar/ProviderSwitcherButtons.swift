@@ -239,7 +239,7 @@ final class StackedToggleButton: NSButton {
             constant: -self.contentPadding.right)
         let bottom = self.stack.bottomAnchor.constraint(
             lessThanOrEqualTo: self.bottomAnchor,
-            constant: -self.contentPadding.bottom)
+            constant: -(self.contentPadding.bottom + 4))
         self.paddingConstraints = [top, leading, trailing, bottom]
 
         NSLayoutConstraint.activate(self.paddingConstraints + self.iconSizeConstraints)
