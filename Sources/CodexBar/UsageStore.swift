@@ -338,7 +338,14 @@ final class UsageStore {
     }
 
     func isEnabled(_ provider: UsageProvider) -> Bool {
-        self.settings.isProviderEnabled(provider: provider, metadata: self.metadata(for: provider))
+        let enabled = self.settings.isProviderEnabled(provider: provider, metadata: self.metadata(for: provider))
+        guard enabled else { return false }
+        if provider == .zai {
+            let settingsToken = self.settings.zaiAPIToken.trimmingCharacters(in: .whitespacesAndNewlines)
+            let envToken = ZaiSettingsReader.apiToken()
+            return !settingsToken.isEmpty || envToken != nil
+        }
+        return true
     }
 
     func refresh(forceTokenUsage: Bool = false) async {
