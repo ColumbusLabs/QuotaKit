@@ -1051,24 +1051,24 @@ extension UsageStore {
                 let text = await self.runWithTimeout(seconds: 15) {
                     var lines: [String] = []
                     let hasKey = ClaudeWebAPIFetcher.hasSessionKey { msg in lines.append(msg) }
+                    let hasOAuthCredentials = (try? ClaudeOAuthCredentialsStore.load()) != nil
 
-                    let strategy: ClaudeUsageStrategy = {
-                        if claudeDebugMenuEnabled {
-                            let selected = claudeUsageDataSource
-                            if selected == .oauth {
-                                return ClaudeUsageStrategy(dataSource: .oauth, useWebExtras: false)
-                            }
-                            if selected == .web, !hasKey {
-                                return ClaudeUsageStrategy(dataSource: .cli, useWebExtras: false)
-                            }
-                            let useExtras = selected == .cli && claudeWebExtrasEnabled && hasKey
-                            return ClaudeUsageStrategy(dataSource: selected, useWebExtras: useExtras)
+                    let strategy = ClaudeProviderImplementation.resolveUsageStrategy(
+                        debugMenuEnabled: claudeDebugMenuEnabled,
+                        selectedDataSource: claudeUsageDataSource,
+                        webExtrasEnabled: claudeWebExtrasEnabled,
+                        hasWebSession: hasKey,
+                        hasOAuthCredentials: hasOAuthCredentials)
+
+                    await MainActor.run {
+                        if self.settings.claudeUsageDataSource != strategy.dataSource {
+                            self.settings.claudeUsageDataSource = strategy.dataSource
                         }
-                        return ClaudeUsageStrategy(dataSource: hasKey ? .web : .cli, useWebExtras: false)
-                    }()
+                    }
 
                     lines.append("strategy=\(strategy.dataSource.rawValue)")
                     lines.append("hasSessionKey=\(hasKey)")
+                    lines.append("hasOAuthCredentials=\(hasOAuthCredentials)")
                     if strategy.useWebExtras {
                         lines.append("web_extras=enabled")
                     }
@@ -1114,7 +1114,7 @@ extension UsageStore {
                         lines.append(cli)
                         return lines.joined(separator: "\n")
                     case .oauth:
-                        lines.append("OAuth override selected (debug).")
+                        lines.append("OAuth source selected.")
                         return lines.joined(separator: "\n")
                     }
                 }

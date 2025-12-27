@@ -52,29 +52,63 @@ struct ClaudeProviderImplementation: ProviderImplementation {
     @MainActor
     static func usageStrategy(
         settings: SettingsStore,
-        hasWebSession: () -> Bool = { ClaudeWebAPIFetcher.hasSessionKey() }) -> ClaudeUsageStrategy
+        hasWebSession: () -> Bool = { ClaudeWebAPIFetcher.hasSessionKey() },
+        hasOAuthCredentials: () -> Bool = { (try? ClaudeOAuthCredentialsStore.load()) != nil }) -> ClaudeUsageStrategy
     {
-        if settings.debugMenuEnabled {
-            let dataSource = settings.claudeUsageDataSource
-            if dataSource == .oauth {
-                return ClaudeUsageStrategy(dataSource: dataSource, useWebExtras: false)
+        let strategy = Self.resolveUsageStrategy(
+            debugMenuEnabled: settings.debugMenuEnabled,
+            selectedDataSource: settings.claudeUsageDataSource,
+            webExtrasEnabled: settings.claudeWebExtrasEnabled,
+            hasWebSession: hasWebSession(),
+            hasOAuthCredentials: hasOAuthCredentials())
+        if settings.claudeUsageDataSource != strategy.dataSource {
+            settings.claudeUsageDataSource = strategy.dataSource
+        }
+        return strategy
+    }
+
+    static func resolveUsageStrategy(
+        debugMenuEnabled: Bool,
+        selectedDataSource: ClaudeUsageDataSource,
+        webExtrasEnabled: Bool,
+        hasWebSession: Bool,
+        hasOAuthCredentials: Bool) -> ClaudeUsageStrategy
+    {
+        if debugMenuEnabled {
+            if selectedDataSource == .oauth {
+                return ClaudeUsageStrategy(dataSource: .oauth, useWebExtras: false)
             }
-            let hasSession = hasWebSession()
-            if dataSource == .web, !hasSession {
+            if selectedDataSource == .web, !hasWebSession {
                 return ClaudeUsageStrategy(dataSource: .cli, useWebExtras: false)
             }
-            let useWebExtras = dataSource == .cli && settings.claudeWebExtrasEnabled && hasSession
-            return ClaudeUsageStrategy(dataSource: dataSource, useWebExtras: useWebExtras)
+            let useWebExtras = selectedDataSource == .cli && webExtrasEnabled && hasWebSession
+            return ClaudeUsageStrategy(dataSource: selectedDataSource, useWebExtras: useWebExtras)
         }
 
-        let hasSession = hasWebSession()
-        let dataSource: ClaudeUsageDataSource = hasSession ? .web : .cli
-        return ClaudeUsageStrategy(dataSource: dataSource, useWebExtras: false)
+        if hasOAuthCredentials {
+            return ClaudeUsageStrategy(dataSource: .oauth, useWebExtras: false)
+        }
+        if hasWebSession {
+            return ClaudeUsageStrategy(dataSource: .web, useWebExtras: false)
+        }
+        return ClaudeUsageStrategy(dataSource: .cli, useWebExtras: false)
     }
 
     func makeFetch(context: ProviderBuildContext) -> @Sendable () async throws -> UsageSnapshot {
         {
-            let strategy = await MainActor.run { Self.usageStrategy(settings: context.settings) }
+            async let hasWebSession = Task.detached(priority: .utility) {
+                ClaudeWebAPIFetcher.hasSessionKey()
+            }.value
+            async let hasOAuthCredentials = Task.detached(priority: .utility) {
+                (try? ClaudeOAuthCredentialsStore.load()) != nil
+            }.value
+            let (resolvedWebSession, resolvedOAuthCredentials) = await (hasWebSession, hasOAuthCredentials)
+            let strategy = await MainActor.run {
+                Self.usageStrategy(
+                    settings: context.settings,
+                    hasWebSession: { resolvedWebSession },
+                    hasOAuthCredentials: { resolvedOAuthCredentials })
+            }
 
             let fetcher: any ClaudeUsageFetching = if context.claudeFetcher is ClaudeUsageFetcher {
                 ClaudeUsageFetcher(dataSource: strategy.dataSource, useWebExtras: strategy.useWebExtras)

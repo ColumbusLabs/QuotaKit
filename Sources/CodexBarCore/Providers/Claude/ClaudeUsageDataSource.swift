@@ -14,4 +14,15 @@ public enum ClaudeUsageDataSource: String, CaseIterable, Identifiable, Sendable 
         case .cli: "CLI (PTY)"
         }
     }
+
+    public var sourceLabel: String {
+        switch self {
+        case .oauth:
+            "Ollama"
+        case .web:
+            "web"
+        case .cli:
+            "cli"
+        }
+    }
 }

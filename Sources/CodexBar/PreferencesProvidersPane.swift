@@ -122,22 +122,19 @@ struct ProvidersPane: View {
     private func providerSourceLabel(_ provider: UsageProvider) -> String {
         switch provider {
         case .codex:
-            return "auto"
+            "auto"
         case .claude:
-            if self.settings.debugMenuEnabled {
-                return self.settings.claudeUsageDataSource.rawValue
-            }
-            return "auto"
+            self.settings.claudeUsageDataSource.sourceLabel
         case .zai:
-            return "api"
+            "api"
         case .cursor:
-            return "web"
+            "web"
         case .gemini:
-            return "api"
+            "api"
         case .antigravity:
-            return "local"
+            "local"
         case .factory:
-            return "web"
+            "web"
         }
     }
 

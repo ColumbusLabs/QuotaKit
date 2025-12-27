@@ -72,4 +72,9 @@ struct UsageFormatterTests {
         #expect(UsageFormatter.modelDisplayName("Claude Opus 4.5 2025 1101") == "Claude Opus 4.5")
         #expect(UsageFormatter.modelDisplayName("claude-sonnet-4-5") == "claude-sonnet-4-5")
     }
+
+    @Test
+    func cleanPlanMapsOAuthToOllama() {
+        #expect(UsageFormatter.cleanPlanName("oauth") == "Ollama")
+    }
 }

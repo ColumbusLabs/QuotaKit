@@ -67,7 +67,10 @@ struct ProviderRegistryTests {
         let settings = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
         settings.debugMenuEnabled = false
 
-        let strategy = ClaudeProviderImplementation.usageStrategy(settings: settings, hasWebSession: { true })
+        let strategy = ClaudeProviderImplementation.usageStrategy(
+            settings: settings,
+            hasWebSession: { true },
+            hasOAuthCredentials: { false })
 
         #expect(strategy.dataSource == .web)
         #expect(strategy.useWebExtras == false)
@@ -80,7 +83,10 @@ struct ProviderRegistryTests {
         let settings = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
         settings.debugMenuEnabled = false
 
-        let strategy = ClaudeProviderImplementation.usageStrategy(settings: settings, hasWebSession: { false })
+        let strategy = ClaudeProviderImplementation.usageStrategy(
+            settings: settings,
+            hasWebSession: { false },
+            hasOAuthCredentials: { false })
 
         #expect(strategy.dataSource == .cli)
         #expect(strategy.useWebExtras == false)
@@ -94,7 +100,10 @@ struct ProviderRegistryTests {
         settings.debugMenuEnabled = true
         settings.claudeUsageDataSource = .oauth
 
-        let strategy = ClaudeProviderImplementation.usageStrategy(settings: settings, hasWebSession: { false })
+        let strategy = ClaudeProviderImplementation.usageStrategy(
+            settings: settings,
+            hasWebSession: { false },
+            hasOAuthCredentials: { false })
 
         #expect(strategy.dataSource == .oauth)
         #expect(strategy.useWebExtras == false)
@@ -109,10 +118,30 @@ struct ProviderRegistryTests {
         settings.claudeUsageDataSource = .cli
         settings.claudeWebExtrasEnabled = true
 
-        let strategy = ClaudeProviderImplementation.usageStrategy(settings: settings, hasWebSession: { true })
+        let strategy = ClaudeProviderImplementation.usageStrategy(
+            settings: settings,
+            hasWebSession: { true },
+            hasOAuthCredentials: { false })
 
         #expect(strategy.dataSource == .cli)
         #expect(strategy.useWebExtras == true)
+    }
+
+    @Test
+    func claudeStrategyPrefersOAuthWhenAvailable() {
+        let defaults = UserDefaults(suiteName: "ProviderRegistryTests-claude-oauth-auto")!
+        defaults.removePersistentDomain(forName: "ProviderRegistryTests-claude-oauth-auto")
+        let settings = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
+        settings.debugMenuEnabled = false
+
+        let strategy = ClaudeProviderImplementation.usageStrategy(
+            settings: settings,
+            hasWebSession: { true },
+            hasOAuthCredentials: { true })
+
+        #expect(strategy.dataSource == .oauth)
+        #expect(strategy.useWebExtras == false)
+        #expect(settings.claudeUsageDataSource == .oauth)
     }
 
     @Test

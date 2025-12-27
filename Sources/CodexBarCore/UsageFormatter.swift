@@ -200,6 +200,9 @@ public enum UsageFormatter {
         if cleaned.isEmpty {
             cleaned = stripped.trimmingCharacters(in: .whitespacesAndNewlines)
         }
+        if cleaned.lowercased() == "oauth" {
+            return "Ollama"
+        }
         // Capitalize first letter only if lowercase, preserving acronyms like "AI"
         if let first = cleaned.first, first.isLowercase {
             return cleaned.prefix(1).uppercased() + cleaned.dropFirst()
