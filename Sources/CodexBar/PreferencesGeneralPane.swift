@@ -115,7 +115,10 @@ struct GeneralPane: View {
             "Cursor"
         case .factory:
             "Droid"
+        case .copilot:
+            "Copilot"
         }
+
         guard provider == .claude || provider == .codex else {
             return Text("\(name): unsupported")
                 .font(.footnote)

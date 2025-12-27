@@ -251,6 +251,8 @@ enum CodexBarCLI {
             nil
         case .factory:
             nil
+        case .copilot:
+            nil
         }
     }
 
@@ -263,6 +265,7 @@ enum CodexBarCLI {
         case .antigravity: "antigravity"
         case .cursor: "cursor"
         case .factory: "factory"
+        case .copilot: "copilot"
         }
         guard let raw, !raw.isEmpty else { return (nil, source) }
         if let match = raw.range(of: #"(\d+(?:\.\d+)+)"#, options: .regularExpression) {
@@ -504,6 +507,14 @@ enum CodexBarCLI {
                 let probe = FactoryStatusProbe()
                 let snap = try await probe.fetch()
                 return .success((usage: snap.toUsageSnapshot(), credits: nil))
+            case .copilot:
+                let env = ProcessInfo.processInfo.environment
+                guard let token = env["COPILOT_API_TOKEN"], !token.isEmpty else {
+                    return .failure(URLError(.userAuthenticationRequired)) // Or custom error
+                }
+                let fetcher = CopilotUsageFetcher(token: token)
+                let snap = try await fetcher.fetch()
+                return .success((usage: snap, credits: nil))
             }
         } catch {
             return .failure(error)
@@ -917,6 +928,7 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
     case antigravity
     case cursor
     case factory
+    case copilot
     case both
     case all
     case custom([UsageProvider])
@@ -930,6 +942,7 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
         case "antigravity": self = .antigravity
         case "cursor": self = .cursor
         case "factory": self = .factory
+        case "copilot": self = .copilot
         case "both": self = .both
         case "all": self = .all
         default: return nil
@@ -945,6 +958,7 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
         case .antigravity: self = .antigravity
         case .cursor: self = .cursor
         case .factory: self = .factory
+        case .copilot: self = .copilot // Custom case not directly supported by arg parser unless we add it
         }
     }
 
@@ -957,8 +971,9 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
         case .antigravity: [.antigravity]
         case .cursor: [.cursor]
         case .factory: [.factory]
+        case .copilot: [.copilot]
         case .both: [.codex, .claude]
-        case .all: [.codex, .claude, .zai, .cursor, .gemini, .antigravity, .factory]
+        case .all: [.codex, .claude, .zai, .cursor, .gemini, .antigravity, .factory, .copilot]
         case let .custom(providers): providers
         }
     }

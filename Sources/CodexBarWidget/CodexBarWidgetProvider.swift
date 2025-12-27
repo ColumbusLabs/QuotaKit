@@ -9,6 +9,7 @@ enum ProviderChoice: String, AppEnum {
     case gemini
     case antigravity
     case zai
+    case copilot
 
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Provider")
 
@@ -18,6 +19,7 @@ enum ProviderChoice: String, AppEnum {
         .gemini: DisplayRepresentation(title: "Gemini"),
         .antigravity: DisplayRepresentation(title: "Antigravity"),
         .zai: DisplayRepresentation(title: "z.ai"),
+        .copilot: DisplayRepresentation(title: "Copilot"),
     ]
 
     var provider: UsageProvider {
@@ -27,6 +29,7 @@ enum ProviderChoice: String, AppEnum {
         case .gemini: .gemini
         case .antigravity: .antigravity
         case .zai: .zai
+        case .copilot: .copilot
         }
     }
 
@@ -39,6 +42,7 @@ enum ProviderChoice: String, AppEnum {
         case .cursor: return nil // Cursor not yet supported in widgets
         case .zai: self = .zai
         case .factory: return nil // Factory not yet supported in widgets
+        case .copilot: self = .copilot
         }
     }
 }

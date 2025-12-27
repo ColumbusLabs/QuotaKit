@@ -27,6 +27,9 @@ extension StatusItemController {
         case .factory:
             await self.runFactoryLoginFlow()
             return true
+        case .copilot:
+            await CopilotLoginFlow.run(settings: self.settings)
+            return true
         }
     }
 }

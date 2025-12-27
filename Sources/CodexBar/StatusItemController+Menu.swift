@@ -1323,6 +1323,8 @@ private final class ProviderSwitcherView: NSView {
             NSColor(deviceRed: 0 / 255, green: 191 / 255, blue: 165 / 255, alpha: 1) // #00BFA5
         case .factory:
             NSColor(deviceRed: 255 / 255, green: 107 / 255, blue: 53 / 255, alpha: 1) // Factory orange
+        case .copilot:
+            NSColor(deviceRed: 168 / 255, green: 85 / 255, blue: 247 / 255, alpha: 1) // Purple
         }
     }
 
@@ -1335,6 +1337,7 @@ private final class ProviderSwitcherView: NSView {
         case .antigravity: "Antigravity"
         case .cursor: "Cursor"
         case .factory: "Droid"
+        case .copilot: "Copilot"
         }
     }
 }

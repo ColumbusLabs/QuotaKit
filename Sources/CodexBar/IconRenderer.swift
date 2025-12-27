@@ -685,9 +685,11 @@ enum IconRenderer {
         case .gemini: 3
         case .antigravity: 4
         case .cursor: 5
-        case .combined: 6
-        case .factory: 7
+        case .factory: 6
+        case .copilot: 7
+        case .combined: 99
         }
+
     }
 
     private static func indicatorKey(_ indicator: ProviderStatusIndicator) -> Int {
