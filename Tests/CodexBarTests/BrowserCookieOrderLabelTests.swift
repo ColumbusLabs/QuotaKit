@@ -44,7 +44,7 @@ struct BrowserCookieOrderLabelTests {
         let toggle = ClaudeProviderImplementation().settingsToggles(context: context)
             .first { $0.id == "claude.webExtras" }!
 
-        let order = ProviderDefaults.metadata[.claude]?.browserCookieOrder ?? BrowserCookieDefaults.importOrder
+        let order = ProviderDefaults.metadata[.claude]?.browserCookieOrder ?? Browser.defaultImportOrder
         #expect(toggle.subtitle.contains(order.shortLabel))
         #expect(toggle.subtitle.contains(order.displayLabel))
     }
@@ -55,14 +55,14 @@ struct BrowserCookieOrderStatusStringTests {
     #if os(macOS)
     @Test
     func cursorNoSessionIncludesBrowserLoginHint() {
-        let order = ProviderDefaults.metadata[.cursor]?.browserCookieOrder ?? BrowserCookieDefaults.importOrder
+        let order = ProviderDefaults.metadata[.cursor]?.browserCookieOrder ?? Browser.defaultImportOrder
         let message = CursorStatusProbeError.noSessionCookie.errorDescription ?? ""
         #expect(message.contains(order.loginHint))
     }
 
     @Test
     func factoryNoSessionIncludesBrowserLoginHint() {
-        let order = ProviderDefaults.metadata[.factory]?.browserCookieOrder ?? BrowserCookieDefaults.importOrder
+        let order = ProviderDefaults.metadata[.factory]?.browserCookieOrder ?? Browser.defaultImportOrder
         let message = FactoryStatusProbeError.noSessionCookie.errorDescription ?? ""
         #expect(message.contains(order.loginHint))
     }

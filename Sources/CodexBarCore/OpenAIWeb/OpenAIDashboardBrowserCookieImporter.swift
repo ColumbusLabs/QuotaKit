@@ -62,7 +62,7 @@ public struct OpenAIDashboardBrowserCookieImporter {
     private static let cookieDomains = ["chatgpt.com", "openai.com"]
     private static let cookieClient = BrowserCookieClient()
     private static let cookieImportOrder: BrowserCookieImportOrder =
-        ProviderDefaults.metadata[.codex]?.browserCookieOrder ?? BrowserCookieDefaults.importOrder
+        ProviderDefaults.metadata[.codex]?.browserCookieOrder ?? Browser.defaultImportOrder
 
     private enum CandidateEvaluation {
         case match(candidate: Candidate, signedInEmail: String)

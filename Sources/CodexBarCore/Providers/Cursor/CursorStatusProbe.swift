@@ -4,7 +4,7 @@ import SweetCookieKit
 #if os(macOS)
 
 private let cursorCookieImportOrder: BrowserCookieImportOrder =
-    ProviderDefaults.metadata[.cursor]?.browserCookieOrder ?? BrowserCookieDefaults.importOrder
+    ProviderDefaults.metadata[.cursor]?.browserCookieOrder ?? Browser.defaultImportOrder
 
 // MARK: - Cursor Cookie Importer
 

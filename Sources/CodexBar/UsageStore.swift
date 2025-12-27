@@ -339,7 +339,7 @@ final class UsageStore {
     }
 
     private var codexBrowserCookieOrder: BrowserCookieImportOrder {
-        self.metadata(for: .codex).browserCookieOrder ?? BrowserCookieDefaults.importOrder
+        self.metadata(for: .codex).browserCookieOrder ?? Browser.defaultImportOrder
     }
 
     func snapshot(for provider: UsageProvider) -> UsageSnapshot? {

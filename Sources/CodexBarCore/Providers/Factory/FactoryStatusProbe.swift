@@ -4,7 +4,7 @@ import SweetCookieKit
 #if os(macOS)
 
 private let factoryCookieImportOrder: BrowserCookieImportOrder =
-    ProviderDefaults.metadata[.factory]?.browserCookieOrder ?? BrowserCookieDefaults.importOrder
+    ProviderDefaults.metadata[.factory]?.browserCookieOrder ?? Browser.defaultImportOrder
 
 // MARK: - Factory Cookie Importer
 

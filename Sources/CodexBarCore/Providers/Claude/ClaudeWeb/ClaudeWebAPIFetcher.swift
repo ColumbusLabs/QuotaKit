@@ -17,7 +17,7 @@ public enum ClaudeWebAPIFetcher {
     private static let maxProbeBytes = 200_000
     private static let cookieClient = BrowserCookieClient()
     private static let cookieImportOrder: BrowserCookieImportOrder =
-        ProviderDefaults.metadata[.claude]?.browserCookieOrder ?? BrowserCookieDefaults.importOrder
+        ProviderDefaults.metadata[.claude]?.browserCookieOrder ?? Browser.defaultImportOrder
 
     public struct OrganizationInfo: Sendable {
         public let id: String
