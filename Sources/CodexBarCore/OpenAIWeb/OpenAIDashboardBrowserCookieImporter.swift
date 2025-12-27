@@ -1,5 +1,6 @@
 #if os(macOS)
 import Foundation
+import SweetCookieKit
 import WebKit
 
 @MainActor
@@ -59,6 +60,7 @@ public struct OpenAIDashboardBrowserCookieImporter {
     }
 
     private static let cookieDomains = ["chatgpt.com", "openai.com"]
+    private static let cookieClient = BrowserCookieClient()
     private static let cookieImportOrder: BrowserCookieImportOrder =
         ProviderDefaults.metadata[.codex]?.browserCookieOrder ?? .safariChromeFirefox
 
@@ -93,7 +95,7 @@ public struct OpenAIDashboardBrowserCookieImporter {
 
         var diagnostics = ImportDiagnostics()
 
-        for browserSource in Self.cookieImportOrder.sources {
+        for browserSource in Self.cookieImportOrder.browsers {
             if let match = await self.trySource(
                 browserSource,
                 targetEmail: normalizedTarget,
@@ -137,16 +139,17 @@ public struct OpenAIDashboardBrowserCookieImporter {
     {
         // Safari first: avoids touching Keychain ("Chrome Safe Storage") when Safari already matches.
         do {
-            let sources = try BrowserCookieImporter.loadCookieSources(
-                from: .safari,
-                matchingDomains: Self.cookieDomains,
+            let query = BrowserCookieQuery(domains: Self.cookieDomains)
+            let sources = try Self.cookieClient.records(
+                matching: query,
+                in: .safari,
                 logger: log)
             guard !sources.isEmpty else {
                 log("Safari contained 0 matching records.")
                 return nil
             }
             for source in sources {
-                let cookies = BrowserCookieImporter.makeHTTPCookies(source.records)
+                let cookies = BrowserCookieClient.makeHTTPCookies(source.records, origin: query.origin)
                 guard !cookies.isEmpty else {
                     log("\(source.label) produced 0 HTTPCookies.")
                     continue
@@ -166,7 +169,7 @@ public struct OpenAIDashboardBrowserCookieImporter {
                 }
             }
             return nil
-        } catch let error as BrowserCookieImporter.ImportError {
+        } catch let error as BrowserCookieError {
             if let hint = error.accessDeniedHint {
                 diagnostics.accessDeniedHints.append(hint)
             }
@@ -186,11 +189,12 @@ public struct OpenAIDashboardBrowserCookieImporter {
     {
         // Chrome fallback: may trigger Keychain prompt. Only do this if Safari didn't match.
         do {
-            let chromeSources = try BrowserCookieImporter.loadCookieSources(
-                from: .chrome,
-                matchingDomains: Self.cookieDomains)
+            let query = BrowserCookieQuery(domains: Self.cookieDomains)
+            let chromeSources = try Self.cookieClient.records(
+                matching: query,
+                in: .chrome)
             for source in chromeSources {
-                let cookies = BrowserCookieImporter.makeHTTPCookies(source.records)
+                let cookies = BrowserCookieClient.makeHTTPCookies(source.records, origin: query.origin)
                 if cookies.isEmpty {
                     log("\(source.label) produced 0 HTTPCookies.")
                     continue
@@ -209,7 +213,7 @@ public struct OpenAIDashboardBrowserCookieImporter {
                 }
             }
             return nil
-        } catch let error as BrowserCookieImporter.ImportError {
+        } catch let error as BrowserCookieError {
             if let hint = error.accessDeniedHint {
                 diagnostics.accessDeniedHints.append(hint)
             }
@@ -229,11 +233,12 @@ public struct OpenAIDashboardBrowserCookieImporter {
     {
         // Firefox fallback: no Keychain, but still only after Safari/Chrome.
         do {
-            let firefoxSources = try BrowserCookieImporter.loadCookieSources(
-                from: .firefox,
-                matchingDomains: Self.cookieDomains)
+            let query = BrowserCookieQuery(domains: Self.cookieDomains)
+            let firefoxSources = try Self.cookieClient.records(
+                matching: query,
+                in: .firefox)
             for source in firefoxSources {
-                let cookies = BrowserCookieImporter.makeHTTPCookies(source.records)
+                let cookies = BrowserCookieClient.makeHTTPCookies(source.records, origin: query.origin)
                 if cookies.isEmpty {
                     log("\(source.label) produced 0 HTTPCookies.")
                     continue
@@ -252,7 +257,7 @@ public struct OpenAIDashboardBrowserCookieImporter {
                 }
             }
             return nil
-        } catch let error as BrowserCookieImporter.ImportError {
+        } catch let error as BrowserCookieError {
             if let hint = error.accessDeniedHint {
                 diagnostics.accessDeniedHints.append(hint)
             }
@@ -265,7 +270,7 @@ public struct OpenAIDashboardBrowserCookieImporter {
     }
 
     private func trySource(
-        _ source: BrowserCookieSource,
+        _ source: Browser,
         targetEmail: String?,
         allowAnyAccount: Bool,
         log: @escaping (String) -> Void,
@@ -290,6 +295,8 @@ public struct OpenAIDashboardBrowserCookieImporter {
                 allowAnyAccount: allowAnyAccount,
                 log: log,
                 diagnostics: &diagnostics)
+        default:
+            nil
         }
     }
 

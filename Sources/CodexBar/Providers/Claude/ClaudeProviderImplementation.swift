@@ -1,5 +1,6 @@
 import CodexBarCore
 import Foundation
+import SweetCookieKit
 
 struct ClaudeUsageStrategy: Equatable, Sendable {
     let dataSource: ClaudeUsageDataSource

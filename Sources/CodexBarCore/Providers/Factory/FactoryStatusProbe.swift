@@ -1,4 +1,5 @@
 import Foundation
+import SweetCookieKit
 
 #if os(macOS)
 
@@ -9,6 +10,7 @@ private let factoryCookieImportOrder: BrowserCookieImportOrder =
 
 /// Imports Factory session cookies from browser cookies.
 public enum FactoryCookieImporter {
+    private static let cookieClient = BrowserCookieClient()
     private static let sessionCookieNames: Set<String> = [
         "wos-session",
         "__Secure-next-auth.session-token",
@@ -49,7 +51,7 @@ public enum FactoryCookieImporter {
         let log: (String) -> Void = { msg in logger?("[factory-cookie] \(msg)") }
         var sessions: [SessionInfo] = []
 
-        for browserSource in factoryCookieImportOrder.sources {
+        for browserSource in factoryCookieImportOrder.browsers {
             do {
                 let perSource = try self.importSessions(from: browserSource, logger: logger)
                 sessions.append(contentsOf: perSource)
@@ -65,19 +67,20 @@ public enum FactoryCookieImporter {
     }
 
     public static func importSessions(
-        from browserSource: BrowserCookieSource,
+        from browserSource: Browser,
         logger: ((String) -> Void)? = nil) throws -> [SessionInfo]
     {
         let log: (String) -> Void = { msg in logger?("[factory-cookie] \(msg)") }
         let cookieDomains = ["factory.ai", "app.factory.ai", "auth.factory.ai"]
-        let sources = try BrowserCookieImporter.loadCookieSources(
-            from: browserSource,
-            matchingDomains: cookieDomains,
+        let query = BrowserCookieQuery(domains: cookieDomains)
+        let sources = try Self.cookieClient.records(
+            matching: query,
+            in: browserSource,
             logger: log)
 
         var sessions: [SessionInfo] = []
         for source in sources where !source.records.isEmpty {
-            let httpCookies = BrowserCookieImporter.makeHTTPCookies(source.records)
+            let httpCookies = BrowserCookieClient.makeHTTPCookies(source.records, origin: query.origin)
             if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
                 log("Found \(httpCookies.count) Factory cookies in \(source.label)")
                 log("\(source.label) cookie names: \(self.cookieNames(from: httpCookies))")
@@ -580,7 +583,7 @@ public struct FactoryStatusProbe: Sendable {
 
     private func attemptBrowserCookies(
         logger: @escaping (String) -> Void,
-        sources: [BrowserCookieSource]) async -> FetchAttemptResult
+        sources: [Browser]) async -> FetchAttemptResult
     {
         do {
             var lastError: Error?
@@ -681,19 +684,20 @@ public struct FactoryStatusProbe: Sendable {
 
     private func attemptWorkOSCookies(
         logger: @escaping (String) -> Void,
-        sources: [BrowserCookieSource]) async -> FetchAttemptResult
+        sources: [Browser]) async -> FetchAttemptResult
     {
         let log: (String) -> Void = { msg in logger("[factory-workos] \(msg)") }
         var lastError: Error?
 
         for browserSource in sources {
             do {
-                let sources = try BrowserCookieImporter.loadCookieSources(
-                    from: browserSource,
-                    matchingDomains: ["workos.com"],
+                let query = BrowserCookieQuery(domains: ["workos.com"])
+                let sources = try BrowserCookieClient().records(
+                    matching: query,
+                    in: browserSource,
                     logger: log)
                 for source in sources where !source.records.isEmpty {
-                    let cookies = BrowserCookieImporter.makeHTTPCookies(source.records)
+                    let cookies = BrowserCookieClient.makeHTTPCookies(source.records, origin: query.origin)
                     guard !cookies.isEmpty else { continue }
                     log("Using WorkOS cookies from \(source.label)")
                     do {

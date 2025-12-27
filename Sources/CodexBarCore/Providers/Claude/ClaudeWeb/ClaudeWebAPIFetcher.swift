@@ -1,4 +1,5 @@
 import Foundation
+import SweetCookieKit
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
@@ -14,6 +15,7 @@ import FoundationNetworking
 public enum ClaudeWebAPIFetcher {
     private static let baseURL = "https://claude.ai/api"
     private static let maxProbeBytes = 200_000
+    private static let cookieClient = BrowserCookieClient()
     private static let cookieImportOrder: BrowserCookieImportOrder =
         ProviderDefaults.metadata[.claude]?.browserCookieOrder ?? .safariChromeFirefox
 
@@ -277,11 +279,12 @@ public enum ClaudeWebAPIFetcher {
 
         let cookieDomains = ["claude.ai"]
 
-        for browserSource in Self.cookieImportOrder.sources {
+        for browserSource in Self.cookieImportOrder.browsers {
             do {
-                let sources = try BrowserCookieImporter.loadCookieSources(
-                    from: browserSource,
-                    matchingDomains: cookieDomains,
+                let query = BrowserCookieQuery(domains: cookieDomains)
+                let sources = try Self.cookieClient.records(
+                    matching: query,
+                    in: browserSource,
                     logger: log)
                 for source in sources {
                     if let sessionKey = findSessionKey(in: source.records.map { record in

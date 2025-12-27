@@ -10,6 +10,7 @@ let package = Package(
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.8.1"),
         .package(url: "https://github.com/steipete/Commander", from: "0.2.0"),
         .package(url: "https://github.com/apple/swift-log", from: "1.8.0"),
+        .package(path: "../SweetCookieKit"),
     ],
     targets: {
         var targets: [Target] = [
@@ -17,6 +18,7 @@ let package = Package(
                 name: "CodexBarCore",
                 dependencies: [
                     .product(name: "Logging", package: "swift-log"),
+                    .product(name: "SweetCookieKit", package: "SweetCookieKit"),
                 ],
                 swiftSettings: [
                     .enableUpcomingFeature("StrictConcurrency"),

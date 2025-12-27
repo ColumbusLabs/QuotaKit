@@ -2,6 +2,7 @@ import AppKit
 import CodexBarCore
 import Foundation
 import Observation
+import SweetCookieKit
 
 enum IconStyle {
     case codex

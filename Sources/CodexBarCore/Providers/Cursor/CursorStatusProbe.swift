@@ -1,4 +1,5 @@
 import Foundation
+import SweetCookieKit
 
 #if os(macOS)
 
@@ -9,6 +10,7 @@ private let cursorCookieImportOrder: BrowserCookieImportOrder =
 
 /// Imports Cursor session cookies from browser cookies.
 public enum CursorCookieImporter {
+    private static let cookieClient = BrowserCookieClient()
     private static let sessionCookieNames: Set<String> = [
         "WorkosCursorSessionToken",
         "__Secure-next-auth.session-token",
@@ -34,14 +36,15 @@ public enum CursorCookieImporter {
         let log: (String) -> Void = { msg in logger?("[cursor-cookie] \(msg)") }
 
         let cookieDomains = ["cursor.com", "cursor.sh"]
-        for browserSource in cursorCookieImportOrder.sources {
+        for browserSource in cursorCookieImportOrder.browsers {
             do {
-                let sources = try BrowserCookieImporter.loadCookieSources(
-                    from: browserSource,
-                    matchingDomains: cookieDomains,
+                let query = BrowserCookieQuery(domains: cookieDomains)
+                let sources = try Self.cookieClient.records(
+                    matching: query,
+                    in: browserSource,
                     logger: log)
                 for source in sources where !source.records.isEmpty {
-                    let httpCookies = BrowserCookieImporter.makeHTTPCookies(source.records)
+                    let httpCookies = BrowserCookieClient.makeHTTPCookies(source.records, origin: query.origin)
                     if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
                         log("Found \(httpCookies.count) Cursor cookies in \(source.label)")
                         return SessionInfo(cookies: httpCookies, sourceLabel: source.label)
