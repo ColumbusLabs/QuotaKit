@@ -2,6 +2,7 @@
 set -euo pipefail
 CONF=${1:-release}
 ALLOW_LLDB=${CODEXBAR_ALLOW_LLDB:-0}
+SIGNING_MODE=${CODEXBAR_SIGNING:-}
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 
@@ -32,6 +33,10 @@ AUTO_CHECKS=true
 LOWER_CONF=$(printf "%s" "$CONF" | tr '[:upper:]' '[:lower:]')
 if [[ "$LOWER_CONF" == "debug" ]]; then
   BUNDLE_ID="com.steipete.codexbar.debug"
+  FEED_URL=""
+  AUTO_CHECKS=false
+fi
+if [[ "$SIGNING_MODE" == "adhoc" ]]; then
   FEED_URL=""
   AUTO_CHECKS=false
 fi
@@ -149,7 +154,10 @@ if [[ -d ".build/$CONF/Sparkle.framework" ]]; then
   install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/CodexBar"
   # Re-sign Sparkle and all nested components with Developer ID + timestamp
   SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
-if [[ "$ALLOW_LLDB" == "1" ]]; then
+if [[ "$SIGNING_MODE" == "adhoc" ]]; then
+  CODESIGN_ID="-"
+  CODESIGN_ARGS=(--force --sign "$CODESIGN_ID")
+elif [[ "$ALLOW_LLDB" == "1" ]]; then
   CODESIGN_ID="-"
   CODESIGN_ARGS=(--force --sign "$CODESIGN_ID")
 else

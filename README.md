@@ -36,6 +36,7 @@ Icon bar mapping (grayscale)
 ```bash
 swift build -c release          # or debug for development
 ./Scripts/package_app.sh        # builds CodexBar.app in-place
+CODEXBAR_SIGNING=adhoc ./Scripts/package_app.sh  # ad-hoc signing (no Apple Developer account)
 open CodexBar.app
 ```
 
