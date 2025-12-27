@@ -58,6 +58,10 @@ public struct OpenAIDashboardBrowserCookieImporter {
         var accessDeniedHints: [String] = []
     }
 
+    private static let cookieDomains = ["chatgpt.com", "openai.com"]
+    private static let cookieImportOrder: BrowserCookieImportOrder =
+        ProviderDefaults.metadata[.codex]?.browserCookieOrder ?? .safariChromeFirefox
+
     private enum CandidateEvaluation {
         case match(candidate: Candidate, signedInEmail: String)
         case mismatch(candidate: Candidate, signedInEmail: String)
@@ -89,29 +93,16 @@ public struct OpenAIDashboardBrowserCookieImporter {
 
         var diagnostics = ImportDiagnostics()
 
-        if let match = await self.trySafari(
-            targetEmail: normalizedTarget,
-            allowAnyAccount: allowAnyAccount,
-            log: log,
-            diagnostics: &diagnostics)
-        {
-            return match
-        }
-        if let match = await self.tryChrome(
-            targetEmail: normalizedTarget,
-            allowAnyAccount: allowAnyAccount,
-            log: log,
-            diagnostics: &diagnostics)
-        {
-            return match
-        }
-        if let match = await self.tryFirefox(
-            targetEmail: normalizedTarget,
-            allowAnyAccount: allowAnyAccount,
-            log: log,
-            diagnostics: &diagnostics)
-        {
-            return match
+        for browserSource in Self.cookieImportOrder.sources {
+            if let match = await self.trySource(
+                browserSource,
+                targetEmail: normalizedTarget,
+                allowAnyAccount: allowAnyAccount,
+                log: log,
+                diagnostics: &diagnostics)
+            {
+                return match
+            }
         }
 
         if !diagnostics.mismatches.isEmpty {
@@ -146,30 +137,38 @@ public struct OpenAIDashboardBrowserCookieImporter {
     {
         // Safari first: avoids touching Keychain ("Chrome Safe Storage") when Safari already matches.
         do {
-            let safari = try SafariCookieImporter.loadChatGPTCookies(logger: log)
-            if safari.isEmpty {
+            let sources = try BrowserCookieImporter.loadCookieSources(
+                from: .safari,
+                matchingDomains: Self.cookieDomains,
+                logger: log)
+            guard !sources.isEmpty else {
                 log("Safari contained 0 matching records.")
                 return nil
             }
-            let cookies = SafariCookieImporter.makeHTTPCookies(safari)
-            guard !cookies.isEmpty else {
-                log("Safari produced 0 HTTPCookies.")
-                return nil
-            }
+            for source in sources {
+                let cookies = BrowserCookieImporter.makeHTTPCookies(source.records)
+                guard !cookies.isEmpty else {
+                    log("\(source.label) produced 0 HTTPCookies.")
+                    continue
+                }
 
-            diagnostics.foundAnyCookies = true
-            log("Loaded \(cookies.count) cookies from Safari (\(self.cookieSummary(cookies)))")
-            let candidate = Candidate(label: "Safari", cookies: cookies)
-            return await self.applyCandidate(
-                candidate,
-                targetEmail: targetEmail,
-                allowAnyAccount: allowAnyAccount,
-                log: log,
-                diagnostics: &diagnostics)
-        } catch let error as SafariCookieImporter.ImportError {
-            if case let .cookieFileNotReadable(path) = error {
-                diagnostics.accessDeniedHints.append(
-                    "Safari cookies not readable (\(path)). Enable Full Disk Access for CodexBar.")
+                diagnostics.foundAnyCookies = true
+                log("Loaded \(cookies.count) cookies from \(source.label) (\(self.cookieSummary(cookies)))")
+                let candidate = Candidate(label: source.label, cookies: cookies)
+                if let match = await self.applyCandidate(
+                    candidate,
+                    targetEmail: targetEmail,
+                    allowAnyAccount: allowAnyAccount,
+                    log: log,
+                    diagnostics: &diagnostics)
+                {
+                    return match
+                }
+            }
+            return nil
+        } catch let error as BrowserCookieImporter.ImportError {
+            if let hint = error.accessDeniedHint {
+                diagnostics.accessDeniedHints.append(hint)
             }
             log("Safari cookie load failed: \(error.localizedDescription)")
             return nil
@@ -187,11 +186,13 @@ public struct OpenAIDashboardBrowserCookieImporter {
     {
         // Chrome fallback: may trigger Keychain prompt. Only do this if Safari didn't match.
         do {
-            let chromeSources = try ChromeCookieImporter.loadChatGPTCookiesFromAllProfiles()
+            let chromeSources = try BrowserCookieImporter.loadCookieSources(
+                from: .chrome,
+                matchingDomains: Self.cookieDomains)
             for source in chromeSources {
-                let cookies = ChromeCookieImporter.makeHTTPCookies(source.records)
+                let cookies = BrowserCookieImporter.makeHTTPCookies(source.records)
                 if cookies.isEmpty {
-                    log("Chrome source \(source.label) produced 0 HTTPCookies.")
+                    log("\(source.label) produced 0 HTTPCookies.")
                     continue
                 }
                 diagnostics.foundAnyCookies = true
@@ -208,9 +209,9 @@ public struct OpenAIDashboardBrowserCookieImporter {
                 }
             }
             return nil
-        } catch let error as ChromeCookieImporter.ImportError {
-            if case .keychainDenied = error {
-                diagnostics.accessDeniedHints.append("Chrome Safe Storage denied in Keychain.")
+        } catch let error as BrowserCookieImporter.ImportError {
+            if let hint = error.accessDeniedHint {
+                diagnostics.accessDeniedHints.append(hint)
             }
             log("Chrome cookie load failed: \(error.localizedDescription)")
             return nil
@@ -228,11 +229,13 @@ public struct OpenAIDashboardBrowserCookieImporter {
     {
         // Firefox fallback: no Keychain, but still only after Safari/Chrome.
         do {
-            let firefoxSources = try FirefoxCookieImporter.loadChatGPTCookiesFromAllProfiles()
+            let firefoxSources = try BrowserCookieImporter.loadCookieSources(
+                from: .firefox,
+                matchingDomains: Self.cookieDomains)
             for source in firefoxSources {
-                let cookies = FirefoxCookieImporter.makeHTTPCookies(source.records)
+                let cookies = BrowserCookieImporter.makeHTTPCookies(source.records)
                 if cookies.isEmpty {
-                    log("Firefox source \(source.label) produced 0 HTTPCookies.")
+                    log("\(source.label) produced 0 HTTPCookies.")
                     continue
                 }
                 diagnostics.foundAnyCookies = true
@@ -249,9 +252,44 @@ public struct OpenAIDashboardBrowserCookieImporter {
                 }
             }
             return nil
+        } catch let error as BrowserCookieImporter.ImportError {
+            if let hint = error.accessDeniedHint {
+                diagnostics.accessDeniedHints.append(hint)
+            }
+            log("Firefox cookie load failed: \(error.localizedDescription)")
+            return nil
         } catch {
             log("Firefox cookie load failed: \(error.localizedDescription)")
             return nil
+        }
+    }
+
+    private func trySource(
+        _ source: BrowserCookieSource,
+        targetEmail: String?,
+        allowAnyAccount: Bool,
+        log: @escaping (String) -> Void,
+        diagnostics: inout ImportDiagnostics) async -> ImportResult?
+    {
+        switch source {
+        case .safari:
+            await self.trySafari(
+                targetEmail: targetEmail,
+                allowAnyAccount: allowAnyAccount,
+                log: log,
+                diagnostics: &diagnostics)
+        case .chrome:
+            await self.tryChrome(
+                targetEmail: targetEmail,
+                allowAnyAccount: allowAnyAccount,
+                log: log,
+                diagnostics: &diagnostics)
+        case .firefox:
+            await self.tryFirefox(
+                targetEmail: targetEmail,
+                allowAnyAccount: allowAnyAccount,
+                log: log,
+                diagnostics: &diagnostics)
         }
     }
 

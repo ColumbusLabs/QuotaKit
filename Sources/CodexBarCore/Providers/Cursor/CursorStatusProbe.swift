@@ -2,9 +2,12 @@ import Foundation
 
 #if os(macOS)
 
+private let cursorCookieImportOrder: BrowserCookieImportOrder =
+    ProviderDefaults.metadata[.cursor]?.browserCookieOrder ?? .safariChromeFirefox
+
 // MARK: - Cursor Cookie Importer
 
-/// Imports Cursor session cookies from Safari/Chrome/Firefox browsers
+/// Imports Cursor session cookies from browser cookies.
 public enum CursorCookieImporter {
     private static let sessionCookieNames: Set<String> = [
         "WorkosCursorSessionToken",
@@ -26,96 +29,29 @@ public enum CursorCookieImporter {
         }
     }
 
-    /// Attempts to import Cursor cookies from Safari first, then Chrome, then Firefox
+    /// Attempts to import Cursor cookies using the standard browser import order.
     public static func importSession(logger: ((String) -> Void)? = nil) throws -> SessionInfo {
         let log: (String) -> Void = { msg in logger?("[cursor-cookie] \(msg)") }
 
-        // Try Safari first
-        do {
-            let safariRecords = try SafariCookieImporter.loadCookies(
-                matchingDomains: ["cursor.com", "cursor.sh"],
-                logger: log)
-            if !safariRecords.isEmpty {
-                let httpCookies = SafariCookieImporter.makeHTTPCookies(safariRecords)
-                if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
-                    log("Found \(httpCookies.count) Cursor cookies in Safari")
-                    return SessionInfo(cookies: httpCookies, sourceLabel: "Safari")
-                } else {
-                    log("Safari cookies found, but no Cursor session cookie present")
+        let cookieDomains = ["cursor.com", "cursor.sh"]
+        for browserSource in cursorCookieImportOrder.sources {
+            do {
+                let sources = try BrowserCookieImporter.loadCookieSources(
+                    from: browserSource,
+                    matchingDomains: cookieDomains,
+                    logger: log)
+                for source in sources where !source.records.isEmpty {
+                    let httpCookies = BrowserCookieImporter.makeHTTPCookies(source.records)
+                    if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
+                        log("Found \(httpCookies.count) Cursor cookies in \(source.label)")
+                        return SessionInfo(cookies: httpCookies, sourceLabel: source.label)
+                    } else {
+                        log("\(source.label) cookies found, but no Cursor session cookie present")
+                    }
                 }
+            } catch {
+                log("\(browserSource.displayName) cookie import failed: \(error.localizedDescription)")
             }
-        } catch {
-            log("Safari cookie import failed: \(error.localizedDescription)")
-        }
-
-        // Try Chrome
-        do {
-            let chromeSources = try ChromeCookieImporter.loadCookiesFromAllProfiles(
-                matchingDomains: ["cursor.com", "cursor.sh"])
-            for source in chromeSources where !source.records.isEmpty {
-                let httpCookies = source.records.compactMap { record -> HTTPCookie? in
-                    // Chrome uses hostKey instead of domain
-                    let domain = record.hostKey.hasPrefix(".") ? String(record.hostKey.dropFirst()) : record.hostKey
-                    var props: [HTTPCookiePropertyKey: Any] = [
-                        .domain: domain,
-                        .path: record.path,
-                        .name: record.name,
-                        .value: record.value,
-                        .secure: record.isSecure,
-                    ]
-                    if record.isHTTPOnly {
-                        props[.init("HttpOnly")] = "TRUE"
-                    }
-                    // Chrome expiresUTC is in microseconds since 1601-01-01
-                    if record.expiresUTC > 0 {
-                        // Convert Chrome timestamp to Unix timestamp
-                        let unixTimestamp = Double(record.expiresUTC - 11_644_473_600_000_000) / 1_000_000
-                        props[.expires] = Date(timeIntervalSince1970: unixTimestamp)
-                    }
-                    return HTTPCookie(properties: props)
-                }
-                if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
-                    log("Found \(httpCookies.count) Cursor cookies in \(source.label)")
-                    return SessionInfo(cookies: httpCookies, sourceLabel: source.label)
-                } else {
-                    log("Chrome source \(source.label) has no Cursor session cookie")
-                }
-            }
-        } catch {
-            log("Chrome cookie import failed: \(error.localizedDescription)")
-        }
-
-        // Try Firefox
-        do {
-            let firefoxSources = try FirefoxCookieImporter.loadCookiesFromAllProfiles(
-                matchingDomains: ["cursor.com", "cursor.sh"])
-            for source in firefoxSources where !source.records.isEmpty {
-                let httpCookies = source.records.compactMap { record -> HTTPCookie? in
-                    let domain = record.host.hasPrefix(".") ? String(record.host.dropFirst()) : record.host
-                    var props: [HTTPCookiePropertyKey: Any] = [
-                        .domain: domain,
-                        .path: record.path,
-                        .name: record.name,
-                        .value: record.value,
-                        .secure: record.isSecure,
-                    ]
-                    if record.isHTTPOnly {
-                        props[.init("HttpOnly")] = "TRUE"
-                    }
-                    if let expires = record.expires {
-                        props[.expires] = expires
-                    }
-                    return HTTPCookie(properties: props)
-                }
-                if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
-                    log("Found \(httpCookies.count) Cursor cookies in \(source.label)")
-                    return SessionInfo(cookies: httpCookies, sourceLabel: source.label)
-                } else {
-                    log("Firefox source \(source.label) has no Cursor session cookie")
-                }
-            }
-        } catch {
-            log("Firefox cookie import failed: \(error.localizedDescription)")
         }
 
         throw CursorStatusProbeError.noSessionCookie
@@ -360,7 +296,7 @@ public enum CursorStatusProbeError: LocalizedError, Sendable {
         case let .parseFailed(msg):
             "Could not parse Cursor usage: \(msg)"
         case .noSessionCookie:
-            "No Cursor session found. Please log in to cursor.com in Safari, Chrome, or Firefox."
+            "No Cursor session found. Please log in to cursor.com in \(cursorCookieImportOrder.loginHint)."
         }
     }
 }
@@ -477,11 +413,11 @@ public struct CursorStatusProbe: Sendable {
         self.timeout = timeout
     }
 
-    /// Fetch Cursor usage using browser cookies (Safari/Chrome/Firefox) with fallback to stored session
+    /// Fetch Cursor usage using browser cookies with fallback to stored session.
     public func fetch(logger: ((String) -> Void)? = nil) async throws -> CursorStatusSnapshot {
         let log: (String) -> Void = { msg in logger?("[cursor] \(msg)") }
 
-        // Try importing cookies from Safari/Chrome/Firefox first
+        // Try importing cookies from the configured browser order first.
         do {
             let session = try CursorCookieImporter.importSession(logger: log)
             log("Using cookies from \(session.sourceLabel)")

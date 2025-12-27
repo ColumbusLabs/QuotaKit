@@ -6,7 +6,7 @@ import FoundationNetworking
 /// Fetches Claude usage data directly from the claude.ai API using browser session cookies.
 ///
 /// This approach mirrors what Claude Usage Tracker does, but automatically extracts the session key
-/// from Safari/Chrome/Firefox cookies instead of requiring manual setup.
+/// from browser cookies instead of requiring manual setup.
 ///
 /// API endpoints used:
 /// - `GET https://claude.ai/api/organizations` → get org UUID
@@ -14,6 +14,8 @@ import FoundationNetworking
 public enum ClaudeWebAPIFetcher {
     private static let baseURL = "https://claude.ai/api"
     private static let maxProbeBytes = 200_000
+    private static let cookieImportOrder: BrowserCookieImportOrder =
+        ProviderDefaults.metadata[.claude]?.browserCookieOrder ?? .safariChromeFirefox
 
     public struct OrganizationInfo: Sendable {
         public let id: String
@@ -120,7 +122,7 @@ public enum ClaudeWebAPIFetcher {
     #if os(macOS)
 
     /// Attempts to fetch Claude usage data using cookies extracted from browsers.
-    /// Tries Safari first, then Chrome, then Firefox.
+    /// Tries browser cookies using the standard import order.
     public static func fetchUsage(logger: ((String) -> Void)? = nil) async throws -> WebUsageData {
         let log: (String) -> Void = { msg in logger?("[claude-web] \(msg)") }
 
@@ -273,51 +275,28 @@ public enum ClaudeWebAPIFetcher {
     private static func extractSessionKeyInfo(logger: ((String) -> Void)? = nil) throws -> SessionKeyInfo {
         let log: (String) -> Void = { msg in logger?(msg) }
 
-        // Try Safari first (doesn't require Keychain access)
-        do {
-            let safariRecords = try SafariCookieImporter.loadCookies(
-                matchingDomains: ["claude.ai"],
-                logger: log)
-            if let sessionKey = findSessionKey(in: safariRecords.map { record in
-                (name: record.name, value: record.value)
-            }) {
-                log("Found sessionKey in Safari")
-                return SessionKeyInfo(key: sessionKey, sourceLabel: "Safari", cookieCount: safariRecords.count)
-            }
-        } catch {
-            log("Safari cookie load failed: \(error.localizedDescription)")
-        }
+        let cookieDomains = ["claude.ai"]
 
-        // Try Chrome (may trigger Keychain prompt)
-        do {
-            let chromeSources = try ChromeCookieImporter.loadCookiesFromAllProfiles(
-                matchingDomains: ["claude.ai"])
-            for source in chromeSources {
-                if let sessionKey = findSessionKey(in: source.records.map { record in
-                    (name: record.name, value: record.value)
-                }) {
-                    log("Found sessionKey in \(source.label)")
-                    return SessionKeyInfo(key: sessionKey, sourceLabel: source.label, cookieCount: source.records.count)
+        for browserSource in Self.cookieImportOrder.sources {
+            do {
+                let sources = try BrowserCookieImporter.loadCookieSources(
+                    from: browserSource,
+                    matchingDomains: cookieDomains,
+                    logger: log)
+                for source in sources {
+                    if let sessionKey = findSessionKey(in: source.records.map { record in
+                        (name: record.name, value: record.value)
+                    }) {
+                        log("Found sessionKey in \(source.label)")
+                        return SessionKeyInfo(
+                            key: sessionKey,
+                            sourceLabel: source.label,
+                            cookieCount: source.records.count)
+                    }
                 }
+            } catch {
+                log("\(browserSource.displayName) cookie load failed: \(error.localizedDescription)")
             }
-        } catch {
-            log("Chrome cookie load failed: \(error.localizedDescription)")
-        }
-
-        // Try Firefox
-        do {
-            let firefoxSources = try FirefoxCookieImporter.loadCookiesFromAllProfiles(
-                matchingDomains: ["claude.ai"])
-            for source in firefoxSources {
-                if let sessionKey = findSessionKey(in: source.records.map { record in
-                    (name: record.name, value: record.value)
-                }) {
-                    log("Found sessionKey in \(source.label)")
-                    return SessionKeyInfo(key: sessionKey, sourceLabel: source.label, cookieCount: source.records.count)
-                }
-            }
-        } catch {
-            log("Firefox cookie load failed: \(error.localizedDescription)")
         }
 
         throw FetchError.noSessionKeyFound

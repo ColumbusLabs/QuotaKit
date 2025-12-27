@@ -2,9 +2,12 @@ import Foundation
 
 #if os(macOS)
 
+private let factoryCookieImportOrder: BrowserCookieImportOrder =
+    ProviderDefaults.metadata[.factory]?.browserCookieOrder ?? .safariChromeFirefox
+
 // MARK: - Factory Cookie Importer
 
-/// Imports Factory session cookies from Safari/Chrome/Firefox browsers
+/// Imports Factory session cookies from browser cookies.
 public enum FactoryCookieImporter {
     private static let sessionCookieNames: Set<String> = [
         "wos-session",
@@ -41,97 +44,31 @@ public enum FactoryCookieImporter {
         }
     }
 
-    /// Returns all Factory sessions across Safari/Chrome/Firefox.
+    /// Returns all Factory sessions across supported browsers.
     public static func importSessions(logger: ((String) -> Void)? = nil) throws -> [SessionInfo] {
         let log: (String) -> Void = { msg in logger?("[factory-cookie] \(msg)") }
         var sessions: [SessionInfo] = []
 
-        // Try Safari first
-        do {
-            let safariRecords = try SafariCookieImporter.loadCookies(
-                matchingDomains: ["factory.ai", "app.factory.ai", "auth.factory.ai"],
-                logger: log)
-            if !safariRecords.isEmpty {
-                let httpCookies = SafariCookieImporter.makeHTTPCookies(safariRecords)
-                if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
-                    log("Found \(httpCookies.count) Factory cookies in Safari")
-                    log("Safari cookie names: \(self.cookieNames(from: httpCookies))")
-                    sessions.append(SessionInfo(cookies: httpCookies, sourceLabel: "Safari"))
-                } else {
-                    log("Safari cookies found, but no Factory session cookie present")
+        let cookieDomains = ["factory.ai", "app.factory.ai", "auth.factory.ai"]
+        for browserSource in factoryCookieImportOrder.sources {
+            do {
+                let sources = try BrowserCookieImporter.loadCookieSources(
+                    from: browserSource,
+                    matchingDomains: cookieDomains,
+                    logger: log)
+                for source in sources where !source.records.isEmpty {
+                    let httpCookies = BrowserCookieImporter.makeHTTPCookies(source.records)
+                    if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
+                        log("Found \(httpCookies.count) Factory cookies in \(source.label)")
+                        log("\(source.label) cookie names: \(self.cookieNames(from: httpCookies))")
+                        sessions.append(SessionInfo(cookies: httpCookies, sourceLabel: source.label))
+                    } else {
+                        log("\(source.label) cookies found, but no Factory session cookie present")
+                    }
                 }
+            } catch {
+                log("\(browserSource.displayName) cookie import failed: \(error.localizedDescription)")
             }
-        } catch {
-            log("Safari cookie import failed: \(error.localizedDescription)")
-        }
-
-        // Try Chrome
-        do {
-            let chromeSources = try ChromeCookieImporter.loadCookiesFromAllProfiles(
-                matchingDomains: ["factory.ai", "app.factory.ai", "auth.factory.ai"])
-            for source in chromeSources where !source.records.isEmpty {
-                let httpCookies = source.records.compactMap { record -> HTTPCookie? in
-                    let domain = record.hostKey.hasPrefix(".") ? String(record.hostKey.dropFirst()) : record.hostKey
-                    var props: [HTTPCookiePropertyKey: Any] = [
-                        .domain: domain,
-                        .path: record.path,
-                        .name: record.name,
-                        .value: record.value,
-                        .secure: record.isSecure,
-                    ]
-                    if record.isHTTPOnly {
-                        props[.init("HttpOnly")] = "TRUE"
-                    }
-                    if record.expiresUTC > 0 {
-                        let unixTimestamp = Double(record.expiresUTC - 11_644_473_600_000_000) / 1_000_000
-                        props[.expires] = Date(timeIntervalSince1970: unixTimestamp)
-                    }
-                    return HTTPCookie(properties: props)
-                }
-                if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
-                    log("Found \(httpCookies.count) Factory cookies in \(source.label)")
-                    log("Chrome cookie names: \(self.cookieNames(from: httpCookies))")
-                    sessions.append(SessionInfo(cookies: httpCookies, sourceLabel: source.label))
-                } else {
-                    log("Chrome source \(source.label) has no Factory session cookie")
-                }
-            }
-        } catch {
-            log("Chrome cookie import failed: \(error.localizedDescription)")
-        }
-
-        // Try Firefox
-        do {
-            let firefoxSources = try FirefoxCookieImporter.loadCookiesFromAllProfiles(
-                matchingDomains: ["factory.ai", "app.factory.ai", "auth.factory.ai"])
-            for source in firefoxSources where !source.records.isEmpty {
-                let httpCookies = source.records.compactMap { record -> HTTPCookie? in
-                    let domain = record.host.hasPrefix(".") ? String(record.host.dropFirst()) : record.host
-                    var props: [HTTPCookiePropertyKey: Any] = [
-                        .domain: domain,
-                        .path: record.path,
-                        .name: record.name,
-                        .value: record.value,
-                        .secure: record.isSecure,
-                    ]
-                    if record.isHTTPOnly {
-                        props[.init("HttpOnly")] = "TRUE"
-                    }
-                    if let expires = record.expires {
-                        props[.expires] = expires
-                    }
-                    return HTTPCookie(properties: props)
-                }
-                if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
-                    log("Found \(httpCookies.count) Factory cookies in \(source.label)")
-                    log("Firefox cookie names: \(self.cookieNames(from: httpCookies))")
-                    sessions.append(SessionInfo(cookies: httpCookies, sourceLabel: source.label))
-                } else {
-                    log("Firefox source \(source.label) has no Factory session cookie")
-                }
-            }
-        } catch {
-            log("Firefox cookie import failed: \(error.localizedDescription)")
         }
 
         guard !sessions.isEmpty else {
@@ -140,7 +77,7 @@ public enum FactoryCookieImporter {
         return sessions
     }
 
-    /// Attempts to import Factory cookies from Safari first, then Chrome, then Firefox
+    /// Attempts to import Factory cookies using the standard browser import order.
     public static func importSession(logger: ((String) -> Void)? = nil) throws -> SessionInfo {
         let sessions = try self.importSessions(logger: logger)
         guard let first = sessions.first else {
@@ -391,7 +328,7 @@ public enum FactoryStatusProbeError: LocalizedError, Sendable {
         case let .parseFailed(msg):
             "Could not parse Factory usage: \(msg)"
         case .noSessionCookie:
-            "No Factory session found. Please log in to app.factory.ai in Safari, Chrome, or Firefox."
+            "No Factory session found. Please log in to app.factory.ai in \(factoryCookieImportOrder.loginHint)."
         }
     }
 }
@@ -568,7 +505,7 @@ public struct FactoryStatusProbe: Sendable {
         self.timeout = timeout
     }
 
-    /// Fetch Factory usage using browser cookies (Safari/Chrome/Firefox) with fallback to stored session
+    /// Fetch Factory usage using browser cookies with fallback to stored session.
     public func fetch(logger: ((String) -> Void)? = nil) async throws -> FactoryStatusSnapshot {
         let log: (String) -> Void = { msg in logger?("[factory] \(msg)") }
         var lastError: Error?

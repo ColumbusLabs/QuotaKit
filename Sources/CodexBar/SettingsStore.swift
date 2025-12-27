@@ -94,7 +94,7 @@ final class SettingsStore {
         didSet { self.userDefaults.set(self.randomBlinkEnabled, forKey: "randomBlinkEnabled") }
     }
 
-    /// Optional: augment Claude usage with claude.ai web API (via Safari/Chrome/Firefox cookies),
+    /// Optional: augment Claude usage with claude.ai web API (via browser cookies),
     /// incl. "Extra usage" spend.
     var claudeWebExtrasEnabled: Bool {
         didSet { self.userDefaults.set(self.claudeWebExtrasEnabled, forKey: "claudeWebExtrasEnabled") }

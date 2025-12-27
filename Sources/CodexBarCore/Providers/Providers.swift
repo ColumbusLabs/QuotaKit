@@ -22,6 +22,7 @@ public struct ProviderMetadata: Sendable {
     public let toggleTitle: String
     public let cliName: String
     public let defaultEnabled: Bool
+    public let browserCookieOrder: BrowserCookieImportOrder?
     public let dashboardURL: String?
     public let subscriptionDashboardURL: String?
     /// Statuspage.io base URL for incident polling (append /api/v2/status.json).
@@ -43,6 +44,7 @@ public struct ProviderMetadata: Sendable {
         toggleTitle: String,
         cliName: String,
         defaultEnabled: Bool,
+        browserCookieOrder: BrowserCookieImportOrder? = nil,
         dashboardURL: String?,
         subscriptionDashboardURL: String? = nil,
         statusPageURL: String?,
@@ -60,6 +62,7 @@ public struct ProviderMetadata: Sendable {
         self.toggleTitle = toggleTitle
         self.cliName = cliName
         self.defaultEnabled = defaultEnabled
+        self.browserCookieOrder = browserCookieOrder
         self.dashboardURL = dashboardURL
         self.subscriptionDashboardURL = subscriptionDashboardURL
         self.statusPageURL = statusPageURL
@@ -82,6 +85,7 @@ public enum ProviderDefaults {
             toggleTitle: "Show Codex usage",
             cliName: "codex",
             defaultEnabled: true,
+            browserCookieOrder: .safariChromeFirefox,
             dashboardURL: "https://chatgpt.com/codex/settings/usage",
             statusPageURL: "https://status.openai.com/"),
         .claude: ProviderMetadata(
@@ -96,6 +100,7 @@ public enum ProviderDefaults {
             toggleTitle: "Show Claude Code usage",
             cliName: "claude",
             defaultEnabled: false,
+            browserCookieOrder: .safariChromeFirefox,
             dashboardURL: "https://console.anthropic.com/settings/billing",
             subscriptionDashboardURL: "https://claude.ai/settings/usage",
             statusPageURL: "https://status.claude.com/"),
@@ -125,6 +130,7 @@ public enum ProviderDefaults {
             toggleTitle: "Show Cursor usage",
             cliName: "cursor",
             defaultEnabled: false,
+            browserCookieOrder: .safariChromeFirefox,
             dashboardURL: "https://cursor.com/dashboard?tab=usage",
             statusPageURL: "https://status.cursor.com",
             statusLinkURL: nil),
@@ -172,6 +178,7 @@ public enum ProviderDefaults {
             toggleTitle: "Show Droid usage",
             cliName: "factory",
             defaultEnabled: false,
+            browserCookieOrder: .safariChromeFirefox,
             dashboardURL: "https://app.factory.ai/settings/billing",
             statusPageURL: "https://status.factory.ai",
             statusLinkURL: nil),

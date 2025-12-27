@@ -13,17 +13,24 @@ struct ClaudeProviderImplementation: ProviderImplementation {
     @MainActor
     func settingsToggles(context: ProviderSettingsContext) -> [ProviderSettingsToggleDescriptor] {
         let id = "claude.webExtras"
+        let metadata = context.store.metadata(for: .claude)
+        let browserOrder = metadata.browserCookieOrder
 
         let statusText: () -> String? = { context.statusText(id) }
+
+        var subtitleLines = [
+            "Uses \(browserOrder?.shortLabel ?? "browser") session cookies to add extra dashboard fields " +
+                "on top of OAuth.",
+            "Adds extra usage spend/limit.",
+        ]
+        if let browserOrder {
+            subtitleLines.append("\(browserOrder.displayLabel).")
+        }
 
         let toggle = ProviderSettingsToggleDescriptor(
             id: id,
             title: "Augment Claude via web",
-            subtitle: [
-                "Uses Safari/Chrome/Firefox session cookies to add extra dashboard fields on top of OAuth.",
-                "Adds Extra usage spend/limit.",
-                "Safari → Chrome → Firefox.",
-            ].joined(separator: " "),
+            subtitle: subtitleLines.joined(separator: " "),
             binding: context.boolBinding(\.claudeWebExtrasEnabled),
             statusText: statusText,
             actions: [],

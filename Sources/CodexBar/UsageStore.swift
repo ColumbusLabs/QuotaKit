@@ -325,6 +325,10 @@ final class UsageStore {
         self.providerMetadata[provider]!
     }
 
+    private var codexBrowserCookieOrder: BrowserCookieImportOrder {
+        self.metadata(for: .codex).browserCookieOrder ?? .safariChromeFirefox
+    }
+
     func snapshot(for provider: UsageProvider) -> UsageSnapshot? {
         self.snapshots[provider]
     }
@@ -715,7 +719,7 @@ final class UsageStore {
             // Use a per-email persistent `WKWebsiteDataStore` so multiple dashboard sessions can coexist.
             // Strategy:
             // - Try the existing per-email WebKit cookie store first (fast; avoids Keychain prompts).
-            // - On login-required or account mismatch, import cookies from Safari/Chrome/Firefox and retry once.
+            // - On login-required or account mismatch, import cookies from the configured browser order and retry once.
             if self.openAIWebAccountDidChange, let targetEmail, !targetEmail.isEmpty {
                 // On account switches, proactively re-import cookies so we don't show stale data from the previous
                 // user.
@@ -793,7 +797,8 @@ final class UsageStore {
                 await MainActor.run {
                     self.lastOpenAIDashboardError = [
                         "OpenAI web access requires a signed-in chatgpt.com session.",
-                        "Sign in in Safari, Chrome, or Firefox, then re-enable “Access OpenAI via web”.",
+                        "Sign in using \(self.codexBrowserCookieOrder.loginHint), " +
+                            "then re-enable “Access OpenAI via web”.",
                     ].joined(separator: " ")
                     self.openAIDashboard = self.lastOpenAIDashboardSnapshot
                     self.openAIDashboardRequiresLogin = true
@@ -915,7 +920,7 @@ final class UsageStore {
             switch err {
             case let .noMatchingAccount(found):
                 let foundText: String = if found.isEmpty {
-                    "no signed-in session detected in Safari/Chrome/Firefox"
+                    "no signed-in session detected in \(self.codexBrowserCookieOrder.loginHint)"
                 } else {
                     found
                         .sorted { lhs, rhs in
