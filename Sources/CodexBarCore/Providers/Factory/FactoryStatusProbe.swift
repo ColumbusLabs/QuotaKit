@@ -31,9 +31,10 @@ public enum FactoryCookieImporter {
         }
     }
 
-    /// Attempts to import Factory cookies from Safari first, then Chrome, then Firefox
-    public static func importSession(logger: ((String) -> Void)? = nil) throws -> SessionInfo {
+    /// Returns all Factory sessions across Safari/Chrome/Firefox.
+    public static func importSessions(logger: ((String) -> Void)? = nil) throws -> [SessionInfo] {
         let log: (String) -> Void = { msg in logger?("[factory-cookie] \(msg)") }
+        var sessions: [SessionInfo] = []
 
         // Try Safari first
         do {
@@ -44,7 +45,7 @@ public enum FactoryCookieImporter {
                 let httpCookies = SafariCookieImporter.makeHTTPCookies(safariRecords)
                 if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
                     log("Found \(httpCookies.count) Factory cookies in Safari")
-                    return SessionInfo(cookies: httpCookies, sourceLabel: "Safari")
+                    sessions.append(SessionInfo(cookies: httpCookies, sourceLabel: "Safari"))
                 } else {
                     log("Safari cookies found, but no Factory session cookie present")
                 }
@@ -78,7 +79,7 @@ public enum FactoryCookieImporter {
                 }
                 if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
                     log("Found \(httpCookies.count) Factory cookies in \(source.label)")
-                    return SessionInfo(cookies: httpCookies, sourceLabel: source.label)
+                    sessions.append(SessionInfo(cookies: httpCookies, sourceLabel: source.label))
                 } else {
                     log("Chrome source \(source.label) has no Factory session cookie")
                 }
@@ -111,7 +112,7 @@ public enum FactoryCookieImporter {
                 }
                 if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
                     log("Found \(httpCookies.count) Factory cookies in \(source.label)")
-                    return SessionInfo(cookies: httpCookies, sourceLabel: source.label)
+                    sessions.append(SessionInfo(cookies: httpCookies, sourceLabel: source.label))
                 } else {
                     log("Firefox source \(source.label) has no Factory session cookie")
                 }
@@ -120,14 +121,25 @@ public enum FactoryCookieImporter {
             log("Firefox cookie import failed: \(error.localizedDescription)")
         }
 
-        throw FactoryStatusProbeError.noSessionCookie
+        guard !sessions.isEmpty else {
+            throw FactoryStatusProbeError.noSessionCookie
+        }
+        return sessions
+    }
+
+    /// Attempts to import Factory cookies from Safari first, then Chrome, then Firefox
+    public static func importSession(logger: ((String) -> Void)? = nil) throws -> SessionInfo {
+        let sessions = try self.importSessions(logger: logger)
+        guard let first = sessions.first else {
+            throw FactoryStatusProbeError.noSessionCookie
+        }
+        return first
     }
 
     /// Check if Factory session cookies are available
     public static func hasSession(logger: ((String) -> Void)? = nil) -> Bool {
         do {
-            let session = try self.importSession(logger: logger)
-            return !session.cookies.isEmpty
+            return !(try self.importSessions(logger: logger)).isEmpty
         } catch {
             return false
         }
@@ -473,6 +485,10 @@ public actor FactorySessionStore {
 public struct FactoryStatusProbe: Sendable {
     public let baseURL: URL
     public var timeout: TimeInterval = 15.0
+    private static let staleTokenCookieNames: Set<String> = [
+        "access-token",
+        "__recent_auth",
+    ]
 
     public init(baseURL: URL = URL(string: "https://app.factory.ai")!, timeout: TimeInterval = 15.0) {
         self.baseURL = baseURL
@@ -482,14 +498,22 @@ public struct FactoryStatusProbe: Sendable {
     /// Fetch Factory usage using browser cookies (Safari/Chrome/Firefox) with fallback to stored session
     public func fetch(logger: ((String) -> Void)? = nil) async throws -> FactoryStatusSnapshot {
         let log: (String) -> Void = { msg in logger?("[factory] \(msg)") }
+        var lastError: Error?
 
         // Try importing cookies from Safari/Chrome/Firefox first
         do {
-            let session = try FactoryCookieImporter.importSession(logger: log)
-            log("Using cookies from \(session.sourceLabel)")
-            let snapshot = try await self.fetchWithCookieHeader(session.cookieHeader)
-            await FactorySessionStore.shared.setCookies(session.cookies)
-            return snapshot
+            let sessions = try FactoryCookieImporter.importSessions(logger: log)
+            for session in sessions {
+                log("Using cookies from \(session.sourceLabel)")
+                do {
+                    let snapshot = try await self.fetchWithCookies(session.cookies, logger: log)
+                    await FactorySessionStore.shared.setCookies(session.cookies)
+                    return snapshot
+                } catch {
+                    lastError = error
+                    log("Browser session fetch failed for \(session.sourceLabel): \(error.localizedDescription)")
+                }
+            }
         } catch {
             log("Browser cookie import failed: \(error.localizedDescription)")
         }
@@ -498,9 +522,8 @@ public struct FactoryStatusProbe: Sendable {
         let storedCookies = await FactorySessionStore.shared.getCookies()
         if !storedCookies.isEmpty {
             log("Using stored session cookies")
-            let cookieHeader = storedCookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
             do {
-                return try await self.fetchWithCookieHeader(cookieHeader)
+                return try await self.fetchWithCookies(storedCookies, logger: log)
             } catch {
                 if case FactoryStatusProbeError.notLoggedIn = error {
                     await FactorySessionStore.shared.clearSession()
@@ -508,10 +531,37 @@ public struct FactoryStatusProbe: Sendable {
                 } else {
                     log("Stored session failed: \(error.localizedDescription)")
                 }
+                if lastError == nil { lastError = error }
             }
         }
 
+        if let lastError { throw lastError }
         throw FactoryStatusProbeError.noSessionCookie
+    }
+
+    private func fetchWithCookies(_ cookies: [HTTPCookie], logger: (String) -> Void) async throws -> FactoryStatusSnapshot {
+        let header = Self.cookieHeader(from: cookies)
+        do {
+            return try await self.fetchWithCookieHeader(header)
+        } catch let error as FactoryStatusProbeError {
+            guard case let .networkError(message) = error,
+                  message.contains("HTTP 409"),
+                  message.localizedCaseInsensitiveContains("stale token")
+            else {
+                throw error
+            }
+
+            let filtered = cookies.filter { !Self.staleTokenCookieNames.contains($0.name) }
+            guard filtered.count < cookies.count else { throw error }
+            logger("Retrying without access-token cookies")
+            return try await self.fetchWithCookieHeader(Self.cookieHeader(from: filtered))
+        } catch {
+            throw error
+        }
+    }
+
+    private static func cookieHeader(from cookies: [HTTPCookie]) -> String {
+        cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
     }
 
     private func fetchWithCookieHeader(_ cookieHeader: String) async throws -> FactoryStatusSnapshot {
@@ -548,7 +598,10 @@ public struct FactoryStatusProbe: Sendable {
         }
 
         guard httpResponse.statusCode == 200 else {
-            throw FactoryStatusProbeError.networkError("HTTP \(httpResponse.statusCode)")
+            let body = String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? "<binary>"
+            let snippet = body.isEmpty ? "" : ": \(body.prefix(200))"
+            throw FactoryStatusProbeError.networkError("HTTP \(httpResponse.statusCode)\(snippet)")
         }
 
         do {
@@ -589,7 +642,10 @@ public struct FactoryStatusProbe: Sendable {
         }
 
         guard httpResponse.statusCode == 200 else {
-            throw FactoryStatusProbeError.networkError("HTTP \(httpResponse.statusCode)")
+            let body = String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? "<binary>"
+            let snippet = body.isEmpty ? "" : ": \(body.prefix(200))"
+            throw FactoryStatusProbeError.networkError("HTTP \(httpResponse.statusCode)\(snippet)")
         }
 
         do {

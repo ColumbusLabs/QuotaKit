@@ -423,6 +423,22 @@ enum CodexBarCLI {
             }
         }
 
+        if provider == .factory {
+            do {
+                let probe = FactoryStatusProbe()
+                let logger: ((String) -> Void)? = context.verbose ? { line in
+                    Self.writeStderr(line + "\n")
+                } : nil
+                let snap = try await probe.fetch(logger: logger)
+                return ProviderFetchOutcome(
+                    result: .success((usage: snap.toUsageSnapshot(), credits: nil)),
+                    dashboard: nil,
+                    sourceOverride: nil)
+            } catch {
+                return ProviderFetchOutcome(result: .failure(error), dashboard: nil, sourceOverride: nil)
+            }
+        }
+
         let result = await Self.fetch(
             provider: provider,
             includeCredits: context.includeCredits,
