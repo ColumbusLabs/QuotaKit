@@ -41,13 +41,13 @@ public struct CopilotDeviceFlow: Sendable {
         var postRequest = request
         postRequest.httpMethod = "POST"
         postRequest.setValue("application/json", forHTTPHeaderField: "Accept")
-        postRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        postRequest.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
 
         let body = [
             "client_id": self.clientID,
             "scope": self.scopes,
         ]
-        postRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
+        postRequest.httpBody = Self.formURLEncodedBody(body)
 
         let (data, response) = try await URLSession.shared.data(for: postRequest)
 
@@ -63,17 +63,18 @@ public struct CopilotDeviceFlow: Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
 
         let body = [
             "client_id": self.clientID,
             "device_code": deviceCode,
             "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
         ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        request.httpBody = Self.formURLEncodedBody(body)
 
         while true {
             try await Task.sleep(nanoseconds: UInt64(interval) * 1_000_000_000)
+            try Task.checkCancellation()
 
             let (data, _) = try await URLSession.shared.data(for: request)
 
@@ -98,5 +99,20 @@ public struct CopilotDeviceFlow: Sendable {
                 return tokenResponse.accessToken
             }
         }
+    }
+
+    private static func formURLEncodedBody(_ parameters: [String: String]) -> Data {
+        let pairs = parameters
+            .map { key, value in
+                "\(Self.formEncode(key))=\(Self.formEncode(value))"
+            }
+            .joined(separator: "&")
+        return Data(pairs.utf8)
+    }
+
+    private static func formEncode(_ value: String) -> String {
+        var allowed = CharacterSet.urlQueryAllowed
+        allowed.remove(charactersIn: "+&=")
+        return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
     }
 }

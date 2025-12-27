@@ -50,11 +50,6 @@ struct CopilotLoginFlow {
             """
             waitingAlert.addButton(withTitle: "Cancel")
 
-            // Poll in a detached task
-            let tokenTask = Task {
-                try await flow.pollForToken(deviceCode: code.deviceCode, interval: code.interval)
-            }
-
             // Show the modal. If user clicks Cancel, we cancel the task.
             // We need a way to close the modal programmatically when task finishes.
             // NSAlert doesn't support programmatic closing easily in runModal.
@@ -75,32 +70,51 @@ struct CopilotLoginFlow {
 
             // Implementing `abortModal` logic:
 
+            var completion: Result<String, Error>?
+            let tokenTask = Task {
+                try await flow.pollForToken(deviceCode: code.deviceCode, interval: code.interval)
+            }
+
             Task {
                 do {
-                    let token = try await flow.pollForToken(deviceCode: code.deviceCode, interval: code.interval)
+                    let token = try await tokenTask.value
                     await MainActor.run {
-                        NSApp.stopModal(withCode: .alertFirstButtonReturn) // Success
-                        settings.copilotAPIToken = token
-                        settings.setProviderEnabled(
-                            provider: .copilot,
-                            metadata: ProviderRegistry.shared.metadata[.copilot]!,
-                            enabled: true)
-
-                        let success = NSAlert()
-                        success.messageText = "Login Successful"
-                        success.runModal()
+                        completion = .success(token)
+                        NSApp.stopModal()
+                        waitingAlert.window.close()
                     }
                 } catch {
                     await MainActor.run {
-                        NSApp.stopModal(withCode: .alertSecondButtonReturn) // Failure
-                        // Don't show error if just cancelled, but here we might want to.
+                        guard !(error is CancellationError) else { return }
+                        completion = .failure(error)
+                        NSApp.stopModal()
+                        waitingAlert.window.close()
                     }
                 }
             }
 
             let waitResponse = waitingAlert.runModal()
-            if waitResponse == .alertFirstButtonReturn { // Cancel button (it's the only one)
+            if completion == nil, waitResponse == .alertFirstButtonReturn { // Cancel button (it's the only one)
                 tokenTask.cancel()
+            }
+            if let completion {
+                switch completion {
+                case let .success(token):
+                    settings.copilotAPIToken = token
+                    settings.setProviderEnabled(
+                        provider: .copilot,
+                        metadata: ProviderRegistry.shared.metadata[.copilot]!,
+                        enabled: true)
+
+                    let success = NSAlert()
+                    success.messageText = "Login Successful"
+                    success.runModal()
+                case let .failure(error):
+                    let err = NSAlert()
+                    err.messageText = "Login Failed"
+                    err.informativeText = error.localizedDescription
+                    err.runModal()
+                }
             }
 
         } catch {
