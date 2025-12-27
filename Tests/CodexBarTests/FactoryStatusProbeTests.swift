@@ -55,3 +55,15 @@ struct FactoryStatusSnapshotTests {
         #expect(usage.primary.usedPercent == 50)
     }
 }
+
+@Suite
+struct FactoryStatusProbeWorkOSTests {
+    @Test
+    func detectsMissingRefreshTokenPayload() {
+        let payload = Data("""
+        {"error":"invalid_request","error_description":"Missing refresh token."}
+        """.utf8)
+
+        #expect(FactoryStatusProbe.isMissingWorkOSRefreshToken(payload))
+    }
+}

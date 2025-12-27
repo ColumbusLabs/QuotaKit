@@ -637,7 +637,11 @@ public struct FactoryStatusProbe: Sendable {
     }
 
     private func attemptStoredRefreshToken(logger: (String) -> Void) async -> FetchAttemptResult {
-        guard let refreshToken = await FactorySessionStore.shared.getRefreshToken() else { return .skipped }
+        guard let refreshToken = await FactorySessionStore.shared.getRefreshToken(),
+              !refreshToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            return .skipped
+        }
         logger("Using stored WorkOS refresh token")
         do {
             return try await .success(self.fetchWithWorkOSRefreshToken(
@@ -646,6 +650,8 @@ public struct FactoryStatusProbe: Sendable {
                 logger: logger))
         } catch {
             if self.isInvalidGrant(error) {
+                await FactorySessionStore.shared.setRefreshToken(nil)
+            } else if case FactoryStatusProbeError.noSessionCookie = error {
                 await FactorySessionStore.shared.setRefreshToken(nil)
             }
             return .failure(error)
@@ -657,6 +663,9 @@ public struct FactoryStatusProbe: Sendable {
         guard !workosTokens.isEmpty else { return .skipped }
         var lastError: Error?
         for token in workosTokens {
+            guard !token.refreshToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                continue
+            }
             logger("Using WorkOS refresh token from \(token.sourceLabel)")
             if let accessToken = token.accessToken {
                 do {
@@ -1092,6 +1101,9 @@ public struct FactoryStatusProbe: Sendable {
         }
 
         guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 400, Self.isMissingWorkOSRefreshToken(data) {
+                throw FactoryStatusProbeError.noSessionCookie
+            }
             let body = String(data: data, encoding: .utf8)?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? "<binary>"
             let snippet = body.isEmpty ? "" : ": \(body.prefix(200))"
@@ -1159,6 +1171,9 @@ public struct FactoryStatusProbe: Sendable {
         }
 
         guard httpResponse.statusCode == 200 else {
+            if httpResponse.statusCode == 400, Self.isMissingWorkOSRefreshToken(data) {
+                throw FactoryStatusProbeError.noSessionCookie
+            }
             let bodyText = String(data: data, encoding: .utf8)?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? "<binary>"
             let snippet = bodyText.isEmpty ? "" : ": \(bodyText.prefix(200))"
@@ -1174,6 +1189,14 @@ public struct FactoryStatusProbe: Sendable {
             return false
         }
         return message.localizedCaseInsensitiveContains("invalid_grant")
+    }
+
+    static func isMissingWorkOSRefreshToken(_ data: Data) -> Bool {
+        guard let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] else {
+            return false
+        }
+        guard let description = json["error_description"] as? String else { return false }
+        return description.localizedCaseInsensitiveContains("missing refresh token")
     }
 
     private func extractUserIdFromAuth(_ auth: FactoryAuthResponse) -> String? {

@@ -10,7 +10,15 @@ cd "$ROOT"
 source "$ROOT/version.env"
 
 # Force a clean build to avoid stale binaries.
-rm -rf "$ROOT/.build"
+if [[ -d "$ROOT/.build" ]]; then
+  if command -v trash >/dev/null 2>&1; then
+    if ! trash "$ROOT/.build"; then
+      echo "WARN: trash .build failed; continuing with swift package clean." >&2
+    fi
+  else
+    rm -rf "$ROOT/.build" || echo "WARN: rm -rf .build failed; continuing with swift package clean." >&2
+  fi
+fi
 swift package clean >/dev/null 2>&1 || true
 
 swift build -c "$CONF" --arch arm64
