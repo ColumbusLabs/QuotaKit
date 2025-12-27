@@ -337,8 +337,8 @@ final class UsageStore {
         self.providerMetadata[provider]!
     }
 
-    private var codexBrowserCookieOrder: BrowserCookieImportOrder {
-        self.metadata(for: .codex).browserCookieOrder ?? .safariChromeFirefox
+    private var codexBrowserCookieOrder: [BrowserCookieSource] {
+        self.metadata(for: .codex).browserCookieOrder ?? BrowserCookieSourceDefaults.importOrder
     }
 
     func snapshot(for provider: UsageProvider) -> UsageSnapshot? {

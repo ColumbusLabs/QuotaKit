@@ -46,7 +46,7 @@ public struct CopilotUsageFetcher: Sendable {
             accountOrganization: nil,
             loginMethod: usage.copilotPlan.capitalized)
     }
-    
+
     private func addCommonHeaders(to request: inout URLRequest) {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("vscode/1.96.2", forHTTPHeaderField: "Editor-Version")

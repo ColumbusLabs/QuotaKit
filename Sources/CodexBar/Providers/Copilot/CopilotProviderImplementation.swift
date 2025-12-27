@@ -35,8 +35,7 @@ struct CopilotProviderImplementation: ProviderImplementation {
                         isVisible: { context.settings.copilotAPIToken.isEmpty },
                         perform: {
                             await CopilotLoginFlow.run(settings: context.settings)
-                        }
-                    ),
+                        }),
                     ProviderSettingsActionDescriptor(
                         id: "copilot-relogin",
                         title: "Sign in again",
@@ -44,11 +43,9 @@ struct CopilotProviderImplementation: ProviderImplementation {
                         isVisible: { !context.settings.copilotAPIToken.isEmpty },
                         perform: {
                             await CopilotLoginFlow.run(settings: context.settings)
-                        }
-                    )
+                        }),
                 ],
-                isVisible: nil
-            )
+                isVisible: nil),
         ]
     }
 }

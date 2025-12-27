@@ -35,26 +35,26 @@ public struct CopilotDeviceFlow: Sendable {
     public init() {}
 
     public func requestDeviceCode() async throws -> DeviceCodeResponse {
-        var components = URLComponents(string: "https://github.com/login/device/code")!
+        let components = URLComponents(string: "https://github.com/login/device/code")!
         let request = URLRequest(url: components.url!)
-        
+
         var postRequest = request
         postRequest.httpMethod = "POST"
         postRequest.setValue("application/json", forHTTPHeaderField: "Accept")
         postRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
+
         let body = [
             "client_id": self.clientID,
-            "scope": self.scopes
+            "scope": self.scopes,
         ]
         postRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await URLSession.shared.data(for: postRequest)
-        
+
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             throw URLError(.badServerResponse)
         }
-        
+
         return try JSONDecoder().decode(DeviceCodeResponse.self, from: data)
     }
 
@@ -64,22 +64,23 @@ public struct CopilotDeviceFlow: Sendable {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
+
         let body = [
             "client_id": self.clientID,
             "device_code": deviceCode,
-            "grant_type": "urn:ietf:params:oauth:grant-type:device_code"
+            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         while true {
             try await Task.sleep(nanoseconds: UInt64(interval) * 1_000_000_000)
-            
+
             let (data, _) = try await URLSession.shared.data(for: request)
-            
+
             // Check for error in JSON
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let error = json["error"] as? String {
+               let error = json["error"] as? String
+            {
                 if error == "authorization_pending" {
                     continue
                 }
@@ -92,7 +93,7 @@ public struct CopilotDeviceFlow: Sendable {
                 }
                 throw URLError(.userAuthenticationRequired) // Generic failure
             }
-            
+
             if let tokenResponse = try? JSONDecoder().decode(AccessTokenResponse.self, from: data) {
                 return tokenResponse.accessToken
             }

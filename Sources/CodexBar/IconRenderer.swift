@@ -689,7 +689,6 @@ enum IconRenderer {
         case .copilot: 7
         case .combined: 99
         }
-
     }
 
     private static func indicatorKey(_ indicator: ProviderStatusIndicator) -> Int {
