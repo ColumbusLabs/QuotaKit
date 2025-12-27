@@ -54,6 +54,15 @@ Requirements:
 - Claude: Claude Code CLI installed (`claude --version`) and logged in via `claude login` to show the Claude row. Run at least one `/usage` so session/week numbers exist.
 - OpenAI web (optional): stay signed in to `chatgpt.com` in Safari, Chrome, or Firefox. Safari cookie import may require Full Disk Access (System Settings → Privacy & Security → Full Disk Access → enable CodexBar).
 
+## macOS permissions (why they’re needed)
+- **Full Disk Access (optional)**: only required to read Safari cookies/local storage for web-based providers (Codex web, Claude web, Cursor, Droid/Factory). If you don’t grant it, use Chrome/Firefox cookies or CLI-only sources instead.
+- **Keychain access (prompted by macOS)**:
+  - Chrome cookie import needs the “Chrome Safe Storage” key to decrypt cookies.
+  - Claude OAuth credentials (written by the Claude CLI) are read from Keychain when present.
+  - z.ai and Copilot API tokens are stored in Keychain from Preferences → Providers.
+- **Files & Folders prompts (folder/volume access)**: CodexBar launches provider CLIs (codex/claude/gemini/antigravity). If those CLIs read a project directory or external drive, macOS may ask CodexBar for that folder/volume (e.g., Desktop or an external volume). This is driven by the CLI’s working directory, not background disk scanning.
+- **What we do not request**: no Screen Recording, Accessibility, or Automation permissions; no passwords are stored (browser cookies are reused when you opt in).
+
 ## Refresh cadence
 Menu → “Refresh every …” presets: Manual, 1 min, 2 min, 5 min (default), 15 min. Manual still allows “Refresh now.”
 
