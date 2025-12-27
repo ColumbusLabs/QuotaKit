@@ -383,6 +383,10 @@ extension StatusItemController {
         let basePadding: CGFloat = 6
         let descenderSafety: CGFloat = 1
 
+        if let measured = view as? MenuCardMeasuring {
+            return max(1, ceil(measured.measuredHeight(width: width) + basePadding + descenderSafety))
+        }
+
         view.frame = NSRect(origin: .zero, size: NSSize(width: width, height: 1))
         view.needsLayout = true
         view.invalidateIntrinsicContentSize()
@@ -556,6 +560,11 @@ extension StatusItemController {
     }
 
     @MainActor
+    private protocol MenuCardMeasuring: AnyObject {
+        func measuredHeight(width: CGFloat) -> CGFloat
+    }
+
+    @MainActor
     @Observable
     fileprivate final class MenuCardHighlightState {
         var isHighlighted = false
@@ -566,7 +575,8 @@ extension StatusItemController {
     }
 
     @MainActor
-    private final class MenuCardItemHostingView<Content: View>: NSHostingView<Content>, MenuCardHighlighting {
+    private final class MenuCardItemHostingView<Content: View>: NSHostingView<Content>, MenuCardHighlighting,
+    MenuCardMeasuring {
         private let highlightState: MenuCardHighlightState
         override var allowsVibrancy: Bool { true }
 
@@ -583,6 +593,12 @@ extension StatusItemController {
         @available(*, unavailable)
         required init?(coder: NSCoder) {
             fatalError("init(coder:) has not been implemented")
+        }
+
+        func measuredHeight(width: CGFloat) -> CGFloat {
+            let controller = NSHostingController(rootView: self.rootView)
+            let measured = controller.sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude))
+            return measured.height
         }
 
         func setHighlighted(_ highlighted: Bool) {
