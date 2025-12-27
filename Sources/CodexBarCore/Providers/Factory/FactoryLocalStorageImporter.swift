@@ -47,6 +47,13 @@ enum FactoryLocalStorageImporter {
                 (appSupport.appendingPathComponent("Arc").appendingPathComponent("User Data"), "Arc"),
                 (appSupport.appendingPathComponent("Arc Beta").appendingPathComponent("User Data"), "Arc Beta"),
                 (appSupport.appendingPathComponent("Arc Canary").appendingPathComponent("User Data"), "Arc Canary"),
+                (
+                    appSupport
+                        .appendingPathComponent("com.openai.atlas")
+                        .appendingPathComponent("browser-data")
+                        .appendingPathComponent("host"),
+                    "ChatGPT Atlas"
+                ),
                 (appSupport.appendingPathComponent("Chromium"), "Chromium"),
             ]
         }
@@ -72,7 +79,7 @@ enum FactoryLocalStorageImporter {
                 return false
             }
             let name = url.lastPathComponent
-            return name == "Default" || name.hasPrefix("Profile ")
+            return name == "Default" || name.hasPrefix("Profile ") || name.hasPrefix("user-")
         }
         .sorted { $0.lastPathComponent < $1.lastPathComponent }
 

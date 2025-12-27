@@ -67,6 +67,13 @@ enum ChromeCookieImporter {
                 (appSupport.appendingPathComponent("Arc").appendingPathComponent("User Data"), "Arc"),
                 (appSupport.appendingPathComponent("Arc Beta").appendingPathComponent("User Data"), "Arc Beta"),
                 (appSupport.appendingPathComponent("Arc Canary").appendingPathComponent("User Data"), "Arc Canary"),
+                (
+                    appSupport
+                        .appendingPathComponent("com.openai.atlas")
+                        .appendingPathComponent("browser-data")
+                        .appendingPathComponent("host"),
+                    "ChatGPT Atlas"
+                ),
                 (appSupport.appendingPathComponent("Chromium"), "Chromium"),
             ]
         }
@@ -222,6 +229,9 @@ enum ChromeCookieImporter {
             ("Arc Safe Storage", "Arc"),
             ("Arc Safe Storage", "Arc Beta"),
             ("Arc Safe Storage", "Arc Canary"),
+            ("ChatGPT Atlas Safe Storage", "ChatGPT Atlas"),
+            ("ChatGPT Atlas Safe Storage", "com.openai.atlas"),
+            ("com.openai.atlas Safe Storage", "com.openai.atlas"),
             ("Microsoft Edge Safe Storage", "Microsoft Edge"),
             ("Vivaldi Safe Storage", "Vivaldi"),
         ]
@@ -409,7 +419,7 @@ enum ChromeCookieImporter {
                 return false
             }
             let name = url.lastPathComponent
-            return name == "Default" || name.hasPrefix("Profile ")
+            return name == "Default" || name.hasPrefix("Profile ") || name.hasPrefix("user-")
         }
         .sorted { $0.lastPathComponent < $1.lastPathComponent }
 

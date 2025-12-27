@@ -51,7 +51,7 @@ read_when:
 
 ## Droid (Factory)
 - Web-based: fetches usage from app.factory.ai (and auth/api hosts when needed) using browser session cookies or WorkOS refresh tokens from local storage.
-- Cookie import: Safari → Chrome → Firefox; requires factory.ai/app.factory.ai cookies.
+- Cookie import: Safari → Chrome → Firefox; requires factory.ai/app.factory.ai cookies (plus ChatGPT Atlas browser data when installed).
 - Fallback: stored session cookies persisted by CodexBar.
 - Shows Standard + Premium usage and billing period reset.
 - Status: status page at `https://status.factory.ai`.
