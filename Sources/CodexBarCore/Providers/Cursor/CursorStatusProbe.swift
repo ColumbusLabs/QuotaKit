@@ -4,7 +4,7 @@ import SweetCookieKit
 #if os(macOS)
 
 private let cursorCookieImportOrder: BrowserCookieImportOrder =
-    ProviderDefaults.metadata[.cursor]?.browserCookieOrder ?? .safariChromeFirefox
+    ProviderDefaults.metadata[.cursor]?.browserCookieOrder ?? BrowserCookieDefaults.importOrder
 
 // MARK: - Cursor Cookie Importer
 
@@ -36,7 +36,7 @@ public enum CursorCookieImporter {
         let log: (String) -> Void = { msg in logger?("[cursor-cookie] \(msg)") }
 
         let cookieDomains = ["cursor.com", "cursor.sh"]
-        for browserSource in cursorCookieImportOrder.browsers {
+        for browserSource in cursorCookieImportOrder {
             do {
                 let query = BrowserCookieQuery(domains: cookieDomains)
                 let sources = try Self.cookieClient.records(

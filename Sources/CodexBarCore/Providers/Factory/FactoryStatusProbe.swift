@@ -4,7 +4,7 @@ import SweetCookieKit
 #if os(macOS)
 
 private let factoryCookieImportOrder: BrowserCookieImportOrder =
-    ProviderDefaults.metadata[.factory]?.browserCookieOrder ?? .safariChromeFirefox
+    ProviderDefaults.metadata[.factory]?.browserCookieOrder ?? BrowserCookieDefaults.importOrder
 
 // MARK: - Factory Cookie Importer
 
@@ -51,7 +51,7 @@ public enum FactoryCookieImporter {
         let log: (String) -> Void = { msg in logger?("[factory-cookie] \(msg)") }
         var sessions: [SessionInfo] = []
 
-        for browserSource in factoryCookieImportOrder.browsers {
+        for browserSource in factoryCookieImportOrder {
             do {
                 let perSource = try self.importSessions(from: browserSource, logger: logger)
                 sessions.append(contentsOf: perSource)

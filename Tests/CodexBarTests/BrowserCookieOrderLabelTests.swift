@@ -1,5 +1,6 @@
 import CodexBarCore
 import Foundation
+import SweetCookieKit
 import SwiftUI
 import Testing
 @testable import CodexBar
@@ -43,7 +44,7 @@ struct BrowserCookieOrderLabelTests {
         let toggle = ClaudeProviderImplementation().settingsToggles(context: context)
             .first { $0.id == "claude.webExtras" }!
 
-        let order = ProviderDefaults.metadata[.claude]?.browserCookieOrder ?? .safariChromeFirefox
+        let order = ProviderDefaults.metadata[.claude]?.browserCookieOrder ?? BrowserCookieDefaults.importOrder
         #expect(toggle.subtitle.contains(order.shortLabel))
         #expect(toggle.subtitle.contains(order.displayLabel))
     }
@@ -54,14 +55,14 @@ struct BrowserCookieOrderStatusStringTests {
     #if os(macOS)
     @Test
     func cursorNoSessionIncludesBrowserLoginHint() {
-        let order = ProviderDefaults.metadata[.cursor]?.browserCookieOrder ?? .safariChromeFirefox
+        let order = ProviderDefaults.metadata[.cursor]?.browserCookieOrder ?? BrowserCookieDefaults.importOrder
         let message = CursorStatusProbeError.noSessionCookie.errorDescription ?? ""
         #expect(message.contains(order.loginHint))
     }
 
     @Test
     func factoryNoSessionIncludesBrowserLoginHint() {
-        let order = ProviderDefaults.metadata[.factory]?.browserCookieOrder ?? .safariChromeFirefox
+        let order = ProviderDefaults.metadata[.factory]?.browserCookieOrder ?? BrowserCookieDefaults.importOrder
         let message = FactoryStatusProbeError.noSessionCookie.errorDescription ?? ""
         #expect(message.contains(order.loginHint))
     }
