@@ -139,7 +139,7 @@ public enum FactoryCookieImporter {
     /// Check if Factory session cookies are available
     public static func hasSession(logger: ((String) -> Void)? = nil) -> Bool {
         do {
-            return !(try self.importSessions(logger: logger)).isEmpty
+            return try !(self.importSessions(logger: logger)).isEmpty
         } catch {
             return false
         }
@@ -539,7 +539,10 @@ public struct FactoryStatusProbe: Sendable {
         throw FactoryStatusProbeError.noSessionCookie
     }
 
-    private func fetchWithCookies(_ cookies: [HTTPCookie], logger: (String) -> Void) async throws -> FactoryStatusSnapshot {
+    private func fetchWithCookies(
+        _ cookies: [HTTPCookie],
+        logger: (String) -> Void) async throws -> FactoryStatusSnapshot
+    {
         let header = Self.cookieHeader(from: cookies)
         do {
             return try await self.fetchWithCookieHeader(header)
