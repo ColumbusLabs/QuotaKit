@@ -64,6 +64,9 @@ enum ChromeCookieImporter {
                 (appSupport.appendingPathComponent("Google").appendingPathComponent("Chrome"), "Chrome"),
                 (appSupport.appendingPathComponent("Google").appendingPathComponent("Chrome Beta"), "Chrome Beta"),
                 (appSupport.appendingPathComponent("Google").appendingPathComponent("Chrome Canary"), "Chrome Canary"),
+                (appSupport.appendingPathComponent("Arc"), "Arc"),
+                (appSupport.appendingPathComponent("Arc Beta"), "Arc Beta"),
+                (appSupport.appendingPathComponent("Arc Canary"), "Arc Canary"),
                 (appSupport.appendingPathComponent("Chromium"), "Chromium"),
             ]
         }
@@ -216,6 +219,7 @@ enum ChromeCookieImporter {
             ("Chrome Safe Storage", "Chrome"),
             ("Chromium Safe Storage", "Chromium"),
             ("Brave Safe Storage", "Brave"),
+            ("Arc Safe Storage", "Arc"),
             ("Microsoft Edge Safe Storage", "Microsoft Edge"),
             ("Vivaldi Safe Storage", "Vivaldi"),
         ]

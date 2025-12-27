@@ -25,6 +25,7 @@
 - Dev: `compile_and_run.sh` now waits for slow launches (polling for the process).
 - CI: build/test Linux `CodexBarCLI` (x86_64 + aarch64) and publish release assets as `CodexBarCLI-<tag>-linux-<arch>.tar.gz` (+ `.sha256`).
 - CLI: add alias fallback for Codex/Claude detection when PATH lookups fail.
+- Providers: support Arc browser cookies for Factory/Droid (and other Chromium-based cookie imports).
 - Antigravity: fix lsof port filtering by ANDing listen + pid conditions. Thanks @shaw-baobao!
 - Claude: default to Claude Code OAuth usage API (credentials from Keychain or `~/.claude/.credentials.json`), with Debug selector + `--claude-source` CLI override (OAuth/Web/CLI).
 - OpenAI web: allow importing any signed-in browser session when Codex email is unknown (first-run friendly).
