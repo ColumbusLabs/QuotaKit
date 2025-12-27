@@ -34,7 +34,7 @@ This doc is both:
 Common building blocks already exist:
 - PTY: `TTYCommandRunner`
 - subprocess: `SubprocessRunner`
-- cookie import: `SafariCookieImporter`, `ChromeCookieImporter`, `FirefoxCookieImporter`
+- cookie import: `BrowserCookieImporter` (Safari/Chrome/Firefox adapters)
 - OpenAI dashboard web scrape: `OpenAIDashboardFetcher` (WKWebView + JS)
 - token cost: `CCUsageFetcher`
 
