@@ -9,7 +9,7 @@
 - Providers: Codex, Claude Code, Cursor, Gemini, Antigravity, z.ai.
 - Gemini: switch plan detection to loadCodeAssist tier lookup (Paid/Workspace/Free/Legacy). Thanks @381181295!
 - Codex: OpenAI web dashboard is now the primary source for usage + credits; CLI fallback only when no matching cookies exist.
-- Claude: prefer claude.ai web API via cookies with CLI fallback when no session cookies are found; OAuth is debug-only.
+- Claude: prefer OAuth when credentials exist; fall back to web cookies or CLI (thanks @ibehnam).
 - CLI: replace `--web`/`--claude-source` with `--source` (auto/web/cli/oauth); auto falls back only when cookies are missing.
 - Cursor: add new usage provider with browser cookie auth (cursor.com + cursor.sh), on-demand bar support, and dashboard access.
 - Cursor: keep stored sessions on transient failures; clear only on invalid auth.
