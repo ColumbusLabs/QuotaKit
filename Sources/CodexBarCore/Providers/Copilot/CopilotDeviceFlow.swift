@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public struct CopilotDeviceFlow: Sendable {
     private let clientID = "Iv1.b507a08c87ecfe98" // VS Code Client ID
