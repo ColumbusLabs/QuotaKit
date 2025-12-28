@@ -9,17 +9,19 @@ cd "$ROOT"
 # Load version info
 source "$ROOT/version.env"
 
-# Force a clean build to avoid stale binaries.
-if [[ -d "$ROOT/.build" ]]; then
-  if command -v trash >/dev/null 2>&1; then
-    if ! trash "$ROOT/.build"; then
-      echo "WARN: trash .build failed; continuing with swift package clean." >&2
+# Clean build only when explicitly requested (slower).
+if [[ "${CODEXBAR_FORCE_CLEAN:-0}" == "1" ]]; then
+  if [[ -d "$ROOT/.build" ]]; then
+    if command -v trash >/dev/null 2>&1; then
+      if ! trash "$ROOT/.build"; then
+        echo "WARN: trash .build failed; continuing with swift package clean." >&2
+      fi
+    else
+      rm -rf "$ROOT/.build" || echo "WARN: rm -rf .build failed; continuing with swift package clean." >&2
     fi
-  else
-    rm -rf "$ROOT/.build" || echo "WARN: rm -rf .build failed; continuing with swift package clean." >&2
   fi
+  swift package clean >/dev/null 2>&1 || true
 fi
-swift package clean >/dev/null 2>&1 || true
 
 # Build for host architecture by default; allow overriding via ARCHES (e.g., "arm64 x86_64" for universal).
 ARCH_LIST=( ${ARCHES:-} )
