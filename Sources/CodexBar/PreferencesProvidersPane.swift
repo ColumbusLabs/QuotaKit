@@ -5,7 +5,7 @@ import SwiftUI
 private enum ProviderListMetrics {
     static let rowSpacing: CGFloat = 12
     static let rowInsets = EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0)
-    static let dividerBottomInset: CGFloat = 5
+    static let dividerBottomInset: CGFloat = 7
     static let checkboxSize: CGFloat = 18
     static let iconSize: CGFloat = 18
     static let reorderHandleSize: CGFloat = 12
@@ -447,8 +447,7 @@ private struct ProviderListSectionDividerView: View {
         Rectangle()
             .fill(Color(nsColor: .separatorColor))
             .frame(height: 1)
-            .padding(.top, 2)
-            .padding(.vertical, 0)
+            .padding(.vertical, 2)
             .padding(.leading, ProviderListMetrics.reorderHandleSize + ProviderListMetrics.checkboxSize + 14)
             .padding(.trailing, 10)
     }
