@@ -277,9 +277,11 @@ private struct ProviderListView: View {
                 } header: {
                     EmptyView()
                 } footer: {
-                    ProviderListSectionDividerView()
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
+                    if provider != self.providers.last {
+                        ProviderListSectionDividerView()
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                    }
                 }
             }
             .onMove { fromOffsets, toOffset in
@@ -424,7 +426,7 @@ private struct ProviderListSectionDividerView: View {
         Rectangle()
             .fill(Color(nsColor: .separatorColor))
             .frame(height: 1)
-            .padding(.vertical, 3)
+            .padding(.vertical, 0)
             .padding(.leading, ProviderListMetrics.reorderHandleSize + ProviderListMetrics.checkboxSize + 14)
             .padding(.trailing, 10)
     }
