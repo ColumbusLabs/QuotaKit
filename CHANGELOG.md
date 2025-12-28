@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.15.0 — Unreleased
+## 0.15.0 — 2025-12-28
 - macOS: CodexBar now supports Intel Macs (x86_64 builds + Sonoma fallbacks). Thanks @epoyraz!
 - Droid (Factory): new provider with Standard + Premium usage via browser cookies, plus dashboard + status links. Thanks @shashank-factory!
 - Menu: allow multi-line error messages in the provider subtitle (up to 4 lines).
