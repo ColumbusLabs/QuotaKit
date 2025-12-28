@@ -424,7 +424,7 @@ private struct ProviderListSectionDividerView: View {
         Rectangle()
             .fill(Color(nsColor: .separatorColor))
             .frame(height: 1)
-            .padding(.vertical, 6)
+            .padding(.vertical, 3)
             .padding(.leading, ProviderListMetrics.reorderHandleSize + ProviderListMetrics.checkboxSize + 14)
             .padding(.trailing, 10)
     }
