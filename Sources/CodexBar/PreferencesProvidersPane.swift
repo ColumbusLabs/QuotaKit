@@ -7,6 +7,9 @@ private enum ProviderListMetrics {
     static let rowInsets = EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0)
     static let checkboxSize: CGFloat = 18
     static let iconSize: CGFloat = 18
+    static let reorderHandleSize: CGFloat = 12
+    static let reorderDotSize: CGFloat = 2
+    static let reorderDotSpacing: CGFloat = 3
 }
 
 @MainActor
@@ -36,7 +39,7 @@ struct ProvidersPane: View {
                 onCopyError: { text in self.copyToPasteboard(text) },
                 moveProviders: { fromOffsets, toOffset in
                     self.settings.moveProvider(fromOffsets: fromOffsets, toOffset: toOffset)
-            })
+                })
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
@@ -243,6 +246,9 @@ private struct ProviderListView: View {
         List {
             ForEach(self.providers, id: \.self) { provider in
                 Section {
+                    let fields = self.settingsFields(provider)
+                    let toggles = self.settingsToggles(provider)
+
                     ProviderListProviderRowView(
                         provider: provider,
                         store: self.store,
@@ -256,11 +262,11 @@ private struct ProviderListView: View {
                         .listRowInsets(ProviderListMetrics.rowInsets)
 
                     if self.isEnabled(provider).wrappedValue {
-                        ForEach(self.settingsFields(provider)) { field in
+                        ForEach(fields) { field in
                             ProviderListFieldRowView(provider: provider, field: field)
                                 .listRowInsets(ProviderListMetrics.rowInsets)
                         }
-                        ForEach(self.settingsToggles(provider)) { toggle in
+                        ForEach(toggles) { toggle in
                             ProviderListToggleRowView(provider: provider, toggle: toggle)
                                 .listRowInsets(ProviderListMetrics.rowInsets)
                         }
@@ -310,16 +316,23 @@ private struct ProviderListProviderRowView: View {
     let errorDisplay: ProviderErrorDisplay?
     @Binding var isErrorExpanded: Bool
     let onCopyError: (String) -> Void
+    @State private var isHovering = false
+    @FocusState private var isToggleFocused: Bool
 
     var body: some View {
         let titleIndent = ProviderListMetrics.iconSize + 8
         let isRefreshing = self.store.refreshingProviders.contains(self.provider)
+        let showReorderHandle = self.isHovering || self.isToggleFocused
 
         HStack(alignment: .top, spacing: ProviderListMetrics.rowSpacing) {
+            ProviderListReorderHandle(isVisible: showReorderHandle)
+                .padding(.top, 4)
+
             Toggle("", isOn: self.$isEnabled)
                 .labelsHidden()
                 .toggleStyle(.checkbox)
                 .padding(.top, 2)
+                .focused(self.$isToggleFocused)
 
             VStack(alignment: .leading, spacing: 4) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -363,6 +376,38 @@ private struct ProviderListProviderRowView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .onHover { isHovering in
+            self.isHovering = isHovering
+        }
+    }
+}
+
+@MainActor
+private struct ProviderListReorderHandle: View {
+    let isVisible: Bool
+
+    var body: some View {
+        VStack(spacing: ProviderListMetrics.reorderDotSpacing) {
+            ForEach(0..<3, id: \.self) { _ in
+                HStack(spacing: ProviderListMetrics.reorderDotSpacing) {
+                    Circle()
+                        .frame(
+                            width: ProviderListMetrics.reorderDotSize,
+                            height: ProviderListMetrics.reorderDotSize)
+                    Circle()
+                        .frame(
+                            width: ProviderListMetrics.reorderDotSize,
+                            height: ProviderListMetrics.reorderDotSize)
+                }
+            }
+        }
+        .frame(width: ProviderListMetrics.reorderHandleSize, height: ProviderListMetrics.reorderHandleSize)
+        .foregroundStyle(.tertiary)
+        .opacity(self.isVisible ? 1 : 0)
+        .animation(.easeInOut(duration: 0.15), value: self.isVisible)
+        .help("Drag to reorder")
+        .accessibilityHidden(true)
+        .allowsHitTesting(false)
     }
 }
 
@@ -373,6 +418,9 @@ private struct ProviderListToggleRowView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: ProviderListMetrics.rowSpacing) {
+            Color.clear
+                .frame(width: ProviderListMetrics.reorderHandleSize, height: ProviderListMetrics.reorderHandleSize)
+
             Toggle("", isOn: self.toggle.binding)
                 .labelsHidden()
                 .toggleStyle(.checkbox)
@@ -439,6 +487,9 @@ private struct ProviderListFieldRowView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: ProviderListMetrics.rowSpacing) {
+            Color.clear
+                .frame(width: ProviderListMetrics.reorderHandleSize, height: ProviderListMetrics.reorderHandleSize)
+
             Color.clear
                 .frame(width: ProviderListMetrics.checkboxSize, height: ProviderListMetrics.checkboxSize)
 
