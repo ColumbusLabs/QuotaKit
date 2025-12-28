@@ -68,7 +68,12 @@ struct AdvancedPane: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
-                    KeyboardShortcuts.Recorder("Open menu", name: .openMenu)
+                    HStack(alignment: .center, spacing: 12) {
+                        Text("Open menu")
+                            .font(.body)
+                        Spacer()
+                        KeyboardShortcuts.Recorder(for: .openMenu)
+                    }
                     Text("Trigger the menu bar menu from anywhere.")
                         .font(.footnote)
                         .foregroundStyle(.tertiary)

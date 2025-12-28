@@ -271,23 +271,25 @@ private struct ProviderListView: View {
                         .providerSectionDivider(isVisible: showDividerOnProviderRow)
 
                     if isEnabled {
-                        ForEach(fields.indices, id: \.self) { index in
-                            let field = fields[index]
-                            let isLastField = index == fields.count - 1
+                        let lastFieldID = fields.last?.id
+                        ForEach(fields) { field in
+                            let isLastField = field.id == lastFieldID
                             let showDivider = shouldShowDivider && toggles.isEmpty && isLastField
 
                             ProviderListFieldRowView(provider: provider, field: field)
+                                .id(self.rowID(provider: provider, suffix: field.id))
                                 .padding(.bottom, showDivider ? 12 : 0)
                                 .listRowInsets(self.rowInsets(withDivider: showDivider))
                                 .listRowSeparator(.hidden)
                                 .providerSectionDivider(isVisible: showDivider)
                         }
-                        ForEach(toggles.indices, id: \.self) { index in
-                            let toggle = toggles[index]
-                            let isLastToggle = index == toggles.count - 1
+                        let lastToggleID = toggles.last?.id
+                        ForEach(toggles) { toggle in
+                            let isLastToggle = toggle.id == lastToggleID
                             let showDivider = shouldShowDivider && isLastToggle
 
                             ProviderListToggleRowView(provider: provider, toggle: toggle)
+                                .id(self.rowID(provider: provider, suffix: toggle.id))
                                 .padding(.bottom, showDivider ? 12 : 0)
                                 .listRowInsets(self.rowInsets(withDivider: showDivider))
                                 .listRowSeparator(.hidden)
@@ -316,6 +318,10 @@ private struct ProviderListView: View {
                 trailing: ProviderListMetrics.rowInsets.trailing)
         }
         return ProviderListMetrics.rowInsets
+    }
+
+    private func rowID(provider: UsageProvider, suffix: String) -> String {
+        "\(provider.rawValue)-\(suffix)"
     }
 }
 
