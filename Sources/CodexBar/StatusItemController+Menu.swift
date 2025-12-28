@@ -1467,7 +1467,7 @@ private final class ProviderSwitcherView: NSView {
 
         let track = NSView()
         track.wantsLayer = true
-        track.layer?.backgroundColor = NSColor.tertiaryLabelColor.withAlphaComponent(0.55).cgColor
+        track.layer?.backgroundColor = NSColor.tertiaryLabelColor.withAlphaComponent(0.22).cgColor
         track.layer?.cornerRadius = 2
         track.layer?.masksToBounds = true
         track.translatesAutoresizingMaskIntoConstraints = false
