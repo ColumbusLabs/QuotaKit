@@ -187,6 +187,28 @@ struct CLISnapshotTests {
     }
 
     @Test
+    func ttyOutputColorsHeaderAndUsage() {
+        let snap = UsageSnapshot(
+            primary: .init(usedPercent: 95, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: .init(usedPercent: 80, windowMinutes: 10080, resetsAt: nil, resetDescription: nil),
+            tertiary: nil,
+            updatedAt: Date(timeIntervalSince1970: 0))
+
+        let output = CLIRenderer.renderText(
+            provider: .codex,
+            snapshot: snap,
+            credits: nil,
+            context: RenderContext(
+                header: "Codex 0.0.0 (codex-cli)",
+                status: nil,
+                useColor: true))
+
+        #expect(output.contains("\u{001B}[1;36mCodex 0.0.0 (codex-cli)\u{001B}[0m"))
+        #expect(output.contains("Session: \u{001B}[31m5% left\u{001B}[0m")) // red <10% left
+        #expect(output.contains("Weekly: \u{001B}[33m20% left\u{001B}[0m")) // yellow <25% left
+    }
+
+    @Test
     func statusLineIsPlainWhenNoTTY() {
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,

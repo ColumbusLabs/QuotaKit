@@ -189,8 +189,12 @@ enum CodexBarCLI {
         let isJSON = values.flags.contains("jsonOutput")
         let verbose = values.flags.contains("verbose")
         let rawLevel = values.options["logLevel"]?.last
-        let level = CodexBarLog.parseLevel(rawLevel) ?? (verbose ? .debug : .error)
+        let level = Self.resolvedLogLevel(verbose: verbose, rawLevel: rawLevel)
         CodexBarLog.bootstrapIfNeeded(.init(destination: .stderr, level: level, json: isJSON))
+    }
+
+    static func resolvedLogLevel(verbose: Bool, rawLevel: String?) -> CodexBarLog.Level {
+        CodexBarLog.parseLevel(rawLevel) ?? (verbose ? .debug : .error)
     }
 
     static func effectiveArgv(_ argv: [String]) -> [String] {
@@ -642,6 +646,18 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
         }
     }
 }
+
+#if DEBUG
+extension CodexBarCLI {
+    static func _usageSignatureForTesting() -> CommandSignature {
+        CommandSignature.describe(UsageOptions())
+    }
+
+    static func _decodeFormatForTesting(from values: ParsedValues) -> OutputFormat {
+        self.decodeFormat(from: values)
+    }
+}
+#endif
 
 enum OutputFormat: String, Sendable, ExpressibleFromArgument {
     case text
