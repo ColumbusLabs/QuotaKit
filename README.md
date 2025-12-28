@@ -2,6 +2,8 @@
 
 Tiny macOS 14+ menu bar app that keeps your Codex, Claude Code, Cursor, Gemini, Antigravity, Droid (Factory), Copilot, and z.ai limits visible (session + weekly where available) and shows when each window resets. One status item per provider; enable what you use from Settings. No Dock icon, minimal UI, dynamic bar icons in the menu bar.
 
+<img src="codexbar.png" alt="CodexBar menu screenshot" width="520" />
+
 ## Install
 
 ### Requirements
@@ -63,8 +65,6 @@ The menu bar icon is a tiny two-bar meter:
 - Top bar: 5‑hour/session window. If weekly is exhausted, it becomes a thicker credits bar.
 - Bottom bar: weekly window (hairline).
 - Errors/stale data dim the icon; status overlays indicate incidents.
-
-![CodexBar Screenshot](codexbar.png)
 
 ## Features
 - Multi-provider menu bar with per-provider toggles (Settings → Providers).
