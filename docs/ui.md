@@ -12,7 +12,7 @@ read_when:
 - Merge Icons toggle combines providers into one status item with a switcher.
 
 ## Icon rendering
-- 20×18 template image.
+- 18×18 template image.
 - Top bar = 5-hour window; bottom hairline = weekly window.
 - Fill represents percent remaining by default; “Show usage as used” flips to percent used.
 - Dimmed when last refresh failed; status overlays render incident indicators.
