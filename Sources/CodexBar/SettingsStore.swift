@@ -163,7 +163,7 @@ final class SettingsStore {
     }
 
     var claudeUsageDataSource: ClaudeUsageDataSource {
-        get { ClaudeUsageDataSource(rawValue: self.claudeUsageDataSourceRaw ?? "") ?? .web }
+        get { ClaudeUsageDataSource(rawValue: self.claudeUsageDataSourceRaw ?? "") ?? .oauth }
         set {
             self.claudeUsageDataSourceRaw = newValue.rawValue
             if newValue != .cli {
@@ -238,7 +238,7 @@ final class SettingsStore {
             self.userDefaults.set(true, forKey: "showOptionalCreditsAndExtraUsage")
         }
         let claudeSourceRaw = userDefaults.string(forKey: "claudeUsageDataSource")
-        self.claudeUsageDataSourceRaw = claudeSourceRaw ?? ClaudeUsageDataSource.web.rawValue
+        self.claudeUsageDataSourceRaw = claudeSourceRaw ?? ClaudeUsageDataSource.oauth.rawValue
         self.mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true
         self.switcherShowsIcons = userDefaults.object(forKey: "switcherShowsIcons") as? Bool ?? true
         self.zaiAPIToken = (try? zaiTokenStore.loadToken()) ?? ""

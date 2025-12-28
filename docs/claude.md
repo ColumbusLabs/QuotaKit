@@ -20,7 +20,7 @@ Claude supports three usage data paths plus local cost usage. Source selection i
 
 ### Debug selection (debug menu enabled)
 - The Debug pane can force OAuth / Web / CLI.
-- If CLI is forced and "Augment Claude via web" is enabled, we optionally add Extra usage spend via web.
+- Web extras are internal-only (not exposed in the Providers pane).
 
 ## OAuth API (preferred)
 - Credentials:

@@ -35,7 +35,6 @@ Source labels (CLI/header): `openai-web`, `web`, `oauth`, `api`, `local`, plus p
 - OAuth API (preferred when CLI credentials exist).
 - Web API (browser cookies) fallback when OAuth missing.
 - CLI PTY fallback when OAuth + web are unavailable.
-- Optional web extras when CLI forced (Extra usage spend/limit).
 - Local cost usage: scans `~/.config/claude/projects/**/*.jsonl` (last 30 days).
 - Status: Statuspage.io (Anthropic).
 - Details: `docs/claude.md`.

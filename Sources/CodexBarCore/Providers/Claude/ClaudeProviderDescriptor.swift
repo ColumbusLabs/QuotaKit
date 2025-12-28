@@ -60,7 +60,7 @@ public enum ClaudeProviderDescriptor {
             let settings = context.settings
             let debugMenuEnabled = settings?.debugMenuEnabled ?? false
             let claudeSettings = settings?.claude
-            let selected = claudeSettings?.usageDataSource ?? .web
+            let selected = claudeSettings?.usageDataSource ?? .oauth
             let webExtrasEnabled = claudeSettings?.webExtrasEnabled ?? false
             let strategy = Self.resolveUsageStrategy(
                 debugMenuEnabled: debugMenuEnabled,

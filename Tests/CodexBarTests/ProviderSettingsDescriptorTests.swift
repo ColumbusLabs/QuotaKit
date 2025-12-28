@@ -98,7 +98,7 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
-    func claudeWebExtrasToggleIsVisibleOnlyForCLIDataSource() {
+    func claudeDoesNotExposeSettingsToggles() {
         let defaults = UserDefaults(suiteName: "ProviderSettingsDescriptorTests-claude")!
         defaults.removePersistentDomain(forName: "ProviderSettingsDescriptorTests-claude")
         let settings = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
@@ -123,16 +123,8 @@ struct ProviderSettingsDescriptorTests {
             lastAppActiveRunAt: { _ in nil },
             setLastAppActiveRunAt: { _, _ in },
             requestConfirmation: { _ in })
-
-        let toggle = ClaudeProviderImplementation().settingsToggles(context: context)
-            .first { $0.id == "claude.webExtras" }!
-
-        settings.debugMenuEnabled = true
-        settings.claudeUsageDataSource = .web
-        #expect((toggle.isVisible?() ?? true) == false)
-
-        settings.claudeUsageDataSource = .cli
-        #expect((toggle.isVisible?() ?? true) == true)
+        let toggles = ClaudeProviderImplementation().settingsToggles(context: context)
+        #expect(toggles.isEmpty)
     }
 
     @Test

@@ -61,14 +61,14 @@ struct SettingsStoreTests {
     }
 
     @Test
-    func defaultsClaudeUsageSourceToWeb() {
+    func defaultsClaudeUsageSourceToOAuth() {
         let suite = "SettingsStoreTests-claude-source"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
 
         let store = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
 
-        #expect(store.claudeUsageDataSource == .web)
+        #expect(store.claudeUsageDataSource == .oauth)
     }
 
     @Test
