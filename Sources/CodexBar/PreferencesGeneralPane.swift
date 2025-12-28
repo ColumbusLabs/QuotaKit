@@ -29,14 +29,14 @@ struct GeneralPane: View {
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
 
-                    VStack(alignment: .leading, spacing: 5.4) {
-                        Toggle(isOn: self.$settings.ccusageCostUsageEnabled) {
-                            Text("Show cost summary")
-                                .font(.body)
-                        }
-                        .toggleStyle(.checkbox)
+                    VStack(alignment: .leading, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Toggle(isOn: self.$settings.ccusageCostUsageEnabled) {
+                                Text("Show cost summary")
+                                    .font(.body)
+                            }
+                            .toggleStyle(.checkbox)
 
-                        VStack(alignment: .leading, spacing: 2) {
                             Text("Reads local usage logs. Shows today + last 30 days cost in the menu.")
                                 .font(.footnote)
                                 .foregroundStyle(.tertiary)
@@ -50,6 +50,19 @@ struct GeneralPane: View {
                                 self.costStatusLine(provider: .claude)
                                 self.costStatusLine(provider: .codex)
                             }
+                        }
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Toggle(isOn: self.$settings.openAIWebAccessEnabled) {
+                                Text("Access OpenAI via web")
+                                    .font(.body)
+                            }
+                            .toggleStyle(.checkbox)
+
+                            Text("Imports browser cookies for dashboard extras (credits history, code review).")
+                                .font(.footnote)
+                                .foregroundStyle(.tertiary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }

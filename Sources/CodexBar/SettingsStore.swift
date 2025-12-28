@@ -107,6 +107,11 @@ final class SettingsStore {
         }
     }
 
+    /// Optional: fetch OpenAI web dashboard extras for Codex (browser cookies).
+    var openAIWebAccessEnabled: Bool {
+        didSet { self.userDefaults.set(self.openAIWebAccessEnabled, forKey: "openAIWebAccessEnabled") }
+    }
+
     private var codexUsageDataSourceRaw: String? {
         didSet {
             if let raw = self.codexUsageDataSourceRaw {
@@ -201,6 +206,7 @@ final class SettingsStore {
         _ = self.randomBlinkEnabled
         _ = self.claudeWebExtrasEnabled
         _ = self.showOptionalCreditsAndExtraUsage
+        _ = self.openAIWebAccessEnabled
         _ = self.codexUsageDataSource
         _ = self.claudeUsageDataSource
         _ = self.mergeIcons
@@ -254,6 +260,11 @@ final class SettingsStore {
         self.showOptionalCreditsAndExtraUsage = creditsExtrasDefault ?? true
         if creditsExtrasDefault == nil {
             self.userDefaults.set(true, forKey: "showOptionalCreditsAndExtraUsage")
+        }
+        let openAIWebAccessDefault = userDefaults.object(forKey: "openAIWebAccessEnabled") as? Bool
+        self.openAIWebAccessEnabled = openAIWebAccessDefault ?? true
+        if openAIWebAccessDefault == nil {
+            self.userDefaults.set(true, forKey: "openAIWebAccessEnabled")
         }
         let codexSourceRaw = userDefaults.string(forKey: "codexUsageDataSource")
         self.codexUsageDataSourceRaw = codexSourceRaw ?? CodexUsageDataSource.oauth.rawValue

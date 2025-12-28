@@ -10,13 +10,15 @@ read_when:
 # Codex provider
 
 Codex has four usage data paths (OAuth API, web dashboard, CLI RPC, CLI PTY) plus a local cost-usage scanner.
-The OAuth API is the default app source when credentials are available.
+The OAuth API is the default app source when credentials are available; web access is optional for dashboard extras.
 
 ## Data sources + fallback order
 
 ### App default selection (debug menu disabled)
 1) OAuth API (auth.json credentials).
 2) CLI RPC, with CLI PTY fallback when needed.
+3) If "Access OpenAI via web" is enabled, dashboard extras load in parallel and the source label becomes
+   `primary + openai-web`.
 
 ### CLI default selection (`--source auto`)
 1) OpenAI web dashboard (when available).
@@ -28,6 +30,7 @@ The OAuth API is the default app source when credentials are available.
 - Calls `GET https://chatgpt.com/backend-api/wham/usage` (default) with `Authorization: Bearer <token>`.
 
 ### OpenAI web dashboard (optional)
+- Preferences → Usage → "Access OpenAI via web".
 - URL: `https://chatgpt.com/codex/settings/usage`.
 - Uses an off-screen `WKWebView` with a per-account `WKWebsiteDataStore`.
   - Store key: deterministic UUID from the normalized email.
@@ -78,7 +81,7 @@ The OAuth API is the default app source when credentials are available.
 4) Last imported browser cookie email (cached).
 
 ## Credits
-- Web dashboard (if available) replaces CLI credits.
+- Web dashboard fills credits only when OAuth/CLI do not provide them.
 - CLI RPC: `account/rateLimits/read` → credits balance.
 - CLI PTY fallback: parse `Credits:` from `/status`.
 

@@ -357,18 +357,29 @@ final class UsageStore {
     }
 
     func sourceLabel(for provider: UsageProvider) -> String {
-        if let label = self.lastSourceLabels[provider], !label.isEmpty {
-            return label
+        var label = self.lastSourceLabels[provider] ?? ""
+        if label.isEmpty {
+            let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+            let modes = descriptor.fetchPlan.sourceModes
+            if modes.count == 1, let mode = modes.first {
+                label = mode.rawValue
+            } else if provider == .claude {
+                label = self.settings.claudeUsageDataSource.rawValue
+            } else {
+                label = "auto"
+            }
         }
-        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
-        let modes = descriptor.fetchPlan.sourceModes
-        if modes.count == 1, let mode = modes.first {
-            return mode.rawValue
+
+        // When OpenAI web extras are active, show a blended label like `oauth + openai-web`.
+        if provider == .codex,
+           self.settings.openAIWebAccessEnabled,
+           self.openAIDashboard != nil,
+           !self.openAIDashboardRequiresLogin,
+           !label.contains("openai-web")
+        {
+            return "\(label) + openai-web"
         }
-        if provider == .claude {
-            return self.settings.claudeUsageDataSource.rawValue
-        }
-        return "auto"
+        return label
     }
 
     func fetchAttempts(for provider: UsageProvider) -> [ProviderFetchAttempt] {
@@ -677,13 +688,16 @@ final class UsageStore {
             self.lastOpenAIDashboardError = nil
             self.lastOpenAIDashboardSnapshot = dash
             self.openAIDashboardRequiresLogin = false
-            if let usage = dash.toUsageSnapshot(provider: .codex, accountEmail: targetEmail) {
+            // Only fill gaps; OAuth/CLI remain the primary sources for usage + credits.
+            if self.snapshots[.codex] == nil,
+               let usage = dash.toUsageSnapshot(provider: .codex, accountEmail: targetEmail)
+            {
                 self.snapshots[.codex] = usage
                 self.errors[.codex] = nil
                 self.failureGates[.codex]?.recordSuccess()
                 self.lastSourceLabels[.codex] = "openai-web"
             }
-            if let credits = dash.toCreditsSnapshot() {
+            if self.credits == nil, let credits = dash.toCreditsSnapshot() {
                 self.credits = credits
                 self.lastCreditsSnapshot = credits
                 self.lastCreditsError = nil
@@ -711,7 +725,7 @@ final class UsageStore {
     }
 
     private func refreshOpenAIDashboardIfNeeded(force: Bool = false) async {
-        guard self.isEnabled(.codex) else {
+        guard self.isEnabled(.codex), self.settings.openAIWebAccessEnabled else {
             await MainActor.run {
                 self.openAIDashboard = nil
                 self.lastOpenAIDashboardError = nil

@@ -83,6 +83,11 @@ ChatGPT-Account-Id: <account_id>
 User-Agent: codex-cli
 ```
 
+**Quick checks**
+- Command: `cat ~/.codex/auth.json`
+- Command: `curl -H "Authorization: Bearer <access_token>" -H "ChatGPT-Account-Id: <account_id>" -H "User-Agent: codex-cli" https://chatgpt.com/backend-api/wham/usage`
+- Command: `CodexBarCLI usage --provider codex --source oauth --json --pretty`
+
 **Response:**
 ```json
 {

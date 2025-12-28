@@ -83,6 +83,18 @@ struct SettingsStoreTests {
     }
 
     @Test
+    func defaultsOpenAIWebAccessToEnabled() {
+        let suite = "SettingsStoreTests-openai-web"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+
+        let store = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
+
+        #expect(store.openAIWebAccessEnabled == true)
+        #expect(defaults.bool(forKey: "openAIWebAccessEnabled") == true)
+    }
+
+    @Test
     func providerOrder_defaultsToAllCases() {
         let suite = "SettingsStoreTests-providerOrder-default"
         let defaults = UserDefaults(suiteName: suite)!
