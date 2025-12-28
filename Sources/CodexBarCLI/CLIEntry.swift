@@ -386,6 +386,9 @@ enum CodexBarCLI {
     }
 
     private static func decodeSourceMode(from values: ParsedValues) -> ProviderSourceMode? {
+        if values.flags.contains("web") {
+            return .web
+        }
         guard let raw = values.options["source"]?.last?.lowercased() else { return nil }
         return ProviderSourceMode(rawValue: raw)
     }
@@ -496,17 +499,27 @@ enum CodexBarCLI {
         Usage:
           codexbar usage [--format text|json]
                        [--json]
+                       [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                        [--provider \(ProviderHelp.list)]
                        [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth>]
                        [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
 
         Description:
           Print usage from enabled providers as text (default) or JSON. Honors your in-app toggles.
+          Output format: use --json (or --format json) for JSON on stdout; use --json-output for JSON logs on stderr.
           When --source is auto/web (macOS only), CodexBar uses browser cookies to fetch web-backed data:
           - Codex: OpenAI web dashboard (usage limits, credits remaining, code review remaining, usage breakdown).
             Auto falls back to Codex CLI only when cookies are missing.
           - Claude: claude.ai API.
             Auto falls back to Claude CLI only when cookies are missing.
+
+        Global flags:
+          -h, --help      Show help
+          -V, --version   Show version
+          -v, --verbose   Enable verbose logging
+          --no-color      Disable ANSI colors in text output
+          --log-level <trace|verbose|debug|info|warning|error|critical>
+          --json-output   Emit machine-readable logs (JSONL) to stderr
 
         Examples:
           codexbar usage
@@ -526,6 +539,7 @@ enum CodexBarCLI {
         Usage:
           codexbar [--format text|json]
                   [--json]
+                  [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                   [--provider \(ProviderHelp.list)]
                   [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth>]
                   [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
@@ -536,7 +550,7 @@ enum CodexBarCLI {
           -v, --verbose   Enable verbose logging
           --no-color      Disable ANSI colors in text output
           --log-level <trace|verbose|debug|info|warning|error|critical>
-          --json-output   Emit machine-readable logs
+          --json-output   Emit machine-readable logs (JSONL) to stderr
 
         Examples:
           codexbar
@@ -589,6 +603,9 @@ private struct UsageOptions: CommanderParsable {
 
     @Flag(name: .long("status"), help: "Fetch and include provider status")
     var status: Bool = false
+
+    @Flag(name: .long("web"), help: "Alias for --source web")
+    var web: Bool = false
 
     @Option(name: .long("source"), help: Self.sourceHelp)
     var source: String?
