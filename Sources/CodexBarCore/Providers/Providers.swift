@@ -4,12 +4,12 @@ import SweetCookieKit
 public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case codex
     case claude
-    case factory
-    case zai
     case cursor
+    case factory
     case gemini
     case antigravity
     case copilot
+    case zai
 }
 
 public enum IconStyle: Sendable {
