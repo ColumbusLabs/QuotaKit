@@ -1,4 +1,4 @@
-import CodexBarCore
+@testable import CodexBarCore
 import Foundation
 import Testing
 
