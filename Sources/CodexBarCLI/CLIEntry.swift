@@ -76,7 +76,8 @@ enum CodexBarCLI {
         let webDebugDumpHTML = values.flags.contains("webDebugDumpHtml")
         let webTimeout = Self.decodeWebTimeout(from: values) ?? 60
         let verbose = values.flags.contains("verbose")
-        let useColor = Self.shouldUseColor()
+        let noColor = values.flags.contains("noColor")
+        let useColor = Self.shouldUseColor(noColor: noColor, format: format)
         let fetcher = UsageFetcher()
         let claudeFetcher = ClaudeUsageFetcher()
 
@@ -229,8 +230,13 @@ enum CodexBarCLI {
         return .text
     }
 
-    private static func shouldUseColor() -> Bool {
-        isatty(STDOUT_FILENO) == 1
+    private static func shouldUseColor(noColor: Bool, format: OutputFormat) -> Bool {
+        guard format == .text else { return false }
+        if noColor { return false }
+        let env = ProcessInfo.processInfo.environment
+        if env["NO_COLOR"] != nil { return false }
+        if env["TERM"]?.lowercased() == "dumb" { return false }
+        return isatty(STDOUT_FILENO) == 1
     }
 
     private static func detectVersion(for provider: UsageProvider) -> String? {
@@ -488,7 +494,7 @@ enum CodexBarCLI {
         Usage:
           codexbar usage [--format text|json]
                        [--provider \(ProviderHelp.list)]
-                       [--no-credits] [--pretty] [--status] [--source <auto|web|cli|oauth>]
+                       [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth>]
                        [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
 
         Description:
@@ -516,13 +522,14 @@ enum CodexBarCLI {
         Usage:
           codexbar [--format text|json]
                   [--provider \(ProviderHelp.list)]
-                  [--no-credits] [--pretty] [--status] [--source <auto|web|cli|oauth>]
+                  [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth>]
                   [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
 
         Global flags:
           -h, --help      Show help
           -V, --version   Show version
           -v, --verbose   Enable verbose logging
+          --no-color      Disable ANSI colors in text output
           --log-level <trace|verbose|debug|info|warning|error|critical>
           --json-output   Emit machine-readable logs
 
@@ -558,6 +565,9 @@ private struct UsageOptions: CommanderParsable {
 
     @Flag(name: .long("no-credits"), help: "Skip Codex credits line")
     var noCredits: Bool = false
+
+    @Flag(name: .long("no-color"), help: "Disable ANSI colors in text output")
+    var noColor: Bool = false
 
     @Flag(name: .long("pretty"), help: "Pretty-print JSON output")
     var pretty: Bool = false

@@ -50,7 +50,7 @@ tar -xzf CodexBarCLI-0.14.1-linux-x86_64.tar.gz
         - `--web-debug-dump-html` (writes HTML snapshots to `/tmp` when data is missing)
     - Claude web: claude.ai API (session + weekly usage, plus account metadata when available).
     - Linux: `web/auto` are not supported; CLI prints an error and exits non-zero.
-- Global flags: `-h/--help`, `-V/--version`, `-v/--verbose`, `--log-level <trace|verbose|debug|info|warning|error|critical>`, `--json-output`.
+- Global flags: `-h/--help`, `-V/--version`, `-v/--verbose`, `--no-color`, `--log-level <trace|verbose|debug|info|warning|error|critical>`, `--json-output`.
 
 ## Example usage
 ```
@@ -134,6 +134,7 @@ Plan: Pro
 
 ## Notes
 - CLI reuses menubar toggles when present (prefers `com.steipete.codexbar{,.debug}` defaults), otherwise defaults to Codex only.
+- Text output uses ANSI colors when stdout is a rich TTY; disable with `--no-color` or `NO_COLOR`/`TERM=dumb`.
 - Copilot CLI queries require `COPILOT_API_TOKEN` (GitHub OAuth token).
 - Prefer Codex RPC first, then PTY fallback; Claude defaults to web with CLI fallback when cookies are missing.
 - OpenAI web requires a signed-in `chatgpt.com` session in Safari, Chrome, or Firefox. No passwords are stored; CodexBar reuses cookies.
