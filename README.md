@@ -6,7 +6,7 @@ Tiny macOS 14+ menu bar app that keeps your Codex, Claude Code, Cursor, Gemini, 
 
 ### Requirements
 - macOS 14+ (Sonoma).
-- Apple Silicon (arm64). Intel builds are not currently published.
+- Apple Silicon (arm64) and Intel (x86_64).
 
 ### Option A: GitHub Releases (recommended, Sparkle updates)
 1) Download the latest zip from GitHub Releases.
