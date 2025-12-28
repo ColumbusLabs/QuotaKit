@@ -5,7 +5,8 @@ import SwiftUI
 private enum ProviderListMetrics {
     static let rowSpacing: CGFloat = 12
     static let rowInsets = EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0)
-    static let dividerBottomInset: CGFloat = 14
+    static let dividerBottomInset: CGFloat = 8
+    static let listTopPadding: CGFloat = 12
     static let checkboxSize: CGFloat = 18
     static let iconSize: CGFloat = 18
     static let reorderHandleSize: CGFloat = 12
@@ -264,6 +265,7 @@ private struct ProviderListView: View {
                         errorDisplay: self.isEnabled(provider).wrappedValue ? self.errorDisplay(provider) : nil,
                         isErrorExpanded: self.isErrorExpanded(provider),
                         onCopyError: self.onCopyError)
+                        .padding(.bottom, showDividerOnProviderRow ? 12 : 0)
                         .listRowInsets(self.rowInsets(withDivider: showDividerOnProviderRow))
                         .listRowSeparator(.hidden)
                         .providerSectionDivider(isVisible: showDividerOnProviderRow)
@@ -275,6 +277,7 @@ private struct ProviderListView: View {
                             let showDivider = shouldShowDivider && toggles.isEmpty && isLastField
 
                             ProviderListFieldRowView(provider: provider, field: field)
+                                .padding(.bottom, showDivider ? 12 : 0)
                                 .listRowInsets(self.rowInsets(withDivider: showDivider))
                                 .listRowSeparator(.hidden)
                                 .providerSectionDivider(isVisible: showDivider)
@@ -285,6 +288,7 @@ private struct ProviderListView: View {
                             let showDivider = shouldShowDivider && isLastToggle
 
                             ProviderListToggleRowView(provider: provider, toggle: toggle)
+                                .padding(.bottom, showDivider ? 12 : 0)
                                 .listRowInsets(self.rowInsets(withDivider: showDivider))
                                 .listRowSeparator(.hidden)
                                 .providerSectionDivider(isVisible: showDivider)
@@ -300,6 +304,7 @@ private struct ProviderListView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        .padding(.top, ProviderListMetrics.listTopPadding)
     }
 
     private func rowInsets(withDivider: Bool) -> EdgeInsets {
@@ -447,7 +452,6 @@ private struct ProviderListSectionDividerView: View {
         Rectangle()
             .fill(Color(nsColor: .separatorColor))
             .frame(height: 1)
-            .padding(.vertical, 2)
             .padding(.leading, ProviderListMetrics.reorderHandleSize + ProviderListMetrics.checkboxSize + 14)
             .padding(.trailing, 10)
     }
