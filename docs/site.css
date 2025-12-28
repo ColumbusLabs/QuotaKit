@@ -156,8 +156,8 @@ code {
 
 .hero {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 20px;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 24px;
   align-items: center;
   padding: 22px;
   border: 1px solid var(--line);
@@ -333,16 +333,18 @@ code {
 }
 
 .hero-shot {
-  margin-top: 6px;
+  margin: 0;
 }
 
 .hero-shot img {
-  max-width: 520px;
+  max-width: 460px;
+  margin-left: auto;
 }
 
 .hero-shot figcaption {
-  max-width: 520px;
-  text-align: left;
+  max-width: 460px;
+  text-align: center;
+  margin-left: auto;
 }
 
 .shot figcaption {
