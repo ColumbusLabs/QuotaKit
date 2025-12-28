@@ -105,19 +105,16 @@ enum CodexBarCLI {
         for p in provider.asList {
             let status = includeStatus ? await Self.fetchStatus(for: p) : nil
             var antigravityPlanInfo: AntigravityPlanInfoSummary?
-            var dashboard: OpenAIDashboardSnapshot?
-            var sourceOverride: String?
-            var fetchResult: Result<(usage: UsageSnapshot, credits: CreditsSnapshot?), Error>
-
             let outcome = await Self.fetchProviderUsage(
                 provider: p,
                 context: fetchContext)
-            fetchResult = outcome.result
-            dashboard = outcome.dashboard
-            sourceOverride = outcome.sourceOverride
+            if verbose {
+                Self.printFetchAttempts(provider: p, attempts: outcome.attempts)
+            }
 
-            switch fetchResult {
+            switch outcome.result {
             case let .success(result):
+                var dashboard = result.dashboard
                 if antigravityPlanDebug, p == .antigravity {
                     antigravityPlanInfo = try? await AntigravityStatusProbe().fetchPlanInfoSummary()
                     if format == .text, let info = antigravityPlanInfo {
@@ -129,12 +126,13 @@ enum CodexBarCLI {
                     dashboard = Self.loadOpenAIDashboardIfAvailable(usage: result.usage, fetcher: fetcher)
                 }
 
-                let shouldDetectVersion = sourceOverride == nil
-                let versionInfo = Self.formatVersion(
-                    provider: p,
+                let descriptor = ProviderDescriptorRegistry.descriptor(for: p)
+                let shouldDetectVersion = descriptor.cli.versionDetector != nil
+                    && result.strategyKind != .webDashboard
+                let version = Self.normalizeVersion(
                     raw: shouldDetectVersion ? Self.detectVersion(for: p) : nil)
-                let source = sourceOverride ?? versionInfo.source
-                let header = Self.makeHeader(provider: p, version: versionInfo.version, source: source)
+                let source = result.sourceLabel
+                let header = Self.makeHeader(provider: p, version: version, source: source)
 
                 switch format {
                 case .text:
@@ -150,7 +148,7 @@ enum CodexBarCLI {
                 case .json:
                     payload.append(ProviderPayload(
                         provider: p,
-                        version: versionInfo.version,
+                        version: version,
                         source: source,
                         status: status,
                         usage: result.usage,
@@ -212,9 +210,11 @@ enum CodexBarCLI {
         }
         if enabled.count >= 3 { return .all }
         if enabled.count == 2 {
-            let hasCodex = enabled.contains(.codex)
-            let hasClaude = enabled.contains(.claude)
-            if hasCodex, hasClaude { return .both }
+            let enabledSet = Set(enabled)
+            let primary = Set(ProviderDescriptorRegistry.all.filter(\.metadata.isPrimaryProvider).map(\.id))
+            if !primary.isEmpty, enabledSet == primary {
+                return .both
+            }
             return .custom(enabled)
         }
         if let first = enabled.first { return ProviderSelection(provider: first) }
@@ -237,14 +237,12 @@ enum CodexBarCLI {
         ProviderDescriptorRegistry.descriptor(for: provider).cli.versionDetector?()
     }
 
-    private static func formatVersion(provider: UsageProvider, raw: String?) -> (version: String?, source: String) {
-        let source = ProviderDescriptorRegistry.descriptor(for: provider).cli.sourceLabel
-        guard let raw, !raw.isEmpty else { return (nil, source) }
+    private static func normalizeVersion(raw: String?) -> String? {
+        guard let raw, !raw.isEmpty else { return nil }
         if let match = raw.range(of: #"(\d+(?:\.\d+)+)"#, options: .regularExpression) {
-            let version = String(raw[match]).trimmingCharacters(in: .whitespacesAndNewlines)
-            return (version, source)
+            return String(raw[match]).trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        return (raw.trimmingCharacters(in: .whitespacesAndNewlines), source)
+        return raw.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private static func makeHeader(provider: UsageProvider, version: String?, source: String) -> String {
@@ -253,6 +251,31 @@ enum CodexBarCLI {
             return "\(name) \(version) (\(source))"
         }
         return "\(name) (\(source))"
+    }
+
+    private static func printFetchAttempts(provider: UsageProvider, attempts: [ProviderFetchAttempt]) {
+        guard !attempts.isEmpty else { return }
+        fputs("[\(provider.rawValue)] fetch strategies:\n", stderr)
+        for attempt in attempts {
+            let kindLabel = Self.fetchKindLabel(attempt.kind)
+            var line = "  - \(attempt.strategyID) (\(kindLabel))"
+            line += attempt.wasAvailable ? " available" : " unavailable"
+            if let error = attempt.errorDescription, !error.isEmpty {
+                line += " error=\(error)"
+            }
+            fputs("\(line)\n", stderr)
+        }
+    }
+
+    private static func fetchKindLabel(_ kind: ProviderFetchKind) -> String {
+        switch kind {
+        case .cli: "cli"
+        case .web: "web"
+        case .oauth: "oauth"
+        case .apiToken: "api"
+        case .localProbe: "local"
+        case .webDashboard: "web"
+        }
     }
 
     private static func fetchStatus(for provider: UsageProvider) async -> ProviderStatusPayload? {
@@ -291,10 +314,11 @@ enum CodexBarCLI {
             toggles = UserDefaults.standard.dictionary(forKey: "providerToggles") as? [String: Bool] ?? [:]
         }
 
-        return ProviderDescriptorRegistry.metadata.compactMap { provider, meta in
+        return ProviderDescriptorRegistry.all.compactMap { descriptor in
+            let meta = descriptor.metadata
             let isOn = toggles[meta.cliName] ?? meta.defaultEnabled
-            return isOn ? provider : nil
-        }.sorted { $0.rawValue < $1.rawValue }
+            return isOn ? descriptor.id : nil
+        }
     }
 
     private static func fetchProviderUsage(
@@ -302,23 +326,13 @@ enum CodexBarCLI {
         context: ProviderFetchContext) async -> ProviderFetchOutcome
     {
         let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
-        if !descriptor.cli.sourceModes.contains(context.sourceMode) {
-            return ProviderFetchOutcome(
-                result: .failure(SourceSelectionError.unsupported(
-                    provider: descriptor.cli.name,
-                    source: context.sourceMode)),
-                dashboard: nil,
-                sourceOverride: nil)
+        if !descriptor.fetchPlan.sourceModes.contains(context.sourceMode) {
+            let error = SourceSelectionError.unsupported(
+                provider: descriptor.cli.name,
+                source: context.sourceMode)
+            return ProviderFetchOutcome(result: .failure(error), attempts: [])
         }
-        do {
-            let result = try await descriptor.fetch(context: context)
-            return ProviderFetchOutcome(
-                result: .success((usage: result.usage, credits: result.credits)),
-                dashboard: result.dashboard,
-                sourceOverride: result.sourceOverride)
-        } catch {
-            return ProviderFetchOutcome(result: .failure(error), dashboard: nil, sourceOverride: nil)
-        }
+        return await descriptor.fetchOutcome(context: context)
     }
 
     private enum SourceSelectionError: LocalizedError {
@@ -337,7 +351,7 @@ enum CodexBarCLI {
         fetcher: UsageFetcher) -> OpenAIDashboardSnapshot?
     {
         guard let cache = OpenAIDashboardCacheStore.load() else { return nil }
-        let codexEmail = (usage.accountEmail ?? fetcher.loadAccountInfo().email)?
+        let codexEmail = (usage.accountEmail(for: .codex) ?? fetcher.loadAccountInfo().email)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard let codexEmail, !codexEmail.isEmpty else { return nil }
         if cache.accountEmail.lowercased() != codexEmail.lowercased() { return nil }
@@ -366,12 +380,6 @@ enum CodexBarCLI {
     private static func decodeSourceMode(from values: ParsedValues) -> ProviderSourceMode? {
         guard let raw = values.options["source"]?.last?.lowercased() else { return nil }
         return ProviderSourceMode(rawValue: raw)
-    }
-
-    private struct ProviderFetchOutcome: Sendable {
-        let result: Result<(usage: UsageSnapshot, credits: CreditsSnapshot?), Error>
-        let dashboard: OpenAIDashboardSnapshot?
-        let sourceOverride: String?
     }
 
     private static func renderOpenAIWebDashboardText(_ dash: OpenAIDashboardSnapshot) -> String {
@@ -599,15 +607,17 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
     var asList: [UsageProvider] {
         switch self {
         case let .single(provider):
-            [provider]
+            return [provider]
         case .both:
-            [.codex, .claude]
+            let primary = ProviderDescriptorRegistry.all.filter(\.metadata.isPrimaryProvider)
+            if !primary.isEmpty {
+                return primary.map(\.id)
+            }
+            return ProviderDescriptorRegistry.all.prefix(2).map(\.id)
         case .all:
-            ProviderDescriptorRegistry.all
-                .map(\.id)
-                .sorted { $0.rawValue < $1.rawValue }
+            return ProviderDescriptorRegistry.all.map(\.id)
         case let .custom(providers):
-            providers
+            return providers
         }
     }
 }
@@ -627,9 +637,7 @@ enum OutputFormat: String, Sendable, ExpressibleFromArgument {
 
 private enum ProviderHelp {
     static var list: String {
-        let names = ProviderDescriptorRegistry.all
-            .map(\.cli.name)
-            .sorted()
+        let names = ProviderDescriptorRegistry.all.map(\.cli.name)
         return (names + ["both", "all"]).joined(separator: "|")
     }
 

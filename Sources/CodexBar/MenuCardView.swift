@@ -191,7 +191,7 @@ struct UsageMenuCardView: View {
         .padding(.horizontal, 16)
         .padding(.top, 2)
         .padding(.bottom, 2)
-        .frame(minWidth: self.width, maxWidth: .infinity, alignment: .leading)
+        .frame(width: self.width, alignment: .leading)
     }
 
     private var hasDetails: Bool {
@@ -342,7 +342,7 @@ struct UsageMenuCardHeaderSectionView: View {
         .padding(.horizontal, 16)
         .padding(.top, 2)
         .padding(.bottom, self.model.subtitleStyle == .error ? 2 : 0)
-        .frame(minWidth: self.width, maxWidth: .infinity, alignment: .leading)
+        .frame(width: self.width, alignment: .leading)
     }
 }
 
@@ -397,7 +397,7 @@ struct UsageMenuCardUsageSectionView: View {
         .padding(.horizontal, 16)
         .padding(.top, 10)
         .padding(.bottom, self.bottomPadding)
-        .frame(minWidth: self.width, maxWidth: .infinity, alignment: .leading)
+        .frame(width: self.width, alignment: .leading)
     }
 }
 
@@ -438,7 +438,7 @@ struct UsageMenuCardCreditsSectionView: View {
             .padding(.horizontal, 16)
             .padding(.top, self.topPadding)
             .padding(.bottom, self.bottomPadding)
-            .frame(minWidth: self.width, maxWidth: .infinity, alignment: .leading)
+            .frame(width: self.width, alignment: .leading)
         }
     }
 }
@@ -544,7 +544,7 @@ struct UsageMenuCardCostSectionView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, self.topPadding)
                 .padding(.bottom, self.bottomPadding)
-                .frame(minWidth: self.width, maxWidth: .infinity, alignment: .leading)
+                .frame(width: self.width, alignment: .leading)
             }
         }
     }
@@ -565,7 +565,7 @@ struct UsageMenuCardExtraUsageSectionView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, self.topPadding)
                     .padding(.bottom, self.bottomPadding)
-                    .frame(minWidth: self.width, maxWidth: .infinity, alignment: .leading)
+                    .frame(width: self.width, alignment: .leading)
             }
         }
     }
@@ -597,8 +597,13 @@ extension UsageMenuCardView.Model {
         let email = Self.email(
             for: input.provider,
             snapshot: input.snapshot,
-            account: input.account)
-        let planText = Self.plan(for: input.provider, snapshot: input.snapshot, account: input.account)
+            account: input.account,
+            metadata: input.metadata)
+        let planText = Self.plan(
+            for: input.provider,
+            snapshot: input.snapshot,
+            account: input.account,
+            metadata: input.metadata)
         let metrics = Self.metrics(input: input)
         let creditsText: String? = if input.provider == .codex, !input.showOptionalCreditsAndExtraUsage {
             nil
@@ -642,24 +647,32 @@ extension UsageMenuCardView.Model {
     private static func email(
         for provider: UsageProvider,
         snapshot: UsageSnapshot?,
-        account: AccountInfo) -> String
+        account: AccountInfo,
+        metadata: ProviderMetadata) -> String
     {
-        if provider == .codex {
-            if let email = snapshot?.accountEmail, !email.isEmpty { return email }
-            if let email = account.email, !email.isEmpty { return email }
-            return ""
+        if let email = snapshot?.accountEmail(for: provider), !email.isEmpty { return email }
+        if metadata.usesAccountFallback,
+           let email = account.email, !email.isEmpty
+        {
+            return email
         }
-        if let email = snapshot?.accountEmail, !email.isEmpty { return email }
         return ""
     }
 
-    private static func plan(for provider: UsageProvider, snapshot: UsageSnapshot?, account: AccountInfo) -> String? {
-        if provider == .codex {
-            if let plan = snapshot?.loginMethod, !plan.isEmpty { return self.planDisplay(plan) }
-            if let plan = account.plan, !plan.isEmpty { return Self.planDisplay(plan) }
-            return nil
+    private static func plan(
+        for provider: UsageProvider,
+        snapshot: UsageSnapshot?,
+        account: AccountInfo,
+        metadata: ProviderMetadata) -> String?
+    {
+        if let plan = snapshot?.loginMethod(for: provider), !plan.isEmpty {
+            return self.planDisplay(plan)
         }
-        if let plan = snapshot?.loginMethod, !plan.isEmpty { return self.planDisplay(plan) }
+        if metadata.usesAccountFallback,
+           let plan = account.plan, !plan.isEmpty
+        {
+            return Self.planDisplay(plan)
+        }
         return nil
     }
 

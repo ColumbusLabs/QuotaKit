@@ -36,15 +36,18 @@ public struct CopilotUsageFetcher: Sendable {
         let primary = self.makeRateWindow(from: usage.quotaSnapshots.premiumInteractions)
         let secondary = self.makeRateWindow(from: usage.quotaSnapshots.chat)
 
+        let identity = ProviderIdentitySnapshot(
+            providerID: .copilot,
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: usage.copilotPlan.capitalized)
         return UsageSnapshot(
             primary: primary ?? .init(usedPercent: 0, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
             secondary: secondary,
             tertiary: nil,
             providerCost: nil,
             updatedAt: Date(),
-            accountEmail: nil,
-            accountOrganization: nil,
-            loginMethod: usage.copilotPlan.capitalized)
+            identity: identity)
     }
 
     private func addCommonHeaders(to request: inout URLRequest) {

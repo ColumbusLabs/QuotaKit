@@ -196,8 +196,8 @@ struct CursorStatusProbeTests {
         let usageSnapshot = snapshot.toUsageSnapshot()
 
         #expect(usageSnapshot.primary.usedPercent == 45.0)
-        #expect(usageSnapshot.accountEmail == "user@example.com")
-        #expect(usageSnapshot.loginMethod == "Cursor Pro")
+        #expect(usageSnapshot.accountEmail(for: .cursor) == "user@example.com")
+        #expect(usageSnapshot.loginMethod(for: .cursor) == "Cursor Pro")
         #expect(usageSnapshot.secondary != nil)
         #expect(usageSnapshot.secondary?.usedPercent == 5.0)
         #expect(usageSnapshot.providerCost?.used == 25.0)
@@ -254,7 +254,7 @@ struct CursorStatusProbeTests {
                 rawJSON: nil)
 
             let usageSnapshot = snapshot.toUsageSnapshot()
-            #expect(usageSnapshot.loginMethod == testCase.expected)
+            #expect(usageSnapshot.loginMethod(for: .cursor) == testCase.expected)
         }
     }
 

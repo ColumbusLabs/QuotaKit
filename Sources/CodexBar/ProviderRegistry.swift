@@ -4,7 +4,7 @@ import Foundation
 struct ProviderSpec {
     let style: IconStyle
     let isEnabled: @MainActor () -> Bool
-    let fetch: () async throws -> UsageSnapshot
+    let fetch: () async -> ProviderFetchOutcome
 }
 
 struct ProviderRegistry {
@@ -36,10 +36,11 @@ struct ProviderRegistry {
                     let snapshot = await MainActor.run {
                         ProviderSettingsSnapshot(
                             debugMenuEnabled: settings.debugMenuEnabled,
-                            claudeUsageDataSource: settings.claudeUsageDataSource,
-                            claudeWebExtrasEnabled: settings.claudeWebExtrasEnabled,
-                            zaiAPIToken: settings.zaiAPIToken,
-                            copilotAPIToken: settings.copilotAPIToken)
+                            claude: ProviderSettingsSnapshot.ClaudeProviderSettings(
+                                usageDataSource: settings.claudeUsageDataSource,
+                                webExtrasEnabled: settings.claudeWebExtrasEnabled),
+                            zai: ProviderSettingsSnapshot.ZaiProviderSettings(),
+                            copilot: ProviderSettingsSnapshot.CopilotProviderSettings())
                     }
                     let context = ProviderFetchContext(
                         runtime: .app,
@@ -52,8 +53,7 @@ struct ProviderRegistry {
                         settings: snapshot,
                         fetcher: codexFetcher,
                         claudeFetcher: claudeFetcher)
-                    let result = try await descriptor.fetch(context: context)
-                    return result.usage
+                    return await descriptor.fetchOutcome(context: context)
                 })
             specs[provider] = spec
         }

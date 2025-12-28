@@ -3,39 +3,43 @@ import Foundation
 import SweetCookieKit
 
 @ProviderDescriptorRegistration
+@ProviderDescriptorDefinition
 public enum ClaudeProviderDescriptor {
-    public static let descriptor: ProviderDescriptor = .init(
-        id: .claude,
-        metadata: ProviderMetadata(
+    static func makeDescriptor() -> ProviderDescriptor {
+        ProviderDescriptor(
             id: .claude,
-            displayName: "Claude",
-            sessionLabel: "Session",
-            weeklyLabel: "Weekly",
-            opusLabel: "Sonnet",
-            supportsOpus: true,
-            supportsCredits: false,
-            creditsHint: "",
-            toggleTitle: "Show Claude Code usage",
-            cliName: "claude",
-            defaultEnabled: false,
-            browserCookieOrder: Browser.defaultImportOrder,
-            dashboardURL: "https://console.anthropic.com/settings/billing",
-            subscriptionDashboardURL: "https://claude.ai/settings/usage",
-            statusPageURL: "https://status.claude.com/"),
-        branding: ProviderBranding(
-            iconStyle: .claude,
-            iconResourceName: "ProviderIcon-claude",
-            color: ProviderColor(red: 204 / 255, green: 124 / 255, blue: 94 / 255)),
-        tokenCost: ProviderTokenCostConfig(
-            supportsTokenCost: true,
-            noDataMessage: Self.noDataMessage),
-        sourceLabel: "auto",
-        cli: ProviderCLIConfig(
-            name: "claude",
-            sourceLabel: "claude",
-            versionDetector: { ClaudeUsageFetcher().detectVersion() },
-            sourceModes: [.auto, .web, .cli, .oauth]),
-        fetchPipeline: ProviderFetchPipeline(resolveStrategies: Self.resolveStrategies))
+            metadata: ProviderMetadata(
+                id: .claude,
+                displayName: "Claude",
+                sessionLabel: "Session",
+                weeklyLabel: "Weekly",
+                opusLabel: "Sonnet",
+                supportsOpus: true,
+                supportsCredits: false,
+                creditsHint: "",
+                toggleTitle: "Show Claude Code usage",
+                cliName: "claude",
+                defaultEnabled: false,
+                isPrimaryProvider: true,
+                usesAccountFallback: false,
+                browserCookieOrder: Browser.defaultImportOrder,
+                dashboardURL: "https://console.anthropic.com/settings/billing",
+                subscriptionDashboardURL: "https://claude.ai/settings/usage",
+                statusPageURL: "https://status.claude.com/"),
+            branding: ProviderBranding(
+                iconStyle: .claude,
+                iconResourceName: "ProviderIcon-claude",
+                color: ProviderColor(red: 204 / 255, green: 124 / 255, blue: 94 / 255)),
+            tokenCost: ProviderTokenCostConfig(
+                supportsTokenCost: true,
+                noDataMessage: self.noDataMessage),
+            fetchPlan: ProviderFetchPlan(
+                sourceModes: [.auto, .web, .cli, .oauth],
+                pipeline: ProviderFetchPipeline(resolveStrategies: self.resolveStrategies)),
+            cli: ProviderCLIConfig(
+                name: "claude",
+                versionDetector: { ClaudeUsageFetcher().detectVersion() }))
+    }
 
     private static func resolveStrategies(context: ProviderFetchContext) async -> [any ProviderFetchStrategy] {
         switch context.runtime {
@@ -55,8 +59,9 @@ public enum ClaudeProviderDescriptor {
             let hasOAuthCredentials = (try? ClaudeOAuthCredentialsStore.load()) != nil
             let settings = context.settings
             let debugMenuEnabled = settings?.debugMenuEnabled ?? false
-            let selected = settings?.claudeUsageDataSource ?? .web
-            let webExtrasEnabled = settings?.claudeWebExtrasEnabled ?? false
+            let claudeSettings = settings?.claude
+            let selected = claudeSettings?.usageDataSource ?? .web
+            let webExtrasEnabled = claudeSettings?.webExtrasEnabled ?? false
             let strategy = Self.resolveUsageStrategy(
                 debugMenuEnabled: debugMenuEnabled,
                 selectedDataSource: selected,
@@ -122,11 +127,9 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let fetcher = ClaudeUsageFetcher(dataSource: .oauth, useWebExtras: false)
         let usage = try await fetcher.loadLatestUsage(model: "sonnet")
-        return ProviderFetchResult(
+        return self.makeResult(
             usage: Self.snapshot(from: usage),
-            credits: nil,
-            dashboard: nil,
-            sourceOverride: nil)
+            sourceLabel: "oauth")
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
@@ -134,15 +137,18 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
     }
 
     fileprivate static func snapshot(from usage: ClaudeUsageSnapshot) -> UsageSnapshot {
-        UsageSnapshot(
+        let identity = ProviderIdentitySnapshot(
+            providerID: .claude,
+            accountEmail: usage.accountEmail,
+            accountOrganization: usage.accountOrganization,
+            loginMethod: usage.loginMethod)
+        return UsageSnapshot(
             primary: usage.primary,
             secondary: usage.secondary,
             tertiary: usage.opus,
             providerCost: usage.providerCost,
             updatedAt: usage.updatedAt,
-            accountEmail: usage.accountEmail,
-            accountOrganization: usage.accountOrganization,
-            loginMethod: usage.loginMethod)
+            identity: identity)
     }
 }
 
@@ -157,11 +163,9 @@ struct ClaudeWebFetchStrategy: ProviderFetchStrategy {
     func fetch(_: ProviderFetchContext) async throws -> ProviderFetchResult {
         let fetcher = ClaudeUsageFetcher(dataSource: .web, useWebExtras: false)
         let usage = try await fetcher.loadLatestUsage(model: "sonnet")
-        return ProviderFetchResult(
+        return self.makeResult(
             usage: ClaudeOAuthFetchStrategy.snapshot(from: usage),
-            credits: nil,
-            dashboard: nil,
-            sourceOverride: nil)
+            sourceLabel: "web")
     }
 
     func shouldFallback(on error: Error, context: ProviderFetchContext) -> Bool {
@@ -183,11 +187,9 @@ struct ClaudeCLIFetchStrategy: ProviderFetchStrategy {
     func fetch(_: ProviderFetchContext) async throws -> ProviderFetchResult {
         let fetcher = ClaudeUsageFetcher(dataSource: .cli, useWebExtras: self.useWebExtras)
         let usage = try await fetcher.loadLatestUsage(model: "sonnet")
-        return ProviderFetchResult(
+        return self.makeResult(
             usage: ClaudeOAuthFetchStrategy.snapshot(from: usage),
-            credits: nil,
-            dashboard: nil,
-            sourceOverride: nil)
+            sourceLabel: "claude")
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {

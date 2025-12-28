@@ -36,6 +36,8 @@ public struct ProviderMetadata: Sendable {
     public let toggleTitle: String
     public let cliName: String
     public let defaultEnabled: Bool
+    public let isPrimaryProvider: Bool
+    public let usesAccountFallback: Bool
     public let browserCookieOrder: BrowserCookieImportOrder?
     public let dashboardURL: String?
     public let subscriptionDashboardURL: String?
@@ -58,6 +60,8 @@ public struct ProviderMetadata: Sendable {
         toggleTitle: String,
         cliName: String,
         defaultEnabled: Bool,
+        isPrimaryProvider: Bool = false,
+        usesAccountFallback: Bool = false,
         browserCookieOrder: BrowserCookieImportOrder? = nil,
         dashboardURL: String?,
         subscriptionDashboardURL: String? = nil,
@@ -76,6 +80,8 @@ public struct ProviderMetadata: Sendable {
         self.toggleTitle = toggleTitle
         self.cliName = cliName
         self.defaultEnabled = defaultEnabled
+        self.isPrimaryProvider = isPrimaryProvider
+        self.usesAccountFallback = usesAccountFallback
         self.browserCookieOrder = browserCookieOrder
         self.dashboardURL = dashboardURL
         self.subscriptionDashboardURL = subscriptionDashboardURL

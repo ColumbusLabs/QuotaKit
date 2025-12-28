@@ -146,6 +146,11 @@ extension ZaiUsageSnapshot {
 
         let planName = self.planName?.trimmingCharacters(in: .whitespacesAndNewlines)
         let loginMethod = (planName?.isEmpty ?? true) ? nil : planName
+        let identity = ProviderIdentitySnapshot(
+            providerID: .zai,
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: loginMethod)
         return UsageSnapshot(
             primary: primary,
             secondary: secondary,
@@ -153,9 +158,7 @@ extension ZaiUsageSnapshot {
             providerCost: nil,
             zaiUsage: self,
             updatedAt: self.updatedAt,
-            accountEmail: nil,
-            accountOrganization: nil,
-            loginMethod: loginMethod)
+            identity: identity)
     }
 
     private static func rateWindow(for limit: ZaiLimitEntry) -> RateWindow {

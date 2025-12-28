@@ -51,12 +51,16 @@ public struct GeminiStatusSnapshot: Sendable {
                 resetDescription: $0.resetDescription)
         }
 
+        let identity = ProviderIdentitySnapshot(
+            providerID: .gemini,
+            accountEmail: self.accountEmail,
+            accountOrganization: nil,
+            loginMethod: self.accountPlan)
         return UsageSnapshot(
             primary: primary,
             secondary: secondary,
             updatedAt: Date(),
-            accountEmail: self.accountEmail,
-            loginMethod: self.accountPlan)
+            identity: identity)
     }
 }
 

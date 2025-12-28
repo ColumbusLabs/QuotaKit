@@ -120,15 +120,7 @@ struct ProvidersPane: View {
     }
 
     private func providerSourceLabel(_ provider: UsageProvider) -> String {
-        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
-        if let impl = ProviderCatalog.implementation(for: provider),
-           let label = impl.sourceLabel(context: ProviderSourceLabelContext(
-               settings: self.settings,
-               descriptor: descriptor))
-        {
-            return label
-        }
-        return descriptor.sourceLabel
+        self.store.sourceLabel(for: provider)
     }
 
     private func providerStatusLabel(_ provider: UsageProvider) -> String {

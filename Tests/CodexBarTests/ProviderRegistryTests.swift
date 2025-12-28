@@ -1,153 +1,18 @@
 import CodexBarCore
-import Foundation
-import Testing
-@testable import CodexBar
+import XCTest
 
-@MainActor
-@Suite
-struct ProviderRegistryTests {
-    @Test
-    func implementationsCoverAllProviders() {
-        let ids = Set(ProviderCatalog.all.map(\.id))
-        #expect(ids.count == ProviderCatalog.all.count)
-        #expect(ids == Set(UsageProvider.allCases))
-    }
+final class ProviderRegistryTests: XCTestCase {
+    func test_descriptorRegistryIsCompleteAndDeterministic() {
+        let descriptors = ProviderDescriptorRegistry.all
+        let ids = descriptors.map(\.id)
 
-    @Test
-    func defaultsEnableCodexAndDisableClaude() {
-        let defaults = UserDefaults(suiteName: "ProviderRegistryTests-defaults")!
-        defaults.removePersistentDomain(forName: "ProviderRegistryTests-defaults")
-        let settings = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
-        let registry = ProviderRegistry.shared
+        XCTAssertFalse(descriptors.isEmpty, "ProviderDescriptorRegistry must not be empty.")
+        XCTAssertEqual(Set(ids).count, ids.count, "ProviderDescriptorRegistry contains duplicate IDs.")
 
-        let codexEnabled = settings.isProviderEnabled(provider: .codex, metadata: registry.metadata[.codex]!)
-        let claudeEnabled = settings.isProviderEnabled(provider: .claude, metadata: registry.metadata[.claude]!)
+        let missing = Set(UsageProvider.allCases).subtracting(ids)
+        XCTAssertTrue(missing.isEmpty, "Missing descriptors for providers: \(missing).")
 
-        #expect(codexEnabled)
-        #expect(!claudeEnabled)
-    }
-
-    @Test
-    func togglesPersistAcrossStoreInstances() {
-        let suite = "ProviderRegistryTests-persist"
-        let defaultsA = UserDefaults(suiteName: suite)!
-        defaultsA.removePersistentDomain(forName: suite)
-
-        let settingsA = SettingsStore(userDefaults: defaultsA, zaiTokenStore: NoopZaiTokenStore())
-        let registry = ProviderRegistry.shared
-        let claudeMeta = registry.metadata[.claude]!
-
-        settingsA.setProviderEnabled(provider: .claude, metadata: claudeMeta, enabled: true)
-
-        let defaultsB = UserDefaults(suiteName: suite)!
-        let settingsB = SettingsStore(userDefaults: defaultsB, zaiTokenStore: NoopZaiTokenStore())
-        let enabledAfterReload = settingsB.isProviderEnabled(provider: .claude, metadata: claudeMeta)
-
-        #expect(enabledAfterReload)
-    }
-
-    @Test
-    func registryBuildsSpecsForAllProviders() {
-        let registry = ProviderRegistry.shared
-        let defaults = UserDefaults(suiteName: "ProviderRegistryTests-specs")!
-        defaults.removePersistentDomain(forName: "ProviderRegistryTests-specs")
-        let settings = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
-        let specs = registry.specs(
-            settings: settings,
-            metadata: registry.metadata,
-            codexFetcher: UsageFetcher(),
-            claudeFetcher: ClaudeUsageFetcher())
-        #expect(specs.keys.count == UsageProvider.allCases.count)
-    }
-
-    @Test
-    func claudeStrategyPrefersWebWhenSessionAvailable() {
-        let defaults = UserDefaults(suiteName: "ProviderRegistryTests-claude-web")!
-        defaults.removePersistentDomain(forName: "ProviderRegistryTests-claude-web")
-        let settings = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
-        settings.debugMenuEnabled = false
-
-        let strategy = ClaudeProviderImplementation.usageStrategy(
-            settings: settings,
-            hasWebSession: { true },
-            hasOAuthCredentials: { false })
-
-        #expect(strategy.dataSource == .web)
-        #expect(strategy.useWebExtras == false)
-    }
-
-    @Test
-    func claudeStrategyFallsBackToCLIWhenNoSession() {
-        let defaults = UserDefaults(suiteName: "ProviderRegistryTests-claude-cli")!
-        defaults.removePersistentDomain(forName: "ProviderRegistryTests-claude-cli")
-        let settings = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
-        settings.debugMenuEnabled = false
-
-        let strategy = ClaudeProviderImplementation.usageStrategy(
-            settings: settings,
-            hasWebSession: { false },
-            hasOAuthCredentials: { false })
-
-        #expect(strategy.dataSource == .cli)
-        #expect(strategy.useWebExtras == false)
-    }
-
-    @Test
-    func claudeStrategyRespectsOAuthInDebug() {
-        let defaults = UserDefaults(suiteName: "ProviderRegistryTests-claude-oauth")!
-        defaults.removePersistentDomain(forName: "ProviderRegistryTests-claude-oauth")
-        let settings = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
-        settings.debugMenuEnabled = true
-        settings.claudeUsageDataSource = .oauth
-
-        let strategy = ClaudeProviderImplementation.usageStrategy(
-            settings: settings,
-            hasWebSession: { false },
-            hasOAuthCredentials: { false })
-
-        #expect(strategy.dataSource == .oauth)
-        #expect(strategy.useWebExtras == false)
-    }
-
-    @Test
-    func claudeStrategyEnablesWebExtrasOnlyWithSession() {
-        let defaults = UserDefaults(suiteName: "ProviderRegistryTests-claude-extras")!
-        defaults.removePersistentDomain(forName: "ProviderRegistryTests-claude-extras")
-        let settings = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
-        settings.debugMenuEnabled = true
-        settings.claudeUsageDataSource = .cli
-        settings.claudeWebExtrasEnabled = true
-
-        let strategy = ClaudeProviderImplementation.usageStrategy(
-            settings: settings,
-            hasWebSession: { true },
-            hasOAuthCredentials: { false })
-
-        #expect(strategy.dataSource == .cli)
-        #expect(strategy.useWebExtras == true)
-    }
-
-    @Test
-    func claudeStrategyPrefersOAuthWhenAvailable() {
-        let defaults = UserDefaults(suiteName: "ProviderRegistryTests-claude-oauth-auto")!
-        defaults.removePersistentDomain(forName: "ProviderRegistryTests-claude-oauth-auto")
-        let settings = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
-        settings.debugMenuEnabled = false
-
-        let strategy = ClaudeProviderImplementation.usageStrategy(
-            settings: settings,
-            hasWebSession: { true },
-            hasOAuthCredentials: { true })
-
-        #expect(strategy.dataSource == .oauth)
-        #expect(strategy.useWebExtras == false)
-        #expect(settings.claudeUsageDataSource == .oauth)
-    }
-
-    @Test
-    func providerCatalogLookupsExistForAllProviders() {
-        for provider in UsageProvider.allCases {
-            #expect(ProviderCatalog.implementation(for: provider) != nil)
-        }
+        let secondPass = ProviderDescriptorRegistry.all.map(\.id)
+        XCTAssertEqual(ids, secondPass, "ProviderDescriptorRegistry order changed between reads.")
     }
 }

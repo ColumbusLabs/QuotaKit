@@ -23,10 +23,6 @@ protocol ProviderImplementation: Sendable {
     /// Optional provider-specific login flow. Returns whether to refresh after completion.
     @MainActor
     func runLoginFlow(context: ProviderLoginContext) async -> Bool
-
-    /// Optional override for source label in Providers settings.
-    @MainActor
-    func sourceLabel(context: ProviderSourceLabelContext) -> String?
 }
 
 extension ProviderImplementation {
@@ -45,18 +41,8 @@ extension ProviderImplementation {
     func runLoginFlow(context _: ProviderLoginContext) async -> Bool {
         false
     }
-
-    @MainActor
-    func sourceLabel(context _: ProviderSourceLabelContext) -> String? {
-        nil
-    }
 }
 
 struct ProviderLoginContext {
     unowned let controller: StatusItemController
-}
-
-struct ProviderSourceLabelContext {
-    let settings: SettingsStore
-    let descriptor: ProviderDescriptor
 }

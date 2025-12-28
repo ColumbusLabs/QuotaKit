@@ -29,7 +29,7 @@ struct FactoryStatusSnapshotTests {
         #expect(usage.primary.resetsAt == periodEnd)
         #expect(usage.primary.resetDescription?.hasPrefix("Resets ") == true)
         #expect(usage.secondary?.usedPercent == 50)
-        #expect(usage.loginMethod == "Factory Enterprise - Pro")
+        #expect(usage.loginMethod(for: .factory) == "Factory Enterprise - Pro")
     }
 
     @Test

@@ -52,16 +52,11 @@ struct ClaudeProviderImplementation: ProviderImplementation {
         return true
     }
 
-    @MainActor
-    func sourceLabel(context: ProviderSourceLabelContext) -> String? {
-        context.settings.claudeUsageDataSource.sourceLabel
-    }
-
     // MARK: - Web extras status
 
     @MainActor
     private static func refreshWebExtrasStatus(context: ProviderSettingsContext, id: String) async {
-        let expectedEmail = context.store.snapshot(for: .claude)?.accountEmail?
+        let expectedEmail = context.store.snapshot(for: .claude)?.accountEmail(for: .claude)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         context.setStatusText(id, "Checking Claude cookies…")
         let status = await Self.loadClaudeWebStatus(expectedEmail: expectedEmail)

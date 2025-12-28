@@ -16,9 +16,6 @@ extension StatusItemController {
 
     private func menuCardWidth(for providers: [UsageProvider], menu: NSMenu? = nil) -> CGFloat {
         _ = menu
-        if providers.count >= 7 {
-            return (Self.menuCardBaseWidth * 1.15).rounded()
-        }
         return Self.menuCardBaseWidth
     }
 

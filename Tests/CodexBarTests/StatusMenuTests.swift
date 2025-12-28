@@ -237,6 +237,11 @@ struct StatusMenuTests {
 
         let fetcher = UsageFetcher()
         let store = UsageStore(fetcher: fetcher, settings: settings)
+        let identity = ProviderIdentitySnapshot(
+            providerID: .claude,
+            accountEmail: "user@example.com",
+            accountOrganization: nil,
+            loginMethod: "web")
         let snapshot = UsageSnapshot(
             primary: RateWindow(usedPercent: 10, windowMinutes: nil, resetsAt: nil, resetDescription: "Resets soon"),
             secondary: nil,
@@ -249,9 +254,7 @@ struct StatusMenuTests {
                 resetsAt: nil,
                 updatedAt: Date()),
             updatedAt: Date(),
-            accountEmail: "user@example.com",
-            accountOrganization: nil,
-            loginMethod: "web")
+            identity: identity)
         store._setSnapshotForTesting(snapshot, provider: .claude)
         store._setTokenSnapshotForTesting(CCUsageTokenSnapshot(
             sessionTokens: 123,

@@ -48,8 +48,9 @@ Introduce a single descriptor per provider:
 - display/labels/URLs (menu title, dashboard URL, status URL)
 - UI branding (icon name, primary color)
 - capabilities (supportsCredits, supportsTokenCost, supportsStatusPolling, supportsLogin)
-- fetch pipeline (ordered strategies + resolution rules)
-- CLI metadata (cliName, aliases, allowed `--source` modes, version provider)
+- fetch plan (allowed `--source` modes + ordered strategy pipeline)
+- CLI metadata (cliName, aliases, version provider)
+- account behavior (e.g., `usesAccountFallback` for Codex auth.json)
 
 UI and settings should become descriptor-driven:
 - no provider-specific branching for labels/links/toggle titles
@@ -64,6 +65,7 @@ A provider declares a pipeline of strategies, in priority order. Each strategy:
 - can be filtered by CLI `--source` or app settings
 
 The pipeline resolves to the best available strategy, and falls back on failure when allowed.
+Each run returns a `ProviderFetchOutcome` with **attempts + errors** for debug UI and CLI `--verbose`.
 
 ## Host APIs are explicit, small, testable
 Expose a narrow set of protocols/structs that provider implementations can use:
@@ -88,6 +90,69 @@ Rule: providers do not talk to `FileManager`, `Security`, or “browser internal
 - `Sources/CodexBar/Providers/<ProviderID>/`
   - `<ProviderID>ProviderImplementation.swift` (settings/login UI hooks only)
 
+## Minimal provider example (copy-paste)
+
+```swift
+import CodexBarMacroSupport
+import Foundation
+
+@ProviderDescriptorRegistration
+@ProviderDescriptorDefinition
+public enum ExampleProviderDescriptor {
+    static func makeDescriptor() -> ProviderDescriptor {
+        ProviderDescriptor(
+            id: .example,
+            metadata: ProviderMetadata(
+                id: .example,
+                displayName: "Example",
+                sessionLabel: "Session",
+                weeklyLabel: "Weekly",
+                opusLabel: nil,
+                supportsOpus: false,
+                supportsCredits: false,
+                creditsHint: "",
+                toggleTitle: "Show Example usage",
+                cliName: "example",
+                defaultEnabled: false,
+                isPrimaryProvider: false,
+                usesAccountFallback: false,
+                dashboardURL: nil,
+                statusPageURL: nil),
+            branding: ProviderBranding(
+                iconStyle: .codex,
+                iconResourceName: "ProviderIcon-example",
+                color: ProviderColor(red: 0.2, green: 0.6, blue: 0.8)),
+            tokenCost: ProviderTokenCostConfig(
+                supportsTokenCost: false,
+                noDataMessage: { "Example cost summary is not supported." }),
+            fetchPlan: ProviderFetchPlan(
+                sourceModes: [.auto, .cli],
+                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [ExampleFetchStrategy()] })),
+            cli: ProviderCLIConfig(
+                name: "example",
+                versionDetector: nil))
+    }
+}
+
+struct ExampleFetchStrategy: ProviderFetchStrategy {
+    let id: String = "example.cli"
+    let kind: ProviderFetchKind = .cli
+
+    func isAvailable(_: ProviderFetchContext) async -> Bool { true }
+
+    func fetch(_: ProviderFetchContext) async throws -> ProviderFetchResult {
+        let usage = UsageSnapshot(
+            primary: .init(usedPercent: 0, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            updatedAt: Date(),
+            identity: nil)
+        return self.makeResult(usage: usage, sourceLabel: "cli")
+    }
+
+    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool { false }
+}
+```
+
 ## Guardrails (non-negotiable)
 - Identity silo: never display identity/plan fields from provider A inside provider B UI.
 - Privacy: default to on-device parsing; browser cookies are opt-in and never persisted by us beyond WebKit stores.
@@ -104,8 +169,9 @@ Checklist:
   - `<ProviderID>Probe.swift` / `<ProviderID>Fetcher.swift`: concrete fetcher logic.
   - `<ProviderID>Models.swift`: snapshot structs.
   - `<ProviderID>Parser.swift` (if needed).
-- Attach `@ProviderDescriptorRegistration` to the descriptor and `@ProviderImplementationRegistration` to the
-  implementation (macros auto-register).
+- Attach `@ProviderDescriptorRegistration` + `@ProviderDescriptorDefinition` to the descriptor type.
+  Implement `static func makeDescriptor() -> ProviderDescriptor`.
+- Attach `@ProviderImplementationRegistration` to the implementation type (macros auto-register).
   - No manual list edits.
 - Add `Sources/CodexBar/Providers/<ProviderID>/<ProviderID>ProviderImplementation.swift`:
   - `ProviderImplementation` only for settings/login UI hooks.

@@ -302,15 +302,18 @@ public struct FactoryStatusSnapshot: Sendable {
             return parts.isEmpty ? nil : parts.joined(separator: " - ")
         }()
 
+        let identity = ProviderIdentitySnapshot(
+            providerID: .factory,
+            accountEmail: self.accountEmail,
+            accountOrganization: self.organizationName,
+            loginMethod: loginMethod)
         return UsageSnapshot(
             primary: primary,
             secondary: secondary,
             tertiary: nil,
             providerCost: nil,
             updatedAt: Date(),
-            accountEmail: self.accountEmail,
-            accountOrganization: self.organizationName,
-            loginMethod: loginMethod)
+            identity: identity)
     }
 
     private func calculateUsagePercent(used: Int64, allowance: Int64) -> Double {
@@ -1255,9 +1258,7 @@ public struct FactoryStatusSnapshot: Sendable {
             tertiary: nil,
             providerCost: nil,
             updatedAt: Date(),
-            accountEmail: nil,
-            accountOrganization: nil,
-            loginMethod: nil)
+            identity: nil)
     }
 }
 

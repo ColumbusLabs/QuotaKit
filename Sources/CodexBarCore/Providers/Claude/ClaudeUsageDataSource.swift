@@ -18,7 +18,7 @@ public enum ClaudeUsageDataSource: String, CaseIterable, Identifiable, Sendable 
     public var sourceLabel: String {
         switch self {
         case .oauth:
-            "Ollama"
+            "oauth"
         case .web:
             "web"
         case .cli:

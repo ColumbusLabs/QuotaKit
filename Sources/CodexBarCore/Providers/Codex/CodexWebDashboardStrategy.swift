@@ -26,11 +26,11 @@ public struct CodexWebDashboardStrategy: ProviderFetchStrategy {
             timeout: context.webTimeout,
             debugDumpHTML: context.webDebugDumpHTML,
             verbose: context.verbose)
-        return ProviderFetchResult(
+        return self.makeResult(
             usage: result.usage,
             credits: result.credits,
             dashboard: result.dashboard,
-            sourceOverride: "openai-web")
+            sourceLabel: "openai-web")
     }
 
     public func shouldFallback(on error: Error, context: ProviderFetchContext) -> Bool {
@@ -107,7 +107,7 @@ extension CodexWebDashboardStrategy {
             fetcher: fetcher,
             options: options,
             logger: log)
-        guard let usage = dashboard.toUsageSnapshot(accountEmail: accountEmail) else {
+        guard let usage = dashboard.toUsageSnapshot(provider: .codex, accountEmail: accountEmail) else {
             throw OpenAIWebCodexError.missingUsage
         }
         let credits = dashboard.toCreditsSnapshot()

@@ -11,6 +11,8 @@ extension UsageStore {
     var menuObservationToken: Int {
         _ = self.snapshots
         _ = self.errors
+        _ = self.lastSourceLabels
+        _ = self.lastFetchAttempts
         _ = self.tokenSnapshots
         _ = self.tokenErrors
         _ = self.tokenRefreshInFlight
@@ -26,8 +28,6 @@ extension UsageStore {
         _ = self.geminiVersion
         _ = self.zaiVersion
         _ = self.antigravityVersion
-        _ = self.claudeAccountEmail
-        _ = self.claudeAccountOrganization
         _ = self.isRefreshing
         _ = self.refreshingProviders
         _ = self.pathDebugInfo
@@ -90,7 +90,7 @@ enum ProviderStatusIndicator: String {
 #if DEBUG
 extension UsageStore {
     func _setSnapshotForTesting(_ snapshot: UsageSnapshot?, provider: UsageProvider) {
-        self.snapshots[provider] = snapshot
+        self.snapshots[provider] = snapshot?.scoped(to: provider)
     }
 
     func _setTokenSnapshotForTesting(_ snapshot: CCUsageTokenSnapshot?, provider: UsageProvider) {
@@ -138,6 +138,8 @@ struct ConsecutiveFailureGate {
 final class UsageStore {
     private(set) var snapshots: [UsageProvider: UsageSnapshot] = [:]
     private(set) var errors: [UsageProvider: String] = [:]
+    private(set) var lastSourceLabels: [UsageProvider: String] = [:]
+    private(set) var lastFetchAttempts: [UsageProvider: [ProviderFetchAttempt]] = [:]
     private(set) var tokenSnapshots: [UsageProvider: CCUsageTokenSnapshot] = [:]
     private(set) var tokenErrors: [UsageProvider: String] = [:]
     private(set) var tokenRefreshInFlight: Set<UsageProvider> = []
@@ -154,8 +156,6 @@ final class UsageStore {
     var zaiVersion: String?
     var antigravityVersion: String?
     var cursorVersion: String?
-    var claudeAccountEmail: String?
-    var claudeAccountOrganization: String?
     var isRefreshing = false
     private(set) var refreshingProviders: Set<UsageProvider> = []
     var debugForceAnimation = false
@@ -230,7 +230,7 @@ final class UsageStore {
 
     /// Returns the login method (plan type) for the specified provider, if available.
     private func loginMethod(for provider: UsageProvider) -> String? {
-        self.snapshots[provider]?.loginMethod
+        self.snapshots[provider]?.loginMethod(for: provider)
     }
 
     /// Returns true if the Claude account appears to be a subscription (Max, Pro, Ultra, Team).
@@ -309,6 +309,25 @@ final class UsageStore {
         self.snapshots[provider]
     }
 
+    func sourceLabel(for provider: UsageProvider) -> String {
+        if let label = self.lastSourceLabels[provider], !label.isEmpty {
+            return label
+        }
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+        let modes = descriptor.fetchPlan.sourceModes
+        if modes.count == 1, let mode = modes.first {
+            return mode.rawValue
+        }
+        if provider == .claude {
+            return self.settings.claudeUsageDataSource.rawValue
+        }
+        return "auto"
+    }
+
+    func fetchAttempts(for provider: UsageProvider) -> [ProviderFetchAttempt] {
+        self.lastFetchAttempts[provider] ?? []
+    }
+
     func style(for provider: UsageProvider) -> IconStyle {
         self.providerSpecs[provider]?.style ?? .codex
     }
@@ -321,9 +340,7 @@ final class UsageStore {
         let enabled = self.settings.isProviderEnabled(provider: provider, metadata: self.metadata(for: provider))
         guard enabled else { return false }
         if provider == .zai {
-            let settingsToken = self.settings.zaiAPIToken.trimmingCharacters(in: .whitespacesAndNewlines)
-            let envToken = ZaiSettingsReader.apiToken()
-            return !settingsToken.isEmpty || envToken != nil
+            return ProviderTokenResolver.zaiToken(environment: ProcessInfo.processInfo.environment) != nil
         }
         return true
     }
@@ -436,6 +453,8 @@ final class UsageStore {
             await MainActor.run {
                 self.snapshots.removeValue(forKey: provider)
                 self.errors[provider] = nil
+                self.lastSourceLabels.removeValue(forKey: provider)
+                self.lastFetchAttempts.removeValue(forKey: provider)
                 self.tokenSnapshots.removeValue(forKey: provider)
                 self.tokenErrors[provider] = nil
                 self.failureGates[provider]?.reset()
@@ -450,23 +469,22 @@ final class UsageStore {
         self.refreshingProviders.insert(provider)
         defer { self.refreshingProviders.remove(provider) }
 
-        do {
-            let fetchClosure = spec.fetch
-            let task = Task(priority: .utility) { () -> UsageSnapshot in
-                try await fetchClosure()
-            }
-            let snapshot = try await task.value
+        let outcome = await spec.fetch()
+        await MainActor.run {
+            self.lastFetchAttempts[provider] = outcome.attempts
+        }
+
+        switch outcome.result {
+        case let .success(result):
+            let scoped = result.usage.scoped(to: provider)
             await MainActor.run {
-                self.handleSessionQuotaTransition(provider: provider, snapshot: snapshot)
-                self.snapshots[provider] = snapshot
+                self.handleSessionQuotaTransition(provider: provider, snapshot: scoped)
+                self.snapshots[provider] = scoped
+                self.lastSourceLabels[provider] = result.sourceLabel
                 self.errors[provider] = nil
                 self.failureGates[provider]?.recordSuccess()
-                if provider == .claude {
-                    self.claudeAccountEmail = snapshot.accountEmail
-                    self.claudeAccountOrganization = snapshot.accountOrganization
-                }
             }
-        } catch {
+        case let .failure(error):
             await MainActor.run {
                 let hadPriorData = self.snapshots[provider] != nil
                 let shouldSurface = self.failureGates[provider]?
@@ -609,10 +627,11 @@ final class UsageStore {
             self.lastOpenAIDashboardError = nil
             self.lastOpenAIDashboardSnapshot = dash
             self.openAIDashboardRequiresLogin = false
-            if let usage = dash.toUsageSnapshot(accountEmail: targetEmail) {
+            if let usage = dash.toUsageSnapshot(provider: .codex, accountEmail: targetEmail) {
                 self.snapshots[.codex] = usage
                 self.errors[.codex] = nil
                 self.failureGates[.codex]?.recordSuccess()
+                self.lastSourceLabels[.codex] = "openai-web"
             }
             if let credits = dash.toCreditsSnapshot() {
                 self.credits = credits
@@ -960,7 +979,8 @@ final class UsageStore {
     }
 
     func codexAccountEmailForOpenAIDashboard() -> String? {
-        let direct = self.snapshots[.codex]?.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let direct = self.snapshots[.codex]?.accountEmail(for: .codex)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         if let direct, !direct.isEmpty { return direct }
         let fallback = self.codexFetcher.loadAccountInfo().email?.trimmingCharacters(in: .whitespacesAndNewlines)
         if let fallback, !fallback.isEmpty { return fallback }
@@ -1092,12 +1112,9 @@ extension UsageStore {
                 await MainActor.run { self.probeLogs[.claude] = text }
                 return text
             case .zai:
-                let settingsToken = await MainActor.run {
-                    self.settings.zaiAPIToken.trimmingCharacters(in: .whitespacesAndNewlines)
-                }
-                let envToken = ZaiSettingsReader.apiToken()
-                let hasAny = !settingsToken.isEmpty || envToken != nil
-                let source = !settingsToken.isEmpty ? "keychain" : (envToken != nil ? "env" : "none")
+                let resolution = ProviderTokenResolver.zaiResolution()
+                let hasAny = resolution != nil
+                let source = resolution?.source.rawValue ?? "none"
                 let text = "Z_AI_API_KEY=\(hasAny ? "present" : "missing") source=\(source)"
                 await MainActor.run { self.probeLogs[.zai] = text }
                 return text

@@ -35,10 +35,10 @@ enum CLIRenderer {
             lines.append("Credits: \(UsageFormatter.creditsString(from: credits.remaining))")
         }
 
-        if let email = snapshot.accountEmail, !email.isEmpty {
+        if let email = snapshot.accountEmail(for: provider), !email.isEmpty {
             lines.append("Account: \(email)")
         }
-        if let plan = snapshot.loginMethod, !plan.isEmpty {
+        if let plan = snapshot.loginMethod(for: provider), !plan.isEmpty {
             lines.append("Plan: \(plan.capitalized)")
         }
 

@@ -248,15 +248,18 @@ public struct CursorStatusSnapshot: Sendable {
             nil
         }
 
+        let identity = ProviderIdentitySnapshot(
+            providerID: .cursor,
+            accountEmail: self.accountEmail,
+            accountOrganization: nil,
+            loginMethod: self.membershipType.map { Self.formatMembershipType($0) })
         return UsageSnapshot(
             primary: primary,
             secondary: secondary,
             tertiary: nil,
             providerCost: providerCost,
             updatedAt: Date(),
-            accountEmail: self.accountEmail,
-            accountOrganization: nil,
-            loginMethod: self.membershipType.map { Self.formatMembershipType($0) })
+            identity: identity)
     }
 
     private static func formatResetDate(_ date: Date) -> String {
@@ -573,9 +576,7 @@ public struct CursorStatusSnapshot: Sendable {
             tertiary: nil,
             providerCost: nil,
             updatedAt: Date(),
-            accountEmail: nil,
-            accountOrganization: nil,
-            loginMethod: nil)
+            identity: nil)
     }
 }
 

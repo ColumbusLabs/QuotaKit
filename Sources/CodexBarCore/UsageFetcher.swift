@@ -19,6 +19,34 @@ public struct RateWindow: Codable, Equatable, Sendable {
     }
 }
 
+public struct ProviderIdentitySnapshot: Codable, Sendable {
+    public let providerID: UsageProvider?
+    public let accountEmail: String?
+    public let accountOrganization: String?
+    public let loginMethod: String?
+
+    public init(
+        providerID: UsageProvider?,
+        accountEmail: String?,
+        accountOrganization: String?,
+        loginMethod: String?)
+    {
+        self.providerID = providerID
+        self.accountEmail = accountEmail
+        self.accountOrganization = accountOrganization
+        self.loginMethod = loginMethod
+    }
+
+    public func scoped(to provider: UsageProvider) -> ProviderIdentitySnapshot {
+        if self.providerID == provider { return self }
+        return ProviderIdentitySnapshot(
+            providerID: provider,
+            accountEmail: self.accountEmail,
+            accountOrganization: self.accountOrganization,
+            loginMethod: self.loginMethod)
+    }
+}
+
 public struct UsageSnapshot: Codable, Sendable {
     public let primary: RateWindow
     public let secondary: RateWindow?
@@ -26,9 +54,7 @@ public struct UsageSnapshot: Codable, Sendable {
     public let providerCost: ProviderCostSnapshot?
     public let zaiUsage: ZaiUsageSnapshot?
     public let updatedAt: Date
-    public let accountEmail: String?
-    public let accountOrganization: String?
-    public let loginMethod: String?
+    public let identity: ProviderIdentitySnapshot?
 
     private enum CodingKeys: String, CodingKey {
         case primary
@@ -36,6 +62,7 @@ public struct UsageSnapshot: Codable, Sendable {
         case tertiary
         case providerCost
         case updatedAt
+        case identity
         case accountEmail
         case accountOrganization
         case loginMethod
@@ -48,9 +75,7 @@ public struct UsageSnapshot: Codable, Sendable {
         providerCost: ProviderCostSnapshot? = nil,
         zaiUsage: ZaiUsageSnapshot? = nil,
         updatedAt: Date,
-        accountEmail: String? = nil,
-        accountOrganization: String? = nil,
-        loginMethod: String? = nil)
+        identity: ProviderIdentitySnapshot? = nil)
     {
         self.primary = primary
         self.secondary = secondary
@@ -58,9 +83,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.providerCost = providerCost
         self.zaiUsage = zaiUsage
         self.updatedAt = updatedAt
-        self.accountEmail = accountEmail
-        self.accountOrganization = accountOrganization
-        self.loginMethod = loginMethod
+        self.identity = identity
     }
 
     public init(from decoder: Decoder) throws {
@@ -71,9 +94,22 @@ public struct UsageSnapshot: Codable, Sendable {
         self.providerCost = try container.decodeIfPresent(ProviderCostSnapshot.self, forKey: .providerCost)
         self.zaiUsage = nil // Not persisted, fetched fresh each time
         self.updatedAt = try container.decode(Date.self, forKey: .updatedAt)
-        self.accountEmail = try container.decodeIfPresent(String.self, forKey: .accountEmail)
-        self.accountOrganization = try container.decodeIfPresent(String.self, forKey: .accountOrganization)
-        self.loginMethod = try container.decodeIfPresent(String.self, forKey: .loginMethod)
+        if let identity = try container.decodeIfPresent(ProviderIdentitySnapshot.self, forKey: .identity) {
+            self.identity = identity
+        } else {
+            let email = try container.decodeIfPresent(String.self, forKey: .accountEmail)
+            let organization = try container.decodeIfPresent(String.self, forKey: .accountOrganization)
+            let loginMethod = try container.decodeIfPresent(String.self, forKey: .loginMethod)
+            if email != nil || organization != nil || loginMethod != nil {
+                self.identity = ProviderIdentitySnapshot(
+                    providerID: nil,
+                    accountEmail: email,
+                    accountOrganization: organization,
+                    loginMethod: loginMethod)
+            } else {
+                self.identity = nil
+            }
+        }
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -87,9 +123,41 @@ public struct UsageSnapshot: Codable, Sendable {
         try container.encodeIfPresent(self.tertiary, forKey: .tertiary)
         try container.encodeIfPresent(self.providerCost, forKey: .providerCost)
         try container.encode(self.updatedAt, forKey: .updatedAt)
-        try container.encodeIfPresent(self.accountEmail, forKey: .accountEmail)
-        try container.encodeIfPresent(self.accountOrganization, forKey: .accountOrganization)
-        try container.encodeIfPresent(self.loginMethod, forKey: .loginMethod)
+        try container.encodeIfPresent(self.identity, forKey: .identity)
+        try container.encodeIfPresent(self.identity?.accountEmail, forKey: .accountEmail)
+        try container.encodeIfPresent(self.identity?.accountOrganization, forKey: .accountOrganization)
+        try container.encodeIfPresent(self.identity?.loginMethod, forKey: .loginMethod)
+    }
+
+    public func identity(for provider: UsageProvider) -> ProviderIdentitySnapshot? {
+        guard let identity, identity.providerID == provider else { return nil }
+        return identity
+    }
+
+    public func accountEmail(for provider: UsageProvider) -> String? {
+        self.identity(for: provider)?.accountEmail
+    }
+
+    public func accountOrganization(for provider: UsageProvider) -> String? {
+        self.identity(for: provider)?.accountOrganization
+    }
+
+    public func loginMethod(for provider: UsageProvider) -> String? {
+        self.identity(for: provider)?.loginMethod
+    }
+
+    public func scoped(to provider: UsageProvider) -> UsageSnapshot {
+        guard let identity else { return self }
+        let scopedIdentity = identity.scoped(to: provider)
+        if scopedIdentity.providerID == identity.providerID { return self }
+        return UsageSnapshot(
+            primary: self.primary,
+            secondary: self.secondary,
+            tertiary: self.tertiary,
+            providerCost: self.providerCost,
+            zaiUsage: self.zaiUsage,
+            updatedAt: self.updatedAt,
+            identity: scopedIdentity)
     }
 }
 
@@ -428,11 +496,8 @@ public struct UsageFetcher: Sendable {
             throw UsageError.noRateLimitsFound
         }
 
-        return UsageSnapshot(
-            primary: primary,
-            secondary: secondary,
-            tertiary: nil,
-            updatedAt: Date(),
+        let identity = ProviderIdentitySnapshot(
+            providerID: .codex,
             accountEmail: account?.account.flatMap { details in
                 if case let .chatgpt(email, _) = details { email } else { nil }
             },
@@ -440,6 +505,12 @@ public struct UsageFetcher: Sendable {
             loginMethod: account?.account.flatMap { details in
                 if case let .chatgpt(_, plan) = details { plan } else { nil }
             })
+        return UsageSnapshot(
+            primary: primary,
+            secondary: secondary,
+            tertiary: nil,
+            updatedAt: Date(),
+            identity: identity)
     }
 
     private func loadTTYUsage() async throws -> UsageSnapshot {
@@ -464,9 +535,7 @@ public struct UsageFetcher: Sendable {
             secondary: secondary,
             tertiary: nil,
             updatedAt: Date(),
-            accountEmail: nil,
-            accountOrganization: nil,
-            loginMethod: nil)
+            identity: nil)
     }
 
     public func loadLatestCredits() async throws -> CreditsSnapshot {

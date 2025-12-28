@@ -31,13 +31,17 @@ public struct AntigravityStatusSnapshot: Sendable {
         let secondary = ordered.count > 1 ? Self.rateWindow(for: ordered[1]) : nil
         let tertiary = ordered.count > 2 ? Self.rateWindow(for: ordered[2]) : nil
 
+        let identity = ProviderIdentitySnapshot(
+            providerID: .antigravity,
+            accountEmail: self.accountEmail,
+            accountOrganization: nil,
+            loginMethod: self.accountPlan)
         return UsageSnapshot(
             primary: primary,
             secondary: secondary,
             tertiary: tertiary,
             updatedAt: Date(),
-            accountEmail: self.accountEmail,
-            loginMethod: self.accountPlan)
+            identity: identity)
     }
 
     private static func rateWindow(for quota: AntigravityModelQuota) -> RateWindow {
@@ -536,19 +540,21 @@ public struct AntigravityStatusProbe: Sendable {
 
 private final class InsecureSessionDelegate: NSObject {}
 
-extension InsecureSessionDelegate: URLSessionTaskDelegate {
+extension InsecureSessionDelegate: URLSessionTaskDelegate {}
+
+extension InsecureSessionDelegate {
     func urlSession(
         _ session: URLSession,
         task: URLSessionTask,
         didReceive challenge: URLAuthenticationChallenge,
-        completionHandler: @escaping @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void)
+        completionHandler: @escaping @MainActor @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void)
     {
         let result = self.challengeResult(challenge)
-        completionHandler(result.disposition, result.credential)
+        Task { @MainActor in
+            completionHandler(result.disposition, result.credential)
+        }
     }
-}
 
-extension InsecureSessionDelegate {
     private func challengeResult(_ challenge: URLAuthenticationChallenge) -> (
         disposition: URLSession.AuthChallengeDisposition,
         credential: URLCredential?)

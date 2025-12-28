@@ -44,6 +44,7 @@ tar -xzf CodexBarCLI-0.14.1-linux-x86_64.tar.gz
     - `web` (macOS only): web-only; no CLI fallback.
     - `cli`: CLI-only (Codex RPC → PTY fallback; Claude PTY).
     - `oauth`: Claude OAuth only (debug); no fallback. Not supported for Codex.
+    - Output `source` reflects the strategy actually used (`openai-web`, `web`, `oauth`, `api`, `local`, or provider CLI label).
     - Codex web: OpenAI web dashboard (usage limits, credits remaining, code review remaining, usage breakdown).
         - `--web-timeout <seconds>` (default: 60)
         - `--web-debug-dump-html` (writes HTML snapshots to `/tmp` when data is missing)
@@ -72,7 +73,7 @@ Weekly: 41% left
 Resets Fri at 9:00 AM
 Credits: 112.4 left
 
-Claude Code 2.0.58 (claude)
+Claude Code 2.0.58 (web)
 Session: 88% left
 Resets tomorrow at 1:00 AM
 Weekly: 63% left
@@ -96,6 +97,12 @@ Plan: Pro
   "accountEmail": "user@example.com",
   "accountOrganization": null,
   "loginMethod": "plus",
+  "identity": {
+    "providerID": "codex",
+    "accountEmail": "user@example.com",
+    "accountOrganization": null,
+    "loginMethod": "plus"
+  },
   "credits": { "remaining": 112.4, "updatedAt": "2025-12-04T18:10:21Z" },
   "openaiDashboard": {
     "signedInEmail": "user@example.com",

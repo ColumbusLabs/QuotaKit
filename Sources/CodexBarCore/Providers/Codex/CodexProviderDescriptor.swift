@@ -3,38 +3,42 @@ import Foundation
 import SweetCookieKit
 
 @ProviderDescriptorRegistration
+@ProviderDescriptorDefinition
 public enum CodexProviderDescriptor {
-    public static let descriptor: ProviderDescriptor = .init(
-        id: .codex,
-        metadata: ProviderMetadata(
+    static func makeDescriptor() -> ProviderDescriptor {
+        ProviderDescriptor(
             id: .codex,
-            displayName: "Codex",
-            sessionLabel: "Session",
-            weeklyLabel: "Weekly",
-            opusLabel: nil,
-            supportsOpus: false,
-            supportsCredits: true,
-            creditsHint: "Credits unavailable; keep Codex running to refresh.",
-            toggleTitle: "Show Codex usage",
-            cliName: "codex",
-            defaultEnabled: true,
-            browserCookieOrder: Browser.defaultImportOrder,
-            dashboardURL: "https://chatgpt.com/codex/settings/usage",
-            statusPageURL: "https://status.openai.com/"),
-        branding: ProviderBranding(
-            iconStyle: .codex,
-            iconResourceName: "ProviderIcon-codex",
-            color: ProviderColor(red: 73 / 255, green: 163 / 255, blue: 176 / 255)),
-        tokenCost: ProviderTokenCostConfig(
-            supportsTokenCost: true,
-            noDataMessage: Self.noDataMessage),
-        sourceLabel: "auto",
-        cli: ProviderCLIConfig(
-            name: "codex",
-            sourceLabel: "codex-cli",
-            versionDetector: { ProviderVersionDetector.codexVersion() },
-            sourceModes: [.auto, .web, .cli]),
-        fetchPipeline: ProviderFetchPipeline(resolveStrategies: Self.resolveStrategies))
+            metadata: ProviderMetadata(
+                id: .codex,
+                displayName: "Codex",
+                sessionLabel: "Session",
+                weeklyLabel: "Weekly",
+                opusLabel: nil,
+                supportsOpus: false,
+                supportsCredits: true,
+                creditsHint: "Credits unavailable; keep Codex running to refresh.",
+                toggleTitle: "Show Codex usage",
+                cliName: "codex",
+                defaultEnabled: true,
+                isPrimaryProvider: true,
+                usesAccountFallback: true,
+                browserCookieOrder: Browser.defaultImportOrder,
+                dashboardURL: "https://chatgpt.com/codex/settings/usage",
+                statusPageURL: "https://status.openai.com/"),
+            branding: ProviderBranding(
+                iconStyle: .codex,
+                iconResourceName: "ProviderIcon-codex",
+                color: ProviderColor(red: 73 / 255, green: 163 / 255, blue: 176 / 255)),
+            tokenCost: ProviderTokenCostConfig(
+                supportsTokenCost: true,
+                noDataMessage: self.noDataMessage),
+            fetchPlan: ProviderFetchPlan(
+                sourceModes: [.auto, .web, .cli],
+                pipeline: ProviderFetchPipeline(resolveStrategies: self.resolveStrategies)),
+            cli: ProviderCLIConfig(
+                name: "codex",
+                versionDetector: { ProviderVersionDetector.codexVersion() }))
+    }
 
     private static func resolveStrategies(context: ProviderFetchContext) async -> [any ProviderFetchStrategy] {
         let cli = CodexCLIUsageStrategy()
@@ -73,11 +77,10 @@ struct CodexCLIUsageStrategy: ProviderFetchStrategy {
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let usage = try await context.fetcher.loadLatestUsage()
         let credits = await context.includeCredits ? (try? context.fetcher.loadLatestCredits()) : nil
-        return ProviderFetchResult(
+        return self.makeResult(
             usage: usage,
             credits: credits,
-            dashboard: nil,
-            sourceOverride: nil)
+            sourceLabel: "codex-cli")
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {

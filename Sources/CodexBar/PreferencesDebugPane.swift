@@ -7,6 +7,7 @@ struct DebugPane: View {
     @Bindable var settings: SettingsStore
     @Bindable var store: UsageStore
     @State private var currentLogProvider: UsageProvider = .codex
+    @State private var currentFetchProvider: UsageProvider = .codex
     @State private var isLoadingLog = false
     @State private var logText: String = ""
     @State private var isClearingCostCache = false
@@ -131,6 +132,30 @@ struct DebugPane: View {
                                 .padding()
                         }
                     }
+                }
+
+                SettingsSection(
+                    title: "Fetch strategy attempts",
+                    caption: "Last fetch pipeline decisions and errors for a provider.")
+                {
+                    Picker("Provider", selection: self.$currentFetchProvider) {
+                        ForEach(UsageProvider.allCases, id: \.self) { provider in
+                            Text(provider.rawValue.capitalized).tag(provider)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 240)
+
+                    ScrollView {
+                        Text(self.fetchAttemptsText(for: self.currentFetchProvider))
+                            .font(.system(.footnote, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(8)
+                    }
+                    .frame(minHeight: 120, maxHeight: 220)
+                    .background(Color(NSColor.textBackgroundColor))
+                    .cornerRadius(6)
                 }
 
                 SettingsSection(
@@ -406,5 +431,30 @@ struct DebugPane: View {
         }
 
         self.costCacheStatus = "Cleared."
+    }
+
+    private func fetchAttemptsText(for provider: UsageProvider) -> String {
+        let attempts = self.store.fetchAttempts(for: provider)
+        guard !attempts.isEmpty else { return "No fetch attempts yet." }
+        return attempts.map { attempt in
+            let kind = Self.fetchKindLabel(attempt.kind)
+            var line = "\(attempt.strategyID) (\(kind))"
+            line += attempt.wasAvailable ? " available" : " unavailable"
+            if let error = attempt.errorDescription, !error.isEmpty {
+                line += " error=\(error)"
+            }
+            return line
+        }.joined(separator: "\n")
+    }
+
+    private static func fetchKindLabel(_ kind: ProviderFetchKind) -> String {
+        switch kind {
+        case .cli: "cli"
+        case .web: "web"
+        case .oauth: "oauth"
+        case .apiToken: "api"
+        case .localProbe: "local"
+        case .webDashboard: "web"
+        }
     }
 }

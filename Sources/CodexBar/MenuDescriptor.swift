@@ -56,21 +56,17 @@ struct MenuDescriptor {
         switch provider {
         case .codex?:
             sections.append(Self.usageSection(for: .codex, store: store, settings: settings))
-            sections.append(Self.accountSection(
-                claude: nil,
-                codex: store.snapshot(for: .codex),
-                account: account,
-                preferClaude: false))
+            if let accountSection = Self.accountSection(for: .codex, store: store, account: account) {
+                sections.append(accountSection)
+            }
         case .claude?:
             sections.append(Self.usageSection(for: .claude, store: store, settings: settings))
-            sections.append(Self.accountSection(
-                claude: store.snapshot(for: .claude),
-                codex: store.snapshot(for: .codex),
-                account: account,
-                preferClaude: true))
+            if let accountSection = Self.accountSection(for: .claude, store: store, account: account) {
+                sections.append(accountSection)
+            }
         case let provider?:
             sections.append(Self.usageSection(for: provider, store: store, settings: settings))
-            if let accountSection = Self.accountSectionForSnapshot(store.snapshot(for: provider)) {
+            if let accountSection = Self.accountSection(for: provider, store: store, account: account) {
                 sections.append(accountSection)
             }
         case nil:
@@ -81,17 +77,17 @@ struct MenuDescriptor {
                 addedUsage = true
             }
             if addedUsage {
-                sections.append(Self.accountSection(
-                    claude: store.snapshot(for: .claude),
-                    codex: store.snapshot(for: .codex),
-                    account: account,
-                    preferClaude: store.isEnabled(.claude)))
+                if let accountProvider = Self.accountProviderForCombined(store: store),
+                   let accountSection = Self.accountSection(for: accountProvider, store: store, account: account)
+                {
+                    sections.append(accountSection)
+                }
             } else {
                 sections.append(Section(entries: [.text("No usage configured.", .secondary)]))
             }
         }
 
-        let actions = Self.actionsSection(for: provider, store: store)
+        let actions = Self.actionsSection(for: provider, store: store, account: account)
         if !actions.entries.isEmpty {
             sections.append(actions)
         }
@@ -167,60 +163,71 @@ struct MenuDescriptor {
         return Section(entries: entries)
     }
 
-    private static func accountSectionForSnapshot(_ snapshot: UsageSnapshot?) -> Section? {
+    private static func accountSection(
+        for provider: UsageProvider,
+        store: UsageStore,
+        account: AccountInfo) -> Section?
+    {
+        let snapshot = store.snapshot(for: provider)
+        let metadata = store.metadata(for: provider)
+        let entries = Self.accountEntries(
+            provider: provider,
+            snapshot: snapshot,
+            metadata: metadata,
+            fallback: account)
+        guard !entries.isEmpty else { return nil }
+        return Section(entries: entries)
+    }
+
+    private static func accountEntries(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?,
+        metadata: ProviderMetadata,
+        fallback: AccountInfo) -> [Entry]
+    {
         var entries: [Entry] = []
-        let emailText = snapshot?.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let planText = snapshot?.loginMethod?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let emailText = snapshot?.accountEmail(for: provider)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let planText = snapshot?.loginMethod(for: provider)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
         if let emailText, !emailText.isEmpty {
             entries.append(.text("Account: \(emailText)", .secondary))
         }
         if let planText, !planText.isEmpty {
             entries.append(.text("Plan: \(AccountFormatter.plan(planText))", .secondary))
         }
-        guard !entries.isEmpty else { return nil }
-        return Section(entries: entries)
-    }
 
-    /// Builds the account section.
-    /// - Claude snapshot is preferred when `preferClaude` is true.
-    /// - Otherwise Codex snapshot wins; falls back to stored auth info.
-    private static func accountSection(
-        claude: UsageSnapshot?,
-        codex: UsageSnapshot?,
-        account: AccountInfo,
-        preferClaude: Bool) -> Section
-    {
-        var entries: [Entry] = []
-        let emailFromClaude = claude?.accountEmail
-        let emailFromCodex = codex?.accountEmail
-        let planFromClaude = claude?.loginMethod
-        let planFromCodex = codex?.loginMethod
-
-        // Email: Claude wins when requested; otherwise Codex snapshot then auth.json fallback.
-        let emailText: String = {
-            if preferClaude, let e = emailFromClaude, !e.isEmpty { return e }
-            if let e = emailFromCodex, !e.isEmpty { return e }
-            if let codexEmail = account.email, !codexEmail.isEmpty { return codexEmail }
-            if let e = emailFromClaude, !e.isEmpty { return e }
-            return "Unknown"
-        }()
-        entries.append(.text("Account: \(emailText)", .secondary))
-
-        // Plan: show only Claude plan when in Claude mode; otherwise Codex plan.
-        if preferClaude {
-            if let plan = planFromClaude, !plan.isEmpty {
-                entries.append(.text("Plan: \(AccountFormatter.plan(plan))", .secondary))
+        if metadata.usesAccountFallback {
+            if emailText?.isEmpty ?? true, let fallbackEmail = fallback.email, !fallbackEmail.isEmpty {
+                entries.append(.text("Account: \(fallbackEmail)", .secondary))
             }
-        } else if let plan = planFromCodex, !plan.isEmpty {
-            entries.append(.text("Plan: \(AccountFormatter.plan(plan))", .secondary))
-        } else if let plan = account.plan, !plan.isEmpty {
-            entries.append(.text("Plan: \(AccountFormatter.plan(plan))", .secondary))
+            if planText?.isEmpty ?? true, let fallbackPlan = fallback.plan, !fallbackPlan.isEmpty {
+                entries.append(.text("Plan: \(AccountFormatter.plan(fallbackPlan))", .secondary))
+            }
         }
 
-        return Section(entries: entries)
+        return entries
     }
 
-    private static func actionsSection(for provider: UsageProvider?, store: UsageStore) -> Section {
+    private static func accountProviderForCombined(store: UsageStore) -> UsageProvider? {
+        for provider in store.enabledProviders() {
+            let metadata = store.metadata(for: provider)
+            if store.snapshot(for: provider)?.identity(for: provider) != nil {
+                return provider
+            }
+            if metadata.usesAccountFallback {
+                return provider
+            }
+        }
+        return nil
+    }
+
+    private static func actionsSection(
+        for provider: UsageProvider?,
+        store: UsageStore,
+        account: AccountInfo) -> Section
+    {
         var entries: [Entry] = []
         let targetProvider = provider ?? store.enabledProviders().first
         let metadata = targetProvider.map { store.metadata(for: $0) }
@@ -230,7 +237,7 @@ struct MenuDescriptor {
            ProviderCatalog.implementation(for: targetProvider)?.supportsLoginFlow == true
         {
             let loginAction = self.switchAccountTarget(for: provider, store: store)
-            let hasAccount = self.hasAccount(for: provider, store: store)
+            let hasAccount = self.hasAccount(for: provider, store: store, account: account)
             let accountLabel = hasAccount ? "Switch Account..." : "Add Account..."
             entries.append(.action(accountLabel, loginAction))
         }
@@ -283,9 +290,21 @@ struct MenuDescriptor {
         return .switchAccount(.codex)
     }
 
-    private static func hasAccount(for provider: UsageProvider?, store: UsageStore) -> Bool {
+    private static func hasAccount(for provider: UsageProvider?, store: UsageStore, account: AccountInfo) -> Bool {
         let target = provider ?? store.enabledProviders().first ?? .codex
-        return store.snapshot(for: target)?.accountEmail != nil
+        if let email = store.snapshot(for: target)?.accountEmail(for: target),
+           !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            return true
+        }
+        let metadata = store.metadata(for: target)
+        if metadata.usesAccountFallback,
+           let fallback = account.email?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !fallback.isEmpty
+        {
+            return true
+        }
+        return false
     }
 
     private static func appendRateWindow(entries: inout [Entry], title: String, window: RateWindow) {
