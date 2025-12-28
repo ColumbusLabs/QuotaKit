@@ -1,6 +1,12 @@
 // swift-tools-version: 6.2
 import CompilerPluginSupport
+import Foundation
 import PackageDescription
+
+let sweetCookieKitPath = "../SweetCookieKit"
+let sweetCookieKitDependency: Package.Dependency = FileManager.default.fileExists(atPath: sweetCookieKitPath)
+    ? .package(path: sweetCookieKitPath)
+    : .package(url: "https://github.com/steipete/SweetCookieKit", from: "0.1.0")
 
 let package = Package(
     name: "CodexBar",
@@ -13,7 +19,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-log", from: "1.8.0"),
         .package(url: "https://github.com/apple/swift-syntax", from: "600.0.0"),
         .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "1.10.0"),
-        .package(path: "../SweetCookieKit"),
+        sweetCookieKitDependency,
     ],
     targets: {
         var targets: [Target] = [
