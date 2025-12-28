@@ -21,7 +21,20 @@ if [[ -d "$ROOT/.build" ]]; then
 fi
 swift package clean >/dev/null 2>&1 || true
 
-swift build -c "$CONF" --arch arm64
+# Build for host architecture by default; allow overriding via ARCHES (e.g., "arm64 x86_64" for universal).
+ARCH_LIST=( ${ARCHES:-} )
+if [[ ${#ARCH_LIST[@]} -eq 0 ]]; then
+  HOST_ARCH=$(uname -m)
+  case "$HOST_ARCH" in
+    arm64) ARCH_LIST=(arm64) ;;
+    x86_64) ARCH_LIST=(x86_64) ;;
+    *) ARCH_LIST=("$HOST_ARCH") ;;
+  esac
+fi
+
+for ARCH in "${ARCH_LIST[@]}"; do
+  swift build -c "$CONF" --arch "$ARCH"
+done
 
 APP="$ROOT/CodexBar.app"
 rm -rf "$APP"
@@ -103,7 +116,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>${MARKETING_VERSION}</string>
     <key>CFBundleVersion</key><string>${BUILD_NUMBER}</string>
-    <key>LSMinimumSystemVersion</key><string>15.0</string>
+    <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>LSUIElement</key><true/>
     <key>CFBundleIconFile</key><string>Icon</string>
     <key>NSHumanReadableCopyright</key><string>© 2025 Peter Steinberger. MIT License.</string>
@@ -116,19 +129,67 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-cp ".build/$CONF/CodexBar" "$APP/Contents/MacOS/CodexBar"
-chmod +x "$APP/Contents/MacOS/CodexBar"
+build_product_path() {
+  local name="$1"
+  local arch="$2"
+  case "$arch" in
+    arm64|x86_64) echo ".build/${arch}-apple-macosx/$CONF/$name" ;;
+    *) echo ".build/$CONF/$name" ;;
+  esac
+}
+
+verify_binary_arches() {
+  local binary="$1"; shift
+  local expected=("$@")
+  local actual
+  actual=$(lipo -archs "$binary")
+  local actual_count expected_count
+  actual_count=$(wc -w <<<"$actual" | tr -d ' ')
+  expected_count=${#expected[@]}
+  if [[ "$actual_count" -ne "$expected_count" ]]; then
+    echo "ERROR: $binary arch mismatch (expected: ${expected[*]}, actual: ${actual})" >&2
+    exit 1
+  fi
+  for arch in "${expected[@]}"; do
+    if [[ "$actual" != *"$arch"* ]]; then
+      echo "ERROR: $binary missing arch $arch (have: ${actual})" >&2
+      exit 1
+    fi
+  done
+}
+
+install_binary() {
+  local name="$1"
+  local dest="$2"
+  local binaries=()
+  for arch in "${ARCH_LIST[@]}"; do
+    local src
+    src=$(build_product_path "$name" "$arch")
+    if [[ ! -f "$src" ]]; then
+      echo "ERROR: Missing ${name} build for ${arch} at ${src}" >&2
+      exit 1
+    fi
+    binaries+=("$src")
+  done
+  if [[ ${#ARCH_LIST[@]} -gt 1 ]]; then
+    lipo -create "${binaries[@]}" -output "$dest"
+  else
+    cp "${binaries[0]}" "$dest"
+  fi
+  chmod +x "$dest"
+  verify_binary_arches "$dest" "${ARCH_LIST[@]}"
+}
+
+install_binary "CodexBar" "$APP/Contents/MacOS/CodexBar"
 # Ship CodexBarCLI alongside the app for easy symlinking.
-if [[ -f ".build/$CONF/CodexBarCLI" ]]; then
-  cp ".build/$CONF/CodexBarCLI" "$APP/Contents/Helpers/CodexBarCLI"
-  chmod +x "$APP/Contents/Helpers/CodexBarCLI"
+if [[ -f "$(build_product_path "CodexBarCLI" "${ARCH_LIST[0]}")" ]]; then
+  install_binary "CodexBarCLI" "$APP/Contents/Helpers/CodexBarCLI"
 fi
 # Watchdog helper: ensures `claude` probes die when CodexBar crashes/gets killed.
-if [[ -f ".build/$CONF/CodexBarClaudeWatchdog" ]]; then
-  cp ".build/$CONF/CodexBarClaudeWatchdog" "$APP/Contents/Helpers/CodexBarClaudeWatchdog"
-  chmod +x "$APP/Contents/Helpers/CodexBarClaudeWatchdog"
+if [[ -f "$(build_product_path "CodexBarClaudeWatchdog" "${ARCH_LIST[0]}")" ]]; then
+  install_binary "CodexBarClaudeWatchdog" "$APP/Contents/Helpers/CodexBarClaudeWatchdog"
 fi
-if [[ -f ".build/$CONF/CodexBarWidget" ]]; then
+if [[ -f "$(build_product_path "CodexBarWidget" "${ARCH_LIST[0]}")" ]]; then
   WIDGET_APP="$APP/Contents/PlugIns/CodexBarWidget.appex"
   mkdir -p "$WIDGET_APP/Contents/MacOS" "$WIDGET_APP/Contents/Resources"
   cat > "$WIDGET_APP/Contents/Info.plist" <<PLIST
@@ -143,7 +204,7 @@ if [[ -f ".build/$CONF/CodexBarWidget" ]]; then
     <key>CFBundlePackageType</key><string>XPC!</string>
     <key>CFBundleShortVersionString</key><string>${MARKETING_VERSION}</string>
     <key>CFBundleVersion</key><string>${BUILD_NUMBER}</string>
-    <key>LSMinimumSystemVersion</key><string>15.0</string>
+    <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>NSExtension</key>
     <dict>
         <key>NSExtensionPointIdentifier</key><string>com.apple.widgetkit-extension</string>
@@ -152,8 +213,7 @@ if [[ -f ".build/$CONF/CodexBarWidget" ]]; then
 </dict>
 </plist>
 PLIST
-  cp ".build/$CONF/CodexBarWidget" "$WIDGET_APP/Contents/MacOS/CodexBarWidget"
-  chmod +x "$WIDGET_APP/Contents/MacOS/CodexBarWidget"
+  install_binary "CodexBarWidget" "$WIDGET_APP/Contents/MacOS/CodexBarWidget"
 fi
 # Embed Sparkle.framework
 if [[ -d ".build/$CONF/Sparkle.framework" ]]; then
@@ -200,6 +260,14 @@ fi
 # Strip extended attributes to prevent AppleDouble (._*) files that break code sealing
 xattr -cr "$APP"
 find "$APP" -name '._*' -delete
+
+# Sign helper binaries if present
+if [[ -f "${APP}/Contents/Helpers/CodexBarCLI" ]]; then
+  codesign "${CODESIGN_ARGS[@]}" "${APP}/Contents/Helpers/CodexBarCLI"
+fi
+if [[ -f "${APP}/Contents/Helpers/CodexBarClaudeWatchdog" ]]; then
+  codesign "${CODESIGN_ARGS[@]}" "${APP}/Contents/Helpers/CodexBarClaudeWatchdog"
+fi
 
 # Sign widget extension if present
 if [[ -d "${APP}/Contents/PlugIns/CodexBarWidget.appex" ]]; then

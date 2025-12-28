@@ -14,6 +14,7 @@ LOCK_PID_FILE="${LOCK_DIR}/pid"
 WAIT_FOR_LOCK=0
 RUN_TESTS=0
 DEBUG_LLDB=0
+RELEASE_ARCHES=""
 
 log()  { printf '%s\n' "$*"; }
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -111,8 +112,10 @@ for arg in "$@"; do
     --wait|-w) WAIT_FOR_LOCK=1 ;;
     --test|-t) RUN_TESTS=1 ;;
     --debug-lldb) DEBUG_LLDB=1 ;;
+    --release-universal) RELEASE_ARCHES="arm64 x86_64" ;;
+    --release-arches=*) RELEASE_ARCHES="${arg#*=}" ;;
     --help|-h)
-      log "Usage: $(basename "$0") [--wait] [--test] [--debug-lldb]"
+      log "Usage: $(basename "$0") [--wait] [--test] [--debug-lldb] [--release-universal] [--release-arches=\"arm64 x86_64\"]"
       exit 0
       ;;
     *)
@@ -132,10 +135,18 @@ run_step "swift build" swift build -q
 if [[ "${RUN_TESTS}" == "1" ]]; then
   run_step "swift test" swift test -q
 fi
+if [[ "${DEBUG_LLDB}" == "1" && -n "${RELEASE_ARCHES}" ]]; then
+  fail "--release-arches is only supported for release packaging"
+fi
+HOST_ARCH="$(uname -m)"
+ARCHES_VALUE="${HOST_ARCH}"
+if [[ -n "${RELEASE_ARCHES}" ]]; then
+  ARCHES_VALUE="${RELEASE_ARCHES}"
+fi
 if [[ "${DEBUG_LLDB}" == "1" ]]; then
-  run_step "package app" env CODEXBAR_ALLOW_LLDB=1 "${ROOT_DIR}/scripts/package_app.sh" debug
+  run_step "package app" env CODEXBAR_ALLOW_LLDB=1 ARCHES="${ARCHES_VALUE}" "${ROOT_DIR}/scripts/package_app.sh" debug
 else
-  run_step "package app" "${ROOT_DIR}/scripts/package_app.sh"
+  run_step "package app" env ARCHES="${ARCHES_VALUE}" "${ROOT_DIR}/scripts/package_app.sh"
 fi
 
 # 4) Launch the packaged app.

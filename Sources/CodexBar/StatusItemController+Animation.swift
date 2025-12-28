@@ -337,24 +337,25 @@ extension StatusItemController {
     func updateAnimationState() {
         let needsAnimation = self.needsMenuBarIconAnimation()
         if needsAnimation {
-            if self.animationDisplayLink == nil {
+            if self.animationDriver == nil {
                 if let forced = self.settings.debugLoadingPattern {
                     self.animationPattern = forced
                 } else if !LoadingPattern.allCases.contains(self.animationPattern) {
                     self.animationPattern = .knightRider
                 }
                 self.animationPhase = 0
-                if let link = NSScreen.main?.displayLink(target: self, selector: #selector(self.animateIcons(_:))) {
-                    link.add(to: .main, forMode: .common)
-                    self.animationDisplayLink = link
-                }
+                let driver = DisplayLinkDriver(onTick: { [weak self] in
+                    self?.updateAnimationFrame()
+                })
+                self.animationDriver = driver
+                driver.start(fps: 60)
             } else if let forced = self.settings.debugLoadingPattern, forced != self.animationPattern {
                 self.animationPattern = forced
                 self.animationPhase = 0
             }
         } else {
-            self.animationDisplayLink?.invalidate()
-            self.animationDisplayLink = nil
+            self.animationDriver?.stop()
+            self.animationDriver = nil
             self.animationPhase = 0
             if self.shouldMergeIcons {
                 self.applyIcon(phase: nil)
@@ -364,7 +365,7 @@ extension StatusItemController {
         }
     }
 
-    @objc func animateIcons(_ link: CADisplayLink) {
+    private func updateAnimationFrame() {
         self.animationPhase += 0.045 // half-speed animation
         if self.shouldMergeIcons {
             self.applyIcon(phase: self.animationPhase)
