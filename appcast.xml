@@ -3,6 +3,22 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.15.2</title>
+            <pubDate>Sun, 28 Dec 2025 18:51:01 +0100</pubDate>
+            <link>https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml</link>
+            <sparkle:version>44</sparkle:version>
+            <sparkle:shortVersionString>0.15.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.15.2</h2>
+<ul>
+<li>Copilot: fix device-flow waiting modal to close reliably after auth (and avoid stuck waits).</li>
+<li>Packaging: include the KeyboardShortcuts resource bundle to prevent Settings → Keyboard shortcut crashes in packaged builds.</li>
+</ul>
+<p><a href="https://github.com/steipete/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.15.2/CodexBar-0.15.2.zip" length="7413967" type="application/octet-stream" sparkle:edSignature="vv7kPaGk0vzAj1AJ5EEbRE0kXtE4iIscrkhxsjU8X+BDT5HQkwJTully+OivJFCksjuUyaZIV74tfi1kWlSWDQ=="/>
+        </item>
+        <item>
             <title>0.15.1</title>
             <pubDate>Sun, 28 Dec 2025 17:57:42 +0100</pubDate>
             <link>https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml</link>
