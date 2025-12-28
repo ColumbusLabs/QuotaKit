@@ -337,12 +337,12 @@ code {
 }
 
 .hero-shot img {
-  max-width: 460px;
+  max-width: 368px;
   margin-left: auto;
 }
 
 .hero-shot figcaption {
-  max-width: 460px;
+  max-width: 368px;
   text-align: center;
   margin-left: auto;
 }
