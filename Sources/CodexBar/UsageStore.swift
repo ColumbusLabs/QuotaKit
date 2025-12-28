@@ -60,6 +60,53 @@ extension UsageStore {
     }
 }
 
+// MARK: - OpenAI web error messaging
+
+extension UsageStore {
+    private func openAIDashboardFriendlyError(
+        body: String,
+        targetEmail: String?,
+        cookieImportStatus: String?) -> String?
+    {
+        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        let status = cookieImportStatus?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return [
+                "OpenAI web dashboard returned an empty page.",
+                "Sign in to chatgpt.com and re-enable “Access OpenAI via web”.",
+            ].joined(separator: " ")
+        }
+
+        let lower = trimmed.lowercased()
+        let looksLikePublicLanding = lower.contains("skip to content")
+            && (lower.contains("about") || lower.contains("openai") || lower.contains("chatgpt"))
+        let looksLoggedOut = lower.contains("sign in")
+            || lower.contains("log in")
+            || lower.contains("create account")
+            || lower.contains("continue with google")
+            || lower.contains("continue with apple")
+            || lower.contains("continue with microsoft")
+
+        guard looksLikePublicLanding || looksLoggedOut else { return nil }
+        let emailLabel = targetEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let targetLabel = (emailLabel?.isEmpty == false) ? emailLabel! : "your OpenAI account"
+        if let status, !status.isEmpty {
+            if status.contains("Browser cookies do not match Codex account")
+                || status.contains("Browser cookie import failed")
+            {
+                return [
+                    status,
+                    "Sign in to chatgpt.com as \(targetLabel), then re-enable “Access OpenAI via web”.",
+                ].joined(separator: " ")
+            }
+        }
+        return [
+            "OpenAI web dashboard returned a public page (not signed in).",
+            "Sign in to chatgpt.com as \(targetLabel), then re-enable “Access OpenAI via web”.",
+        ].joined(separator: " ")
+    }
+}
+
 enum ProviderStatusIndicator: String {
     case none
     case minor
@@ -758,7 +805,7 @@ final class UsageStore {
             }
 
             await self.applyOpenAIDashboard(dash, targetEmail: effectiveEmail)
-        } catch OpenAIDashboardFetcher.FetchError.noDashboardData {
+        } catch let OpenAIDashboardFetcher.FetchError.noDashboardData(body) {
             // Often indicates a missing/stale session without an obvious login prompt. Retry once after
             // importing cookies from the user's browser.
             let targetEmail = self.codexAccountEmailForOpenAIDashboard()
@@ -772,6 +819,14 @@ final class UsageStore {
                     logger: log,
                     debugDumpHTML: true)
                 await self.applyOpenAIDashboard(dash, targetEmail: effectiveEmail)
+            } catch let OpenAIDashboardFetcher.FetchError.noDashboardData(retryBody) {
+                let finalBody = retryBody.isEmpty ? body : retryBody
+                let message = self.openAIDashboardFriendlyError(
+                    body: finalBody,
+                    targetEmail: targetEmail,
+                    cookieImportStatus: self.openAIDashboardCookieImportStatus)
+                    ?? OpenAIDashboardFetcher.FetchError.noDashboardData(body: finalBody).localizedDescription
+                await self.applyOpenAIDashboardFailure(message: message)
             } catch {
                 await self.applyOpenAIDashboardFailure(message: error.localizedDescription)
             }

@@ -417,6 +417,7 @@ public struct OpenAIDashboardBrowserCookieImporter {
         log: @escaping (String) -> Void,
         diagnostics: inout ImportDiagnostics) async
     {
+        log("Candidate \(candidate.label) mismatch (\(signedInEmail)); continuing browser search")
         diagnostics.mismatches.append(FoundAccount(sourceLabel: candidate.label, email: signedInEmail))
         // Mismatch still means we found a valid signed-in session. Persist it keyed by its email so if
         // the user switches Codex accounts later, we can reuse this session immediately without another

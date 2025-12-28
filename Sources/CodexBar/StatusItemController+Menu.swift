@@ -200,8 +200,8 @@ extension StatusItemController {
                     if case let .switchAccount(targetProvider) = action,
                        let subtitle = self.switchAccountSubtitle(for: targetProvider)
                     {
-                        item.subtitle = subtitle
                         item.isEnabled = false
+                        self.applySubtitle(subtitle, to: item, title: title)
                     }
                     menu.addItem(item)
                 case .divider:
@@ -907,6 +907,52 @@ extension StatusItemController {
 
     @objc private func menuCardNoOp(_ sender: NSMenuItem) {
         _ = sender
+    }
+
+    private func applySubtitle(_ subtitle: String, to item: NSMenuItem, title: String) {
+        if #available(macOS 14.4, *) {
+            // NSMenuItem.subtitle is only available on macOS 14.4+.
+            item.subtitle = subtitle
+        } else {
+            item.view = self.makeMenuSubtitleView(title: title, subtitle: subtitle, isEnabled: item.isEnabled)
+            item.toolTip = "\(title) — \(subtitle)"
+        }
+    }
+
+    private func makeMenuSubtitleView(title: String, subtitle: String, isEnabled: Bool) -> NSView {
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        container.alphaValue = isEnabled ? 1.0 : 0.7
+
+        let titleField = NSTextField(labelWithString: title)
+        titleField.font = NSFont.menuFont(ofSize: NSFont.systemFontSize)
+        titleField.textColor = NSColor.labelColor
+        titleField.lineBreakMode = .byTruncatingTail
+        titleField.maximumNumberOfLines = 1
+        titleField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        let subtitleField = NSTextField(labelWithString: subtitle)
+        subtitleField.font = NSFont.menuFont(ofSize: NSFont.smallSystemFontSize)
+        subtitleField.textColor = NSColor.secondaryLabelColor
+        subtitleField.lineBreakMode = .byTruncatingTail
+        subtitleField.maximumNumberOfLines = 1
+        subtitleField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        let stack = NSStackView(views: [titleField, subtitleField])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 1
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 18),
+            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -10),
+            stack.topAnchor.constraint(equalTo: container.topAnchor, constant: 2),
+            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -2),
+        ])
+
+        return container
     }
 }
 
