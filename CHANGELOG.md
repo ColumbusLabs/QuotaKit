@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.15.2 — Unreleased
+## 0.15.2 — 2025-12-28
 - Copilot: fix device-flow waiting modal to close reliably after auth (and avoid stuck waits).
 - Packaging: include the KeyboardShortcuts resource bundle to prevent Settings → Keyboard shortcut crashes in packaged builds.
 
