@@ -167,6 +167,26 @@ struct CLISnapshotTests {
     }
 
     @Test
+    func outputHasAnsiWhenTTYEvenWithoutStatus() {
+        let snap = UsageSnapshot(
+            primary: .init(usedPercent: 1, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            tertiary: nil,
+            updatedAt: Date(timeIntervalSince1970: 0))
+
+        let output = CLIRenderer.renderText(
+            provider: .codex,
+            snapshot: snap,
+            credits: nil,
+            context: RenderContext(
+                header: "Codex 0.0.0 (codex-cli)",
+                status: nil,
+                useColor: true))
+
+        #expect(output.contains("\u{001B}["))
+    }
+
+    @Test
     func statusLineIsPlainWhenNoTTY() {
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,

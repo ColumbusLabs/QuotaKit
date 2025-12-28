@@ -10,22 +10,22 @@ enum CLIRenderer {
     {
         let meta = ProviderDescriptorRegistry.descriptor(for: provider).metadata
         var lines: [String] = []
-        lines.append(context.header)
+        lines.append(self.headerLine(context.header, useColor: context.useColor))
 
-        lines.append(self.rateLine(title: meta.sessionLabel, window: snapshot.primary))
+        lines.append(self.rateLine(title: meta.sessionLabel, window: snapshot.primary, useColor: context.useColor))
         if let reset = snapshot.primary.resetDescription {
             lines.append(self.resetLine(reset))
         }
 
         if let weekly = snapshot.secondary {
-            lines.append(self.rateLine(title: meta.weeklyLabel, window: weekly))
+            lines.append(self.rateLine(title: meta.weeklyLabel, window: weekly, useColor: context.useColor))
             if let reset = weekly.resetDescription {
                 lines.append(self.resetLine(reset))
             }
         }
 
         if meta.supportsOpus, let opus = snapshot.tertiary {
-            lines.append(self.rateLine(title: meta.opusLabel ?? "Sonnet", window: opus))
+            lines.append(self.rateLine(title: meta.opusLabel ?? "Sonnet", window: opus, useColor: context.useColor))
             if let reset = opus.resetDescription {
                 lines.append(self.resetLine(reset))
             }
@@ -50,15 +50,35 @@ enum CLIRenderer {
         return lines.joined(separator: "\n")
     }
 
-    static func rateLine(title: String, window: RateWindow) -> String {
+    static func rateLine(title: String, window: RateWindow, useColor: Bool) -> String {
         let text = UsageFormatter.usageLine(remaining: window.remainingPercent, used: window.usedPercent)
-        return "\(title): \(text)"
+        let colored = self.colorizeUsage(text, remainingPercent: window.remainingPercent, useColor: useColor)
+        return "\(title): \(colored)"
     }
 
     private static func resetLine(_ reset: String) -> String {
         let trimmed = reset.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.lowercased().hasPrefix("resets") { return trimmed }
         return "Resets \(trimmed)"
+    }
+
+    private static func headerLine(_ header: String, useColor: Bool) -> String {
+        guard useColor else { return header }
+        return self.ansi("1;36", header)
+    }
+
+    private static func colorizeUsage(_ text: String, remainingPercent: Double, useColor: Bool) -> String {
+        guard useColor else { return text }
+
+        let code = switch remainingPercent {
+        case ..<10:
+            "31" // red
+        case ..<25:
+            "33" // yellow
+        default:
+            "32" // green
+        }
+        return self.ansi(code, text)
     }
 
     private static func colorize(
@@ -75,7 +95,11 @@ enum CLIRenderer {
         case .maintenance: "34" // blue
         case .unknown: "90" // gray
         }
-        return "\u{001B}[\(code)m\(text)\u{001B}[0m"
+        return self.ansi(code, text)
+    }
+
+    private static func ansi(_ code: String, _ text: String) -> String {
+        "\u{001B}[\(code)m\(text)\u{001B}[0m"
     }
 }
 

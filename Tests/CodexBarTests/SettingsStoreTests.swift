@@ -99,11 +99,11 @@ struct SettingsStoreTests {
             .gemini,
             .codex,
             .claude,
-            .factory,
-            .zai,
             .cursor,
+            .factory,
             .antigravity,
             .copilot,
+            .zai,
         ])
 
         // Move one provider; ensure it's persisted across instances.

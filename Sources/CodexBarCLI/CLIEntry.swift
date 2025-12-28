@@ -190,7 +190,7 @@ enum CodexBarCLI {
         let isJSON = values.flags.contains("jsonOutput")
         let verbose = values.flags.contains("verbose")
         let rawLevel = values.options["logLevel"]?.last
-        let level = CodexBarLog.parseLevel(rawLevel) ?? (verbose ? .debug : .info)
+        let level = CodexBarLog.parseLevel(rawLevel) ?? (verbose ? .debug : .error)
         CodexBarLog.bootstrapIfNeeded(.init(destination: .stderr, level: level, json: isJSON))
     }
 
@@ -234,7 +234,6 @@ enum CodexBarCLI {
         guard format == .text else { return false }
         if noColor { return false }
         let env = ProcessInfo.processInfo.environment
-        if env["NO_COLOR"] != nil { return false }
         if env["TERM"]?.lowercased() == "dumb" { return false }
         return isatty(STDOUT_FILENO) == 1
     }
