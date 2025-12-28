@@ -37,4 +37,7 @@ struct AppDelegateTests {
     }
 }
 
-private final class DummyStatusController: StatusItemControlling {}
+@MainActor
+private final class DummyStatusController: StatusItemControlling {
+    func openMenuFromShortcut() {}
+}

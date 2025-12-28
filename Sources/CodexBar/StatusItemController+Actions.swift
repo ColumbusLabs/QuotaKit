@@ -104,6 +104,17 @@ extension StatusItemController {
 
     @objc func showSettingsAbout() { self.openSettings(tab: .about) }
 
+    func openMenuFromShortcut() {
+        if self.shouldMergeIcons {
+            self.statusItem.button?.performClick(nil)
+            return
+        }
+
+        let provider = self.resolvedShortcutProvider()
+        let item = self.statusItems[provider] ?? self.statusItem
+        item.button?.performClick(nil)
+    }
+
     private func openSettings(tab: PreferencesTab) {
         DispatchQueue.main.async {
             self.preferencesSelection.tab = tab
@@ -125,6 +136,16 @@ extension StatusItemController {
             pb.clearContents()
             pb.setString(err, forType: .string)
         }
+    }
+
+    private func resolvedShortcutProvider() -> UsageProvider {
+        if let last = self.lastMenuProvider, self.isEnabled(last) {
+            return last
+        }
+        if let first = self.store.enabledProviders().first {
+            return first
+        }
+        return .codex
     }
 
     func presentCodexLoginResult(_ result: CodexLoginRunner.Result) {

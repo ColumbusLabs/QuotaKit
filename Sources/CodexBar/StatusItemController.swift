@@ -6,7 +6,10 @@ import SwiftUI
 
 // MARK: - Status item controller (AppKit-hosted icons, SwiftUI popovers)
 
-protocol StatusItemControlling: AnyObject {}
+@MainActor
+protocol StatusItemControlling: AnyObject {
+    func openMenuFromShortcut()
+}
 
 @MainActor
 final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControlling {

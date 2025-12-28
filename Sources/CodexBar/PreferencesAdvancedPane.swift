@@ -1,5 +1,6 @@
 import AppKit
 import CodexBarCore
+import KeyboardShortcuts
 import SwiftUI
 
 @MainActor
@@ -58,6 +59,19 @@ struct AdvancedPane: View {
                         title: "Surprise me",
                         subtitle: "Check if you like your agents having some fun up there.",
                         binding: self.$settings.randomBlinkEnabled)
+                }
+
+                Divider()
+
+                SettingsSection(contentSpacing: 8) {
+                    Text("Keyboard shortcut")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                    KeyboardShortcuts.Recorder("Open menu", name: .openMenu)
+                    Text("Trigger the menu bar menu from anywhere.")
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
                 }
 
                 Divider()
