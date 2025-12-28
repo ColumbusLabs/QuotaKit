@@ -156,8 +156,8 @@ code {
 
 .hero {
   display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
-  gap: 26px;
+  grid-template-columns: 1fr;
+  gap: 20px;
   align-items: center;
   padding: 22px;
   border: 1px solid var(--line);
@@ -172,6 +172,19 @@ code {
 .copy {
   position: relative;
   z-index: 1;
+}
+
+.hero-heading {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.hero-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.35));
 }
 
 .hero::before {
@@ -317,6 +330,19 @@ code {
   background: color-mix(in srgb, var(--panel-solid) 92%, transparent);
   transform: perspective(900px) rotateY(-6deg) rotateX(2deg);
   transition: transform 220ms ease, box-shadow 220ms ease;
+}
+
+.hero-shot {
+  margin-top: 6px;
+}
+
+.hero-shot img {
+  max-width: 520px;
+}
+
+.hero-shot figcaption {
+  max-width: 520px;
+  text-align: left;
 }
 
 .shot figcaption {
