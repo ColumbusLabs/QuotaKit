@@ -5,6 +5,7 @@ import SwiftUI
 private enum ProviderListMetrics {
     static let rowSpacing: CGFloat = 12
     static let rowInsets = EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0)
+    static let dividerBottomInset: CGFloat = 5
     static let checkboxSize: CGFloat = 18
     static let iconSize: CGFloat = 18
     static let reorderHandleSize: CGFloat = 12
@@ -248,6 +249,10 @@ private struct ProviderListView: View {
                 Section {
                     let fields = self.settingsFields(provider)
                     let toggles = self.settingsToggles(provider)
+                    let isEnabled = self.isEnabled(provider).wrappedValue
+                    let shouldShowDivider = provider != self.providers.last
+                    let showDividerOnProviderRow = shouldShowDivider &&
+                        (!isEnabled || (fields.isEmpty && toggles.isEmpty))
 
                     ProviderListProviderRowView(
                         provider: provider,
@@ -259,29 +264,34 @@ private struct ProviderListView: View {
                         errorDisplay: self.isEnabled(provider).wrappedValue ? self.errorDisplay(provider) : nil,
                         isErrorExpanded: self.isErrorExpanded(provider),
                         onCopyError: self.onCopyError)
-                        .listRowInsets(ProviderListMetrics.rowInsets)
+                        .listRowInsets(self.rowInsets(withDivider: showDividerOnProviderRow))
                         .listRowSeparator(.hidden)
+                        .providerSectionDivider(isVisible: showDividerOnProviderRow)
 
-                    if self.isEnabled(provider).wrappedValue {
-                        ForEach(fields) { field in
+                    if isEnabled {
+                        ForEach(fields.indices, id: \.self) { index in
+                            let field = fields[index]
+                            let isLastField = index == fields.count - 1
+                            let showDivider = shouldShowDivider && toggles.isEmpty && isLastField
+
                             ProviderListFieldRowView(provider: provider, field: field)
-                                .listRowInsets(ProviderListMetrics.rowInsets)
+                                .listRowInsets(self.rowInsets(withDivider: showDivider))
                                 .listRowSeparator(.hidden)
+                                .providerSectionDivider(isVisible: showDivider)
                         }
-                        ForEach(toggles) { toggle in
+                        ForEach(toggles.indices, id: \.self) { index in
+                            let toggle = toggles[index]
+                            let isLastToggle = index == toggles.count - 1
+                            let showDivider = shouldShowDivider && isLastToggle
+
                             ProviderListToggleRowView(provider: provider, toggle: toggle)
-                                .listRowInsets(ProviderListMetrics.rowInsets)
+                                .listRowInsets(self.rowInsets(withDivider: showDivider))
                                 .listRowSeparator(.hidden)
+                                .providerSectionDivider(isVisible: showDivider)
                         }
                     }
                 } header: {
                     EmptyView()
-                } footer: {
-                    if provider != self.providers.last {
-                        ProviderListSectionDividerView()
-                            .listRowInsets(EdgeInsets())
-                            .listRowSeparator(.hidden)
-                    }
                 }
             }
             .onMove { fromOffsets, toOffset in
@@ -290,6 +300,17 @@ private struct ProviderListView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+    }
+
+    private func rowInsets(withDivider: Bool) -> EdgeInsets {
+        if withDivider {
+            return EdgeInsets(
+                top: ProviderListMetrics.rowInsets.top,
+                leading: ProviderListMetrics.rowInsets.leading,
+                bottom: ProviderListMetrics.dividerBottomInset,
+                trailing: ProviderListMetrics.rowInsets.trailing)
+        }
+        return ProviderListMetrics.rowInsets
     }
 }
 
@@ -426,9 +447,21 @@ private struct ProviderListSectionDividerView: View {
         Rectangle()
             .fill(Color(nsColor: .separatorColor))
             .frame(height: 1)
+            .padding(.top, 2)
             .padding(.vertical, 0)
             .padding(.leading, ProviderListMetrics.reorderHandleSize + ProviderListMetrics.checkboxSize + 14)
             .padding(.trailing, 10)
+    }
+}
+
+extension View {
+    @ViewBuilder
+    fileprivate func providerSectionDivider(isVisible: Bool) -> some View {
+        overlay(alignment: .bottom) {
+            if isVisible {
+                ProviderListSectionDividerView()
+            }
+        }
     }
 }
 
