@@ -130,8 +130,7 @@ log "==> Killing existing CodexBar instances"
 kill_all_codexbar
 kill_claude_probes
 
-# 3) Build, package.
-run_step "swift build" swift build -q
+# 3) Package (release build happens inside package_app.sh).
 if [[ "${RUN_TESTS}" == "1" ]]; then
   run_step "swift test" swift test -q
 fi
