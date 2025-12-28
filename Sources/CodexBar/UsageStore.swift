@@ -340,7 +340,10 @@ final class UsageStore {
         let enabled = self.settings.isProviderEnabled(provider: provider, metadata: self.metadata(for: provider))
         guard enabled else { return false }
         if provider == .zai {
-            return ProviderTokenResolver.zaiToken(environment: ProcessInfo.processInfo.environment) != nil
+            if ZaiSettingsReader.apiToken(environment: ProcessInfo.processInfo.environment) != nil {
+                return true
+            }
+            return !self.settings.zaiAPIToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
         return true
     }
