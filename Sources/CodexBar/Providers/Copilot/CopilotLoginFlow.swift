@@ -49,55 +49,52 @@ struct CopilotLoginFlow {
             This window will close automatically when finished.
             """
             waitingAlert.addButton(withTitle: "Cancel")
-            let waitingWindow = waitingAlert.window
-            var completion: Result<String, Error>?
+            let parentWindow = Self.resolveWaitingParentWindow()
+            let hostWindow = parentWindow ?? Self.makeWaitingHostWindow()
+            let shouldCloseHostWindow = parentWindow == nil
             let tokenTask = Task.detached(priority: .userInitiated) {
                 try await flow.pollForToken(deviceCode: code.deviceCode, interval: code.interval)
             }
 
-            Task { @MainActor in
-                do {
-                    let token = try await tokenTask.value
-                    completion = .success(token)
-                    if NSApp.modalWindow === waitingWindow {
-                        NSApp.stopModal(withCode: .OK)
-                    }
-                    waitingWindow.orderOut(nil)
-                } catch {
-                    guard !(error is CancellationError) else { return }
-                    completion = .failure(error)
-                    if NSApp.modalWindow === waitingWindow {
-                        NSApp.stopModal(withCode: .abort)
-                    }
-                    waitingWindow.orderOut(nil)
-                }
-            }
-
-            if completion == nil {
-                let waitResponse = waitingAlert.runModal()
-                if completion == nil, waitResponse == .alertFirstButtonReturn {
+            let waitTask = Task { @MainActor in
+                let response = await Self.presentWaitingAlert(waitingAlert, parentWindow: hostWindow)
+                if response == .alertFirstButtonReturn {
                     tokenTask.cancel()
                 }
+                return response
             }
-            waitingWindow.orderOut(nil)
-            if let completion {
-                switch completion {
-                case let .success(token):
-                    settings.copilotAPIToken = token
-                    settings.setProviderEnabled(
-                        provider: .copilot,
-                        metadata: ProviderRegistry.shared.metadata[.copilot]!,
-                        enabled: true)
 
-                    let success = NSAlert()
-                    success.messageText = "Login Successful"
-                    success.runModal()
-                case let .failure(error):
-                    let err = NSAlert()
-                    err.messageText = "Login Failed"
-                    err.informativeText = error.localizedDescription
-                    err.runModal()
-                }
+            let tokenResult: Result<String, Error>
+            do {
+                let token = try await tokenTask.value
+                tokenResult = .success(token)
+            } catch {
+                tokenResult = .failure(error)
+            }
+
+            Self.dismissWaitingAlert(waitingAlert, parentWindow: hostWindow, closeHost: shouldCloseHostWindow)
+            let waitResponse = await waitTask.value
+            if waitResponse == .alertFirstButtonReturn {
+                return
+            }
+
+            switch tokenResult {
+            case let .success(token):
+                settings.copilotAPIToken = token
+                settings.setProviderEnabled(
+                    provider: .copilot,
+                    metadata: ProviderRegistry.shared.metadata[.copilot]!,
+                    enabled: true)
+
+                let success = NSAlert()
+                success.messageText = "Login Successful"
+                success.runModal()
+            case let .failure(error):
+                guard !(error is CancellationError) else { return }
+                let err = NSAlert()
+                err.messageText = "Login Failed"
+                err.informativeText = error.localizedDescription
+                err.runModal()
             }
 
         } catch {
@@ -106,5 +103,69 @@ struct CopilotLoginFlow {
             err.informativeText = error.localizedDescription
             err.runModal()
         }
+    }
+
+    @MainActor
+    private static func presentWaitingAlert(
+        _ alert: NSAlert,
+        parentWindow: NSWindow) async -> NSApplication.ModalResponse
+    {
+        await withCheckedContinuation { continuation in
+            alert.beginSheetModal(for: parentWindow) { response in
+                continuation.resume(returning: response)
+            }
+        }
+    }
+
+    @MainActor
+    private static func dismissWaitingAlert(
+        _ alert: NSAlert,
+        parentWindow: NSWindow,
+        closeHost: Bool)
+    {
+        let alertWindow = alert.window
+        if alertWindow.sheetParent != nil {
+            parentWindow.endSheet(alertWindow)
+        } else {
+            alertWindow.orderOut(nil)
+        }
+
+        guard closeHost else { return }
+        parentWindow.orderOut(nil)
+        parentWindow.close()
+    }
+
+    @MainActor
+    private static func resolveWaitingParentWindow() -> NSWindow? {
+        if let window = NSApp.keyWindow ?? NSApp.mainWindow {
+            return window
+        }
+        if let window = NSApp.windows.first(where: { $0.isVisible && !$0.ignoresMouseEvents }) {
+            return window
+        }
+        return NSApp.windows.first
+    }
+
+    @MainActor
+    private static func makeWaitingHostWindow() -> NSWindow {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 420, height: 1),
+            styleMask: [.titled, .fullSizeContentView],
+            backing: .buffered,
+            defer: false)
+        window.isReleasedWhenClosed = false
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.standardWindowButton(.closeButton)?.isHidden = true
+        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        window.standardWindowButton(.zoomButton)?.isHidden = true
+        window.backgroundColor = .clear
+        window.isOpaque = false
+        window.hasShadow = false
+        window.level = .floating
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        return window
     }
 }

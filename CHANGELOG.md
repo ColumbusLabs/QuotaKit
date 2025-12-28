@@ -4,6 +4,7 @@
 - Codex: default to OAuth usage API (ChatGPT backend) with CLI-only override in Debug.
 - Codex: map OAuth credits balance directly, avoiding web fallback for credits.
 - Preferences: add optional “Access OpenAI via web” toggle and show blended source labels when web extras are active.
+- Copilot: replace blocking auth wait dialog with a non-modal sheet to avoid stuck login.
 
 ## 0.15.2 — 2025-12-28
 - Copilot: fix device-flow waiting modal to close reliably after auth (and avoid stuck waits).
