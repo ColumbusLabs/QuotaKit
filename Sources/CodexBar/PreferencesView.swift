@@ -9,7 +9,7 @@ enum PreferencesTab: String, Hashable {
     case debug
 
     static let windowWidth: CGFloat = 500
-    static let windowHeight: CGFloat = 660
+    static let windowHeight: CGFloat = 726
 
     var preferredHeight: CGFloat { PreferencesTab.windowHeight }
 }
