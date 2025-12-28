@@ -2,6 +2,7 @@
 
 ## 0.15.2 — Unreleased
 - Copilot: fix device-flow waiting modal to close reliably after auth (and avoid stuck waits).
+- Packaging: include the KeyboardShortcuts resource bundle to prevent Settings → Keyboard shortcut crashes in packaged builds.
 
 ## 0.15.1 — 2025-12-28
 - Preferences: fix provider API key fields reusing the wrong input when switching rows.
