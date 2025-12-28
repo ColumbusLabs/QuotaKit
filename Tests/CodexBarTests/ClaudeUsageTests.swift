@@ -360,9 +360,11 @@ struct ClaudeUsageTests {
         let webFetcher = ClaudeUsageFetcher(dataSource: .web)
         let cliFetcher = ClaudeUsageFetcher(dataSource: .cli)
         // Both should be valid instances (no crashes)
-        _ = defaultFetcher.detectVersion()
-        _ = webFetcher.detectVersion()
-        _ = cliFetcher.detectVersion()
-        #expect(true)
+        let defaultVersion = defaultFetcher.detectVersion()
+        let webVersion = webFetcher.detectVersion()
+        let cliVersion = cliFetcher.detectVersion()
+        #expect(defaultVersion?.isEmpty != true)
+        #expect(webVersion?.isEmpty != true)
+        #expect(cliVersion?.isEmpty != true)
     }
 }
