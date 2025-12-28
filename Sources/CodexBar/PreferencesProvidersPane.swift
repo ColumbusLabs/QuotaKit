@@ -260,19 +260,26 @@ private struct ProviderListView: View {
                         isErrorExpanded: self.isErrorExpanded(provider),
                         onCopyError: self.onCopyError)
                         .listRowInsets(ProviderListMetrics.rowInsets)
+                        .listRowSeparator(.hidden)
 
                     if self.isEnabled(provider).wrappedValue {
                         ForEach(fields) { field in
                             ProviderListFieldRowView(provider: provider, field: field)
                                 .listRowInsets(ProviderListMetrics.rowInsets)
+                                .listRowSeparator(.hidden)
                         }
                         ForEach(toggles) { toggle in
                             ProviderListToggleRowView(provider: provider, toggle: toggle)
                                 .listRowInsets(ProviderListMetrics.rowInsets)
+                                .listRowSeparator(.hidden)
                         }
                     }
                 } header: {
                     EmptyView()
+                } footer: {
+                    ProviderListSectionDividerView()
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
                 }
             }
             .onMove { fromOffsets, toOffset in
@@ -408,6 +415,18 @@ private struct ProviderListReorderHandle: View {
         .help("Drag to reorder")
         .accessibilityHidden(true)
         .allowsHitTesting(false)
+    }
+}
+
+@MainActor
+private struct ProviderListSectionDividerView: View {
+    var body: some View {
+        Rectangle()
+            .fill(Color(nsColor: .separatorColor))
+            .frame(height: 1)
+            .padding(.vertical, 6)
+            .padding(.leading, ProviderListMetrics.reorderHandleSize + ProviderListMetrics.checkboxSize + 14)
+            .padding(.trailing, 10)
     }
 }
 
