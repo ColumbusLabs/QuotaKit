@@ -1,6 +1,5 @@
 import CodexBarMacroSupport
 import Foundation
-import SweetCookieKit
 
 @ProviderDescriptorRegistration
 @ProviderDescriptorDefinition
@@ -22,7 +21,7 @@ public enum ClaudeProviderDescriptor {
                 defaultEnabled: false,
                 isPrimaryProvider: true,
                 usesAccountFallback: false,
-                browserCookieOrder: Browser.defaultImportOrder,
+                browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
                 dashboardURL: "https://console.anthropic.com/settings/billing",
                 subscriptionDashboardURL: "https://claude.ai/settings/usage",
                 statusPageURL: "https://status.claude.com/"),

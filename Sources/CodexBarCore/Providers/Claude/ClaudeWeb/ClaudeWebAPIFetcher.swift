@@ -15,9 +15,13 @@ import FoundationNetworking
 public enum ClaudeWebAPIFetcher {
     private static let baseURL = "https://claude.ai/api"
     private static let maxProbeBytes = 200_000
+    #if os(macOS)
     private static let cookieClient = BrowserCookieClient()
     private static let cookieImportOrder: BrowserCookieImportOrder =
         ProviderDefaults.metadata[.claude]?.browserCookieOrder ?? Browser.defaultImportOrder
+    #else
+    private static let cookieImportOrder: BrowserCookieImportOrder = []
+    #endif
 
     public struct OrganizationInfo: Sendable {
         public let id: String

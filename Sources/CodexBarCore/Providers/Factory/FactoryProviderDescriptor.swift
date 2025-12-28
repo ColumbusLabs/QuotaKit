@@ -1,6 +1,5 @@
 import CodexBarMacroSupport
 import Foundation
-import SweetCookieKit
 
 @ProviderDescriptorRegistration
 @ProviderDescriptorDefinition
@@ -22,7 +21,7 @@ public enum FactoryProviderDescriptor {
                 defaultEnabled: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
-                browserCookieOrder: Browser.defaultImportOrder,
+                browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
                 dashboardURL: "https://app.factory.ai/settings/billing",
                 statusPageURL: "https://status.factory.ai",
                 statusLinkURL: nil),

@@ -1,6 +1,5 @@
 import CodexBarMacroSupport
 import Foundation
-import SweetCookieKit
 
 @ProviderDescriptorRegistration
 @ProviderDescriptorDefinition
@@ -22,7 +21,7 @@ public enum CodexProviderDescriptor {
                 defaultEnabled: true,
                 isPrimaryProvider: true,
                 usesAccountFallback: true,
-                browserCookieOrder: Browser.defaultImportOrder,
+                browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
                 dashboardURL: "https://chatgpt.com/codex/settings/usage",
                 statusPageURL: "https://status.openai.com/"),
             branding: ProviderBranding(

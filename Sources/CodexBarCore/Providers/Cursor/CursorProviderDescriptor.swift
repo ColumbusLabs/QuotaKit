@@ -1,6 +1,5 @@
 import CodexBarMacroSupport
 import Foundation
-import SweetCookieKit
 
 @ProviderDescriptorRegistration
 @ProviderDescriptorDefinition
@@ -22,7 +21,7 @@ public enum CursorProviderDescriptor {
                 defaultEnabled: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
-                browserCookieOrder: Browser.defaultImportOrder,
+                browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
                 dashboardURL: "https://cursor.com/dashboard?tab=usage",
                 statusPageURL: "https://status.cursor.com",
                 statusLinkURL: nil),

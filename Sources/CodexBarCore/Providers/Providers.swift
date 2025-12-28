@@ -1,6 +1,7 @@
 import Foundation
 import SweetCookieKit
 
+// swiftformat:disable sortDeclarations
 public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case codex
     case claude
@@ -11,6 +12,8 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case copilot
     case zai
 }
+
+// swiftformat:enable sortDeclarations
 
 public enum IconStyle: Sendable {
     case codex
@@ -94,5 +97,15 @@ public struct ProviderMetadata: Sendable {
 public enum ProviderDefaults {
     public static var metadata: [UsageProvider: ProviderMetadata] {
         ProviderDescriptorRegistry.metadata
+    }
+}
+
+public enum ProviderBrowserCookieDefaults {
+    public static var defaultImportOrder: BrowserCookieImportOrder? {
+        #if os(macOS)
+        Browser.defaultImportOrder
+        #else
+        nil
+        #endif
     }
 }
