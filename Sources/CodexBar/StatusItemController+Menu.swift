@@ -412,8 +412,8 @@ extension StatusItemController {
         let hasCredits = model.creditsText != nil
         let hasExtraUsage = model.providerCost != nil
         let hasCost = model.tokenUsage != nil
-        let bottomPadding = CGFloat(hasCredits ? 4 : 10)
-        let sectionSpacing = CGFloat(8)
+        let bottomPadding = CGFloat(hasCredits ? 4 : 6)
+        let sectionSpacing = CGFloat(6)
         let usageBottomPadding = bottomPadding
         let creditsBottomPadding = bottomPadding
 

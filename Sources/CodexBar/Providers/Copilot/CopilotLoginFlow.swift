@@ -41,7 +41,7 @@ struct CopilotLoginFlow {
             // But we already returned from runModal to open the browser.
             // We need a secondary "Waiting for confirmation..." alert or state.
 
-            // Let's show a "Waiting" alert that can be cancelled
+            // Let's show a "Waiting" alert that can be cancelled.
             let waitingAlert = NSAlert()
             waitingAlert.messageText = "Waiting for Authentication..."
             waitingAlert.informativeText = """
@@ -49,54 +49,37 @@ struct CopilotLoginFlow {
             This window will close automatically when finished.
             """
             waitingAlert.addButton(withTitle: "Cancel")
-
-            // Show the modal. If user clicks Cancel, we cancel the task.
-            // We need a way to close the modal programmatically when task finishes.
-            // NSAlert doesn't support programmatic closing easily in runModal.
-            // We'll use a custom window or just hope the user waits?
-            // Actually, we can use `beginSheetModal` but we are not attached to a window necessarily.
-
-            // Hack: Poll loop checks `tokenTask` status? No.
-            // Better: Just loop polling here (blocking) but that freezes UI?
-            // No, `await` doesn't freeze UI if on MainActor? `alert.runModal` DOES freeze UI loop.
-
-            // Alternative: Don't use a second modal. Just set status in Settings?
-            // But we want to confirm success.
-
-            // Let's try:
-            // 1. Alert 1: "Copy Code & Open Browser". Buttons: "Open & Wait", "Cancel".
-            // 2. If "Open & Wait": Launch browser, then show Alert 2: "Waiting... [Cancel]".
-            // 3. Background task polls. If success, it uses `NSApp.abortModal` to close Alert 2?
-
-            // Implementing `abortModal` logic:
-
+            let waitingWindow = waitingAlert.window
             var completion: Result<String, Error>?
-            let tokenTask = Task {
+            let tokenTask = Task.detached(priority: .userInitiated) {
                 try await flow.pollForToken(deviceCode: code.deviceCode, interval: code.interval)
             }
 
-            Task {
+            Task { @MainActor in
                 do {
                     let token = try await tokenTask.value
-                    await MainActor.run {
-                        completion = .success(token)
-                        NSApp.stopModal()
-                        waitingAlert.window.close()
+                    completion = .success(token)
+                    if NSApp.modalWindow === waitingWindow {
+                        NSApp.stopModal(withCode: .OK)
                     }
+                    waitingWindow.orderOut(nil)
                 } catch {
-                    await MainActor.run {
-                        guard !(error is CancellationError) else { return }
-                        completion = .failure(error)
-                        NSApp.stopModal()
-                        waitingAlert.window.close()
+                    guard !(error is CancellationError) else { return }
+                    completion = .failure(error)
+                    if NSApp.modalWindow === waitingWindow {
+                        NSApp.stopModal(withCode: .abort)
                     }
+                    waitingWindow.orderOut(nil)
                 }
             }
 
-            let waitResponse = waitingAlert.runModal()
-            if completion == nil, waitResponse == .alertFirstButtonReturn { // Cancel button (it's the only one)
-                tokenTask.cancel()
+            if completion == nil {
+                let waitResponse = waitingAlert.runModal()
+                if completion == nil, waitResponse == .alertFirstButtonReturn {
+                    tokenTask.cancel()
+                }
             }
+            waitingWindow.orderOut(nil)
             if let completion {
                 switch completion {
                 case let .success(token):

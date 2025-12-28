@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.15.2 — Unreleased
+- Copilot: fix device-flow waiting modal to close reliably after auth (and avoid stuck waits).
+
 ## 0.15.1 — 2025-12-28
 - Preferences: fix provider API key fields reusing the wrong input when switching rows.
 - Preferences: avoid Advanced tab crash when opening settings.
