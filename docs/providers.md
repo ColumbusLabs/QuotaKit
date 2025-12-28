@@ -8,6 +8,20 @@ read_when:
 
 # Providers
 
+## Fetch strategies (current)
+Legend: web (browser cookies/WebView), cli (RPC/PTy), oauth (API), api token, local probe.
+
+| Provider | Strategies (ordered for auto) |
+| --- | --- |
+| Codex | Web dashboard (cookies) → CLI RPC/PTy (CLI auto); app uses CLI usage + optional dashboard scrape. |
+| Claude | OAuth API → Web API (cookies) → CLI PTY (auto when cookies missing or selected). |
+| Gemini | OAuth API via Gemini CLI credentials. |
+| Antigravity | Local LSP/HTTP probe. |
+| Cursor | Web API via cookies → stored WebKit session. |
+| Droid/Factory | Web cookies → stored tokens → local storage → WorkOS cookies. |
+| z.ai | API token (Keychain/env) → quota API. |
+| Copilot | API token (device flow/env) → copilot_internal API. |
+
 ## Codex
 - Web dashboard (when enabled): `https://chatgpt.com/codex/settings/usage` via WebView + browser cookies.
 - CLI RPC default: `codex ... app-server` JSON-RPC (`account/read`, `account/rateLimits/read`).

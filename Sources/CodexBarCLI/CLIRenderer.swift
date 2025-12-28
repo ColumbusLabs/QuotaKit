@@ -8,7 +8,7 @@ enum CLIRenderer {
         credits: CreditsSnapshot?,
         context: RenderContext) -> String
     {
-        let meta = ProviderDefaults.metadata[provider]!
+        let meta = ProviderDescriptorRegistry.descriptor(for: provider).metadata
         var lines: [String] = []
         lines.append(context.header)
 

@@ -120,24 +120,15 @@ struct ProvidersPane: View {
     }
 
     private func providerSourceLabel(_ provider: UsageProvider) -> String {
-        switch provider {
-        case .codex:
-            "auto"
-        case .claude:
-            self.settings.claudeUsageDataSource.sourceLabel
-        case .zai:
-            "api"
-        case .cursor:
-            "web"
-        case .gemini:
-            "api"
-        case .antigravity:
-            "local"
-        case .factory:
-            "web"
-        case .copilot:
-            "api"
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+        if let impl = ProviderCatalog.implementation(for: provider),
+           let label = impl.sourceLabel(context: ProviderSourceLabelContext(
+               settings: self.settings,
+               descriptor: descriptor))
+        {
+            return label
         }
+        return descriptor.sourceLabel
     }
 
     private func providerStatusLabel(_ provider: UsageProvider) -> String {

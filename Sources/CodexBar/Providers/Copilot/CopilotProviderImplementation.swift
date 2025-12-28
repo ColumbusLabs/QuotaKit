@@ -1,21 +1,12 @@
 import AppKit
 import CodexBarCore
+import CodexBarMacroSupport
 import SwiftUI
 
+@ProviderImplementationRegistration
 struct CopilotProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .copilot
-    let style: IconStyle = .copilot
-
-    func makeFetch(context: ProviderBuildContext) -> @Sendable () async throws -> UsageSnapshot {
-        let settings = context.settings
-        return {
-            let token = await settings.copilotAPIToken
-            guard !token.isEmpty else {
-                throw URLError(.userAuthenticationRequired)
-            }
-            return try await CopilotUsageFetcher(token: token).fetch()
-        }
-    }
+    let supportsLoginFlow: Bool = true
 
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
@@ -47,5 +38,11 @@ struct CopilotProviderImplementation: ProviderImplementation {
                 ],
                 isVisible: nil),
         ]
+    }
+
+    @MainActor
+    func runLoginFlow(context: ProviderLoginContext) async -> Bool {
+        await CopilotLoginFlow.run(settings: context.controller.settings)
+        return true
     }
 }

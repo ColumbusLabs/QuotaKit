@@ -185,24 +185,8 @@ struct CostHistoryChartMenuView: View {
     }
 
     private static func barColor(for provider: UsageProvider) -> Color {
-        switch provider {
-        case .codex:
-            Color(red: 73 / 255, green: 163 / 255, blue: 176 / 255)
-        case .claude:
-            Color(red: 204 / 255, green: 124 / 255, blue: 94 / 255)
-        case .zai:
-            Color(red: 232 / 255, green: 90 / 255, blue: 106 / 255)
-        case .gemini:
-            Color(red: 171 / 255, green: 135 / 255, blue: 234 / 255)
-        case .antigravity:
-            Color(red: 96 / 255, green: 186 / 255, blue: 126 / 255)
-        case .cursor:
-            Color(red: 0 / 255, green: 191 / 255, blue: 165 / 255) // #00BFA5 - Cursor teal
-        case .factory:
-            Color(red: 255 / 255, green: 107 / 255, blue: 53 / 255) // Factory orange
-        case .copilot:
-            Color(red: 168 / 255, green: 85 / 255, blue: 247 / 255) // Purple
-        }
+        let color = ProviderDescriptorRegistry.descriptor(for: provider).branding.color
+        return Color(red: color.red, green: color.green, blue: color.blue)
     }
 
     private static func dateFromDayKey(_ key: String) -> Date? {

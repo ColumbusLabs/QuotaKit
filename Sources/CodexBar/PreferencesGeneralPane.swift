@@ -100,24 +100,7 @@ struct GeneralPane: View {
     }
 
     private func costStatusLine(provider: UsageProvider) -> some View {
-        let name = switch provider {
-        case .claude:
-            "Claude"
-        case .codex:
-            "Codex"
-        case .zai:
-            "z.ai"
-        case .gemini:
-            "Gemini"
-        case .antigravity:
-            "Antigravity"
-        case .cursor:
-            "Cursor"
-        case .factory:
-            "Droid"
-        case .copilot:
-            "Copilot"
-        }
+        let name = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
 
         guard provider == .claude || provider == .codex else {
             return Text("\(name): unsupported")

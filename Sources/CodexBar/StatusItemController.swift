@@ -302,16 +302,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         case .requesting: base = "Requesting login…"
         case .waitingBrowser: base = "Waiting in browser…"
         }
-        let prefix = switch provider {
-        case .codex: "Codex"
-        case .claude: "Claude"
-        case .zai: "z.ai"
-        case .gemini: "Gemini"
-        case .antigravity: "Antigravity"
-        case .cursor: "Cursor"
-        case .factory: "Droid"
-        case .copilot: "Copilot"
-        }
+        let prefix = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
         return "\(prefix): \(base)"
     }
 

@@ -68,27 +68,11 @@ struct MenuDescriptor {
                 codex: store.snapshot(for: .codex),
                 account: account,
                 preferClaude: true))
-        case .zai?:
-            sections.append(Self.usageSection(for: .zai, store: store, settings: settings))
-        case .gemini?:
-            sections.append(Self.usageSection(for: .gemini, store: store, settings: settings))
-            sections.append(Self.accountSection(
-                claude: nil,
-                codex: nil,
-                account: account,
-                preferClaude: false))
-        case .antigravity?:
-            sections.append(Self.usageSection(for: .antigravity, store: store, settings: settings))
-            sections.append(Self.accountSectionForSnapshot(store.snapshot(for: .antigravity)))
-        case .cursor?:
-            sections.append(Self.usageSection(for: .cursor, store: store, settings: settings))
-            sections.append(Self.accountSectionForSnapshot(store.snapshot(for: .cursor)))
-        case .factory?:
-            sections.append(Self.usageSection(for: .factory, store: store, settings: settings))
-            sections.append(Self.accountSectionForSnapshot(store.snapshot(for: .factory)))
-        case .copilot?:
-            sections.append(Self.usageSection(for: .copilot, store: store, settings: settings))
-            sections.append(Self.accountSectionForSnapshot(store.snapshot(for: .copilot)))
+        case let provider?:
+            sections.append(Self.usageSection(for: provider, store: store, settings: settings))
+            if let accountSection = Self.accountSectionForSnapshot(store.snapshot(for: provider)) {
+                sections.append(accountSection)
+            }
         case nil:
             var addedUsage = false
 
@@ -183,14 +167,17 @@ struct MenuDescriptor {
         return Section(entries: entries)
     }
 
-    private static func accountSectionForSnapshot(_ snapshot: UsageSnapshot?) -> Section {
+    private static func accountSectionForSnapshot(_ snapshot: UsageSnapshot?) -> Section? {
         var entries: [Entry] = []
         let emailText = snapshot?.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
-        entries.append(.text("Account: \(emailText?.isEmpty == false ? emailText! : "Unknown")", .secondary))
-
-        if let plan = snapshot?.loginMethod, !plan.isEmpty {
-            entries.append(.text("Plan: \(AccountFormatter.plan(plan))", .secondary))
+        let planText = snapshot?.loginMethod?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let emailText, !emailText.isEmpty {
+            entries.append(.text("Account: \(emailText)", .secondary))
         }
+        if let planText, !planText.isEmpty {
+            entries.append(.text("Plan: \(AccountFormatter.plan(planText))", .secondary))
+        }
+        guard !entries.isEmpty else { return nil }
         return Section(entries: entries)
     }
 
@@ -239,8 +226,8 @@ struct MenuDescriptor {
         let metadata = targetProvider.map { store.metadata(for: $0) }
 
         // Show "Add Account" if no account, "Switch Account" if logged in
-        if (provider ?? store.enabledProviders().first) != .antigravity,
-           (provider ?? store.enabledProviders().first) != .zai
+        if let targetProvider,
+           ProviderCatalog.implementation(for: targetProvider)?.supportsLoginFlow == true
         {
             let loginAction = self.switchAccountTarget(for: provider, store: store)
             let hasAccount = self.hasAccount(for: provider, store: store)
@@ -248,10 +235,7 @@ struct MenuDescriptor {
             entries.append(.action(accountLabel, loginAction))
         }
 
-        if let dashboardTarget = targetProvider,
-           dashboardTarget == .codex || dashboardTarget == .claude || dashboardTarget == .cursor ||
-           dashboardTarget == .factory
-        {
+        if metadata?.dashboardURL != nil {
             entries.append(.action("Usage Dashboard", .dashboard))
         }
         if metadata?.statusPageURL != nil || metadata?.statusLinkURL != nil {

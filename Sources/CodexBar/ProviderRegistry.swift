@@ -12,7 +12,7 @@ struct ProviderRegistry {
 
     static let shared: ProviderRegistry = .init()
 
-    init(metadata: [UsageProvider: ProviderMetadata] = ProviderDefaults.metadata) {
+    init(metadata: [UsageProvider: ProviderMetadata] = ProviderDescriptorRegistry.metadata) {
         self.metadata = metadata
     }
 
@@ -23,32 +23,43 @@ struct ProviderRegistry {
         codexFetcher: UsageFetcher,
         claudeFetcher: any ClaudeUsageFetching) -> [UsageProvider: ProviderSpec]
     {
-        let context = ProviderBuildContext(
-            settings: settings,
-            metadata: metadata,
-            codexFetcher: codexFetcher,
-            claudeFetcher: claudeFetcher)
-
-        let implementationsByID: [UsageProvider: any ProviderImplementation] = Dictionary(
-            uniqueKeysWithValues: ProviderCatalog.all.map { ($0.id, $0) })
-
         var specs: [UsageProvider: ProviderSpec] = [:]
         specs.reserveCapacity(UsageProvider.allCases.count)
 
         for provider in UsageProvider.allCases {
-            guard let impl = implementationsByID[provider] else {
-                fatalError("Missing ProviderImplementation for \(provider.rawValue)")
-            }
+            let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
             let meta = metadata[provider]!
             let spec = ProviderSpec(
-                style: impl.style,
+                style: descriptor.branding.iconStyle,
                 isEnabled: { settings.isProviderEnabled(provider: provider, metadata: meta) },
-                fetch: impl.makeFetch(context: context))
+                fetch: {
+                    let snapshot = await MainActor.run {
+                        ProviderSettingsSnapshot(
+                            debugMenuEnabled: settings.debugMenuEnabled,
+                            claudeUsageDataSource: settings.claudeUsageDataSource,
+                            claudeWebExtrasEnabled: settings.claudeWebExtrasEnabled,
+                            zaiAPIToken: settings.zaiAPIToken,
+                            copilotAPIToken: settings.copilotAPIToken)
+                    }
+                    let context = ProviderFetchContext(
+                        runtime: .app,
+                        sourceMode: .auto,
+                        includeCredits: false,
+                        webTimeout: 60,
+                        webDebugDumpHTML: false,
+                        verbose: false,
+                        env: ProcessInfo.processInfo.environment,
+                        settings: snapshot,
+                        fetcher: codexFetcher,
+                        claudeFetcher: claudeFetcher)
+                    let result = try await descriptor.fetch(context: context)
+                    return result.usage
+                })
             specs[provider] = spec
         }
 
         return specs
     }
 
-    private static let defaultMetadata: [UsageProvider: ProviderMetadata] = ProviderDefaults.metadata
+    private static let defaultMetadata: [UsageProvider: ProviderMetadata] = ProviderDescriptorRegistry.metadata
 }

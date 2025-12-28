@@ -1,15 +1,15 @@
 import CodexBarCore
+import CodexBarMacroSupport
 import Foundation
 
+@ProviderImplementationRegistration
 struct CursorProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .cursor
-    let style: IconStyle = .cursor
+    let supportsLoginFlow: Bool = true
 
-    func makeFetch(context: ProviderBuildContext) -> @Sendable () async throws -> UsageSnapshot {
-        {
-            let probe = CursorStatusProbe()
-            let snap = try await probe.fetch()
-            return snap.toUsageSnapshot()
-        }
+    @MainActor
+    func runLoginFlow(context: ProviderLoginContext) async -> Bool {
+        await context.controller.runCursorLoginFlow()
+        return true
     }
 }

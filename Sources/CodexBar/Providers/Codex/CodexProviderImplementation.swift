@@ -1,16 +1,15 @@
 import CodexBarCore
+import CodexBarMacroSupport
 import Foundation
 
+@ProviderImplementationRegistration
 struct CodexProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .codex
-    let style: IconStyle = .codex
-
-    func makeFetch(context: ProviderBuildContext) -> @Sendable () async throws -> UsageSnapshot {
-        { try await context.codexFetcher.loadLatestUsage() }
-    }
+    let supportsLoginFlow: Bool = true
 
     @MainActor
-    func settingsToggles(context: ProviderSettingsContext) -> [ProviderSettingsToggleDescriptor] {
-        []
+    func runLoginFlow(context: ProviderLoginContext) async -> Bool {
+        await context.controller.runCodexLoginFlow()
+        return true
     }
 }

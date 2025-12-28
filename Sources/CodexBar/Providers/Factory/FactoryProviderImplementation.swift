@@ -1,15 +1,15 @@
 import CodexBarCore
+import CodexBarMacroSupport
 import Foundation
 
+@ProviderImplementationRegistration
 struct FactoryProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .factory
-    let style: IconStyle = .factory
+    let supportsLoginFlow: Bool = true
 
-    func makeFetch(context: ProviderBuildContext) -> @Sendable () async throws -> UsageSnapshot {
-        {
-            let probe = FactoryStatusProbe()
-            let snap = try await probe.fetch()
-            return snap.toUsageSnapshot()
-        }
+    @MainActor
+    func runLoginFlow(context: ProviderLoginContext) async -> Bool {
+        await context.controller.runFactoryLoginFlow()
+        return true
     }
 }

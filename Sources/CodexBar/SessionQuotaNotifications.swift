@@ -38,16 +38,7 @@ final class SessionQuotaNotifier {
     func post(transition: SessionQuotaTransition, provider: UsageProvider, badge: NSNumber? = nil) {
         guard transition != .none else { return }
 
-        let providerName = switch provider {
-        case .codex: "Codex"
-        case .claude: "Claude"
-        case .zai: "z.ai"
-        case .gemini: "Gemini"
-        case .antigravity: "Antigravity"
-        case .cursor: "Cursor"
-        case .factory: "Droid"
-        case .copilot: "Copilot"
-        }
+        let providerName = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
 
         let (title, body) = switch transition {
         case .none:

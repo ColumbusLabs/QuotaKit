@@ -78,12 +78,7 @@ enum CodexBarCLI {
         let verbose = values.flags.contains("verbose")
         let useColor = Self.shouldUseColor()
         let fetcher = UsageFetcher()
-        let claudeSource: ClaudeUsageDataSource = switch sourceMode {
-        case .oauth: .oauth
-        case .cli: .cli
-        case .web, .auto: .cli
-        }
-        let claudeFetcher = ClaudeUsageFetcher(dataSource: claudeSource)
+        let claudeFetcher = ClaudeUsageFetcher()
 
         #if !os(macOS)
         if sourceMode.usesWeb {
@@ -96,11 +91,14 @@ enum CodexBarCLI {
         var exitCode: ExitCode = .success
 
         let fetchContext = ProviderFetchContext(
-            includeCredits: includeCredits,
+            runtime: .cli,
             sourceMode: sourceMode,
+            includeCredits: includeCredits,
             webTimeout: webTimeout,
             webDebugDumpHTML: webDebugDumpHTML,
             verbose: verbose,
+            env: ProcessInfo.processInfo.environment,
+            settings: nil,
             fetcher: fetcher,
             claudeFetcher: claudeFetcher)
 
@@ -220,7 +218,7 @@ enum CodexBarCLI {
             return .custom(enabled)
         }
         if let first = enabled.first { return ProviderSelection(provider: first) }
-        return .codex
+        return .single(.codex)
     }
 
     private static func decodeFormat(from values: ParsedValues) -> OutputFormat {
@@ -236,37 +234,11 @@ enum CodexBarCLI {
     }
 
     private static func detectVersion(for provider: UsageProvider) -> String? {
-        switch provider {
-        case .codex:
-            VersionDetector.codexVersion()
-        case .claude:
-            ClaudeUsageFetcher().detectVersion()
-        case .zai:
-            nil
-        case .gemini:
-            VersionDetector.geminiVersion()
-        case .antigravity:
-            nil
-        case .cursor:
-            nil
-        case .factory:
-            nil
-        case .copilot:
-            nil
-        }
+        ProviderDescriptorRegistry.descriptor(for: provider).cli.versionDetector?()
     }
 
     private static func formatVersion(provider: UsageProvider, raw: String?) -> (version: String?, source: String) {
-        let source = switch provider {
-        case .codex: "codex-cli"
-        case .claude: "claude"
-        case .zai: "zai"
-        case .gemini: "gemini-cli"
-        case .antigravity: "antigravity"
-        case .cursor: "cursor"
-        case .factory: "factory"
-        case .copilot: "copilot"
-        }
+        let source = ProviderDescriptorRegistry.descriptor(for: provider).cli.sourceLabel
         guard let raw, !raw.isEmpty else { return (nil, source) }
         if let match = raw.range(of: #"(\d+(?:\.\d+)+)"#, options: .regularExpression) {
             let version = String(raw[match]).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -276,7 +248,7 @@ enum CodexBarCLI {
     }
 
     private static func makeHeader(provider: UsageProvider, version: String?, source: String) -> String {
-        let name = ProviderDefaults.metadata[provider]?.displayName ?? provider.rawValue.capitalized
+        let name = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
         if let version, !version.isEmpty {
             return "\(name) \(version) (\(source))"
         }
@@ -284,7 +256,8 @@ enum CodexBarCLI {
     }
 
     private static func fetchStatus(for provider: UsageProvider) async -> ProviderStatusPayload? {
-        guard let urlString = ProviderDefaults.metadata[provider]?.statusPageURL,
+        let urlString = ProviderDescriptorRegistry.descriptor(for: provider).metadata.statusPageURL
+        guard let urlString,
               let baseURL = URL(string: urlString) else { return nil }
         do {
             return try await StatusFetcher.fetch(from: baseURL)
@@ -318,7 +291,7 @@ enum CodexBarCLI {
             toggles = UserDefaults.standard.dictionary(forKey: "providerToggles") as? [String: Bool] ?? [:]
         }
 
-        return ProviderDefaults.metadata.compactMap { provider, meta in
+        return ProviderDescriptorRegistry.metadata.compactMap { provider, meta in
             let isOn = toggles[meta.cliName] ?? meta.defaultEnabled
             return isOn ? provider : nil
         }.sorted { $0.rawValue < $1.rawValue }
@@ -328,196 +301,34 @@ enum CodexBarCLI {
         provider: UsageProvider,
         context: ProviderFetchContext) async -> ProviderFetchOutcome
     {
-        if provider == .codex, context.sourceMode == .oauth {
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+        if !descriptor.cli.sourceModes.contains(context.sourceMode) {
             return ProviderFetchOutcome(
-                result: .failure(SourceSelectionError.unsupported(provider: "codex", source: context.sourceMode)),
+                result: .failure(SourceSelectionError.unsupported(
+                    provider: descriptor.cli.name,
+                    source: context.sourceMode)),
                 dashboard: nil,
                 sourceOverride: nil)
         }
-
-        if provider == .codex, context.sourceMode.usesWeb {
-            let options = OpenAIWebOptions(
-                timeout: context.webTimeout,
-                debugDumpHTML: context.webDebugDumpHTML,
-                verbose: context.verbose)
-            let webLogger = await MainActor.run { WebLogBuffer(verbose: context.verbose) }
-            let log: @MainActor (String) -> Void = { line in
-                webLogger.append(line)
-            }
-            do {
-                let webResult = try await Self.fetchOpenAIWebCodex(
-                    fetcher: context.fetcher,
-                    options: options,
-                    logger: log)
-                return ProviderFetchOutcome(
-                    result: .success((usage: webResult.usage, credits: webResult.credits)),
-                    dashboard: webResult.dashboard,
-                    sourceOverride: "openai-web")
-            } catch {
-                let webLogs = await webLogger.snapshot()
-                if context.sourceMode == .auto, Self.shouldFallbackToCodexCLI(for: error) {
-                    Self.writeStderr(
-                        "Warning: OpenAI web cookies unavailable (\(error.localizedDescription)). " +
-                            "Falling back to Codex CLI.\n")
-                    if !webLogs.isEmpty {
-                        Self.writeStderr(webLogs.joined(separator: "\n") + "\n")
-                    }
-                    let result = await Self.fetch(
-                        provider: provider,
-                        includeCredits: context.includeCredits,
-                        fetcher: context.fetcher,
-                        claudeFetcher: context.claudeFetcher)
-                    return ProviderFetchOutcome(result: result, dashboard: nil, sourceOverride: nil)
-                }
-                if !webLogs.isEmpty {
-                    Self.writeStderr(webLogs.joined(separator: "\n") + "\n")
-                }
-                return ProviderFetchOutcome(result: .failure(error), dashboard: nil, sourceOverride: nil)
-            }
+        do {
+            let result = try await descriptor.fetch(context: context)
+            return ProviderFetchOutcome(
+                result: .success((usage: result.usage, credits: result.credits)),
+                dashboard: result.dashboard,
+                sourceOverride: result.sourceOverride)
+        } catch {
+            return ProviderFetchOutcome(result: .failure(error), dashboard: nil, sourceOverride: nil)
         }
-
-        if provider == .zai {
-            guard let apiKey = ZaiSettingsReader.apiToken() else {
-                return ProviderFetchOutcome(
-                    result: .failure(ZaiSettingsError.missingToken),
-                    dashboard: nil,
-                    sourceOverride: nil)
-            }
-            do {
-                let zaiUsage = try await ZaiUsageFetcher.fetchUsage(apiKey: apiKey)
-                let snapshot = zaiUsage.toUsageSnapshot()
-                return ProviderFetchOutcome(
-                    result: .success((usage: snapshot, credits: nil)),
-                    dashboard: nil,
-                    sourceOverride: "zai")
-            } catch {
-                return ProviderFetchOutcome(result: .failure(error), dashboard: nil, sourceOverride: nil)
-            }
-        }
-
-        if provider == .claude, context.sourceMode.usesWeb {
-            do {
-                let webUsage = try await ClaudeUsageFetcher(dataSource: .web).loadLatestUsage(model: "sonnet")
-                let snapshot = UsageSnapshot(
-                    primary: webUsage.primary,
-                    secondary: webUsage.secondary,
-                    tertiary: webUsage.opus,
-                    updatedAt: webUsage.updatedAt,
-                    accountEmail: webUsage.accountEmail,
-                    accountOrganization: webUsage.accountOrganization,
-                    loginMethod: webUsage.loginMethod)
-                return ProviderFetchOutcome(
-                    result: .success((usage: snapshot, credits: nil)),
-                    dashboard: nil,
-                    sourceOverride: nil)
-            } catch {
-                if context.sourceMode == .auto, self.shouldFallbackToClaudeCLI(for: error) {
-                    self.writeStderr(
-                        "Warning: Claude web cookies unavailable (\(error.localizedDescription)). " +
-                            "Falling back to Claude CLI.\n")
-                    let result = await Self.fetch(
-                        provider: provider,
-                        includeCredits: context.includeCredits,
-                        fetcher: context.fetcher,
-                        claudeFetcher: context.claudeFetcher)
-                    return ProviderFetchOutcome(result: result, dashboard: nil, sourceOverride: nil)
-                }
-                return ProviderFetchOutcome(result: .failure(error), dashboard: nil, sourceOverride: nil)
-            }
-        }
-
-        if provider == .factory {
-            do {
-                let probe = FactoryStatusProbe()
-                let logger: ((String) -> Void)? = context.verbose ? { line in
-                    Self.writeStderr(line + "\n")
-                } : nil
-                let snap = try await probe.fetch(logger: logger)
-                return ProviderFetchOutcome(
-                    result: .success((usage: snap.toUsageSnapshot(), credits: nil)),
-                    dashboard: nil,
-                    sourceOverride: nil)
-            } catch {
-                return ProviderFetchOutcome(result: .failure(error), dashboard: nil, sourceOverride: nil)
-            }
-        }
-
-        let result = await Self.fetch(
-            provider: provider,
-            includeCredits: context.includeCredits,
-            fetcher: context.fetcher,
-            claudeFetcher: context.claudeFetcher)
-        return ProviderFetchOutcome(result: result, dashboard: nil, sourceOverride: nil)
     }
 
     private enum SourceSelectionError: LocalizedError {
-        case unsupported(provider: String, source: SourceMode)
+        case unsupported(provider: String, source: ProviderSourceMode)
 
         var errorDescription: String? {
             switch self {
             case let .unsupported(provider, source):
                 "Source '\(source.rawValue)' is not supported for \(provider)."
             }
-        }
-    }
-
-    private static func fetch(
-        provider: UsageProvider,
-        includeCredits: Bool,
-        fetcher: UsageFetcher,
-        claudeFetcher: ClaudeUsageFetcher) async -> Result<(usage: UsageSnapshot, credits: CreditsSnapshot?), Error>
-    {
-        do {
-            switch provider {
-            case .codex:
-                let usage = try await fetcher.loadLatestUsage()
-                let credits = includeCredits ? try? await fetcher.loadLatestCredits() : nil
-                return .success((usage, credits))
-            case .claude:
-                let usage = try await claudeFetcher.loadLatestUsage(model: "sonnet")
-                return .success((
-                    usage: UsageSnapshot(
-                        primary: usage.primary,
-                        secondary: usage.secondary,
-                        tertiary: usage.opus,
-                        providerCost: usage.providerCost,
-                        updatedAt: usage.updatedAt,
-                        accountEmail: usage.accountEmail,
-                        accountOrganization: usage.accountOrganization,
-                        loginMethod: usage.loginMethod),
-                    credits: nil))
-            case .zai:
-                let apiKey = ZaiSettingsReader.apiToken()
-                guard let apiKey else { return .failure(ZaiSettingsError.missingToken) }
-                let usage = try await ZaiUsageFetcher.fetchUsage(apiKey: apiKey)
-                return .success((usage: usage.toUsageSnapshot(), credits: nil))
-            case .gemini:
-                let probe = GeminiStatusProbe()
-                let snap = try await probe.fetch()
-                return .success((usage: snap.toUsageSnapshot(), credits: nil))
-            case .antigravity:
-                let probe = AntigravityStatusProbe()
-                let snap = try await probe.fetch()
-                return try .success((usage: snap.toUsageSnapshot(), credits: nil))
-            case .cursor:
-                let probe = CursorStatusProbe()
-                let snap = try await probe.fetch()
-                return .success((usage: snap.toUsageSnapshot(), credits: nil))
-            case .factory:
-                let probe = FactoryStatusProbe()
-                let snap = try await probe.fetch()
-                return .success((usage: snap.toUsageSnapshot(), credits: nil))
-            case .copilot:
-                let env = ProcessInfo.processInfo.environment
-                guard let token = env["COPILOT_API_TOKEN"], !token.isEmpty else {
-                    return .failure(URLError(.userAuthenticationRequired)) // Or custom error
-                }
-                let fetcher = CopilotUsageFetcher(token: token)
-                let snap = try await fetcher.fetch()
-                return .success((usage: snap, credits: nil))
-            }
-        } catch {
-            return .failure(error)
         }
     }
 
@@ -552,180 +363,15 @@ enum CodexBarCLI {
         return nil
     }
 
-    private static func decodeSourceMode(from values: ParsedValues) -> SourceMode? {
-        guard let raw = values.options["source"]?.last else { return nil }
-        return SourceMode(argument: raw)
+    private static func decodeSourceMode(from values: ParsedValues) -> ProviderSourceMode? {
+        guard let raw = values.options["source"]?.last?.lowercased() else { return nil }
+        return ProviderSourceMode(rawValue: raw)
     }
 
     private struct ProviderFetchOutcome: Sendable {
         let result: Result<(usage: UsageSnapshot, credits: CreditsSnapshot?), Error>
         let dashboard: OpenAIDashboardSnapshot?
         let sourceOverride: String?
-    }
-
-    private struct ProviderFetchContext: Sendable {
-        let includeCredits: Bool
-        let sourceMode: SourceMode
-        let webTimeout: TimeInterval
-        let webDebugDumpHTML: Bool
-        let verbose: Bool
-        let fetcher: UsageFetcher
-        let claudeFetcher: ClaudeUsageFetcher
-    }
-
-    private enum SourceMode: String, CaseIterable, Sendable {
-        case auto
-        case web
-        case cli
-        case oauth
-
-        var usesWeb: Bool {
-            self == .auto || self == .web
-        }
-
-        init?(argument: String) {
-            switch argument.lowercased() {
-            case "auto": self = .auto
-            case "web": self = .web
-            case "cli": self = .cli
-            case "oauth": self = .oauth
-            default: return nil
-            }
-        }
-    }
-
-    private struct OpenAIWebOptions: Sendable {
-        let timeout: TimeInterval
-        let debugDumpHTML: Bool
-        let verbose: Bool
-    }
-
-    @MainActor
-    private final class WebLogBuffer {
-        private var lines: [String] = []
-        private let maxCount: Int
-        private let verbose: Bool
-
-        init(maxCount: Int = 300, verbose: Bool) {
-            self.maxCount = maxCount
-            self.verbose = verbose
-        }
-
-        func append(_ line: String) {
-            self.lines.append(line)
-            if self.lines.count > self.maxCount {
-                self.lines.removeFirst(self.lines.count - self.maxCount)
-            }
-            if self.verbose {
-                fputs("\(line)\n", stderr)
-            }
-        }
-
-        func snapshot() -> [String] {
-            self.lines
-        }
-    }
-
-    private struct OpenAIWebCodexResult: Sendable {
-        let usage: UsageSnapshot
-        let credits: CreditsSnapshot?
-        let dashboard: OpenAIDashboardSnapshot
-    }
-
-    private enum OpenAIWebCodexError: LocalizedError {
-        case missingUsage
-
-        var errorDescription: String? {
-            switch self {
-            case .missingUsage:
-                "OpenAI web dashboard did not include usage limits."
-            }
-        }
-    }
-
-    @MainActor
-    private static func fetchOpenAIWebCodex(
-        fetcher: UsageFetcher,
-        options: OpenAIWebOptions,
-        logger: @MainActor @escaping (String) -> Void) async throws -> OpenAIWebCodexResult
-    {
-        let accountEmail = fetcher.loadAccountInfo().email?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let dashboard = try await Self.fetchOpenAIWebDashboard(
-            accountEmail: accountEmail,
-            fetcher: fetcher,
-            options: options,
-            logger: logger)
-        guard let usage = dashboard.toUsageSnapshot(accountEmail: accountEmail) else {
-            throw OpenAIWebCodexError.missingUsage
-        }
-        let credits = dashboard.toCreditsSnapshot()
-        return OpenAIWebCodexResult(usage: usage, credits: credits, dashboard: dashboard)
-    }
-
-    @MainActor
-    private static func fetchOpenAIWebDashboard(
-        accountEmail: String?,
-        fetcher: UsageFetcher,
-        options: OpenAIWebOptions,
-        logger: @MainActor @escaping (String) -> Void) async throws -> OpenAIDashboardSnapshot
-    {
-        #if os(macOS)
-        // Ensure AppKit is initialized before using WebKit in a CLI.
-        _ = NSApplication.shared
-
-        let trimmed = accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let fallback = fetcher.loadAccountInfo().email?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let codexEmail = trimmed?.isEmpty == false ? trimmed : (fallback?.isEmpty == false ? fallback : nil)
-        let allowAnyAccount = codexEmail == nil
-
-        let importResult = try await OpenAIDashboardBrowserCookieImporter()
-            .importBestCookies(intoAccountEmail: codexEmail, allowAnyAccount: allowAnyAccount, logger: logger)
-        let effectiveEmail = codexEmail ?? importResult.signedInEmail?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        let dash = try await OpenAIDashboardFetcher().loadLatestDashboard(
-            accountEmail: effectiveEmail,
-            logger: logger,
-            debugDumpHTML: options.debugDumpHTML,
-            timeout: options.timeout)
-        let cacheEmail = effectiveEmail ?? dash.signedInEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let cacheEmail, !cacheEmail.isEmpty {
-            OpenAIDashboardCacheStore.save(OpenAIDashboardCache(accountEmail: cacheEmail, snapshot: dash))
-        }
-        return dash
-        #else
-        _ = accountEmail
-        _ = fetcher
-        _ = options
-        _ = logger
-        throw OpenAIDashboardFetcher.FetchError.noDashboardData(
-            body: "OpenAI web dashboard fetch is only supported on macOS.")
-        #endif
-    }
-
-    static func shouldFallbackToCodexCLI(for error: Error) -> Bool {
-        if let importError = error as? OpenAIDashboardBrowserCookieImporter.ImportError {
-            switch importError {
-            case .noCookiesFound,
-                 .browserAccessDenied,
-                 .dashboardStillRequiresLogin,
-                 .noMatchingAccount:
-                return true
-            }
-        }
-
-        if let fetchError = error as? OpenAIDashboardFetcher.FetchError {
-            if case .loginRequired = fetchError { return true }
-        }
-
-        return false
-    }
-
-    static func shouldFallbackToClaudeCLI(for error: Error) -> Bool {
-        if let fetchError = error as? ClaudeWebAPIFetcher.FetchError {
-            if case .noSessionKeyFound = fetchError { return true }
-        }
-        return false
     }
 
     private static func renderOpenAIWebDashboardText(_ dash: OpenAIDashboardSnapshot) -> String {
@@ -833,7 +479,7 @@ enum CodexBarCLI {
 
         Usage:
           codexbar usage [--format text|json]
-                       [--provider codex|claude|zai|gemini|antigravity|cursor|factory|copilot|both|all]
+                       [--provider \(ProviderHelp.list)]
                        [--no-credits] [--pretty] [--status] [--source <auto|web|cli|oauth>]
                        [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
 
@@ -861,7 +507,7 @@ enum CodexBarCLI {
 
         Usage:
           codexbar [--format text|json]
-                  [--provider codex|claude|zai|gemini|antigravity|cursor|factory|copilot|both|all]
+                  [--provider \(ProviderHelp.list)]
                   [--no-credits] [--pretty] [--status] [--source <auto|web|cli|oauth>]
                   [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
 
@@ -893,8 +539,7 @@ private struct UsageOptions: CommanderParsable {
 
     @Option(
         name: .long("provider"),
-        help: "Provider to query: codex | claude | zai | gemini | antigravity | cursor | " +
-            "factory | copilot | both | all")
+        help: ProviderHelp.optionHelp)
     var provider: ProviderSelection?
 
     @Option(name: .long("format"), help: "Output format: text | json")
@@ -926,60 +571,43 @@ private struct UsageOptions: CommanderParsable {
 }
 
 enum ProviderSelection: Sendable, ExpressibleFromArgument {
-    case codex
-    case claude
-    case zai
-    case gemini
-    case antigravity
-    case cursor
-    case factory
-    case copilot
+    case single(UsageProvider)
     case both
     case all
     case custom([UsageProvider])
 
     init?(argument: String) {
-        switch argument.lowercased() {
-        case "codex": self = .codex
-        case "claude": self = .claude
-        case "zai", "z.ai": self = .zai
-        case "gemini": self = .gemini
-        case "antigravity": self = .antigravity
-        case "cursor": self = .cursor
-        case "factory": self = .factory
-        case "copilot": self = .copilot
-        case "both": self = .both
-        case "all": self = .all
-        default: return nil
+        let normalized = argument.lowercased()
+        switch normalized {
+        case "both":
+            self = .both
+        case "all":
+            self = .all
+        default:
+            if let provider = ProviderDescriptorRegistry.cliNameMap[normalized] {
+                self = .single(provider)
+            } else {
+                return nil
+            }
         }
     }
 
     init(provider: UsageProvider) {
-        switch provider {
-        case .codex: self = .codex
-        case .claude: self = .claude
-        case .zai: self = .zai
-        case .gemini: self = .gemini
-        case .antigravity: self = .antigravity
-        case .cursor: self = .cursor
-        case .factory: self = .factory
-        case .copilot: self = .copilot
-        }
+        self = .single(provider)
     }
 
     var asList: [UsageProvider] {
         switch self {
-        case .codex: [.codex]
-        case .claude: [.claude]
-        case .zai: [.zai]
-        case .gemini: [.gemini]
-        case .antigravity: [.antigravity]
-        case .cursor: [.cursor]
-        case .factory: [.factory]
-        case .copilot: [.copilot]
-        case .both: [.codex, .claude]
-        case .all: [.codex, .claude, .zai, .cursor, .gemini, .antigravity, .factory, .copilot]
-        case let .custom(providers): providers
+        case let .single(provider):
+            [provider]
+        case .both:
+            [.codex, .claude]
+        case .all:
+            ProviderDescriptorRegistry.all
+                .map(\.id)
+                .sorted { $0.rawValue < $1.rawValue }
+        case let .custom(providers):
+            providers
         }
     }
 }
@@ -994,6 +622,19 @@ enum OutputFormat: String, Sendable, ExpressibleFromArgument {
         case "json": self = .json
         default: return nil
         }
+    }
+}
+
+private enum ProviderHelp {
+    static var list: String {
+        let names = ProviderDescriptorRegistry.all
+            .map(\.cli.name)
+            .sorted()
+        return (names + ["both", "all"]).joined(separator: "|")
+    }
+
+    static var optionHelp: String {
+        "Provider to query: \(self.list)"
     }
 }
 
@@ -1057,73 +698,6 @@ struct ProviderStatusPayload: Encodable {
     var descriptionSuffix: String {
         guard let description, !description.isEmpty else { return "" }
         return " – \(description)"
-    }
-}
-
-private enum VersionDetector {
-    static func codexVersion() -> String? {
-        guard let path = TTYCommandRunner.which("codex") else { return nil }
-        let candidates = [
-            ["--version"],
-            ["version"],
-            ["-v"],
-        ]
-        for args in candidates {
-            if let version = Self.run(path: path, args: args) { return version }
-        }
-        return nil
-    }
-
-    static func geminiVersion() -> String? {
-        let env = ProcessInfo.processInfo.environment
-        guard let path = BinaryLocator.resolveGeminiBinary(env: env, loginPATH: nil)
-            ?? TTYCommandRunner.which("gemini") else { return nil }
-        let candidates = [
-            ["--version"],
-            ["-v"],
-        ]
-        for args in candidates {
-            if let version = Self.run(path: path, args: args) { return version }
-        }
-        return nil
-    }
-
-    private static func run(path: String, args: [String]) -> String? {
-        let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: path)
-        proc.arguments = args
-        let out = Pipe()
-        proc.standardOutput = out
-        proc.standardError = Pipe()
-
-        do {
-            try proc.run()
-        } catch {
-            return nil
-        }
-
-        let deadline = Date().addingTimeInterval(2.0)
-        while proc.isRunning, Date() < deadline {
-            usleep(50000)
-        }
-        if proc.isRunning {
-            proc.terminate()
-            let killDeadline = Date().addingTimeInterval(0.5)
-            while proc.isRunning, Date() < killDeadline {
-                usleep(20000)
-            }
-            if proc.isRunning {
-                kill(proc.processIdentifier, SIGKILL)
-            }
-        }
-
-        let data = out.fileHandleForReading.readDataToEndOfFile()
-        guard proc.terminationStatus == 0,
-              let text = String(data: data, encoding: .utf8)?
-                  .split(whereSeparator: \.isNewline).first
-        else { return nil }
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
     }
 }
 

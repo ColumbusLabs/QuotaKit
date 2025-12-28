@@ -104,7 +104,8 @@ Checklist:
   - `<ProviderID>Probe.swift` / `<ProviderID>Fetcher.swift`: concrete fetcher logic.
   - `<ProviderID>Models.swift`: snapshot structs.
   - `<ProviderID>Parser.swift` (if needed).
-- Attach `@ProviderRegistration` to the descriptor or implementation (macro auto-registers).
+- Attach `@ProviderDescriptorRegistration` to the descriptor and `@ProviderImplementationRegistration` to the
+  implementation (macros auto-register).
   - No manual list edits.
 - Add `Sources/CodexBar/Providers/<ProviderID>/<ProviderID>ProviderImplementation.swift`:
   - `ProviderImplementation` only for settings/login UI hooks.

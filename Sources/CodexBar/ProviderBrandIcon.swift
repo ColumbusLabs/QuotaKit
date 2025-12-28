@@ -5,7 +5,7 @@ enum ProviderBrandIcon {
     private static let size = NSSize(width: 16, height: 16)
 
     static func image(for provider: UsageProvider) -> NSImage? {
-        let baseName = self.resourceName(for: provider)
+        let baseName = ProviderDescriptorRegistry.descriptor(for: provider).branding.iconResourceName
         let url1x = Bundle.main.url(forResource: baseName, withExtension: "png")
         let url2x = Bundle.main.url(forResource: baseName + "@2x", withExtension: "png")
 
@@ -33,18 +33,5 @@ enum ProviderBrandIcon {
         guard added else { return nil }
         image.isTemplate = true
         return image
-    }
-
-    private static func resourceName(for provider: UsageProvider) -> String {
-        switch provider {
-        case .codex: "ProviderIcon-codex"
-        case .claude: "ProviderIcon-claude"
-        case .zai: "ProviderIcon-zai"
-        case .cursor: "ProviderIcon-cursor"
-        case .factory: "ProviderIcon-factory"
-        case .gemini: "ProviderIcon-gemini"
-        case .antigravity: "ProviderIcon-antigravity"
-        case .copilot: "ProviderIcon-copilot"
-        }
     }
 }

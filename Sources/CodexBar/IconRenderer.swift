@@ -1,4 +1,5 @@
 import AppKit
+import CodexBarCore
 
 enum IconRenderer {
     private static let creditsCap: Double = 1000

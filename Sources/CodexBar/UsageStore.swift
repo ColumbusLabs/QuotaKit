@@ -4,18 +4,6 @@ import Foundation
 import Observation
 import SweetCookieKit
 
-enum IconStyle {
-    case codex
-    case claude
-    case zai
-    case gemini
-    case antigravity
-    case cursor
-    case factory
-    case copilot
-    case combined
-}
-
 // MARK: - Observation helpers
 
 @MainActor
@@ -275,29 +263,8 @@ final class UsageStore {
     }
 
     var preferredSnapshot: UsageSnapshot? {
-        if self.isEnabled(.codex), let codexSnapshot {
-            return codexSnapshot
-        }
-        if self.isEnabled(.claude), let claudeSnapshot {
-            return claudeSnapshot
-        }
-        if self.isEnabled(.zai), let snap = self.snapshots[.zai] {
-            return snap
-        }
-        if self.isEnabled(.gemini), let snap = self.snapshots[.gemini] {
-            return snap
-        }
-        if self.isEnabled(.antigravity), let snap = self.snapshots[.antigravity] {
-            return snap
-        }
-        if self.isEnabled(.cursor), let snap = self.snapshots[.cursor] {
-            return snap
-        }
-        if self.isEnabled(.factory), let snap = self.snapshots[.factory] {
-            return snap
-        }
-        if self.isEnabled(.copilot), let snap = self.snapshots[.copilot] {
-            return snap
+        for provider in self.enabledProviders() {
+            if let snap = self.snapshots[provider] { return snap }
         }
         return nil
     }
@@ -305,13 +272,9 @@ final class UsageStore {
     var iconStyle: IconStyle {
         let enabled = self.enabledProviders()
         if enabled.count > 1 { return .combined }
-        if self.isEnabled(.cursor) { return .cursor }
-        if self.isEnabled(.antigravity) { return .antigravity }
-        if self.isEnabled(.gemini) { return .gemini }
-        if self.isEnabled(.zai) { return .zai }
-        if self.isEnabled(.claude) { return .claude }
-        if self.isEnabled(.factory) { return .factory }
-        if self.isEnabled(.copilot) { return .copilot }
+        if let provider = enabled.first {
+            return self.style(for: provider)
+        }
         return .codex
     }
 
@@ -400,12 +363,8 @@ final class UsageStore {
         self.debugForceAnimation = true
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(duration))
-            if let current {
-                if self.isEnabled(.codex) {
-                    self.snapshots[.codex] = current
-                } else if self.isEnabled(.claude) {
-                    self.snapshots[.claude] = current
-                }
+            if let current, let provider = self.enabledProviders().first {
+                self.snapshots[provider] = current
             }
             self.debugForceAnimation = false
         }
@@ -1065,7 +1024,7 @@ extension UsageStore {
                     let hasKey = ClaudeWebAPIFetcher.hasSessionKey { msg in lines.append(msg) }
                     let hasOAuthCredentials = (try? ClaudeOAuthCredentialsStore.load()) != nil
 
-                    let strategy = ClaudeProviderImplementation.resolveUsageStrategy(
+                    let strategy = ClaudeProviderDescriptor.resolveUsageStrategy(
                         debugMenuEnabled: claudeDebugMenuEnabled,
                         selectedDataSource: claudeUsageDataSource,
                         webExtrasEnabled: claudeWebExtrasEnabled,

@@ -529,10 +529,9 @@ extension StatusItemController {
 
     private func switcherWeeklyRemaining(for provider: UsageProvider) -> Double? {
         let snapshot = self.store.snapshot(for: provider)
-        let window: RateWindow? = switch provider {
-        case .factory:
+        let window: RateWindow? = if provider == .factory {
             snapshot?.secondary ?? snapshot?.primary
-        case .codex, .claude, .zai, .gemini, .antigravity, .cursor, .copilot:
+        } else {
             snapshot?.primary ?? snapshot?.secondary
         }
         guard let window else { return nil }
@@ -1512,36 +1511,11 @@ private final class ProviderSwitcherView: NSView {
     }
 
     private static func weeklyIndicatorColor(for provider: UsageProvider) -> NSColor {
-        switch provider {
-        case .codex:
-            NSColor(deviceRed: 73 / 255, green: 163 / 255, blue: 176 / 255, alpha: 1)
-        case .claude:
-            NSColor(deviceRed: 204 / 255, green: 124 / 255, blue: 94 / 255, alpha: 1)
-        case .zai:
-            NSColor(deviceRed: 232 / 255, green: 90 / 255, blue: 106 / 255, alpha: 1)
-        case .gemini:
-            NSColor(deviceRed: 171 / 255, green: 135 / 255, blue: 234 / 255, alpha: 1) // #AB87EA
-        case .antigravity:
-            NSColor(deviceRed: 96 / 255, green: 186 / 255, blue: 126 / 255, alpha: 1)
-        case .cursor:
-            NSColor(deviceRed: 0 / 255, green: 191 / 255, blue: 165 / 255, alpha: 1) // #00BFA5
-        case .factory:
-            NSColor(deviceRed: 255 / 255, green: 107 / 255, blue: 53 / 255, alpha: 1) // Factory orange
-        case .copilot:
-            NSColor(deviceRed: 168 / 255, green: 85 / 255, blue: 247 / 255, alpha: 1) // Purple
-        }
+        let color = ProviderDescriptorRegistry.descriptor(for: provider).branding.color
+        return NSColor(deviceRed: color.red, green: color.green, blue: color.blue, alpha: 1)
     }
 
     private static func switcherTitle(for provider: UsageProvider) -> String {
-        switch provider {
-        case .codex: "Codex"
-        case .claude: "Claude"
-        case .zai: "z.ai"
-        case .gemini: "Gemini"
-        case .antigravity: "Antigravity"
-        case .cursor: "Cursor"
-        case .factory: "Droid"
-        case .copilot: "Copilot"
-        }
+        ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
     }
 }

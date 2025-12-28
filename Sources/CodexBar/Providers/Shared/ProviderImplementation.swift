@@ -1,21 +1,6 @@
 import CodexBarCore
 import Foundation
 
-/// Builder context for provider implementations.
-///
-/// This is the single "dependency injection" object we pass into providers when building their fetch closures.
-/// Keep this small: add shared dependencies here only when at least 2 providers need it.
-struct ProviderBuildContext: Sendable {
-    let settings: SettingsStore
-    let metadata: [UsageProvider: ProviderMetadata]
-    let codexFetcher: UsageFetcher
-    let claudeFetcher: any ClaudeUsageFetching
-
-    func meta(for provider: UsageProvider) -> ProviderMetadata {
-        self.metadata[provider]!
-    }
-}
-
 /// App-side provider implementation.
 ///
 /// Rules:
@@ -23,9 +8,7 @@ struct ProviderBuildContext: Sendable {
 /// - Do not mix identity fields across providers (email/org/plan/loginMethod stays siloed).
 protocol ProviderImplementation: Sendable {
     var id: UsageProvider { get }
-    var style: IconStyle { get }
-
-    func makeFetch(context: ProviderBuildContext) -> @Sendable () async throws -> UsageSnapshot
+    var supportsLoginFlow: Bool { get }
 
     /// Optional provider-specific settings toggles to render in the Providers pane.
     ///
@@ -36,9 +19,18 @@ protocol ProviderImplementation: Sendable {
     /// Optional provider-specific settings fields to render in the Providers pane.
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor]
+
+    /// Optional provider-specific login flow. Returns whether to refresh after completion.
+    @MainActor
+    func runLoginFlow(context: ProviderLoginContext) async -> Bool
+
+    /// Optional override for source label in Providers settings.
+    @MainActor
+    func sourceLabel(context: ProviderSourceLabelContext) -> String?
 }
 
 extension ProviderImplementation {
+    var supportsLoginFlow: Bool { false }
     @MainActor
     func settingsToggles(context _: ProviderSettingsContext) -> [ProviderSettingsToggleDescriptor] {
         []
@@ -48,4 +40,23 @@ extension ProviderImplementation {
     func settingsFields(context _: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
         []
     }
+
+    @MainActor
+    func runLoginFlow(context _: ProviderLoginContext) async -> Bool {
+        false
+    }
+
+    @MainActor
+    func sourceLabel(context _: ProviderSourceLabelContext) -> String? {
+        nil
+    }
+}
+
+struct ProviderLoginContext {
+    unowned let controller: StatusItemController
+}
+
+struct ProviderSourceLabelContext {
+    let settings: SettingsStore
+    let descriptor: ProviderDescriptor
 }
