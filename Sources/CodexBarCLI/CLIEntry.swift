@@ -259,7 +259,7 @@ enum CodexBarCLI {
 
     private static func printFetchAttempts(provider: UsageProvider, attempts: [ProviderFetchAttempt]) {
         guard !attempts.isEmpty else { return }
-        fputs("[\(provider.rawValue)] fetch strategies:\n", stderr)
+        self.writeStderr("[\(provider.rawValue)] fetch strategies:\n")
         for attempt in attempts {
             let kindLabel = Self.fetchKindLabel(attempt.kind)
             var line = "  - \(attempt.strategyID) (\(kindLabel))"
@@ -267,7 +267,7 @@ enum CodexBarCLI {
             if let error = attempt.errorDescription, !error.isEmpty {
                 line += " error=\(error)"
             }
-            fputs("\(line)\n", stderr)
+            self.writeStderr("\(line)\n")
         }
     }
 
