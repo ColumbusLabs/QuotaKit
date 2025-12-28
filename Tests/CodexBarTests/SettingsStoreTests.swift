@@ -72,6 +72,17 @@ struct SettingsStoreTests {
     }
 
     @Test
+    func defaultsCodexUsageSourceToOAuth() {
+        let suite = "SettingsStoreTests-codex-source"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+
+        let store = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
+
+        #expect(store.codexUsageDataSource == .oauth)
+    }
+
+    @Test
     func providerOrder_defaultsToAllCases() {
         let suite = "SettingsStoreTests-providerOrder-default"
         let defaults = UserDefaults(suiteName: suite)!

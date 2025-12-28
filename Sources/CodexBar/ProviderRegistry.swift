@@ -36,6 +36,8 @@ struct ProviderRegistry {
                     let snapshot = await MainActor.run {
                         ProviderSettingsSnapshot(
                             debugMenuEnabled: settings.debugMenuEnabled,
+                            codex: ProviderSettingsSnapshot.CodexProviderSettings(
+                                usageDataSource: settings.codexUsageDataSource),
                             claude: ProviderSettingsSnapshot.ClaudeProviderSettings(
                                 usageDataSource: settings.claudeUsageDataSource,
                                 webExtrasEnabled: settings.claudeWebExtrasEnabled),

@@ -107,6 +107,16 @@ final class SettingsStore {
         }
     }
 
+    private var codexUsageDataSourceRaw: String? {
+        didSet {
+            if let raw = self.codexUsageDataSourceRaw {
+                self.userDefaults.set(raw, forKey: "codexUsageDataSource")
+            } else {
+                self.userDefaults.removeObject(forKey: "codexUsageDataSource")
+            }
+        }
+    }
+
     private var claudeUsageDataSourceRaw: String? {
         didSet {
             if let raw = self.claudeUsageDataSourceRaw {
@@ -162,6 +172,13 @@ final class SettingsStore {
         }
     }
 
+    var codexUsageDataSource: CodexUsageDataSource {
+        get { CodexUsageDataSource(rawValue: self.codexUsageDataSourceRaw ?? "") ?? .oauth }
+        set {
+            self.codexUsageDataSourceRaw = newValue.rawValue
+        }
+    }
+
     var claudeUsageDataSource: ClaudeUsageDataSource {
         get { ClaudeUsageDataSource(rawValue: self.claudeUsageDataSourceRaw ?? "") ?? .oauth }
         set {
@@ -184,6 +201,7 @@ final class SettingsStore {
         _ = self.randomBlinkEnabled
         _ = self.claudeWebExtrasEnabled
         _ = self.showOptionalCreditsAndExtraUsage
+        _ = self.codexUsageDataSource
         _ = self.claudeUsageDataSource
         _ = self.mergeIcons
         _ = self.switcherShowsIcons
@@ -237,6 +255,8 @@ final class SettingsStore {
         if creditsExtrasDefault == nil {
             self.userDefaults.set(true, forKey: "showOptionalCreditsAndExtraUsage")
         }
+        let codexSourceRaw = userDefaults.string(forKey: "codexUsageDataSource")
+        self.codexUsageDataSourceRaw = codexSourceRaw ?? CodexUsageDataSource.oauth.rawValue
         let claudeSourceRaw = userDefaults.string(forKey: "claudeUsageDataSource")
         self.claudeUsageDataSourceRaw = claudeSourceRaw ?? ClaudeUsageDataSource.oauth.rawValue
         self.mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true

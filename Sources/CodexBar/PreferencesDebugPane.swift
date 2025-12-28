@@ -58,6 +58,19 @@ struct DebugPane: View {
                 }
 
                 SettingsSection(
+                    title: "Codex data source",
+                    caption: "Debug override for Codex usage fetching.")
+                {
+                    Picker("Source", selection: self.$settings.codexUsageDataSource) {
+                        ForEach(CodexUsageDataSource.allCases) { source in
+                            Text(source.displayName).tag(source)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 240)
+                }
+
+                SettingsSection(
                     title: "Claude data source",
                     caption: "Debug override for Claude usage fetching.")
                 {

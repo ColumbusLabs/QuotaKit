@@ -9,16 +9,29 @@ read_when:
 
 # Codex provider
 
-Codex has three usage data paths (web, CLI RPC, CLI PTY) plus a local cost-usage scanner.
-The web dashboard, when enabled and authenticated, replaces CLI usage + credits in the UI.
+Codex has four usage data paths (OAuth API, web dashboard, CLI RPC, CLI PTY) plus a local cost-usage scanner.
+The OAuth API is the default app source when credentials are available.
 
 ## Data sources + fallback order
 
-### 1) OpenAI web dashboard (preferred when enabled)
+### App default selection (debug menu disabled)
+1) OAuth API (auth.json credentials).
+2) CLI RPC, with CLI PTY fallback when needed.
+
+### CLI default selection (`--source auto`)
+1) OpenAI web dashboard (when available).
+2) Codex CLI RPC, with CLI PTY fallback when needed.
+
+### OAuth API (preferred for the app)
+- Reads OAuth tokens from `~/.codex/auth.json` (or `$CODEX_HOME/auth.json`).
+- Refreshes access tokens when `last_refresh` is older than 8 days.
+- Calls `GET https://chatgpt.com/backend-api/wham/usage` (default) with `Authorization: Bearer <token>`.
+
+### OpenAI web dashboard (optional)
 - URL: `https://chatgpt.com/codex/settings/usage`.
 - Uses an off-screen `WKWebView` with a per-account `WKWebsiteDataStore`.
   - Store key: deterministic UUID from the normalized email.
-  - WebKit store can hold multiple accounts concurrently.
+- WebKit store can hold multiple accounts concurrently.
 - Cookie import (when WebKit store has no matching session or login required):
   1) Safari: `~/Library/Cookies/Cookies.binarycookies`
   2) Chrome/Chromium forks: `~/Library/Application Support/Google/Chrome/*/Cookies`
@@ -38,7 +51,7 @@ The web dashboard, when enabled and authenticated, replaces CLI usage + credits 
 - Errors surfaced:
   - Login required or Cloudflare interstitial.
 
-### 2) Codex CLI RPC (default CLI path)
+### Codex CLI RPC (default CLI fallback)
 - Launches local RPC server: `codex -s read-only -a untrusted app-server`.
 - JSON-RPC over stdin/stdout:
   - `initialize` (client name/version)
@@ -49,7 +62,7 @@ The web dashboard, when enabled and authenticated, replaces CLI usage + credits 
   - Credits snapshot (balance, hasCredits, unlimited).
   - Account identity (email + plan type) when available.
 
-### 3) Codex CLI PTY fallback (`/status`)
+### Codex CLI PTY fallback (`/status`)
 - Runs `codex` in a PTY via `TTYCommandRunner`.
 - Sends `/status`, parses the rendered screen:
   - `Credits:` line
