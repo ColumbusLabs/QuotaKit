@@ -3,6 +3,22 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.15.1</title>
+            <pubDate>Sun, 28 Dec 2025 17:57:42 +0100</pubDate>
+            <link>https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml</link>
+            <sparkle:version>43</sparkle:version>
+            <sparkle:shortVersionString>0.15.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.15.1</h2>
+<ul>
+<li>Preferences: fix provider API key fields reusing the wrong input when switching rows.</li>
+<li>Preferences: avoid Advanced tab crash when opening settings.</li>
+</ul>
+<p><a href="https://github.com/steipete/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.15.1/CodexBar-0.15.1.zip" length="7399946" type="application/octet-stream" sparkle:edSignature="uPcCwyZxDeQlMWkP/iZ6LE32xDmNRYmf3H/pMLkVYEjdZQBwmRzI5kgoMsGSQSIQ6nG9jSzd/UJcMmKi23zVDQ=="/>
+        </item>
+        <item>
             <title>0.15.0</title>
             <pubDate>Sun, 28 Dec 2025 16:54:31 +0100</pubDate>
             <link>https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml</link>
