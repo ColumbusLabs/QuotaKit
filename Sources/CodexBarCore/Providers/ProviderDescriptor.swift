@@ -52,6 +52,20 @@ public enum ProviderDescriptorRegistry {
 
     private static let lock = NSLock()
     private static let store = Store()
+    private static let bootstrap: Void = {
+        _ = ProviderDescriptorRegistry.register(CodexProviderDescriptor.descriptor)
+        _ = ProviderDescriptorRegistry.register(ClaudeProviderDescriptor.descriptor)
+        _ = ProviderDescriptorRegistry.register(FactoryProviderDescriptor.descriptor)
+        _ = ProviderDescriptorRegistry.register(ZaiProviderDescriptor.descriptor)
+        _ = ProviderDescriptorRegistry.register(CursorProviderDescriptor.descriptor)
+        _ = ProviderDescriptorRegistry.register(GeminiProviderDescriptor.descriptor)
+        _ = ProviderDescriptorRegistry.register(AntigravityProviderDescriptor.descriptor)
+        _ = ProviderDescriptorRegistry.register(CopilotProviderDescriptor.descriptor)
+    }()
+
+    private static func ensureBootstrapped() {
+        _ = self.bootstrap
+    }
 
     @discardableResult
     public static func register(_ descriptor: ProviderDescriptor) -> ProviderDescriptor {
@@ -65,6 +79,7 @@ public enum ProviderDescriptorRegistry {
     }
 
     public static var all: [ProviderDescriptor] {
+        self.ensureBootstrapped()
         self.lock.lock()
         defer { self.lock.unlock() }
         return self.store.ordered
@@ -75,12 +90,14 @@ public enum ProviderDescriptorRegistry {
     }
 
     public static func descriptor(for id: UsageProvider) -> ProviderDescriptor {
+        self.ensureBootstrapped()
         if let found = self.store.byID[id] { return found }
         if let found = self.all.first(where: { $0.id == id }) { return found }
         fatalError("Missing ProviderDescriptor for \(id.rawValue)")
     }
 
     public static var cliNameMap: [String: UsageProvider] {
+        self.ensureBootstrapped()
         var map: [String: UsageProvider] = [:]
         for descriptor in self.all {
             map[descriptor.cli.name] = descriptor.id

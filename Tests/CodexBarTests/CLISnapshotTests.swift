@@ -7,14 +7,17 @@ import Testing
 struct CLISnapshotTests {
     @Test
     func rendersTextSnapshotForCodex() {
+        let identity = ProviderIdentitySnapshot(
+            providerID: .codex,
+            accountEmail: "user@example.com",
+            accountOrganization: nil,
+            loginMethod: "pro")
         let snap = UsageSnapshot(
             primary: .init(usedPercent: 12, windowMinutes: 300, resetsAt: nil, resetDescription: "today at 3:00 PM"),
             secondary: .init(usedPercent: 25, windowMinutes: 10080, resetsAt: nil, resetDescription: "Fri at 9:00 AM"),
             tertiary: nil,
             updatedAt: Date(timeIntervalSince1970: 0),
-            accountEmail: "user@example.com",
-            accountOrganization: nil,
-            loginMethod: "pro")
+            identity: identity)
 
         let output = CLIRenderer.renderText(
             provider: .codex,
@@ -45,10 +48,7 @@ struct CLISnapshotTests {
             primary: .init(usedPercent: 2, windowMinutes: nil, resetsAt: nil, resetDescription: "3pm (Europe/Vienna)"),
             secondary: nil,
             tertiary: nil,
-            updatedAt: Date(timeIntervalSince1970: 0),
-            accountEmail: nil,
-            accountOrganization: nil,
-            loginMethod: nil)
+            updatedAt: Date(timeIntervalSince1970: 0))
 
         let output = CLIRenderer.renderText(
             provider: .claude,
@@ -69,10 +69,7 @@ struct CLISnapshotTests {
             primary: .init(usedPercent: 50, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
             secondary: .init(usedPercent: 10, windowMinutes: 10080, resetsAt: nil, resetDescription: nil),
             tertiary: nil,
-            updatedAt: Date(timeIntervalSince1970: 1_700_000_000),
-            accountEmail: nil,
-            accountOrganization: nil,
-            loginMethod: nil)
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
 
         let payload = ProviderPayload(
             provider: .codex,
@@ -110,10 +107,7 @@ struct CLISnapshotTests {
             primary: .init(usedPercent: 0, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
             secondary: nil,
             tertiary: nil,
-            updatedAt: Date(timeIntervalSince1970: 1_700_000_000),
-            accountEmail: nil,
-            accountOrganization: nil,
-            loginMethod: nil)
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
 
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .secondsSince1970
@@ -142,14 +136,17 @@ struct CLISnapshotTests {
 
     @Test
     func statusLineIsLastAndColoredWhenTTY() {
+        let identity = ProviderIdentitySnapshot(
+            providerID: .claude,
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: "pro")
         let snap = UsageSnapshot(
             primary: .init(usedPercent: 0, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
             secondary: .init(usedPercent: 0, windowMinutes: 10080, resetsAt: nil, resetDescription: nil),
             tertiary: nil,
             updatedAt: Date(),
-            accountEmail: nil,
-            accountOrganization: nil,
-            loginMethod: "pro")
+            identity: identity)
 
         let output = CLIRenderer.renderText(
             provider: .claude,
@@ -171,14 +168,17 @@ struct CLISnapshotTests {
 
     @Test
     func statusLineIsPlainWhenNoTTY() {
+        let identity = ProviderIdentitySnapshot(
+            providerID: .codex,
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: "pro")
         let snap = UsageSnapshot(
             primary: .init(usedPercent: 0, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
             secondary: .init(usedPercent: 0, windowMinutes: 10080, resetsAt: nil, resetDescription: nil),
             tertiary: nil,
             updatedAt: Date(),
-            accountEmail: nil,
-            accountOrganization: nil,
-            loginMethod: "pro")
+            identity: identity)
 
         let output = CLIRenderer.renderText(
             provider: .codex,

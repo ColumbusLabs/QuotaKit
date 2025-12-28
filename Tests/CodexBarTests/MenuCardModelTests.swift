@@ -9,6 +9,11 @@ struct MenuCardModelTests {
     @Test
     func buildsMetricsUsingRemainingPercent() {
         let now = Date()
+        let identity = ProviderIdentitySnapshot(
+            providerID: .codex,
+            accountEmail: "codex@example.com",
+            accountOrganization: nil,
+            loginMethod: "Plus Plan")
         let snapshot = UsageSnapshot(
             primary: RateWindow(
                 usedPercent: 22,
@@ -21,8 +26,7 @@ struct MenuCardModelTests {
                 resetsAt: now.addingTimeInterval(6000),
                 resetDescription: nil),
             updatedAt: now,
-            accountEmail: "codex@example.com",
-            loginMethod: "Plus Plan")
+            identity: identity)
         let metadata = ProviderDefaults.metadata[.codex]!
         let updatedSnap = UsageSnapshot(
             primary: snapshot.primary,
@@ -33,9 +37,7 @@ struct MenuCardModelTests {
                 resetDescription: nil),
             tertiary: snapshot.tertiary,
             updatedAt: now,
-            accountEmail: snapshot.accountEmail,
-            accountOrganization: snapshot.accountOrganization,
-            loginMethod: snapshot.loginMethod)
+            identity: identity)
 
         let model = UsageMenuCardView.Model.make(.init(
             provider: .codex,
@@ -67,6 +69,11 @@ struct MenuCardModelTests {
     @Test
     func buildsMetricsUsingUsedPercentWhenEnabled() {
         let now = Date()
+        let identity = ProviderIdentitySnapshot(
+            providerID: .codex,
+            accountEmail: "codex@example.com",
+            accountOrganization: nil,
+            loginMethod: "Plus Plan")
         let snapshot = UsageSnapshot(
             primary: RateWindow(
                 usedPercent: 22,
@@ -79,8 +86,7 @@ struct MenuCardModelTests {
                 resetsAt: now.addingTimeInterval(6000),
                 resetDescription: nil),
             updatedAt: now,
-            accountEmail: "codex@example.com",
-            loginMethod: "Plus Plan")
+            identity: identity)
         let metadata = ProviderDefaults.metadata[.codex]!
 
         let dashboard = OpenAIDashboardSnapshot(
@@ -119,14 +125,17 @@ struct MenuCardModelTests {
     @Test
     func showsCodeReviewMetricWhenDashboardPresent() {
         let now = Date()
+        let identity = ProviderIdentitySnapshot(
+            providerID: .codex,
+            accountEmail: "codex@example.com",
+            accountOrganization: nil,
+            loginMethod: nil)
         let snapshot = UsageSnapshot(
             primary: RateWindow(usedPercent: 0, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
             secondary: nil,
             tertiary: nil,
             updatedAt: now,
-            accountEmail: "codex@example.com",
-            accountOrganization: nil,
-            loginMethod: nil)
+            identity: identity)
         let metadata = ProviderDefaults.metadata[.codex]!
 
         let dashboard = OpenAIDashboardSnapshot(
@@ -161,6 +170,11 @@ struct MenuCardModelTests {
     @Test
     func claudeModelHidesWeeklyWhenUnavailable() {
         let now = Date()
+        let identity = ProviderIdentitySnapshot(
+            providerID: .claude,
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: "Max")
         let snapshot = UsageSnapshot(
             primary: RateWindow(
                 usedPercent: 2,
@@ -170,9 +184,7 @@ struct MenuCardModelTests {
             secondary: nil,
             tertiary: nil,
             updatedAt: now,
-            accountEmail: nil,
-            accountOrganization: nil,
-            loginMethod: "Max")
+            identity: identity)
         let metadata = ProviderDefaults.metadata[.claude]!
         let model = UsageMenuCardView.Model.make(.init(
             provider: .claude,
@@ -231,10 +243,7 @@ struct MenuCardModelTests {
             primary: RateWindow(usedPercent: 0, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
             secondary: nil,
             tertiary: nil,
-            updatedAt: now,
-            accountEmail: nil,
-            accountOrganization: nil,
-            loginMethod: nil)
+            updatedAt: now)
         let tokenSnapshot = CCUsageTokenSnapshot(
             sessionTokens: 123,
             sessionCostUSD: 1.23,
@@ -292,14 +301,17 @@ struct MenuCardModelTests {
     @Test
     func hidesCodexCreditsWhenDisabled() {
         let now = Date()
+        let identity = ProviderIdentitySnapshot(
+            providerID: .codex,
+            accountEmail: "codex@example.com",
+            accountOrganization: nil,
+            loginMethod: nil)
         let snapshot = UsageSnapshot(
             primary: RateWindow(usedPercent: 0, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
             secondary: nil,
             tertiary: nil,
             updatedAt: now,
-            accountEmail: "codex@example.com",
-            accountOrganization: nil,
-            loginMethod: nil)
+            identity: identity)
         let metadata = ProviderDefaults.metadata[.codex]!
 
         let model = UsageMenuCardView.Model.make(.init(
@@ -326,15 +338,18 @@ struct MenuCardModelTests {
     @Test
     func hidesClaudeExtraUsageWhenDisabled() {
         let now = Date()
+        let identity = ProviderIdentitySnapshot(
+            providerID: .claude,
+            accountEmail: "claude@example.com",
+            accountOrganization: nil,
+            loginMethod: nil)
         let snapshot = UsageSnapshot(
             primary: RateWindow(usedPercent: 0, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
             secondary: nil,
             tertiary: nil,
             providerCost: ProviderCostSnapshot(used: 12, limit: 200, currencyCode: "USD", updatedAt: now),
             updatedAt: now,
-            accountEmail: "claude@example.com",
-            accountOrganization: nil,
-            loginMethod: nil)
+            identity: identity)
         let metadata = ProviderDefaults.metadata[.claude]!
 
         let model = UsageMenuCardView.Model.make(.init(

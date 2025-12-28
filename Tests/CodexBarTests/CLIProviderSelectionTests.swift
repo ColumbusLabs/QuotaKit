@@ -9,8 +9,22 @@ struct CLIProviderSelectionTests {
     func helpIncludesGeminiAndAll() {
         let usage = CodexBarCLI.usageHelp(version: "0.0.0")
         let root = CodexBarCLI.rootHelp(version: "0.0.0")
-        #expect(usage.contains("codex|claude|zai|gemini|antigravity|cursor|factory|copilot|both|all"))
-        #expect(root.contains("codex|claude|zai|gemini|antigravity|cursor|factory|copilot|both|all"))
+        let expectedProviders = [
+            "--provider codex|",
+            "|claude|",
+            "|factory|",
+            "|zai|",
+            "|cursor|",
+            "|gemini|",
+            "|antigravity|",
+            "|copilot|",
+            "|both|",
+            "|all]",
+        ]
+        for provider in expectedProviders {
+            #expect(usage.contains(provider))
+            #expect(root.contains(provider))
+        }
         #expect(usage.contains("codexbar usage --provider gemini"))
         #expect(usage.contains("codexbar usage --format json --provider all --pretty"))
         #expect(root.contains("codexbar --provider gemini"))
