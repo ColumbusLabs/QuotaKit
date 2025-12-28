@@ -3,6 +3,77 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.15.0</title>
+            <pubDate>Sun, 28 Dec 2025 16:54:31 +0100</pubDate>
+            <link>https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml</link>
+            <sparkle:version>42</sparkle:version>
+            <sparkle:shortVersionString>0.15.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.15.0</h2>
+<ul>
+<li>macOS: CodexBar now supports Intel Macs (x86_64 builds + Sonoma fallbacks). Thanks @epoyraz!</li>
+<li>Droid (Factory): new provider with Standard + Premium usage via browser cookies, plus dashboard + status links. Thanks @shashank-factory!</li>
+<li>Menu: allow multi-line error messages in the provider subtitle (up to 4 lines).</li>
+<li>Menu: fix subtitle sizing for multi-line error states.</li>
+<li>Menu: avoid clipping on multi-line error subtitles.</li>
+<li>Menu: widen the menu card when 7+ providers are enabled.</li>
+<li>Providers: Codex, Claude Code, Cursor, Gemini, Antigravity, z.ai.</li>
+<li>Gemini: switch plan detection to loadCodeAssist tier lookup (Paid/Workspace/Free/Legacy). Thanks @381181295!</li>
+<li>Codex: OpenAI web dashboard is now the primary source for usage + credits; CLI fallback only when no matching cookies exist.</li>
+<li>Claude: prefer OAuth when credentials exist; fall back to web cookies or CLI (thanks @ibehnam).</li>
+<li>CLI: replace <code>--web</code>/<code>--claude-source</code> with <code>--source</code> (auto/web/cli/oauth); auto falls back only when cookies are missing.</li>
+<li>Homebrew: cask now installs the <code>codexbar</code> CLI symlink. Thanks @dalisoft!</li>
+<li>Cursor: add new usage provider with browser cookie auth (cursor.com + cursor.sh), on-demand bar support, and dashboard access.</li>
+<li>Cursor: keep stored sessions on transient failures; clear only on invalid auth.</li>
+<li>z.ai: new provider support with Tokens + MCP usage bars and MCP details submenu; API token now lives in Preferences (stored in Keychain); usage bars respect the show-used toggle. Thanks @uwe-schwarz for the initial work!</li>
+<li>Copilot: new GitHub Copilot provider with device flow login plus Premium + Chat usage bars (including CLI support). Thanks @roshan-c!</li>
+<li>Preferences: fix Advanced Display checkboxes and move the Quit button to the bottom of General.</li>
+<li>Preferences: hide “Augment Claude via web” unless Claude usage source is CLI; rename the cost toggle to “Show cost summary”.</li>
+<li>Preferences: add an Advanced toggle to show/hide optional Codex Credits + Claude Extra usage sections (on by default).</li>
+<li>Widgets: add a new “CodexBar Switcher” widget that lets you switch providers and remember the selection.</li>
+<li>Menu: provider switcher now uses crisp brand icons with equal-width segments and a per-provider usage indicator.</li>
+<li>Menu: tighten provider switcher sizing and increase spacing between label and weekly indicator bar.</li>
+<li>Menu: provider switcher no longer forces a wider menu when many providers are enabled; segments clamp to the menu width.</li>
+<li>Menu: provider switcher now aligns to the same horizontal padding grid as the menu cards when space allows.</li>
+<li>Dev: <code>compile_and_run.sh</code> now force-kills old instances to avoid launching duplicates.</li>
+<li>Dev: <code>compile_and_run.sh</code> now waits for slow launches (polling for the process).</li>
+<li>Dev: <code>compile_and_run.sh</code> now launches a single app instance (no more extra windows).</li>
+<li>CI: build/test Linux <code>CodexBarCLI</code> (x86_64 + aarch64) and publish release assets as <code>CodexBarCLI-<tag>-linux-<arch>.tar.gz</code> (+ <code>.sha256</code>).</li>
+<li>CLI: add alias fallback for Codex/Claude detection when PATH lookups fail.</li>
+<li>Providers: support Arc browser cookies for Factory/Droid (and other Chromium-based cookie imports).</li>
+<li>Providers: support ChatGPT Atlas browser data for Chromium cookie imports.</li>
+<li>Providers: accept Auth.js secure session cookies for Factory/Droid login detection.</li>
+<li>Providers: accept Factory auth session cookies (session/access-token) for Droid.</li>
+<li>Droid: surface Factory API errors instead of masking them as missing sessions.</li>
+<li>Droid: retry auth without access-token cookies when Factory flags a stale token.</li>
+<li>Droid: try all detected browser profiles before giving up.</li>
+<li>Droid: fall back to auth.factory.ai endpoints when cookies live on the auth host.</li>
+<li>Droid: use WorkOS refresh tokens from browser local storage when cookies fail.</li>
+<li>Droid: read WorkOS refresh tokens from Safari local storage.</li>
+<li>Droid: try stored/WorkOS tokens before Chrome cookies to reduce Chrome Safe Storage prompts.</li>
+<li>Menu: provider switcher bars now track primary quotas (Plan/Tokens/Pro), with Premium shown for Droid.</li>
+<li>Menu: avoid duplicate summary blocks when a provider has no action rows.</li>
+<li>OpenAI web: ignore cookie sets without session tokens to avoid false-positive dashboard fetches.</li>
+<li>Providers: hide z.ai in the menu until an API key is set.</li>
+<li>Menu: refresh runs automatically when opening the menu with a short retry (refresh row removed).</li>
+<li>Menu: hide the Status Page row when a provider has no status URL.</li>
+<li>Menu: align switcher bar with the “show usage as used” toggle.</li>
+<li>Antigravity: fix lsof port filtering by ANDing listen + pid conditions. Thanks @shaw-baobao!</li>
+<li>Claude: default to Claude Code OAuth usage API (credentials from Keychain or <code>~/.claude/.credentials.json</code>), with Debug selector + <code>--claude-source</code> CLI override (OAuth/Web/CLI).</li>
+<li>OpenAI web: allow importing any signed-in browser session when Codex email is unknown (first-run friendly).</li>
+<li>Core: Linux CLI builds now compile (mac-only WebKit/logging gated; FoundationNetworking imports where needed).</li>
+<li>Core: fix CI flake for Claude trust prompts by making PTY writes fully reliable.</li>
+<li>Core: Cursor provider is macOS-only (Linux CLI builds stub it).</li>
+<li>Core: make <code>RateWindow</code> equatable (used by OpenAI dashboard snapshots and tests).</li>
+<li>Tests: cover alias fallback resolution for Codex/Claude and add Linux platform gating coverage (run in CI).</li>
+<li>Tests: cover hiding Codex Credits + Claude Extra usage via the Advanced toggle.</li>
+<li>Docs: expand CLI docs for Linux install + flags.</li>
+</ul>
+<p><a href="https://github.com/steipete/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.15.0/CodexBar-0.15.0.zip" length="7396496" type="application/octet-stream" sparkle:edSignature="XNWjx3jR67boNrt7e1raYUB1LcEoq6aM61dRheLdxBg8Q9eet8pvhREecgrssUl8hF8OqwhXrjGl/zzImXcECw=="/>
+        </item>
+        <item>
             <title>0.14.0</title>
             <pubDate>Thu, 25 Dec 2025 03:56:15 +0100</pubDate>
             <link>https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml</link>
