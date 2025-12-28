@@ -25,6 +25,8 @@ struct CLIProviderSelectionTests {
             #expect(usage.contains(provider))
             #expect(root.contains(provider))
         }
+        #expect(usage.contains("--json"))
+        #expect(root.contains("--json"))
         #expect(usage.contains("codexbar usage --provider gemini"))
         #expect(usage.contains("codexbar usage --format json --provider all --pretty"))
         #expect(root.contains("codexbar --provider gemini"))

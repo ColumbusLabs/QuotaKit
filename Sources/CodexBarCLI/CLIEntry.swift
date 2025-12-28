@@ -30,7 +30,6 @@ enum CodexBarCLI {
 
         let usageSignature = CommandSignature
             .describe(UsageOptions())
-            .withStandardRuntimeFlags()
 
         let descriptors: [CommandDescriptor] = [
             CommandDescriptor(
@@ -226,7 +225,7 @@ enum CodexBarCLI {
         if let raw = values.options["format"]?.last, let parsed = OutputFormat(argument: raw) {
             return parsed
         }
-        if values.flags.contains("json") { return .json }
+        if values.flags.contains("jsonShortcut") || values.flags.contains("json") { return .json }
         return .text
     }
 
@@ -492,6 +491,7 @@ enum CodexBarCLI {
 
         Usage:
           codexbar usage [--format text|json]
+                       [--json]
                        [--provider \(ProviderHelp.list)]
                        [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth>]
                        [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
@@ -509,6 +509,7 @@ enum CodexBarCLI {
           codexbar usage --provider claude
           codexbar usage --provider gemini
           codexbar usage --format json --provider all --pretty
+          codexbar usage --provider all --json
           codexbar usage --status
           codexbar usage --provider codex --source web --format json --pretty
         """
@@ -520,6 +521,7 @@ enum CodexBarCLI {
 
         Usage:
           codexbar [--format text|json]
+                  [--json]
                   [--provider \(ProviderHelp.list)]
                   [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth>]
                   [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
@@ -535,6 +537,7 @@ enum CodexBarCLI {
         Examples:
           codexbar
           codexbar --format json --provider all --pretty
+          codexbar --provider all --json
           codexbar --provider gemini
         """
     }
@@ -550,6 +553,15 @@ private struct UsageOptions: CommanderParsable {
         "Data source: auto | web | cli | oauth (web/auto are macOS only)"
         #endif
     }()
+
+    @Flag(names: [.short("v"), .long("verbose")], help: "Enable verbose logging")
+    var verbose: Bool = false
+
+    @Flag(name: .long("json-output"), help: "Emit machine-readable logs")
+    var jsonOutput: Bool = false
+
+    @Option(name: .long("log-level"), help: "Set log level (trace|verbose|debug|info|warning|error|critical)")
+    var logLevel: String?
 
     @Option(
         name: .long("provider"),
