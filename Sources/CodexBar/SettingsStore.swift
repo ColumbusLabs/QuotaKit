@@ -232,6 +232,9 @@ final class SettingsStore {
     // Cache enablement so tight UI loops (menu bar animations) don't hit UserDefaults each tick.
     @ObservationIgnored private var cachedProviderEnablement: [UsageProvider: Bool] = [:]
     @ObservationIgnored private var cachedProviderEnablementRevision: Int = -1
+    // Cache order to avoid re-building sets/arrays every animation tick.
+    @ObservationIgnored private var cachedProviderOrder: [UsageProvider] = []
+    @ObservationIgnored private var cachedProviderOrderRaw: [String] = []
     private var providerToggleRevision: Int = 0
 
     init(
@@ -291,7 +294,14 @@ final class SettingsStore {
     }
 
     func orderedProviders() -> [UsageProvider] {
-        Self.effectiveProviderOrder(raw: self.providerOrderRaw)
+        let raw = self.providerOrderRaw
+        if raw == self.cachedProviderOrderRaw, !self.cachedProviderOrder.isEmpty {
+            return self.cachedProviderOrder
+        }
+        let ordered = Self.effectiveProviderOrder(raw: raw)
+        self.cachedProviderOrderRaw = raw
+        self.cachedProviderOrder = ordered
+        return ordered
     }
 
     func moveProvider(fromOffsets: IndexSet, toOffset: Int) {
