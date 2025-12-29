@@ -4,7 +4,8 @@
 - Performance: reduce menu bar CPU usage by caching morph icons, skipping redundant status-item image updates, caching provider order/enablement during animations, caching merge-state checks during blink ticks, and caching enabled providers in blink updates.
 - CI: avoid interactive login-shell probes to prevent noisy CLI-missing errors during tests.
 - Performance: cache enabled-provider ordering to avoid repeated list rebuilds.
-- Claude: local cost scanner now matches ccusage (streaming dedupe, large JSONL lines, cache tokens, glm pricing, cost CLI JSON schema). Thanks @nicosuave (PR #85) and @aavetis (issue #61)!
+- Claude: local cost scanner now matches ccusage (streaming dedupe, large JSONL lines, cache tokens, cost CLI JSON schema). Thanks @nicosuave (PR #85) and @aavetis (issue #61)!
+- Cost: skip pricing for unknown Claude models (tokens still tracked), avoiding hard-coded legacy GLM prices.
 
 ## 0.15.3 — 2025-12-28
 - Codex: default to OAuth usage API (ChatGPT backend) with CLI-only override in Debug.
@@ -103,7 +104,7 @@
 
 ## 0.12.0 — 2025-12-23
 - Widgets: add WidgetKit extension backed by a shared app‑group usage snapshot.
-- New local cost usage tracking (Codex + Claude) via a lightweight scanner — cost usage tracking inspired by ccusage (MIT). Computes cost from local JSONL logs without Node CLIs. Thanks @ryoppippi!
+- New local cost usage tracking (Codex + Claude) via a lightweight scanner — inspired by ccusage (MIT). Computes cost from local JSONL logs without Node CLIs. Thanks @ryoppippi!
 - Cost summary now includes last‑30‑days tokens; weekly pace indicators (with runout copy) hide when usage is fully depleted. Thanks @Remedy92!
 - Claude: PTY probes now stop after idle, auto‑clean on restart, and run under a watchdog to avoid runaway CLI processes.
 - Menu polish: group history under card sections, simplify history labels, and refresh menus live while open.

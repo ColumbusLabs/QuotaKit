@@ -94,12 +94,11 @@ The OAuth API is the default app source when credentials are available; web acce
   - Computes input/cached/output token deltas and per-model cost.
 - Cache:
   - `~/Library/Caches/CodexBar/cost-usage/codex-v1.json`
-  - Legacy fallback: `~/Library/Caches/CodexBar/ccusage-min/codex-v1.json`
 - Window: last 30 days (rolling), with a 60s minimum refresh interval.
 
 ## Key files
 - Web: `Sources/CodexBarCore/OpenAIWeb/*`
 - CLI RPC + PTY: `Sources/CodexBarCore/UsageFetcher.swift`,
   `Sources/CodexBarCore/Providers/Codex/CodexStatusProbe.swift`
-- Cost usage: `Sources/CodexBarCore/CCUsageFetcher.swift`,
+- Cost usage: `Sources/CodexBarCore/CostUsageFetcher.swift`,
   `Sources/CodexBarCore/Vendored/CostUsage/*`
