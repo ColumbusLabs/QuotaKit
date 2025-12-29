@@ -34,31 +34,15 @@ brew upgrade --cask steipete/tap/codexbar
 
 ## Providers
 
-### Codex
-Local Codex CLI RPC with PTY fallback; optional OpenAI web dashboard for code review remaining, usage breakdown, and credits history. More: [docs/codex.md](docs/codex.md).
-
-### Claude Code
-OAuth API or browser cookies with CLI PTY fallback; shows session + weekly usage (and model-specific weekly when available). More: [docs/claude.md](docs/claude.md).
-
-### Cursor
-Browser session cookies to fetch plan + on-demand usage and billing resets. More: [docs/cursor.md](docs/cursor.md).
-
-### Gemini
-OAuth-backed quota API using Gemini CLI credentials (no browser cookies). More: [docs/gemini.md](docs/gemini.md).
-
-### Antigravity
-Local Antigravity language server probe; no external auth. More: [docs/antigravity.md](docs/antigravity.md).
-
-### Droid (Factory)
-Browser cookies + WorkOS token flows to fetch Factory usage and billing window. More: [docs/factory.md](docs/factory.md).
-
-### Copilot
-GitHub device flow + Copilot internal usage API. More: [docs/copilot.md](docs/copilot.md).
-
-### z.ai
-API token via Keychain or env var for quota + MCP windows. More: [docs/zai.md](docs/zai.md).
-
-Open to new providers — see the authoring guide at [docs/provider.md](docs/provider.md).
+- [Codex](docs/codex.md) — Local Codex CLI RPC (+ PTY fallback) and optional OpenAI web dashboard extras.
+- [Claude](docs/claude.md) — OAuth API or browser cookies (+ CLI PTY fallback); session + weekly usage.
+- [Cursor](docs/cursor.md) — Browser session cookies for plan + usage + billing resets.
+- [Gemini](docs/gemini.md) — OAuth-backed quota API using Gemini CLI credentials (no browser cookies).
+- [Antigravity](docs/antigravity.md) — Local language server probe; no external auth.
+- [Droid](docs/factory.md) — Browser cookies + WorkOS token flows for Factory usage + billing.
+- [Copilot](docs/copilot.md) — GitHub device flow + Copilot internal usage API.
+- [z.ai](docs/zai.md) — API token (Keychain/env) for quota + MCP windows.
+- Open to new providers: [provider authoring guide](docs/provider.md).
 
 ## Icon & Screenshot
 The menu bar icon is a tiny two-bar meter:

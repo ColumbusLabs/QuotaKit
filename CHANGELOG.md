@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.15.4 — Unreleased
+## 0.16.0 — Unreleased
 - Menu bar: add Advanced toggle to show provider brand icons with percentage labels.
 - Menu: improve provider switcher hover contrast in light mode.
 - Icons: refresh Droid and Claude brand assets to better match menu bar sizing.
