@@ -214,9 +214,10 @@ extension StatusItemController {
         }()
 
         if let morphProgress {
-            button.image = IconRenderer.makeMorphIcon(progress: morphProgress, style: style)
+            let image = IconRenderer.makeMorphIcon(progress: morphProgress, style: style)
+            self.setButtonImage(image, for: button)
         } else {
-            button.image = IconRenderer.makeIcon(
+            let image = IconRenderer.makeIcon(
                 primaryRemaining: primary,
                 weeklyRemaining: weekly,
                 creditsRemaining: credits,
@@ -226,6 +227,7 @@ extension StatusItemController {
                 wiggle: wiggle,
                 tilt: tilt,
                 statusIndicator: statusIndicator)
+            self.setButtonImage(image, for: button)
         }
     }
 
@@ -265,9 +267,10 @@ extension StatusItemController {
         let wiggle = self.wiggleAmount(for: provider)
         let tilt = self.tiltAmount(for: provider) * .pi / 28 // limit to ~6.4°
         if let morphProgress {
-            button.image = IconRenderer.makeMorphIcon(progress: morphProgress, style: style)
+            let image = IconRenderer.makeMorphIcon(progress: morphProgress, style: style)
+            self.setButtonImage(image, for: button)
         } else {
-            button.image = IconRenderer.makeIcon(
+            let image = IconRenderer.makeIcon(
                 primaryRemaining: primary,
                 weeklyRemaining: weekly,
                 creditsRemaining: credits,
@@ -277,7 +280,13 @@ extension StatusItemController {
                 wiggle: wiggle,
                 tilt: tilt,
                 statusIndicator: self.store.statusIndicator(for: provider))
+            self.setButtonImage(image, for: button)
         }
+    }
+
+    private func setButtonImage(_ image: NSImage, for button: NSStatusBarButton) {
+        if button.image === image { return }
+        button.image = image
     }
 
     private func primaryProviderForUnifiedIcon() -> UsageProvider {
