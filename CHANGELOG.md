@@ -1,14 +1,14 @@
 # Changelog
 
 ## 0.16.0 — Unreleased
-- Menu bar: add Advanced toggle to show provider brand icons with percentage labels.
+- Menu bar: optional “percent mode” (provider brand icons + percentage labels) via Advanced toggle.
+- CLI: add `codexbar cost` to print local cost usage (text/JSON) for Codex + Claude.
+- Cost: align local cost scanner with ccusage; stabilize parsing/decoding and handle large JSONL lines.
+- Claude: skip pricing for unknown models (tokens still tracked) to avoid hard-coded legacy prices.
+- Performance: reduce menu bar CPU usage by caching morph icons, skipping redundant status-item updates, and caching provider enablement/order during animations.
 - Menu: improve provider switcher hover contrast in light mode.
-- Icons: refresh Droid and Claude brand assets to better match menu bar sizing.
-- Performance: reduce menu bar CPU usage by caching morph icons, skipping redundant status-item image updates, caching provider order/enablement during animations, caching merge-state checks during blink ticks, and caching enabled providers in blink updates.
-- CI: avoid interactive login-shell probes to prevent noisy CLI-missing errors during tests.
-- Performance: cache enabled-provider ordering to avoid repeated list rebuilds.
-- Claude: local cost scanner now matches ccusage (streaming dedupe, large JSONL lines, cache tokens, cost CLI JSON schema). Thanks @nicosuave (PR #85) and @aavetis (issue #61)!
-- Cost: skip pricing for unknown Claude models (tokens still tracked), avoiding hard-coded legacy GLM prices.
+- Icons: refresh Droid + Claude brand assets to better match menu sizing.
+- CI: avoid interactive login-shell probes to reduce noisy “CLI missing” errors.
 
 ## 0.15.3 — 2025-12-28
 - Codex: default to OAuth usage API (ChatGPT backend) with CLI-only override in Debug.
