@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.16.1 — Unreleased
+- Packaging: default release notarization builds universal (arm64 + x86_64) zip.
 
 ## 0.16.0 — 2025-12-29
 - Menu bar: optional “percent mode” (provider brand icons + percentage labels) via Advanced toggle.
