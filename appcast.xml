@@ -3,6 +3,28 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.16.0</title>
+            <pubDate>Mon, 29 Dec 2025 19:03:57 +0100</pubDate>
+            <link>https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml</link>
+            <sparkle:version>46</sparkle:version>
+            <sparkle:shortVersionString>0.16.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.16.0</h2>
+<ul>
+<li>Menu bar: optional “percent mode” (provider brand icons + percentage labels) via Advanced toggle.</li>
+<li>CLI: add <code>codexbar cost</code> to print local cost usage (text/JSON) for Codex + Claude.</li>
+<li>Cost: align local cost scanner with ccusage; stabilize parsing/decoding and handle large JSONL lines.</li>
+<li>Claude: skip pricing for unknown models (tokens still tracked) to avoid hard-coded legacy prices.</li>
+<li>Performance: reduce menu bar CPU usage by caching morph icons, skipping redundant status-item updates, and caching provider enablement/order during animations.</li>
+<li>Menu: improve provider switcher hover contrast in light mode.</li>
+<li>Icons: refresh Droid + Claude brand assets to better match menu sizing.</li>
+<li>CI: avoid interactive login-shell probes to reduce noisy “CLI missing” errors.</li>
+</ul>
+<p><a href="https://github.com/steipete/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.16.0/CodexBar-0.16.0.zip" length="7607740" type="application/octet-stream" sparkle:edSignature="D/d9z4+8/gqpeoXBKkmEkzpPrzs9pp1DQeCETkndA2kyi1wKTAjPyw6Hj6V1Pe3T5ge66E0N5De88ilUp6WmBw=="/>
+        </item>
+        <item>
             <title>0.15.3</title>
             <pubDate>Sun, 28 Dec 2025 20:18:41 +0100</pubDate>
             <link>https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml</link>
@@ -38,22 +60,6 @@
 <p><a href="https://github.com/steipete/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.15.2/CodexBar-0.15.2.zip" length="7413967" type="application/octet-stream" sparkle:edSignature="vv7kPaGk0vzAj1AJ5EEbRE0kXtE4iIscrkhxsjU8X+BDT5HQkwJTully+OivJFCksjuUyaZIV74tfi1kWlSWDQ=="/>
-        </item>
-        <item>
-            <title>0.15.1</title>
-            <pubDate>Sun, 28 Dec 2025 17:57:42 +0100</pubDate>
-            <link>https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml</link>
-            <sparkle:version>43</sparkle:version>
-            <sparkle:shortVersionString>0.15.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.15.1</h2>
-<ul>
-<li>Preferences: fix provider API key fields reusing the wrong input when switching rows.</li>
-<li>Preferences: avoid Advanced tab crash when opening settings.</li>
-</ul>
-<p><a href="https://github.com/steipete/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.15.1/CodexBar-0.15.1.zip" length="7399946" type="application/octet-stream" sparkle:edSignature="uPcCwyZxDeQlMWkP/iZ6LE32xDmNRYmf3H/pMLkVYEjdZQBwmRzI5kgoMsGSQSIQ6nG9jSzd/UJcMmKi23zVDQ=="/>
         </item>
         <item>
             <title>0.14.0</title>
