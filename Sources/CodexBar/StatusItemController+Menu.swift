@@ -957,6 +957,7 @@ private final class ProviderSwitcherView: NSView {
     private let weeklyRemainingProvider: (UsageProvider) -> Double?
     private var buttons: [NSButton] = []
     private var weeklyIndicators: [ObjectIdentifier: WeeklyIndicator] = [:]
+    private var hoverTrackingArea: NSTrackingArea?
     private var segmentWidths: [CGFloat] = []
     private let selectedBackground = NSColor.controlAccentColor.cgColor
     private let unselectedBackground = NSColor.clear.cgColor
@@ -967,6 +968,8 @@ private final class ProviderSwitcherView: NSView {
     private let rowSpacing: CGFloat
     private let rowHeight: CGFloat
     private var preferredWidth: CGFloat = 0
+    private var hoveredButtonTag: Int?
+    private let lightModeOverlayLayer = CALayer()
 
     init(
         providers: [UsageProvider],
@@ -1011,6 +1014,11 @@ private final class ProviderSwitcherView: NSView {
         let height: CGFloat = self.useTwoRows ? (self.rowHeight * 2 + self.rowSpacing) : self.rowHeight
         self.preferredWidth = width
         super.init(frame: NSRect(x: 0, y: 0, width: width, height: height))
+        self.wantsLayer = true
+        self.layer?.masksToBounds = false
+        self.lightModeOverlayLayer.masksToBounds = false
+        self.layer?.insertSublayer(self.lightModeOverlayLayer, at: 0)
+        self.updateLightModeStyling()
 
         let layoutCount = self.useTwoRows
             ? Int(ceil(Double(self.segments.count) / 2.0))
@@ -1105,6 +1113,57 @@ private final class ProviderSwitcherView: NSView {
             self.frame.size.width = width
         }
 
+        self.updateButtonStyles()
+    }
+
+    override func layout() {
+        super.layout()
+        self.lightModeOverlayLayer.frame = self.bounds
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        self.updateLightModeStyling()
+        self.updateButtonStyles()
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        self.window?.acceptsMouseMovedEvents = true
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+
+        if let hoverTrackingArea {
+            self.removeTrackingArea(hoverTrackingArea)
+        }
+
+        let trackingArea = NSTrackingArea(
+            rect: .zero,
+            options: [
+                .activeAlways,
+                .inVisibleRect,
+                .mouseEnteredAndExited,
+                .mouseMoved,
+            ],
+            owner: self,
+            userInfo: nil)
+        self.addTrackingArea(trackingArea)
+        self.hoverTrackingArea = trackingArea
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        let location = self.convert(event.locationInWindow, from: nil)
+        let hoveredTag = self.buttons.first(where: { $0.frame.contains(location) })?.tag
+        guard hoveredTag != self.hoveredButtonTag else { return }
+        self.hoveredButtonTag = hoveredTag
+        self.updateButtonStyles()
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        guard self.hoveredButtonTag != nil else { return }
+        self.hoveredButtonTag = nil
         self.updateButtonStyles()
     }
 
@@ -1328,12 +1387,39 @@ private final class ProviderSwitcherView: NSView {
     private func updateButtonStyles() {
         for button in self.buttons {
             let isSelected = button.state == .on
+            let isHovered = self.hoveredButtonTag == button.tag
             button.contentTintColor = isSelected ? self.selectedTextColor : self.unselectedTextColor
-            button.layer?.backgroundColor = isSelected ? self.selectedBackground : self.unselectedBackground
+            button.layer?.backgroundColor = if isSelected {
+                self.selectedBackground
+            } else if isHovered {
+                self.hoverPlateColor()
+            } else {
+                self.unselectedBackground
+            }
             self.updateWeeklyIndicatorVisibility(for: button)
             (button as? StackedToggleButton)?.setContentTintColor(button.contentTintColor)
             (button as? InlineIconToggleButton)?.setContentTintColor(button.contentTintColor)
         }
+    }
+
+    private func isLightMode() -> Bool {
+        self.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .aqua
+    }
+
+    private func updateLightModeStyling() {
+        guard self.isLightMode() else {
+            self.lightModeOverlayLayer.backgroundColor = nil
+            return
+        }
+        // The menu card background is very bright in light mode; add a subtle neutral wash to ground the switcher.
+        self.lightModeOverlayLayer.backgroundColor = NSColor.black.withAlphaComponent(0.035).cgColor
+    }
+
+    private func hoverPlateColor() -> CGColor {
+        if self.isLightMode() {
+            return NSColor.black.withAlphaComponent(0.095).cgColor
+        }
+        return NSColor.labelColor.withAlphaComponent(0.06).cgColor
     }
 
     private static func maxToggleWidth(for button: NSButton) -> CGFloat {

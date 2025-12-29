@@ -2,6 +2,7 @@
 
 ## 0.15.4 — Unreleased
 - Menu bar: add Advanced toggle to show provider brand icons with percentage labels.
+- Menu: improve provider switcher hover contrast in light mode.
 - Icons: refresh Droid and Claude brand assets to better match menu bar sizing.
 - Performance: reduce menu bar CPU usage by caching morph icons, skipping redundant status-item image updates, caching provider order/enablement during animations, caching merge-state checks during blink ticks, and caching enabled providers in blink updates.
 - CI: avoid interactive login-shell probes to prevent noisy CLI-missing errors during tests.
