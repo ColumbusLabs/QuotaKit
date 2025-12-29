@@ -337,7 +337,9 @@ final class UsageStore {
     }
 
     func enabledProviders() -> [UsageProvider] {
-        self.settings.orderedProviders().filter { self.isEnabled($0) }
+        // Use cached enablement to avoid repeated UserDefaults lookups in animation ticks.
+        let enabled = self.settings.enabledProvidersOrdered(metadataByProvider: self.providerMetadata)
+        return enabled.filter { self.isProviderAvailable($0) }
     }
 
     var statusChecksEnabled: Bool {
@@ -395,8 +397,14 @@ final class UsageStore {
     }
 
     func isEnabled(_ provider: UsageProvider) -> Bool {
-        let enabled = self.settings.isProviderEnabled(provider: provider, metadata: self.metadata(for: provider))
+        let enabled = self.settings.isProviderEnabledCached(
+            provider: provider,
+            metadataByProvider: self.providerMetadata)
         guard enabled else { return false }
+        return self.isProviderAvailable(provider)
+    }
+
+    private func isProviderAvailable(_ provider: UsageProvider) -> Bool {
         if provider == .zai {
             if ZaiSettingsReader.apiToken(environment: ProcessInfo.processInfo.environment) != nil {
                 return true

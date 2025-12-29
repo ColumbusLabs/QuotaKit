@@ -229,6 +229,9 @@ final class SettingsStore {
     @ObservationIgnored private var zaiTokenPersistTask: Task<Void, Never>?
     @ObservationIgnored private let copilotTokenStore: any CopilotTokenStoring
     @ObservationIgnored private var copilotTokenPersistTask: Task<Void, Never>?
+    // Cache enablement so tight UI loops (menu bar animations) don't hit UserDefaults each tick.
+    @ObservationIgnored private var cachedProviderEnablement: [UsageProvider: Bool] = [:]
+    @ObservationIgnored private var cachedProviderEnablementRevision: Int = -1
     private var providerToggleRevision: Int = 0
 
     init(
@@ -302,6 +305,19 @@ final class SettingsStore {
         return self.toggleStore.isEnabled(metadata: metadata)
     }
 
+    func isProviderEnabledCached(
+        provider: UsageProvider,
+        metadataByProvider: [UsageProvider: ProviderMetadata]) -> Bool
+    {
+        self.refreshProviderEnablementCacheIfNeeded(metadataByProvider: metadataByProvider)
+        return self.cachedProviderEnablement[provider] ?? false
+    }
+
+    func enabledProvidersOrdered(metadataByProvider: [UsageProvider: ProviderMetadata]) -> [UsageProvider] {
+        self.refreshProviderEnablementCacheIfNeeded(metadataByProvider: metadataByProvider)
+        return self.orderedProviders().filter { self.cachedProviderEnablement[$0] ?? false }
+    }
+
     func setProviderEnabled(provider: UsageProvider, metadata: ProviderMetadata, enabled: Bool) {
         self.providerToggleRevision &+= 1
         self.toggleStore.setEnabled(enabled, metadata: metadata)
@@ -344,6 +360,19 @@ final class SettingsStore {
         }
 
         return ordered
+    }
+
+    private func refreshProviderEnablementCacheIfNeeded(
+        metadataByProvider: [UsageProvider: ProviderMetadata])
+    {
+        let revision = self.providerToggleRevision
+        guard revision != self.cachedProviderEnablementRevision else { return }
+        var cache: [UsageProvider: Bool] = [:]
+        for (provider, metadata) in metadataByProvider {
+            cache[provider] = self.toggleStore.isEnabled(metadata: metadata)
+        }
+        self.cachedProviderEnablement = cache
+        self.cachedProviderEnablementRevision = revision
     }
 
     private func runInitialProviderDetectionIfNeeded(force: Bool = false) {
