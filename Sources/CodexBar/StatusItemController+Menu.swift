@@ -1442,12 +1442,12 @@ private final class ProviderSwitcherView: NSView {
         let onWidth = button.fittingSize.width
 
         let maxWidth = max(offWidth, onWidth)
-        buttonWidthCache[buttonId] = maxWidth
+        self.buttonWidthCache[buttonId] = maxWidth
         return maxWidth
     }
 
     private static func clearButtonWidthCache() {
-        buttonWidthCache.removeAll()
+        self.buttonWidthCache.removeAll()
     }
 
     private func applyUniformSegmentWidth(maxAllowedWidth: CGFloat) -> CGFloat {

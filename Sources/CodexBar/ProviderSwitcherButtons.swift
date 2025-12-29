@@ -27,7 +27,7 @@ final class InlineIconToggleButton: NSButton {
     private let stack = NSStackView()
     private var paddingConstraints: [NSLayoutConstraint] = []
     private var iconSizeConstraints: [NSLayoutConstraint] = []
-    private var isConfiguring = false  // Batch invalidation during setup
+    private var isConfiguring = false // Batch invalidation during setup
 
     var contentPadding = NSEdgeInsets(top: 4, left: 7, bottom: 4, right: 7) {
         didSet {
@@ -77,12 +77,12 @@ final class InlineIconToggleButton: NSButton {
         super.init(frame: .zero)
         self.target = target
         self.action = action
-        self.isConfiguring = true  // Batch invalidations during setup
+        self.isConfiguring = true // Batch invalidations during setup
         self.configure()
         self.title = title
         self.image = image
         self.isConfiguring = false
-        self.invalidateIntrinsicContentSize()  // Single invalidation after setup
+        self.invalidateIntrinsicContentSize() // Single invalidation after setup
     }
 
     @available(*, unavailable)
@@ -144,7 +144,7 @@ final class StackedToggleButton: NSButton {
     private let stack = NSStackView()
     private var paddingConstraints: [NSLayoutConstraint] = []
     private var iconSizeConstraints: [NSLayoutConstraint] = []
-    private var isConfiguring = false  // Batch invalidation during setup
+    private var isConfiguring = false // Batch invalidation during setup
 
     var contentPadding = NSEdgeInsets(top: 2, left: 4, bottom: 2, right: 4) {
         didSet {
@@ -194,12 +194,12 @@ final class StackedToggleButton: NSButton {
         super.init(frame: .zero)
         self.target = target
         self.action = action
-        self.isConfiguring = true  // Batch invalidations during setup
+        self.isConfiguring = true // Batch invalidations during setup
         self.configure()
         self.title = title
         self.image = image
         self.isConfiguring = false
-        self.invalidateIntrinsicContentSize()  // Single invalidation after setup
+        self.invalidateIntrinsicContentSize() // Single invalidation after setup
     }
 
     @available(*, unavailable)

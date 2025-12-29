@@ -15,8 +15,7 @@ struct ProviderIconResourcesTests {
             let url = resources.appending(path: "ProviderIcon-\(slug).svg")
             #expect(
                 FileManager.default.fileExists(atPath: url.path(percentEncoded: false)),
-                "Missing SVG for \(slug)"
-            )
+                "Missing SVG for \(slug)")
 
             let image = NSImage(contentsOf: url)
             #expect(image != nil, "Could not load SVG as NSImage for \(slug)")
