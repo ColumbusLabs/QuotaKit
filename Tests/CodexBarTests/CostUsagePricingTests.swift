@@ -38,29 +38,13 @@ struct CostUsagePricingTests {
     }
 
     @Test
-    func claudeCostSupportsGlmVariants() {
-        let glm46Cost = CostUsagePricing.claudeCostUSD(
+    func claudeCostReturnsNilForUnknownModels() {
+        let cost = CostUsagePricing.claudeCostUSD(
             model: "glm-4.6",
             inputTokens: 100,
             cacheReadInputTokens: 500,
             cacheCreationInputTokens: 0,
             outputTokens: 40)
-        let glm46Expected = 100 * 2.25e-6 + 40 * 2.75e-6
-        #expect(glm46Cost != nil)
-        if let glm46Cost {
-            #expect(abs(glm46Cost - glm46Expected) < 1e-12)
-        }
-
-        let glm45Cost = CostUsagePricing.claudeCostUSD(
-            model: "glm-4.5-air",
-            inputTokens: 200,
-            cacheReadInputTokens: 1000,
-            cacheCreationInputTokens: 0,
-            outputTokens: 50)
-        let glm45Expected = 200 * 2e-7 + 50 * 1.1e-6
-        #expect(glm45Cost != nil)
-        if let glm45Cost {
-            #expect(abs(glm45Cost - glm45Expected) < 1e-12)
-        }
+        #expect(cost == nil)
     }
 }

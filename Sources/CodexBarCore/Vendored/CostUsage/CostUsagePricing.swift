@@ -114,27 +114,6 @@ enum CostUsagePricing {
             outputCostPerTokenAboveThreshold: 2.25e-5,
             cacheCreationInputCostPerTokenAboveThreshold: 7.5e-6,
             cacheReadInputCostPerTokenAboveThreshold: 6e-7),
-        // LiteLLM matching for glm models observed in Claude logs; cache tokens are unpriced there.
-        "glm-4.6": ClaudePricing(
-            inputCostPerToken: 2.25e-6,
-            outputCostPerToken: 2.75e-6,
-            cacheCreationInputCostPerToken: 0,
-            cacheReadInputCostPerToken: 0,
-            thresholdTokens: nil,
-            inputCostPerTokenAboveThreshold: nil,
-            outputCostPerTokenAboveThreshold: nil,
-            cacheCreationInputCostPerTokenAboveThreshold: nil,
-            cacheReadInputCostPerTokenAboveThreshold: nil),
-        "glm-4.5-air": ClaudePricing(
-            inputCostPerToken: 2e-7,
-            outputCostPerToken: 1.1e-6,
-            cacheCreationInputCostPerToken: 0,
-            cacheReadInputCostPerToken: 0,
-            thresholdTokens: nil,
-            inputCostPerTokenAboveThreshold: nil,
-            outputCostPerTokenAboveThreshold: nil,
-            cacheCreationInputCostPerTokenAboveThreshold: nil,
-            cacheReadInputCostPerTokenAboveThreshold: nil),
     ]
 
     static func normalizeCodexModel(_ raw: String) -> String {
