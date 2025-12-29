@@ -7,6 +7,14 @@ import WebKit
 /// Captures session cookies after successful authentication.
 @MainActor
 final class CursorLoginRunner: NSObject {
+    override nonisolated var hash: Int {
+        ObjectIdentifier(self).hashValue
+    }
+
+    override nonisolated func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? CursorLoginRunner else { return false }
+        return ObjectIdentifier(self) == ObjectIdentifier(other)
+    }
     enum Phase: Sendable {
         case loading
         case waitingLogin
@@ -30,6 +38,15 @@ final class CursorLoginRunner: NSObject {
     private var continuation: CheckedContinuation<Result, Never>?
     private var phaseCallback: ((Phase) -> Void)?
     private var hasCompletedLogin = false
+    private var cleanupScheduled = false
+
+    // Keep runners alive until after cleanup to avoid x86_64 autorelease crashes
+    private static var activeRunners: Set<CursorLoginRunner> = []
+#if arch(x86_64)
+    private static let retainRunnersAfterCleanup = true
+#else
+    private static let retainRunnersAfterCleanup = false
+#endif
 
     private static let dashboardURL = URL(string: "https://cursor.com/dashboard")!
     private static let loginURLPattern = "authenticator.cursor.sh"
@@ -37,6 +54,9 @@ final class CursorLoginRunner: NSObject {
     /// Runs the Cursor login flow in a browser window.
     /// Returns the result after the user completes login or cancels.
     func run(onPhaseChange: @escaping @Sendable (Phase) -> Void) async -> Result {
+        // Keep this instance alive during the flow
+        Self.activeRunners.insert(self)
+
         self.phaseCallback = onPhaseChange
         onPhaseChange(.loading)
 
@@ -47,9 +67,10 @@ final class CursorLoginRunner: NSObject {
     }
 
     private func setupWindow() {
-        // Configure WebView with persistent data store
+        // Configure WebView with non-persistent data store
+        // This prevents cross-session state contamination on Intel Macs
         let config = WKWebViewConfiguration()
-        config.websiteDataStore = .default()
+        config.websiteDataStore = .nonPersistent()
 
         let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 480, height: 640), configuration: config)
         webView.navigationDelegate = self
@@ -61,6 +82,7 @@ final class CursorLoginRunner: NSObject {
             styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false)
+        window.isReleasedWhenClosed = false
         window.title = "Cursor Login"
         window.contentView = webView
         window.center()
@@ -76,15 +98,46 @@ final class CursorLoginRunner: NSObject {
     private func complete(with result: Result) {
         guard let continuation = self.continuation else { return }
         self.continuation = nil
-        self.cleanup()
+        self.scheduleCleanup()
         continuation.resume(returning: result)
     }
 
+    private func scheduleCleanup() {
+        guard !self.cleanupScheduled else { return }
+        self.cleanupScheduled = true
+        Task { @MainActor in
+            // Let WebKit unwind delegate callbacks before teardown on Intel.
+            await Task.yield()
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            self.cleanup()
+        }
+    }
+
     private func cleanup() {
-        self.window?.close()
-        self.window = nil
+        // Stop any pending WebView operations
+        self.webView?.stopLoading()
+
+        // Clear delegates to prevent callbacks during teardown
         self.webView?.navigationDelegate = nil
-        self.webView = nil
+        self.window?.delegate = nil
+
+        // Hide the window; Intel builds retain runners to avoid WebKit teardown crashes.
+        if Self.retainRunnersAfterCleanup {
+            self.window?.orderOut(nil)
+        } else {
+            self.window?.close()
+        }
+
+        // DON'T nil the references - let ARC clean them up when this instance is deallocated
+        // This avoids autorelease pool over-release crashes on x86_64
+
+        if !Self.retainRunnersAfterCleanup {
+            // Release the strong reference after a delay to let autorelease pool drain
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                Self.activeRunners.remove(self)
+            }
+        }
     }
 
     private func captureSessionCookies() async {

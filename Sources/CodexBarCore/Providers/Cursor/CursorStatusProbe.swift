@@ -313,6 +313,7 @@ public actor CursorSessionStore {
     public static let shared = CursorSessionStore()
 
     private var sessionCookies: [HTTPCookie] = []
+    private var hasLoadedFromDisk = false
     private let fileURL: URL
 
     private init() {
@@ -324,25 +325,35 @@ public actor CursorSessionStore {
         self.fileURL = dir.appendingPathComponent("cursor-session.json")
 
         // Load saved cookies on init
-        Task { await self.loadFromDisk() }
+        Task { await self.loadFromDiskIfNeeded() }
     }
 
     public func setCookies(_ cookies: [HTTPCookie]) {
+        self.hasLoadedFromDisk = true
         self.sessionCookies = cookies
         self.saveToDisk()
     }
 
     public func getCookies() -> [HTTPCookie] {
-        self.sessionCookies
+        self.loadFromDiskIfNeeded()
+        return self.sessionCookies
     }
 
     public func clearCookies() {
+        self.hasLoadedFromDisk = true
         self.sessionCookies = []
         try? FileManager.default.removeItem(at: self.fileURL)
     }
 
     public func hasValidSession() -> Bool {
-        !self.sessionCookies.isEmpty
+        self.loadFromDiskIfNeeded()
+        return !self.sessionCookies.isEmpty
+    }
+
+    private func loadFromDiskIfNeeded() {
+        guard !self.hasLoadedFromDisk else { return }
+        self.hasLoadedFromDisk = true
+        self.loadFromDisk()
     }
 
     private func saveToDisk() {
