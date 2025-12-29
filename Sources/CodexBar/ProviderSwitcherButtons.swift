@@ -27,6 +27,7 @@ final class InlineIconToggleButton: NSButton {
     private let stack = NSStackView()
     private var paddingConstraints: [NSLayoutConstraint] = []
     private var iconSizeConstraints: [NSLayoutConstraint] = []
+    private var isConfiguring = false  // Batch invalidation during setup
 
     var contentPadding = NSEdgeInsets(top: 4, left: 7, bottom: 4, right: 7) {
         didSet {
@@ -34,7 +35,7 @@ final class InlineIconToggleButton: NSButton {
             self.paddingConstraints.first { $0.firstAttribute == .leading }?.constant = self.contentPadding.left
             self.paddingConstraints.first { $0.firstAttribute == .trailing }?.constant = -self.contentPadding.right
             self.paddingConstraints.first { $0.firstAttribute == .bottom }?.constant = -(self.contentPadding.bottom + 4)
-            self.invalidateIntrinsicContentSize()
+            if !self.isConfiguring { self.invalidateIntrinsicContentSize() }
         }
     }
 
@@ -46,7 +47,7 @@ final class InlineIconToggleButton: NSButton {
             super.attributedTitle = NSAttributedString(string: "")
             super.attributedAlternateTitle = NSAttributedString(string: "")
             self.titleField.stringValue = newValue
-            self.invalidateIntrinsicContentSize()
+            if !self.isConfiguring { self.invalidateIntrinsicContentSize() }
         }
     }
 
@@ -56,7 +57,7 @@ final class InlineIconToggleButton: NSButton {
             super.image = nil
             super.alternateImage = nil
             self.iconView.image = newValue
-            self.invalidateIntrinsicContentSize()
+            if !self.isConfiguring { self.invalidateIntrinsicContentSize() }
         }
     }
 
@@ -76,9 +77,12 @@ final class InlineIconToggleButton: NSButton {
         super.init(frame: .zero)
         self.target = target
         self.action = action
+        self.isConfiguring = true  // Batch invalidations during setup
         self.configure()
         self.title = title
         self.image = image
+        self.isConfiguring = false
+        self.invalidateIntrinsicContentSize()  // Single invalidation after setup
     }
 
     @available(*, unavailable)
@@ -140,6 +144,7 @@ final class StackedToggleButton: NSButton {
     private let stack = NSStackView()
     private var paddingConstraints: [NSLayoutConstraint] = []
     private var iconSizeConstraints: [NSLayoutConstraint] = []
+    private var isConfiguring = false  // Batch invalidation during setup
 
     var contentPadding = NSEdgeInsets(top: 2, left: 4, bottom: 2, right: 4) {
         didSet {
@@ -147,7 +152,7 @@ final class StackedToggleButton: NSButton {
             self.paddingConstraints.first { $0.firstAttribute == .leading }?.constant = self.contentPadding.left
             self.paddingConstraints.first { $0.firstAttribute == .trailing }?.constant = -self.contentPadding.right
             self.paddingConstraints.first { $0.firstAttribute == .bottom }?.constant = -self.contentPadding.bottom
-            self.invalidateIntrinsicContentSize()
+            if !self.isConfiguring { self.invalidateIntrinsicContentSize() }
         }
     }
 
@@ -159,7 +164,7 @@ final class StackedToggleButton: NSButton {
             super.attributedTitle = NSAttributedString(string: "")
             super.attributedAlternateTitle = NSAttributedString(string: "")
             self.titleField.stringValue = newValue
-            self.invalidateIntrinsicContentSize()
+            if !self.isConfiguring { self.invalidateIntrinsicContentSize() }
         }
     }
 
@@ -169,7 +174,7 @@ final class StackedToggleButton: NSButton {
             super.image = nil
             super.alternateImage = nil
             self.iconView.image = newValue
-            self.invalidateIntrinsicContentSize()
+            if !self.isConfiguring { self.invalidateIntrinsicContentSize() }
         }
     }
 
@@ -189,9 +194,12 @@ final class StackedToggleButton: NSButton {
         super.init(frame: .zero)
         self.target = target
         self.action = action
+        self.isConfiguring = true  // Batch invalidations during setup
         self.configure()
         self.title = title
         self.image = image
+        self.isConfiguring = false
+        self.invalidateIntrinsicContentSize()  // Single invalidation after setup
     }
 
     @available(*, unavailable)
