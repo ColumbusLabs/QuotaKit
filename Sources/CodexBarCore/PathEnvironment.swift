@@ -214,10 +214,12 @@ public enum ShellCommandLocator {
 
     private static func runShellCapture(_ shell: String?, _ timeout: TimeInterval, _ command: String) -> String? {
         let shellPath = (shell?.isEmpty == false) ? shell! : "/bin/zsh"
+        let isCI = ["1", "true"].contains(ProcessInfo.processInfo.environment["CI"]?.lowercased())
         let process = Process()
         process.executableURL = URL(fileURLWithPath: shellPath)
         // Interactive login shell to pick up PATH mutations from shell init (nvm/fnm/mise).
-        process.arguments = ["-l", "-i", "-c", command]
+        // CI runners can have shell init hooks that emit missing CLI errors; avoid them in CI.
+        process.arguments = isCI ? ["-c", command] : ["-l", "-i", "-c", command]
         let stdout = Pipe()
         process.standardOutput = stdout
         process.standardError = Pipe()
@@ -361,10 +363,14 @@ enum LoginShellPathCapturer {
         timeout: TimeInterval = 2.0) -> [String]?
     {
         let shellPath = (shell?.isEmpty == false) ? shell! : "/bin/zsh"
+        let isCI = ["1", "true"].contains(ProcessInfo.processInfo.environment["CI"]?.lowercased())
         let marker = "__CODEXBAR_PATH__"
         let process = Process()
         process.executableURL = URL(fileURLWithPath: shellPath)
-        process.arguments = ["-l", "-i", "-c", "printf '\(marker)%s\(marker)' \"$PATH\""]
+        // Skip interactive login shells in CI to avoid noisy init hooks.
+        process.arguments = isCI
+            ? ["-c", "printf '\(marker)%s\(marker)' \"$PATH\""]
+            : ["-l", "-i", "-c", "printf '\(marker)%s\(marker)' \"$PATH\""]
         let stdout = Pipe()
         process.standardOutput = stdout
         process.standardError = Pipe()
