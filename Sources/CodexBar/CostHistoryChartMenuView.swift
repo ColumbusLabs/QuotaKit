@@ -4,7 +4,7 @@ import SwiftUI
 
 @MainActor
 struct CostHistoryChartMenuView: View {
-    typealias DailyEntry = CCUsageDailyReport.Entry
+    typealias DailyEntry = CostUsageDailyReport.Entry
 
     private struct Point: Identifiable {
         let id: String

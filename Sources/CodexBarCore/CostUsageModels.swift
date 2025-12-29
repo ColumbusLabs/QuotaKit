@@ -1,11 +1,11 @@
 import Foundation
 
-public struct CCUsageTokenSnapshot: Sendable, Equatable {
+public struct CostUsageTokenSnapshot: Sendable, Equatable {
     public let sessionTokens: Int?
     public let sessionCostUSD: Double?
     public let last30DaysTokens: Int?
     public let last30DaysCostUSD: Double?
-    public let daily: [CCUsageDailyReport.Entry]
+    public let daily: [CostUsageDailyReport.Entry]
     public let updatedAt: Date
 
     public init(
@@ -13,7 +13,7 @@ public struct CCUsageTokenSnapshot: Sendable, Equatable {
         sessionCostUSD: Double?,
         last30DaysTokens: Int?,
         last30DaysCostUSD: Double?,
-        daily: [CCUsageDailyReport.Entry],
+        daily: [CostUsageDailyReport.Entry],
         updatedAt: Date)
     {
         self.sessionTokens = sessionTokens
@@ -25,7 +25,7 @@ public struct CCUsageTokenSnapshot: Sendable, Equatable {
     }
 }
 
-public struct CCUsageDailyReport: Sendable, Decodable {
+public struct CostUsageDailyReport: Sendable, Decodable {
     public struct ModelBreakdown: Sendable, Decodable, Equatable {
         public let modelName: String
         public let costUSD: Double?
@@ -128,7 +128,7 @@ public struct CCUsageDailyReport: Sendable, Decodable {
 
             guard container.contains(.models) else { return nil }
 
-            guard let modelMap = try? container.nestedContainer(keyedBy: CCUsageAnyCodingKey.self, forKey: .models)
+            guard let modelMap = try? container.nestedContainer(keyedBy: CostUsageAnyCodingKey.self, forKey: .models)
             else { return nil }
 
             let modelNames = modelMap.allKeys.map(\.stringValue).sorted()
@@ -212,7 +212,7 @@ public struct CCUsageDailyReport: Sendable, Decodable {
 
         self.data = try container.decode([Entry].self, forKey: .daily)
         if container.contains(.totals) {
-            let totals = try container.decode(CCUsageLegacyTotals.self, forKey: .totals)
+            let totals = try container.decode(CostUsageLegacyTotals.self, forKey: .totals)
             self.summary = Summary(
                 totalInputTokens: totals.totalInputTokens,
                 totalOutputTokens: totals.totalOutputTokens,
@@ -229,7 +229,7 @@ public struct CCUsageDailyReport: Sendable, Decodable {
     }
 }
 
-public struct CCUsageSessionReport: Sendable, Decodable {
+public struct CostUsageSessionReport: Sendable, Decodable {
     public struct Entry: Sendable, Decodable, Equatable {
         public let session: String
         public let inputTokens: Int?
@@ -305,7 +305,7 @@ public struct CCUsageSessionReport: Sendable, Decodable {
     }
 }
 
-public struct CCUsageMonthlyReport: Sendable, Decodable {
+public struct CostUsageMonthlyReport: Sendable, Decodable {
     public struct Entry: Sendable, Decodable, Equatable {
         public let month: String
         public let totalTokens: Int?
@@ -375,14 +375,14 @@ public struct CCUsageMonthlyReport: Sendable, Decodable {
     }
 }
 
-private struct CCUsageLegacyTotals: Sendable, Decodable {
+private struct CostUsageLegacyTotals: Sendable, Decodable {
     let totalInputTokens: Int?
     let totalOutputTokens: Int?
     let totalTokens: Int?
     let totalCost: Double?
 }
 
-private struct CCUsageAnyCodingKey: CodingKey {
+private struct CostUsageAnyCodingKey: CodingKey {
     var intValue: Int?
     var stringValue: String
 
@@ -397,7 +397,7 @@ private struct CCUsageAnyCodingKey: CodingKey {
     }
 }
 
-enum CCUsageDateParser {
+enum CostUsageDateParser {
     static func parse(_ text: String?) -> Date? {
         guard let text, !text.isEmpty else { return nil }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)

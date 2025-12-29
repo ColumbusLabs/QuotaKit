@@ -25,7 +25,7 @@ extension CodexBarCLI {
         let forceRefresh = values.flags.contains("refresh")
         let useColor = Self.shouldUseColor(noColor: values.flags.contains("noColor"), format: format)
 
-        let fetcher = CCUsageFetcher()
+        let fetcher = CostUsageFetcher()
         var sections: [String] = []
         var payload: [CostPayload] = []
         var exitCode: ExitCode = .success
@@ -92,7 +92,7 @@ extension CodexBarCLI {
 
     static func renderCostText(
         provider: UsageProvider,
-        snapshot: CCUsageTokenSnapshot,
+        snapshot: CostUsageTokenSnapshot,
         useColor: Bool) -> String
     {
         let name = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
@@ -118,7 +118,7 @@ extension CodexBarCLI {
         selection.asList.filter { Self.costSupportedProviders.contains($0) }
     }
 
-    private static func makeCostPayload(provider: UsageProvider, snapshot: CCUsageTokenSnapshot) -> CostPayload {
+    private static func makeCostPayload(provider: UsageProvider, snapshot: CostUsageTokenSnapshot) -> CostPayload {
         let daily = snapshot.daily.map { entry in
             CostDailyEntryPayload(
                 date: entry.date,
@@ -146,7 +146,7 @@ extension CodexBarCLI {
             totals: Self.costTotals(from: snapshot))
     }
 
-    private static func costTotals(from snapshot: CCUsageTokenSnapshot) -> CostTotalsPayload? {
+    private static func costTotals(from snapshot: CostUsageTokenSnapshot) -> CostTotalsPayload? {
         let entries = snapshot.daily
         guard !entries.isEmpty else {
             guard snapshot.last30DaysTokens != nil || snapshot.last30DaysCostUSD != nil else { return nil }

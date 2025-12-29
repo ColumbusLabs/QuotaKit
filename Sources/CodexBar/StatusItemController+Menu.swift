@@ -108,7 +108,7 @@ extension StatusItemController {
             dashboard != nil
         let hasCreditsHistory = openAIWebEligible && !(dashboard?.dailyBreakdown ?? []).isEmpty
         let hasUsageBreakdown = openAIWebEligible && !(dashboard?.usageBreakdown ?? []).isEmpty
-        let hasCostHistory = self.settings.isCCUsageCostUsageEffectivelyEnabled(for: currentProvider) &&
+        let hasCostHistory = self.settings.isCostUsageEffectivelyEnabled(for: currentProvider) &&
             (self.store.tokenSnapshot(for: currentProvider)?.daily.isEmpty == false)
         let hasOpenAIWebMenuItems = hasCreditsHistory || hasUsageBreakdown || hasCostHistory
         var addedOpenAIWebItems = false
@@ -842,7 +842,7 @@ extension StatusItemController {
         let creditsError: String?
         let dashboard: OpenAIDashboardSnapshot?
         let dashboardError: String?
-        let tokenSnapshot: CCUsageTokenSnapshot?
+        let tokenSnapshot: CostUsageTokenSnapshot?
         let tokenError: String?
         if target == .codex {
             credits = self.store.credits
@@ -881,7 +881,7 @@ extension StatusItemController {
             isRefreshing: self.store.isRefreshing,
             lastError: self.store.error(for: target),
             usageBarsShowUsed: self.settings.usageBarsShowUsed,
-            tokenCostUsageEnabled: self.settings.isCCUsageCostUsageEffectivelyEnabled(for: target),
+            tokenCostUsageEnabled: self.settings.isCostUsageEffectivelyEnabled(for: target),
             showOptionalCreditsAndExtraUsage: self.settings.showOptionalCreditsAndExtraUsage,
             now: Date())
         return UsageMenuCardView.Model.make(input)

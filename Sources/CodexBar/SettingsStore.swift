@@ -86,8 +86,8 @@ final class SettingsStore {
     }
 
     /// Optional: show provider cost summary from local usage logs (Codex + Claude).
-    var ccusageCostUsageEnabled: Bool {
-        didSet { self.userDefaults.set(self.ccusageCostUsageEnabled, forKey: "tokenCostUsageEnabled") }
+    var costUsageEnabled: Bool {
+        didSet { self.userDefaults.set(self.costUsageEnabled, forKey: "tokenCostUsageEnabled") }
     }
 
     var randomBlinkEnabled: Bool {
@@ -202,7 +202,7 @@ final class SettingsStore {
         _ = self.statusChecksEnabled
         _ = self.sessionQuotaNotificationsEnabled
         _ = self.usageBarsShowUsed
-        _ = self.ccusageCostUsageEnabled
+        _ = self.costUsageEnabled
         _ = self.randomBlinkEnabled
         _ = self.claudeWebExtrasEnabled
         _ = self.showOptionalCreditsAndExtraUsage
@@ -262,7 +262,7 @@ final class SettingsStore {
             self.userDefaults.set(true, forKey: "sessionQuotaNotificationsEnabled")
         }
         self.usageBarsShowUsed = userDefaults.object(forKey: "usageBarsShowUsed") as? Bool ?? false
-        self.ccusageCostUsageEnabled = userDefaults.object(forKey: "tokenCostUsageEnabled") as? Bool ?? false
+        self.costUsageEnabled = userDefaults.object(forKey: "tokenCostUsageEnabled") as? Bool ?? false
         self.randomBlinkEnabled = userDefaults.object(forKey: "randomBlinkEnabled") as? Bool ?? false
         self.claudeWebExtrasEnabled = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false
         let creditsExtrasDefault = userDefaults.object(forKey: "showOptionalCreditsAndExtraUsage") as? Bool
@@ -354,8 +354,8 @@ final class SettingsStore {
 
     // MARK: - Private
 
-    func isCCUsageCostUsageEffectivelyEnabled(for provider: UsageProvider) -> Bool {
-        self.ccusageCostUsageEnabled
+    func isCostUsageEffectivelyEnabled(for provider: UsageProvider) -> Bool {
+        self.costUsageEnabled
             && ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.supportsTokenCost
     }
 
@@ -456,7 +456,7 @@ final class SettingsStore {
             }.value
             guard hasSources else { return }
             guard UserDefaults.standard.object(forKey: "tokenCostUsageEnabled") == nil else { return }
-            self.ccusageCostUsageEnabled = true
+            self.costUsageEnabled = true
         }
     }
 

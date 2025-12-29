@@ -244,7 +244,7 @@ struct MenuCardModelTests {
             secondary: nil,
             tertiary: nil,
             updatedAt: now)
-        let tokenSnapshot = CCUsageTokenSnapshot(
+        let tokenSnapshot = CostUsageTokenSnapshot(
             sessionTokens: 123,
             sessionCostUSD: 1.23,
             last30DaysTokens: 456,

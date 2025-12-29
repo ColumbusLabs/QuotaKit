@@ -19,7 +19,7 @@ struct CLICostTests {
 
     @Test
     func rendersCostTextSnapshot() {
-        let snap = CCUsageTokenSnapshot(
+        let snap = CostUsageTokenSnapshot(
             sessionTokens: 1200,
             sessionCostUSD: 1.25,
             last30DaysTokens: 9000,

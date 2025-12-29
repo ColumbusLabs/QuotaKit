@@ -42,7 +42,7 @@ extension UsageStore {
             _ = self.settings.statusChecksEnabled
             _ = self.settings.sessionQuotaNotificationsEnabled
             _ = self.settings.usageBarsShowUsed
-            _ = self.settings.ccusageCostUsageEnabled
+            _ = self.settings.costUsageEnabled
             _ = self.settings.randomBlinkEnabled
             _ = self.settings.claudeWebExtrasEnabled
             _ = self.settings.claudeUsageDataSource
@@ -140,7 +140,7 @@ extension UsageStore {
         self.snapshots[provider] = snapshot?.scoped(to: provider)
     }
 
-    func _setTokenSnapshotForTesting(_ snapshot: CCUsageTokenSnapshot?, provider: UsageProvider) {
+    func _setTokenSnapshotForTesting(_ snapshot: CostUsageTokenSnapshot?, provider: UsageProvider) {
         self.tokenSnapshots[provider] = snapshot
     }
 
@@ -187,7 +187,7 @@ final class UsageStore {
     private(set) var errors: [UsageProvider: String] = [:]
     private(set) var lastSourceLabels: [UsageProvider: String] = [:]
     private(set) var lastFetchAttempts: [UsageProvider: [ProviderFetchAttempt]] = [:]
-    private(set) var tokenSnapshots: [UsageProvider: CCUsageTokenSnapshot] = [:]
+    private(set) var tokenSnapshots: [UsageProvider: CostUsageTokenSnapshot] = [:]
     private(set) var tokenErrors: [UsageProvider: String] = [:]
     private(set) var tokenRefreshInFlight: Set<UsageProvider> = []
     var credits: CreditsSnapshot?
@@ -219,7 +219,7 @@ final class UsageStore {
 
     @ObservationIgnored private let codexFetcher: UsageFetcher
     @ObservationIgnored private let claudeFetcher: any ClaudeUsageFetching
-    @ObservationIgnored private let ccusageFetcher: CCUsageFetcher
+    @ObservationIgnored private let costUsageFetcher: CostUsageFetcher
     @ObservationIgnored private let registry: ProviderRegistry
     @ObservationIgnored private let settings: SettingsStore
     @ObservationIgnored private let sessionQuotaNotifier: SessionQuotaNotifier
@@ -242,14 +242,14 @@ final class UsageStore {
     init(
         fetcher: UsageFetcher,
         claudeFetcher: any ClaudeUsageFetching = ClaudeUsageFetcher(),
-        ccusageFetcher: CCUsageFetcher = CCUsageFetcher(),
+        costUsageFetcher: CostUsageFetcher = CostUsageFetcher(),
         settings: SettingsStore,
         registry: ProviderRegistry = .shared,
         sessionQuotaNotifier: SessionQuotaNotifier = SessionQuotaNotifier())
     {
         self.codexFetcher = fetcher
         self.claudeFetcher = claudeFetcher
-        self.ccusageFetcher = ccusageFetcher
+        self.costUsageFetcher = costUsageFetcher
         self.settings = settings
         self.registry = registry
         self.sessionQuotaNotifier = sessionQuotaNotifier
@@ -1291,7 +1291,6 @@ extension UsageStore {
             let fm = FileManager.default
             let cacheDirs = [
                 Self.costUsageCacheDirectory(fileManager: fm),
-                Self.legacyCCUsageCacheDirectory(fileManager: fm),
             ]
 
             for cacheDir in cacheDirs {
@@ -1324,7 +1323,7 @@ extension UsageStore {
             return
         }
 
-        guard self.settings.ccusageCostUsageEnabled else {
+        guard self.settings.costUsageEnabled else {
             self.tokenSnapshots.removeValue(forKey: provider)
             self.tokenErrors[provider] = nil
             self.tokenFailureGates[provider]?.reset()
@@ -1356,18 +1355,18 @@ extension UsageStore {
         let startedAt = Date()
         let providerText = provider.rawValue
         self.tokenCostLogger
-            .info("ccusage start provider=\(providerText) force=\(force)")
+            .info("cost usage start provider=\(providerText) force=\(force)")
 
         do {
-            let fetcher = self.ccusageFetcher
+            let fetcher = self.costUsageFetcher
             let timeoutSeconds = self.tokenFetchTimeout
-            let snapshot = try await withThrowingTaskGroup(of: CCUsageTokenSnapshot.self) { group in
+            let snapshot = try await withThrowingTaskGroup(of: CostUsageTokenSnapshot.self) { group in
                 group.addTask(priority: .utility) {
                     try await fetcher.loadTokenSnapshot(provider: provider, now: now, forceRefresh: force)
                 }
                 group.addTask {
                     try await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))
-                    throw CCUsageError.timedOut(seconds: Int(timeoutSeconds))
+                    throw CostUsageError.timedOut(seconds: Int(timeoutSeconds))
                 }
                 defer { group.cancelAll() }
                 guard let snapshot = try await group.next() else { throw CancellationError() }
@@ -1385,7 +1384,7 @@ extension UsageStore {
             let monthCost = snapshot.last30DaysCostUSD.map(UsageFormatter.usdString) ?? "—"
             let durationText = String(format: "%.2f", duration)
             let message =
-                "ccusage success provider=\(providerText) " +
+                "cost usage success provider=\(providerText) " +
                 "duration=\(durationText)s " +
                 "today=\(sessionCost) " +
                 "30d=\(monthCost)"
@@ -1399,7 +1398,7 @@ extension UsageStore {
             let duration = Date().timeIntervalSince(startedAt)
             let msg = error.localizedDescription
             let durationText = String(format: "%.2f", duration)
-            let message = "ccusage failed provider=\(providerText) duration=\(durationText)s error=\(msg)"
+            let message = "cost usage failed provider=\(providerText) duration=\(durationText)s error=\(msg)"
             self.tokenCostLogger.error(message)
             let hadPriorData = self.tokenSnapshots[provider] != nil
             let shouldSurface = self.tokenFailureGates[provider]?

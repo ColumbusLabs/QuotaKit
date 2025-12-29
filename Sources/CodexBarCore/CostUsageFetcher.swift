@@ -1,6 +1,6 @@
 import Foundation
 
-public enum CCUsageError: LocalizedError, Sendable {
+public enum CostUsageError: LocalizedError, Sendable {
     case unsupportedProvider(UsageProvider)
     case timedOut(seconds: Int)
 
@@ -17,16 +17,16 @@ public enum CCUsageError: LocalizedError, Sendable {
     }
 }
 
-public struct CCUsageFetcher: Sendable {
+public struct CostUsageFetcher: Sendable {
     public init() {}
 
     public func loadTokenSnapshot(
         provider: UsageProvider,
         now: Date = Date(),
-        forceRefresh: Bool = false) async throws -> CCUsageTokenSnapshot
+        forceRefresh: Bool = false) async throws -> CostUsageTokenSnapshot
     {
         guard provider == .codex || provider == .claude else {
-            throw CCUsageError.unsupportedProvider(provider)
+            throw CostUsageError.unsupportedProvider(provider)
         }
 
         let until = now
@@ -50,10 +50,11 @@ public struct CCUsageFetcher: Sendable {
         return Self.tokenSnapshot(from: daily, now: now)
     }
 
-    static func tokenSnapshot(from daily: CCUsageDailyReport, now: Date) -> CCUsageTokenSnapshot {
+    static func tokenSnapshot(from daily: CostUsageDailyReport, now: Date) -> CostUsageTokenSnapshot {
+        // Pick the most recent day; break ties by cost/tokens to keep a stable "session" row.
         let currentDay = daily.data.max { lhs, rhs in
-            let lDate = CCUsageDateParser.parse(lhs.date) ?? .distantPast
-            let rDate = CCUsageDateParser.parse(rhs.date) ?? .distantPast
+            let lDate = CostUsageDateParser.parse(lhs.date) ?? .distantPast
+            let rDate = CostUsageDateParser.parse(rhs.date) ?? .distantPast
             if lDate != rDate { return lDate < rDate }
             let lCost = lhs.costUSD ?? -1
             let rCost = rhs.costUSD ?? -1
@@ -63,6 +64,7 @@ public struct CCUsageFetcher: Sendable {
             if lTokens != rTokens { return lTokens < rTokens }
             return lhs.date < rhs.date
         }
+        // Prefer summary totals when present; fall back to summing daily entries.
         let totalFromSummary = daily.summary?.totalCostUSD
         let totalFromEntries = daily.data.compactMap(\.costUSD).reduce(0, +)
         let last30DaysCostUSD = totalFromSummary ?? (totalFromEntries > 0 ? totalFromEntries : nil)
@@ -70,7 +72,7 @@ public struct CCUsageFetcher: Sendable {
         let totalTokensFromEntries = daily.data.compactMap(\.totalTokens).reduce(0, +)
         let last30DaysTokens = totalTokensFromSummary ?? (totalTokensFromEntries > 0 ? totalTokensFromEntries : nil)
 
-        return CCUsageTokenSnapshot(
+        return CostUsageTokenSnapshot(
             sessionTokens: currentDay?.totalTokens,
             sessionCostUSD: currentDay?.costUSD,
             last30DaysTokens: last30DaysTokens,
@@ -79,13 +81,13 @@ public struct CCUsageFetcher: Sendable {
             updatedAt: now)
     }
 
-    static func selectCurrentSession(from sessions: [CCUsageSessionReport.Entry])
-        -> CCUsageSessionReport.Entry?
+    static func selectCurrentSession(from sessions: [CostUsageSessionReport.Entry])
+        -> CostUsageSessionReport.Entry?
     {
         if sessions.isEmpty { return nil }
         return sessions.max { lhs, rhs in
-            let lDate = CCUsageDateParser.parse(lhs.lastActivity) ?? .distantPast
-            let rDate = CCUsageDateParser.parse(rhs.lastActivity) ?? .distantPast
+            let lDate = CostUsageDateParser.parse(lhs.lastActivity) ?? .distantPast
+            let rDate = CostUsageDateParser.parse(rhs.lastActivity) ?? .distantPast
             if lDate != rDate { return lDate < rDate }
             let lCost = lhs.costUSD ?? -1
             let rCost = rhs.costUSD ?? -1
@@ -97,13 +99,13 @@ public struct CCUsageFetcher: Sendable {
         }
     }
 
-    static func selectMostRecentMonth(from months: [CCUsageMonthlyReport.Entry])
-        -> CCUsageMonthlyReport.Entry?
+    static func selectMostRecentMonth(from months: [CostUsageMonthlyReport.Entry])
+        -> CostUsageMonthlyReport.Entry?
     {
         if months.isEmpty { return nil }
         return months.max { lhs, rhs in
-            let lDate = CCUsageDateParser.parseMonth(lhs.month) ?? .distantPast
-            let rDate = CCUsageDateParser.parseMonth(rhs.month) ?? .distantPast
+            let lDate = CostUsageDateParser.parseMonth(lhs.month) ?? .distantPast
+            let rDate = CostUsageDateParser.parseMonth(rhs.month) ?? .distantPast
             if lDate != rDate { return lDate < rDate }
             let lCost = lhs.costUSD ?? -1
             let rCost = rhs.costUSD ?? -1

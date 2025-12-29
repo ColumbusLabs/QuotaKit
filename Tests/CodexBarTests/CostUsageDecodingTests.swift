@@ -4,7 +4,7 @@ import Testing
 @testable import CodexBarCore
 
 @Suite
-struct CCUsageDecodingTests {
+struct CostUsageDecodingTests {
     @Test
     func decodesDailyReportTypeFormat() throws {
         let json = """
@@ -32,7 +32,7 @@ struct CCUsageDecodingTests {
         }
         """
 
-        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
+        let report = try JSONDecoder().decode(CostUsageDailyReport.self, from: Data(json.utf8))
         #expect(report.data.count == 1)
         #expect(report.data[0].date == "2025-12-20")
         #expect(report.data[0].totalTokens == 30)
@@ -70,7 +70,7 @@ struct CCUsageDecodingTests {
         }
         """
 
-        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
+        let report = try JSONDecoder().decode(CostUsageDailyReport.self, from: Data(json.utf8))
         #expect(report.data.count == 1)
         #expect(report.summary?.totalTokens == 3)
         #expect(report.summary?.totalCostUSD == 0.01)
@@ -78,6 +78,34 @@ struct CCUsageDecodingTests {
         #expect(report.data[0].cacheCreationTokens == 3)
         #expect(report.summary?.cacheReadTokens == 2)
         #expect(report.summary?.cacheCreationTokens == 3)
+    }
+
+    @Test
+    func decodesLegacyCacheTokenKeys() throws {
+        let json = """
+        {
+          "type": "daily",
+          "data": [
+            {
+              "date": "2025-12-20",
+              "cacheReadInputTokens": 4,
+              "cacheCreationInputTokens": 5,
+              "totalTokens": 9
+            }
+          ],
+          "summary": {
+            "totalCacheReadTokens": 4,
+            "totalCacheCreationTokens": 5,
+            "totalTokens": 9
+          }
+        }
+        """
+
+        let report = try JSONDecoder().decode(CostUsageDailyReport.self, from: Data(json.utf8))
+        #expect(report.data[0].cacheReadTokens == 4)
+        #expect(report.data[0].cacheCreationTokens == 5)
+        #expect(report.summary?.cacheReadTokens == 4)
+        #expect(report.summary?.cacheCreationTokens == 5)
     }
 
     @Test
@@ -108,7 +136,7 @@ struct CCUsageDecodingTests {
         }
         """
 
-        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
+        let report = try JSONDecoder().decode(CostUsageDailyReport.self, from: Data(json.utf8))
         #expect(report.data.count == 1)
         #expect(report.data[0].costUSD == 0.12)
         #expect(report.data[0].modelsUsed == ["gpt-5.2"])
@@ -133,7 +161,7 @@ struct CCUsageDecodingTests {
         }
         """
 
-        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
+        let report = try JSONDecoder().decode(CostUsageDailyReport.self, from: Data(json.utf8))
         #expect(report.data[0].modelsUsed == ["a-model", "m-model", "z-model"])
     }
 
@@ -152,7 +180,7 @@ struct CCUsageDecodingTests {
         }
         """
 
-        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
+        let report = try JSONDecoder().decode(CostUsageDailyReport.self, from: Data(json.utf8))
         #expect(report.data[0].modelsUsed == nil)
     }
 
@@ -174,7 +202,7 @@ struct CCUsageDecodingTests {
         }
         """
 
-        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
+        let report = try JSONDecoder().decode(CostUsageDailyReport.self, from: Data(json.utf8))
         #expect(report.data[0].modelsUsed == ["gpt-5.2"])
     }
 
@@ -193,7 +221,7 @@ struct CCUsageDecodingTests {
         }
         """
 
-        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
+        let report = try JSONDecoder().decode(CostUsageDailyReport.self, from: Data(json.utf8))
         #expect(report.data[0].modelsUsed == ["gpt-5.2", "gpt-5.2-mini"])
     }
 
@@ -212,7 +240,7 @@ struct CCUsageDecodingTests {
         }
         """
 
-        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
+        let report = try JSONDecoder().decode(CostUsageDailyReport.self, from: Data(json.utf8))
         #expect(report.data[0].modelsUsed == nil)
     }
 
@@ -234,7 +262,7 @@ struct CCUsageDecodingTests {
         }
         """
 
-        let report = try JSONDecoder().decode(CCUsageMonthlyReport.self, from: Data(json.utf8))
+        let report = try JSONDecoder().decode(CostUsageMonthlyReport.self, from: Data(json.utf8))
         #expect(report.data.count == 1)
         #expect(report.data[0].month == "Dec 2025")
         #expect(report.data[0].costUSD == 4.56)
@@ -272,8 +300,8 @@ struct CCUsageDecodingTests {
         }
         """
 
-        let report = try JSONDecoder().decode(CCUsageSessionReport.self, from: Data(json.utf8))
-        let selected = CCUsageFetcher.selectCurrentSession(from: report.data)
+        let report = try JSONDecoder().decode(CostUsageSessionReport.self, from: Data(json.utf8))
+        let selected = CostUsageFetcher.selectCurrentSession(from: report.data)
         #expect(selected?.session == "B")
     }
 
@@ -300,9 +328,9 @@ struct CCUsageDecodingTests {
         }
         """
 
-        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
+        let report = try JSONDecoder().decode(CostUsageDailyReport.self, from: Data(json.utf8))
         let now = Date(timeIntervalSince1970: 1_766_275_200) // 2025-12-21
-        let snapshot = CCUsageFetcher.tokenSnapshot(from: report, now: now)
+        let snapshot = CostUsageFetcher.tokenSnapshot(from: report, now: now)
         #expect(snapshot.sessionTokens == 10)
         #expect(snapshot.sessionCostUSD == 4.56)
         #expect(snapshot.last30DaysCostUSD == 5.79)
@@ -325,8 +353,8 @@ struct CCUsageDecodingTests {
         }
         """
 
-        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
-        let snapshot = CCUsageFetcher.tokenSnapshot(from: report, now: Date())
+        let report = try JSONDecoder().decode(CostUsageDailyReport.self, from: Data(json.utf8))
+        let snapshot = CostUsageFetcher.tokenSnapshot(from: report, now: Date())
         #expect(snapshot.last30DaysCostUSD == 99.00)
     }
 
@@ -342,8 +370,8 @@ struct CCUsageDecodingTests {
         }
         """
 
-        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
-        let snapshot = CCUsageFetcher.tokenSnapshot(from: report, now: Date())
+        let report = try JSONDecoder().decode(CostUsageDailyReport.self, from: Data(json.utf8))
+        let snapshot = CostUsageFetcher.tokenSnapshot(from: report, now: Date())
         #expect(snapshot.last30DaysCostUSD == 3.00)
     }
 
@@ -359,8 +387,8 @@ struct CCUsageDecodingTests {
         }
         """
 
-        let report = try JSONDecoder().decode(CCUsageDailyReport.self, from: Data(json.utf8))
-        let snapshot = CCUsageFetcher.tokenSnapshot(from: report, now: Date())
+        let report = try JSONDecoder().decode(CostUsageDailyReport.self, from: Data(json.utf8))
+        let snapshot = CostUsageFetcher.tokenSnapshot(from: report, now: Date())
         #expect(snapshot.last30DaysCostUSD == nil)
     }
 }

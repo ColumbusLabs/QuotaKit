@@ -31,7 +31,7 @@ struct GeneralPane: View {
 
                     VStack(alignment: .leading, spacing: 10) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Toggle(isOn: self.$settings.ccusageCostUsageEnabled) {
+                            Toggle(isOn: self.$settings.costUsageEnabled) {
                                 Text("Show cost summary")
                                     .font(.body)
                             }
@@ -42,7 +42,7 @@ struct GeneralPane: View {
                                 .foregroundStyle(.tertiary)
                                 .fixedSize(horizontal: false, vertical: true)
 
-                            if self.settings.ccusageCostUsageEnabled {
+                            if self.settings.costUsageEnabled {
                                 Text("Auto-refresh: hourly · Timeout: 10m")
                                     .font(.footnote)
                                     .foregroundStyle(.tertiary)

@@ -582,7 +582,7 @@ extension UsageMenuCardView.Model {
         let creditsError: String?
         let dashboard: OpenAIDashboardSnapshot?
         let dashboardError: String?
-        let tokenSnapshot: CCUsageTokenSnapshot?
+        let tokenSnapshot: CostUsageTokenSnapshot?
         let tokenError: String?
         let account: AccountInfo
         let isRefreshing: Bool
@@ -781,7 +781,7 @@ extension UsageMenuCardView.Model {
     private static func tokenUsageSection(
         provider: UsageProvider,
         enabled: Bool,
-        snapshot: CCUsageTokenSnapshot?,
+        snapshot: CostUsageTokenSnapshot?,
         error: String?) -> TokenUsageSection?
     {
         guard provider == .codex || provider == .claude else { return nil }

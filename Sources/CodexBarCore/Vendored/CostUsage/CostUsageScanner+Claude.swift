@@ -100,6 +100,8 @@ extension CostUsageScanner {
                     let key = "\(messageId):\(requestId)"
                     if seenKeys.contains(key) { return }
                     seenKeys.insert(key)
+                } else {
+                    // Older logs omit IDs; treat each line as distinct to avoid dropping usage.
                 }
 
                 func toInt(_ v: Any?) -> Int {
@@ -308,7 +310,7 @@ extension CostUsageScanner {
         }
     }
 
-    static func loadClaudeDaily(range: CostUsageDayRange, now: Date, options: Options) -> CCUsageDailyReport {
+    static func loadClaudeDaily(range: CostUsageDayRange, now: Date, options: Options) -> CostUsageDailyReport {
         var cache = CostUsageCacheIO.load(provider: .claude, cacheRoot: options.cacheRoot)
         let nowMs = Int64(now.timeIntervalSince1970 * 1000)
 
@@ -353,9 +355,9 @@ extension CostUsageScanner {
 
     private static func buildClaudeReportFromCache(
         cache: CostUsageCache,
-        range: CostUsageDayRange) -> CCUsageDailyReport
+        range: CostUsageDayRange) -> CostUsageDailyReport
     {
-        var entries: [CCUsageDailyReport.Entry] = []
+        var entries: [CostUsageDailyReport.Entry] = []
         var totalInput = 0
         var totalOutput = 0
         var totalCacheRead = 0
@@ -378,7 +380,7 @@ extension CostUsageScanner {
             var dayCacheRead = 0
             var dayCacheCreate = 0
 
-            var breakdown: [CCUsageDailyReport.ModelBreakdown] = []
+            var breakdown: [CostUsageDailyReport.ModelBreakdown] = []
             var dayCost: Double = 0
             var dayCostSeen = false
 
@@ -390,7 +392,7 @@ extension CostUsageScanner {
                 let output = packed[safe: 3] ?? 0
                 let cachedCost = packed[safe: 4] ?? 0
 
-                // ccusage reports cache tokens separately; totalTokens includes cache + input.
+                // Cache tokens are tracked separately; totalTokens includes input + cache.
                 dayInput += input
                 dayCacheRead += cacheRead
                 dayCacheCreate += cacheCreate
@@ -404,7 +406,7 @@ extension CostUsageScanner {
                         cacheReadInputTokens: cacheRead,
                         cacheCreationInputTokens: cacheCreate,
                         outputTokens: output)
-                breakdown.append(CCUsageDailyReport.ModelBreakdown(modelName: model, costUSD: cost))
+                breakdown.append(CostUsageDailyReport.ModelBreakdown(modelName: model, costUSD: cost))
                 if let cost {
                     dayCost += cost
                     dayCostSeen = true
@@ -416,7 +418,7 @@ extension CostUsageScanner {
 
             let dayTotal = dayInput + dayCacheRead + dayCacheCreate + dayOutput
             let entryCost = dayCostSeen ? dayCost : nil
-            entries.append(CCUsageDailyReport.Entry(
+            entries.append(CostUsageDailyReport.Entry(
                 date: day,
                 inputTokens: dayInput,
                 outputTokens: dayOutput,
@@ -438,9 +440,9 @@ extension CostUsageScanner {
             }
         }
 
-        let summary: CCUsageDailyReport.Summary? = entries.isEmpty
+        let summary: CostUsageDailyReport.Summary? = entries.isEmpty
             ? nil
-            : CCUsageDailyReport.Summary(
+            : CostUsageDailyReport.Summary(
                 totalInputTokens: totalInput,
                 totalOutputTokens: totalOutput,
                 cacheReadTokens: totalCacheRead,
@@ -448,6 +450,6 @@ extension CostUsageScanner {
                 totalTokens: totalTokens,
                 totalCostUSD: costSeen ? totalCost : nil)
 
-        return CCUsageDailyReport(data: entries, summary: summary)
+        return CostUsageDailyReport(data: entries, summary: summary)
     }
 }

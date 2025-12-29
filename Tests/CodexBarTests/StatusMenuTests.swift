@@ -156,7 +156,7 @@ struct StatusMenuTests {
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
         settings.selectedMenuProvider = .codex
-        settings.ccusageCostUsageEnabled = true
+        settings.costUsageEnabled = true
 
         let registry = ProviderRegistry.shared
         if let codexMeta = registry.metadata[.codex] {
@@ -180,13 +180,13 @@ struct StatusMenuTests {
             usageBreakdown: [],
             creditsPurchaseURL: nil,
             updatedAt: Date())
-        store._setTokenSnapshotForTesting(CCUsageTokenSnapshot(
+        store._setTokenSnapshotForTesting(CostUsageTokenSnapshot(
             sessionTokens: 123,
             sessionCostUSD: 0.12,
             last30DaysTokens: 123,
             last30DaysCostUSD: 1.23,
             daily: [
-                CCUsageDailyReport.Entry(
+                CostUsageDailyReport.Entry(
                     date: "2025-12-23",
                     inputTokens: nil,
                     outputTokens: nil,
@@ -221,7 +221,7 @@ struct StatusMenuTests {
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
         settings.selectedMenuProvider = .claude
-        settings.ccusageCostUsageEnabled = true
+        settings.costUsageEnabled = true
         settings.claudeWebExtrasEnabled = true
 
         let registry = ProviderRegistry.shared
@@ -256,13 +256,13 @@ struct StatusMenuTests {
             updatedAt: Date(),
             identity: identity)
         store._setSnapshotForTesting(snapshot, provider: .claude)
-        store._setTokenSnapshotForTesting(CCUsageTokenSnapshot(
+        store._setTokenSnapshotForTesting(CostUsageTokenSnapshot(
             sessionTokens: 123,
             sessionCostUSD: 0.12,
             last30DaysTokens: 123,
             last30DaysCostUSD: 1.23,
             daily: [
-                CCUsageDailyReport.Entry(
+                CostUsageDailyReport.Entry(
                     date: "2025-12-23",
                     inputTokens: nil,
                     outputTokens: nil,

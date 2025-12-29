@@ -39,7 +39,7 @@ enum CostUsageScanner {
         since: Date,
         until: Date,
         now: Date = Date(),
-        options: Options = Options()) -> CCUsageDailyReport
+        options: Options = Options()) -> CostUsageDailyReport
     {
         let range = CostUsageDayRange(since: since, until: until)
 
@@ -49,17 +49,17 @@ enum CostUsageScanner {
         case .claude:
             return self.loadClaudeDaily(range: range, now: now, options: options)
         case .zai:
-            return CCUsageDailyReport(data: [], summary: nil)
+            return CostUsageDailyReport(data: [], summary: nil)
         case .gemini:
-            return CCUsageDailyReport(data: [], summary: nil)
+            return CostUsageDailyReport(data: [], summary: nil)
         case .antigravity:
-            return CCUsageDailyReport(data: [], summary: nil)
+            return CostUsageDailyReport(data: [], summary: nil)
         case .cursor:
-            return CCUsageDailyReport(data: [], summary: nil)
+            return CostUsageDailyReport(data: [], summary: nil)
         case .factory:
-            return CCUsageDailyReport(data: [], summary: nil)
+            return CostUsageDailyReport(data: [], summary: nil)
         case .copilot:
-            return CCUsageDailyReport(data: [], summary: nil)
+            return CostUsageDailyReport(data: [], summary: nil)
         }
     }
 
@@ -257,7 +257,7 @@ enum CostUsageScanner {
             lastTotals: previousTotals)
     }
 
-    private static func loadCodexDaily(range: CostUsageDayRange, now: Date, options: Options) -> CCUsageDailyReport {
+    private static func loadCodexDaily(range: CostUsageDayRange, now: Date, options: Options) -> CostUsageDailyReport {
         var cache = CostUsageCacheIO.load(provider: .codex, cacheRoot: options.cacheRoot)
         let nowMs = Int64(now.timeIntervalSince1970 * 1000)
 
@@ -348,9 +348,9 @@ enum CostUsageScanner {
 
     private static func buildCodexReportFromCache(
         cache: CostUsageCache,
-        range: CostUsageDayRange) -> CCUsageDailyReport
+        range: CostUsageDayRange) -> CostUsageDailyReport
     {
-        var entries: [CCUsageDailyReport.Entry] = []
+        var entries: [CostUsageDailyReport.Entry] = []
         var totalInput = 0
         var totalOutput = 0
         var totalTokens = 0
@@ -368,7 +368,7 @@ enum CostUsageScanner {
             var dayInput = 0
             var dayOutput = 0
 
-            var breakdown: [CCUsageDailyReport.ModelBreakdown] = []
+            var breakdown: [CostUsageDailyReport.ModelBreakdown] = []
             var dayCost: Double = 0
             var dayCostSeen = false
 
@@ -386,7 +386,7 @@ enum CostUsageScanner {
                     inputTokens: input,
                     cachedInputTokens: cached,
                     outputTokens: output)
-                breakdown.append(CCUsageDailyReport.ModelBreakdown(modelName: model, costUSD: cost))
+                breakdown.append(CostUsageDailyReport.ModelBreakdown(modelName: model, costUSD: cost))
                 if let cost {
                     dayCost += cost
                     dayCostSeen = true
@@ -398,7 +398,7 @@ enum CostUsageScanner {
 
             let dayTotal = dayInput + dayOutput
             let entryCost = dayCostSeen ? dayCost : nil
-            entries.append(CCUsageDailyReport.Entry(
+            entries.append(CostUsageDailyReport.Entry(
                 date: day,
                 inputTokens: dayInput,
                 outputTokens: dayOutput,
@@ -416,15 +416,15 @@ enum CostUsageScanner {
             }
         }
 
-        let summary: CCUsageDailyReport.Summary? = entries.isEmpty
+        let summary: CostUsageDailyReport.Summary? = entries.isEmpty
             ? nil
-            : CCUsageDailyReport.Summary(
+            : CostUsageDailyReport.Summary(
                 totalInputTokens: totalInput,
                 totalOutputTokens: totalOutput,
                 totalTokens: totalTokens,
                 totalCostUSD: costSeen ? totalCost : nil)
 
-        return CCUsageDailyReport(data: entries, summary: summary)
+        return CostUsageDailyReport(data: entries, summary: summary)
     }
 
     // MARK: - Shared cache mutations

@@ -431,11 +431,11 @@ enum CodexBarCLI {
         case CodexStatusProbeError.timedOut,
              TTYCommandRunner.Error.timedOut,
              GeminiStatusProbeError.timedOut,
-             CCUsageError.timedOut:
+             CostUsageError.timedOut:
             ExitCode(4)
         case ClaudeUsageError.parseFailed,
              ClaudeUsageError.oauthFailed,
-             CCUsageError.unsupportedProvider,
+             CostUsageError.unsupportedProvider,
              UsageError.decodeFailed,
              UsageError.noRateLimitsFound,
              GeminiStatusProbeError.parseFailed:
