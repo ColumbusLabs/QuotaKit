@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.16.1 — Unreleased
+- Menu: reduce layout thrash when opening menus and sizing charts (thanks @ibehnam).
 
 ## 0.16.0 — 2025-12-29
 - Menu bar: optional “percent mode” (provider brand icons + percentage labels) via Advanced toggle.

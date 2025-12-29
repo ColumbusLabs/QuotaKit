@@ -377,11 +377,17 @@ extension StatusItemController {
             return max(1, ceil(measured.measuredHeight(width: width) + basePadding + descenderSafety))
         }
 
-        // Set frame with target width - this is sufficient for fittingSize calculation
+        // Set frame with target width before measuring.
         view.frame = NSRect(origin: .zero, size: NSSize(width: width, height: 1))
 
-        // Single layout pass instead of multiple invalidations
+        // Constrain width for accurate wrapping during layout.
+        let widthConstraint = view.widthAnchor.constraint(equalToConstant: width)
+        widthConstraint.priority = .required
+        widthConstraint.isActive = true
+
+        // Single layout pass instead of multiple invalidations.
         view.layoutSubtreeIfNeeded()
+        widthConstraint.isActive = false
 
         // Use fittingSize directly - the frame width already constrains the view
         let fitted = view.fittingSize
@@ -1004,6 +1010,7 @@ private final class ProviderSwitcherView: NSView {
         let height: CGFloat = self.useTwoRows ? (self.rowHeight * 2 + self.rowSpacing) : self.rowHeight
         self.preferredWidth = width
         super.init(frame: NSRect(x: 0, y: 0, width: width, height: height))
+        Self.clearButtonWidthCache()
         self.wantsLayer = true
         self.layer?.masksToBounds = false
         self.lightModeOverlayLayer.masksToBounds = false
@@ -1412,24 +1419,31 @@ private final class ProviderSwitcherView: NSView {
         return NSColor.labelColor.withAlphaComponent(0.06).cgColor
     }
 
-    // Cache for button width measurements to avoid repeated layout passes
+    // Cache for button width measurements to avoid repeated layout passes.
     private static var buttonWidthCache: [ObjectIdentifier: CGFloat] = [:]
 
     private static func maxToggleWidth(for button: NSButton) -> CGFloat {
         let buttonId = ObjectIdentifier(button)
 
-        // Return cached value if available
+        // Return cached value if available.
         if let cached = buttonWidthCache[buttonId] {
             return cached
         }
 
-        // For toggle buttons, the width difference between states is typically just
-        // font weight change. Calculate once using fittingSize without state flipping.
-        let width = ceil(button.fittingSize.width)
+        let originalState = button.state
+        defer { button.state = originalState }
 
-        // Cache the result
-        buttonWidthCache[buttonId] = width
-        return width
+        button.state = .off
+        button.layoutSubtreeIfNeeded()
+        let offWidth = button.fittingSize.width
+
+        button.state = .on
+        button.layoutSubtreeIfNeeded()
+        let onWidth = button.fittingSize.width
+
+        let maxWidth = max(offWidth, onWidth)
+        buttonWidthCache[buttonId] = maxWidth
+        return maxWidth
     }
 
     private static func clearButtonWidthCache() {
