@@ -2,6 +2,7 @@
 
 ## 0.16.1 — Unreleased
 - Menu: reduce layout thrash when opening menus and sizing charts (thanks @ibehnam).
+- Packaging: default release notarization builds universal (arm64 + x86_64) zip.
 
 ## 0.16.0 — 2025-12-29
 - Menu bar: optional “percent mode” (provider brand icons + percentage labels) via Advanced toggle.
