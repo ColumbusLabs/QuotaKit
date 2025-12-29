@@ -1,7 +1,7 @@
 # Changelog
 
 ## 0.15.4 — Unreleased
-- Performance: reduce menu bar CPU usage by caching morph icons, skipping redundant status-item image updates, caching provider order/enablement during animations, and caching merge-state checks during blink ticks.
+- Performance: reduce menu bar CPU usage by caching morph icons, skipping redundant status-item image updates, caching provider order/enablement during animations, caching merge-state checks during blink ticks, and caching enabled providers in blink updates.
 
 ## 0.15.3 — 2025-12-28
 - Codex: default to OAuth usage API (ChatGPT backend) with CLI-only override in Debug.

@@ -13,9 +13,12 @@ extension StatusItemController {
 
     func updateBlinkingState() {
         let blinkingEnabled = self.isBlinkingAllowed()
-        let anyEnabled = !self.store.enabledProviders().isEmpty || self.store.debugForceAnimation
+        // Cache enabled providers to avoid repeated enablement lookups.
+        let enabledProviders = self.store.enabledProviders()
+        let anyEnabled = !enabledProviders.isEmpty || self.store.debugForceAnimation
         let anyVisible = UsageProvider.allCases.contains { self.isVisible($0) }
-        let shouldBlink = self.shouldMergeIcons ? anyEnabled : anyVisible
+        let mergeIcons = self.settings.mergeIcons && enabledProviders.count > 1
+        let shouldBlink = mergeIcons ? anyEnabled : anyVisible
         if blinkingEnabled, shouldBlink {
             if self.blinkTask == nil {
                 self.seedBlinkStatesIfNeeded()
