@@ -33,11 +33,7 @@ extension StatusItemController {
         if self.isHostedSubviewMenu(menu) {
             self.refreshHostedSubviewHeights(in: menu)
             self.openMenus[ObjectIdentifier(menu)] = menu
-            DispatchQueue.main.async { [weak self] in
-                guard let self else { return }
-                guard self.openMenus[ObjectIdentifier(menu)] != nil else { return }
-                self.refreshHostedSubviewHeights(in: menu)
-            }
+            // Removed redundant async refresh - single pass is sufficient after initial layout
             return
         }
 
@@ -67,11 +63,7 @@ extension StatusItemController {
         self.refreshMenuCardHeights(in: menu)
         self.openMenus[ObjectIdentifier(menu)] = menu
         self.scheduleOpenMenuRefresh(for: menu)
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            guard self.openMenus[ObjectIdentifier(menu)] != nil else { return }
-            self.refreshMenuCardHeights(in: menu)
-        }
+        // Removed redundant async refresh - single pass is sufficient after initial layout
     }
 
     func menuDidClose(_ menu: NSMenu) {
@@ -380,20 +372,18 @@ extension StatusItemController {
         let basePadding: CGFloat = 6
         let descenderSafety: CGFloat = 1
 
+        // Fast path: use protocol-based measurement when available (avoids layout passes)
         if let measured = view as? MenuCardMeasuring {
             return max(1, ceil(measured.measuredHeight(width: width) + basePadding + descenderSafety))
         }
 
+        // Set frame with target width - this is sufficient for fittingSize calculation
         view.frame = NSRect(origin: .zero, size: NSSize(width: width, height: 1))
-        view.needsLayout = true
-        view.invalidateIntrinsicContentSize()
+
+        // Single layout pass instead of multiple invalidations
         view.layoutSubtreeIfNeeded()
 
-        let widthConstraint = view.widthAnchor.constraint(equalToConstant: width)
-        widthConstraint.priority = .required
-        widthConstraint.isActive = true
-        defer { widthConstraint.isActive = false }
-
+        // Use fittingSize directly - the frame width already constrains the view
         let fitted = view.fittingSize
 
         return max(1, ceil(fitted.height + basePadding + descenderSafety))
@@ -746,9 +736,9 @@ extension StatusItemController {
         submenu.delegate = self
         let chartView = UsageBreakdownChartMenuView(breakdown: breakdown, width: width)
         let hosting = MenuHostingView(rootView: chartView)
-        hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: 1))
-        hosting.layoutSubtreeIfNeeded()
-        let size = hosting.fittingSize
+        // Use NSHostingController for efficient size calculation without multiple layout passes
+        let controller = NSHostingController(rootView: chartView)
+        let size = controller.sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude))
         hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: size.height))
 
         let chartItem = NSMenuItem()
@@ -768,9 +758,9 @@ extension StatusItemController {
         submenu.delegate = self
         let chartView = CreditsHistoryChartMenuView(breakdown: breakdown, width: width)
         let hosting = MenuHostingView(rootView: chartView)
-        hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: 1))
-        hosting.layoutSubtreeIfNeeded()
-        let size = hosting.fittingSize
+        // Use NSHostingController for efficient size calculation without multiple layout passes
+        let controller = NSHostingController(rootView: chartView)
+        let size = controller.sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude))
         hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: size.height))
 
         let chartItem = NSMenuItem()
@@ -795,9 +785,9 @@ extension StatusItemController {
             totalCostUSD: tokenSnapshot.last30DaysCostUSD,
             width: width)
         let hosting = MenuHostingView(rootView: chartView)
-        hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: 1))
-        hosting.layoutSubtreeIfNeeded()
-        let size = hosting.fittingSize
+        // Use NSHostingController for efficient size calculation without multiple layout passes
+        let controller = NSHostingController(rootView: chartView)
+        let size = controller.sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude))
         hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: size.height))
 
         let chartItem = NSMenuItem()
@@ -1422,19 +1412,28 @@ private final class ProviderSwitcherView: NSView {
         return NSColor.labelColor.withAlphaComponent(0.06).cgColor
     }
 
+    // Cache for button width measurements to avoid repeated layout passes
+    private static var buttonWidthCache: [ObjectIdentifier: CGFloat] = [:]
+
     private static func maxToggleWidth(for button: NSButton) -> CGFloat {
-        let originalState = button.state
-        defer { button.state = originalState }
+        let buttonId = ObjectIdentifier(button)
 
-        button.state = .off
-        button.layoutSubtreeIfNeeded()
-        let offWidth = button.fittingSize.width
+        // Return cached value if available
+        if let cached = buttonWidthCache[buttonId] {
+            return cached
+        }
 
-        button.state = .on
-        button.layoutSubtreeIfNeeded()
-        let onWidth = button.fittingSize.width
+        // For toggle buttons, the width difference between states is typically just
+        // font weight change. Calculate once using fittingSize without state flipping.
+        let width = ceil(button.fittingSize.width)
 
-        return max(offWidth, onWidth)
+        // Cache the result
+        buttonWidthCache[buttonId] = width
+        return width
+    }
+
+    private static func clearButtonWidthCache() {
+        buttonWidthCache.removeAll()
     }
 
     private func applyUniformSegmentWidth(maxAllowedWidth: CGFloat) -> CGFloat {
