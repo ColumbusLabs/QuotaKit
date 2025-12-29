@@ -232,6 +232,9 @@ final class SettingsStore {
     // Cache enablement so tight UI loops (menu bar animations) don't hit UserDefaults each tick.
     @ObservationIgnored private var cachedProviderEnablement: [UsageProvider: Bool] = [:]
     @ObservationIgnored private var cachedProviderEnablementRevision: Int = -1
+    @ObservationIgnored private var cachedEnabledProviders: [UsageProvider] = []
+    @ObservationIgnored private var cachedEnabledProvidersRevision: Int = -1
+    @ObservationIgnored private var cachedEnabledProvidersOrderRaw: [String] = []
     // Cache order to avoid re-building sets/arrays every animation tick.
     @ObservationIgnored private var cachedProviderOrder: [UsageProvider] = []
     @ObservationIgnored private var cachedProviderOrderRaw: [String] = []
@@ -325,7 +328,19 @@ final class SettingsStore {
 
     func enabledProvidersOrdered(metadataByProvider: [UsageProvider: ProviderMetadata]) -> [UsageProvider] {
         self.refreshProviderEnablementCacheIfNeeded(metadataByProvider: metadataByProvider)
-        return self.orderedProviders().filter { self.cachedProviderEnablement[$0] ?? false }
+        let orderRaw = self.providerOrderRaw
+        let revision = self.cachedProviderEnablementRevision
+        if revision == self.cachedEnabledProvidersRevision,
+           orderRaw == self.cachedEnabledProvidersOrderRaw,
+           !self.cachedEnabledProviders.isEmpty
+        {
+            return self.cachedEnabledProviders
+        }
+        let enabled = self.orderedProviders().filter { self.cachedProviderEnablement[$0] ?? false }
+        self.cachedEnabledProviders = enabled
+        self.cachedEnabledProvidersRevision = revision
+        self.cachedEnabledProvidersOrderRaw = orderRaw
+        return enabled
     }
 
     func setProviderEnabled(provider: UsageProvider, metadata: ProviderMetadata, enabled: Bool) {

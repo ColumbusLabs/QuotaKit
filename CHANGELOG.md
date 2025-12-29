@@ -3,6 +3,7 @@
 ## 0.15.4 — Unreleased
 - Performance: reduce menu bar CPU usage by caching morph icons, skipping redundant status-item image updates, caching provider order/enablement during animations, caching merge-state checks during blink ticks, and caching enabled providers in blink updates.
 - CI: avoid interactive login-shell probes to prevent noisy CLI-missing errors during tests.
+- Performance: cache enabled-provider ordering to avoid repeated list rebuilds.
 
 ## 0.15.3 — 2025-12-28
 - Codex: default to OAuth usage API (ChatGPT backend) with CLI-only override in Debug.
