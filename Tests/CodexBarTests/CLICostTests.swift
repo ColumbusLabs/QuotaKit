@@ -28,6 +28,7 @@ struct CLICostTests {
             updatedAt: Date(timeIntervalSince1970: 0))
 
         let output = CodexBarCLI.renderCostText(provider: .claude, snapshot: snap, useColor: false)
+            .replacingOccurrences(of: "\u{00A0}", with: " ")
 
         #expect(output.contains("Claude Cost (local)"))
         #expect(output.contains("Today: $1.25 · 1.2K tokens"))

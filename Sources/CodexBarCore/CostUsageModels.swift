@@ -216,6 +216,8 @@ public struct CostUsageDailyReport: Sendable, Decodable {
             self.summary = Summary(
                 totalInputTokens: totals.totalInputTokens,
                 totalOutputTokens: totals.totalOutputTokens,
+                cacheReadTokens: totals.cacheReadTokens,
+                cacheCreationTokens: totals.cacheCreationTokens,
                 totalTokens: totals.totalTokens,
                 totalCostUSD: totals.totalCost)
         } else {
@@ -378,8 +380,35 @@ public struct CostUsageMonthlyReport: Sendable, Decodable {
 private struct CostUsageLegacyTotals: Sendable, Decodable {
     let totalInputTokens: Int?
     let totalOutputTokens: Int?
+    let cacheReadTokens: Int?
+    let cacheCreationTokens: Int?
     let totalTokens: Int?
     let totalCost: Double?
+
+    private enum CodingKeys: String, CodingKey {
+        case totalInputTokens
+        case totalOutputTokens
+        case cacheReadTokens
+        case cacheCreationTokens
+        case totalCacheReadTokens
+        case totalCacheCreationTokens
+        case totalTokens
+        case totalCost
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.totalInputTokens = try container.decodeIfPresent(Int.self, forKey: .totalInputTokens)
+        self.totalOutputTokens = try container.decodeIfPresent(Int.self, forKey: .totalOutputTokens)
+        self.cacheReadTokens =
+            try container.decodeIfPresent(Int.self, forKey: .cacheReadTokens)
+            ?? container.decodeIfPresent(Int.self, forKey: .totalCacheReadTokens)
+        self.cacheCreationTokens =
+            try container.decodeIfPresent(Int.self, forKey: .cacheCreationTokens)
+            ?? container.decodeIfPresent(Int.self, forKey: .totalCacheCreationTokens)
+        self.totalTokens = try container.decodeIfPresent(Int.self, forKey: .totalTokens)
+        self.totalCost = try container.decodeIfPresent(Double.self, forKey: .totalCost)
+    }
 }
 
 private struct CostUsageAnyCodingKey: CodingKey {

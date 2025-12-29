@@ -481,7 +481,9 @@ struct CostUsageScannerTests {
 
         // Should only count once, not 3x.
         #expect(report.data.count == 1)
-        #expect(report.data[0].inputTokens == 175) // 100 + 50 + 25
+        #expect(report.data[0].inputTokens == 100)
+        #expect(report.data[0].cacheCreationTokens == 50)
+        #expect(report.data[0].cacheReadTokens == 25)
         #expect(report.data[0].outputTokens == 10)
         #expect(report.data[0].totalTokens == 185)
     }
