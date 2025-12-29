@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.16.1 — Unreleased
+## 0.16.1 — 2025-12-29
 - Menu: reduce layout thrash when opening menus and sizing charts. Thanks @ibehnam!
 - Packaging: default release notarization builds universal (arm64 + x86_64) zip.
 - OpenAI web: reduce idle CPU by suspending cached WebViews when not scraping. Thanks @douglascamata!
