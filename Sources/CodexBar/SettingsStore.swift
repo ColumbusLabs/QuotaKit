@@ -85,6 +85,13 @@ final class SettingsStore {
         didSet { self.userDefaults.set(self.usageBarsShowUsed, forKey: "usageBarsShowUsed") }
     }
 
+    /// Optional: use provider branding icons with a percentage in the menu bar.
+    var menuBarShowsBrandIconWithPercent: Bool {
+        didSet {
+            self.userDefaults.set(self.menuBarShowsBrandIconWithPercent, forKey: "menuBarShowsBrandIconWithPercent")
+        }
+    }
+
     /// Optional: show provider cost summary from local usage logs (Codex + Claude).
     var costUsageEnabled: Bool {
         didSet { self.userDefaults.set(self.costUsageEnabled, forKey: "tokenCostUsageEnabled") }
@@ -202,6 +209,7 @@ final class SettingsStore {
         _ = self.statusChecksEnabled
         _ = self.sessionQuotaNotificationsEnabled
         _ = self.usageBarsShowUsed
+        _ = self.menuBarShowsBrandIconWithPercent
         _ = self.costUsageEnabled
         _ = self.randomBlinkEnabled
         _ = self.claudeWebExtrasEnabled
@@ -262,6 +270,8 @@ final class SettingsStore {
             self.userDefaults.set(true, forKey: "sessionQuotaNotificationsEnabled")
         }
         self.usageBarsShowUsed = userDefaults.object(forKey: "usageBarsShowUsed") as? Bool ?? false
+        self.menuBarShowsBrandIconWithPercent = userDefaults.object(
+            forKey: "menuBarShowsBrandIconWithPercent") as? Bool ?? false
         self.costUsageEnabled = userDefaults.object(forKey: "tokenCostUsageEnabled") as? Bool ?? false
         self.randomBlinkEnabled = userDefaults.object(forKey: "randomBlinkEnabled") as? Bool ?? false
         self.claudeWebExtrasEnabled = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false

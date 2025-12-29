@@ -16,6 +16,7 @@ read_when:
 - Top bar = 5-hour window; bottom hairline = weekly window.
 - Fill represents percent remaining by default; “Show usage as used” flips to percent used.
 - Dimmed when last refresh failed; status overlays render incident indicators.
+- Advanced: menu bar can show provider branding icons with a percent label instead of critter bars.
 
 ## Menu card
 - Session + weekly rows with resets (relative countdown when available).

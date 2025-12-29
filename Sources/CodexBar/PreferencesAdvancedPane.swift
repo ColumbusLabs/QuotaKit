@@ -56,6 +56,10 @@ struct AdvancedPane: View {
                         .disabled(!self.settings.mergeIcons)
                         .opacity(self.settings.mergeIcons ? 1 : 0.5)
                     PreferenceToggleRow(
+                        title: "Menu bar shows percent",
+                        subtitle: "Replace critter bars with provider branding icons and a percentage.",
+                        binding: self.$settings.menuBarShowsBrandIconWithPercent)
+                    PreferenceToggleRow(
                         title: "Surprise me",
                         subtitle: "Check if you like your agents having some fun up there.",
                         binding: self.$settings.randomBlinkEnabled)
