@@ -55,7 +55,9 @@ public enum ClaudeProviderDescriptor {
             }
         case .app:
             let hasWebSession = ClaudeWebAPIFetcher.hasSessionKey()
-            let hasOAuthCredentials = (try? ClaudeOAuthCredentialsStore.load()) != nil
+            // OAuth usage endpoint requires user:profile scope.
+            let oauthCreds = try? ClaudeOAuthCredentialsStore.load()
+            let hasOAuthCredentials = oauthCreds?.scopes.contains("user:profile") ?? false
             let settings = context.settings
             let debugMenuEnabled = settings?.debugMenuEnabled ?? false
             let claudeSettings = settings?.claude
@@ -120,7 +122,9 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
     let kind: ProviderFetchKind = .oauth
 
     func isAvailable(_: ProviderFetchContext) async -> Bool {
-        (try? ClaudeOAuthCredentialsStore.load()) != nil
+        guard let creds = try? ClaudeOAuthCredentialsStore.load() else { return false }
+        // Usage endpoint requires user:profile scope.
+        return creds.scopes.contains("user:profile")
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {

@@ -127,4 +127,38 @@ struct ClaudeOAuthTests {
         let snap = try ClaudeUsageFetcher._mapOAuthUsageForTesting(Data(json.utf8))
         #expect(snap.providerCost == nil)
     }
+
+    // MARK: - Scope-based strategy resolution
+
+    @Test
+    func oauthRequiresUserProfileScope() {
+        // With user:profile scope, OAuth should be selected.
+        let withProfile = ClaudeProviderDescriptor.resolveUsageStrategy(
+            debugMenuEnabled: false,
+            selectedDataSource: .oauth,
+            webExtrasEnabled: false,
+            hasWebSession: true,
+            hasOAuthCredentials: true)
+        #expect(withProfile.dataSource == .oauth)
+
+        // Without user:profile scope (hasOAuthCredentials=false), should fall back to web.
+        let withoutProfile = ClaudeProviderDescriptor.resolveUsageStrategy(
+            debugMenuEnabled: false,
+            selectedDataSource: .oauth,
+            webExtrasEnabled: false,
+            hasWebSession: true,
+            hasOAuthCredentials: false)
+        #expect(withoutProfile.dataSource == .web)
+    }
+
+    @Test
+    func fallsBackToCLIWhenNoWebOrOAuth() {
+        let strategy = ClaudeProviderDescriptor.resolveUsageStrategy(
+            debugMenuEnabled: false,
+            selectedDataSource: .oauth,
+            webExtrasEnabled: false,
+            hasWebSession: false,
+            hasOAuthCredentials: false)
+        #expect(strategy.dataSource == .cli)
+    }
 }

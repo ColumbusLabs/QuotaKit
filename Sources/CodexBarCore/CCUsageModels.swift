@@ -53,6 +53,8 @@ public struct CCUsageDailyReport: Sendable, Decodable {
     public struct Entry: Sendable, Decodable, Equatable {
         public let date: String
         public let inputTokens: Int?
+        public let cacheReadTokens: Int?
+        public let cacheCreationTokens: Int?
         public let outputTokens: Int?
         public let totalTokens: Int?
         public let costUSD: Double?
@@ -62,6 +64,10 @@ public struct CCUsageDailyReport: Sendable, Decodable {
         private enum CodingKeys: String, CodingKey {
             case date
             case inputTokens
+            case cacheReadTokens
+            case cacheCreationTokens
+            case cacheReadInputTokens
+            case cacheCreationInputTokens
             case outputTokens
             case totalTokens
             case costUSD
@@ -75,6 +81,12 @@ public struct CCUsageDailyReport: Sendable, Decodable {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             self.date = try container.decode(String.self, forKey: .date)
             self.inputTokens = try container.decodeIfPresent(Int.self, forKey: .inputTokens)
+            self.cacheReadTokens =
+                try container.decodeIfPresent(Int.self, forKey: .cacheReadTokens)
+                ?? container.decodeIfPresent(Int.self, forKey: .cacheReadInputTokens)
+            self.cacheCreationTokens =
+                try container.decodeIfPresent(Int.self, forKey: .cacheCreationTokens)
+                ?? container.decodeIfPresent(Int.self, forKey: .cacheCreationInputTokens)
             self.outputTokens = try container.decodeIfPresent(Int.self, forKey: .outputTokens)
             self.totalTokens = try container.decodeIfPresent(Int.self, forKey: .totalTokens)
             self.costUSD =
@@ -88,6 +100,8 @@ public struct CCUsageDailyReport: Sendable, Decodable {
             date: String,
             inputTokens: Int?,
             outputTokens: Int?,
+            cacheReadTokens: Int? = nil,
+            cacheCreationTokens: Int? = nil,
             totalTokens: Int?,
             costUSD: Double?,
             modelsUsed: [String]?,
@@ -96,6 +110,8 @@ public struct CCUsageDailyReport: Sendable, Decodable {
             self.date = date
             self.inputTokens = inputTokens
             self.outputTokens = outputTokens
+            self.cacheReadTokens = cacheReadTokens
+            self.cacheCreationTokens = cacheCreationTokens
             self.totalTokens = totalTokens
             self.costUSD = costUSD
             self.modelsUsed = modelsUsed
@@ -123,12 +139,18 @@ public struct CCUsageDailyReport: Sendable, Decodable {
     public struct Summary: Sendable, Decodable, Equatable {
         public let totalInputTokens: Int?
         public let totalOutputTokens: Int?
+        public let cacheReadTokens: Int?
+        public let cacheCreationTokens: Int?
         public let totalTokens: Int?
         public let totalCostUSD: Double?
 
         private enum CodingKeys: String, CodingKey {
             case totalInputTokens
             case totalOutputTokens
+            case cacheReadTokens
+            case cacheCreationTokens
+            case totalCacheReadTokens
+            case totalCacheCreationTokens
             case totalTokens
             case totalCostUSD
             case totalCost
@@ -137,11 +159,15 @@ public struct CCUsageDailyReport: Sendable, Decodable {
         public init(
             totalInputTokens: Int?,
             totalOutputTokens: Int?,
+            cacheReadTokens: Int? = nil,
+            cacheCreationTokens: Int? = nil,
             totalTokens: Int?,
             totalCostUSD: Double?)
         {
             self.totalInputTokens = totalInputTokens
             self.totalOutputTokens = totalOutputTokens
+            self.cacheReadTokens = cacheReadTokens
+            self.cacheCreationTokens = cacheCreationTokens
             self.totalTokens = totalTokens
             self.totalCostUSD = totalCostUSD
         }
@@ -150,6 +176,12 @@ public struct CCUsageDailyReport: Sendable, Decodable {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             self.totalInputTokens = try container.decodeIfPresent(Int.self, forKey: .totalInputTokens)
             self.totalOutputTokens = try container.decodeIfPresent(Int.self, forKey: .totalOutputTokens)
+            self.cacheReadTokens =
+                try container.decodeIfPresent(Int.self, forKey: .cacheReadTokens)
+                ?? container.decodeIfPresent(Int.self, forKey: .totalCacheReadTokens)
+            self.cacheCreationTokens =
+                try container.decodeIfPresent(Int.self, forKey: .cacheCreationTokens)
+                ?? container.decodeIfPresent(Int.self, forKey: .totalCacheCreationTokens)
             self.totalTokens = try container.decodeIfPresent(Int.self, forKey: .totalTokens)
             self.totalCostUSD =
                 try container.decodeIfPresent(Double.self, forKey: .totalCostUSD)

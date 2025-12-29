@@ -14,6 +14,8 @@ struct CCUsageDecodingTests {
             {
               "date": "2025-12-20",
               "inputTokens": 10,
+              "cacheReadTokens": 2,
+              "cacheCreationTokens": 3,
               "outputTokens": 20,
               "totalTokens": 30,
               "costUSD": 0.12
@@ -22,6 +24,8 @@ struct CCUsageDecodingTests {
           "summary": {
             "totalInputTokens": 10,
             "totalOutputTokens": 20,
+            "cacheReadTokens": 2,
+            "cacheCreationTokens": 3,
             "totalTokens": 30,
             "totalCostUSD": 0.12
           }
@@ -32,8 +36,12 @@ struct CCUsageDecodingTests {
         #expect(report.data.count == 1)
         #expect(report.data[0].date == "2025-12-20")
         #expect(report.data[0].totalTokens == 30)
+        #expect(report.data[0].cacheReadTokens == 2)
+        #expect(report.data[0].cacheCreationTokens == 3)
         #expect(report.data[0].costUSD == 0.12)
         #expect(report.summary?.totalCostUSD == 0.12)
+        #expect(report.summary?.cacheReadTokens == 2)
+        #expect(report.summary?.cacheCreationTokens == 3)
     }
 
     @Test
@@ -44,6 +52,8 @@ struct CCUsageDecodingTests {
             {
               "date": "2025-12-20",
               "inputTokens": 1,
+              "cacheReadTokens": 2,
+              "cacheCreationTokens": 3,
               "outputTokens": 2,
               "totalTokens": 3,
               "totalCost": 0.01
@@ -52,6 +62,8 @@ struct CCUsageDecodingTests {
           "totals": {
             "totalInputTokens": 1,
             "totalOutputTokens": 2,
+            "cacheReadTokens": 2,
+            "cacheCreationTokens": 3,
             "totalTokens": 3,
             "totalCost": 0.01
           }
@@ -62,6 +74,10 @@ struct CCUsageDecodingTests {
         #expect(report.data.count == 1)
         #expect(report.summary?.totalTokens == 3)
         #expect(report.summary?.totalCostUSD == 0.01)
+        #expect(report.data[0].cacheReadTokens == 2)
+        #expect(report.data[0].cacheCreationTokens == 3)
+        #expect(report.summary?.cacheReadTokens == 2)
+        #expect(report.summary?.cacheCreationTokens == 3)
     }
 
     @Test

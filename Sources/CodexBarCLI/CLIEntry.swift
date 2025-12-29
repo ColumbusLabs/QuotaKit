@@ -31,12 +31,20 @@ enum CodexBarCLI {
         let usageSignature = CommandSignature
             .describe(UsageOptions())
 
+        let costSignature = CommandSignature
+            .describe(CostOptions())
+
         let descriptors: [CommandDescriptor] = [
             CommandDescriptor(
                 name: "usage",
                 abstract: "Print usage as text or JSON",
                 discussion: nil,
                 signature: usageSignature),
+            CommandDescriptor(
+                name: "cost",
+                abstract: "Print local cost usage as text or JSON",
+                discussion: nil,
+                signature: costSignature),
         ]
 
         let program = Program(descriptors: descriptors)
@@ -47,6 +55,8 @@ enum CodexBarCLI {
             switch invocation.descriptor.name {
             case "usage":
                 await self.runUsage(invocation.parsedValues)
+            case "cost":
+                await self.runCost(invocation.parsedValues)
             default:
                 Self.exit(code: .failure, message: "Unknown command")
             }
@@ -203,7 +213,7 @@ enum CodexBarCLI {
         return argv
     }
 
-    fileprivate static func decodeProvider(from values: ParsedValues) -> ProviderSelection {
+    static func decodeProvider(from values: ParsedValues) -> ProviderSelection {
         let rawOverride = values.options["provider"]?.last
         return Self.providerSelection(rawOverride: rawOverride, enabled: Self.enabledProvidersFromDefaults())
     }
@@ -225,7 +235,7 @@ enum CodexBarCLI {
         return .single(.codex)
     }
 
-    private static func decodeFormat(from values: ParsedValues) -> OutputFormat {
+    static func decodeFormat(from values: ParsedValues) -> OutputFormat {
         if let raw = values.options["format"]?.last, let parsed = OutputFormat(argument: raw) {
             return parsed
         }
@@ -233,7 +243,7 @@ enum CodexBarCLI {
         return .text
     }
 
-    private static func shouldUseColor(noColor: Bool, format: OutputFormat) -> Bool {
+    static func shouldUseColor(noColor: Bool, format: OutputFormat) -> Bool {
         guard format == .text else { return false }
         if noColor { return false }
         let env = ProcessInfo.processInfo.environment
@@ -411,7 +421,7 @@ enum CodexBarCLI {
         return lines.joined(separator: "\n")
     }
 
-    private static func mapError(_ error: Error) -> ExitCode {
+    static func mapError(_ error: Error) -> ExitCode {
         switch error {
         case TTYCommandRunner.Error.binaryNotFound,
              CodexStatusProbeError.codexNotInstalled,
@@ -420,10 +430,12 @@ enum CodexBarCLI {
             ExitCode(2)
         case CodexStatusProbeError.timedOut,
              TTYCommandRunner.Error.timedOut,
-             GeminiStatusProbeError.timedOut:
+             GeminiStatusProbeError.timedOut,
+             CCUsageError.timedOut:
             ExitCode(4)
         case ClaudeUsageError.parseFailed,
              ClaudeUsageError.oauthFailed,
+             CCUsageError.unsupportedProvider,
              UsageError.decodeFailed,
              UsageError.noRateLimitsFound,
              GeminiStatusProbeError.parseFailed:
@@ -433,7 +445,7 @@ enum CodexBarCLI {
         }
     }
 
-    private static func printError(_ error: Error) {
+    static func printError(_ error: Error) {
         self.writeStderr("Error: \(error.localizedDescription)\n")
     }
 
@@ -452,14 +464,14 @@ enum CodexBarCLI {
         }
     }
 
-    private static func exit(code: ExitCode, message: String? = nil) -> Never {
+    static func exit(code: ExitCode, message: String? = nil) -> Never {
         if let message {
             self.writeStderr("\(message)\n")
         }
         Self.platformExit(code.rawValue)
     }
 
-    private static func writeStderr(_ string: String) {
+    static func writeStderr(_ string: String) {
         guard let data = string.data(using: .utf8) else { return }
         FileHandle.standardError.write(data)
     }
@@ -478,6 +490,8 @@ enum CodexBarCLI {
         switch command {
         case "usage":
             print(Self.usageHelp(version: version))
+        case "cost":
+            print(Self.costHelp(version: version))
         default:
             print(Self.rootHelp(version: version))
         }
@@ -543,6 +557,10 @@ enum CodexBarCLI {
                   [--provider \(ProviderHelp.list)]
                   [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth>]
                   [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
+          codexbar cost [--format text|json]
+                       [--json]
+                       [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
+                       [--provider \(ProviderHelp.list)] [--no-color] [--pretty] [--refresh]
 
         Global flags:
           -h, --help      Show help
@@ -557,6 +575,7 @@ enum CodexBarCLI {
           codexbar --format json --provider all --pretty
           codexbar --provider all --json
           codexbar --provider gemini
+          codexbar cost --provider claude --format json --pretty
         """
     }
 }
@@ -689,7 +708,7 @@ enum OutputFormat: String, Sendable, ExpressibleFromArgument {
     }
 }
 
-private enum ProviderHelp {
+enum ProviderHelp {
     static var list: String {
         let names = ProviderDescriptorRegistry.all.map(\.cli.name)
         return (names + ["both", "all"]).joined(separator: "|")

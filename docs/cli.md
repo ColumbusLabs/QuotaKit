@@ -34,6 +34,9 @@ tar -xzf CodexBarCLI-0.14.1-linux-x86_64.tar.gz
 ## Command
 - `codexbar` defaults to the `usage` command.
   - `--format text|json` (default: text).
+- `codexbar cost` prints local token cost usage (Claude + Codex) without web/CLI access.
+  - `--format text|json` (default: text).
+  - `--refresh` ignores cached scans.
 - `--provider codex|claude|zai|gemini|antigravity|cursor|factory|copilot|both|all` (default: your in-app toggles; falls back to Codex).
   - `--no-credits` (hide Codex credits in text output).
   - `--pretty` (pretty-print JSON).
@@ -52,6 +55,14 @@ tar -xzf CodexBarCLI-0.14.1-linux-x86_64.tar.gz
     - Linux: `web/auto` are not supported; CLI prints an error and exits non-zero.
 - Global flags: `-h/--help`, `-V/--version`, `-v/--verbose`, `--no-color`, `--log-level <trace|verbose|debug|info|warning|error|critical>`, `--json-output`.
 
+### Cost JSON payload
+`codexbar cost --format json` emits an array of payloads (one per provider).
+- `provider`, `source`, `updatedAt`
+- `sessionTokens`, `sessionCostUSD`
+- `last30DaysTokens`, `last30DaysCostUSD`
+- `daily[]`: `date`, `inputTokens`, `outputTokens`, `cacheReadTokens`, `cacheCreationTokens`, `totalTokens`, `totalCost`, `modelsUsed`, `modelBreakdowns[]` (`modelName`, `cost`)
+- `totals`: `inputTokens`, `outputTokens`, `cacheReadTokens`, `cacheCreationTokens`, `totalTokens`, `totalCost`
+
 ## Example usage
 ```
 codexbar                          # text, respects app toggles
@@ -59,6 +70,8 @@ codexbar --provider claude        # force Claude
 codexbar --provider all           # query all providers (honors your logins/toggles)
 codexbar --format json --pretty   # machine output
 codexbar --format json --provider both
+codexbar cost                     # local cost usage (last 30 days + today)
+codexbar cost --provider claude --format json --pretty
 COPILOT_API_TOKEN=... codexbar --provider copilot --format json --pretty
 codexbar --status                 # include status page indicator/description
 codexbar --provider codex --source web --format json --pretty

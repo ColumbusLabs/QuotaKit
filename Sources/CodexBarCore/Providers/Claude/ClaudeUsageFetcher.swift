@@ -237,6 +237,12 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             if creds.isExpired {
                 throw ClaudeUsageError.oauthFailed("Claude OAuth token expired. Run `claude` to refresh.")
             }
+            // The usage endpoint requires user:profile scope.
+            if !creds.scopes.contains("user:profile") {
+                throw ClaudeUsageError.oauthFailed(
+                    "Claude OAuth token missing 'user:profile' scope (has: \(creds.scopes.joined(separator: ", "))). "
+                        + "Rate limit data unavailable.")
+            }
             let usage = try await ClaudeOAuthUsageFetcher.fetchUsage(accessToken: creds.accessToken)
             return try Self.mapOAuthUsage(usage, credentials: creds)
         } catch let error as ClaudeUsageError {

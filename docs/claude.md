@@ -14,7 +14,7 @@ Claude supports three usage data paths plus local cost usage. Source selection i
 ## Data sources + selection order
 
 ### Default selection (debug menu disabled)
-1) OAuth API (if Claude CLI credentials are present).
+1) OAuth API (if Claude CLI credentials include `user:profile` scope).
 2) Web API (browser cookies, `sessionKey`), if OAuth missing.
 3) CLI PTY (`claude`), if no OAuth and no web session.
 
@@ -26,6 +26,7 @@ Claude supports three usage data paths plus local cost usage. Source selection i
 - Credentials:
   - Keychain service: `Claude Code-credentials` (primary on macOS).
   - File fallback: `~/.claude/.credentials.json`.
+- Requires `user:profile` scope (CLI tokens with only `user:inference` cannot call usage).
 - Endpoint:
   - `GET https://api.anthropic.com/api/oauth/usage`
 - Headers:
@@ -79,6 +80,7 @@ Claude supports three usage data paths plus local cost usage. Source selection i
 - Parsing:
   - Lines with `type: "assistant"` and `message.usage`.
   - Uses per-model token counts (input, cache read/create, output).
+  - Deduplicates streaming chunks by `message.id + requestId` (usage is cumulative per chunk).
 - Cache:
   - `~/Library/Caches/CodexBar/cost-usage/claude-v1.json`
   - Legacy fallback: `~/Library/Caches/CodexBar/ccusage-min/claude-v1.json`

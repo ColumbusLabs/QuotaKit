@@ -36,6 +36,7 @@ public struct CCUsageFetcher: Sendable {
         var options = CostUsageScanner.Options()
         if forceRefresh {
             options.refreshMinIntervalSeconds = 0
+            options.forceRescan = true
         }
         let daily = await Task.detached(priority: .utility) {
             CostUsageScanner.loadDailyReport(
