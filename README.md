@@ -120,9 +120,10 @@ Dev loop:
 ./Scripts/compile_and_run.sh
 ```
 
-## Related (from Peter)
+## Related
 - ✂️ [Trimmy](https://github.com/steipete/Trimmy) — “Paste once, run once.” Flatten multi-line shell snippets so they paste and run.
 - 🧳 [MCPorter](https://mcporter.dev) — TypeScript toolkit + CLI for Model Context Protocol servers.
+- 🧿 [oracle](https://askoracle.dev) — Ask the oracle when you’re stuck. Bundle your prompt + files for a second-model review.
 
 ## Credits
 Inspired by [ccusage](https://github.com/ryoppippi/ccusage) (MIT), specifically the cost usage tracking.
