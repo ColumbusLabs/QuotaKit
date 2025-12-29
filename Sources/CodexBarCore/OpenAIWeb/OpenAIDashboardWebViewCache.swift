@@ -128,6 +128,9 @@ final class OpenAIDashboardWebViewCache {
     private func makeWebView(websiteDataStore: WKWebsiteDataStore) -> (WKWebView, OffscreenWebViewHost) {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = websiteDataStore
+        if #available(macOS 14.0, *) {
+            config.preferences.inactiveSchedulingPolicy = .suspend
+        }
 
         let webView = WKWebView(frame: .zero, configuration: config)
         let host = OffscreenWebViewHost(webView: webView)
@@ -181,10 +184,14 @@ private final class OffscreenWebViewHost {
     }
 
     func show() {
+        self.window.alphaValue = OpenAIDashboardFetcher.offscreenHostAlphaValue()
         self.window.orderFrontRegardless()
     }
 
     func hide() {
+        // Set alpha to 0 so WebKit recognizes the page as inactive and applies
+        // its scheduling policy (throttle/suspend), reducing CPU when idle.
+        self.window.alphaValue = 0.0
         self.window.orderOut(nil)
     }
 
