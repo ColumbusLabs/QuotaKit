@@ -3,7 +3,7 @@
 ## 0.16.1 — Unreleased
 - Menu: reduce layout thrash when opening menus and sizing charts. Thanks @ibehnam!
 - Packaging: default release notarization builds universal (arm64 + x86_64) zip.
-- OpenAI web: reduce idle CPU by suspending cached WebViews when not scraping.
+- OpenAI web: reduce idle CPU by suspending cached WebViews when not scraping. Thanks @douglascamata!
 
 ## 0.16.0 — 2025-12-29
 - Menu bar: optional “percent mode” (provider brand icons + percentage labels) via Advanced toggle.
