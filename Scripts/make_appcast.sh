@@ -36,9 +36,15 @@ else
   echo "Missing Scripts/changelog-to-html.sh; cannot generate HTML release notes." >&2
   exit 1
 fi
-if [[ "$KEEP_NOTES" != "1" ]]; then
-  trap 'rm -f "$NOTES_HTML"' EXIT
-fi
+cleanup() {
+  if [[ -n "${WORK_DIR:-}" ]]; then
+    rm -rf "$WORK_DIR"
+  fi
+  if [[ "$KEEP_NOTES" != "1" ]]; then
+    rm -f "$NOTES_HTML"
+  fi
+}
+trap cleanup EXIT
 
 DOWNLOAD_URL_PREFIX=${SPARKLE_DOWNLOAD_URL_PREFIX:-"https://github.com/steipete/CodexBar/releases/download/v${VERSION}/"}
 
@@ -48,11 +54,21 @@ if ! command -v generate_appcast >/dev/null; then
   exit 1
 fi
 
+WORK_DIR=$(mktemp -d /tmp/codexbar-appcast.XXXXXX)
+
+cp "$ROOT/appcast.xml" "$WORK_DIR/appcast.xml"
+cp "$ZIP" "$WORK_DIR/$ZIP_NAME"
+cp "$NOTES_HTML" "$WORK_DIR/$ZIP_BASE.html"
+
+pushd "$WORK_DIR" >/dev/null
 generate_appcast \
   --ed-key-file "$PRIVATE_KEY_FILE" \
   --download-url-prefix "$DOWNLOAD_URL_PREFIX" \
   --embed-release-notes \
   --link "$FEED_URL" \
-  "$ZIP_DIR"
+  "$WORK_DIR"
+popd >/dev/null
+
+cp "$WORK_DIR/appcast.xml" "$ROOT/appcast.xml"
 
 echo "Appcast generated (appcast.xml). Upload alongside $ZIP at $FEED_URL"
