@@ -58,10 +58,12 @@ extension StatusItemController {
         let blinkDuration: TimeInterval = 0.36
         let doubleBlinkChance = 0.18
         let doubleDelayRange: ClosedRange<TimeInterval> = 0.22...0.34
+        // Cache merge state once per tick to avoid repeated enabled-provider lookups.
+        let mergeIcons = self.shouldMergeIcons
 
         for provider in UsageProvider.allCases {
-            let shouldRender = self.shouldMergeIcons ? self.isEnabled(provider) : self.isVisible(provider)
-            guard shouldRender, !self.shouldAnimate(provider: provider) else {
+            let shouldRender = mergeIcons ? self.isEnabled(provider) : self.isVisible(provider)
+            guard shouldRender, !self.shouldAnimate(provider: provider, mergeIcons: mergeIcons) else {
                 self.clearMotion(for: provider)
                 continue
             }
@@ -103,11 +105,11 @@ extension StatusItemController {
             }
 
             self.blinkStates[provider] = state
-            if !self.shouldMergeIcons {
+            if !mergeIcons {
                 self.applyIcon(for: provider, phase: nil)
             }
         }
-        if self.shouldMergeIcons {
+        if mergeIcons {
             self.applyIcon(phase: nil)
         }
     }
@@ -333,10 +335,11 @@ extension StatusItemController {
         self.tickBlink(now: now)
     }
 
-    private func shouldAnimate(provider: UsageProvider) -> Bool {
+    private func shouldAnimate(provider: UsageProvider, mergeIcons: Bool? = nil) -> Bool {
         if self.store.debugForceAnimation { return true }
 
-        let isVisible = self.shouldMergeIcons ? self.isEnabled(provider) : self.isVisible(provider)
+        let isMerged = mergeIcons ?? self.shouldMergeIcons
+        let isVisible = isMerged ? self.isEnabled(provider) : self.isVisible(provider)
         guard isVisible else { return false }
         let isStale = self.store.isStale(provider: provider)
         let hasData = self.store.snapshot(for: provider) != nil
