@@ -347,14 +347,12 @@ extension StatusItemController {
         _ view: some View,
         id: String,
         width: CGFloat,
-        submenu: NSMenu? = nil,
-        highlightExclusionHeight: CGFloat = 0) -> NSMenuItem
+        submenu: NSMenu? = nil) -> NSMenuItem
     {
         let highlightState = MenuCardHighlightState()
         let wrapped = MenuCardSectionContainerView(
             highlightState: highlightState,
-            showsSubmenuIndicator: submenu != nil,
-            highlightExclusionHeight: highlightExclusionHeight)
+            showsSubmenuIndicator: submenu != nil)
         {
             view
         }
@@ -368,7 +366,7 @@ extension StatusItemController {
         hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: height))
         let item = NSMenuItem()
         item.view = hosting
-        item.isEnabled = submenu != nil
+        item.isEnabled = true
         item.representedObject = id
         item.submenu = submenu
         if submenu != nil {
@@ -614,18 +612,15 @@ extension StatusItemController {
     private struct MenuCardSectionContainerView<Content: View>: View {
         @Bindable var highlightState: MenuCardHighlightState
         let showsSubmenuIndicator: Bool
-        let highlightExclusionHeight: CGFloat
         let content: Content
 
         init(
             highlightState: MenuCardHighlightState,
             showsSubmenuIndicator: Bool,
-            highlightExclusionHeight: CGFloat = 0,
             @ViewBuilder content: () -> Content)
         {
             self.highlightState = highlightState
             self.showsSubmenuIndicator = showsSubmenuIndicator
-            self.highlightExclusionHeight = highlightExclusionHeight
             self.content = content()
         }
 
@@ -635,7 +630,10 @@ extension StatusItemController {
                 .foregroundStyle(MenuHighlightStyle.primary(self.highlightState.isHighlighted))
                 .background(alignment: .topLeading) {
                     if self.highlightState.isHighlighted {
-                        self.highlightBackground
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(MenuHighlightStyle.selectionBackground(true))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
                     }
                 }
                 .overlay(alignment: .topTrailing) {
@@ -647,23 +645,6 @@ extension StatusItemController {
                             .padding(.trailing, 10)
                     }
                 }
-        }
-
-        @ViewBuilder
-        private var highlightBackground: some View {
-            GeometryReader { proxy in
-                let topInset: CGFloat = 1
-                let bottomInset: CGFloat = 1
-                let height = max(0, proxy.size.height - self.highlightExclusionHeight - topInset - bottomInset)
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(MenuHighlightStyle.selectionBackground(self.highlightState.isHighlighted))
-                    .frame(height: height, alignment: .top)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .padding(.horizontal, 6)
-                    .padding(.top, topInset)
-                    .padding(.bottom, bottomInset)
-            }
-            .allowsHitTesting(false)
         }
     }
 
@@ -727,6 +708,7 @@ extension StatusItemController {
         guard !timeLimit.usageDetails.isEmpty else { return nil }
 
         let submenu = NSMenu()
+        submenu.delegate = self
         let titleItem = NSMenuItem(title: "MCP details", action: nil, keyEquivalent: "")
         titleItem.isEnabled = false
         submenu.addItem(titleItem)
