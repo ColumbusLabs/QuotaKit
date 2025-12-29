@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.16.0 — Unreleased
+## 0.16.0 — 2025-12-29
 - Menu bar: optional “percent mode” (provider brand icons + percentage labels) via Advanced toggle.
 - CLI: add `codexbar cost` to print local cost usage (text/JSON) for Codex + Claude.
 - Cost: align local cost scanner with ccusage; stabilize parsing/decoding and handle large JSONL lines.
