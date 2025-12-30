@@ -18,7 +18,8 @@ struct ZaiProviderImplementation: ProviderImplementation {
                 placeholder: "Paste token…",
                 binding: context.stringBinding(\.zaiAPIToken),
                 actions: [],
-                isVisible: nil),
+                isVisible: nil,
+                onActivate: { context.settings.ensureZaiAPITokenLoaded() }),
         ]
     }
 }

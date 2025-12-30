@@ -37,6 +37,15 @@ struct KeychainCopilotTokenStore: CopilotTokenStoring {
             kSecReturnData as String: true,
         ]
 
+        if case .interactionRequired = KeychainAccessPreflight
+            .checkGenericPassword(service: self.service, account: self.account)
+        {
+            KeychainPromptHandler.handler?(KeychainPromptContext(
+                kind: .copilotToken,
+                service: self.service,
+                account: self.account))
+        }
+
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         if status == errSecItemNotFound {
             return nil

@@ -235,8 +235,12 @@ final class SettingsStore {
     @ObservationIgnored private let toggleStore: ProviderToggleStore
     @ObservationIgnored private let zaiTokenStore: any ZaiTokenStoring
     @ObservationIgnored private var zaiTokenPersistTask: Task<Void, Never>?
+    @ObservationIgnored private var zaiTokenLoaded = false
+    @ObservationIgnored private var zaiTokenLoading = false
     @ObservationIgnored private let copilotTokenStore: any CopilotTokenStoring
     @ObservationIgnored private var copilotTokenPersistTask: Task<Void, Never>?
+    @ObservationIgnored private var copilotTokenLoaded = false
+    @ObservationIgnored private var copilotTokenLoading = false
     // Cache enablement so tight UI loops (menu bar animations) don't hit UserDefaults each tick.
     @ObservationIgnored private var cachedProviderEnablement: [UsageProvider: Bool] = [:]
     @ObservationIgnored private var cachedProviderEnablementRevision: Int = -1
@@ -291,8 +295,8 @@ final class SettingsStore {
         self.claudeUsageDataSourceRaw = claudeSourceRaw ?? ClaudeUsageDataSource.oauth.rawValue
         self.mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true
         self.switcherShowsIcons = userDefaults.object(forKey: "switcherShowsIcons") as? Bool ?? true
-        self.zaiAPIToken = (try? zaiTokenStore.loadToken()) ?? ""
-        self.copilotAPIToken = (try? copilotTokenStore.loadToken()) ?? ""
+        self.zaiAPIToken = ""
+        self.copilotAPIToken = ""
         self.selectedMenuProviderRaw = userDefaults.string(forKey: "selectedMenuProvider")
         self.providerDetectionCompleted = userDefaults.object(
             forKey: "providerDetectionCompleted") as? Bool ?? false
@@ -524,6 +528,7 @@ final class SettingsStore {
     }
 
     private func schedulePersistZaiAPIToken() {
+        if self.zaiTokenLoading { return }
         self.zaiTokenPersistTask?.cancel()
         let token = self.zaiAPIToken
         let tokenStore = self.zaiTokenStore
@@ -550,6 +555,7 @@ final class SettingsStore {
     }
 
     private func schedulePersistCopilotAPIToken() {
+        if self.copilotTokenLoading { return }
         self.copilotTokenPersistTask?.cancel()
         let token = self.copilotAPIToken
         let tokenStore = self.copilotTokenStore
@@ -572,6 +578,22 @@ final class SettingsStore {
                 CodexBarLog.logger("copilot-token-store").error("Failed to persist Copilot token: \(error)")
             }
         }
+    }
+
+    func ensureZaiAPITokenLoaded() {
+        guard !self.zaiTokenLoaded else { return }
+        self.zaiTokenLoading = true
+        self.zaiAPIToken = (try? self.zaiTokenStore.loadToken()) ?? ""
+        self.zaiTokenLoading = false
+        self.zaiTokenLoaded = true
+    }
+
+    func ensureCopilotAPITokenLoaded() {
+        guard !self.copilotTokenLoaded else { return }
+        self.copilotTokenLoading = true
+        self.copilotAPIToken = (try? self.copilotTokenStore.loadToken()) ?? ""
+        self.copilotTokenLoading = false
+        self.copilotTokenLoaded = true
     }
 }
 

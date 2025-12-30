@@ -36,7 +36,8 @@ struct CopilotProviderImplementation: ProviderImplementation {
                             await CopilotLoginFlow.run(settings: context.settings)
                         }),
                 ],
-                isVisible: nil),
+                isVisible: nil,
+                onActivate: { context.settings.ensureCopilotAPITokenLoaded() }),
         ]
     }
 

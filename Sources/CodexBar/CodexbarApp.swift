@@ -22,6 +22,8 @@ struct CodexBarApp: App {
             level: level,
             json: false))
 
+        KeychainPromptCoordinator.install()
+
         let preferencesSelection = PreferencesSelection()
         let settings = SettingsStore()
         let fetcher = UsageFetcher()

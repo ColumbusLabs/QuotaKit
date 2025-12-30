@@ -1,0 +1,77 @@
+import AppKit
+import CodexBarCore
+import SweetCookieKit
+
+enum KeychainPromptCoordinator {
+    private static let promptLock = NSLock()
+
+    static func install() {
+        KeychainPromptHandler.handler = { context in
+            Self.presentKeychainPrompt(context)
+        }
+        BrowserCookieKeychainPromptHandler.handler = { context in
+            Self.presentBrowserCookiePrompt(context)
+        }
+    }
+
+    private static func presentKeychainPrompt(_ context: KeychainPromptContext) {
+        let (title, message) = Self.keychainCopy(for: context)
+        Self.presentAlert(title: title, message: message)
+    }
+
+    private static func presentBrowserCookiePrompt(_ context: BrowserCookieKeychainPromptContext) {
+        let title = "Keychain Access Required"
+        let message = [
+            "CodexBar will ask macOS Keychain for “\(context.label)” so it can decrypt browser cookies",
+            "and authenticate your account. Click OK to continue.",
+        ].joined(separator: " ")
+        Self.presentAlert(title: title, message: message)
+    }
+
+    private static func keychainCopy(for context: KeychainPromptContext) -> (title: String, message: String) {
+        let title = "Keychain Access Required"
+        switch context.kind {
+        case .claudeOAuth:
+            return (title, [
+                "CodexBar will ask macOS Keychain for the Claude Code OAuth token",
+                "so it can fetch your Claude usage. Click OK to continue.",
+            ].joined(separator: " "))
+        case .zaiToken:
+            return (title, [
+                "CodexBar will ask macOS Keychain for your z.ai API token",
+                "so it can fetch usage. Click OK to continue.",
+            ].joined(separator: " "))
+        case .copilotToken:
+            return (title, [
+                "CodexBar will ask macOS Keychain for your GitHub Copilot token",
+                "so it can fetch usage. Click OK to continue.",
+            ].joined(separator: " "))
+        }
+    }
+
+    private static func presentAlert(title: String, message: String) {
+        Self.promptLock.lock()
+        defer { Self.promptLock.unlock() }
+
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                Self.showAlert(title: title, message: message)
+            }
+            return
+        }
+        DispatchQueue.main.sync {
+            MainActor.assumeIsolated {
+                Self.showAlert(title: title, message: message)
+            }
+        }
+    }
+
+    @MainActor
+    private static func showAlert(title: String, message: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.addButton(withTitle: "OK")
+        _ = alert.runModal()
+    }
+}

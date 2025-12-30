@@ -81,6 +81,7 @@ struct ProviderSettingsFieldDescriptor: Identifiable {
     let binding: Binding<String>
     let actions: [ProviderSettingsActionDescriptor]
     let isVisible: (() -> Bool)?
+    let onActivate: (() -> Void)?
 }
 
 /// Shared action descriptor rendered under a settings toggle.

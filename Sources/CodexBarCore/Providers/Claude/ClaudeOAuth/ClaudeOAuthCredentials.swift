@@ -143,6 +143,14 @@ public enum ClaudeOAuthCredentialsStore {
 
     public static func loadFromKeychain() throws -> Data {
         #if os(macOS)
+        if case .interactionRequired = KeychainAccessPreflight
+            .checkGenericPassword(service: self.keychainService, account: nil)
+        {
+            KeychainPromptHandler.handler?(KeychainPromptContext(
+                kind: .claudeOAuth,
+                service: self.keychainService,
+                account: nil))
+        }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: self.keychainService,

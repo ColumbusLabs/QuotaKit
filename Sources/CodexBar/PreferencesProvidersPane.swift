@@ -574,10 +574,12 @@ private struct ProviderListFieldRowView: View {
                     TextField(self.field.placeholder ?? "", text: self.field.binding)
                         .textFieldStyle(.roundedBorder)
                         .font(.footnote)
+                        .onTapGesture { self.field.onActivate?() }
                 case .secure:
                     SecureField(self.field.placeholder ?? "", text: self.field.binding)
                         .textFieldStyle(.roundedBorder)
                         .font(.footnote)
+                        .onTapGesture { self.field.onActivate?() }
                 }
 
                 let actions = self.field.actions.filter { $0.isVisible?() ?? true }
