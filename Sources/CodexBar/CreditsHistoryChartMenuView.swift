@@ -114,6 +114,7 @@ struct CreditsHistoryChartMenuView: View {
         let breakdownByDayKey: [String: OpenAIDashboardDailyBreakdown]
         let pointsByDayKey: [String: Point]
         let dayDates: [(dayKey: String, date: Date)]
+        let selectableDayDates: [(dayKey: String, date: Date)]
         let axisDates: [Date]
         let peakKey: String?
         let totalCreditsUsed: Double?
@@ -141,6 +142,9 @@ struct CreditsHistoryChartMenuView: View {
         var dayDates: [(dayKey: String, date: Date)] = []
         dayDates.reserveCapacity(sorted.count)
 
+        var selectableDayDates: [(dayKey: String, date: Date)] = []
+        selectableDayDates.reserveCapacity(sorted.count)
+
         var totalCreditsUsed: Double = 0
         var peak: (key: String, creditsUsed: Double)?
         var maxCreditsUsed: Double = 0
@@ -154,6 +158,7 @@ struct CreditsHistoryChartMenuView: View {
                 let point = Point(date: date, creditsUsed: day.totalCreditsUsed)
                 points.append(point)
                 pointsByDayKey[day.day] = point
+                selectableDayDates.append((dayKey: day.day, date: date))
                 if let cur = peak {
                     if day.totalCreditsUsed > cur.creditsUsed { peak = (day.day, day.totalCreditsUsed) }
                 } else {
@@ -174,6 +179,7 @@ struct CreditsHistoryChartMenuView: View {
             breakdownByDayKey: breakdownByDayKey,
             pointsByDayKey: pointsByDayKey,
             dayDates: dayDates,
+            selectableDayDates: selectableDayDates,
             axisDates: axisDates,
             peakKey: peak?.key,
             totalCreditsUsed: totalCreditsUsed > 0 ? totalCreditsUsed : nil,
@@ -209,13 +215,13 @@ struct CreditsHistoryChartMenuView: View {
         guard let key = self.selectedDayKey else { return nil }
         guard let plotAnchor = proxy.plotFrame else { return nil }
         let plotFrame = geo[plotAnchor]
-        guard let index = model.dayDates.firstIndex(where: { $0.dayKey == key }) else { return nil }
-        let date = model.dayDates[index].date
+        guard let index = model.selectableDayDates.firstIndex(where: { $0.dayKey == key }) else { return nil }
+        let date = model.selectableDayDates[index].date
         guard let x = proxy.position(forX: date) else { return nil }
 
         func xForIndex(_ idx: Int) -> CGFloat? {
-            guard idx >= 0, idx < model.dayDates.count else { return nil }
-            return proxy.position(forX: model.dayDates[idx].date)
+            guard idx >= 0, idx < model.selectableDayDates.count else { return nil }
+            return proxy.position(forX: model.selectableDayDates[idx].date)
         }
 
         let xPrev = xForIndex(index - 1)
@@ -267,9 +273,9 @@ struct CreditsHistoryChartMenuView: View {
     }
 
     private func nearestDayKey(to date: Date, model: Model) -> String? {
-        guard !model.dayDates.isEmpty else { return nil }
+        guard !model.selectableDayDates.isEmpty else { return nil }
         var best: (key: String, distance: TimeInterval)?
-        for entry in model.dayDates {
+        for entry in model.selectableDayDates {
             let dist = abs(entry.date.timeIntervalSince(date))
             if let cur = best {
                 if dist < cur.distance { best = (entry.dayKey, dist) }
