@@ -7,16 +7,16 @@ enum KeychainPromptCoordinator {
 
     static func install() {
         KeychainPromptHandler.handler = { context in
-            Self.presentKeychainPrompt(context)
+            self.presentKeychainPrompt(context)
         }
         BrowserCookieKeychainPromptHandler.handler = { context in
-            Self.presentBrowserCookiePrompt(context)
+            self.presentBrowserCookiePrompt(context)
         }
     }
 
     private static func presentKeychainPrompt(_ context: KeychainPromptContext) {
-        let (title, message) = Self.keychainCopy(for: context)
-        Self.presentAlert(title: title, message: message)
+        let (title, message) = self.keychainCopy(for: context)
+        self.presentAlert(title: title, message: message)
     }
 
     private static func presentBrowserCookiePrompt(_ context: BrowserCookieKeychainPromptContext) {
@@ -25,7 +25,7 @@ enum KeychainPromptCoordinator {
             "CodexBar will ask macOS Keychain for “\(context.label)” so it can decrypt browser cookies",
             "and authenticate your account. Click OK to continue.",
         ].joined(separator: " ")
-        Self.presentAlert(title: title, message: message)
+        self.presentAlert(title: title, message: message)
     }
 
     private static func keychainCopy(for context: KeychainPromptContext) -> (title: String, message: String) {
@@ -50,18 +50,18 @@ enum KeychainPromptCoordinator {
     }
 
     private static func presentAlert(title: String, message: String) {
-        Self.promptLock.lock()
-        defer { Self.promptLock.unlock() }
+        self.promptLock.lock()
+        defer { self.promptLock.unlock() }
 
         if Thread.isMainThread {
             MainActor.assumeIsolated {
-                Self.showAlert(title: title, message: message)
+                self.showAlert(title: title, message: message)
             }
             return
         }
         DispatchQueue.main.sync {
             MainActor.assumeIsolated {
-                Self.showAlert(title: title, message: message)
+                self.showAlert(title: title, message: message)
             }
         }
     }
