@@ -4,6 +4,7 @@
 - Keychain: show a preflight explanation before macOS prompts for OAuth tokens or cookie decryption.
 - Providers: defer z.ai + Copilot Keychain reads until the user interacts with the token field.
 - Charts: align hover selection bands with visible bars in credits + usage breakdown history.
+- About: fix website link in the About panel. Thanks @felipeorlando!
 
 ## 0.16.1 — 2025-12-29
 - Menu: reduce layout thrash when opening menus and sizing charts. Thanks @ibehnam!
