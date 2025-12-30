@@ -278,17 +278,25 @@ struct UsageBreakdownChartMenuView: View {
         guard let key = self.selectedDayKey else { return nil }
         guard let plotAnchor = proxy.plotFrame else { return nil }
         let plotFrame = geo[plotAnchor]
-        guard let index = model.selectableDayDates.firstIndex(where: { $0.dayKey == key }) else { return nil }
-        let date = model.selectableDayDates[index].date
+        guard let index = model.dayDates.firstIndex(where: { $0.dayKey == key }) else { return nil }
+        let date = model.dayDates[index].date
         guard let x = proxy.position(forX: date) else { return nil }
 
         func xForIndex(_ idx: Int) -> CGFloat? {
-            guard idx >= 0, idx < model.selectableDayDates.count else { return nil }
-            return proxy.position(forX: model.selectableDayDates[idx].date)
+            guard idx >= 0, idx < model.dayDates.count else { return nil }
+            return proxy.position(forX: model.dayDates[idx].date)
         }
 
         let xPrev = xForIndex(index - 1)
         let xNext = xForIndex(index + 1)
+
+        if model.dayDates.count <= 1 {
+            return CGRect(
+                x: plotFrame.origin.x,
+                y: plotFrame.origin.y,
+                width: plotFrame.width,
+                height: plotFrame.height)
+        }
 
         let leftInPlot: CGFloat = if let xPrev {
             (xPrev + x) / 2
