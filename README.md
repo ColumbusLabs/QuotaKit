@@ -10,11 +10,6 @@ Tiny macOS 14+ menu bar app that keeps your Codex, Claude, Cursor, Gemini, Antig
 - macOS 14+ (Sonoma)
 
 ### GitHub Releases
-1) Download the latest zip from GitHub Releases.
-2) Unzip and move `CodexBar.app` to `/Applications`.
-3) Open it (first run: right-click → Open).
-4) Sparkle will keep you updated automatically (About → “Automatically check for updates”).
-
 Download: <https://github.com/steipete/CodexBar/releases>
 
 ### Homebrew
