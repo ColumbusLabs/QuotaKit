@@ -1,12 +1,9 @@
 # Changelog
 
 ## 0.16.2 — Unreleased
+- New providers: MiniMax.
 - Keychain: show a preflight explanation before macOS prompts for OAuth tokens or cookie decryption.
 - Providers: defer z.ai + Copilot Keychain reads until the user interacts with the token field.
-- Providers: add MiniMax with cookie-header override, browser cookie fallback, and local-storage auth for Coding Plan usage parsing.
-- MiniMax: merge Chromium cookie stores and parse copied cURL auth/GroupId to avoid “cookie missing” errors.
-- MiniMax: parse Chromium local storage via LevelDB reader with a MiniMax-specific text scan before raw JWT fallback.
-- MiniMax: clarify Settings copy so automatic cookie/local-storage import is the default and manual paste is optional.
 - Menu bar: avoid status item menu reattachment and layout flips during refresh to reduce icon flicker.
 - Dev: align SweetCookieKit local-storage tests with Swift Testing.
 - Charts: align hover selection bands with visible bars in credits + usage breakdown history.
@@ -43,6 +40,7 @@
 - Preferences: avoid Advanced tab crash when opening settings.
 
 ## 0.15.0 — 2025-12-28
+- New providers: Droid (Factory), Cursor, z.ai, Copilot.
 - macOS: CodexBar now supports Intel Macs (x86_64 builds + Sonoma fallbacks). Thanks @epoyraz!
 - Droid (Factory): new provider with Standard + Premium usage via browser cookies, plus dashboard + status links. Thanks @shashank-factory!
 - Menu: allow multi-line error messages in the provider subtitle (up to 4 lines).
@@ -102,6 +100,7 @@
 - Docs: expand CLI docs for Linux install + flags.
 
 ## 0.14.0 — 2025-12-25
+- New providers: Antigravity.
 - Antigravity: new local provider for the Antigravity language server (Claude + Gemini quotas) with an experimental toggle; improved plan display + debug output; clearer not-running/port errors; hide account switch.
 - Status: poll Google Workspace incidents for Gemini + Antigravity; Status Page opens the Workspace status page.
 - Settings: add Providers tab; move ccusage + status toggles to General; keep display controls in Advanced.
