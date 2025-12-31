@@ -12,13 +12,13 @@ struct MiniMaxProviderImplementation: ProviderImplementation {
         [
             ProviderSettingsFieldDescriptor(
                 id: "minimax-cookie",
-                title: "Session cookie",
+                title: "Session",
                 subtitle: [
-                    "Automatically imports browser cookies when available.",
-                    "Stored in Keychain; paste a Cookie header or Copy as cURL from platform.minimax.io if needed.",
+                    "Automatically imports browser cookies and local-storage tokens when available.",
+                    "Stored in Keychain; leave blank for automatic.",
                 ].joined(separator: " "),
                 kind: .secure,
-                placeholder: "Paste Cookie header or cURL…",
+                placeholder: "Automatic (leave blank)",
                 binding: context.stringBinding(\.minimaxCookieHeader),
                 actions: [
                     ProviderSettingsActionDescriptor(

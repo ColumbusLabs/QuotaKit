@@ -29,7 +29,7 @@ public enum MiniMaxSettingsError: LocalizedError, Sendable {
     public var errorDescription: String? {
         switch self {
         case .missingCookie:
-            "MiniMax cookie header not found. Set it in Preferences → Providers → MiniMax (stored in Keychain)."
+            "MiniMax session not found. Sign in to platform.minimax.io in your browser and try again."
         }
     }
 }

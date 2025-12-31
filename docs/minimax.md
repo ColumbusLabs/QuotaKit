@@ -12,24 +12,24 @@ MiniMax is web-only. Usage is fetched from the Coding Plan remains API using a s
 
 ## Data sources + fallback order
 
-1) **Manual session cookie header** (preferred override)
-   - Stored in Keychain via Preferences → Providers → MiniMax.
-   - Accepts a raw `Cookie:` header or a full "Copy as cURL" string.
-   - When a cURL string is pasted, MiniMax extracts the cookie header plus `Authorization: Bearer …` and
-     `GroupId=…` for the remains API.
-   - CLI/runtime env: `MINIMAX_COOKIE` or `MINIMAX_COOKIE_HEADER`.
-
-2) **Browser cookie import** (automatic fallback)
+1) **Browser cookie import** (automatic)
    - Cookie order from provider metadata (default: Safari → Chrome → Firefox).
    - Merges Chromium profile cookies across the primary + Network stores before attempting a request.
    - Tries each browser source until the Coding Plan API accepts the cookies.
    - Domain filters: `platform.minimax.io`, `minimax.io`.
 
-3) **Browser local storage access token** (Chromium-based)
+2) **Browser local storage access token** (Chromium-based)
    - Reads `access_token` (and related tokens) from Chromium local storage (LevelDB) to authorize the remains API.
    - If decoding fails, falls back to a text-entry scan for `minimax.io` keys/values and filters for MiniMax JWT claims.
    - Used automatically; no UI field.
    - Also extracts `GroupId` when present (appends query param).
+
+3) **Manual session cookie header** (optional override)
+   - Stored in Keychain via Preferences → Providers → MiniMax.
+   - Accepts a raw `Cookie:` header or a full "Copy as cURL" string.
+   - When a cURL string is pasted, MiniMax extracts the cookie header plus `Authorization: Bearer …` and
+     `GroupId=…` for the remains API.
+   - CLI/runtime env: `MINIMAX_COOKIE` or `MINIMAX_COOKIE_HEADER`.
 
 ## Endpoints
 - `GET https://platform.minimax.io/user-center/payment/coding-plan`
@@ -40,11 +40,11 @@ MiniMax is web-only. Usage is fetched from the Coding Plan remains API using a s
   - Adds `Authorization: Bearer <access_token>` when available.
   - Adds `GroupId` query param when known.
 
-## Cookie capture
+## Cookie capture (optional override)
 - Open the Coding Plan page and DevTools → Network.
 - Select the request to `/v1/api/openplatform/coding_plan/remains`.
 - Copy the `Cookie` request header (or use “Copy as cURL” and paste the whole line).
-- Paste into Preferences → Providers → MiniMax if browser import fails.
+- Paste into Preferences → Providers → MiniMax only if automatic import fails.
 
 ## Notes
 - Cookies alone often return status 1004 (“cookie is missing, log in again”); the remains API expects a Bearer token.
