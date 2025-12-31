@@ -14,6 +14,7 @@ enum ProviderImplementationRegistry {
         _ = ProviderImplementationRegistry.register(ClaudeProviderImplementation())
         _ = ProviderImplementationRegistry.register(FactoryProviderImplementation())
         _ = ProviderImplementationRegistry.register(ZaiProviderImplementation())
+        _ = ProviderImplementationRegistry.register(MiniMaxProviderImplementation())
         _ = ProviderImplementationRegistry.register(CursorProviderImplementation())
         _ = ProviderImplementationRegistry.register(GeminiProviderImplementation())
         _ = ProviderImplementationRegistry.register(AntigravityProviderImplementation())

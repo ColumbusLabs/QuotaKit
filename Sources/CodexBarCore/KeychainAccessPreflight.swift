@@ -8,6 +8,7 @@ public struct KeychainPromptContext: Sendable {
         case claudeOAuth
         case zaiToken
         case copilotToken
+        case minimaxCookie
     }
 
     public let kind: Kind

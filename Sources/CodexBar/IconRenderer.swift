@@ -706,11 +706,12 @@ enum IconRenderer {
         case .codex: 0
         case .claude: 1
         case .zai: 2
-        case .gemini: 3
-        case .antigravity: 4
-        case .cursor: 5
-        case .factory: 6
-        case .copilot: 7
+        case .minimax: 3
+        case .gemini: 4
+        case .antigravity: 5
+        case .cursor: 6
+        case .factory: 7
+        case .copilot: 8
         case .combined: 99
         }
     }

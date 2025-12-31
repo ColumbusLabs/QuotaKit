@@ -60,6 +60,8 @@ enum CostUsageScanner {
             return CostUsageDailyReport(data: [], summary: nil)
         case .copilot:
             return CostUsageDailyReport(data: [], summary: nil)
+        case .minimax:
+            return CostUsageDailyReport(data: [], summary: nil)
         }
     }
 

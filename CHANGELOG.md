@@ -3,6 +3,9 @@
 ## 0.16.2 — Unreleased
 - Keychain: show a preflight explanation before macOS prompts for OAuth tokens or cookie decryption.
 - Providers: defer z.ai + Copilot Keychain reads until the user interacts with the token field.
+- Providers: add MiniMax with cookie-header override, browser cookie fallback, and local-storage auth for Coding Plan usage parsing.
+- MiniMax: merge Chromium cookie stores and parse copied cURL auth/GroupId to avoid “cookie missing” errors.
+- MiniMax: parse Chromium local storage via LevelDB reader with a MiniMax-specific text scan before raw JWT fallback.
 - Charts: align hover selection bands with visible bars in credits + usage breakdown history.
 - About: fix website link in the About panel. Thanks @felipeorlando!
 

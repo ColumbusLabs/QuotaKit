@@ -107,6 +107,9 @@ struct ProvidersPane: View {
         if provider == .zai {
             return "api • \(usageText)"
         }
+        if provider == .minimax {
+            return "web • \(usageText)"
+        }
 
         var detail = "\(cliName) \(versionText) • \(usageText)"
         if provider == .antigravity {

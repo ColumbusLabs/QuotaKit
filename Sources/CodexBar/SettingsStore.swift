@@ -154,6 +154,11 @@ final class SettingsStore {
         didSet { self.schedulePersistZaiAPIToken() }
     }
 
+    /// MiniMax cookie header (stored in Keychain).
+    var minimaxCookieHeader: String {
+        didSet { self.schedulePersistMiniMaxCookieHeader() }
+    }
+
     /// Copilot API token (stored in Keychain).
     var copilotAPIToken: String {
         didSet { self.schedulePersistCopilotAPIToken() }
@@ -220,6 +225,7 @@ final class SettingsStore {
         _ = self.mergeIcons
         _ = self.switcherShowsIcons
         _ = self.zaiAPIToken
+        _ = self.minimaxCookieHeader
         _ = self.copilotAPIToken
         _ = self.debugLoadingPattern
         _ = self.selectedMenuProvider
@@ -237,6 +243,10 @@ final class SettingsStore {
     @ObservationIgnored private var zaiTokenPersistTask: Task<Void, Never>?
     @ObservationIgnored private var zaiTokenLoaded = false
     @ObservationIgnored private var zaiTokenLoading = false
+    @ObservationIgnored private let minimaxCookieStore: any MiniMaxCookieStoring
+    @ObservationIgnored private var minimaxCookiePersistTask: Task<Void, Never>?
+    @ObservationIgnored private var minimaxCookieLoaded = false
+    @ObservationIgnored private var minimaxCookieLoading = false
     @ObservationIgnored private let copilotTokenStore: any CopilotTokenStoring
     @ObservationIgnored private var copilotTokenPersistTask: Task<Void, Never>?
     @ObservationIgnored private var copilotTokenLoaded = false
@@ -255,10 +265,12 @@ final class SettingsStore {
     init(
         userDefaults: UserDefaults = .standard,
         zaiTokenStore: any ZaiTokenStoring = KeychainZaiTokenStore(),
+        minimaxCookieStore: any MiniMaxCookieStoring = KeychainMiniMaxCookieStore(),
         copilotTokenStore: any CopilotTokenStoring = KeychainCopilotTokenStore())
     {
         self.userDefaults = userDefaults
         self.zaiTokenStore = zaiTokenStore
+        self.minimaxCookieStore = minimaxCookieStore
         self.copilotTokenStore = copilotTokenStore
         self.providerOrderRaw = userDefaults.stringArray(forKey: "providerOrder") ?? []
         let raw = userDefaults.string(forKey: "refreshFrequency") ?? RefreshFrequency.fiveMinutes.rawValue
@@ -296,6 +308,7 @@ final class SettingsStore {
         self.mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true
         self.switcherShowsIcons = userDefaults.object(forKey: "switcherShowsIcons") as? Bool ?? true
         self.zaiAPIToken = ""
+        self.minimaxCookieHeader = ""
         self.copilotAPIToken = ""
         self.selectedMenuProviderRaw = userDefaults.string(forKey: "selectedMenuProvider")
         self.providerDetectionCompleted = userDefaults.object(
@@ -392,6 +405,12 @@ final class SettingsStore {
         if !seen.contains(.factory), let zaiIndex = ordered.firstIndex(of: .zai) {
             ordered.insert(.factory, at: zaiIndex)
             seen.insert(.factory)
+        }
+
+        if !seen.contains(.minimax), let zaiIndex = ordered.firstIndex(of: .zai) {
+            let insertIndex = ordered.index(after: zaiIndex)
+            ordered.insert(.minimax, at: insertIndex)
+            seen.insert(.minimax)
         }
 
         for provider in UsageProvider.allCases where !seen.contains(provider) {
@@ -554,6 +573,32 @@ final class SettingsStore {
         }
     }
 
+    private func schedulePersistMiniMaxCookieHeader() {
+        if self.minimaxCookieLoading { return }
+        self.minimaxCookiePersistTask?.cancel()
+        let header = self.minimaxCookieHeader
+        let cookieStore = self.minimaxCookieStore
+        self.minimaxCookiePersistTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 350_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
+                do {
+                    try cookieStore.storeCookieHeader(header)
+                    return nil
+                } catch {
+                    return error
+                }
+            }.value
+            if let error {
+                CodexBarLog.logger("minimax-cookie-store").error("Failed to persist MiniMax cookie: \(error)")
+            }
+        }
+    }
+
     private func schedulePersistCopilotAPIToken() {
         if self.copilotTokenLoading { return }
         self.copilotTokenPersistTask?.cancel()
@@ -586,6 +631,14 @@ final class SettingsStore {
         self.zaiAPIToken = (try? self.zaiTokenStore.loadToken()) ?? ""
         self.zaiTokenLoading = false
         self.zaiTokenLoaded = true
+    }
+
+    func ensureMiniMaxCookieLoaded() {
+        guard !self.minimaxCookieLoaded else { return }
+        self.minimaxCookieLoading = true
+        self.minimaxCookieHeader = (try? self.minimaxCookieStore.loadCookieHeader()) ?? ""
+        self.minimaxCookieLoading = false
+        self.minimaxCookieLoaded = true
     }
 
     func ensureCopilotAPITokenLoaded() {

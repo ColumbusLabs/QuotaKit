@@ -306,6 +306,7 @@ final class UsageStore {
         case .cursor: self.cursorVersion
         case .factory: nil
         case .copilot: nil
+        case .minimax: nil
         }
     }
 
@@ -333,7 +334,8 @@ final class UsageStore {
             (self.isEnabled(.antigravity) && self.errors[.antigravity] != nil) ||
             (self.isEnabled(.cursor) && self.errors[.cursor] != nil) ||
             (self.isEnabled(.factory) && self.errors[.factory] != nil) ||
-            (self.isEnabled(.copilot) && self.errors[.copilot] != nil)
+            (self.isEnabled(.copilot) && self.errors[.copilot] != nil) ||
+            (self.isEnabled(.minimax) && self.errors[.minimax] != nil)
     }
 
     func enabledProviders() -> [UsageProvider] {
@@ -1217,6 +1219,13 @@ extension UsageStore {
             case .copilot:
                 let text = "Copilot debug log not yet implemented"
                 await MainActor.run { self.probeLogs[.copilot] = text }
+                return text
+            case .minimax:
+                let resolution = ProviderTokenResolver.minimaxResolution()
+                let hasAny = resolution != nil
+                let source = resolution?.source.rawValue ?? "none"
+                let text = "MINIMAX_COOKIE=\(hasAny ? "present" : "missing") source=\(source)"
+                await MainActor.run { self.probeLogs[.minimax] = text }
                 return text
             }
         }.value

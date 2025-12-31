@@ -21,6 +21,7 @@ Source labels (CLI/header): `openai-web`, `web`, `oauth`, `api`, `local`, plus p
 | Cursor | Web API via cookies → stored WebKit session (`web`). |
 | Droid/Factory | Web cookies → stored tokens → local storage → WorkOS cookies (`web`). |
 | z.ai | API token (Keychain/env) → quota API (`api`). |
+| MiniMax | Manual cookie header (Keychain/env) → browser cookies (+ local storage access token) → coding plan page (HTML) with remains API fallback (`web`). |
 | Copilot | API token (device flow/env) → copilot_internal API (`api`). |
 
 ## Codex
@@ -44,6 +45,12 @@ Source labels (CLI/header): `openai-web`, `web`, `oauth`, `api`, `local`, plus p
 - `GET https://api.z.ai/api/monitor/usage/quota/limit`.
 - Status: none yet.
 - Details: `docs/zai.md`.
+
+## MiniMax
+- Session cookie header from Keychain or `MINIMAX_COOKIE`/`MINIMAX_COOKIE_HEADER` env var.
+- `GET https://platform.minimax.io/v1/api/openplatform/coding_plan/remains`.
+- Status: none yet.
+- Details: `docs/minimax.md`.
 
 ## Gemini
 - OAuth-backed quota API (`retrieveUserQuota`) using Gemini CLI credentials.

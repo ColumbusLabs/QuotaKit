@@ -127,6 +127,7 @@ struct SettingsStoreTests {
             .antigravity,
             .copilot,
             .zai,
+            .minimax,
         ])
 
         // Move one provider; ensure it's persisted across instances.

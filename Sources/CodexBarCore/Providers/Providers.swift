@@ -11,6 +11,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case antigravity
     case copilot
     case zai
+    case minimax
 }
 
 // swiftformat:enable sortDeclarations
@@ -19,6 +20,7 @@ public enum IconStyle: Sendable {
     case codex
     case claude
     case zai
+    case minimax
     case gemini
     case antigravity
     case cursor
