@@ -27,7 +27,7 @@ Upgrade:
 brew upgrade --cask steipete/tap/codexbar
 ```
 
-### First run (developer-friendly)
+### First run
 - Open Settings → Providers and enable what you use.
 - Install/sign in to the provider sources you rely on (e.g. `codex`, `claude`, `gemini`, browser cookies, or OAuth; Antigravity requires the Antigravity app running).
 - Optional: Settings → General → “Access OpenAI via web” to add Codex dashboard extras.
