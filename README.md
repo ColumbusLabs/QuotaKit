@@ -7,10 +7,9 @@ Tiny macOS 14+ menu bar app that keeps your Codex, Claude, Cursor, Gemini, Antig
 ## Install
 
 ### Requirements
-- macOS 14+ (Sonoma).
-- Apple Silicon (arm64) and Intel (x86_64).
+- macOS 14+ (Sonoma)
 
-### Option A: GitHub Releases (recommended, Sparkle updates)
+### GitHub Releases
 1) Download the latest zip from GitHub Releases.
 2) Unzip and move `CodexBar.app` to `/Applications`.
 3) Open it (first run: right-click → Open).
@@ -18,13 +17,9 @@ Tiny macOS 14+ menu bar app that keeps your Codex, Claude, Cursor, Gemini, Antig
 
 Download: <https://github.com/steipete/CodexBar/releases>
 
-### Option B: Homebrew (updates via brew, Sparkle disabled)
+### Homebrew
 ```bash
 brew install --cask steipete/tap/codexbar
-```
-Upgrade:
-```bash
-brew upgrade --cask steipete/tap/codexbar
 ```
 
 ### First run
