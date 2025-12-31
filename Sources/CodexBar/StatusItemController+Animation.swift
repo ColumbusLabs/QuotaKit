@@ -320,7 +320,10 @@ extension StatusItemController {
         if button.title != value {
             button.title = value
         }
-        button.imagePosition = value.isEmpty ? .imageOnly : .imageLeft
+        let position: NSControl.ImagePosition = value.isEmpty ? .imageOnly : .imageLeft
+        if button.imagePosition != position {
+            button.imagePosition = position
+        }
     }
 
     private func menuBarPercentText(for provider: UsageProvider, snapshot: UsageSnapshot?) -> String? {

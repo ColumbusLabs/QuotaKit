@@ -267,7 +267,9 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         if self.mergedMenu == nil {
             self.mergedMenu = self.makeMenu()
         }
-        self.statusItem.menu = self.mergedMenu
+        if self.statusItem.menu !== self.mergedMenu {
+            self.statusItem.menu = self.mergedMenu
+        }
     }
 
     private func attachMenus(fallback: UsageProvider? = nil) {
@@ -277,14 +279,21 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
                 if self.providerMenus[provider] == nil {
                     self.providerMenus[provider] = self.makeMenu(for: provider)
                 }
-                item.menu = self.providerMenus[provider]
+                let menu = self.providerMenus[provider]
+                if item.menu !== menu {
+                    item.menu = menu
+                }
             } else if fallback == provider {
                 if self.fallbackMenu == nil {
                     self.fallbackMenu = self.makeMenu(for: nil)
                 }
-                item.menu = self.fallbackMenu
+                if item.menu !== self.fallbackMenu {
+                    item.menu = self.fallbackMenu
+                }
             } else {
-                item.menu = nil
+                if item.menu != nil {
+                    item.menu = nil
+                }
             }
         }
     }

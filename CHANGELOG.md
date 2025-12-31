@@ -7,6 +7,7 @@
 - MiniMax: merge Chromium cookie stores and parse copied cURL auth/GroupId to avoid “cookie missing” errors.
 - MiniMax: parse Chromium local storage via LevelDB reader with a MiniMax-specific text scan before raw JWT fallback.
 - MiniMax: clarify Settings copy so automatic cookie/local-storage import is the default and manual paste is optional.
+- Menu bar: avoid status item menu reattachment and layout flips during refresh to reduce icon flicker.
 - Dev: align SweetCookieKit local-storage tests with Swift Testing.
 - Charts: align hover selection bands with visible bars in credits + usage breakdown history.
 - About: fix website link in the About panel. Thanks @felipeorlando!
