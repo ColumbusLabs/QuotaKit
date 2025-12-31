@@ -3,6 +3,27 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.17.0</title>
+            <pubDate>Wed, 31 Dec 2025 23:12:24 +0100</pubDate>
+            <link>https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml</link>
+            <sparkle:version>48</sparkle:version>
+            <sparkle:shortVersionString>0.17.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.17.0</h2>
+<ul>
+<li>New providers: MiniMax.</li>
+<li>Keychain: show a preflight explanation before macOS prompts for OAuth tokens or cookie decryption.</li>
+<li>Providers: defer z.ai + Copilot Keychain reads until the user interacts with the token field.</li>
+<li>Menu bar: avoid status item menu reattachment and layout flips during refresh to reduce icon flicker.</li>
+<li>Dev: align SweetCookieKit local-storage tests with Swift Testing.</li>
+<li>Charts: align hover selection bands with visible bars in credits + usage breakdown history.</li>
+<li>About: fix website link in the About panel. Thanks @felipeorlando!</li>
+</ul>
+<p><a href="https://github.com/steipete/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.17.0/CodexBar-0.17.0.zip" length="14296774" type="application/octet-stream" sparkle:edSignature="8n//nfQb9cz3hyoc/4+eitFvGl/FJrruUS99aIfqHwgtXhi1V4he9dKh7zKNt78mcP6raJGg+Ha5yHgglfSTDQ=="/>
+        </item>
+        <item>
             <title>0.16.1</title>
             <pubDate>Tue, 30 Dec 2025 00:38:14 +0100</pubDate>
             <link>https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml</link>
@@ -41,27 +62,6 @@
 <p><a href="https://github.com/steipete/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.16.0/CodexBar-0.16.0.zip" length="7607740" type="application/octet-stream" sparkle:edSignature="D/d9z4+8/gqpeoXBKkmEkzpPrzs9pp1DQeCETkndA2kyi1wKTAjPyw6Hj6V1Pe3T5ge66E0N5De88ilUp6WmBw=="/>
-        </item>
-        <item>
-            <title>0.15.3</title>
-            <pubDate>Sun, 28 Dec 2025 20:18:41 +0100</pubDate>
-            <link>https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml</link>
-            <sparkle:version>45</sparkle:version>
-            <sparkle:shortVersionString>0.15.3</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.15.3</h2>
-<ul>
-<li>Codex: default to OAuth usage API (ChatGPT backend) with CLI-only override in Debug.</li>
-<li>Codex: map OAuth credits balance directly, avoiding web fallback for credits.</li>
-<li>Preferences: add optional “Access OpenAI via web” toggle and show blended source labels when web extras are active.</li>
-<li>Copilot: replace blocking auth wait dialog with a non-modal sheet to avoid stuck login.</li>
-</ul>
-<ul>
-<li>CI: stabilize Claude CLI version detection test.</li>
-</ul>
-<p><a href="https://github.com/steipete/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.15.3/CodexBar-0.15.3.zip" length="7549248" type="application/octet-stream" sparkle:edSignature="3xoy09WoQnTuskCqIPRHriFPmmTJCVZ4BIgufRNLqfNhszmE1MSf2pWQVYzgt0SBVDrY+12/0dCie9TG0RqTBg=="/>
         </item>
         <item>
             <title>0.14.0</title>
