@@ -203,6 +203,7 @@ final class UsageStore {
     var zaiVersion: String?
     var antigravityVersion: String?
     var cursorVersion: String?
+    var kiroVersion: String?
     var isRefreshing = false
     private(set) var refreshingProviders: Set<UsageProvider> = []
     var debugForceAnimation = false
@@ -307,6 +308,7 @@ final class UsageStore {
         case .factory: nil
         case .copilot: nil
         case .minimax: nil
+        case .kiro: self.kiroVersion
         }
     }
 
@@ -1226,6 +1228,10 @@ extension UsageStore {
                 let source = resolution?.source.rawValue ?? "none"
                 let text = "MINIMAX_COOKIE=\(hasAny ? "present" : "missing") source=\(source)"
                 await MainActor.run { self.probeLogs[.minimax] = text }
+                return text
+            case .kiro:
+                let text = "Kiro debug log not yet implemented"
+                await MainActor.run { self.probeLogs[.kiro] = text }
                 return text
             }
         }.value
