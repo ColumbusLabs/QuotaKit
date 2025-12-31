@@ -106,12 +106,13 @@ struct MiniMaxUsageParserTests {
         """
 
         let snapshot = try MiniMaxUsageParser.parseCodingPlanRemains(data: Data(json.utf8), now: now)
+        let expectedReset = Date(timeIntervalSince1970: TimeInterval(end) / 1000)
 
         #expect(snapshot.planName == "Max")
         #expect(snapshot.availablePrompts == 1000)
         #expect(snapshot.windowMinutes == 300)
         #expect(snapshot.usedPercent == 75)
-        #expect(snapshot.resetsAt == now.addingTimeInterval(240))
+        #expect(snapshot.resetsAt == expectedReset)
     }
 
     @Test
@@ -181,12 +182,13 @@ struct MiniMaxUsageParserTests {
         """
 
         let snapshot = try MiniMaxUsageParser.parse(html: html, now: now)
+        let expectedReset = Date(timeIntervalSince1970: TimeInterval(end) / 1000)
 
         #expect(snapshot.planName == "Max")
         #expect(snapshot.availablePrompts == 1000)
         #expect(snapshot.windowMinutes == 300)
         #expect(snapshot.usedPercent == 75)
-        #expect(snapshot.resetsAt == now.addingTimeInterval(240))
+        #expect(snapshot.resetsAt == expectedReset)
     }
 
     @Test

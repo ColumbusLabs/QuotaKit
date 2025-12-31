@@ -358,7 +358,13 @@ enum MiniMaxUsageParser {
 
         for candidate in candidates {
             let cleaned = UsageFormatter.cleanPlanName(candidate)
-            if !cleaned.isEmpty { return cleaned }
+            let trimmed = cleaned
+                .replacingOccurrences(
+                    of: #"(?i)\s+available\s+usage.*$"#,
+                    with: "",
+                    options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty { return trimmed }
         }
         return nil
     }
@@ -459,7 +465,7 @@ enum MiniMaxUsageParser {
 
     private static func parseUsedPercent(text: String) -> Double? {
         let patterns = [
-            #"([0-9]{1,3}(?:\.[0-9]+)?)\s*%\s*used"#,
+            #"(?i)([0-9]{1,3}(?:\.[0-9]+)?)\s*%\s*used"#,
             #"(?i)used\s*([0-9]{1,3}(?:\.[0-9]+)?)\s*%"#,
         ]
         for pattern in patterns {
@@ -576,7 +582,7 @@ enum MiniMaxUsageParser {
     }
 }
 
-public enum MiniMaxUsageError: LocalizedError, Sendable {
+public enum MiniMaxUsageError: LocalizedError, Sendable, Equatable {
     case invalidCredentials
     case networkError(String)
     case apiError(String)

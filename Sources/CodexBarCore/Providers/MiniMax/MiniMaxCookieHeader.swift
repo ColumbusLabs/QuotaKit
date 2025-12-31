@@ -14,6 +14,8 @@ public struct MiniMaxCookieOverride: Sendable {
 
 public enum MiniMaxCookieHeader {
     private static let headerPatterns: [String] = [
+        #"(?i)-H\s*'Cookie:\s*([^']+)'"#,
+        #"(?i)-H\s*\"Cookie:\s*([^\"]+)\""#,
         #"(?i)\bcookie:\s*'([^']+)'"#,
         #"(?i)\bcookie:\s*\"([^\"]+)\""#,
         #"(?i)\bcookie:\s*([^\r\n]+)"#,
