@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.16.2 — Unreleased
+## 0.17.0 — 2025-12-31
 - New providers: MiniMax.
 - Keychain: show a preflight explanation before macOS prompts for OAuth tokens or cookie decryption.
 - Providers: defer z.ai + Copilot Keychain reads until the user interacts with the token field.
