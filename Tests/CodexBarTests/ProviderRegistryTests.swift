@@ -1,18 +1,33 @@
 import CodexBarCore
-import XCTest
+import Testing
 
-final class ProviderRegistryTests: XCTestCase {
-    func test_descriptorRegistryIsCompleteAndDeterministic() {
+@Suite
+struct ProviderRegistryTests {
+    @Test
+    func descriptorRegistryIsCompleteAndDeterministic() {
         let descriptors = ProviderDescriptorRegistry.all
         let ids = descriptors.map(\.id)
 
-        XCTAssertFalse(descriptors.isEmpty, "ProviderDescriptorRegistry must not be empty.")
-        XCTAssertEqual(Set(ids).count, ids.count, "ProviderDescriptorRegistry contains duplicate IDs.")
+        #expect(!descriptors.isEmpty, "ProviderDescriptorRegistry must not be empty.")
+        #expect(Set(ids).count == ids.count, "ProviderDescriptorRegistry contains duplicate IDs.")
 
         let missing = Set(UsageProvider.allCases).subtracting(ids)
-        XCTAssertTrue(missing.isEmpty, "Missing descriptors for providers: \(missing).")
+        #expect(missing.isEmpty, "Missing descriptors for providers: \(missing).")
 
         let secondPass = ProviderDescriptorRegistry.all.map(\.id)
-        XCTAssertEqual(ids, secondPass, "ProviderDescriptorRegistry order changed between reads.")
+        #expect(ids == secondPass, "ProviderDescriptorRegistry order changed between reads.")
+    }
+
+    @Test
+    func minimaxSortsAfterZaiInRegistry() {
+        let ids = ProviderDescriptorRegistry.all.map(\.id)
+        guard let zaiIndex = ids.firstIndex(of: .zai),
+              let minimaxIndex = ids.firstIndex(of: .minimax)
+        else {
+            Issue.record("Missing z.ai or MiniMax provider in registry order.")
+            return
+        }
+
+        #expect(zaiIndex < minimaxIndex)
     }
 }

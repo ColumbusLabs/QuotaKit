@@ -26,6 +26,13 @@ struct MiniMaxCookieHeaderTests {
     }
 
     @Test
+    func extractsFromCurlCookieFlag() {
+        let raw = "curl https://platform.minimax.io --cookie 'foo=bar; session=abc123'"
+        let normalized = MiniMaxCookieHeader.normalized(from: raw)
+        #expect(normalized == "foo=bar; session=abc123")
+    }
+
+    @Test
     func extractsAuthAndGroupIDFromCurl() {
         let raw = """
         curl 'https://platform.minimax.io/v1/api/openplatform/coding_plan/remains?GroupId=123456' \
@@ -36,6 +43,18 @@ struct MiniMaxCookieHeaderTests {
         #expect(override?.cookieHeader == "foo=bar; session=abc123")
         #expect(override?.authorizationToken == "token123")
         #expect(override?.groupID == "123456")
+    }
+
+    @Test
+    func extractsAuthFromUppercaseHeader() {
+        let raw = """
+        curl 'https://platform.minimax.io/v1/api/openplatform/coding_plan/remains?GROUP_ID=98765' \
+          -H 'Authorization: Bearer token-abc' \
+          -H 'Cookie: foo=bar; session=abc123'
+        """
+        let override = MiniMaxCookieHeader.override(from: raw)
+        #expect(override?.authorizationToken == "token-abc")
+        #expect(override?.groupID == "98765")
     }
 }
 
@@ -96,6 +115,40 @@ struct MiniMaxUsageParserTests {
     }
 
     @Test
+    func parsesCodingPlanRemainsFromDataWrapper() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_100)
+        let start = 1_700_000_000_000
+        let end = start + 5 * 60 * 60 * 1000
+        let json = """
+        {
+          "base_resp": { "status_code": "0" },
+          "data": {
+            "current_subscribe_title": "Max",
+            "model_remains": [
+              {
+                "current_interval_total_count": "15000",
+                "current_interval_usage_count": "14989",
+                "start_time": \(start),
+                "end_time": \(end),
+                "remains_time": 8941292
+              }
+            ]
+          }
+        }
+        """
+
+        let snapshot = try MiniMaxUsageParser.parseCodingPlanRemains(data: Data(json.utf8), now: now)
+        let expectedUsed = Double(11) / Double(15000) * 100
+        let expectedReset = Date(timeIntervalSince1970: TimeInterval(end) / 1000)
+
+        #expect(snapshot.planName == "Max")
+        #expect(snapshot.availablePrompts == 15000)
+        #expect(snapshot.windowMinutes == 300)
+        #expect(abs((snapshot.usedPercent ?? 0) - expectedUsed) < 0.01)
+        #expect(snapshot.resetsAt == expectedReset)
+    }
+
+    @Test
     func parsesCodingPlanFromNextData() throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let start = 1_700_000_000_000
@@ -137,10 +190,46 @@ struct MiniMaxUsageParserTests {
     }
 
     @Test
+    func parsesHTMLWithUsedPrefixAndResetTime() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC") ?? .current
+        let now = calendar.date(from: DateComponents(year: 2025, month: 1, day: 1, hour: 10, minute: 0))!
+        let expectedReset = calendar.date(from: DateComponents(year: 2025, month: 1, day: 1, hour: 23, minute: 30))!
+
+        let html = """
+        <div>Coding Plan Pro</div>
+        <div>Available usage: 1,500 prompts / 1.5 hours</div>
+        <div>Used 75%</div>
+        <div>Resets at 23:30 (UTC)</div>
+        """
+
+        let snapshot = try MiniMaxUsageParser.parse(html: html, now: now)
+
+        #expect(snapshot.planName == "Pro")
+        #expect(snapshot.availablePrompts == 1500)
+        #expect(snapshot.windowMinutes == 90)
+        #expect(snapshot.usedPercent == 75)
+        #expect(snapshot.resetsAt == expectedReset)
+    }
+
+    @Test
     func throwsOnMissingCookieResponse() {
         let json = """
         {
           "base_resp": { "status_code": 1004, "status_msg": "cookie is missing, log in again" }
+        }
+        """
+
+        #expect(throws: MiniMaxUsageError.invalidCredentials) {
+            try MiniMaxUsageParser.parseCodingPlanRemains(data: Data(json.utf8))
+        }
+    }
+
+    @Test
+    func throwsOnStringStatusCodeWhenLoggedOut() {
+        let json = """
+        {
+          "base_resp": { "status_code": "1004", "status_msg": "login required" }
         }
         """
 
