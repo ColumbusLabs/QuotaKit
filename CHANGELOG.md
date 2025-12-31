@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.17.1 — Unreleased
+- TBD.
+
 ## 0.17.0 — 2025-12-31
 - New providers: MiniMax.
 - Keychain: show a preflight explanation before macOS prompts for OAuth tokens or cookie decryption.
