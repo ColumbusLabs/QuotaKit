@@ -24,11 +24,23 @@ struct FactoryProviderImplementation: ProviderImplementation {
                 title: ProviderCookieSource.manual.displayName),
         ]
 
+        let cookieSubtitle: () -> String? = {
+            switch context.settings.factoryCookieSource {
+            case .auto:
+                return "Automatic imports browser cookies and WorkOS tokens."
+            case .manual:
+                return "Paste a Cookie header from app.factory.ai."
+            case .off:
+                return "Factory cookies are disabled."
+            }
+        }
+
         return [
             ProviderSettingsPickerDescriptor(
                 id: "factory-cookie-source",
                 title: "Cookie source",
                 subtitle: "Automatic imports browser cookies and WorkOS tokens.",
+                dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
                 isVisible: nil,
@@ -41,8 +53,8 @@ struct FactoryProviderImplementation: ProviderImplementation {
         [
             ProviderSettingsFieldDescriptor(
                 id: "factory-cookie-header",
-                title: "Cookie header",
-                subtitle: "Paste the Cookie header from app.factory.ai.",
+                title: "",
+                subtitle: "",
                 kind: .secure,
                 placeholder: "Cookie: …",
                 binding: context.stringBinding(\.factoryCookieHeader),

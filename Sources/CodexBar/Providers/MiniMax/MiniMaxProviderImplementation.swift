@@ -24,11 +24,23 @@ struct MiniMaxProviderImplementation: ProviderImplementation {
                 title: ProviderCookieSource.manual.displayName),
         ]
 
+        let cookieSubtitle: () -> String? = {
+            switch context.settings.minimaxCookieSource {
+            case .auto:
+                return "Automatic imports browser cookies and local storage tokens."
+            case .manual:
+                return "Paste a Cookie header or cURL capture from the Coding Plan page."
+            case .off:
+                return "MiniMax cookies are disabled."
+            }
+        }
+
         return [
             ProviderSettingsPickerDescriptor(
                 id: "minimax-cookie-source",
                 title: "Cookie source",
                 subtitle: "Automatic imports browser cookies and local storage tokens.",
+                dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
                 isVisible: nil,
@@ -41,11 +53,8 @@ struct MiniMaxProviderImplementation: ProviderImplementation {
         [
             ProviderSettingsFieldDescriptor(
                 id: "minimax-cookie",
-                title: "Session",
-                subtitle: [
-                    "Paste a Cookie header or cURL capture from the Coding Plan page.",
-                    "Stored in Keychain.",
-                ].joined(separator: " "),
+                title: "",
+                subtitle: "",
                 kind: .secure,
                 placeholder: "Cookie: …",
                 binding: context.stringBinding(\.minimaxCookieHeader),

@@ -90,6 +90,7 @@ struct ProviderSettingsPickerDescriptor: Identifiable {
     let id: String
     let title: String
     let subtitle: String
+    let dynamicSubtitle: (() -> String?)?
     let binding: Binding<String>
     let options: [ProviderSettingsPickerOption]
     let isVisible: (() -> Bool)?
@@ -100,6 +101,7 @@ struct ProviderSettingsPickerDescriptor: Identifiable {
         id: String,
         title: String,
         subtitle: String,
+        dynamicSubtitle: (() -> String?)? = nil,
         binding: Binding<String>,
         options: [ProviderSettingsPickerOption],
         isVisible: (() -> Bool)?,
@@ -109,6 +111,7 @@ struct ProviderSettingsPickerDescriptor: Identifiable {
         self.id = id
         self.title = title
         self.subtitle = subtitle
+        self.dynamicSubtitle = dynamicSubtitle
         self.binding = binding
         self.options = options
         self.isVisible = isVisible

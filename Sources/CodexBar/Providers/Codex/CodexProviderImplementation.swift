@@ -36,6 +36,17 @@ struct CodexProviderImplementation: ProviderImplementation {
                 title: ProviderCookieSource.off.displayName),
         ]
 
+        let cookieSubtitle: () -> String? = {
+            switch context.settings.codexCookieSource {
+            case .auto:
+                return "Automatic imports browser cookies for dashboard extras."
+            case .manual:
+                return "Paste a Cookie header from a chatgpt.com request."
+            case .off:
+                return "Disable OpenAI dashboard cookie usage."
+            }
+        }
+
         return [
             ProviderSettingsPickerDescriptor(
                 id: "codex-usage-source",
@@ -54,6 +65,7 @@ struct CodexProviderImplementation: ProviderImplementation {
                 id: "codex-cookie-source",
                 title: "OpenAI cookies",
                 subtitle: "Automatic imports browser cookies for dashboard extras.",
+                dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
                 isVisible: nil,
@@ -66,8 +78,8 @@ struct CodexProviderImplementation: ProviderImplementation {
         [
             ProviderSettingsFieldDescriptor(
                 id: "codex-cookie-header",
-                title: "Cookie header",
-                subtitle: "Paste the Cookie header from a chatgpt.com request.",
+                title: "",
+                subtitle: "",
                 kind: .secure,
                 placeholder: "Cookie: …",
                 binding: context.stringBinding(\.codexCookieHeader),

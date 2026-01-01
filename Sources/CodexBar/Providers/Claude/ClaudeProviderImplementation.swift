@@ -32,6 +32,17 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 title: ProviderCookieSource.manual.displayName),
         ]
 
+        let cookieSubtitle: () -> String? = {
+            switch context.settings.claudeCookieSource {
+            case .auto:
+                return "Automatic imports browser cookies for the web API."
+            case .manual:
+                return "Paste a Cookie header from a claude.ai request."
+            case .off:
+                return "Claude cookies are disabled."
+            }
+        }
+
         return [
             ProviderSettingsPickerDescriptor(
                 id: "claude-usage-source",
@@ -50,6 +61,7 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 id: "claude-cookie-source",
                 title: "Claude cookies",
                 subtitle: "Automatic imports browser cookies for the web API.",
+                dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
                 isVisible: nil,
@@ -62,8 +74,8 @@ struct ClaudeProviderImplementation: ProviderImplementation {
         [
             ProviderSettingsFieldDescriptor(
                 id: "claude-cookie-header",
-                title: "Cookie header",
-                subtitle: "Paste the Cookie header from a claude.ai request.",
+                title: "",
+                subtitle: "",
                 kind: .secure,
                 placeholder: "Cookie: …",
                 binding: context.stringBinding(\.claudeCookieHeader),

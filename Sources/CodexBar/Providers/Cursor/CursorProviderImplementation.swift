@@ -24,11 +24,23 @@ struct CursorProviderImplementation: ProviderImplementation {
                 title: ProviderCookieSource.manual.displayName),
         ]
 
+        let cookieSubtitle: () -> String? = {
+            switch context.settings.cursorCookieSource {
+            case .auto:
+                return "Automatic imports browser cookies or stored sessions."
+            case .manual:
+                return "Paste a Cookie header from a cursor.com request."
+            case .off:
+                return "Cursor cookies are disabled."
+            }
+        }
+
         return [
             ProviderSettingsPickerDescriptor(
                 id: "cursor-cookie-source",
                 title: "Cookie source",
                 subtitle: "Automatic imports browser cookies or stored sessions.",
+                dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
                 isVisible: nil,
@@ -41,8 +53,8 @@ struct CursorProviderImplementation: ProviderImplementation {
         [
             ProviderSettingsFieldDescriptor(
                 id: "cursor-cookie-header",
-                title: "Cookie header",
-                subtitle: "Paste the Cookie header from a cursor.com request.",
+                title: "",
+                subtitle: "",
                 kind: .secure,
                 placeholder: "Cookie: …",
                 binding: context.stringBinding(\.cursorCookieHeader),

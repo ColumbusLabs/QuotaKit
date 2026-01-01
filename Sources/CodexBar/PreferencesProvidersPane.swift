@@ -563,7 +563,7 @@ private struct ProviderListPickerRowView: View {
                 .frame(width: ProviderListMetrics.iconSize, height: ProviderListMetrics.iconSize)
 
             VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(self.picker.title)
                         .font(.subheadline.weight(.semibold))
                         .frame(width: ProviderListMetrics.pickerLabelWidth, alignment: .leading)
@@ -583,15 +583,19 @@ private struct ProviderListPickerRowView: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .truncationMode(.tail)
+                            .padding(.leading, 4)
                     }
 
                     Spacer(minLength: 0)
                 }
 
-                Text(self.picker.subtitle)
-                    .font(.footnote)
-                    .foregroundStyle(.tertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                let subtitle = self.picker.dynamicSubtitle?() ?? self.picker.subtitle
+                if !subtitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text(subtitle)
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -620,14 +624,24 @@ private struct ProviderListFieldRowView: View {
             Color.clear
                 .frame(width: ProviderListMetrics.iconSize, height: ProviderListMetrics.iconSize)
 
-            VStack(alignment: .leading, spacing: 8) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(self.field.title)
-                        .font(.subheadline.weight(.semibold))
-                    Text(self.field.subtitle)
-                        .font(.footnote)
-                        .foregroundStyle(.tertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+            let trimmedTitle = self.field.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedSubtitle = self.field.subtitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            let hasHeader = !trimmedTitle.isEmpty || !trimmedSubtitle.isEmpty
+
+            VStack(alignment: .leading, spacing: hasHeader ? 8 : 0) {
+                if hasHeader {
+                    VStack(alignment: .leading, spacing: 4) {
+                        if !trimmedTitle.isEmpty {
+                            Text(trimmedTitle)
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        if !trimmedSubtitle.isEmpty {
+                            Text(trimmedSubtitle)
+                                .font(.footnote)
+                                .foregroundStyle(.tertiary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
                 }
 
                 switch self.field.kind {
