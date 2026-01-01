@@ -112,10 +112,7 @@ struct ProvidersPane: View {
             return "web • \(usageText)"
         }
 
-        var detail = "\(cliName) \(versionText) • \(usageText)"
-        if provider == .antigravity {
-            detail += " • experimental"
-        }
+        let detail = "\(cliName) \(versionText) • \(usageText)"
         return detail
     }
 
