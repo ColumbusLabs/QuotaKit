@@ -212,11 +212,14 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     }
 
     private func updateIcons() {
+        // Avoid flicker: when an animation driver is active, store updates can call `updateIcons()` and
+        // briefly overwrite the animated frame with the static (phase=nil) icon.
+        let phase: Double? = self.needsMenuBarIconAnimation() ? self.animationPhase : nil
         if self.shouldMergeIcons {
-            self.applyIcon(phase: nil)
+            self.applyIcon(phase: phase)
             self.attachMenus()
         } else {
-            UsageProvider.allCases.forEach { self.applyIcon(for: $0, phase: nil) }
+            UsageProvider.allCases.forEach { self.applyIcon(for: $0, phase: phase) }
             self.attachMenus(fallback: self.fallbackProvider)
         }
         self.updateAnimationState()
