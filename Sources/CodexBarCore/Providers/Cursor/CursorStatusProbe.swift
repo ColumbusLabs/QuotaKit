@@ -350,6 +350,16 @@ public actor CursorSessionStore {
         return !self.sessionCookies.isEmpty
     }
 
+    #if DEBUG
+    func resetForTesting(clearDisk: Bool = true) {
+        self.hasLoadedFromDisk = false
+        self.sessionCookies = []
+        if clearDisk {
+            try? FileManager.default.removeItem(at: self.fileURL)
+        }
+    }
+    #endif
+
     private func loadFromDiskIfNeeded() {
         guard !self.hasLoadedFromDisk else { return }
         self.hasLoadedFromDisk = true

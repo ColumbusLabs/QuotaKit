@@ -46,6 +46,21 @@ public enum WebKitTeardown {
         }
     }
 
+    #if DEBUG
+    static func isRetainedForTesting(_ owner: AnyObject) -> Bool {
+        self.retained[ObjectIdentifier(owner)] != nil
+    }
+
+    static func isScheduledForTesting(_ owner: AnyObject) -> Bool {
+        self.scheduled.contains(ObjectIdentifier(owner))
+    }
+
+    static func resetForTesting() {
+        self.retained.removeAll()
+        self.scheduled.removeAll()
+    }
+    #endif
+
     private static func cleanup(window: NSWindow?, webView: WKWebView?, closeWindow: (() -> Void)?) {
         webView?.stopLoading()
         webView?.navigationDelegate = nil
