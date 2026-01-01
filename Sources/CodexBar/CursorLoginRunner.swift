@@ -48,7 +48,9 @@ final class CursorLoginRunner: NSObject {
     private static let retainRunnersAfterCleanup = false
 #endif
     private static let cleanupDelay: TimeInterval = 0.25
-    private static let releasePollInterval: TimeInterval = 0.2
+    private static let releasePollIntervalBase: TimeInterval = 0.2
+    private static let releasePollIntervalMax: TimeInterval = 1.0
+    private static let releasePollBackoffFactor: TimeInterval = 1.6
     private static let releaseMinimumDelay: TimeInterval = 2.0
 #if arch(x86_64)
     private static let releaseMaximumDelay: TimeInterval = 8.0
@@ -146,6 +148,7 @@ final class CursorLoginRunner: NSObject {
     private func scheduleRelease() {
         Task { @MainActor in
             let start = Date()
+            var pollInterval = Self.releasePollIntervalBase
             while true {
                 let elapsed = Date().timeIntervalSince(start)
                 let windowVisible = self.window?.isVisible ?? false
@@ -154,7 +157,8 @@ final class CursorLoginRunner: NSObject {
                 if elapsed >= Self.releaseMaximumDelay || (!inPlay && elapsed >= Self.releaseMinimumDelay) {
                     break
                 }
-                try? await Task.sleep(nanoseconds: Self.nanoseconds(Self.releasePollInterval))
+                try? await Task.sleep(nanoseconds: Self.nanoseconds(pollInterval))
+                pollInterval = min(Self.releasePollIntervalMax, pollInterval * Self.releasePollBackoffFactor)
             }
             Self.activeRunners.remove(self)
         }
