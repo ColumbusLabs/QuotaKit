@@ -47,10 +47,13 @@ final class CursorLoginRunner: NSObject {
 #else
     private static let retainRunnersAfterCleanup = false
 #endif
-    private static let cleanupDelayNanoseconds: UInt64 = 250_000_000
-    private static let releaseDelayNanoseconds: UInt64 = 2_000_000_000
+    private static let cleanupDelay: TimeInterval = 0.25
+    private static let releasePollInterval: TimeInterval = 0.2
+    private static let releaseMinimumDelay: TimeInterval = 2.0
 #if arch(x86_64)
-    private static let releaseDelayNanosecondsIntel: UInt64 = 5_000_000_000
+    private static let releaseMaximumDelay: TimeInterval = 8.0
+#else
+    private static let releaseMaximumDelay: TimeInterval = 2.0
 #endif
 
     private static let dashboardURL = URL(string: "https://cursor.com/dashboard")!
@@ -112,7 +115,7 @@ final class CursorLoginRunner: NSObject {
         Task { @MainActor in
             // Let WebKit unwind delegate callbacks before teardown on Intel.
             await Task.yield()
-            try? await Task.sleep(nanoseconds: Self.cleanupDelayNanoseconds)
+            try? await Task.sleep(nanoseconds: Self.nanoseconds(Self.cleanupDelay))
             self.cleanup()
         }
     }
@@ -135,19 +138,30 @@ final class CursorLoginRunner: NSObject {
         // DON'T nil the references - let ARC clean them up when this instance is deallocated
         // This avoids autorelease pool over-release crashes on x86_64
 
-        // Release the strong reference after a delay to let autorelease pools drain.
-        let releaseDelay: UInt64
-#if arch(x86_64)
-        releaseDelay = Self.retainRunnersAfterCleanup
-            ? Self.releaseDelayNanosecondsIntel
-            : Self.releaseDelayNanoseconds
-#else
-        releaseDelay = Self.releaseDelayNanoseconds
-#endif
+        // Release the strong reference once the window is no longer in play,
+        // with a minimum delay and a safety maximum to avoid leaks.
+        self.scheduleRelease()
+    }
+
+    private func scheduleRelease() {
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: releaseDelay)
+            let start = Date()
+            while true {
+                let elapsed = Date().timeIntervalSince(start)
+                let windowVisible = self.window?.isVisible ?? false
+                let webViewLoading = self.webView?.isLoading ?? false
+                let inPlay = windowVisible || webViewLoading
+                if elapsed >= Self.releaseMaximumDelay || (!inPlay && elapsed >= Self.releaseMinimumDelay) {
+                    break
+                }
+                try? await Task.sleep(nanoseconds: Self.nanoseconds(Self.releasePollInterval))
+            }
             Self.activeRunners.remove(self)
         }
+    }
+
+    private static func nanoseconds(_ interval: TimeInterval) -> UInt64 {
+        UInt64(interval * 1_000_000_000)
     }
 
     private func captureSessionCookies() async {
