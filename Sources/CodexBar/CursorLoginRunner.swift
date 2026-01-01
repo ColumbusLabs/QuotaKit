@@ -7,14 +7,6 @@ import WebKit
 /// Captures session cookies after successful authentication.
 @MainActor
 final class CursorLoginRunner: NSObject {
-    override nonisolated(unsafe) var hash: Int {
-        ObjectIdentifier(self).hashValue
-    }
-
-    override nonisolated(unsafe) func isEqual(_ object: Any?) -> Bool {
-        guard let other = object as? CursorLoginRunner else { return false }
-        return ObjectIdentifier(self) == ObjectIdentifier(other)
-    }
     enum Phase: Sendable {
         case loading
         case waitingLogin
@@ -38,23 +30,6 @@ final class CursorLoginRunner: NSObject {
     private var continuation: CheckedContinuation<Result, Never>?
     private var phaseCallback: ((Phase) -> Void)?
     private var hasCompletedLogin = false
-    private var cleanupScheduled = false
-
-    // Keep runners alive until after cleanup to avoid x86_64 autorelease crashes
-    private static var activeRunners: Set<CursorLoginRunner> = []
-#if arch(x86_64)
-    private static let retainRunnersAfterCleanup = true
-#else
-    private static let retainRunnersAfterCleanup = false
-#endif
-    private static let cleanupDelay: TimeInterval = 0.25
-    private static let releasePollInterval: TimeInterval = 0.2
-    private static let releaseMinimumDelay: TimeInterval = 2.0
-#if arch(x86_64)
-    private static let releaseMaximumDelay: TimeInterval = 8.0
-#else
-    private static let releaseMaximumDelay: TimeInterval = 2.0
-#endif
 
     private static let dashboardURL = URL(string: "https://cursor.com/dashboard")!
     private static let loginURLPattern = "authenticator.cursor.sh"
@@ -62,9 +37,8 @@ final class CursorLoginRunner: NSObject {
     /// Runs the Cursor login flow in a browser window.
     /// Returns the result after the user completes login or cancels.
     func run(onPhaseChange: @escaping @Sendable (Phase) -> Void) async -> Result {
-        // Keep this instance alive during the flow
-        Self.activeRunners.insert(self)
-
+        // Keep this instance alive during the flow.
+        WebKitTeardown.retain(self)
         self.phaseCallback = onPhaseChange
         onPhaseChange(.loading)
 
@@ -110,58 +84,7 @@ final class CursorLoginRunner: NSObject {
     }
 
     private func scheduleCleanup() {
-        guard !self.cleanupScheduled else { return }
-        self.cleanupScheduled = true
-        Task { @MainActor in
-            // Let WebKit unwind delegate callbacks before teardown on Intel.
-            await Task.yield()
-            try? await Task.sleep(nanoseconds: Self.nanoseconds(Self.cleanupDelay))
-            self.cleanup()
-        }
-    }
-
-    private func cleanup() {
-        // Stop any pending WebView operations
-        self.webView?.stopLoading()
-
-        // Clear delegates to prevent callbacks during teardown
-        self.webView?.navigationDelegate = nil
-        self.window?.delegate = nil
-
-        // Hide the window; Intel builds retain runners to avoid WebKit teardown crashes.
-        if Self.retainRunnersAfterCleanup {
-            self.window?.orderOut(nil)
-        } else {
-            self.window?.close()
-        }
-
-        // DON'T nil the references - let ARC clean them up when this instance is deallocated
-        // This avoids autorelease pool over-release crashes on x86_64
-
-        // Release the strong reference once the window is no longer in play,
-        // with a minimum delay and a safety maximum to avoid leaks.
-        self.scheduleRelease()
-    }
-
-    private func scheduleRelease() {
-        Task { @MainActor in
-            let start = Date()
-            while true {
-                let elapsed = Date().timeIntervalSince(start)
-                let windowVisible = self.window?.isVisible ?? false
-                let webViewLoading = self.webView?.isLoading ?? false
-                let inPlay = windowVisible || webViewLoading
-                if elapsed >= Self.releaseMaximumDelay || (!inPlay && elapsed >= Self.releaseMinimumDelay) {
-                    break
-                }
-                try? await Task.sleep(nanoseconds: Self.nanoseconds(Self.releasePollInterval))
-            }
-            Self.activeRunners.remove(self)
-        }
-    }
-
-    private static func nanoseconds(_ interval: TimeInterval) -> UInt64 {
-        UInt64(interval * 1_000_000_000)
+        WebKitTeardown.scheduleCleanup(owner: self, window: self.window, webView: self.webView)
     }
 
     private func captureSessionCookies() async {
