@@ -114,12 +114,8 @@ public struct UsageSnapshot: Codable, Sendable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.primary, forKey: .primary)
-        if let secondary = self.secondary {
-            try container.encode(secondary, forKey: .secondary)
-        } else {
-            try container.encodeNil(forKey: .secondary)
-        }
+        try container.encodeIfPresent(self.primary, forKey: .primary)
+        try container.encodeIfPresent(self.secondary, forKey: .secondary)
         try container.encodeIfPresent(self.tertiary, forKey: .tertiary)
         try container.encodeIfPresent(self.providerCost, forKey: .providerCost)
         try container.encode(self.updatedAt, forKey: .updatedAt)

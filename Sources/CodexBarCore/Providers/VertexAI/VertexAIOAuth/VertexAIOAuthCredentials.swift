@@ -104,8 +104,8 @@ public enum VertexAIOAuthCredentialsStore {
         }
 
         // Check for service account credentials
-        if let clientEmail = json["client_email"] as? String,
-           let privateKey = json["private_key"] as? String
+        if json["client_email"] is String,
+           json["private_key"] is String
         {
             // Service account - use JWT for access token (simplified)
             throw VertexAIOAuthCredentialsError.decodeFailed(
@@ -155,7 +155,7 @@ public enum VertexAIOAuthCredentialsStore {
     }
 
     private static func loadProjectId() -> String? {
-        let configPath = projectFilePath
+        let configPath = self.projectFilePath
         guard let content = try? String(contentsOf: configPath, encoding: .utf8) else {
             return nil
         }

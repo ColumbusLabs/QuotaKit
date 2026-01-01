@@ -1,7 +1,7 @@
 # Changelog
 
 ## 0.17.1 — Unreleased
-- TBD.
+- Vertex AI: add provider with quota-based usage from gcloud ADC. Thanks @bahag-chaurasiak!
 
 ## 0.17.0 — 2025-12-31
 - New providers: MiniMax.

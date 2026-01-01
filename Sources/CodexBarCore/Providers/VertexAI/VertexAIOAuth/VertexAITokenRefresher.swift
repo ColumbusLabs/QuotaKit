@@ -43,7 +43,8 @@ public enum VertexAITokenRefresher {
             "grant_type": "refresh_token",
         ]
 
-        let bodyString = bodyParams.map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0.value)" }
+        let bodyString = bodyParams
+            .map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0.value)" }
             .joined(separator: "&")
         request.httpBody = bodyString.data(using: .utf8)
 

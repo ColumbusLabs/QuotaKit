@@ -127,9 +127,9 @@ struct MenuDescriptor {
 
             if let cost = snap.providerCost {
                 if cost.currencyCode == "Quota" {
-                     let used = String(format: "%.0f", cost.used)
-                     let limit = String(format: "%.0f", cost.limit)
-                     entries.append(.text("Quota: \(used) / \(limit)", .primary))
+                    let used = String(format: "%.0f", cost.used)
+                    let limit = String(format: "%.0f", cost.limit)
+                    entries.append(.text("Quota: \(used) / \(limit)", .primary))
                 } else if settings.showOptionalCreditsAndExtraUsage, provider == .claude {
                     let used = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
                     let limit = UsageFormatter.currencyString(cost.limit, currencyCode: cost.currencyCode)

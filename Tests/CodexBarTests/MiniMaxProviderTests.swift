@@ -81,7 +81,7 @@ struct MiniMaxUsageParserTests {
         #expect(snapshot.resetsAt == now.addingTimeInterval(240))
 
         let usage = snapshot.toUsageSnapshot()
-        #expect(usage.primary.resetDescription == "1000 prompts / 5 hours")
+        #expect(usage.primary?.resetDescription == "1000 prompts / 5 hours")
     }
 
     @Test

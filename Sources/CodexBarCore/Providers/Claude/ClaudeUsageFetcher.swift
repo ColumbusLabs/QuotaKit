@@ -198,8 +198,9 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             let email = snap.accountEmail ?? "nil"
             let org = snap.accountOrganization ?? "nil"
             let weekly = snap.secondary?.remainingPercent ?? -1
+            let primary = snap.primary.remainingPercent
             return """
-            session_left=\(snap.primary.remainingPercent) weekly_left=\(weekly)
+            session_left=\(primary) weekly_left=\(weekly)
             opus_left=\(opus) email \(email) org \(org)
             \(snap)
             """

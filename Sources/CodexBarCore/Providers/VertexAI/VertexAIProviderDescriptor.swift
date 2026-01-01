@@ -32,7 +32,7 @@ public enum VertexAIProviderDescriptor {
                 supportsTokenCost: false,
                 noDataMessage: { "Vertex AI cost summary is not supported." }),
             fetchPlan: ProviderFetchPlan(
-                sourceModes: [.auto, .cli],
+                sourceModes: [.auto, .oauth],
                 pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [VertexAIOAuthFetchStrategy()] })),
             cli: ProviderCLIConfig(
                 name: "vertexai",
@@ -90,7 +90,7 @@ struct VertexAIOAuthFetchStrategy: ProviderFetchStrategy {
             used: response.requestsUsedPercent,
             limit: 100.0,
             currencyCode: "Quota",
-            period: "Daily",
+            period: "Current quota",
             resetsAt: response.resetsAt,
             updatedAt: Date())
 
