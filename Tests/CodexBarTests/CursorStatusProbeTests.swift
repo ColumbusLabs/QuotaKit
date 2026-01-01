@@ -350,4 +350,32 @@ struct CursorStatusProbeTests {
 
         await store.clearCookies()
     }
+
+    @Test
+    func sessionStoreHasValidSessionLoadsFromDisk() async throws {
+        let store = CursorSessionStore.shared
+        await store.resetForTesting()
+
+        let cookieProps: [HTTPCookiePropertyKey: Any] = [
+            .name: "validCookie",
+            .value: "validValue",
+            .domain: "cursor.com",
+            .path: "/",
+            .expires: Date(timeIntervalSince1970: 1_800_000_000),
+            .secure: true,
+        ]
+
+        guard let cookie = HTTPCookie(properties: cookieProps) else {
+            Issue.record("Failed to create test cookie")
+            return
+        }
+
+        await store.setCookies([cookie])
+        await store.resetForTesting(clearDisk: false)
+
+        let hasSession = await store.hasValidSession()
+        #expect(hasSession)
+
+        await store.clearCookies()
+    }
 }
