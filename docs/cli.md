@@ -147,6 +147,7 @@ Plan: Pro
 
 ## Notes
 - CLI reuses menubar toggles when present (prefers `com.steipete.codexbar{,.debug}` defaults), otherwise defaults to Codex only.
+- Reset lines follow the in-app reset time display setting when available (default: countdown).
 - Text output uses ANSI colors when stdout is a rich TTY; disable with `--no-color` or `NO_COLOR`/`TERM=dumb`.
 - Copilot CLI queries require `COPILOT_API_TOKEN` (GitHub OAuth token).
 - Prefer Codex RPC first, then PTY fallback; Claude defaults to web with CLI fallback when cookies are missing.

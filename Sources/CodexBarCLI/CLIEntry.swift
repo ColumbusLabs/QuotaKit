@@ -87,6 +87,7 @@ enum CodexBarCLI {
         let verbose = values.flags.contains("verbose")
         let noColor = values.flags.contains("noColor")
         let useColor = Self.shouldUseColor(noColor: noColor, format: format)
+        let resetStyle = Self.resetTimeDisplayStyleFromDefaults()
         let fetcher = UsageFetcher()
         let claudeFetcher = ClaudeUsageFetcher()
 
@@ -150,7 +151,11 @@ enum CodexBarCLI {
                         provider: p,
                         snapshot: result.usage,
                         credits: result.credits,
-                        context: RenderContext(header: header, status: status, useColor: useColor))
+                        context: RenderContext(
+                            header: header,
+                            status: status,
+                            useColor: useColor,
+                            resetStyle: resetStyle))
                     if let dashboard, p == .codex, sourceMode.usesWeb {
                         text += "\n" + Self.renderOpenAIWebDashboardText(dashboard)
                     }
@@ -337,6 +342,20 @@ enum CodexBarCLI {
             let isOn = toggles[meta.cliName] ?? meta.defaultEnabled
             return isOn ? descriptor.id : nil
         }
+    }
+
+    private static func resetTimeDisplayStyleFromDefaults() -> ResetTimeDisplayStyle {
+        let domains = [
+            "com.steipete.codexbar",
+            "com.steipete.codexbar.debug",
+        ]
+        for domain in domains {
+            if let value = UserDefaults(suiteName: domain)?.object(forKey: "resetTimesShowAbsolute") as? Bool {
+                return value ? .absolute : .countdown
+            }
+        }
+        let fallback = UserDefaults.standard.object(forKey: "resetTimesShowAbsolute") as? Bool ?? false
+        return fallback ? .absolute : .countdown
     }
 
     private static func fetchProviderUsage(

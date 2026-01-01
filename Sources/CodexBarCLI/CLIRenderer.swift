@@ -14,8 +14,8 @@ enum CLIRenderer {
 
         if let primary = snapshot.primary {
             lines.append(self.rateLine(title: meta.sessionLabel, window: primary, useColor: context.useColor))
-            if let reset = primary.resetDescription {
-                lines.append(self.resetLine(reset))
+            if let reset = self.resetLine(for: primary, style: context.resetStyle) {
+                lines.append(reset)
             }
         } else if let cost = snapshot.providerCost {
             // Fallback to cost/quota display if no primary rate window
@@ -25,15 +25,15 @@ enum CLIRenderer {
 
         if let weekly = snapshot.secondary {
             lines.append(self.rateLine(title: meta.weeklyLabel, window: weekly, useColor: context.useColor))
-            if let reset = weekly.resetDescription {
-                lines.append(self.resetLine(reset))
+            if let reset = self.resetLine(for: weekly, style: context.resetStyle) {
+                lines.append(reset)
             }
         }
 
         if meta.supportsOpus, let opus = snapshot.tertiary {
             lines.append(self.rateLine(title: meta.opusLabel ?? "Sonnet", window: opus, useColor: context.useColor))
-            if let reset = opus.resetDescription {
-                lines.append(self.resetLine(reset))
+            if let reset = self.resetLine(for: opus, style: context.resetStyle) {
+                lines.append(reset)
             }
         }
 
@@ -62,10 +62,8 @@ enum CLIRenderer {
         return "\(title): \(colored)"
     }
 
-    private static func resetLine(_ reset: String) -> String {
-        let trimmed = reset.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.lowercased().hasPrefix("resets") { return trimmed }
-        return "Resets \(trimmed)"
+    private static func resetLine(for window: RateWindow, style: ResetTimeDisplayStyle) -> String? {
+        UsageFormatter.resetLine(for: window, style: style)
     }
 
     private static func headerLine(_ header: String, useColor: Bool) -> String {
@@ -113,4 +111,5 @@ struct RenderContext {
     let header: String
     let status: ProviderStatusPayload?
     let useColor: Bool
+    let resetStyle: ResetTimeDisplayStyle
 }
