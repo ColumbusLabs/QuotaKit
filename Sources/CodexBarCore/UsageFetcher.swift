@@ -114,9 +114,10 @@ public struct UsageSnapshot: Codable, Sendable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(self.primary, forKey: .primary)
-        try container.encodeIfPresent(self.secondary, forKey: .secondary)
-        try container.encodeIfPresent(self.tertiary, forKey: .tertiary)
+        // Stable JSON schema: keep window keys present (encode `nil` as `null`).
+        try container.encode(self.primary, forKey: .primary)
+        try container.encode(self.secondary, forKey: .secondary)
+        try container.encode(self.tertiary, forKey: .tertiary)
         try container.encodeIfPresent(self.providerCost, forKey: .providerCost)
         try container.encode(self.updatedAt, forKey: .updatedAt)
         try container.encodeIfPresent(self.identity, forKey: .identity)

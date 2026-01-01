@@ -53,6 +53,7 @@ struct MenuCardModelTests {
             isRefreshing: false,
             lastError: nil,
             usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
             tokenCostUsageEnabled: false,
             showOptionalCreditsAndExtraUsage: true,
             now: now))
@@ -112,6 +113,7 @@ struct MenuCardModelTests {
             isRefreshing: false,
             lastError: nil,
             usageBarsShowUsed: true,
+            resetTimeDisplayStyle: .countdown,
             tokenCostUsageEnabled: false,
             showOptionalCreditsAndExtraUsage: true,
             now: now))
@@ -160,6 +162,7 @@ struct MenuCardModelTests {
             isRefreshing: false,
             lastError: nil,
             usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
             tokenCostUsageEnabled: false,
             showOptionalCreditsAndExtraUsage: true,
             now: now))
@@ -200,6 +203,7 @@ struct MenuCardModelTests {
             isRefreshing: false,
             lastError: nil,
             usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
             tokenCostUsageEnabled: false,
             showOptionalCreditsAndExtraUsage: true,
             now: now))
@@ -226,6 +230,7 @@ struct MenuCardModelTests {
             isRefreshing: false,
             lastError: "Probe failed for Codex",
             usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
             tokenCostUsageEnabled: false,
             showOptionalCreditsAndExtraUsage: true,
             now: Date()))
@@ -265,6 +270,7 @@ struct MenuCardModelTests {
             isRefreshing: false,
             lastError: nil,
             usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
             tokenCostUsageEnabled: true,
             showOptionalCreditsAndExtraUsage: true,
             now: now))
@@ -290,6 +296,7 @@ struct MenuCardModelTests {
             isRefreshing: false,
             lastError: nil,
             usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
             tokenCostUsageEnabled: false,
             showOptionalCreditsAndExtraUsage: true,
             now: Date()))
@@ -328,6 +335,7 @@ struct MenuCardModelTests {
             isRefreshing: false,
             lastError: nil,
             usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
             tokenCostUsageEnabled: false,
             showOptionalCreditsAndExtraUsage: false,
             now: now))
@@ -366,6 +374,7 @@ struct MenuCardModelTests {
             isRefreshing: false,
             lastError: nil,
             usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
             tokenCostUsageEnabled: false,
             showOptionalCreditsAndExtraUsage: false,
             now: now))

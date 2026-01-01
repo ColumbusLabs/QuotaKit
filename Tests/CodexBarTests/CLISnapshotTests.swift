@@ -30,7 +30,8 @@ struct CLISnapshotTests {
                     description: "Degraded performance",
                     updatedAt: Date(timeIntervalSince1970: 0),
                     url: "https://status.example.com"),
-                useColor: false))
+                useColor: false,
+                resetStyle: .absolute))
 
         #expect(output.contains("Codex 1.2.3 (codex-cli)"))
         #expect(output.contains("Status: Partial outage – Degraded performance"))
@@ -57,7 +58,8 @@ struct CLISnapshotTests {
             context: RenderContext(
                 header: "Claude Code 2.0.69 (claude)",
                 status: nil,
-                useColor: false))
+                useColor: false,
+                resetStyle: .absolute))
 
         #expect(output.contains("Session: 98% left"))
         #expect(!output.contains("Weekly:"))
@@ -159,7 +161,8 @@ struct CLISnapshotTests {
                     description: "Major outage",
                     updatedAt: nil,
                     url: "https://status.claude.com"),
-                useColor: true))
+                useColor: true,
+                resetStyle: .absolute))
 
         let lines = output.split(separator: "\n")
         #expect(lines.last?.contains("Status: Critical issue – Major outage") == true)
@@ -181,7 +184,8 @@ struct CLISnapshotTests {
             context: RenderContext(
                 header: "Codex 0.0.0 (codex-cli)",
                 status: nil,
-                useColor: true))
+                useColor: true,
+                resetStyle: .absolute))
 
         #expect(output.contains("\u{001B}["))
     }
@@ -201,7 +205,8 @@ struct CLISnapshotTests {
             context: RenderContext(
                 header: "Codex 0.0.0 (codex-cli)",
                 status: nil,
-                useColor: true))
+                useColor: true,
+                resetStyle: .absolute))
 
         #expect(output.contains("\u{001B}[1;36mCodex 0.0.0 (codex-cli)\u{001B}[0m"))
         #expect(output.contains("Session: \u{001B}[31m5% left\u{001B}[0m")) // red <10% left
@@ -233,7 +238,8 @@ struct CLISnapshotTests {
                     description: "Operational",
                     updatedAt: nil,
                     url: "https://status.openai.com/"),
-                useColor: false))
+                useColor: false,
+                resetStyle: .absolute))
 
         #expect(!output.contains("\u{001B}["))
         #expect(output.contains("Status: Operational – Operational"))

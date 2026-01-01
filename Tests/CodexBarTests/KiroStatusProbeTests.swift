@@ -130,8 +130,8 @@ struct KiroStatusProbeTests {
 
         let usage = snapshot.toUsageSnapshot()
 
-        #expect(usage.primary.usedPercent == 25.0)
-        #expect(usage.primary.resetsAt == resetDate)
+        #expect(usage.primary?.usedPercent == 25.0)
+        #expect(usage.primary?.resetsAt == resetDate)
         #expect(usage.secondary?.usedPercent == 25.0) // 5/20 * 100
         #expect(usage.loginMethod(for: .kiro) == "KIRO PRO")
         #expect(usage.accountOrganization(for: .kiro) == "KIRO PRO")
@@ -152,7 +152,7 @@ struct KiroStatusProbeTests {
 
         let usage = snapshot.toUsageSnapshot()
 
-        #expect(usage.primary.usedPercent == 20.0)
+        #expect(usage.primary?.usedPercent == 20.0)
         #expect(usage.secondary == nil)
     }
 

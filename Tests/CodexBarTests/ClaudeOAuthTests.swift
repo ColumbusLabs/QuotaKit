@@ -74,11 +74,11 @@ struct ClaudeOAuthTests {
         let snap = try ClaudeUsageFetcher._mapOAuthUsageForTesting(
             Data(json.utf8),
             rateLimitTier: "claude_pro")
-        #expect(snap.primary?.usedPercent == 12.5)
-        #expect(snap.primary?.windowMinutes == 300)
+        #expect(snap.primary.usedPercent == 12.5)
+        #expect(snap.primary.windowMinutes == 300)
         #expect(snap.secondary?.usedPercent == 30)
         #expect(snap.opus?.usedPercent == 5)
-        #expect(snap.primary?.resetsAt != nil)
+        #expect(snap.primary.resetsAt != nil)
         #expect(snap.loginMethod == "Claude Pro")
     }
 
@@ -98,6 +98,25 @@ struct ClaudeOAuthTests {
         #expect(snap.providerCost?.currencyCode == "USD")
         #expect(snap.providerCost?.limit == 20.5)
         #expect(snap.providerCost?.used == 3.25)
+    }
+
+    @Test
+    func mapsOAuthExtraUsageMinorUnitsAsMajorUnits() throws {
+        let json = """
+        {
+          "five_hour": { "utilization": 1, "resets_at": "2025-12-25T12:00:00.000Z" },
+          "extra_usage": {
+            "is_enabled": true,
+            "monthly_limit": 2000,
+            "used_credits": 520,
+            "currency": "USD"
+          }
+        }
+        """
+        let snap = try ClaudeUsageFetcher._mapOAuthUsageForTesting(Data(json.utf8))
+        #expect(snap.providerCost?.currencyCode == "USD")
+        #expect(snap.providerCost?.limit == 20)
+        #expect(snap.providerCost?.used == 5.2)
     }
 
     @Test
@@ -131,28 +150,29 @@ struct ClaudeOAuthTests {
     // MARK: - Scope-based strategy resolution
 
     @Test
-    func oauthRequiresUserProfileScope() {
-        // With user:profile scope, OAuth should be selected.
-        let withProfile = ClaudeProviderDescriptor.resolveUsageStrategy(
+    func prefersOAuthWhenAvailable() {
+        let strategy = ClaudeProviderDescriptor.resolveUsageStrategy(
             debugMenuEnabled: false,
-            selectedDataSource: .oauth,
+            selectedDataSource: .web,
             webExtrasEnabled: false,
             hasWebSession: true,
             hasOAuthCredentials: true)
-        #expect(withProfile.dataSource == .oauth)
+        #expect(strategy.dataSource == .oauth)
+    }
 
-        // Without user:profile scope (hasOAuthCredentials=false), should fall back to web.
-        let withoutProfile = ClaudeProviderDescriptor.resolveUsageStrategy(
+    @Test
+    func fallsBackToWebWhenOAuthMissing() {
+        let strategy = ClaudeProviderDescriptor.resolveUsageStrategy(
             debugMenuEnabled: false,
             selectedDataSource: .oauth,
             webExtrasEnabled: false,
             hasWebSession: true,
             hasOAuthCredentials: false)
-        #expect(withoutProfile.dataSource == .web)
+        #expect(strategy.dataSource == .web)
     }
 
     @Test
-    func fallsBackToCLIWhenNoWebOrOAuth() {
+    func fallsBackToCLIWhenNoOAuthOrWeb() {
         let strategy = ClaudeProviderDescriptor.resolveUsageStrategy(
             debugMenuEnabled: false,
             selectedDataSource: .oauth,

@@ -301,13 +301,24 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
               let limit = extra.monthlyLimit else { return nil }
         let currency = extra.currency?.trimmingCharacters(in: .whitespacesAndNewlines)
         let code = (currency?.isEmpty ?? true) ? "USD" : currency!
+        let normalized = Self.normalizeClaudeExtraUsageAmounts(used: used, limit: limit)
         return ProviderCostSnapshot(
-            used: used,
-            limit: limit,
+            used: normalized.used,
+            limit: normalized.limit,
             currencyCode: code,
             period: "Monthly",
             resetsAt: nil,
             updatedAt: Date())
+    }
+
+    private static func normalizeClaudeExtraUsageAmounts(used: Double, limit: Double) -> (used: Double, limit: Double) {
+        // Claude's OAuth API sometimes returns minor units (cents) while the UI expects major units.
+        // Heuristic: if values are whole numbers and "large enough" to look like cents, scale down.
+        func isWhole(_ value: Double) -> Bool { abs(value.rounded() - value) < 0.000_001 }
+        if limit >= 100, used >= 0, isWhole(limit), isWhole(used) {
+            return (used: used / 100.0, limit: limit / 100.0)
+        }
+        return (used: used, limit: limit)
     }
 
     private static func inferPlan(rateLimitTier: String?) -> String? {

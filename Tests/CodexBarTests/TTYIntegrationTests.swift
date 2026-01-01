@@ -28,7 +28,7 @@ final class TTYIntegrationTests: XCTestCase {
         let fetcher = ClaudeUsageFetcher(dataSource: .cli)
         do {
             let snapshot = try await fetcher.loadLatestUsage()
-            XCTAssertNotNil(snapshot.primary?.remainingPercent, "Claude session percent missing")
+            XCTAssertNotNil(snapshot.primary.remainingPercent, "Claude session percent missing")
             // Weekly is absent for some enterprise accounts.
         } catch let ClaudeUsageError.parseFailed(message) {
             throw XCTSkip("Claude PTY parse failed (likely not logged in or usage unavailable): \(message)")
