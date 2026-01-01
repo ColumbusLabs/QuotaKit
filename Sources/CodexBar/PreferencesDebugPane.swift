@@ -185,7 +185,7 @@ struct DebugPane: View {
                     ScrollView {
                         Text(self.store.openAIDashboardCookieImportDebugLog?.isEmpty == false
                             ? (self.store.openAIDashboardCookieImportDebugLog ?? "")
-                            : "No log yet. Enable “Access OpenAI via web” in General to run an import.")
+                            : "No log yet. Enable “Access OpenAI via web” in Providers → Codex to run an import.")
                             .font(.system(.footnote, design: .monospaced))
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)

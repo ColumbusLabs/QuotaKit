@@ -6,6 +6,7 @@
 - Kiro: add CLI-based usage provider via kiro-cli. Thanks @neror!
 - Vertex AI: add provider with quota-based usage from gcloud ADC. Thanks @bahag-chaurasiak!
 - Menu: add a toggle to show reset times as absolute clock values (instead of countdowns).
+- Preferences: move “Access OpenAI via web” into Providers → Codex.
 
 ## 0.17.0 — 2025-12-31
 - New providers: MiniMax.

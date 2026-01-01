@@ -51,19 +51,6 @@ struct GeneralPane: View {
                                 self.costStatusLine(provider: .codex)
                             }
                         }
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Toggle(isOn: self.$settings.openAIWebAccessEnabled) {
-                                Text("Access OpenAI via web")
-                                    .font(.body)
-                            }
-                            .toggleStyle(.checkbox)
-
-                            Text("Imports browser cookies for dashboard extras (credits history, code review).")
-                                .font(.footnote)
-                                .foregroundStyle(.tertiary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
                     }
                 }
 

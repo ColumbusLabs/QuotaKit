@@ -30,7 +30,7 @@ The OAuth API is the default app source when credentials are available; web acce
 - Calls `GET https://chatgpt.com/backend-api/wham/usage` (default) with `Authorization: Bearer <token>`.
 
 ### OpenAI web dashboard (optional)
-- Preferences → Usage → "Access OpenAI via web".
+- Preferences → Providers → Codex → "Access OpenAI via web".
 - URL: `https://chatgpt.com/codex/settings/usage`.
 - Uses an off-screen `WKWebView` with a per-account `WKWebsiteDataStore`.
   - Store key: deterministic UUID from the normalized email.
