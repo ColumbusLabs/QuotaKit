@@ -28,6 +28,7 @@ extension UsageStore {
         _ = self.geminiVersion
         _ = self.zaiVersion
         _ = self.antigravityVersion
+        _ = self.kiroVersion
         _ = self.isRefreshing
         _ = self.refreshingProviders
         _ = self.pathDebugInfo
@@ -1256,12 +1257,14 @@ extension UsageStore {
             let claudeVer = claudeFetcher.detectVersion()
             let geminiVer = Self.readCLI("gemini", args: ["--version"])
             let antigravityVer = await AntigravityStatusProbe.detectVersion()
+            let kiroVer = KiroStatusProbe.detectVersion()
             await MainActor.run {
                 self.codexVersion = codexVer
                 self.claudeVersion = claudeVer
                 self.geminiVersion = geminiVer
                 self.zaiVersion = nil
                 self.antigravityVersion = antigravityVer
+                self.kiroVersion = kiroVer
             }
         }
     }

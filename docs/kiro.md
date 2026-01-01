@@ -12,7 +12,7 @@ Kiro uses the AWS `kiro-cli` tool to fetch usage data. No browser cookies or OAu
 
 ## Data sources
 
-1) **CLI PTY** (primary and only strategy)
+1) **CLI command** (primary and only strategy)
    - Command: `kiro-cli chat --no-interactive "/usage"`
    - Timeout: 10 seconds.
    - Requires `kiro-cli` installed and logged in via AWS Builder ID.

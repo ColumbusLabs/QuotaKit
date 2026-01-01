@@ -17,7 +17,7 @@ public enum KiroProviderDescriptor {
                 supportsCredits: false,
                 creditsHint: "",
                 toggleTitle: "Show Kiro usage",
-                cliName: "kiro-cli",
+                cliName: "kiro",
                 defaultEnabled: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
@@ -35,7 +35,8 @@ public enum KiroProviderDescriptor {
                 sourceModes: [.auto, .cli],
                 pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [KiroCLIFetchStrategy()] })),
             cli: ProviderCLIConfig(
-                name: "kiro-cli",
+                name: "kiro",
+                aliases: ["kiro-cli"],
                 versionDetector: { KiroStatusProbe.detectVersion() }))
     }
 }

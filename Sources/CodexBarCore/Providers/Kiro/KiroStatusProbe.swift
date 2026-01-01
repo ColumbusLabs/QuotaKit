@@ -301,6 +301,9 @@ public struct KiroStatusProbe: Sendable {
                 matchedCredits = true
             }
         }
+        if !matchedPercent, matchedCredits, creditsTotal > 0 {
+            creditsPercent = (creditsUsed / creditsTotal) * 100.0
+        }
 
         // Parse bonus credits from "Bonus credits: X.XX/Y credits used, expires in Z days"
         var bonusUsed: Double?
@@ -322,7 +325,7 @@ public struct KiroStatusProbe: Sendable {
         }
 
         // Require at least one key pattern to match to avoid silent failures
-        if !matchedPlanName && !matchedPercent && !matchedCredits {
+        if !matchedPlanName, !matchedPercent, !matchedCredits {
             throw KiroStatusProbeError.parseError(
                 "No recognizable usage patterns found. Kiro CLI output format may have changed.")
         }

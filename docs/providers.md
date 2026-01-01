@@ -23,7 +23,7 @@ Source labels (CLI/header): `openai-web`, `web`, `oauth`, `api`, `local`, plus p
 | z.ai | API token (Keychain/env) → quota API (`api`). |
 | MiniMax | Manual cookie header (Keychain/env) → browser cookies (+ local storage access token) → coding plan page (HTML) with remains API fallback (`web`). |
 | Copilot | API token (device flow/env) → copilot_internal API (`api`). |
-| Kiro | CLI PTY via `kiro-cli chat --no-interactive "/usage"` (`cli`). |
+| Kiro | CLI command via `kiro-cli chat --no-interactive "/usage"` (`cli`). |
 
 ## Codex
 - Web dashboard (when enabled): `https://chatgpt.com/codex/settings/usage` via WebView + browser cookies.

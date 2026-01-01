@@ -49,6 +49,19 @@ struct KiroStatusProbeTests {
     }
 
     @Test
+    func parsesOutputWithoutPercentFallbacksToCreditsRatio() throws {
+        let output = """
+        | KIRO FREE                                          |
+        (12.50 of 50 covered in plan), resets on 01/15
+        """
+
+        let probe = KiroStatusProbe()
+        let snapshot = try probe.parse(output: output)
+
+        #expect(snapshot.creditsPercent == 25)
+    }
+
+    @Test
     func parsesOutputWithANSICodes() throws {
         let output = """
         \u{001B}[32m| KIRO FREE                                          |\u{001B}[0m
@@ -165,7 +178,7 @@ struct KiroStatusProbeTests {
         #expect {
             try probe.parse(output: output)
         } throws: { error in
-            guard case KiroStatusProbeError.parseError(let msg) = error else { return false }
+            guard case let KiroStatusProbeError.parseError(msg) = error else { return false }
             return msg.contains("No recognizable usage patterns")
         }
     }
