@@ -43,7 +43,11 @@ final class AntigravityStatusProbeTests: XCTestCase {
         XCTAssertEqual(snapshot.modelQuotas.count, 3)
 
         let usage = try snapshot.toUsageSnapshot()
-        XCTAssertEqual(usage.primary.remainingPercent.rounded(), 50)
+        guard let primary = usage.primary else {
+            XCTFail("Missing primary window")
+            return
+        }
+        XCTAssertEqual(primary.remainingPercent.rounded(), 50)
         XCTAssertEqual(usage.secondary?.remainingPercent.rounded(), 80)
         XCTAssertEqual(usage.tertiary?.remainingPercent.rounded(), 20)
     }

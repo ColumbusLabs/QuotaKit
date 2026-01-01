@@ -48,7 +48,7 @@ public struct ProviderIdentitySnapshot: Codable, Sendable {
 }
 
 public struct UsageSnapshot: Codable, Sendable {
-    public let primary: RateWindow
+    public let primary: RateWindow?
     public let secondary: RateWindow?
     public let tertiary: RateWindow?
     public let providerCost: ProviderCostSnapshot?
@@ -69,7 +69,7 @@ public struct UsageSnapshot: Codable, Sendable {
     }
 
     public init(
-        primary: RateWindow,
+        primary: RateWindow?,
         secondary: RateWindow?,
         tertiary: RateWindow? = nil,
         providerCost: ProviderCostSnapshot? = nil,
@@ -88,7 +88,7 @@ public struct UsageSnapshot: Codable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.primary = try container.decode(RateWindow.self, forKey: .primary)
+        self.primary = try container.decodeIfPresent(RateWindow.self, forKey: .primary)
         self.secondary = try container.decodeIfPresent(RateWindow.self, forKey: .secondary)
         self.tertiary = try container.decodeIfPresent(RateWindow.self, forKey: .tertiary)
         self.providerCost = try container.decodeIfPresent(ProviderCostSnapshot.self, forKey: .providerCost)
@@ -114,12 +114,8 @@ public struct UsageSnapshot: Codable, Sendable {
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.primary, forKey: .primary)
-        if let secondary = self.secondary {
-            try container.encode(secondary, forKey: .secondary)
-        } else {
-            try container.encodeNil(forKey: .secondary)
-        }
+        try container.encodeIfPresent(self.primary, forKey: .primary)
+        try container.encodeIfPresent(self.secondary, forKey: .secondary)
         try container.encodeIfPresent(self.tertiary, forKey: .tertiary)
         try container.encodeIfPresent(self.providerCost, forKey: .providerCost)
         try container.encode(self.updatedAt, forKey: .updatedAt)

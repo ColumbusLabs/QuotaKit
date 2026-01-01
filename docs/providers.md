@@ -1,5 +1,5 @@
 ---
-summary: "Provider data sources and parsing overview (Codex, Claude, Gemini, Antigravity, Cursor, Droid/Factory, z.ai, Copilot, Kiro)."
+summary: "Provider data sources and parsing overview (Codex, Claude, Gemini, Antigravity, Cursor, Droid/Factory, z.ai, Copilot, Kiro, Vertex AI)."
 read_when:
   - Adding or modifying provider fetch/parsing
   - Adjusting provider labels, toggles, or metadata
@@ -24,6 +24,7 @@ Source labels (CLI/header): `openai-web`, `web`, `oauth`, `api`, `local`, plus p
 | MiniMax | Manual cookie header (Keychain/env) → browser cookies (+ local storage access token) → coding plan page (HTML) with remains API fallback (`web`). |
 | Copilot | API token (device flow/env) → copilot_internal API (`api`). |
 | Kiro | CLI command via `kiro-cli chat --no-interactive "/usage"` (`cli`). |
+| Vertex AI | Google ADC OAuth (gcloud) → Cloud Monitoring quota usage (`oauth`). |
 
 ## Codex
 - Web dashboard (when enabled): `https://chatgpt.com/codex/settings/usage` via WebView + browser cookies.
@@ -90,4 +91,9 @@ Source labels (CLI/header): `openai-web`, `web`, `oauth`, `api`, `local`, plus p
 - Status: AWS Health Dashboard (manual link, no auto-polling).
 - Details: `docs/kiro.md`.
 
+## Vertex AI
+- OAuth credentials from `gcloud auth application-default login` (ADC).
+- Quota usage via Cloud Monitoring `consumer_quota` metrics for `aiplatform.googleapis.com`.
+- Requires Cloud Monitoring API access in the current project.
+- Details: `docs/vertexai.md`.
 See also: `docs/provider.md` for architecture notes.

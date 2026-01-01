@@ -50,10 +50,10 @@ struct ZaiUsageSnapshotTests {
 
         let usage = snapshot.toUsageSnapshot()
 
-        #expect(usage.primary.usedPercent == 20)
-        #expect(usage.primary.windowMinutes == 300)
-        #expect(usage.primary.resetsAt == reset)
-        #expect(usage.primary.resetDescription == "5 hours window")
+        #expect(usage.primary?.usedPercent == 20)
+        #expect(usage.primary?.windowMinutes == 300)
+        #expect(usage.primary?.resetsAt == reset)
+        #expect(usage.primary?.resetDescription == "5 hours window")
         #expect(usage.secondary?.usedPercent == 20)
         #expect(usage.secondary?.resetDescription == "30 days window")
         #expect(usage.zaiUsage?.tokenLimit?.usage == 100)

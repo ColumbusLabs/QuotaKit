@@ -195,7 +195,7 @@ struct CursorStatusProbeTests {
 
         let usageSnapshot = snapshot.toUsageSnapshot()
 
-        #expect(usageSnapshot.primary.usedPercent == 45.0)
+        #expect(usageSnapshot.primary?.usedPercent == 45.0)
         #expect(usageSnapshot.accountEmail(for: .cursor) == "user@example.com")
         #expect(usageSnapshot.loginMethod(for: .cursor) == "Cursor Pro")
         #expect(usageSnapshot.secondary != nil)

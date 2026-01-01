@@ -18,9 +18,9 @@ struct ClaudeUsageTests {
         let data = Data(json.utf8)
         let snap = ClaudeUsageFetcher.parse(json: data)
         #expect(snap != nil)
-        #expect(snap?.primary.usedPercent == 1)
+        #expect(snap?.primary?.usedPercent == 1)
         #expect(snap?.secondary?.usedPercent == 8)
-        #expect(snap?.primary.resetDescription == "11am (Europe/Vienna)")
+        #expect(snap?.primary?.resetDescription == "11am (Europe/Vienna)")
     }
 
     @Test
@@ -34,7 +34,7 @@ struct ClaudeUsageTests {
         let data = Data(json.utf8)
         let snap = ClaudeUsageFetcher.parse(json: data)
         #expect(snap != nil)
-        #expect(snap?.primary.usedPercent == 4)
+        #expect(snap?.primary?.usedPercent == 4)
         #expect(snap?.secondary == nil)
     }
 
@@ -119,12 +119,12 @@ struct ClaudeUsageTests {
             print(
                 """
                 Live Claude usage (PTY):
-                session used \(snap.primary.usedPercent)% 
+                session used \(snap.primary?.usedPercent ?? -1)% 
                 week used \(weeklyUsed)% 
                 opus \(opusUsed)% 
                 email \(email) org \(org)
                 """)
-            #expect(snap.primary.usedPercent >= 0)
+            #expect((snap.primary?.usedPercent ?? -1) >= 0)
         } catch {
             // Dump raw CLI text captured via `script` to help debug.
             let raw = try Self.captureClaudeUsageRaw(timeout: 15)
@@ -174,12 +174,12 @@ struct ClaudeUsageTests {
         print(
             """
             Live Claude usage (Web API):
-            session used \(snap.primary.usedPercent)%
+            session used \(snap.primary?.usedPercent ?? -1)%
             week used \(weeklyUsed)%
             opus \(opusUsed)%
             login method: \(snap.loginMethod ?? "nil")
             """)
-        #expect(snap.primary.usedPercent >= 0)
+        #expect((snap.primary?.usedPercent ?? -1) >= 0)
     }
 
     @Test

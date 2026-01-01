@@ -91,11 +91,11 @@ struct CodexOAuthTests {
             accountId: nil,
             lastRefresh: Date())
         let snapshot = try CodexOAuthFetchStrategy._mapUsageForTesting(Data(json.utf8), credentials: creds)
-        #expect(snapshot.primary.usedPercent == 22)
-        #expect(snapshot.primary.windowMinutes == 300)
+        #expect(snapshot.primary?.usedPercent == 22)
+        #expect(snapshot.primary?.windowMinutes == 300)
         #expect(snapshot.secondary?.usedPercent == 43)
         #expect(snapshot.secondary?.windowMinutes == 10080)
-        #expect(snapshot.primary.resetsAt != nil)
+        #expect(snapshot.primary?.resetsAt != nil)
         #expect(snapshot.secondary?.resetsAt != nil)
     }
 
