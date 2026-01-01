@@ -1,19 +1,37 @@
 # Changelog
 
 ## 0.18.0 — Unreleased
+### Providers
 - Vertex AI: add provider with quota-based usage from gcloud ADC. Thanks @bahag-chaurasiak!
+- Vertex AI: harden quota usage parsing for edge-case responses.
 - Kiro: add CLI-based usage provider via kiro-cli. Thanks @neror!
+- Kiro: clean up provider wiring and show plan name in the menu.
 - Cursor: avoid Intel crash when opening login and harden WebKit teardown. Thanks @meghanto!
 - Cursor: load stored session cookies before reads to make relaunches deterministic.
+- Codex/Claude/Cursor/Factory/MiniMax: cookie sources now include Manual (paste a Cookie header) in addition to Automatic.
 - Claude: fix OAuth “Extra usage” spend/limit units when the API returns minor currency units (#97).
-- Menu: add a toggle to show reset times as absolute clock values (instead of countdowns).
+
+### Preferences & UI
 - Preferences: move “Access OpenAI via web” into Providers → Codex.
-- Dev: move Chromium profile discovery into SweetCookieKit (adds Helium net.imput.helium). Thanks @hhushhas!
-- Tests: reset Claude CLI session after PTY integration probe to avoid state bleed.
 - Preferences: add usage source pickers for Codex + Claude with auto fallback.
-- Preferences: add cookie source pickers (automatic/manual) and manual cookie headers for cookie-based providers.
-- Preferences: tighten provider rows with inline pickers and inline auto-source status.
+- Preferences: add cookie source pickers with contextual helper text for the selected mode.
+- Preferences: tighten provider rows (inline pickers, compact layout, inline refresh + auto-source status).
+- Preferences: remove the “experimental” label from Antigravity.
+
+### Menu
+- Menu: add a toggle to show reset times as absolute clock values (instead of countdowns).
 - Menu: show an “Open Terminal” action when Claude OAuth fails.
+
+### CLI
+- CLI: respect the reset time display setting.
+
+### Dev & Tests
+- Dev: move Chromium profile discovery into SweetCookieKit (adds Helium net.imput.helium). Thanks @hhushhas!
+- Dev: bump SweetCookieKit to 0.2.0.
+- Tests: expand Kiro CLI coverage.
+- Tests: stabilize Claude PTY integration cleanup and reset CLI sessions after probes.
+- Tests: kill leaked codex app-server after tests.
+- Build: stabilize Swift test runtime.
 
 ## 0.17.0 — 2025-12-31
 - New providers: MiniMax.
