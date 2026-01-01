@@ -5,7 +5,7 @@
 - Kiro: add CLI-based usage provider via kiro-cli. Thanks @neror!
 - Cursor: avoid Intel crash when opening login and harden WebKit teardown. Thanks @meghanto!
 - Cursor: load stored session cookies before reads to make relaunches deterministic.
-- Claude: fix OAuth “Extra usage” spend/limit units when the API returns minor currency units.
+- Claude: fix OAuth “Extra usage” spend/limit units when the API returns minor currency units (#97).
 - Menu: add a toggle to show reset times as absolute clock values (instead of countdowns).
 - Preferences: move “Access OpenAI via web” into Providers → Codex.
 - Dev: move Chromium profile discovery into SweetCookieKit (adds Helium net.imput.helium). Thanks @hhushhas!
