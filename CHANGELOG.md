@@ -12,6 +12,7 @@
 - Tests: reset Claude CLI session after PTY integration probe to avoid state bleed.
 - Preferences: add usage source pickers for Codex + Claude with auto fallback.
 - Preferences: add cookie source pickers (automatic/manual) and manual cookie headers for cookie-based providers.
+- Preferences: tighten provider rows with inline pickers and inline auto-source status.
 - Menu: show an “Open Terminal” action when Claude OAuth fails.
 
 ## 0.17.0 — 2025-12-31
