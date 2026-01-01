@@ -1,6 +1,6 @@
-import CodexBarCore
 import XCTest
 @testable import CodexBar
+@testable import CodexBarCore
 
 final class TTYIntegrationTests: XCTestCase {
     func testCodexRPCUsageLive() async throws {
@@ -26,20 +26,30 @@ final class TTYIntegrationTests: XCTestCase {
         }
 
         let fetcher = ClaudeUsageFetcher(dataSource: .cli)
+
+        let outcome: Result<Void, Error>
         do {
             let snapshot = try await fetcher.loadLatestUsage()
             XCTAssertNotNil(snapshot.primary.remainingPercent, "Claude session percent missing")
             // Weekly is absent for some enterprise accounts.
+            outcome = .success(())
         } catch let ClaudeUsageError.parseFailed(message) {
-            throw XCTSkip("Claude PTY parse failed (likely not logged in or usage unavailable): \(message)")
+            let reason = "Claude PTY parse failed (likely not logged in or usage unavailable): \(message)"
+            outcome = .failure(XCTSkip(reason))
         } catch let ClaudeStatusProbeError.parseFailed(message) {
-            throw XCTSkip("Claude status parse failed (likely not logged in or usage unavailable): \(message)")
+            let reason = "Claude status parse failed (likely not logged in or usage unavailable): \(message)"
+            outcome = .failure(XCTSkip(reason))
         } catch ClaudeUsageError.claudeNotInstalled {
-            throw XCTSkip("Claude CLI not installed; skipping live PTY probe.")
+            outcome = .failure(XCTSkip("Claude CLI not installed; skipping live PTY probe."))
         } catch ClaudeStatusProbeError.timedOut {
-            throw XCTSkip("Claude PTY probe timed out; skipping.")
+            outcome = .failure(XCTSkip("Claude PTY probe timed out; skipping."))
         } catch let TTYCommandRunner.Error.launchFailed(message) where message.contains("login") {
-            throw XCTSkip("Claude CLI not logged in: \(message)")
+            outcome = .failure(XCTSkip("Claude CLI not logged in: \(message)"))
+        } catch {
+            outcome = .failure(error)
         }
+
+        await ClaudeCLISession.shared.reset()
+        try outcome.get()
     }
 }
