@@ -1,10 +1,10 @@
 # Changelog
 
-## 0.17.1 — Unreleased
+## 0.18.0 — Unreleased
+- Vertex AI: add provider with quota-based usage from gcloud ADC. Thanks @bahag-chaurasiak!
+- Kiro: add CLI-based usage provider via kiro-cli. Thanks @neror!
 - Cursor: avoid Intel crash when opening login and harden WebKit teardown. Thanks @meghanto!
 - Cursor: load stored session cookies before reads to make relaunches deterministic.
-- Kiro: add CLI-based usage provider via kiro-cli. Thanks @neror!
-- Vertex AI: add provider with quota-based usage from gcloud ADC. Thanks @bahag-chaurasiak!
 - Menu: add a toggle to show reset times as absolute clock values (instead of countdowns).
 - Preferences: move “Access OpenAI via web” into Providers → Codex.
 - Dev: move Chromium profile discovery into SweetCookieKit (adds Helium net.imput.helium). Thanks @hhushhas!
