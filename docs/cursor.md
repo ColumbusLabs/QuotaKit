@@ -22,6 +22,7 @@ Cursor is web-only. Usage is fetched via browser cookies or a stored WebKit sess
 
 2) **Stored session cookies** (fallback)
    - Captured by the "Add Account" WebKit login flow.
+   - Login teardown uses `WebKitTeardown` to avoid Intel WebKit crashes.
    - Stored at: `~/Library/Application Support/CodexBar/cursor-session.json`.
 
 ## API endpoints

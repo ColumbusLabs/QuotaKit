@@ -424,6 +424,7 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
         window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         window.contentView = container
         window.center()
+        window.delegate = self
 
         self.window = window
         self.webView = webView
@@ -499,5 +500,18 @@ private final class WeakScriptMessageHandler: NSObject, WKScriptMessageHandler {
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         self.delegate?.userContentController(userContentController, didReceive: message)
+    }
+}
+
+// MARK: - NSWindowDelegate
+
+extension OpenAICreditsPurchaseWindowController: NSWindowDelegate {
+    func windowWillClose(_ notification: Notification) {
+        guard let window = self.window else { return }
+        let webView = self.webView
+        self.pendingAutoStart = false
+        self.webView = nil
+        self.window = nil
+        WebKitTeardown.scheduleCleanup(owner: window, window: window, webView: webView)
     }
 }
