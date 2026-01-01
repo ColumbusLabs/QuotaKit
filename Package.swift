@@ -6,7 +6,7 @@ import PackageDescription
 let sweetCookieKitPath = "../SweetCookieKit"
 let sweetCookieKitDependency: Package.Dependency = FileManager.default.fileExists(atPath: sweetCookieKitPath)
     ? .package(path: sweetCookieKitPath)
-    : .package(url: "https://github.com/steipete/SweetCookieKit", from: "0.1.4")
+    : .package(url: "https://github.com/steipete/SweetCookieKit", from: "0.2.0")
 
 let package = Package(
     name: "CodexBar",
