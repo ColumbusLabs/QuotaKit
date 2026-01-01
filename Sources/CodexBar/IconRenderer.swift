@@ -712,7 +712,8 @@ enum IconRenderer {
         case .cursor: 6
         case .factory: 7
         case .copilot: 8
-        case .vertexai: 9
+        case .kiro: 9
+        case .vertexai: 10
         case .combined: 99
         }
     }

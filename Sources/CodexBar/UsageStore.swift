@@ -28,6 +28,7 @@ extension UsageStore {
         _ = self.geminiVersion
         _ = self.zaiVersion
         _ = self.antigravityVersion
+        _ = self.kiroVersion
         _ = self.isRefreshing
         _ = self.refreshingProviders
         _ = self.pathDebugInfo
@@ -203,6 +204,7 @@ final class UsageStore {
     var zaiVersion: String?
     var antigravityVersion: String?
     var cursorVersion: String?
+    var kiroVersion: String?
     var isRefreshing = false
     private(set) var refreshingProviders: Set<UsageProvider> = []
     var debugForceAnimation = false
@@ -308,6 +310,7 @@ final class UsageStore {
         case .copilot: nil
         case .minimax: nil
         case .vertexai: nil
+        case .kiro: self.kiroVersion
         }
     }
 
@@ -1233,6 +1236,10 @@ extension UsageStore {
                 let text = "Vertex AI debug log not yet implemented"
                 await MainActor.run { self.probeLogs[.vertexai] = text }
                 return text
+            case .kiro:
+                let text = "Kiro debug log not yet implemented"
+                await MainActor.run { self.probeLogs[.kiro] = text }
+                return text
             }
         }.value
     }
@@ -1256,12 +1263,14 @@ extension UsageStore {
             let claudeVer = claudeFetcher.detectVersion()
             let geminiVer = Self.readCLI("gemini", args: ["--version"])
             let antigravityVer = await AntigravityStatusProbe.detectVersion()
+            let kiroVer = KiroStatusProbe.detectVersion()
             await MainActor.run {
                 self.codexVersion = codexVer
                 self.claudeVersion = claudeVer
                 self.geminiVersion = geminiVer
                 self.zaiVersion = nil
                 self.antigravityVersion = antigravityVer
+                self.kiroVersion = kiroVer
             }
         }
     }

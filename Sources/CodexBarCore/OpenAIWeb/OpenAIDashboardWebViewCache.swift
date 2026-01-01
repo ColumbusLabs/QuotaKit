@@ -152,6 +152,7 @@ final class OpenAIDashboardWebViewCache {
 @MainActor
 private final class OffscreenWebViewHost {
     private let window: NSWindow
+    private weak var webView: WKWebView?
 
     init(webView: WKWebView) {
         // WebKit throttles timers/RAF aggressively when a WKWebView is not considered "visible".
@@ -181,6 +182,7 @@ private final class OffscreenWebViewHost {
         window.contentView = webView
 
         self.window = window
+        self.webView = webView
     }
 
     func show() {
@@ -196,8 +198,14 @@ private final class OffscreenWebViewHost {
     }
 
     func close() {
-        self.window.orderOut(nil)
-        self.window.close()
+        WebKitTeardown.scheduleCleanup(
+            owner: self,
+            window: self.window,
+            webView: self.webView,
+            closeWindow: { [window] in
+                window.orderOut(nil)
+                window.close()
+            })
     }
 }
 

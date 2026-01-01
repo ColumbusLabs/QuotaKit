@@ -128,6 +128,7 @@ struct SettingsStoreTests {
             .copilot,
             .zai,
             .minimax,
+            .kiro,
             .vertexai,
         ])
 

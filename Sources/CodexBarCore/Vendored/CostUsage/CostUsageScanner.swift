@@ -64,6 +64,8 @@ enum CostUsageScanner {
             return CostUsageDailyReport(data: [], summary: nil)
         case .vertexai:
             return CostUsageDailyReport(data: [], summary: nil)
+        case .kiro:
+            return CostUsageDailyReport(data: [], summary: nil)
         }
     }
 

@@ -96,5 +96,4 @@ Source labels (CLI/header): `openai-web`, `web`, `oauth`, `api`, `local`, plus p
 - Quota usage via Cloud Monitoring `consumer_quota` metrics for `aiplatform.googleapis.com`.
 - Requires Cloud Monitoring API access in the current project.
 - Details: `docs/vertexai.md`.
-
 See also: `docs/provider.md` for architecture notes.

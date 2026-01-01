@@ -37,6 +37,8 @@ final class CursorLoginRunner: NSObject {
     /// Runs the Cursor login flow in a browser window.
     /// Returns the result after the user completes login or cancels.
     func run(onPhaseChange: @escaping @Sendable (Phase) -> Void) async -> Result {
+        // Keep this instance alive during the flow.
+        WebKitTeardown.retain(self)
         self.phaseCallback = onPhaseChange
         onPhaseChange(.loading)
 
@@ -47,9 +49,9 @@ final class CursorLoginRunner: NSObject {
     }
 
     private func setupWindow() {
-        // Configure WebView with persistent data store
+        // Use a non-persistent store for the login flow; cookies are persisted explicitly.
         let config = WKWebViewConfiguration()
-        config.websiteDataStore = .default()
+        config.websiteDataStore = .nonPersistent()
 
         let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 480, height: 640), configuration: config)
         webView.navigationDelegate = self
@@ -61,6 +63,7 @@ final class CursorLoginRunner: NSObject {
             styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false)
+        window.isReleasedWhenClosed = false
         window.title = "Cursor Login"
         window.contentView = webView
         window.center()
@@ -76,15 +79,12 @@ final class CursorLoginRunner: NSObject {
     private func complete(with result: Result) {
         guard let continuation = self.continuation else { return }
         self.continuation = nil
-        self.cleanup()
+        self.scheduleCleanup()
         continuation.resume(returning: result)
     }
 
-    private func cleanup() {
-        self.window?.close()
-        self.window = nil
-        self.webView?.navigationDelegate = nil
-        self.webView = nil
+    private func scheduleCleanup() {
+        WebKitTeardown.scheduleCleanup(owner: self, window: self.window, webView: self.webView)
     }
 
     private func captureSessionCookies() async {
