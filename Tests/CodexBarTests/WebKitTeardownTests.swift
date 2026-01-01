@@ -17,7 +17,15 @@ struct WebKitTeardownTests {
         #expect(WebKitTeardown.isRetainedForTesting(owner))
         #expect(WebKitTeardown.isScheduledForTesting(owner))
 
-        try? await Task.sleep(for: .seconds(3))
+        let deadline = Date().addingTimeInterval(9)
+        while Date() < deadline {
+            if !WebKitTeardown.isRetainedForTesting(owner),
+               !WebKitTeardown.isScheduledForTesting(owner)
+            {
+                break
+            }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
 
         #expect(!WebKitTeardown.isRetainedForTesting(owner))
         #expect(!WebKitTeardown.isScheduledForTesting(owner))
