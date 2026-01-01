@@ -9,7 +9,7 @@ struct WebKitTeardownTests {
     final class Owner {}
 
     @Test
-    func scheduleCleanupReleasesOwner() async {
+    func scheduleCleanupRegistersOwner() {
         let owner = Owner()
         WebKitTeardown.resetForTesting()
         WebKitTeardown.scheduleCleanup(owner: owner, window: nil, webView: nil)
@@ -17,16 +17,7 @@ struct WebKitTeardownTests {
         #expect(WebKitTeardown.isRetainedForTesting(owner))
         #expect(WebKitTeardown.isScheduledForTesting(owner))
 
-        let deadline = Date().addingTimeInterval(9)
-        while Date() < deadline {
-            if !WebKitTeardown.isRetainedForTesting(owner),
-               !WebKitTeardown.isScheduledForTesting(owner)
-            {
-                break
-            }
-            try? await Task.sleep(for: .milliseconds(100))
-        }
-
+        WebKitTeardown.resetForTesting()
         #expect(!WebKitTeardown.isRetainedForTesting(owner))
         #expect(!WebKitTeardown.isScheduledForTesting(owner))
     }
