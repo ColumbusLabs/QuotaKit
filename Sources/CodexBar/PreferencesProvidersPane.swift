@@ -12,6 +12,7 @@ private enum ProviderListMetrics {
     static let reorderHandleSize: CGFloat = 12
     static let reorderDotSize: CGFloat = 2
     static let reorderDotSpacing: CGFloat = 3
+    static let pickerLabelWidth: CGFloat = 92
 }
 
 @MainActor
@@ -32,8 +33,6 @@ struct ProvidersPane: View {
                 store: self.store,
                 isEnabled: { provider in self.binding(for: provider) },
                 subtitle: { provider in self.providerSubtitle(provider) },
-                sourceLabel: { provider in self.providerSourceLabel(provider) },
-                statusLabel: { provider in self.providerStatusLabel(provider) },
                 settingsPickers: { provider in self.extraSettingsPickers(for: provider) },
                 settingsToggles: { provider in self.extraSettingsToggles(for: provider) },
                 settingsFields: { provider in self.extraSettingsFields(for: provider) },
@@ -114,20 +113,6 @@ struct ProvidersPane: View {
 
         let detail = "\(cliName) \(versionText) • \(usageText)"
         return detail
-    }
-
-    private func providerSourceLabel(_ provider: UsageProvider) -> String {
-        self.store.sourceLabel(for: provider)
-    }
-
-    private func providerStatusLabel(_ provider: UsageProvider) -> String {
-        if let snapshot = self.store.snapshot(for: provider) {
-            return snapshot.updatedAt.formatted(date: .abbreviated, time: .shortened)
-        }
-        if self.store.isStale(provider: provider) {
-            return "failed"
-        }
-        return "not yet"
     }
 
     private func providerErrorDisplay(_ provider: UsageProvider) -> ProviderErrorDisplay? {
@@ -243,8 +228,6 @@ private struct ProviderListView: View {
     @Bindable var store: UsageStore
     let isEnabled: (UsageProvider) -> Binding<Bool>
     let subtitle: (UsageProvider) -> String
-    let sourceLabel: (UsageProvider) -> String
-    let statusLabel: (UsageProvider) -> String
     let settingsPickers: (UsageProvider) -> [ProviderSettingsPickerDescriptor]
     let settingsToggles: (UsageProvider) -> [ProviderSettingsToggleDescriptor]
     let settingsFields: (UsageProvider) -> [ProviderSettingsFieldDescriptor]
@@ -270,8 +253,6 @@ private struct ProviderListView: View {
                         store: self.store,
                         isEnabled: self.isEnabled(provider),
                         subtitle: self.subtitle(provider),
-                        sourceLabel: self.sourceLabel(provider),
-                        statusLabel: self.statusLabel(provider),
                         errorDisplay: self.isEnabled(provider).wrappedValue ? self.errorDisplay(provider) : nil,
                         isErrorExpanded: self.isErrorExpanded(provider),
                         onCopyError: self.onCopyError)
@@ -374,8 +355,6 @@ private struct ProviderListProviderRowView: View {
     @Bindable var store: UsageStore
     @Binding var isEnabled: Bool
     let subtitle: String
-    let sourceLabel: String
-    let statusLabel: String
     let errorDisplay: ProviderErrorDisplay?
     @Binding var isErrorExpanded: Bool
     let onCopyError: (String) -> Void
@@ -404,24 +383,26 @@ private struct ProviderListProviderRowView: View {
                             .padding(.top, 1)
                         Text(self.store.metadata(for: self.provider).displayName)
                             .font(.subheadline.bold())
-                    }
-                    Text(self.subtitle)
-                        .font(.footnote)
-                        .foregroundStyle(.tertiary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.leading, titleIndent)
-                    HStack(spacing: 8) {
-                        Text(self.sourceLabel)
                         if isRefreshing {
-                            ProgressView()
-                                .controlSize(.small)
-                            Text("Refreshing…")
-                        } else {
-                            Text(self.statusLabel)
+                            HStack(spacing: 6) {
+                                ProgressView()
+                                    .controlSize(.small)
+                                Text("Refreshing…")
+                            }
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                         }
                     }
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(self.subtitle)
+                            .font(.footnote)
+                            .foregroundStyle(.tertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Spacer(minLength: 8)
+
+                        // Refreshing moves to the title line for a tighter layout.
+                    }
                     .padding(.leading, titleIndent)
                 }
                 .contentShape(Rectangle())
@@ -581,24 +562,36 @@ private struct ProviderListPickerRowView: View {
             Color.clear
                 .frame(width: ProviderListMetrics.iconSize, height: ProviderListMetrics.iconSize)
 
-            VStack(alignment: .leading, spacing: 8) {
-                VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(self.picker.title)
                         .font(.subheadline.weight(.semibold))
-                    Text(self.picker.subtitle)
-                        .font(.footnote)
-                        .foregroundStyle(.tertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(width: ProviderListMetrics.pickerLabelWidth, alignment: .leading)
+
+                    Picker("", selection: self.picker.binding) {
+                        ForEach(self.picker.options) { option in
+                            Text(option.title).tag(option.id)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .controlSize(.small)
+
+                    if let trailingText = self.picker.trailingText?(), !trailingText.isEmpty {
+                        Text(trailingText)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+
+                    Spacer(minLength: 0)
                 }
 
-                Picker("", selection: self.picker.binding) {
-                    ForEach(self.picker.options) { option in
-                        Text(option.title).tag(option.id)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .controlSize(.small)
+                Text(self.picker.subtitle)
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }

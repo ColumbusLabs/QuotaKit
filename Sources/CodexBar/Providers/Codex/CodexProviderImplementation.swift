@@ -44,7 +44,12 @@ struct CodexProviderImplementation: ProviderImplementation {
                 binding: usageBinding,
                 options: usageOptions,
                 isVisible: nil,
-                onChange: nil),
+                onChange: nil,
+                trailingText: {
+                    guard context.settings.codexUsageDataSource == .auto else { return nil }
+                    let label = context.store.sourceLabel(for: .codex)
+                    return label == "auto" ? nil : label
+                }),
             ProviderSettingsPickerDescriptor(
                 id: "codex-cookie-source",
                 title: "OpenAI cookies",

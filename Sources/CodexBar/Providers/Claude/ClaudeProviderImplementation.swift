@@ -40,7 +40,12 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 binding: usageBinding,
                 options: usageOptions,
                 isVisible: nil,
-                onChange: nil),
+                onChange: nil,
+                trailingText: {
+                    guard context.settings.claudeUsageDataSource == .auto else { return nil }
+                    let label = context.store.sourceLabel(for: .claude)
+                    return label == "auto" ? nil : label
+                }),
             ProviderSettingsPickerDescriptor(
                 id: "claude-cookie-source",
                 title: "Claude cookies",
