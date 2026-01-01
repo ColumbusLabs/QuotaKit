@@ -181,7 +181,7 @@ extension StatusItemController {
 
         // IconRenderer treats these values as a left-to-right "progress fill" percentage; depending on the
         // user setting we pass either "percent left" or "percent used".
-        var primary = showUsed ? snapshot?.primary.usedPercent : snapshot?.primary.remainingPercent
+        var primary = showUsed ? snapshot?.primary?.usedPercent : snapshot?.primary?.remainingPercent
         var weekly = showUsed ? snapshot?.secondary?.usedPercent : snapshot?.secondary?.remainingPercent
         var credits: Double? = primaryProvider == .codex ? self.store.credits?.remaining : nil
         var stale = self.store.isStale(provider: primaryProvider)
@@ -262,7 +262,7 @@ extension StatusItemController {
             self.setButtonTitle(percentText, for: button)
             return
         }
-        var primary = showUsed ? snapshot?.primary.usedPercent : snapshot?.primary.remainingPercent
+        var primary = showUsed ? snapshot?.primary?.usedPercent : snapshot?.primary?.remainingPercent
         var weekly = showUsed ? snapshot?.secondary?.usedPercent : snapshot?.secondary?.remainingPercent
         var credits: Double? = provider == .codex ? self.store.credits?.remaining : nil
         var stale = self.store.isStale(provider: provider)

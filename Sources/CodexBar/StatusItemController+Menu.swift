@@ -498,7 +498,7 @@ extension StatusItemController {
         // Fallback to the dynamic icon renderer if resources are missing (e.g. dev bundle mismatch).
         let snapshot = self.store.snapshot(for: provider)
         let showUsed = self.settings.usageBarsShowUsed
-        let primary = showUsed ? snapshot?.primary.usedPercent : snapshot?.primary.remainingPercent
+        let primary = showUsed ? snapshot?.primary?.usedPercent : snapshot?.primary?.remainingPercent
         let weekly = showUsed ? snapshot?.secondary?.usedPercent : snapshot?.secondary?.remainingPercent
         let credits = provider == .codex ? self.store.credits?.remaining : nil
         let stale = self.store.isStale(provider: provider)

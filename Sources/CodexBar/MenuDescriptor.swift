@@ -110,7 +110,9 @@ struct MenuDescriptor {
         entries.append(.text(headlineText, .headline))
 
         if let snap = store.snapshot(for: provider) {
-            Self.appendRateWindow(entries: &entries, title: meta.sessionLabel, window: snap.primary)
+            if let primary = snap.primary {
+                Self.appendRateWindow(entries: &entries, title: meta.sessionLabel, window: primary)
+            }
             if let weekly = snap.secondary {
                 Self.appendRateWindow(entries: &entries, title: meta.weeklyLabel, window: weekly)
                 if let paceText = UsagePaceText.weekly(provider: provider, window: weekly) {
@@ -123,22 +125,23 @@ struct MenuDescriptor {
                 Self.appendRateWindow(entries: &entries, title: meta.opusLabel ?? "Sonnet", window: opus)
             }
 
-            if settings.showOptionalCreditsAndExtraUsage,
-               provider == .claude,
-               let cost = snap.providerCost
-            {
-                let used = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
-                let limit = UsageFormatter.currencyString(cost.limit, currencyCode: cost.currencyCode)
-                entries.append(.text("Extra usage: \(used) / \(limit)", .primary))
-            }
-
-            if provider == .cursor, let cost = snap.providerCost {
-                let used = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
-                if cost.limit > 0 {
-                    let limitStr = UsageFormatter.currencyString(cost.limit, currencyCode: cost.currencyCode)
-                    entries.append(.text("On-Demand: \(used) / \(limitStr)", .primary))
-                } else {
-                    entries.append(.text("On-Demand: \(used)", .primary))
+            if let cost = snap.providerCost {
+                if cost.currencyCode == "Quota" {
+                     let used = String(format: "%.0f", cost.used)
+                     let limit = String(format: "%.0f", cost.limit)
+                     entries.append(.text("Quota: \(used) / \(limit)", .primary))
+                } else if settings.showOptionalCreditsAndExtraUsage, provider == .claude {
+                    let used = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
+                    let limit = UsageFormatter.currencyString(cost.limit, currencyCode: cost.currencyCode)
+                    entries.append(.text("Extra usage: \(used) / \(limit)", .primary))
+                } else if provider == .cursor {
+                    let used = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
+                    if cost.limit > 0 {
+                        let limitStr = UsageFormatter.currencyString(cost.limit, currencyCode: cost.currencyCode)
+                        entries.append(.text("On-Demand: \(used) / \(limitStr)", .primary))
+                    } else {
+                        entries.append(.text("On-Demand: \(used)", .primary))
+                    }
                 }
             }
         } else {

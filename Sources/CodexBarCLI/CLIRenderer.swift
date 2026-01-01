@@ -12,9 +12,15 @@ enum CLIRenderer {
         var lines: [String] = []
         lines.append(self.headerLine(context.header, useColor: context.useColor))
 
-        lines.append(self.rateLine(title: meta.sessionLabel, window: snapshot.primary, useColor: context.useColor))
-        if let reset = snapshot.primary.resetDescription {
-            lines.append(self.resetLine(reset))
+        if let primary = snapshot.primary {
+            lines.append(self.rateLine(title: meta.sessionLabel, window: primary, useColor: context.useColor))
+            if let reset = primary.resetDescription {
+                lines.append(self.resetLine(reset))
+            }
+        } else if let cost = snapshot.providerCost {
+            // Fallback to cost/quota display if no primary rate window
+            let label = cost.currencyCode == "Quota" ? "Quota" : "Cost"
+            lines.append("\(label): \(String(format: "%.1f", cost.used)) / \(String(format: "%.1f", cost.limit))")
         }
 
         if let weekly = snapshot.secondary {

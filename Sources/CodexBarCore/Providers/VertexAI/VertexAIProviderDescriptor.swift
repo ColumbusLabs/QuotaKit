@@ -1,0 +1,110 @@
+import CodexBarMacroSupport
+import Foundation
+
+@ProviderDescriptorRegistration
+@ProviderDescriptorDefinition
+public enum VertexAIProviderDescriptor {
+    static func makeDescriptor() -> ProviderDescriptor {
+        ProviderDescriptor(
+            id: .vertexai,
+            metadata: ProviderMetadata(
+                id: .vertexai,
+                displayName: "Vertex AI",
+                sessionLabel: "Requests",
+                weeklyLabel: "Tokens",
+                opusLabel: nil,
+                supportsOpus: false,
+                supportsCredits: false,
+                creditsHint: "",
+                toggleTitle: "Show Vertex AI usage",
+                cliName: "vertexai",
+                defaultEnabled: false,
+                isPrimaryProvider: false,
+                usesAccountFallback: false,
+                dashboardURL: "https://console.cloud.google.com/vertex-ai",
+                statusPageURL: nil,
+                statusLinkURL: "https://status.cloud.google.com"),
+            branding: ProviderBranding(
+                iconStyle: .vertexai,
+                iconResourceName: "ProviderIcon-vertexai",
+                color: ProviderColor(red: 66 / 255, green: 133 / 255, blue: 244 / 255)),
+            tokenCost: ProviderTokenCostConfig(
+                supportsTokenCost: false,
+                noDataMessage: { "Vertex AI cost summary is not supported." }),
+            fetchPlan: ProviderFetchPlan(
+                sourceModes: [.auto, .cli],
+                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [VertexAIOAuthFetchStrategy()] })),
+            cli: ProviderCLIConfig(
+                name: "vertexai",
+                versionDetector: nil))
+    }
+}
+
+struct VertexAIOAuthFetchStrategy: ProviderFetchStrategy {
+    let id: String = "vertexai.oauth"
+    let kind: ProviderFetchKind = .oauth
+
+    func isAvailable(_: ProviderFetchContext) async -> Bool {
+        (try? VertexAIOAuthCredentialsStore.load()) != nil
+    }
+
+    func fetch(_: ProviderFetchContext) async throws -> ProviderFetchResult {
+        var credentials = try VertexAIOAuthCredentialsStore.load()
+
+        // Refresh token if expired
+        if credentials.needsRefresh {
+            credentials = try await VertexAITokenRefresher.refresh(credentials)
+            try VertexAIOAuthCredentialsStore.save(credentials)
+        }
+
+        let usage = try await VertexAIUsageFetcher.fetchUsage(
+            accessToken: credentials.accessToken,
+            projectId: credentials.projectId)
+
+        return self.makeResult(
+            usage: Self.mapUsage(usage, credentials: credentials),
+            sourceLabel: "oauth")
+    }
+
+    func shouldFallback(on error: Error, context _: ProviderFetchContext) -> Bool {
+        if error is VertexAIOAuthCredentialsError { return true }
+        if let fetchError = error as? VertexAIFetchError {
+            switch fetchError {
+            case .unauthorized, .forbidden:
+                return true
+            default:
+                return false
+            }
+        }
+        return false
+    }
+
+    private static func mapUsage(
+        _ response: VertexAIUsageResponse,
+        credentials: VertexAIOAuthCredentials) -> UsageSnapshot
+    {
+        // Map quota usage percentage to a "spending" view.
+        // We use a conceptual currency of "Quota" with a limit of 100.
+        // verified: 60% usage -> used: 60.0, limit: 100.0
+        let cost = ProviderCostSnapshot(
+            used: response.requestsUsedPercent,
+            limit: 100.0,
+            currencyCode: "Quota",
+            period: "Daily",
+            resetsAt: response.resetsAt,
+            updatedAt: Date())
+
+        let identity = ProviderIdentitySnapshot(
+            providerID: .vertexai,
+            accountEmail: credentials.email,
+            accountOrganization: credentials.projectId,
+            loginMethod: "gcloud")
+
+        return UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            providerCost: cost,
+            updatedAt: Date(),
+            identity: identity)
+    }
+}

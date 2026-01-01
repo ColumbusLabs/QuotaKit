@@ -48,7 +48,7 @@ public struct ProviderIdentitySnapshot: Codable, Sendable {
 }
 
 public struct UsageSnapshot: Codable, Sendable {
-    public let primary: RateWindow
+    public let primary: RateWindow?
     public let secondary: RateWindow?
     public let tertiary: RateWindow?
     public let providerCost: ProviderCostSnapshot?
@@ -69,7 +69,7 @@ public struct UsageSnapshot: Codable, Sendable {
     }
 
     public init(
-        primary: RateWindow,
+        primary: RateWindow?,
         secondary: RateWindow?,
         tertiary: RateWindow? = nil,
         providerCost: ProviderCostSnapshot? = nil,
@@ -88,7 +88,7 @@ public struct UsageSnapshot: Codable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.primary = try container.decode(RateWindow.self, forKey: .primary)
+        self.primary = try container.decodeIfPresent(RateWindow.self, forKey: .primary)
         self.secondary = try container.decodeIfPresent(RateWindow.self, forKey: .secondary)
         self.tertiary = try container.decodeIfPresent(RateWindow.self, forKey: .tertiary)
         self.providerCost = try container.decodeIfPresent(ProviderCostSnapshot.self, forKey: .providerCost)

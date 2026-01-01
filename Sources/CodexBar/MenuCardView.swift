@@ -708,14 +708,16 @@ extension UsageMenuCardView.Model {
         let zaiUsage = input.provider == .zai ? snapshot.zaiUsage : nil
         let zaiTokenDetail = Self.zaiLimitDetailText(limit: zaiUsage?.tokenLimit)
         let zaiTimeDetail = Self.zaiLimitDetailText(limit: zaiUsage?.timeLimit)
-        metrics.append(Metric(
-            id: "primary",
-            title: input.metadata.sessionLabel,
-            percent: Self.clamped(
-                input.usageBarsShowUsed ? snapshot.primary.usedPercent : snapshot.primary.remainingPercent),
-            percentStyle: percentStyle,
-            resetText: Self.resetText(for: snapshot.primary, prefersCountdown: true),
-            detailText: input.provider == .zai ? zaiTokenDetail : nil))
+        if let primary = snapshot.primary {
+            metrics.append(Metric(
+                id: "primary",
+                title: input.metadata.sessionLabel,
+                percent: Self.clamped(
+                    input.usageBarsShowUsed ? primary.usedPercent : primary.remainingPercent),
+                percentStyle: percentStyle,
+                resetText: Self.resetText(for: primary, prefersCountdown: true),
+                detailText: input.provider == .zai ? zaiTokenDetail : nil))
+        }
         if let weekly = snapshot.secondary {
             let paceText = UsagePaceText.weekly(provider: input.provider, window: weekly, now: input.now)
             metrics.append(Metric(
@@ -820,18 +822,30 @@ extension UsageMenuCardView.Model {
         provider: UsageProvider,
         cost: ProviderCostSnapshot?) -> ProviderCostSection?
     {
-        guard provider == .claude else { return nil }
         guard let cost else { return nil }
         guard cost.limit > 0 else { return nil }
 
-        let used = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
-        let limit = UsageFormatter.currencyString(cost.limit, currencyCode: cost.currencyCode)
+        let used: String
+        let limit: String
+        let title: String
+
+        if cost.currencyCode == "Quota" {
+            title = "Quota usage"
+            used = String(format: "%.0f", cost.used)
+            limit = String(format: "%.0f", cost.limit)
+        } else {
+            title = "Extra usage"
+            used = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
+            limit = UsageFormatter.currencyString(cost.limit, currencyCode: cost.currencyCode)
+        }
+
         let percentUsed = Self.clamped((cost.used / cost.limit) * 100)
+        let periodLabel = cost.period ?? "This month"
 
         return ProviderCostSection(
-            title: "Extra usage",
+            title: title,
             percentUsed: percentUsed,
-            spendLine: "This month: \(used) / \(limit)")
+            spendLine: "\(periodLabel): \(used) / \(limit)")
     }
 
     private static func clamped(_ value: Double) -> Double {

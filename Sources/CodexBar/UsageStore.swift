@@ -307,6 +307,7 @@ final class UsageStore {
         case .factory: nil
         case .copilot: nil
         case .minimax: nil
+        case .vertexai: nil
         }
     }
 
@@ -571,7 +572,8 @@ final class UsageStore {
     }
 
     private func handleSessionQuotaTransition(provider: UsageProvider, snapshot: UsageSnapshot) {
-        let currentRemaining = snapshot.primary.remainingPercent
+        guard let primary = snapshot.primary else { return }
+        let currentRemaining = primary.remainingPercent
         let previousRemaining = self.lastKnownSessionRemaining[provider]
 
         defer { self.lastKnownSessionRemaining[provider] = currentRemaining }
@@ -1226,6 +1228,10 @@ extension UsageStore {
                 let source = resolution?.source.rawValue ?? "none"
                 let text = "MINIMAX_COOKIE=\(hasAny ? "present" : "missing") source=\(source)"
                 await MainActor.run { self.probeLogs[.minimax] = text }
+                return text
+            case .vertexai:
+                let text = "Vertex AI debug log not yet implemented"
+                await MainActor.run { self.probeLogs[.vertexai] = text }
                 return text
             }
         }.value

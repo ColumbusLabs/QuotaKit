@@ -121,7 +121,7 @@ struct StatusIconView: View {
 
     private var icon: NSImage {
         IconRenderer.makeIcon(
-            primaryRemaining: self.store.snapshot(for: self.provider)?.primary.remainingPercent,
+            primaryRemaining: self.store.snapshot(for: self.provider)?.primary?.remainingPercent,
             weeklyRemaining: self.store.snapshot(for: self.provider)?.secondary?.remainingPercent,
             creditsRemaining: self.provider == .codex ? self.store.credits?.remaining : nil,
             stale: self.store.isStale(provider: self.provider),
