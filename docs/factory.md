@@ -80,8 +80,9 @@ Endpoints:
   - Root: `~/Library/Containers/com.apple.Safari/Data/Library/WebKit/WebsiteData/Default`
   - Finds `origin` files containing `app.factory.ai` or `auth.factory.ai`, then reads
     `LocalStorage/localstorage.sqlite3`.
-- Chrome/Chromium/Arc:
+- Chrome/Chromium/Arc/Helium:
   - Roots under `~/Library/Application Support/<Browser>/User Data/<Profile>/Local Storage/leveldb`.
+  - Helium uses `~/Library/Application Support/net.imput.helium/<Profile>/Local Storage/leveldb` (no `User Data`).
   - Scans LevelDB files for `workos:refresh-token` and `workos:access-token`.
 - Parsed tokens:
   - `workos:refresh-token` (required)

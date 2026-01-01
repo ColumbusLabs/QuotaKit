@@ -1,5 +1,6 @@
 import Foundation
 #if os(macOS)
+import SweetCookieKit
 import SQLite3
 #endif
 
@@ -72,26 +73,20 @@ enum FactoryLocalStorageImporter {
     }
 
     private static func chromeLocalStorageCandidates() -> [LocalStorageCandidate] {
-        let roots: [(url: URL, labelPrefix: String)] = self.candidateHomes().flatMap { home in
-            let appSupport = home
-                .appendingPathComponent("Library")
-                .appendingPathComponent("Application Support")
-            return [
-                (appSupport.appendingPathComponent("Google").appendingPathComponent("Chrome"), "Chrome"),
-                (appSupport.appendingPathComponent("Google").appendingPathComponent("Chrome Beta"), "Chrome Beta"),
-                (appSupport.appendingPathComponent("Google").appendingPathComponent("Chrome Canary"), "Chrome Canary"),
-                (appSupport.appendingPathComponent("Arc").appendingPathComponent("User Data"), "Arc"),
-                (appSupport.appendingPathComponent("Arc Beta").appendingPathComponent("User Data"), "Arc Beta"),
-                (appSupport.appendingPathComponent("Arc Canary").appendingPathComponent("User Data"), "Arc Canary"),
-                (
-                    appSupport
-                        .appendingPathComponent("com.openai.atlas")
-                        .appendingPathComponent("browser-data")
-                        .appendingPathComponent("host"),
-                    "ChatGPT Atlas"),
-                (appSupport.appendingPathComponent("Chromium"), "Chromium"),
-            ]
-        }
+        let browsers: [Browser] = [
+            .chrome,
+            .chromeBeta,
+            .chromeCanary,
+            .arc,
+            .arcBeta,
+            .arcCanary,
+            .chatgptAtlas,
+            .chromium,
+            .helium,
+        ]
+        let roots = ChromiumProfileLocator
+            .roots(for: browsers, homeDirectories: BrowserCookieClient.defaultHomeDirectories())
+            .map { (url: $0.url, labelPrefix: $0.labelPrefix) }
 
         var candidates: [LocalStorageCandidate] = []
         for root in roots {
@@ -185,24 +180,6 @@ enum FactoryLocalStorageImporter {
             return host
         }
         return nil
-    }
-
-    private static func candidateHomes() -> [URL] {
-        var homes: [URL] = []
-        homes.append(FileManager.default.homeDirectoryForCurrentUser)
-        if let userHome = NSHomeDirectoryForUser(NSUserName()) {
-            homes.append(URL(fileURLWithPath: userHome))
-        }
-        if let envHome = ProcessInfo.processInfo.environment["HOME"], !envHome.isEmpty {
-            homes.append(URL(fileURLWithPath: envHome))
-        }
-        var seen = Set<String>()
-        return homes.filter { home in
-            let path = home.path
-            guard !seen.contains(path) else { return false }
-            seen.insert(path)
-            return true
-        }
     }
 
     // MARK: - Token extraction

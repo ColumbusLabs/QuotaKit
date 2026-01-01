@@ -7,6 +7,7 @@
 - Vertex AI: add provider with quota-based usage from gcloud ADC. Thanks @bahag-chaurasiak!
 - Menu: add a toggle to show reset times as absolute clock values (instead of countdowns).
 - Preferences: move “Access OpenAI via web” into Providers → Codex.
+- Dev: move Chromium profile discovery into SweetCookieKit (adds Helium net.imput.helium). Thanks @hhushhas!
 
 ## 0.17.0 — 2025-12-31
 - New providers: MiniMax.

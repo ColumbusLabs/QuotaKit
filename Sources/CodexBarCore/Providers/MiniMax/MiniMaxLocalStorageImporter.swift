@@ -120,39 +120,27 @@ enum MiniMaxLocalStorageImporter {
     }
 
     private static func chromeLocalStorageCandidates() -> [LocalStorageCandidate] {
-        let roots: [(url: URL, labelPrefix: String)] = self.candidateHomes().flatMap { home in
-            let appSupport = home
-                .appendingPathComponent("Library")
-                .appendingPathComponent("Application Support")
-            return [
-                (appSupport.appendingPathComponent("Google").appendingPathComponent("Chrome"), "Chrome"),
-                (appSupport.appendingPathComponent("Google").appendingPathComponent("Chrome Beta"), "Chrome Beta"),
-                (appSupport.appendingPathComponent("Google").appendingPathComponent("Chrome Canary"), "Chrome Canary"),
-                (appSupport.appendingPathComponent("Microsoft Edge"), "Microsoft Edge"),
-                (appSupport.appendingPathComponent("Microsoft Edge Beta"), "Microsoft Edge Beta"),
-                (appSupport.appendingPathComponent("Microsoft Edge Canary"), "Microsoft Edge Canary"),
-                (
-                    appSupport.appendingPathComponent("BraveSoftware").appendingPathComponent("Brave-Browser"),
-                    "Brave"),
-                (
-                    appSupport.appendingPathComponent("BraveSoftware").appendingPathComponent("Brave-Browser-Beta"),
-                    "Brave Beta"),
-                (
-                    appSupport.appendingPathComponent("BraveSoftware").appendingPathComponent("Brave-Browser-Nightly"),
-                    "Brave Nightly"),
-                (appSupport.appendingPathComponent("Vivaldi"), "Vivaldi"),
-                (appSupport.appendingPathComponent("Arc").appendingPathComponent("User Data"), "Arc"),
-                (appSupport.appendingPathComponent("Arc Beta").appendingPathComponent("User Data"), "Arc Beta"),
-                (appSupport.appendingPathComponent("Arc Canary").appendingPathComponent("User Data"), "Arc Canary"),
-                (
-                    appSupport
-                        .appendingPathComponent("com.openai.atlas")
-                        .appendingPathComponent("browser-data")
-                        .appendingPathComponent("host"),
-                    "ChatGPT Atlas"),
-                (appSupport.appendingPathComponent("Chromium"), "Chromium"),
-            ]
-        }
+        let browsers: [Browser] = [
+            .chrome,
+            .chromeBeta,
+            .chromeCanary,
+            .edge,
+            .edgeBeta,
+            .edgeCanary,
+            .brave,
+            .braveBeta,
+            .braveNightly,
+            .vivaldi,
+            .arc,
+            .arcBeta,
+            .arcCanary,
+            .chatgptAtlas,
+            .chromium,
+            .helium,
+        ]
+        let roots = ChromiumProfileLocator
+            .roots(for: browsers, homeDirectories: BrowserCookieClient.defaultHomeDirectories())
+            .map { (url: $0.url, labelPrefix: $0.labelPrefix) }
 
         var candidates: [LocalStorageCandidate] = []
         for root in roots {
@@ -188,39 +176,27 @@ enum MiniMaxLocalStorageImporter {
     }
 
     private static func chromeSessionStorageCandidates() -> [SessionStorageCandidate] {
-        let roots: [(url: URL, labelPrefix: String)] = self.candidateHomes().flatMap { home in
-            let appSupport = home
-                .appendingPathComponent("Library")
-                .appendingPathComponent("Application Support")
-            return [
-                (appSupport.appendingPathComponent("Google").appendingPathComponent("Chrome"), "Chrome"),
-                (appSupport.appendingPathComponent("Google").appendingPathComponent("Chrome Beta"), "Chrome Beta"),
-                (appSupport.appendingPathComponent("Google").appendingPathComponent("Chrome Canary"), "Chrome Canary"),
-                (appSupport.appendingPathComponent("Microsoft Edge"), "Microsoft Edge"),
-                (appSupport.appendingPathComponent("Microsoft Edge Beta"), "Microsoft Edge Beta"),
-                (appSupport.appendingPathComponent("Microsoft Edge Canary"), "Microsoft Edge Canary"),
-                (
-                    appSupport.appendingPathComponent("BraveSoftware").appendingPathComponent("Brave-Browser"),
-                    "Brave"),
-                (
-                    appSupport.appendingPathComponent("BraveSoftware").appendingPathComponent("Brave-Browser-Beta"),
-                    "Brave Beta"),
-                (
-                    appSupport.appendingPathComponent("BraveSoftware").appendingPathComponent("Brave-Browser-Nightly"),
-                    "Brave Nightly"),
-                (appSupport.appendingPathComponent("Vivaldi"), "Vivaldi"),
-                (appSupport.appendingPathComponent("Arc").appendingPathComponent("User Data"), "Arc"),
-                (appSupport.appendingPathComponent("Arc Beta").appendingPathComponent("User Data"), "Arc Beta"),
-                (appSupport.appendingPathComponent("Arc Canary").appendingPathComponent("User Data"), "Arc Canary"),
-                (
-                    appSupport
-                        .appendingPathComponent("com.openai.atlas")
-                        .appendingPathComponent("browser-data")
-                        .appendingPathComponent("host"),
-                    "ChatGPT Atlas"),
-                (appSupport.appendingPathComponent("Chromium"), "Chromium"),
-            ]
-        }
+        let browsers: [Browser] = [
+            .chrome,
+            .chromeBeta,
+            .chromeCanary,
+            .edge,
+            .edgeBeta,
+            .edgeCanary,
+            .brave,
+            .braveBeta,
+            .braveNightly,
+            .vivaldi,
+            .arc,
+            .arcBeta,
+            .arcCanary,
+            .chatgptAtlas,
+            .chromium,
+            .helium,
+        ]
+        let roots = ChromiumProfileLocator
+            .roots(for: browsers, homeDirectories: BrowserCookieClient.defaultHomeDirectories())
+            .map { (url: $0.url, labelPrefix: $0.labelPrefix) }
 
         var candidates: [SessionStorageCandidate] = []
         for root in roots {
@@ -256,39 +232,27 @@ enum MiniMaxLocalStorageImporter {
     }
 
     private static func chromeIndexedDBCandidates() -> [IndexedDBCandidate] {
-        let roots: [(url: URL, labelPrefix: String)] = self.candidateHomes().flatMap { home in
-            let appSupport = home
-                .appendingPathComponent("Library")
-                .appendingPathComponent("Application Support")
-            return [
-                (appSupport.appendingPathComponent("Google").appendingPathComponent("Chrome"), "Chrome"),
-                (appSupport.appendingPathComponent("Google").appendingPathComponent("Chrome Beta"), "Chrome Beta"),
-                (appSupport.appendingPathComponent("Google").appendingPathComponent("Chrome Canary"), "Chrome Canary"),
-                (appSupport.appendingPathComponent("Microsoft Edge"), "Microsoft Edge"),
-                (appSupport.appendingPathComponent("Microsoft Edge Beta"), "Microsoft Edge Beta"),
-                (appSupport.appendingPathComponent("Microsoft Edge Canary"), "Microsoft Edge Canary"),
-                (
-                    appSupport.appendingPathComponent("BraveSoftware").appendingPathComponent("Brave-Browser"),
-                    "Brave"),
-                (
-                    appSupport.appendingPathComponent("BraveSoftware").appendingPathComponent("Brave-Browser-Beta"),
-                    "Brave Beta"),
-                (
-                    appSupport.appendingPathComponent("BraveSoftware").appendingPathComponent("Brave-Browser-Nightly"),
-                    "Brave Nightly"),
-                (appSupport.appendingPathComponent("Vivaldi"), "Vivaldi"),
-                (appSupport.appendingPathComponent("Arc").appendingPathComponent("User Data"), "Arc"),
-                (appSupport.appendingPathComponent("Arc Beta").appendingPathComponent("User Data"), "Arc Beta"),
-                (appSupport.appendingPathComponent("Arc Canary").appendingPathComponent("User Data"), "Arc Canary"),
-                (
-                    appSupport
-                        .appendingPathComponent("com.openai.atlas")
-                        .appendingPathComponent("browser-data")
-                        .appendingPathComponent("host"),
-                    "ChatGPT Atlas"),
-                (appSupport.appendingPathComponent("Chromium"), "Chromium"),
-            ]
-        }
+        let browsers: [Browser] = [
+            .chrome,
+            .chromeBeta,
+            .chromeCanary,
+            .edge,
+            .edgeBeta,
+            .edgeCanary,
+            .brave,
+            .braveBeta,
+            .braveNightly,
+            .vivaldi,
+            .arc,
+            .arcBeta,
+            .arcCanary,
+            .chatgptAtlas,
+            .chromium,
+            .helium,
+        ]
+        let roots = ChromiumProfileLocator
+            .roots(for: browsers, homeDirectories: BrowserCookieClient.defaultHomeDirectories())
+            .map { (url: $0.url, labelPrefix: $0.labelPrefix) }
 
         var candidates: [IndexedDBCandidate] = []
         for root in roots {
@@ -342,24 +306,6 @@ enum MiniMaxLocalStorageImporter {
             }
         }
         return candidates
-    }
-
-    private static func candidateHomes() -> [URL] {
-        var homes: [URL] = []
-        homes.append(FileManager.default.homeDirectoryForCurrentUser)
-        if let userHome = NSHomeDirectoryForUser(NSUserName()) {
-            homes.append(URL(fileURLWithPath: userHome))
-        }
-        if let envHome = ProcessInfo.processInfo.environment["HOME"], !envHome.isEmpty {
-            homes.append(URL(fileURLWithPath: envHome))
-        }
-        var seen = Set<String>()
-        return homes.filter { home in
-            let path = home.path
-            guard !seen.contains(path) else { return false }
-            seen.insert(path)
-            return true
-        }
     }
 
     // MARK: - Token extraction
