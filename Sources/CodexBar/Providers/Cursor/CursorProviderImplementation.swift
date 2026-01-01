@@ -27,11 +27,11 @@ struct CursorProviderImplementation: ProviderImplementation {
         let cookieSubtitle: () -> String? = {
             switch context.settings.cursorCookieSource {
             case .auto:
-                return "Automatic imports browser cookies or stored sessions."
+                "Automatic imports browser cookies or stored sessions."
             case .manual:
-                return "Paste a Cookie header from a cursor.com request."
+                "Paste a Cookie header from a cursor.com request."
             case .off:
-                return "Cursor cookies are disabled."
+                "Cursor cookies are disabled."
             }
         }
 

@@ -35,11 +35,11 @@ struct ClaudeProviderImplementation: ProviderImplementation {
         let cookieSubtitle: () -> String? = {
             switch context.settings.claudeCookieSource {
             case .auto:
-                return "Automatic imports browser cookies for the web API."
+                "Automatic imports browser cookies for the web API."
             case .manual:
-                return "Paste a Cookie header from a claude.ai request."
+                "Paste a Cookie header from a claude.ai request."
             case .off:
-                return "Claude cookies are disabled."
+                "Claude cookies are disabled."
             }
         }
 

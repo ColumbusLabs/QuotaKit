@@ -27,11 +27,11 @@ struct FactoryProviderImplementation: ProviderImplementation {
         let cookieSubtitle: () -> String? = {
             switch context.settings.factoryCookieSource {
             case .auto:
-                return "Automatic imports browser cookies and WorkOS tokens."
+                "Automatic imports browser cookies and WorkOS tokens."
             case .manual:
-                return "Paste a Cookie header from app.factory.ai."
+                "Paste a Cookie header from app.factory.ai."
             case .off:
-                return "Factory cookies are disabled."
+                "Factory cookies are disabled."
             }
         }
 

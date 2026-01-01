@@ -27,11 +27,11 @@ struct MiniMaxProviderImplementation: ProviderImplementation {
         let cookieSubtitle: () -> String? = {
             switch context.settings.minimaxCookieSource {
             case .auto:
-                return "Automatic imports browser cookies and local storage tokens."
+                "Automatic imports browser cookies and local storage tokens."
             case .manual:
-                return "Paste a Cookie header or cURL capture from the Coding Plan page."
+                "Paste a Cookie header or cURL capture from the Coding Plan page."
             case .off:
-                return "MiniMax cookies are disabled."
+                "MiniMax cookies are disabled."
             }
         }
 

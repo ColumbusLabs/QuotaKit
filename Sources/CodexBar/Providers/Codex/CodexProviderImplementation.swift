@@ -39,11 +39,11 @@ struct CodexProviderImplementation: ProviderImplementation {
         let cookieSubtitle: () -> String? = {
             switch context.settings.codexCookieSource {
             case .auto:
-                return "Automatic imports browser cookies for dashboard extras."
+                "Automatic imports browser cookies for dashboard extras."
             case .manual:
-                return "Paste a Cookie header from a chatgpt.com request."
+                "Paste a Cookie header from a chatgpt.com request."
             case .off:
-                return "Disable OpenAI dashboard cookie usage."
+                "Disable OpenAI dashboard cookie usage."
             }
         }
 

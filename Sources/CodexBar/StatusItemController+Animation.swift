@@ -3,6 +3,8 @@ import CodexBarCore
 import QuartzCore
 
 extension StatusItemController {
+    private static let loadingPercentEpsilon = 0.0001
+
     func needsMenuBarIconAnimation() -> Bool {
         if self.shouldMergeIcons {
             let primaryProvider = self.primaryProviderForUnifiedIcon()
@@ -200,8 +202,10 @@ extension StatusItemController {
                 credits = nil
                 stale = false
             } else {
-                primary = pattern.value(phase: phase)
-                weekly = pattern.value(phase: phase + pattern.secondaryOffset)
+                // Keep loading animation layout stable: IconRenderer uses `weeklyRemaining > 0` to switch layouts,
+                // so hitting an exact 0 would flip between "normal" and "weekly exhausted" rendering.
+                primary = max(pattern.value(phase: phase), Self.loadingPercentEpsilon)
+                weekly = max(pattern.value(phase: phase + pattern.secondaryOffset), Self.loadingPercentEpsilon)
                 credits = nil
                 stale = false
             }
@@ -280,8 +284,9 @@ extension StatusItemController {
                 credits = nil
                 stale = false
             } else {
-                primary = pattern.value(phase: phase)
-                weekly = pattern.value(phase: phase + pattern.secondaryOffset)
+                // Keep loading animation layout stable: IconRenderer switches layouts at `weeklyRemaining == 0`.
+                primary = max(pattern.value(phase: phase), Self.loadingPercentEpsilon)
+                weekly = max(pattern.value(phase: phase + pattern.secondaryOffset), Self.loadingPercentEpsilon)
                 credits = nil
                 stale = false
             }
