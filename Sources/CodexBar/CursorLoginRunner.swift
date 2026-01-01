@@ -7,11 +7,11 @@ import WebKit
 /// Captures session cookies after successful authentication.
 @MainActor
 final class CursorLoginRunner: NSObject {
-    override nonisolated var hash: Int {
+    override nonisolated(unsafe) var hash: Int {
         ObjectIdentifier(self).hashValue
     }
 
-    override nonisolated func isEqual(_ object: Any?) -> Bool {
+    override nonisolated(unsafe) func isEqual(_ object: Any?) -> Bool {
         guard let other = object as? CursorLoginRunner else { return false }
         return ObjectIdentifier(self) == ObjectIdentifier(other)
     }
@@ -47,6 +47,11 @@ final class CursorLoginRunner: NSObject {
 #else
     private static let retainRunnersAfterCleanup = false
 #endif
+    private static let cleanupDelayNanoseconds: UInt64 = 250_000_000
+    private static let releaseDelayNanoseconds: UInt64 = 2_000_000_000
+#if arch(x86_64)
+    private static let releaseDelayNanosecondsIntel: UInt64 = 5_000_000_000
+#endif
 
     private static let dashboardURL = URL(string: "https://cursor.com/dashboard")!
     private static let loginURLPattern = "authenticator.cursor.sh"
@@ -67,8 +72,7 @@ final class CursorLoginRunner: NSObject {
     }
 
     private func setupWindow() {
-        // Configure WebView with non-persistent data store
-        // This prevents cross-session state contamination on Intel Macs
+        // Use a non-persistent store for the login flow; cookies are persisted explicitly.
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
 
@@ -108,7 +112,7 @@ final class CursorLoginRunner: NSObject {
         Task { @MainActor in
             // Let WebKit unwind delegate callbacks before teardown on Intel.
             await Task.yield()
-            try? await Task.sleep(nanoseconds: 250_000_000)
+            try? await Task.sleep(nanoseconds: Self.cleanupDelayNanoseconds)
             self.cleanup()
         }
     }
@@ -131,12 +135,18 @@ final class CursorLoginRunner: NSObject {
         // DON'T nil the references - let ARC clean them up when this instance is deallocated
         // This avoids autorelease pool over-release crashes on x86_64
 
-        if !Self.retainRunnersAfterCleanup {
-            // Release the strong reference after a delay to let autorelease pool drain
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-                Self.activeRunners.remove(self)
-            }
+        // Release the strong reference after a delay to let autorelease pools drain.
+        let releaseDelay: UInt64
+#if arch(x86_64)
+        releaseDelay = Self.retainRunnersAfterCleanup
+            ? Self.releaseDelayNanosecondsIntel
+            : Self.releaseDelayNanoseconds
+#else
+        releaseDelay = Self.releaseDelayNanoseconds
+#endif
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: releaseDelay)
+            Self.activeRunners.remove(self)
         }
     }
 
