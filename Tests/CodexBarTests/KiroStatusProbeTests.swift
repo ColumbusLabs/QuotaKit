@@ -62,6 +62,23 @@ struct KiroStatusProbeTests {
     }
 
     @Test
+    func parsesBonusCreditsWithoutExpiry() throws {
+        let output = """
+        | KIRO FREE                                          |
+        ████████████████████████████████████████████████████ 60%
+        (30.00 of 50 covered in plan), resets on 04/01
+        Bonus credits: 2.00/5 credits used
+        """
+
+        let probe = KiroStatusProbe()
+        let snapshot = try probe.parse(output: output)
+
+        #expect(snapshot.bonusCreditsUsed == 2.0)
+        #expect(snapshot.bonusCreditsTotal == 5.0)
+        #expect(snapshot.bonusExpiryDays == nil)
+    }
+
+    @Test
     func parsesOutputWithANSICodes() throws {
         let output = """
         \u{001B}[32m| KIRO FREE                                          |\u{001B}[0m
