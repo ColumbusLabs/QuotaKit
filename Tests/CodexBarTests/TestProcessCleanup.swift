@@ -11,7 +11,7 @@ enum TestProcessCleanup {
         atexit(_testProcessCleanupAtExit)
     }
 
-    private static func terminateLeakedCodexAppServers() {
+    fileprivate static func terminateLeakedCodexAppServers() {
         let pids = Self.pids(matchingFullCommandRegex: "codex.*app-server")
             .filter { $0 > 0 && $0 != getpid() }
         guard !pids.isEmpty else { return }

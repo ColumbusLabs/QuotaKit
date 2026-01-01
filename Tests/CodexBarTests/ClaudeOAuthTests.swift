@@ -152,8 +152,7 @@ struct ClaudeOAuthTests {
     @Test
     func prefersOAuthWhenAvailable() {
         let strategy = ClaudeProviderDescriptor.resolveUsageStrategy(
-            debugMenuEnabled: false,
-            selectedDataSource: .web,
+            selectedDataSource: .auto,
             webExtrasEnabled: false,
             hasWebSession: true,
             hasOAuthCredentials: true)
@@ -163,8 +162,7 @@ struct ClaudeOAuthTests {
     @Test
     func fallsBackToWebWhenOAuthMissing() {
         let strategy = ClaudeProviderDescriptor.resolveUsageStrategy(
-            debugMenuEnabled: false,
-            selectedDataSource: .oauth,
+            selectedDataSource: .auto,
             webExtrasEnabled: false,
             hasWebSession: true,
             hasOAuthCredentials: false)
@@ -174,8 +172,7 @@ struct ClaudeOAuthTests {
     @Test
     func fallsBackToCLIWhenNoOAuthOrWeb() {
         let strategy = ClaudeProviderDescriptor.resolveUsageStrategy(
-            debugMenuEnabled: false,
-            selectedDataSource: .oauth,
+            selectedDataSource: .auto,
             webExtrasEnabled: false,
             hasWebSession: false,
             hasOAuthCredentials: false)
