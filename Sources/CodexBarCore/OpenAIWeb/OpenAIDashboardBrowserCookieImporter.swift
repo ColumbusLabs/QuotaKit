@@ -20,6 +20,7 @@ public struct OpenAIDashboardBrowserCookieImporter {
         case browserAccessDenied(details: String)
         case dashboardStillRequiresLogin
         case noMatchingAccount(found: [FoundAccount])
+        case manualCookieHeaderInvalid
 
         public var errorDescription: String? {
             switch self {
@@ -39,6 +40,8 @@ public struct OpenAIDashboardBrowserCookieImporter {
                     .map { "\($0.sourceLabel)=\($0.email)" }
                     .joined(separator: ", ")
                 return "OpenAI web session does not match Codex account. Found: \(display)."
+            case .manualCookieHeaderInvalid:
+                return "Manual cookie header is missing a valid OpenAI session cookie."
             }
         }
     }
@@ -48,6 +51,18 @@ public struct OpenAIDashboardBrowserCookieImporter {
         public let cookieCount: Int
         public let signedInEmail: String?
         public let matchesCodexEmail: Bool
+
+        public init(
+            sourceLabel: String,
+            cookieCount: Int,
+            signedInEmail: String?,
+            matchesCodexEmail: Bool)
+        {
+            self.sourceLabel = sourceLabel
+            self.cookieCount = cookieCount
+            self.signedInEmail = signedInEmail
+            self.matchesCodexEmail = matchesCodexEmail
+        }
     }
 
     public init() {}
@@ -129,6 +144,49 @@ public struct OpenAIDashboardBrowserCookieImporter {
         }
 
         throw ImportError.noCookiesFound
+    }
+
+    public func importManualCookies(
+        cookieHeader: String,
+        intoAccountEmail targetEmail: String?,
+        allowAnyAccount: Bool = false,
+        logger: ((String) -> Void)? = nil) async throws -> ImportResult
+    {
+        let log: (String) -> Void = { message in
+            logger?("[web] \(message)")
+        }
+        let normalizedTarget = targetEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let allowAnyAccount = allowAnyAccount || normalizedTarget == nil || normalizedTarget?.isEmpty == true
+
+        guard let normalized = CookieHeaderNormalizer.normalize(cookieHeader) else {
+            throw ImportError.manualCookieHeaderInvalid
+        }
+        let pairs = CookieHeaderNormalizer.pairs(from: normalized)
+        guard !pairs.isEmpty else { throw ImportError.manualCookieHeaderInvalid }
+        let cookies = self.cookies(from: pairs)
+        guard !cookies.isEmpty else { throw ImportError.manualCookieHeaderInvalid }
+
+        let candidate = Candidate(label: "Manual", cookies: cookies)
+        switch await self.evaluateCandidate(
+            candidate,
+            targetEmail: normalizedTarget,
+            allowAnyAccount: allowAnyAccount,
+            log: log)
+        {
+        case let .match(_, signedInEmail):
+            return try await self.persist(candidate: candidate, targetEmail: signedInEmail, logger: log)
+        case let .loggedIn(_, signedInEmail):
+            return try await self.persist(candidate: candidate, targetEmail: signedInEmail, logger: log)
+        case let .mismatch(_, signedInEmail):
+            throw ImportError.noMatchingAccount(found: [FoundAccount(sourceLabel: "Manual", email: signedInEmail)])
+        case .unknown:
+            if allowAnyAccount {
+                return try await self.persistToDefaultStore(candidate: candidate, logger: log)
+            }
+            throw ImportError.noMatchingAccount(found: [])
+        case .loginRequired:
+            throw ImportError.manualCookieHeaderInvalid
+        }
     }
 
     private func trySafari(
@@ -550,6 +608,25 @@ public struct OpenAIDashboardBrowserCookieImporter {
 
     // MARK: - Candidates
 
+    private func cookies(from pairs: [(name: String, value: String)]) -> [HTTPCookie] {
+        var cookies: [HTTPCookie] = []
+        for domain in Self.cookieDomains {
+            for pair in pairs {
+                let props: [HTTPCookiePropertyKey: Any] = [
+                    .name: pair.name,
+                    .value: pair.value,
+                    .domain: domain,
+                    .path: "/",
+                    .secure: true,
+                ]
+                if let cookie = HTTPCookie(properties: props) {
+                    cookies.append(cookie)
+                }
+            }
+        }
+        return cookies
+    }
+
     private struct Candidate: Sendable {
         let label: String
         let cookies: [HTTPCookie]
@@ -643,6 +720,8 @@ public struct OpenAIDashboardBrowserCookieImporter {
                     .map { "\($0.sourceLabel)=\($0.email)" }
                     .joined(separator: ", ")
                 return "OpenAI web session does not match Codex account. Found: \(display)."
+            case .manualCookieHeaderInvalid:
+                return "Manual cookie header is missing a valid OpenAI session cookie."
             }
         }
     }
@@ -664,6 +743,15 @@ public struct OpenAIDashboardBrowserCookieImporter {
     public init() {}
 
     public func importBestCookies(
+        intoAccountEmail _: String?,
+        allowAnyAccount _: Bool = false,
+        logger _: ((String) -> Void)? = nil) async throws -> ImportResult
+    {
+        throw ImportError.browserAccessDenied(details: "OpenAI web cookie import is only supported on macOS.")
+    }
+
+    public func importManualCookies(
+        cookieHeader _: String,
         intoAccountEmail _: String?,
         allowAnyAccount _: Bool = false,
         logger _: ((String) -> Void)? = nil) async throws -> ImportResult

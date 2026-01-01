@@ -21,7 +21,7 @@ read_when:
 ## Menu card
 - Session + weekly rows with resets (countdown by default; optional absolute clock display).
 - Codex-only: Credits + “Buy Credits…” in-card action.
-- Web-only rows (when OpenAI web enabled): code review remaining, usage breakdown submenu.
+- Web-only rows (when OpenAI cookies are enabled): code review remaining, usage breakdown submenu.
 
 ## Widgets (high level)
 - Widget entries mirror the menu card; detailed pipeline in `docs/widgets.md`.

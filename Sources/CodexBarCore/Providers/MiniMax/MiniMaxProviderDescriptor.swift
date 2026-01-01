@@ -47,7 +47,7 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
     private static let log = CodexBarLog.logger("minimax-web")
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        if Self.resolveCookieOverride(environment: context.env) != nil {
+        if Self.resolveCookieOverride(context: context) != nil {
             return true
         }
         #if os(macOS)
@@ -58,7 +58,7 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        if let override = Self.resolveCookieOverride(environment: context.env) {
+        if let override = Self.resolveCookieOverride(context: context) {
             Self.log.debug("Using MiniMax cookie header from settings/env")
             let snapshot = try await MiniMaxUsageFetcher.fetchUsage(
                 cookieHeader: override.cookieHeader,
@@ -143,8 +143,12 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
         false
     }
 
-    private static func resolveCookieOverride(environment: [String: String]) -> MiniMaxCookieOverride? {
-        guard let raw = ProviderTokenResolver.minimaxCookie(environment: environment) else {
+    private static func resolveCookieOverride(context: ProviderFetchContext) -> MiniMaxCookieOverride? {
+        if let settings = context.settings?.minimax {
+            guard settings.cookieSource == .manual else { return nil }
+            return MiniMaxCookieHeader.override(from: settings.manualCookieHeader)
+        }
+        guard let raw = ProviderTokenResolver.minimaxCookie(environment: context.env) else {
             return nil
         }
         return MiniMaxCookieHeader.override(from: raw)

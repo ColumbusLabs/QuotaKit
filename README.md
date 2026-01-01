@@ -20,7 +20,7 @@ brew install --cask steipete/tap/codexbar
 ### First run
 - Open Settings → Providers and enable what you use.
 - Install/sign in to the provider sources you rely on (e.g. `codex`, `claude`, `gemini`, browser cookies, or OAuth; Antigravity requires the Antigravity app running).
-- Optional: Settings → General → “Access OpenAI via web” to add Codex dashboard extras.
+- Optional: Settings → Providers → Codex → OpenAI cookies (Automatic or Manual) to add dashboard extras.
 
 ## Providers
 
@@ -80,7 +80,7 @@ Wondering if CodexBar scans your disk? It doesn’t crawl your filesystem; it re
 - Clone the repo and open it in Xcode or run the scripts directly.
 - Launch once, then toggle providers in Settings → Providers.
 - Install/sign in to provider sources you rely on (CLIs, browser cookies, or OAuth).
-- Optional: enable “Access OpenAI via web” for Codex dashboard extras.
+- Optional: set OpenAI cookies (Automatic or Manual) for Codex dashboard extras.
 
 ## Build from source
 ```bash

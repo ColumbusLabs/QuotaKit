@@ -1,6 +1,7 @@
 import Foundation
 
 public enum CodexUsageDataSource: String, CaseIterable, Identifiable, Sendable {
+    case auto
     case oauth
     case cli
 
@@ -8,6 +9,7 @@ public enum CodexUsageDataSource: String, CaseIterable, Identifiable, Sendable {
 
     public var displayName: String {
         switch self {
+        case .auto: "Auto"
         case .oauth: "OAuth API"
         case .cli: "CLI (RPC/PTY)"
         }
@@ -15,6 +17,8 @@ public enum CodexUsageDataSource: String, CaseIterable, Identifiable, Sendable {
 
     public var sourceLabel: String {
         switch self {
+        case .auto:
+            "auto"
         case .oauth:
             "oauth"
         case .cli:

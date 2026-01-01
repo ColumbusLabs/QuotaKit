@@ -45,11 +45,15 @@ struct FactoryStatusFetchStrategy: ProviderFetchStrategy {
     let id: String = "factory.web"
     let kind: ProviderFetchKind = .web
 
-    func isAvailable(_: ProviderFetchContext) async -> Bool { true }
+    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
+        guard context.settings?.factory?.cookieSource != .off else { return false }
+        return true
+    }
 
-    func fetch(_: ProviderFetchContext) async throws -> ProviderFetchResult {
+    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let probe = FactoryStatusProbe()
-        let snap = try await probe.fetch()
+        let manual = Self.manualCookieHeader(from: context)
+        let snap = try await probe.fetch(cookieHeaderOverride: manual)
         return self.makeResult(
             usage: snap.toUsageSnapshot(),
             sourceLabel: "web")
@@ -57,5 +61,10 @@ struct FactoryStatusFetchStrategy: ProviderFetchStrategy {
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
         false
+    }
+
+    private static func manualCookieHeader(from context: ProviderFetchContext) -> String? {
+        guard context.settings?.factory?.cookieSource == .manual else { return nil }
+        return CookieHeaderNormalizer.normalize(context.settings?.factory?.manualCookieHeader)
     }
 }

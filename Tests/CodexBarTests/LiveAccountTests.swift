@@ -1,7 +1,6 @@
 import CodexBarCore
 import Foundation
 import Testing
-import XCTest
 @testable import CodexBar
 
 @Suite("Live RPC account checks", .serialized)

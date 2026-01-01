@@ -1,11 +1,56 @@
 import CodexBarCore
 import CodexBarMacroSupport
 import Foundation
+import SwiftUI
 
 @ProviderImplementationRegistration
 struct FactoryProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .factory
     let supportsLoginFlow: Bool = true
+
+    @MainActor
+    func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
+        let cookieBinding = Binding(
+            get: { context.settings.factoryCookieSource.rawValue },
+            set: { raw in
+                context.settings.factoryCookieSource = ProviderCookieSource(rawValue: raw) ?? .auto
+            })
+        let cookieOptions: [ProviderSettingsPickerOption] = [
+            ProviderSettingsPickerOption(
+                id: ProviderCookieSource.auto.rawValue,
+                title: ProviderCookieSource.auto.displayName),
+            ProviderSettingsPickerOption(
+                id: ProviderCookieSource.manual.rawValue,
+                title: ProviderCookieSource.manual.displayName),
+        ]
+
+        return [
+            ProviderSettingsPickerDescriptor(
+                id: "factory-cookie-source",
+                title: "Cookie source",
+                subtitle: "Automatic imports browser cookies and WorkOS tokens.",
+                binding: cookieBinding,
+                options: cookieOptions,
+                isVisible: nil,
+                onChange: nil),
+        ]
+    }
+
+    @MainActor
+    func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
+        [
+            ProviderSettingsFieldDescriptor(
+                id: "factory-cookie-header",
+                title: "Cookie header",
+                subtitle: "Paste the Cookie header from app.factory.ai.",
+                kind: .secure,
+                placeholder: "Cookie: …",
+                binding: context.stringBinding(\.factoryCookieHeader),
+                actions: [],
+                isVisible: { context.settings.factoryCookieSource == .manual },
+                onActivate: { context.settings.ensureFactoryCookieLoaded() }),
+        ]
+    }
 
     @MainActor
     func runLoginFlow(context: ProviderLoginContext) async -> Bool {

@@ -1,26 +1,17 @@
 import Foundation
-import XCTest
 
 #if canImport(Darwin)
 import Darwin
+#else
+import Glibc
 #endif
 
-final class TestProcessCleanupObserver: NSObject, XCTestObservation, @unchecked Sendable {
-    static let shared = TestProcessCleanupObserver()
-
-    override private init() {
-        super.init()
-        XCTestObservationCenter.shared.addTestObserver(self)
+enum TestProcessCleanup {
+    static func register() {
+        atexit(_testProcessCleanupAtExit)
     }
 
-    func testBundleDidFinish(_ testBundle: Bundle) {
-        // Belt+suspenders: when a test forgets to tear down Codex RPC (app-server),
-        // don't leave a daemon-ish CLI process around after the test run.
-        self.terminateLeakedCodexAppServers()
-    }
-
-    private func terminateLeakedCodexAppServers() {
-        #if canImport(Darwin)
+    private static func terminateLeakedCodexAppServers() {
         let pids = Self.pids(matchingFullCommandRegex: "codex.*app-server")
             .filter { $0 > 0 && $0 != getpid() }
         guard !pids.isEmpty else { return }
@@ -39,13 +30,12 @@ final class TestProcessCleanupObserver: NSObject, XCTestObservation, @unchecked 
         for pid in pids where kill(pid, 0) == 0 {
             _ = kill(pid, SIGKILL)
         }
-        #endif
     }
 
     private static func pids(matchingFullCommandRegex regex: String) -> [pid_t] {
         let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        proc.arguments = ["-f", regex]
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        proc.arguments = ["pgrep", "-f", regex]
 
         let stdout = Pipe()
         proc.standardOutput = stdout
@@ -71,5 +61,9 @@ final class TestProcessCleanupObserver: NSObject, XCTestObservation, @unchecked 
     }
 }
 
-// Ensure observer registers when the test bundle is loaded.
-private let _testProcessCleanupObserver = TestProcessCleanupObserver.shared
+private let _registerTestProcessCleanup: Void = TestProcessCleanup.register()
+
+@_cdecl("codexbar_test_cleanup_atexit")
+private func _testProcessCleanupAtExit() {
+    TestProcessCleanup.terminateLeakedCodexAppServers()
+}

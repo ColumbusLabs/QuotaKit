@@ -18,6 +18,7 @@ struct ProviderSettingsDescriptorTests {
         var lastRunAtByID: [String: Date] = [:]
         var seenToggleIDs: Set<String> = []
         var seenActionIDs: Set<String> = []
+        var seenPickerIDs: Set<String> = []
 
         for provider in UsageProvider.allCases {
             let context = ProviderSettingsContext(
@@ -63,11 +64,17 @@ struct ProviderSettingsDescriptorTests {
                     seenActionIDs.insert(action.id)
                 }
             }
+
+            let pickers = impl.settingsPickers(context: context)
+            for picker in pickers {
+                #expect(!seenPickerIDs.contains(picker.id))
+                seenPickerIDs.insert(picker.id)
+            }
         }
     }
 
     @Test
-    func codexExposesOpenAIWebToggle() {
+    func codexExposesUsageAndCookiePickers() {
         let defaults = UserDefaults(suiteName: "ProviderSettingsDescriptorTests-codex")!
         defaults.removePersistentDomain(forName: "ProviderSettingsDescriptorTests-codex")
         let settings = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
@@ -93,12 +100,13 @@ struct ProviderSettingsDescriptorTests {
             setLastAppActiveRunAt: { _, _ in },
             requestConfirmation: { _ in })
 
-        let toggles = CodexProviderImplementation().settingsToggles(context: context)
-        #expect(toggles.contains(where: { $0.id == "openai-web-access" }))
+        let pickers = CodexProviderImplementation().settingsPickers(context: context)
+        #expect(pickers.contains(where: { $0.id == "codex-usage-source" }))
+        #expect(pickers.contains(where: { $0.id == "codex-cookie-source" }))
     }
 
     @Test
-    func claudeDoesNotExposeSettingsToggles() {
+    func claudeExposesUsageAndCookiePickers() {
         let defaults = UserDefaults(suiteName: "ProviderSettingsDescriptorTests-claude")!
         defaults.removePersistentDomain(forName: "ProviderSettingsDescriptorTests-claude")
         let settings = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
@@ -123,8 +131,9 @@ struct ProviderSettingsDescriptorTests {
             lastAppActiveRunAt: { _ in nil },
             setLastAppActiveRunAt: { _, _ in },
             requestConfirmation: { _ in })
-        let toggles = ClaudeProviderImplementation().settingsToggles(context: context)
-        #expect(toggles.isEmpty)
+        let pickers = ClaudeProviderImplementation().settingsPickers(context: context)
+        #expect(pickers.contains(where: { $0.id == "claude-usage-source" }))
+        #expect(pickers.contains(where: { $0.id == "claude-cookie-source" }))
     }
 
     @Test

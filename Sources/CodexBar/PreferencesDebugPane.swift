@@ -58,32 +58,6 @@ struct DebugPane: View {
                 }
 
                 SettingsSection(
-                    title: "Codex data source",
-                    caption: "Debug override for Codex usage fetching.")
-                {
-                    Picker("Source", selection: self.$settings.codexUsageDataSource) {
-                        ForEach(CodexUsageDataSource.allCases) { source in
-                            Text(source.displayName).tag(source)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 240)
-                }
-
-                SettingsSection(
-                    title: "Claude data source",
-                    caption: "Debug override for Claude usage fetching.")
-                {
-                    Picker("Source", selection: self.$settings.claudeUsageDataSource) {
-                        ForEach(ClaudeUsageDataSource.allCases) { source in
-                            Text(source.displayName).tag(source)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .frame(width: 240)
-                }
-
-                SettingsSection(
                     title: "Probe logs",
                     caption: "Fetch the latest PTY scrape for Codex or Claude; Copy keeps the full text.")
                 {
@@ -172,8 +146,8 @@ struct DebugPane: View {
                 }
 
                 SettingsSection(
-                    title: "OpenAI web access",
-                    caption: "Cookie import + WebKit scrape logs from the last “Access OpenAI via web” attempt.")
+                    title: "OpenAI cookies",
+                    caption: "Cookie import + WebKit scrape logs from the last OpenAI cookies attempt.")
                 {
                     HStack(spacing: 12) {
                         Button { self.copyToPasteboard(self.store.openAIDashboardCookieImportDebugLog ?? "") } label: {
@@ -185,7 +159,7 @@ struct DebugPane: View {
                     ScrollView {
                         Text(self.store.openAIDashboardCookieImportDebugLog?.isEmpty == false
                             ? (self.store.openAIDashboardCookieImportDebugLog ?? "")
-                            : "No log yet. Enable “Access OpenAI via web” in Providers → Codex to run an import.")
+                            : "No log yet. Update OpenAI cookies in Providers → Codex to run an import.")
                             .font(.system(.footnote, design: .monospaced))
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)

@@ -18,6 +18,7 @@ struct MenuDescriptor {
         case dashboard = "chart.bar"
         case statusPage = "waveform.path.ecg"
         case switchAccount = "key"
+        case openTerminal = "terminal"
         case settings = "gearshape"
         case about = "info.circle"
         case quit = "xmark.rectangle"
@@ -36,6 +37,7 @@ struct MenuDescriptor {
         case dashboard
         case statusPage
         case switchAccount(UsageProvider)
+        case openTerminal(command: String)
         case settings
         case about
         case quit
@@ -247,6 +249,9 @@ struct MenuDescriptor {
         var entries: [Entry] = []
         let targetProvider = provider ?? store.enabledProviders().first
         let metadata = targetProvider.map { store.metadata(for: $0) }
+        let shouldOpenClaudeTerminal = Self.shouldOpenTerminalForClaudeOAuthError(
+            provider: targetProvider,
+            store: store)
 
         // Show "Add Account" if no account, "Switch Account" if logged in
         if let targetProvider,
@@ -254,8 +259,16 @@ struct MenuDescriptor {
         {
             let loginAction = self.switchAccountTarget(for: provider, store: store)
             let hasAccount = self.hasAccount(for: provider, store: store, account: account)
-            let accountLabel = hasAccount ? "Switch Account..." : "Add Account..."
-            entries.append(.action(accountLabel, loginAction))
+            let accountLabel: String
+            let accountAction: MenuAction
+            if shouldOpenClaudeTerminal {
+                accountLabel = "Open Terminal"
+                accountAction = .openTerminal(command: "claude")
+            } else {
+                accountLabel = hasAccount ? "Switch Account..." : "Add Account..."
+                accountAction = loginAction
+            }
+            entries.append(.action(accountLabel, accountAction))
         }
 
         if metadata?.dashboardURL != nil {
@@ -298,6 +311,22 @@ struct MenuDescriptor {
             return "\(label) — \(freshness)"
         }
         return label
+    }
+
+    private static func shouldOpenTerminalForClaudeOAuthError(
+        provider: UsageProvider?,
+        store: UsageStore) -> Bool
+    {
+        guard provider == .claude else { return false }
+        guard store.error(for: .claude) != nil else { return false }
+        let attempts = store.fetchAttempts(for: .claude)
+        if attempts.contains(where: { $0.kind == .oauth && ($0.errorDescription?.isEmpty == false) }) {
+            return true
+        }
+        if let error = store.error(for: .claude)?.lowercased(), error.contains("oauth") {
+            return true
+        }
+        return false
     }
 
     private static func switchAccountTarget(for provider: UsageProvider?, store: UsageStore) -> MenuAction {
@@ -366,6 +395,7 @@ extension MenuDescriptor.MenuAction {
         case .dashboard: MenuDescriptor.MenuActionSystemImage.dashboard.rawValue
         case .statusPage: MenuDescriptor.MenuActionSystemImage.statusPage.rawValue
         case .switchAccount: MenuDescriptor.MenuActionSystemImage.switchAccount.rawValue
+        case .openTerminal: MenuDescriptor.MenuActionSystemImage.openTerminal.rawValue
         case .copyError: MenuDescriptor.MenuActionSystemImage.copyError.rawValue
         }
     }

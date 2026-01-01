@@ -33,20 +33,50 @@ struct ProviderRegistry {
                 style: descriptor.branding.iconStyle,
                 isEnabled: { settings.isProviderEnabled(provider: provider, metadata: meta) },
                 fetch: {
+                    let sourceMode: ProviderSourceMode = switch provider {
+                    case .codex:
+                        switch settings.codexUsageDataSource {
+                        case .auto: .auto
+                        case .oauth: .oauth
+                        case .cli: .cli
+                        }
+                    case .claude:
+                        switch settings.claudeUsageDataSource {
+                        case .auto: .auto
+                        case .oauth: .oauth
+                        case .web: .web
+                        case .cli: .cli
+                        }
+                    default:
+                        .auto
+                    }
                     let snapshot = await MainActor.run {
                         ProviderSettingsSnapshot(
                             debugMenuEnabled: settings.debugMenuEnabled,
                             codex: ProviderSettingsSnapshot.CodexProviderSettings(
-                                usageDataSource: settings.codexUsageDataSource),
+                                usageDataSource: settings.codexUsageDataSource,
+                                cookieSource: settings.codexCookieSource,
+                                manualCookieHeader: settings.codexCookieHeader),
                             claude: ProviderSettingsSnapshot.ClaudeProviderSettings(
                                 usageDataSource: settings.claudeUsageDataSource,
-                                webExtrasEnabled: settings.claudeWebExtrasEnabled),
+                                webExtrasEnabled: settings.claudeWebExtrasEnabled,
+                                cookieSource: settings.claudeCookieSource,
+                                manualCookieHeader: settings.claudeCookieHeader),
+                            cursor: ProviderSettingsSnapshot.CursorProviderSettings(
+                                cookieSource: settings.cursorCookieSource,
+                                manualCookieHeader: settings.cursorCookieHeader),
+                            factory: ProviderSettingsSnapshot.FactoryProviderSettings(
+                                cookieSource: settings.factoryCookieSource,
+                                manualCookieHeader: settings.factoryCookieHeader),
+                            minimax: ProviderSettingsSnapshot.MiniMaxProviderSettings(
+                                cookieSource: settings.minimaxCookieSource,
+                                manualCookieHeader: settings.minimaxCookieHeader),
                             zai: ProviderSettingsSnapshot.ZaiProviderSettings(),
                             copilot: ProviderSettingsSnapshot.CopilotProviderSettings())
                     }
                     let context = ProviderFetchContext(
                         runtime: .app,
-                        sourceMode: .auto,
+                        sourceMode: sourceMode,
                         includeCredits: false,
                         webTimeout: 60,
                         webDebugDumpHTML: false,

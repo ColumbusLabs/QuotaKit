@@ -84,6 +84,23 @@ struct ProviderSettingsFieldDescriptor: Identifiable {
     let onActivate: (() -> Void)?
 }
 
+/// Shared picker descriptor rendered in the Providers settings pane.
+@MainActor
+struct ProviderSettingsPickerDescriptor: Identifiable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let binding: Binding<String>
+    let options: [ProviderSettingsPickerOption]
+    let isVisible: (() -> Bool)?
+    let onChange: ((_ selection: String) async -> Void)?
+}
+
+struct ProviderSettingsPickerOption: Identifiable {
+    let id: String
+    let title: String
+}
+
 /// Shared action descriptor rendered under a settings toggle.
 @MainActor
 struct ProviderSettingsActionDescriptor: Identifiable {

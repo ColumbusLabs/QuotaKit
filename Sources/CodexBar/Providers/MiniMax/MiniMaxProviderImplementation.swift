@@ -2,10 +2,39 @@ import AppKit
 import CodexBarCore
 import CodexBarMacroSupport
 import Foundation
+import SwiftUI
 
 @ProviderImplementationRegistration
 struct MiniMaxProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .minimax
+
+    @MainActor
+    func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
+        let cookieBinding = Binding(
+            get: { context.settings.minimaxCookieSource.rawValue },
+            set: { raw in
+                context.settings.minimaxCookieSource = ProviderCookieSource(rawValue: raw) ?? .auto
+            })
+        let cookieOptions: [ProviderSettingsPickerOption] = [
+            ProviderSettingsPickerOption(
+                id: ProviderCookieSource.auto.rawValue,
+                title: ProviderCookieSource.auto.displayName),
+            ProviderSettingsPickerOption(
+                id: ProviderCookieSource.manual.rawValue,
+                title: ProviderCookieSource.manual.displayName),
+        ]
+
+        return [
+            ProviderSettingsPickerDescriptor(
+                id: "minimax-cookie-source",
+                title: "Cookie source",
+                subtitle: "Automatic imports browser cookies and local storage tokens.",
+                binding: cookieBinding,
+                options: cookieOptions,
+                isVisible: nil,
+                onChange: nil),
+        ]
+    }
 
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
@@ -14,11 +43,11 @@ struct MiniMaxProviderImplementation: ProviderImplementation {
                 id: "minimax-cookie",
                 title: "Session",
                 subtitle: [
-                    "Automatically imports browser cookies and local-storage tokens when available.",
-                    "Stored in Keychain; leave blank for automatic.",
+                    "Paste a Cookie header or cURL capture from the Coding Plan page.",
+                    "Stored in Keychain.",
                 ].joined(separator: " "),
                 kind: .secure,
-                placeholder: "Automatic (leave blank)",
+                placeholder: "Cookie: …",
                 binding: context.stringBinding(\.minimaxCookieHeader),
                 actions: [
                     ProviderSettingsActionDescriptor(
@@ -34,7 +63,7 @@ struct MiniMaxProviderImplementation: ProviderImplementation {
                             }
                         }),
                 ],
-                isVisible: nil,
+                isVisible: { context.settings.minimaxCookieSource == .manual },
                 onActivate: { context.settings.ensureMiniMaxCookieLoaded() }),
         ]
     }

@@ -441,8 +441,15 @@ public struct CursorStatusProbe: Sendable {
     }
 
     /// Fetch Cursor usage using browser cookies with fallback to stored session.
-    public func fetch(logger: ((String) -> Void)? = nil) async throws -> CursorStatusSnapshot {
+    public func fetch(cookieHeaderOverride: String? = nil, logger: ((String) -> Void)? = nil)
+        async throws -> CursorStatusSnapshot
+    {
         let log: (String) -> Void = { msg in logger?("[cursor] \(msg)") }
+
+        if let override = CookieHeaderNormalizer.normalize(cookieHeaderOverride) {
+            log("Using manual cookie header")
+            return try await self.fetchWithCookieHeader(override)
+        }
 
         // Try importing cookies from the configured browser order first.
         do {

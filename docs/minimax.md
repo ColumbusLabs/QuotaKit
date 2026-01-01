@@ -25,7 +25,7 @@ MiniMax is web-only. Usage is fetched from the Coding Plan remains API using a s
    - Also extracts `GroupId` when present (appends query param).
 
 3) **Manual session cookie header** (optional override)
-   - Stored in Keychain via Preferences → Providers → MiniMax.
+   - Stored in Keychain via Preferences → Providers → MiniMax (Cookie source → Manual).
    - Accepts a raw `Cookie:` header or a full "Copy as cURL" string.
    - When a cURL string is pasted, MiniMax extracts the cookie header plus `Authorization: Bearer …` and
      `GroupId=…` for the remains API.

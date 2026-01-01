@@ -34,6 +34,7 @@ struct ProvidersPane: View {
                 subtitle: { provider in self.providerSubtitle(provider) },
                 sourceLabel: { provider in self.providerSourceLabel(provider) },
                 statusLabel: { provider in self.providerStatusLabel(provider) },
+                settingsPickers: { provider in self.extraSettingsPickers(for: provider) },
                 settingsToggles: { provider in self.extraSettingsToggles(for: provider) },
                 settingsFields: { provider in self.extraSettingsFields(for: provider) },
                 errorDisplay: { provider in self.providerErrorDisplay(provider) },
@@ -146,6 +147,13 @@ struct ProvidersPane: View {
             .filter { $0.isVisible?() ?? true }
     }
 
+    private func extraSettingsPickers(for provider: UsageProvider) -> [ProviderSettingsPickerDescriptor] {
+        guard let impl = ProviderCatalog.implementation(for: provider) else { return [] }
+        let context = self.makeSettingsContext(provider: provider)
+        return impl.settingsPickers(context: context)
+            .filter { $0.isVisible?() ?? true }
+    }
+
     private func extraSettingsFields(for provider: UsageProvider) -> [ProviderSettingsFieldDescriptor] {
         guard let impl = ProviderCatalog.implementation(for: provider) else { return [] }
         let context = self.makeSettingsContext(provider: provider)
@@ -240,6 +248,7 @@ private struct ProviderListView: View {
     let subtitle: (UsageProvider) -> String
     let sourceLabel: (UsageProvider) -> String
     let statusLabel: (UsageProvider) -> String
+    let settingsPickers: (UsageProvider) -> [ProviderSettingsPickerDescriptor]
     let settingsToggles: (UsageProvider) -> [ProviderSettingsToggleDescriptor]
     let settingsFields: (UsageProvider) -> [ProviderSettingsFieldDescriptor]
     let errorDisplay: (UsageProvider) -> ProviderErrorDisplay?
@@ -253,10 +262,11 @@ private struct ProviderListView: View {
                 Section {
                     let fields = self.settingsFields(provider)
                     let toggles = self.settingsToggles(provider)
+                    let pickers = self.settingsPickers(provider)
                     let isEnabled = self.isEnabled(provider).wrappedValue
                     let shouldShowDivider = provider != self.providers.last
-                    let showDividerOnProviderRow = shouldShowDivider &&
-                        (!isEnabled || (fields.isEmpty && toggles.isEmpty))
+                    let hasExtraRows = !(pickers.isEmpty && fields.isEmpty && toggles.isEmpty)
+                    let showDividerOnProviderRow = shouldShowDivider && (!isEnabled || !hasExtraRows)
 
                     ProviderListProviderRowView(
                         provider: provider,
@@ -274,6 +284,18 @@ private struct ProviderListView: View {
                         .providerSectionDivider(isVisible: showDividerOnProviderRow)
 
                     if isEnabled {
+                        let lastPickerID = pickers.last?.id
+                        ForEach(pickers) { picker in
+                            let isLastPicker = picker.id == lastPickerID
+                            let showDivider = shouldShowDivider && fields.isEmpty && toggles.isEmpty && isLastPicker
+
+                            ProviderListPickerRowView(provider: provider, picker: picker)
+                                .id(self.rowID(provider: provider, suffix: picker.id))
+                                .padding(.bottom, showDivider ? 12 : 0)
+                                .listRowInsets(self.rowInsets(withDivider: showDivider))
+                                .listRowSeparator(.hidden)
+                                .providerSectionDivider(isVisible: showDivider)
+                        }
                         let lastFieldID = fields.last?.id
                         ForEach(fields) { field in
                             let isLastField = field.id == lastFieldID
@@ -542,6 +564,52 @@ private struct ProviderListToggleRowView: View {
             guard self.toggle.binding.wrappedValue else { return }
             guard let onAppear = self.toggle.onAppearWhenEnabled else { return }
             await onAppear()
+        }
+    }
+}
+
+@MainActor
+private struct ProviderListPickerRowView: View {
+    let provider: UsageProvider
+    let picker: ProviderSettingsPickerDescriptor
+
+    var body: some View {
+        HStack(alignment: .top, spacing: ProviderListMetrics.rowSpacing) {
+            Color.clear
+                .frame(width: ProviderListMetrics.reorderHandleSize, height: ProviderListMetrics.reorderHandleSize)
+
+            Color.clear
+                .frame(width: ProviderListMetrics.checkboxSize, height: ProviderListMetrics.checkboxSize)
+
+            Color.clear
+                .frame(width: ProviderListMetrics.iconSize, height: ProviderListMetrics.iconSize)
+
+            VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(self.picker.title)
+                        .font(.subheadline.weight(.semibold))
+                    Text(self.picker.subtitle)
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Picker("", selection: self.picker.binding) {
+                    ForEach(self.picker.options) { option in
+                        Text(option.title).tag(option.id)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .controlSize(.small)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .onChange(of: self.picker.binding.wrappedValue) { _, selection in
+            guard let onChange = self.picker.onChange else { return }
+            Task { @MainActor in
+                await onChange(selection)
+            }
         }
     }
 }

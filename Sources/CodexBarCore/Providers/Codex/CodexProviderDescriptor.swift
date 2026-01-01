@@ -57,20 +57,15 @@ public enum CodexProviderDescriptor {
                 return [web, cli]
             }
         case .app:
-            let settings = context.settings
-            let debugMenuEnabled = settings?.debugMenuEnabled ?? false
-            let codexSettings = settings?.codex
-            let selected = codexSettings?.usageDataSource ?? .oauth
-            let hasOAuthCredentials = (try? CodexOAuthCredentialsStore.load()) != nil
-            let strategy = Self.resolveUsageStrategy(
-                debugMenuEnabled: debugMenuEnabled,
-                selectedDataSource: selected,
-                hasOAuthCredentials: hasOAuthCredentials)
-            switch strategy.dataSource {
+            switch context.sourceMode {
             case .oauth:
-                return [oauth, cli]
+                return [oauth]
             case .cli:
                 return [cli]
+            case .web:
+                return [web]
+            case .auto:
+                return [oauth, cli]
             }
         }
     }
@@ -87,21 +82,16 @@ public enum CodexProviderDescriptor {
     }
 
     public static func resolveUsageStrategy(
-        debugMenuEnabled: Bool,
         selectedDataSource: CodexUsageDataSource,
         hasOAuthCredentials: Bool) -> CodexUsageStrategy
     {
-        if debugMenuEnabled {
-            if selectedDataSource == .oauth, !hasOAuthCredentials {
-                return CodexUsageStrategy(dataSource: .cli)
+        if selectedDataSource == .auto {
+            if hasOAuthCredentials {
+                return CodexUsageStrategy(dataSource: .oauth)
             }
-            return CodexUsageStrategy(dataSource: selectedDataSource)
+            return CodexUsageStrategy(dataSource: .cli)
         }
-
-        if hasOAuthCredentials {
-            return CodexUsageStrategy(dataSource: .oauth)
-        }
-        return CodexUsageStrategy(dataSource: .cli)
+        return CodexUsageStrategy(dataSource: selectedDataSource)
     }
 }
 
@@ -157,15 +147,7 @@ struct CodexOAuthFetchStrategy: ProviderFetchStrategy {
 
     func shouldFallback(on error: Error, context: ProviderFetchContext) -> Bool {
         guard context.sourceMode == .auto else { return false }
-        if let fetchError = error as? CodexOAuthFetchError {
-            switch fetchError {
-            case .unauthorized, .invalidResponse, .serverError, .networkError:
-                return true
-            }
-        }
-        if error is CodexOAuthCredentialsError { return true }
-        if error is CodexTokenRefresher.RefreshError { return true }
-        return false
+        return true
     }
 
     private static func mapUsage(_ response: CodexUsageResponse, credentials: CodexOAuthCredentials) -> UsageSnapshot {

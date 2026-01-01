@@ -17,8 +17,11 @@ The OAuth API is the default app source when credentials are available; web acce
 ### App default selection (debug menu disabled)
 1) OAuth API (auth.json credentials).
 2) CLI RPC, with CLI PTY fallback when needed.
-3) If "Access OpenAI via web" is enabled, dashboard extras load in parallel and the source label becomes
+3) If OpenAI cookies are enabled (Automatic or Manual), dashboard extras load in parallel and the source label becomes
    `primary + openai-web`.
+
+Usage source picker:
+- Preferences → Providers → Codex → Usage source (Auto/OAuth/CLI).
 
 ### CLI default selection (`--source auto`)
 1) OpenAI web dashboard (when available).
@@ -30,17 +33,20 @@ The OAuth API is the default app source when credentials are available; web acce
 - Calls `GET https://chatgpt.com/backend-api/wham/usage` (default) with `Authorization: Bearer <token>`.
 
 ### OpenAI web dashboard (optional)
-- Preferences → Providers → Codex → "Access OpenAI via web".
+- Preferences → Providers → Codex → OpenAI cookies (Automatic or Manual).
 - URL: `https://chatgpt.com/codex/settings/usage`.
 - Uses an off-screen `WKWebView` with a per-account `WKWebsiteDataStore`.
   - Store key: deterministic UUID from the normalized email.
 - WebKit store can hold multiple accounts concurrently.
-- Cookie import (when WebKit store has no matching session or login required):
+- Cookie import (Automatic mode, when WebKit store has no matching session or login required):
   1) Safari: `~/Library/Cookies/Cookies.binarycookies`
   2) Chrome/Chromium forks: `~/Library/Application Support/Google/Chrome/*/Cookies`
   3) Firefox: `~/Library/Application Support/Firefox/Profiles/*/cookies.sqlite`
   - Domains loaded: `chatgpt.com`, `openai.com`.
   - No cookie-name filter; we import all matching domain cookies.
+- Manual cookie header:
+  - Paste the `Cookie:` header from a `chatgpt.com` request in Preferences → Providers → Codex.
+  - Used when OpenAI cookies are set to Manual.
 - Account match:
   - Signed-in email extracted from `client-bootstrap` JSON in HTML (or `__NEXT_DATA__`).
   - If Codex email is known and does not match, the web path is rejected.

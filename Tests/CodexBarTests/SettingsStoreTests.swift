@@ -61,25 +61,25 @@ struct SettingsStoreTests {
     }
 
     @Test
-    func defaultsClaudeUsageSourceToOAuth() {
+    func defaultsClaudeUsageSourceToAuto() {
         let suite = "SettingsStoreTests-claude-source"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
 
         let store = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
 
-        #expect(store.claudeUsageDataSource == .oauth)
+        #expect(store.claudeUsageDataSource == .auto)
     }
 
     @Test
-    func defaultsCodexUsageSourceToOAuth() {
+    func defaultsCodexUsageSourceToAuto() {
         let suite = "SettingsStoreTests-codex-source"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
 
         let store = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
 
-        #expect(store.codexUsageDataSource == .oauth)
+        #expect(store.codexUsageDataSource == .auto)
     }
 
     @Test
@@ -92,6 +92,7 @@ struct SettingsStoreTests {
 
         #expect(store.openAIWebAccessEnabled == true)
         #expect(defaults.bool(forKey: "openAIWebAccessEnabled") == true)
+        #expect(store.codexCookieSource == .auto)
     }
 
     @Test

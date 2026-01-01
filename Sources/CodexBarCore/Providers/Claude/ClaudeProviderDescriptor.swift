@@ -49,33 +49,30 @@ public enum ClaudeProviderDescriptor {
             case .web:
                 return [ClaudeWebFetchStrategy()]
             case .cli:
-                return [ClaudeCLIFetchStrategy(useWebExtras: false)]
+                return [ClaudeCLIFetchStrategy(useWebExtras: false, manualCookieHeader: nil)]
             case .auto:
-                return [ClaudeWebFetchStrategy(), ClaudeCLIFetchStrategy(useWebExtras: false)]
+                return [ClaudeWebFetchStrategy(), ClaudeCLIFetchStrategy(useWebExtras: false, manualCookieHeader: nil)]
             }
         case .app:
-            let hasWebSession = ClaudeWebAPIFetcher.hasSessionKey()
-            // OAuth usage endpoint requires user:profile scope.
-            let oauthCreds = try? ClaudeOAuthCredentialsStore.load()
-            let hasOAuthCredentials = oauthCreds?.scopes.contains("user:profile") ?? false
-            let settings = context.settings
-            let debugMenuEnabled = settings?.debugMenuEnabled ?? false
-            let claudeSettings = settings?.claude
-            let selected = claudeSettings?.usageDataSource ?? .oauth
-            let webExtrasEnabled = claudeSettings?.webExtrasEnabled ?? false
-            let strategy = Self.resolveUsageStrategy(
-                debugMenuEnabled: debugMenuEnabled,
-                selectedDataSource: selected,
-                webExtrasEnabled: webExtrasEnabled,
-                hasWebSession: hasWebSession,
-                hasOAuthCredentials: hasOAuthCredentials)
-            switch strategy.dataSource {
+            let webExtrasEnabled = context.settings?.claude?.webExtrasEnabled ?? false
+            let manualCookieHeader = CookieHeaderNormalizer.normalize(context.settings?.claude?.manualCookieHeader)
+            switch context.sourceMode {
             case .oauth:
                 return [ClaudeOAuthFetchStrategy()]
             case .web:
                 return [ClaudeWebFetchStrategy()]
             case .cli:
-                return [ClaudeCLIFetchStrategy(useWebExtras: strategy.useWebExtras)]
+                return [ClaudeCLIFetchStrategy(
+                    useWebExtras: webExtrasEnabled,
+                    manualCookieHeader: manualCookieHeader)]
+            case .auto:
+                return [
+                    ClaudeOAuthFetchStrategy(),
+                    ClaudeWebFetchStrategy(),
+                    ClaudeCLIFetchStrategy(
+                        useWebExtras: webExtrasEnabled,
+                        manualCookieHeader: manualCookieHeader),
+                ]
             }
         }
     }
@@ -85,30 +82,23 @@ public enum ClaudeProviderDescriptor {
     }
 
     public static func resolveUsageStrategy(
-        debugMenuEnabled: Bool,
         selectedDataSource: ClaudeUsageDataSource,
         webExtrasEnabled: Bool,
         hasWebSession: Bool,
         hasOAuthCredentials: Bool) -> ClaudeUsageStrategy
     {
-        if debugMenuEnabled {
-            if selectedDataSource == .oauth {
+        if selectedDataSource == .auto {
+            if hasOAuthCredentials {
                 return ClaudeUsageStrategy(dataSource: .oauth, useWebExtras: false)
             }
-            if selectedDataSource == .web, !hasWebSession {
-                return ClaudeUsageStrategy(dataSource: .cli, useWebExtras: false)
+            if hasWebSession {
+                return ClaudeUsageStrategy(dataSource: .web, useWebExtras: false)
             }
-            let useWebExtras = selectedDataSource == .cli && webExtrasEnabled && hasWebSession
-            return ClaudeUsageStrategy(dataSource: selectedDataSource, useWebExtras: useWebExtras)
+            return ClaudeUsageStrategy(dataSource: .cli, useWebExtras: false)
         }
 
-        if hasOAuthCredentials {
-            return ClaudeUsageStrategy(dataSource: .oauth, useWebExtras: false)
-        }
-        if hasWebSession {
-            return ClaudeUsageStrategy(dataSource: .web, useWebExtras: false)
-        }
-        return ClaudeUsageStrategy(dataSource: .cli, useWebExtras: false)
+        let useWebExtras = selectedDataSource == .cli && webExtrasEnabled && hasWebSession
+        return ClaudeUsageStrategy(dataSource: selectedDataSource, useWebExtras: useWebExtras)
     }
 }
 
@@ -135,8 +125,8 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
             sourceLabel: "oauth")
     }
 
-    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
-        false
+    func shouldFallback(on _: Error, context: ProviderFetchContext) -> Bool {
+        context.sourceMode == .auto
     }
 
     fileprivate static func snapshot(from usage: ClaudeUsageSnapshot) -> UsageSnapshot {
@@ -159,12 +149,19 @@ struct ClaudeWebFetchStrategy: ProviderFetchStrategy {
     let id: String = "claude.web"
     let kind: ProviderFetchKind = .web
 
-    func isAvailable(_: ProviderFetchContext) async -> Bool {
-        ClaudeWebAPIFetcher.hasSessionKey()
+    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
+        if let header = Self.manualCookieHeader(from: context) {
+            return ClaudeWebAPIFetcher.hasSessionKey(cookieHeader: header)
+        }
+        guard context.settings?.claude?.cookieSource != .off else { return false }
+        return ClaudeWebAPIFetcher.hasSessionKey()
     }
 
-    func fetch(_: ProviderFetchContext) async throws -> ProviderFetchResult {
-        let fetcher = ClaudeUsageFetcher(dataSource: .web, useWebExtras: false)
+    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
+        let fetcher = ClaudeUsageFetcher(
+            dataSource: .web,
+            useWebExtras: false,
+            manualCookieHeader: Self.manualCookieHeader(from: context))
         let usage = try await fetcher.loadLatestUsage(model: "sonnet")
         return self.makeResult(
             usage: ClaudeOAuthFetchStrategy.snapshot(from: usage),
@@ -173,10 +170,13 @@ struct ClaudeWebFetchStrategy: ProviderFetchStrategy {
 
     func shouldFallback(on error: Error, context: ProviderFetchContext) -> Bool {
         guard context.sourceMode == .auto else { return false }
-        if let fetchError = error as? ClaudeWebAPIFetcher.FetchError {
-            if case .noSessionKeyFound = fetchError { return true }
-        }
-        return false
+        _ = error
+        return true
+    }
+
+    private static func manualCookieHeader(from context: ProviderFetchContext) -> String? {
+        guard context.settings?.claude?.cookieSource == .manual else { return nil }
+        return CookieHeaderNormalizer.normalize(context.settings?.claude?.manualCookieHeader)
     }
 }
 
@@ -184,11 +184,15 @@ struct ClaudeCLIFetchStrategy: ProviderFetchStrategy {
     let id: String = "claude.cli"
     let kind: ProviderFetchKind = .cli
     let useWebExtras: Bool
+    let manualCookieHeader: String?
 
     func isAvailable(_: ProviderFetchContext) async -> Bool { true }
 
     func fetch(_: ProviderFetchContext) async throws -> ProviderFetchResult {
-        let fetcher = ClaudeUsageFetcher(dataSource: .cli, useWebExtras: self.useWebExtras)
+        let fetcher = ClaudeUsageFetcher(
+            dataSource: .cli,
+            useWebExtras: self.useWebExtras,
+            manualCookieHeader: self.manualCookieHeader)
         let usage = try await fetcher.loadLatestUsage(model: "sonnet")
         return self.makeResult(
             usage: ClaudeOAuthFetchStrategy.snapshot(from: usage),

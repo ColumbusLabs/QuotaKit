@@ -1,10 +1,72 @@
 import CodexBarCore
 import CodexBarMacroSupport
+import SwiftUI
 
 @ProviderImplementationRegistration
 struct ClaudeProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .claude
     let supportsLoginFlow: Bool = true
+
+    @MainActor
+    func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
+        let usageBinding = Binding(
+            get: { context.settings.claudeUsageDataSource.rawValue },
+            set: { raw in
+                context.settings.claudeUsageDataSource = ClaudeUsageDataSource(rawValue: raw) ?? .auto
+            })
+        let cookieBinding = Binding(
+            get: { context.settings.claudeCookieSource.rawValue },
+            set: { raw in
+                context.settings.claudeCookieSource = ProviderCookieSource(rawValue: raw) ?? .auto
+            })
+
+        let usageOptions = ClaudeUsageDataSource.allCases.map {
+            ProviderSettingsPickerOption(id: $0.rawValue, title: $0.displayName)
+        }
+        let cookieOptions: [ProviderSettingsPickerOption] = [
+            ProviderSettingsPickerOption(
+                id: ProviderCookieSource.auto.rawValue,
+                title: ProviderCookieSource.auto.displayName),
+            ProviderSettingsPickerOption(
+                id: ProviderCookieSource.manual.rawValue,
+                title: ProviderCookieSource.manual.displayName),
+        ]
+
+        return [
+            ProviderSettingsPickerDescriptor(
+                id: "claude-usage-source",
+                title: "Usage source",
+                subtitle: "Auto falls back to the next source if the preferred one fails.",
+                binding: usageBinding,
+                options: usageOptions,
+                isVisible: nil,
+                onChange: nil),
+            ProviderSettingsPickerDescriptor(
+                id: "claude-cookie-source",
+                title: "Claude cookies",
+                subtitle: "Automatic imports browser cookies for the web API.",
+                binding: cookieBinding,
+                options: cookieOptions,
+                isVisible: nil,
+                onChange: nil),
+        ]
+    }
+
+    @MainActor
+    func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
+        [
+            ProviderSettingsFieldDescriptor(
+                id: "claude-cookie-header",
+                title: "Cookie header",
+                subtitle: "Paste the Cookie header from a claude.ai request.",
+                kind: .secure,
+                placeholder: "Cookie: …",
+                binding: context.stringBinding(\.claudeCookieHeader),
+                actions: [],
+                isVisible: { context.settings.claudeCookieSource == .manual },
+                onActivate: { context.settings.ensureClaudeCookieLoaded() }),
+        ]
+    }
 
     @MainActor
     func runLoginFlow(context: ProviderLoginContext) async -> Bool {

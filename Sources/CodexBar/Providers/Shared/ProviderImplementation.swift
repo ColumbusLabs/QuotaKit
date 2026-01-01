@@ -20,6 +20,10 @@ protocol ProviderImplementation: Sendable {
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor]
 
+    /// Optional provider-specific settings pickers to render in the Providers pane.
+    @MainActor
+    func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor]
+
     /// Optional provider-specific login flow. Returns whether to refresh after completion.
     @MainActor
     func runLoginFlow(context: ProviderLoginContext) async -> Bool
@@ -34,6 +38,11 @@ extension ProviderImplementation {
 
     @MainActor
     func settingsFields(context _: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
+        []
+    }
+
+    @MainActor
+    func settingsPickers(context _: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
         []
     }
 

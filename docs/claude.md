@@ -18,6 +18,9 @@ Claude supports three usage data paths plus local cost usage. Source selection i
 2) Web API (browser cookies, `sessionKey`), if OAuth missing.
 3) CLI PTY (`claude`), if no OAuth and no web session.
 
+Usage source picker:
+- Preferences → Providers → Claude → Usage source (Auto/OAuth/Web/CLI).
+
 ### Debug selection (debug menu enabled)
 - The Debug pane can force OAuth / Web / CLI.
 - Web extras are internal-only (not exposed in the Providers pane).
@@ -40,6 +43,8 @@ Claude supports three usage data paths plus local cost usage. Source selection i
 - Plan inference: `rate_limit_tier` from credentials maps to Max/Pro/Team/Enterprise.
 
 ## Web API (cookies)
+- Preferences → Providers → Claude → Cookie source (Automatic or Manual).
+- Manual mode accepts a `Cookie:` header from a claude.ai request.
 - Cookie source order:
   1) Safari: `~/Library/Cookies/Cookies.binarycookies`
   2) Chrome/Chromium forks: `~/Library/Application Support/Google/Chrome/*/Cookies`

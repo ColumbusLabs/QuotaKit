@@ -61,6 +61,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     private let environment: [String: String]
     private let dataSource: ClaudeUsageDataSource
     private let useWebExtras: Bool
+    private let manualCookieHeader: String?
     private static let log = CodexBarLog.logger("claude-usage")
 
     /// Creates a new ClaudeUsageFetcher.
@@ -71,11 +72,13 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     public init(
         environment: [String: String] = ProcessInfo.processInfo.environment,
         dataSource: ClaudeUsageDataSource = .oauth,
-        useWebExtras: Bool = false)
+        useWebExtras: Bool = false,
+        manualCookieHeader: String? = nil)
     {
         self.environment = environment
         self.dataSource = dataSource
         self.useWebExtras = useWebExtras
+        self.manualCookieHeader = manualCookieHeader
     }
 
     // MARK: - Parsing helpers
@@ -211,6 +214,25 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
 
     public func loadLatestUsage(model: String = "sonnet") async throws -> ClaudeUsageSnapshot {
         switch self.dataSource {
+        case .auto:
+            let oauthCreds = try? ClaudeOAuthCredentialsStore.load()
+            let hasOAuthCredentials = oauthCreds?.scopes.contains("user:profile") ?? false
+            let hasWebSession = if let header = self.manualCookieHeader {
+                ClaudeWebAPIFetcher.hasSessionKey(cookieHeader: header)
+            } else {
+                ClaudeWebAPIFetcher.hasSessionKey()
+            }
+            if hasOAuthCredentials {
+                var snap = try await self.loadViaOAuth()
+                snap = await self.applyWebExtrasIfNeeded(to: snap)
+                return snap
+            }
+            if hasWebSession {
+                return try await self.loadViaWebAPI()
+            }
+            var snap = try await self.loadViaPTY(model: model, timeout: 10)
+            snap = await self.applyWebExtrasIfNeeded(to: snap)
+            return snap
         case .oauth:
             var snap = try await self.loadViaOAuth()
             snap = await self.applyWebExtrasIfNeeded(to: snap)
@@ -333,8 +355,14 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     // MARK: - Web API path (uses browser cookies)
 
     private func loadViaWebAPI() async throws -> ClaudeUsageSnapshot {
-        let webData = try await ClaudeWebAPIFetcher.fetchUsage { msg in
-            Self.log.debug(msg)
+        let webData: ClaudeWebAPIFetcher.WebUsageData = if let header = self.manualCookieHeader {
+            try await ClaudeWebAPIFetcher.fetchUsage(cookieHeader: header) { msg in
+                Self.log.debug(msg)
+            }
+        } else {
+            try await ClaudeWebAPIFetcher.fetchUsage { msg in
+                Self.log.debug(msg)
+            }
         }
         // Convert web API data to ClaudeUsageSnapshot format
         let primary = RateWindow(
@@ -419,8 +447,14 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     private func applyWebExtrasIfNeeded(to snapshot: ClaudeUsageSnapshot) async -> ClaudeUsageSnapshot {
         guard self.useWebExtras, self.dataSource != .web else { return snapshot }
         do {
-            let webData = try await ClaudeWebAPIFetcher.fetchUsage { msg in
-                Self.log.debug(msg)
+            let webData: ClaudeWebAPIFetcher.WebUsageData = if let header = self.manualCookieHeader {
+                try await ClaudeWebAPIFetcher.fetchUsage(cookieHeader: header) { msg in
+                    Self.log.debug(msg)
+                }
+            } else {
+                try await ClaudeWebAPIFetcher.fetchUsage { msg in
+                    Self.log.debug(msg)
+                }
             }
             // Only merge cost extras; keep identity fields from the primary data source.
             if snapshot.providerCost == nil, let extra = webData.extraUsageCost {

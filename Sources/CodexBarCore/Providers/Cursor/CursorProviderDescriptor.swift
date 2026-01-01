@@ -45,11 +45,15 @@ struct CursorStatusFetchStrategy: ProviderFetchStrategy {
     let id: String = "cursor.web"
     let kind: ProviderFetchKind = .web
 
-    func isAvailable(_: ProviderFetchContext) async -> Bool { true }
+    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
+        guard context.settings?.cursor?.cookieSource != .off else { return false }
+        return true
+    }
 
-    func fetch(_: ProviderFetchContext) async throws -> ProviderFetchResult {
+    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let probe = CursorStatusProbe()
-        let snap = try await probe.fetch()
+        let manual = Self.manualCookieHeader(from: context)
+        let snap = try await probe.fetch(cookieHeaderOverride: manual)
         return self.makeResult(
             usage: snap.toUsageSnapshot(),
             sourceLabel: "web")
@@ -57,5 +61,10 @@ struct CursorStatusFetchStrategy: ProviderFetchStrategy {
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
         false
+    }
+
+    private static func manualCookieHeader(from context: ProviderFetchContext) -> String? {
+        guard context.settings?.cursor?.cookieSource == .manual else { return nil }
+        return CookieHeaderNormalizer.normalize(context.settings?.cursor?.manualCookieHeader)
     }
 }

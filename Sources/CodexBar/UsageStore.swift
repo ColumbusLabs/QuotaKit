@@ -46,7 +46,18 @@ extension UsageStore {
             _ = self.settings.costUsageEnabled
             _ = self.settings.randomBlinkEnabled
             _ = self.settings.claudeWebExtrasEnabled
+            _ = self.settings.codexUsageDataSource
             _ = self.settings.claudeUsageDataSource
+            _ = self.settings.codexCookieSource
+            _ = self.settings.claudeCookieSource
+            _ = self.settings.cursorCookieSource
+            _ = self.settings.factoryCookieSource
+            _ = self.settings.minimaxCookieSource
+            _ = self.settings.codexCookieHeader
+            _ = self.settings.claudeCookieHeader
+            _ = self.settings.cursorCookieHeader
+            _ = self.settings.factoryCookieHeader
+            _ = self.settings.minimaxCookieHeader
             _ = self.settings.mergeIcons
             _ = self.settings.selectedMenuProvider
             _ = self.settings.debugLoadingPattern
@@ -74,7 +85,7 @@ extension UsageStore {
         if trimmed.isEmpty {
             return [
                 "OpenAI web dashboard returned an empty page.",
-                "Sign in to chatgpt.com and re-enable “Access OpenAI via web”.",
+                "Sign in to chatgpt.com and update OpenAI cookies in Providers → Codex.",
             ].joined(separator: " ")
         }
 
@@ -92,18 +103,18 @@ extension UsageStore {
         let emailLabel = targetEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
         let targetLabel = (emailLabel?.isEmpty == false) ? emailLabel! : "your OpenAI account"
         if let status, !status.isEmpty {
-            if status.contains("Browser cookies do not match Codex account")
-                || status.contains("Browser cookie import failed")
+            if status.contains("cookies do not match Codex account")
+                || status.localizedCaseInsensitiveContains("cookie import failed")
             {
                 return [
                     status,
-                    "Sign in to chatgpt.com as \(targetLabel), then re-enable “Access OpenAI via web”.",
+                    "Sign in to chatgpt.com as \(targetLabel), then update OpenAI cookies in Providers → Codex.",
                 ].joined(separator: " ")
             }
         }
         return [
             "OpenAI web dashboard returned a public page (not signed in).",
-            "Sign in to chatgpt.com as \(targetLabel), then re-enable “Access OpenAI via web”.",
+            "Sign in to chatgpt.com as \(targetLabel), then update OpenAI cookies in Providers → Codex.",
         ].joined(separator: " ")
     }
 }
@@ -371,6 +382,8 @@ final class UsageStore {
             let modes = descriptor.fetchPlan.sourceModes
             if modes.count == 1, let mode = modes.first {
                 label = mode.rawValue
+            } else if provider == .codex {
+                label = self.settings.codexUsageDataSource.rawValue
             } else if provider == .claude {
                 label = self.settings.claudeUsageDataSource.rawValue
             } else {
@@ -380,7 +393,7 @@ final class UsageStore {
 
         // When OpenAI web extras are active, show a blended label like `oauth + openai-web`.
         if provider == .codex,
-           self.settings.openAIWebAccessEnabled,
+           self.settings.codexCookieSource.isEnabled,
            self.openAIDashboard != nil,
            !self.openAIDashboardRequiresLogin,
            !label.contains("openai-web")
@@ -696,7 +709,9 @@ final class UsageStore {
             }
         }
     }
+}
 
+extension UsageStore {
     private func applyOpenAIDashboard(_ dash: OpenAIDashboardSnapshot, targetEmail: String?) async {
         await MainActor.run {
             self.openAIDashboard = dash
@@ -740,7 +755,7 @@ final class UsageStore {
     }
 
     private func refreshOpenAIDashboardIfNeeded(force: Bool = false) async {
-        guard self.isEnabled(.codex), self.settings.openAIWebAccessEnabled else {
+        guard self.isEnabled(.codex), self.settings.codexCookieSource.isEnabled else {
             await MainActor.run {
                 self.openAIDashboard = nil
                 self.lastOpenAIDashboardError = nil
@@ -826,7 +841,7 @@ final class UsageStore {
                     self.openAIDashboard = nil
                     self.lastOpenAIDashboardError = [
                         "OpenAI dashboard signed in as \(signedIn), but Codex uses \(normalized ?? "unknown").",
-                        "Switch accounts in your browser and re-enable “Access OpenAI via web”.",
+                        "Switch accounts in your browser and update OpenAI cookies in Providers → Codex.",
                     ].joined(separator: " ")
                     self.openAIDashboardRequiresLogin = true
                 }
@@ -876,7 +891,7 @@ final class UsageStore {
                     self.lastOpenAIDashboardError = [
                         "OpenAI web access requires a signed-in chatgpt.com session.",
                         "Sign in using \(self.codexBrowserCookieOrder.loginHint), " +
-                            "then re-enable “Access OpenAI via web”.",
+                            "then update OpenAI cookies in Providers → Codex.",
                     ].joined(separator: " ")
                     self.openAIDashboard = self.lastOpenAIDashboardSnapshot
                     self.openAIDashboardRequiresLogin = true
@@ -932,6 +947,7 @@ final class UsageStore {
     private func importOpenAIDashboardCookiesIfNeeded(targetEmail: String?, force: Bool) async -> String? {
         let normalizedTarget = targetEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
         let allowAnyAccount = normalizedTarget == nil || normalizedTarget?.isEmpty == true
+        let cookieSource = self.settings.codexCookieSource
 
         let now = Date()
         let lastEmail = self.lastOpenAIDashboardCookieImportEmail
@@ -963,11 +979,32 @@ final class UsageStore {
                 self.logOpenAIWeb(message)
             }
 
-            let result = try await OpenAIDashboardBrowserCookieImporter()
-                .importBestCookies(
+            let importer = OpenAIDashboardBrowserCookieImporter()
+            let result: OpenAIDashboardBrowserCookieImporter.ImportResult
+            switch cookieSource {
+            case .manual:
+                self.settings.ensureCodexCookieLoaded()
+                let manualHeader = self.settings.codexCookieHeader
+                guard CookieHeaderNormalizer.normalize(manualHeader) != nil else {
+                    throw OpenAIDashboardBrowserCookieImporter.ImportError.manualCookieHeaderInvalid
+                }
+                result = try await importer.importManualCookies(
+                    cookieHeader: manualHeader,
                     intoAccountEmail: normalizedTarget,
                     allowAnyAccount: allowAnyAccount,
                     logger: log)
+            case .auto:
+                result = try await importer.importBestCookies(
+                    intoAccountEmail: normalizedTarget,
+                    allowAnyAccount: allowAnyAccount,
+                    logger: log)
+            case .off:
+                result = OpenAIDashboardBrowserCookieImporter.ImportResult(
+                    sourceLabel: "Off",
+                    cookieCount: 0,
+                    signedInEmail: normalizedTarget,
+                    matchesCodexEmail: true)
+            }
             let effectiveEmail = result.signedInEmail?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .isEmpty == false
@@ -977,20 +1014,28 @@ final class UsageStore {
             await MainActor.run {
                 let signed = result.signedInEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
                 let matchText = result.matchesCodexEmail ? "matches Codex" : "does not match Codex"
+                let sourceLabel = switch cookieSource {
+                case .manual:
+                    "Manual cookie header"
+                case .auto:
+                    "\(result.sourceLabel) cookies"
+                case .off:
+                    "OpenAI cookies disabled"
+                }
                 if let signed, !signed.isEmpty {
                     self.openAIDashboardCookieImportStatus =
                         allowAnyAccount
                             ? [
-                                "Using \(result.sourceLabel) cookies (\(result.cookieCount)).",
+                                "Using \(sourceLabel) (\(result.cookieCount)).",
                                 "Signed in as \(signed).",
                             ].joined(separator: " ")
                             : [
-                                "Using \(result.sourceLabel) cookies (\(result.cookieCount)).",
+                                "Using \(sourceLabel) (\(result.cookieCount)).",
                                 "Signed in as \(signed) (\(matchText)).",
                             ].joined(separator: " ")
                 } else {
                     self.openAIDashboardCookieImportStatus =
-                        "Using \(result.sourceLabel) cookies (\(result.cookieCount))."
+                        "Using \(sourceLabel) (\(result.cookieCount))."
                 }
             }
             return effectiveEmail
@@ -1025,11 +1070,12 @@ final class UsageStore {
                 }
             case .noCookiesFound,
                  .browserAccessDenied,
-                 .dashboardStillRequiresLogin:
+                 .dashboardStillRequiresLogin,
+                 .manualCookieHeaderInvalid:
                 self.logOpenAIWeb("[\(stamp)] import failed: \(err.localizedDescription)")
                 await MainActor.run {
                     self.openAIDashboardCookieImportStatus =
-                        "Browser cookie import failed: \(err.localizedDescription)"
+                        "OpenAI cookie import failed: \(err.localizedDescription)"
                     self.openAIDashboardRequiresLogin = true
                 }
             }
@@ -1118,7 +1164,8 @@ extension UsageStore {
 
         let claudeWebExtrasEnabled = self.settings.claudeWebExtrasEnabled
         let claudeUsageDataSource = self.settings.claudeUsageDataSource
-        let claudeDebugMenuEnabled = self.settings.debugMenuEnabled
+        let claudeCookieSource = self.settings.claudeCookieSource
+        let claudeCookieHeader = self.settings.claudeCookieHeader
         return await Task.detached(priority: .utility) { () -> String in
             switch provider {
             case .codex:
@@ -1126,76 +1173,11 @@ extension UsageStore {
                 await MainActor.run { self.probeLogs[.codex] = raw }
                 return raw
             case .claude:
-                let text = await self.runWithTimeout(seconds: 15) {
-                    var lines: [String] = []
-                    let hasKey = ClaudeWebAPIFetcher.hasSessionKey { msg in lines.append(msg) }
-                    let hasOAuthCredentials = (try? ClaudeOAuthCredentialsStore.load()) != nil
-
-                    let strategy = ClaudeProviderDescriptor.resolveUsageStrategy(
-                        debugMenuEnabled: claudeDebugMenuEnabled,
-                        selectedDataSource: claudeUsageDataSource,
-                        webExtrasEnabled: claudeWebExtrasEnabled,
-                        hasWebSession: hasKey,
-                        hasOAuthCredentials: hasOAuthCredentials)
-
-                    await MainActor.run {
-                        if self.settings.claudeUsageDataSource != strategy.dataSource {
-                            self.settings.claudeUsageDataSource = strategy.dataSource
-                        }
-                    }
-
-                    lines.append("strategy=\(strategy.dataSource.rawValue)")
-                    lines.append("hasSessionKey=\(hasKey)")
-                    lines.append("hasOAuthCredentials=\(hasOAuthCredentials)")
-                    if strategy.useWebExtras {
-                        lines.append("web_extras=enabled")
-                    }
-                    lines.append("")
-
-                    switch strategy.dataSource {
-                    case .web:
-                        do {
-                            let web = try await ClaudeWebAPIFetcher.fetchUsage { msg in lines.append(msg) }
-                            lines.append("")
-                            lines.append("Web API summary:")
-
-                            let sessionReset = web.sessionResetsAt?.description ?? "nil"
-                            lines.append("session_used=\(web.sessionPercentUsed)% resetsAt=\(sessionReset)")
-
-                            if let weekly = web.weeklyPercentUsed {
-                                let weeklyReset = web.weeklyResetsAt?.description ?? "nil"
-                                lines.append("weekly_used=\(weekly)% resetsAt=\(weeklyReset)")
-                            } else {
-                                lines.append("weekly_used=nil")
-                            }
-
-                            lines.append("opus_used=\(web.opusPercentUsed?.description ?? "nil")")
-
-                            if let extra = web.extraUsageCost {
-                                let resetsAt = extra.resetsAt?.description ?? "nil"
-                                let period = extra.period ?? "nil"
-                                let line =
-                                    "extra_usage used=\(extra.used) limit=\(extra.limit) " +
-                                    "currency=\(extra.currencyCode) period=\(period) resetsAt=\(resetsAt)"
-                                lines.append(line)
-                            } else {
-                                lines.append("extra_usage=nil")
-                            }
-
-                            return lines.joined(separator: "\n")
-                        } catch {
-                            lines.append("Web API failed: \(error.localizedDescription)")
-                            return lines.joined(separator: "\n")
-                        }
-                    case .cli:
-                        let cli = await self.claudeFetcher.debugRawProbe(model: "sonnet")
-                        lines.append(cli)
-                        return lines.joined(separator: "\n")
-                    case .oauth:
-                        lines.append("OAuth source selected.")
-                        return lines.joined(separator: "\n")
-                    }
-                }
+                let text = await self.debugClaudeLog(
+                    claudeWebExtrasEnabled: claudeWebExtrasEnabled,
+                    claudeUsageDataSource: claudeUsageDataSource,
+                    claudeCookieSource: claudeCookieSource,
+                    claudeCookieHeader: claudeCookieHeader)
                 await MainActor.run { self.probeLogs[.claude] = text }
                 return text
             case .zai:
@@ -1242,6 +1224,87 @@ extension UsageStore {
                 return text
             }
         }.value
+    }
+
+    private func debugClaudeLog(
+        claudeWebExtrasEnabled: Bool,
+        claudeUsageDataSource: ClaudeUsageDataSource,
+        claudeCookieSource: ProviderCookieSource,
+        claudeCookieHeader: String) async -> String
+    {
+        await self.runWithTimeout(seconds: 15) {
+            var lines: [String] = []
+            let manualHeader = claudeCookieSource == .manual
+                ? CookieHeaderNormalizer.normalize(claudeCookieHeader)
+                : nil
+            let hasKey = if let manualHeader {
+                ClaudeWebAPIFetcher.hasSessionKey(cookieHeader: manualHeader)
+            } else {
+                ClaudeWebAPIFetcher.hasSessionKey { msg in lines.append(msg) }
+            }
+            let hasOAuthCredentials = (try? ClaudeOAuthCredentialsStore.load()) != nil
+
+            let strategy = ClaudeProviderDescriptor.resolveUsageStrategy(
+                selectedDataSource: claudeUsageDataSource,
+                webExtrasEnabled: claudeWebExtrasEnabled,
+                hasWebSession: hasKey,
+                hasOAuthCredentials: hasOAuthCredentials)
+
+            lines.append("strategy=\(strategy.dataSource.rawValue)")
+            lines.append("hasSessionKey=\(hasKey)")
+            lines.append("hasOAuthCredentials=\(hasOAuthCredentials)")
+            if strategy.useWebExtras {
+                lines.append("web_extras=enabled")
+            }
+            lines.append("")
+
+            switch strategy.dataSource {
+            case .auto:
+                lines.append("Auto source selected.")
+                return lines.joined(separator: "\n")
+            case .web:
+                do {
+                    let web = try await ClaudeWebAPIFetcher.fetchUsage { msg in lines.append(msg) }
+                    lines.append("")
+                    lines.append("Web API summary:")
+
+                    let sessionReset = web.sessionResetsAt?.description ?? "nil"
+                    lines.append("session_used=\(web.sessionPercentUsed)% resetsAt=\(sessionReset)")
+
+                    if let weekly = web.weeklyPercentUsed {
+                        let weeklyReset = web.weeklyResetsAt?.description ?? "nil"
+                        lines.append("weekly_used=\(weekly)% resetsAt=\(weeklyReset)")
+                    } else {
+                        lines.append("weekly_used=nil")
+                    }
+
+                    lines.append("opus_used=\(web.opusPercentUsed?.description ?? "nil")")
+
+                    if let extra = web.extraUsageCost {
+                        let resetsAt = extra.resetsAt?.description ?? "nil"
+                        let period = extra.period ?? "nil"
+                        let line =
+                            "extra_usage used=\(extra.used) limit=\(extra.limit) " +
+                            "currency=\(extra.currencyCode) period=\(period) resetsAt=\(resetsAt)"
+                        lines.append(line)
+                    } else {
+                        lines.append("extra_usage=nil")
+                    }
+
+                    return lines.joined(separator: "\n")
+                } catch {
+                    lines.append("Web API failed: \(error.localizedDescription)")
+                    return lines.joined(separator: "\n")
+                }
+            case .cli:
+                let cli = await self.claudeFetcher.debugRawProbe(model: "sonnet")
+                lines.append(cli)
+                return lines.joined(separator: "\n")
+            case .oauth:
+                lines.append("OAuth source selected.")
+                return lines.joined(separator: "\n")
+            }
+        }
     }
 
     private func runWithTimeout(seconds: Double, operation: @escaping @Sendable () async -> String) async -> String {

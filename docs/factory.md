@@ -24,6 +24,10 @@ Fetch attempts run in this exact order:
 
 If a step succeeds, we cache cookies/tokens back into the session store.
 
+Manual option:
+- Preferences → Providers → Droid → Cookie source → Manual.
+- Paste the `Cookie:` header from app.factory.ai.
+
 ## Cookie import
 - Cookie domains: `factory.ai`, `app.factory.ai`, `auth.factory.ai`.
 - Cookie names considered a session:

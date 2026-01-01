@@ -69,6 +69,11 @@ extension StatusItemController {
         NSWorkspace.shared.open(url)
     }
 
+    @objc func openTerminalCommand(_ sender: NSMenuItem) {
+        let command = sender.representedObject as? String ?? "claude"
+        Self.openTerminal(command: command)
+    }
+
     @objc func runSwitchAccount(_ sender: NSMenuItem) {
         if self.loginTask != nil {
             self.loginLogger.info("Switch Account tap ignored: login already in-flight")
@@ -135,6 +140,25 @@ extension StatusItemController {
             let pb = NSPasteboard.general
             pb.clearContents()
             pb.setString(err, forType: .string)
+        }
+    }
+
+    private static func openTerminal(command: String) {
+        let escaped = command
+            .replacingOccurrences(of: "\\\\", with: "\\\\\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        let script = """
+        tell application "Terminal"
+            activate
+            do script "\(escaped)"
+        end tell
+        """
+        if let appleScript = NSAppleScript(source: script) {
+            var error: NSDictionary?
+            appleScript.executeAndReturnError(&error)
+            if let error {
+                NSLog("Failed to open Terminal: \(error)")
+            }
         }
     }
 

@@ -40,10 +40,10 @@ struct CLIWebFallbackTests {
     }
 
     @Test
-    func codexDoesNotFallbackForDashboardDataErrors() {
+    func codexFallsBackForDashboardDataErrorsInAuto() {
         let context = self.makeContext()
         let strategy = CodexWebDashboardStrategy()
-        #expect(!strategy.shouldFallback(
+        #expect(strategy.shouldFallback(
             on: OpenAIDashboardFetcher.FetchError.noDashboardData(body: "missing"),
             context: context))
     }
@@ -53,6 +53,6 @@ struct CLIWebFallbackTests {
         let context = self.makeContext()
         let strategy = ClaudeWebFetchStrategy()
         #expect(strategy.shouldFallback(on: ClaudeWebAPIFetcher.FetchError.noSessionKeyFound, context: context))
-        #expect(!strategy.shouldFallback(on: ClaudeWebAPIFetcher.FetchError.unauthorized, context: context))
+        #expect(strategy.shouldFallback(on: ClaudeWebAPIFetcher.FetchError.unauthorized, context: context))
     }
 }

@@ -548,9 +548,34 @@ public struct FactoryStatusProbe: Sendable {
     }
 
     /// Fetch Factory usage using browser cookies with fallback to stored session.
-    public func fetch(logger: ((String) -> Void)? = nil) async throws -> FactoryStatusSnapshot {
+    public func fetch(
+        cookieHeaderOverride: String? = nil,
+        logger: ((String) -> Void)? = nil) async throws -> FactoryStatusSnapshot
+    {
         let log: (String) -> Void = { msg in logger?("[factory] \(msg)") }
         var lastError: Error?
+
+        if let override = CookieHeaderNormalizer.normalize(cookieHeaderOverride) {
+            log("Using manual cookie header")
+            let bearer = Self.bearerToken(fromHeader: override)
+            let candidates = [
+                self.baseURL,
+                Self.authBaseURL,
+                Self.apiBaseURL,
+            ]
+            for baseURL in candidates {
+                do {
+                    return try await self.fetchWithCookieHeader(
+                        override,
+                        bearerToken: bearer,
+                        baseURL: baseURL)
+                } catch {
+                    lastError = error
+                }
+            }
+            if let lastError { throw lastError }
+            throw FactoryStatusProbeError.noSessionCookie
+        }
 
         let attempts: [FetchAttemptResult] = await [
             self.attemptBrowserCookies(logger: log, sources: [.safari]),
@@ -861,6 +886,14 @@ public struct FactoryStatusProbe: Sendable {
 
     private static func cookieHeader(from cookies: [HTTPCookie]) -> String {
         cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
+    }
+
+    private static func bearerToken(fromHeader cookieHeader: String) -> String? {
+        for pair in CookieHeaderNormalizer.pairs(from: cookieHeader) where pair.name == "access-token" {
+            let token = pair.value.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !token.isEmpty { return token }
+        }
+        return nil
     }
 
     private func fetchWithCookieHeader(

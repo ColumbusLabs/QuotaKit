@@ -36,6 +36,26 @@ enum KeychainPromptCoordinator {
                 "CodexBar will ask macOS Keychain for the Claude Code OAuth token",
                 "so it can fetch your Claude usage. Click OK to continue.",
             ].joined(separator: " "))
+        case .codexCookie:
+            return (title, [
+                "CodexBar will ask macOS Keychain for your OpenAI cookie header",
+                "so it can fetch Codex dashboard extras. Click OK to continue.",
+            ].joined(separator: " "))
+        case .claudeCookie:
+            return (title, [
+                "CodexBar will ask macOS Keychain for your Claude cookie header",
+                "so it can fetch Claude web usage. Click OK to continue.",
+            ].joined(separator: " "))
+        case .cursorCookie:
+            return (title, [
+                "CodexBar will ask macOS Keychain for your Cursor cookie header",
+                "so it can fetch usage. Click OK to continue.",
+            ].joined(separator: " "))
+        case .factoryCookie:
+            return (title, [
+                "CodexBar will ask macOS Keychain for your Factory cookie header",
+                "so it can fetch usage. Click OK to continue.",
+            ].joined(separator: " "))
         case .zaiToken:
             return (title, [
                 "CodexBar will ask macOS Keychain for your z.ai API token",

@@ -12,6 +12,8 @@ read_when:
 Legend: web (browser cookies/WebView), cli (RPC/PTy), oauth (API), api token, local probe, web dashboard.
 Source labels (CLI/header): `openai-web`, `web`, `oauth`, `api`, `local`, plus provider-specific CLI labels (e.g. `codex-cli`, `claude`).
 
+Cookie-based providers expose a Cookie source picker (Automatic or Manual) in Settings → Providers.
+
 | Provider | Strategies (ordered for auto) |
 | --- | --- |
 | Codex | Web dashboard (`openai-web`) → CLI RPC/PTy (`codex-cli`); app uses CLI usage + optional dashboard scrape. |

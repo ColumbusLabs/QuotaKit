@@ -1,6 +1,7 @@
 import CodexBarCore
 import CodexBarMacroSupport
 import Foundation
+import SwiftUI
 
 @ProviderImplementationRegistration
 struct CodexProviderImplementation: ProviderImplementation {
@@ -8,19 +9,66 @@ struct CodexProviderImplementation: ProviderImplementation {
     let supportsLoginFlow: Bool = true
 
     @MainActor
-    func settingsToggles(context: ProviderSettingsContext) -> [ProviderSettingsToggleDescriptor] {
-        [
-            ProviderSettingsToggleDescriptor(
-                id: "openai-web-access",
-                title: "Access OpenAI via web",
-                subtitle: "Imports browser cookies for dashboard extras (credits history, code review).",
-                binding: context.boolBinding(\.openAIWebAccessEnabled),
-                statusText: nil,
-                actions: [],
+    func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
+        let usageBinding = Binding(
+            get: { context.settings.codexUsageDataSource.rawValue },
+            set: { raw in
+                context.settings.codexUsageDataSource = CodexUsageDataSource(rawValue: raw) ?? .auto
+            })
+        let cookieBinding = Binding(
+            get: { context.settings.codexCookieSource.rawValue },
+            set: { raw in
+                context.settings.codexCookieSource = ProviderCookieSource(rawValue: raw) ?? .auto
+            })
+
+        let usageOptions = CodexUsageDataSource.allCases.map {
+            ProviderSettingsPickerOption(id: $0.rawValue, title: $0.displayName)
+        }
+        let cookieOptions: [ProviderSettingsPickerOption] = [
+            ProviderSettingsPickerOption(
+                id: ProviderCookieSource.auto.rawValue,
+                title: ProviderCookieSource.auto.displayName),
+            ProviderSettingsPickerOption(
+                id: ProviderCookieSource.manual.rawValue,
+                title: ProviderCookieSource.manual.displayName),
+            ProviderSettingsPickerOption(
+                id: ProviderCookieSource.off.rawValue,
+                title: ProviderCookieSource.off.displayName),
+        ]
+
+        return [
+            ProviderSettingsPickerDescriptor(
+                id: "codex-usage-source",
+                title: "Usage source",
+                subtitle: "Auto falls back to the next source if the preferred one fails.",
+                binding: usageBinding,
+                options: usageOptions,
                 isVisible: nil,
-                onChange: nil,
-                onAppDidBecomeActive: nil,
-                onAppearWhenEnabled: nil),
+                onChange: nil),
+            ProviderSettingsPickerDescriptor(
+                id: "codex-cookie-source",
+                title: "OpenAI cookies",
+                subtitle: "Automatic imports browser cookies for dashboard extras.",
+                binding: cookieBinding,
+                options: cookieOptions,
+                isVisible: nil,
+                onChange: nil),
+        ]
+    }
+
+    @MainActor
+    func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
+        [
+            ProviderSettingsFieldDescriptor(
+                id: "codex-cookie-header",
+                title: "Cookie header",
+                subtitle: "Paste the Cookie header from a chatgpt.com request.",
+                kind: .secure,
+                placeholder: "Cookie: …",
+                binding: context.stringBinding(\.codexCookieHeader),
+                actions: [],
+                isVisible: { context.settings.codexCookieSource == .manual },
+                onActivate: { context.settings.ensureCodexCookieLoaded() }),
         ]
     }
 

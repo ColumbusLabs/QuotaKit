@@ -35,7 +35,8 @@ public struct CodexWebDashboardStrategy: ProviderFetchStrategy {
 
     public func shouldFallback(on error: Error, context: ProviderFetchContext) -> Bool {
         guard context.sourceMode == .auto else { return false }
-        return Self.shouldFallbackToCodexCLI(for: error)
+        _ = error
+        return true
     }
 }
 
@@ -141,24 +142,6 @@ extension CodexWebDashboardStrategy {
             OpenAIDashboardCacheStore.save(OpenAIDashboardCache(accountEmail: cacheEmail, snapshot: dash))
         }
         return dash
-    }
-
-    fileprivate static func shouldFallbackToCodexCLI(for error: Error) -> Bool {
-        if let importError = error as? OpenAIDashboardBrowserCookieImporter.ImportError {
-            switch importError {
-            case .noCookiesFound,
-                 .browserAccessDenied,
-                 .dashboardStillRequiresLogin,
-                 .noMatchingAccount:
-                return true
-            }
-        }
-
-        if let fetchError = error as? OpenAIDashboardFetcher.FetchError {
-            if case .loginRequired = fetchError { return true }
-        }
-
-        return false
     }
 }
 #else

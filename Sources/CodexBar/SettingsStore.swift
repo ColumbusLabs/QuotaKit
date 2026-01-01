@@ -144,6 +144,56 @@ final class SettingsStore {
         }
     }
 
+    private var codexCookieSourceRaw: String? {
+        didSet {
+            if let raw = self.codexCookieSourceRaw {
+                self.userDefaults.set(raw, forKey: "codexCookieSource")
+            } else {
+                self.userDefaults.removeObject(forKey: "codexCookieSource")
+            }
+        }
+    }
+
+    private var claudeCookieSourceRaw: String? {
+        didSet {
+            if let raw = self.claudeCookieSourceRaw {
+                self.userDefaults.set(raw, forKey: "claudeCookieSource")
+            } else {
+                self.userDefaults.removeObject(forKey: "claudeCookieSource")
+            }
+        }
+    }
+
+    private var cursorCookieSourceRaw: String? {
+        didSet {
+            if let raw = self.cursorCookieSourceRaw {
+                self.userDefaults.set(raw, forKey: "cursorCookieSource")
+            } else {
+                self.userDefaults.removeObject(forKey: "cursorCookieSource")
+            }
+        }
+    }
+
+    private var factoryCookieSourceRaw: String? {
+        didSet {
+            if let raw = self.factoryCookieSourceRaw {
+                self.userDefaults.set(raw, forKey: "factoryCookieSource")
+            } else {
+                self.userDefaults.removeObject(forKey: "factoryCookieSource")
+            }
+        }
+    }
+
+    private var minimaxCookieSourceRaw: String? {
+        didSet {
+            if let raw = self.minimaxCookieSourceRaw {
+                self.userDefaults.set(raw, forKey: "minimaxCookieSource")
+            } else {
+                self.userDefaults.removeObject(forKey: "minimaxCookieSource")
+            }
+        }
+    }
+
     /// Optional: collapse provider icons into a single menu bar item with an in-menu switcher.
     var mergeIcons: Bool {
         didSet { self.userDefaults.set(self.mergeIcons, forKey: "mergeIcons") }
@@ -157,6 +207,26 @@ final class SettingsStore {
     /// z.ai API token (stored in Keychain).
     var zaiAPIToken: String {
         didSet { self.schedulePersistZaiAPIToken() }
+    }
+
+    /// Codex OpenAI cookie header (stored in Keychain).
+    var codexCookieHeader: String {
+        didSet { self.schedulePersistCodexCookieHeader() }
+    }
+
+    /// Claude session cookie header (stored in Keychain).
+    var claudeCookieHeader: String {
+        didSet { self.schedulePersistClaudeCookieHeader() }
+    }
+
+    /// Cursor session cookie header (stored in Keychain).
+    var cursorCookieHeader: String {
+        didSet { self.schedulePersistCursorCookieHeader() }
+    }
+
+    /// Factory session cookie header (stored in Keychain).
+    var factoryCookieHeader: String {
+        didSet { self.schedulePersistFactoryCookieHeader() }
     }
 
     /// MiniMax cookie header (stored in Keychain).
@@ -199,20 +269,48 @@ final class SettingsStore {
     }
 
     var codexUsageDataSource: CodexUsageDataSource {
-        get { CodexUsageDataSource(rawValue: self.codexUsageDataSourceRaw ?? "") ?? .oauth }
+        get { CodexUsageDataSource(rawValue: self.codexUsageDataSourceRaw ?? "") ?? .auto }
         set {
             self.codexUsageDataSourceRaw = newValue.rawValue
         }
     }
 
     var claudeUsageDataSource: ClaudeUsageDataSource {
-        get { ClaudeUsageDataSource(rawValue: self.claudeUsageDataSourceRaw ?? "") ?? .oauth }
+        get { ClaudeUsageDataSource(rawValue: self.claudeUsageDataSourceRaw ?? "") ?? .auto }
         set {
             self.claudeUsageDataSourceRaw = newValue.rawValue
             if newValue != .cli {
                 self.claudeWebExtrasEnabled = false
             }
         }
+    }
+
+    var codexCookieSource: ProviderCookieSource {
+        get { ProviderCookieSource(rawValue: self.codexCookieSourceRaw ?? "") ?? .auto }
+        set {
+            self.codexCookieSourceRaw = newValue.rawValue
+            self.openAIWebAccessEnabled = newValue.isEnabled
+        }
+    }
+
+    var claudeCookieSource: ProviderCookieSource {
+        get { ProviderCookieSource(rawValue: self.claudeCookieSourceRaw ?? "") ?? .auto }
+        set { self.claudeCookieSourceRaw = newValue.rawValue }
+    }
+
+    var cursorCookieSource: ProviderCookieSource {
+        get { ProviderCookieSource(rawValue: self.cursorCookieSourceRaw ?? "") ?? .auto }
+        set { self.cursorCookieSourceRaw = newValue.rawValue }
+    }
+
+    var factoryCookieSource: ProviderCookieSource {
+        get { ProviderCookieSource(rawValue: self.factoryCookieSourceRaw ?? "") ?? .auto }
+        set { self.factoryCookieSourceRaw = newValue.rawValue }
+    }
+
+    var minimaxCookieSource: ProviderCookieSource {
+        get { ProviderCookieSource(rawValue: self.minimaxCookieSourceRaw ?? "") ?? .auto }
+        set { self.minimaxCookieSourceRaw = newValue.rawValue }
     }
 
     var menuObservationToken: Int {
@@ -232,9 +330,18 @@ final class SettingsStore {
         _ = self.openAIWebAccessEnabled
         _ = self.codexUsageDataSource
         _ = self.claudeUsageDataSource
+        _ = self.codexCookieSource
+        _ = self.claudeCookieSource
+        _ = self.cursorCookieSource
+        _ = self.factoryCookieSource
+        _ = self.minimaxCookieSource
         _ = self.mergeIcons
         _ = self.switcherShowsIcons
         _ = self.zaiAPIToken
+        _ = self.codexCookieHeader
+        _ = self.claudeCookieHeader
+        _ = self.cursorCookieHeader
+        _ = self.factoryCookieHeader
         _ = self.minimaxCookieHeader
         _ = self.copilotAPIToken
         _ = self.debugLoadingPattern
@@ -253,6 +360,22 @@ final class SettingsStore {
     @ObservationIgnored private var zaiTokenPersistTask: Task<Void, Never>?
     @ObservationIgnored private var zaiTokenLoaded = false
     @ObservationIgnored private var zaiTokenLoading = false
+    @ObservationIgnored private let codexCookieStore: any CookieHeaderStoring
+    @ObservationIgnored private var codexCookiePersistTask: Task<Void, Never>?
+    @ObservationIgnored private var codexCookieLoaded = false
+    @ObservationIgnored private var codexCookieLoading = false
+    @ObservationIgnored private let claudeCookieStore: any CookieHeaderStoring
+    @ObservationIgnored private var claudeCookiePersistTask: Task<Void, Never>?
+    @ObservationIgnored private var claudeCookieLoaded = false
+    @ObservationIgnored private var claudeCookieLoading = false
+    @ObservationIgnored private let cursorCookieStore: any CookieHeaderStoring
+    @ObservationIgnored private var cursorCookiePersistTask: Task<Void, Never>?
+    @ObservationIgnored private var cursorCookieLoaded = false
+    @ObservationIgnored private var cursorCookieLoading = false
+    @ObservationIgnored private let factoryCookieStore: any CookieHeaderStoring
+    @ObservationIgnored private var factoryCookiePersistTask: Task<Void, Never>?
+    @ObservationIgnored private var factoryCookieLoaded = false
+    @ObservationIgnored private var factoryCookieLoading = false
     @ObservationIgnored private let minimaxCookieStore: any MiniMaxCookieStoring
     @ObservationIgnored private var minimaxCookiePersistTask: Task<Void, Never>?
     @ObservationIgnored private var minimaxCookieLoaded = false
@@ -275,11 +398,27 @@ final class SettingsStore {
     init(
         userDefaults: UserDefaults = .standard,
         zaiTokenStore: any ZaiTokenStoring = KeychainZaiTokenStore(),
+        codexCookieStore: any CookieHeaderStoring = KeychainCookieHeaderStore(
+            account: "codex-cookie",
+            promptKind: .codexCookie),
+        claudeCookieStore: any CookieHeaderStoring = KeychainCookieHeaderStore(
+            account: "claude-cookie",
+            promptKind: .claudeCookie),
+        cursorCookieStore: any CookieHeaderStoring = KeychainCookieHeaderStore(
+            account: "cursor-cookie",
+            promptKind: .cursorCookie),
+        factoryCookieStore: any CookieHeaderStoring = KeychainCookieHeaderStore(
+            account: "factory-cookie",
+            promptKind: .factoryCookie),
         minimaxCookieStore: any MiniMaxCookieStoring = KeychainMiniMaxCookieStore(),
         copilotTokenStore: any CopilotTokenStoring = KeychainCopilotTokenStore())
     {
         self.userDefaults = userDefaults
         self.zaiTokenStore = zaiTokenStore
+        self.codexCookieStore = codexCookieStore
+        self.claudeCookieStore = claudeCookieStore
+        self.cursorCookieStore = cursorCookieStore
+        self.factoryCookieStore = factoryCookieStore
         self.minimaxCookieStore = minimaxCookieStore
         self.copilotTokenStore = copilotTokenStore
         self.providerOrderRaw = userDefaults.stringArray(forKey: "providerOrder") ?? []
@@ -308,17 +447,37 @@ final class SettingsStore {
             self.userDefaults.set(true, forKey: "showOptionalCreditsAndExtraUsage")
         }
         let openAIWebAccessDefault = userDefaults.object(forKey: "openAIWebAccessEnabled") as? Bool
-        self.openAIWebAccessEnabled = openAIWebAccessDefault ?? true
+        let openAIWebAccessEnabled = openAIWebAccessDefault ?? true
+        self.openAIWebAccessEnabled = openAIWebAccessEnabled
         if openAIWebAccessDefault == nil {
             self.userDefaults.set(true, forKey: "openAIWebAccessEnabled")
         }
         let codexSourceRaw = userDefaults.string(forKey: "codexUsageDataSource")
-        self.codexUsageDataSourceRaw = codexSourceRaw ?? CodexUsageDataSource.oauth.rawValue
+        self.codexUsageDataSourceRaw = codexSourceRaw ?? CodexUsageDataSource.auto.rawValue
         let claudeSourceRaw = userDefaults.string(forKey: "claudeUsageDataSource")
-        self.claudeUsageDataSourceRaw = claudeSourceRaw ?? ClaudeUsageDataSource.oauth.rawValue
+        self.claudeUsageDataSourceRaw = claudeSourceRaw ?? ClaudeUsageDataSource.auto.rawValue
+        let codexCookieRaw = userDefaults.string(forKey: "codexCookieSource")
+        if let codexCookieRaw {
+            self.codexCookieSourceRaw = codexCookieRaw
+        } else {
+            let fallback = openAIWebAccessEnabled ? ProviderCookieSource.auto : .off
+            self.codexCookieSourceRaw = fallback.rawValue
+        }
+        self.claudeCookieSourceRaw = userDefaults.string(forKey: "claudeCookieSource")
+            ?? ProviderCookieSource.auto.rawValue
+        self.cursorCookieSourceRaw = userDefaults.string(forKey: "cursorCookieSource")
+            ?? ProviderCookieSource.auto.rawValue
+        self.factoryCookieSourceRaw = userDefaults.string(forKey: "factoryCookieSource")
+            ?? ProviderCookieSource.auto.rawValue
+        self.minimaxCookieSourceRaw = userDefaults.string(forKey: "minimaxCookieSource")
+            ?? ProviderCookieSource.auto.rawValue
         self.mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true
         self.switcherShowsIcons = userDefaults.object(forKey: "switcherShowsIcons") as? Bool ?? true
         self.zaiAPIToken = ""
+        self.codexCookieHeader = ""
+        self.claudeCookieHeader = ""
+        self.cursorCookieHeader = ""
+        self.factoryCookieHeader = ""
         self.minimaxCookieHeader = ""
         self.copilotAPIToken = ""
         self.selectedMenuProviderRaw = userDefaults.string(forKey: "selectedMenuProvider")
@@ -332,6 +491,7 @@ final class SettingsStore {
         if self.claudeUsageDataSource != .cli {
             self.claudeWebExtrasEnabled = false
         }
+        self.openAIWebAccessEnabled = self.codexCookieSource.isEnabled
     }
 
     func orderedProviders() -> [UsageProvider] {
@@ -584,6 +744,110 @@ final class SettingsStore {
         }
     }
 
+    private func schedulePersistCodexCookieHeader() {
+        if self.codexCookieLoading { return }
+        self.codexCookiePersistTask?.cancel()
+        let header = self.codexCookieHeader
+        let cookieStore = self.codexCookieStore
+        self.codexCookiePersistTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 350_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
+                do {
+                    try cookieStore.storeCookieHeader(header)
+                    return nil
+                } catch {
+                    return error
+                }
+            }.value
+            if let error {
+                CodexBarLog.logger("codex-cookie-store").error("Failed to persist Codex cookie: \(error)")
+            }
+        }
+    }
+
+    private func schedulePersistClaudeCookieHeader() {
+        if self.claudeCookieLoading { return }
+        self.claudeCookiePersistTask?.cancel()
+        let header = self.claudeCookieHeader
+        let cookieStore = self.claudeCookieStore
+        self.claudeCookiePersistTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 350_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
+                do {
+                    try cookieStore.storeCookieHeader(header)
+                    return nil
+                } catch {
+                    return error
+                }
+            }.value
+            if let error {
+                CodexBarLog.logger("claude-cookie-store").error("Failed to persist Claude cookie: \(error)")
+            }
+        }
+    }
+
+    private func schedulePersistCursorCookieHeader() {
+        if self.cursorCookieLoading { return }
+        self.cursorCookiePersistTask?.cancel()
+        let header = self.cursorCookieHeader
+        let cookieStore = self.cursorCookieStore
+        self.cursorCookiePersistTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 350_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
+                do {
+                    try cookieStore.storeCookieHeader(header)
+                    return nil
+                } catch {
+                    return error
+                }
+            }.value
+            if let error {
+                CodexBarLog.logger("cursor-cookie-store").error("Failed to persist Cursor cookie: \(error)")
+            }
+        }
+    }
+
+    private func schedulePersistFactoryCookieHeader() {
+        if self.factoryCookieLoading { return }
+        self.factoryCookiePersistTask?.cancel()
+        let header = self.factoryCookieHeader
+        let cookieStore = self.factoryCookieStore
+        self.factoryCookiePersistTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 350_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
+                do {
+                    try cookieStore.storeCookieHeader(header)
+                    return nil
+                } catch {
+                    return error
+                }
+            }.value
+            if let error {
+                CodexBarLog.logger("factory-cookie-store").error("Failed to persist Factory cookie: \(error)")
+            }
+        }
+    }
+
     private func schedulePersistMiniMaxCookieHeader() {
         if self.minimaxCookieLoading { return }
         self.minimaxCookiePersistTask?.cancel()
@@ -635,13 +899,47 @@ final class SettingsStore {
             }
         }
     }
+}
 
+extension SettingsStore {
     func ensureZaiAPITokenLoaded() {
         guard !self.zaiTokenLoaded else { return }
         self.zaiTokenLoading = true
         self.zaiAPIToken = (try? self.zaiTokenStore.loadToken()) ?? ""
         self.zaiTokenLoading = false
         self.zaiTokenLoaded = true
+    }
+
+    func ensureCodexCookieLoaded() {
+        guard !self.codexCookieLoaded else { return }
+        self.codexCookieLoading = true
+        self.codexCookieHeader = (try? self.codexCookieStore.loadCookieHeader()) ?? ""
+        self.codexCookieLoading = false
+        self.codexCookieLoaded = true
+    }
+
+    func ensureClaudeCookieLoaded() {
+        guard !self.claudeCookieLoaded else { return }
+        self.claudeCookieLoading = true
+        self.claudeCookieHeader = (try? self.claudeCookieStore.loadCookieHeader()) ?? ""
+        self.claudeCookieLoading = false
+        self.claudeCookieLoaded = true
+    }
+
+    func ensureCursorCookieLoaded() {
+        guard !self.cursorCookieLoaded else { return }
+        self.cursorCookieLoading = true
+        self.cursorCookieHeader = (try? self.cursorCookieStore.loadCookieHeader()) ?? ""
+        self.cursorCookieLoading = false
+        self.cursorCookieLoaded = true
+    }
+
+    func ensureFactoryCookieLoaded() {
+        guard !self.factoryCookieLoaded else { return }
+        self.factoryCookieLoading = true
+        self.factoryCookieHeader = (try? self.factoryCookieStore.loadCookieHeader()) ?? ""
+        self.factoryCookieLoading = false
+        self.factoryCookieLoaded = true
     }
 
     func ensureMiniMaxCookieLoaded() {

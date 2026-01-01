@@ -6,6 +6,10 @@ import Security
 public struct KeychainPromptContext: Sendable {
     public enum Kind: Sendable {
         case claudeOAuth
+        case codexCookie
+        case claudeCookie
+        case cursorCookie
+        case factoryCookie
         case zaiToken
         case copilotToken
         case minimaxCookie

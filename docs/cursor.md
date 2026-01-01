@@ -25,6 +25,10 @@ Cursor is web-only. Usage is fetched via browser cookies or a stored WebKit sess
    - Login teardown uses `WebKitTeardown` to avoid Intel WebKit crashes.
    - Stored at: `~/Library/Application Support/CodexBar/cursor-session.json`.
 
+Manual option:
+- Preferences → Providers → Cursor → Cookie source → Manual.
+- Paste the `Cookie:` header from a cursor.com request.
+
 ## API endpoints
 - `GET https://cursor.com/api/usage-summary`
   - Plan usage (included), on-demand usage, billing cycle window.

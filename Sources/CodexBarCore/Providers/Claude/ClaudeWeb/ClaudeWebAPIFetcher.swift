@@ -139,6 +139,16 @@ public enum ClaudeWebAPIFetcher {
     }
 
     public static func fetchUsage(
+        cookieHeader: String,
+        logger: ((String) -> Void)? = nil) async throws -> WebUsageData
+    {
+        let log: (String) -> Void = { msg in logger?("[claude-web] \(msg)") }
+        let sessionInfo = try self.sessionKeyInfo(cookieHeader: cookieHeader)
+        log("Using manual session key (\(sessionInfo.cookieCount) cookies)")
+        return try await self.fetchUsage(using: sessionInfo, logger: log)
+    }
+
+    public static func fetchUsage(
         using sessionKeyInfo: SessionKeyInfo,
         logger: ((String) -> Void)? = nil) async throws -> WebUsageData
     {
@@ -272,8 +282,24 @@ public enum ClaudeWebAPIFetcher {
         }
     }
 
+    public static func hasSessionKey(cookieHeader: String?) -> Bool {
+        guard let cookieHeader else { return false }
+        return (try? self.sessionKeyInfo(cookieHeader: cookieHeader)) != nil
+    }
+
     public static func sessionKeyInfo(logger: ((String) -> Void)? = nil) throws -> SessionKeyInfo {
         try self.extractSessionKeyInfo(logger: logger)
+    }
+
+    public static func sessionKeyInfo(cookieHeader: String) throws -> SessionKeyInfo {
+        let pairs = CookieHeaderNormalizer.pairs(from: cookieHeader)
+        if let sessionKey = self.findSessionKey(in: pairs) {
+            return SessionKeyInfo(
+                key: sessionKey,
+                sourceLabel: "Manual",
+                cookieCount: pairs.count)
+        }
+        throw FetchError.noSessionKeyFound
     }
 
     // MARK: - Session Key Extraction
@@ -751,6 +777,15 @@ public enum ClaudeWebAPIFetcher {
     #else
 
     public static func fetchUsage(logger: ((String) -> Void)? = nil) async throws -> WebUsageData {
+        throw FetchError.notSupportedOnThisPlatform
+    }
+
+    public static func fetchUsage(
+        cookieHeader: String,
+        logger: ((String) -> Void)? = nil) async throws -> WebUsageData
+    {
+        _ = cookieHeader
+        _ = logger
         throw FetchError.notSupportedOnThisPlatform
     }
 
