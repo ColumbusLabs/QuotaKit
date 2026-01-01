@@ -715,7 +715,9 @@ extension StatusItemController {
             submenu.addItem(item)
         }
         if let resetTime = timeLimit.nextResetTime {
-            let reset = UsageFormatter.resetDescription(from: resetTime)
+            let reset = self.settings.resetTimeDisplayStyle == .absolute
+                ? UsageFormatter.resetDescription(from: resetTime)
+                : UsageFormatter.resetCountdownDescription(from: resetTime)
             let item = NSMenuItem(title: "Resets: \(reset)", action: nil, keyEquivalent: "")
             item.isEnabled = false
             submenu.addItem(item)
@@ -877,6 +879,7 @@ extension StatusItemController {
             isRefreshing: self.store.isRefreshing,
             lastError: self.store.error(for: target),
             usageBarsShowUsed: self.settings.usageBarsShowUsed,
+            resetTimeDisplayStyle: self.settings.resetTimeDisplayStyle,
             tokenCostUsageEnabled: self.settings.isCostUsageEffectivelyEnabled(for: target),
             showOptionalCreditsAndExtraUsage: self.settings.showOptionalCreditsAndExtraUsage,
             now: Date())

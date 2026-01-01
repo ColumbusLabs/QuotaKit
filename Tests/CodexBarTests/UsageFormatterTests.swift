@@ -66,6 +66,28 @@ struct UsageFormatterTests {
     }
 
     @Test
+    func resetLineUsesCountdownWhenResetsAtIsAvailable() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let reset = now.addingTimeInterval(10 * 60 + 1)
+        let window = RateWindow(usedPercent: 0, windowMinutes: nil, resetsAt: reset, resetDescription: "Resets soon")
+        let text = UsageFormatter.resetLine(for: window, style: .countdown, now: now)
+        #expect(text == "Resets in 11m")
+    }
+
+    @Test
+    func resetLineFallsBackToProvidedDescription() {
+        let window = RateWindow(
+            usedPercent: 0,
+            windowMinutes: nil,
+            resetsAt: nil,
+            resetDescription: "Resets at 23:30 (UTC)")
+        let countdown = UsageFormatter.resetLine(for: window, style: .countdown)
+        let absolute = UsageFormatter.resetLine(for: window, style: .absolute)
+        #expect(countdown == "Resets at 23:30 (UTC)")
+        #expect(absolute == "Resets at 23:30 (UTC)")
+    }
+
+    @Test
     func modelDisplayNameStripsTrailingDates() {
         #expect(UsageFormatter.modelDisplayName("claude-opus-4-5-20251101") == "claude-opus-4-5")
         #expect(UsageFormatter.modelDisplayName("gpt-4o-2024-08-06") == "gpt-4o")

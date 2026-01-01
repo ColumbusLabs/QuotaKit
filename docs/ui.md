@@ -19,7 +19,7 @@ read_when:
 - Advanced: menu bar can show provider branding icons with a percent label instead of critter bars.
 
 ## Menu card
-- Session + weekly rows with resets (relative countdown when available).
+- Session + weekly rows with resets (countdown by default; optional absolute clock display).
 - Codex-only: Credits + “Buy Credits…” in-card action.
 - Web-only rows (when OpenAI web enabled): code review remaining, usage breakdown submenu.
 

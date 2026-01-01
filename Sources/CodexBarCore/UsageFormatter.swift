@@ -1,5 +1,10 @@
 import Foundation
 
+public enum ResetTimeDisplayStyle: String, Codable, Sendable {
+    case countdown
+    case absolute
+}
+
 public enum UsageFormatter {
     public static func usageLine(remaining: Double, used: Double) -> String {
         String(format: "%.0f%% left", remaining)
@@ -37,6 +42,27 @@ public enum UsageFormatter {
             return "tomorrow, \(date.formatted(date: .omitted, time: .shortened))"
         }
         return date.formatted(date: .abbreviated, time: .shortened)
+    }
+
+    public static func resetLine(
+        for window: RateWindow,
+        style: ResetTimeDisplayStyle,
+        now: Date = .init()) -> String?
+    {
+        if let date = window.resetsAt {
+            let text = style == .countdown
+                ? self.resetCountdownDescription(from: date, now: now)
+                : self.resetDescription(from: date, now: now)
+            return "Resets \(text)"
+        }
+
+        if let desc = window.resetDescription {
+            let trimmed = desc.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return nil }
+            if trimmed.lowercased().hasPrefix("resets") { return trimmed }
+            return "Resets \(trimmed)"
+        }
+        return nil
     }
 
     public static func updatedString(from date: Date, now: Date = .init()) -> String {

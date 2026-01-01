@@ -588,6 +588,7 @@ extension UsageMenuCardView.Model {
         let isRefreshing: Bool
         let lastError: String?
         let usageBarsShowUsed: Bool
+        let resetTimeDisplayStyle: ResetTimeDisplayStyle
         let tokenCostUsageEnabled: Bool
         let showOptionalCreditsAndExtraUsage: Bool
         let now: Date
@@ -715,7 +716,7 @@ extension UsageMenuCardView.Model {
                 percent: Self.clamped(
                     input.usageBarsShowUsed ? primary.usedPercent : primary.remainingPercent),
                 percentStyle: percentStyle,
-                resetText: Self.resetText(for: primary, prefersCountdown: true),
+                resetText: Self.resetText(for: primary, style: input.resetTimeDisplayStyle, now: input.now),
                 detailText: input.provider == .zai ? zaiTokenDetail : nil))
         }
         if let weekly = snapshot.secondary {
@@ -725,7 +726,7 @@ extension UsageMenuCardView.Model {
                 title: input.metadata.weeklyLabel,
                 percent: Self.clamped(input.usageBarsShowUsed ? weekly.usedPercent : weekly.remainingPercent),
                 percentStyle: percentStyle,
-                resetText: Self.resetText(for: weekly, prefersCountdown: true),
+                resetText: Self.resetText(for: weekly, style: input.resetTimeDisplayStyle, now: input.now),
                 detailText: input.provider == .zai ? zaiTimeDetail : paceText))
         }
         if input.metadata.supportsOpus, let opus = snapshot.tertiary {
@@ -734,7 +735,7 @@ extension UsageMenuCardView.Model {
                 title: input.metadata.opusLabel ?? "Sonnet",
                 percent: Self.clamped(input.usageBarsShowUsed ? opus.usedPercent : opus.remainingPercent),
                 percentStyle: percentStyle,
-                resetText: Self.resetText(for: opus, prefersCountdown: true),
+                resetText: Self.resetText(for: opus, style: input.resetTimeDisplayStyle, now: input.now),
                 detailText: nil))
         }
 
@@ -857,18 +858,12 @@ extension UsageMenuCardView.Model {
         return Color(red: color.red, green: color.green, blue: color.blue)
     }
 
-    private static func resetText(for window: RateWindow, prefersCountdown: Bool) -> String? {
-        if let date = window.resetsAt {
-            if prefersCountdown {
-                return "Resets \(UsageFormatter.resetCountdownDescription(from: date))"
-            }
-            return "Resets \(UsageFormatter.resetDescription(from: date))"
-        }
-
-        if let desc = window.resetDescription, !desc.isEmpty {
-            return desc
-        }
-        return nil
+    private static func resetText(
+        for window: RateWindow,
+        style: ResetTimeDisplayStyle,
+        now: Date) -> String?
+    {
+        UsageFormatter.resetLine(for: window, style: style, now: now)
     }
 }
 

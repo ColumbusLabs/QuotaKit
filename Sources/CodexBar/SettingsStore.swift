@@ -85,6 +85,11 @@ final class SettingsStore {
         didSet { self.userDefaults.set(self.usageBarsShowUsed, forKey: "usageBarsShowUsed") }
     }
 
+    /// Optional: show reset times as absolute clock values instead of countdowns.
+    var resetTimesShowAbsolute: Bool {
+        didSet { self.userDefaults.set(self.resetTimesShowAbsolute, forKey: "resetTimesShowAbsolute") }
+    }
+
     /// Optional: use provider branding icons with a percentage in the menu bar.
     var menuBarShowsBrandIconWithPercent: Bool {
         didSet {
@@ -189,6 +194,10 @@ final class SettingsStore {
         }
     }
 
+    var resetTimeDisplayStyle: ResetTimeDisplayStyle {
+        self.resetTimesShowAbsolute ? .absolute : .countdown
+    }
+
     var codexUsageDataSource: CodexUsageDataSource {
         get { CodexUsageDataSource(rawValue: self.codexUsageDataSourceRaw ?? "") ?? .oauth }
         set {
@@ -214,6 +223,7 @@ final class SettingsStore {
         _ = self.statusChecksEnabled
         _ = self.sessionQuotaNotificationsEnabled
         _ = self.usageBarsShowUsed
+        _ = self.resetTimesShowAbsolute
         _ = self.menuBarShowsBrandIconWithPercent
         _ = self.costUsageEnabled
         _ = self.randomBlinkEnabled
@@ -286,6 +296,7 @@ final class SettingsStore {
             self.userDefaults.set(true, forKey: "sessionQuotaNotificationsEnabled")
         }
         self.usageBarsShowUsed = userDefaults.object(forKey: "usageBarsShowUsed") as? Bool ?? false
+        self.resetTimesShowAbsolute = userDefaults.object(forKey: "resetTimesShowAbsolute") as? Bool ?? false
         self.menuBarShowsBrandIconWithPercent = userDefaults.object(
             forKey: "menuBarShowsBrandIconWithPercent") as? Bool ?? false
         self.costUsageEnabled = userDefaults.object(forKey: "tokenCostUsageEnabled") as? Bool ?? false

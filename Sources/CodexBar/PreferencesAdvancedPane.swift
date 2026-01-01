@@ -42,6 +42,10 @@ struct AdvancedPane: View {
                         subtitle: "Progress bars fill as you consume quota (instead of showing remaining).",
                         binding: self.$settings.usageBarsShowUsed)
                     PreferenceToggleRow(
+                        title: "Show reset time as clock",
+                        subtitle: "Display reset times as absolute clock values instead of countdowns.",
+                        binding: self.$settings.resetTimesShowAbsolute)
+                    PreferenceToggleRow(
                         title: "Show credits + extra usage",
                         subtitle: "Show Codex Credits and Claude Extra usage sections in the menu.",
                         binding: self.$settings.showOptionalCreditsAndExtraUsage)

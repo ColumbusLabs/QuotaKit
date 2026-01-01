@@ -110,11 +110,20 @@ struct MenuDescriptor {
         entries.append(.text(headlineText, .headline))
 
         if let snap = store.snapshot(for: provider) {
+            let resetStyle = settings.resetTimeDisplayStyle
             if let primary = snap.primary {
-                Self.appendRateWindow(entries: &entries, title: meta.sessionLabel, window: primary)
+                Self.appendRateWindow(
+                    entries: &entries,
+                    title: meta.sessionLabel,
+                    window: primary,
+                    resetStyle: resetStyle)
             }
             if let weekly = snap.secondary {
-                Self.appendRateWindow(entries: &entries, title: meta.weeklyLabel, window: weekly)
+                Self.appendRateWindow(
+                    entries: &entries,
+                    title: meta.weeklyLabel,
+                    window: weekly,
+                    resetStyle: resetStyle)
                 if let paceText = UsagePaceText.weekly(provider: provider, window: weekly) {
                     entries.append(.text(paceText, .secondary))
                 }
@@ -122,7 +131,11 @@ struct MenuDescriptor {
                 entries.append(.text("Weekly usage unavailable for this account.", .secondary))
             }
             if meta.supportsOpus, let opus = snap.tertiary {
-                Self.appendRateWindow(entries: &entries, title: meta.opusLabel ?? "Sonnet", window: opus)
+                Self.appendRateWindow(
+                    entries: &entries,
+                    title: meta.opusLabel ?? "Sonnet",
+                    window: opus,
+                    resetStyle: resetStyle)
             }
 
             if let cost = snap.providerCost {
@@ -310,22 +323,18 @@ struct MenuDescriptor {
         return false
     }
 
-    private static func appendRateWindow(entries: inout [Entry], title: String, window: RateWindow) {
+    private static func appendRateWindow(
+        entries: inout [Entry],
+        title: String,
+        window: RateWindow,
+        resetStyle: ResetTimeDisplayStyle)
+    {
         let line = UsageFormatter
             .usageLine(remaining: window.remainingPercent, used: window.usedPercent)
         entries.append(.text("\(title): \(line)", .primary))
-        if let date = window.resetsAt {
-            let countdown = UsageFormatter.resetCountdownDescription(from: date)
-            entries.append(.text("Resets \(countdown)", .secondary))
-        } else if let reset = window.resetDescription {
-            entries.append(.text(Self.resetLine(reset), .secondary))
+        if let reset = UsageFormatter.resetLine(for: window, style: resetStyle) {
+            entries.append(.text(reset, .secondary))
         }
-    }
-
-    private static func resetLine(_ reset: String) -> String {
-        let trimmed = reset.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.lowercased().hasPrefix("resets") { return trimmed }
-        return "Resets \(trimmed)"
     }
 
     private static func versionNumber(for provider: UsageProvider, store: UsageStore) -> String? {
