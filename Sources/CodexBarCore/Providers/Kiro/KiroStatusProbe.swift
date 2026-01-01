@@ -39,7 +39,7 @@ public struct KiroUsageSnapshot: Sendable {
             providerID: .kiro,
             accountEmail: nil,
             accountOrganization: self.planName,
-            loginMethod: "Builder ID")
+            loginMethod: self.planName)
 
         return UsageSnapshot(
             primary: primary,

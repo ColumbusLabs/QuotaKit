@@ -42,7 +42,7 @@ Kiro uses the AWS `kiro-cli` tool to fetch usage data. No browser cookies or OAu
   - Expiry from `expires in N days`.
 - **Identity**:
   - `accountOrganization`: plan name (e.g., "KIRO FREE").
-  - `loginMethod`: "Builder ID" (AWS SSO).
+  - `loginMethod`: plan name (used for menu display).
 
 ## Status
 
