@@ -29,8 +29,8 @@ public enum VertexAIProviderDescriptor {
                 iconResourceName: "ProviderIcon-vertexai",
                 color: ProviderColor(red: 66 / 255, green: 133 / 255, blue: 244 / 255)),
             tokenCost: ProviderTokenCostConfig(
-                supportsTokenCost: false,
-                noDataMessage: { "Vertex AI cost summary is not supported." }),
+                supportsTokenCost: true,
+                noDataMessage: { "No Claude usage logs found in ~/.config/claude/projects or ~/.claude/projects." }),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .oauth],
                 pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [VertexAIOAuthFetchStrategy()] })),
@@ -83,16 +83,8 @@ struct VertexAIOAuthFetchStrategy: ProviderFetchStrategy {
         _ response: VertexAIUsageResponse,
         credentials: VertexAIOAuthCredentials) -> UsageSnapshot
     {
-        // Map quota usage percentage to a "spending" view.
-        // We use a conceptual currency of "Quota" with a limit of 100.
-        // verified: 60% usage -> used: 60.0, limit: 100.0
-        let cost = ProviderCostSnapshot(
-            used: response.requestsUsedPercent,
-            limit: 100.0,
-            currencyCode: "Quota",
-            period: "Current quota",
-            resetsAt: response.resetsAt,
-            updatedAt: Date())
+        // Token cost is fetched separately via CostUsageScanner from local Claude logs.
+        // We don't show the quota usage percentage as it's not relevant for cost tracking.
 
         let identity = ProviderIdentitySnapshot(
             providerID: .vertexai,
@@ -103,7 +95,7 @@ struct VertexAIOAuthFetchStrategy: ProviderFetchStrategy {
         return UsageSnapshot(
             primary: nil,
             secondary: nil,
-            providerCost: cost,
+            providerCost: nil,
             updatedAt: Date(),
             identity: identity)
     }
