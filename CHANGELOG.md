@@ -3,7 +3,7 @@
 ## 0.18.0 — Unreleased
 ### Providers
 - Vertex AI: add provider with quota-based usage from gcloud ADC. Thanks @bahag-chaurasiak!
-- Vertex AI: add token cost tracking using local Claude usage logs (`~/.claude/projects/`).
+- Vertex AI: token costs are shown via the Claude provider (same local logs).
 - Vertex AI: harden quota usage parsing for edge-case responses.
 - Kiro: add CLI-based usage provider via kiro-cli. Thanks @neror!
 - Kiro: clean up provider wiring and show plan name in the menu.

@@ -29,12 +29,15 @@ read_when:
 - Displayed as "Quota usage" with period "Current quota".
 
 ## Token Cost Tracking
-- Cost is calculated from local Claude usage logs (same as Claude provider).
-- Reads `~/.claude/projects/**/*.jsonl` files for Claude model usage.
-- Displays daily and 30-day cost estimates in USD.
-- Enable "Show cost summary" in Settings → General to see cost data.
+
+Vertex AI Claude usage is logged to the same local files as direct Anthropic API usage (`~/.claude/projects/`). To avoid double-counting, **cost display is handled by the Claude provider**.
+
+**To see Vertex AI token costs:**
+1. Enable the **Claude** provider in Settings → Providers
+2. Enable "Show cost summary" in Settings → General
+3. The Claude cost display includes all Claude model usage (both direct API and Vertex AI)
 
 ## Troubleshooting
 - **No quota data**: Ensure Cloud Monitoring API access in the selected project.
-- **No cost data**: Check that `~/.claude/projects/` exists and contains `.jsonl` files from Claude Code usage.
+- **No cost in Claude**: Check that `~/.claude/projects/` exists and contains `.jsonl` files from Claude Code usage.
 - **Auth issues**: Re-run `gcloud auth application-default login`.

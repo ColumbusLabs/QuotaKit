@@ -63,7 +63,10 @@ enum CostUsageScanner {
         case .minimax:
             return CostUsageDailyReport(data: [], summary: nil)
         case .vertexai:
-            return self.loadClaudeDaily(range: range, now: now, options: options)
+            // Vertex AI uses the same Claude logs as the Claude provider.
+            // We don't scan here to avoid double-counting; users should
+            // enable Claude cost tracking instead.
+            return CostUsageDailyReport(data: [], summary: nil)
         case .kiro:
             return CostUsageDailyReport(data: [], summary: nil)
         }

@@ -96,7 +96,7 @@ Cookie-based providers expose a Cookie source picker (Automatic or Manual) in Se
 ## Vertex AI
 - OAuth credentials from `gcloud auth application-default login` (ADC).
 - Quota usage via Cloud Monitoring `consumer_quota` metrics for `aiplatform.googleapis.com`.
-- Token cost from local Claude logs: scans `~/.claude/projects/**/*.jsonl` (last 30 days).
+- Token cost: shared with Claude provider (same `~/.claude/projects/` logs).
 - Requires Cloud Monitoring API access in the current project.
 - Details: `docs/vertexai.md`.
 See also: `docs/provider.md` for architecture notes.
