@@ -244,6 +244,7 @@ public struct AugmentStatusSnapshot: Sendable {
 public enum AugmentStatusProbeError: Error, LocalizedError {
     case noSessionCookie
     case sessionExpired
+    case browserSessionExpired
     case networkError(String)
     case parseFailed(String)
     case noPortalUrl
@@ -256,6 +257,8 @@ public enum AugmentStatusProbeError: Error, LocalizedError {
             "No Augment session cookie found. Please log in to app.augmentcode.com in your browser."
         case .sessionExpired:
             "Your Augment session has expired. Please log in again at app.augmentcode.com"
+        case .browserSessionExpired:
+            "Your Augment session has expired in your browser. Please visit app.augmentcode.com to refresh it."
         case let .networkError(message):
             "Network error: \(message)"
         case let .parseFailed(message):
@@ -413,8 +416,9 @@ public struct AugmentStatusProbe: Sendable {
             } catch AugmentStatusProbeError.sessionExpired {
                 log("✗ Retry failed - fresh cookies from \(freshSession.sourceLabel) are also expired!")
                 log("   This means your browser session at app.augmentcode.com is also expired.")
-                log("   Please log in again at https://app.augmentcode.com")
-                throw AugmentStatusProbeError.sessionExpired
+                log("   Please visit https://app.augmentcode.com in your browser to refresh the session.")
+                // Throw a more helpful error that explains the browser session is also expired
+                throw AugmentStatusProbeError.browserSessionExpired
             }
         }
     }
