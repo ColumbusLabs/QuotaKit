@@ -75,11 +75,10 @@ public enum AugmentCookieImporter {
                     log("\(source.label) has cookies: \(cookieNames)")
 
                     if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
-                        log("Found \(httpCookies.count) Augment cookies in \(source.label)")
+                        log("✓ Found Augment session cookies in \(source.label)")
                         return SessionInfo(cookies: httpCookies, sourceLabel: source.label)
                     } else {
-                        log("\(source.label) cookies found, but no Augment session cookie present")
-                        log("Expected one of: \(Self.sessionCookieNames.joined(separator: ", "))")
+                        log("✗ \(source.label) has cookies but no valid Augment session cookie present")
                     }
                 }
             } catch {
