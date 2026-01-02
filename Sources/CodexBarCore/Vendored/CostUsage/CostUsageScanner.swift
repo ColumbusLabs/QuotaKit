@@ -63,7 +63,7 @@ enum CostUsageScanner {
         case .minimax:
             return CostUsageDailyReport(data: [], summary: nil)
         case .vertexai:
-            return CostUsageDailyReport(data: [], summary: nil)
+            return self.loadClaudeDaily(range: range, now: now, options: options)
         case .kiro:
             return CostUsageDailyReport(data: [], summary: nil)
         case .augment:
