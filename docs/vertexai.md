@@ -28,5 +28,13 @@ read_when:
 - Reports the highest usage percent across matched series.
 - Displayed as "Quota usage" with period "Current quota".
 
+## Token Cost Tracking
+- Cost is calculated from local Claude usage logs (same as Claude provider).
+- Reads `~/.claude/projects/**/*.jsonl` files for Claude model usage.
+- Displays daily and 30-day cost estimates in USD.
+- Enable "Show cost summary" in Settings → General to see cost data.
+
 ## Troubleshooting
-- If usage is missing, ensure Cloud Monitoring API access in the selected project.
+- **No quota data**: Ensure Cloud Monitoring API access in the selected project.
+- **No cost data**: Check that `~/.claude/projects/` exists and contains `.jsonl` files from Claude Code usage.
+- **Auth issues**: Re-run `gcloud auth application-default login`.

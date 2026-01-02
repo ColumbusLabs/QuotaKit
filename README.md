@@ -2,7 +2,7 @@
 
 > **Enhanced Fork** - This is an actively maintained fork with additional features including Augment provider support, enhanced multi-account management, and improved session handling. Originally created by [Peter Steinberger](https://github.com/steipete/CodexBar).
 
-Tiny macOS 14+ menu bar app that keeps your Codex, Claude, Cursor, Gemini, Antigravity, Droid (Factory), Copilot, z.ai, Kiro, and **Augment** limits visible (session + weekly where available) and shows when each window resets. One status item per provider (or Merge Icons mode); enable what you use from Settings. No Dock icon, minimal UI, dynamic bar icons in the menu bar.
+Tiny macOS 14+ menu bar app that keeps your Codex, Claude, Cursor, Gemini, Antigravity, Droid (Factory), Copilot, z.ai, Kiro, Vertex AI, and **Augment** limits visible (session + weekly where available) and shows when each window resets. One status item per provider (or Merge Icons mode); enable what you use from Settings. No Dock icon, minimal UI, dynamic bar icons in the menu bar.
 
 <img src="codexbar.png" alt="CodexBar menu screenshot" width="520" />
 
@@ -44,6 +44,7 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for build instructions, architect
 - [Copilot](docs/copilot.md) — GitHub device flow + Copilot internal usage API.
 - [z.ai](docs/zai.md) — API token (Keychain) for quota + MCP windows.
 - [Kiro](docs/kiro.md) — CLI-based usage via `kiro-cli /usage` command; monthly credits + bonus credits.
+- [Vertex AI](docs/vertexai.md) — Google Cloud gcloud OAuth with token cost tracking from local Claude logs.
 - **[Augment](docs/augment.md)** — Browser cookie-based authentication with automatic session keepalive; credits tracking and usage monitoring. *(Fork enhancement)*
 - Open to new providers: [provider authoring guide](docs/provider.md).
 
