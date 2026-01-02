@@ -1,11 +1,34 @@
 import CodexBarMacroSupport
 import Foundation
 
+#if os(macOS)
+import SweetCookieKit
+#endif
+
 @ProviderDescriptorRegistration
 @ProviderDescriptorDefinition
 public enum AugmentProviderDescriptor {
     static func makeDescriptor() -> ProviderDescriptor {
-        ProviderDescriptor(
+        #if os(macOS)
+        // Custom browser order that includes Chrome Beta and other variants
+        // to support users running beta/canary versions
+        let browserOrder: BrowserCookieImportOrder = [
+            .safari,
+            .chrome,
+            .chromeBeta,      // Added for Chrome Beta support
+            .chromeCanary,    // Added for Chrome Canary support
+            .edge,
+            .edgeBeta,
+            .brave,
+            .arc,
+            .arcBeta,
+            .firefox,
+        ]
+        #else
+        let browserOrder: BrowserCookieImportOrder? = nil
+        #endif
+
+        return ProviderDescriptor(
             id: .augment,
             metadata: ProviderMetadata(
                 id: .augment,
@@ -21,7 +44,7 @@ public enum AugmentProviderDescriptor {
                 defaultEnabled: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
-                browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
+                browserCookieOrder: browserOrder,
                 dashboardURL: "https://app.augmentcode.com/account/subscription",
                 statusPageURL: nil,
                 statusLinkURL: nil),
