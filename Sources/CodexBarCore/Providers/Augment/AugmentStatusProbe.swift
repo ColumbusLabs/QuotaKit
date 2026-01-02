@@ -16,6 +16,8 @@ public enum AugmentCookieImporter {
     // check debug logs for cookie names and report them.
     private static let sessionCookieNames: Set<String> = [
         "_session",                    // Legacy session cookie
+        "session",                     // Main session cookie (discovered 2026-01-02)
+        "web_rpc_proxy_session",       // Web RPC proxy session (discovered 2026-01-02)
         "auth0",                       // Auth0 session
         "auth0.is.authenticated",      // Auth0 authentication flag
         "a0.spajs.txs",                // Auth0 SPA transaction state
@@ -61,13 +63,46 @@ public enum AugmentCookieImporter {
                     // Check if we have any session cookies
                     let matchingCookies = httpCookies.filter { Self.sessionCookieNames.contains($0.name) }
                     if !matchingCookies.isEmpty {
-                        log("✓ Found Augment session cookies in \(source.label): \(matchingCookies.map { $0.name }.joined(separator: ", "))")
+                        log("✓ Found known Augment session cookies in \(source.label): \(matchingCookies.map { $0.name }.joined(separator: ", "))")
+
+                        // Log detailed cookie info for debugging
+                        for cookie in matchingCookies {
+                            let valuePreview = String(cookie.value.prefix(20)) + (cookie.value.count > 20 ? "..." : "")
+                            let expiresInfo = cookie.expiresDate.map { date in
+                                let now = Date()
+                                if date < now {
+                                    return "EXPIRED on \(date)"
+                                } else {
+                                    return "expires \(date)"
+                                }
+                            } ?? "session cookie"
+                            log("  - \(cookie.name): \(valuePreview) | domain=\(cookie.domain) | \(expiresInfo)")
+                        }
+
                         return SessionInfo(cookies: httpCookies, sourceLabel: source.label)
                     } else if !httpCookies.isEmpty {
-                        // Log unrecognized cookies to help discover missing session cookie names
-                        log("⚠️ \(source.label) has \(httpCookies.count) cookies but none match known session cookies")
+                        // Even if we don't recognize the cookie names, try them anyway
+                        // The automatic retry logic will handle expired sessions
+                        log("⚠️ Found \(httpCookies.count) cookies in \(source.label) but none match known session cookies")
                         log("   Cookie names found: \(cookieNames)")
-                        log("   If you're logged into Augment, please report these cookie names to help improve detection")
+                        log("   Attempting to use these cookies anyway - will auto-refresh if expired")
+
+                        // Log session/web_rpc_proxy_session cookies if present for debugging
+                        let sessionCookies = httpCookies.filter { $0.name == "session" || $0.name == "web_rpc_proxy_session" }
+                        for cookie in sessionCookies {
+                            let valuePreview = String(cookie.value.prefix(20)) + (cookie.value.count > 20 ? "..." : "")
+                            let expiresInfo = cookie.expiresDate.map { date in
+                                let now = Date()
+                                if date < now {
+                                    return "EXPIRED on \(date)"
+                                } else {
+                                    return "expires \(date)"
+                                }
+                            } ?? "session cookie"
+                            log("  - \(cookie.name): \(valuePreview) | domain=\(cookie.domain) | \(expiresInfo)")
+                        }
+
+                        return SessionInfo(cookies: httpCookies, sourceLabel: source.label)
                     }
                 }
             } catch {
