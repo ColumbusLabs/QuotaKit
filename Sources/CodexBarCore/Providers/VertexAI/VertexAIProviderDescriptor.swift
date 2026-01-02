@@ -29,8 +29,8 @@ public enum VertexAIProviderDescriptor {
                 iconResourceName: "ProviderIcon-vertexai",
                 color: ProviderColor(red: 66 / 255, green: 133 / 255, blue: 244 / 255)),
             tokenCost: ProviderTokenCostConfig(
-                supportsTokenCost: true,
-                noDataMessage: { "No Claude usage logs found in ~/.config/claude/projects or ~/.claude/projects." }),
+                supportsTokenCost: false,
+                noDataMessage: { "Vertex AI shares usage logs with Claude. Enable Claude cost tracking to see token costs." }),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .oauth],
                 pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [VertexAIOAuthFetchStrategy()] })),
