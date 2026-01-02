@@ -155,11 +155,11 @@ extension CostUsageScanner {
     {
         switch filter {
         case .all:
-            return true
+            true
         case .vertexAIOnly:
-            return Self.isVertexAIUsageEntry(obj: obj)
+            self.isVertexAIUsageEntry(obj: obj)
         case .excludeVertexAI:
-            return !Self.isVertexAIUsageEntry(obj: obj)
+            !self.isVertexAIUsageEntry(obj: obj)
         }
     }
 
@@ -198,13 +198,7 @@ extension CostUsageScanner {
             if let request = message["request"] as? [String: Any] { candidates.append(request) }
         }
 
-        for candidate in candidates {
-            if Self.containsVertexAIMetadata(in: candidate) {
-                return true
-            }
-        }
-
-        return false
+        return candidates.contains { Self.containsVertexAIMetadata(in: $0) }
     }
 
     /// Detects Vertex AI model names by format.
@@ -242,7 +236,7 @@ extension CostUsageScanner {
     private static func containsVertexAIMetadata(in array: [Any]) -> Bool {
         for entry in array {
             if let dict = entry as? [String: Any] {
-                if Self.containsVertexAIMetadata(in: dict) { return true }
+                if self.containsVertexAIMetadata(in: dict) { return true }
             }
         }
 
@@ -268,11 +262,15 @@ extension CostUsageScanner {
         var cache: CostUsageCache
         var rootCache: [String: Int64]
         var touched: Set<String>
+        let range: CostUsageDayRange
+        let providerFilter: ClaudeLogProviderFilter
 
-        init(cache: CostUsageCache) {
+        init(cache: CostUsageCache, range: CostUsageDayRange, providerFilter: ClaudeLogProviderFilter) {
             self.cache = cache
             self.rootCache = cache.roots ?? [:]
             self.touched = []
+            self.range = range
+            self.providerFilter = providerFilter
         }
     }
 
@@ -280,8 +278,6 @@ extension CostUsageScanner {
         url: URL,
         size: Int64,
         mtimeMs: Int64,
-        range: CostUsageDayRange,
-        providerFilter: ClaudeLogProviderFilter,
         state: ClaudeScanState)
     {
         let path = url.path
@@ -300,8 +296,8 @@ extension CostUsageScanner {
             if canIncremental {
                 let delta = Self.parseClaudeFile(
                     fileURL: url,
-                    range: range,
-                    providerFilter: providerFilter,
+                    range: state.range,
+                    providerFilter: state.providerFilter,
                     startOffset: startOffset)
                 if !delta.days.isEmpty {
                     Self.applyFileDays(cache: &state.cache, fileDays: delta.days, sign: 1)
@@ -322,8 +318,8 @@ extension CostUsageScanner {
 
         let parsed = Self.parseClaudeFile(
             fileURL: url,
-            range: range,
-            providerFilter: providerFilter)
+            range: state.range,
+            providerFilter: state.providerFilter)
         let usage = Self.makeFileUsage(
             mtimeUnixMs: mtimeMs,
             size: size,
@@ -335,8 +331,6 @@ extension CostUsageScanner {
 
     private static func scanClaudeRoot(
         root: URL,
-        range: CostUsageDayRange,
-        providerFilter: ClaudeLogProviderFilter,
         state: ClaudeScanState)
     {
         let rootPath = root.path
@@ -392,8 +386,6 @@ extension CostUsageScanner {
                     url: URL(fileURLWithPath: path),
                     size: size,
                     mtimeMs: mtimeMs,
-                    range: range,
-                    providerFilter: providerFilter,
                     state: state)
             }
             return
@@ -424,8 +416,6 @@ extension CostUsageScanner {
                 url: url,
                 size: size,
                 mtimeMs: mtimeMs,
-                range: range,
-                providerFilter: providerFilter,
                 state: state)
         }
 
@@ -458,13 +448,11 @@ extension CostUsageScanner {
             if options.forceRescan {
                 cache = CostUsageCache()
             }
-            let scanState = ClaudeScanState(cache: cache)
+            let scanState = ClaudeScanState(cache: cache, range: range, providerFilter: providerFilter)
 
             for root in roots {
                 Self.scanClaudeRoot(
                     root: root,
-                    range: range,
-                    providerFilter: providerFilter,
                     state: scanState)
             }
 

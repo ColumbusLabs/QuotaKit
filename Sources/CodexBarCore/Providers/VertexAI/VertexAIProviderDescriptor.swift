@@ -30,7 +30,8 @@ public enum VertexAIProviderDescriptor {
                 color: ProviderColor(red: 66 / 255, green: 133 / 255, blue: 244 / 255)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: true,
-                noDataMessage: { "No Vertex AI cost data found in Claude logs. Ensure entries include Vertex metadata." }),
+                noDataMessage: { "No Vertex AI cost data found in Claude logs. Ensure entries include Vertex metadata."
+                }),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .oauth],
                 pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [VertexAIOAuthFetchStrategy()] })),
