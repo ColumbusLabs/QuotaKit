@@ -499,6 +499,8 @@ final class SettingsStore {
             ?? ProviderCookieSource.auto.rawValue
         self.minimaxCookieSourceRaw = userDefaults.string(forKey: "minimaxCookieSource")
             ?? ProviderCookieSource.auto.rawValue
+        self.augmentCookieSourceRaw = userDefaults.string(forKey: "augmentCookieSource")
+            ?? ProviderCookieSource.auto.rawValue
         self.mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true
         self.switcherShowsIcons = userDefaults.object(forKey: "switcherShowsIcons") as? Bool ?? true
         self.zaiAPIToken = ""
