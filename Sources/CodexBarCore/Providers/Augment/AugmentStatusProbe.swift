@@ -223,6 +223,77 @@ public struct AugmentStatusProbe: Sendable {
         self.timeout = timeout
     }
 
+    // MARK: - Debug Methods
+
+    /// Fetch raw probe output for debugging purposes
+    public func debugRawProbe(cookieHeaderOverride: String? = nil) async -> String {
+        var debugLines: [String] = []
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+
+        debugLines.append("=== Augment Debug Probe @ \(timestamp) ===")
+        debugLines.append("")
+
+        do {
+            let snapshot = try await self.fetch(cookieHeaderOverride: cookieHeaderOverride) { msg in
+                debugLines.append("[cookie-import] \(msg)")
+            }
+
+            debugLines.append("")
+            debugLines.append("--- Probe Success ---")
+            debugLines.append("Credits Balance: \(snapshot.creditsBalance)")
+            if let consumed = snapshot.creditsConsumed {
+                debugLines.append("Credits Consumed: \(consumed)")
+            }
+            if let monthlyLimit = snapshot.monthlyLimit {
+                debugLines.append("Monthly Limit: \(monthlyLimit)")
+            }
+            if let planName = snapshot.planName {
+                debugLines.append("Plan Name: \(planName)")
+            }
+            if let status = snapshot.accountStatus {
+                debugLines.append("Account Status: \(status)")
+            }
+            debugLines.append("")
+
+            if let rawJSON = snapshot.rawJSON {
+                debugLines.append("--- Raw API Response ---")
+                debugLines.append(rawJSON)
+            }
+
+            return debugLines.joined(separator: "\n")
+        } catch {
+            debugLines.append("")
+            debugLines.append("--- Probe Failed ---")
+            debugLines.append("Error: \(error.localizedDescription)")
+            debugLines.append("")
+
+            if let augmentError = error as? AugmentStatusProbeError {
+                debugLines.append("Error Type: \(augmentError)")
+            }
+
+            let result = debugLines.joined(separator: "\n")
+            Task { @MainActor in Self.recordDump(result) }
+            return result
+        }
+    }
+
+    // MARK: - Dump storage (in-memory ring buffer)
+
+    @MainActor private static var recentDumps: [String] = []
+
+    @MainActor private static func recordDump(_ text: String) {
+        if self.recentDumps.count >= 5 { self.recentDumps.removeFirst() }
+        self.recentDumps.append(text)
+    }
+
+    /// Retrieve the latest debug dumps from the ring buffer
+    public static func latestDumps() async -> String {
+        await MainActor.run {
+            let result = Self.recentDumps.joined(separator: "\n\n---\n\n")
+            return result.isEmpty ? "No Augment probe dumps captured yet." : result
+        }
+    }
+
     /// Fetch Augment usage with manual cookie header (for debugging).
     public func fetchWithManualCookies(_ cookieHeader: String) async throws -> AugmentStatusSnapshot {
         try await self.fetchWithCookieHeader(cookieHeader)

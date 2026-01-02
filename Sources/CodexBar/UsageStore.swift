@@ -1158,6 +1158,10 @@ extension UsageStore {
         await ClaudeStatusProbe.latestDumps()
     }
 
+    func debugAugmentDump() async -> String {
+        await AugmentStatusProbe.latestDumps()
+    }
+
     func debugLog(for provider: UsageProvider) async -> String {
         if let cached = self.probeLogs[provider], !cached.isEmpty {
             return cached
@@ -1228,7 +1232,7 @@ extension UsageStore {
                 await MainActor.run { self.probeLogs[.kiro] = text }
                 return text
             case .augment:
-                let text = "Augment debug log not yet implemented"
+                let text = await self.debugAugmentLog()
                 await MainActor.run { self.probeLogs[.augment] = text }
                 return text
             }
@@ -1362,6 +1366,13 @@ extension UsageStore {
                 lines.append("Cursor probe failed: \(error.localizedDescription)")
                 return lines.joined(separator: "\n")
             }
+        }
+    }
+
+    private func debugAugmentLog() async -> String {
+        await self.runWithTimeout(seconds: 15) {
+            let probe = AugmentStatusProbe()
+            return await probe.debugRawProbe()
         }
     }
 
