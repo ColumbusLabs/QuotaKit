@@ -34,6 +34,7 @@ extension CostUsageScanner {
     static func parseClaudeFile(
         fileURL: URL,
         range: CostUsageDayRange,
+        providerFilter: ClaudeLogProviderFilter,
         startOffset: Int64 = 0) -> ClaudeParseResult
     {
         var days: [String: [String: [Int]]] = [:]
@@ -85,6 +86,7 @@ extension CostUsageScanner {
                     let type = obj["type"] as? String,
                     type == "assistant"
                 else { return }
+                guard Self.matchesClaudeProviderFilter(obj: obj, filter: providerFilter) else { return }
 
                 guard let tsText = obj["timestamp"] as? String else { return }
                 guard let dayKey = Self.dayKeyFromTimestamp(tsText) ?? Self.dayKeyFromParsedISO(tsText) else { return }
@@ -134,6 +136,123 @@ extension CostUsageScanner {
         return ClaudeParseResult(days: days, parsedBytes: parsedBytes)
     }
 
+    private static let vertexProviderKeys: Set<String> = [
+        "provider",
+        "platform",
+        "backend",
+        "api_provider",
+        "apiprovider",
+        "api_type",
+        "apitype",
+        "source",
+        "vendor",
+        "client",
+    ]
+
+    private static func matchesClaudeProviderFilter(
+        obj: [String: Any],
+        filter: ClaudeLogProviderFilter) -> Bool
+    {
+        switch filter {
+        case .all:
+            return true
+        case .vertexAIOnly:
+            return Self.isVertexAIUsageEntry(obj: obj)
+        case .excludeVertexAI:
+            return !Self.isVertexAIUsageEntry(obj: obj)
+        }
+    }
+
+    private static func isVertexAIUsageEntry(obj: [String: Any]) -> Bool {
+        // Primary detection: Vertex AI message IDs and request IDs have "vrtx" prefix
+        // e.g., "msg_vrtx_0154LUXjFVzQGUca3yK2RUeo", "req_vrtx_011CWjK86SWeFuXqZKUtgB1H"
+        if let message = obj["message"] as? [String: Any],
+           let messageId = message["id"] as? String,
+           messageId.contains("_vrtx_")
+        {
+            return true
+        }
+        if let requestId = obj["requestId"] as? String,
+           requestId.contains("_vrtx_")
+        {
+            return true
+        }
+
+        // Secondary detection: model name with @ version separator (Vertex AI format)
+        // e.g., "claude-opus-4-5@20251101" vs "claude-opus-4-5-20251101"
+        if let message = obj["message"] as? [String: Any],
+           let model = message["model"] as? String,
+           Self.modelNameLooksVertex(model)
+        {
+            return true
+        }
+
+        // Fallback: check for explicit Vertex AI metadata fields
+        var candidates: [[String: Any]] = [obj]
+        if let metadata = obj["metadata"] as? [String: Any] { candidates.append(metadata) }
+        if let request = obj["request"] as? [String: Any] { candidates.append(request) }
+        if let context = obj["context"] as? [String: Any] { candidates.append(context) }
+        if let client = obj["client"] as? [String: Any] { candidates.append(client) }
+        if let message = obj["message"] as? [String: Any] {
+            if let metadata = message["metadata"] as? [String: Any] { candidates.append(metadata) }
+            if let request = message["request"] as? [String: Any] { candidates.append(request) }
+        }
+
+        for candidate in candidates {
+            if Self.containsVertexAIMetadata(in: candidate) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    /// Detects Vertex AI model names by format.
+    /// Vertex AI uses @ for version separator: claude-opus-4-5@20251101
+    /// Anthropic API uses -: claude-opus-4-5-20251101
+    private static func modelNameLooksVertex(_ model: String) -> Bool {
+        // Vertex AI model format: claude-{variant}@{version}
+        // Examples: claude-opus-4-5@20251101, claude-sonnet-4-5@20250514
+        guard model.hasPrefix("claude-") else { return false }
+        return model.contains("@")
+    }
+
+    private static func containsVertexAIMetadata(in dict: [String: Any]) -> Bool {
+        for (key, value) in dict {
+            let lowerKey = key.lowercased()
+            if lowerKey.contains("vertex") || lowerKey.contains("gcp") {
+                return true
+            }
+            if Self.vertexProviderKeys.contains(lowerKey),
+               let text = value as? String,
+               Self.stringLooksVertex(text)
+            {
+                return true
+            }
+            if let nested = value as? [String: Any] {
+                if Self.containsVertexAIMetadata(in: nested) { return true }
+            } else if let array = value as? [Any] {
+                if Self.containsVertexAIMetadata(in: array) { return true }
+            }
+        }
+
+        return false
+    }
+
+    private static func containsVertexAIMetadata(in array: [Any]) -> Bool {
+        for entry in array {
+            if let dict = entry as? [String: Any] {
+                if Self.containsVertexAIMetadata(in: dict) { return true }
+            }
+        }
+
+        return false
+    }
+
+    private static func stringLooksVertex(_ value: String) -> Bool {
+        value.lowercased().contains("vertex")
+    }
+
     private static func claudeRootCandidates(for rootPath: String) -> [String] {
         if rootPath.hasPrefix("/var/") {
             return ["/private" + rootPath, rootPath]
@@ -162,6 +281,7 @@ extension CostUsageScanner {
         size: Int64,
         mtimeMs: Int64,
         range: CostUsageDayRange,
+        providerFilter: ClaudeLogProviderFilter,
         state: ClaudeScanState)
     {
         let path = url.path
@@ -181,6 +301,7 @@ extension CostUsageScanner {
                 let delta = Self.parseClaudeFile(
                     fileURL: url,
                     range: range,
+                    providerFilter: providerFilter,
                     startOffset: startOffset)
                 if !delta.days.isEmpty {
                     Self.applyFileDays(cache: &state.cache, fileDays: delta.days, sign: 1)
@@ -199,7 +320,10 @@ extension CostUsageScanner {
             Self.applyFileDays(cache: &state.cache, fileDays: cached.days, sign: -1)
         }
 
-        let parsed = Self.parseClaudeFile(fileURL: url, range: range)
+        let parsed = Self.parseClaudeFile(
+            fileURL: url,
+            range: range,
+            providerFilter: providerFilter)
         let usage = Self.makeFileUsage(
             mtimeUnixMs: mtimeMs,
             size: size,
@@ -212,6 +336,7 @@ extension CostUsageScanner {
     private static func scanClaudeRoot(
         root: URL,
         range: CostUsageDayRange,
+        providerFilter: ClaudeLogProviderFilter,
         state: ClaudeScanState)
     {
         let rootPath = root.path
@@ -268,6 +393,7 @@ extension CostUsageScanner {
                     size: size,
                     mtimeMs: mtimeMs,
                     range: range,
+                    providerFilter: providerFilter,
                     state: state)
             }
             return
@@ -299,6 +425,7 @@ extension CostUsageScanner {
                 size: size,
                 mtimeMs: mtimeMs,
                 range: range,
+                providerFilter: providerFilter,
                 state: state)
         }
 
@@ -310,14 +437,20 @@ extension CostUsageScanner {
         }
     }
 
-    static func loadClaudeDaily(range: CostUsageDayRange, now: Date, options: Options) -> CostUsageDailyReport {
-        var cache = CostUsageCacheIO.load(provider: .claude, cacheRoot: options.cacheRoot)
+    static func loadClaudeDaily(
+        provider: UsageProvider,
+        range: CostUsageDayRange,
+        now: Date,
+        options: Options) -> CostUsageDailyReport
+    {
+        var cache = CostUsageCacheIO.load(provider: provider, cacheRoot: options.cacheRoot)
         let nowMs = Int64(now.timeIntervalSince1970 * 1000)
 
         let refreshMs = Int64(max(0, options.refreshMinIntervalSeconds) * 1000)
         let shouldRefresh = refreshMs == 0 || cache.lastScanUnixMs == 0 || nowMs - cache.lastScanUnixMs > refreshMs
 
         let roots = self.defaultClaudeProjectsRoots(options: options)
+        let providerFilter = options.claudeLogProviderFilter
 
         var touched: Set<String> = []
 
@@ -331,6 +464,7 @@ extension CostUsageScanner {
                 Self.scanClaudeRoot(
                     root: root,
                     range: range,
+                    providerFilter: providerFilter,
                     state: scanState)
             }
 
@@ -347,7 +481,7 @@ extension CostUsageScanner {
 
             Self.pruneDays(cache: &cache, sinceKey: range.scanSinceKey, untilKey: range.scanUntilKey)
             cache.lastScanUnixMs = nowMs
-            CostUsageCacheIO.save(provider: .claude, cache: cache, cacheRoot: options.cacheRoot)
+            CostUsageCacheIO.save(provider: provider, cache: cache, cacheRoot: options.cacheRoot)
         }
 
         return Self.buildClaudeReportFromCache(cache: cache, range: range)
