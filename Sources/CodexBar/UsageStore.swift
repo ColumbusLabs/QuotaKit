@@ -61,14 +61,33 @@ extension UsageStore {
             _ = self.settings.mergeIcons
             _ = self.settings.selectedMenuProvider
             _ = self.settings.debugLoadingPattern
+            _ = self.settings.augmentCookieSource
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.observeSettingsChanges()
                 self.startTimer()
+                self.restartAugmentKeepaliveIfNeeded()
                 await self.refresh()
             }
         }
+    }
+
+    private func restartAugmentKeepaliveIfNeeded() {
+        #if os(macOS)
+        let shouldRun = self.isEnabled(.augment)
+        let isRunning = self.augmentKeepalive != nil
+
+        if shouldRun, !isRunning {
+            self.startAugmentKeepalive()
+        } else if !shouldRun, isRunning {
+            Task { @MainActor in
+                self.augmentKeepalive?.stop()
+                self.augmentKeepalive = nil
+                print("[CodexBar] Augment session keepalive stopped (provider disabled)")
+            }
+        }
+        #endif
     }
 }
 
@@ -251,6 +270,7 @@ final class UsageStore {
     @ObservationIgnored private(set) var lastTokenFetchAt: [UsageProvider: Date] = [:]
     @ObservationIgnored private let tokenFetchTTL: TimeInterval = 60 * 60
     @ObservationIgnored private let tokenFetchTimeout: TimeInterval = 10 * 60
+    @ObservationIgnored private var augmentKeepalive: AugmentSessionKeepalive?
 
     init(
         fetcher: UsageFetcher,
@@ -286,6 +306,7 @@ final class UsageStore {
         Task { await self.refresh() }
         self.startTimer()
         self.startTokenTimer()
+        self.startAugmentKeepalive()
     }
 
     /// Returns the login method (plan type) for the specified provider, if available.
@@ -532,6 +553,31 @@ final class UsageStore {
         self.timerTask?.cancel()
         self.tokenTimerTask?.cancel()
         self.tokenRefreshSequenceTask?.cancel()
+        // Note: augmentKeepalive.stop() is @MainActor, can't call from deinit
+        // The timer task will be cancelled when augmentKeepalive is deallocated
+    }
+
+    private func startAugmentKeepalive() {
+        #if os(macOS)
+        print("[CodexBar] 🔍 Checking if Augment keepalive should start...")
+        print("[CodexBar]   - Augment enabled: \(self.isEnabled(.augment))")
+        print("[CodexBar]   - Augment available: \(self.isProviderAvailable(.augment))")
+
+        // Only start keepalive if Augment is enabled
+        guard self.isEnabled(.augment) else {
+            print("[CodexBar] ⚠️ Augment keepalive NOT started - provider is disabled")
+            print("[CodexBar]   Tip: Enable Augment in Settings to activate automatic session management")
+            return
+        }
+
+        let logger: (String) -> Void = { message in
+            print("[CodexBar] \(message)")
+        }
+
+        self.augmentKeepalive = AugmentSessionKeepalive(logger: logger)
+        self.augmentKeepalive?.start()
+        print("[CodexBar] ✅ Augment session keepalive STARTED successfully")
+        #endif
     }
 
     private func refreshProvider(_ provider: UsageProvider) async {
