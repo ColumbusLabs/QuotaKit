@@ -55,13 +55,8 @@ public enum AugmentCookieImporter {
                     if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
                         log("✓ Found Augment session cookies in \(source.label)")
                         return SessionInfo(cookies: httpCookies, sourceLabel: source.label)
-                    } else if !httpCookies.isEmpty {
-                        // If we have ANY cookies for augmentcode.com, try using them
-                        // This is more permissive and will help us discover what cookies are actually needed
-                        log("⚠️ No known session cookies, but found \(httpCookies.count) cookies - attempting to use them")
-                        return SessionInfo(cookies: httpCookies, sourceLabel: source.label)
                     } else {
-                        log("✗ \(source.label) has no cookies for augmentcode.com")
+                        log("✗ \(source.label) has cookies but no valid Augment session cookie present")
                     }
                 }
             } catch {
@@ -560,5 +555,4 @@ extension AugmentStatusSnapshot {
 }
 
 #endif
-
 
