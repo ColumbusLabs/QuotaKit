@@ -84,5 +84,189 @@ final class AugmentStatusProbeTests: XCTestCase {
             output.contains("Credits Balance") || output.contains("Probe Failed"),
             "Should contain credits information or failure message")
     }
+
+    // MARK: - Cookie Domain Filtering Tests
+
+    func test_cookieDomainMatching_exactMatch() {
+        // Given: A session with a cookie that has exact domain match
+        let cookie = HTTPCookie(properties: [
+            .domain: "app.augmentcode.com",
+            .path: "/",
+            .name: "session",
+            .value: "test123"
+        ])!
+        let session = AugmentCookieImporter.SessionInfo(
+            cookies: [cookie],
+            sourceLabel: "Test"
+        )
+        let targetURL = URL(string: "https://app.augmentcode.com/api/credits")!
+
+        // When: We get the cookie header for the target URL
+        let cookieHeader = session.cookieHeader(for: targetURL)
+
+        // Then: It should include the cookie
+        XCTAssertEqual(cookieHeader, "session=test123", "Cookie with exact domain should match")
+    }
+
+    func test_cookieDomainMatching_parentDomain() {
+        // Given: A session with a cookie that has parent domain
+        let cookie = HTTPCookie(properties: [
+            .domain: "augmentcode.com",
+            .path: "/",
+            .name: "session",
+            .value: "test123"
+        ])!
+        let session = AugmentCookieImporter.SessionInfo(
+            cookies: [cookie],
+            sourceLabel: "Test"
+        )
+        let targetURL = URL(string: "https://app.augmentcode.com/api/credits")!
+
+        // When: We get the cookie header for the target URL
+        let cookieHeader = session.cookieHeader(for: targetURL)
+
+        // Then: It should include the cookie (parent domain matches subdomain)
+        XCTAssertEqual(cookieHeader, "session=test123", "Cookie with parent domain should match subdomain")
+    }
+
+    func test_cookieDomainMatching_wildcardDomain() {
+        // Given: A session with a cookie that has wildcard domain
+        let cookie = HTTPCookie(properties: [
+            .domain: ".augmentcode.com",
+            .path: "/",
+            .name: "session",
+            .value: "test123"
+        ])!
+        let session = AugmentCookieImporter.SessionInfo(
+            cookies: [cookie],
+            sourceLabel: "Test"
+        )
+        let targetURL = URL(string: "https://app.augmentcode.com/api/credits")!
+
+        // When: We get the cookie header for the target URL
+        let cookieHeader = session.cookieHeader(for: targetURL)
+
+        // Then: It should include the cookie
+        XCTAssertEqual(cookieHeader, "session=test123", "Cookie with wildcard domain should match")
+    }
+
+    func test_cookieDomainMatching_wrongDomain() {
+        // Given: A session with a cookie from a different subdomain
+        let cookie = HTTPCookie(properties: [
+            .domain: "auth.augmentcode.com",
+            .path: "/",
+            .name: "auth_token",
+            .value: "test123"
+        ])!
+        let session = AugmentCookieImporter.SessionInfo(
+            cookies: [cookie],
+            sourceLabel: "Test"
+        )
+        let targetURL = URL(string: "https://app.augmentcode.com/api/credits")!
+
+        // When: We get the cookie header for the target URL
+        let cookieHeader = session.cookieHeader(for: targetURL)
+
+        // Then: It should NOT include the cookie
+        XCTAssertTrue(cookieHeader.isEmpty, "Cookie from different subdomain should not match")
+    }
+
+    func test_cookieDomainMatching_differentBaseDomain() {
+        // Given: A session with a cookie from a completely different domain
+        let cookie = HTTPCookie(properties: [
+            .domain: "example.com",
+            .path: "/",
+            .name: "session",
+            .value: "test123"
+        ])!
+        let session = AugmentCookieImporter.SessionInfo(
+            cookies: [cookie],
+            sourceLabel: "Test"
+        )
+        let targetURL = URL(string: "https://app.augmentcode.com/api/credits")!
+
+        // When: We get the cookie header for the target URL
+        let cookieHeader = session.cookieHeader(for: targetURL)
+
+        // Then: It should NOT include the cookie
+        XCTAssertTrue(cookieHeader.isEmpty, "Cookie from different base domain should not match")
+    }
+
+    func test_cookieHeader_filtersCorrectly() {
+        // Given: A session with multiple cookies from different domains
+        let cookies = [
+            HTTPCookie(properties: [
+                .domain: "app.augmentcode.com",
+                .path: "/",
+                .name: "session",
+                .value: "valid1"
+            ])!,
+            HTTPCookie(properties: [
+                .domain: ".augmentcode.com",
+                .path: "/",
+                .name: "_session",
+                .value: "valid2"
+            ])!,
+            HTTPCookie(properties: [
+                .domain: "auth.augmentcode.com",
+                .path: "/",
+                .name: "auth_token",
+                .value: "invalid1"
+            ])!,
+            HTTPCookie(properties: [
+                .domain: "billing.augmentcode.com",
+                .path: "/",
+                .name: "billing_session",
+                .value: "invalid2"
+            ])!
+        ]
+
+        let session = AugmentCookieImporter.SessionInfo(
+            cookies: cookies,
+            sourceLabel: "Test"
+        )
+
+        let targetURL = URL(string: "https://app.augmentcode.com/api/credits")!
+
+        // When: We get the cookie header for the target URL
+        let cookieHeader = session.cookieHeader(for: targetURL)
+
+        // Then: It should only include cookies valid for app.augmentcode.com
+        XCTAssertTrue(cookieHeader.contains("session=valid1"), "Should include exact domain match")
+        XCTAssertTrue(cookieHeader.contains("_session=valid2"), "Should include wildcard domain match")
+        XCTAssertFalse(cookieHeader.contains("auth_token"), "Should NOT include auth subdomain cookie")
+        XCTAssertFalse(cookieHeader.contains("billing_session"), "Should NOT include billing subdomain cookie")
+    }
+
+    func test_cookieHeader_emptyWhenNoCookiesMatch() {
+        // Given: A session with cookies that don't match the target domain
+        let cookies = [
+            HTTPCookie(properties: [
+                .domain: "auth.augmentcode.com",
+                .path: "/",
+                .name: "auth_token",
+                .value: "test"
+            ])!,
+            HTTPCookie(properties: [
+                .domain: "example.com",
+                .path: "/",
+                .name: "other",
+                .value: "test"
+            ])!
+        ]
+
+        let session = AugmentCookieImporter.SessionInfo(
+            cookies: cookies,
+            sourceLabel: "Test"
+        )
+
+        let targetURL = URL(string: "https://app.augmentcode.com/api/credits")!
+
+        // When: We get the cookie header for the target URL
+        let cookieHeader = session.cookieHeader(for: targetURL)
+
+        // Then: It should be empty
+        XCTAssertTrue(cookieHeader.isEmpty, "Should return empty string when no cookies match")
+    }
 }
 

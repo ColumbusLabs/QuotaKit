@@ -39,6 +39,35 @@ public enum AugmentCookieImporter {
         public var cookieHeader: String {
             self.cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
         }
+
+        /// Returns a cookie header filtered to only include cookies valid for the given URL
+        public func cookieHeader(for url: URL) -> String {
+            guard let host = url.host else { return "" }
+
+            let validCookies = self.cookies.filter { cookie in
+                // Cookie domain matching follows RFC 6265 semantics:
+                // 1. Exact match: "app.augmentcode.com" matches "app.augmentcode.com"
+                // 2. Parent domain: "augmentcode.com" matches "app.augmentcode.com", "auth.augmentcode.com", etc.
+                // 3. Wildcard domain: ".augmentcode.com" matches "app.augmentcode.com", "auth.augmentcode.com", etc.
+                let cookieDomain = cookie.domain
+
+                if cookieDomain.hasPrefix(".") {
+                    // Wildcard domain (e.g., ".augmentcode.com")
+                    let domainWithoutDot = String(cookieDomain.dropFirst())
+                    return host == domainWithoutDot || host.hasSuffix("." + domainWithoutDot)
+                } else if host == cookieDomain {
+                    // Exact match (e.g., "app.augmentcode.com" == "app.augmentcode.com")
+                    return true
+                } else if host.hasSuffix("." + cookieDomain) {
+                    // Parent domain match (e.g., "app.augmentcode.com" ends with ".augmentcode.com")
+                    return true
+                } else {
+                    return false
+                }
+            }
+
+            return validCookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
+        }
     }
 
     /// Attempts to import Augment cookies using the standard browser import order.
@@ -64,20 +93,6 @@ public enum AugmentCookieImporter {
                     let matchingCookies = httpCookies.filter { Self.sessionCookieNames.contains($0.name) }
                     if !matchingCookies.isEmpty {
                         log("✓ Found known Augment session cookies in \(source.label): \(matchingCookies.map { $0.name }.joined(separator: ", "))")
-
-                        // Log detailed cookie info for debugging
-                        for cookie in matchingCookies {
-                            let valuePreview = String(cookie.value.prefix(20)) + (cookie.value.count > 20 ? "..." : "")
-                            let expiresInfo = cookie.expiresDate.map { date in
-                                let now = Date()
-                                if date < now {
-                                    return "EXPIRED on \(date)"
-                                } else {
-                                    return "expires \(date)"
-                                }
-                            } ?? "session cookie"
-                            log("  - \(cookie.name): \(valuePreview) | domain=\(cookie.domain) | \(expiresInfo)")
-                        }
 
                         return SessionInfo(cookies: httpCookies, sourceLabel: source.label)
                     } else if !httpCookies.isEmpty {
@@ -258,7 +273,7 @@ public enum AugmentStatusProbeError: Error, LocalizedError {
         case .sessionExpired:
             "Your Augment session has expired. Please log in again at app.augmentcode.com"
         case .browserSessionExpired:
-            "Your Augment session has expired in your browser. Please visit app.augmentcode.com to refresh it."
+            "Your Augment session has expired. Try 'Force Refresh Session' below, or visit app.augmentcode.com to log back in."
         case let .networkError(message):
             "Network error: \(message)"
         case let .parseFailed(message):
@@ -359,7 +374,7 @@ public struct AugmentStatusProbe: Sendable {
 
     /// Fetch Augment usage with manual cookie header (for debugging).
     public func fetchWithManualCookies(_ cookieHeader: String) async throws -> AugmentStatusSnapshot {
-        try await self.fetchWithCookieHeader(cookieHeader)
+        try await self.fetchWithCookieHeader(cookieHeader, session: nil)
     }
 
     /// Fetch Augment usage using browser cookies with automatic retry on session expiration.
@@ -377,22 +392,26 @@ public struct AugmentStatusProbe: Sendable {
             print("[CodexBar:Augment] \(msg)")  // Also print to console for debugging
         }
 
+        let session: AugmentCookieImporter.SessionInfo?
         let cookieHeader: String
         let initialSource: String
+
         if let override = cookieHeaderOverride {
+            session = nil
             cookieHeader = override
             initialSource = "manual override"
             log("Using manual cookie override")
         } else {
-            let session = try AugmentCookieImporter.importSession(logger: logger)
-            cookieHeader = session.cookieHeader
-            initialSource = session.sourceLabel
+            let importedSession = try AugmentCookieImporter.importSession(logger: logger)
+            session = importedSession
+            cookieHeader = importedSession.cookieHeader
+            initialSource = importedSession.sourceLabel
             log("Imported cookies from \(initialSource)")
         }
 
         do {
             log("Attempting API request with cookies from \(initialSource)...")
-            return try await self.fetchWithCookieHeader(cookieHeader)
+            return try await self.fetchWithCookieHeader(cookieHeader, session: session)
         } catch AugmentStatusProbeError.sessionExpired {
             // Session expired - automatically retry with fresh cookies from browser
             log("⚠️ Session expired (HTTP 401), attempting automatic cookie refresh...")
@@ -410,7 +429,7 @@ public struct AugmentStatusProbe: Sendable {
 
             // Retry with fresh cookies
             do {
-                let result = try await self.fetchWithCookieHeader(freshSession.cookieHeader)
+                let result = try await self.fetchWithCookieHeader(freshSession.cookieHeader, session: freshSession)
                 log("✅ Retry succeeded! Session recovered.")
                 return result
             } catch AugmentStatusProbeError.sessionExpired {
@@ -423,10 +442,10 @@ public struct AugmentStatusProbe: Sendable {
         }
     }
 
-    private func fetchWithCookieHeader(_ cookieHeader: String) async throws -> AugmentStatusSnapshot {
+    private func fetchWithCookieHeader(_ cookieHeader: String, session: AugmentCookieImporter.SessionInfo?) async throws -> AugmentStatusSnapshot {
         // Fetch both credits and subscription info in parallel
-        async let creditsResult = self.fetchCredits(cookieHeader: cookieHeader)
-        async let subscriptionResult = self.fetchSubscription(cookieHeader: cookieHeader)
+        async let creditsResult = self.fetchCredits(cookieHeader: cookieHeader, session: session)
+        async let subscriptionResult = self.fetchSubscription(cookieHeader: cookieHeader, session: session)
 
         let ((credits, creditsJSON), (subscription, subscriptionJSON)) = try await (creditsResult, subscriptionResult)
 
@@ -453,11 +472,20 @@ public struct AugmentStatusProbe: Sendable {
             rawJSON: combinedJSON)
     }
 
-    private func fetchCredits(cookieHeader: String) async throws -> (AugmentCreditsResponse, String) {
+    private func fetchCredits(cookieHeader: String, session: AugmentCookieImporter.SessionInfo?) async throws -> (AugmentCreditsResponse, String) {
         let url = self.baseURL.appendingPathComponent("/api/credits")
         var request = URLRequest(url: url)
         request.timeoutInterval = self.timeout
-        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+
+        // Use domain-filtered cookies if we have a session, otherwise use the provided header
+        let finalCookieHeader: String
+        if let session = session {
+            finalCookieHeader = session.cookieHeader(for: url)
+        } else {
+            finalCookieHeader = cookieHeader
+        }
+
+        request.setValue(finalCookieHeader, forHTTPHeaderField: "Cookie")
         request.setValue("*/*", forHTTPHeaderField: "Accept")
         request.setValue("en-US,en;q=0.9", forHTTPHeaderField: "Accept-Language")
 
@@ -467,8 +495,11 @@ public struct AugmentStatusProbe: Sendable {
             throw AugmentStatusProbeError.networkError("Invalid response type")
         }
 
+        print("[CodexBar:Augment] 📥 Received response: HTTP \(httpResponse.statusCode)")
+
         // Check for session expiration (HTTP 401)
         if httpResponse.statusCode == 401 {
+            print("[CodexBar:Augment] ❌ Session expired (HTTP 401)")
             throw AugmentStatusProbeError.sessionExpired
         }
 
@@ -489,11 +520,20 @@ public struct AugmentStatusProbe: Sendable {
         }
     }
 
-    private func fetchSubscription(cookieHeader: String) async throws -> (AugmentSubscriptionResponse, String) {
+    private func fetchSubscription(cookieHeader: String, session: AugmentCookieImporter.SessionInfo?) async throws -> (AugmentSubscriptionResponse, String) {
         let url = self.baseURL.appendingPathComponent("/api/subscription")
         var request = URLRequest(url: url)
         request.timeoutInterval = self.timeout
-        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+
+        // Use domain-filtered cookies if we have a session, otherwise use the provided header
+        let finalCookieHeader: String
+        if let session = session {
+            finalCookieHeader = session.cookieHeader(for: url)
+        } else {
+            finalCookieHeader = cookieHeader
+        }
+
+        request.setValue(finalCookieHeader, forHTTPHeaderField: "Cookie")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         let (data, response) = try await URLSession.shared.data(for: request)
