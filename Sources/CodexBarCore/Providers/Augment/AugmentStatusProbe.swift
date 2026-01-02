@@ -208,6 +208,7 @@ public struct AugmentStatusSnapshot: Sendable {
 
 public enum AugmentStatusProbeError: Error, LocalizedError {
     case noSessionCookie
+    case sessionExpired
     case networkError(String)
     case parseFailed(String)
     case noPortalUrl
@@ -218,6 +219,8 @@ public enum AugmentStatusProbeError: Error, LocalizedError {
         switch self {
         case .noSessionCookie:
             "No Augment session cookie found. Please log in to app.augmentcode.com in your browser."
+        case .sessionExpired:
+            "Your Augment session has expired. Please log in again at app.augmentcode.com"
         case let .networkError(message):
             "Network error: \(message)"
         case let .parseFailed(message):
@@ -380,6 +383,11 @@ public struct AugmentStatusProbe: Sendable {
             throw AugmentStatusProbeError.networkError("Invalid response type")
         }
 
+        // Check for session expiration (HTTP 401)
+        if httpResponse.statusCode == 401 {
+            throw AugmentStatusProbeError.sessionExpired
+        }
+
         guard httpResponse.statusCode == 200 else {
             let rawJSON = String(data: data, encoding: .utf8) ?? "<binary>"
             throw AugmentStatusProbeError.networkError("HTTP \(httpResponse.statusCode): \(rawJSON.prefix(200))")
@@ -408,6 +416,11 @@ public struct AugmentStatusProbe: Sendable {
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw AugmentStatusProbeError.networkError("Invalid response type")
+        }
+
+        // Check for session expiration (HTTP 401)
+        if httpResponse.statusCode == 401 {
+            throw AugmentStatusProbeError.sessionExpired
         }
 
         guard httpResponse.statusCode == 200 else {

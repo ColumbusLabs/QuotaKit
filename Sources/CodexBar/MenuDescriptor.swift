@@ -273,12 +273,14 @@ struct MenuDescriptor {
             entries.append(.action(accountLabel, accountAction))
         }
 
-        // Show "Log in to Augment" if there's a cookie error
+        // Show "Refresh Cookies" if there's a session expired error, or "Log in to Augment" if no cookies found
         if let targetProvider, targetProvider == .augment {
-            if let error = store.error(for: .augment),
-               error.contains("No Augment session cookie found")
-            {
-                entries.append(.action("Log in to Augment", .loginToProvider(url: "https://app.augmentcode.com")))
+            if let error = store.error(for: .augment) {
+                if error.contains("session has expired") {
+                    entries.append(.action("Refresh Cookies", .refresh))
+                } else if error.contains("No Augment session cookie found") {
+                    entries.append(.action("Log in to Augment", .loginToProvider(url: "https://app.augmentcode.com")))
+                }
             }
         }
 
