@@ -781,7 +781,7 @@ extension StatusItemController {
     }
 
     private func makeCostHistorySubmenu(provider: UsageProvider) -> NSMenu? {
-        guard provider == .codex || provider == .claude else { return nil }
+        guard provider == .codex || provider == .claude || provider == .vertexai else { return nil }
         let width = Self.menuCardBaseWidth
         guard let tokenSnapshot = self.store.tokenSnapshot(for: provider) else { return nil }
         guard !tokenSnapshot.daily.isEmpty else { return nil }
@@ -850,7 +850,7 @@ extension StatusItemController {
             dashboardError = self.store.lastOpenAIDashboardError
             tokenSnapshot = self.store.tokenSnapshot(for: target)
             tokenError = self.store.tokenError(for: target)
-        } else if target == .claude {
+        } else if target == .claude || target == .vertexai {
             credits = nil
             creditsError = nil
             dashboard = nil

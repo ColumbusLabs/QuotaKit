@@ -6,9 +6,16 @@ import Testing
 @MainActor
 @Suite
 struct StatusMenuTests {
+    private func makeSettings() -> SettingsStore {
+        let suite = "StatusMenuTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        return SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
+    }
+
     @Test
     func remembersProviderWhenMenuOpens() {
-        let settings = SettingsStore(zaiTokenStore: NoopZaiTokenStore())
+        let settings = self.makeSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -50,7 +57,7 @@ struct StatusMenuTests {
 
     @Test
     func hidesOpenAIWebSubmenusWhenNoHistory() {
-        let settings = SettingsStore(zaiTokenStore: NoopZaiTokenStore())
+        let settings = self.makeSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -153,7 +160,7 @@ struct StatusMenuTests {
 
     @Test
     func showsCreditsBeforeCostInCodexMenuCardSections() {
-        let settings = SettingsStore(zaiTokenStore: NoopZaiTokenStore())
+        let settings = self.makeSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -218,7 +225,7 @@ struct StatusMenuTests {
 
     @Test
     func showsExtraUsageForClaudeWhenUsingMenuCardSections() {
-        let settings = SettingsStore(zaiTokenStore: NoopZaiTokenStore())
+        let settings = self.makeSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -286,5 +293,58 @@ struct StatusMenuTests {
         controller.menuWillOpen(menu)
         let ids = menu.items.compactMap { $0.representedObject as? String }
         #expect(ids.contains("menuCardExtraUsage"))
+    }
+
+    @Test
+    func showsVertexCostWhenUsageErrorPresent() {
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .vertexai
+        settings.costUsageEnabled = true
+
+        let registry = ProviderRegistry.shared
+        if let vertexMeta = registry.metadata[.vertexai] {
+            settings.setProviderEnabled(provider: .vertexai, metadata: vertexMeta, enabled: true)
+        }
+        if let codexMeta = registry.metadata[.codex] {
+            settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: false)
+        }
+        if let claudeMeta = registry.metadata[.claude] {
+            settings.setProviderEnabled(provider: .claude, metadata: claudeMeta, enabled: false)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, settings: settings)
+        store._setErrorForTesting("No Vertex AI usage data found for the current project.", provider: .vertexai)
+        store._setTokenSnapshotForTesting(CostUsageTokenSnapshot(
+            sessionTokens: 10,
+            sessionCostUSD: 0.01,
+            last30DaysTokens: 100,
+            last30DaysCostUSD: 1.0,
+            daily: [
+                CostUsageDailyReport.Entry(
+                    date: "2025-12-23",
+                    inputTokens: nil,
+                    outputTokens: nil,
+                    totalTokens: 100,
+                    costUSD: 1.0,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil),
+            ],
+            updatedAt: Date()), provider: .vertexai)
+
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection())
+
+        let menu = controller.makeMenu()
+        controller.menuWillOpen(menu)
+        let ids = menu.items.compactMap { $0.representedObject as? String }
+        #expect(ids.contains("menuCardCost"))
     }
 }

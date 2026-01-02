@@ -1,11 +1,18 @@
 import Foundation
 
 enum CostUsageScanner {
+    enum ClaudeLogProviderFilter: Sendable {
+        case all
+        case vertexAIOnly
+        case excludeVertexAI
+    }
+
     struct Options: Sendable {
         var codexSessionsRoot: URL?
         var claudeProjectsRoots: [URL]?
         var cacheRoot: URL?
         var refreshMinIntervalSeconds: TimeInterval = 60
+        var claudeLogProviderFilter: ClaudeLogProviderFilter = .all
         // Force a full rescan, ignoring per-file cache and incremental offsets.
         var forceRescan: Bool = false
 
@@ -13,11 +20,13 @@ enum CostUsageScanner {
             codexSessionsRoot: URL? = nil,
             claudeProjectsRoots: [URL]? = nil,
             cacheRoot: URL? = nil,
+            claudeLogProviderFilter: ClaudeLogProviderFilter = .all,
             forceRescan: Bool = false)
         {
             self.codexSessionsRoot = codexSessionsRoot
             self.claudeProjectsRoots = claudeProjectsRoots
             self.cacheRoot = cacheRoot
+            self.claudeLogProviderFilter = claudeLogProviderFilter
             self.forceRescan = forceRescan
         }
     }
@@ -47,7 +56,7 @@ enum CostUsageScanner {
         case .codex:
             return self.loadCodexDaily(range: range, now: now, options: options)
         case .claude:
-            return self.loadClaudeDaily(range: range, now: now, options: options)
+            return self.loadClaudeDaily(provider: .claude, range: range, now: now, options: options)
         case .zai:
             return CostUsageDailyReport(data: [], summary: nil)
         case .gemini:
@@ -63,10 +72,11 @@ enum CostUsageScanner {
         case .minimax:
             return CostUsageDailyReport(data: [], summary: nil)
         case .vertexai:
-            // Vertex AI uses the same Claude logs as the Claude provider.
-            // We don't scan here to avoid double-counting; users should
-            // enable Claude cost tracking instead.
-            return CostUsageDailyReport(data: [], summary: nil)
+            var filtered = options
+            if filtered.claudeLogProviderFilter == .all {
+                filtered.claudeLogProviderFilter = .vertexAIOnly
+            }
+            return self.loadClaudeDaily(provider: .vertexai, range: range, now: now, options: filtered)
         case .kiro:
             return CostUsageDailyReport(data: [], summary: nil)
         }

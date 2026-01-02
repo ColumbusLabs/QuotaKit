@@ -29,8 +29,8 @@ public enum VertexAIProviderDescriptor {
                 iconResourceName: "ProviderIcon-vertexai",
                 color: ProviderColor(red: 66 / 255, green: 133 / 255, blue: 244 / 255)),
             tokenCost: ProviderTokenCostConfig(
-                supportsTokenCost: false,
-                noDataMessage: { "Vertex AI shares usage logs with Claude. Enable Claude cost tracking to see token costs." }),
+                supportsTokenCost: true,
+                noDataMessage: { "No Vertex AI cost data found in Claude logs. Ensure entries include Vertex metadata." }),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .oauth],
                 pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [VertexAIOAuthFetchStrategy()] })),
@@ -57,9 +57,17 @@ struct VertexAIOAuthFetchStrategy: ProviderFetchStrategy {
             try VertexAIOAuthCredentialsStore.save(credentials)
         }
 
-        let usage = try await VertexAIUsageFetcher.fetchUsage(
-            accessToken: credentials.accessToken,
-            projectId: credentials.projectId)
+        // Fetch quota usage from Cloud Monitoring. If no data is found (e.g., no recent
+        // Vertex AI requests), return an empty snapshot so token costs can still display.
+        let usage: VertexAIUsageResponse?
+        do {
+            usage = try await VertexAIUsageFetcher.fetchUsage(
+                accessToken: credentials.accessToken,
+                projectId: credentials.projectId)
+        } catch VertexAIFetchError.noData {
+            // No quota data is fine - token costs from local logs can still be shown.
+            usage = nil
+        }
 
         return self.makeResult(
             usage: Self.mapUsage(usage, credentials: credentials),
@@ -80,11 +88,11 @@ struct VertexAIOAuthFetchStrategy: ProviderFetchStrategy {
     }
 
     private static func mapUsage(
-        _ response: VertexAIUsageResponse,
+        _ response: VertexAIUsageResponse?,
         credentials: VertexAIOAuthCredentials) -> UsageSnapshot
     {
         // Token cost is fetched separately via CostUsageScanner from local Claude logs.
-        // We don't show the quota usage percentage as it's not relevant for cost tracking.
+        // Quota usage from Cloud Monitoring is optional - we still show token costs if unavailable.
 
         let identity = ProviderIdentitySnapshot(
             providerID: .vertexai,

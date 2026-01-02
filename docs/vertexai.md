@@ -30,14 +30,28 @@ read_when:
 
 ## Token Cost Tracking
 
-Vertex AI Claude usage is logged to the same local files as direct Anthropic API usage (`~/.claude/projects/`). To avoid double-counting, **cost display is handled by the Claude provider**.
+Vertex AI Claude usage is logged to the same local files as direct Anthropic API usage (`~/.claude/projects/`). CodexBar identifies Vertex AI entries using two methods:
+
+### Detection Methods
+
+1. **Model name format** (primary): Vertex AI uses `@` as version separator
+   - Vertex AI: `claude-opus-4-5@20251101`
+   - Anthropic API: `claude-opus-4-5-20251101`
+
+2. **Metadata fields** (fallback): Entries with provider metadata
+   - `metadata.provider: "vertexai"`
+   - Keys containing `vertex` or `gcp`
+
+### Requirements
 
 **To see Vertex AI token costs:**
-1. Enable the **Claude** provider in Settings → Providers
+1. Enable the **Vertex AI** provider in Settings → Providers
 2. Enable "Show cost summary" in Settings → General
-3. The Claude cost display includes all Claude model usage (both direct API and Vertex AI)
+3. Use Claude Code with Vertex AI (your `cv` alias sets `ANTHROPIC_MODEL=claude-opus-4-5@20251101`)
+
+**Note:** The model name must include the `@` format for detection to work. If Claude Code normalizes model names to `-` format when logging, the entries won't be distinguishable from direct Anthropic API usage.
 
 ## Troubleshooting
 - **No quota data**: Ensure Cloud Monitoring API access in the selected project.
-- **No cost in Claude**: Check that `~/.claude/projects/` exists and contains `.jsonl` files from Claude Code usage.
+- **No cost data**: Check that `~/.claude/projects/` exists and contains `.jsonl` files from Claude Code usage with Vertex AI metadata.
 - **Auth issues**: Re-run `gcloud auth application-default login`.

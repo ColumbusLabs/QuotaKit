@@ -138,6 +138,153 @@ struct CostUsageScannerTests {
     }
 
     @Test
+    func vertexDailyReportFiltersClaudeLogs() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2025, month: 12, day: 20)
+        let iso0 = env.isoString(for: day)
+
+        let vertexEntry: [String: Any] = [
+            "type": "assistant",
+            "timestamp": iso0,
+            "metadata": [
+                "provider": "vertexai",
+                "projectId": "vertex-project",
+                "location": "us-central1",
+            ],
+            "message": [
+                "model": "claude-sonnet-4-20250514",
+                "usage": [
+                    "input_tokens": 10,
+                    "cache_creation_input_tokens": 0,
+                    "cache_read_input_tokens": 0,
+                    "output_tokens": 5,
+                ],
+            ],
+        ]
+        let claudeEntry: [String: Any] = [
+            "type": "assistant",
+            "timestamp": iso0,
+            "metadata": [
+                "provider": "anthropic",
+            ],
+            "message": [
+                "model": "claude-sonnet-4-20250514",
+                "usage": [
+                    "input_tokens": 200,
+                    "cache_creation_input_tokens": 0,
+                    "cache_read_input_tokens": 0,
+                    "output_tokens": 100,
+                ],
+            ],
+        ]
+
+        _ = try env.writeClaudeProjectFile(
+            relativePath: "project-a/session-a.jsonl",
+            contents: env.jsonl([vertexEntry, claudeEntry]))
+
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: nil,
+            claudeProjectsRoots: [env.claudeProjectsRoot],
+            cacheRoot: env.cacheRoot)
+        options.refreshMinIntervalSeconds = 0
+
+        let report = CostUsageScanner.loadDailyReport(
+            provider: .vertexai,
+            since: day,
+            until: day,
+            now: day,
+            options: options)
+
+        #expect(report.data.count == 1)
+        #expect(report.data[0].inputTokens == 10)
+        #expect(report.data[0].outputTokens == 5)
+        #expect(report.data[0].totalTokens == 15)
+    }
+
+    @Test
+    func vertexDailyReportDetectsByVrtxIdPrefix() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2025, month: 12, day: 20)
+        let iso0 = env.isoString(for: day)
+        let iso1 = env.isoString(for: day.addingTimeInterval(1))
+
+        // Vertex AI entries have "_vrtx_" in message.id and requestId
+        let vertexEntry: [String: Any] = [
+            "type": "assistant",
+            "timestamp": iso0,
+            "requestId": "req_vrtx_011CWjK86SWeFuXqZKUtgB1H",
+            "message": [
+                "id": "msg_vrtx_0154LUXjFVzQGUca3yK2RUeo",
+                "model": "claude-opus-4-5-20251101",
+                "usage": [
+                    "input_tokens": 100,
+                    "cache_creation_input_tokens": 0,
+                    "cache_read_input_tokens": 0,
+                    "output_tokens": 50,
+                ],
+            ],
+        ]
+        // Anthropic API entries have regular IDs without "_vrtx_"
+        let claudeEntry: [String: Any] = [
+            "type": "assistant",
+            "timestamp": iso1,
+            "requestId": "req_011CW7BFSFkbK9qJrV8kiptH",
+            "message": [
+                "id": "msg_0152zX6DsQYcwH1qiXi4B3y2",
+                "model": "claude-opus-4-5-20251101",
+                "usage": [
+                    "input_tokens": 200,
+                    "cache_creation_input_tokens": 0,
+                    "cache_read_input_tokens": 0,
+                    "output_tokens": 100,
+                ],
+            ],
+        ]
+
+        _ = try env.writeClaudeProjectFile(
+            relativePath: "project-a/session-a.jsonl",
+            contents: env.jsonl([vertexEntry, claudeEntry]))
+
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: nil,
+            claudeProjectsRoots: [env.claudeProjectsRoot],
+            cacheRoot: env.cacheRoot)
+        options.refreshMinIntervalSeconds = 0
+
+        // Vertex AI report should only include entries with _vrtx_ prefix
+        let vertexReport = CostUsageScanner.loadDailyReport(
+            provider: .vertexai,
+            since: day,
+            until: day,
+            now: day,
+            options: options)
+
+        #expect(vertexReport.data.count == 1)
+        #expect(vertexReport.data[0].inputTokens == 100)
+        #expect(vertexReport.data[0].outputTokens == 50)
+        #expect(vertexReport.data[0].totalTokens == 150)
+
+        // Claude report with excludeVertexAI should only include non-vrtx entries
+        var claudeOptions = options
+        claudeOptions.claudeLogProviderFilter = .excludeVertexAI
+        let claudeReport = CostUsageScanner.loadDailyReport(
+            provider: .claude,
+            since: day,
+            until: day,
+            now: day,
+            options: claudeOptions)
+
+        #expect(claudeReport.data.count == 1)
+        #expect(claudeReport.data[0].inputTokens == 200)
+        #expect(claudeReport.data[0].outputTokens == 100)
+        #expect(claudeReport.data[0].totalTokens == 300)
+    }
+
+    @Test
     func claudeParsesLargeLinesWithUsageAtTail() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
@@ -355,7 +502,10 @@ struct CostUsageScannerTests {
             contents: env.jsonl([first]))
 
         let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
-        let firstParse = CostUsageScanner.parseClaudeFile(fileURL: fileURL, range: range)
+        let firstParse = CostUsageScanner.parseClaudeFile(
+            fileURL: fileURL,
+            range: range,
+            providerFilter: .all)
         #expect(firstParse.parsedBytes > 0)
 
         let second: [String: Any] = [
@@ -376,6 +526,7 @@ struct CostUsageScannerTests {
         let delta = CostUsageScanner.parseClaudeFile(
             fileURL: fileURL,
             range: range,
+            providerFilter: .all,
             startOffset: firstParse.parsedBytes)
         let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
         let packed = delta.days[dayKey]?[normalized] ?? []

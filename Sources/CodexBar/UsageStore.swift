@@ -1402,7 +1402,7 @@ extension UsageStore {
     }
 
     private func refreshTokenUsage(_ provider: UsageProvider, force: Bool) async {
-        guard provider == .codex || provider == .claude else {
+        guard provider == .codex || provider == .claude || provider == .vertexai else {
             self.tokenSnapshots.removeValue(forKey: provider)
             self.tokenErrors[provider] = nil
             self.tokenFailureGates[provider]?.reset()
@@ -1449,7 +1449,11 @@ extension UsageStore {
             let timeoutSeconds = self.tokenFetchTimeout
             let snapshot = try await withThrowingTaskGroup(of: CostUsageTokenSnapshot.self) { group in
                 group.addTask(priority: .utility) {
-                    try await fetcher.loadTokenSnapshot(provider: provider, now: now, forceRefresh: force)
+                    try await fetcher.loadTokenSnapshot(
+                        provider: provider,
+                        now: now,
+                        forceRefresh: force,
+                        allowVertexClaudeFallback: !self.isEnabled(.claude))
                 }
                 group.addTask {
                     try await Task.sleep(nanoseconds: UInt64(timeoutSeconds * 1_000_000_000))
