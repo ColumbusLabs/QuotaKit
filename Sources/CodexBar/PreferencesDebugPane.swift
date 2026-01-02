@@ -65,9 +65,10 @@ struct DebugPane: View {
                         Text("Codex").tag(UsageProvider.codex)
                         Text("Claude").tag(UsageProvider.claude)
                         Text("Cursor").tag(UsageProvider.cursor)
+                        Text("Augment").tag(UsageProvider.augment)
                     }
                     .pickerStyle(.segmented)
-                    .frame(width: 320)
+                    .frame(width: 400)
 
                     HStack(spacing: 12) {
                         Button { self.loadLog(self.currentLogProvider) } label: {
@@ -232,9 +233,10 @@ struct DebugPane: View {
                         Text("Claude").tag(UsageProvider.claude)
                         Text("Gemini").tag(UsageProvider.gemini)
                         Text("Antigravity").tag(UsageProvider.antigravity)
+                        Text("Augment").tag(UsageProvider.augment)
                     }
                     .pickerStyle(.segmented)
-                    .frame(width: 240)
+                    .frame(width: 300)
 
                     TextField("Simulated error text", text: self.$simulatedErrorText, axis: .vertical)
                         .lineLimit(4)

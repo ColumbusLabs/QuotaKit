@@ -322,6 +322,7 @@ final class UsageStore {
         case .minimax: nil
         case .vertexai: nil
         case .kiro: self.kiroVersion
+        case .augment: nil
         }
     }
 
@@ -1225,6 +1226,10 @@ extension UsageStore {
             case .kiro:
                 let text = "Kiro debug log not yet implemented"
                 await MainActor.run { self.probeLogs[.kiro] = text }
+                return text
+            case .augment:
+                let text = "Augment debug log not yet implemented"
+                await MainActor.run { self.probeLogs[.augment] = text }
                 return text
             }
         }.value

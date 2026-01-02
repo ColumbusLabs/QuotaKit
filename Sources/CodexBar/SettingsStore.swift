@@ -194,6 +194,16 @@ final class SettingsStore {
         }
     }
 
+    private var augmentCookieSourceRaw: String? {
+        didSet {
+            if let raw = self.augmentCookieSourceRaw {
+                self.userDefaults.set(raw, forKey: "augmentCookieSource")
+            } else {
+                self.userDefaults.removeObject(forKey: "augmentCookieSource")
+            }
+        }
+    }
+
     /// Optional: collapse provider icons into a single menu bar item with an in-menu switcher.
     var mergeIcons: Bool {
         didSet { self.userDefaults.set(self.mergeIcons, forKey: "mergeIcons") }
@@ -232,6 +242,11 @@ final class SettingsStore {
     /// MiniMax cookie header (stored in Keychain).
     var minimaxCookieHeader: String {
         didSet { self.schedulePersistMiniMaxCookieHeader() }
+    }
+
+    /// Augment session cookie header (stored in Keychain).
+    var augmentCookieHeader: String {
+        didSet { self.schedulePersistAugmentCookieHeader() }
     }
 
     /// Copilot API token (stored in Keychain).
@@ -313,6 +328,11 @@ final class SettingsStore {
         set { self.minimaxCookieSourceRaw = newValue.rawValue }
     }
 
+    var augmentCookieSource: ProviderCookieSource {
+        get { ProviderCookieSource(rawValue: self.augmentCookieSourceRaw ?? "") ?? .auto }
+        set { self.augmentCookieSourceRaw = newValue.rawValue }
+    }
+
     var menuObservationToken: Int {
         _ = self.providerOrderRaw
         _ = self.refreshFrequency
@@ -380,6 +400,10 @@ final class SettingsStore {
     @ObservationIgnored private var minimaxCookiePersistTask: Task<Void, Never>?
     @ObservationIgnored private var minimaxCookieLoaded = false
     @ObservationIgnored private var minimaxCookieLoading = false
+    @ObservationIgnored private let augmentCookieStore: any CookieHeaderStoring
+    @ObservationIgnored private var augmentCookiePersistTask: Task<Void, Never>?
+    @ObservationIgnored private var augmentCookieLoaded = false
+    @ObservationIgnored private var augmentCookieLoading = false
     @ObservationIgnored private let copilotTokenStore: any CopilotTokenStoring
     @ObservationIgnored private var copilotTokenPersistTask: Task<Void, Never>?
     @ObservationIgnored private var copilotTokenLoaded = false
@@ -411,6 +435,9 @@ final class SettingsStore {
             account: "factory-cookie",
             promptKind: .factoryCookie),
         minimaxCookieStore: any MiniMaxCookieStoring = KeychainMiniMaxCookieStore(),
+        augmentCookieStore: any CookieHeaderStoring = KeychainCookieHeaderStore(
+            account: "augment-cookie",
+            promptKind: .augmentCookie),
         copilotTokenStore: any CopilotTokenStoring = KeychainCopilotTokenStore())
     {
         self.userDefaults = userDefaults
@@ -420,6 +447,7 @@ final class SettingsStore {
         self.cursorCookieStore = cursorCookieStore
         self.factoryCookieStore = factoryCookieStore
         self.minimaxCookieStore = minimaxCookieStore
+        self.augmentCookieStore = augmentCookieStore
         self.copilotTokenStore = copilotTokenStore
         self.providerOrderRaw = userDefaults.stringArray(forKey: "providerOrder") ?? []
         let raw = userDefaults.string(forKey: "refreshFrequency") ?? RefreshFrequency.fiveMinutes.rawValue
@@ -479,6 +507,7 @@ final class SettingsStore {
         self.cursorCookieHeader = ""
         self.factoryCookieHeader = ""
         self.minimaxCookieHeader = ""
+        self.augmentCookieHeader = ""
         self.copilotAPIToken = ""
         self.selectedMenuProviderRaw = userDefaults.string(forKey: "selectedMenuProvider")
         self.providerDetectionCompleted = userDefaults.object(
@@ -822,6 +851,32 @@ final class SettingsStore {
         }
     }
 
+    private func schedulePersistAugmentCookieHeader() {
+        if self.augmentCookieLoading { return }
+        self.augmentCookiePersistTask?.cancel()
+        let header = self.augmentCookieHeader
+        let cookieStore = self.augmentCookieStore
+        self.augmentCookiePersistTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 350_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
+                do {
+                    try cookieStore.storeCookieHeader(header)
+                    return nil
+                } catch {
+                    return error
+                }
+            }.value
+            if let error {
+                CodexBarLog.logger("augment-cookie-store").error("Failed to persist Augment cookie: \(error)")
+            }
+        }
+    }
+
     private func schedulePersistFactoryCookieHeader() {
         if self.factoryCookieLoading { return }
         self.factoryCookiePersistTask?.cancel()
@@ -948,6 +1003,14 @@ extension SettingsStore {
         self.minimaxCookieHeader = (try? self.minimaxCookieStore.loadCookieHeader()) ?? ""
         self.minimaxCookieLoading = false
         self.minimaxCookieLoaded = true
+    }
+
+    func ensureAugmentCookieLoaded() {
+        guard !self.augmentCookieLoaded else { return }
+        self.augmentCookieLoading = true
+        self.augmentCookieHeader = (try? self.augmentCookieStore.loadCookieHeader()) ?? ""
+        self.augmentCookieLoading = false
+        self.augmentCookieLoaded = true
     }
 
     func ensureCopilotAPITokenLoaded() {
