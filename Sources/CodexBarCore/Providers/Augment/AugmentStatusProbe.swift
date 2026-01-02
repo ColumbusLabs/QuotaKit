@@ -260,7 +260,9 @@ public struct AugmentStatusProbe: Sendable {
                 debugLines.append(rawJSON)
             }
 
-            return debugLines.joined(separator: "\n")
+            let result = debugLines.joined(separator: "\n")
+            Task { @MainActor in Self.recordDump(result) }
+            return result
         } catch {
             debugLines.append("")
             debugLines.append("--- Probe Failed ---")
