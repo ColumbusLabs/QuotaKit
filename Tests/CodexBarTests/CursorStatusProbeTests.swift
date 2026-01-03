@@ -316,6 +316,37 @@ struct CursorStatusProbeTests {
         #expect(usageSnapshot.cursorRequests?.limit == 500)
         #expect(usageSnapshot.cursorRequests?.usedPercent == 100.0)
         #expect(usageSnapshot.cursorRequests?.remainingPercent == 0.0)
+
+        // Primary RateWindow should use request-based percentage for legacy plans
+        #expect(usageSnapshot.primary?.usedPercent == 100.0)
+    }
+
+    @Test
+    func legacyPlanPrimaryUsesRequestsNotDollars() {
+        // Regression: Legacy plans report planPercentUsed as 0 while requests are used
+        let snapshot = CursorStatusSnapshot(
+            planPercentUsed: 0.0, // Dollar-based shows 0
+            planUsedUSD: 0,
+            planLimitUSD: 0,
+            onDemandUsedUSD: 0,
+            onDemandLimitUSD: nil,
+            teamOnDemandUsedUSD: nil,
+            teamOnDemandLimitUSD: nil,
+            billingCycleEnd: nil,
+            membershipType: "enterprise",
+            accountEmail: "user@company.com",
+            accountName: nil,
+            rawJSON: nil,
+            requestsUsed: 250,
+            requestsLimit: 500)
+
+        #expect(snapshot.isLegacyRequestPlan == true)
+
+        let usageSnapshot = snapshot.toUsageSnapshot()
+
+        // Primary should reflect request usage (50%), not dollar usage (0%)
+        #expect(usageSnapshot.primary?.usedPercent == 50.0)
+        #expect(usageSnapshot.cursorRequests?.usedPercent == 50.0)
     }
 
     @Test

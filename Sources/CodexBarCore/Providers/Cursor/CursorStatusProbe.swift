@@ -261,9 +261,19 @@ public struct CursorStatusSnapshot: Sendable {
 
     /// Convert to UsageSnapshot for the common provider interface
     public func toUsageSnapshot() -> UsageSnapshot {
-        // Primary: Plan usage percentage
+        // Primary: For legacy request-based plans, use request usage; otherwise use plan percentage
+        let primaryUsedPercent: Double = if self.isLegacyRequestPlan,
+                                            let used = self.requestsUsed,
+                                            let limit = self.requestsLimit,
+                                            limit > 0
+        {
+            (Double(used) / Double(limit)) * 100
+        } else {
+            self.planPercentUsed
+        }
+
         let primary = RateWindow(
-            usedPercent: self.planPercentUsed,
+            usedPercent: primaryUsedPercent,
             windowMinutes: nil,
             resetsAt: self.billingCycleEnd,
             resetDescription: self.billingCycleEnd.map { Self.formatResetDate($0) })
