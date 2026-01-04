@@ -1,4 +1,5 @@
 import Foundation
+import Logging
 import SweetCookieKit
 
 #if os(macOS)
@@ -44,28 +45,43 @@ public enum AugmentCookieImporter {
         public func cookieHeader(for url: URL) -> String {
             guard let host = url.host else { return "" }
 
+            print("[CodexBar:Augment] 🔍 Filtering cookies for URL: \(url)")
+            print("[CodexBar:Augment]    Target host: \(host)")
+            print("[CodexBar:Augment]    Total cookies: \(self.cookies.count)")
+
             let validCookies = self.cookies.filter { cookie in
-                // Cookie domain matching follows RFC 6265 semantics:
+                // Cookie domain matching follows RFC 6265 semantics with Augment-specific relaxation:
                 // 1. Exact match: "app.augmentcode.com" matches "app.augmentcode.com"
                 // 2. Parent domain: "augmentcode.com" matches "app.augmentcode.com", "auth.augmentcode.com", etc.
                 // 3. Wildcard domain: ".augmentcode.com" matches "app.augmentcode.com", "auth.augmentcode.com", etc.
+                // 4. SPECIAL: For augmentcode.com, allow cross-subdomain cookies (auth.augmentcode.com -> app.augmentcode.com)
+                //    This is needed because Augment uses auth.augmentcode.com for authentication but app.augmentcode.com for APIs
                 let cookieDomain = cookie.domain
 
+                let isValid: Bool
                 if cookieDomain.hasPrefix(".") {
                     // Wildcard domain (e.g., ".augmentcode.com")
                     let domainWithoutDot = String(cookieDomain.dropFirst())
-                    return host == domainWithoutDot || host.hasSuffix("." + domainWithoutDot)
+                    isValid = host == domainWithoutDot || host.hasSuffix("." + domainWithoutDot)
                 } else if host == cookieDomain {
                     // Exact match (e.g., "app.augmentcode.com" == "app.augmentcode.com")
-                    return true
+                    isValid = true
                 } else if host.hasSuffix("." + cookieDomain) {
                     // Parent domain match (e.g., "app.augmentcode.com" ends with ".augmentcode.com")
-                    return true
+                    isValid = true
+                } else if cookieDomain.contains(".augmentcode.com") && host.contains(".augmentcode.com") {
+                    // Special case: Allow cross-subdomain cookies within augmentcode.com
+                    // This allows auth.augmentcode.com cookies to be sent to app.augmentcode.com
+                    isValid = true
                 } else {
-                    return false
+                    isValid = false
                 }
+
+                print("[CodexBar:Augment]    Cookie '\(cookie.name)' domain='\(cookieDomain)' -> \(isValid ? "✓ INCLUDED" : "✗ EXCLUDED")")
+                return isValid
             }
 
+            print("[CodexBar:Augment]    Valid cookies after filtering: \(validCookies.count)")
             return validCookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
         }
     }
@@ -273,7 +289,7 @@ public enum AugmentStatusProbeError: Error, LocalizedError {
         case .sessionExpired:
             "Your Augment session has expired. Please log in again at app.augmentcode.com"
         case .browserSessionExpired:
-            "Your Augment session has expired. Try 'Force Refresh Session' below, or visit app.augmentcode.com to log back in."
+            "Your Augment session has expired. Click 'Refresh Browser Cookies' below to update, then 'Force Refresh Session'."
         case let .networkError(message):
             "Network error: \(message)"
         case let .parseFailed(message):
@@ -434,8 +450,14 @@ public struct AugmentStatusProbe: Sendable {
                 return result
             } catch AugmentStatusProbeError.sessionExpired {
                 log("✗ Retry failed - fresh cookies from \(freshSession.sourceLabel) are also expired!")
-                log("   This means your browser session at app.augmentcode.com is also expired.")
-                log("   Please visit https://app.augmentcode.com in your browser to refresh the session.")
+                log("   This means your browser's saved cookies are stale.")
+                log("   ")
+                log("   To fix this:")
+                log("   1. Click 'Refresh Browser Cookies' in Settings → Providers → Augment")
+                log("   2. Follow the instructions to refresh your browser session")
+                log("   3. Click 'Force Refresh Session' to reload")
+                log("   ")
+                log("   Or manually visit https://app.augmentcode.com and refresh the page (⌘R)")
                 // Throw a more helpful error that explains the browser session is also expired
                 throw AugmentStatusProbeError.browserSessionExpired
             }
@@ -480,14 +502,31 @@ public struct AugmentStatusProbe: Sendable {
         // Use domain-filtered cookies if we have a session, otherwise use the provided header
         let finalCookieHeader: String
         if let session = session {
+            print("[CodexBar:Augment] 🍪 Using domain-filtered cookies for \(url)")
+            print("[CodexBar:Augment]    Session has \(session.cookies.count) total cookies")
+            for cookie in session.cookies {
+                let expiryInfo: String
+                if let expiry = cookie.expiresDate {
+                    let timeUntilExpiry = expiry.timeIntervalSinceNow
+                    expiryInfo = timeUntilExpiry > 0 ? "expires in \(Int(timeUntilExpiry))s" : "EXPIRED \(Int(-timeUntilExpiry))s ago"
+                } else {
+                    expiryInfo = "session cookie (no expiry)"
+                }
+                print("[CodexBar:Augment]      - \(cookie.name): domain='\(cookie.domain)' \(expiryInfo)")
+            }
             finalCookieHeader = session.cookieHeader(for: url)
+            print("[CodexBar:Augment]    Final cookie header length: \(finalCookieHeader.count) chars")
         } else {
             finalCookieHeader = cookieHeader
+            print("[CodexBar:Augment] 🍪 Using provided cookie header (\(finalCookieHeader.count) chars)")
         }
 
         request.setValue(finalCookieHeader, forHTTPHeaderField: "Cookie")
         request.setValue("*/*", forHTTPHeaderField: "Accept")
         request.setValue("en-US,en;q=0.9", forHTTPHeaderField: "Accept-Language")
+
+        print("[CodexBar:Augment] 🌐 Making request to \(url)")
+        print("[CodexBar:Augment]    Cookie header being sent: \(finalCookieHeader.prefix(200))...")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -500,6 +539,13 @@ public struct AugmentStatusProbe: Sendable {
         // Check for session expiration (HTTP 401)
         if httpResponse.statusCode == 401 {
             print("[CodexBar:Augment] ❌ Session expired (HTTP 401)")
+            print("[CodexBar:Augment]    Cookie header that was sent: \(finalCookieHeader)")
+            if let session = session {
+                print("[CodexBar:Augment]    Session cookies before filtering:")
+                for cookie in session.cookies {
+                    print("[CodexBar:Augment]      - \(cookie.name): domain=\(cookie.domain)")
+                }
+            }
             throw AugmentStatusProbeError.sessionExpired
         }
 
