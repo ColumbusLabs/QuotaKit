@@ -1,7 +1,7 @@
 # CodexBar Fork - Current Status
 
-**Last Updated:** January 4, 2026  
-**Fork Maintainer:** Brandon Charleson  
+**Last Updated:** January 4, 2026
+**Fork Maintainer:** Brandon Charleson
 **Branch:** `feature/augment-integration`
 
 ---
@@ -13,6 +13,8 @@
 **Commits:**
 1. `da3d13e` - "feat: establish fork identity with dual attribution"
 2. `745293e` - "docs: add fork roadmap and quick start guide"
+3. `8a87473` - "docs: add fork status tracking document"
+4. `df75ae2` - "feat: comprehensive multi-upstream fork management system"
 
 **Changes:**
 - ✅ Updated About section with dual attribution (original + fork)
@@ -22,8 +24,26 @@
 - ✅ Created comprehensive `docs/augment.md` documentation
 - ✅ Created `docs/FORK_ROADMAP.md` with 5-phase plan
 - ✅ Created `docs/FORK_QUICK_START.md` developer guide
+- ✅ Created `FORK_STATUS.md` tracking document
+- ✅ **Implemented complete multi-upstream management system**
 
 **Build Status:** ✅ App builds and runs successfully
+
+### Multi-Upstream Management System ✓
+
+**Automation Scripts:**
+- ✅ `Scripts/check_upstreams.sh` - Monitor both upstreams
+- ✅ `Scripts/review_upstream.sh` - Create review branches
+- ✅ `Scripts/prepare_upstream_pr.sh` - Prepare upstream PRs
+- ✅ `Scripts/analyze_quotio.sh` - Analyze quotio patterns
+
+**GitHub Actions:**
+- ✅ `.github/workflows/upstream-monitor.yml` - Automated monitoring
+
+**Documentation:**
+- ✅ `docs/UPSTREAM_STRATEGY.md` - Complete management guide
+- ✅ `docs/QUOTIO_ANALYSIS.md` - Pattern analysis framework
+- ✅ `docs/FORK_SETUP.md` - One-time setup guide
 
 ---
 
@@ -36,6 +56,17 @@
 - ✅ Clear development roadmap
 - ✅ App builds without errors
 - ✅ All existing functionality preserved
+- ✅ **Multi-upstream management system operational**
+- ✅ **Automated upstream monitoring configured**
+- ✅ **Quotio analysis framework ready**
+
+### Critical Discovery
+- ⚠️ **Upstream (steipete) has REMOVED Augment provider**
+  - 627 lines deleted from `AugmentStatusProbe.swift`
+  - 88 lines deleted from `AugmentStatusProbeTests.swift`
+  - **This validates our fork strategy!**
+  - We preserve Augment support for our users
+  - We can selectively sync other improvements
 
 ### Known Issues
 - ⚠️ Augment cookie disconnection (Phase 2 will address)
@@ -44,11 +75,36 @@
 ### Uncommitted Changes
 - `Sources/CodexBarCore/Providers/Augment/AugmentStatusProbe.swift` has debug print statements
   - These should be replaced with proper `CodexBarLog` logging in Phase 2
-  - Currently unstaged to keep Phase 1 commit clean
+  - Currently unstaged to keep commits clean
 
 ---
 
 ## 📋 Next Steps
+
+### URGENT: Upstream Sync Decision
+**Before proceeding with Phase 2, decide on upstream sync strategy:**
+
+1. **Review upstream changes:**
+   ```bash
+   ./Scripts/check_upstreams.sh upstream
+   ./Scripts/review_upstream.sh upstream
+   ```
+
+2. **Decide what to sync:**
+   - ✅ Vertex AI improvements (5 commits)
+   - ✅ SwiftFormat/SwiftLint fixes
+   - ❌ Augment provider removal (SKIP!)
+
+3. **Cherry-pick valuable commits:**
+   ```bash
+   git checkout -b upstream-sync/vertex-improvements
+   git cherry-pick 001019c  # style fixes
+   git cherry-pick e4f1e4c  # vertex token cost
+   git cherry-pick 202efde  # vertex fix
+   git cherry-pick 0c2f888  # vertex docs
+   git cherry-pick 3c4ca30  # vertex tracking
+   # Skip Augment removal commits!
+   ```
 
 ### Immediate (Phase 2)
 1. **Replace debug prints with proper logging**
@@ -67,12 +123,12 @@
    - Add manual "Force Refresh" button
 
 ### Short Term (Phases 3-4)
-- Analyze Quotio features for inspiration
-- Set up upstream sync workflow
-- Create automated sync checks
+- **Analyze Quotio features** using `./Scripts/analyze_quotio.sh`
+- **Regular upstream monitoring** (automated via GitHub Actions)
+- **Weekly sync routine** (Monday: upstream, Thursday: quotio)
 
 ### Medium Term (Phase 5)
-- Implement multi-account management
+- Implement multi-account management (inspired by quotio)
 - Start with Augment provider
 - Extend to other providers
 
@@ -100,53 +156,90 @@
 feature/augment-integration
 
 # Commits ahead of main
-2 commits
+4 commits:
+- da3d13e: Fork identity with dual attribution
+- 745293e: Roadmap and quick start guide
+- 8a87473: Fork status tracking
+- df75ae2: Multi-upstream management system
 
 # Uncommitted changes
 M Sources/CodexBarCore/Providers/Augment/AugmentStatusProbe.swift (debug prints)
 
-# To continue Phase 2
-git stash  # Save debug prints for later
-# OR
-git checkout Sources/CodexBarCore/Providers/Augment/AugmentStatusProbe.swift  # Discard
+# Git remotes configured
+origin    git@github.com:topoffunnel/CodexBar.git
+upstream  https://github.com/steipete/CodexBar.git (needs to be added)
+quotio    https://github.com/nguyenphutrong/quotio.git (needs to be added)
 ```
 
 ---
 
 ## 🚀 How to Continue
 
-### Option 1: Continue with Phase 2 (Recommended)
-```bash
-# Keep the debug prints and enhance them
-git add Sources/CodexBarCore/Providers/Augment/AugmentStatusProbe.swift
+### RECOMMENDED: Setup Multi-Upstream System First
 
-# Start Phase 2 work
-# Replace print() with CodexBarLog.logger("augment")
-# Add structured logging
-# Enhance diagnostics
+```bash
+# 1. Configure git remotes
+git remote add upstream https://github.com/steipete/CodexBar.git
+git remote add quotio https://github.com/nguyenphutrong/quotio.git
+git fetch --all
+
+# 2. Test automation scripts
+./Scripts/check_upstreams.sh
+
+# 3. Review upstream changes (IMPORTANT!)
+./Scripts/review_upstream.sh upstream
+
+# 4. Decide what to sync
+# See "URGENT: Upstream Sync Decision" section above
+
+# 5. Analyze quotio
+./Scripts/analyze_quotio.sh
 ```
 
-### Option 2: Clean Slate for Phase 2
+### Option 1: Sync Upstream First, Then Phase 2
 ```bash
-# Discard debug prints
+# Discard debug prints (will redo in Phase 2)
 git checkout Sources/CodexBarCore/Providers/Augment/AugmentStatusProbe.swift
 
-# Start Phase 2 fresh
-# Add proper logging from scratch
-# Follow patterns from Claude/Cursor providers
+# Sync valuable upstream changes
+git checkout -b upstream-sync/vertex-improvements
+# Cherry-pick commits (see URGENT section)
+
+# Merge to main
+git checkout main
+git merge feature/augment-integration
+git merge upstream-sync/vertex-improvements
+
+# Then start Phase 2
+git checkout -b feature/augment-diagnostics
 ```
 
-### Option 3: Merge to Main First
+### Option 2: Phase 2 First, Sync Later
 ```bash
-# Discard uncommitted changes
+# Keep debug prints and enhance them
+git add Sources/CodexBarCore/Providers/Augment/AugmentStatusProbe.swift
+
+# Continue on current branch
+# Replace print() with CodexBarLog.logger("augment")
+# Complete Phase 2
+# Then sync upstream
+```
+
+### Option 3: Merge Current Work, Setup System
+```bash
+# Discard debug prints
 git checkout Sources/CodexBarCore/Providers/Augment/AugmentStatusProbe.swift
 
 # Merge to main
 git checkout main
 git merge feature/augment-integration
 
-# Create new branch for Phase 2
-git checkout -b feature/augment-diagnostics
+# Setup remotes
+git remote add upstream https://github.com/steipete/CodexBar.git
+git remote add quotio https://github.com/nguyenphutrong/quotio.git
+
+# Start using the system
+./Scripts/check_upstreams.sh
 ```
 
 ---
