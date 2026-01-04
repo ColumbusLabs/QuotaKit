@@ -1,6 +1,8 @@
 # CodexBar 🎚️ - May your tokens never run out.
 
-Tiny macOS 14+ menu bar app that keeps your Codex, Claude, Cursor, Gemini, Antigravity, Droid (Factory), Copilot, z.ai, and Kiro limits visible (session + weekly where available) and shows when each window resets. One status item per provider (or Merge Icons mode); enable what you use from Settings. No Dock icon, minimal UI, dynamic bar icons in the menu bar.
+> **Enhanced Fork** - This is an actively maintained fork with additional features including Augment provider support, enhanced multi-account management, and improved session handling. Originally created by [Peter Steinberger](https://github.com/steipete/CodexBar).
+
+Tiny macOS 14+ menu bar app that keeps your Codex, Claude, Cursor, Gemini, Antigravity, Droid (Factory), Copilot, z.ai, Kiro, and **Augment** limits visible (session + weekly where available) and shows when each window resets. One status item per provider (or Merge Icons mode); enable what you use from Settings. No Dock icon, minimal UI, dynamic bar icons in the menu bar.
 
 <img src="codexbar.png" alt="CodexBar menu screenshot" width="520" />
 
@@ -9,12 +11,18 @@ Tiny macOS 14+ menu bar app that keeps your Codex, Claude, Cursor, Gemini, Antig
 ### Requirements
 - macOS 14+ (Sonoma)
 
-### GitHub Releases
-Download: <https://github.com/steipete/CodexBar/releases>
+### GitHub Releases (This Fork)
+Download: <https://github.com/bcharleson/codexbar/releases>
+
+### Original Repository
+Original version: <https://github.com/steipete/CodexBar>
 
 ### Homebrew
 ```bash
+# Original version
 brew install --cask steipete/tap/codexbar
+
+# Or build this fork from source (see Development section below)
 ```
 
 ### First run
@@ -36,6 +44,7 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for build instructions, architect
 - [Copilot](docs/copilot.md) — GitHub device flow + Copilot internal usage API.
 - [z.ai](docs/zai.md) — API token (Keychain) for quota + MCP windows.
 - [Kiro](docs/kiro.md) — CLI-based usage via `kiro-cli /usage` command; monthly credits + bonus credits.
+- **[Augment](docs/augment.md)** — Browser cookie-based authentication with automatic session keepalive; credits tracking and usage monitoring. *(Fork enhancement)*
 - Open to new providers: [provider authoring guide](docs/provider.md).
 
 ## Icon & Screenshot
@@ -98,13 +107,43 @@ Dev loop:
 ./Scripts/compile_and_run.sh
 ```
 
+## Fork Enhancements
+
+This fork includes several enhancements over the original:
+
+### 🎯 Augment Provider Support
+- Full integration with Augment Code API
+- Browser cookie-based authentication (Chrome, Chrome Beta, Chrome Canary, Arc, Safari)
+- Automatic session keepalive to prevent cookie expiration
+- Credits tracking and usage monitoring
+- Comprehensive error handling and diagnostics
+
+### 🔐 Enhanced Security
+- Improved keychain handling to eliminate permission prompts during development
+- Secure cookie storage with proper accessibility settings
+- One-time migration for existing credentials
+
+### 🐛 Bug Fixes
+- Fixed Cursor bonus credits calculation
+- Improved cookie domain filtering to prevent cross-subdomain leakage
+- Enhanced error messages and user feedback
+
+### 🔄 Development Improvements
+- Enhanced logging and debugging capabilities
+- Improved build scripts with ad-hoc signing support
+- Comprehensive test coverage for new features
+
 ## Related
 - ✂️ [Trimmy](https://github.com/steipete/Trimmy) — “Paste once, run once.” Flatten multi-line shell snippets so they paste and run.
 - 🧳 [MCPorter](https://mcporter.dev) — TypeScript toolkit + CLI for Model Context Protocol servers.
 - 🧿 [oracle](https://askoracle.dev) — Ask the oracle when you're stuck. Invoke GPT-5 Pro with a custom context and files.
 
 ## Credits
+
+**Original Author:** Peter Steinberger ([steipete](https://twitter.com/steipete))
+**Fork Maintainer:** Brandon Charleson ([topoffunnel.com](https://topoffunnel.com))
+
 Inspired by [ccusage](https://github.com/ryoppippi/ccusage) (MIT), specifically the cost usage tracking.
 
 ## License
-MIT • Peter Steinberger ([steipete](https://twitter.com/steipete))
+MIT • Originally created by Peter Steinberger, enhanced and maintained by Brandon Charleson
