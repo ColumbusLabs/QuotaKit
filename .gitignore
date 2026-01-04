@@ -26,6 +26,9 @@ debug_*.swift
 # Misc
 .DS_Store
 
+# Debug/analysis docs
+docs/*-analysis.md
+
 # Swift Package Manager metadata (leave sources tracked)
 # Packages/
 # Package.resolved
