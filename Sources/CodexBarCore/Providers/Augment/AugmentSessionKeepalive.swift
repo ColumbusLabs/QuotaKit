@@ -105,38 +105,62 @@ public final class AugmentSessionKeepalive {
         do {
             let session = try AugmentCookieImporter.importSession(logger: self.logger)
 
+            self.log("📊 Cookie Status Check:")
+            self.log("   Total cookies: \(session.cookies.count)")
+            self.log("   Source: \(session.sourceLabel)")
+
+            // Log each cookie's expiration status
+            for cookie in session.cookies {
+                if let expiry = cookie.expiresDate {
+                    let timeUntil = expiry.timeIntervalSinceNow
+                    let status = timeUntil > 0 ? "expires in \(Int(timeUntil))s" : "EXPIRED \(Int(-timeUntil))s ago"
+                    self.log("   - \(cookie.name): \(status)")
+                } else {
+                    self.log("   - \(cookie.name): session cookie (no expiry)")
+                }
+            }
+
             // Find the earliest expiration date among session cookies
             let expirationDates = session.cookies.compactMap { $0.expiresDate }
 
             guard !expirationDates.isEmpty else {
                 // Session cookies (no expiration) - refresh periodically
+                self.log("   All cookies are session cookies (no expiration dates)")
                 if let lastRefresh = self.lastSuccessfulRefresh {
                     let timeSinceRefresh = Date().timeIntervalSince(lastRefresh)
                     // Refresh every 30 minutes for session cookies
                     if timeSinceRefresh > 1800 {
-                        self.log("Session cookies need periodic refresh (\(Int(timeSinceRefresh))s since last refresh)")
+                        self.log("   ⚠️ Need periodic refresh (\(Int(timeSinceRefresh))s since last refresh)")
                         return true
+                    } else {
+                        self.log("   ✅ Recently refreshed (\(Int(timeSinceRefresh))s ago)")
+                        return false
                     }
                 } else {
                     // Never refreshed - do it now
-                    self.log("Session cookies found but never refreshed")
+                    self.log("   ⚠️ Never refreshed - doing initial refresh")
                     return true
                 }
-                return false
             }
 
             let earliestExpiration = expirationDates.min()!
             let timeUntilExpiration = earliestExpiration.timeIntervalSinceNow
+            let expiringCookie = session.cookies.first { $0.expiresDate == earliestExpiration }
 
             if timeUntilExpiration < self.refreshBufferSeconds {
-                self.log("Session expires in \(Int(timeUntilExpiration))s (threshold: \(Int(self.refreshBufferSeconds))s) - refresh needed")
+                self.log("   ⚠️ REFRESH NEEDED:")
+                self.log("      Earliest expiring cookie: \(expiringCookie?.name ?? "unknown")")
+                self.log("      Time until expiration: \(Int(timeUntilExpiration))s")
+                self.log("      Refresh threshold: \(Int(self.refreshBufferSeconds))s")
                 return true
             } else {
-                self.log("Session healthy (expires in \(Int(timeUntilExpiration))s)")
+                self.log("   ✅ Session healthy:")
+                self.log("      Earliest expiring cookie: \(expiringCookie?.name ?? "unknown")")
+                self.log("      Time until expiration: \(Int(timeUntilExpiration))s")
                 return false
             }
         } catch {
-            self.log("Failed to check session: \(error.localizedDescription)")
+            self.log("✗ Failed to check session: \(error.localizedDescription)")
             return false
         }
     }
@@ -176,37 +200,80 @@ public final class AugmentSessionKeepalive {
             return false
         }
 
-        // Ping the session endpoint (NextAuth/Auth0 pattern)
-        let sessionURL = URL(string: "https://app.augmentcode.com/api/auth/session")!
-        var request = URLRequest(url: sessionURL)
-        request.timeoutInterval = self.refreshTimeout
-        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        self.log("🔄 Attempting session refresh...")
+        self.log("   Cookies being sent: \(cookieHeader.prefix(100))...")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        // Try multiple endpoints - Augment might use different auth patterns
+        let endpoints = [
+            "https://app.augmentcode.com/api/auth/session",  // NextAuth pattern
+            "https://app.augmentcode.com/api/session",       // Alternative
+            "https://app.augmentcode.com/api/user",          // User endpoint
+        ]
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AugmentSessionKeepaliveError.invalidResponse
-        }
+        for (index, urlString) in endpoints.enumerated() {
+            self.log("   Trying endpoint \(index + 1)/\(endpoints.count): \(urlString)")
 
-        if httpResponse.statusCode == 200 {
-            // Check if we got a valid session response
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               json["user"] != nil || json["email"] != nil
-            {
-                self.log("Session endpoint returned valid session data")
-                return true
-            } else {
-                self.log("Session endpoint returned 200 but no session data")
-                return false
+            guard let sessionURL = URL(string: urlString) else { continue }
+            var request = URLRequest(url: sessionURL)
+            request.timeoutInterval = self.refreshTimeout
+            request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request.setValue("https://app.augmentcode.com", forHTTPHeaderField: "Origin")
+            request.setValue("https://app.augmentcode.com", forHTTPHeaderField: "Referer")
+
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    self.log("   ✗ Invalid response type")
+                    continue
+                }
+
+                self.log("   Response: HTTP \(httpResponse.statusCode)")
+
+                // Log Set-Cookie headers if present
+                if let setCookies = httpResponse.allHeaderFields["Set-Cookie"] as? String {
+                    self.log("   Set-Cookie headers received: \(setCookies.prefix(100))...")
+                }
+
+                if httpResponse.statusCode == 200 {
+                    // Check if we got a valid session response
+                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        self.log("   JSON response keys: \(json.keys.joined(separator: ", "))")
+
+                        if json["user"] != nil || json["email"] != nil || json["session"] != nil {
+                            self.log("   ✅ Valid session data found!")
+                            return true
+                        } else {
+                            self.log("   ⚠️ 200 OK but no session data in response")
+                            // Try next endpoint
+                            continue
+                        }
+                    } else {
+                        self.log("   ⚠️ 200 OK but response is not JSON")
+                        if let responseText = String(data: data, encoding: .utf8) {
+                            self.log("   Response text: \(responseText.prefix(200))...")
+                        }
+                        continue
+                    }
+                } else if httpResponse.statusCode == 401 {
+                    self.log("   ✗ 401 Unauthorized - session expired")
+                    throw AugmentSessionKeepaliveError.sessionExpired
+                } else if httpResponse.statusCode == 404 {
+                    self.log("   ✗ 404 Not Found - trying next endpoint")
+                    continue
+                } else {
+                    self.log("   ✗ HTTP \(httpResponse.statusCode) - trying next endpoint")
+                    continue
+                }
+            } catch {
+                self.log("   ✗ Request failed: \(error.localizedDescription)")
+                continue
             }
-        } else if httpResponse.statusCode == 401 {
-            self.log("Session endpoint returned 401 - session expired")
-            throw AugmentSessionKeepaliveError.sessionExpired
-        } else {
-            self.log("Session endpoint returned HTTP \(httpResponse.statusCode)")
-            return false
         }
+
+        self.log("⚠️ All session endpoints failed or returned no valid data")
+        return false
     }
 
     private func log(_ message: String) {

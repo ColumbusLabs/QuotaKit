@@ -580,6 +580,31 @@ final class UsageStore {
         #endif
     }
 
+    /// Force refresh Augment session (called from UI button)
+    public func forceRefreshAugmentSession() async {
+        #if os(macOS)
+        print("[CodexBar] 🔄 Force refresh Augment session requested")
+        guard let keepalive = self.augmentKeepalive else {
+            print("[CodexBar] ⚠️ Augment keepalive not running - starting it now")
+            self.startAugmentKeepalive()
+            // Give it a moment to start
+            try? await Task.sleep(for: .seconds(1))
+            guard let keepalive = self.augmentKeepalive else {
+                print("[CodexBar] ✗ Failed to start Augment keepalive")
+                return
+            }
+            await keepalive.forceRefresh()
+            return
+        }
+
+        await keepalive.forceRefresh()
+
+        // Refresh usage after forcing session refresh
+        print("[CodexBar] 🔄 Refreshing Augment usage after session refresh")
+        await self.refreshProvider(.augment)
+        #endif
+    }
+
     private func refreshProvider(_ provider: UsageProvider) async {
         guard let spec = self.providerSpecs[provider] else { return }
 

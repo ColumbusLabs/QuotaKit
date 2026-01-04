@@ -50,7 +50,44 @@ struct AugmentProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
-        [
+        // Actions for auto mode (browser cookies)
+        let autoModeActions: [ProviderSettingsActionDescriptor] = [
+            ProviderSettingsActionDescriptor(
+                id: "augment-force-refresh",
+                title: "Force Refresh Session",
+                style: .bordered,
+                isVisible: nil,
+                perform: {
+                    print("[CodexBar] Force refresh requested by user")
+                    await context.store.forceRefreshAugmentSession()
+                }),
+            ProviderSettingsActionDescriptor(
+                id: "augment-open-dashboard",
+                title: "Open Augment (Log Out & Back In)",
+                style: .link,
+                isVisible: nil,
+                perform: {
+                    if let url = URL(string: "https://app.augmentcode.com") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }),
+        ]
+
+        // Actions for manual mode (cookie header)
+        let manualModeActions: [ProviderSettingsActionDescriptor] = [
+            ProviderSettingsActionDescriptor(
+                id: "augment-open-dashboard-manual",
+                title: "Open Augment",
+                style: .link,
+                isVisible: nil,
+                perform: {
+                    if let url = URL(string: "https://augmentcode.com") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }),
+        ]
+
+        return [
             ProviderSettingsFieldDescriptor(
                 id: "augment-cookie",
                 title: "",
@@ -58,18 +95,7 @@ struct AugmentProviderImplementation: ProviderImplementation {
                 kind: .secure,
                 placeholder: "Cookie: …",
                 binding: context.stringBinding(\.augmentCookieHeader),
-                actions: [
-                    ProviderSettingsActionDescriptor(
-                        id: "augment-open-dashboard",
-                        title: "Open Augment",
-                        style: .link,
-                        isVisible: nil,
-                        perform: {
-                            if let url = URL(string: "https://augmentcode.com") {
-                                NSWorkspace.shared.open(url)
-                            }
-                        }),
-                ],
+                actions: context.settings.augmentCookieSource == .auto ? autoModeActions : manualModeActions,
                 isVisible: { context.settings.augmentCookieSource == .manual },
                 onActivate: { context.settings.ensureAugmentCookieLoaded() }),
         ]
