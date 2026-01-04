@@ -1,5 +1,4 @@
 import Foundation
-import Logging
 import SweetCookieKit
 
 #if os(macOS)
@@ -12,20 +11,14 @@ private let augmentCookieImportOrder: BrowserCookieImportOrder =
 /// Imports Augment session cookies from browser cookies.
 public enum AugmentCookieImporter {
     private static let cookieClient = BrowserCookieClient()
-    // Auth0 session cookies used by Augment
-    // NOTE: This list may not be exhaustive. If authentication fails with cookies present,
-    // check debug logs for cookie names and report them.
     private static let sessionCookieNames: Set<String> = [
-        "_session",                    // Legacy session cookie
-        "session",                     // Main session cookie (discovered 2026-01-02)
-        "web_rpc_proxy_session",       // Web RPC proxy session (discovered 2026-01-02)
-        "auth0",                       // Auth0 session
-        "auth0.is.authenticated",      // Auth0 authentication flag
-        "a0.spajs.txs",                // Auth0 SPA transaction state
-        "__Secure-next-auth.session-token",  // NextAuth secure session
-        "next-auth.session-token",     // NextAuth session
-        "__Host-authjs.csrf-token",    // AuthJS CSRF token
-        "authjs.session-token",        // AuthJS session
+        "session",
+        "_session",
+        "web_rpc_proxy_session",
+        "__Secure-next-auth.session-token",
+        "next-auth.session-token",
+        "__Secure-authjs.session-token",
+        "authjs.session-token",
     ]
 
     public struct SessionInfo: Sendable {
@@ -41,48 +34,24 @@ public enum AugmentCookieImporter {
             self.cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
         }
 
-        /// Returns a cookie header filtered to only include cookies valid for the given URL
+        /// Returns cookie header filtered for a specific target URL
         public func cookieHeader(for url: URL) -> String {
             guard let host = url.host else { return "" }
 
-            print("[CodexBar:Augment] 🔍 Filtering cookies for URL: \(url)")
-            print("[CodexBar:Augment]    Target host: \(host)")
-            print("[CodexBar:Augment]    Total cookies: \(self.cookies.count)")
+            let matchingCookies = self.cookies.filter { cookie in
+                let domain = cookie.domain
 
-            let validCookies = self.cookies.filter { cookie in
-                // Cookie domain matching follows RFC 6265 semantics with Augment-specific relaxation:
-                // 1. Exact match: "app.augmentcode.com" matches "app.augmentcode.com"
-                // 2. Parent domain: "augmentcode.com" matches "app.augmentcode.com", "auth.augmentcode.com", etc.
-                // 3. Wildcard domain: ".augmentcode.com" matches "app.augmentcode.com", "auth.augmentcode.com", etc.
-                // 4. SPECIAL: For augmentcode.com, allow cross-subdomain cookies (auth.augmentcode.com -> app.augmentcode.com)
-                //    This is needed because Augment uses auth.augmentcode.com for authentication but app.augmentcode.com for APIs
-                let cookieDomain = cookie.domain
-
-                let isValid: Bool
-                if cookieDomain.hasPrefix(".") {
-                    // Wildcard domain (e.g., ".augmentcode.com")
-                    let domainWithoutDot = String(cookieDomain.dropFirst())
-                    isValid = host == domainWithoutDot || host.hasSuffix("." + domainWithoutDot)
-                } else if host == cookieDomain {
-                    // Exact match (e.g., "app.augmentcode.com" == "app.augmentcode.com")
-                    isValid = true
-                } else if host.hasSuffix("." + cookieDomain) {
-                    // Parent domain match (e.g., "app.augmentcode.com" ends with ".augmentcode.com")
-                    isValid = true
-                } else if cookieDomain.contains(".augmentcode.com") && host.contains(".augmentcode.com") {
-                    // Special case: Allow cross-subdomain cookies within augmentcode.com
-                    // This allows auth.augmentcode.com cookies to be sent to app.augmentcode.com
-                    isValid = true
-                } else {
-                    isValid = false
+                // Handle wildcard domains (e.g., ".augmentcode.com")
+                if domain.hasPrefix(".") {
+                    let baseDomain = String(domain.dropFirst())
+                    return host == baseDomain || host.hasSuffix(".\(baseDomain)")
                 }
 
-                print("[CodexBar:Augment]    Cookie '\(cookie.name)' domain='\(cookieDomain)' -> \(isValid ? "✓ INCLUDED" : "✗ EXCLUDED")")
-                return isValid
+                // Exact match or subdomain match
+                return host == domain || host.hasSuffix(".\(domain)")
             }
 
-            print("[CodexBar:Augment]    Valid cookies after filtering: \(validCookies.count)")
-            return validCookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
+            return matchingCookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
         }
     }
 
@@ -90,7 +59,7 @@ public enum AugmentCookieImporter {
     public static func importSession(logger: ((String) -> Void)? = nil) throws -> SessionInfo {
         let log: (String) -> Void = { msg in logger?("[augment-cookie] \(msg)") }
 
-        let cookieDomains = ["augmentcode.com", "login.augmentcode.com", ".augmentcode.com"]
+        let cookieDomains = ["augmentcode.com", "app.augmentcode.com"]
         for browserSource in augmentCookieImportOrder {
             do {
                 let query = BrowserCookieQuery(domains: cookieDomains)
@@ -101,43 +70,20 @@ public enum AugmentCookieImporter {
                 for source in sources where !source.records.isEmpty {
                     let httpCookies = BrowserCookieClient.makeHTTPCookies(source.records, origin: query.origin)
 
-                    // Log all cookies found for debugging
+                    // Log all cookie names for debugging
                     let cookieNames = httpCookies.map { $0.name }.joined(separator: ", ")
-                    log("Found \(httpCookies.count) cookies in \(source.label): \(cookieNames)")
+                    log("\(source.label) has cookies: \(cookieNames)")
 
-                    // Check if we have any session cookies
-                    let matchingCookies = httpCookies.filter { Self.sessionCookieNames.contains($0.name) }
-                    if !matchingCookies.isEmpty {
-                        log("✓ Found known Augment session cookies in \(source.label): \(matchingCookies.map { $0.name }.joined(separator: ", "))")
-
+                    if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
+                        log("Found \(httpCookies.count) Augment cookies in \(source.label)")
                         return SessionInfo(cookies: httpCookies, sourceLabel: source.label)
-                    } else if !httpCookies.isEmpty {
-                        // Even if we don't recognize the cookie names, try them anyway
-                        // The automatic retry logic will handle expired sessions
-                        log("⚠️ Found \(httpCookies.count) cookies in \(source.label) but none match known session cookies")
-                        log("   Cookie names found: \(cookieNames)")
-                        log("   Attempting to use these cookies anyway - will auto-refresh if expired")
-
-                        // Log session/web_rpc_proxy_session cookies if present for debugging
-                        let sessionCookies = httpCookies.filter { $0.name == "session" || $0.name == "web_rpc_proxy_session" }
-                        for cookie in sessionCookies {
-                            let valuePreview = String(cookie.value.prefix(20)) + (cookie.value.count > 20 ? "..." : "")
-                            let expiresInfo = cookie.expiresDate.map { date in
-                                let now = Date()
-                                if date < now {
-                                    return "EXPIRED on \(date)"
-                                } else {
-                                    return "expires \(date)"
-                                }
-                            } ?? "session cookie"
-                            log("  - \(cookie.name): \(valuePreview) | domain=\(cookie.domain) | \(expiresInfo)")
-                        }
-
-                        return SessionInfo(cookies: httpCookies, sourceLabel: source.label)
+                    } else {
+                        log("\(source.label) cookies found, but no Augment session cookie present")
+                        log("Expected one of: \(Self.sessionCookieNames.joined(separator: ", "))")
                     }
                 }
             } catch {
-                log("✗ \(browserSource.displayName) cookie import failed: \(error.localizedDescription)")
+                log("\(browserSource.displayName) cookie import failed: \(error.localizedDescription)")
             }
         }
 
@@ -158,148 +104,254 @@ public enum AugmentCookieImporter {
 // MARK: - Augment API Models
 
 public struct AugmentCreditsResponse: Codable, Sendable {
-    public let usageUnitsAvailable: Int?
-    public let usageUnitsPending: Int?
-    public let usageUnitsRemaining: Int?
-    public let usageUnitsConsumedThisBillingCycle: Int?
+    public let usageUnitsRemaining: Double?
+    public let usageUnitsConsumedThisBillingCycle: Double?
+    public let usageUnitsAvailable: Double?
     public let usageBalanceStatus: String?
 
-    enum CodingKeys: String, CodingKey {
-        case usageUnitsAvailable
-        case usageUnitsPending
+    // Computed properties for compatibility with existing code
+    public var credits: Double? { self.usageUnitsRemaining }
+    public var creditsUsed: Double? { self.usageUnitsConsumedThisBillingCycle }
+    public var creditsLimit: Double? {
+        guard let remaining = self.usageUnitsRemaining,
+              let consumed = self.usageUnitsConsumedThisBillingCycle else {
+            return nil
+        }
+        return remaining + consumed
+    }
+
+    private enum CodingKeys: String, CodingKey {
         case usageUnitsRemaining
         case usageUnitsConsumedThisBillingCycle
+        case usageUnitsAvailable
         case usageBalanceStatus
     }
 }
 
 public struct AugmentSubscriptionResponse: Codable, Sendable {
-    public let portalUrl: String?
     public let planName: String?
-    public let status: String?
-    public let monthlyCredits: Int?
+    public let billingPeriodEnd: String?
+    public let email: String?
+    public let organization: String?
 
-    enum CodingKeys: String, CodingKey {
-        case portalUrl
+    private enum CodingKeys: String, CodingKey {
         case planName
-        case status
-        case monthlyCredits = "monthly_credits"
-    }
-}
-
-public struct AugmentOrbCustomerResponse: Codable, Sendable {
-    public let customer: AugmentOrbCustomer?
-}
-
-public struct AugmentOrbCustomer: Codable, Sendable {
-    public let id: String?
-    public let ledgerPricingUnits: [AugmentOrbPricingUnit]?
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case ledgerPricingUnits = "ledger_pricing_units"
-    }
-}
-
-public struct AugmentOrbPricingUnit: Codable, Sendable {
-    public let id: String?
-    public let name: String?
-    public let displayName: String?
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case name
-        case displayName = "display_name"
-    }
-}
-
-public struct AugmentOrbLedgerResponse: Codable, Sendable {
-    public let creditsBalance: String?
-    public let creditBlocks: [AugmentOrbCreditBlock]?
-
-    enum CodingKeys: String, CodingKey {
-        case creditsBalance = "credits_balance"
-        case creditBlocks = "credit_blocks"
-    }
-}
-
-public struct AugmentOrbCreditBlock: Codable, Sendable {
-    public let balance: String?
-    public let expiryDate: String?
-
-    enum CodingKeys: String, CodingKey {
-        case balance
-        case expiryDate = "expiry_date"
+        case billingPeriodEnd
+        case email
+        case organization
     }
 }
 
 // MARK: - Augment Status Snapshot
 
 public struct AugmentStatusSnapshot: Sendable {
-    /// Current credit balance
-    public let creditsBalance: Int
-    /// Credits consumed this billing cycle
-    public let creditsConsumed: Int?
-    /// Monthly credit limit for the plan
-    public let monthlyLimit: Int?
-    /// Plan name (e.g., "Indie", "Standard", "Max")
-    public let planName: String?
-    /// Account status
-    public let accountStatus: String?
-    /// Credit blocks with expiry dates
-    public let creditBlocks: [AugmentOrbCreditBlock]
-    /// Raw JSON for debugging
+    public let creditsRemaining: Double?
+    public let creditsUsed: Double?
+    public let creditsLimit: Double?
+    public let billingCycleEnd: Date?
+    public let accountEmail: String?
+    public let accountPlan: String?
     public let rawJSON: String?
 
     public init(
-        creditsBalance: Int,
-        creditsConsumed: Int? = nil,
-        monthlyLimit: Int? = nil,
-        planName: String?,
-        accountStatus: String?,
-        creditBlocks: [AugmentOrbCreditBlock],
+        creditsRemaining: Double?,
+        creditsUsed: Double?,
+        creditsLimit: Double?,
+        billingCycleEnd: Date?,
+        accountEmail: String?,
+        accountPlan: String?,
         rawJSON: String?)
     {
-        self.creditsBalance = creditsBalance
-        self.creditsConsumed = creditsConsumed
-        self.monthlyLimit = monthlyLimit
-        self.planName = planName
-        self.accountStatus = accountStatus
-        self.creditBlocks = creditBlocks
+        self.creditsRemaining = creditsRemaining
+        self.creditsUsed = creditsUsed
+        self.creditsLimit = creditsLimit
+        self.billingCycleEnd = billingCycleEnd
+        self.accountEmail = accountEmail
+        self.accountPlan = accountPlan
         self.rawJSON = rawJSON
+    }
+
+    public func toUsageSnapshot() -> UsageSnapshot {
+        let percentUsed: Double
+        if let used = self.creditsUsed, let limit = self.creditsLimit, limit > 0 {
+            percentUsed = (used / limit) * 100.0
+        } else if let remaining = self.creditsRemaining, let limit = self.creditsLimit, limit > 0 {
+            percentUsed = ((limit - remaining) / limit) * 100.0
+        } else {
+            percentUsed = 0
+        }
+
+        let primary = RateWindow(
+            usedPercent: percentUsed,
+            windowMinutes: nil,
+            resetsAt: self.billingCycleEnd,
+            resetDescription: self.billingCycleEnd.map { "Resets \(Self.formatResetDate($0))" })
+
+        let identity = ProviderIdentitySnapshot(
+            providerID: .augment,
+            accountEmail: self.accountEmail,
+            accountOrganization: nil,
+            loginMethod: self.accountPlan)
+
+        return UsageSnapshot(
+            primary: primary,
+            secondary: nil,
+            tertiary: nil,
+            providerCost: nil,
+            updatedAt: Date(),
+            identity: identity)
+    }
+
+    private static func formatResetDate(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }
 
 // MARK: - Augment Status Probe Error
 
-public enum AugmentStatusProbeError: Error, LocalizedError {
-    case noSessionCookie
-    case sessionExpired
-    case browserSessionExpired
+public enum AugmentStatusProbeError: LocalizedError, Sendable {
+    case notLoggedIn
     case networkError(String)
     case parseFailed(String)
-    case noPortalUrl
-    case noCustomerId
-    case noPricingUnit
+    case noSessionCookie
+    case sessionExpired
 
     public var errorDescription: String? {
         switch self {
+        case .notLoggedIn:
+            "Not logged in to Augment. Please log in via the CodexBar menu."
+        case let .networkError(msg):
+            "Augment API error: \(msg)"
+        case let .parseFailed(msg):
+            "Could not parse Augment usage: \(msg)"
         case .noSessionCookie:
-            "No Augment session cookie found. Please log in to app.augmentcode.com in your browser."
+            "No Augment session found. Please log in to app.augmentcode.com in \(augmentCookieImportOrder.loginHint)."
         case .sessionExpired:
-            "Your Augment session has expired. Please log in again at app.augmentcode.com"
-        case .browserSessionExpired:
-            "Your Augment session has expired. Click 'Refresh Browser Cookies' below to update, then 'Force Refresh Session'."
-        case let .networkError(message):
-            "Network error: \(message)"
-        case let .parseFailed(message):
-            "Failed to parse response: \(message)"
-        case .noPortalUrl:
-            "No portal URL found in subscription response"
-        case .noCustomerId:
-            "No customer ID found in Orb response"
-        case .noPricingUnit:
-            "No pricing unit found for credits"
+            "Augment session expired. Please log in again."
+        }
+    }
+}
+
+// MARK: - Augment Session Store
+
+public actor AugmentSessionStore {
+    public static let shared = AugmentSessionStore()
+
+    private var sessionCookies: [HTTPCookie] = []
+    private var hasLoadedFromDisk = false
+    private let fileURL: URL
+
+    private init() {
+        let fm = FileManager.default
+        let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? fm.temporaryDirectory
+        let dir = appSupport.appendingPathComponent("CodexBar", isDirectory: true)
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        self.fileURL = dir.appendingPathComponent("augment-session.json")
+
+        // Load saved cookies on init
+        Task { await self.loadFromDiskIfNeeded() }
+    }
+
+    public func setCookies(_ cookies: [HTTPCookie]) {
+        self.hasLoadedFromDisk = true
+        self.sessionCookies = cookies
+        self.saveToDisk()
+    }
+
+    public func getCookies() -> [HTTPCookie] {
+        self.loadFromDiskIfNeeded()
+        return self.sessionCookies
+    }
+
+    public func clearCookies() {
+        self.hasLoadedFromDisk = true
+        self.sessionCookies = []
+        try? FileManager.default.removeItem(at: self.fileURL)
+    }
+
+    public func hasValidSession() -> Bool {
+        self.loadFromDiskIfNeeded()
+        return !self.sessionCookies.isEmpty
+    }
+
+    #if DEBUG
+    func resetForTesting(clearDisk: Bool = true) {
+        self.hasLoadedFromDisk = false
+        self.sessionCookies = []
+        if clearDisk {
+            try? FileManager.default.removeItem(at: self.fileURL)
+        }
+    }
+    #endif
+
+    private func loadFromDiskIfNeeded() {
+        guard !self.hasLoadedFromDisk else { return }
+        self.hasLoadedFromDisk = true
+        self.loadFromDisk()
+    }
+
+    private func saveToDisk() {
+        // Convert cookie properties to JSON-serializable format
+        // Date values must be converted to TimeInterval (Double)
+        let cookieData = self.sessionCookies.compactMap { cookie -> [String: Any]? in
+            guard let props = cookie.properties else { return nil }
+            var serializable: [String: Any] = [:]
+            for (key, value) in props {
+                let keyString = key.rawValue
+                if let date = value as? Date {
+                    // Convert Date to TimeInterval for JSON compatibility
+                    serializable[keyString] = date.timeIntervalSince1970
+                    serializable[keyString + "_isDate"] = true
+                } else if let url = value as? URL {
+                    serializable[keyString] = url.absoluteString
+                    serializable[keyString + "_isURL"] = true
+                } else if JSONSerialization.isValidJSONObject([value]) ||
+                    value is String ||
+                    value is Bool ||
+                    value is NSNumber
+                {
+                    serializable[keyString] = value
+                }
+            }
+            return serializable
+        }
+        guard !cookieData.isEmpty,
+              let data = try? JSONSerialization.data(withJSONObject: cookieData, options: [.prettyPrinted])
+        else {
+            return
+        }
+        try? data.write(to: self.fileURL)
+    }
+
+    private func loadFromDisk() {
+        guard let data = try? Data(contentsOf: self.fileURL),
+              let cookieArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
+        else { return }
+
+        self.sessionCookies = cookieArray.compactMap { props in
+            // Convert back to HTTPCookiePropertyKey dictionary
+            var cookieProps: [HTTPCookiePropertyKey: Any] = [:]
+            for (key, value) in props {
+                // Skip marker keys
+                if key.hasSuffix("_isDate") || key.hasSuffix("_isURL") { continue }
+
+                let propKey = HTTPCookiePropertyKey(key)
+
+                // Check if this was a Date
+                if props[key + "_isDate"] as? Bool == true, let interval = value as? TimeInterval {
+                    cookieProps[propKey] = Date(timeIntervalSince1970: interval)
+                }
+                // Check if this was a URL
+                else if props[key + "_isURL"] as? Bool == true, let urlString = value as? String {
+                    cookieProps[propKey] = URL(string: urlString)
+                } else {
+                    cookieProps[propKey] = value
+                }
+            }
+            return HTTPCookie(properties: cookieProps)
         }
     }
 }
@@ -307,67 +359,220 @@ public enum AugmentStatusProbeError: Error, LocalizedError {
 // MARK: - Augment Status Probe
 
 public struct AugmentStatusProbe: Sendable {
-    private let baseURL: URL
-    private let timeout: TimeInterval
+    public let baseURL: URL
+    public var timeout: TimeInterval = 15.0
 
-    public init(baseURL: URL = URL(string: "https://app.augmentcode.com")!, timeout: TimeInterval = 30) {
+    public init(baseURL: URL = URL(string: "https://app.augmentcode.com")!, timeout: TimeInterval = 15.0) {
         self.baseURL = baseURL
         self.timeout = timeout
     }
 
-    // MARK: - Debug Methods
+    /// Fetch Augment usage with manual cookie header (for debugging).
+    public func fetchWithManualCookies(_ cookieHeader: String) async throws -> AugmentStatusSnapshot {
+        try await self.fetchWithCookieHeader(cookieHeader)
+    }
 
-    /// Fetch raw probe output for debugging purposes
-    public func debugRawProbe(cookieHeaderOverride: String? = nil) async -> String {
-        var debugLines: [String] = []
-        let timestamp = ISO8601DateFormatter().string(from: Date())
+    /// Fetch Augment usage using browser cookies with fallback to stored session.
+    public func fetch(cookieHeaderOverride: String? = nil, logger: ((String) -> Void)? = nil)
+        async throws -> AugmentStatusSnapshot
+    {
+        let log: (String) -> Void = { msg in logger?("[augment] \(msg)") }
 
-        debugLines.append("=== Augment Debug Probe @ \(timestamp) ===")
-        debugLines.append("")
+        if let override = CookieHeaderNormalizer.normalize(cookieHeaderOverride) {
+            log("Using manual cookie header")
+            return try await self.fetchWithCookieHeader(override)
+        }
+
+        // Try importing cookies from the configured browser order first.
+        do {
+            let session = try AugmentCookieImporter.importSession(logger: log)
+            log("Using cookies from \(session.sourceLabel)")
+            let snapshot = try await self.fetchWithCookieHeader(session.cookieHeader)
+
+            // SUCCESS: Save cookies to fallback store for future use
+            await AugmentSessionStore.shared.setCookies(session.cookies)
+            log("Saved session cookies to fallback store")
+
+            return snapshot
+        } catch {
+            log("Browser cookie import failed: \(error.localizedDescription)")
+        }
+
+        // Fall back to stored session cookies (from previous successful fetch or "Add Account" login flow)
+        let storedCookies = await AugmentSessionStore.shared.getCookies()
+        if !storedCookies.isEmpty {
+            log("Using stored session cookies")
+            let cookieHeader = storedCookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
+            do {
+                return try await self.fetchWithCookieHeader(cookieHeader)
+            } catch {
+                if case AugmentStatusProbeError.notLoggedIn = error {
+                    // Clear only when auth is invalid; keep for transient failures.
+                    await AugmentSessionStore.shared.clearCookies()
+                    log("Stored session invalid, cleared")
+                } else if case AugmentStatusProbeError.sessionExpired = error {
+                    await AugmentSessionStore.shared.clearCookies()
+                    log("Stored session expired, cleared")
+                } else {
+                    log("Stored session failed: \(error.localizedDescription)")
+                }
+            }
+        }
+
+        throw AugmentStatusProbeError.noSessionCookie
+    }
+
+    private func fetchWithCookieHeader(_ cookieHeader: String) async throws -> AugmentStatusSnapshot {
+        // Fetch credits (required)
+        let (creditsResponse, creditsJSON) = try await self.fetchCredits(cookieHeader: cookieHeader)
+
+        // Fetch subscription (optional - provides plan name and billing cycle)
+        let subscriptionResult: (AugmentSubscriptionResponse?, String?) = await {
+            do {
+                let (response, json) = try await self.fetchSubscription(cookieHeader: cookieHeader)
+                return (response, json)
+            } catch {
+                // Subscription API is optional - don't fail the whole fetch if it's unavailable
+                return (nil, nil)
+            }
+        }()
+
+        return self.parseResponse(
+            credits: creditsResponse,
+            subscription: subscriptionResult.0,
+            creditsJSON: creditsJSON,
+            subscriptionJSON: subscriptionResult.1)
+    }
+
+    private func fetchCredits(cookieHeader: String) async throws -> (AugmentCreditsResponse, String) {
+        let url = self.baseURL.appendingPathComponent("/api/credits")
+        var request = URLRequest(url: url)
+        request.timeoutInterval = self.timeout
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AugmentStatusProbeError.networkError("Invalid response")
+        }
+
+        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+            let responseBody = String(data: data, encoding: .utf8) ?? ""
+            throw AugmentStatusProbeError.networkError("HTTP \(httpResponse.statusCode): \(responseBody)")
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            let responseBody = String(data: data, encoding: .utf8) ?? ""
+            throw AugmentStatusProbeError.networkError("HTTP \(httpResponse.statusCode): \(responseBody)")
+        }
+
+        let rawJSON = String(data: data, encoding: .utf8) ?? ""
+        let decoder = JSONDecoder()
+        do {
+            let response = try decoder.decode(AugmentCreditsResponse.self, from: data)
+            return (response, rawJSON)
+        } catch {
+            throw AugmentStatusProbeError.parseFailed("Credits response: \(error.localizedDescription)")
+        }
+    }
+
+    private func fetchSubscription(cookieHeader: String) async throws -> (AugmentSubscriptionResponse, String) {
+        let url = self.baseURL.appendingPathComponent("/api/subscription")
+        var request = URLRequest(url: url)
+        request.timeoutInterval = self.timeout
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AugmentStatusProbeError.networkError("Invalid response")
+        }
+
+        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+            throw AugmentStatusProbeError.notLoggedIn
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            throw AugmentStatusProbeError.networkError("HTTP \(httpResponse.statusCode)")
+        }
+
+        let rawJSON = String(data: data, encoding: .utf8) ?? ""
+        let decoder = JSONDecoder()
+        do {
+            let response = try decoder.decode(AugmentSubscriptionResponse.self, from: data)
+            return (response, rawJSON)
+        } catch {
+            throw AugmentStatusProbeError.parseFailed("Subscription response: \(error.localizedDescription)")
+        }
+    }
+
+    private func parseResponse(
+        credits: AugmentCreditsResponse,
+        subscription: AugmentSubscriptionResponse?,
+        creditsJSON: String,
+        subscriptionJSON: String?) -> AugmentStatusSnapshot
+    {
+        // Combine both API responses for debugging
+        var combinedJSON = "Credits API:\n\(creditsJSON)"
+        if let subJSON = subscriptionJSON {
+            combinedJSON += "\n\nSubscription API:\n\(subJSON)"
+        }
+
+        // Parse billing period end date from ISO8601 string
+        let billingCycleEnd: Date? = {
+            guard let dateString = subscription?.billingPeriodEnd else { return nil }
+            let formatter = ISO8601DateFormatter()
+            return formatter.date(from: dateString)
+        }()
+
+        return AugmentStatusSnapshot(
+            creditsRemaining: credits.credits,
+            creditsUsed: credits.creditsUsed,
+            creditsLimit: credits.creditsLimit,
+            billingCycleEnd: billingCycleEnd,
+            accountEmail: subscription?.email,
+            accountPlan: subscription?.planName,
+            rawJSON: combinedJSON)
+    }
+
+    /// Debug probe that returns raw API responses
+    public func debugRawProbe() async -> String {
+        let stamp = ISO8601DateFormatter().string(from: Date())
+        var lines: [String] = []
+        lines.append("=== Augment Debug Probe @ \(stamp) ===")
+        lines.append("")
 
         do {
-            let snapshot = try await self.fetch(cookieHeaderOverride: cookieHeaderOverride) { msg in
-                debugLines.append("[cookie-import] \(msg)")
-            }
-
-            debugLines.append("")
-            debugLines.append("--- Probe Success ---")
-            debugLines.append("Credits Balance: \(snapshot.creditsBalance)")
-            if let consumed = snapshot.creditsConsumed {
-                debugLines.append("Credits Consumed: \(consumed)")
-            }
-            if let monthlyLimit = snapshot.monthlyLimit {
-                debugLines.append("Monthly Limit: \(monthlyLimit)")
-            }
-            if let planName = snapshot.planName {
-                debugLines.append("Plan Name: \(planName)")
-            }
-            if let status = snapshot.accountStatus {
-                debugLines.append("Account Status: \(status)")
-            }
-            debugLines.append("")
+            let snapshot = try await self.fetch(logger: { msg in lines.append("[log] \(msg)") })
+            lines.append("")
+            lines.append("Probe Success")
+            lines.append("")
+            lines.append("Credits Balance:")
+            lines.append("  Remaining: \(snapshot.creditsRemaining?.description ?? "nil")")
+            lines.append("  Used: \(snapshot.creditsUsed?.description ?? "nil")")
+            lines.append("  Limit: \(snapshot.creditsLimit?.description ?? "nil")")
+            lines.append("")
+            lines.append("Billing Cycle End: \(snapshot.billingCycleEnd?.description ?? "nil")")
+            lines.append("Account Email: \(snapshot.accountEmail ?? "nil")")
+            lines.append("Account Plan: \(snapshot.accountPlan ?? "nil")")
 
             if let rawJSON = snapshot.rawJSON {
-                debugLines.append("--- Raw API Response ---")
-                debugLines.append(rawJSON)
+                lines.append("")
+                lines.append("Raw API Response:")
+                lines.append(rawJSON)
             }
 
-            let result = debugLines.joined(separator: "\n")
-            Task { @MainActor in Self.recordDump(result) }
-            return result
+            let output = lines.joined(separator: "\n")
+            Task { @MainActor in Self.recordDump(output) }
+            return output
         } catch {
-            debugLines.append("")
-            debugLines.append("--- Probe Failed ---")
-            debugLines.append("Error: \(error.localizedDescription)")
-            debugLines.append("")
-
-            if let augmentError = error as? AugmentStatusProbeError {
-                debugLines.append("Error Type: \(augmentError)")
-            }
-
-            let result = debugLines.joined(separator: "\n")
-            Task { @MainActor in Self.recordDump(result) }
-            return result
+            lines.append("")
+            lines.append("Probe Failed: \(error.localizedDescription)")
+            let output = lines.joined(separator: "\n")
+            Task { @MainActor in Self.recordDump(output) }
+            return output
         }
     }
 
@@ -380,373 +585,52 @@ public struct AugmentStatusProbe: Sendable {
         self.recentDumps.append(text)
     }
 
-    /// Retrieve the latest debug dumps from the ring buffer
     public static func latestDumps() async -> String {
         await MainActor.run {
             let result = Self.recentDumps.joined(separator: "\n\n---\n\n")
             return result.isEmpty ? "No Augment probe dumps captured yet." : result
         }
     }
+}
 
-    /// Fetch Augment usage with manual cookie header (for debugging).
-    public func fetchWithManualCookies(_ cookieHeader: String) async throws -> AugmentStatusSnapshot {
-        try await self.fetchWithCookieHeader(cookieHeader, session: nil)
-    }
+#else
 
-    /// Fetch Augment usage using browser cookies with automatic retry on session expiration.
-    ///
-    /// This method implements automatic cookie refresh:
-    /// 1. Attempts to fetch usage with current cookies
-    /// 2. If session expires (HTTP 401), automatically imports fresh cookies from browser
-    /// 3. Retries the request once with fresh cookies
-    /// 4. If still failing, throws the error to the caller
-    public func fetch(cookieHeaderOverride: String? = nil, logger: ((String) -> Void)? = nil)
-        async throws -> AugmentStatusSnapshot
-    {
-        let log: (String) -> Void = { msg in
-            logger?("[augment] \(msg)")
-            print("[CodexBar:Augment] \(msg)")  // Also print to console for debugging
-        }
+// MARK: - Augment (Unsupported)
 
-        let session: AugmentCookieImporter.SessionInfo?
-        let cookieHeader: String
-        let initialSource: String
+public enum AugmentStatusProbeError: LocalizedError, Sendable {
+    case notSupported
 
-        if let override = cookieHeaderOverride {
-            session = nil
-            cookieHeader = override
-            initialSource = "manual override"
-            log("Using manual cookie override")
-        } else {
-            let importedSession = try AugmentCookieImporter.importSession(logger: logger)
-            session = importedSession
-            cookieHeader = importedSession.cookieHeader
-            initialSource = importedSession.sourceLabel
-            log("Imported cookies from \(initialSource)")
-        }
-
-        do {
-            log("Attempting API request with cookies from \(initialSource)...")
-            return try await self.fetchWithCookieHeader(cookieHeader, session: session)
-        } catch AugmentStatusProbeError.sessionExpired {
-            // Session expired - automatically retry with fresh cookies from browser
-            log("⚠️ Session expired (HTTP 401), attempting automatic cookie refresh...")
-
-            // Only retry if we're in auto mode (not manual override)
-            guard cookieHeaderOverride == nil else {
-                log("✗ Manual cookie mode - cannot auto-refresh. Please update your cookie manually.")
-                throw AugmentStatusProbeError.sessionExpired
-            }
-
-            // Import fresh cookies from browser
-            log("🔄 Re-importing cookies from browser (previous source: \(initialSource))...")
-            let freshSession = try AugmentCookieImporter.importSession(logger: logger)
-            log("✓ Fresh cookies imported from \(freshSession.sourceLabel), retrying API request...")
-
-            // Retry with fresh cookies
-            do {
-                let result = try await self.fetchWithCookieHeader(freshSession.cookieHeader, session: freshSession)
-                log("✅ Retry succeeded! Session recovered.")
-                return result
-            } catch AugmentStatusProbeError.sessionExpired {
-                log("✗ Retry failed - fresh cookies from \(freshSession.sourceLabel) are also expired!")
-                log("   This means your browser's saved cookies are stale.")
-                log("   ")
-                log("   To fix this:")
-                log("   1. Click 'Refresh Browser Cookies' in Settings → Providers → Augment")
-                log("   2. Follow the instructions to refresh your browser session")
-                log("   3. Click 'Force Refresh Session' to reload")
-                log("   ")
-                log("   Or manually visit https://app.augmentcode.com and refresh the page (⌘R)")
-                // Throw a more helpful error that explains the browser session is also expired
-                throw AugmentStatusProbeError.browserSessionExpired
-            }
-        }
-    }
-
-    private func fetchWithCookieHeader(_ cookieHeader: String, session: AugmentCookieImporter.SessionInfo?) async throws -> AugmentStatusSnapshot {
-        // Fetch both credits and subscription info in parallel
-        async let creditsResult = self.fetchCredits(cookieHeader: cookieHeader, session: session)
-        async let subscriptionResult = self.fetchSubscription(cookieHeader: cookieHeader, session: session)
-
-        let ((credits, creditsJSON), (subscription, subscriptionJSON)) = try await (creditsResult, subscriptionResult)
-
-        let creditsRemaining = credits.usageUnitsRemaining ?? 0
-        let creditsConsumed = credits.usageUnitsConsumedThisBillingCycle
-        let monthlyLimit = subscription.monthlyCredits
-
-        // Combine both JSON responses for debugging
-        let combinedJSON = """
-            === Credits Response ===
-            \(creditsJSON)
-
-            === Subscription Response ===
-            \(subscriptionJSON)
-            """
-
-        return AugmentStatusSnapshot(
-            creditsBalance: creditsRemaining,
-            creditsConsumed: creditsConsumed,
-            monthlyLimit: monthlyLimit,
-            planName: subscription.planName,
-            accountStatus: subscription.status,
-            creditBlocks: [],
-            rawJSON: combinedJSON)
-    }
-
-    private func fetchCredits(cookieHeader: String, session: AugmentCookieImporter.SessionInfo?) async throws -> (AugmentCreditsResponse, String) {
-        let url = self.baseURL.appendingPathComponent("/api/credits")
-        var request = URLRequest(url: url)
-        request.timeoutInterval = self.timeout
-
-        // Use domain-filtered cookies if we have a session, otherwise use the provided header
-        let finalCookieHeader: String
-        if let session = session {
-            print("[CodexBar:Augment] 🍪 Using domain-filtered cookies for \(url)")
-            print("[CodexBar:Augment]    Session has \(session.cookies.count) total cookies")
-            for cookie in session.cookies {
-                let expiryInfo: String
-                if let expiry = cookie.expiresDate {
-                    let timeUntilExpiry = expiry.timeIntervalSinceNow
-                    expiryInfo = timeUntilExpiry > 0 ? "expires in \(Int(timeUntilExpiry))s" : "EXPIRED \(Int(-timeUntilExpiry))s ago"
-                } else {
-                    expiryInfo = "session cookie (no expiry)"
-                }
-                print("[CodexBar:Augment]      - \(cookie.name): domain='\(cookie.domain)' \(expiryInfo)")
-            }
-            finalCookieHeader = session.cookieHeader(for: url)
-            print("[CodexBar:Augment]    Final cookie header length: \(finalCookieHeader.count) chars")
-        } else {
-            finalCookieHeader = cookieHeader
-            print("[CodexBar:Augment] 🍪 Using provided cookie header (\(finalCookieHeader.count) chars)")
-        }
-
-        request.setValue(finalCookieHeader, forHTTPHeaderField: "Cookie")
-        request.setValue("*/*", forHTTPHeaderField: "Accept")
-        request.setValue("en-US,en;q=0.9", forHTTPHeaderField: "Accept-Language")
-
-        print("[CodexBar:Augment] 🌐 Making request to \(url)")
-        print("[CodexBar:Augment]    Cookie header being sent: \(finalCookieHeader.prefix(200))...")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AugmentStatusProbeError.networkError("Invalid response type")
-        }
-
-        print("[CodexBar:Augment] 📥 Received response: HTTP \(httpResponse.statusCode)")
-
-        // Check for session expiration (HTTP 401)
-        if httpResponse.statusCode == 401 {
-            print("[CodexBar:Augment] ❌ Session expired (HTTP 401)")
-            print("[CodexBar:Augment]    Cookie header that was sent: \(finalCookieHeader)")
-            if let session = session {
-                print("[CodexBar:Augment]    Session cookies before filtering:")
-                for cookie in session.cookies {
-                    print("[CodexBar:Augment]      - \(cookie.name): domain=\(cookie.domain)")
-                }
-            }
-            throw AugmentStatusProbeError.sessionExpired
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            let rawJSON = String(data: data, encoding: .utf8) ?? "<binary>"
-            throw AugmentStatusProbeError.networkError("HTTP \(httpResponse.statusCode): \(rawJSON.prefix(200))")
-        }
-
-        let rawJSON = String(data: data, encoding: .utf8) ?? "<binary>"
-
-        do {
-            let decoder = JSONDecoder()
-            let credits = try decoder.decode(AugmentCreditsResponse.self, from: data)
-            return (credits, rawJSON)
-        } catch {
-            throw AugmentStatusProbeError
-                .parseFailed("JSON decode failed: \(error.localizedDescription). Raw: \(rawJSON.prefix(200))")
-        }
-    }
-
-    private func fetchSubscription(cookieHeader: String, session: AugmentCookieImporter.SessionInfo?) async throws -> (AugmentSubscriptionResponse, String) {
-        let url = self.baseURL.appendingPathComponent("/api/subscription")
-        var request = URLRequest(url: url)
-        request.timeoutInterval = self.timeout
-
-        // Use domain-filtered cookies if we have a session, otherwise use the provided header
-        let finalCookieHeader: String
-        if let session = session {
-            finalCookieHeader = session.cookieHeader(for: url)
-        } else {
-            finalCookieHeader = cookieHeader
-        }
-
-        request.setValue(finalCookieHeader, forHTTPHeaderField: "Cookie")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AugmentStatusProbeError.networkError("Invalid response type")
-        }
-
-        // Check for session expiration (HTTP 401)
-        if httpResponse.statusCode == 401 {
-            throw AugmentStatusProbeError.sessionExpired
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            throw AugmentStatusProbeError.networkError("HTTP \(httpResponse.statusCode)")
-        }
-
-        let rawJSON = String(data: data, encoding: .utf8) ?? "<binary>"
-
-        do {
-            let decoder = JSONDecoder()
-            let subscription = try decoder.decode(AugmentSubscriptionResponse.self, from: data)
-            return (subscription, rawJSON)
-        } catch {
-            throw AugmentStatusProbeError
-                .parseFailed("JSON decode failed: \(error.localizedDescription). Raw: \(rawJSON.prefix(200))")
-        }
-    }
-
-    private func fetchOrbCustomer(token: String) async throws -> AugmentOrbCustomerResponse {
-        let urlString = "https://portal.withorb.com/api/v1/customer_from_link?token=\(token)"
-        guard let url = URL(string: urlString) else {
-            throw AugmentStatusProbeError.parseFailed("Invalid Orb customer URL")
-        }
-
-        var request = URLRequest(url: url)
-        request.timeoutInterval = self.timeout
-        request.setValue("Mozilla/5.0", forHTTPHeaderField: "User-Agent")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AugmentStatusProbeError.networkError("Invalid response type")
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            throw AugmentStatusProbeError.networkError("Orb customer API: HTTP \(httpResponse.statusCode)")
-        }
-
-        do {
-            let decoder = JSONDecoder()
-            return try decoder.decode(AugmentOrbCustomerResponse.self, from: data)
-        } catch {
-            let rawJSON = String(data: data, encoding: .utf8) ?? "<binary>"
-            throw AugmentStatusProbeError
-                .parseFailed("Orb customer decode failed: \(error.localizedDescription). Raw: \(rawJSON.prefix(200))")
-        }
-    }
-
-    private func fetchOrbLedger(customerId: String, pricingUnitId: String, token: String)
-        async throws -> (AugmentOrbLedgerResponse, String)
-    {
-        let urlString = "https://portal.withorb.com/api/v1/customers/\(customerId)/ledger_summary?pricing_unit_id=\(pricingUnitId)&token=\(token)"
-        guard let url = URL(string: urlString) else {
-            throw AugmentStatusProbeError.parseFailed("Invalid Orb ledger URL")
-        }
-
-        var request = URLRequest(url: url)
-        request.timeoutInterval = self.timeout
-        request.setValue("Mozilla/5.0", forHTTPHeaderField: "User-Agent")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AugmentStatusProbeError.networkError("Invalid response type")
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            throw AugmentStatusProbeError.networkError("Orb ledger API: HTTP \(httpResponse.statusCode)")
-        }
-
-        let rawJSON = String(data: data, encoding: .utf8) ?? "<binary>"
-
-        do {
-            let decoder = JSONDecoder()
-            let ledger = try decoder.decode(AugmentOrbLedgerResponse.self, from: data)
-            return (ledger, rawJSON)
-        } catch {
-            throw AugmentStatusProbeError
-                .parseFailed("Orb ledger decode failed: \(error.localizedDescription). Raw: \(rawJSON.prefix(200))")
-        }
-    }
-
-    func parseLedger(
-        _ ledger: AugmentOrbLedgerResponse,
-        subscription: AugmentSubscriptionResponse,
-        subscriptionJSON: String,
-        ledgerJSON: String) -> AugmentStatusSnapshot
-    {
-        let creditsBalance = Int(Double(ledger.creditsBalance ?? "0") ?? 0)
-
-        // Combine both JSON responses for debugging
-        let combinedJSON = """
-            === Subscription Response ===
-            \(subscriptionJSON)
-
-            === Ledger Response ===
-            \(ledgerJSON)
-            """
-
-        return AugmentStatusSnapshot(
-            creditsBalance: creditsBalance,
-            creditsConsumed: nil,  // Ledger endpoint doesn't provide consumed credits
-            monthlyLimit: subscription.monthlyCredits,
-            planName: subscription.planName,
-            accountStatus: subscription.status,
-            creditBlocks: ledger.creditBlocks ?? [],
-            rawJSON: combinedJSON)
+    public var errorDescription: String? {
+        "Augment is only supported on macOS."
     }
 }
 
-// MARK: - Usage Snapshot Conversion
+public struct AugmentStatusSnapshot: Sendable {
+    public init() {}
 
-extension AugmentStatusSnapshot {
     public func toUsageSnapshot() -> UsageSnapshot {
-        // Calculate usage percentage based on consumed credits and total available credits
-        // Total available = remaining + consumed
-        let usedPercent: Double
-        let resetDescription: String
-
-        if let consumed = self.creditsConsumed, consumed > 0 || self.creditsBalance > 0 {
-            // Calculate total credits available this billing cycle
-            let totalCredits = self.creditsBalance + consumed
-            if totalCredits > 0 {
-                usedPercent = (Double(consumed) / Double(totalCredits)) * 100.0
-            } else {
-                usedPercent = 0
-            }
-            resetDescription = "\(self.creditsBalance) credits remaining"
-        } else {
-            // Fallback: show 0% used if we don't have the data
-            usedPercent = 0
-            resetDescription = "\(self.creditsBalance) credits remaining"
-        }
-
-        let primary = RateWindow(
-            usedPercent: usedPercent,
-            windowMinutes: nil,
-            resetsAt: nil,
-            resetDescription: resetDescription)
-
-        let identity = ProviderIdentitySnapshot(
-            providerID: .augment,
-            accountEmail: nil,
-            accountOrganization: self.planName,
-            loginMethod: nil)
-
-        return UsageSnapshot(
-            primary: primary,
+        UsageSnapshot(
+            primary: RateWindow(usedPercent: 0, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
             secondary: nil,
             tertiary: nil,
             providerCost: nil,
-            zaiUsage: nil,
             updatedAt: Date(),
-            identity: identity)
+            identity: nil)
+    }
+}
+
+public struct AugmentStatusProbe: Sendable {
+    public init(baseURL: URL = URL(string: "https://app.augmentcode.com")!, timeout: TimeInterval = 15.0) {
+        _ = baseURL
+        _ = timeout
+    }
+
+    public func fetch(logger: ((String) -> Void)? = nil) async throws -> AugmentStatusSnapshot {
+        _ = logger
+        throw AugmentStatusProbeError.notSupported
     }
 }
 
 #endif
+
 
