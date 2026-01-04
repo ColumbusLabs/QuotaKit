@@ -21,33 +21,14 @@ func showAbout() {
         ])
     }
 
-    let credits = NSMutableAttributedString(string: "Originally created by Peter Steinberger\n")
-    credits.append(NSAttributedString(string: "Enhanced by Brandon Charleson\n", attributes: [
-        .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
-    ]))
-    credits.append(NSAttributedString(string: "MIT License\n\n", attributes: [
-        .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
-        .foregroundColor: NSColor.secondaryLabelColor,
-    ]))
-
-    // Original Author Links
-    credits.append(NSAttributedString(string: "Original: ", attributes: [
-        .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
-        .foregroundColor: NSColor.secondaryLabelColor,
-    ]))
+    let credits = NSMutableAttributedString(string: "Peter Steinberger — MIT License\n")
     credits.append(makeLink("GitHub", urlString: "https://github.com/steipete/CodexBar"))
     credits.append(separator)
     credits.append(makeLink("Website", urlString: "https://codexbar.app"))
-    credits.append(NSAttributedString(string: "\n", attributes: [:]))
-
-    // Fork Maintainer Links
-    credits.append(NSAttributedString(string: "Fork: ", attributes: [
-        .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
-        .foregroundColor: NSColor.secondaryLabelColor,
-    ]))
-    credits.append(makeLink("GitHub", urlString: "https://github.com/bcharleson/codexbar"))
     credits.append(separator)
-    credits.append(makeLink("Website", urlString: "https://topoffunnel.com"))
+    credits.append(makeLink("Twitter", urlString: "https://twitter.com/steipete"))
+    credits.append(separator)
+    credits.append(makeLink("Email", urlString: "mailto:peter@steipete.me"))
     if let buildTimestamp, let formatted = formattedBuildTimestamp(buildTimestamp) {
         var builtLine = "Built \(formatted)"
         if let gitCommit, !gitCommit.isEmpty, gitCommit != "unknown" {
