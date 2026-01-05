@@ -20,6 +20,7 @@
 - Preferences: tighten provider rows (inline pickers, compact layout, inline refresh + auto-source status).
 - Preferences: remove the “experimental” label from Antigravity.
 - Menu bar: fix combined loading indicator flicker during loading animation (incl. debug replay).
+- Menu bar: prevent blink updates from clobbering the loading animation.
 
 ### Menu
 - Menu: add a toggle to show reset times as absolute clock values (instead of countdowns).
