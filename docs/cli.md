@@ -17,11 +17,12 @@ Use it when you need usage numbers in scripts, CI, or dashboards without UI.
 - Manual: `ln -sf "/Applications/CodexBar.app/Contents/Helpers/CodexBarCLI" /usr/local/bin/codexbar`.
 
 ### Linux install
-- Download `CodexBarCLI-<tag>-linux-<arch>.tar.gz` from GitHub Releases (x86_64 + aarch64).
+- Homebrew (Linuxbrew, Linux only): `brew install steipete/tap/codexbar`.
+- Download `CodexBarCLI-v<tag>-linux-<arch>.tar.gz` from GitHub Releases (x86_64 + aarch64).
 - Extract; run `./codexbar` (symlink) or `./CodexBarCLI`.
 
 ```
-tar -xzf CodexBarCLI-0.14.1-linux-x86_64.tar.gz
+tar -xzf CodexBarCLI-v0.17.0-linux-x86_64.tar.gz
 ./codexbar --version
 ./codexbar usage --format json --pretty
 ```

@@ -17,6 +17,12 @@ Download: <https://github.com/steipete/CodexBar/releases>
 brew install --cask steipete/tap/codexbar
 ```
 
+### Linux (CLI only)
+```bash
+brew install steipete/tap/codexbar
+```
+Or download `CodexBarCLI-v<tag>-linux-<arch>.tar.gz` from GitHub Releases.
+
 ### First run
 - Open Settings → Providers and enable what you use.
 - Install/sign in to the provider sources you rely on (e.g. `codex`, `claude`, `gemini`, browser cookies, or OAuth; Antigravity requires the Antigravity app running).

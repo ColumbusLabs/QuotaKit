@@ -76,7 +76,7 @@ git tag v<version>
 CodexBar ships a Homebrew **Cask** in `../homebrew-tap`. When installed via Homebrew, CodexBar disables Sparkle and the app
 must be updated via `brew`.
 
-After publishing the GitHub release, update the tap cask (see `docs/releasing-homebrew.md`).
+After publishing the GitHub release, update the tap cask + Linux CLI formula (see `docs/releasing-homebrew.md`).
 
 ## Checklist (quick)
 - [ ] Read both this file and `~/Projects/agent-scripts/docs/RELEASING-MAC.md`; resolve any conflicts toward CodexBar’s specifics.
@@ -91,7 +91,7 @@ After publishing the GitHub release, update the tap cask (see `docs/releasing-ho
   - Generate the appcast + HTML release notes: `./Scripts/make_appcast.sh CodexBar-<ver>.zip https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml`
   - Verify the enclosure signature + size: `SPARKLE_PRIVATE_KEY_FILE=... ./Scripts/verify_appcast.sh <ver>`
 - [ ] Upload zip + appcast to feed; publish tag + GitHub release so Sparkle URL is live (avoid 404)
-- [ ] Homebrew tap: update `../homebrew-tap/Casks/codexbar.rb` (url + sha256), then verify:
+- [ ] Homebrew tap: update `../homebrew-tap/Casks/codexbar.rb` (url + sha256) and `../homebrew-tap/Formula/codexbar.rb` (Linux CLI tarball urls + sha256), then verify:
   - `brew uninstall --cask codexbar || true`
   - `brew untap steipete/tap || true; brew tap steipete/tap`
   - `brew install --cask steipete/tap/codexbar && open -a CodexBar`
