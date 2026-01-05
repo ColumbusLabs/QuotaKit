@@ -78,8 +78,18 @@ extension StatusItemController {
     }
 
     func menuDidClose(_ menu: NSMenu) {
-        self.openMenus.removeValue(forKey: ObjectIdentifier(menu))
-        self.menuRefreshTasks.removeValue(forKey: ObjectIdentifier(menu))?.cancel()
+        let key = ObjectIdentifier(menu)
+
+        self.openMenus.removeValue(forKey: key)
+        self.menuRefreshTasks.removeValue(forKey: key)?.cancel()
+
+        let isPersistentMenu = menu === self.mergedMenu ||
+            menu === self.fallbackMenu ||
+            self.providerMenus.values.contains { $0 === menu }
+        if !isPersistentMenu {
+            self.menuProviders.removeValue(forKey: key)
+            self.menuVersions.removeValue(forKey: key)
+        }
         for menuItem in menu.items {
             (menuItem.view as? MenuCardHighlighting)?.setHighlighted(false)
         }
@@ -96,20 +106,29 @@ extension StatusItemController {
         let selectedProvider = provider
         let enabledProviders = self.store.enabledProviders()
         let menuWidth = self.menuCardWidth(for: enabledProviders, menu: menu)
+        let currentProvider = selectedProvider ?? enabledProviders.first ?? .codex
+        let tokenAccountDisplay = self.tokenAccountMenuDisplay(for: currentProvider)
+        let showAllTokenAccounts = tokenAccountDisplay?.showAll ?? false
+        let openAIContext = self.openAIWebContext(
+            currentProvider: currentProvider,
+            showAllTokenAccounts: showAllTokenAccounts)
 
-        // Check if we can do a smart update instead of full rebuild
         let canSmartUpdate = self.shouldMergeIcons &&
-                             enabledProviders.count > 1 &&
-                             menu.items.count > 0 &&
-                             menu.items.first?.view is ProviderSwitcherView
+            enabledProviders.count > 1 &&
+            tokenAccountDisplay == nil &&
+            menu.items.count > 0 &&
+            menu.items.first?.view is ProviderSwitcherView
 
         if canSmartUpdate {
-            // Smart update: only update content cards, keep the switcher
-            self.updateMenuContent(menu, provider: selectedProvider, enabledProviders: enabledProviders, menuWidth: menuWidth)
+            self.updateMenuContent(
+                menu,
+                provider: selectedProvider,
+                currentProvider: currentProvider,
+                menuWidth: menuWidth,
+                openAIContext: openAIContext)
             return
         }
 
-        // Full rebuild for initial population or when structure changes
         menu.removeAllItems()
 
         let descriptor = MenuDescriptor.build(
@@ -118,12 +137,6 @@ extension StatusItemController {
             settings: self.settings,
             account: self.account,
             updateReady: self.updater.updateStatus.isUpdateReady)
-        let currentProvider = selectedProvider ?? enabledProviders.first ?? .codex
-        let tokenAccountDisplay = self.tokenAccountMenuDisplay(for: currentProvider)
-        let showAllTokenAccounts = tokenAccountDisplay?.showAll ?? false
-        let openAIContext = self.openAIWebContext(
-            currentProvider: currentProvider,
-            showAllTokenAccounts: showAllTokenAccounts)
 
         self.addProviderSwitcherIfNeeded(
             to: menu,
@@ -135,6 +148,54 @@ extension StatusItemController {
             selectedProvider: selectedProvider,
             menuWidth: menuWidth,
             tokenAccountDisplay: tokenAccountDisplay,
+            openAIContext: openAIContext)
+        let addedOpenAIWebItems = self.addMenuCards(to: menu, context: menuContext)
+        self.addOpenAIWebItemsIfNeeded(
+            to: menu,
+            currentProvider: currentProvider,
+            context: openAIContext,
+            addedOpenAIWebItems: addedOpenAIWebItems)
+        self.addActionableSections(descriptor.sections, to: menu)
+    }
+
+    /// Smart update: only rebuild content sections when switching providers (keep the switcher intact).
+    private func updateMenuContent(
+        _ menu: NSMenu,
+        provider: UsageProvider?,
+        currentProvider: UsageProvider,
+        menuWidth: CGFloat,
+        openAIContext: OpenAIWebContext)
+    {
+        // Batch menu updates to prevent visual flickering during provider switch.
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+
+        var contentStartIndex = 0
+        if menu.items.first?.view is ProviderSwitcherView {
+            contentStartIndex = 2
+        }
+        if menu.items.count > contentStartIndex,
+           menu.items[contentStartIndex].view is TokenAccountSwitcherView
+        {
+            contentStartIndex += 2
+        }
+        while menu.items.count > contentStartIndex {
+            menu.removeItem(at: contentStartIndex)
+        }
+
+        let descriptor = MenuDescriptor.build(
+            provider: provider,
+            store: self.store,
+            settings: self.settings,
+            account: self.account,
+            updateReady: self.updater.updateStatus.isUpdateReady)
+
+        let menuContext = MenuCardContext(
+            currentProvider: currentProvider,
+            selectedProvider: provider,
+            menuWidth: menuWidth,
+            tokenAccountDisplay: nil,
             openAIContext: openAIContext)
         let addedOpenAIWebItems = self.addMenuCards(to: menu, context: menuContext)
         self.addOpenAIWebItemsIfNeeded(
@@ -336,130 +397,6 @@ extension StatusItemController {
         }
     }
 
-    /// Smart update: only rebuild content sections when switching providers (keep the switcher intact)
-    private func updateMenuContent(_ menu: NSMenu, provider: UsageProvider?, enabledProviders: [UsageProvider], menuWidth: CGFloat) {
-        // Batch all menu updates to prevent visual flickering during provider switch
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        defer {
-            CATransaction.commit()
-        }
-
-        // Remove all items except the switcher and its separator
-        while menu.items.count > 2 {
-            menu.removeItem(at: 2)
-        }
-
-        let selectedProvider = provider
-        let descriptor = MenuDescriptor.build(
-            provider: selectedProvider,
-            store: self.store,
-            settings: self.settings,
-            account: self.account,
-            updateReady: self.updater.updateStatus.isUpdateReady)
-        let dashboard = self.store.openAIDashboard
-        let currentProvider = selectedProvider ?? enabledProviders.first ?? .codex
-        let openAIWebEligible = currentProvider == .codex &&
-            self.store.openAIDashboardRequiresLogin == false &&
-            dashboard != nil
-        let hasCreditsHistory = openAIWebEligible && !(dashboard?.dailyBreakdown ?? []).isEmpty
-        let hasUsageBreakdown = openAIWebEligible && !(dashboard?.usageBreakdown ?? []).isEmpty
-        let hasCostHistory = self.settings.isCostUsageEffectivelyEnabled(for: currentProvider) &&
-            (self.store.tokenSnapshot(for: currentProvider)?.daily.isEmpty == false)
-        let hasOpenAIWebMenuItems = hasCreditsHistory || hasUsageBreakdown || hasCostHistory
-        var addedOpenAIWebItems = false
-
-        if let model = self.menuCardModel(for: selectedProvider) {
-            if hasOpenAIWebMenuItems {
-                let webItems = OpenAIWebMenuItems(
-                    hasUsageBreakdown: hasUsageBreakdown,
-                    hasCreditsHistory: hasCreditsHistory,
-                    hasCostHistory: hasCostHistory)
-                self.addMenuCardSections(
-                    to: menu,
-                    model: model,
-                    provider: currentProvider,
-                    width: menuWidth,
-                    webItems: webItems)
-                addedOpenAIWebItems = true
-            } else {
-                menu.addItem(self.makeMenuCardItem(
-                    UsageMenuCardView(model: model, width: menuWidth),
-                    id: "menuCard",
-                    width: menuWidth))
-                if currentProvider == .codex, model.creditsText != nil {
-                    menu.addItem(self.makeBuyCreditsItem())
-                }
-                menu.addItem(.separator())
-            }
-        }
-
-        if hasOpenAIWebMenuItems {
-            if !addedOpenAIWebItems {
-                if hasUsageBreakdown {
-                    _ = self.addUsageBreakdownSubmenu(to: menu)
-                }
-                if hasCreditsHistory {
-                    _ = self.addCreditsHistorySubmenu(to: menu)
-                }
-                if hasCostHistory {
-                    _ = self.addCostHistorySubmenu(to: menu, provider: currentProvider)
-                }
-            }
-            menu.addItem(.separator())
-        }
-
-        let actionableSections = descriptor.sections.filter { section in
-            section.entries.contains { entry in
-                if case .action = entry { return true }
-                return false
-            }
-        }
-        for (index, section) in actionableSections.enumerated() {
-            for entry in section.entries {
-                switch entry {
-                case let .text(text, style):
-                    let item = NSMenuItem(title: text, action: nil, keyEquivalent: "")
-                    item.isEnabled = false
-                    if style == .headline {
-                        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .semibold)
-                        item.attributedTitle = NSAttributedString(string: text, attributes: [.font: font])
-                    } else if style == .secondary {
-                        let font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
-                        item.attributedTitle = NSAttributedString(
-                            string: text,
-                            attributes: [.font: font, .foregroundColor: NSColor.secondaryLabelColor])
-                    }
-                    menu.addItem(item)
-                case let .action(title, action):
-                    let (selector, represented) = self.selector(for: action)
-                    let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
-                    item.target = self
-                    item.representedObject = represented
-                    if let iconName = action.systemImageName,
-                       let image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)
-                    {
-                        image.isTemplate = true
-                        image.size = NSSize(width: 16, height: 16)
-                        item.image = image
-                    }
-                    if case let .switchAccount(targetProvider) = action,
-                       let subtitle = self.switchAccountSubtitle(for: targetProvider)
-                    {
-                        item.isEnabled = false
-                        self.applySubtitle(subtitle, to: item, title: title)
-                    }
-                    menu.addItem(item)
-                case .divider:
-                    menu.addItem(.separator())
-                }
-            }
-            if index < actionableSections.count - 1 {
-                menu.addItem(.separator())
-            }
-        }
-    }
-
     func makeMenu(for provider: UsageProvider?) -> NSMenu {
         let menu = NSMenu()
         menu.autoenablesItems = false
@@ -492,7 +429,6 @@ extension StatusItemController {
                 self.lastMenuProvider = provider
                 self.populateMenu(menu, provider: provider)
                 self.markMenuFresh(menu)
-                // Heights are already set during populateMenu/updateMenuContent
                 self.applyIcon(phase: nil)
             })
         let item = NSMenuItem()
@@ -517,7 +453,6 @@ extension StatusItemController {
                 }
                 self.populateMenu(menu, provider: display.provider)
                 self.markMenuFresh(menu)
-                self.refreshMenuCardHeights(in: menu)
                 self.applyIcon(phase: nil)
             })
         let item = NSMenuItem()
@@ -565,7 +500,11 @@ extension StatusItemController {
         guard !self.openMenus.isEmpty else { return }
         for (key, menu) in self.openMenus {
             guard key == ObjectIdentifier(menu) else {
+                // Clean up orphaned menu entries from all tracking dictionaries
                 self.openMenus.removeValue(forKey: key)
+                self.menuRefreshTasks.removeValue(forKey: key)?.cancel()
+                self.menuProviders.removeValue(forKey: key)
+                self.menuVersions.removeValue(forKey: key)
                 continue
             }
 
@@ -597,7 +536,8 @@ extension StatusItemController {
     }
 
     private func scheduleOpenMenuRefresh(for menu: NSMenu) {
-        self.refreshNow()
+        // Only refresh if data is stale, and do it asynchronously after a delay
+        // NEVER block menu opening with network requests
         let key = ObjectIdentifier(menu)
         self.menuRefreshTasks[key]?.cancel()
         self.menuRefreshTasks[key] = Task { @MainActor [weak self, weak menu] in
@@ -663,13 +603,12 @@ extension StatusItemController {
         let basePadding: CGFloat = 6
         let descenderSafety: CGFloat = 1
 
-        // Fast path: use protocol-based measurement when available (avoids expensive layout passes)
+        // Fast path: use protocol-based measurement when available (avoids layout passes)
         if let measured = view as? MenuCardMeasuring {
             return max(1, ceil(measured.measuredHeight(width: width) + basePadding + descenderSafety))
         }
 
-        // Fallback: measure via fittingSize with width constraint
-        // Set frame with target width once
+        // Set frame with target width before measuring.
         view.frame = NSRect(origin: .zero, size: NSSize(width: width, height: 1))
 
         // Use fittingSize directly - SwiftUI hosting views respect the frame width for wrapping
