@@ -12,6 +12,10 @@ extension StatusItemController {
         self.refreshStore(forceTokenUsage: true)
     }
 
+    @objc func refreshAugmentSession() {
+        Task { await self.store.forceRefreshAugmentSession() }
+    }
+
     @objc func installUpdate() {
         self.updater.checkForUpdates(nil)
     }
