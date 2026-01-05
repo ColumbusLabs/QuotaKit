@@ -4,7 +4,10 @@ import Foundation
 import PackageDescription
 
 let sweetCookieKitPath = "../SweetCookieKit"
-let sweetCookieKitDependency: Package.Dependency = FileManager.default.fileExists(atPath: sweetCookieKitPath)
+let useLocalSweetCookieKit =
+    ProcessInfo.processInfo.environment["CODEXBAR_USE_LOCAL_SWEETCOOKIEKIT"] == "1"
+let sweetCookieKitDependency: Package.Dependency =
+    useLocalSweetCookieKit && FileManager.default.fileExists(atPath: sweetCookieKitPath)
     ? .package(path: sweetCookieKitPath)
     : .package(url: "https://github.com/steipete/SweetCookieKit", from: "0.2.0")
 
@@ -55,14 +58,14 @@ let package = Package(
                 swiftSettings: [
                     .enableUpcomingFeature("StrictConcurrency"),
                 ]),
-        .testTarget(
-            name: "CodexBarLinuxTests",
-            dependencies: ["CodexBarCore", "CodexBarCLI"],
-            path: "TestsLinux",
-            swiftSettings: [
-                .enableUpcomingFeature("StrictConcurrency"),
-                .enableExperimentalFeature("SwiftTesting"),
-            ]),
+            .testTarget(
+                name: "CodexBarLinuxTests",
+                dependencies: ["CodexBarCore", "CodexBarCLI"],
+                path: "TestsLinux",
+                swiftSettings: [
+                    .enableUpcomingFeature("StrictConcurrency"),
+                    .enableExperimentalFeature("SwiftTesting"),
+                ]),
         ]
 
         #if os(macOS)
