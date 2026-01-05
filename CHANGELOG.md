@@ -19,7 +19,7 @@
 - Preferences: add cookie source pickers with contextual helper text for the selected mode.
 - Preferences: tighten provider rows (inline pickers, compact layout, inline refresh + auto-source status).
 - Preferences: remove the “experimental” label from Antigravity.
-- Menu bar: fix combined loading indicator flicker during loading animation.
+- Menu bar: fix combined loading indicator flicker during loading animation (incl. debug replay).
 
 ### Menu
 - Menu: add a toggle to show reset times as absolute clock values (instead of countdowns).
