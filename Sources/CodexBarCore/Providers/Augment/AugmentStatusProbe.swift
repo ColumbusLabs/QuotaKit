@@ -487,7 +487,12 @@ public struct AugmentStatusProbe: Sendable {
             throw AugmentStatusProbeError.networkError("Invalid response")
         }
 
-        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+        if httpResponse.statusCode == 401 {
+            // Session expired - trigger automatic recovery
+            throw AugmentStatusProbeError.sessionExpired
+        }
+
+        if httpResponse.statusCode == 403 {
             let responseBody = String(data: data, encoding: .utf8) ?? ""
             throw AugmentStatusProbeError.networkError("HTTP \(httpResponse.statusCode): \(responseBody)")
         }
@@ -520,7 +525,12 @@ public struct AugmentStatusProbe: Sendable {
             throw AugmentStatusProbeError.networkError("Invalid response")
         }
 
-        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+        if httpResponse.statusCode == 401 {
+            // Session expired - trigger automatic recovery
+            throw AugmentStatusProbeError.sessionExpired
+        }
+
+        if httpResponse.statusCode == 403 {
             throw AugmentStatusProbeError.notLoggedIn
         }
 

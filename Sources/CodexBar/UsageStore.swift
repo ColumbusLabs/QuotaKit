@@ -699,6 +699,14 @@ final class UsageStore {
                 } else {
                     self.errors[provider] = nil
                 }
+
+                // Trigger immediate session recovery for Augment when session expires
+                if provider == .augment, error.localizedDescription.contains("session expired") {
+                    print("[CodexBar] 🔐 Augment session expired detected - triggering immediate recovery")
+                    Task {
+                        await self.forceRefreshAugmentSession()
+                    }
+                }
             }
         }
     }

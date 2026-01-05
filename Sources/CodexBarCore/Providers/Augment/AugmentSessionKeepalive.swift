@@ -12,14 +12,14 @@ import UserNotifications
 public final class AugmentSessionKeepalive {
     // MARK: - Configuration
 
-    /// How often to check if session needs refresh (default: 5 minutes)
-    private let checkInterval: TimeInterval = 300
+    /// How often to check if session needs refresh (default: 1 minute for faster recovery)
+    private let checkInterval: TimeInterval = 60
 
     /// Refresh session this many seconds before cookie expiration (default: 5 minutes)
     private let refreshBufferSeconds: TimeInterval = 300
 
-    /// Minimum time between refresh attempts (default: 2 minutes)
-    private let minRefreshInterval: TimeInterval = 120
+    /// Minimum time between refresh attempts (default: 1 minute for faster recovery)
+    private let minRefreshInterval: TimeInterval = 60
 
     /// Maximum time to wait for session refresh (default: 30 seconds)
     private let refreshTimeout: TimeInterval = 30
