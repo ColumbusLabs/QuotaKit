@@ -99,14 +99,11 @@ public enum UsageFormatter {
         return "\(formatted) left"
     }
 
+    /// Formats a USD value with proper negative handling and thousand separators.
+    /// Uses direct string formatting to avoid NumberFormatter nil issues on non-US locales.
+    /// See: https://developer.apple.com/forums/thread/731057
     public static func usdString(_ value: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        formatter.maximumFractionDigits = 2
-        formatter.minimumFractionDigits = 2
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter.string(from: NSNumber(value: value)) ?? String(format: "$%.2f", value)
+        formatUSD(value)
     }
 
     public static func currencyString(_ value: Double, currencyCode: String) -> String {
@@ -115,7 +112,7 @@ public enum UsageFormatter {
         // even when explicitly setting locale to en_US_POSIX.
         // See: https://developer.apple.com/forums/thread/731057
         if currencyCode == "USD" {
-            return String(format: "$%.2f", value)
+            return formatUSD(value)
         }
 
         // For other currencies, try NumberFormatter but fall back to simple format if needed
@@ -132,6 +129,39 @@ public enum UsageFormatter {
 
         // Robust fallback for non-USD currencies
         return "\(currencyCode) \(String(format: "%.2f", value))"
+    }
+
+    /// Formats USD values with proper negative sign placement and optional thousand separators.
+    /// Handles: -$1,234.56 (not $-1,234.56), $0.00, $54.72
+    private static func formatUSD(_ value: Double) -> String {
+        let isNegative = value < 0
+        let absValue = abs(value)
+
+        // Format with 2 decimal places
+        let formatted = String(format: "%.2f", absValue)
+
+        // Add thousand separators for values >= 1000
+        let withSeparators: String
+        if absValue >= 1000 {
+            let parts = formatted.split(separator: ".")
+            let integerPart = String(parts[0])
+            let decimalPart = parts.count > 1 ? String(parts[1]) : "00"
+
+            // Insert commas every 3 digits from the right
+            var result = ""
+            for (index, char) in integerPart.reversed().enumerated() {
+                if index > 0 && index % 3 == 0 {
+                    result = "," + result
+                }
+                result = String(char) + result
+            }
+            withSeparators = "\(result).\(decimalPart)"
+        } else {
+            withSeparators = formatted
+        }
+
+        // Place negative sign before dollar sign: -$54.72 (not $-54.72)
+        return isNegative ? "-$\(withSeparators)" : "$\(withSeparators)"
     }
 
     public static func tokenCountString(_ value: Int) -> String {
@@ -167,9 +197,11 @@ public enum UsageFormatter {
     public static func creditEventSummary(_ event: CreditEvent) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         let number = NumberFormatter()
         number.numberStyle = .decimal
         number.maximumFractionDigits = 2
+        number.locale = Locale(identifier: "en_US_POSIX")
         let credits = number.string(from: NSNumber(value: event.creditsUsed)) ?? "0"
         return "\(formatter.string(from: event.date)) · \(event.service) · \(credits) credits"
     }
@@ -177,9 +209,11 @@ public enum UsageFormatter {
     public static func creditEventCompact(_ event: CreditEvent) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         let number = NumberFormatter()
         number.numberStyle = .decimal
         number.maximumFractionDigits = 2
+        number.locale = Locale(identifier: "en_US_POSIX")
         let credits = number.string(from: NSNumber(value: event.creditsUsed)) ?? "0"
         return "\(formatter.string(from: event.date)) — \(event.service): \(credits)"
     }

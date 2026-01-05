@@ -113,9 +113,36 @@ struct UsageFormatterTests {
     @Test
     func currencyStringHandlesLargeValues() {
         let result = UsageFormatter.currencyString(1234.56, currencyCode: "USD")
-        // For USD, we use direct string formatting for locale robustness
-        #expect(result == "$1234.56")
+        // For USD, we use direct string formatting with thousand separators
+        #expect(result == "$1,234.56")
         #expect(!result.contains("$ ")) // No space after symbol
+    }
+
+    @Test
+    func currencyStringHandlesVeryLargeValues() {
+        let result = UsageFormatter.currencyString(1_234_567.89, currencyCode: "USD")
+        #expect(result == "$1,234,567.89")
+    }
+
+    @Test
+    func currencyStringHandlesNegativeValues() {
+        // Negative sign should come before the dollar sign: -$54.72 (not $-54.72)
+        let result = UsageFormatter.currencyString(-54.72, currencyCode: "USD")
+        #expect(result == "-$54.72")
+    }
+
+    @Test
+    func currencyStringHandlesNegativeLargeValues() {
+        let result = UsageFormatter.currencyString(-1234.56, currencyCode: "USD")
+        #expect(result == "-$1,234.56")
+    }
+
+    @Test
+    func usdStringMatchesCurrencyString() {
+        // usdString should produce identical output to currencyString for USD
+        #expect(UsageFormatter.usdString(54.72) == UsageFormatter.currencyString(54.72, currencyCode: "USD"))
+        #expect(UsageFormatter.usdString(-1234.56) == UsageFormatter.currencyString(-1234.56, currencyCode: "USD"))
+        #expect(UsageFormatter.usdString(0) == UsageFormatter.currencyString(0, currencyCode: "USD"))
     }
 
     @Test
