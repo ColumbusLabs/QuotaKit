@@ -352,6 +352,37 @@ struct CursorStatusProbeTests {
     }
 
     @Test
+    func parseUsageSummaryPrefersRequestTotal() {
+        let summary = CursorUsageSummary(
+            billingCycleStart: nil,
+            billingCycleEnd: nil,
+            membershipType: nil,
+            limitType: nil,
+            isUnlimited: nil,
+            autoModelSelectedDisplayMessage: nil,
+            namedModelSelectedDisplayMessage: nil,
+            individualUsage: nil,
+            teamUsage: nil)
+        let requestUsage = CursorUsageResponse(
+            gpt4: CursorModelUsage(
+                numRequests: 120,
+                numRequestsTotal: 240,
+                numTokens: nil,
+                maxRequestUsage: 500,
+                maxTokenUsage: nil),
+            startOfMonth: nil)
+
+        let snapshot = CursorStatusProbe().parseUsageSummary(
+            summary,
+            userInfo: nil,
+            rawJSON: nil,
+            requestUsage: requestUsage)
+
+        #expect(snapshot.requestsUsed == 240)
+        #expect(snapshot.requestsLimit == 500)
+    }
+
+    @Test
     func detectsNonLegacyPlan() {
         let snapshot = CursorStatusSnapshot(
             planPercentUsed: 50.0,

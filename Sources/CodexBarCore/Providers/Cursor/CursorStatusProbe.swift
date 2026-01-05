@@ -566,11 +566,10 @@ public struct CursorStatusProbe: Sendable {
 
         // Fetch legacy request usage only if user has a sub ID.
         // Uses try? to avoid breaking the flow for users where this endpoint fails or returns unexpected data.
-        let requestUsage: CursorUsageResponse?
-        if let userId = userInfo?.sub {
-            requestUsage = try? await self.fetchRequestUsage(userId: userId, cookieHeader: cookieHeader)
+        let requestUsage: CursorUsageResponse? = if let userId = userInfo?.sub {
+            try? await self.fetchRequestUsage(userId: userId, cookieHeader: cookieHeader)
         } else {
-            requestUsage = nil
+            nil
         }
 
         return self.parseUsageSummary(
@@ -652,8 +651,8 @@ public struct CursorStatusProbe: Sendable {
         _ summary: CursorUsageSummary,
         userInfo: CursorUserInfo?,
         rawJSON: String?,
-        requestUsage: CursorUsageResponse? = nil
-    ) -> CursorStatusSnapshot {
+        requestUsage: CursorUsageResponse? = nil) -> CursorStatusSnapshot
+    {
         // Parse billing cycle end date
         let billingCycleEnd: Date? = summary.billingCycleEnd.flatMap { dateString in
             let formatter = ISO8601DateFormatter()

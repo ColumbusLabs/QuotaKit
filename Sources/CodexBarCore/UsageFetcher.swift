@@ -157,6 +157,7 @@ public struct UsageSnapshot: Codable, Sendable {
             tertiary: self.tertiary,
             providerCost: self.providerCost,
             zaiUsage: self.zaiUsage,
+            cursorRequests: self.cursorRequests,
             updatedAt: self.updatedAt,
             identity: scopedIdentity)
     }
