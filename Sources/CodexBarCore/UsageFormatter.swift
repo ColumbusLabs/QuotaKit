@@ -99,69 +99,21 @@ public enum UsageFormatter {
         return "\(formatted) left"
     }
 
+    /// Locale used for consistent US-style currency formatting regardless of system locale.
+    /// Using en_US (not en_US_POSIX) because FormatStyle works correctly with standard locales.
+    private static let usLocale = Locale(identifier: "en_US")
+
     /// Formats a USD value with proper negative handling and thousand separators.
-    /// Uses direct string formatting to avoid NumberFormatter nil issues on non-US locales.
-    /// See: https://developer.apple.com/forums/thread/731057
+    /// Uses Swift's modern FormatStyle API (iOS 15+/macOS 12+) for robust, locale-aware formatting.
     public static func usdString(_ value: Double) -> String {
-        formatUSD(value)
+        value.formatted(.currency(code: "USD").locale(usLocale))
     }
 
+    /// Formats a currency value with the specified currency code.
+    /// Uses FormatStyle with explicit en_US locale to ensure consistent formatting
+    /// regardless of the user's system locale (e.g., pt-BR users see $54.72 not US$ 54,72).
     public static func currencyString(_ value: Double, currencyCode: String) -> String {
-        // For USD, use direct string formatting to avoid locale-related NumberFormatter issues.
-        // NumberFormatter with .currency style can return nil on some non-US locales (e.g., pt-BR)
-        // even when explicitly setting locale to en_US_POSIX.
-        // See: https://developer.apple.com/forums/thread/731057
-        if currencyCode == "USD" {
-            return formatUSD(value)
-        }
-
-        // For other currencies, try NumberFormatter but fall back to simple format if needed
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = currencyCode
-        formatter.maximumFractionDigits = 2
-        formatter.minimumFractionDigits = 2
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-
-        if let formatted = formatter.string(from: NSNumber(value: value)) {
-            return formatted
-        }
-
-        // Robust fallback for non-USD currencies
-        return "\(currencyCode) \(String(format: "%.2f", value))"
-    }
-
-    /// Formats USD values with proper negative sign placement and optional thousand separators.
-    /// Handles: -$1,234.56 (not $-1,234.56), $0.00, $54.72
-    private static func formatUSD(_ value: Double) -> String {
-        let isNegative = value < 0
-        let absValue = abs(value)
-
-        // Format with 2 decimal places
-        let formatted = String(format: "%.2f", absValue)
-
-        // Add thousand separators for values >= 1000
-        let withSeparators: String
-        if absValue >= 1000 {
-            let parts = formatted.split(separator: ".")
-            let integerPart = String(parts[0])
-            let decimalPart = parts.count > 1 ? String(parts[1]) : "00"
-
-            // Insert commas every 3 digits from the right
-            var result = ""
-            for (index, char) in integerPart.reversed().enumerated() {
-                if index > 0 && index % 3 == 0 {
-                    result = "," + result
-                }
-                result = String(char) + result
-            }
-            withSeparators = "\(result).\(decimalPart)"
-        } else {
-            withSeparators = formatted
-        }
-
-        // Place negative sign before dollar sign: -$54.72 (not $-54.72)
-        return isNegative ? "-$\(withSeparators)" : "$\(withSeparators)"
+        value.formatted(.currency(code: currencyCode).locale(usLocale))
     }
 
     public static func tokenCountString(_ value: Int) -> String {

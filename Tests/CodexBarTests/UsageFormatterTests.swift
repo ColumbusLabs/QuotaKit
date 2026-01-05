@@ -152,6 +152,50 @@ struct UsageFormatterTests {
     }
 
     @Test
+    func currencyStringHandlesNonUSDCurrencies() {
+        // FormatStyle handles all currencies with proper symbols
+        let eur = UsageFormatter.currencyString(54.72, currencyCode: "EUR")
+        #expect(eur == "€54.72")
+
+        let gbp = UsageFormatter.currencyString(54.72, currencyCode: "GBP")
+        #expect(gbp == "£54.72")
+
+        // Negative non-USD
+        let negEur = UsageFormatter.currencyString(-1234.56, currencyCode: "EUR")
+        #expect(negEur == "-€1,234.56")
+    }
+
+    @Test
+    func currencyStringHandlesSmallValues() {
+        // Values smaller than 0.01 should round to $0.00
+        let tiny = UsageFormatter.currencyString(0.001, currencyCode: "USD")
+        #expect(tiny == "$0.00")
+
+        // Values at 0.005 should round to $0.01 (banker's rounding)
+        let halfCent = UsageFormatter.currencyString(0.005, currencyCode: "USD")
+        #expect(halfCent == "$0.00" || halfCent == "$0.01") // Rounding behavior may vary
+
+        // One cent
+        let oneCent = UsageFormatter.currencyString(0.01, currencyCode: "USD")
+        #expect(oneCent == "$0.01")
+    }
+
+    @Test
+    func currencyStringHandlesBoundaryValues() {
+        // Just under 1000 (no comma)
+        let under1k = UsageFormatter.currencyString(999.99, currencyCode: "USD")
+        #expect(under1k == "$999.99")
+
+        // Exactly 1000 (first comma)
+        let exact1k = UsageFormatter.currencyString(1000.00, currencyCode: "USD")
+        #expect(exact1k == "$1,000.00")
+
+        // Just over 1000
+        let over1k = UsageFormatter.currencyString(1000.01, currencyCode: "USD")
+        #expect(over1k == "$1,000.01")
+    }
+
+    @Test
     func creditsStringFormatsCorrectly() {
         let result = UsageFormatter.creditsString(from: 42.5)
         #expect(result == "42.5 left")
