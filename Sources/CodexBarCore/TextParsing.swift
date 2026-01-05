@@ -16,7 +16,18 @@ public enum TextParsing {
         guard let match = regex.firstMatch(in: text, options: [], range: range),
               match.numberOfRanges >= 2,
               let r = Range(match.range(at: 1), in: text) else { return nil }
-        let raw = text[r].replacingOccurrences(of: ",", with: "")
+        let raw = String(text[r]).replacingOccurrences(of: ",", with: "")
+
+        // Use NumberFormatter with explicit locale for consistent parsing across all systems.
+        // This ensures "54.72" is always parsed as 54.72, not 5472 on locales where
+        // '.' is the thousands separator (e.g., pt-BR).
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.numberStyle = .decimal
+        if let number = formatter.number(from: raw) {
+            return number.doubleValue
+        }
+        // Fallback to Double initializer (also locale-independent in Swift)
         return Double(raw)
     }
 

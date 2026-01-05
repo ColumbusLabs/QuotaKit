@@ -93,7 +93,9 @@ public enum UsageFormatter {
         let number = NumberFormatter()
         number.numberStyle = .decimal
         number.maximumFractionDigits = 2
-        let formatted = number.string(from: NSNumber(value: value)) ?? String(Int(value))
+        // Use explicit locale for consistent formatting on all systems
+        number.locale = Locale(identifier: "en_US_POSIX")
+        let formatted = number.string(from: NSNumber(value: value)) ?? String(format: "%.2f", value)
         return "\(formatted) left"
     }
 
@@ -108,13 +110,28 @@ public enum UsageFormatter {
     }
 
     public static func currencyString(_ value: Double, currencyCode: String) -> String {
+        // For USD, use direct string formatting to avoid locale-related NumberFormatter issues.
+        // NumberFormatter with .currency style can return nil on some non-US locales (e.g., pt-BR)
+        // even when explicitly setting locale to en_US_POSIX.
+        // See: https://developer.apple.com/forums/thread/731057
+        if currencyCode == "USD" {
+            return String(format: "$%.2f", value)
+        }
+
+        // For other currencies, try NumberFormatter but fall back to simple format if needed
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.currencyCode = currencyCode
         formatter.maximumFractionDigits = 2
         formatter.minimumFractionDigits = 2
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter.string(from: NSNumber(value: value)) ?? "\(currencyCode) \(String(format: "%.2f", value))"
+
+        if let formatted = formatter.string(from: NSNumber(value: value)) {
+            return formatted
+        }
+
+        // Robust fallback for non-USD currencies
+        return "\(currencyCode) \(String(format: "%.2f", value))"
     }
 
     public static func tokenCountString(_ value: Int) -> String {

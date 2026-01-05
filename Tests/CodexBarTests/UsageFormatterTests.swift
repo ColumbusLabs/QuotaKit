@@ -99,4 +99,34 @@ struct UsageFormatterTests {
     func cleanPlanMapsOAuthToOllama() {
         #expect(UsageFormatter.cleanPlanName("oauth") == "Ollama")
     }
+
+    // MARK: - Currency Formatting
+
+    @Test
+    func currencyStringFormatsUSDCorrectly() {
+        // Should produce "$54.72" without space after symbol
+        let result = UsageFormatter.currencyString(54.72, currencyCode: "USD")
+        #expect(result == "$54.72")
+        #expect(!result.contains("$ ")) // No space after symbol
+    }
+
+    @Test
+    func currencyStringHandlesLargeValues() {
+        let result = UsageFormatter.currencyString(1234.56, currencyCode: "USD")
+        // For USD, we use direct string formatting for locale robustness
+        #expect(result == "$1234.56")
+        #expect(!result.contains("$ ")) // No space after symbol
+    }
+
+    @Test
+    func currencyStringHandlesZero() {
+        let result = UsageFormatter.currencyString(0, currencyCode: "USD")
+        #expect(result == "$0.00")
+    }
+
+    @Test
+    func creditsStringFormatsCorrectly() {
+        let result = UsageFormatter.creditsString(from: 42.5)
+        #expect(result == "42.5 left")
+    }
 }
