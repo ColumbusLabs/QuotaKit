@@ -581,7 +581,7 @@ final class UsageStore {
     }
 
     /// Force refresh Augment session (called from UI button)
-    public func forceRefreshAugmentSession() async {
+    func forceRefreshAugmentSession() async {
         #if os(macOS)
         print("[CodexBar] 🔄 Force refresh Augment session requested")
         guard let keepalive = self.augmentKeepalive else {
@@ -1400,12 +1400,13 @@ extension UsageStore {
 
             do {
                 let probe = CursorStatusProbe()
-                let snapshot: CursorStatusSnapshot
-
-                if cursorCookieSource == .manual, let normalizedHeader = CookieHeaderNormalizer.normalize(cursorCookieHeader) {
-                    snapshot = try await probe.fetchWithManualCookies(normalizedHeader)
+                let snapshot: CursorStatusSnapshot = if cursorCookieSource == .manual,
+                                                        let normalizedHeader = CookieHeaderNormalizer
+                                                            .normalize(cursorCookieHeader)
+                {
+                    try await probe.fetchWithManualCookies(normalizedHeader)
                 } else {
-                    snapshot = try await probe.fetch { msg in lines.append("[cursor-cookie] \(msg)") }
+                    try await probe.fetch { msg in lines.append("[cursor-cookie] \(msg)") }
                 }
 
                 lines.append("")

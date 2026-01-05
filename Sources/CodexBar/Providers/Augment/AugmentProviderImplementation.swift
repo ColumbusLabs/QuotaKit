@@ -131,4 +131,3 @@ struct AugmentProviderImplementation: ProviderImplementation {
         ]
     }
 }
-

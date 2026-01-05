@@ -71,7 +71,7 @@ public enum AugmentCookieImporter {
                     let httpCookies = BrowserCookieClient.makeHTTPCookies(source.records, origin: query.origin)
 
                     // Log all cookie names for debugging
-                    let cookieNames = httpCookies.map { $0.name }.joined(separator: ", ")
+                    let cookieNames = httpCookies.map(\.name).joined(separator: ", ")
                     log("\(source.label) has cookies: \(cookieNames)")
 
                     if httpCookies.contains(where: { Self.sessionCookieNames.contains($0.name) }) {
@@ -114,7 +114,8 @@ public struct AugmentCreditsResponse: Codable, Sendable {
     public var creditsUsed: Double? { self.usageUnitsConsumedThisBillingCycle }
     public var creditsLimit: Double? {
         guard let remaining = self.usageUnitsRemaining,
-              let consumed = self.usageUnitsConsumedThisBillingCycle else {
+              let consumed = self.usageUnitsConsumedThisBillingCycle
+        else {
             return nil
         }
         return remaining + consumed
@@ -172,13 +173,12 @@ public struct AugmentStatusSnapshot: Sendable {
     }
 
     public func toUsageSnapshot() -> UsageSnapshot {
-        let percentUsed: Double
-        if let used = self.creditsUsed, let limit = self.creditsLimit, limit > 0 {
-            percentUsed = (used / limit) * 100.0
+        let percentUsed: Double = if let used = self.creditsUsed, let limit = self.creditsLimit, limit > 0 {
+            (used / limit) * 100.0
         } else if let remaining = self.creditsRemaining, let limit = self.creditsLimit, limit > 0 {
-            percentUsed = ((limit - remaining) / limit) * 100.0
+            ((limit - remaining) / limit) * 100.0
         } else {
-            percentUsed = 0
+            0
         }
 
         let primary = RateWindow(
@@ -632,5 +632,3 @@ public struct AugmentStatusProbe: Sendable {
 }
 
 #endif
-
-

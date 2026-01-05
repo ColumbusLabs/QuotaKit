@@ -24,7 +24,7 @@
 ## Keychain Prompts (Development)
 
 ### First Launch After Fresh Clone
-You'll see **4-5 keychain prompts** on the first launch. This is a **one-time migration** that converts existing keychain items to use `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`.
+You'll see **one keychain prompt per stored credential** on the first launch. This is a **one-time migration** that converts existing keychain items to use `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`.
 
 ### Subsequent Rebuilds
 **Zero prompts!** The migration flag is stored in UserDefaults, so future rebuilds won't prompt.
@@ -180,4 +180,3 @@ log show --predicate 'category == "KeychainMigration"' --last 5m
 - Parallel provider fetches
 - Exponential backoff on errors
 - Widget snapshot for iOS widget
-

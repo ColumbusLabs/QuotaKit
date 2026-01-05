@@ -278,9 +278,11 @@ struct MenuDescriptor {
             // Show login prompt for session/cookie errors
             if let error = store.error(for: .augment) {
                 if error.contains("session has expired") ||
-                   error.contains("No Augment session cookie found")
+                    error.contains("No Augment session cookie found")
                 {
-                    entries.append(.action("Open Augment (Log Out & Back In)", .loginToProvider(url: "https://app.augmentcode.com")))
+                    entries.append(.action(
+                        "Open Augment (Log Out & Back In)",
+                        .loginToProvider(url: "https://app.augmentcode.com")))
                 }
             }
         }

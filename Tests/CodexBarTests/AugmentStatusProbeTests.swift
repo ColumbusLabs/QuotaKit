@@ -93,12 +93,11 @@ final class AugmentStatusProbeTests: XCTestCase {
             .domain: "app.augmentcode.com",
             .path: "/",
             .name: "session",
-            .value: "test123"
+            .value: "test123",
         ])!
         let session = AugmentCookieImporter.SessionInfo(
             cookies: [cookie],
-            sourceLabel: "Test"
-        )
+            sourceLabel: "Test")
         let targetURL = URL(string: "https://app.augmentcode.com/api/credits")!
 
         // When: We get the cookie header for the target URL
@@ -114,12 +113,11 @@ final class AugmentStatusProbeTests: XCTestCase {
             .domain: "augmentcode.com",
             .path: "/",
             .name: "session",
-            .value: "test123"
+            .value: "test123",
         ])!
         let session = AugmentCookieImporter.SessionInfo(
             cookies: [cookie],
-            sourceLabel: "Test"
-        )
+            sourceLabel: "Test")
         let targetURL = URL(string: "https://app.augmentcode.com/api/credits")!
 
         // When: We get the cookie header for the target URL
@@ -135,12 +133,11 @@ final class AugmentStatusProbeTests: XCTestCase {
             .domain: ".augmentcode.com",
             .path: "/",
             .name: "session",
-            .value: "test123"
+            .value: "test123",
         ])!
         let session = AugmentCookieImporter.SessionInfo(
             cookies: [cookie],
-            sourceLabel: "Test"
-        )
+            sourceLabel: "Test")
         let targetURL = URL(string: "https://app.augmentcode.com/api/credits")!
 
         // When: We get the cookie header for the target URL
@@ -156,12 +153,11 @@ final class AugmentStatusProbeTests: XCTestCase {
             .domain: "auth.augmentcode.com",
             .path: "/",
             .name: "auth_token",
-            .value: "test123"
+            .value: "test123",
         ])!
         let session = AugmentCookieImporter.SessionInfo(
             cookies: [cookie],
-            sourceLabel: "Test"
-        )
+            sourceLabel: "Test")
         let targetURL = URL(string: "https://app.augmentcode.com/api/credits")!
 
         // When: We get the cookie header for the target URL
@@ -177,12 +173,11 @@ final class AugmentStatusProbeTests: XCTestCase {
             .domain: "example.com",
             .path: "/",
             .name: "session",
-            .value: "test123"
+            .value: "test123",
         ])!
         let session = AugmentCookieImporter.SessionInfo(
             cookies: [cookie],
-            sourceLabel: "Test"
-        )
+            sourceLabel: "Test")
         let targetURL = URL(string: "https://app.augmentcode.com/api/credits")!
 
         // When: We get the cookie header for the target URL
@@ -199,32 +194,31 @@ final class AugmentStatusProbeTests: XCTestCase {
                 .domain: "app.augmentcode.com",
                 .path: "/",
                 .name: "session",
-                .value: "valid1"
+                .value: "valid1",
             ])!,
             HTTPCookie(properties: [
                 .domain: ".augmentcode.com",
                 .path: "/",
                 .name: "_session",
-                .value: "valid2"
+                .value: "valid2",
             ])!,
             HTTPCookie(properties: [
                 .domain: "auth.augmentcode.com",
                 .path: "/",
                 .name: "auth_token",
-                .value: "invalid1"
+                .value: "invalid1",
             ])!,
             HTTPCookie(properties: [
                 .domain: "billing.augmentcode.com",
                 .path: "/",
                 .name: "billing_session",
-                .value: "invalid2"
-            ])!
+                .value: "invalid2",
+            ])!,
         ]
 
         let session = AugmentCookieImporter.SessionInfo(
             cookies: cookies,
-            sourceLabel: "Test"
-        )
+            sourceLabel: "Test")
 
         let targetURL = URL(string: "https://app.augmentcode.com/api/credits")!
 
@@ -245,20 +239,19 @@ final class AugmentStatusProbeTests: XCTestCase {
                 .domain: "auth.augmentcode.com",
                 .path: "/",
                 .name: "auth_token",
-                .value: "test"
+                .value: "test",
             ])!,
             HTTPCookie(properties: [
                 .domain: "example.com",
                 .path: "/",
                 .name: "other",
-                .value: "test"
-            ])!
+                .value: "test",
+            ])!,
         ]
 
         let session = AugmentCookieImporter.SessionInfo(
             cookies: cookies,
-            sourceLabel: "Test"
-        )
+            sourceLabel: "Test")
 
         let targetURL = URL(string: "https://app.augmentcode.com/api/credits")!
 
@@ -269,4 +262,3 @@ final class AugmentStatusProbeTests: XCTestCase {
         XCTAssertTrue(cookieHeader.isEmpty, "Should return empty string when no cookies match")
     }
 }
-

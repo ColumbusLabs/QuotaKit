@@ -89,7 +89,9 @@ public final class AugmentSessionKeepalive {
         if let lastAttempt = self.lastRefreshAttempt {
             let timeSinceLastAttempt = Date().timeIntervalSince(lastAttempt)
             if timeSinceLastAttempt < self.minRefreshInterval {
-                self.log("Skipping refresh (last attempt \(Int(timeSinceLastAttempt))s ago, min interval: \(Int(self.minRefreshInterval))s)")
+                self.log(
+                    "Skipping refresh (last attempt \(Int(timeSinceLastAttempt))s ago, " +
+                        "min interval: \(Int(self.minRefreshInterval))s)")
                 return
             }
         }
@@ -121,7 +123,7 @@ public final class AugmentSessionKeepalive {
             }
 
             // Find the earliest expiration date among session cookies
-            let expirationDates = session.cookies.compactMap { $0.expiresDate }
+            let expirationDates = session.cookies.compactMap(\.expiresDate)
 
             guard !expirationDates.isEmpty else {
                 // Session cookies (no expiration) - refresh periodically
@@ -181,7 +183,9 @@ public final class AugmentSessionKeepalive {
                 try await Task.sleep(for: .seconds(1)) // Brief delay for browser to update cookies
                 let newSession = try AugmentCookieImporter.importSession(logger: self.logger)
 
-                self.log("✅ Session refresh successful - imported \(newSession.cookies.count) cookies from \(newSession.sourceLabel)")
+                self.log(
+                    "✅ Session refresh successful - imported \(newSession.cookies.count) cookies " +
+                        "from \(newSession.sourceLabel)")
                 self.lastSuccessfulRefresh = Date()
             } else {
                 self.log("⚠️ Session refresh returned no new cookies")
@@ -205,9 +209,9 @@ public final class AugmentSessionKeepalive {
 
         // Try multiple endpoints - Augment might use different auth patterns
         let endpoints = [
-            "https://app.augmentcode.com/api/auth/session",  // NextAuth pattern
-            "https://app.augmentcode.com/api/session",       // Alternative
-            "https://app.augmentcode.com/api/user",          // User endpoint
+            "https://app.augmentcode.com/api/auth/session", // NextAuth pattern
+            "https://app.augmentcode.com/api/session", // Alternative
+            "https://app.augmentcode.com/api/user", // User endpoint
         ]
 
         for (index, urlString) in endpoints.enumerated() {

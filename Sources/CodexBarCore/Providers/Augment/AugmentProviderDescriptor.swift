@@ -15,8 +15,8 @@ public enum AugmentProviderDescriptor {
         let browserOrder: BrowserCookieImportOrder = [
             .safari,
             .chrome,
-            .chromeBeta,      // Added for Chrome Beta support
-            .chromeCanary,    // Added for Chrome Canary support
+            .chromeBeta, // Added for Chrome Beta support
+            .chromeCanary, // Added for Chrome Canary support
             .edge,
             .edgeBeta,
             .brave,
@@ -92,4 +92,3 @@ struct AugmentStatusFetchStrategy: ProviderFetchStrategy {
         return CookieHeaderNormalizer.normalize(context.settings?.augment?.manualCookieHeader)
     }
 }
-

@@ -747,7 +747,9 @@ final class SettingsStore {
 
         return claudeRoots.contains(where: hasAnyJsonl(in:))
     }
+}
 
+extension SettingsStore {
     private func schedulePersistZaiAPIToken() {
         if self.zaiTokenLoading { return }
         self.zaiTokenPersistTask?.cancel()

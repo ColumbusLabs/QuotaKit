@@ -20,17 +20,18 @@ Changed keychain accessibility from `kSecAttrAccessibleAfterFirstUnlock` to `kSe
 
 ### 1. Updated Keychain Stores
 Changed all keychain stores to use `ThisDeviceOnly` accessibility:
-- `CookieHeaderStore.swift` (Claude, Codex cookies)
+- `CookieHeaderStore.swift` (Codex/Claude/Cursor/Factory/Augment cookies)
 - `MiniMaxCookieStore.swift` (MiniMax cookies)
-- `ZaiTokenStore.swift` (Zai API token)
+- `ZaiTokenStore.swift` (z.ai API token)
 - `CopilotTokenStore.swift` (Copilot token)
+- `ClaudeOAuthCredentials.swift` (Claude Code OAuth token)
 
 ### 2. One-Time Migration
 Created `KeychainMigration.swift` to migrate existing keychain items:
 - Runs once per app installation (flag stored in UserDefaults)
 - Reads existing items, deletes them, re-adds with new accessibility
 - Logs migration progress for debugging
-- **First launch after update**: 4-5 prompts (one-time migration)
+- **First launch after update**: one prompt per stored credential (one-time migration)
 - **Subsequent rebuilds**: Zero prompts
 
 ### 3. Migration Flow
@@ -53,12 +54,7 @@ KeychainMigration.migrateIfNeeded()
 ## User Experience
 
 ### First Launch (After Update)
-User sees **4-5 keychain prompts** during the one-time migration:
-1. Claude cookie
-2. Codex cookie
-3. MiniMax cookie
-4. Copilot token
-5. Zai token
+User sees **one keychain prompt per stored credential** during the one-time migration.
 
 ### Subsequent Rebuilds
 **Zero prompts!** The migration flag prevents re-running, and the new accessibility level prevents prompts on code signature changes.
@@ -130,4 +126,3 @@ If iCloud backup is desired in the future:
 - Could use `kSecAttrAccessibleAfterFirstUnlock` for release builds
 - Keep `ThisDeviceOnly` for development builds
 - Conditional compilation based on build configuration
-
