@@ -61,14 +61,33 @@ extension UsageStore {
             _ = self.settings.mergeIcons
             _ = self.settings.selectedMenuProvider
             _ = self.settings.debugLoadingPattern
+            _ = self.settings.augmentCookieSource
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.observeSettingsChanges()
                 self.startTimer()
+                self.restartAugmentKeepaliveIfNeeded()
                 await self.refresh()
             }
         }
+    }
+
+    private func restartAugmentKeepaliveIfNeeded() {
+        #if os(macOS)
+        let shouldRun = self.isEnabled(.augment)
+        let isRunning = self.augmentKeepalive != nil
+
+        if shouldRun, !isRunning {
+            self.startAugmentKeepalive()
+        } else if !shouldRun, isRunning {
+            Task { @MainActor in
+                self.augmentKeepalive?.stop()
+                self.augmentKeepalive = nil
+                print("[CodexBar] Augment session keepalive stopped (provider disabled)")
+            }
+        }
+        #endif
     }
 }
 
@@ -251,6 +270,7 @@ final class UsageStore {
     @ObservationIgnored private(set) var lastTokenFetchAt: [UsageProvider: Date] = [:]
     @ObservationIgnored private let tokenFetchTTL: TimeInterval = 60 * 60
     @ObservationIgnored private let tokenFetchTimeout: TimeInterval = 10 * 60
+    @ObservationIgnored private var augmentKeepalive: AugmentSessionKeepalive?
 
     init(
         fetcher: UsageFetcher,
@@ -286,6 +306,7 @@ final class UsageStore {
         Task { await self.refresh() }
         self.startTimer()
         self.startTokenTimer()
+        self.startAugmentKeepalive()
     }
 
     /// Returns the login method (plan type) for the specified provider, if available.
@@ -322,6 +343,7 @@ final class UsageStore {
         case .minimax: nil
         case .vertexai: nil
         case .kiro: self.kiroVersion
+        case .augment: nil
         }
     }
 
@@ -531,6 +553,56 @@ final class UsageStore {
         self.timerTask?.cancel()
         self.tokenTimerTask?.cancel()
         self.tokenRefreshSequenceTask?.cancel()
+        // Note: augmentKeepalive.stop() is @MainActor, can't call from deinit
+        // The timer task will be cancelled when augmentKeepalive is deallocated
+    }
+
+    private func startAugmentKeepalive() {
+        #if os(macOS)
+        print("[CodexBar] 🔍 Checking if Augment keepalive should start...")
+        print("[CodexBar]   - Augment enabled: \(self.isEnabled(.augment))")
+        print("[CodexBar]   - Augment available: \(self.isProviderAvailable(.augment))")
+
+        // Only start keepalive if Augment is enabled
+        guard self.isEnabled(.augment) else {
+            print("[CodexBar] ⚠️ Augment keepalive NOT started - provider is disabled")
+            print("[CodexBar]   Tip: Enable Augment in Settings to activate automatic session management")
+            return
+        }
+
+        let logger: (String) -> Void = { message in
+            print("[CodexBar] \(message)")
+        }
+
+        self.augmentKeepalive = AugmentSessionKeepalive(logger: logger)
+        self.augmentKeepalive?.start()
+        print("[CodexBar] ✅ Augment session keepalive STARTED successfully")
+        #endif
+    }
+
+    /// Force refresh Augment session (called from UI button)
+    func forceRefreshAugmentSession() async {
+        #if os(macOS)
+        print("[CodexBar] 🔄 Force refresh Augment session requested")
+        guard let keepalive = self.augmentKeepalive else {
+            print("[CodexBar] ⚠️ Augment keepalive not running - starting it now")
+            self.startAugmentKeepalive()
+            // Give it a moment to start
+            try? await Task.sleep(for: .seconds(1))
+            guard let keepalive = self.augmentKeepalive else {
+                print("[CodexBar] ✗ Failed to start Augment keepalive")
+                return
+            }
+            await keepalive.forceRefresh()
+            return
+        }
+
+        await keepalive.forceRefresh()
+
+        // Refresh usage after forcing session refresh
+        print("[CodexBar] 🔄 Refreshing Augment usage after session refresh")
+        await self.refreshProvider(.augment)
+        #endif
     }
 
     private func refreshProvider(_ provider: UsageProvider) async {
@@ -1157,6 +1229,10 @@ extension UsageStore {
         await ClaudeStatusProbe.latestDumps()
     }
 
+    func debugAugmentDump() async -> String {
+        await AugmentStatusProbe.latestDumps()
+    }
+
     func debugLog(for provider: UsageProvider) async -> String {
         if let cached = self.probeLogs[provider], !cached.isEmpty {
             return cached
@@ -1166,6 +1242,8 @@ extension UsageStore {
         let claudeUsageDataSource = self.settings.claudeUsageDataSource
         let claudeCookieSource = self.settings.claudeCookieSource
         let claudeCookieHeader = self.settings.claudeCookieHeader
+        let cursorCookieSource = self.settings.cursorCookieSource
+        let cursorCookieHeader = self.settings.cursorCookieHeader
         return await Task.detached(priority: .utility) { () -> String in
             switch provider {
             case .codex:
@@ -1196,7 +1274,9 @@ extension UsageStore {
                 await MainActor.run { self.probeLogs[.antigravity] = text }
                 return text
             case .cursor:
-                let text = "Cursor debug log not yet implemented"
+                let text = await self.debugCursorLog(
+                    cursorCookieSource: cursorCookieSource,
+                    cursorCookieHeader: cursorCookieHeader)
                 await MainActor.run { self.probeLogs[.cursor] = text }
                 return text
             case .factory:
@@ -1221,6 +1301,10 @@ extension UsageStore {
             case .kiro:
                 let text = "Kiro debug log not yet implemented"
                 await MainActor.run { self.probeLogs[.kiro] = text }
+                return text
+            case .augment:
+                let text = await self.debugAugmentLog()
+                await MainActor.run { self.probeLogs[.augment] = text }
                 return text
             }
         }.value
@@ -1304,6 +1388,63 @@ extension UsageStore {
                 lines.append("OAuth source selected.")
                 return lines.joined(separator: "\n")
             }
+        }
+    }
+
+    private func debugCursorLog(
+        cursorCookieSource: ProviderCookieSource,
+        cursorCookieHeader: String) async -> String
+    {
+        await self.runWithTimeout(seconds: 15) {
+            var lines: [String] = []
+
+            do {
+                let probe = CursorStatusProbe()
+                let snapshot: CursorStatusSnapshot = if cursorCookieSource == .manual,
+                                                        let normalizedHeader = CookieHeaderNormalizer
+                                                            .normalize(cursorCookieHeader)
+                {
+                    try await probe.fetchWithManualCookies(normalizedHeader)
+                } else {
+                    try await probe.fetch { msg in lines.append("[cursor-cookie] \(msg)") }
+                }
+
+                lines.append("")
+                lines.append("Cursor Status Summary:")
+                lines.append("membershipType=\(snapshot.membershipType ?? "nil")")
+                lines.append("accountEmail=\(snapshot.accountEmail ?? "nil")")
+                lines.append("planPercentUsed=\(snapshot.planPercentUsed)%")
+                lines.append("planUsedUSD=$\(snapshot.planUsedUSD)")
+                lines.append("planLimitUSD=$\(snapshot.planLimitUSD)")
+                lines.append("onDemandUsedUSD=$\(snapshot.onDemandUsedUSD)")
+                lines.append("onDemandLimitUSD=\(snapshot.onDemandLimitUSD.map { "$\($0)" } ?? "nil")")
+                if let teamUsed = snapshot.teamOnDemandUsedUSD {
+                    lines.append("teamOnDemandUsedUSD=$\(teamUsed)")
+                }
+                if let teamLimit = snapshot.teamOnDemandLimitUSD {
+                    lines.append("teamOnDemandLimitUSD=$\(teamLimit)")
+                }
+                lines.append("billingCycleEnd=\(snapshot.billingCycleEnd?.description ?? "nil")")
+
+                if let rawJSON = snapshot.rawJSON {
+                    lines.append("")
+                    lines.append("Raw API Response:")
+                    lines.append(rawJSON)
+                }
+
+                return lines.joined(separator: "\n")
+            } catch {
+                lines.append("")
+                lines.append("Cursor probe failed: \(error.localizedDescription)")
+                return lines.joined(separator: "\n")
+            }
+        }
+    }
+
+    private func debugAugmentLog() async -> String {
+        await self.runWithTimeout(seconds: 15) {
+            let probe = AugmentStatusProbe()
+            return await probe.debugRawProbe()
         }
     }
 

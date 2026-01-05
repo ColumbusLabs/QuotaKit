@@ -82,6 +82,7 @@ enum CodexBarCLI {
         }
         let sourceMode = parsedSourceMode ?? .auto
         let antigravityPlanDebug = values.flags.contains("antigravityPlanDebug")
+        let augmentDebug = values.flags.contains("augmentDebug")
         let webDebugDumpHTML = values.flags.contains("webDebugDumpHtml")
         let webTimeout = Self.decodeWebTimeout(from: values) ?? 60
         let verbose = values.flags.contains("verbose")
@@ -130,6 +131,13 @@ enum CodexBarCLI {
                     antigravityPlanInfo = try? await AntigravityStatusProbe().fetchPlanInfoSummary()
                     if format == .text, let info = antigravityPlanInfo {
                         Self.printAntigravityPlanInfo(info)
+                    }
+                }
+
+                if augmentDebug, p == .augment {
+                    let dump = await AugmentStatusProbe.latestDumps()
+                    if format == .text, !dump.isEmpty {
+                        Self.writeStderr("Augment API responses:\n\(dump)\n")
                     }
                 }
 
@@ -535,7 +543,7 @@ enum CodexBarCLI {
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                        [--provider \(ProviderHelp.list)]
                        [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth>]
-                       [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
+                       [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug] [--augment-debug]
 
         Description:
           Print usage from enabled providers as text (default) or JSON. Honors your in-app toggles.
@@ -575,7 +583,7 @@ enum CodexBarCLI {
                   [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                   [--provider \(ProviderHelp.list)]
                   [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth>]
-                  [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug]
+                  [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug] [--augment-debug]
           codexbar cost [--format text|json]
                        [--json]
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
@@ -656,6 +664,9 @@ private struct UsageOptions: CommanderParsable {
 
     @Flag(name: .long("antigravity-plan-debug"), help: "Emit Antigravity planInfo fields (debug)")
     var antigravityPlanDebug: Bool = false
+
+    @Flag(name: .long("augment-debug"), help: "Emit Augment API responses (debug)")
+    var augmentDebug: Bool = false
 }
 
 enum ProviderSelection: Sendable, ExpressibleFromArgument {

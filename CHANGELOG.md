@@ -7,6 +7,7 @@
 - Vertex AI: harden quota usage parsing for edge-case responses.
 - Kiro: add CLI-based usage provider via kiro-cli. Thanks @neror!
 - Kiro: clean up provider wiring and show plan name in the menu.
+- Augment: add provider with browser-cookie usage tracking.
 - Cursor: avoid Intel crash when opening login and harden WebKit teardown. Thanks @meghanto!
 - Cursor: load stored session cookies before reads to make relaunches deterministic.
 - Codex/Claude/Cursor/Factory/MiniMax: cookie sources now include Manual (paste a Cookie header) in addition to Automatic.
@@ -18,7 +19,8 @@
 - Preferences: add cookie source pickers with contextual helper text for the selected mode.
 - Preferences: tighten provider rows (inline pickers, compact layout, inline refresh + auto-source status).
 - Preferences: remove the “experimental” label from Antigravity.
-- Menu bar: fix combined loading indicator flicker during loading animation.
+- Menu bar: fix combined loading indicator flicker during loading animation (incl. debug replay).
+- Menu bar: prevent blink updates from clobbering the loading animation.
 
 ### Menu
 - Menu: add a toggle to show reset times as absolute clock values (instead of countdowns).
@@ -30,6 +32,7 @@
 ### Dev & Tests
 - Dev: move Chromium profile discovery into SweetCookieKit (adds Helium net.imput.helium). Thanks @hhushhas!
 - Dev: bump SweetCookieKit to 0.2.0.
+- Dev: migrate stored Keychain items to reduce rebuild prompts.
 - Tests: expand Kiro CLI coverage.
 - Tests: stabilize Claude PTY integration cleanup and reset CLI sessions after probes.
 - Tests: kill leaked codex app-server after tests.

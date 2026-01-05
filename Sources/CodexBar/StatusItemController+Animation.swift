@@ -14,6 +14,12 @@ extension StatusItemController {
     }
 
     func updateBlinkingState() {
+        // During the loading animation, blink ticks can overwrite the animated menu bar icon and cause flicker.
+        if self.needsMenuBarIconAnimation() {
+            self.stopBlinking()
+            return
+        }
+
         let blinkingEnabled = self.isBlinkingAllowed()
         // Cache enabled providers to avoid repeated enablement lookups.
         let enabledProviders = self.store.enabledProviders()
@@ -47,10 +53,13 @@ extension StatusItemController {
         self.blinkTask?.cancel()
         self.blinkTask = nil
         self.blinkAmounts.removeAll()
+        let phase: Double? = self.needsMenuBarIconAnimation() ? self.animationPhase : nil
         if self.shouldMergeIcons {
-            self.applyIcon(phase: nil)
+            self.applyIcon(phase: phase)
         } else {
-            UsageProvider.allCases.forEach { self.applyIcon(for: $0, phase: nil) }
+            for provider in UsageProvider.allCases {
+                self.applyIcon(for: provider, phase: phase)
+            }
         }
     }
 
@@ -115,7 +124,8 @@ extension StatusItemController {
             }
         }
         if mergeIcons {
-            self.applyIcon(phase: nil)
+            let phase: Double? = self.needsMenuBarIconAnimation() ? self.animationPhase : nil
+            self.applyIcon(phase: phase)
         }
     }
 
