@@ -6,8 +6,12 @@ xcuserdata/
 DerivedData
 
 # Bundles / artifacts
-CodexBar.app
-Codexbar.app
+# Main app bundle (any variation)
+CodexBar.app/
+CodexBar *.app/
+CodexBar_*.app/
+Codexbar.app/
+# Release artifacts
 *.ipa
 *.dSYM*
 *.zip
@@ -17,9 +21,13 @@ Codexbar.app
 *.tar.gz
 *.tgz
 Icon.iconset
+debug_*.swift
 
 # Misc
 .DS_Store
+
+# Debug/analysis docs
+docs/*-analysis.md
 
 # Swift Package Manager metadata (leave sources tracked)
 # Packages/
