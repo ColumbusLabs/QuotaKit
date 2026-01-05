@@ -13,6 +13,7 @@
 - Cursor: load stored session cookies before reads to make relaunches deterministic.
 - Codex/Claude/Cursor/Factory/MiniMax: cookie sources now include Manual (paste a Cookie header) in addition to Automatic.
 - Claude: fix OAuth “Extra usage” spend/limit units when the API returns minor currency units (#97).
+- Usage formatting: fix currency parsing/formatting on non-US locales (e.g., pt-BR). Thanks @mneves75!
 
 ### Preferences & UI
 - Preferences: move “Access OpenAI via web” into Providers → Codex.

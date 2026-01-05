@@ -339,7 +339,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         // This removes the fragile heuristic that could fail on non-whole cent values
         // (e.g., 5472.50 cents would not be detected as needing conversion).
         // See: ClaudeWebAPIFetcher.swift which always divides by 100.
-        return (used: used / 100.0, limit: limit / 100.0)
+        (used: used / 100.0, limit: limit / 100.0)
     }
 
     private static func inferPlan(rateLimitTier: String?) -> String? {

@@ -99,21 +99,17 @@ public enum UsageFormatter {
         return "\(formatted) left"
     }
 
-    /// Locale used for consistent US-style currency formatting regardless of system locale.
-    /// Using en_US (not en_US_POSIX) because FormatStyle works correctly with standard locales.
-    private static let usLocale = Locale(identifier: "en_US")
-
     /// Formats a USD value with proper negative handling and thousand separators.
     /// Uses Swift's modern FormatStyle API (iOS 15+/macOS 12+) for robust, locale-aware formatting.
     public static func usdString(_ value: Double) -> String {
-        value.formatted(.currency(code: "USD").locale(usLocale))
+        value.formatted(.currency(code: "USD").locale(Locale(identifier: "en_US")))
     }
 
     /// Formats a currency value with the specified currency code.
     /// Uses FormatStyle with explicit en_US locale to ensure consistent formatting
     /// regardless of the user's system locale (e.g., pt-BR users see $54.72 not US$ 54,72).
     public static func currencyString(_ value: Double, currencyCode: String) -> String {
-        value.formatted(.currency(code: currencyCode).locale(usLocale))
+        value.formatted(.currency(code: currencyCode).locale(Locale(identifier: "en_US")))
     }
 
     public static func tokenCountString(_ value: Int) -> String {
@@ -149,11 +145,9 @@ public enum UsageFormatter {
     public static func creditEventSummary(_ event: CreditEvent) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
-        formatter.locale = Locale(identifier: "en_US_POSIX")
         let number = NumberFormatter()
         number.numberStyle = .decimal
         number.maximumFractionDigits = 2
-        number.locale = Locale(identifier: "en_US_POSIX")
         let credits = number.string(from: NSNumber(value: event.creditsUsed)) ?? "0"
         return "\(formatter.string(from: event.date)) · \(event.service) · \(credits) credits"
     }
@@ -161,11 +155,9 @@ public enum UsageFormatter {
     public static func creditEventCompact(_ event: CreditEvent) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
         let number = NumberFormatter()
         number.numberStyle = .decimal
         number.maximumFractionDigits = 2
-        number.locale = Locale(identifier: "en_US_POSIX")
         let credits = number.string(from: NSNumber(value: event.creditsUsed)) ?? "0"
         return "\(formatter.string(from: event.date)) — \(event.service): \(credits)"
     }
