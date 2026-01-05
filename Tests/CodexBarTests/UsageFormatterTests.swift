@@ -99,4 +99,105 @@ struct UsageFormatterTests {
     func cleanPlanMapsOAuthToOllama() {
         #expect(UsageFormatter.cleanPlanName("oauth") == "Ollama")
     }
+
+    // MARK: - Currency Formatting
+
+    @Test
+    func currencyStringFormatsUSDCorrectly() {
+        // Should produce "$54.72" without space after symbol
+        let result = UsageFormatter.currencyString(54.72, currencyCode: "USD")
+        #expect(result == "$54.72")
+        #expect(!result.contains("$ ")) // No space after symbol
+    }
+
+    @Test
+    func currencyStringHandlesLargeValues() {
+        let result = UsageFormatter.currencyString(1234.56, currencyCode: "USD")
+        // For USD, we use direct string formatting with thousand separators
+        #expect(result == "$1,234.56")
+        #expect(!result.contains("$ ")) // No space after symbol
+    }
+
+    @Test
+    func currencyStringHandlesVeryLargeValues() {
+        let result = UsageFormatter.currencyString(1_234_567.89, currencyCode: "USD")
+        #expect(result == "$1,234,567.89")
+    }
+
+    @Test
+    func currencyStringHandlesNegativeValues() {
+        // Negative sign should come before the dollar sign: -$54.72 (not $-54.72)
+        let result = UsageFormatter.currencyString(-54.72, currencyCode: "USD")
+        #expect(result == "-$54.72")
+    }
+
+    @Test
+    func currencyStringHandlesNegativeLargeValues() {
+        let result = UsageFormatter.currencyString(-1234.56, currencyCode: "USD")
+        #expect(result == "-$1,234.56")
+    }
+
+    @Test
+    func usdStringMatchesCurrencyString() {
+        // usdString should produce identical output to currencyString for USD
+        #expect(UsageFormatter.usdString(54.72) == UsageFormatter.currencyString(54.72, currencyCode: "USD"))
+        #expect(UsageFormatter.usdString(-1234.56) == UsageFormatter.currencyString(-1234.56, currencyCode: "USD"))
+        #expect(UsageFormatter.usdString(0) == UsageFormatter.currencyString(0, currencyCode: "USD"))
+    }
+
+    @Test
+    func currencyStringHandlesZero() {
+        let result = UsageFormatter.currencyString(0, currencyCode: "USD")
+        #expect(result == "$0.00")
+    }
+
+    @Test
+    func currencyStringHandlesNonUSDCurrencies() {
+        // FormatStyle handles all currencies with proper symbols
+        let eur = UsageFormatter.currencyString(54.72, currencyCode: "EUR")
+        #expect(eur == "€54.72")
+
+        let gbp = UsageFormatter.currencyString(54.72, currencyCode: "GBP")
+        #expect(gbp == "£54.72")
+
+        // Negative non-USD
+        let negEur = UsageFormatter.currencyString(-1234.56, currencyCode: "EUR")
+        #expect(negEur == "-€1,234.56")
+    }
+
+    @Test
+    func currencyStringHandlesSmallValues() {
+        // Values smaller than 0.01 should round to $0.00
+        let tiny = UsageFormatter.currencyString(0.001, currencyCode: "USD")
+        #expect(tiny == "$0.00")
+
+        // Values at 0.005 should round to $0.01 (banker's rounding)
+        let halfCent = UsageFormatter.currencyString(0.005, currencyCode: "USD")
+        #expect(halfCent == "$0.00" || halfCent == "$0.01") // Rounding behavior may vary
+
+        // One cent
+        let oneCent = UsageFormatter.currencyString(0.01, currencyCode: "USD")
+        #expect(oneCent == "$0.01")
+    }
+
+    @Test
+    func currencyStringHandlesBoundaryValues() {
+        // Just under 1000 (no comma)
+        let under1k = UsageFormatter.currencyString(999.99, currencyCode: "USD")
+        #expect(under1k == "$999.99")
+
+        // Exactly 1000 (first comma)
+        let exact1k = UsageFormatter.currencyString(1000.00, currencyCode: "USD")
+        #expect(exact1k == "$1,000.00")
+
+        // Just over 1000
+        let over1k = UsageFormatter.currencyString(1000.01, currencyCode: "USD")
+        #expect(over1k == "$1,000.01")
+    }
+
+    @Test
+    func creditsStringFormatsCorrectly() {
+        let result = UsageFormatter.creditsString(from: 42.5)
+        #expect(result == "42.5 left")
+    }
 }

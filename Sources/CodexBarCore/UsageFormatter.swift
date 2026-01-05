@@ -93,28 +93,23 @@ public enum UsageFormatter {
         let number = NumberFormatter()
         number.numberStyle = .decimal
         number.maximumFractionDigits = 2
-        let formatted = number.string(from: NSNumber(value: value)) ?? String(Int(value))
+        // Use explicit locale for consistent formatting on all systems
+        number.locale = Locale(identifier: "en_US_POSIX")
+        let formatted = number.string(from: NSNumber(value: value)) ?? String(format: "%.2f", value)
         return "\(formatted) left"
     }
 
+    /// Formats a USD value with proper negative handling and thousand separators.
+    /// Uses Swift's modern FormatStyle API (iOS 15+/macOS 12+) for robust, locale-aware formatting.
     public static func usdString(_ value: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        formatter.maximumFractionDigits = 2
-        formatter.minimumFractionDigits = 2
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter.string(from: NSNumber(value: value)) ?? String(format: "$%.2f", value)
+        value.formatted(.currency(code: "USD").locale(Locale(identifier: "en_US")))
     }
 
+    /// Formats a currency value with the specified currency code.
+    /// Uses FormatStyle with explicit en_US locale to ensure consistent formatting
+    /// regardless of the user's system locale (e.g., pt-BR users see $54.72 not US$ 54,72).
     public static func currencyString(_ value: Double, currencyCode: String) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = currencyCode
-        formatter.maximumFractionDigits = 2
-        formatter.minimumFractionDigits = 2
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter.string(from: NSNumber(value: value)) ?? "\(currencyCode) \(String(format: "%.2f", value))"
+        value.formatted(.currency(code: currencyCode).locale(Locale(identifier: "en_US")))
     }
 
     public static func tokenCountString(_ value: Int) -> String {
