@@ -178,7 +178,7 @@ struct ProviderRegistry {
                     override: tokenOverride,
                     fallback: settings.minimaxCookieSource),
                 manualCookieHeader: minimaxHeader),
-            zai: ProviderSettingsSnapshot.ZaiProviderSettings(),
+            zai: ProviderSettingsSnapshot.ZaiProviderSettings(apiRegion: settings.zaiAPIRegion),
             copilot: ProviderSettingsSnapshot.CopilotProviderSettings(),
             augment: ProviderSettingsSnapshot.AugmentProviderSettings(
                 cookieSource: Self.cookieSource(
