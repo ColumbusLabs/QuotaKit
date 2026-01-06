@@ -240,3 +240,55 @@ struct MiniMaxUsageParserTests {
         }
     }
 }
+
+@Suite
+struct MiniMaxAPIRegionTests {
+    @Test
+    func defaultsToGlobalHosts() {
+        let codingPlan = MiniMaxUsageFetcher.resolveCodingPlanURL(region: .global, environment: [:])
+        let remains = MiniMaxUsageFetcher.resolveRemainsURL(region: .global, environment: [:])
+        #expect(codingPlan.host == "platform.minimax.io")
+        #expect(remains.host == "platform.minimax.io")
+    }
+
+    @Test
+    func usesChinaMainlandHosts() {
+        let codingPlan = MiniMaxUsageFetcher.resolveCodingPlanURL(region: .chinaMainland, environment: [:])
+        let remains = MiniMaxUsageFetcher.resolveRemainsURL(region: .chinaMainland, environment: [:])
+        #expect(codingPlan.host == "platform.minimaxi.com")
+        #expect(remains.host == "platform.minimaxi.com")
+        #expect(codingPlan.query == "cycle_type=3")
+    }
+
+    @Test
+    func hostOverrideWinsForRemainsAndCodingPlan() {
+        let env = [MiniMaxSettingsReader.hostKey: "api.minimaxi.com"]
+        let codingPlan = MiniMaxUsageFetcher.resolveCodingPlanURL(region: .global, environment: env)
+        let remains = MiniMaxUsageFetcher.resolveRemainsURL(region: .global, environment: env)
+        #expect(codingPlan.host == "api.minimaxi.com")
+        #expect(remains.host == "api.minimaxi.com")
+    }
+
+    @Test
+    func remainsUrlOverrideBeatsHost() {
+        let env = [MiniMaxSettingsReader.remainsURLKey: "https://platform.minimaxi.com/custom/remains"]
+        let remains = MiniMaxUsageFetcher.resolveRemainsURL(region: .global, environment: env)
+        #expect(remains.absoluteString == "https://platform.minimaxi.com/custom/remains")
+    }
+
+    @Test
+    func originUsesCodingPlanOverrideHost() {
+        let env = [MiniMaxSettingsReader.codingPlanURLKey: "https://api.minimaxi.com/custom/path?cycle_type=3"]
+        let codingPlan = MiniMaxUsageFetcher.resolveCodingPlanURL(region: .global, environment: env)
+        let origin = MiniMaxUsageFetcher.originURL(from: codingPlan)
+        #expect(origin.absoluteString == "https://api.minimaxi.com")
+    }
+
+    @Test
+    func originStripsHostOverridePath() {
+        let env = [MiniMaxSettingsReader.hostKey: "https://api.minimaxi.com/custom/path"]
+        let codingPlan = MiniMaxUsageFetcher.resolveCodingPlanURL(region: .global, environment: env)
+        let origin = MiniMaxUsageFetcher.originURL(from: codingPlan)
+        #expect(origin.absoluteString == "https://api.minimaxi.com")
+    }
+}
