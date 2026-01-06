@@ -66,6 +66,8 @@ public enum ProviderDescriptorRegistry {
         _ = ProviderDescriptorRegistry.register(VertexAIProviderDescriptor.descriptor)
         _ = ProviderDescriptorRegistry.register(KiroProviderDescriptor.descriptor)
         _ = ProviderDescriptorRegistry.register(OpenCodeProviderDescriptor.descriptor)
+        _ = ProviderDescriptorRegistry.register(KimiProviderDescriptor.descriptor)
+        _ = ProviderDescriptorRegistry.register(OpenCodeProviderDescriptor.descriptor)
     }()
 
     private static func ensureBootstrapped() {

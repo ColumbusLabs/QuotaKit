@@ -716,6 +716,7 @@ enum IconRenderer {
         case .vertexai: 10
         case .augment: 11
         case .opencode: 12
+        case .kimi: 13
         case .combined: 99
         }
     }

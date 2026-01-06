@@ -1,5 +1,5 @@
 ---
-summary: "Provider data sources and parsing overview (Codex, Claude, Gemini, Antigravity, Cursor, Droid/Factory, z.ai, Copilot, Kiro, Vertex AI)."
+summary: "Provider data sources and parsing overview (Codex, Claude, Gemini, Antigravity, Cursor, Droid/Factory, z.ai, Copilot, Kimi, Kiro, Vertex AI)."
 read_when:
   - Adding or modifying provider fetch/parsing
   - Adjusting provider labels, toggles, or metadata
@@ -27,6 +27,7 @@ the session is invalid, to avoid repeated Keychain prompts.
 | Droid/Factory | Web cookies → stored tokens → local storage → WorkOS cookies (`web`). |
 | z.ai | API token (Keychain/env) → quota API (`api`). |
 | MiniMax | Manual cookie header (Keychain/env) → browser cookies (+ local storage access token) → coding plan page (HTML) with remains API fallback (`web`). |
+| Kimi | API token (JWT from `kimi-auth` cookie) → usage API (`api`). |
 | Copilot | API token (device flow/env) → copilot_internal API (`api`). |
 | Kiro | CLI command via `kiro-cli chat --no-interactive "/usage"` (`cli`). |
 | Vertex AI | Google ADC OAuth (gcloud) → Cloud Monitoring quota usage (`oauth`). |
@@ -59,6 +60,13 @@ the session is invalid, to avoid repeated Keychain prompts.
 - `GET {host}/v1/api/openplatform/coding_plan/remains`.
 - Status: none yet.
 - Details: `docs/minimax.md`.
+
+## Kimi
+- Auth token (JWT from `kimi-auth` cookie) via manual entry or `KIMI_AUTH_TOKEN` env var.
+- `POST https://www.kimi.com/apiv2/kimi.gateway.billing.v1.BillingService/GetUsages`.
+- Shows weekly quota and 5-hour rate limit (300 minutes).
+- Status: none yet.
+- Details: `docs/kimi.md`.
 
 ## Gemini
 - OAuth-backed quota API (`retrieveUserQuota`) using Gemini CLI credentials.

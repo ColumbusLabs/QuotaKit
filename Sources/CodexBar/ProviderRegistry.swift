@@ -129,6 +129,8 @@ struct ProviderRegistry {
             settings: settings,
             override: tokenOverride,
             fallback: settings.augmentCookieHeader)
+        settings.ensureKimiAuthTokenLoaded()
+        let kimiHeader = settings.kimiManualCookieHeader
 
         return ProviderSettingsSnapshot(
             debugMenuEnabled: settings.debugMenuEnabled,
@@ -181,6 +183,13 @@ struct ProviderRegistry {
                 apiRegion: settings.minimaxAPIRegion),
             zai: ProviderSettingsSnapshot.ZaiProviderSettings(apiRegion: settings.zaiAPIRegion),
             copilot: ProviderSettingsSnapshot.CopilotProviderSettings(),
+            kimi: ProviderSettingsSnapshot.KimiProviderSettings(
+                cookieSource: Self.cookieSource(
+                    provider: .kimi,
+                    settings: settings,
+                    override: tokenOverride,
+                    fallback: settings.kimiCookieSource),
+                manualCookieHeader: kimiHeader),
             augment: ProviderSettingsSnapshot.AugmentProviderSettings(
                 cookieSource: Self.cookieSource(
                     provider: .augment,
