@@ -207,7 +207,7 @@ struct TokenAccountCLIContext {
                 augment: ProviderSettingsSnapshot.AugmentProviderSettings(
                     cookieSource: .manual,
                     manualCookieHeader: header))
-        case .codex, .gemini, .antigravity, .zai, .copilot, .kiro, .vertexai, .kimi:
+        case .codex, .gemini, .antigravity, .zai, .copilot, .kiro, .vertexai, .kimi, .kimik2:
             return nil
         }
     }

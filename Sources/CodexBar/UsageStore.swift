@@ -306,6 +306,7 @@ final class UsageStore {
         case .kiro: self.kiroVersion
         case .augment: nil
         case .kimi: nil
+        case .kimik2: nil
         }
     }
 
@@ -335,7 +336,9 @@ final class UsageStore {
             (self.isEnabled(.opencode) && self.errors[.opencode] != nil) ||
             (self.isEnabled(.factory) && self.errors[.factory] != nil) ||
             (self.isEnabled(.copilot) && self.errors[.copilot] != nil) ||
-            (self.isEnabled(.minimax) && self.errors[.minimax] != nil)
+            (self.isEnabled(.minimax) && self.errors[.minimax] != nil) ||
+            (self.isEnabled(.kimi) && self.errors[.kimi] != nil) ||
+            (self.isEnabled(.kimik2) && self.errors[.kimik2] != nil)
     }
 
     func enabledProviders() -> [UsageProvider] {
@@ -1176,6 +1179,10 @@ extension UsageStore {
             case .kimi:
                 let text = "Kimi debug log not yet implemented"
                 await MainActor.run { self.probeLogs[.kimi] = text }
+                return text
+            case .kimik2:
+                let text = "Kimi K2 debug log not yet implemented"
+                await MainActor.run { self.probeLogs[.kimik2] = text }
                 return text
             }
         }.value

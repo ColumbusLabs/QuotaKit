@@ -307,7 +307,7 @@ struct KimiTokenResolverTests {
         KeychainAccessGate.isDisabled = true
         defer { KeychainAccessGate.isDisabled = previous }
         let env = ["KIMI_AUTH_TOKEN": "test.jwt.token"]
-        let resolution = ProviderTokenResolver.kimiResolution(environment: env)
+        let resolution = ProviderTokenResolver.kimiAuthResolution(environment: env)
 
         #expect(resolution?.token == "test.jwt.token")
         #expect(resolution?.source == .environment)

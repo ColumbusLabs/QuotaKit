@@ -179,6 +179,7 @@ struct SettingsStoreTests {
             .vertexai,
             .augment,
             .kimi,
+            .kimik2,
         ])
 
         // Move one provider; ensure it's persisted across instances.

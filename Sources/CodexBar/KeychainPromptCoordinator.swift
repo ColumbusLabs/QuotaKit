@@ -76,6 +76,11 @@ enum KeychainPromptCoordinator {
                 "CodexBar will ask macOS Keychain for your Kimi auth token",
                 "so it can fetch usage. Click OK to continue.",
             ].joined(separator: " "))
+        case .kimiK2Token:
+            return (title, [
+                "CodexBar will ask macOS Keychain for your Kimi K2 API key",
+                "so it can fetch usage. Click OK to continue.",
+            ].joined(separator: " "))
         case .minimaxCookie:
             return (title, [
                 "CodexBar will ask macOS Keychain for your MiniMax session cookie",
