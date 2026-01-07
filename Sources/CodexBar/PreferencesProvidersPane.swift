@@ -114,6 +114,9 @@ struct ProvidersPane: View {
         if provider == .minimax {
             return "web • \(usageText)"
         }
+        if provider == .kimi {
+            return "web • \(usageText)"
+        }
 
         let detail = "\(cliName) \(versionText) • \(usageText)"
         return detail
