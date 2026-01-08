@@ -1326,7 +1326,10 @@ public struct FactoryStatusProbe: Sendable {
         _ = browserDetection
     }
 
-    public func fetch(logger: ((String) -> Void)? = nil) async throws -> FactoryStatusSnapshot {
+    public func fetch(
+        cookieHeaderOverride _: String? = nil,
+        logger: ((String) -> Void)? = nil) async throws -> FactoryStatusSnapshot
+    {
         _ = logger
         throw FactoryStatusProbeError.notSupported
     }

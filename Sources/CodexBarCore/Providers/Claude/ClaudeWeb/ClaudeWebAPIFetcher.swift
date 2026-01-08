@@ -833,8 +833,13 @@ public enum ClaudeWebAPIFetcher {
 
     public static func hasSessionKey(cookieHeader: String?) -> Bool {
         guard let cookieHeader else { return false }
-        let pairs = CookieHeaderNormalizer.pairs(from: cookieHeader)
-        return self.findSessionKey(in: pairs) != nil
+        for pair in CookieHeaderNormalizer.pairs(from: cookieHeader) where pair.name == "sessionKey" {
+            let value = pair.value.trimmingCharacters(in: .whitespacesAndNewlines)
+            if value.hasPrefix("sk-ant-") {
+                return true
+            }
+        }
+        return false
     }
 
     public static func sessionKeyInfo(logger: ((String) -> Void)? = nil) throws -> SessionKeyInfo {

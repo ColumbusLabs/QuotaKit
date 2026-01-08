@@ -733,6 +733,13 @@ public struct CursorStatusProbe: Sendable {
         _ = logger
         throw CursorStatusProbeError.notSupported
     }
+
+    public func fetch(
+        cookieHeaderOverride _: String? = nil,
+        logger: ((String) -> Void)? = nil) async throws -> CursorStatusSnapshot
+    {
+        try await self.fetch(logger: logger)
+    }
 }
 
 #endif
