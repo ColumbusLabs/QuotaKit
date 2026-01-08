@@ -252,6 +252,7 @@ final class UsageStore {
     @ObservationIgnored private let codexFetcher: UsageFetcher
     @ObservationIgnored private let claudeFetcher: any ClaudeUsageFetching
     @ObservationIgnored private let costUsageFetcher: CostUsageFetcher
+    @ObservationIgnored let browserDetection: BrowserDetection
     @ObservationIgnored private let registry: ProviderRegistry
     @ObservationIgnored private let settings: SettingsStore
     @ObservationIgnored private let sessionQuotaNotifier: SessionQuotaNotifier
@@ -274,29 +275,34 @@ final class UsageStore {
 
     init(
         fetcher: UsageFetcher,
-        claudeFetcher: any ClaudeUsageFetching = ClaudeUsageFetcher(),
+        browserDetection: BrowserDetection,
+        claudeFetcher: (any ClaudeUsageFetching)? = nil,
         costUsageFetcher: CostUsageFetcher = CostUsageFetcher(),
         settings: SettingsStore,
         registry: ProviderRegistry = .shared,
         sessionQuotaNotifier: SessionQuotaNotifier = SessionQuotaNotifier())
     {
         self.codexFetcher = fetcher
-        self.claudeFetcher = claudeFetcher
+        self.browserDetection = browserDetection
+        self.claudeFetcher = claudeFetcher ?? ClaudeUsageFetcher(browserDetection: browserDetection)
         self.costUsageFetcher = costUsageFetcher
         self.settings = settings
         self.registry = registry
         self.sessionQuotaNotifier = sessionQuotaNotifier
         self.providerMetadata = registry.metadata
         self
-            .failureGates = Dictionary(uniqueKeysWithValues: UsageProvider.allCases
+            .failureGates = Dictionary(
+                uniqueKeysWithValues: UsageProvider.allCases
+                    .map { ($0, ConsecutiveFailureGate()) })
+        self.tokenFailureGates = Dictionary(
+            uniqueKeysWithValues: UsageProvider.allCases
                 .map { ($0, ConsecutiveFailureGate()) })
-        self.tokenFailureGates = Dictionary(uniqueKeysWithValues: UsageProvider.allCases
-            .map { ($0, ConsecutiveFailureGate()) })
         self.providerSpecs = registry.specs(
             settings: settings,
             metadata: self.providerMetadata,
             codexFetcher: fetcher,
-            claudeFetcher: claudeFetcher)
+            claudeFetcher: self.claudeFetcher,
+            browserDetection: browserDetection)
         self.bindSettings()
         self.detectVersions()
         self.refreshPathDebugInfo()
@@ -1032,8 +1038,9 @@ extension UsageStore {
                 now.timeIntervalSince(lastAttempt) > 300
             } else {
                 self.openAIDashboardRequiresLogin &&
-                    (lastEmail?.lowercased() != normalizedTarget?.lowercased() || now
-                        .timeIntervalSince(lastAttempt) > 300)
+                    (
+                        lastEmail?.lowercased() != normalizedTarget?.lowercased() || now
+                            .timeIntervalSince(lastAttempt) > 300)
             }
         }
 
@@ -1051,7 +1058,7 @@ extension UsageStore {
                 self.logOpenAIWeb(message)
             }
 
-            let importer = OpenAIDashboardBrowserCookieImporter()
+            let importer = OpenAIDashboardBrowserCookieImporter(browserDetection: self.browserDetection)
             let result: OpenAIDashboardBrowserCookieImporter.ImportResult
             switch cookieSource {
             case .manual:
@@ -1324,7 +1331,7 @@ extension UsageStore {
             let hasKey = if let manualHeader {
                 ClaudeWebAPIFetcher.hasSessionKey(cookieHeader: manualHeader)
             } else {
-                ClaudeWebAPIFetcher.hasSessionKey { msg in lines.append(msg) }
+                ClaudeWebAPIFetcher.hasSessionKey(browserDetection: self.browserDetection) { msg in lines.append(msg) }
             }
             let hasOAuthCredentials = (try? ClaudeOAuthCredentialsStore.load()) != nil
 
@@ -1348,7 +1355,8 @@ extension UsageStore {
                 return lines.joined(separator: "\n")
             case .web:
                 do {
-                    let web = try await ClaudeWebAPIFetcher.fetchUsage { msg in lines.append(msg) }
+                    let web = try await ClaudeWebAPIFetcher
+                        .fetchUsage(browserDetection: self.browserDetection) { msg in lines.append(msg) }
                     lines.append("")
                     lines.append("Web API summary:")
 
@@ -1399,7 +1407,7 @@ extension UsageStore {
             var lines: [String] = []
 
             do {
-                let probe = CursorStatusProbe()
+                let probe = CursorStatusProbe(browserDetection: self.browserDetection)
                 let snapshot: CursorStatusSnapshot = if cursorCookieSource == .manual,
                                                         let normalizedHeader = CookieHeaderNormalizer
                                                             .normalize(cursorCookieHeader)

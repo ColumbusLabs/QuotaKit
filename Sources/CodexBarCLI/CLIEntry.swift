@@ -90,7 +90,8 @@ enum CodexBarCLI {
         let useColor = Self.shouldUseColor(noColor: noColor, format: format)
         let resetStyle = Self.resetTimeDisplayStyleFromDefaults()
         let fetcher = UsageFetcher()
-        let claudeFetcher = ClaudeUsageFetcher()
+        let browserDetection = BrowserDetection()
+        let claudeFetcher = ClaudeUsageFetcher(browserDetection: browserDetection)
 
         #if !os(macOS)
         if sourceMode.usesWeb {
@@ -112,7 +113,8 @@ enum CodexBarCLI {
             env: ProcessInfo.processInfo.environment,
             settings: nil,
             fetcher: fetcher,
-            claudeFetcher: claudeFetcher)
+            claudeFetcher: claudeFetcher,
+            browserDetection: browserDetection)
 
         for p in provider.asList {
             let status = includeStatus ? await Self.fetchStatus(for: p) : nil
@@ -149,7 +151,7 @@ enum CodexBarCLI {
                 let shouldDetectVersion = descriptor.cli.versionDetector != nil
                     && result.strategyKind != .webDashboard
                 let version = Self.normalizeVersion(
-                    raw: shouldDetectVersion ? Self.detectVersion(for: p) : nil)
+                    raw: shouldDetectVersion ? Self.detectVersion(for: p, browserDetection: browserDetection) : nil)
                 let source = result.sourceLabel
                 let header = Self.makeHeader(provider: p, version: version, source: source)
 
@@ -264,8 +266,8 @@ enum CodexBarCLI {
         return isatty(STDOUT_FILENO) == 1
     }
 
-    private static func detectVersion(for provider: UsageProvider) -> String? {
-        ProviderDescriptorRegistry.descriptor(for: provider).cli.versionDetector?()
+    private static func detectVersion(for provider: UsageProvider, browserDetection: BrowserDetection) -> String? {
+        ProviderDescriptorRegistry.descriptor(for: provider).cli.versionDetector?(browserDetection)
     }
 
     private static func normalizeVersion(raw: String?) -> String? {
