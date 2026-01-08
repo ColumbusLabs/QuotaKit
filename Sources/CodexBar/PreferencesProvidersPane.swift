@@ -112,7 +112,8 @@ struct ProvidersPane: View {
             return "api • \(usageText)"
         }
         if provider == .minimax {
-            return "web • \(usageText)"
+            let sourceLabel = self.store.sourceLabel(for: provider)
+            return "\(sourceLabel) • \(usageText)"
         }
         if provider == .kimi {
             return "web • \(usageText)"
@@ -170,7 +171,14 @@ struct ProvidersPane: View {
                 case .cursor: return self.settings.cursorCookieSource == .manual
                 case .opencode: return self.settings.opencodeCookieSource == .manual
                 case .factory: return self.settings.factoryCookieSource == .manual
-                case .minimax: return self.settings.minimaxCookieSource == .manual
+                case .minimax:
+                    if MiniMaxAPISettingsReader.apiToken(environment: ProcessInfo.processInfo.environment) != nil {
+                        return false
+                    }
+                    if !self.settings.minimaxAPIToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        return false
+                    }
+                    return self.settings.minimaxCookieSource == .manual
                 case .augment: return self.settings.augmentCookieSource == .manual
                 default: return true
                 }

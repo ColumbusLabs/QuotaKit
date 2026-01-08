@@ -110,6 +110,8 @@ struct MiniMaxUsageParserTests {
 
         #expect(snapshot.planName == "Max")
         #expect(snapshot.availablePrompts == 1000)
+        #expect(snapshot.currentPrompts == 750)
+        #expect(snapshot.remainingPrompts == 250)
         #expect(snapshot.windowMinutes == 300)
         #expect(snapshot.usedPercent == 75)
         #expect(snapshot.resetsAt == expectedReset)
@@ -144,6 +146,8 @@ struct MiniMaxUsageParserTests {
 
         #expect(snapshot.planName == "Max")
         #expect(snapshot.availablePrompts == 15000)
+        #expect(snapshot.currentPrompts == 11)
+        #expect(snapshot.remainingPrompts == 14989)
         #expect(snapshot.windowMinutes == 300)
         #expect(abs((snapshot.usedPercent ?? 0) - expectedUsed) < 0.01)
         #expect(snapshot.resetsAt == expectedReset)
@@ -186,6 +190,8 @@ struct MiniMaxUsageParserTests {
 
         #expect(snapshot.planName == "Max")
         #expect(snapshot.availablePrompts == 1000)
+        #expect(snapshot.currentPrompts == 750)
+        #expect(snapshot.remainingPrompts == 250)
         #expect(snapshot.windowMinutes == 300)
         #expect(snapshot.usedPercent == 75)
         #expect(snapshot.resetsAt == expectedReset)
@@ -232,6 +238,21 @@ struct MiniMaxUsageParserTests {
         let json = """
         {
           "base_resp": { "status_code": "1004", "status_msg": "login required" }
+        }
+        """
+
+        #expect(throws: MiniMaxUsageError.invalidCredentials) {
+            try MiniMaxUsageParser.parseCodingPlanRemains(data: Data(json.utf8))
+        }
+    }
+
+    @Test
+    func throwsOnErrorInDataWrapper() {
+        let json = """
+        {
+          "data": {
+            "base_resp": { "status_code": 1004, "status_msg": "unauthorized" }
+          }
         }
         """
 
