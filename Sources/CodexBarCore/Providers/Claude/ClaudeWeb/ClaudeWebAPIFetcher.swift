@@ -319,8 +319,8 @@ public enum ClaudeWebAPIFetcher {
 
         let cookieDomains = ["claude.ai"]
 
-        // Filter to only installed browsers to avoid unnecessary keychain prompts
-        let installedBrowsers = browserDetection.filterInstalled(Self.cookieImportOrder)
+        // Filter to cookie-eligible browsers to avoid unnecessary keychain prompts
+        let installedBrowsers = Self.cookieImportOrder.cookieImportCandidates(using: browserDetection)
         for browserSource in installedBrowsers {
             do {
                 let query = BrowserCookieQuery(domains: cookieDomains)

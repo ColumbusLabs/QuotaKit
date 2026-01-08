@@ -32,7 +32,7 @@ struct StatusMenuTests {
         }
 
         let fetcher = UsageFetcher()
-        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(), settings: settings)
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
         let controller = StatusItemController(
             store: store,
             settings: settings,
@@ -75,7 +75,7 @@ struct StatusMenuTests {
         }
 
         let fetcher = UsageFetcher()
-        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(), settings: settings)
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
         store.openAIDashboard = OpenAIDashboardSnapshot(
             signedInEmail: "user@example.com",
             codeReviewRemainingPercent: 100,
@@ -119,7 +119,7 @@ struct StatusMenuTests {
         }
 
         let fetcher = UsageFetcher()
-        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(), settings: settings)
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
 
         let calendar = Calendar(identifier: .gregorian)
         var components = DateComponents()
@@ -181,7 +181,7 @@ struct StatusMenuTests {
         }
 
         let fetcher = UsageFetcher()
-        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(), settings: settings)
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
         store.credits = CreditsSnapshot(remaining: 100, events: [], updatedAt: Date())
         store.openAIDashboard = OpenAIDashboardSnapshot(
             signedInEmail: "user@example.com",
@@ -247,7 +247,7 @@ struct StatusMenuTests {
         }
 
         let fetcher = UsageFetcher()
-        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(), settings: settings)
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
         let identity = ProviderIdentitySnapshot(
             providerID: .claude,
             accountEmail: "user@example.com",
@@ -318,7 +318,7 @@ struct StatusMenuTests {
         }
 
         let fetcher = UsageFetcher()
-        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(), settings: settings)
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
         store._setErrorForTesting("No Vertex AI usage data found for the current project.", provider: .vertexai)
         store._setTokenSnapshotForTesting(CostUsageTokenSnapshot(
             sessionTokens: 10,

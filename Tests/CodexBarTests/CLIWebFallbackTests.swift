@@ -5,7 +5,7 @@ import Testing
 @Suite
 struct CLIWebFallbackTests {
     private func makeContext(sourceMode: ProviderSourceMode = .auto) -> ProviderFetchContext {
-        let browserDetection = BrowserDetection()
+        let browserDetection = BrowserDetection(cacheTTL: 0)
         return ProviderFetchContext(
             runtime: .cli,
             sourceMode: sourceMode,
@@ -53,7 +53,7 @@ struct CLIWebFallbackTests {
     @Test
     func claudeFallsBackWhenNoSessionKey() {
         let context = self.makeContext()
-        let strategy = ClaudeWebFetchStrategy(browserDetection: BrowserDetection())
+        let strategy = ClaudeWebFetchStrategy(browserDetection: BrowserDetection(cacheTTL: 0))
         #expect(strategy.shouldFallback(on: ClaudeWebAPIFetcher.FetchError.noSessionKeyFound, context: context))
         #expect(strategy.shouldFallback(on: ClaudeWebAPIFetcher.FetchError.unauthorized, context: context))
     }

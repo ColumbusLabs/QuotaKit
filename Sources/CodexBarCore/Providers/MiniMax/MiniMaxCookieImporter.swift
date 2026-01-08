@@ -31,8 +31,8 @@ public enum MiniMaxCookieImporter {
     {
         var sessions: [SessionInfo] = []
 
-        // Filter to only installed browsers to avoid unnecessary keychain prompts
-        let installedBrowsers = browserDetection.filterInstalled(minimaxCookieImportOrder)
+        // Filter to cookie-eligible browsers to avoid unnecessary keychain prompts
+        let installedBrowsers = minimaxCookieImportOrder.cookieImportCandidates(using: browserDetection)
         for browserSource in installedBrowsers {
             do {
                 let perSource = try self.importSessions(from: browserSource, logger: logger)

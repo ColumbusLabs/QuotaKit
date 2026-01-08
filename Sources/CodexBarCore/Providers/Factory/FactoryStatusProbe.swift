@@ -54,8 +54,8 @@ public enum FactoryCookieImporter {
         let log: (String) -> Void = { msg in logger?("[factory-cookie] \(msg)") }
         var sessions: [SessionInfo] = []
 
-        // Filter to only installed browsers to avoid unnecessary keychain prompts
-        let installedBrowsers = browserDetection.filterInstalled(factoryCookieImportOrder)
+        // Filter to cookie-eligible browsers to avoid unnecessary keychain prompts
+        let installedBrowsers = factoryCookieImportOrder.cookieImportCandidates(using: browserDetection)
         for browserSource in installedBrowsers {
             do {
                 let perSource = try self.importSessions(from: browserSource, logger: logger)
@@ -593,7 +593,7 @@ public struct FactoryStatusProbe: Sendable {
         }
 
         // Filter to only installed browsers to avoid unnecessary keychain prompts
-        let installedChromiumAndFirefox = self.browserDetection.filterInstalled([.chrome, .firefox])
+        let installedChromiumAndFirefox = [.chrome, .firefox].cookieImportCandidates(using: self.browserDetection)
 
         let attempts: [FetchAttemptResult] = await [
             self.attemptBrowserCookies(logger: log, sources: [.safari]),

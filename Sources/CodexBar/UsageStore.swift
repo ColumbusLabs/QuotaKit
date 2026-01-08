@@ -1591,7 +1591,7 @@ extension UsageStore {
         let startedAt = Date()
         let providerText = provider.rawValue
         self.tokenCostLogger
-            .info("cost usage start provider=\(providerText) force=\(force)")
+            .debug("cost usage start provider=\(providerText) force=\(force)")
 
         do {
             let fetcher = self.costUsageFetcher

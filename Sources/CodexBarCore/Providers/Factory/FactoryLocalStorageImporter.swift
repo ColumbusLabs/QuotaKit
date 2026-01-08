@@ -88,8 +88,8 @@ enum FactoryLocalStorageImporter {
             .helium,
         ]
 
-        // Filter to only installed browsers to avoid unnecessary filesystem access
-        let installedBrowsers = browserDetection.filterInstalled(browsers)
+        // Filter to browsers with profile data to avoid unnecessary filesystem access.
+        let installedBrowsers = browsers.browsersWithProfileData(using: browserDetection)
 
         let roots = ChromiumProfileLocator
             .roots(for: installedBrowsers, homeDirectories: BrowserCookieClient.defaultHomeDirectories())

@@ -14,7 +14,7 @@ struct ProviderSettingsDescriptorTests {
         let settings = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
-            browserDetection: BrowserDetection(),
+            browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings)
 
         var statusByID: [String: String] = [:]
@@ -83,7 +83,7 @@ struct ProviderSettingsDescriptorTests {
         let settings = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
-            browserDetection: BrowserDetection(),
+            browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings)
 
         let context = ProviderSettingsContext(
@@ -118,7 +118,7 @@ struct ProviderSettingsDescriptorTests {
         let settings = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
-            browserDetection: BrowserDetection(),
+            browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings)
 
         let context = ProviderSettingsContext(

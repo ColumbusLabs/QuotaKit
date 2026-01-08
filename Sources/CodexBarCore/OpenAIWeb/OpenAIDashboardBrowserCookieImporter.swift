@@ -114,8 +114,8 @@ public struct OpenAIDashboardBrowserCookieImporter {
 
         var diagnostics = ImportDiagnostics()
 
-        // Filter to only installed browsers to avoid unnecessary keychain prompts
-        let installedBrowsers = self.browserDetection.filterInstalled(Self.cookieImportOrder)
+        // Filter to cookie-eligible browsers to avoid unnecessary keychain prompts
+        let installedBrowsers = Self.cookieImportOrder.cookieImportCandidates(using: self.browserDetection)
         for browserSource in installedBrowsers {
             if let match = await self.trySource(
                 browserSource,

@@ -9,13 +9,15 @@ import SweetCookieKit
 struct BrowserDetectionTests {
     @Test
     func safariAlwaysInstalled() {
-        #expect(BrowserDetection().isInstalled(.safari) == true)
+        #expect(BrowserDetection(cacheTTL: 0).isAppInstalled(.safari) == true)
+        #expect(BrowserDetection(cacheTTL: 0).isCookieSourceAvailable(.safari) == true)
     }
 
     @Test
     func filterInstalledIncludesSafari() {
+        let detection = BrowserDetection(cacheTTL: 0)
         let browsers: [Browser] = [.safari, .chrome, .firefox]
-        #expect(BrowserDetection().filterInstalled(browsers).contains(.safari))
+        #expect(browsers.cookieImportCandidates(using: detection).contains(.safari))
     }
 
     @Test
@@ -31,6 +33,11 @@ struct BrowserDetectionTests {
             .appendingPathComponent("Chrome")
             .appendingPathComponent("Default")
         try? FileManager.default.createDirectory(at: chromeProfile, withIntermediateDirectories: true)
+        let chromeCookiesDir = chromeProfile.appendingPathComponent("Network")
+        try? FileManager.default.createDirectory(at: chromeCookiesDir, withIntermediateDirectories: true)
+        FileManager.default.createFile(
+            atPath: chromeCookiesDir.appendingPathComponent("Cookies").path,
+            contents: Data())
 
         let firefoxProfile = temp
             .appendingPathComponent("Library")
@@ -39,10 +46,13 @@ struct BrowserDetectionTests {
             .appendingPathComponent("Profiles")
             .appendingPathComponent("abc.default-release")
         try? FileManager.default.createDirectory(at: firefoxProfile, withIntermediateDirectories: true)
+        FileManager.default.createFile(
+            atPath: firefoxProfile.appendingPathComponent("cookies.sqlite").path,
+            contents: Data())
 
         let detection = BrowserDetection(homeDirectory: temp.path, cacheTTL: 0)
         let browsers: [Browser] = [.firefox, .safari, .chrome]
-        #expect(detection.filterInstalled(browsers) == browsers)
+        #expect(browsers.cookieImportCandidates(using: detection) == browsers)
     }
 
     @Test
@@ -52,7 +62,7 @@ struct BrowserDetectionTests {
         defer { try? FileManager.default.removeItem(at: temp) }
 
         let detection = BrowserDetection(homeDirectory: temp.path, cacheTTL: 0)
-        #expect(detection.isInstalled(.chrome) == false)
+        #expect(detection.isCookieSourceAvailable(.chrome) == false)
 
         let profile = temp
             .appendingPathComponent("Library")
@@ -61,8 +71,11 @@ struct BrowserDetectionTests {
             .appendingPathComponent("Chrome")
             .appendingPathComponent("Default")
         try FileManager.default.createDirectory(at: profile, withIntermediateDirectories: true)
+        let cookiesDir = profile.appendingPathComponent("Network")
+        try FileManager.default.createDirectory(at: cookiesDir, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: cookiesDir.appendingPathComponent("Cookies").path, contents: Data())
 
-        #expect(detection.isInstalled(.chrome) == true)
+        #expect(detection.isCookieSourceAvailable(.chrome) == true)
     }
 
     @Test
@@ -79,11 +92,12 @@ struct BrowserDetectionTests {
         try FileManager.default.createDirectory(at: profiles, withIntermediateDirectories: true)
 
         let detection = BrowserDetection(homeDirectory: temp.path, cacheTTL: 0)
-        #expect(detection.isInstalled(.firefox) == false)
+        #expect(detection.isCookieSourceAvailable(.firefox) == false)
 
         let profile = profiles.appendingPathComponent("abc.default-release")
         try FileManager.default.createDirectory(at: profile, withIntermediateDirectories: true)
-        #expect(detection.isInstalled(.firefox) == true)
+        FileManager.default.createFile(atPath: profile.appendingPathComponent("cookies.sqlite").path, contents: Data())
+        #expect(detection.isCookieSourceAvailable(.firefox) == true)
     }
 }
 
@@ -93,13 +107,14 @@ struct BrowserDetectionTests {
 struct BrowserDetectionTests {
     @Test
     func nonMacOSReturnsNoBrowsers() {
-        #expect(BrowserDetection().isInstalled(Browser()) == false)
+        #expect(BrowserDetection(cacheTTL: 0).isCookieSourceAvailable(Browser()) == false)
     }
 
     @Test
     func nonMacOSFilterReturnsEmpty() {
+        let detection = BrowserDetection(cacheTTL: 0)
         let browsers = [Browser(), Browser()]
-        #expect(BrowserDetection().filterInstalled(browsers).isEmpty == true)
+        #expect(browsers.cookieImportCandidates(using: detection).isEmpty == true)
     }
 }
 

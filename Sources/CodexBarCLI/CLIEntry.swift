@@ -90,7 +90,7 @@ enum CodexBarCLI {
         let useColor = Self.shouldUseColor(noColor: noColor, format: format)
         let resetStyle = Self.resetTimeDisplayStyleFromDefaults()
         let fetcher = UsageFetcher()
-        let browserDetection = BrowserDetection()
+        let browserDetection = BrowserDetection(cacheTTL: 0)
         let claudeFetcher = ClaudeUsageFetcher(browserDetection: browserDetection)
 
         #if !os(macOS)

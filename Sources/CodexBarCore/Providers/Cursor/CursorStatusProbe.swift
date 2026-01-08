@@ -38,8 +38,8 @@ public enum CursorCookieImporter {
     {
         let log: (String) -> Void = { msg in logger?("[cursor-cookie] \(msg)") }
 
-        // Filter to only installed browsers to avoid unnecessary keychain prompts
-        let installedBrowsers = browserDetection.filterInstalled(cursorCookieImportOrder)
+        // Filter to cookie-eligible browsers to avoid unnecessary keychain prompts
+        let installedBrowsers = cursorCookieImportOrder.cookieImportCandidates(using: browserDetection)
         let cookieDomains = ["cursor.com", "cursor.sh"]
         for browserSource in installedBrowsers {
             do {
