@@ -1316,9 +1316,14 @@ public struct FactoryStatusSnapshot: Sendable {
 }
 
 public struct FactoryStatusProbe: Sendable {
-    public init(baseURL: URL = URL(string: "https://app.factory.ai")!, timeout: TimeInterval = 15.0) {
+    public init(
+        baseURL: URL = URL(string: "https://app.factory.ai")!,
+        timeout: TimeInterval = 15.0,
+        browserDetection: BrowserDetection)
+    {
         _ = baseURL
         _ = timeout
+        _ = browserDetection
     }
 
     public func fetch(logger: ((String) -> Void)? = nil) async throws -> FactoryStatusSnapshot {

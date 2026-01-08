@@ -707,6 +707,7 @@ public struct OpenAIDashboardBrowserCookieImporter {
         case browserAccessDenied(details: String)
         case dashboardStillRequiresLogin
         case noMatchingAccount(found: [FoundAccount])
+        case manualCookieHeaderInvalid
 
         public var errorDescription: String? {
             switch self {

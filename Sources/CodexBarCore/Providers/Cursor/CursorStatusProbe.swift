@@ -719,9 +719,14 @@ public struct CursorStatusSnapshot: Sendable {
 }
 
 public struct CursorStatusProbe: Sendable {
-    public init(baseURL: URL = URL(string: "https://cursor.com")!, timeout: TimeInterval = 15.0) {
+    public init(
+        baseURL: URL = URL(string: "https://cursor.com")!,
+        timeout: TimeInterval = 15.0,
+        browserDetection: BrowserDetection)
+    {
         _ = baseURL
         _ = timeout
+        _ = browserDetection
     }
 
     public func fetch(logger: ((String) -> Void)? = nil) async throws -> CursorStatusSnapshot {

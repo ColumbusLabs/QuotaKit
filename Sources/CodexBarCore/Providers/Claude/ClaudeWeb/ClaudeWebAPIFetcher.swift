@@ -793,6 +793,15 @@ public enum ClaudeWebAPIFetcher {
     }
 
     public static func fetchUsage(
+        browserDetection: BrowserDetection,
+        logger: ((String) -> Void)? = nil) async throws -> WebUsageData
+    {
+        _ = browserDetection
+        _ = logger
+        throw FetchError.notSupportedOnThisPlatform
+    }
+
+    public static func fetchUsage(
         cookieHeader: String,
         logger: ((String) -> Void)? = nil) async throws -> WebUsageData
     {
@@ -816,8 +825,16 @@ public enum ClaudeWebAPIFetcher {
         throw FetchError.notSupportedOnThisPlatform
     }
 
-    public static func hasSessionKey(logger: ((String) -> Void)? = nil) -> Bool {
+    public static func hasSessionKey(browserDetection: BrowserDetection, logger: ((String) -> Void)? = nil) -> Bool {
+        _ = browserDetection
+        _ = logger
         false
+    }
+
+    public static func hasSessionKey(cookieHeader: String?) -> Bool {
+        guard let cookieHeader else { return false }
+        let pairs = CookieHeaderNormalizer.pairs(from: cookieHeader)
+        return self.findSessionKey(in: pairs) != nil
     }
 
     public static func sessionKeyInfo(logger: ((String) -> Void)? = nil) throws -> SessionKeyInfo {
