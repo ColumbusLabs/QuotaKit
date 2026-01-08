@@ -828,7 +828,7 @@ public enum ClaudeWebAPIFetcher {
     public static func hasSessionKey(browserDetection: BrowserDetection, logger: ((String) -> Void)? = nil) -> Bool {
         _ = browserDetection
         _ = logger
-        false
+        return false
     }
 
     public static func hasSessionKey(cookieHeader: String?) -> Bool {
