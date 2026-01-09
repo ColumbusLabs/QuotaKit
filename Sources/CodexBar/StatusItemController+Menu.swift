@@ -536,8 +536,11 @@ extension StatusItemController {
     }
 
     private func scheduleOpenMenuRefresh(for menu: NSMenu) {
-        // Only refresh if data is stale, and do it asynchronously after a delay
-        // NEVER block menu opening with network requests
+        // Kick off a background refresh on open (non-forced) and re-check after a delay.
+        // NEVER block menu opening with network requests.
+        if !self.store.isRefreshing {
+            self.refreshStore(forceTokenUsage: false)
+        }
         let key = ObjectIdentifier(menu)
         self.menuRefreshTasks[key]?.cancel()
         self.menuRefreshTasks[key] = Task { @MainActor [weak self, weak menu] in
@@ -550,7 +553,7 @@ extension StatusItemController {
             let isStale = provider.map { self.store.isStale(provider: $0) } ?? self.store.isStale
             let hasSnapshot = provider.map { self.store.snapshot(for: $0) != nil } ?? true
             guard isStale || !hasSnapshot else { return }
-            self.refreshNow()
+            self.refreshStore(forceTokenUsage: false)
         }
     }
 
