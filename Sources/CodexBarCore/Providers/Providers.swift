@@ -17,6 +17,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case kiro
     case vertexai
     case augment
+    case amp
     case kimik2
 }
 
@@ -37,6 +38,7 @@ public enum IconStyle: Sendable {
     case kiro
     case vertexai
     case augment
+    case amp
     case combined
 }
 

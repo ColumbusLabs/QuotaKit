@@ -282,6 +282,16 @@ final class SettingsStore {
         }
     }
 
+    private var ampCookieSourceRaw: String? {
+        didSet {
+            if let raw = self.ampCookieSourceRaw {
+                self.userDefaults.set(raw, forKey: "ampCookieSource")
+            } else {
+                self.userDefaults.removeObject(forKey: "ampCookieSource")
+            }
+        }
+    }
+
     /// Optional: collapse provider icons into a single menu bar item with an in-menu switcher.
     var mergeIcons: Bool {
         didSet { self.userDefaults.set(self.mergeIcons, forKey: "mergeIcons") }
@@ -354,6 +364,11 @@ final class SettingsStore {
     /// Augment session cookie header (stored in Keychain).
     var augmentCookieHeader: String {
         didSet { self.schedulePersistAugmentCookieHeader() }
+    }
+
+    /// Amp session cookie header (stored in Keychain).
+    var ampCookieHeader: String {
+        didSet { self.schedulePersistAmpCookieHeader() }
     }
 
     /// Copilot API token (stored in Keychain).
@@ -486,6 +501,11 @@ final class SettingsStore {
         set { self.augmentCookieSourceRaw = newValue.rawValue }
     }
 
+    var ampCookieSource: ProviderCookieSource {
+        get { ProviderCookieSource(rawValue: self.ampCookieSourceRaw ?? "") ?? .auto }
+        set { self.ampCookieSourceRaw = newValue.rawValue }
+    }
+
     var menuObservationToken: Int {
         _ = self.providerOrderRaw
         _ = self.refreshFrequency
@@ -516,6 +536,7 @@ final class SettingsStore {
         _ = self.minimaxAPIRegion
         _ = self.kimiCookieSource
         _ = self.augmentCookieSource
+        _ = self.ampCookieSource
         _ = self.mergeIcons
         _ = self.switcherShowsIcons
         _ = self.zaiAPIToken
@@ -588,6 +609,10 @@ final class SettingsStore {
     @ObservationIgnored private var augmentCookiePersistTask: Task<Void, Never>?
     @ObservationIgnored private var augmentCookieLoaded = false
     @ObservationIgnored private var augmentCookieLoading = false
+    @ObservationIgnored private let ampCookieStore: any CookieHeaderStoring
+    @ObservationIgnored private var ampCookiePersistTask: Task<Void, Never>?
+    @ObservationIgnored private var ampCookieLoaded = false
+    @ObservationIgnored private var ampCookieLoading = false
     @ObservationIgnored private let copilotTokenStore: any CopilotTokenStoring
     @ObservationIgnored private var copilotTokenPersistTask: Task<Void, Never>?
     @ObservationIgnored private var copilotTokenLoaded = false
@@ -632,6 +657,9 @@ final class SettingsStore {
         augmentCookieStore: any CookieHeaderStoring = KeychainCookieHeaderStore(
             account: "augment-cookie",
             promptKind: .augmentCookie),
+        ampCookieStore: any CookieHeaderStoring = KeychainCookieHeaderStore(
+            account: "amp-cookie",
+            promptKind: .ampCookie),
         copilotTokenStore: any CopilotTokenStoring = KeychainCopilotTokenStore(),
         tokenAccountStore: any ProviderTokenAccountStoring = FileTokenAccountStore())
     {
@@ -647,6 +675,7 @@ final class SettingsStore {
         self.kimiTokenStore = kimiTokenStore
         self.kimiK2TokenStore = kimiK2TokenStore
         self.augmentCookieStore = augmentCookieStore
+        self.ampCookieStore = ampCookieStore
         self.copilotTokenStore = copilotTokenStore
         self.tokenAccountStore = tokenAccountStore
         self.providerOrderRaw = userDefaults.stringArray(forKey: "providerOrder") ?? []
@@ -728,6 +757,8 @@ final class SettingsStore {
             ?? ProviderCookieSource.auto.rawValue
         self.augmentCookieSourceRaw = userDefaults.string(forKey: "augmentCookieSource")
             ?? ProviderCookieSource.auto.rawValue
+        self.ampCookieSourceRaw = userDefaults.string(forKey: "ampCookieSource")
+            ?? ProviderCookieSource.auto.rawValue
         self.mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true
         self.switcherShowsIcons = userDefaults.object(forKey: "switcherShowsIcons") as? Bool ?? true
         let minimaxAPIRegionRaw = userDefaults.string(forKey: "minimaxAPIRegion")
@@ -746,6 +777,7 @@ final class SettingsStore {
         self.kimiManualCookieHeader = ""
         self.kimiK2APIToken = ""
         self.augmentCookieHeader = ""
+        self.ampCookieHeader = ""
         self.copilotAPIToken = ""
         self.tokenAccountsByProvider = [:]
         self.selectedMenuProviderRaw = userDefaults.string(forKey: "selectedMenuProvider")
@@ -1146,6 +1178,32 @@ extension SettingsStore {
         }
     }
 
+    private func schedulePersistAmpCookieHeader() {
+        if self.ampCookieLoading { return }
+        self.ampCookiePersistTask?.cancel()
+        let header = self.ampCookieHeader
+        let cookieStore = self.ampCookieStore
+        self.ampCookiePersistTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 350_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
+                do {
+                    try cookieStore.storeCookieHeader(header)
+                    return nil
+                } catch {
+                    return error
+                }
+            }.value
+            if let error {
+                CodexBarLog.logger("amp-cookie-store").error("Failed to persist Amp cookie: \(error)")
+            }
+        }
+    }
+
     private func schedulePersistFactoryCookieHeader() {
         if self.factoryCookieLoading { return }
         self.factoryCookiePersistTask?.cancel()
@@ -1454,6 +1512,14 @@ extension SettingsStore {
         self.augmentCookieHeader = (try? self.augmentCookieStore.loadCookieHeader()) ?? ""
         self.augmentCookieLoading = false
         self.augmentCookieLoaded = true
+    }
+
+    func ensureAmpCookieLoaded() {
+        guard !self.ampCookieLoaded else { return }
+        self.ampCookieLoading = true
+        self.ampCookieHeader = (try? self.ampCookieStore.loadCookieHeader()) ?? ""
+        self.ampCookieLoading = false
+        self.ampCookieLoaded = true
     }
 
     func ensureCopilotAPITokenLoaded() {

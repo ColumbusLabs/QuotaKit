@@ -18,6 +18,7 @@ public struct KeychainPromptContext: Sendable {
         case minimaxCookie
         case minimaxToken
         case augmentCookie
+        case ampCookie
     }
 
     public let kind: Kind

@@ -26,6 +26,7 @@ enum ProviderImplementationRegistry {
         _ = ProviderImplementationRegistry.register(KimiProviderImplementation())
         _ = ProviderImplementationRegistry.register(KimiK2ProviderImplementation())
         _ = ProviderImplementationRegistry.register(OpenCodeProviderImplementation())
+        _ = ProviderImplementationRegistry.register(AmpProviderImplementation())
     }()
 
     private static func ensureBootstrapped() {
