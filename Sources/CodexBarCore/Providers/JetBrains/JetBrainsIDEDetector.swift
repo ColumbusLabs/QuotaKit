@@ -122,7 +122,7 @@ public enum JetBrainsIDEDetector {
         #if os(macOS)
         return "\(ideBasePath)/options/\(Self.quotaFileName)"
         #else
-        return "\(ideBasePath)/config/options/\(Self.quotaFileName)"
+        return "\(ideBasePath)/options/\(Self.quotaFileName)"
         #endif
     }
 
@@ -130,7 +130,7 @@ public enum JetBrainsIDEDetector {
         if isMacOS {
             return "\(ideBasePath)/options/\(Self.quotaFileName)"
         } else {
-            return "\(ideBasePath)/config/options/\(Self.quotaFileName)"
+            return "\(ideBasePath)/options/\(Self.quotaFileName)"
         }
     }
 

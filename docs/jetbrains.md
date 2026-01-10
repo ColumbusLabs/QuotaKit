@@ -19,8 +19,7 @@ JetBrains AI is a local-only provider. We read quota information directly from t
    - Selection: most recently modified `AIAssistantQuotaManager2.xml`
 
 2) **Quota file parsing**
-   - Path: `<IDE_BASE>/options/AIAssistantQuotaManager2.xml` (macOS)
-   - Path: `<IDE_BASE>/config/options/AIAssistantQuotaManager2.xml` (Linux)
+   - Path: `<IDE_BASE>/options/AIAssistantQuotaManager2.xml` (macOS/Linux)
    - Format: XML with HTML-encoded JSON attributes
 
 ## XML structure
