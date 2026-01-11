@@ -1331,6 +1331,19 @@ extension UsageStore {
         }
     }
 
+    private func debugAmpLog(
+        ampCookieSource: ProviderCookieSource,
+        ampCookieHeader: String) async -> String
+    {
+        await self.runWithTimeout(seconds: 15) {
+            let fetcher = AmpUsageFetcher(browserDetection: self.browserDetection)
+            let manualHeader = ampCookieSource == .manual
+                ? CookieHeaderNormalizer.normalize(ampCookieHeader)
+                : nil
+            return await fetcher.debugRawProbe(cookieHeaderOverride: manualHeader)
+        }
+    }
+
     private func debugAugmentLog() async -> String {
         await self.runWithTimeout(seconds: 15) {
             let probe = AugmentStatusProbe()
