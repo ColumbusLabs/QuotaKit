@@ -236,9 +236,9 @@ extension StatusItemController {
         if showBrandPercent,
            let brand = ProviderBrandIcon.image(for: primaryProvider)
         {
-            let percentText = self.menuBarPercentText(for: primaryProvider, snapshot: snapshot)
+            let displayText = self.menuBarDisplayText(for: primaryProvider, snapshot: snapshot)
             self.setButtonImage(brand, for: button)
-            self.setButtonTitle(percentText, for: button)
+            self.setButtonTitle(displayText, for: button)
             return
         }
 
@@ -272,9 +272,9 @@ extension StatusItemController {
         if showBrandPercent,
            let brand = ProviderBrandIcon.image(for: provider)
         {
-            let percentText = self.menuBarPercentText(for: provider, snapshot: snapshot)
+            let displayText = self.menuBarDisplayText(for: provider, snapshot: snapshot)
             self.setButtonImage(brand, for: button)
-            self.setButtonTitle(percentText, for: button)
+            self.setButtonTitle(displayText, for: button)
             return
         }
         var primary = showUsed ? snapshot?.primary?.usedPercent : snapshot?.primary?.remainingPercent
@@ -347,6 +347,34 @@ extension StatusItemController {
         let percent = self.settings.usageBarsShowUsed ? window.usedPercent : window.remainingPercent
         let clamped = min(100, max(0, percent))
         return String(format: "%.0f%%", clamped)
+    }
+
+    private func menuBarPaceText(for provider: UsageProvider, snapshot: UsageSnapshot?) -> String? {
+        // PACE is calculated from the weekly (secondary) window, not the session (primary) window.
+        guard let window = snapshot?.secondary else { return nil }
+        guard let pace = UsagePaceText.weeklyPace(provider: provider, window: window, now: Date()) else { return nil }
+
+        let deltaValue = Int(abs(pace.deltaPercent).rounded())
+        let sign = pace.deltaPercent >= 0 ? "+" : "-"
+        return "\(sign)\(deltaValue)%"
+    }
+
+    func menuBarDisplayText(for provider: UsageProvider, snapshot: UsageSnapshot?) -> String? {
+        let mode = self.settings.menuBarDisplayMode
+
+        switch mode {
+        case .percent:
+            return self.menuBarPercentText(for: provider, snapshot: snapshot)
+        case .pace:
+            return self.menuBarPaceText(for: provider, snapshot: snapshot)
+        case .both:
+            let percentText = self.menuBarPercentText(for: provider, snapshot: snapshot)
+            let paceText = self.menuBarPaceText(for: provider, snapshot: snapshot)
+            if let percent = percentText, let pace = paceText {
+                return "\(percent) · \(pace)"
+            }
+            return nil
+        }
     }
 
     private func menuBarPercentWindow(for provider: UsageProvider, snapshot: UsageSnapshot?) -> RateWindow? {

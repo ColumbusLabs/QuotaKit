@@ -12,6 +12,7 @@ extension SettingsStore {
         _ = self.usageBarsShowUsed
         _ = self.resetTimesShowAbsolute
         _ = self.menuBarShowsBrandIconWithPercent
+        _ = self.menuBarDisplayMode
         _ = self.showAllTokenAccountsInMenu
         _ = self.menuBarMetricPreferencesRaw
         _ = self.costUsageEnabled

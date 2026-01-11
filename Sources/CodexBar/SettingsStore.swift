@@ -50,7 +50,30 @@ enum MenuBarMetricPreference: String, CaseIterable, Identifiable {
         }
     }
 }
+/// Controls what the menu bar displays when brand icon mode is enabled.
+enum MenuBarDisplayMode: String, CaseIterable, Identifiable {
+    case percent
+    case pace
+    case both
 
+    var id: String { self.rawValue }
+
+    var label: String {
+        switch self {
+        case .percent: "Percent"
+        case .pace: "Pace"
+        case .both: "Both"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .percent: "Show remaining/used percentage (e.g. 45%)"
+        case .pace: "Show pace indicator (e.g. +5%)"
+        case .both: "Show both percentage and pace (e.g. 45% · +5%)"
+        }
+    }
+}
 @MainActor
 @Observable
 final class SettingsStore {
@@ -125,6 +148,22 @@ final class SettingsStore {
         }
     }
 
+    /// Controls what the menu bar displays when brand icon mode is enabled.
+    private var menuBarDisplayModeRaw: String? {
+        didSet {
+            if let raw = self.menuBarDisplayModeRaw {
+                self.userDefaults.set(raw, forKey: "menuBarDisplayMode")
+            } else {
+                self.userDefaults.removeObject(forKey: "menuBarDisplayMode")
+            }
+        }
+    }
+
+    var menuBarDisplayMode: MenuBarDisplayMode {
+        get { MenuBarDisplayMode(rawValue: self.menuBarDisplayModeRaw ?? "") ?? .percent }
+        set { self.menuBarDisplayModeRaw = newValue.rawValue }
+    }
+
     /// Optional: show all token accounts stacked in the menu (otherwise show a switcher bar).
     var showAllTokenAccountsInMenu: Bool {
         didSet { self.userDefaults.set(self.showAllTokenAccountsInMenu, forKey: "showAllTokenAccountsInMenu") }
@@ -134,7 +173,6 @@ final class SettingsStore {
     private(set) var menuBarMetricPreferencesRaw: [String: String] {
         didSet { self.userDefaults.set(self.menuBarMetricPreferencesRaw, forKey: "menuBarMetricPreferences") }
     }
-
     /// Optional: show provider cost summary from local usage logs (Codex + Claude).
     var costUsageEnabled: Bool {
         didSet { self.userDefaults.set(self.costUsageEnabled, forKey: "tokenCostUsageEnabled") }
@@ -669,6 +707,8 @@ final class SettingsStore {
         self.resetTimesShowAbsolute = userDefaults.object(forKey: "resetTimesShowAbsolute") as? Bool ?? false
         self.menuBarShowsBrandIconWithPercent = userDefaults.object(
             forKey: "menuBarShowsBrandIconWithPercent") as? Bool ?? false
+        self.menuBarDisplayModeRaw = userDefaults.string(forKey: "menuBarDisplayMode")
+            ?? MenuBarDisplayMode.percent.rawValue
         self.showAllTokenAccountsInMenu = userDefaults.object(
             forKey: "showAllTokenAccountsInMenu") as? Bool ?? false
         let storedMenuBarMetricPreferences = userDefaults.dictionary(
