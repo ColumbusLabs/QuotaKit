@@ -317,6 +317,11 @@ final class SettingsStore {
         didSet { self.schedulePersistZaiAPIToken() }
     }
 
+    /// Synthetic API key (stored in Keychain).
+    var syntheticAPIToken: String {
+        didSet { self.schedulePersistSyntheticAPIToken() }
+    }
+
     /// Codex OpenAI cookie header (stored in Keychain).
     var codexCookieHeader: String {
         didSet { self.schedulePersistCodexCookieHeader() }
@@ -508,6 +513,7 @@ final class SettingsStore {
         }
         set { self.ampCookieSourceRaw = newValue.rawValue }
     }
+    }
 
     private var providerDetectionCompleted: Bool {
         didSet { self.userDefaults.set(self.providerDetectionCompleted, forKey: "providerDetectionCompleted") }
@@ -519,6 +525,10 @@ final class SettingsStore {
     @ObservationIgnored private var zaiTokenPersistTask: Task<Void, Never>?
     @ObservationIgnored private var zaiTokenLoaded = false
     @ObservationIgnored private var zaiTokenLoading = false
+    @ObservationIgnored private let syntheticTokenStore: any SyntheticTokenStoring
+    @ObservationIgnored private var syntheticTokenPersistTask: Task<Void, Never>?
+    @ObservationIgnored private var syntheticTokenLoaded = false
+    @ObservationIgnored private var syntheticTokenLoading = false
     @ObservationIgnored private let codexCookieStore: any CookieHeaderStoring
     @ObservationIgnored private var codexCookiePersistTask: Task<Void, Never>?
     @ObservationIgnored private var codexCookieLoaded = false
@@ -585,6 +595,7 @@ final class SettingsStore {
     init(
         userDefaults: UserDefaults = .standard,
         zaiTokenStore: any ZaiTokenStoring = KeychainZaiTokenStore(),
+        syntheticTokenStore: any SyntheticTokenStoring = KeychainSyntheticTokenStore(),
         codexCookieStore: any CookieHeaderStoring = KeychainCookieHeaderStore(
             account: "codex-cookie",
             promptKind: .codexCookie),
@@ -615,6 +626,7 @@ final class SettingsStore {
     {
         self.userDefaults = userDefaults
         self.zaiTokenStore = zaiTokenStore
+        self.syntheticTokenStore = syntheticTokenStore
         self.codexCookieStore = codexCookieStore
         self.claudeCookieStore = claudeCookieStore
         self.cursorCookieStore = cursorCookieStore
@@ -717,6 +729,7 @@ final class SettingsStore {
         let zaiAPIRegionRaw = userDefaults.string(forKey: "zaiAPIRegion")
         self.zaiAPIRegion = ZaiAPIRegion(rawValue: zaiAPIRegionRaw ?? ZaiAPIRegion.global.rawValue) ?? .global
         self.zaiAPIToken = ""
+        self.syntheticAPIToken = ""
         self.codexCookieHeader = ""
         self.claudeCookieHeader = ""
         self.cursorCookieHeader = ""
@@ -994,6 +1007,33 @@ extension SettingsStore {
             if let error {
                 // Keep value in memory; persist best-effort.
                 CodexBarLog.logger("zai-token-store").error("Failed to persist z.ai token: \(error)")
+            }
+        }
+    }
+
+    private func schedulePersistSyntheticAPIToken() {
+        if self.syntheticTokenLoading { return }
+        self.syntheticTokenPersistTask?.cancel()
+        let token = self.syntheticAPIToken
+        let tokenStore = self.syntheticTokenStore
+        self.syntheticTokenPersistTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 350_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
+                do {
+                    try tokenStore.storeToken(token)
+                    return nil
+                } catch {
+                    return error
+                }
+            }.value
+            if let error {
+                CodexBarLog.logger("synthetic-token-store")
+                    .error("Failed to persist Synthetic API key: \(error)")
             }
         }
     }
@@ -1368,6 +1408,14 @@ extension SettingsStore {
         self.zaiTokenLoaded = true
     }
 
+    func ensureSyntheticAPITokenLoaded() {
+        guard !self.syntheticTokenLoaded else { return }
+        self.syntheticTokenLoading = true
+        self.syntheticAPIToken = (try? self.syntheticTokenStore.loadToken()) ?? ""
+        self.syntheticTokenLoading = false
+        self.syntheticTokenLoaded = true
+    }
+
     func ensureCodexCookieLoaded() {
         guard !self.codexCookieLoaded else { return }
         self.codexCookieLoading = true
@@ -1648,6 +1696,7 @@ extension SettingsStore {
         _ = self.mergeIcons
         _ = self.switcherShowsIcons
         _ = self.zaiAPIToken
+        _ = self.syntheticAPIToken
         _ = self.codexCookieHeader
         _ = self.claudeCookieHeader
         _ = self.cursorCookieHeader

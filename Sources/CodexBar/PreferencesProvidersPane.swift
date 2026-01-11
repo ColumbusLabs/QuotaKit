@@ -111,6 +111,9 @@ struct ProvidersPane: View {
         if provider == .zai {
             return "api • \(usageText)"
         }
+        if provider == .synthetic {
+            return "api • \(usageText)"
+        }
         if provider == .minimax {
             let sourceLabel = self.store.sourceLabel(for: provider)
             return "\(sourceLabel) • \(usageText)"
