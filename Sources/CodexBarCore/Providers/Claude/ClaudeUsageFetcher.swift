@@ -267,7 +267,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             if !creds.scopes.contains("user:profile") {
                 throw ClaudeUsageError.oauthFailed(
                     "Claude OAuth token missing 'user:profile' scope (has: \(creds.scopes.joined(separator: ", "))). "
-                        + "Rate limit data unavailable.")
+                        + "Run `claude setup-token` to re-generate credentials, or switch Claude Source to Web/CLI.")
             }
             let usage = try await ClaudeOAuthUsageFetcher.fetchUsage(accessToken: creds.accessToken)
             return try Self.mapOAuthUsage(usage, credentials: creds)
@@ -276,6 +276,15 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         } catch let error as ClaudeOAuthCredentialsError {
             throw ClaudeUsageError.oauthFailed(error.localizedDescription)
         } catch let error as ClaudeOAuthFetchError {
+            ClaudeOAuthCredentialsStore.invalidateCache()
+            if case let .serverError(statusCode, body) = error,
+               statusCode == 403,
+               body?.contains("user:profile") ?? false
+            {
+                throw ClaudeUsageError.oauthFailed(
+                    "Claude OAuth token does not meet scope requirement 'user:profile'. "
+                        + "Run `claude setup-token` to re-generate credentials, or switch Claude Source to Web/CLI.")
+            }
             throw ClaudeUsageError.oauthFailed(error.localizedDescription)
         } catch {
             throw ClaudeUsageError.oauthFailed(error.localizedDescription)
