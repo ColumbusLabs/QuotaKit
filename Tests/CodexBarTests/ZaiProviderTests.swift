@@ -59,3 +59,64 @@ struct ZaiUsageSnapshotTests {
         #expect(usage.zaiUsage?.tokenLimit?.usage == 100)
     }
 }
+
+@Suite
+struct ZaiUsageParsingTests {
+    @Test
+    func parsesUsageResponse() throws {
+        let json = """
+        {
+          "code": 200,
+          "msg": "Operation successful",
+          "data": {
+            "limits": [
+              {
+                "type": "TIME_LIMIT",
+                "unit": 5,
+                "number": 1,
+                "usage": 100,
+                "currentValue": 102,
+                "remaining": 0,
+                "percentage": 100,
+                "usageDetails": [
+                  { "modelCode": "search-prime", "usage": 95 }
+                ]
+              },
+              {
+                "type": "TOKENS_LIMIT",
+                "unit": 3,
+                "number": 5,
+                "usage": 40000000,
+                "currentValue": 13628365,
+                "remaining": 26371635,
+                "percentage": 34,
+                "nextResetTime": 1768507567547
+              }
+            ],
+            "planName": "Pro"
+          },
+          "success": true
+        }
+        """
+
+        let snapshot = try ZaiUsageFetcher.parseUsageSnapshot(from: Data(json.utf8))
+
+        #expect(snapshot.planName == "Pro")
+        #expect(snapshot.tokenLimit?.usage == 40_000_000)
+        #expect(snapshot.timeLimit?.usageDetails.first?.modelCode == "search-prime")
+    }
+
+    @Test
+    func missingDataReturnsApiError() {
+        let json = """
+        { "code": 1001, "msg": "Authorization Token Missing", "success": false }
+        """
+
+        #expect {
+            _ = try ZaiUsageFetcher.parseUsageSnapshot(from: Data(json.utf8))
+        } throws: { error in
+            guard case let ZaiUsageError.apiError(message) = error else { return false }
+            return message == "Authorization Token Missing"
+        }
+    }
+}

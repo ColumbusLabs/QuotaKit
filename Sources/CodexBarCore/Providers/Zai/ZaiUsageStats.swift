@@ -187,7 +187,7 @@ extension ZaiUsageSnapshot {
 private struct ZaiQuotaLimitResponse: Decodable {
     let code: Int
     let msg: String
-    let data: ZaiQuotaLimitData
+    let data: ZaiQuotaLimitData?
     let success: Bool
 
     var isSuccess: Bool { self.success && self.code == 200 }
@@ -199,7 +199,7 @@ private struct ZaiQuotaLimitData: Decodable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.limits = try container.decode([ZaiLimitRaw].self, forKey: .limits)
+        self.limits = try container.decodeIfPresent([ZaiLimitRaw].self, forKey: .limits) ?? []
         let rawPlan = try [
             container.decodeIfPresent(String.self, forKey: .planName),
             container.decodeIfPresent(String.self, forKey: .plan),
@@ -282,33 +282,8 @@ public struct ZaiUsageFetcher: Sendable {
             Self.log.debug("z.ai API response: \(jsonString)")
         }
 
-        let decoder = JSONDecoder()
         do {
-            let apiResponse = try decoder.decode(ZaiQuotaLimitResponse.self, from: data)
-
-            guard apiResponse.isSuccess else {
-                throw ZaiUsageError.apiError(apiResponse.msg)
-            }
-
-            var tokenLimit: ZaiLimitEntry?
-            var timeLimit: ZaiLimitEntry?
-
-            for limit in apiResponse.data.limits {
-                if let entry = limit.toLimitEntry() {
-                    switch entry.type {
-                    case .tokensLimit:
-                        tokenLimit = entry
-                    case .timeLimit:
-                        timeLimit = entry
-                    }
-                }
-            }
-
-            return ZaiUsageSnapshot(
-                tokenLimit: tokenLimit,
-                timeLimit: timeLimit,
-                planName: apiResponse.data.planName,
-                updatedAt: Date())
+            return try Self.parseUsageSnapshot(from: data)
         } catch let error as DecodingError {
             Self.log.error("z.ai JSON decoding error: \(error.localizedDescription)")
             throw ZaiUsageError.parseFailed(error.localizedDescription)
@@ -318,6 +293,39 @@ public struct ZaiUsageFetcher: Sendable {
             Self.log.error("z.ai parsing error: \(error.localizedDescription)")
             throw ZaiUsageError.parseFailed(error.localizedDescription)
         }
+    }
+
+    static func parseUsageSnapshot(from data: Data) throws -> ZaiUsageSnapshot {
+        let decoder = JSONDecoder()
+        let apiResponse = try decoder.decode(ZaiQuotaLimitResponse.self, from: data)
+
+        guard apiResponse.isSuccess else {
+            throw ZaiUsageError.apiError(apiResponse.msg)
+        }
+
+        guard let responseData = apiResponse.data else {
+            throw ZaiUsageError.parseFailed("Missing data")
+        }
+
+        var tokenLimit: ZaiLimitEntry?
+        var timeLimit: ZaiLimitEntry?
+
+        for limit in responseData.limits {
+            if let entry = limit.toLimitEntry() {
+                switch entry.type {
+                case .tokensLimit:
+                    tokenLimit = entry
+                case .timeLimit:
+                    timeLimit = entry
+                }
+            }
+        }
+
+        return ZaiUsageSnapshot(
+            tokenLimit: tokenLimit,
+            timeLimit: timeLimit,
+            planName: responseData.planName,
+            updatedAt: Date())
     }
 }
 
