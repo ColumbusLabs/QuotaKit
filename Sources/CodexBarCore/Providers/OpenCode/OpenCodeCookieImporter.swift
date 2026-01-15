@@ -8,7 +8,7 @@ private let opencodeCookieImportOrder: BrowserCookieImportOrder =
 
 public enum OpenCodeCookieImporter {
     private static let cookieClient = BrowserCookieClient()
-    private static let cookieDomains = ["opencode.ai"]
+    private static let cookieDomains = ["opencode.ai", "app.opencode.ai"]
 
     public struct SessionInfo: Sendable {
         public let cookies: [HTTPCookie]
@@ -41,6 +41,13 @@ public enum OpenCodeCookieImporter {
                 for source in sources where !source.records.isEmpty {
                     let httpCookies = BrowserCookieClient.makeHTTPCookies(source.records, origin: query.origin)
                     if !httpCookies.isEmpty {
+                        let hasAuthCookie = httpCookies.contains { cookie in
+                            cookie.name == "auth" || cookie.name == "__Host-auth"
+                        }
+                        if !hasAuthCookie {
+                            log("Skipping \(source.label) cookies: missing auth cookie")
+                            continue
+                        }
                         log("Found \(httpCookies.count) OpenCode cookies in \(source.label)")
                         return SessionInfo(cookies: httpCookies, sourceLabel: source.label)
                     }

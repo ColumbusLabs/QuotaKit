@@ -66,7 +66,13 @@ struct OpenCodeUsageFetchStrategy: ProviderFetchStrategy {
     private static func resolveCookieHeader(context: ProviderFetchContext) throws -> String {
         if let settings = context.settings?.opencode, settings.cookieSource == .manual {
             if let header = CookieHeaderNormalizer.normalize(settings.manualCookieHeader) {
-                return header
+                let pairs = CookieHeaderNormalizer.pairs(from: header)
+                let hasAuthCookie = pairs.contains { pair in
+                    pair.name == "auth" || pair.name == "__Host-auth"
+                }
+                if hasAuthCookie {
+                    return header
+                }
             }
             throw OpenCodeSettingsError.invalidCookie
         }

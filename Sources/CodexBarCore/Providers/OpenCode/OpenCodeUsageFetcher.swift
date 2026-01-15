@@ -29,6 +29,44 @@ public struct OpenCodeUsageFetcher: Sendable {
     private static let serverURL = URL(string: "https://opencode.ai/_server")!
     private static let workspacesServerID = "def39973159c7f0483d8793a822b8dbb10d067e12c65455fcb4608459ba0234f"
     private static let subscriptionServerID = "7abeebee372f304e050aaaf92be863f4a86490e382f8c79db68fd94040d691b4"
+    private static let percentKeys = [
+        "usagePercent",
+        "usedPercent",
+        "percentUsed",
+        "percent",
+        "usage_percent",
+        "used_percent",
+        "utilization",
+        "utilizationPercent",
+        "utilization_percent",
+        "usage",
+    ]
+    private static let resetInKeys = [
+        "resetInSec",
+        "resetInSeconds",
+        "resetSeconds",
+        "reset_sec",
+        "reset_in_sec",
+        "resetsInSec",
+        "resetsInSeconds",
+        "resetIn",
+        "resetSec",
+    ]
+    private static let resetAtKeys = [
+        "resetAt",
+        "resetsAt",
+        "reset_at",
+        "resets_at",
+        "nextReset",
+        "next_reset",
+        "renewAt",
+        "renew_at",
+    ]
+    private static func makeISO8601Formatter() -> ISO8601DateFormatter {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }
     private static let userAgent =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
@@ -41,7 +79,7 @@ public struct OpenCodeUsageFetcher: Sendable {
         let workspaceID = try await self.fetchWorkspaceID(
             cookieHeader: cookieHeader,
             timeout: timeout)
-        let subscriptionText = try await self.fetchSubscription(
+        let subscriptionText = try await self.fetchSubscriptionInfo(
             workspaceID: workspaceID,
             cookieHeader: cookieHeader,
             timeout: timeout)
@@ -54,7 +92,8 @@ public struct OpenCodeUsageFetcher: Sendable {
     {
         let text = try await self.fetchServerText(
             serverID: self.workspacesServerID,
-            body: nil,
+            args: nil,
+            method: "GET",
             cookieHeader: cookieHeader,
             timeout: timeout,
             referer: self.baseURL)
@@ -68,16 +107,16 @@ public struct OpenCodeUsageFetcher: Sendable {
         return first
     }
 
-    private static func fetchSubscription(
+    private static func fetchSubscriptionInfo(
         workspaceID: String,
         cookieHeader: String,
         timeout: TimeInterval) async throws -> String
     {
-        let body = try JSONSerialization.data(withJSONObject: [workspaceID], options: [])
         let referer = URL(string: "https://opencode.ai/workspace/\(workspaceID)/billing") ?? self.baseURL
         let text = try await self.fetchServerText(
             serverID: self.subscriptionServerID,
-            body: body,
+            args: [workspaceID],
+            method: "GET",
             cookieHeader: cookieHeader,
             timeout: timeout,
             referer: referer)
@@ -89,22 +128,27 @@ public struct OpenCodeUsageFetcher: Sendable {
 
     private static func fetchServerText(
         serverID: String,
-        body: Data?,
+        args: [Any]?,
+        method: String,
         cookieHeader: String,
         timeout: TimeInterval,
         referer: URL) async throws -> String
     {
-        var request = URLRequest(url: self.serverURL)
-        request.httpMethod = "POST"
+        let url = self.serverRequestURL(serverID: serverID, args: args, method: method)
+        var request = URLRequest(url: url)
+        request.httpMethod = method
         request.timeoutInterval = timeout
         request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
         request.setValue(serverID, forHTTPHeaderField: "X-Server-Id")
-        request.setValue("codexbar", forHTTPHeaderField: "X-Server-Instance")
+        request.setValue("server-fn:\(UUID().uuidString)", forHTTPHeaderField: "X-Server-Instance")
         request.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue(self.baseURL.absoluteString, forHTTPHeaderField: "Origin")
         request.setValue(referer.absoluteString, forHTTPHeaderField: "Referer")
         request.setValue("text/javascript, application/json;q=0.9, */*;q=0.8", forHTTPHeaderField: "Accept")
-        if let body {
+        if method.uppercased() != "GET",
+           let args
+        {
+            let body = try JSONSerialization.data(withJSONObject: args, options: [])
             request.httpBody = body
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
@@ -117,8 +161,14 @@ public struct OpenCodeUsageFetcher: Sendable {
         guard httpResponse.statusCode == 200 else {
             let bodyText = String(data: data, encoding: .utf8) ?? ""
             Self.log.error("OpenCode returned \(httpResponse.statusCode): \(bodyText)")
+            if self.looksSignedOut(text: bodyText) {
+                throw OpenCodeUsageError.invalidCredentials
+            }
             if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
                 throw OpenCodeUsageError.invalidCredentials
+            }
+            if let message = self.extractServerErrorMessage(from: bodyText) {
+                throw OpenCodeUsageError.apiError("HTTP \(httpResponse.statusCode): \(message)")
             }
             throw OpenCodeUsageError.apiError("HTTP \(httpResponse.statusCode)")
         }
@@ -147,6 +197,7 @@ public struct OpenCodeUsageFetcher: Sendable {
                 pattern: #"weeklyUsage[^}]*?resetInSec\s*:\s*([0-9]+)"#,
                 text: text)
         else {
+            self.logParseSummary(text: text)
             throw OpenCodeUsageError.parseFailed("Missing usage fields.")
         }
 
@@ -160,31 +211,21 @@ public struct OpenCodeUsageFetcher: Sendable {
 
     private static func parseSubscriptionJSON(text: String, now: Date) -> OpenCodeUsageSnapshot? {
         guard let data = text.data(using: .utf8),
-              let object = try? JSONSerialization.jsonObject(with: data, options: []),
-              let dict = object as? [String: Any]
+              let object = try? JSONSerialization.jsonObject(with: data, options: [])
         else {
             return nil
         }
 
-        guard let rolling = dict["rollingUsage"] as? [String: Any],
-              let weekly = dict["weeklyUsage"] as? [String: Any]
-        else {
-            return nil
+        if let snapshot = self.parseUsageJSON(object: object, now: now) {
+            return snapshot
         }
 
-        let rollingPercent = self.doubleValue(from: rolling["usagePercent"])
-        let weeklyPercent = self.doubleValue(from: weekly["usagePercent"])
-        let rollingReset = self.intValue(from: rolling["resetInSec"])
-        let weeklyReset = self.intValue(from: weekly["resetInSec"])
+        if let snapshot = self.parseUsageFromCandidates(object: object, now: now) {
+            return snapshot
+        }
 
-        guard let rollingPercent, let weeklyPercent, let rollingReset, let weeklyReset else { return nil }
-
-        return OpenCodeUsageSnapshot(
-            rollingUsagePercent: rollingPercent,
-            weeklyUsagePercent: weeklyPercent,
-            rollingResetInSec: rollingReset,
-            weeklyResetInSec: weeklyReset,
-            updatedAt: now)
+        self.logParseSummary(object: object)
+        return nil
     }
 
     static func parseWorkspaceIDs(text: String) -> [String] {
@@ -247,12 +288,388 @@ public struct OpenCodeUsageFetcher: Sendable {
 
     private static func looksSignedOut(text: String) -> Bool {
         let lower = text.lowercased()
-        if lower.contains("login") || lower.contains("sign in") || lower.contains("not found") {
-            return true
-        }
-        if lower.contains("\"httpError\"") || lower.contains("httperror") {
+        if lower.contains("login") || lower.contains("sign in") || lower.contains("auth/authorize") {
             return true
         }
         return false
+    }
+
+    private static func extractServerErrorMessage(from text: String) -> String? {
+        guard let data = text.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data, options: []),
+              let dict = object as? [String: Any]
+        else {
+            return nil
+        }
+
+        if let message = dict["message"] as? String, !message.isEmpty {
+            return message
+        }
+        if let error = dict["error"] as? String, !error.isEmpty {
+            return error
+        }
+        return nil
+    }
+
+    private static func serverRequestURL(serverID: String, args: [Any]?, method: String) -> URL {
+        guard method.uppercased() == "GET" else {
+            return self.serverURL
+        }
+
+        var components = URLComponents(url: self.serverURL, resolvingAgainstBaseURL: false)
+        var queryItems = [URLQueryItem(name: "id", value: serverID)]
+        if let args, !args.isEmpty,
+           let data = try? JSONSerialization.data(withJSONObject: args, options: []),
+           let encodedArgs = String(data: data, encoding: .utf8)
+        {
+            queryItems.append(URLQueryItem(name: "args", value: encodedArgs))
+        }
+        components?.queryItems = queryItems
+        return components?.url ?? self.serverURL
+    }
+
+    private static func parseUsageJSON(object: Any, now: Date) -> OpenCodeUsageSnapshot? {
+        guard let dict = object as? [String: Any] else { return nil }
+        if let snapshot = self.parseUsageDictionary(dict, now: now) {
+            return snapshot
+        }
+
+        for key in ["data", "result", "usage", "billing", "payload"] {
+            if let nested = dict[key] as? [String: Any],
+               let snapshot = self.parseUsageDictionary(nested, now: now)
+            {
+                return snapshot
+            }
+        }
+
+        return self.parseUsageNested(dict, now: now, depth: 0)
+    }
+
+    private static func parseUsageDictionary(_ dict: [String: Any], now: Date) -> OpenCodeUsageSnapshot? {
+        if let usage = dict["usage"] as? [String: Any],
+           let snapshot = self.parseUsageDictionary(usage, now: now)
+        {
+            return snapshot
+        }
+
+        let rollingKeys = ["rollingUsage", "rolling", "rolling_usage", "rollingWindow", "rolling_window"]
+        let weeklyKeys = ["weeklyUsage", "weekly", "weekly_usage", "weeklyWindow", "weekly_window"]
+
+        let rolling = rollingKeys.compactMap { dict[$0] as? [String: Any] }.first
+        let weekly = weeklyKeys.compactMap { dict[$0] as? [String: Any] }.first
+
+        if let rolling, let weekly {
+            return self.buildSnapshot(rolling: rolling, weekly: weekly, now: now)
+        }
+
+        return nil
+    }
+
+    private static func parseUsageNested(_ dict: [String: Any], now: Date, depth: Int) -> OpenCodeUsageSnapshot? {
+        if depth > 3 { return nil }
+        var rolling: [String: Any]?
+        var weekly: [String: Any]?
+
+        for (key, value) in dict {
+            guard let sub = value as? [String: Any] else { continue }
+            let lower = key.lowercased()
+            if lower.contains("rolling") {
+                rolling = sub
+            } else if lower.contains("weekly") || lower.contains("week") {
+                weekly = sub
+            }
+        }
+
+        if let rolling, let weekly,
+           let snapshot = self.buildSnapshot(rolling: rolling, weekly: weekly, now: now)
+        {
+            return snapshot
+        }
+
+        for value in dict.values {
+            if let sub = value as? [String: Any],
+               let snapshot = self.parseUsageNested(sub, now: now, depth: depth + 1)
+            {
+                return snapshot
+            }
+        }
+
+        return nil
+    }
+
+    private static func parseUsageFromCandidates(object: Any, now: Date) -> OpenCodeUsageSnapshot? {
+        let candidates = self.collectWindowCandidates(object: object, now: now)
+        guard !candidates.isEmpty else { return nil }
+
+        let rollingCandidates = candidates.filter { candidate in
+            candidate.pathLower.contains("rolling") ||
+                candidate.pathLower.contains("hour") ||
+                candidate.pathLower.contains("5h") ||
+                candidate.pathLower.contains("5-hour")
+        }
+        let weeklyCandidates = candidates.filter { candidate in
+            candidate.pathLower.contains("weekly") ||
+                candidate.pathLower.contains("week")
+        }
+
+        let rolling = self.pickCandidate(
+            preferred: rollingCandidates,
+            fallback: candidates,
+            pickShorter: true)
+        let weekly = self.pickCandidate(
+            preferred: weeklyCandidates,
+            fallback: candidates,
+            pickShorter: false,
+            excluding: rolling?.id)
+
+        guard let rolling, let weekly else { return nil }
+
+        return OpenCodeUsageSnapshot(
+            rollingUsagePercent: rolling.percent,
+            weeklyUsagePercent: weekly.percent,
+            rollingResetInSec: rolling.resetInSec,
+            weeklyResetInSec: weekly.resetInSec,
+            updatedAt: now)
+    }
+
+    private struct WindowCandidate: Sendable {
+        let id: UUID
+        let percent: Double
+        let resetInSec: Int
+        let pathLower: String
+    }
+
+    private static func collectWindowCandidates(object: Any, now: Date) -> [WindowCandidate] {
+        var candidates: [WindowCandidate] = []
+        self.collectWindowCandidates(object: object, now: now, path: [], out: &candidates)
+        return candidates
+    }
+
+    private static func collectWindowCandidates(
+        object: Any,
+        now: Date,
+        path: [String],
+        out: inout [WindowCandidate])
+    {
+        if let dict = object as? [String: Any] {
+            if let window = self.parseWindow(dict, now: now) {
+                let pathLower = path.joined(separator: ".").lowercased()
+                out.append(WindowCandidate(
+                    id: UUID(),
+                    percent: window.percent,
+                    resetInSec: window.resetInSec,
+                    pathLower: pathLower))
+            }
+            for (key, value) in dict {
+                self.collectWindowCandidates(object: value, now: now, path: path + [key], out: &out)
+            }
+            return
+        }
+
+        if let array = object as? [Any] {
+            for (index, value) in array.enumerated() {
+                self.collectWindowCandidates(
+                    object: value,
+                    now: now,
+                    path: path + ["[\(index)]"],
+                    out: &out)
+            }
+        }
+    }
+
+    private static func pickCandidate(
+        preferred: [WindowCandidate],
+        fallback: [WindowCandidate],
+        pickShorter: Bool,
+        excluding excluded: UUID? = nil) -> WindowCandidate?
+    {
+        let filteredPreferred = preferred.filter { $0.id != excluded }
+        if let picked = self.pickCandidate(from: filteredPreferred, pickShorter: pickShorter) {
+            return picked
+        }
+        let filteredFallback = fallback.filter { $0.id != excluded }
+        return self.pickCandidate(from: filteredFallback, pickShorter: pickShorter)
+    }
+
+    private static func pickCandidate(from candidates: [WindowCandidate], pickShorter: Bool) -> WindowCandidate? {
+        guard !candidates.isEmpty else { return nil }
+        return candidates.sorted { lhs, rhs in
+            if pickShorter {
+                if lhs.resetInSec == rhs.resetInSec { return lhs.percent > rhs.percent }
+                return lhs.resetInSec < rhs.resetInSec
+            }
+            if lhs.resetInSec == rhs.resetInSec { return lhs.percent > rhs.percent }
+            return lhs.resetInSec > rhs.resetInSec
+        }.first
+    }
+
+    private static func buildSnapshot(
+        rolling: [String: Any],
+        weekly: [String: Any],
+        now: Date) -> OpenCodeUsageSnapshot?
+    {
+        guard let rollingWindow = self.parseWindow(rolling, now: now),
+              let weeklyWindow = self.parseWindow(weekly, now: now)
+        else {
+            return nil
+        }
+
+        return OpenCodeUsageSnapshot(
+            rollingUsagePercent: rollingWindow.percent,
+            weeklyUsagePercent: weeklyWindow.percent,
+            rollingResetInSec: rollingWindow.resetInSec,
+            weeklyResetInSec: weeklyWindow.resetInSec,
+            updatedAt: now)
+    }
+
+    private static func parseWindow(_ dict: [String: Any], now: Date) -> (percent: Double, resetInSec: Int)? {
+        var percent = self.doubleValue(from: dict, keys: self.percentKeys)
+
+        if percent == nil {
+            let used = self.doubleValue(from: dict, keys: ["used", "usage", "consumed", "count", "usedTokens"])
+            let limit = self.doubleValue(from: dict, keys: ["limit", "total", "quota", "max", "cap", "tokenLimit"])
+            if let used, let limit, limit > 0 {
+                percent = (used / limit) * 100
+            }
+        }
+
+        guard var resolvedPercent = percent else { return nil }
+        if resolvedPercent <= 1.0 && resolvedPercent >= 0 {
+            resolvedPercent *= 100
+        }
+        resolvedPercent = max(0, min(100, resolvedPercent))
+
+        var resetInSec = self.intValue(from: dict, keys: self.resetInKeys)
+        if resetInSec == nil {
+            let resetAtValue = self.value(from: dict, keys: self.resetAtKeys)
+            if let resetAt = self.dateValue(from: resetAtValue) {
+                resetInSec = max(0, Int(resetAt.timeIntervalSince(now)))
+            }
+        }
+
+        let resolvedReset = max(0, resetInSec ?? 0)
+        return (resolvedPercent, resolvedReset)
+    }
+
+    private static func doubleValue(from dict: [String: Any], keys: [String]) -> Double? {
+        for key in keys {
+            if let value = self.doubleValue(from: dict[key]) {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private static func intValue(from dict: [String: Any], keys: [String]) -> Int? {
+        for key in keys {
+            if let value = self.intValue(from: dict[key]) {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private static func value(from dict: [String: Any], keys: [String]) -> Any? {
+        for key in keys {
+            if let value = dict[key] {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private static func dateValue(from value: Any?) -> Date? {
+        guard let value else { return nil }
+        if let number = self.doubleValue(from: value) {
+            if number > 1_000_000_000_000 {
+                return Date(timeIntervalSince1970: number / 1000)
+            }
+            if number > 1_000_000_000 {
+                return Date(timeIntervalSince1970: number)
+            }
+        }
+        if let string = value as? String {
+            if let number = Double(string.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                return self.dateValue(from: number)
+            }
+            if let parsed = self.makeISO8601Formatter().date(from: string) {
+                return parsed
+            }
+        }
+        return nil
+    }
+
+    private static func logParseSummary(text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let data = text.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data, options: [])
+        else {
+            let hint: String
+            if trimmed.hasPrefix("<") {
+                hint = "html"
+            } else if trimmed.hasPrefix("{") || trimmed.hasPrefix("[") {
+                hint = "json"
+            } else if trimmed.isEmpty {
+                hint = "empty"
+            } else {
+                hint = "text"
+            }
+            let preview = self.previewSnippet(from: trimmed, limit: 200)
+            Self.log.error("OpenCode response non-JSON: hint=\(hint) length=\(text.count) preview=\(preview)")
+            return
+        }
+        self.logParseSummary(object: object)
+    }
+
+    private static func logParseSummary(object: Any) {
+        let summary = self.summarizeJSON(object: object, depth: 0)
+        guard !summary.isEmpty else { return }
+        Self.log.error("OpenCode response summary: \(summary)")
+    }
+
+    private static func summarizeJSON(object: Any, depth: Int) -> String {
+        if depth > 3 { return "" }
+        if let dict = object as? [String: Any] {
+            let keys = dict.keys.sorted()
+            var parts: [String] = []
+            for key in keys {
+                let value = dict[key]
+                let type = self.valueTypeDescription(value, depth: depth + 1)
+                parts.append("\(key):\(type)")
+            }
+            return "{\(parts.joined(separator: ", "))}"
+        }
+        if let array = object as? [Any] {
+            guard let first = array.first else { return "[]" }
+            let type = self.valueTypeDescription(first, depth: depth + 1)
+            return "[\(type)]"
+        }
+        return self.scalarTypeDescription(object)
+    }
+
+    private static func valueTypeDescription(_ value: Any?, depth: Int) -> String {
+        guard let value else { return "null" }
+        if let dict = value as? [String: Any] {
+            return self.summarizeJSON(object: dict, depth: depth)
+        }
+        if let array = value as? [Any] {
+            return self.summarizeJSON(object: array, depth: depth)
+        }
+        return self.scalarTypeDescription(value)
+    }
+
+    private static func scalarTypeDescription(_ value: Any) -> String {
+        switch value {
+        case is String: "string"
+        case is Bool: "bool"
+        case is Int, is Double, is NSNumber: "number"
+        default: "value"
+        }
+    }
+
+    private static func previewSnippet(from text: String, limit: Int) -> String {
+        let collapsed = text.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+        guard collapsed.count > limit else { return collapsed }
+        return String(collapsed.prefix(limit)) + "..."
     }
 }
