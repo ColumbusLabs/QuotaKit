@@ -160,7 +160,8 @@ public struct OpenCodeUsageFetcher: Sendable {
 
         guard httpResponse.statusCode == 200 else {
             let bodyText = String(data: data, encoding: .utf8) ?? ""
-            Self.log.error("OpenCode returned \(httpResponse.statusCode): \(bodyText)")
+            let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") ?? "unknown"
+            Self.log.error("OpenCode returned \(httpResponse.statusCode) (type=\(contentType) length=\(data.count))")
             if self.looksSignedOut(text: bodyText) {
                 throw OpenCodeUsageError.invalidCredentials
             }
@@ -614,8 +615,7 @@ public struct OpenCodeUsageFetcher: Sendable {
             } else {
                 hint = "text"
             }
-            let preview = self.previewSnippet(from: trimmed, limit: 200)
-            Self.log.error("OpenCode response non-JSON: hint=\(hint) length=\(text.count) preview=\(preview)")
+            Self.log.error("OpenCode response non-JSON: hint=\(hint) length=\(text.count)")
             return
         }
         self.logParseSummary(object: object)
@@ -667,9 +667,4 @@ public struct OpenCodeUsageFetcher: Sendable {
         }
     }
 
-    private static func previewSnippet(from text: String, limit: Int) -> String {
-        let collapsed = text.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
-        guard collapsed.count > limit else { return collapsed }
-        return String(collapsed.prefix(limit)) + "..."
-    }
 }

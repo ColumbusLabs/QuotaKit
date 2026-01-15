@@ -60,14 +60,6 @@ public enum OpenCodeCookieImporter {
         throw OpenCodeCookieImportError.noCookies
     }
 
-    public static func hasSession(browserDetection: BrowserDetection, logger: ((String) -> Void)? = nil) -> Bool {
-        do {
-            _ = try self.importSession(browserDetection: browserDetection, logger: logger)
-            return true
-        } catch {
-            return false
-        }
-    }
 }
 
 enum OpenCodeCookieImportError: LocalizedError {
