@@ -46,6 +46,16 @@ public struct ProviderSettingsSnapshot: Sendable {
         }
     }
 
+    public struct OpenCodeProviderSettings: Sendable {
+        public let cookieSource: ProviderCookieSource
+        public let manualCookieHeader: String?
+
+        public init(cookieSource: ProviderCookieSource, manualCookieHeader: String?) {
+            self.cookieSource = cookieSource
+            self.manualCookieHeader = manualCookieHeader
+        }
+    }
+
     public struct FactoryProviderSettings: Sendable {
         public let cookieSource: ProviderCookieSource
         public let manualCookieHeader: String?
@@ -88,6 +98,7 @@ public struct ProviderSettingsSnapshot: Sendable {
     public let codex: CodexProviderSettings?
     public let claude: ClaudeProviderSettings?
     public let cursor: CursorProviderSettings?
+    public let opencode: OpenCodeProviderSettings?
     public let factory: FactoryProviderSettings?
     public let minimax: MiniMaxProviderSettings?
     public let zai: ZaiProviderSettings?
@@ -99,6 +110,7 @@ public struct ProviderSettingsSnapshot: Sendable {
         codex: CodexProviderSettings?,
         claude: ClaudeProviderSettings?,
         cursor: CursorProviderSettings?,
+        opencode: OpenCodeProviderSettings?,
         factory: FactoryProviderSettings?,
         minimax: MiniMaxProviderSettings?,
         zai: ZaiProviderSettings?,
@@ -109,6 +121,7 @@ public struct ProviderSettingsSnapshot: Sendable {
         self.codex = codex
         self.claude = claude
         self.cursor = cursor
+        self.opencode = opencode
         self.factory = factory
         self.minimax = minimax
         self.zai = zai

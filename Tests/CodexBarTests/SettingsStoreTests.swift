@@ -124,6 +124,7 @@ struct SettingsStoreTests {
             .codex,
             .claude,
             .cursor,
+            .opencode,
             .factory,
             .antigravity,
             .copilot,

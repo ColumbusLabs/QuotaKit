@@ -51,6 +51,11 @@ enum KeychainPromptCoordinator {
                 "CodexBar will ask macOS Keychain for your Cursor cookie header",
                 "so it can fetch usage. Click OK to continue.",
             ].joined(separator: " "))
+        case .opencodeCookie:
+            return (title, [
+                "CodexBar will ask macOS Keychain for your OpenCode cookie header",
+                "so it can fetch usage. Click OK to continue.",
+            ].joined(separator: " "))
         case .factoryCookie:
             return (title, [
                 "CodexBar will ask macOS Keychain for your Factory cookie header",

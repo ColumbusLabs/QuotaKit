@@ -104,6 +104,9 @@ struct ProvidersPane: View {
         if provider == .cursor {
             return "web • \(usageText)"
         }
+        if provider == .opencode {
+            return "web • \(usageText)"
+        }
         if provider == .zai {
             return "api • \(usageText)"
         }

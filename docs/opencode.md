@@ -1,0 +1,23 @@
+---
+summary: "OpenCode provider notes: browser cookie import, _server endpoints, and usage parsing."
+read_when:
+  - Adding or modifying the OpenCode provider
+  - Debugging OpenCode usage parsing or cookie import
+---
+
+# OpenCode provider
+
+## Data sources
+- Browser cookies from `opencode.ai`.
+- `POST https://opencode.ai/_server` with server function IDs:
+  - `workspaces` (`def39973159c7f0483d8793a822b8dbb10d067e12c65455fcb4608459ba0234f`)
+  - `subscription.get` (`7abeebee372f304e050aaaf92be863f4a86490e382f8c79db68fd94040d691b4`)
+
+## Usage mapping
+- Primary window: rolling 5-hour usage (`rollingUsage.usagePercent`, `rollingUsage.resetInSec`).
+- Secondary window: weekly usage (`weeklyUsage.usagePercent`, `weeklyUsage.resetInSec`).
+- Resets computed as `now + resetInSec`.
+
+## Notes
+- Responses are `text/javascript` with serialized objects; parse via regex.
+- Missing workspace ID or usage fields should raise parse errors.

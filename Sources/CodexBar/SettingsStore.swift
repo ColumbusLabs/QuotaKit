@@ -174,6 +174,16 @@ final class SettingsStore {
         }
     }
 
+    private var opencodeCookieSourceRaw: String? {
+        didSet {
+            if let raw = self.opencodeCookieSourceRaw {
+                self.userDefaults.set(raw, forKey: "opencodeCookieSource")
+            } else {
+                self.userDefaults.removeObject(forKey: "opencodeCookieSource")
+            }
+        }
+    }
+
     private var factoryCookieSourceRaw: String? {
         didSet {
             if let raw = self.factoryCookieSourceRaw {
@@ -232,6 +242,11 @@ final class SettingsStore {
     /// Cursor session cookie header (stored in Keychain).
     var cursorCookieHeader: String {
         didSet { self.schedulePersistCursorCookieHeader() }
+    }
+
+    /// OpenCode session cookie header (stored in Keychain).
+    var opencodeCookieHeader: String {
+        didSet { self.schedulePersistOpenCodeCookieHeader() }
     }
 
     /// Factory session cookie header (stored in Keychain).
@@ -318,6 +333,11 @@ final class SettingsStore {
         set { self.cursorCookieSourceRaw = newValue.rawValue }
     }
 
+    var opencodeCookieSource: ProviderCookieSource {
+        get { ProviderCookieSource(rawValue: self.opencodeCookieSourceRaw ?? "") ?? .auto }
+        set { self.opencodeCookieSourceRaw = newValue.rawValue }
+    }
+
     var factoryCookieSource: ProviderCookieSource {
         get { ProviderCookieSource(rawValue: self.factoryCookieSourceRaw ?? "") ?? .auto }
         set { self.factoryCookieSourceRaw = newValue.rawValue }
@@ -353,6 +373,7 @@ final class SettingsStore {
         _ = self.codexCookieSource
         _ = self.claudeCookieSource
         _ = self.cursorCookieSource
+        _ = self.opencodeCookieSource
         _ = self.factoryCookieSource
         _ = self.minimaxCookieSource
         _ = self.mergeIcons
@@ -361,6 +382,7 @@ final class SettingsStore {
         _ = self.codexCookieHeader
         _ = self.claudeCookieHeader
         _ = self.cursorCookieHeader
+        _ = self.opencodeCookieHeader
         _ = self.factoryCookieHeader
         _ = self.minimaxCookieHeader
         _ = self.copilotAPIToken
@@ -392,6 +414,10 @@ final class SettingsStore {
     @ObservationIgnored private var cursorCookiePersistTask: Task<Void, Never>?
     @ObservationIgnored private var cursorCookieLoaded = false
     @ObservationIgnored private var cursorCookieLoading = false
+    @ObservationIgnored private let opencodeCookieStore: any CookieHeaderStoring
+    @ObservationIgnored private var opencodeCookiePersistTask: Task<Void, Never>?
+    @ObservationIgnored private var opencodeCookieLoaded = false
+    @ObservationIgnored private var opencodeCookieLoading = false
     @ObservationIgnored private let factoryCookieStore: any CookieHeaderStoring
     @ObservationIgnored private var factoryCookiePersistTask: Task<Void, Never>?
     @ObservationIgnored private var factoryCookieLoaded = false
@@ -431,6 +457,9 @@ final class SettingsStore {
         cursorCookieStore: any CookieHeaderStoring = KeychainCookieHeaderStore(
             account: "cursor-cookie",
             promptKind: .cursorCookie),
+        opencodeCookieStore: any CookieHeaderStoring = KeychainCookieHeaderStore(
+            account: "opencode-cookie",
+            promptKind: .opencodeCookie),
         factoryCookieStore: any CookieHeaderStoring = KeychainCookieHeaderStore(
             account: "factory-cookie",
             promptKind: .factoryCookie),
@@ -445,6 +474,7 @@ final class SettingsStore {
         self.codexCookieStore = codexCookieStore
         self.claudeCookieStore = claudeCookieStore
         self.cursorCookieStore = cursorCookieStore
+        self.opencodeCookieStore = opencodeCookieStore
         self.factoryCookieStore = factoryCookieStore
         self.minimaxCookieStore = minimaxCookieStore
         self.augmentCookieStore = augmentCookieStore
@@ -495,6 +525,8 @@ final class SettingsStore {
             ?? ProviderCookieSource.auto.rawValue
         self.cursorCookieSourceRaw = userDefaults.string(forKey: "cursorCookieSource")
             ?? ProviderCookieSource.auto.rawValue
+        self.opencodeCookieSourceRaw = userDefaults.string(forKey: "opencodeCookieSource")
+            ?? ProviderCookieSource.auto.rawValue
         self.factoryCookieSourceRaw = userDefaults.string(forKey: "factoryCookieSource")
             ?? ProviderCookieSource.auto.rawValue
         self.minimaxCookieSourceRaw = userDefaults.string(forKey: "minimaxCookieSource")
@@ -507,6 +539,7 @@ final class SettingsStore {
         self.codexCookieHeader = ""
         self.claudeCookieHeader = ""
         self.cursorCookieHeader = ""
+        self.opencodeCookieHeader = ""
         self.factoryCookieHeader = ""
         self.minimaxCookieHeader = ""
         self.augmentCookieHeader = ""
@@ -855,6 +888,32 @@ extension SettingsStore {
         }
     }
 
+    private func schedulePersistOpenCodeCookieHeader() {
+        if self.opencodeCookieLoading { return }
+        self.opencodeCookiePersistTask?.cancel()
+        let header = self.opencodeCookieHeader
+        let cookieStore = self.opencodeCookieStore
+        self.opencodeCookiePersistTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 350_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
+                do {
+                    try cookieStore.storeCookieHeader(header)
+                    return nil
+                } catch {
+                    return error
+                }
+            }.value
+            if let error {
+                CodexBarLog.logger("opencode-cookie-store").error("Failed to persist OpenCode cookie: \(error)")
+            }
+        }
+    }
+
     private func schedulePersistAugmentCookieHeader() {
         if self.augmentCookieLoading { return }
         self.augmentCookiePersistTask?.cancel()
@@ -991,6 +1050,14 @@ extension SettingsStore {
         self.cursorCookieHeader = (try? self.cursorCookieStore.loadCookieHeader()) ?? ""
         self.cursorCookieLoading = false
         self.cursorCookieLoaded = true
+    }
+
+    func ensureOpenCodeCookieLoaded() {
+        guard !self.opencodeCookieLoaded else { return }
+        self.opencodeCookieLoading = true
+        self.opencodeCookieHeader = (try? self.opencodeCookieStore.loadCookieHeader()) ?? ""
+        self.opencodeCookieLoading = false
+        self.opencodeCookieLoaded = true
     }
 
     func ensureFactoryCookieLoaded() {
