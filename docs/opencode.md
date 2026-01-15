@@ -24,3 +24,4 @@ read_when:
 - Cookie import defaults to Chrome-only to avoid extra browser prompts; pass a browser list to override.
 - Set `CODEXBAR_OPENCODE_WORKSPACE_ID` to skip workspace lookup and force a specific workspace.
 - Workspace override accepts a raw `wrk_…` ID or a full `https://opencode.ai/workspace/...` URL.
+- OpenCode cookies are cached in `~/Library/Application Support/CodexBar/opencode-cookie.json`; browser import only runs when the cached cookie fails.

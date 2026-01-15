@@ -50,23 +50,40 @@ struct OpenCodeUsageFetchStrategy: ProviderFetchStrategy {
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        let cookieHeader = try Self.resolveCookieHeader(context: context)
         let workspaceOverride = context.settings?.opencode?.workspaceID
             ?? context.env["CODEXBAR_OPENCODE_WORKSPACE_ID"]
-        let snapshot = try await OpenCodeUsageFetcher.fetchUsage(
-            cookieHeader: cookieHeader,
-            timeout: context.webTimeout,
-            workspaceIDOverride: workspaceOverride)
-        return self.makeResult(
-            usage: snapshot.toUsageSnapshot(),
-            sourceLabel: "web")
+        let cookieSource = context.settings?.opencode?.cookieSource ?? .auto
+        do {
+            let cookieHeader = try Self.resolveCookieHeader(context: context, allowCached: true)
+            let snapshot = try await OpenCodeUsageFetcher.fetchUsage(
+                cookieHeader: cookieHeader,
+                timeout: context.webTimeout,
+                workspaceIDOverride: workspaceOverride)
+            return self.makeResult(
+                usage: snapshot.toUsageSnapshot(),
+                sourceLabel: "web")
+        } catch OpenCodeUsageError.invalidCredentials where cookieSource != .manual {
+            #if os(macOS)
+            OpenCodeCookieCache.clear()
+            let cookieHeader = try Self.resolveCookieHeader(context: context, allowCached: false)
+            let snapshot = try await OpenCodeUsageFetcher.fetchUsage(
+                cookieHeader: cookieHeader,
+                timeout: context.webTimeout,
+                workspaceIDOverride: workspaceOverride)
+            return self.makeResult(
+                usage: snapshot.toUsageSnapshot(),
+                sourceLabel: "web")
+            #else
+            throw OpenCodeUsageError.invalidCredentials
+            #endif
+        }
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
         false
     }
 
-    private static func resolveCookieHeader(context: ProviderFetchContext) throws -> String {
+    private static func resolveCookieHeader(context: ProviderFetchContext, allowCached: Bool) throws -> String {
         if let settings = context.settings?.opencode, settings.cookieSource == .manual {
             if let header = CookieHeaderNormalizer.normalize(settings.manualCookieHeader) {
                 let pairs = CookieHeaderNormalizer.pairs(from: header)
@@ -81,7 +98,14 @@ struct OpenCodeUsageFetchStrategy: ProviderFetchStrategy {
         }
 
         #if os(macOS)
+        if allowCached,
+           let cached = OpenCodeCookieCache.load(),
+           !cached.cookieHeader.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            return cached.cookieHeader
+        }
         let session = try OpenCodeCookieImporter.importSession(browserDetection: context.browserDetection)
+        OpenCodeCookieCache.store(cookieHeader: session.cookieHeader, sourceLabel: session.sourceLabel)
         return session.cookieHeader
         #else
         throw OpenCodeSettingsError.missingCookie
