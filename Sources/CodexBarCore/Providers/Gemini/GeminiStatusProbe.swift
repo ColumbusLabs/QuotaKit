@@ -387,14 +387,28 @@ public struct GeminiStatusProbe: Sendable {
             return .empty
         }
 
-        // Extract Project ID (cloudaicompanionProject)
-        let rawProjectId = json["cloudaicompanionProject"] as? String
+        let rawProjectId: String? = {
+            if let project = json["cloudaicompanionProject"] as? String {
+                return project
+            }
+            if let project = json["cloudaicompanionProject"] as? [String: Any] {
+                if let projectId = project["id"] as? String {
+                    return projectId
+                }
+                if let projectId = project["projectId"] as? String {
+                    return projectId
+                }
+            }
+            return nil
+        }()
         let trimmedProjectId = rawProjectId?.trimmingCharacters(in: .whitespacesAndNewlines)
         let projectId = trimmedProjectId?.isEmpty == true ? nil : trimmedProjectId
+        if let projectId {
+            Self.log.info("loadCodeAssist: project detected", metadata: ["projectId": projectId])
+        }
 
-        guard let currentTier = json["currentTier"] as? [String: Any],
-              let tierId = currentTier["id"] as? String
-        else {
+        let tierId = (json["currentTier"] as? [String: Any])?["id"] as? String
+        guard let tierId else {
             Self.log.warning("loadCodeAssist: no currentTier.id in response", metadata: [
                 "json": "\(json)",
             ])
@@ -453,11 +467,15 @@ public struct GeminiStatusProbe: Sendable {
 
         let oauthSubpath =
             "node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/code_assist/oauth2.js"
+        let nixShareSubpath =
+            "share/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/code_assist/oauth2.js"
         let oauthFile = "dist/src/code_assist/oauth2.js"
         let possiblePaths = [
             // Homebrew nested structure
             "\(baseDir)/libexec/lib/\(oauthSubpath)",
             "\(baseDir)/lib/\(oauthSubpath)",
+            // Nix package layout
+            "\(baseDir)/\(nixShareSubpath)",
             // Bun/npm sibling structure: gemini-cli-core is a sibling to gemini-cli
             "\(baseDir)/../gemini-cli-core/\(oauthFile)",
             // npm nested inside gemini-cli
