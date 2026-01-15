@@ -63,6 +63,20 @@ struct AdvancedPane: View {
                         title: "Menu bar shows percent",
                         subtitle: "Replace critter bars with provider branding icons and a percentage.",
                         binding: self.$settings.menuBarShowsBrandIconWithPercent)
+                    HStack(alignment: .top, spacing: 12) {
+                        Text("Menu bar metric")
+                            .font(.body)
+                            .frame(width: 140, alignment: .leading)
+                        Picker("", selection: self.$settings.menuBarMetricPreference) {
+                            ForEach(MenuBarMetricPreference.allCases) { option in
+                                Text(option.label).tag(option)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                    Text("Choose which quota window drives the menu bar percent.")
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
                     PreferenceToggleRow(
                         title: "Surprise me",
                         subtitle: "Check if you like your agents having some fun up there.",

@@ -102,6 +102,20 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         case waitingBrowser
     }
 
+    func menuBarMetricWindow(for provider: UsageProvider, snapshot: UsageSnapshot?) -> RateWindow? {
+        switch self.settings.menuBarMetricPreference {
+        case .primary:
+            return snapshot?.primary ?? snapshot?.secondary
+        case .secondary:
+            return snapshot?.secondary ?? snapshot?.primary
+        case .automatic:
+            if provider == .factory {
+                return snapshot?.secondary ?? snapshot?.primary
+            }
+            return snapshot?.primary ?? snapshot?.secondary
+        }
+    }
+
     init(
         store: UsageStore,
         settings: SettingsStore,

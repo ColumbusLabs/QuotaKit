@@ -33,6 +33,22 @@ enum RefreshFrequency: String, CaseIterable, Identifiable {
     }
 }
 
+enum MenuBarMetricPreference: String, CaseIterable, Identifiable {
+    case automatic
+    case primary
+    case secondary
+
+    var id: String { self.rawValue }
+
+    var label: String {
+        switch self {
+        case .automatic: "Automatic"
+        case .primary: "Session"
+        case .secondary: "Weekly"
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class SettingsStore {
@@ -95,6 +111,11 @@ final class SettingsStore {
         didSet {
             self.userDefaults.set(self.menuBarShowsBrandIconWithPercent, forKey: "menuBarShowsBrandIconWithPercent")
         }
+    }
+
+    /// Optional: choose which quota window drives the menu bar percentage.
+    var menuBarMetricPreference: MenuBarMetricPreference {
+        didSet { self.userDefaults.set(self.menuBarMetricPreference.rawValue, forKey: "menuBarMetricPreference") }
     }
 
     /// Optional: show provider cost summary from local usage logs (Codex + Claude).
@@ -382,6 +403,7 @@ final class SettingsStore {
         _ = self.usageBarsShowUsed
         _ = self.resetTimesShowAbsolute
         _ = self.menuBarShowsBrandIconWithPercent
+        _ = self.menuBarMetricPreference
         _ = self.costUsageEnabled
         _ = self.randomBlinkEnabled
         _ = self.claudeWebExtrasEnabled
@@ -516,6 +538,8 @@ final class SettingsStore {
         self.resetTimesShowAbsolute = userDefaults.object(forKey: "resetTimesShowAbsolute") as? Bool ?? false
         self.menuBarShowsBrandIconWithPercent = userDefaults.object(
             forKey: "menuBarShowsBrandIconWithPercent") as? Bool ?? false
+        let menuBarMetricRaw = userDefaults.string(forKey: "menuBarMetricPreference") ?? ""
+        self.menuBarMetricPreference = MenuBarMetricPreference(rawValue: menuBarMetricRaw) ?? .automatic
         self.costUsageEnabled = userDefaults.object(forKey: "tokenCostUsageEnabled") as? Bool ?? false
         self.randomBlinkEnabled = userDefaults.object(forKey: "randomBlinkEnabled") as? Bool ?? false
         self.claudeWebExtrasEnabled = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false
