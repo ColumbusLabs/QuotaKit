@@ -344,6 +344,7 @@ final class UsageStore {
         case .gemini: self.geminiVersion
         case .antigravity: self.antigravityVersion
         case .cursor: self.cursorVersion
+        case .opencode: nil
         case .factory: nil
         case .copilot: nil
         case .minimax: nil
@@ -376,6 +377,7 @@ final class UsageStore {
             (self.isEnabled(.gemini) && self.errors[.gemini] != nil) ||
             (self.isEnabled(.antigravity) && self.errors[.antigravity] != nil) ||
             (self.isEnabled(.cursor) && self.errors[.cursor] != nil) ||
+            (self.isEnabled(.opencode) && self.errors[.opencode] != nil) ||
             (self.isEnabled(.factory) && self.errors[.factory] != nil) ||
             (self.isEnabled(.copilot) && self.errors[.copilot] != nil) ||
             (self.isEnabled(.minimax) && self.errors[.minimax] != nil)
@@ -1285,6 +1287,10 @@ extension UsageStore {
                     cursorCookieSource: cursorCookieSource,
                     cursorCookieHeader: cursorCookieHeader)
                 await MainActor.run { self.probeLogs[.cursor] = text }
+                return text
+            case .opencode:
+                let text = "OpenCode debug log not yet implemented"
+                await MainActor.run { self.probeLogs[.opencode] = text }
                 return text
             case .factory:
                 let text = "Droid debug log not yet implemented"

@@ -11,6 +11,7 @@ enum ProviderChoice: String, AppEnum {
     case zai
     case copilot
     case minimax
+    case opencode
 
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Provider")
 
@@ -22,6 +23,7 @@ enum ProviderChoice: String, AppEnum {
         .zai: DisplayRepresentation(title: "z.ai"),
         .copilot: DisplayRepresentation(title: "Copilot"),
         .minimax: DisplayRepresentation(title: "MiniMax"),
+        .opencode: DisplayRepresentation(title: "OpenCode"),
     ]
 
     var provider: UsageProvider {
@@ -33,6 +35,7 @@ enum ProviderChoice: String, AppEnum {
         case .zai: .zai
         case .copilot: .copilot
         case .minimax: .minimax
+        case .opencode: .opencode
         }
     }
 
@@ -43,6 +46,7 @@ enum ProviderChoice: String, AppEnum {
         case .gemini: self = .gemini
         case .antigravity: self = .antigravity
         case .cursor: return nil // Cursor not yet supported in widgets
+        case .opencode: self = .opencode
         case .zai: self = .zai
         case .factory: return nil // Factory not yet supported in widgets
         case .copilot: self = .copilot

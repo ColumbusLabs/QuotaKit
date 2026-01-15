@@ -21,6 +21,7 @@ Cookie-based providers expose a Cookie source picker (Automatic or Manual) in Se
 | Gemini | OAuth API via Gemini CLI credentials (`api`). |
 | Antigravity | Local LSP/HTTP probe (`local`). |
 | Cursor | Web API via cookies → stored WebKit session (`web`). |
+| OpenCode | Web dashboard via cookies (`web`). |
 | Droid/Factory | Web cookies → stored tokens → local storage → WorkOS cookies (`web`). |
 | z.ai | API token (Keychain/env) → quota API (`api`). |
 | MiniMax | Manual cookie header (Keychain/env) → browser cookies (+ local storage access token) → coding plan page (HTML) with remains API fallback (`web`). |
@@ -74,6 +75,12 @@ Cookie-based providers expose a Cookie source picker (Automatic or Manual) in Se
 - Fallback: stored WebKit session.
 - Status: Statuspage.io (Cursor).
 - Details: `docs/cursor.md`.
+
+## OpenCode
+- Web dashboard via browser cookies (`opencode.ai`).
+- `POST https://opencode.ai/_server` (workspaces + subscription usage).
+- Status: none yet.
+- Details: `docs/opencode.md`.
 
 ## Droid (Factory)
 - Web API via Factory cookies, bearer tokens, and WorkOS refresh tokens.

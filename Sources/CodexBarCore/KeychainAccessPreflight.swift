@@ -9,6 +9,7 @@ public struct KeychainPromptContext: Sendable {
         case codexCookie
         case claudeCookie
         case cursorCookie
+        case opencodeCookie
         case factoryCookie
         case zaiToken
         case copilotToken
