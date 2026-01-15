@@ -21,3 +21,6 @@ read_when:
 ## Notes
 - Responses are `text/javascript` with serialized objects; parse via regex.
 - Missing workspace ID or usage fields should raise parse errors.
+- Cookie import defaults to Chrome-only to avoid extra browser prompts; pass a browser list to override.
+- Set `CODEXBAR_OPENCODE_WORKSPACE_ID` to skip workspace lookup and force a specific workspace.
+- Workspace override accepts a raw `wrk_…` ID or a full `https://opencode.ai/workspace/...` URL.

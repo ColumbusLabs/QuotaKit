@@ -49,10 +49,12 @@ public struct ProviderSettingsSnapshot: Sendable {
     public struct OpenCodeProviderSettings: Sendable {
         public let cookieSource: ProviderCookieSource
         public let manualCookieHeader: String?
+        public let workspaceID: String?
 
-        public init(cookieSource: ProviderCookieSource, manualCookieHeader: String?) {
+        public init(cookieSource: ProviderCookieSource, manualCookieHeader: String?, workspaceID: String?) {
             self.cookieSource = cookieSource
             self.manualCookieHeader = manualCookieHeader
+            self.workspaceID = workspaceID
         }
     }
 

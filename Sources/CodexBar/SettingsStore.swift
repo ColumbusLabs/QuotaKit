@@ -184,6 +184,16 @@ final class SettingsStore {
         }
     }
 
+    private var opencodeWorkspaceIDRaw: String? {
+        didSet {
+            if let raw = self.opencodeWorkspaceIDRaw, !raw.isEmpty {
+                self.userDefaults.set(raw, forKey: "opencodeWorkspaceID")
+            } else {
+                self.userDefaults.removeObject(forKey: "opencodeWorkspaceID")
+            }
+        }
+    }
+
     private var factoryCookieSourceRaw: String? {
         didSet {
             if let raw = self.factoryCookieSourceRaw {
@@ -247,6 +257,15 @@ final class SettingsStore {
     /// OpenCode session cookie header (stored in Keychain).
     var opencodeCookieHeader: String {
         didSet { self.schedulePersistOpenCodeCookieHeader() }
+    }
+
+    /// Optional OpenCode workspace ID override.
+    var opencodeWorkspaceID: String {
+        get { self.opencodeWorkspaceIDRaw ?? "" }
+        set {
+            let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            self.opencodeWorkspaceIDRaw = trimmed.isEmpty ? nil : trimmed
+        }
     }
 
     /// Factory session cookie header (stored in Keychain).
@@ -383,6 +402,7 @@ final class SettingsStore {
         _ = self.claudeCookieHeader
         _ = self.cursorCookieHeader
         _ = self.opencodeCookieHeader
+        _ = self.opencodeWorkspaceID
         _ = self.factoryCookieHeader
         _ = self.minimaxCookieHeader
         _ = self.copilotAPIToken
@@ -527,6 +547,7 @@ final class SettingsStore {
             ?? ProviderCookieSource.auto.rawValue
         self.opencodeCookieSourceRaw = userDefaults.string(forKey: "opencodeCookieSource")
             ?? ProviderCookieSource.auto.rawValue
+        self.opencodeWorkspaceIDRaw = userDefaults.string(forKey: "opencodeWorkspaceID")
         self.factoryCookieSourceRaw = userDefaults.string(forKey: "factoryCookieSource")
             ?? ProviderCookieSource.auto.rawValue
         self.minimaxCookieSourceRaw = userDefaults.string(forKey: "minimaxCookieSource")

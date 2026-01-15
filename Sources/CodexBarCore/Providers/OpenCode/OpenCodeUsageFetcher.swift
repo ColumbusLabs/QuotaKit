@@ -71,14 +71,27 @@ public struct OpenCodeUsageFetcher: Sendable {
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
 
+    private struct ServerRequest {
+        let serverID: String
+        let args: [Any]?
+        let method: String
+        let referer: URL
+    }
+
     public static func fetchUsage(
         cookieHeader: String,
         timeout: TimeInterval,
-        now: Date = Date()) async throws -> OpenCodeUsageSnapshot
+        now: Date = Date(),
+        workspaceIDOverride: String? = nil) async throws -> OpenCodeUsageSnapshot
     {
-        let workspaceID = try await self.fetchWorkspaceID(
-            cookieHeader: cookieHeader,
-            timeout: timeout)
+        let workspaceID: String
+        if let override = self.normalizeWorkspaceID(workspaceIDOverride) {
+            workspaceID = override
+        } else {
+            workspaceID = try await self.fetchWorkspaceID(
+                cookieHeader: cookieHeader,
+                timeout: timeout)
+        }
         let subscriptionText = try await self.fetchSubscriptionInfo(
             workspaceID: workspaceID,
             cookieHeader: cookieHeader,
@@ -91,20 +104,44 @@ public struct OpenCodeUsageFetcher: Sendable {
         timeout: TimeInterval) async throws -> String
     {
         let text = try await self.fetchServerText(
-            serverID: self.workspacesServerID,
-            args: nil,
-            method: "GET",
+            request: ServerRequest(
+                serverID: self.workspacesServerID,
+                args: nil,
+                method: "GET",
+                referer: self.baseURL),
             cookieHeader: cookieHeader,
-            timeout: timeout,
-            referer: self.baseURL)
+            timeout: timeout)
         if self.looksSignedOut(text: text) {
             throw OpenCodeUsageError.invalidCredentials
         }
-        let ids = self.parseWorkspaceIDs(text: text)
-        guard let first = ids.first else {
-            throw OpenCodeUsageError.parseFailed("Missing workspace id.")
+        var ids = self.parseWorkspaceIDs(text: text)
+        if ids.isEmpty {
+            ids = self.parseWorkspaceIDsFromJSON(text: text)
         }
-        return first
+        if ids.isEmpty {
+            Self.log.error("OpenCode workspace ids missing after GET; retrying with POST.")
+            let fallback = try await self.fetchServerText(
+                request: ServerRequest(
+                    serverID: self.workspacesServerID,
+                    args: [],
+                    method: "POST",
+                    referer: self.baseURL),
+                cookieHeader: cookieHeader,
+                timeout: timeout)
+            if self.looksSignedOut(text: fallback) {
+                throw OpenCodeUsageError.invalidCredentials
+            }
+            ids = self.parseWorkspaceIDs(text: fallback)
+            if ids.isEmpty {
+                ids = self.parseWorkspaceIDsFromJSON(text: fallback)
+            }
+            if ids.isEmpty {
+                self.logParseSummary(text: fallback)
+                throw OpenCodeUsageError.parseFailed("Missing workspace id.")
+            }
+            return ids[0]
+        }
+        return ids[0]
     }
 
     private static func fetchSubscriptionInfo(
@@ -114,46 +151,89 @@ public struct OpenCodeUsageFetcher: Sendable {
     {
         let referer = URL(string: "https://opencode.ai/workspace/\(workspaceID)/billing") ?? self.baseURL
         let text = try await self.fetchServerText(
-            serverID: self.subscriptionServerID,
-            args: [workspaceID],
-            method: "GET",
+            request: ServerRequest(
+                serverID: self.subscriptionServerID,
+                args: [workspaceID],
+                method: "GET",
+                referer: referer),
             cookieHeader: cookieHeader,
-            timeout: timeout,
-            referer: referer)
+            timeout: timeout)
         if self.looksSignedOut(text: text) {
             throw OpenCodeUsageError.invalidCredentials
+        }
+        if self.parseSubscriptionJSON(text: text, now: Date()) == nil,
+           self.extractDouble(
+               pattern: #"rollingUsage[^}]*?usagePercent\s*:\s*([0-9]+(?:\.[0-9]+)?)"#,
+               text: text) == nil
+        {
+            Self.log.error("OpenCode subscription payload missing after GET; retrying with POST.")
+            let fallback = try await self.fetchServerText(
+                request: ServerRequest(
+                    serverID: self.subscriptionServerID,
+                    args: [workspaceID],
+                    method: "POST",
+                    referer: referer),
+                cookieHeader: cookieHeader,
+                timeout: timeout)
+            if self.looksSignedOut(text: fallback) {
+                throw OpenCodeUsageError.invalidCredentials
+            }
+            return fallback
         }
         return text
     }
 
+    private static func normalizeWorkspaceID(_ raw: String?) -> String? {
+        guard let raw else { return nil }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasPrefix("wrk_"), trimmed.count > 4 {
+            return trimmed
+        }
+        if let url = URL(string: trimmed) {
+            let parts = url.pathComponents
+            if let index = parts.firstIndex(of: "workspace"),
+               parts.count > index + 1
+            {
+                let candidate = parts[index + 1]
+                if candidate.hasPrefix("wrk_"), candidate.count > 4 {
+                    return candidate
+                }
+            }
+        }
+        if let match = trimmed.range(of: #"wrk_[A-Za-z0-9]+"#, options: .regularExpression) {
+            return String(trimmed[match])
+        }
+        return nil
+    }
+
     private static func fetchServerText(
-        serverID: String,
-        args: [Any]?,
-        method: String,
+        request serverRequest: ServerRequest,
         cookieHeader: String,
-        timeout: TimeInterval,
-        referer: URL) async throws -> String
+        timeout: TimeInterval) async throws -> String
     {
-        let url = self.serverRequestURL(serverID: serverID, args: args, method: method)
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.timeoutInterval = timeout
-        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
-        request.setValue(serverID, forHTTPHeaderField: "X-Server-Id")
-        request.setValue("server-fn:\(UUID().uuidString)", forHTTPHeaderField: "X-Server-Instance")
-        request.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
-        request.setValue(self.baseURL.absoluteString, forHTTPHeaderField: "Origin")
-        request.setValue(referer.absoluteString, forHTTPHeaderField: "Referer")
-        request.setValue("text/javascript, application/json;q=0.9, */*;q=0.8", forHTTPHeaderField: "Accept")
-        if method.uppercased() != "GET",
-           let args
+        let url = self.serverRequestURL(
+            serverID: serverRequest.serverID,
+            args: serverRequest.args,
+            method: serverRequest.method)
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = serverRequest.method
+        urlRequest.timeoutInterval = timeout
+        urlRequest.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+        urlRequest.setValue(serverRequest.serverID, forHTTPHeaderField: "X-Server-Id")
+        urlRequest.setValue("server-fn:\(UUID().uuidString)", forHTTPHeaderField: "X-Server-Instance")
+        urlRequest.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
+        urlRequest.setValue(self.baseURL.absoluteString, forHTTPHeaderField: "Origin")
+        urlRequest.setValue(serverRequest.referer.absoluteString, forHTTPHeaderField: "Referer")
+        urlRequest.setValue("text/javascript, application/json;q=0.9, */*;q=0.8", forHTTPHeaderField: "Accept")
+        if serverRequest.method.uppercased() != "GET",
+           let args = serverRequest.args
         {
             let body = try JSONSerialization.data(withJSONObject: args, options: [])
-            request.httpBody = body
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            urlRequest.httpBody = body
+            urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(for: urlRequest)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw OpenCodeUsageError.networkError("Invalid response")
         }
@@ -236,6 +316,38 @@ public struct OpenCodeUsageFetcher: Sendable {
         return regex.matches(in: text, options: [], range: nsrange).compactMap { match in
             guard let range = Range(match.range(at: 1), in: text) else { return nil }
             return String(text[range])
+        }
+    }
+
+    private static func parseWorkspaceIDsFromJSON(text: String) -> [String] {
+        guard let data = text.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data, options: [])
+        else {
+            return []
+        }
+        var results: [String] = []
+        self.collectWorkspaceIDs(object: object, out: &results)
+        return results
+    }
+
+    private static func collectWorkspaceIDs(object: Any, out: inout [String]) {
+        if let dict = object as? [String: Any] {
+            for (_, value) in dict {
+                self.collectWorkspaceIDs(object: value, out: &out)
+            }
+            return
+        }
+        if let array = object as? [Any] {
+            for value in array {
+                self.collectWorkspaceIDs(object: value, out: &out)
+            }
+            return
+        }
+        if let string = object as? String,
+           string.hasPrefix("wrk_"),
+           !out.contains(string)
+        {
+            out.append(string)
         }
     }
 
@@ -494,14 +606,15 @@ public struct OpenCodeUsageFetcher: Sendable {
 
     private static func pickCandidate(from candidates: [WindowCandidate], pickShorter: Bool) -> WindowCandidate? {
         guard !candidates.isEmpty else { return nil }
-        return candidates.sorted { lhs, rhs in
+        let comparator: (WindowCandidate, WindowCandidate) -> Bool = { lhs, rhs in
             if pickShorter {
                 if lhs.resetInSec == rhs.resetInSec { return lhs.percent > rhs.percent }
                 return lhs.resetInSec < rhs.resetInSec
             }
             if lhs.resetInSec == rhs.resetInSec { return lhs.percent > rhs.percent }
             return lhs.resetInSec > rhs.resetInSec
-        }.first
+        }
+        return candidates.min(by: comparator)
     }
 
     private static func buildSnapshot(

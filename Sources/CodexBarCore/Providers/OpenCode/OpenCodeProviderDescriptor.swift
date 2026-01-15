@@ -51,9 +51,12 @@ struct OpenCodeUsageFetchStrategy: ProviderFetchStrategy {
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let cookieHeader = try Self.resolveCookieHeader(context: context)
+        let workspaceOverride = context.settings?.opencode?.workspaceID
+            ?? context.env["CODEXBAR_OPENCODE_WORKSPACE_ID"]
         let snapshot = try await OpenCodeUsageFetcher.fetchUsage(
             cookieHeader: cookieHeader,
-            timeout: context.webTimeout)
+            timeout: context.webTimeout,
+            workspaceIDOverride: workspaceOverride)
         return self.makeResult(
             usage: snapshot.toUsageSnapshot(),
             sourceLabel: "web")

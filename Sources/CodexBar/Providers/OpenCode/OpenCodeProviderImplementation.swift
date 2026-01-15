@@ -52,6 +52,16 @@ struct OpenCodeProviderImplementation: ProviderImplementation {
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
         [
             ProviderSettingsFieldDescriptor(
+                id: "opencode-workspace-id",
+                title: "Workspace ID",
+                subtitle: "Optional override if workspace lookup fails.",
+                kind: .plain,
+                placeholder: "wrk_…",
+                binding: context.stringBinding(\.opencodeWorkspaceID),
+                actions: [],
+                isVisible: nil,
+                onActivate: nil),
+            ProviderSettingsFieldDescriptor(
                 id: "opencode-cookie",
                 title: "",
                 subtitle: "",

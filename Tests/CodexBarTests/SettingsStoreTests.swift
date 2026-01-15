@@ -50,6 +50,21 @@ struct SettingsStoreTests {
     }
 
     @Test
+    func persistsOpenCodeWorkspaceIDAcrossInstances() {
+        let suite = "SettingsStoreTests-opencode-workspace"
+        let defaultsA = UserDefaults(suiteName: suite)!
+        defaultsA.removePersistentDomain(forName: suite)
+        let storeA = SettingsStore(userDefaults: defaultsA, zaiTokenStore: NoopZaiTokenStore())
+
+        storeA.opencodeWorkspaceID = "wrk_01KEJ50SHK9YR41HSRSJ6QTFCM"
+
+        let defaultsB = UserDefaults(suiteName: suite)!
+        let storeB = SettingsStore(userDefaults: defaultsB, zaiTokenStore: NoopZaiTokenStore())
+
+        #expect(storeB.opencodeWorkspaceID == "wrk_01KEJ50SHK9YR41HSRSJ6QTFCM")
+    }
+
+    @Test
     func defaultsSessionQuotaNotificationsToEnabled() {
         let key = "sessionQuotaNotificationsEnabled"
         let suite = "SettingsStoreTests-sessionQuotaNotifications"
