@@ -135,8 +135,12 @@ struct ProvidersPane: View {
     private func extraSettingsPickers(for provider: UsageProvider) -> [ProviderSettingsPickerDescriptor] {
         guard let impl = ProviderCatalog.implementation(for: provider) else { return [] }
         let context = self.makeSettingsContext(provider: provider)
-        return impl.settingsPickers(context: context)
+        let providerPickers = impl.settingsPickers(context: context)
             .filter { $0.isVisible?() ?? true }
+        if let menuBarPicker = self.menuBarMetricPicker(for: provider) {
+            return [menuBarPicker] + providerPickers
+        }
+        return providerPickers
     }
 
     private func extraSettingsFields(for provider: UsageProvider) -> [ProviderSettingsFieldDescriptor] {
@@ -184,6 +188,39 @@ struct ProvidersPane: View {
             requestConfirmation: { confirmation in
                 self.activeConfirmation = ProviderSettingsConfirmationState(confirmation: confirmation)
             })
+    }
+
+    private func menuBarMetricPicker(for provider: UsageProvider) -> ProviderSettingsPickerDescriptor? {
+        if provider == .zai { return nil }
+        let metadata = self.store.metadata(for: provider)
+        let supportsAverage = self.settings.menuBarMetricSupportsAverage(for: provider)
+        var options: [ProviderSettingsPickerOption] = [
+            ProviderSettingsPickerOption(id: MenuBarMetricPreference.automatic.rawValue, title: "Automatic"),
+            ProviderSettingsPickerOption(
+                id: MenuBarMetricPreference.primary.rawValue,
+                title: "Primary (\(metadata.sessionLabel))"),
+            ProviderSettingsPickerOption(
+                id: MenuBarMetricPreference.secondary.rawValue,
+                title: "Secondary (\(metadata.weeklyLabel))"),
+        ]
+        if supportsAverage {
+            options.append(ProviderSettingsPickerOption(
+                id: MenuBarMetricPreference.average.rawValue,
+                title: "Average (\(metadata.sessionLabel) + \(metadata.weeklyLabel))"))
+        }
+        return ProviderSettingsPickerDescriptor(
+            id: "menuBarMetric",
+            title: "Menu bar metric",
+            subtitle: "Choose which window drives the menu bar percent.",
+            binding: Binding(
+                get: { self.settings.menuBarMetricPreference(for: provider).rawValue },
+                set: { rawValue in
+                    guard let preference = MenuBarMetricPreference(rawValue: rawValue) else { return }
+                    self.settings.setMenuBarMetricPreference(preference, for: provider)
+                }),
+            options: options,
+            isVisible: { true },
+            onChange: nil)
     }
 
     private func runSettingsDidBecomeActiveHooks() {

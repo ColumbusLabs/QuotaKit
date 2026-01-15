@@ -103,11 +103,17 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     }
 
     func menuBarMetricWindow(for provider: UsageProvider, snapshot: UsageSnapshot?) -> RateWindow? {
-        switch self.settings.menuBarMetricPreference {
+        switch self.settings.menuBarMetricPreference(for: provider) {
         case .primary:
             return snapshot?.primary ?? snapshot?.secondary
         case .secondary:
             return snapshot?.secondary ?? snapshot?.primary
+        case .average:
+            guard let primary = snapshot?.primary, let secondary = snapshot?.secondary else {
+                return snapshot?.primary ?? snapshot?.secondary
+            }
+            let usedPercent = (primary.usedPercent + secondary.usedPercent) / 2
+            return RateWindow(usedPercent: usedPercent, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
         case .automatic:
             if provider == .factory {
                 return snapshot?.secondary ?? snapshot?.primary

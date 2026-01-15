@@ -116,7 +116,7 @@ struct StatusItemAnimationTests {
         settings.mergeIcons = true
         settings.selectedMenuProvider = .codex
         settings.menuBarShowsBrandIconWithPercent = true
-        settings.menuBarMetricPreference = .secondary
+        settings.setMenuBarMetricPreference(.secondary, for: .codex)
         settings.usageBarsShowUsed = true
 
         let registry = ProviderRegistry.shared
@@ -144,5 +144,43 @@ struct StatusItemAnimationTests {
         controller.applyIcon(phase: nil)
 
         #expect(controller.statusItem.button?.title == "42%")
+    }
+
+    @Test
+    func menuBarPercentUsesAverageForGemini() {
+        let settings = SettingsStore(zaiTokenStore: NoopZaiTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .gemini
+        settings.menuBarShowsBrandIconWithPercent = true
+        settings.setMenuBarMetricPreference(.average, for: .gemini)
+        settings.usageBarsShowUsed = true
+
+        let registry = ProviderRegistry.shared
+        if let geminiMeta = registry.metadata[.gemini] {
+            settings.setProviderEnabled(provider: .gemini, metadata: geminiMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection())
+
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 20, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 60, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date())
+
+        store._setSnapshotForTesting(snapshot, provider: .gemini)
+        store._setErrorForTesting(nil, provider: .gemini)
+
+        controller.applyIcon(phase: nil)
+
+        #expect(controller.statusItem.button?.title == "40%")
     }
 }
