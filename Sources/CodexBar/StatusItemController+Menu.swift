@@ -116,7 +116,7 @@ extension StatusItemController {
         let canSmartUpdate = self.shouldMergeIcons &&
             enabledProviders.count > 1 &&
             tokenAccountDisplay == nil &&
-            menu.items.count > 0 &&
+            !menu.items.isEmpty &&
             menu.items.first?.view is ProviderSwitcherView
 
         if canSmartUpdate {
