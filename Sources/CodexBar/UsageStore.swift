@@ -245,6 +245,12 @@ final class UsageStore {
             browserDetection: browserDetection)
         self.bindSettings()
         self.detectVersions()
+        self.pathDebugInfo = PathDebugSnapshot(
+            codexBinary: nil,
+            claudeBinary: nil,
+            geminiBinary: nil,
+            effectivePATH: PathBuilder.effectivePATH(purposes: [.rpc, .tty, .nodeTooling]),
+            loginShellPATH: LoginShellPathCache.shared.current?.joined(separator: ":"))
         Task.detached(priority: .userInitiated) { [weak self] in
             await self?.refreshPathDebugInfo()
         }
