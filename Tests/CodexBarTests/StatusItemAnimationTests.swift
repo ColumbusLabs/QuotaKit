@@ -115,9 +115,7 @@ struct StatusItemAnimationTests {
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
         settings.selectedMenuProvider = .codex
-        settings.menuBarShowsBrandIconWithPercent = true
         settings.setMenuBarMetricPreference(.secondary, for: .codex)
-        settings.usageBarsShowUsed = true
 
         let registry = ProviderRegistry.shared
         if let codexMeta = registry.metadata[.codex] {
@@ -141,9 +139,9 @@ struct StatusItemAnimationTests {
         store._setSnapshotForTesting(snapshot, provider: .codex)
         store._setErrorForTesting(nil, provider: .codex)
 
-        controller.applyIcon(phase: nil)
+        let window = controller.menuBarMetricWindow(for: .codex, snapshot: snapshot)
 
-        #expect(controller.statusItem.button?.title == "42%")
+        #expect(window?.usedPercent == 42)
     }
 
     @Test
@@ -153,9 +151,7 @@ struct StatusItemAnimationTests {
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
         settings.selectedMenuProvider = .gemini
-        settings.menuBarShowsBrandIconWithPercent = true
         settings.setMenuBarMetricPreference(.average, for: .gemini)
-        settings.usageBarsShowUsed = true
 
         let registry = ProviderRegistry.shared
         if let geminiMeta = registry.metadata[.gemini] {
@@ -179,8 +175,8 @@ struct StatusItemAnimationTests {
         store._setSnapshotForTesting(snapshot, provider: .gemini)
         store._setErrorForTesting(nil, provider: .gemini)
 
-        controller.applyIcon(phase: nil)
+        let window = controller.menuBarMetricWindow(for: .gemini, snapshot: snapshot)
 
-        #expect(controller.statusItem.button?.title == "40%")
+        #expect(window?.usedPercent == 40)
     }
 }
