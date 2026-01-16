@@ -25,9 +25,6 @@ struct CodexBarApp: App {
         KeychainAccessGate.isDisabled = UserDefaults.standard.bool(forKey: "debugDisableKeychainAccess")
         KeychainPromptCoordinator.install()
 
-        // Migrate keychain items to reduce permission prompts during development
-        KeychainMigration.migrateIfNeeded()
-
         let preferencesSelection = PreferencesSelection()
         let settings = SettingsStore()
         let fetcher = UsageFetcher()
