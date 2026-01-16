@@ -63,15 +63,17 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        let region = context.settings?.minimax?.apiRegion ?? .global
+        let fetchContext = FetchContext(
+            region: context.settings?.minimax?.apiRegion ?? .global,
+            environment: context.env)
         if let override = Self.resolveCookieOverride(context: context) {
             Self.log.debug("Using MiniMax cookie header from settings/env")
             let snapshot = try await MiniMaxUsageFetcher.fetchUsage(
                 cookieHeader: override.cookieHeader,
                 authorizationToken: override.authorizationToken,
                 groupID: override.groupID,
-                region: region,
-                environment: context.env)
+                region: fetchContext.region,
+                environment: fetchContext.environment)
             return self.makeResult(
                 usage: snapshot.toUsageSnapshot(),
                 sourceLabel: "web")
@@ -89,8 +91,7 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
                 sourceLabel: cached.sourceLabel,
                 tokenContext: tokenContext,
                 logLabel: "cached",
-                region: region,
-                environment: context.env)
+                fetchContext: fetchContext)
             {
             case let .success(snapshot):
                 return self.makeResult(
@@ -119,8 +120,7 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
                 sourceLabel: session.sourceLabel,
                 tokenContext: tokenContext,
                 logLabel: "",
-                region: region,
-                environment: context.env)
+                fetchContext: fetchContext)
             {
             case let .success(snapshot):
                 CookieHeaderCache.store(
@@ -155,6 +155,11 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
     private struct TokenContext: Sendable {
         let tokensByLabel: [String: [String]]
         let groupIDByLabel: [String: String]
+    }
+
+    private struct FetchContext: Sendable {
+        let region: MiniMaxAPIRegion
+        let environment: [String: String]
     }
 
     private enum FetchAttemptResult: Sendable {
@@ -212,8 +217,7 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
         sourceLabel: String,
         tokenContext: TokenContext,
         logLabel: String,
-        region: MiniMaxAPIRegion,
-        environment: [String: String]) async -> FetchAttemptResult
+        fetchContext: FetchContext) async -> FetchAttemptResult
     {
         let normalizedLabel = Self.normalizeStorageLabel(sourceLabel)
         let tokenCandidates = tokenContext.tokensByLabel[normalizedLabel] ?? []
@@ -239,8 +243,8 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
                     cookieHeader: cookieHeader,
                     authorizationToken: token,
                     groupID: groupID,
-                    region: region,
-                    environment: environment)
+                    region: fetchContext.region,
+                    environment: fetchContext.environment)
                 Self.log.debug("MiniMax \(prefix)cookies valid from \(sourceLabel)")
                 return .success(snapshot)
             } catch {

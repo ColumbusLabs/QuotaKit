@@ -8,6 +8,10 @@ public struct MiniMaxUsageFetcher: Sendable {
     private static let codingPlanPath = "user-center/payment/coding-plan"
     private static let codingPlanQuery = "cycle_type=3"
     private static let codingPlanRemainsPath = "v1/api/openplatform/coding_plan/remains"
+    private struct RemainsContext: Sendable {
+        let authorizationToken: String?
+        let groupID: String?
+    }
 
     public static func fetchUsage(
         cookieHeader: String,
@@ -33,8 +37,9 @@ public struct MiniMaxUsageFetcher: Sendable {
                 Self.log.debug("MiniMax coding plan HTML parse failed, trying remains API")
                 return try await self.fetchCodingPlanRemains(
                     cookie: cookie,
-                    authorizationToken: authorizationToken,
-                    groupID: groupID,
+                    remainsContext: RemainsContext(
+                        authorizationToken: authorizationToken,
+                        groupID: groupID),
                     region: region,
                     environment: environment,
                     now: now)
@@ -102,18 +107,17 @@ public struct MiniMaxUsageFetcher: Sendable {
 
     private static func fetchCodingPlanRemains(
         cookie: String,
-        authorizationToken: String?,
-        groupID: String?,
+        remainsContext: RemainsContext,
         region: MiniMaxAPIRegion,
         environment: [String: String],
         now: Date) async throws -> MiniMaxUsageSnapshot
     {
         let baseRemainsURL = self.resolveRemainsURL(region: region, environment: environment)
-        let remainsURL = self.appendGroupID(groupID, to: baseRemainsURL)
+        let remainsURL = self.appendGroupID(remainsContext.groupID, to: baseRemainsURL)
         var request = URLRequest(url: remainsURL)
         request.httpMethod = "GET"
         request.setValue(cookie, forHTTPHeaderField: "Cookie")
-        if let authorizationToken {
+        if let authorizationToken = remainsContext.authorizationToken {
             request.setValue("Bearer \(authorizationToken)", forHTTPHeaderField: "Authorization")
         }
         let acceptHeader = "application/json, text/plain, */*"
