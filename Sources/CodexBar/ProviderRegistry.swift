@@ -251,6 +251,7 @@ struct ProviderRegistry {
         override: TokenAccountOverride?,
         fallback: ProviderCookieSource) -> ProviderCookieSource
     {
+        guard !settings.debugDisableKeychainAccess else { return .off }
         guard let support = TokenAccountSupportCatalog.support(for: provider),
               support.requiresManualCookieSource
         else {

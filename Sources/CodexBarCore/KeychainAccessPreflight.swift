@@ -42,6 +42,7 @@ public enum KeychainAccessPreflight {
 
     public static func checkGenericPassword(service: String, account: String?) -> Outcome {
         #if os(macOS)
+        guard !KeychainAccessGate.isDisabled else { return .notFound }
         let context = LAContext()
         context.interactionNotAllowed = true
         var query: [String: Any] = [

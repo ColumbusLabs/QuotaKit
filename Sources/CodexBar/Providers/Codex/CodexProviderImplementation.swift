@@ -68,7 +68,7 @@ struct CodexProviderImplementation: ProviderImplementation {
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
-                isVisible: nil,
+                isVisible: { !context.settings.debugDisableKeychainAccess },
                 onChange: nil,
                 trailingText: {
                     guard let entry = CookieHeaderCache.load(provider: .codex) else { return nil }
@@ -89,7 +89,9 @@ struct CodexProviderImplementation: ProviderImplementation {
                 placeholder: "Cookie: …",
                 binding: context.stringBinding(\.codexCookieHeader),
                 actions: [],
-                isVisible: { context.settings.codexCookieSource == .manual },
+                isVisible: {
+                    !context.settings.debugDisableKeychainAccess && context.settings.codexCookieSource == .manual
+                },
                 onActivate: { context.settings.ensureCodexCookieLoaded() }),
         ]
     }

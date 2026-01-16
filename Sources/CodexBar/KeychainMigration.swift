@@ -1,3 +1,4 @@
+import CodexBarCore
 import Foundation
 import OSLog
 import Security
@@ -32,6 +33,10 @@ enum KeychainMigration {
 
     /// Run migration once per installation
     static func migrateIfNeeded() {
+        guard !KeychainAccessGate.isDisabled else {
+            self.log.notice("Keychain access disabled; skipping migration")
+            return
+        }
         guard !UserDefaults.standard.bool(forKey: self.migrationKey) else {
             self.log.debug("Keychain migration already completed, skipping")
             return

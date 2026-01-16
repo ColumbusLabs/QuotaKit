@@ -22,6 +22,7 @@
 - Preferences: move “Access OpenAI via web” into Providers → Codex.
 - Preferences: add usage source pickers for Codex + Claude with auto fallback.
 - Preferences: add cookie source pickers with contextual helper text for the selected mode.
+- Preferences: add debug switch to disable Keychain access and hide cookie-based web options.
 - Preferences: add per-provider menu bar metric picker (#185) — thanks @HaukeSchnau
 - Preferences: tighten provider rows (inline pickers, compact layout, inline refresh + auto-source status).
 - Preferences: remove the “experimental” label from Antigravity.

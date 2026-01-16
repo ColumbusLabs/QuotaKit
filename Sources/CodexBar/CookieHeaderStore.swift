@@ -34,6 +34,10 @@ struct KeychainCookieHeaderStore: CookieHeaderStoring {
     }
 
     func loadCookieHeader() throws -> String? {
+        guard !KeychainAccessGate.isDisabled else {
+            Self.log.debug("Keychain access disabled; skipping cookie load")
+            return nil
+        }
         var result: CFTypeRef?
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -72,6 +76,10 @@ struct KeychainCookieHeaderStore: CookieHeaderStoring {
     }
 
     func storeCookieHeader(_ header: String?) throws {
+        guard !KeychainAccessGate.isDisabled else {
+            Self.log.debug("Keychain access disabled; skipping cookie store")
+            return
+        }
         guard let raw = header?.trimmingCharacters(in: .whitespacesAndNewlines),
               !raw.isEmpty
         else {
@@ -115,6 +123,7 @@ struct KeychainCookieHeaderStore: CookieHeaderStoring {
     }
 
     private func deleteIfPresent() throws {
+        guard !KeychainAccessGate.isDisabled else { return }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: self.service,

@@ -176,6 +176,9 @@ public enum ClaudeOAuthCredentialsStore {
 
     public static func loadFromKeychain() throws -> Data {
         #if os(macOS)
+        if KeychainAccessGate.isDisabled {
+            throw ClaudeOAuthCredentialsError.notFound
+        }
         if case .interactionRequired = KeychainAccessPreflight
             .checkGenericPassword(service: self.keychainService, account: nil)
         {

@@ -78,6 +78,14 @@ final class SettingsStore {
         didSet { self.userDefaults.set(self.debugMenuEnabled, forKey: "debugMenuEnabled") }
     }
 
+    /// Debug-only: disable all Keychain access and hide cookie-based web options.
+    var debugDisableKeychainAccess: Bool {
+        didSet {
+            self.userDefaults.set(self.debugDisableKeychainAccess, forKey: "debugDisableKeychainAccess")
+            KeychainAccessGate.isDisabled = self.debugDisableKeychainAccess
+        }
+    }
+
     private var debugLoadingPatternRaw: String? {
         didSet {
             if let raw = self.debugLoadingPatternRaw {
@@ -142,7 +150,12 @@ final class SettingsStore {
     /// Optional: augment Claude usage with claude.ai web API (via browser cookies),
     /// incl. "Extra usage" spend.
     var claudeWebExtrasEnabled: Bool {
-        didSet { self.userDefaults.set(self.claudeWebExtrasEnabled, forKey: "claudeWebExtrasEnabled") }
+        get { self.debugDisableKeychainAccess ? false : self.claudeWebExtrasEnabledRaw }
+        set { self.claudeWebExtrasEnabledRaw = newValue }
+    }
+
+    private var claudeWebExtrasEnabledRaw: Bool {
+        didSet { self.userDefaults.set(self.claudeWebExtrasEnabledRaw, forKey: "claudeWebExtrasEnabled") }
     }
 
     /// Optional: show Codex credits + Claude extra usage sections in the menu UI.
@@ -373,7 +386,10 @@ final class SettingsStore {
     }
 
     var codexCookieSource: ProviderCookieSource {
-        get { ProviderCookieSource(rawValue: self.codexCookieSourceRaw ?? "") ?? .auto }
+        get {
+            guard !self.debugDisableKeychainAccess else { return .off }
+            return ProviderCookieSource(rawValue: self.codexCookieSourceRaw ?? "") ?? .auto
+        }
         set {
             self.codexCookieSourceRaw = newValue.rawValue
             self.openAIWebAccessEnabled = newValue.isEnabled
@@ -381,17 +397,26 @@ final class SettingsStore {
     }
 
     var claudeCookieSource: ProviderCookieSource {
-        get { ProviderCookieSource(rawValue: self.claudeCookieSourceRaw ?? "") ?? .auto }
+        get {
+            guard !self.debugDisableKeychainAccess else { return .off }
+            return ProviderCookieSource(rawValue: self.claudeCookieSourceRaw ?? "") ?? .auto
+        }
         set { self.claudeCookieSourceRaw = newValue.rawValue }
     }
 
     var cursorCookieSource: ProviderCookieSource {
-        get { ProviderCookieSource(rawValue: self.cursorCookieSourceRaw ?? "") ?? .auto }
+        get {
+            guard !self.debugDisableKeychainAccess else { return .off }
+            return ProviderCookieSource(rawValue: self.cursorCookieSourceRaw ?? "") ?? .auto
+        }
         set { self.cursorCookieSourceRaw = newValue.rawValue }
     }
 
     var opencodeCookieSource: ProviderCookieSource {
-        get { ProviderCookieSource(rawValue: self.opencodeCookieSourceRaw ?? "") ?? .auto }
+        get {
+            guard !self.debugDisableKeychainAccess else { return .off }
+            return ProviderCookieSource(rawValue: self.opencodeCookieSourceRaw ?? "") ?? .auto
+        }
         set { self.opencodeCookieSourceRaw = newValue.rawValue }
     }
 
@@ -418,17 +443,26 @@ final class SettingsStore {
     }
 
     var factoryCookieSource: ProviderCookieSource {
-        get { ProviderCookieSource(rawValue: self.factoryCookieSourceRaw ?? "") ?? .auto }
+        get {
+            guard !self.debugDisableKeychainAccess else { return .off }
+            return ProviderCookieSource(rawValue: self.factoryCookieSourceRaw ?? "") ?? .auto
+        }
         set { self.factoryCookieSourceRaw = newValue.rawValue }
     }
 
     var minimaxCookieSource: ProviderCookieSource {
-        get { ProviderCookieSource(rawValue: self.minimaxCookieSourceRaw ?? "") ?? .auto }
+        get {
+            guard !self.debugDisableKeychainAccess else { return .off }
+            return ProviderCookieSource(rawValue: self.minimaxCookieSourceRaw ?? "") ?? .auto
+        }
         set { self.minimaxCookieSourceRaw = newValue.rawValue }
     }
 
     var augmentCookieSource: ProviderCookieSource {
-        get { ProviderCookieSource(rawValue: self.augmentCookieSourceRaw ?? "") ?? .auto }
+        get {
+            guard !self.debugDisableKeychainAccess else { return .off }
+            return ProviderCookieSource(rawValue: self.augmentCookieSourceRaw ?? "") ?? .auto
+        }
         set { self.augmentCookieSourceRaw = newValue.rawValue }
     }
 
@@ -437,6 +471,7 @@ final class SettingsStore {
         _ = self.refreshFrequency
         _ = self.launchAtLogin
         _ = self.debugMenuEnabled
+        _ = self.debugDisableKeychainAccess
         _ = self.statusChecksEnabled
         _ = self.sessionQuotaNotificationsEnabled
         _ = self.usageBarsShowUsed
@@ -574,6 +609,8 @@ final class SettingsStore {
         self.refreshFrequency = RefreshFrequency(rawValue: raw) ?? .fiveMinutes
         self.launchAtLogin = userDefaults.object(forKey: "launchAtLogin") as? Bool ?? false
         self.debugMenuEnabled = userDefaults.object(forKey: "debugMenuEnabled") as? Bool ?? false
+        self.debugDisableKeychainAccess = userDefaults.object(
+            forKey: "debugDisableKeychainAccess") as? Bool ?? false
         self.debugLoadingPatternRaw = userDefaults.string(forKey: "debugLoadingPattern")
         self.statusChecksEnabled = userDefaults.object(forKey: "statusChecksEnabled") as? Bool ?? true
         let sessionQuotaNotificationsDefault = userDefaults.object(
@@ -602,7 +639,7 @@ final class SettingsStore {
         self.costUsageEnabled = userDefaults.object(forKey: "tokenCostUsageEnabled") as? Bool ?? false
         self.hidePersonalInfo = userDefaults.object(forKey: "hidePersonalInfo") as? Bool ?? false
         self.randomBlinkEnabled = userDefaults.object(forKey: "randomBlinkEnabled") as? Bool ?? false
-        self.claudeWebExtrasEnabled = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false
+        self.claudeWebExtrasEnabledRaw = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false
         let creditsExtrasDefault = userDefaults.object(forKey: "showOptionalCreditsAndExtraUsage") as? Bool
         self.showOptionalCreditsAndExtraUsage = creditsExtrasDefault ?? true
         if creditsExtrasDefault == nil {
@@ -662,6 +699,7 @@ final class SettingsStore {
             self.claudeWebExtrasEnabled = false
         }
         self.openAIWebAccessEnabled = self.codexCookieSource.isEnabled
+        KeychainAccessGate.isDisabled = self.debugDisableKeychainAccess
     }
 
     func orderedProviders() -> [UsageProvider] {

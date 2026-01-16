@@ -22,6 +22,7 @@ struct CodexBarApp: App {
             level: level,
             json: false))
 
+        KeychainAccessGate.isDisabled = UserDefaults.standard.bool(forKey: "debugDisableKeychainAccess")
         KeychainPromptCoordinator.install()
 
         // Migrate keychain items to reduce permission prompts during development
