@@ -207,6 +207,7 @@ final class UsageStore {
     @ObservationIgnored private var timerTask: Task<Void, Never>?
     @ObservationIgnored private var tokenTimerTask: Task<Void, Never>?
     @ObservationIgnored private var tokenRefreshSequenceTask: Task<Void, Never>?
+    @ObservationIgnored private var pathDebugRefreshTask: Task<Void, Never>?
     @ObservationIgnored var lastKnownSessionRemaining: [UsageProvider: Double] = [:]
     @ObservationIgnored var lastTokenFetchAt: [UsageProvider: Date] = [:]
     @ObservationIgnored private let tokenFetchTTL: TimeInterval = 60 * 60
@@ -251,12 +252,12 @@ final class UsageStore {
             geminiBinary: nil,
             effectivePATH: PathBuilder.effectivePATH(purposes: [.rpc, .tty, .nodeTooling]),
             loginShellPATH: LoginShellPathCache.shared.current?.joined(separator: ":"))
-        Task.detached(priority: .userInitiated) { [weak self] in
-            await self?.refreshPathDebugInfo()
+        Task { @MainActor [weak self] in
+            self?.schedulePathDebugInfoRefresh()
         }
         LoginShellPathCache.shared.captureOnce { [weak self] _ in
-            Task { [weak self] in
-                await self?.refreshPathDebugInfo()
+            Task { @MainActor [weak self] in
+                self?.schedulePathDebugInfoRefresh()
             }
         }
         Task { await self.refresh() }
@@ -1373,12 +1374,31 @@ extension UsageStore {
         return text
     }
 
-    private func refreshPathDebugInfo() async {
-        let snapshot = await Task.detached(priority: .userInitiated) {
-            PathBuilder.debugSnapshot(purposes: [.rpc, .tty, .nodeTooling])
-        }.value
+    @MainActor
+    private func schedulePathDebugInfoRefresh() {
+        self.pathDebugRefreshTask?.cancel()
+        self.pathDebugRefreshTask = Task { [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: 150_000_000)
+            } catch {
+                return
+            }
+            await self?.refreshPathDebugInfo()
+        }
+    }
+
+    private func runBackgroundSnapshot(
+        _ snapshot: @escaping @Sendable () async -> PathDebugSnapshot) async
+    {
+        let result = await snapshot()
         await MainActor.run {
-            self.pathDebugInfo = snapshot
+            self.pathDebugInfo = result
+        }
+    }
+
+    private func refreshPathDebugInfo() async {
+        await self.runBackgroundSnapshot {
+            await PathBuilder.debugSnapshotAsync(purposes: [.rpc, .tty, .nodeTooling])
         }
     }
 
