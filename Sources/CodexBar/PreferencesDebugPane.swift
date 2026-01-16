@@ -33,6 +33,16 @@ struct DebugPane: View {
                 }
 
                 SettingsSection(
+                    title: "Keychain access",
+                    caption: "Disable all Keychain reads/writes and hide cookie-based web settings.")
+                {
+                    PreferenceToggleRow(
+                        title: "Disable Keychain access",
+                        subtitle: "Prevents any Keychain access while enabled.",
+                        binding: self.$settings.debugDisableKeychainAccess)
+                }
+
+                SettingsSection(
                     title: "Loading animations",
                     caption: "Pick a pattern and replay it in the menu bar. \"Random\" keeps the existing behavior.")
                 {
@@ -147,30 +157,34 @@ struct DebugPane: View {
                     .cornerRadius(6)
                 }
 
-                SettingsSection(
-                    title: "OpenAI cookies",
-                    caption: "Cookie import + WebKit scrape logs from the last OpenAI cookies attempt.")
-                {
-                    HStack(spacing: 12) {
-                        Button { self.copyToPasteboard(self.store.openAIDashboardCookieImportDebugLog ?? "") } label: {
-                            Label("Copy", systemImage: "doc.on.doc")
+                if !self.settings.debugDisableKeychainAccess {
+                    SettingsSection(
+                        title: "OpenAI cookies",
+                        caption: "Cookie import + WebKit scrape logs from the last OpenAI cookies attempt.")
+                    {
+                        HStack(spacing: 12) {
+                            Button {
+                                self.copyToPasteboard(self.store.openAIDashboardCookieImportDebugLog ?? "")
+                            } label: {
+                                Label("Copy", systemImage: "doc.on.doc")
+                            }
+                            .disabled((self.store.openAIDashboardCookieImportDebugLog ?? "").isEmpty)
                         }
-                        .disabled((self.store.openAIDashboardCookieImportDebugLog ?? "").isEmpty)
-                    }
 
-                    ScrollView {
-                        Text(
-                            self.store.openAIDashboardCookieImportDebugLog?.isEmpty == false
-                                ? (self.store.openAIDashboardCookieImportDebugLog ?? "")
-                                : "No log yet. Update OpenAI cookies in Providers → Codex to run an import.")
-                            .font(.system(.footnote, design: .monospaced))
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(8)
+                        ScrollView {
+                            Text(
+                                self.store.openAIDashboardCookieImportDebugLog?.isEmpty == false
+                                    ? (self.store.openAIDashboardCookieImportDebugLog ?? "")
+                                    : "No log yet. Update OpenAI cookies in Providers → Codex to run an import.")
+                                .font(.system(.footnote, design: .monospaced))
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(8)
+                        }
+                        .frame(minHeight: 120, maxHeight: 180)
+                        .background(Color(NSColor.textBackgroundColor))
+                        .cornerRadius(6)
                     }
-                    .frame(minHeight: 120, maxHeight: 180)
-                    .background(Color(NSColor.textBackgroundColor))
-                    .cornerRadius(6)
                 }
 
                 SettingsSection(

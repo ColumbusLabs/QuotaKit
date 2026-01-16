@@ -36,6 +36,7 @@ struct ProvidersPane: View {
                 settingsPickers: { provider in self.extraSettingsPickers(for: provider) },
                 settingsToggles: { provider in self.extraSettingsToggles(for: provider) },
                 settingsFields: { provider in self.extraSettingsFields(for: provider) },
+                settingsTokenAccounts: { provider in self.tokenAccountDescriptor(for: provider) },
                 errorDisplay: { provider in self.providerErrorDisplay(provider) },
                 isErrorExpanded: { provider in self.expandedBinding(for: provider) },
                 onCopyError: { text in self.copyToPasteboard(text) },
@@ -148,6 +149,61 @@ struct ProvidersPane: View {
         let context = self.makeSettingsContext(provider: provider)
         return impl.settingsFields(context: context)
             .filter { $0.isVisible?() ?? true }
+    }
+
+    private func tokenAccountDescriptor(for provider: UsageProvider) -> ProviderSettingsTokenAccountsDescriptor? {
+        guard let support = TokenAccountSupportCatalog.support(for: provider) else { return nil }
+        return ProviderSettingsTokenAccountsDescriptor(
+            id: "token-accounts-\(provider.rawValue)",
+            title: support.title,
+            subtitle: support.subtitle,
+            placeholder: support.placeholder,
+            provider: provider,
+            isVisible: {
+                guard support.requiresManualCookieSource else { return true }
+                if !self.settings.tokenAccounts(for: provider).isEmpty { return true }
+                switch provider {
+                case .claude: return self.settings.claudeCookieSource == .manual
+                case .cursor: return self.settings.cursorCookieSource == .manual
+                case .opencode: return self.settings.opencodeCookieSource == .manual
+                case .factory: return self.settings.factoryCookieSource == .manual
+                case .minimax: return self.settings.minimaxCookieSource == .manual
+                case .augment: return self.settings.augmentCookieSource == .manual
+                default: return true
+                }
+            },
+            accounts: { self.settings.tokenAccounts(for: provider) },
+            activeIndex: {
+                let data = self.settings.tokenAccountsData(for: provider)
+                return data?.clampedActiveIndex() ?? 0
+            },
+            setActiveIndex: { index in
+                self.settings.setActiveTokenAccountIndex(index, for: provider)
+                Task { @MainActor in
+                    await self.store.refresh()
+                }
+            },
+            addAccount: { label, token in
+                self.settings.addTokenAccount(provider: provider, label: label, token: token)
+                Task { @MainActor in
+                    await self.store.refresh()
+                }
+            },
+            removeAccount: { accountID in
+                self.settings.removeTokenAccount(provider: provider, accountID: accountID)
+                Task { @MainActor in
+                    await self.store.refresh()
+                }
+            },
+            openConfigFile: {
+                self.settings.openTokenAccountsFile()
+            },
+            reloadFromDisk: {
+                self.settings.reloadTokenAccounts()
+                Task { @MainActor in
+                    await self.store.refresh()
+                }
+            })
     }
 
     private func makeSettingsContext(provider: UsageProvider) -> ProviderSettingsContext {
@@ -271,6 +327,7 @@ private struct ProviderListView: View {
     let settingsPickers: (UsageProvider) -> [ProviderSettingsPickerDescriptor]
     let settingsToggles: (UsageProvider) -> [ProviderSettingsToggleDescriptor]
     let settingsFields: (UsageProvider) -> [ProviderSettingsFieldDescriptor]
+    let settingsTokenAccounts: (UsageProvider) -> ProviderSettingsTokenAccountsDescriptor?
     let errorDisplay: (UsageProvider) -> ProviderErrorDisplay?
     let isErrorExpanded: (UsageProvider) -> Binding<Bool>
     let onCopyError: (String) -> Void
@@ -283,9 +340,10 @@ private struct ProviderListView: View {
                     let fields = self.settingsFields(provider)
                     let toggles = self.settingsToggles(provider)
                     let pickers = self.settingsPickers(provider)
+                    let tokenAccounts = self.settingsTokenAccounts(provider)
                     let isEnabled = self.isEnabled(provider).wrappedValue
                     let shouldShowDivider = provider != self.providers.last
-                    let hasExtraRows = !(pickers.isEmpty && fields.isEmpty && toggles.isEmpty)
+                    let hasExtraRows = !(pickers.isEmpty && fields.isEmpty && toggles.isEmpty && tokenAccounts == nil)
                     let showDividerOnProviderRow = shouldShowDivider && (!isEnabled || !hasExtraRows)
 
                     ProviderListProviderRowView(
@@ -305,10 +363,22 @@ private struct ProviderListView: View {
                         let lastPickerID = pickers.last?.id
                         ForEach(pickers) { picker in
                             let isLastPicker = picker.id == lastPickerID
-                            let showDivider = shouldShowDivider && fields.isEmpty && toggles.isEmpty && isLastPicker
+                            let showDivider = shouldShowDivider && fields.isEmpty && toggles
+                                .isEmpty && tokenAccounts == nil
+                                && isLastPicker
 
                             ProviderListPickerRowView(provider: provider, picker: picker)
                                 .id(self.rowID(provider: provider, suffix: picker.id))
+                                .padding(.bottom, showDivider ? 12 : 0)
+                                .listRowInsets(self.rowInsets(withDivider: showDivider))
+                                .listRowSeparator(.hidden)
+                                .providerSectionDivider(isVisible: showDivider)
+                        }
+                        if let tokenAccounts, tokenAccounts.isVisible?() ?? true {
+                            let showDivider = shouldShowDivider && fields.isEmpty && toggles.isEmpty
+
+                            ProviderListTokenAccountsRowView(descriptor: tokenAccounts)
+                                .id(self.rowID(provider: provider, suffix: tokenAccounts.id))
                                 .padding(.bottom, showDivider ? 12 : 0)
                                 .listRowInsets(self.rowInsets(withDivider: showDivider))
                                 .listRowSeparator(.hidden)
@@ -710,6 +780,100 @@ private struct ProviderListFieldRowView: View {
                             .controlSize(.small)
                         }
                     }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+@MainActor
+private struct ProviderListTokenAccountsRowView: View {
+    let descriptor: ProviderSettingsTokenAccountsDescriptor
+    @State private var newLabel: String = ""
+    @State private var newToken: String = ""
+
+    var body: some View {
+        HStack(alignment: .top, spacing: ProviderListMetrics.rowSpacing) {
+            Color.clear
+                .frame(width: ProviderListMetrics.reorderHandleSize, height: ProviderListMetrics.reorderHandleSize)
+
+            Color.clear
+                .frame(width: ProviderListMetrics.checkboxSize, height: ProviderListMetrics.checkboxSize)
+
+            Color.clear
+                .frame(width: ProviderListMetrics.iconSize, height: ProviderListMetrics.iconSize)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(self.descriptor.title)
+                    .font(.subheadline.weight(.semibold))
+
+                if !self.descriptor.subtitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text(self.descriptor.subtitle)
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                let accounts = self.descriptor.accounts()
+                if accounts.isEmpty {
+                    Text("No token accounts yet.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else {
+                    let selectedIndex = min(self.descriptor.activeIndex(), max(0, accounts.count - 1))
+                    Picker("", selection: Binding(
+                        get: { selectedIndex },
+                        set: { index in self.descriptor.setActiveIndex(index) }))
+                    {
+                        ForEach(Array(accounts.enumerated()), id: \.offset) { index, account in
+                            Text(account.displayName).tag(index)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .controlSize(.small)
+
+                    Button("Remove selected account") {
+                        let account = accounts[selectedIndex]
+                        self.descriptor.removeAccount(account.id)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+
+                HStack(spacing: 8) {
+                    TextField("Label", text: self.$newLabel)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.footnote)
+                    SecureField(self.descriptor.placeholder, text: self.$newToken)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.footnote)
+                    Button("Add") {
+                        let label = self.newLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let token = self.newToken.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !label.isEmpty, !token.isEmpty else { return }
+                        self.descriptor.addAccount(label, token)
+                        self.newLabel = ""
+                        self.newToken = ""
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(self.newLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                        self.newToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+
+                HStack(spacing: 10) {
+                    Button("Open token file") {
+                        self.descriptor.openConfigFile()
+                    }
+                    .buttonStyle(.link)
+                    .controlSize(.small)
+                    Button("Reload") {
+                        self.descriptor.reloadFromDisk()
+                    }
+                    .buttonStyle(.link)
+                    .controlSize(.small)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

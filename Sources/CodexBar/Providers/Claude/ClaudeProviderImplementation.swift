@@ -64,7 +64,7 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
-                isVisible: nil,
+                isVisible: { !context.settings.debugDisableKeychainAccess },
                 onChange: nil,
                 trailingText: {
                     guard let entry = CookieHeaderCache.load(provider: .claude) else { return nil }
@@ -76,18 +76,8 @@ struct ClaudeProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
-        [
-            ProviderSettingsFieldDescriptor(
-                id: "claude-cookie-header",
-                title: "",
-                subtitle: "",
-                kind: .secure,
-                placeholder: "Cookie: …",
-                binding: context.stringBinding(\.claudeCookieHeader),
-                actions: [],
-                isVisible: { context.settings.claudeCookieSource == .manual },
-                onActivate: { context.settings.ensureClaudeCookieLoaded() }),
-        ]
+        _ = context
+        return []
     }
 
     @MainActor

@@ -15,11 +15,35 @@ extension [Browser] {
     ///
     /// This is intentionally stricter than "app installed": it aims to avoid unnecessary Keychain prompts.
     public func cookieImportCandidates(using detection: BrowserDetection) -> [Browser] {
-        self.filter { detection.isCookieSourceAvailable($0) }
+        let candidates = self.filter { detection.isCookieSourceAvailable($0) }
+        guard !KeychainAccessGate.isDisabled else {
+            return candidates.filter { !$0.usesKeychainForCookieDecryption }
+        }
+        return candidates
     }
 
     /// Filters a browser list to sources with usable profile data on disk.
     public func browsersWithProfileData(using detection: BrowserDetection) -> [Browser] {
         self.filter { detection.hasUsableProfileData($0) }
+    }
+}
+
+extension Browser {
+    var usesKeychainForCookieDecryption: Bool {
+        switch self {
+        case .safari, .firefox:
+            return false
+        case .chrome, .chromeBeta, .chromeCanary,
+             .arc, .arcBeta, .arcCanary,
+             .chatgptAtlas,
+             .chromium,
+             .brave, .braveBeta, .braveNightly,
+             .edge, .edgeBeta, .edgeCanary,
+             .helium,
+             .vivaldi:
+            return true
+        @unknown default:
+            return true
+        }
     }
 }

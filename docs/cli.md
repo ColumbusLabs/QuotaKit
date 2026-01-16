@@ -39,6 +39,7 @@ tar -xzf CodexBarCLI-v0.17.0-linux-x86_64.tar.gz
   - `--format text|json` (default: text).
   - `--refresh` ignores cached scans.
 - `--provider codex|claude|zai|gemini|antigravity|cursor|factory|copilot|both|all` (default: your in-app toggles; falls back to Codex).
+  - `--account <label>` / `--account-index <n>` / `--all-accounts` (token accounts from `token-accounts.json`; requires a single provider).
   - `--no-credits` (hide Codex credits in text output).
   - `--pretty` (pretty-print JSON).
   - `--status` (fetch provider status pages and include them in output).
@@ -55,6 +56,15 @@ tar -xzf CodexBarCLI-v0.17.0-linux-x86_64.tar.gz
     - Claude web: claude.ai API (session + weekly usage, plus account metadata when available).
     - Linux: `web/auto` are not supported; CLI prints an error and exits non-zero.
 - Global flags: `-h/--help`, `-V/--version`, `-v/--verbose`, `--no-color`, `--log-level <trace|verbose|debug|info|warning|error|critical>`, `--json-output`.
+
+### Token accounts
+The CLI reads multi-account tokens from `~/Library/Application Support/CodexBar/token-accounts.json` (same file as the app).
+- Select a specific account: `--account <label>` (matches the label/email in the file).
+- Select by index (1-based): `--account-index <n>`.
+- Fetch all accounts for the provider: `--all-accounts`.
+Account selection flags require a single provider (`--provider claude`, etc.).
+For Claude, token accounts accept either `sessionKey` cookies or OAuth access tokens (`sk-ant-oat...`).
+OAuth usage requires the `user:profile` scope; inference-only tokens will return an error.
 
 ### Cost JSON payload
 `codexbar cost --format json` emits an array of payloads (one per provider).
@@ -76,6 +86,8 @@ codexbar cost --provider claude --format json --pretty
 COPILOT_API_TOKEN=... codexbar --provider copilot --format json --pretty
 codexbar --status                 # include status page indicator/description
 codexbar --provider codex --source web --format json --pretty
+codexbar --provider claude --account steipete@gmail.com
+codexbar --provider claude --all-accounts --format json --pretty
 ```
 
 ### Sample output (text)

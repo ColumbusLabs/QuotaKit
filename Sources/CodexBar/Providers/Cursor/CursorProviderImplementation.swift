@@ -43,7 +43,7 @@ struct CursorProviderImplementation: ProviderImplementation {
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
-                isVisible: nil,
+                isVisible: { !context.settings.debugDisableKeychainAccess },
                 onChange: nil,
                 trailingText: {
                     guard let entry = CookieHeaderCache.load(provider: .cursor) else { return nil }
@@ -55,18 +55,8 @@ struct CursorProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
-        [
-            ProviderSettingsFieldDescriptor(
-                id: "cursor-cookie-header",
-                title: "",
-                subtitle: "",
-                kind: .secure,
-                placeholder: "Cookie: …",
-                binding: context.stringBinding(\.cursorCookieHeader),
-                actions: [],
-                isVisible: { context.settings.cursorCookieSource == .manual },
-                onActivate: { context.settings.ensureCursorCookieLoaded() }),
-        ]
+        _ = context
+        return []
     }
 
     @MainActor

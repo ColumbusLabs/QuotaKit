@@ -70,6 +70,16 @@ Wondering if CodexBar scans your disk? It doesn’t crawl your filesystem; it re
   - Chrome cookie import needs the “Chrome Safe Storage” key to decrypt cookies.
   - Claude OAuth credentials (written by the Claude CLI) are read from Keychain when present.
   - z.ai API token is stored in Keychain from Preferences → Providers; Copilot stores its API token in Keychain during device flow.
+  - **How do I prevent those keychain alerts?**
+    - Open **Keychain Access.app** → login keychain → search the item (e.g., “Claude Code-credentials”).
+    - Open the item → **Access Control** → add `CodexBar.app` under “Always allow access by these applications”.
+    - Prefer adding just CodexBar (avoid “Allow all applications” unless you want it wide open).
+    - Relaunch CodexBar after saving.
+    - Reference screenshot: ![Keychain access control](docs/keychain-allow.png)
+  - **How to do the same for the browser?**
+    - Find the browser’s “Safe Storage” key (e.g., “Chrome Safe Storage”, “Brave Safe Storage”, “Firefox”, “Microsoft Edge Safe Storage”).
+    - Open the item → **Access Control** → add `CodexBar.app` under “Always allow access by these applications”.
+    - This removes the prompt when CodexBar decrypts cookies for that browser.
 - **Files & Folders prompts (folder/volume access)**: CodexBar launches provider CLIs (codex/claude/gemini/antigravity). If those CLIs read a project directory or external drive, macOS may ask CodexBar for that folder/volume (e.g., Desktop or an external volume). This is driven by the CLI’s working directory, not background disk scanning.
 - **What we do not request**: no Screen Recording, Accessibility, or Automation permissions; no passwords are stored (browser cookies are reused when you opt in).
 

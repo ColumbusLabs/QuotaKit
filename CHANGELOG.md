@@ -13,6 +13,8 @@
 - Cursor: support legacy request-based plans and show individual on-demand usage (#125) — thanks @vltansky
 - Cursor: avoid Intel crash when opening login and harden WebKit teardown. Thanks @meghanto!
 - Cursor: load stored session cookies before reads to make relaunches deterministic.
+- z.ai: add BigModel CN region option for API endpoint selection (#140). Thanks @nailuoGG!
+- MiniMax: add China mainland region option + host overrides (#143). Thanks @nailuoGG!
 - Codex/Claude/Cursor/Factory/MiniMax: cookie sources now include Manual (paste a Cookie header) in addition to Automatic.
 - Codex/Claude/Cursor/Factory/MiniMax: skip cookie imports from browsers without usable cookie stores (profile/cookie DB) to avoid unnecessary Keychain prompts.
 - Claude: fix OAuth “Extra usage” spend/limit units when the API returns minor currency units (#97).
@@ -22,6 +24,7 @@
 - Preferences: move “Access OpenAI via web” into Providers → Codex.
 - Preferences: add usage source pickers for Codex + Claude with auto fallback.
 - Preferences: add cookie source pickers with contextual helper text for the selected mode.
+- Preferences: add debug switch to disable Keychain access and hide cookie-based web options.
 - Preferences: add per-provider menu bar metric picker (#185) — thanks @HaukeSchnau
 - Preferences: tighten provider rows (inline pickers, compact layout, inline refresh + auto-source status).
 - Preferences: remove the “experimental” label from Antigravity.
@@ -31,6 +34,8 @@
 ### Menu
 - Menu: add a toggle to show reset times as absolute clock values (instead of countdowns).
 - Menu: show an “Open Terminal” action when Claude OAuth fails.
+- Menu: add “Hide personal information” toggle and redact emails in menu UI (#137). Thanks @t3dotgg!
+- Menu: reduce provider-switch flicker and avoid redundant menu card sizing for faster opens (#132). Thanks @ibehnam!
 
 ### CLI
 - CLI: respect the reset time display setting.
@@ -39,6 +44,7 @@
 - Dev: move Chromium profile discovery into SweetCookieKit (adds Helium net.imput.helium). Thanks @hhushhas!
 - Dev: bump SweetCookieKit to 0.2.0.
 - Dev: migrate stored Keychain items to reduce rebuild prompts.
+- Dev: move path debug snapshot off the main thread and debounce refreshes to avoid startup hitches (#131). Thanks @ibehnam!
 - Tests: expand Kiro CLI coverage.
 - Tests: stabilize Claude PTY integration cleanup and reset CLI sessions after probes.
 - Tests: kill leaked codex app-server after tests.
