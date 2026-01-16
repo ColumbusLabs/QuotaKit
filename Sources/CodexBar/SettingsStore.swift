@@ -54,6 +54,7 @@ enum MenuBarMetricPreference: String, CaseIterable, Identifiable {
 @MainActor
 @Observable
 final class SettingsStore {
+    private static let sharedDefaults = UserDefaults(suiteName: "group.com.steipete.codexbar")
     /// Persisted provider display order.
     ///
     /// Stored as raw `UsageProvider` strings so new providers can be appended automatically without breaking.
@@ -82,6 +83,7 @@ final class SettingsStore {
     var debugDisableKeychainAccess: Bool {
         didSet {
             self.userDefaults.set(self.debugDisableKeychainAccess, forKey: "debugDisableKeychainAccess")
+            Self.sharedDefaults?.set(self.debugDisableKeychainAccess, forKey: "debugDisableKeychainAccess")
             KeychainAccessGate.isDisabled = self.debugDisableKeychainAccess
         }
     }
@@ -609,8 +611,14 @@ final class SettingsStore {
         self.refreshFrequency = RefreshFrequency(rawValue: raw) ?? .fiveMinutes
         self.launchAtLogin = userDefaults.object(forKey: "launchAtLogin") as? Bool ?? false
         self.debugMenuEnabled = userDefaults.object(forKey: "debugMenuEnabled") as? Bool ?? false
-        self.debugDisableKeychainAccess = userDefaults.object(
-            forKey: "debugDisableKeychainAccess") as? Bool ?? false
+        if let stored = userDefaults.object(forKey: "debugDisableKeychainAccess") as? Bool {
+            self.debugDisableKeychainAccess = stored
+        } else if let shared = Self.sharedDefaults?.object(forKey: "debugDisableKeychainAccess") as? Bool {
+            self.debugDisableKeychainAccess = shared
+            userDefaults.set(shared, forKey: "debugDisableKeychainAccess")
+        } else {
+            self.debugDisableKeychainAccess = false
+        }
         self.debugLoadingPatternRaw = userDefaults.string(forKey: "debugLoadingPattern")
         self.statusChecksEnabled = userDefaults.object(forKey: "statusChecksEnabled") as? Bool ?? true
         let sessionQuotaNotificationsDefault = userDefaults.object(
@@ -699,6 +707,7 @@ final class SettingsStore {
             self.claudeWebExtrasEnabled = false
         }
         self.openAIWebAccessEnabled = self.codexCookieSource.isEnabled
+        Self.sharedDefaults?.set(self.debugDisableKeychainAccess, forKey: "debugDisableKeychainAccess")
         KeychainAccessGate.isDisabled = self.debugDisableKeychainAccess
     }
 
