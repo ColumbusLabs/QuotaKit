@@ -361,7 +361,8 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         (used: used / 100.0, limit: limit / 100.0)
     }
 
-    /// Some non-enterprise plans report extra usage amounts 100x too high; scale down again when limits are implausible.
+    /// Some non-enterprise plans report extra usage amounts 100x too high.
+    /// Scale down again when limits are implausible.
     private static func rescaleClaudeExtraUsageCostIfNeeded(
         _ cost: ProviderCostSnapshot?,
         loginMethod: String?) -> ProviderCostSnapshot?

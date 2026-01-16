@@ -286,10 +286,12 @@ final class SettingsStore {
     var minimaxAPIRegion: MiniMaxAPIRegion {
         didSet { self.userDefaults.set(self.minimaxAPIRegion.rawValue, forKey: "minimaxAPIRegion") }
     }
+
     /// z.ai API region (stored in UserDefaults).
     var zaiAPIRegion: ZaiAPIRegion {
         didSet { self.userDefaults.set(self.zaiAPIRegion.rawValue, forKey: "zaiAPIRegion") }
     }
+
     /// z.ai API token (stored in Keychain).
     var zaiAPIToken: String {
         didSet { self.schedulePersistZaiAPIToken() }
