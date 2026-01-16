@@ -55,7 +55,8 @@ the session is invalid, to avoid repeated Keychain prompts.
 
 ## MiniMax
 - Session cookie header from Keychain or `MINIMAX_COOKIE`/`MINIMAX_COOKIE_HEADER` env var.
-- `GET https://platform.minimax.io/v1/api/openplatform/coding_plan/remains`.
+- Hosts: `platform.minimax.io` (global) or `platform.minimaxi.com` (China mainland) via region picker or `MINIMAX_HOST`; full overrides via `MINIMAX_CODING_PLAN_URL` / `MINIMAX_REMAINS_URL`.
+- `GET {host}/v1/api/openplatform/coding_plan/remains`.
 - Status: none yet.
 - Details: `docs/minimax.md`.
 

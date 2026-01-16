@@ -5,17 +5,20 @@ import FoundationNetworking
 
 public struct MiniMaxUsageFetcher: Sendable {
     private static let log = CodexBarLog.logger("minimax-usage")
-    private static let codingPlanURL = URL(
-        string: "https://platform.minimax.io/user-center/payment/coding-plan?cycle_type=3")!
-    private static let codingPlanRefererURL =
-        URL(string: "https://platform.minimax.io/user-center/payment/coding-plan")!
-    private static let codingPlanRemainsURL =
-        URL(string: "https://platform.minimax.io/v1/api/openplatform/coding_plan/remains")!
+    private static let codingPlanPath = "user-center/payment/coding-plan"
+    private static let codingPlanQuery = "cycle_type=3"
+    private static let codingPlanRemainsPath = "v1/api/openplatform/coding_plan/remains"
+    private struct RemainsContext: Sendable {
+        let authorizationToken: String?
+        let groupID: String?
+    }
 
     public static func fetchUsage(
         cookieHeader: String,
         authorizationToken: String? = nil,
         groupID: String? = nil,
+        region: MiniMaxAPIRegion = .global,
+        environment: [String: String] = ProcessInfo.processInfo.environment,
         now: Date = Date()) async throws -> MiniMaxUsageSnapshot
     {
         guard let cookie = MiniMaxCookieHeader.normalized(from: cookieHeader) else {
@@ -26,14 +29,19 @@ public struct MiniMaxUsageFetcher: Sendable {
             return try await self.fetchCodingPlanHTML(
                 cookie: cookie,
                 authorizationToken: authorizationToken,
+                region: region,
+                environment: environment,
                 now: now)
         } catch let error as MiniMaxUsageError {
             if case .parseFailed = error {
                 Self.log.debug("MiniMax coding plan HTML parse failed, trying remains API")
                 return try await self.fetchCodingPlanRemains(
                     cookie: cookie,
-                    authorizationToken: authorizationToken,
-                    groupID: groupID,
+                    remainsContext: RemainsContext(
+                        authorizationToken: authorizationToken,
+                        groupID: groupID),
+                    region: region,
+                    environment: environment,
                     now: now)
             }
             throw error
@@ -43,9 +51,12 @@ public struct MiniMaxUsageFetcher: Sendable {
     private static func fetchCodingPlanHTML(
         cookie: String,
         authorizationToken: String?,
+        region: MiniMaxAPIRegion,
+        environment: [String: String],
         now: Date) async throws -> MiniMaxUsageSnapshot
     {
-        var request = URLRequest(url: self.codingPlanURL)
+        let url = self.resolveCodingPlanURL(region: region, environment: environment)
+        var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue(cookie, forHTTPHeaderField: "Cookie")
         if let authorizationToken {
@@ -58,8 +69,11 @@ public struct MiniMaxUsageFetcher: Sendable {
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
         request.setValue(userAgent, forHTTPHeaderField: "user-agent")
         request.setValue("en-US,en;q=0.9", forHTTPHeaderField: "accept-language")
-        request.setValue("https://platform.minimax.io", forHTTPHeaderField: "origin")
-        request.setValue(self.codingPlanRefererURL.absoluteString, forHTTPHeaderField: "referer")
+        let origin = self.originURL(from: url)
+        request.setValue(origin.absoluteString, forHTTPHeaderField: "origin")
+        request.setValue(
+            self.resolveCodingPlanRefererURL(region: region, environment: environment).absoluteString,
+            forHTTPHeaderField: "referer")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -93,15 +107,17 @@ public struct MiniMaxUsageFetcher: Sendable {
 
     private static func fetchCodingPlanRemains(
         cookie: String,
-        authorizationToken: String?,
-        groupID: String?,
+        remainsContext: RemainsContext,
+        region: MiniMaxAPIRegion,
+        environment: [String: String],
         now: Date) async throws -> MiniMaxUsageSnapshot
     {
-        let remainsURL = self.appendGroupID(groupID, to: self.codingPlanRemainsURL)
+        let baseRemainsURL = self.resolveRemainsURL(region: region, environment: environment)
+        let remainsURL = self.appendGroupID(remainsContext.groupID, to: baseRemainsURL)
         var request = URLRequest(url: remainsURL)
         request.httpMethod = "GET"
         request.setValue(cookie, forHTTPHeaderField: "Cookie")
-        if let authorizationToken {
+        if let authorizationToken = remainsContext.authorizationToken {
             request.setValue("Bearer \(authorizationToken)", forHTTPHeaderField: "Authorization")
         }
         let acceptHeader = "application/json, text/plain, */*"
@@ -112,8 +128,11 @@ public struct MiniMaxUsageFetcher: Sendable {
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
         request.setValue(userAgent, forHTTPHeaderField: "user-agent")
         request.setValue("en-US,en;q=0.9", forHTTPHeaderField: "accept-language")
-        request.setValue("https://platform.minimax.io", forHTTPHeaderField: "origin")
-        request.setValue(self.codingPlanRefererURL.absoluteString, forHTTPHeaderField: "referer")
+        let origin = self.originURL(from: baseRemainsURL)
+        request.setValue(origin.absoluteString, forHTTPHeaderField: "origin")
+        request.setValue(
+            self.resolveCodingPlanRefererURL(region: region, environment: environment).absoluteString,
+            forHTTPHeaderField: "referer")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -153,6 +172,81 @@ public struct MiniMaxUsageFetcher: Sendable {
         queryItems.append(URLQueryItem(name: "GroupId", value: groupID))
         components.queryItems = queryItems
         return components.url ?? url
+    }
+
+    static func originURL(from url: URL) -> URL {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        components.path = ""
+        components.query = nil
+        components.fragment = nil
+        return components.url ?? url
+    }
+
+    static func resolveCodingPlanURL(
+        region: MiniMaxAPIRegion,
+        environment: [String: String]) -> URL
+    {
+        if let override = MiniMaxSettingsReader.codingPlanURL(environment: environment) {
+            return override
+        }
+        if let host = MiniMaxSettingsReader.hostOverride(environment: environment),
+           let hostURL = self.url(from: host, path: Self.codingPlanPath, query: Self.codingPlanQuery)
+        {
+            return hostURL
+        }
+        return region.codingPlanURL
+    }
+
+    static func resolveCodingPlanRefererURL(
+        region: MiniMaxAPIRegion,
+        environment: [String: String]) -> URL
+    {
+        if let override = MiniMaxSettingsReader.codingPlanURL(environment: environment) {
+            if var components = URLComponents(url: override, resolvingAgainstBaseURL: false) {
+                components.query = nil
+                return components.url ?? override
+            }
+            return override
+        }
+        if let host = MiniMaxSettingsReader.hostOverride(environment: environment),
+           let hostURL = self.url(from: host, path: Self.codingPlanPath)
+        {
+            return hostURL
+        }
+        return region.codingPlanRefererURL
+    }
+
+    static func resolveRemainsURL(
+        region: MiniMaxAPIRegion,
+        environment: [String: String]) -> URL
+    {
+        if let override = MiniMaxSettingsReader.remainsURL(environment: environment) {
+            return override
+        }
+        if let host = MiniMaxSettingsReader.hostOverride(environment: environment),
+           let hostURL = self.url(from: host, path: Self.codingPlanRemainsPath)
+        {
+            return hostURL
+        }
+        return region.remainsURL
+    }
+
+    static func url(from raw: String, path: String? = nil, query: String? = nil) -> URL? {
+        guard let cleaned = MiniMaxSettingsReader.cleaned(raw) else { return nil }
+
+        func compose(_ base: URL) -> URL? {
+            var components = URLComponents(url: base, resolvingAgainstBaseURL: false)!
+            if let path { components.path = "/" + path }
+            if let query { components.query = query }
+            return components.url
+        }
+
+        if let url = URL(string: cleaned), url.scheme != nil {
+            if let composed = compose(url) { return composed }
+            return url
+        }
+        guard let base = URL(string: "https://\(cleaned)") else { return nil }
+        return compose(base)
     }
 
     private static func decodeJSON(data: Data) -> [String: Any]? {

@@ -35,6 +35,15 @@ struct MiniMaxProviderImplementation: ProviderImplementation {
             }
         }
 
+        let regionBinding = Binding(
+            get: { context.settings.minimaxAPIRegion.rawValue },
+            set: { raw in
+                context.settings.minimaxAPIRegion = MiniMaxAPIRegion(rawValue: raw) ?? .global
+            })
+        let regionOptions = MiniMaxAPIRegion.allCases.map {
+            ProviderSettingsPickerOption(id: $0.rawValue, title: $0.displayName)
+        }
+
         return [
             ProviderSettingsPickerDescriptor(
                 id: "minimax-cookie-source",
@@ -50,6 +59,14 @@ struct MiniMaxProviderImplementation: ProviderImplementation {
                     let when = entry.storedAt.relativeDescription()
                     return "Cached: \(entry.sourceLabel) • \(when)"
                 }),
+            ProviderSettingsPickerDescriptor(
+                id: "minimax-region",
+                title: "API region",
+                subtitle: "Choose the MiniMax host (global .io or China mainland .com).",
+                binding: regionBinding,
+                options: regionOptions,
+                isVisible: nil,
+                onChange: nil),
         ]
     }
 

@@ -282,11 +282,14 @@ final class SettingsStore {
         didSet { self.userDefaults.set(self.switcherShowsIcons, forKey: "switcherShowsIcons") }
     }
 
+    /// MiniMax API region (stored in UserDefaults).
+    var minimaxAPIRegion: MiniMaxAPIRegion {
+        didSet { self.userDefaults.set(self.minimaxAPIRegion.rawValue, forKey: "minimaxAPIRegion") }
+    }
     /// z.ai API region (stored in UserDefaults).
     var zaiAPIRegion: ZaiAPIRegion {
         didSet { self.userDefaults.set(self.zaiAPIRegion.rawValue, forKey: "zaiAPIRegion") }
     }
-
     /// z.ai API token (stored in Keychain).
     var zaiAPIToken: String {
         didSet { self.schedulePersistZaiAPIToken() }
@@ -500,6 +503,7 @@ final class SettingsStore {
         _ = self.opencodeCookieSource
         _ = self.factoryCookieSource
         _ = self.minimaxCookieSource
+        _ = self.minimaxAPIRegion
         _ = self.mergeIcons
         _ = self.switcherShowsIcons
         _ = self.zaiAPIToken
@@ -690,6 +694,9 @@ final class SettingsStore {
             ?? ProviderCookieSource.auto.rawValue
         self.mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true
         self.switcherShowsIcons = userDefaults.object(forKey: "switcherShowsIcons") as? Bool ?? true
+        let minimaxAPIRegionRaw = userDefaults.string(forKey: "minimaxAPIRegion")
+        self.minimaxAPIRegion =
+            MiniMaxAPIRegion(rawValue: minimaxAPIRegionRaw ?? MiniMaxAPIRegion.global.rawValue) ?? .global
         let zaiAPIRegionRaw = userDefaults.string(forKey: "zaiAPIRegion")
         self.zaiAPIRegion = ZaiAPIRegion(rawValue: zaiAPIRegionRaw ?? ZaiAPIRegion.global.rawValue) ?? .global
         self.zaiAPIToken = ""
