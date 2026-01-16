@@ -92,23 +92,12 @@ struct TokenAccountCLIContext {
         }
 
         if provider == .claude, TokenAccountSupportCatalog.isClaudeOAuthToken(account.token) {
-            return ProviderSettingsSnapshot(
-                debugMenuEnabled: false,
-                codex: nil,
+            return self.makeSnapshot(
                 claude: ProviderSettingsSnapshot.ClaudeProviderSettings(
                     usageDataSource: .oauth,
                     webExtrasEnabled: false,
                     cookieSource: .off,
-                    manualCookieHeader: nil),
-                cursor: nil,
-                opencode: nil,
-                factory: nil,
-                minimax: nil,
-                zai: nil,
-                copilot: nil,
-                kimi: nil,
-                augment: nil,
-                amp: nil)
+                    manualCookieHeader: nil))
         }
 
         let header = TokenAccountSupportCatalog.normalizedCookieHeader(account.token, support: support)
@@ -116,107 +105,64 @@ struct TokenAccountCLIContext {
 
         switch provider {
         case .claude:
-            return ProviderSettingsSnapshot(
-                debugMenuEnabled: false,
-                codex: nil,
+            return self.makeSnapshot(
                 claude: ProviderSettingsSnapshot.ClaudeProviderSettings(
                     usageDataSource: .auto,
                     webExtrasEnabled: false,
                     cookieSource: .manual,
-                    manualCookieHeader: header),
-                cursor: nil,
-                opencode: nil,
-                factory: nil,
-                minimax: nil,
-                zai: nil,
-                copilot: nil,
-                kimi: nil,
-                augment: nil,
-                amp: nil)
+                    manualCookieHeader: header))
         case .cursor:
-            return ProviderSettingsSnapshot(
-                debugMenuEnabled: false,
-                codex: nil,
-                claude: nil,
+            return self.makeSnapshot(
                 cursor: ProviderSettingsSnapshot.CursorProviderSettings(
                     cookieSource: .manual,
-                    manualCookieHeader: header),
-                opencode: nil,
-                factory: nil,
-                minimax: nil,
-                zai: nil,
-                copilot: nil,
-                kimi: nil,
-                augment: nil,
-                amp: nil)
+                    manualCookieHeader: header))
         case .opencode:
-            return ProviderSettingsSnapshot(
-                debugMenuEnabled: false,
-                codex: nil,
-                claude: nil,
-                cursor: nil,
+            return self.makeSnapshot(
                 opencode: ProviderSettingsSnapshot.OpenCodeProviderSettings(
                     cookieSource: .manual,
                     manualCookieHeader: header,
-                    workspaceID: nil),
-                factory: nil,
-                minimax: nil,
-                zai: nil,
-                copilot: nil,
-                kimi: nil,
-                augment: nil,
-                amp: nil)
+                    workspaceID: nil))
         case .factory:
-            return ProviderSettingsSnapshot(
-                debugMenuEnabled: false,
-                codex: nil,
-                claude: nil,
-                cursor: nil,
-                opencode: nil,
+            return self.makeSnapshot(
                 factory: ProviderSettingsSnapshot.FactoryProviderSettings(
                     cookieSource: .manual,
-                    manualCookieHeader: header),
-                minimax: nil,
-                zai: nil,
-                copilot: nil,
-                kimi: nil,
-                augment: nil,
-                amp: nil)
+                    manualCookieHeader: header))
         case .minimax:
-            return ProviderSettingsSnapshot(
-                debugMenuEnabled: false,
-                codex: nil,
-                claude: nil,
-                cursor: nil,
-                opencode: nil,
-                factory: nil,
+            return self.makeSnapshot(
                 minimax: ProviderSettingsSnapshot.MiniMaxProviderSettings(
                     cookieSource: .manual,
-                    manualCookieHeader: header),
-                zai: nil,
-                copilot: nil,
-                kimi: nil,
-                augment: nil,
-                amp: nil)
+                    manualCookieHeader: header))
         case .augment:
-            return ProviderSettingsSnapshot(
-                debugMenuEnabled: false,
-                codex: nil,
-                claude: nil,
-                cursor: nil,
-                opencode: nil,
-                factory: nil,
-                minimax: nil,
-                zai: nil,
-                copilot: nil,
-                kimi: nil,
+            return self.makeSnapshot(
                 augment: ProviderSettingsSnapshot.AugmentProviderSettings(
                     cookieSource: .manual,
-                    manualCookieHeader: header),
-                amp: nil)
+                    manualCookieHeader: header))
         case .codex, .gemini, .antigravity, .zai, .copilot, .kiro, .vertexai, .kimi, .kimik2, .amp:
             return nil
         }
+    }
+
+    private func makeSnapshot(
+        claude: ProviderSettingsSnapshot.ClaudeProviderSettings? = nil,
+        cursor: ProviderSettingsSnapshot.CursorProviderSettings? = nil,
+        opencode: ProviderSettingsSnapshot.OpenCodeProviderSettings? = nil,
+        factory: ProviderSettingsSnapshot.FactoryProviderSettings? = nil,
+        minimax: ProviderSettingsSnapshot.MiniMaxProviderSettings? = nil,
+        augment: ProviderSettingsSnapshot.AugmentProviderSettings? = nil) -> ProviderSettingsSnapshot
+    {
+        ProviderSettingsSnapshot(
+            debugMenuEnabled: false,
+            codex: nil,
+            claude: claude,
+            cursor: cursor,
+            opencode: opencode,
+            factory: factory,
+            minimax: minimax,
+            zai: nil,
+            copilot: nil,
+            kimi: nil,
+            augment: augment,
+            amp: nil)
     }
 
     func environment(

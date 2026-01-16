@@ -293,7 +293,7 @@ public struct AmpUsageFetcher: Sendable {
             let to = request.url?.absoluteString ?? "unknown"
             self.redirects.append("\(response.statusCode) \(from) -> \(to)")
             var updated = request
-            if self.shouldAttachCookie(to: request.url), !self.cookieHeader.isEmpty {
+            if AmpUsageFetcher.shouldAttachCookie(to: request.url), !self.cookieHeader.isEmpty {
                 updated.setValue(self.cookieHeader, forHTTPHeaderField: "Cookie")
             } else {
                 updated.setValue(nil, forHTTPHeaderField: "Cookie")
@@ -305,12 +305,6 @@ public struct AmpUsageFetcher: Sendable {
                 logger("[amp] Redirect \(response.statusCode) \(from) -> \(to)")
             }
             completionHandler(updated)
-        }
-
-        private func shouldAttachCookie(to url: URL?) -> Bool {
-            guard let host = url?.host?.lowercased() else { return false }
-            if host == "ampcode.com" || host == "www.ampcode.com" { return true }
-            return host.hasSuffix(".ampcode.com")
         }
     }
 
@@ -362,5 +356,11 @@ public struct AmpUsageFetcher: Sendable {
         let sessionPairs = pairs.filter { $0.name == "session" }
         guard !sessionPairs.isEmpty else { return nil }
         return sessionPairs.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
+    }
+
+    static func shouldAttachCookie(to url: URL?) -> Bool {
+        guard let host = url?.host?.lowercased() else { return false }
+        if host == "ampcode.com" || host == "www.ampcode.com" { return true }
+        return host.hasSuffix(".ampcode.com")
     }
 }
