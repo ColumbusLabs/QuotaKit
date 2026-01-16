@@ -130,6 +130,11 @@ final class SettingsStore {
         didSet { self.userDefaults.set(self.costUsageEnabled, forKey: "tokenCostUsageEnabled") }
     }
 
+    /// Optional: hide personal info (emails) in menu bar + menu content.
+    var hidePersonalInfo: Bool {
+        didSet { self.userDefaults.set(self.hidePersonalInfo, forKey: "hidePersonalInfo") }
+    }
+
     var randomBlinkEnabled: Bool {
         didSet { self.userDefaults.set(self.randomBlinkEnabled, forKey: "randomBlinkEnabled") }
     }
@@ -440,6 +445,7 @@ final class SettingsStore {
         _ = self.showAllTokenAccountsInMenu
         _ = self.menuBarMetricPreferencesRaw
         _ = self.costUsageEnabled
+        _ = self.hidePersonalInfo
         _ = self.randomBlinkEnabled
         _ = self.claudeWebExtrasEnabled
         _ = self.showOptionalCreditsAndExtraUsage
@@ -594,6 +600,7 @@ final class SettingsStore {
         }
         self.menuBarMetricPreferencesRaw = resolvedMenuBarMetricPreferences
         self.costUsageEnabled = userDefaults.object(forKey: "tokenCostUsageEnabled") as? Bool ?? false
+        self.hidePersonalInfo = userDefaults.object(forKey: "hidePersonalInfo") as? Bool ?? false
         self.randomBlinkEnabled = userDefaults.object(forKey: "randomBlinkEnabled") as? Bool ?? false
         self.claudeWebExtrasEnabled = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false
         let creditsExtrasDefault = userDefaults.object(forKey: "showOptionalCreditsAndExtraUsage") as? Bool
