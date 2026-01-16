@@ -1,4 +1,3 @@
-import CodexBarCore
 import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
@@ -83,12 +82,6 @@ public struct KimiK2UsageFetcher: Sendable {
     private static let log = CodexBarLog.logger("kimi-k2-usage")
     private static let creditsURL = URL(string: "https://kimi-k2.ai/api/user/credits")!
     private static let jsonSerializer = JSONSerialization.self
-    private static let formatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
-
     private static let consumedPaths: [[String]] = [
         ["total_credits_consumed"],
         ["totalCreditsConsumed"],
@@ -268,7 +261,9 @@ public struct KimiK2UsageFetcher: Sendable {
             return value
         }
         if let value = raw as? String {
-            if let date = self.formatter.date(from: value) {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = formatter.date(from: value) {
                 return date
             }
             let fallback = ISO8601DateFormatter()

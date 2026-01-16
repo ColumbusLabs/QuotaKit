@@ -451,28 +451,6 @@ final class SettingsStore {
         set { self.opencodeCookieSourceRaw = newValue.rawValue }
     }
 
-    func menuBarMetricPreference(for provider: UsageProvider) -> MenuBarMetricPreference {
-        if provider == .zai { return .primary }
-        let raw = self.menuBarMetricPreferencesRaw[provider.rawValue] ?? ""
-        let preference = MenuBarMetricPreference(rawValue: raw) ?? .automatic
-        if preference == .average, !self.menuBarMetricSupportsAverage(for: provider) {
-            return .automatic
-        }
-        return preference
-    }
-
-    func setMenuBarMetricPreference(_ preference: MenuBarMetricPreference, for provider: UsageProvider) {
-        if provider == .zai {
-            self.menuBarMetricPreferencesRaw[provider.rawValue] = MenuBarMetricPreference.primary.rawValue
-            return
-        }
-        self.menuBarMetricPreferencesRaw[provider.rawValue] = preference.rawValue
-    }
-
-    func menuBarMetricSupportsAverage(for provider: UsageProvider) -> Bool {
-        provider == .gemini
-    }
-
     var factoryCookieSource: ProviderCookieSource {
         get {
             guard !self.debugDisableKeychainAccess else { return .off }
@@ -1206,58 +1184,6 @@ extension SettingsStore {
         }
     }
 
-    private func schedulePersistKimiAuthToken() {
-        if self.kimiTokenLoading { return }
-        self.kimiTokenPersistTask?.cancel()
-        let token = self.kimiManualCookieHeader
-        let tokenStore = self.kimiTokenStore
-        self.kimiTokenPersistTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
-                do {
-                    try tokenStore.storeToken(token)
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                CodexBarLog.logger("kimi-token-store").error("Failed to persist Kimi token: \(error)")
-            }
-        }
-    }
-
-    private func schedulePersistKimiK2APIToken() {
-        if self.kimiK2TokenLoading { return }
-        self.kimiK2TokenPersistTask?.cancel()
-        let token = self.kimiK2APIToken
-        let tokenStore = self.kimiK2TokenStore
-        self.kimiK2TokenPersistTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
-                do {
-                    try tokenStore.storeToken(token)
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                CodexBarLog.logger("kimi-k2-token-store").error("Failed to persist Kimi K2 token: \(error)")
-            }
-        }
-    }
-
     private func schedulePersistCopilotAPIToken() {
         if self.copilotTokenLoading { return }
         self.copilotTokenPersistTask?.cancel()
@@ -1313,6 +1239,80 @@ extension SettingsStore {
 }
 
 extension SettingsStore {
+    func menuBarMetricPreference(for provider: UsageProvider) -> MenuBarMetricPreference {
+        if provider == .zai { return .primary }
+        let raw = self.menuBarMetricPreferencesRaw[provider.rawValue] ?? ""
+        let preference = MenuBarMetricPreference(rawValue: raw) ?? .automatic
+        if preference == .average, !self.menuBarMetricSupportsAverage(for: provider) {
+            return .automatic
+        }
+        return preference
+    }
+
+    func setMenuBarMetricPreference(_ preference: MenuBarMetricPreference, for provider: UsageProvider) {
+        if provider == .zai {
+            self.menuBarMetricPreferencesRaw[provider.rawValue] = MenuBarMetricPreference.primary.rawValue
+            return
+        }
+        self.menuBarMetricPreferencesRaw[provider.rawValue] = preference.rawValue
+    }
+
+    func menuBarMetricSupportsAverage(for provider: UsageProvider) -> Bool {
+        provider == .gemini
+    }
+
+    private func schedulePersistKimiAuthToken() {
+        if self.kimiTokenLoading { return }
+        self.kimiTokenPersistTask?.cancel()
+        let token = self.kimiManualCookieHeader
+        let tokenStore = self.kimiTokenStore
+        self.kimiTokenPersistTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 350_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
+                do {
+                    try tokenStore.storeToken(token)
+                    return nil
+                } catch {
+                    return error
+                }
+            }.value
+            if let error {
+                CodexBarLog.logger("kimi-token-store").error("Failed to persist Kimi token: \(error)")
+            }
+        }
+    }
+
+    private func schedulePersistKimiK2APIToken() {
+        if self.kimiK2TokenLoading { return }
+        self.kimiK2TokenPersistTask?.cancel()
+        let token = self.kimiK2APIToken
+        let tokenStore = self.kimiK2TokenStore
+        self.kimiK2TokenPersistTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 350_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
+                do {
+                    try tokenStore.storeToken(token)
+                    return nil
+                } catch {
+                    return error
+                }
+            }.value
+            if let error {
+                CodexBarLog.logger("kimi-k2-token-store").error("Failed to persist Kimi K2 token: \(error)")
+            }
+        }
+    }
+
     func ensureZaiAPITokenLoaded() {
         guard !self.zaiTokenLoaded else { return }
         self.zaiTokenLoading = true
