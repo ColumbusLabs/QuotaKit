@@ -1400,6 +1400,14 @@ extension SettingsStore {
         self.factoryCookieLoaded = true
     }
 
+    func minimaxAuthMode(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> MiniMaxAuthMode
+    {
+        let apiToken = MiniMaxAPISettingsReader.apiToken(environment: environment) ?? self.minimaxAPIToken
+        let cookieHeader = MiniMaxSettingsReader.cookieHeader(environment: environment) ?? self.minimaxCookieHeader
+        return MiniMaxAuthMode.resolve(apiToken: apiToken, cookieHeader: cookieHeader)
+    }
+
     func ensureMiniMaxCookieLoaded() {
         guard !self.minimaxCookieLoaded else { return }
         self.minimaxCookieLoading = true

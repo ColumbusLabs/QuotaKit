@@ -172,10 +172,8 @@ struct ProvidersPane: View {
                 case .opencode: return self.settings.opencodeCookieSource == .manual
                 case .factory: return self.settings.factoryCookieSource == .manual
                 case .minimax:
-                    if MiniMaxAPISettingsReader.apiToken(environment: ProcessInfo.processInfo.environment) != nil {
-                        return false
-                    }
-                    if !self.settings.minimaxAPIToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    self.settings.ensureMiniMaxAPITokenLoaded()
+                    if self.settings.minimaxAuthMode().usesAPIToken {
                         return false
                     }
                     return self.settings.minimaxCookieSource == .manual

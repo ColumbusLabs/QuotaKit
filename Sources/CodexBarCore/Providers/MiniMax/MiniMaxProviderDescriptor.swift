@@ -41,7 +41,10 @@ public enum MiniMaxProviderDescriptor {
     }
 
     private static func resolveStrategies(context: ProviderFetchContext) async -> [any ProviderFetchStrategy] {
-        if ProviderTokenResolver.minimaxToken(environment: context.env) != nil {
+        let authMode = MiniMaxAuthMode.resolve(
+            apiToken: ProviderTokenResolver.minimaxToken(environment: context.env),
+            cookieHeader: ProviderTokenResolver.minimaxCookie(environment: context.env))
+        if authMode.usesAPIToken {
             return [MiniMaxAPIFetchStrategy()]
         }
         return [MiniMaxCodingPlanFetchStrategy()]
@@ -53,7 +56,10 @@ struct MiniMaxAPIFetchStrategy: ProviderFetchStrategy {
     let kind: ProviderFetchKind = .apiToken
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        ProviderTokenResolver.minimaxToken(environment: context.env) != nil
+        let authMode = MiniMaxAuthMode.resolve(
+            apiToken: ProviderTokenResolver.minimaxToken(environment: context.env),
+            cookieHeader: ProviderTokenResolver.minimaxCookie(environment: context.env))
+        return authMode.usesAPIToken
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
@@ -77,7 +83,10 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
     private static let log = CodexBarLog.logger("minimax-web")
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        if ProviderTokenResolver.minimaxToken(environment: context.env) != nil {
+        let authMode = MiniMaxAuthMode.resolve(
+            apiToken: ProviderTokenResolver.minimaxToken(environment: context.env),
+            cookieHeader: ProviderTokenResolver.minimaxCookie(environment: context.env))
+        if authMode.usesAPIToken {
             return false
         }
         if Self.resolveCookieOverride(context: context) != nil {

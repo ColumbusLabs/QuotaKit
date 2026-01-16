@@ -183,11 +183,9 @@ public struct MiniMaxUsageFetcher: Sendable {
         if let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type"),
            contentType.lowercased().contains("application/json")
         {
-            if let json = self.decodeJSON(data: data) {
-                self.logCodingPlanStatus(json: json)
-                return try MiniMaxUsageParser.parseCodingPlanRemains(json: json, now: now)
-            }
-            return try MiniMaxUsageParser.parseCodingPlanRemains(data: data, now: now)
+            let payload = try MiniMaxUsageParser.decodePayload(data: data)
+            self.logCodingPlanStatus(payload: payload)
+            return try MiniMaxUsageParser.parseCodingPlanRemains(payload: payload, now: now)
         }
 
         let html = String(data: data, encoding: .utf8) ?? ""
@@ -281,27 +279,10 @@ public struct MiniMaxUsageFetcher: Sendable {
         return compose(base)
     }
 
-    private static func decodeJSON(data: Data) -> [String: Any]? {
-        guard let object = try? JSONSerialization.jsonObject(with: data, options: []),
-              let dict = object as? [String: Any]
-        else { return nil }
-        return dict
-    }
-
-    private static func logCodingPlanStatus(json: [String: Any]) {
-        guard let base = json["base_resp"] as? [String: Any] else { return }
-        let status: Int? = switch base["status_code"] {
-        case let number as Int:
-            number
-        case let number as NSNumber:
-            number.intValue
-        case let string as String:
-            Int(string.trimmingCharacters(in: .whitespacesAndNewlines))
-        default:
-            nil
-        }
-        guard let status else { return }
-        let message = (base["status_msg"] as? String) ?? ""
+    private static func logCodingPlanStatus(payload: MiniMaxCodingPlanPayload) {
+        let baseResponse = payload.data.baseResp ?? payload.baseResp
+        guard let status = baseResponse?.statusCode else { return }
+        let message = baseResponse?.statusMessage ?? ""
         if !message.isEmpty {
             Self.log.debug("MiniMax coding plan status \(status): \(message)")
         } else {
@@ -315,10 +296,136 @@ public struct MiniMaxUsageFetcher: Sendable {
     }
 }
 
+struct MiniMaxCodingPlanPayload: Decodable, Sendable {
+    let baseResp: MiniMaxBaseResponse?
+    let data: MiniMaxCodingPlanData
+
+    private enum CodingKeys: String, CodingKey {
+        case baseResp = "base_resp"
+        case data
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.baseResp = try container.decodeIfPresent(MiniMaxBaseResponse.self, forKey: .baseResp)
+        if container.contains(.data) {
+            let dataDecoder = try container.superDecoder(forKey: .data)
+            self.data = try MiniMaxCodingPlanData(from: dataDecoder)
+        } else {
+            self.data = try MiniMaxCodingPlanData(from: decoder)
+        }
+    }
+}
+
+struct MiniMaxCodingPlanData: Decodable, Sendable {
+    let baseResp: MiniMaxBaseResponse?
+    let currentSubscribeTitle: String?
+    let planName: String?
+    let comboTitle: String?
+    let currentPlanTitle: String?
+    let currentComboCard: MiniMaxComboCard?
+    let modelRemains: [MiniMaxModelRemains]
+
+    private enum CodingKeys: String, CodingKey {
+        case baseResp = "base_resp"
+        case currentSubscribeTitle = "current_subscribe_title"
+        case planName = "plan_name"
+        case comboTitle = "combo_title"
+        case currentPlanTitle = "current_plan_title"
+        case currentComboCard = "current_combo_card"
+        case modelRemains = "model_remains"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.baseResp = try container.decodeIfPresent(MiniMaxBaseResponse.self, forKey: .baseResp)
+        self.currentSubscribeTitle = try container.decodeIfPresent(String.self, forKey: .currentSubscribeTitle)
+        self.planName = try container.decodeIfPresent(String.self, forKey: .planName)
+        self.comboTitle = try container.decodeIfPresent(String.self, forKey: .comboTitle)
+        self.currentPlanTitle = try container.decodeIfPresent(String.self, forKey: .currentPlanTitle)
+        self.currentComboCard = try container.decodeIfPresent(MiniMaxComboCard.self, forKey: .currentComboCard)
+        self.modelRemains = try (container.decodeIfPresent([MiniMaxModelRemains].self, forKey: .modelRemains)) ?? []
+    }
+}
+
+struct MiniMaxComboCard: Decodable, Sendable {
+    let title: String?
+}
+
+struct MiniMaxModelRemains: Decodable, Sendable {
+    let currentIntervalTotalCount: Int?
+    let currentIntervalUsageCount: Int?
+    let startTime: Int?
+    let endTime: Int?
+    let remainsTime: Int?
+
+    private enum CodingKeys: String, CodingKey {
+        case currentIntervalTotalCount = "current_interval_total_count"
+        case currentIntervalUsageCount = "current_interval_usage_count"
+        case startTime = "start_time"
+        case endTime = "end_time"
+        case remainsTime = "remains_time"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.currentIntervalTotalCount = MiniMaxDecoding.decodeInt(container, forKey: .currentIntervalTotalCount)
+        self.currentIntervalUsageCount = MiniMaxDecoding.decodeInt(container, forKey: .currentIntervalUsageCount)
+        self.startTime = MiniMaxDecoding.decodeInt(container, forKey: .startTime)
+        self.endTime = MiniMaxDecoding.decodeInt(container, forKey: .endTime)
+        self.remainsTime = MiniMaxDecoding.decodeInt(container, forKey: .remainsTime)
+    }
+}
+
+struct MiniMaxBaseResponse: Decodable, Sendable {
+    let statusCode: Int?
+    let statusMessage: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case statusCode = "status_code"
+        case statusMessage = "status_msg"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.statusCode = MiniMaxDecoding.decodeInt(container, forKey: .statusCode)
+        self.statusMessage = try container.decodeIfPresent(String.self, forKey: .statusMessage)
+    }
+}
+
+enum MiniMaxDecoding {
+    static func decodeInt<K: CodingKey>(_ container: KeyedDecodingContainer<K>, forKey key: K) -> Int? {
+        if let value = try? container.decodeIfPresent(Int.self, forKey: key) {
+            return value
+        }
+        if let value = try? container.decodeIfPresent(Int64.self, forKey: key) {
+            return Int(value)
+        }
+        if let value = try? container.decodeIfPresent(Double.self, forKey: key) {
+            return Int(value)
+        }
+        if let value = try? container.decodeIfPresent(String.self, forKey: key) {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            return Int(trimmed)
+        }
+        return nil
+    }
+}
+
 enum MiniMaxUsageParser {
+    static func decodePayload(data: Data) throws -> MiniMaxCodingPlanPayload {
+        let decoder = JSONDecoder()
+        return try decoder.decode(MiniMaxCodingPlanPayload.self, from: data)
+    }
+
+    static func decodePayload(json: [String: Any]) throws -> MiniMaxCodingPlanPayload {
+        let data = try JSONSerialization.data(withJSONObject: json, options: [])
+        return try self.decodePayload(data: data)
+    }
+
     static func parseCodingPlanRemains(data: Data, now: Date = Date()) throws -> MiniMaxUsageSnapshot {
-        let json = try self.decodeJSON(data: data)
-        return try self.parseCodingPlanRemains(json: json, now: now)
+        let payload = try self.decodePayload(data: data)
+        return try self.parseCodingPlanRemains(payload: payload, now: now)
     }
 
     static func parse(html: String, now: Date = Date()) throws -> MiniMaxUsageSnapshot {
@@ -347,28 +454,13 @@ enum MiniMaxUsageParser {
             updatedAt: now)
     }
 
-    static func parseCodingPlanRemains(json: [String: Any], now: Date = Date()) throws -> MiniMaxUsageSnapshot {
-        var effectiveJSON = json
-        if let dataWrapper = json["data"] as? [String: Any] {
-            effectiveJSON = dataWrapper
-        }
-
-        if let base = json["base_resp"] as? [String: Any],
-           let status = self.intValue(base["status_code"]),
-           status != 0
-        {
-            let message = (base["status_msg"] as? String) ?? "status_code \(status)"
-            let lower = message.lowercased()
-            if status == 1004 || lower.contains("cookie") || lower.contains("log in") || lower.contains("login") {
-                throw MiniMaxUsageError.invalidCredentials
-            }
-            throw MiniMaxUsageError.apiError(message)
-        }
-        if let base = effectiveJSON["base_resp"] as? [String: Any],
-           let status = self.intValue(base["status_code"]),
-           status != 0
-        {
-            let message = (base["status_msg"] as? String) ?? "status_code \(status)"
+    static func parseCodingPlanRemains(
+        payload: MiniMaxCodingPlanPayload,
+        now: Date = Date()) throws -> MiniMaxUsageSnapshot
+    {
+        let baseResponse = payload.data.baseResp ?? payload.baseResp
+        if let status = baseResponse?.statusCode, status != 0 {
+            let message = baseResponse?.statusMessage ?? "status_code \(status)"
             let lower = message.lowercased()
             if status == 1004 || lower.contains("cookie") || lower.contains("log in") || lower.contains("login") {
                 throw MiniMaxUsageError.invalidCredentials
@@ -376,25 +468,24 @@ enum MiniMaxUsageParser {
             throw MiniMaxUsageError.apiError(message)
         }
 
-        let modelRemains = effectiveJSON["model_remains"] as? [[String: Any]] ?? []
-        guard let first = modelRemains.first else {
+        guard let first = payload.data.modelRemains.first else {
             throw MiniMaxUsageError.parseFailed("Missing coding plan data.")
         }
 
-        let total = self.intValue(first["current_interval_total_count"])
-        let remaining = self.intValue(first["current_interval_usage_count"])
+        let total = first.currentIntervalTotalCount
+        let remaining = first.currentIntervalUsageCount
         let usedPercent = self.usedPercent(total: total, remaining: remaining)
 
         let windowMinutes = self.windowMinutes(
-            start: self.dateFromEpoch(first["start_time"]),
-            end: self.dateFromEpoch(first["end_time"]))
+            start: self.dateFromEpoch(first.startTime),
+            end: self.dateFromEpoch(first.endTime))
 
         let resetsAt = self.resetsAt(
-            end: self.dateFromEpoch(first["end_time"]),
-            remains: self.intValue(first["remains_time"]),
+            end: self.dateFromEpoch(first.endTime),
+            remains: first.remainsTime,
             now: now)
 
-        let planName = self.parsePlanName(root: effectiveJSON)
+        let planName = self.parsePlanName(data: payload.data)
 
         if planName == nil, total == nil, usedPercent == nil {
             throw MiniMaxUsageError.parseFailed("Missing coding plan data.")
@@ -417,31 +508,6 @@ enum MiniMaxUsageParser {
             updatedAt: now)
     }
 
-    private static func decodeJSON(data: Data) throws -> [String: Any] {
-        let object = try JSONSerialization.jsonObject(with: data, options: [])
-        guard let dict = object as? [String: Any] else {
-            throw MiniMaxUsageError.parseFailed("Invalid coding plan response.")
-        }
-        return dict
-    }
-
-    private static func intValue(_ value: Any?) -> Int? {
-        switch value {
-        case let number as Int:
-            number
-        case let number as Int64:
-            Int(number)
-        case let number as Double:
-            Int(number)
-        case let number as NSNumber:
-            number.intValue
-        case let string as String:
-            Int(string.trimmingCharacters(in: .whitespacesAndNewlines))
-        default:
-            nil
-        }
-    }
-
     private static func usedPercent(total: Int?, remaining: Int?) -> Double? {
         guard let total, total > 0, let remaining else { return nil }
         let used = max(0, total - remaining)
@@ -449,8 +515,8 @@ enum MiniMaxUsageParser {
         return min(100, max(0, percent))
     }
 
-    private static func dateFromEpoch(_ value: Any?) -> Date? {
-        guard let raw = self.intValue(value) else { return nil }
+    private static func dateFromEpoch(_ value: Int?) -> Date? {
+        guard let raw = value else { return nil }
         if raw > 1_000_000_000_000 {
             return Date(timeIntervalSince1970: TimeInterval(raw) / 1000)
         }
@@ -475,22 +541,18 @@ enum MiniMaxUsageParser {
         return now.addingTimeInterval(seconds)
     }
 
-    private static func parsePlanName(root: [String: Any]) -> String? {
-        let directKeys = [
-            "current_subscribe_title",
-            "plan_name",
-            "combo_title",
-            "current_plan_title",
-        ]
-        for key in directKeys {
-            if let value = root[key] as? String, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return value
-            }
-        }
-        if let card = root["current_combo_card"] as? [String: Any],
-           let title = card["title"] as? String
-        {
-            return title
+    private static func parsePlanName(data: MiniMaxCodingPlanData) -> String? {
+        let candidates = [
+            data.currentSubscribeTitle,
+            data.planName,
+            data.comboTitle,
+            data.currentPlanTitle,
+            data.currentComboCard?.title,
+        ].compactMap(\.self)
+
+        for candidate in candidates {
+            let trimmed = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty { return trimmed }
         }
         return nil
     }
@@ -517,10 +579,14 @@ enum MiniMaxUsageParser {
     }
 
     private static func parseNextData(html: String, now: Date) -> MiniMaxUsageSnapshot? {
-        guard let data = self.nextDataJSONData(fromHTML: html) else { return nil }
-        guard let object = try? JSONSerialization.jsonObject(with: data, options: []) else { return nil }
-        guard let payload = self.findCodingPlanPayload(in: object) else { return nil }
-        return try? self.parseCodingPlanRemains(json: payload, now: now)
+        guard let data = self.nextDataJSONData(fromHTML: html),
+              let object = try? JSONSerialization.jsonObject(with: data, options: []),
+              let payload = self.findCodingPlanPayload(in: object),
+              let decoded = try? self.decodePayload(json: payload)
+        else {
+            return nil
+        }
+        return try? self.parseCodingPlanRemains(payload: decoded, now: now)
     }
 
     private static func findCodingPlanPayload(in object: Any) -> [String: Any]? {

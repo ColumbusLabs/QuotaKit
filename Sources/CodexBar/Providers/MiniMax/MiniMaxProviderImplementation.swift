@@ -11,11 +11,8 @@ struct MiniMaxProviderImplementation: ProviderImplementation {
     @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
         context.settings.ensureMiniMaxAPITokenLoaded()
-        let tokenIsSet: () -> Bool = {
-            if MiniMaxAPISettingsReader.apiToken(environment: ProcessInfo.processInfo.environment) != nil {
-                return true
-            }
-            return !context.settings.minimaxAPIToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let authMode: () -> MiniMaxAuthMode = {
+            context.settings.minimaxAuthMode()
         }
 
         let cookieBinding = Binding(
@@ -60,7 +57,7 @@ struct MiniMaxProviderImplementation: ProviderImplementation {
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
-                isVisible: { !context.settings.debugDisableKeychainAccess && !tokenIsSet() },
+                isVisible: { !context.settings.debugDisableKeychainAccess && authMode().allowsCookies },
                 onChange: nil,
                 trailingText: {
                     guard let entry = CookieHeaderCache.load(provider: .minimax) else { return nil }
@@ -73,7 +70,7 @@ struct MiniMaxProviderImplementation: ProviderImplementation {
                 subtitle: "Choose the MiniMax host (global .io or China mainland .com).",
                 binding: regionBinding,
                 options: regionOptions,
-                isVisible: { !tokenIsSet() },
+                isVisible: { authMode().allowsCookies },
                 onChange: nil),
         ]
     }
@@ -81,11 +78,8 @@ struct MiniMaxProviderImplementation: ProviderImplementation {
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
         context.settings.ensureMiniMaxAPITokenLoaded()
-        let tokenIsSet: () -> Bool = {
-            if MiniMaxAPISettingsReader.apiToken(environment: ProcessInfo.processInfo.environment) != nil {
-                return true
-            }
-            return !context.settings.minimaxAPIToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let authMode: () -> MiniMaxAuthMode = {
+            context.settings.minimaxAuthMode()
         }
 
         return [
@@ -135,7 +129,7 @@ struct MiniMaxProviderImplementation: ProviderImplementation {
                 ],
                 isVisible: {
                     !context.settings.debugDisableKeychainAccess &&
-                        !tokenIsSet() &&
+                        authMode().allowsCookies &&
                         context.settings.minimaxCookieSource == .manual
                 },
                 onActivate: { context.settings.ensureMiniMaxCookieLoaded() }),

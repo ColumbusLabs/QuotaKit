@@ -56,59 +56,43 @@ public enum ProviderTokenResolver {
     public static func zaiResolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
-        if let token = ZaiSettingsReader.apiToken(environment: environment) {
-            return ProviderTokenResolution(token: token, source: .environment)
-        }
-        if let token = self.keychainToken(service: self.keychainService, account: self.zaiAccount) {
-            return ProviderTokenResolution(token: token, source: .keychain)
-        }
-        return nil
+        self.resolveEnvThenKeychain(
+            envToken: ZaiSettingsReader.apiToken(environment: environment),
+            keychainAccount: self.zaiAccount)
     }
 
     public static func copilotResolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
-        if let token = self.cleaned(environment["COPILOT_API_TOKEN"]) {
-            return ProviderTokenResolution(token: token, source: .environment)
-        }
-        if let token = self.keychainToken(service: self.keychainService, account: self.copilotAccount) {
-            return ProviderTokenResolution(token: token, source: .keychain)
-        }
-        return nil
+        self.resolveEnvThenKeychain(
+            envToken: self.cleaned(environment["COPILOT_API_TOKEN"]),
+            keychainAccount: self.copilotAccount)
     }
 
     public static func minimaxTokenResolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
-        if let token = MiniMaxAPISettingsReader.apiToken(environment: environment) {
-            return ProviderTokenResolution(token: token, source: .environment)
-        }
-        if let token = self.keychainToken(service: self.keychainService, account: self.minimaxTokenAccount) {
-            return ProviderTokenResolution(token: token, source: .keychain)
-        }
-        return nil
+        self.resolveEnvThenKeychain(
+            envToken: MiniMaxAPISettingsReader.apiToken(environment: environment),
+            keychainAccount: self.minimaxTokenAccount)
     }
 
     public static func minimaxCookieResolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
-        if let token = MiniMaxSettingsReader.cookieHeader(environment: environment) {
-            return ProviderTokenResolution(token: token, source: .environment)
-        }
-        if let token = self.keychainToken(service: self.keychainService, account: self.minimaxCookieAccount) {
-            return ProviderTokenResolution(token: token, source: .keychain)
-        }
-        return nil
+        self.resolveEnvThenKeychain(
+            envToken: MiniMaxSettingsReader.cookieHeader(environment: environment),
+            keychainAccount: self.minimaxCookieAccount)
     }
 
     public static func kimiAuthResolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
-        if let token = self.keychainToken(service: self.keychainService, account: self.kimiAuthAccount) {
-            return ProviderTokenResolution(token: token, source: .keychain)
-        }
-        if let token = KimiSettingsReader.authToken(environment: environment) {
-            return ProviderTokenResolution(token: token, source: .environment)
+        if let resolution = self.resolveKeychainThenEnv(
+            keychainAccount: self.kimiAuthAccount,
+            envToken: KimiSettingsReader.authToken(environment: environment))
+        {
+            return resolution
         }
         #if os(macOS)
         do {
@@ -126,13 +110,9 @@ public enum ProviderTokenResolver {
     public static func kimiK2Resolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
-        if let token = KimiK2SettingsReader.apiKey(environment: environment) {
-            return ProviderTokenResolution(token: token, source: .environment)
-        }
-        if let token = self.keychainToken(service: self.keychainService, account: self.kimiK2Account) {
-            return ProviderTokenResolution(token: token, source: .keychain)
-        }
-        return nil
+        self.resolveEnvThenKeychain(
+            envToken: KimiK2SettingsReader.apiKey(environment: environment),
+            keychainAccount: self.kimiK2Account)
     }
 
     private static func cleaned(_ raw: String?) -> String? {
@@ -149,6 +129,32 @@ public enum ProviderTokenResolver {
 
         value = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? nil : value
+    }
+
+    private static func resolveEnvThenKeychain(
+        envToken: String?,
+        keychainAccount: String) -> ProviderTokenResolution?
+    {
+        if let token = envToken {
+            return ProviderTokenResolution(token: token, source: .environment)
+        }
+        if let token = self.keychainToken(service: self.keychainService, account: keychainAccount) {
+            return ProviderTokenResolution(token: token, source: .keychain)
+        }
+        return nil
+    }
+
+    private static func resolveKeychainThenEnv(
+        keychainAccount: String,
+        envToken: String?) -> ProviderTokenResolution?
+    {
+        if let token = self.keychainToken(service: self.keychainService, account: keychainAccount) {
+            return ProviderTokenResolution(token: token, source: .keychain)
+        }
+        if let token = envToken {
+            return ProviderTokenResolution(token: token, source: .environment)
+        }
+        return nil
     }
 
     private static func keychainToken(service: String, account: String) -> String? {
