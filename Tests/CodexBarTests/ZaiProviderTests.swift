@@ -119,4 +119,36 @@ struct ZaiUsageParsingTests {
             return message == "Authorization Token Missing"
         }
     }
+
+    @Test
+    func successWithoutDataReturnsParseFailed() {
+        let json = """
+        { "code": 200, "msg": "Operation successful", "success": true }
+        """
+
+        #expect {
+            _ = try ZaiUsageFetcher.parseUsageSnapshot(from: Data(json.utf8))
+        } throws: { error in
+            guard case let ZaiUsageError.parseFailed(message) = error else { return false }
+            return message == "Missing data"
+        }
+    }
+
+    @Test
+    func successWithoutLimitsParsesEmptyUsage() throws {
+        let json = """
+        {
+          "code": 200,
+          "msg": "Operation successful",
+          "data": { "planName": "Pro" },
+          "success": true
+        }
+        """
+
+        let snapshot = try ZaiUsageFetcher.parseUsageSnapshot(from: Data(json.utf8))
+
+        #expect(snapshot.planName == "Pro")
+        #expect(snapshot.tokenLimit == nil)
+        #expect(snapshot.timeLimit == nil)
+    }
 }
