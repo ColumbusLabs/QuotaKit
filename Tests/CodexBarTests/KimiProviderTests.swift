@@ -179,20 +179,17 @@ struct KimiUsageSnapshotConversionTests {
             limit: "2048",
             used: "375",
             remaining: "1673",
-            resetTime: "2026-01-09T15:23:13.373329235Z"
-        )
+            resetTime: "2026-01-09T15:23:13.373329235Z")
         let rateLimitDetail = KimiUsageDetail(
             limit: "200",
             used: "200",
             remaining: "0",
-            resetTime: "2026-01-06T15:05:24.374187075Z"
-        )
+            resetTime: "2026-01-06T15:05:24.374187075Z")
 
         let snapshot = KimiUsageSnapshot(
             weekly: weeklyDetail,
             rateLimit: rateLimitDetail,
-            updatedAt: now
-        )
+            updatedAt: now)
 
         let usageSnapshot = snapshot.toUsageSnapshot()
 
@@ -219,14 +216,12 @@ struct KimiUsageSnapshotConversionTests {
             limit: "2048",
             used: "375",
             remaining: "1673",
-            resetTime: "2026-01-09T15:23:13.373329235Z"
-        )
+            resetTime: "2026-01-09T15:23:13.373329235Z")
 
         let snapshot = KimiUsageSnapshot(
             weekly: weeklyDetail,
             rateLimit: nil,
-            updatedAt: now
-        )
+            updatedAt: now)
 
         let usageSnapshot = snapshot.toUsageSnapshot()
 
@@ -244,14 +239,12 @@ struct KimiUsageSnapshotConversionTests {
             limit: "2048",
             used: "0",
             remaining: "2048",
-            resetTime: "2026-01-09T15:23:13.373329235Z"
-        )
+            resetTime: "2026-01-09T15:23:13.373329235Z")
 
         let snapshot = KimiUsageSnapshot(
             weekly: weeklyDetail,
             rateLimit: nil,
-            updatedAt: now
-        )
+            updatedAt: now)
 
         let usageSnapshot = snapshot.toUsageSnapshot()
         #expect(usageSnapshot.primary?.usedPercent == 0.0)
@@ -264,14 +257,12 @@ struct KimiUsageSnapshotConversionTests {
             limit: "2048",
             used: "2048",
             remaining: "0",
-            resetTime: "2026-01-09T15:23:13.373329235Z"
-        )
+            resetTime: "2026-01-09T15:23:13.373329235Z")
 
         let snapshot = KimiUsageSnapshot(
             weekly: weeklyDetail,
             rateLimit: nil,
-            updatedAt: now
-        )
+            updatedAt: now)
 
         let usageSnapshot = snapshot.toUsageSnapshot()
         #expect(usageSnapshot.primary?.usedPercent == 100.0)

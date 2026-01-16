@@ -1,5 +1,5 @@
 ---
-summary: "MiniMax provider data sources: browser cookies + coding plan remains API."
+summary: "MiniMax provider data sources: API token or browser cookies + coding plan remains API."
 read_when:
   - Debugging MiniMax usage parsing
   - Updating MiniMax cookie handling or coding plan scraping
@@ -8,26 +8,31 @@ read_when:
 
 # MiniMax provider
 
-MiniMax is web-only. Usage is fetched from the Coding Plan remains API using a session cookie header.
+MiniMax supports API tokens or web sessions. Usage is fetched from the Coding Plan remains API using
+either a Bearer API token or a session cookie header.
 
 ## Data sources + fallback order
 
-1) **Cached cookie header** (automatic)
+1) **API token** (preferred)
+   - Set in Preferences → Providers → MiniMax (stored in Keychain) or `MINIMAX_API_KEY`.
+   - When present, MiniMax uses the API token and ignores cookies entirely.
+
+2) **Cached cookie header** (automatic, only when no API token)
    - File: `~/Library/Application Support/CodexBar/minimax-cookie.json`.
 
-2) **Browser cookie import** (automatic)
+3) **Browser cookie import** (automatic)
    - Cookie order from provider metadata (default: Safari → Chrome → Firefox).
    - Merges Chromium profile cookies across the primary + Network stores before attempting a request.
    - Tries each browser source until the Coding Plan API accepts the cookies.
    - Domain filters: `platform.minimax.io`, `minimax.io`.
 
-3) **Browser local storage access token** (Chromium-based)
+4) **Browser local storage access token** (Chromium-based)
    - Reads `access_token` (and related tokens) from Chromium local storage (LevelDB) to authorize the remains API.
    - If decoding fails, falls back to a text-entry scan for `minimax.io` keys/values and filters for MiniMax JWT claims.
    - Used automatically; no UI field.
    - Also extracts `GroupId` when present (appends query param).
 
-4) **Manual session cookie header** (optional override)
+5) **Manual session cookie header** (optional override)
    - Stored in Keychain via Preferences → Providers → MiniMax (Cookie source → Manual).
    - Accepts a raw `Cookie:` header or a full "Copy as cURL" string.
    - When a cURL string is pasted, MiniMax extracts the cookie header plus `Authorization: Bearer …` and
@@ -35,7 +40,9 @@ MiniMax is web-only. Usage is fetched from the Coding Plan remains API using a s
    - CLI/runtime env: `MINIMAX_COOKIE` or `MINIMAX_COOKIE_HEADER`.
 
 ## Endpoints
-- Global host: `https://platform.minimax.io`
+- API token endpoint: `https://api.minimax.io/v1/coding_plan/remains`
+  - Requires `Authorization: Bearer <api_token>`.
+- Global host (cookies): `https://platform.minimax.io`
 - China mainland host: `https://platform.minimaxi.com`
 - `GET {host}/user-center/payment/coding-plan`
   - HTML parse for "Available usage" and plan name.

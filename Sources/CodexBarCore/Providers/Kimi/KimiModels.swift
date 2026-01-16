@@ -12,7 +12,7 @@ struct KimiUsage: Codable {
 
 public struct KimiUsageDetail: Codable, Sendable {
     public let limit: String
-    public let used: String?  // Optional because rate limit detail doesn't have this
+    public let used: String? // Optional because rate limit detail doesn't have this
     public let remaining: String?
     public let resetTime: String
 

@@ -30,11 +30,10 @@ public struct KimiK2UsageSummary: Sendable {
 
     public func toUsageSnapshot() -> UsageSnapshot {
         let total = max(0, self.consumed + self.remaining)
-        let usedPercent: Double
-        if total > 0 {
-            usedPercent = min(100, max(0, (self.consumed / total) * 100))
+        let usedPercent: Double = if total > 0 {
+            min(100, max(0, (self.consumed / total) * 100))
         } else {
-            usedPercent = 0
+            0
         }
         let usedText = String(format: "%.0f", self.consumed)
         let totalText = String(format: "%.0f", total)
@@ -158,7 +157,7 @@ public struct KimiK2UsageFetcher: Sendable {
     }
 
     private static func parseSummary(data: Data, headers: [AnyHashable: Any]) throws -> KimiK2UsageSummary {
-        guard let json = try? Self.jsonSerializer.jsonObject(with: data),
+        guard let json = try? jsonSerializer.jsonObject(with: data),
               let dictionary = json as? [String: Any]
         else {
             throw KimiK2UsageError.parseFailed("Root JSON is not an object.")
@@ -198,8 +197,7 @@ public struct KimiK2UsageFetcher: Sendable {
 
     private static func doubleValue(
         for paths: [[String]],
-        in contexts: [[String: Any]]
-    ) -> Double?
+        in contexts: [[String: Any]]) -> Double?
     {
         for path in paths {
             if let raw = self.value(for: path, in: contexts),
@@ -213,8 +211,7 @@ public struct KimiK2UsageFetcher: Sendable {
 
     private static func dateValue(
         for paths: [[String]],
-        in contexts: [[String: Any]]
-    ) -> Date?
+        in contexts: [[String: Any]]) -> Date?
     {
         for path in paths {
             if let raw = self.value(for: path, in: contexts) {

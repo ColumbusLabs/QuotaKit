@@ -24,7 +24,8 @@ public enum ProviderTokenResolver {
     private static let keychainService = "com.steipete.CodexBar"
     private static let zaiAccount = "zai-api-token"
     private static let copilotAccount = "copilot-api-token"
-    private static let minimaxAccount = "minimax-cookie"
+    private static let minimaxCookieAccount = "minimax-cookie"
+    private static let minimaxTokenAccount = "minimax-api-token"
     private static let kimiAuthAccount = "kimi-auth-token"
     private static let kimiK2Account = "kimi-k2-api-token"
 
@@ -36,8 +37,12 @@ public enum ProviderTokenResolver {
         self.copilotResolution(environment: environment)?.token
     }
 
+    public static func minimaxToken(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
+        self.minimaxTokenResolution(environment: environment)?.token
+    }
+
     public static func minimaxCookie(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
-        self.minimaxResolution(environment: environment)?.token
+        self.minimaxCookieResolution(environment: environment)?.token
     }
 
     public static func kimiAuthToken(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
@@ -47,6 +52,7 @@ public enum ProviderTokenResolver {
     public static func kimiK2Token(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
         self.kimiK2Resolution(environment: environment)?.token
     }
+
     public static func zaiResolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
@@ -71,13 +77,25 @@ public enum ProviderTokenResolver {
         return nil
     }
 
-    public static func minimaxResolution(
+    public static func minimaxTokenResolution(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
+    {
+        if let token = MiniMaxAPISettingsReader.apiToken(environment: environment) {
+            return ProviderTokenResolution(token: token, source: .environment)
+        }
+        if let token = self.keychainToken(service: self.keychainService, account: self.minimaxTokenAccount) {
+            return ProviderTokenResolution(token: token, source: .keychain)
+        }
+        return nil
+    }
+
+    public static func minimaxCookieResolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
         if let token = MiniMaxSettingsReader.cookieHeader(environment: environment) {
             return ProviderTokenResolution(token: token, source: .environment)
         }
-        if let token = self.keychainToken(service: self.keychainService, account: self.minimaxAccount) {
+        if let token = self.keychainToken(service: self.keychainService, account: self.minimaxCookieAccount) {
             return ProviderTokenResolution(token: token, source: .keychain)
         }
         return nil

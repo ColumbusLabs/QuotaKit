@@ -24,7 +24,7 @@ public struct KimiUsageSnapshot: Sendable {
     }
 
     private static func minutesFromNow(_ date: Date?) -> Int? {
-        guard let date = date else { return nil }
+        guard let date else { return nil }
         let minutes = Int(date.timeIntervalSince(Date()) / 60)
         return minutes > 0 ? minutes : nil
     }
@@ -45,7 +45,7 @@ extension KimiUsageSnapshot {
         let weeklyWindow = RateWindow(
             usedPercent: weeklyPercent,
             windowMinutes: nil, // Weekly doesn't have a fixed window like rate limit
-            resetsAt: Self.parseDate(weekly.resetTime),
+            resetsAt: Self.parseDate(self.weekly.resetTime),
             resetDescription: "\(weeklyUsed)/\(weeklyLimit) requests")
 
         // Parse rate limit if available

@@ -61,6 +61,7 @@ extension UsageStore {
             _ = self.settings.cursorCookieHeader
             _ = self.settings.factoryCookieHeader
             _ = self.settings.minimaxCookieHeader
+            _ = self.settings.minimaxAPIToken
             _ = self.settings.kimiManualCookieHeader
             _ = self.settings.augmentCookieHeader
             _ = self.settings.showAllTokenAccountsInMenu
@@ -1158,10 +1159,13 @@ extension UsageStore {
                 await MainActor.run { self.probeLogs[.copilot] = text }
                 return text
             case .minimax:
-                let resolution = ProviderTokenResolver.minimaxResolution()
-                let hasAny = resolution != nil
-                let source = resolution?.source.rawValue ?? "none"
-                let text = "MINIMAX_COOKIE=\(hasAny ? "present" : "missing") source=\(source)"
+                let tokenResolution = ProviderTokenResolver.minimaxTokenResolution()
+                let cookieResolution = ProviderTokenResolver.minimaxCookieResolution()
+                let tokenSource = tokenResolution?.source.rawValue ?? "none"
+                let cookieSource = cookieResolution?.source.rawValue ?? "none"
+                let text = "MINIMAX_API_KEY=\(tokenResolution == nil ? "missing" : "present") " +
+                    "source=\(tokenSource) MINIMAX_COOKIE=\(cookieResolution == nil ? "missing" : "present") " +
+                    "source=\(cookieSource)"
                 await MainActor.run { self.probeLogs[.minimax] = text }
                 return text
             case .vertexai:

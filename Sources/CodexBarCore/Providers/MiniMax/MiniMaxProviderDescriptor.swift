@@ -33,11 +33,41 @@ public enum MiniMaxProviderDescriptor {
                 noDataMessage: { "MiniMax cost summary is not supported." }),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .web],
-                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [MiniMaxCodingPlanFetchStrategy()] })),
+                pipeline: ProviderFetchPipeline(resolveStrategies: self.resolveStrategies)),
             cli: ProviderCLIConfig(
                 name: "minimax",
                 aliases: ["mini-max"],
                 versionDetector: nil))
+    }
+
+    private static func resolveStrategies(context: ProviderFetchContext) async -> [any ProviderFetchStrategy] {
+        if ProviderTokenResolver.minimaxToken(environment: context.env) != nil {
+            return [MiniMaxAPIFetchStrategy()]
+        }
+        return [MiniMaxCodingPlanFetchStrategy()]
+    }
+}
+
+struct MiniMaxAPIFetchStrategy: ProviderFetchStrategy {
+    let id: String = "minimax.api"
+    let kind: ProviderFetchKind = .apiToken
+
+    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
+        ProviderTokenResolver.minimaxToken(environment: context.env) != nil
+    }
+
+    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
+        guard let apiToken = ProviderTokenResolver.minimaxToken(environment: context.env) else {
+            throw MiniMaxAPISettingsError.missingToken
+        }
+        let usage = try await MiniMaxUsageFetcher.fetchUsage(apiToken: apiToken)
+        return self.makeResult(
+            usage: usage.toUsageSnapshot(),
+            sourceLabel: "api")
+    }
+
+    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
+        false
     }
 }
 
@@ -47,6 +77,9 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
     private static let log = CodexBarLog.logger("minimax-web")
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
+        if ProviderTokenResolver.minimaxToken(environment: context.env) != nil {
+            return false
+        }
         if Self.resolveCookieOverride(context: context) != nil {
             return true
         }

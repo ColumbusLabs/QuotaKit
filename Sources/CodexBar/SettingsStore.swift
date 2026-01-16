@@ -341,9 +341,14 @@ final class SettingsStore {
         didSet { self.schedulePersistFactoryCookieHeader() }
     }
 
-    /// MiniMax cookie header (stored in Keychain).
+    /// MiniMax session cookie header (stored in Keychain).
     var minimaxCookieHeader: String {
         didSet { self.schedulePersistMiniMaxCookieHeader() }
+    }
+
+    /// MiniMax API token (stored in Keychain).
+    var minimaxAPIToken: String {
+        didSet { self.schedulePersistMiniMaxAPIToken() }
     }
 
     /// Augment session cookie header (stored in Keychain).
@@ -370,6 +375,7 @@ final class SettingsStore {
     var tokenAccountsByProvider: [UsageProvider: ProviderTokenAccountData] {
         didSet { self.schedulePersistTokenAccounts() }
     }
+
     private var selectedMenuProviderRaw: String? {
         didSet {
             if let raw = self.selectedMenuProviderRaw {
@@ -520,6 +526,7 @@ final class SettingsStore {
         _ = self.opencodeWorkspaceID
         _ = self.factoryCookieHeader
         _ = self.minimaxCookieHeader
+        _ = self.minimaxAPIToken
         _ = self.kimiManualCookieHeader
         _ = self.kimiK2APIToken
         _ = self.augmentCookieHeader
@@ -565,6 +572,10 @@ final class SettingsStore {
     @ObservationIgnored private var minimaxCookiePersistTask: Task<Void, Never>?
     @ObservationIgnored private var minimaxCookieLoaded = false
     @ObservationIgnored private var minimaxCookieLoading = false
+    @ObservationIgnored private let minimaxAPITokenStore: any MiniMaxAPITokenStoring
+    @ObservationIgnored private var minimaxAPITokenPersistTask: Task<Void, Never>?
+    @ObservationIgnored private var minimaxAPITokenLoaded = false
+    @ObservationIgnored private var minimaxAPITokenLoading = false
     @ObservationIgnored private let kimiTokenStore: any KimiTokenStoring
     @ObservationIgnored private var kimiTokenPersistTask: Task<Void, Never>?
     @ObservationIgnored private var kimiTokenLoaded = false
@@ -615,6 +626,7 @@ final class SettingsStore {
             account: "factory-cookie",
             promptKind: .factoryCookie),
         minimaxCookieStore: any MiniMaxCookieStoring = KeychainMiniMaxCookieStore(),
+        minimaxAPITokenStore: any MiniMaxAPITokenStoring = KeychainMiniMaxAPITokenStore(),
         kimiTokenStore: any KimiTokenStoring = KeychainKimiTokenStore(),
         kimiK2TokenStore: any KimiK2TokenStoring = KeychainKimiK2TokenStore(),
         augmentCookieStore: any CookieHeaderStoring = KeychainCookieHeaderStore(
@@ -631,6 +643,7 @@ final class SettingsStore {
         self.opencodeCookieStore = opencodeCookieStore
         self.factoryCookieStore = factoryCookieStore
         self.minimaxCookieStore = minimaxCookieStore
+        self.minimaxAPITokenStore = minimaxAPITokenStore
         self.kimiTokenStore = kimiTokenStore
         self.kimiK2TokenStore = kimiK2TokenStore
         self.augmentCookieStore = augmentCookieStore
@@ -729,6 +742,7 @@ final class SettingsStore {
         self.opencodeCookieHeader = ""
         self.factoryCookieHeader = ""
         self.minimaxCookieHeader = ""
+        self.minimaxAPIToken = ""
         self.kimiManualCookieHeader = ""
         self.kimiK2APIToken = ""
         self.augmentCookieHeader = ""
@@ -1184,6 +1198,32 @@ extension SettingsStore {
         }
     }
 
+    private func schedulePersistMiniMaxAPIToken() {
+        if self.minimaxAPITokenLoading { return }
+        self.minimaxAPITokenPersistTask?.cancel()
+        let token = self.minimaxAPIToken
+        let tokenStore = self.minimaxAPITokenStore
+        self.minimaxAPITokenPersistTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 350_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
+                do {
+                    try tokenStore.storeToken(token)
+                    return nil
+                } catch {
+                    return error
+                }
+            }.value
+            if let error {
+                CodexBarLog.logger("minimax-api-token-store").error("Failed to persist MiniMax API token: \(error)")
+            }
+        }
+    }
+
     private func schedulePersistCopilotAPIToken() {
         if self.copilotTokenLoading { return }
         self.copilotTokenPersistTask?.cancel()
@@ -1235,7 +1275,6 @@ extension SettingsStore {
             }
         }
     }
-
 }
 
 extension SettingsStore {
@@ -1369,6 +1408,14 @@ extension SettingsStore {
         self.minimaxCookieLoaded = true
     }
 
+    func ensureMiniMaxAPITokenLoaded() {
+        guard !self.minimaxAPITokenLoaded else { return }
+        self.minimaxAPITokenLoading = true
+        self.minimaxAPIToken = (try? self.minimaxAPITokenStore.loadToken()) ?? ""
+        self.minimaxAPITokenLoading = false
+        self.minimaxAPITokenLoaded = true
+    }
+
     func ensureKimiAuthTokenLoaded() {
         guard !self.kimiTokenLoaded else { return }
         self.kimiTokenLoading = true
@@ -1408,6 +1455,7 @@ extension SettingsStore {
         self.copilotTokenLoading = false
         self.copilotTokenLoaded = true
     }
+
     func ensureTokenAccountsLoaded() {
         guard !self.tokenAccountsLoaded else { return }
         self.tokenAccountsLoading = true

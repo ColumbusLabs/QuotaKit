@@ -8,6 +8,7 @@ public struct MiniMaxUsageFetcher: Sendable {
     private static let codingPlanPath = "user-center/payment/coding-plan"
     private static let codingPlanQuery = "cycle_type=3"
     private static let codingPlanRemainsPath = "v1/api/openplatform/coding_plan/remains"
+    private static let apiRemainsURL = URL(string: "https://api.minimax.io/v1/coding_plan/remains")!
     private struct RemainsContext: Sendable {
         let authorizationToken: String?
         let groupID: String?
@@ -46,6 +47,37 @@ public struct MiniMaxUsageFetcher: Sendable {
             }
             throw error
         }
+    }
+
+    public static func fetchUsage(
+        apiToken: String,
+        now: Date = Date()) async throws -> MiniMaxUsageSnapshot
+    {
+        let cleaned = apiToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else {
+            throw MiniMaxUsageError.invalidCredentials
+        }
+
+        var request = URLRequest(url: self.apiRemainsURL)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(cleaned)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "accept")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw MiniMaxUsageError.networkError("Invalid response")
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            Self.log.error("MiniMax returned \(httpResponse.statusCode): \(body)")
+            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                throw MiniMaxUsageError.invalidCredentials
+            }
+            throw MiniMaxUsageError.apiError("HTTP \(httpResponse.statusCode)")
+        }
+
+        return try MiniMaxUsageParser.parseCodingPlanRemains(data: data, now: now)
     }
 
     private static func fetchCodingPlanHTML(
@@ -307,6 +339,8 @@ enum MiniMaxUsageParser {
         return MiniMaxUsageSnapshot(
             planName: planName,
             availablePrompts: available?.prompts,
+            currentPrompts: nil,
+            remainingPrompts: nil,
             windowMinutes: available?.windowMinutes,
             usedPercent: usedPercent,
             resetsAt: resetsAt,
@@ -314,6 +348,11 @@ enum MiniMaxUsageParser {
     }
 
     static func parseCodingPlanRemains(json: [String: Any], now: Date = Date()) throws -> MiniMaxUsageSnapshot {
+        var effectiveJSON = json
+        if let dataWrapper = json["data"] as? [String: Any] {
+            effectiveJSON = dataWrapper
+        }
+
         if let base = json["base_resp"] as? [String: Any],
            let status = self.intValue(base["status_code"]),
            status != 0
@@ -325,9 +364,19 @@ enum MiniMaxUsageParser {
             }
             throw MiniMaxUsageError.apiError(message)
         }
+        if let base = effectiveJSON["base_resp"] as? [String: Any],
+           let status = self.intValue(base["status_code"]),
+           status != 0
+        {
+            let message = (base["status_msg"] as? String) ?? "status_code \(status)"
+            let lower = message.lowercased()
+            if status == 1004 || lower.contains("cookie") || lower.contains("log in") || lower.contains("login") {
+                throw MiniMaxUsageError.invalidCredentials
+            }
+            throw MiniMaxUsageError.apiError(message)
+        }
 
-        let root = (json["data"] as? [String: Any]) ?? json
-        let modelRemains = root["model_remains"] as? [[String: Any]] ?? []
+        let modelRemains = effectiveJSON["model_remains"] as? [[String: Any]] ?? []
         guard let first = modelRemains.first else {
             throw MiniMaxUsageError.parseFailed("Missing coding plan data.")
         }
@@ -345,15 +394,23 @@ enum MiniMaxUsageParser {
             remains: self.intValue(first["remains_time"]),
             now: now)
 
-        let planName = self.parsePlanName(root: root)
+        let planName = self.parsePlanName(root: effectiveJSON)
 
         if planName == nil, total == nil, usedPercent == nil {
             throw MiniMaxUsageError.parseFailed("Missing coding plan data.")
         }
 
+        let currentPrompts: Int? = if let total, let remaining {
+            max(0, total - remaining)
+        } else {
+            nil
+        }
+
         return MiniMaxUsageSnapshot(
             planName: planName,
             availablePrompts: total,
+            currentPrompts: currentPrompts,
+            remainingPrompts: remaining,
             windowMinutes: windowMinutes,
             usedPercent: usedPercent,
             resetsAt: resetsAt,
@@ -362,10 +419,10 @@ enum MiniMaxUsageParser {
 
     private static func decodeJSON(data: Data) throws -> [String: Any] {
         let object = try JSONSerialization.jsonObject(with: data, options: [])
-        if let dict = object as? [String: Any] {
-            return dict
+        guard let dict = object as? [String: Any] else {
+            throw MiniMaxUsageError.parseFailed("Invalid coding plan response.")
         }
-        throw MiniMaxUsageError.parseFailed("Invalid coding plan response.")
+        return dict
     }
 
     private static func intValue(_ value: Any?) -> Int? {
@@ -387,11 +444,7 @@ enum MiniMaxUsageParser {
 
     private static func usedPercent(total: Int?, remaining: Int?) -> Double? {
         guard let total, total > 0, let remaining else { return nil }
-        let used: Int = if remaining > total {
-            min(remaining, total)
-        } else {
-            max(0, total - remaining)
-        }
+        let used = max(0, total - remaining)
         let percent = Double(used) / Double(total) * 100
         return min(100, max(0, percent))
     }
@@ -685,7 +738,7 @@ public enum MiniMaxUsageError: LocalizedError, Sendable, Equatable {
     public var errorDescription: String? {
         switch self {
         case .invalidCredentials:
-            "MiniMax session cookie is invalid or expired."
+            "MiniMax credentials are invalid or expired."
         case let .networkError(message):
             "MiniMax network error: \(message)"
         case let .apiError(message):
