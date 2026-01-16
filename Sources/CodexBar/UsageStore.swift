@@ -249,7 +249,7 @@ final class UsageStore {
             await self?.refreshPathDebugInfo()
         }
         LoginShellPathCache.shared.captureOnce { [weak self] _ in
-            Task { @MainActor in
+            Task { [weak self] in
                 await self?.refreshPathDebugInfo()
             }
         }
@@ -1368,7 +1368,9 @@ extension UsageStore {
     }
 
     private func refreshPathDebugInfo() async {
-        let snapshot = PathBuilder.debugSnapshot(purposes: [.rpc, .tty, .nodeTooling])
+        let snapshot = await Task.detached(priority: .userInitiated) {
+            PathBuilder.debugSnapshot(purposes: [.rpc, .tty, .nodeTooling])
+        }.value
         await MainActor.run {
             self.pathDebugInfo = snapshot
         }

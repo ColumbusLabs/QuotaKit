@@ -42,6 +42,7 @@
 - Dev: move Chromium profile discovery into SweetCookieKit (adds Helium net.imput.helium). Thanks @hhushhas!
 - Dev: bump SweetCookieKit to 0.2.0.
 - Dev: migrate stored Keychain items to reduce rebuild prompts.
+- Dev: move path debug snapshot off the main thread to avoid startup hitches (#131). Thanks @ibehnam!
 - Tests: expand Kiro CLI coverage.
 - Tests: stabilize Claude PTY integration cleanup and reset CLI sessions after probes.
 - Tests: kill leaked codex app-server after tests.
