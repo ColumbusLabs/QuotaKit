@@ -745,16 +745,22 @@ extension StatusItemController {
 
     private func switcherWeeklyRemaining(for provider: UsageProvider) -> Double? {
         let snapshot = self.store.snapshot(for: provider)
-        let window: RateWindow? = if provider == .factory {
+        let window: RateWindow? = switch provider {
+        case .factory:
+            // Factory prefers secondary window
             snapshot?.secondary ?? snapshot?.primary
-        } else {
+        case .cursor:
+            // Cursor: fall back to On-Demand when Plan is exhausted
+            if let primary = snapshot?.primary, primary.remainingPercent <= 0, let secondary = snapshot?.secondary {
+                secondary
+            } else {
+                snapshot?.primary ?? snapshot?.secondary
+            }
+        default:
             snapshot?.primary ?? snapshot?.secondary
         }
         guard let window else { return nil }
-        if self.settings.usageBarsShowUsed {
-            return window.usedPercent
-        }
-        return window.remainingPercent
+        return self.settings.usageBarsShowUsed ? window.usedPercent : window.remainingPercent
     }
 
     private func selector(for action: MenuDescriptor.MenuAction) -> (Selector, Any?) {
