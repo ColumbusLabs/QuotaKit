@@ -10,6 +10,7 @@
 - Kiro: add CLI-based usage provider via kiro-cli. Thanks @neror!
 - Kiro: clean up provider wiring and show plan name in the menu.
 - Kiro: harden CLI idle handling to avoid partial usage snapshots (#145). Thanks @chadneal!
+- Kimi: add usage provider with cookie-based API token stored in Keychain (#146). Thanks @rehanchrl!
 - Augment: add provider with browser-cookie usage tracking.
 - Cursor: support legacy request-based plans and show individual on-demand usage (#125) — thanks @vltansky
 - Cursor: avoid Intel crash when opening login and harden WebKit teardown. Thanks @meghanto!

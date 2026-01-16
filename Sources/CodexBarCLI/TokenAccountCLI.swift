@@ -106,6 +106,7 @@ struct TokenAccountCLIContext {
                 minimax: nil,
                 zai: nil,
                 copilot: nil,
+                kimi: nil,
                 augment: nil)
         }
 
@@ -128,6 +129,7 @@ struct TokenAccountCLIContext {
                 minimax: nil,
                 zai: nil,
                 copilot: nil,
+                kimi: nil,
                 augment: nil)
         case .cursor:
             return ProviderSettingsSnapshot(
@@ -142,6 +144,7 @@ struct TokenAccountCLIContext {
                 minimax: nil,
                 zai: nil,
                 copilot: nil,
+                kimi: nil,
                 augment: nil)
         case .opencode:
             return ProviderSettingsSnapshot(
@@ -157,6 +160,7 @@ struct TokenAccountCLIContext {
                 minimax: nil,
                 zai: nil,
                 copilot: nil,
+                kimi: nil,
                 augment: nil)
         case .factory:
             return ProviderSettingsSnapshot(
@@ -171,6 +175,7 @@ struct TokenAccountCLIContext {
                 minimax: nil,
                 zai: nil,
                 copilot: nil,
+                kimi: nil,
                 augment: nil)
         case .minimax:
             return ProviderSettingsSnapshot(
@@ -185,6 +190,7 @@ struct TokenAccountCLIContext {
                     manualCookieHeader: header),
                 zai: nil,
                 copilot: nil,
+                kimi: nil,
                 augment: nil)
         case .augment:
             return ProviderSettingsSnapshot(
@@ -197,10 +203,11 @@ struct TokenAccountCLIContext {
                 minimax: nil,
                 zai: nil,
                 copilot: nil,
+                kimi: nil,
                 augment: ProviderSettingsSnapshot.AugmentProviderSettings(
                     cookieSource: .manual,
                     manualCookieHeader: header))
-        case .codex, .gemini, .antigravity, .zai, .copilot, .kiro, .vertexai:
+        case .codex, .gemini, .antigravity, .zai, .copilot, .kiro, .vertexai, .kimi:
             return nil
         }
     }
