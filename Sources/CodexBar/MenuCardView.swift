@@ -751,6 +751,11 @@ extension UsageMenuCardView.Model {
         let zaiTimeDetail = Self.zaiLimitDetailText(limit: zaiUsage?.timeLimit)
         let minimaxUsage = input.provider == .minimax ? snapshot.minimaxUsage : nil
         let minimaxPromptDetail = Self.minimaxPromptDetailText(usage: minimaxUsage)
+        let primaryDetailText: String? = {
+            if input.provider == .zai { return zaiTokenDetail }
+            if input.provider == .minimax { return minimaxPromptDetail }
+            return nil
+        }()
         if let primary = snapshot.primary {
             metrics.append(Metric(
                 id: "primary",
@@ -759,7 +764,7 @@ extension UsageMenuCardView.Model {
                     input.usageBarsShowUsed ? primary.usedPercent : primary.remainingPercent),
                 percentStyle: percentStyle,
                 resetText: Self.resetText(for: primary, style: input.resetTimeDisplayStyle, now: input.now),
-                detailText: input.provider == .zai ? zaiTokenDetail : (input.provider == .minimax ? minimaxPromptDetail : nil)))
+                detailText: primaryDetailText))
         }
         if let weekly = snapshot.secondary {
             let paceText = UsagePaceText.weekly(provider: input.provider, window: weekly, now: input.now)
@@ -804,7 +809,10 @@ extension UsageMenuCardView.Model {
 
     private static func minimaxPromptDetailText(usage: MiniMaxUsageSnapshot?) -> String? {
         guard let usage else { return nil }
-        guard let current = usage.currentPrompts, let total = usage.availablePrompts, let remaining = usage.remainingPrompts else {
+        guard let current = usage.currentPrompts,
+              let total = usage.availablePrompts,
+              let remaining = usage.remainingPrompts
+        else {
             return nil
         }
         let currentStr = UsageFormatter.tokenCountString(current)

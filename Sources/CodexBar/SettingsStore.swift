@@ -271,6 +271,7 @@ final class SettingsStore {
             }
         }
     }
+
     private var augmentCookieSourceRaw: String? {
         didSet {
             if let raw = self.augmentCookieSourceRaw {
@@ -374,6 +375,7 @@ final class SettingsStore {
     var tokenAccountsByProvider: [UsageProvider: ProviderTokenAccountData] {
         didSet { self.schedulePersistTokenAccounts() }
     }
+
     private var selectedMenuProviderRaw: String? {
         didSet {
             if let raw = self.selectedMenuProviderRaw {
@@ -475,6 +477,7 @@ final class SettingsStore {
         get { ProviderCookieSource(rawValue: self.kimiCookieSourceRaw ?? "") ?? .auto }
         set { self.kimiCookieSourceRaw = newValue.rawValue }
     }
+
     var augmentCookieSource: ProviderCookieSource {
         get {
             guard !self.debugDisableKeychainAccess else { return .off }
@@ -1272,7 +1275,6 @@ extension SettingsStore {
             }
         }
     }
-
 }
 
 extension SettingsStore {
@@ -1453,6 +1455,7 @@ extension SettingsStore {
         self.copilotTokenLoading = false
         self.copilotTokenLoaded = true
     }
+
     func ensureTokenAccountsLoaded() {
         guard !self.tokenAccountsLoaded else { return }
         self.tokenAccountsLoading = true

@@ -400,11 +400,10 @@ enum MiniMaxUsageParser {
             throw MiniMaxUsageError.parseFailed("Missing coding plan data.")
         }
 
-        let currentPrompts: Int?
-        if let total, let remaining {
-            currentPrompts = max(0, total - remaining)
+        let currentPrompts: Int? = if let total, let remaining {
+            max(0, total - remaining)
         } else {
-            currentPrompts = nil
+            nil
         }
 
         return MiniMaxUsageSnapshot(

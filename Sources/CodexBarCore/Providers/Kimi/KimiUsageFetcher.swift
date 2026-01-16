@@ -6,11 +6,12 @@ import FoundationNetworking
 
 public struct KimiUsageFetcher: Sendable {
     private static let log = CodexBarLog.logger("kimi-api")
-    private static let usageURL = URL(string: "https://www.kimi.com/apiv2/kimi.gateway.billing.v1.BillingService/GetUsages")!
+    private static let usageURL =
+        URL(string: "https://www.kimi.com/apiv2/kimi.gateway.billing.v1.BillingService/GetUsages")!
 
     public static func fetchUsage(authToken: String, now: Date = Date()) async throws -> KimiUsageSnapshot {
         // Decode JWT to get session info
-        let sessionInfo = decodeSessionInfo(from: authToken)
+        let sessionInfo = self.decodeSessionInfo(from: authToken)
 
         var request = URLRequest(url: self.usageURL)
         request.httpMethod = "POST"
@@ -30,7 +31,7 @@ public struct KimiUsageFetcher: Sendable {
         request.setValue(TimeZone.current.identifier, forHTTPHeaderField: "r-timezone")
 
         // Add session-specific headers from JWT
-        if let sessionInfo = sessionInfo {
+        if let sessionInfo {
             if let deviceId = sessionInfo.deviceId {
                 request.setValue(deviceId, forHTTPHeaderField: "x-msh-device-id")
             }
@@ -42,7 +43,7 @@ public struct KimiUsageFetcher: Sendable {
             }
         }
 
-        let requestBody: [String: [String]] = ["scope": ["FEATURE_CODING"]]
+        let requestBody = ["scope": ["FEATURE_CODING"]]
         request.httpBody = try? JSONSerialization.data(withJSONObject: requestBody)
 
         let (data, response) = try await URLSession.shared.data(for: request)
@@ -77,7 +78,6 @@ public struct KimiUsageFetcher: Sendable {
             updatedAt: now)
     }
 
-
     private static func decodeSessionInfo(from jwt: String) -> SessionInfo? {
         let parts = jwt.split(separator: ".", maxSplits: 2)
         guard parts.count == 3 else { return nil }
@@ -93,15 +93,15 @@ public struct KimiUsageFetcher: Sendable {
         }
 
         guard let payloadData = Data(base64Encoded: payload),
-              let json = try? JSONSerialization.jsonObject(with: payloadData) as? [String: Any] else {
+              let json = try? JSONSerialization.jsonObject(with: payloadData) as? [String: Any]
+        else {
             return nil
         }
 
         return SessionInfo(
             deviceId: json["device_id"] as? String,
             sessionId: json["ssid"] as? String,
-            trafficId: json["sub"] as? String
-        )
+            trafficId: json["sub"] as? String)
     }
 
     private struct SessionInfo {
