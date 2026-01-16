@@ -64,6 +64,8 @@ extension UsageStore {
             _ = self.settings.minimaxAPIToken
             _ = self.settings.kimiManualCookieHeader
             _ = self.settings.augmentCookieHeader
+            _ = self.settings.ampCookieSource
+            _ = self.settings.ampCookieHeader
             _ = self.settings.showAllTokenAccountsInMenu
             _ = self.settings.tokenAccountsByProvider
             _ = self.settings.mergeIcons
@@ -308,6 +310,7 @@ final class UsageStore {
         case .augment: nil
         case .kimi: nil
         case .kimik2: nil
+        case .amp: nil
         }
     }
 
@@ -1188,6 +1191,12 @@ extension UsageStore {
                 let text = "Kimi K2 debug log not yet implemented"
                 await MainActor.run { self.probeLogs[.kimik2] = text }
                 return text
+            case .amp:
+                let text = await self.debugAmpLog(
+                    ampCookieSource: self.settings.ampCookieSource,
+                    ampCookieHeader: self.settings.ampCookieHeader)
+                await MainActor.run { self.probeLogs[.amp] = text }
+                return text
             }
         }.value
     }
@@ -1328,6 +1337,19 @@ extension UsageStore {
         await self.runWithTimeout(seconds: 15) {
             let probe = AugmentStatusProbe()
             return await probe.debugRawProbe()
+        }
+    }
+
+    private func debugAmpLog(
+        ampCookieSource: ProviderCookieSource,
+        ampCookieHeader: String) async -> String
+    {
+        await self.runWithTimeout(seconds: 15) {
+            let fetcher = AmpUsageFetcher(browserDetection: self.browserDetection)
+            let manualHeader = ampCookieSource == .manual
+                ? CookieHeaderNormalizer.normalize(ampCookieHeader)
+                : nil
+            return await fetcher.debugRawProbe(cookieHeaderOverride: manualHeader)
         }
     }
 

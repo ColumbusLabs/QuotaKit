@@ -717,6 +717,7 @@ enum IconRenderer {
         case .augment: 11
         case .opencode: 12
         case .kimi: 13
+        case .amp: 14
         case .combined: 99
         }
     }

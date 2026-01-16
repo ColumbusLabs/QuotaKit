@@ -13,6 +13,7 @@
 - Kimi: add usage provider with cookie-based API token stored in Keychain (#146). Thanks @rehanchrl!
 - Kimi K2: add API-key usage provider for credit totals (#147). Thanks @0-CYBERDYNE-SYSTEMS-0!
 - Augment: add provider with browser-cookie usage tracking.
+- Amp: add provider with Amp Free usage tracking (#167). Thanks @duailibe!
 - Cursor: support legacy request-based plans and show individual on-demand usage (#125) — thanks @vltansky
 - Cursor: avoid Intel crash when opening login and harden WebKit teardown. Thanks @meghanto!
 - Cursor: load stored session cookies before reads to make relaunches deterministic.

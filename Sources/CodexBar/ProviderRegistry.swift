@@ -129,6 +129,11 @@ struct ProviderRegistry {
             settings: settings,
             override: tokenOverride,
             fallback: settings.augmentCookieHeader)
+        let ampHeader = Self.manualCookieHeader(
+            provider: .amp,
+            settings: settings,
+            override: tokenOverride,
+            fallback: settings.ampCookieHeader)
         settings.ensureKimiAuthTokenLoaded()
         let kimiHeader = settings.kimiManualCookieHeader
 
@@ -196,7 +201,14 @@ struct ProviderRegistry {
                     settings: settings,
                     override: tokenOverride,
                     fallback: settings.augmentCookieSource),
-                manualCookieHeader: augmentHeader))
+                manualCookieHeader: augmentHeader),
+            amp: ProviderSettingsSnapshot.AmpProviderSettings(
+                cookieSource: Self.cookieSource(
+                    provider: .amp,
+                    settings: settings,
+                    override: tokenOverride,
+                    fallback: settings.ampCookieSource),
+                manualCookieHeader: ampHeader))
     }
 
     @MainActor

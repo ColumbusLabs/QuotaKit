@@ -107,7 +107,8 @@ struct TokenAccountCLIContext {
                 zai: nil,
                 copilot: nil,
                 kimi: nil,
-                augment: nil)
+                augment: nil,
+                amp: nil)
         }
 
         let header = TokenAccountSupportCatalog.normalizedCookieHeader(account.token, support: support)
@@ -130,7 +131,8 @@ struct TokenAccountCLIContext {
                 zai: nil,
                 copilot: nil,
                 kimi: nil,
-                augment: nil)
+                augment: nil,
+                amp: nil)
         case .cursor:
             return ProviderSettingsSnapshot(
                 debugMenuEnabled: false,
@@ -145,7 +147,8 @@ struct TokenAccountCLIContext {
                 zai: nil,
                 copilot: nil,
                 kimi: nil,
-                augment: nil)
+                augment: nil,
+                amp: nil)
         case .opencode:
             return ProviderSettingsSnapshot(
                 debugMenuEnabled: false,
@@ -161,7 +164,8 @@ struct TokenAccountCLIContext {
                 zai: nil,
                 copilot: nil,
                 kimi: nil,
-                augment: nil)
+                augment: nil,
+                amp: nil)
         case .factory:
             return ProviderSettingsSnapshot(
                 debugMenuEnabled: false,
@@ -176,7 +180,8 @@ struct TokenAccountCLIContext {
                 zai: nil,
                 copilot: nil,
                 kimi: nil,
-                augment: nil)
+                augment: nil,
+                amp: nil)
         case .minimax:
             return ProviderSettingsSnapshot(
                 debugMenuEnabled: false,
@@ -191,7 +196,8 @@ struct TokenAccountCLIContext {
                 zai: nil,
                 copilot: nil,
                 kimi: nil,
-                augment: nil)
+                augment: nil,
+                amp: nil)
         case .augment:
             return ProviderSettingsSnapshot(
                 debugMenuEnabled: false,
@@ -206,8 +212,9 @@ struct TokenAccountCLIContext {
                 kimi: nil,
                 augment: ProviderSettingsSnapshot.AugmentProviderSettings(
                     cookieSource: .manual,
-                    manualCookieHeader: header))
-        case .codex, .gemini, .antigravity, .zai, .copilot, .kiro, .vertexai, .kimi, .kimik2:
+                    manualCookieHeader: header),
+                amp: nil)
+        case .codex, .gemini, .antigravity, .zai, .copilot, .kiro, .vertexai, .kimi, .kimik2, .amp:
             return nil
         }
     }

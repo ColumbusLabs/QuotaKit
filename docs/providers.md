@@ -1,5 +1,5 @@
 ---
-summary: "Provider data sources and parsing overview (Codex, Claude, Gemini, Antigravity, Cursor, Droid/Factory, z.ai, Copilot, Kimi, Kimi K2, Kiro, Vertex AI)."
+summary: "Provider data sources and parsing overview (Codex, Claude, Gemini, Antigravity, Cursor, Droid/Factory, z.ai, Copilot, Kimi, Kimi K2, Kiro, Vertex AI, Augment, Amp)."
 read_when:
   - Adding or modifying provider fetch/parsing
   - Adjusting provider labels, toggles, or metadata
@@ -32,6 +32,7 @@ until the session is invalid, to avoid repeated Keychain prompts.
 | Kimi K2 | API key (Keychain/env) → credit endpoint (`api`). |
 | Kiro | CLI command via `kiro-cli chat --no-interactive "/usage"` (`cli`). |
 | Vertex AI | Google ADC OAuth (gcloud) → Cloud Monitoring quota usage (`oauth`). |
+| Amp | Web settings page via browser cookies (`web`). |
 
 ## Codex
 - Web dashboard (when enabled): `https://chatgpt.com/codex/settings/usage` via WebView + browser cookies.
@@ -125,4 +126,10 @@ until the session is invalid, to avoid repeated Keychain prompts.
 - Token cost: scans `~/.claude/projects/` logs filtered to Vertex AI-tagged entries.
 - Requires Cloud Monitoring API access in the current project.
 - Details: `docs/vertexai.md`.
+
+## Amp
+- Web settings page (`https://ampcode.com/settings`) via browser cookies.
+- Parses Amp Free usage from the settings HTML.
+- Status: none yet.
+- Details: `docs/amp.md`.
 See also: `docs/provider.md` for architecture notes.
