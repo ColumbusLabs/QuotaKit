@@ -156,6 +156,10 @@ public struct KimiK2UsageFetcher: Sendable {
         return KimiK2UsageSnapshot(summary: summary)
     }
 
+    static func _parseSummaryForTesting(_ data: Data, headers: [AnyHashable: Any] = [:]) throws -> KimiK2UsageSummary {
+        try self.parseSummary(data: data, headers: headers)
+    }
+
     private static func parseSummary(data: Data, headers: [AnyHashable: Any]) throws -> KimiK2UsageSummary {
         guard let json = try? jsonSerializer.jsonObject(with: data),
               let dictionary = json as? [String: Any]
@@ -257,7 +261,17 @@ public struct KimiK2UsageFetcher: Sendable {
         if let value = raw as? Date {
             return value
         }
+        if let value = raw as? Double {
+            return self.dateFromNumeric(value)
+        }
+        if let value = raw as? Int {
+            return self.dateFromNumeric(Double(value))
+        }
         if let value = raw as? String {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let numeric = Double(trimmed) {
+                return self.dateFromNumeric(numeric)
+            }
             let formatter = ISO8601DateFormatter()
             formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
             if let date = formatter.date(from: value) {
@@ -268,6 +282,14 @@ public struct KimiK2UsageFetcher: Sendable {
             return fallback.date(from: value)
         }
         return nil
+    }
+
+    private static func dateFromNumeric(_ value: Double) -> Date? {
+        guard value > 0 else { return nil }
+        if value > 1_000_000_000_000 {
+            return Date(timeIntervalSince1970: value / 1000)
+        }
+        return Date(timeIntervalSince1970: value)
     }
 
     private static func doubleValueFromHeaders(headers: [AnyHashable: Any], key: String) -> Double? {
