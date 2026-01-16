@@ -1,6 +1,11 @@
 import CodexBarCore
 import Foundation
 
+struct TokenAccountOverride: Sendable {
+    let provider: UsageProvider
+    let account: ProviderTokenAccount
+}
+
 struct ProviderSpec {
     let style: IconStyle
     let isEnabled: @MainActor () -> Bool
@@ -52,35 +57,14 @@ struct ProviderRegistry {
                         .auto
                     }
                     let snapshot = await MainActor.run {
-                        ProviderSettingsSnapshot(
-                            debugMenuEnabled: settings.debugMenuEnabled,
-                            codex: ProviderSettingsSnapshot.CodexProviderSettings(
-                                usageDataSource: settings.codexUsageDataSource,
-                                cookieSource: settings.codexCookieSource,
-                                manualCookieHeader: settings.codexCookieHeader),
-                            claude: ProviderSettingsSnapshot.ClaudeProviderSettings(
-                                usageDataSource: settings.claudeUsageDataSource,
-                                webExtrasEnabled: settings.claudeWebExtrasEnabled,
-                                cookieSource: settings.claudeCookieSource,
-                                manualCookieHeader: settings.claudeCookieHeader),
-                            cursor: ProviderSettingsSnapshot.CursorProviderSettings(
-                                cookieSource: settings.cursorCookieSource,
-                                manualCookieHeader: settings.cursorCookieHeader),
-                            opencode: ProviderSettingsSnapshot.OpenCodeProviderSettings(
-                                cookieSource: settings.opencodeCookieSource,
-                                manualCookieHeader: settings.opencodeCookieHeader,
-                                workspaceID: settings.opencodeWorkspaceID),
-                            factory: ProviderSettingsSnapshot.FactoryProviderSettings(
-                                cookieSource: settings.factoryCookieSource,
-                                manualCookieHeader: settings.factoryCookieHeader),
-                            minimax: ProviderSettingsSnapshot.MiniMaxProviderSettings(
-                                cookieSource: settings.minimaxCookieSource,
-                                manualCookieHeader: settings.minimaxCookieHeader),
-                            zai: ProviderSettingsSnapshot.ZaiProviderSettings(),
-                            copilot: ProviderSettingsSnapshot.CopilotProviderSettings(),
-                            augment: ProviderSettingsSnapshot.AugmentProviderSettings(
-                                cookieSource: settings.augmentCookieSource,
-                                manualCookieHeader: settings.augmentCookieHeader))
+                        Self.makeSettingsSnapshot(settings: settings, tokenOverride: nil)
+                    }
+                    let env = await MainActor.run {
+                        Self.makeEnvironment(
+                            base: ProcessInfo.processInfo.environment,
+                            provider: provider,
+                            settings: settings,
+                            tokenOverride: nil)
                     }
                     let context = ProviderFetchContext(
                         runtime: .app,
@@ -89,7 +73,7 @@ struct ProviderRegistry {
                         webTimeout: 60,
                         webDebugDumpHTML: false,
                         verbose: false,
-                        env: ProcessInfo.processInfo.environment,
+                        env: env,
                         settings: snapshot,
                         fetcher: codexFetcher,
                         claudeFetcher: claudeFetcher,
@@ -103,4 +87,175 @@ struct ProviderRegistry {
     }
 
     private static let defaultMetadata: [UsageProvider: ProviderMetadata] = ProviderDescriptorRegistry.metadata
+
+    @MainActor
+    static func makeSettingsSnapshot(
+        settings: SettingsStore,
+        tokenOverride: TokenAccountOverride?) -> ProviderSettingsSnapshot
+    {
+        settings.ensureTokenAccountsLoaded()
+        let codexHeader = Self.manualCookieHeader(
+            provider: .codex,
+            settings: settings,
+            override: tokenOverride,
+            fallback: settings.codexCookieHeader)
+        let claudeHeader = Self.manualCookieHeader(
+            provider: .claude,
+            settings: settings,
+            override: tokenOverride,
+            fallback: settings.claudeCookieHeader)
+        let cursorHeader = Self.manualCookieHeader(
+            provider: .cursor,
+            settings: settings,
+            override: tokenOverride,
+            fallback: settings.cursorCookieHeader)
+        let opencodeHeader = Self.manualCookieHeader(
+            provider: .opencode,
+            settings: settings,
+            override: tokenOverride,
+            fallback: settings.opencodeCookieHeader)
+        let factoryHeader = Self.manualCookieHeader(
+            provider: .factory,
+            settings: settings,
+            override: tokenOverride,
+            fallback: settings.factoryCookieHeader)
+        let minimaxHeader = Self.manualCookieHeader(
+            provider: .minimax,
+            settings: settings,
+            override: tokenOverride,
+            fallback: settings.minimaxCookieHeader)
+        let augmentHeader = Self.manualCookieHeader(
+            provider: .augment,
+            settings: settings,
+            override: tokenOverride,
+            fallback: settings.augmentCookieHeader)
+
+        return ProviderSettingsSnapshot(
+            debugMenuEnabled: settings.debugMenuEnabled,
+            codex: ProviderSettingsSnapshot.CodexProviderSettings(
+                usageDataSource: settings.codexUsageDataSource,
+                cookieSource: Self.cookieSource(
+                    provider: .codex,
+                    settings: settings,
+                    fallback: settings.codexCookieSource),
+                manualCookieHeader: codexHeader),
+            claude: ProviderSettingsSnapshot.ClaudeProviderSettings(
+                usageDataSource: settings.claudeUsageDataSource,
+                webExtrasEnabled: settings.claudeWebExtrasEnabled,
+                cookieSource: Self.cookieSource(
+                    provider: .claude,
+                    settings: settings,
+                    fallback: settings.claudeCookieSource),
+                manualCookieHeader: claudeHeader),
+            cursor: ProviderSettingsSnapshot.CursorProviderSettings(
+                cookieSource: Self.cookieSource(
+                    provider: .cursor,
+                    settings: settings,
+                    fallback: settings.cursorCookieSource),
+                manualCookieHeader: cursorHeader),
+            opencode: ProviderSettingsSnapshot.OpenCodeProviderSettings(
+                cookieSource: Self.cookieSource(
+                    provider: .opencode,
+                    settings: settings,
+                    fallback: settings.opencodeCookieSource),
+                manualCookieHeader: opencodeHeader,
+                workspaceID: settings.opencodeWorkspaceID),
+            factory: ProviderSettingsSnapshot.FactoryProviderSettings(
+                cookieSource: Self.cookieSource(
+                    provider: .factory,
+                    settings: settings,
+                    fallback: settings.factoryCookieSource),
+                manualCookieHeader: factoryHeader),
+            minimax: ProviderSettingsSnapshot.MiniMaxProviderSettings(
+                cookieSource: Self.cookieSource(
+                    provider: .minimax,
+                    settings: settings,
+                    fallback: settings.minimaxCookieSource),
+                manualCookieHeader: minimaxHeader),
+            zai: ProviderSettingsSnapshot.ZaiProviderSettings(),
+            copilot: ProviderSettingsSnapshot.CopilotProviderSettings(),
+            augment: ProviderSettingsSnapshot.AugmentProviderSettings(
+                cookieSource: Self.cookieSource(
+                    provider: .augment,
+                    settings: settings,
+                    fallback: settings.augmentCookieSource),
+                manualCookieHeader: augmentHeader))
+    }
+
+    @MainActor
+    static func makeEnvironment(
+        base: [String: String],
+        provider: UsageProvider,
+        settings: SettingsStore,
+        tokenOverride: TokenAccountOverride?) -> [String: String]
+    {
+        let account = Self.selectedTokenAccount(
+            provider: provider,
+            settings: settings,
+            override: tokenOverride)
+        guard let account, let override = TokenAccountSupportCatalog.envOverride(
+            for: provider,
+            token: account.token)
+        else {
+            return base
+        }
+        var env = base
+        for (key, value) in override {
+            env[key] = value
+        }
+        return env
+    }
+
+    @MainActor
+    private static func selectedTokenAccount(
+        provider: UsageProvider,
+        settings: SettingsStore,
+        override: TokenAccountOverride?) -> ProviderTokenAccount?
+    {
+        if let override, override.provider == provider { return override.account }
+        return settings.selectedTokenAccount(for: provider)
+    }
+
+    @MainActor
+    private static func manualCookieHeader(
+        provider: UsageProvider,
+        settings: SettingsStore,
+        override: TokenAccountOverride?,
+        fallback: String) -> String
+    {
+        guard let support = TokenAccountSupportCatalog.support(for: provider),
+              case .cookieHeader = support.injection
+        else {
+            return fallback
+        }
+        if let account = Self.selectedTokenAccount(provider: provider, settings: settings, override: override) {
+            return Self.normalizedCookieToken(account.token, support: support)
+        }
+        return fallback
+    }
+
+    private static func normalizedCookieToken(_ token: String, support: TokenAccountSupport) -> String {
+        let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let cookieName = support.cookieName else { return trimmed }
+        let lower = trimmed.lowercased()
+        if lower.contains("cookie:") || trimmed.contains("=") {
+            return trimmed
+        }
+        return "\(cookieName)=\(trimmed)"
+    }
+
+    @MainActor
+    private static func cookieSource(
+        provider: UsageProvider,
+        settings: SettingsStore,
+        fallback: ProviderCookieSource) -> ProviderCookieSource
+    {
+        guard let support = TokenAccountSupportCatalog.support(for: provider),
+              support.requiresManualCookieSource
+        else {
+            return fallback
+        }
+        if settings.tokenAccounts(for: provider).isEmpty { return fallback }
+        return .manual
+    }
 }

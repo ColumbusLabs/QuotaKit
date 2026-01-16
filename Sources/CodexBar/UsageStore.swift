@@ -13,6 +13,7 @@ extension UsageStore {
         _ = self.errors
         _ = self.lastSourceLabels
         _ = self.lastFetchAttempts
+        _ = self.accountSnapshots
         _ = self.tokenSnapshots
         _ = self.tokenErrors
         _ = self.tokenRefreshInFlight
@@ -58,6 +59,8 @@ extension UsageStore {
             _ = self.settings.cursorCookieHeader
             _ = self.settings.factoryCookieHeader
             _ = self.settings.minimaxCookieHeader
+            _ = self.settings.showAllTokenAccountsInMenu
+            _ = self.settings.tokenAccountsByProvider
             _ = self.settings.mergeIcons
             _ = self.settings.selectedMenuProvider
             _ = self.settings.debugLoadingPattern
@@ -71,70 +74,6 @@ extension UsageStore {
                 await self.refresh()
             }
         }
-    }
-
-    private func restartAugmentKeepaliveIfNeeded() {
-        #if os(macOS)
-        let shouldRun = self.isEnabled(.augment)
-        let isRunning = self.augmentKeepalive != nil
-
-        if shouldRun, !isRunning {
-            self.startAugmentKeepalive()
-        } else if !shouldRun, isRunning {
-            Task { @MainActor in
-                self.augmentKeepalive?.stop()
-                self.augmentKeepalive = nil
-                print("[CodexBar] Augment session keepalive stopped (provider disabled)")
-            }
-        }
-        #endif
-    }
-}
-
-// MARK: - OpenAI web error messaging
-
-extension UsageStore {
-    private func openAIDashboardFriendlyError(
-        body: String,
-        targetEmail: String?,
-        cookieImportStatus: String?) -> String?
-    {
-        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
-        let status = cookieImportStatus?.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            return [
-                "OpenAI web dashboard returned an empty page.",
-                "Sign in to chatgpt.com and update OpenAI cookies in Providers → Codex.",
-            ].joined(separator: " ")
-        }
-
-        let lower = trimmed.lowercased()
-        let looksLikePublicLanding = lower.contains("skip to content")
-            && (lower.contains("about") || lower.contains("openai") || lower.contains("chatgpt"))
-        let looksLoggedOut = lower.contains("sign in")
-            || lower.contains("log in")
-            || lower.contains("create account")
-            || lower.contains("continue with google")
-            || lower.contains("continue with apple")
-            || lower.contains("continue with microsoft")
-
-        guard looksLikePublicLanding || looksLoggedOut else { return nil }
-        let emailLabel = targetEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let targetLabel = (emailLabel?.isEmpty == false) ? emailLabel! : "your OpenAI account"
-        if let status, !status.isEmpty {
-            if status.contains("cookies do not match Codex account")
-                || status.localizedCaseInsensitiveContains("cookie import failed")
-            {
-                return [
-                    status,
-                    "Sign in to chatgpt.com as \(targetLabel), then update OpenAI cookies in Providers → Codex.",
-                ].joined(separator: " ")
-            }
-        }
-        return [
-            "OpenAI web dashboard returned a public page (not signed in).",
-            "Sign in to chatgpt.com as \(targetLabel), then update OpenAI cookies in Providers → Codex.",
-        ].joined(separator: " ")
     }
 }
 
@@ -214,18 +153,19 @@ struct ConsecutiveFailureGate {
 @MainActor
 @Observable
 final class UsageStore {
-    private(set) var snapshots: [UsageProvider: UsageSnapshot] = [:]
-    private(set) var errors: [UsageProvider: String] = [:]
-    private(set) var lastSourceLabels: [UsageProvider: String] = [:]
-    private(set) var lastFetchAttempts: [UsageProvider: [ProviderFetchAttempt]] = [:]
-    private(set) var tokenSnapshots: [UsageProvider: CostUsageTokenSnapshot] = [:]
-    private(set) var tokenErrors: [UsageProvider: String] = [:]
-    private(set) var tokenRefreshInFlight: Set<UsageProvider> = []
+    var snapshots: [UsageProvider: UsageSnapshot] = [:]
+    var errors: [UsageProvider: String] = [:]
+    var lastSourceLabels: [UsageProvider: String] = [:]
+    var lastFetchAttempts: [UsageProvider: [ProviderFetchAttempt]] = [:]
+    var accountSnapshots: [UsageProvider: [TokenAccountUsageSnapshot]] = [:]
+    var tokenSnapshots: [UsageProvider: CostUsageTokenSnapshot] = [:]
+    var tokenErrors: [UsageProvider: String] = [:]
+    var tokenRefreshInFlight: Set<UsageProvider> = []
     var credits: CreditsSnapshot?
     var lastCreditsError: String?
     var openAIDashboard: OpenAIDashboardSnapshot?
     var lastOpenAIDashboardError: String?
-    private(set) var openAIDashboardRequiresLogin: Bool = false
+    var openAIDashboardRequiresLogin: Bool = false
     var openAIDashboardCookieImportStatus: String?
     var openAIDashboardCookieImportDebugLog: String?
     var codexVersion: String?
@@ -236,11 +176,11 @@ final class UsageStore {
     var cursorVersion: String?
     var kiroVersion: String?
     var isRefreshing = false
-    private(set) var refreshingProviders: Set<UsageProvider> = []
+    var refreshingProviders: Set<UsageProvider> = []
     var debugForceAnimation = false
     var pathDebugInfo: PathDebugSnapshot = .empty
-    private(set) var statuses: [UsageProvider: ProviderStatus] = [:]
-    private(set) var probeLogs: [UsageProvider: String] = [:]
+    var statuses: [UsageProvider: ProviderStatus] = [:]
+    var probeLogs: [UsageProvider: String] = [:]
     @ObservationIgnored private var lastCreditsSnapshot: CreditsSnapshot?
     @ObservationIgnored private var creditsFailureStreak: Int = 0
     @ObservationIgnored private var lastOpenAIDashboardSnapshot: OpenAIDashboardSnapshot?
@@ -249,29 +189,29 @@ final class UsageStore {
     @ObservationIgnored private var lastOpenAIDashboardCookieImportEmail: String?
     @ObservationIgnored private var openAIWebAccountDidChange: Bool = false
 
-    @ObservationIgnored private let codexFetcher: UsageFetcher
-    @ObservationIgnored private let claudeFetcher: any ClaudeUsageFetching
+    @ObservationIgnored let codexFetcher: UsageFetcher
+    @ObservationIgnored let claudeFetcher: any ClaudeUsageFetching
     @ObservationIgnored private let costUsageFetcher: CostUsageFetcher
     @ObservationIgnored let browserDetection: BrowserDetection
     @ObservationIgnored private let registry: ProviderRegistry
-    @ObservationIgnored private let settings: SettingsStore
+    @ObservationIgnored let settings: SettingsStore
     @ObservationIgnored private let sessionQuotaNotifier: SessionQuotaNotifier
     @ObservationIgnored private let sessionQuotaLogger = CodexBarLog.logger("sessionQuota")
     @ObservationIgnored private let openAIWebLogger = CodexBarLog.logger("openai-web")
     @ObservationIgnored private let tokenCostLogger = CodexBarLog.logger("token-cost")
     @ObservationIgnored private var openAIWebDebugLines: [String] = []
-    @ObservationIgnored private var failureGates: [UsageProvider: ConsecutiveFailureGate] = [:]
-    @ObservationIgnored private var tokenFailureGates: [UsageProvider: ConsecutiveFailureGate] = [:]
-    @ObservationIgnored private var providerSpecs: [UsageProvider: ProviderSpec] = [:]
+    @ObservationIgnored var failureGates: [UsageProvider: ConsecutiveFailureGate] = [:]
+    @ObservationIgnored var tokenFailureGates: [UsageProvider: ConsecutiveFailureGate] = [:]
+    @ObservationIgnored var providerSpecs: [UsageProvider: ProviderSpec] = [:]
     @ObservationIgnored private let providerMetadata: [UsageProvider: ProviderMetadata]
     @ObservationIgnored private var timerTask: Task<Void, Never>?
     @ObservationIgnored private var tokenTimerTask: Task<Void, Never>?
     @ObservationIgnored private var tokenRefreshSequenceTask: Task<Void, Never>?
-    @ObservationIgnored private var lastKnownSessionRemaining: [UsageProvider: Double] = [:]
-    @ObservationIgnored private(set) var lastTokenFetchAt: [UsageProvider: Date] = [:]
+    @ObservationIgnored var lastKnownSessionRemaining: [UsageProvider: Double] = [:]
+    @ObservationIgnored var lastTokenFetchAt: [UsageProvider: Date] = [:]
     @ObservationIgnored private let tokenFetchTTL: TimeInterval = 60 * 60
     @ObservationIgnored private let tokenFetchTimeout: TimeInterval = 10 * 60
-    @ObservationIgnored private var augmentKeepalive: AugmentSessionKeepalive?
+    @ObservationIgnored var augmentKeepalive: AugmentSessionKeepalive?
 
     init(
         fetcher: UsageFetcher,
@@ -453,7 +393,7 @@ final class UsageStore {
         return self.isProviderAvailable(provider)
     }
 
-    private func isProviderAvailable(_ provider: UsageProvider) -> Bool {
+    func isProviderAvailable(_ provider: UsageProvider) -> Bool {
         if provider == .zai {
             if ZaiSettingsReader.apiToken(environment: ProcessInfo.processInfo.environment) != nil {
                 return true
@@ -566,109 +506,7 @@ final class UsageStore {
         // The timer task will be cancelled when augmentKeepalive is deallocated
     }
 
-    private func startAugmentKeepalive() {
-        #if os(macOS)
-        print("[CodexBar] 🔍 Checking if Augment keepalive should start...")
-        print("[CodexBar]   - Augment enabled: \(self.isEnabled(.augment))")
-        print("[CodexBar]   - Augment available: \(self.isProviderAvailable(.augment))")
-
-        // Only start keepalive if Augment is enabled
-        guard self.isEnabled(.augment) else {
-            print("[CodexBar] ⚠️ Augment keepalive NOT started - provider is disabled")
-            print("[CodexBar]   Tip: Enable Augment in Settings to activate automatic session management")
-            return
-        }
-
-        let logger: (String) -> Void = { message in
-            print("[CodexBar] \(message)")
-        }
-
-        self.augmentKeepalive = AugmentSessionKeepalive(logger: logger)
-        self.augmentKeepalive?.start()
-        print("[CodexBar] ✅ Augment session keepalive STARTED successfully")
-        #endif
-    }
-
-    /// Force refresh Augment session (called from UI button)
-    func forceRefreshAugmentSession() async {
-        #if os(macOS)
-        print("[CodexBar] 🔄 Force refresh Augment session requested")
-        guard let keepalive = self.augmentKeepalive else {
-            print("[CodexBar] ⚠️ Augment keepalive not running - starting it now")
-            self.startAugmentKeepalive()
-            // Give it a moment to start
-            try? await Task.sleep(for: .seconds(1))
-            guard let keepalive = self.augmentKeepalive else {
-                print("[CodexBar] ✗ Failed to start Augment keepalive")
-                return
-            }
-            await keepalive.forceRefresh()
-            return
-        }
-
-        await keepalive.forceRefresh()
-
-        // Refresh usage after forcing session refresh
-        print("[CodexBar] 🔄 Refreshing Augment usage after session refresh")
-        await self.refreshProvider(.augment)
-        #endif
-    }
-
-    private func refreshProvider(_ provider: UsageProvider) async {
-        guard let spec = self.providerSpecs[provider] else { return }
-
-        if !spec.isEnabled() {
-            self.refreshingProviders.remove(provider)
-            await MainActor.run {
-                self.snapshots.removeValue(forKey: provider)
-                self.errors[provider] = nil
-                self.lastSourceLabels.removeValue(forKey: provider)
-                self.lastFetchAttempts.removeValue(forKey: provider)
-                self.tokenSnapshots.removeValue(forKey: provider)
-                self.tokenErrors[provider] = nil
-                self.failureGates[provider]?.reset()
-                self.tokenFailureGates[provider]?.reset()
-                self.statuses.removeValue(forKey: provider)
-                self.lastKnownSessionRemaining.removeValue(forKey: provider)
-                self.lastTokenFetchAt.removeValue(forKey: provider)
-            }
-            return
-        }
-
-        self.refreshingProviders.insert(provider)
-        defer { self.refreshingProviders.remove(provider) }
-
-        let outcome = await spec.fetch()
-        await MainActor.run {
-            self.lastFetchAttempts[provider] = outcome.attempts
-        }
-
-        switch outcome.result {
-        case let .success(result):
-            let scoped = result.usage.scoped(to: provider)
-            await MainActor.run {
-                self.handleSessionQuotaTransition(provider: provider, snapshot: scoped)
-                self.snapshots[provider] = scoped
-                self.lastSourceLabels[provider] = result.sourceLabel
-                self.errors[provider] = nil
-                self.failureGates[provider]?.recordSuccess()
-            }
-        case let .failure(error):
-            await MainActor.run {
-                let hadPriorData = self.snapshots[provider] != nil
-                let shouldSurface = self.failureGates[provider]?
-                    .shouldSurfaceError(onFailureWithPriorData: hadPriorData) ?? true
-                if shouldSurface {
-                    self.errors[provider] = error.localizedDescription
-                    self.snapshots.removeValue(forKey: provider)
-                } else {
-                    self.errors[provider] = nil
-                }
-            }
-        }
-    }
-
-    private func handleSessionQuotaTransition(provider: UsageProvider, snapshot: UsageSnapshot) {
+    func handleSessionQuotaTransition(provider: UsageProvider, snapshot: UsageSnapshot) {
         guard let primary = snapshot.primary else { return }
         let currentRemaining = primary.remainingPercent
         let previousRemaining = self.lastKnownSessionRemaining[provider]

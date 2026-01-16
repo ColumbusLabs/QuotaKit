@@ -55,18 +55,8 @@ struct CursorProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
-        [
-            ProviderSettingsFieldDescriptor(
-                id: "cursor-cookie-header",
-                title: "",
-                subtitle: "",
-                kind: .secure,
-                placeholder: "Cookie: …",
-                binding: context.stringBinding(\.cursorCookieHeader),
-                actions: [],
-                isVisible: { context.settings.cursorCookieSource == .manual },
-                onActivate: { context.settings.ensureCursorCookieLoaded() }),
-        ]
+        _ = context
+        return []
     }
 
     @MainActor

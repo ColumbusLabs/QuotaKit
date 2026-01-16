@@ -41,11 +41,11 @@ public enum ProviderTokenResolver {
     public static func zaiResolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
-        if let token = self.keychainToken(service: self.keychainService, account: self.zaiAccount) {
-            return ProviderTokenResolution(token: token, source: .keychain)
-        }
         if let token = ZaiSettingsReader.apiToken(environment: environment) {
             return ProviderTokenResolution(token: token, source: .environment)
+        }
+        if let token = self.keychainToken(service: self.keychainService, account: self.zaiAccount) {
+            return ProviderTokenResolution(token: token, source: .keychain)
         }
         return nil
     }
@@ -53,11 +53,11 @@ public enum ProviderTokenResolver {
     public static func copilotResolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
-        if let token = self.keychainToken(service: self.keychainService, account: self.copilotAccount) {
-            return ProviderTokenResolution(token: token, source: .keychain)
-        }
         if let token = self.cleaned(environment["COPILOT_API_TOKEN"]) {
             return ProviderTokenResolution(token: token, source: .environment)
+        }
+        if let token = self.keychainToken(service: self.keychainService, account: self.copilotAccount) {
+            return ProviderTokenResolution(token: token, source: .keychain)
         }
         return nil
     }
@@ -65,11 +65,11 @@ public enum ProviderTokenResolver {
     public static func minimaxResolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
-        if let token = self.keychainToken(service: self.keychainService, account: self.minimaxAccount) {
-            return ProviderTokenResolution(token: token, source: .keychain)
-        }
         if let token = MiniMaxSettingsReader.cookieHeader(environment: environment) {
             return ProviderTokenResolution(token: token, source: .environment)
+        }
+        if let token = self.keychainToken(service: self.keychainService, account: self.minimaxAccount) {
+            return ProviderTokenResolution(token: token, source: .keychain)
         }
         return nil
     }

@@ -55,18 +55,8 @@ struct FactoryProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
-        [
-            ProviderSettingsFieldDescriptor(
-                id: "factory-cookie-header",
-                title: "",
-                subtitle: "",
-                kind: .secure,
-                placeholder: "Cookie: …",
-                binding: context.stringBinding(\.factoryCookieHeader),
-                actions: [],
-                isVisible: { context.settings.factoryCookieSource == .manual },
-                onActivate: { context.settings.ensureFactoryCookieLoaded() }),
-        ]
+        _ = context
+        return []
     }
 
     @MainActor

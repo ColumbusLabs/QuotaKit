@@ -66,27 +66,6 @@ struct OpenCodeProviderImplementation: ProviderImplementation {
                 actions: [],
                 isVisible: nil,
                 onActivate: nil),
-            ProviderSettingsFieldDescriptor(
-                id: "opencode-cookie",
-                title: "",
-                subtitle: "",
-                kind: .secure,
-                placeholder: "Cookie: …",
-                binding: context.stringBinding(\.opencodeCookieHeader),
-                actions: [
-                    ProviderSettingsActionDescriptor(
-                        id: "opencode-open-dashboard",
-                        title: "Open Billing",
-                        style: .link,
-                        isVisible: nil,
-                        perform: {
-                            if let url = URL(string: "https://opencode.ai") {
-                                NSWorkspace.shared.open(url)
-                            }
-                        }),
-                ],
-                isVisible: { context.settings.opencodeCookieSource == .manual },
-                onActivate: { context.settings.ensureOpenCodeCookieLoaded() }),
         ]
     }
 }

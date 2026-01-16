@@ -115,6 +115,11 @@ final class SettingsStore {
         }
     }
 
+    /// Optional: show all token accounts stacked in the menu (otherwise show a switcher bar).
+    var showAllTokenAccountsInMenu: Bool {
+        didSet { self.userDefaults.set(self.showAllTokenAccountsInMenu, forKey: "showAllTokenAccountsInMenu") }
+    }
+
     /// Optional: choose which quota window drives the menu bar percentage.
     private var menuBarMetricPreferencesRaw: [String: String] {
         didSet { self.userDefaults.set(self.menuBarMetricPreferencesRaw, forKey: "menuBarMetricPreferences") }
@@ -311,6 +316,11 @@ final class SettingsStore {
         didSet { self.schedulePersistCopilotAPIToken() }
     }
 
+    /// Token accounts loaded from the local config file.
+    var tokenAccountsByProvider: [UsageProvider: ProviderTokenAccountData] {
+        didSet { self.schedulePersistTokenAccounts() }
+    }
+
     private var selectedMenuProviderRaw: String? {
         didSet {
             if let raw = self.selectedMenuProviderRaw {
@@ -401,6 +411,7 @@ final class SettingsStore {
     func menuBarMetricSupportsAverage(for provider: UsageProvider) -> Bool {
         provider == .gemini
     }
+
     var factoryCookieSource: ProviderCookieSource {
         get { ProviderCookieSource(rawValue: self.factoryCookieSourceRaw ?? "") ?? .auto }
         set { self.factoryCookieSourceRaw = newValue.rawValue }
@@ -426,6 +437,7 @@ final class SettingsStore {
         _ = self.usageBarsShowUsed
         _ = self.resetTimesShowAbsolute
         _ = self.menuBarShowsBrandIconWithPercent
+        _ = self.showAllTokenAccountsInMenu
         _ = self.menuBarMetricPreferencesRaw
         _ = self.costUsageEnabled
         _ = self.randomBlinkEnabled
@@ -451,6 +463,7 @@ final class SettingsStore {
         _ = self.factoryCookieHeader
         _ = self.minimaxCookieHeader
         _ = self.copilotAPIToken
+        _ = self.tokenAccountsByProvider
         _ = self.debugLoadingPattern
         _ = self.selectedMenuProvider
         _ = self.providerToggleRevision
@@ -499,6 +512,10 @@ final class SettingsStore {
     @ObservationIgnored private var copilotTokenPersistTask: Task<Void, Never>?
     @ObservationIgnored private var copilotTokenLoaded = false
     @ObservationIgnored private var copilotTokenLoading = false
+    @ObservationIgnored private let tokenAccountStore: any ProviderTokenAccountStoring
+    @ObservationIgnored private var tokenAccountsPersistTask: Task<Void, Never>?
+    @ObservationIgnored private var tokenAccountsLoaded = false
+    @ObservationIgnored private var tokenAccountsLoading = false
     // Cache enablement so tight UI loops (menu bar animations) don't hit UserDefaults each tick.
     @ObservationIgnored private var cachedProviderEnablement: [UsageProvider: Bool] = [:]
     @ObservationIgnored private var cachedProviderEnablementRevision: Int = -1
@@ -532,7 +549,8 @@ final class SettingsStore {
         augmentCookieStore: any CookieHeaderStoring = KeychainCookieHeaderStore(
             account: "augment-cookie",
             promptKind: .augmentCookie),
-        copilotTokenStore: any CopilotTokenStoring = KeychainCopilotTokenStore())
+        copilotTokenStore: any CopilotTokenStoring = KeychainCopilotTokenStore(),
+        tokenAccountStore: any ProviderTokenAccountStoring = FileTokenAccountStore())
     {
         self.userDefaults = userDefaults
         self.zaiTokenStore = zaiTokenStore
@@ -544,6 +562,7 @@ final class SettingsStore {
         self.minimaxCookieStore = minimaxCookieStore
         self.augmentCookieStore = augmentCookieStore
         self.copilotTokenStore = copilotTokenStore
+        self.tokenAccountStore = tokenAccountStore
         self.providerOrderRaw = userDefaults.stringArray(forKey: "providerOrder") ?? []
         let raw = userDefaults.string(forKey: "refreshFrequency") ?? RefreshFrequency.fiveMinutes.rawValue
         self.refreshFrequency = RefreshFrequency(rawValue: raw) ?? .fiveMinutes
@@ -561,6 +580,8 @@ final class SettingsStore {
         self.resetTimesShowAbsolute = userDefaults.object(forKey: "resetTimesShowAbsolute") as? Bool ?? false
         self.menuBarShowsBrandIconWithPercent = userDefaults.object(
             forKey: "menuBarShowsBrandIconWithPercent") as? Bool ?? false
+        self.showAllTokenAccountsInMenu = userDefaults.object(
+            forKey: "showAllTokenAccountsInMenu") as? Bool ?? false
         let storedMenuBarMetricPreferences = userDefaults.dictionary(
             forKey: "menuBarMetricPreferences") as? [String: String] ?? [:]
         var resolvedMenuBarMetricPreferences = storedMenuBarMetricPreferences
@@ -621,6 +642,7 @@ final class SettingsStore {
         self.minimaxCookieHeader = ""
         self.augmentCookieHeader = ""
         self.copilotAPIToken = ""
+        self.tokenAccountsByProvider = [:]
         self.selectedMenuProviderRaw = userDefaults.string(forKey: "selectedMenuProvider")
         self.providerDetectionCompleted = userDefaults.object(
             forKey: "providerDetectionCompleted") as? Bool ?? false
@@ -1094,6 +1116,32 @@ extension SettingsStore {
             }
         }
     }
+
+    private func schedulePersistTokenAccounts() {
+        if self.tokenAccountsLoading { return }
+        self.tokenAccountsPersistTask?.cancel()
+        let accounts = self.tokenAccountsByProvider
+        let tokenStore = self.tokenAccountStore
+        self.tokenAccountsPersistTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 350_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
+                do {
+                    try tokenStore.storeAccounts(accounts)
+                    return nil
+                } catch {
+                    return error
+                }
+            }.value
+            if let error {
+                CodexBarLog.logger("token-account-store").error("Failed to persist token accounts: \(error)")
+            }
+        }
+    }
 }
 
 extension SettingsStore {
@@ -1167,6 +1215,125 @@ extension SettingsStore {
         self.copilotAPIToken = (try? self.copilotTokenStore.loadToken()) ?? ""
         self.copilotTokenLoading = false
         self.copilotTokenLoaded = true
+    }
+
+    func ensureTokenAccountsLoaded() {
+        guard !self.tokenAccountsLoaded else { return }
+        self.tokenAccountsLoading = true
+        self.tokenAccountsByProvider = (try? self.tokenAccountStore.loadAccounts()) ?? [:]
+        for (provider, data) in self.tokenAccountsByProvider where !data.accounts.isEmpty {
+            self.applyTokenAccountSideEffects(for: provider)
+        }
+        self.tokenAccountsLoading = false
+        self.tokenAccountsLoaded = true
+    }
+
+    func tokenAccountsData(for provider: UsageProvider) -> ProviderTokenAccountData? {
+        self.ensureTokenAccountsLoaded()
+        return self.tokenAccountsByProvider[provider]
+    }
+
+    func tokenAccounts(for provider: UsageProvider) -> [ProviderTokenAccount] {
+        self.tokenAccountsData(for: provider)?.accounts ?? []
+    }
+
+    func selectedTokenAccount(for provider: UsageProvider) -> ProviderTokenAccount? {
+        guard let data = self.tokenAccountsData(for: provider), !data.accounts.isEmpty else { return nil }
+        let index = data.clampedActiveIndex()
+        guard index < data.accounts.count else { return nil }
+        return data.accounts[index]
+    }
+
+    func setTokenAccounts(_ data: ProviderTokenAccountData?, for provider: UsageProvider) {
+        self.ensureTokenAccountsLoaded()
+        if let data {
+            self.tokenAccountsByProvider[provider] = data
+        } else {
+            self.tokenAccountsByProvider.removeValue(forKey: provider)
+        }
+    }
+
+    func setActiveTokenAccountIndex(_ index: Int, for provider: UsageProvider) {
+        self.ensureTokenAccountsLoaded()
+        guard var data = self.tokenAccountsByProvider[provider] else { return }
+        let clamped = min(max(index, 0), max(0, data.accounts.count - 1))
+        data = ProviderTokenAccountData(version: data.version, accounts: data.accounts, activeIndex: clamped)
+        self.tokenAccountsByProvider[provider] = data
+    }
+
+    func addTokenAccount(provider: UsageProvider, label: String, token: String) {
+        self.ensureTokenAccountsLoaded()
+        let trimmedLabel = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedLabel.isEmpty, !trimmedToken.isEmpty else { return }
+        let now = Date().timeIntervalSince1970
+        var data = self.tokenAccountsByProvider[provider]
+            ?? ProviderTokenAccountData(version: 1, accounts: [], activeIndex: 0)
+        let account = ProviderTokenAccount(
+            id: UUID(),
+            label: trimmedLabel,
+            token: trimmedToken,
+            addedAt: now,
+            lastUsed: now)
+        data = ProviderTokenAccountData(
+            version: data.version,
+            accounts: data.accounts + [account],
+            activeIndex: max(0, data.accounts.count))
+        self.tokenAccountsByProvider[provider] = data
+        self.applyTokenAccountSideEffects(for: provider)
+    }
+
+    func removeTokenAccount(provider: UsageProvider, accountID: UUID) {
+        self.ensureTokenAccountsLoaded()
+        guard let data = self.tokenAccountsByProvider[provider] else { return }
+        let remaining = data.accounts.filter { $0.id != accountID }
+        if remaining.isEmpty {
+            self.tokenAccountsByProvider.removeValue(forKey: provider)
+            return
+        }
+        let newIndex = min(data.clampedActiveIndex(), max(0, remaining.count - 1))
+        self.tokenAccountsByProvider[provider] = ProviderTokenAccountData(
+            version: data.version,
+            accounts: remaining,
+            activeIndex: newIndex)
+    }
+
+    func reloadTokenAccounts() {
+        self.tokenAccountsLoaded = false
+        self.ensureTokenAccountsLoaded()
+    }
+
+    func openTokenAccountsFile() {
+        do {
+            let url = try self.tokenAccountStore.ensureFileExists()
+            NSWorkspace.shared.open(url)
+        } catch {
+            CodexBarLog.logger("token-account-store").error("Failed to open token accounts file: \(error)")
+        }
+    }
+
+    private func applyTokenAccountSideEffects(for provider: UsageProvider) {
+        guard let support = TokenAccountSupportCatalog.support(for: provider),
+              support.requiresManualCookieSource
+        else {
+            return
+        }
+        switch provider {
+        case .claude:
+            self.claudeCookieSource = .manual
+        case .cursor:
+            self.cursorCookieSource = .manual
+        case .opencode:
+            self.opencodeCookieSource = .manual
+        case .factory:
+            self.factoryCookieSource = .manual
+        case .minimax:
+            self.minimaxCookieSource = .manual
+        case .augment:
+            self.augmentCookieSource = .manual
+        default:
+            break
+        }
     }
 }
 

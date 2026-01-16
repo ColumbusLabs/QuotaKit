@@ -64,6 +64,10 @@ struct AdvancedPane: View {
                         subtitle: "Replace critter bars with provider branding icons and a percentage.",
                         binding: self.$settings.menuBarShowsBrandIconWithPercent)
                     PreferenceToggleRow(
+                        title: "Show all token accounts",
+                        subtitle: "Stack token accounts in the menu (otherwise show an account switcher bar).",
+                        binding: self.$settings.showAllTokenAccountsInMenu)
+                    PreferenceToggleRow(
                         title: "Surprise me",
                         subtitle: "Check if you like your agents having some fun up there.",
                         binding: self.$settings.randomBlinkEnabled)
