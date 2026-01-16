@@ -22,9 +22,15 @@ struct ZaiAvailabilityTests {
         let metadata = ProviderRegistry.shared.metadata[.zai]!
         settings.setProviderEnabled(provider: .zai, metadata: metadata, enabled: true)
 
+        let envToken = ZaiSettingsReader.apiToken(environment: ProcessInfo.processInfo.environment)
+
         #expect(settings.zaiAPIToken.isEmpty)
         #expect(store.isEnabled(.zai) == true)
-        #expect(settings.zaiAPIToken == "zai-test-token")
+        if envToken == nil {
+            #expect(settings.zaiAPIToken == "zai-test-token")
+        } else {
+            #expect(settings.zaiAPIToken.isEmpty)
+        }
     }
 }
 

@@ -33,6 +33,24 @@ enum RefreshFrequency: String, CaseIterable, Identifiable {
     }
 }
 
+enum MenuBarMetricPreference: String, CaseIterable, Identifiable {
+    case automatic
+    case primary
+    case secondary
+    case average
+
+    var id: String { self.rawValue }
+
+    var label: String {
+        switch self {
+        case .automatic: "Automatic"
+        case .primary: "Primary"
+        case .secondary: "Secondary"
+        case .average: "Average"
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class SettingsStore {
@@ -95,6 +113,11 @@ final class SettingsStore {
         didSet {
             self.userDefaults.set(self.menuBarShowsBrandIconWithPercent, forKey: "menuBarShowsBrandIconWithPercent")
         }
+    }
+
+    /// Optional: choose which quota window drives the menu bar percentage.
+    private var menuBarMetricPreferencesRaw: [String: String] {
+        didSet { self.userDefaults.set(self.menuBarMetricPreferencesRaw, forKey: "menuBarMetricPreferences") }
     }
 
     /// Optional: show provider cost summary from local usage logs (Codex + Claude).
@@ -357,6 +380,27 @@ final class SettingsStore {
         set { self.opencodeCookieSourceRaw = newValue.rawValue }
     }
 
+    func menuBarMetricPreference(for provider: UsageProvider) -> MenuBarMetricPreference {
+        if provider == .zai { return .primary }
+        let raw = self.menuBarMetricPreferencesRaw[provider.rawValue] ?? ""
+        let preference = MenuBarMetricPreference(rawValue: raw) ?? .automatic
+        if preference == .average, !self.menuBarMetricSupportsAverage(for: provider) {
+            return .automatic
+        }
+        return preference
+    }
+
+    func setMenuBarMetricPreference(_ preference: MenuBarMetricPreference, for provider: UsageProvider) {
+        if provider == .zai {
+            self.menuBarMetricPreferencesRaw[provider.rawValue] = MenuBarMetricPreference.primary.rawValue
+            return
+        }
+        self.menuBarMetricPreferencesRaw[provider.rawValue] = preference.rawValue
+    }
+
+    func menuBarMetricSupportsAverage(for provider: UsageProvider) -> Bool {
+        provider == .gemini
+    }
     var factoryCookieSource: ProviderCookieSource {
         get { ProviderCookieSource(rawValue: self.factoryCookieSourceRaw ?? "") ?? .auto }
         set { self.factoryCookieSourceRaw = newValue.rawValue }
@@ -382,6 +426,7 @@ final class SettingsStore {
         _ = self.usageBarsShowUsed
         _ = self.resetTimesShowAbsolute
         _ = self.menuBarShowsBrandIconWithPercent
+        _ = self.menuBarMetricPreferencesRaw
         _ = self.costUsageEnabled
         _ = self.randomBlinkEnabled
         _ = self.claudeWebExtrasEnabled
@@ -516,6 +561,17 @@ final class SettingsStore {
         self.resetTimesShowAbsolute = userDefaults.object(forKey: "resetTimesShowAbsolute") as? Bool ?? false
         self.menuBarShowsBrandIconWithPercent = userDefaults.object(
             forKey: "menuBarShowsBrandIconWithPercent") as? Bool ?? false
+        let storedMenuBarMetricPreferences = userDefaults.dictionary(
+            forKey: "menuBarMetricPreferences") as? [String: String] ?? [:]
+        var resolvedMenuBarMetricPreferences = storedMenuBarMetricPreferences
+        if resolvedMenuBarMetricPreferences.isEmpty,
+           let menuBarMetricRaw = userDefaults.string(forKey: "menuBarMetricPreference"),
+           let legacyPreference = MenuBarMetricPreference(rawValue: menuBarMetricRaw)
+        {
+            resolvedMenuBarMetricPreferences = Dictionary(
+                uniqueKeysWithValues: UsageProvider.allCases.map { ($0.rawValue, legacyPreference.rawValue) })
+        }
+        self.menuBarMetricPreferencesRaw = resolvedMenuBarMetricPreferences
         self.costUsageEnabled = userDefaults.object(forKey: "tokenCostUsageEnabled") as? Bool ?? false
         self.randomBlinkEnabled = userDefaults.object(forKey: "randomBlinkEnabled") as? Bool ?? false
         self.claudeWebExtrasEnabled = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false
