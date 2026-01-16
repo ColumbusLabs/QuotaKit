@@ -1271,31 +1271,6 @@ extension SettingsStore {
         }
     }
 
-    private func schedulePersistKimiAuthToken() {
-        if self.kimiTokenLoading { return }
-        self.kimiTokenPersistTask?.cancel()
-        let token = self.kimiManualCookieHeader
-        let tokenStore = self.kimiTokenStore
-        self.kimiTokenPersistTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
-                do {
-                    try tokenStore.storeToken(token)
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                CodexBarLog.logger("kimi-token-store").error("Failed to persist Kimi token: \(error)")
-            }
-        }
-    }
 }
 
 extension SettingsStore {

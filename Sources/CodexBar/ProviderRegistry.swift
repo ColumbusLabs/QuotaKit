@@ -65,56 +65,6 @@ struct ProviderRegistry {
                             provider: provider,
                             settings: settings,
                             tokenOverride: nil)
-                            cursor: ProviderSettingsSnapshot.CursorProviderSettings(
-                                cookieSource: settings.cursorCookieSource,
-                                manualCookieHeader: settings.cursorCookieHeader),
-                            factory: ProviderSettingsSnapshot.FactoryProviderSettings(
-                                cookieSource: settings.factoryCookieSource,
-                                manualCookieHeader: settings.factoryCookieHeader),
-                            minimax: ProviderSettingsSnapshot.MiniMaxProviderSettings(
-                                cookieSource: settings.minimaxCookieSource,
-                                manualCookieHeader: settings.minimaxCookieHeader),
-                            zai: ProviderSettingsSnapshot.ZaiProviderSettings(),
-                            copilot: ProviderSettingsSnapshot.CopilotProviderSettings(),
-                            kimi: ProviderSettingsSnapshot.KimiProviderSettings(
-                                cookieSource: settings.kimiCookieSource,
-                                manualCookieHeader: settings.kimiManualCookieHeader),
-                            augment: ProviderSettingsSnapshot.AugmentProviderSettings(
-                                cookieSource: settings.augmentCookieSource,
-                                manualCookieHeader: settings.augmentCookieHeader))
-=======
-                        ProviderSettingsSnapshot(
-                            debugMenuEnabled: settings.debugMenuEnabled,
-                            codex: ProviderSettingsSnapshot.CodexProviderSettings(
-                                usageDataSource: settings.codexUsageDataSource,
-                                cookieSource: settings.codexCookieSource,
-                                manualCookieHeader: settings.codexCookieHeader),
-                            claude: ProviderSettingsSnapshot.ClaudeProviderSettings(
-                                usageDataSource: settings.claudeUsageDataSource,
-                                webExtrasEnabled: settings.claudeWebExtrasEnabled,
-                                cookieSource: settings.claudeCookieSource,
-                                manualCookieHeader: settings.claudeCookieHeader),
-                            cursor: ProviderSettingsSnapshot.CursorProviderSettings(
-                                cookieSource: settings.cursorCookieSource,
-                                manualCookieHeader: settings.cursorCookieHeader),
-                            factory: ProviderSettingsSnapshot.FactoryProviderSettings(
-                                cookieSource: settings.factoryCookieSource,
-                                manualCookieHeader: settings.factoryCookieHeader),
-                            minimax: ProviderSettingsSnapshot.MiniMaxProviderSettings(
-                                cookieSource: settings.minimaxCookieSource,
-                                manualCookieHeader: settings.minimaxCookieHeader),
-                            zai: ProviderSettingsSnapshot.ZaiProviderSettings(),
-                            copilot: ProviderSettingsSnapshot.CopilotProviderSettings(),
-                            kimi: ProviderSettingsSnapshot.KimiProviderSettings(
-                                cookieSource: settings.kimiCookieSource,
-                                manualCookieHeader: {
-                                    settings.ensureKimiAuthTokenLoaded()
-                                    return settings.kimiManualCookieHeader
-                                }()),
-                            augment: ProviderSettingsSnapshot.AugmentProviderSettings(
-                                cookieSource: settings.augmentCookieSource,
-                                manualCookieHeader: settings.augmentCookieHeader))
->>>>>>> b9ac86f (security: store Kimi auth token in Keychain instead of UserDefaults)
                     }
                     let context = ProviderFetchContext(
                         runtime: .app,

@@ -21,7 +21,9 @@ public struct KimiUsageFetcher: Sendable {
         request.setValue("https://www.kimi.com/code/console", forHTTPHeaderField: "Referer")
         request.setValue("*/*", forHTTPHeaderField: "Accept")
         request.setValue("en-US,en;q=0.9", forHTTPHeaderField: "Accept-Language")
-        request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36", forHTTPHeaderField: "User-Agent")
+        let userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue("1", forHTTPHeaderField: "connect-protocol-version")
         request.setValue("en-US", forHTTPHeaderField: "x-language")
         request.setValue("web", forHTTPHeaderField: "x-msh-platform")

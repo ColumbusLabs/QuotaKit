@@ -34,8 +34,11 @@ extension KimiUsageSnapshot {
     public func toUsageSnapshot() -> UsageSnapshot {
         // Parse weekly quota
         let weeklyLimit = Int(weekly.limit) ?? 0
-        let weeklyRemaining = Int(weekly.remaining) ?? 0
-        let weeklyUsed = Int(weekly.used ?? "") ?? max(0, weeklyLimit - weeklyRemaining)
+        let weeklyRemaining = Int(weekly.remaining ?? "")
+        let weeklyUsed = Int(weekly.used ?? "") ?? {
+            guard let remaining = weeklyRemaining else { return 0 }
+            return max(0, weeklyLimit - remaining)
+        }()
 
         let weeklyPercent = weeklyLimit > 0 ? Double(weeklyUsed) / Double(weeklyLimit) * 100 : 0
 
@@ -46,11 +49,14 @@ extension KimiUsageSnapshot {
             resetDescription: "\(weeklyUsed)/\(weeklyLimit) requests")
 
         // Parse rate limit if available
-        var rateLimitWindow: RateWindow? = nil
+        var rateLimitWindow: RateWindow?
         if let rateLimit = self.rateLimit {
             let rateLimitValue = Int(rateLimit.limit) ?? 0
-            let rateRemaining = Int(rateLimit.remaining) ?? 0
-            let rateUsed = Int(rateLimit.used ?? "") ?? max(0, rateLimitValue - rateRemaining)
+            let rateRemaining = Int(rateLimit.remaining ?? "")
+            let rateUsed = Int(rateLimit.used ?? "") ?? {
+                guard let remaining = rateRemaining else { return 0 }
+                return max(0, rateLimitValue - remaining)
+            }()
             let ratePercent = rateLimitValue > 0 ? Double(rateUsed) / Double(rateLimitValue) * 100 : 0
 
             rateLimitWindow = RateWindow(
