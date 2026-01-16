@@ -65,7 +65,12 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 binding: cookieBinding,
                 options: cookieOptions,
                 isVisible: nil,
-                onChange: nil),
+                onChange: nil,
+                trailingText: {
+                    guard let entry = CookieHeaderCache.load(provider: .claude) else { return nil }
+                    let when = entry.storedAt.relativeDescription()
+                    return "Cached: \(entry.sourceLabel) • \(when)"
+                }),
         ]
     }
 

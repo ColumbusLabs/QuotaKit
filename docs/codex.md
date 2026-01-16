@@ -44,6 +44,8 @@ Usage source picker:
   3) Firefox: `~/Library/Application Support/Firefox/Profiles/*/cookies.sqlite`
   - Domains loaded: `chatgpt.com`, `openai.com`.
   - No cookie-name filter; we import all matching domain cookies.
+- Cached cookies: `~/Library/Application Support/CodexBar/codex-cookie.json` (source + timestamp). Reused before
+  re-importing from browsers.
 - Manual cookie header:
   - Paste the `Cookie:` header from a `chatgpt.com` request in Preferences → Providers → Codex.
   - Used when OpenAI cookies are set to Manual.

@@ -78,7 +78,6 @@ public enum OpenCodeCookieImporter {
             return false
         }
     }
-
 }
 
 enum OpenCodeCookieImportError: LocalizedError {

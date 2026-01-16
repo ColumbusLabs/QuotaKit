@@ -46,7 +46,7 @@ struct OpenCodeProviderImplementation: ProviderImplementation {
                 isVisible: nil,
                 onChange: nil,
                 trailingText: {
-                    guard let entry = OpenCodeCookieCache.load() else { return nil }
+                    guard let entry = CookieHeaderCache.load(provider: .opencode) else { return nil }
                     let when = entry.storedAt.relativeDescription()
                     return "Cached: \(entry.sourceLabel) • \(when)"
                 }),

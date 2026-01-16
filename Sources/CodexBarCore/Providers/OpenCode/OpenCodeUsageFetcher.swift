@@ -67,6 +67,7 @@ public struct OpenCodeUsageFetcher: Sendable {
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }
+
     private static let userAgent =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
@@ -84,11 +85,10 @@ public struct OpenCodeUsageFetcher: Sendable {
         now: Date = Date(),
         workspaceIDOverride: String? = nil) async throws -> OpenCodeUsageSnapshot
     {
-        let workspaceID: String
-        if let override = self.normalizeWorkspaceID(workspaceIDOverride) {
-            workspaceID = override
+        let workspaceID: String = if let override = self.normalizeWorkspaceID(workspaceIDOverride) {
+            override
         } else {
-            workspaceID = try await self.fetchWorkspaceID(
+            try await self.fetchWorkspaceID(
                 cookieHeader: cookieHeader,
                 timeout: timeout)
         }
@@ -376,26 +376,26 @@ public struct OpenCodeUsageFetcher: Sendable {
     private static func doubleValue(from value: Any?) -> Double? {
         switch value {
         case let number as Double:
-            return number
+            number
         case let number as NSNumber:
-            return number.doubleValue
+            number.doubleValue
         case let string as String:
-            return Double(string.trimmingCharacters(in: .whitespacesAndNewlines))
+            Double(string.trimmingCharacters(in: .whitespacesAndNewlines))
         default:
-            return nil
+            nil
         }
     }
 
     private static func intValue(from value: Any?) -> Int? {
         switch value {
         case let number as Int:
-            return number
+            number
         case let number as NSNumber:
-            return number.intValue
+            number.intValue
         case let string as String:
-            return Int(string.trimmingCharacters(in: .whitespacesAndNewlines))
+            Int(string.trimmingCharacters(in: .whitespacesAndNewlines))
         default:
-            return nil
+            nil
         }
     }
 
@@ -648,7 +648,7 @@ public struct OpenCodeUsageFetcher: Sendable {
         }
 
         guard var resolvedPercent = percent else { return nil }
-        if resolvedPercent <= 1.0 && resolvedPercent >= 0 {
+        if resolvedPercent <= 1.0, resolvedPercent >= 0 {
             resolvedPercent *= 100
         }
         resolvedPercent = max(0, min(100, resolvedPercent))
@@ -718,15 +718,14 @@ public struct OpenCodeUsageFetcher: Sendable {
         guard let data = text.data(using: .utf8),
               let object = try? JSONSerialization.jsonObject(with: data, options: [])
         else {
-            let hint: String
-            if trimmed.hasPrefix("<") {
-                hint = "html"
+            let hint = if trimmed.hasPrefix("<") {
+                "html"
             } else if trimmed.hasPrefix("{") || trimmed.hasPrefix("[") {
-                hint = "json"
+                "json"
             } else if trimmed.isEmpty {
-                hint = "empty"
+                "empty"
             } else {
-                hint = "text"
+                "text"
             }
             Self.log.error("OpenCode response non-JSON: hint=\(hint) length=\(text.count)")
             return
@@ -779,5 +778,4 @@ public struct OpenCodeUsageFetcher: Sendable {
         default: "value"
         }
     }
-
 }

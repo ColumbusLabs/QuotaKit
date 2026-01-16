@@ -64,7 +64,7 @@ struct OpenCodeUsageFetchStrategy: ProviderFetchStrategy {
                 sourceLabel: "web")
         } catch OpenCodeUsageError.invalidCredentials where cookieSource != .manual {
             #if os(macOS)
-            OpenCodeCookieCache.clear()
+            CookieHeaderCache.clear(provider: .opencode)
             let cookieHeader = try Self.resolveCookieHeader(context: context, allowCached: false)
             let snapshot = try await OpenCodeUsageFetcher.fetchUsage(
                 cookieHeader: cookieHeader,
@@ -99,13 +99,16 @@ struct OpenCodeUsageFetchStrategy: ProviderFetchStrategy {
 
         #if os(macOS)
         if allowCached,
-           let cached = OpenCodeCookieCache.load(),
+           let cached = CookieHeaderCache.load(provider: .opencode),
            !cached.cookieHeader.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         {
             return cached.cookieHeader
         }
         let session = try OpenCodeCookieImporter.importSession(browserDetection: context.browserDetection)
-        OpenCodeCookieCache.store(cookieHeader: session.cookieHeader, sourceLabel: session.sourceLabel)
+        CookieHeaderCache.store(
+            provider: .opencode,
+            cookieHeader: session.cookieHeader,
+            sourceLabel: session.sourceLabel)
         return session.cookieHeader
         #else
         throw OpenCodeSettingsError.missingCookie

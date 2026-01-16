@@ -1,6 +1,6 @@
 import Foundation
 
-public enum OpenCodeCookieCache {
+public enum CookieHeaderCache {
     public struct Entry: Codable, Sendable {
         public let cookieHeader: String
         public let storedAt: Date
@@ -13,30 +13,34 @@ public enum OpenCodeCookieCache {
         }
     }
 
-    private static let log = CodexBarLog.logger("opencode-cookie-cache")
-    private static let filename = "opencode-cookie.json"
+    private static let log = CodexBarLog.logger("cookie-cache")
 
-    public static func load() -> Entry? {
-        self.load(from: self.defaultURL())
+    public static func load(provider: UsageProvider) -> Entry? {
+        self.load(from: self.defaultURL(for: provider))
     }
 
-    public static func store(cookieHeader: String, sourceLabel: String, now: Date = Date()) {
+    public static func store(
+        provider: UsageProvider,
+        cookieHeader: String,
+        sourceLabel: String,
+        now: Date = Date())
+    {
         let trimmed = cookieHeader.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, CookieHeaderNormalizer.normalize(trimmed) != nil else {
-            self.clear()
+        guard let normalized = CookieHeaderNormalizer.normalize(trimmed), !normalized.isEmpty else {
+            self.clear(provider: provider)
             return
         }
-        let entry = Entry(cookieHeader: trimmed, storedAt: now, sourceLabel: sourceLabel)
-        self.store(entry, to: self.defaultURL())
+        let entry = Entry(cookieHeader: normalized, storedAt: now, sourceLabel: sourceLabel)
+        self.store(entry, to: self.defaultURL(for: provider))
     }
 
-    public static func clear() {
-        let url = self.defaultURL()
+    public static func clear(provider: UsageProvider) {
+        let url = self.defaultURL(for: provider)
         do {
             try FileManager.default.removeItem(at: url)
         } catch {
             if (error as NSError).code != NSFileNoSuchFileError {
-                Self.log.error("Failed to remove OpenCode cookie cache: \(error)")
+                Self.log.error("Failed to remove cookie cache (\(provider.rawValue)): \(error)")
             }
         }
     }
@@ -57,15 +61,15 @@ public enum OpenCodeCookieCache {
             let data = try encoder.encode(entry)
             try data.write(to: url, options: [.atomic])
         } catch {
-            Self.log.error("Failed to persist OpenCode cookie cache: \(error)")
+            self.log.error("Failed to persist cookie cache: \(error)")
         }
     }
 
-    private static func defaultURL() -> URL {
+    private static func defaultURL(for provider: UsageProvider) -> URL {
         let fm = FileManager.default
         let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? fm.temporaryDirectory
         return base.appendingPathComponent("CodexBar", isDirectory: true)
-            .appendingPathComponent(self.filename)
+            .appendingPathComponent("\(provider.rawValue)-cookie.json")
     }
 }

@@ -592,15 +592,33 @@ public struct FactoryStatusProbe: Sendable {
             throw FactoryStatusProbeError.noSessionCookie
         }
 
+        if let cached = CookieHeaderCache.load(provider: .factory),
+           !cached.cookieHeader.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            log("Using cached cookie header from \(cached.sourceLabel)")
+            let bearer = Self.bearerToken(fromHeader: cached.cookieHeader)
+            do {
+                return try await self.fetchWithCookieHeader(
+                    cached.cookieHeader,
+                    bearerToken: bearer,
+                    baseURL: self.baseURL)
+            } catch {
+                if case FactoryStatusProbeError.notLoggedIn = error {
+                    CookieHeaderCache.clear(provider: .factory)
+                }
+                lastError = error
+            }
+        }
+
         // Filter to only installed browsers to avoid unnecessary keychain prompts
         let installedChromiumAndFirefox = [.chrome, .firefox].cookieImportCandidates(using: self.browserDetection)
 
         let attempts: [FetchAttemptResult] = await [
-            self.attemptBrowserCookies(logger: log, sources: [.safari]),
             self.attemptStoredCookies(logger: log),
             self.attemptStoredBearer(logger: log),
             self.attemptStoredRefreshToken(logger: log),
             self.attemptLocalStorageTokens(logger: log),
+            self.attemptBrowserCookies(logger: log, sources: [.safari]),
             self.attemptWorkOSCookies(logger: log, sources: [.safari]),
             self.attemptBrowserCookies(logger: log, sources: installedChromiumAndFirefox),
             self.attemptWorkOSCookies(logger: log, sources: installedChromiumAndFirefox),
@@ -640,6 +658,10 @@ public struct FactoryStatusProbe: Sendable {
                     do {
                         let snapshot = try await self.fetchWithCookies(session.cookies, logger: logger)
                         await FactorySessionStore.shared.setCookies(session.cookies)
+                        CookieHeaderCache.store(
+                            provider: .factory,
+                            cookieHeader: session.cookieHeader,
+                            sourceLabel: session.sourceLabel)
                         return .success(snapshot)
                     } catch {
                         lastError = error

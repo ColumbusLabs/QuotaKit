@@ -22,6 +22,6 @@ struct OpenCodeUsageParserTests {
         #expect(snapshot.rollingUsagePercent == 17)
         #expect(snapshot.weeklyUsagePercent == 75)
         #expect(snapshot.rollingResetInSec == 5944)
-        #expect(snapshot.weeklyResetInSec == 278201)
+        #expect(snapshot.weeklyResetInSec == 278_201)
     }
 }

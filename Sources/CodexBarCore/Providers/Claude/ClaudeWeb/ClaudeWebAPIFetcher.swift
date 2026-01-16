@@ -135,10 +135,33 @@ public enum ClaudeWebAPIFetcher {
     {
         let log: (String) -> Void = { msg in logger?("[claude-web] \(msg)") }
 
+        if let cached = CookieHeaderCache.load(provider: .claude),
+           !cached.cookieHeader.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            log("Using cached cookie header from \(cached.sourceLabel)")
+            do {
+                return try await self.fetchUsage(cookieHeader: cached.cookieHeader, logger: log)
+            } catch let error as FetchError {
+                switch error {
+                case .unauthorized, .noSessionKeyFound, .invalidSessionKey:
+                    CookieHeaderCache.clear(provider: .claude)
+                default:
+                    throw error
+                }
+            } catch {
+                throw error
+            }
+        }
+
         let sessionInfo = try extractSessionKeyInfo(browserDetection: browserDetection, logger: log)
         log("Found session key: \(sessionInfo.key.prefix(20))...")
 
-        return try await self.fetchUsage(using: sessionInfo, logger: log)
+        let usage = try await self.fetchUsage(using: sessionInfo, logger: log)
+        CookieHeaderCache.store(
+            provider: .claude,
+            cookieHeader: "sessionKey=\(sessionInfo.key)",
+            sourceLabel: sessionInfo.sourceLabel)
+        return usage
     }
 
     public static func fetchUsage(
@@ -278,6 +301,11 @@ public enum ClaudeWebAPIFetcher {
 
     /// Checks if we can find a Claude session key in browser cookies without making API calls.
     public static func hasSessionKey(browserDetection: BrowserDetection, logger: ((String) -> Void)? = nil) -> Bool {
+        if let cached = CookieHeaderCache.load(provider: .claude),
+           self.hasSessionKey(cookieHeader: cached.cookieHeader)
+        {
+            return true
+        }
         do {
             _ = try self.sessionKeyInfo(browserDetection: browserDetection, logger: logger)
             return true
