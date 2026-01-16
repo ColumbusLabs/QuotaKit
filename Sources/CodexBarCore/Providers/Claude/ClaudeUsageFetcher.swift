@@ -380,9 +380,10 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     }
 
     private static func extraUsageRescaleThreshold(for loginMethod: String?) -> Double? {
-        guard let loginMethod, !loginMethod.isEmpty else { return nil }
-        let lower = loginMethod.lowercased()
-        if lower.contains("enterprise") { return nil }
+        let normalized = loginMethod?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() ?? ""
+        if normalized.contains("enterprise") { return nil }
         return 1000
     }
 
@@ -507,7 +508,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             if snapshot.providerCost == nil, let extra = webData.extraUsageCost {
                 let normalizedExtra = Self.rescaleClaudeExtraUsageCostIfNeeded(
                     extra,
-                    loginMethod: snapshot.loginMethod)
+                    loginMethod: snapshot.loginMethod ?? webData.loginMethod)
                 return ClaudeUsageSnapshot(
                     primary: snapshot.primary,
                     secondary: snapshot.secondary,
@@ -571,6 +572,15 @@ extension ClaudeUsageFetcher {
             scopes: [],
             rateLimitTier: rateLimitTier)
         return try Self.mapOAuthUsage(usage, credentials: creds)
+    }
+
+    public static func _rescaleExtraUsageForTesting(
+        _ cost: ProviderCostSnapshot?,
+        snapshotLoginMethod: String?,
+        webLoginMethod: String?) -> ProviderCostSnapshot?
+    {
+        let loginMethod = snapshotLoginMethod ?? webLoginMethod
+        return Self.rescaleClaudeExtraUsageCostIfNeeded(cost, loginMethod: loginMethod)
     }
 }
 #endif
