@@ -236,7 +236,9 @@ public struct AmpUsageFetcher: Sendable {
         var request = URLRequest(url: Self.settingsURL)
         request.httpMethod = "GET"
         request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
-        request.setValue("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", forHTTPHeaderField: "accept")
+        request.setValue(
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            forHTTPHeaderField: "accept")
         request.setValue(
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
@@ -250,7 +252,9 @@ public struct AmpUsageFetcher: Sendable {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw AmpUsageError.networkError("Invalid response")
         }
-        let responseInfo = ResponseInfo(statusCode: httpResponse.statusCode, url: httpResponse.url?.absoluteString ?? "unknown")
+        let responseInfo = ResponseInfo(
+            statusCode: httpResponse.statusCode,
+            url: httpResponse.url?.absoluteString ?? "unknown")
 
         guard httpResponse.statusCode == 200 else {
             if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
@@ -289,8 +293,10 @@ public struct AmpUsageFetcher: Sendable {
             let to = request.url?.absoluteString ?? "unknown"
             self.redirects.append("\(response.statusCode) \(from) -> \(to)")
             var updated = request
-            if !self.cookieHeader.isEmpty {
+            if self.shouldAttachCookie(to: request.url), !self.cookieHeader.isEmpty {
                 updated.setValue(self.cookieHeader, forHTTPHeaderField: "Cookie")
+            } else {
+                updated.setValue(nil, forHTTPHeaderField: "Cookie")
             }
             if let referer = response.url?.absoluteString {
                 updated.setValue(referer, forHTTPHeaderField: "referer")
@@ -299,6 +305,12 @@ public struct AmpUsageFetcher: Sendable {
                 logger("[amp] Redirect \(response.statusCode) \(from) -> \(to)")
             }
             completionHandler(updated)
+        }
+
+        private func shouldAttachCookie(to url: URL?) -> Bool {
+            guard let host = url?.host?.lowercased() else { return false }
+            if host == "ampcode.com" || host == "www.ampcode.com" { return true }
+            return host.hasSuffix(".ampcode.com")
         }
     }
 

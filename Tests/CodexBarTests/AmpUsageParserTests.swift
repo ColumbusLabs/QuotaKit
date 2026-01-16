@@ -37,7 +37,9 @@ struct AmpUsageParserTests {
         let now = Date(timeIntervalSince1970: 1_700_010_000)
         let html = """
         <script>
-        __sveltekit_x.data = {"w6b2h6/getFreeTierUsage/":{bucket:"ubi",quota:1000,hourlyReplenishment:42,windowHours:24,used:0}};
+        __sveltekit_x.data = {
+          "w6b2h6/getFreeTierUsage/":{bucket:"ubi",quota:1000,hourlyReplenishment:42,windowHours:24,used:0}
+        };
         </script>
         """
 

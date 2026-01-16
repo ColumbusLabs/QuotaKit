@@ -17,8 +17,8 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case kiro
     case vertexai
     case augment
-    case amp
     case kimik2
+    case amp
 }
 
 // swiftformat:enable sortDeclarations
