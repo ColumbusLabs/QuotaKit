@@ -79,7 +79,11 @@ public struct ProviderSettingsSnapshot: Sendable {
     }
 
     public struct ZaiProviderSettings: Sendable {
-        public init() {}
+        public let apiRegion: ZaiAPIRegion
+
+        public init(apiRegion: ZaiAPIRegion = .global) {
+            self.apiRegion = apiRegion
+        }
     }
 
     public struct CopilotProviderSettings: Sendable {
