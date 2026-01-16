@@ -14,9 +14,23 @@ public enum CookieHeaderCache {
     }
 
     private static let log = CodexBarLog.logger("cookie-cache")
+    private nonisolated(unsafe) static var legacyBaseURLOverride: URL?
 
     public static func load(provider: UsageProvider) -> Entry? {
-        self.load(from: self.defaultURL(for: provider))
+        let key = KeychainCacheStore.Key.cookie(provider: provider)
+        switch KeychainCacheStore.load(key: key, as: Entry.self) {
+        case let .found(entry):
+            return entry
+        case .invalid:
+            KeychainCacheStore.clear(key: key)
+        case .missing:
+            break
+        }
+
+        guard let legacy = self.loadLegacyEntry(for: provider) else { return nil }
+        KeychainCacheStore.store(key: key, entry: legacy)
+        self.removeLegacyEntry(for: provider)
+        return legacy
     }
 
     public static func store(
@@ -31,28 +45,25 @@ public enum CookieHeaderCache {
             return
         }
         let entry = Entry(cookieHeader: normalized, storedAt: now, sourceLabel: sourceLabel)
-        self.store(entry, to: self.defaultURL(for: provider))
+        let key = KeychainCacheStore.Key.cookie(provider: provider)
+        KeychainCacheStore.store(key: key, entry: entry)
+        self.removeLegacyEntry(for: provider)
     }
 
     public static func clear(provider: UsageProvider) {
-        let url = self.defaultURL(for: provider)
-        do {
-            try FileManager.default.removeItem(at: url)
-        } catch {
-            if (error as NSError).code != NSFileNoSuchFileError {
-                Self.log.error("Failed to remove cookie cache (\(provider.rawValue)): \(error)")
-            }
-        }
+        let key = KeychainCacheStore.Key.cookie(provider: provider)
+        KeychainCacheStore.clear(key: key)
+        self.removeLegacyEntry(for: provider)
     }
 
-    public static func load(from url: URL) -> Entry? {
+    static func load(from url: URL) -> Entry? {
         guard let data = try? Data(contentsOf: url) else { return nil }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try? decoder.decode(Entry.self, from: data)
     }
 
-    public static func store(_ entry: Entry, to url: URL) {
+    static func store(_ entry: Entry, to url: URL) {
         do {
             let dir = url.deletingLastPathComponent()
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -65,7 +76,29 @@ public enum CookieHeaderCache {
         }
     }
 
-    private static func defaultURL(for provider: UsageProvider) -> URL {
+    static func setLegacyBaseURLOverrideForTesting(_ url: URL?) {
+        self.legacyBaseURLOverride = url
+    }
+
+    private static func loadLegacyEntry(for provider: UsageProvider) -> Entry? {
+        self.load(from: self.legacyURL(for: provider))
+    }
+
+    private static func removeLegacyEntry(for provider: UsageProvider) {
+        let url = self.legacyURL(for: provider)
+        do {
+            try FileManager.default.removeItem(at: url)
+        } catch {
+            if (error as NSError).code != NSFileNoSuchFileError {
+                Self.log.error("Failed to remove cookie cache (\(provider.rawValue)): \(error)")
+            }
+        }
+    }
+
+    private static func legacyURL(for provider: UsageProvider) -> URL {
+        if let override = self.legacyBaseURLOverride {
+            return override.appendingPathComponent("\(provider.rawValue)-cookie.json")
+        }
         let fm = FileManager.default
         let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? fm.temporaryDirectory

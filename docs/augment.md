@@ -58,7 +58,8 @@ Recognized cookie names:
 - `session`, `web_rpc_proxy_session` (Augment-specific)
 
 Cached cookies:
-- `~/Library/Application Support/CodexBar/augment-cookie.json` (source + timestamp). Reused before re-importing from browsers.
+- Keychain cache `com.steipete.codexbar.cache` (account `cookie.augment`, source + timestamp). Reused before re-importing
+  from browsers.
 
 ### Automatic Session Keepalive
 
