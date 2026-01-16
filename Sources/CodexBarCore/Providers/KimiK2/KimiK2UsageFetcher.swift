@@ -186,9 +186,21 @@ public struct KimiK2UsageFetcher: Sendable {
         var contexts: [[String: Any]] = [dictionary]
         if let data = dictionary["data"] as? [String: Any] {
             contexts.append(data)
+            if let dataUsage = data["usage"] as? [String: Any] {
+                contexts.append(dataUsage)
+            }
+            if let dataCredits = data["credits"] as? [String: Any] {
+                contexts.append(dataCredits)
+            }
         }
         if let result = dictionary["result"] as? [String: Any] {
             contexts.append(result)
+            if let resultUsage = result["usage"] as? [String: Any] {
+                contexts.append(resultUsage)
+            }
+            if let resultCredits = result["credits"] as? [String: Any] {
+                contexts.append(resultCredits)
+            }
         }
         if let usage = dictionary["usage"] as? [String: Any] {
             contexts.append(usage)
