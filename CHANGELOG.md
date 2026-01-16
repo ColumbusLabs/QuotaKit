@@ -31,6 +31,7 @@
 ### Menu
 - Menu: add a toggle to show reset times as absolute clock values (instead of countdowns).
 - Menu: show an “Open Terminal” action when Claude OAuth fails.
+- Menu: add “Hide personal information” toggle and redact emails in menu UI (#137). Thanks @t3dotgg!
 
 ### CLI
 - CLI: respect the reset time display setting.

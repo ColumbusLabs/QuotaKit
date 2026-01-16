@@ -414,7 +414,7 @@ struct MenuCardModelTests {
             credits: nil,
             creditsError: nil,
             dashboard: nil,
-            dashboardError: nil,
+            dashboardError: "OpenAI dashboard signed in as codex@example.com.",
             tokenSnapshot: nil,
             tokenError: nil,
             account: AccountInfo(email: "codex@example.com", plan: nil),
@@ -429,5 +429,7 @@ struct MenuCardModelTests {
 
         #expect(model.email == "Hidden")
         #expect(model.subtitleText.contains("codex@example.com") == false)
+        #expect(model.creditsHintCopyText?.isEmpty == true)
+        #expect(model.creditsHintText?.contains("codex@example.com") == false)
     }
 }

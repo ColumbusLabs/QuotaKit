@@ -512,7 +512,10 @@ private struct CreditsBarContent: View {
                     .lineLimit(4)
                     .fixedSize(horizontal: false, vertical: true)
                     .overlay {
-                        ClickToCopyOverlay(copyText: self.hintCopyText ?? hintText)
+                        let copyText = self.hintCopyText ?? hintText
+                        if !copyText.isEmpty {
+                            ClickToCopyOverlay(copyText: copyText)
+                        }
                     }
             }
         }
@@ -636,6 +639,11 @@ extension UsageMenuCardView.Model {
             provider: input.provider,
             error: input.dashboardError,
             hidePersonalInfo: input.hidePersonalInfo)
+        let creditsHintCopyText: String? = {
+            guard let error = input.dashboardError, !error.isEmpty else { return nil }
+            if input.hidePersonalInfo { return "" }
+            return error
+        }()
         let providerCost: ProviderCostSection? = if input.provider == .claude, !input.showOptionalCreditsAndExtraUsage {
             nil
         } else {
@@ -664,7 +672,7 @@ extension UsageMenuCardView.Model {
             creditsText: creditsText,
             creditsRemaining: input.credits?.remaining,
             creditsHintText: creditsHintText,
-            creditsHintCopyText: (input.dashboardError?.isEmpty ?? true) ? nil : input.dashboardError,
+            creditsHintCopyText: creditsHintCopyText,
             providerCost: providerCost,
             tokenUsage: tokenUsage,
             placeholder: placeholder,
