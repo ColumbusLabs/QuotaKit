@@ -175,10 +175,11 @@ struct SettingsStoreTests {
             .copilot,
             .zai,
             .minimax,
+            .kimi,
             .kiro,
             .vertexai,
             .augment,
-            .kimi,
+            .kimik2,
         ])
 
         // Move one provider; ensure it's persisted across instances.

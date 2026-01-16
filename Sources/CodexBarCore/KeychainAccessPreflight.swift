@@ -14,6 +14,7 @@ public struct KeychainPromptContext: Sendable {
         case zaiToken
         case copilotToken
         case kimiToken
+        case kimiK2Token
         case minimaxCookie
         case augmentCookie
     }

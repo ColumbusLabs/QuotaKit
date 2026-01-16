@@ -361,6 +361,11 @@ final class SettingsStore {
         didSet { self.schedulePersistKimiAuthToken() }
     }
 
+    /// Kimi K2 API token (stored in Keychain).
+    var kimiK2APIToken: String {
+        didSet { self.schedulePersistKimiK2APIToken() }
+    }
+
     /// Token accounts loaded from the local config file.
     var tokenAccountsByProvider: [UsageProvider: ProviderTokenAccountData] {
         didSet { self.schedulePersistTokenAccounts() }
@@ -446,28 +451,6 @@ final class SettingsStore {
         set { self.opencodeCookieSourceRaw = newValue.rawValue }
     }
 
-    func menuBarMetricPreference(for provider: UsageProvider) -> MenuBarMetricPreference {
-        if provider == .zai { return .primary }
-        let raw = self.menuBarMetricPreferencesRaw[provider.rawValue] ?? ""
-        let preference = MenuBarMetricPreference(rawValue: raw) ?? .automatic
-        if preference == .average, !self.menuBarMetricSupportsAverage(for: provider) {
-            return .automatic
-        }
-        return preference
-    }
-
-    func setMenuBarMetricPreference(_ preference: MenuBarMetricPreference, for provider: UsageProvider) {
-        if provider == .zai {
-            self.menuBarMetricPreferencesRaw[provider.rawValue] = MenuBarMetricPreference.primary.rawValue
-            return
-        }
-        self.menuBarMetricPreferencesRaw[provider.rawValue] = preference.rawValue
-    }
-
-    func menuBarMetricSupportsAverage(for provider: UsageProvider) -> Bool {
-        provider == .gemini
-    }
-
     var factoryCookieSource: ProviderCookieSource {
         get {
             guard !self.debugDisableKeychainAccess else { return .off }
@@ -538,6 +521,7 @@ final class SettingsStore {
         _ = self.factoryCookieHeader
         _ = self.minimaxCookieHeader
         _ = self.kimiManualCookieHeader
+        _ = self.kimiK2APIToken
         _ = self.augmentCookieHeader
         _ = self.copilotAPIToken
         _ = self.tokenAccountsByProvider
@@ -585,6 +569,10 @@ final class SettingsStore {
     @ObservationIgnored private var kimiTokenPersistTask: Task<Void, Never>?
     @ObservationIgnored private var kimiTokenLoaded = false
     @ObservationIgnored private var kimiTokenLoading = false
+    @ObservationIgnored private let kimiK2TokenStore: any KimiK2TokenStoring
+    @ObservationIgnored private var kimiK2TokenPersistTask: Task<Void, Never>?
+    @ObservationIgnored private var kimiK2TokenLoaded = false
+    @ObservationIgnored private var kimiK2TokenLoading = false
     @ObservationIgnored private let augmentCookieStore: any CookieHeaderStoring
     @ObservationIgnored private var augmentCookiePersistTask: Task<Void, Never>?
     @ObservationIgnored private var augmentCookieLoaded = false
@@ -628,6 +616,7 @@ final class SettingsStore {
             promptKind: .factoryCookie),
         minimaxCookieStore: any MiniMaxCookieStoring = KeychainMiniMaxCookieStore(),
         kimiTokenStore: any KimiTokenStoring = KeychainKimiTokenStore(),
+        kimiK2TokenStore: any KimiK2TokenStoring = KeychainKimiK2TokenStore(),
         augmentCookieStore: any CookieHeaderStoring = KeychainCookieHeaderStore(
             account: "augment-cookie",
             promptKind: .augmentCookie),
@@ -643,6 +632,7 @@ final class SettingsStore {
         self.factoryCookieStore = factoryCookieStore
         self.minimaxCookieStore = minimaxCookieStore
         self.kimiTokenStore = kimiTokenStore
+        self.kimiK2TokenStore = kimiK2TokenStore
         self.augmentCookieStore = augmentCookieStore
         self.copilotTokenStore = copilotTokenStore
         self.tokenAccountStore = tokenAccountStore
@@ -740,6 +730,7 @@ final class SettingsStore {
         self.factoryCookieHeader = ""
         self.minimaxCookieHeader = ""
         self.kimiManualCookieHeader = ""
+        self.kimiK2APIToken = ""
         self.augmentCookieHeader = ""
         self.copilotAPIToken = ""
         self.tokenAccountsByProvider = [:]
@@ -1193,32 +1184,6 @@ extension SettingsStore {
         }
     }
 
-    private func schedulePersistKimiAuthToken() {
-        if self.kimiTokenLoading { return }
-        self.kimiTokenPersistTask?.cancel()
-        let token = self.kimiManualCookieHeader
-        let tokenStore = self.kimiTokenStore
-        self.kimiTokenPersistTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
-                do {
-                    try tokenStore.storeToken(token)
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                CodexBarLog.logger("kimi-token-store").error("Failed to persist Kimi token: \(error)")
-            }
-        }
-    }
-
     private func schedulePersistCopilotAPIToken() {
         if self.copilotTokenLoading { return }
         self.copilotTokenPersistTask?.cancel()
@@ -1274,6 +1239,80 @@ extension SettingsStore {
 }
 
 extension SettingsStore {
+    func menuBarMetricPreference(for provider: UsageProvider) -> MenuBarMetricPreference {
+        if provider == .zai { return .primary }
+        let raw = self.menuBarMetricPreferencesRaw[provider.rawValue] ?? ""
+        let preference = MenuBarMetricPreference(rawValue: raw) ?? .automatic
+        if preference == .average, !self.menuBarMetricSupportsAverage(for: provider) {
+            return .automatic
+        }
+        return preference
+    }
+
+    func setMenuBarMetricPreference(_ preference: MenuBarMetricPreference, for provider: UsageProvider) {
+        if provider == .zai {
+            self.menuBarMetricPreferencesRaw[provider.rawValue] = MenuBarMetricPreference.primary.rawValue
+            return
+        }
+        self.menuBarMetricPreferencesRaw[provider.rawValue] = preference.rawValue
+    }
+
+    func menuBarMetricSupportsAverage(for provider: UsageProvider) -> Bool {
+        provider == .gemini
+    }
+
+    private func schedulePersistKimiAuthToken() {
+        if self.kimiTokenLoading { return }
+        self.kimiTokenPersistTask?.cancel()
+        let token = self.kimiManualCookieHeader
+        let tokenStore = self.kimiTokenStore
+        self.kimiTokenPersistTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 350_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
+                do {
+                    try tokenStore.storeToken(token)
+                    return nil
+                } catch {
+                    return error
+                }
+            }.value
+            if let error {
+                CodexBarLog.logger("kimi-token-store").error("Failed to persist Kimi token: \(error)")
+            }
+        }
+    }
+
+    private func schedulePersistKimiK2APIToken() {
+        if self.kimiK2TokenLoading { return }
+        self.kimiK2TokenPersistTask?.cancel()
+        let token = self.kimiK2APIToken
+        let tokenStore = self.kimiK2TokenStore
+        self.kimiK2TokenPersistTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 350_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
+                do {
+                    try tokenStore.storeToken(token)
+                    return nil
+                } catch {
+                    return error
+                }
+            }.value
+            if let error {
+                CodexBarLog.logger("kimi-k2-token-store").error("Failed to persist Kimi K2 token: \(error)")
+            }
+        }
+    }
+
     func ensureZaiAPITokenLoaded() {
         guard !self.zaiTokenLoaded else { return }
         self.zaiTokenLoading = true
@@ -1344,6 +1383,14 @@ extension SettingsStore {
         self.kimiManualCookieHeader = token
         self.kimiTokenLoading = false
         self.kimiTokenLoaded = true
+    }
+
+    func ensureKimiK2APITokenLoaded() {
+        guard !self.kimiK2TokenLoaded else { return }
+        self.kimiK2TokenLoading = true
+        self.kimiK2APIToken = (try? self.kimiK2TokenStore.loadToken()) ?? ""
+        self.kimiK2TokenLoading = false
+        self.kimiK2TokenLoaded = true
     }
 
     func ensureAugmentCookieLoaded() {

@@ -1,5 +1,5 @@
 ---
-summary: "Provider data sources and parsing overview (Codex, Claude, Gemini, Antigravity, Cursor, Droid/Factory, z.ai, Copilot, Kimi, Kiro, Vertex AI)."
+summary: "Provider data sources and parsing overview (Codex, Claude, Gemini, Antigravity, Cursor, Droid/Factory, z.ai, Copilot, Kimi, Kimi K2, Kiro, Vertex AI)."
 read_when:
   - Adding or modifying provider fetch/parsing
   - Adjusting provider labels, toggles, or metadata
@@ -29,6 +29,7 @@ the session is invalid, to avoid repeated Keychain prompts.
 | MiniMax | Manual cookie header (Keychain/env) → browser cookies (+ local storage access token) → coding plan page (HTML) with remains API fallback (`web`). |
 | Kimi | API token (JWT from `kimi-auth` cookie) → usage API (`api`). |
 | Copilot | API token (device flow/env) → copilot_internal API (`api`). |
+| Kimi K2 | API key (Keychain/env) → credit endpoint (`api`). |
 | Kiro | CLI command via `kiro-cli chat --no-interactive "/usage"` (`cli`). |
 | Vertex AI | Google ADC OAuth (gcloud) → Cloud Monitoring quota usage (`oauth`). |
 
@@ -67,6 +68,13 @@ the session is invalid, to avoid repeated Keychain prompts.
 - Shows weekly quota and 5-hour rate limit (300 minutes).
 - Status: none yet.
 - Details: `docs/kimi.md`.
+
+## Kimi K2
+- API key via Settings (Keychain) or `KIMI_K2_API_KEY`/`KIMI_API_KEY` env var.
+- `GET https://kimi-k2.ai/api/user/credits`.
+- Shows credit usage based on consumed/remaining totals.
+- Status: none yet.
+- Details: `docs/kimi-k2.md`.
 
 ## Gemini
 - OAuth-backed quota API (`retrieveUserQuota`) using Gemini CLI credentials.

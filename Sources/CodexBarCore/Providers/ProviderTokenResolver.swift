@@ -25,7 +25,8 @@ public enum ProviderTokenResolver {
     private static let zaiAccount = "zai-api-token"
     private static let copilotAccount = "copilot-api-token"
     private static let minimaxAccount = "minimax-cookie"
-    private static let kimiAccount = "kimi-auth-token"
+    private static let kimiAuthAccount = "kimi-auth-token"
+    private static let kimiK2Account = "kimi-k2-api-token"
 
     public static func zaiToken(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
         self.zaiResolution(environment: environment)?.token
@@ -40,9 +41,12 @@ public enum ProviderTokenResolver {
     }
 
     public static func kimiAuthToken(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
-        self.kimiResolution(environment: environment)?.token
+        self.kimiAuthResolution(environment: environment)?.token
     }
 
+    public static func kimiK2Token(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
+        self.kimiK2Resolution(environment: environment)?.token
+    }
     public static func zaiResolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
@@ -79,9 +83,10 @@ public enum ProviderTokenResolver {
         return nil
     }
 
-    public static func kimiResolution(
-        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution? {
-        if let token = self.keychainToken(service: self.keychainService, account: self.kimiAccount) {
+    public static func kimiAuthResolution(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
+    {
+        if let token = self.keychainToken(service: self.keychainService, account: self.kimiAuthAccount) {
             return ProviderTokenResolution(token: token, source: .keychain)
         }
         if let token = KimiSettingsReader.authToken(environment: environment) {
@@ -97,6 +102,18 @@ public enum ProviderTokenResolver {
             // No browser cookies found, continue to fallback
         }
         #endif
+        return nil
+    }
+
+    public static func kimiK2Resolution(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
+    {
+        if let token = KimiK2SettingsReader.apiKey(environment: environment) {
+            return ProviderTokenResolution(token: token, source: .environment)
+        }
+        if let token = self.keychainToken(service: self.keychainService, account: self.kimiK2Account) {
+            return ProviderTokenResolution(token: token, source: .keychain)
+        }
         return nil
     }
 
