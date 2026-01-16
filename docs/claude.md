@@ -47,6 +47,8 @@ Usage source picker:
 - Manual mode accepts a `Cookie:` header from a claude.ai request.
 - Multi-account manual tokens: add entries to `~/Library/Application Support/CodexBar/token-accounts.json` and set
   Claude cookies to Manual. The menu can show all accounts stacked or a switcher bar (Preferences → Advanced → Display).
+- Claude token accounts accept either `sessionKey` cookies or OAuth access tokens (`sk-ant-oat...`). OAuth tokens use
+  the Anthropic OAuth usage endpoint; to force cookie mode, paste `sessionKey=<value>` or a full `Cookie:` header.
 - Cookie source order:
   1) Safari: `~/Library/Cookies/Cookies.binarycookies`
   2) Chrome/Chromium forks: `~/Library/Application Support/Google/Chrome/*/Cookies`

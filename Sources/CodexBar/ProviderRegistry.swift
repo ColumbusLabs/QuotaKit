@@ -137,6 +137,7 @@ struct ProviderRegistry {
                 cookieSource: Self.cookieSource(
                     provider: .codex,
                     settings: settings,
+                    override: tokenOverride,
                     fallback: settings.codexCookieSource),
                 manualCookieHeader: codexHeader),
             claude: ProviderSettingsSnapshot.ClaudeProviderSettings(
@@ -145,18 +146,21 @@ struct ProviderRegistry {
                 cookieSource: Self.cookieSource(
                     provider: .claude,
                     settings: settings,
+                    override: tokenOverride,
                     fallback: settings.claudeCookieSource),
                 manualCookieHeader: claudeHeader),
             cursor: ProviderSettingsSnapshot.CursorProviderSettings(
                 cookieSource: Self.cookieSource(
                     provider: .cursor,
                     settings: settings,
+                    override: tokenOverride,
                     fallback: settings.cursorCookieSource),
                 manualCookieHeader: cursorHeader),
             opencode: ProviderSettingsSnapshot.OpenCodeProviderSettings(
                 cookieSource: Self.cookieSource(
                     provider: .opencode,
                     settings: settings,
+                    override: tokenOverride,
                     fallback: settings.opencodeCookieSource),
                 manualCookieHeader: opencodeHeader,
                 workspaceID: settings.opencodeWorkspaceID),
@@ -164,12 +168,14 @@ struct ProviderRegistry {
                 cookieSource: Self.cookieSource(
                     provider: .factory,
                     settings: settings,
+                    override: tokenOverride,
                     fallback: settings.factoryCookieSource),
                 manualCookieHeader: factoryHeader),
             minimax: ProviderSettingsSnapshot.MiniMaxProviderSettings(
                 cookieSource: Self.cookieSource(
                     provider: .minimax,
                     settings: settings,
+                    override: tokenOverride,
                     fallback: settings.minimaxCookieSource),
                 manualCookieHeader: minimaxHeader),
             zai: ProviderSettingsSnapshot.ZaiProviderSettings(),
@@ -178,6 +184,7 @@ struct ProviderRegistry {
                 cookieSource: Self.cookieSource(
                     provider: .augment,
                     settings: settings,
+                    override: tokenOverride,
                     fallback: settings.augmentCookieSource),
                 manualCookieHeader: augmentHeader))
     }
@@ -229,31 +236,31 @@ struct ProviderRegistry {
             return fallback
         }
         if let account = Self.selectedTokenAccount(provider: provider, settings: settings, override: override) {
-            return Self.normalizedCookieToken(account.token, support: support)
+            if provider == .claude, TokenAccountSupportCatalog.isClaudeOAuthToken(account.token) {
+                return ""
+            }
+            return TokenAccountSupportCatalog.normalizedCookieHeader(account.token, support: support)
         }
         return fallback
-    }
-
-    private static func normalizedCookieToken(_ token: String, support: TokenAccountSupport) -> String {
-        let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let cookieName = support.cookieName else { return trimmed }
-        let lower = trimmed.lowercased()
-        if lower.contains("cookie:") || trimmed.contains("=") {
-            return trimmed
-        }
-        return "\(cookieName)=\(trimmed)"
     }
 
     @MainActor
     private static func cookieSource(
         provider: UsageProvider,
         settings: SettingsStore,
+        override: TokenAccountOverride?,
         fallback: ProviderCookieSource) -> ProviderCookieSource
     {
         guard let support = TokenAccountSupportCatalog.support(for: provider),
               support.requiresManualCookieSource
         else {
             return fallback
+        }
+        if provider == .claude,
+           let account = Self.selectedTokenAccount(provider: provider, settings: settings, override: override),
+           TokenAccountSupportCatalog.isClaudeOAuthToken(account.token)
+        {
+            return .off
         }
         if settings.tokenAccounts(for: provider).isEmpty { return fallback }
         return .manual

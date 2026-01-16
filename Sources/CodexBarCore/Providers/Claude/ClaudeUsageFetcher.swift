@@ -218,7 +218,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     public func loadLatestUsage(model: String = "sonnet") async throws -> ClaudeUsageSnapshot {
         switch self.dataSource {
         case .auto:
-            let oauthCreds = try? ClaudeOAuthCredentialsStore.load()
+            let oauthCreds = try? ClaudeOAuthCredentialsStore.load(environment: self.environment)
             let hasOAuthCredentials = oauthCreds?.scopes.contains("user:profile") ?? false
             let hasWebSession = if let header = self.manualCookieHeader {
                 ClaudeWebAPIFetcher.hasSessionKey(cookieHeader: header)
@@ -259,7 +259,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
 
     private func loadViaOAuth() async throws -> ClaudeUsageSnapshot {
         do {
-            let creds = try ClaudeOAuthCredentialsStore.load()
+            let creds = try ClaudeOAuthCredentialsStore.load(environment: self.environment)
             if creds.isExpired {
                 throw ClaudeUsageError.oauthFailed("Claude OAuth token expired. Run `claude` to refresh.")
             }

@@ -107,13 +107,21 @@ public enum ClaudeOAuthCredentialsError: LocalizedError, Sendable {
 public enum ClaudeOAuthCredentialsStore {
     private static let credentialsPath = ".claude/.credentials.json"
     private static let keychainService = "Claude Code-credentials"
+    public static let environmentTokenKey = "CODEXBAR_CLAUDE_OAUTH_TOKEN"
+    public static let environmentScopesKey = "CODEXBAR_CLAUDE_OAUTH_SCOPES"
 
     // Cache to avoid repeated keychain prompts (nonisolated for synchronous access)
     private nonisolated(unsafe) static var cachedCredentials: ClaudeOAuthCredentials?
     private nonisolated(unsafe) static var cacheTimestamp: Date?
     private static let cacheValidityDuration: TimeInterval = 60 // 1 minute cache
 
-    public static func load() throws -> ClaudeOAuthCredentials {
+    public static func load(
+        environment: [String: String] = ProcessInfo.processInfo.environment) throws -> ClaudeOAuthCredentials
+    {
+        if let credentials = self.loadFromEnvironment(environment) {
+            return credentials
+        }
+
         // Check cache first to avoid repeated keychain access
         if let cached = self.cachedCredentials,
            let timestamp = self.cacheTimestamp,
@@ -200,5 +208,29 @@ public enum ClaudeOAuthCredentialsStore {
         #else
         throw ClaudeOAuthCredentialsError.notFound
         #endif
+    }
+
+    private static func loadFromEnvironment(_ environment: [String: String]) -> ClaudeOAuthCredentials? {
+        guard let token = environment[self.environmentTokenKey]?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !token.isEmpty
+        else {
+            return nil
+        }
+
+        let scopes: [String] = {
+            guard let raw = environment[self.environmentScopesKey] else { return ["user:profile"] }
+            let parsed = raw
+                .split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            return parsed.isEmpty ? ["user:profile"] : parsed
+        }()
+
+        return ClaudeOAuthCredentials(
+            accessToken: token,
+            refreshToken: nil,
+            expiresAt: Date.distantFuture,
+            scopes: scopes,
+            rateLimitTier: nil)
     }
 }
