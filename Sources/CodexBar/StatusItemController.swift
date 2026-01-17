@@ -73,6 +73,10 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var animationDriver: DisplayLinkDriver?
     var animationPhase: Double = 0
     var animationPattern: LoadingPattern = .knightRider
+    private var lastProviderToggleRevision: Int
+    private var lastProviderOrderRaw: [String]
+    private var lastMergeIcons: Bool
+    private var lastSwitcherShowsIcons: Bool
     let loginLogger = CodexBarLog.logger("login")
     var selectedMenuProvider: UsageProvider? {
         get { self.settings.selectedMenuProvider }
@@ -134,6 +138,10 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         self.account = account
         self.updater = updater
         self.preferencesSelection = preferencesSelection
+        self.lastProviderToggleRevision = settings.providerToggleRevision
+        self.lastProviderOrderRaw = settings.providerOrderRaw
+        self.lastMergeIcons = settings.mergeIcons
+        self.lastSwitcherShowsIcons = settings.switcherShowsIcons
         let bar = NSStatusBar.system
         let item = bar.statusItem(withLength: NSStatusItem.variableLength)
         // Ensure the icon is rendered at 1:1 without resampling (crisper edges for template images).
@@ -196,10 +204,14 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                let shouldRefreshOpenMenus = self.shouldRefreshOpenMenusForProviderSwitcher()
                 self.observeSettingsChanges()
                 self.invalidateMenus()
                 self.updateVisibility()
                 self.updateIcons()
+                if shouldRefreshOpenMenus {
+                    self.refreshOpenMenusIfNeeded()
+                }
             }
         }
     }
@@ -228,6 +240,31 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             guard self.openMenus.isEmpty else { return }
             self.refreshOpenMenusIfNeeded()
         }
+    }
+
+    private func shouldRefreshOpenMenusForProviderSwitcher() -> Bool {
+        var shouldRefresh = false
+        let revision = self.settings.providerToggleRevision
+        if revision != self.lastProviderToggleRevision {
+            self.lastProviderToggleRevision = revision
+            shouldRefresh = true
+        }
+        let orderRaw = self.settings.providerOrderRaw
+        if orderRaw != self.lastProviderOrderRaw {
+            self.lastProviderOrderRaw = orderRaw
+            shouldRefresh = true
+        }
+        let mergeIcons = self.settings.mergeIcons
+        if mergeIcons != self.lastMergeIcons {
+            self.lastMergeIcons = mergeIcons
+            shouldRefresh = true
+        }
+        let showsIcons = self.settings.switcherShowsIcons
+        if showsIcons != self.lastSwitcherShowsIcons {
+            self.lastSwitcherShowsIcons = showsIcons
+            shouldRefresh = true
+        }
+        return shouldRefresh
     }
 
     private func updateIcons() {
