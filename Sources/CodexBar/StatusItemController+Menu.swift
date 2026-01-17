@@ -113,9 +113,11 @@ extension StatusItemController {
             currentProvider: currentProvider,
             showAllTokenAccounts: showAllTokenAccounts)
 
+        let hasTokenAccountSwitcher = menu.items.contains { $0.view is TokenAccountSwitcherView }
         let canSmartUpdate = self.shouldMergeIcons &&
             enabledProviders.count > 1 &&
             tokenAccountDisplay == nil &&
+            !hasTokenAccountSwitcher &&
             !menu.items.isEmpty &&
             menu.items.first?.view is ProviderSwitcherView
 
