@@ -36,7 +36,14 @@ extension UsageStore {
             print("[CodexBar] \(message)")
         }
 
-        self.augmentKeepalive = AugmentSessionKeepalive(logger: logger)
+        // Callback to refresh Augment usage after successful session recovery
+        let onSessionRecovered: () async -> Void = { [weak self] in
+            guard let self else { return }
+            print("[CodexBar] 🔄 Session recovered - refreshing Augment usage")
+            await self.refreshProvider(.augment)
+        }
+
+        self.augmentKeepalive = AugmentSessionKeepalive(logger: logger, onSessionRecovered: onSessionRecovered)
         self.augmentKeepalive?.start()
         print("[CodexBar] ✅ Augment session keepalive STARTED successfully")
         #endif
@@ -127,6 +134,14 @@ extension UsageStore {
                     self.snapshots.removeValue(forKey: provider)
                 } else {
                     self.errors[provider] = nil
+                }
+
+                // Trigger immediate session recovery for Augment when session expires
+                if provider == .augment, error.localizedDescription.contains("session expired") {
+                    print("[CodexBar] 🔐 Augment session expired detected - triggering immediate recovery")
+                    Task {
+                        await self.forceRefreshAugmentSession()
+                    }
                 }
             }
         }

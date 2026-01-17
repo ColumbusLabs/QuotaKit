@@ -31,7 +31,7 @@ struct KeychainZaiTokenStore: ZaiTokenStoring {
     private nonisolated(unsafe) static var cachedToken: String?
     private nonisolated(unsafe) static var cacheTimestamp: Date?
     private static let cacheLock = NSLock()
-    private static let cacheTTL: TimeInterval = 1800  // 30 minutes
+    private static let cacheTTL: TimeInterval = 1800 // 30 minutes
 
     func loadToken() throws -> String? {
         guard !KeychainAccessGate.isDisabled else {
@@ -41,7 +41,8 @@ struct KeychainZaiTokenStore: ZaiTokenStoring {
         // Check cache first
         Self.cacheLock.lock()
         if let timestamp = Self.cacheTimestamp,
-           Date().timeIntervalSince(timestamp) < Self.cacheTTL {
+           Date().timeIntervalSince(timestamp) < Self.cacheTTL
+        {
             let cached = Self.cachedToken
             Self.cacheLock.unlock()
             Self.log.debug("Using cached Zai token")

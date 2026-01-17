@@ -31,14 +31,14 @@ struct KeychainCookieHeaderStore: CookieHeaderStoring {
     // Cache to reduce keychain access frequency
     private nonisolated(unsafe) static var cache: [String: CachedValue] = [:]
     private static let cacheLock = NSLock()
-    private static let cacheTTL: TimeInterval = 1800  // 30 minutes
+    private static let cacheTTL: TimeInterval = 1800 // 30 minutes
 
     private struct CachedValue {
         let value: String?
         let timestamp: Date
 
         var isExpired: Bool {
-            Date().timeIntervalSince(timestamp) > KeychainCookieHeaderStore.cacheTTL
+            Date().timeIntervalSince(self.timestamp) > KeychainCookieHeaderStore.cacheTTL
         }
     }
 

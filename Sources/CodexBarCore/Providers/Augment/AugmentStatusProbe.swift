@@ -15,14 +15,14 @@ public enum AugmentCookieImporter {
     // NOTE: This list may not be exhaustive. If authentication fails with cookies present,
     // check debug logs for cookie names and report them.
     private static let sessionCookieNames: Set<String> = [
-        "_session",                    // Legacy session cookie
-        "auth0",                       // Auth0 session
-        "auth0.is.authenticated",      // Auth0 authentication flag
-        "a0.spajs.txs",                // Auth0 SPA transaction state
-        "__Secure-next-auth.session-token",  // NextAuth secure session
-        "next-auth.session-token",     // NextAuth session
-        "__Host-authjs.csrf-token",    // AuthJS CSRF token
-        "authjs.session-token",        // AuthJS session
+        "_session", // Legacy session cookie
+        "auth0", // Auth0 session
+        "auth0.is.authenticated", // Auth0 authentication flag
+        "a0.spajs.txs", // Auth0 SPA transaction state
+        "__Secure-next-auth.session-token", // NextAuth secure session
+        "next-auth.session-token", // NextAuth session
+        "__Host-authjs.csrf-token", // AuthJS CSRF token
+        "authjs.session-token", // AuthJS session
     ]
 
     public struct SessionInfo: Sendable {
@@ -75,19 +75,22 @@ public enum AugmentCookieImporter {
                     let httpCookies = BrowserCookieClient.makeHTTPCookies(source.records, origin: query.origin)
 
                     // Log all cookies found for debugging
-                    let cookieNames = httpCookies.map { $0.name }.joined(separator: ", ")
+                    let cookieNames = httpCookies.map(\.name).joined(separator: ", ")
                     log("Found \(httpCookies.count) cookies in \(source.label): \(cookieNames)")
 
                     // Check if we have any session cookies
                     let matchingCookies = httpCookies.filter { Self.sessionCookieNames.contains($0.name) }
                     if !matchingCookies.isEmpty {
-                        log("✓ Found Augment session cookies in \(source.label): \(matchingCookies.map { $0.name }.joined(separator: ", "))")
+                        let matchingCookieNames = matchingCookies.map(\.name).joined(separator: ", ")
+                        log("✓ Found Augment session cookies in \(source.label): \(matchingCookieNames)")
                         return SessionInfo(cookies: httpCookies, sourceLabel: source.label)
                     } else if !httpCookies.isEmpty {
                         // Log unrecognized cookies to help discover missing session cookie names
-                        log("⚠️ \(source.label) has \(httpCookies.count) cookies but none match known session cookies")
+                        log(
+                            "⚠️ \(source.label) has \(httpCookies.count) cookies but none match known session cookies")
                         log("   Cookie names found: \(cookieNames)")
-                        log("   If you're logged into Augment, please report these cookie names to help improve detection")
+                        log("   If you're logged into Augment, please report these cookie names")
+                        log("   to help improve detection")
                     }
                 }
             } catch {
