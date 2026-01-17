@@ -13,7 +13,7 @@
 - Kimi: add usage provider with cookie-based API token stored in Keychain (#146). Thanks @rehanchrl!
 - Kimi K2: add API-key usage provider for credit totals (#147). Thanks @0-CYBERDYNE-SYSTEMS-0!
 - Augment: add provider with browser-cookie usage tracking.
-- JetBrains AI: include IDEs missing quota files, expand custom paths, and add Android Studio base paths.
+- JetBrains AI: include IDEs missing quota files, expand custom paths, and add Android Studio base paths (#194). Thanks @steipete!
 - Amp: add provider with Amp Free usage tracking (#167). Thanks @duailibe!
 - Synthetic: add API-key usage provider with quota snapshots (#171). Thanks @monotykamary!
 - Cursor: support legacy request-based plans and show individual on-demand usage (#125) — thanks @vltansky
