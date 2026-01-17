@@ -442,10 +442,6 @@ final class SettingsStore {
         }
     }
 
-    var resetTimeDisplayStyle: ResetTimeDisplayStyle {
-        self.resetTimesShowAbsolute ? .absolute : .countdown
-    }
-
     var codexUsageDataSource: CodexUsageDataSource {
         get { CodexUsageDataSource(rawValue: self.codexUsageDataSourceRaw ?? "") ?? .auto }
         set {
@@ -1646,6 +1642,17 @@ extension SettingsStore {
             CodexBarLog.logger("token-account-store").error("Failed to open token accounts file: \(error)")
         }
     }
+}
+
+extension SettingsStore {
+    var resetTimeDisplayStyle: ResetTimeDisplayStyle {
+        self.resetTimesShowAbsolute ? .absolute : .countdown
+    }
+
+    var menuBarDisplayMode: MenuBarDisplayMode {
+        get { MenuBarDisplayMode(rawValue: self.menuBarDisplayModeRaw ?? "") ?? .percent }
+        set { self.menuBarDisplayModeRaw = newValue.rawValue }
+    }
 
     private func applyTokenAccountSideEffects(for provider: UsageProvider) {
         guard let support = TokenAccountSupportCatalog.support(for: provider),
@@ -1669,13 +1676,6 @@ extension SettingsStore {
         default:
             break
         }
-    }
-}
-
-extension SettingsStore {
-    var menuBarDisplayMode: MenuBarDisplayMode {
-        get { MenuBarDisplayMode(rawValue: self.menuBarDisplayModeRaw ?? "") ?? .percent }
-        set { self.menuBarDisplayModeRaw = newValue.rawValue }
     }
 }
 
