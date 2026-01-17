@@ -74,7 +74,11 @@ final class ProviderSwitcherView: NSView {
             maxAllowedSegmentWidth: initialMaxAllowedSegmentWidth,
             stackedIcons: self.stackedIcons)
         self.rowSpacing = self.stackedIcons ? 4 : 2
-        self.rowHeight = self.stackedIcons ? 36 : 30
+        if self.stackedIcons && self.rowCount >= 3 {
+            self.rowHeight = 40
+        } else {
+            self.rowHeight = self.stackedIcons ? 36 : 30
+        }
         let height: CGFloat = self.rowHeight * CGFloat(self.rowCount)
             + self.rowSpacing * CGFloat(max(0, self.rowCount - 1))
         self.preferredWidth = width
@@ -105,6 +109,10 @@ final class ProviderSwitcherView: NSView {
                     image: segment.image,
                     target: self,
                     action: #selector(self.handleSelection(_:)))
+                stacked.setAllowsTwoLineTitle(self.rowCount >= 3)
+                if self.rowCount >= 4 {
+                    stacked.setTitleFontSize(NSFont.smallSystemFontSize - 3)
+                }
                 button = stacked
             } else if self.showsIcons {
                 let inline = InlineIconToggleButton(
@@ -406,7 +414,9 @@ final class ProviderSwitcherView: NSView {
     {
         guard count > 1 else { return 1 }
         let maxRows = min(4, count)
+        let fourRowThreshold = 15
         let minimumComfortableAverage: CGFloat = stackedIcons ? 44 : 54
+        if count >= fourRowThreshold { return maxRows }
         if maxAllowedSegmentWidth >= minimumComfortableAverage { return 1 }
 
         for rows in 2...maxRows {
