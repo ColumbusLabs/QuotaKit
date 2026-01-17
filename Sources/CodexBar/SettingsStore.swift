@@ -292,6 +292,11 @@ final class SettingsStore {
         }
     }
 
+    /// JetBrains IDE base path for quota file lookup.
+    var jetbrainsIDEBasePath: String {
+        didSet { self.userDefaults.set(self.jetbrainsIDEBasePath, forKey: "jetbrainsIDEBasePath") }
+    }
+
     /// Optional: collapse provider icons into a single menu bar item with an in-menu switcher.
     var mergeIcons: Bool {
         didSet { self.userDefaults.set(self.mergeIcons, forKey: "mergeIcons") }
@@ -720,6 +725,7 @@ final class SettingsStore {
             ?? ProviderCookieSource.auto.rawValue
         self.ampCookieSourceRaw = userDefaults.string(forKey: "ampCookieSource")
             ?? ProviderCookieSource.auto.rawValue
+        self.jetbrainsIDEBasePath = userDefaults.string(forKey: "jetbrainsIDEBasePath") ?? ""
         self.mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true
         self.switcherShowsIcons = userDefaults.object(forKey: "switcherShowsIcons") as? Bool ?? true
         let minimaxAPIRegionRaw = userDefaults.string(forKey: "minimaxAPIRegion")

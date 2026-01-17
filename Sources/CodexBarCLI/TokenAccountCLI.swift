@@ -137,7 +137,8 @@ struct TokenAccountCLIContext {
                 augment: ProviderSettingsSnapshot.AugmentProviderSettings(
                     cookieSource: .manual,
                     manualCookieHeader: header))
-        case .codex, .gemini, .antigravity, .zai, .copilot, .kiro, .vertexai, .kimi, .kimik2, .amp, .synthetic:
+        case .codex, .gemini, .antigravity, .zai, .copilot, .kiro, .vertexai, .kimi, .kimik2, .amp, .synthetic,
+             .jetbrains:
             return nil
         }
     }
@@ -162,7 +163,8 @@ struct TokenAccountCLIContext {
             copilot: nil,
             kimi: nil,
             augment: augment,
-            amp: nil)
+            amp: nil,
+            jetbrains: nil)
     }
 
     func environment(

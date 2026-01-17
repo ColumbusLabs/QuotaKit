@@ -208,7 +208,9 @@ struct ProviderRegistry {
                     settings: settings,
                     override: tokenOverride,
                     fallback: settings.ampCookieSource),
-                manualCookieHeader: ampHeader))
+                manualCookieHeader: ampHeader),
+            jetbrains: ProviderSettingsSnapshot.JetBrainsProviderSettings(
+                ideBasePath: settings.jetbrainsIDEBasePath.isEmpty ? nil : settings.jetbrainsIDEBasePath))
     }
 
     @MainActor

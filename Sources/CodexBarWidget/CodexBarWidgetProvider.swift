@@ -54,6 +54,7 @@ enum ProviderChoice: String, AppEnum {
         case .vertexai: return nil // Vertex AI not yet supported in widgets
         case .kiro: return nil // Kiro not yet supported in widgets
         case .augment: return nil // Augment not yet supported in widgets
+        case .jetbrains: return nil // JetBrains not yet supported in widgets
         case .kimi: return nil // Kimi not yet supported in widgets
         case .kimik2: return nil // Kimi K2 not yet supported in widgets
         case .amp: return nil // Amp not yet supported in widgets

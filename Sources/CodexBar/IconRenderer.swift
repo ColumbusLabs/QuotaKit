@@ -719,6 +719,8 @@ enum IconRenderer {
         case .kimi: 13
         case .amp: 14
         case .synthetic: 15
+        case .kimik2: 16
+        case .jetbrains: 17
         case .combined: 99
         }
     }

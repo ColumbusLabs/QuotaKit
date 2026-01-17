@@ -308,6 +308,7 @@ final class UsageStore {
         case .vertexai: nil
         case .kiro: self.kiroVersion
         case .augment: nil
+        case .jetbrains: nil
         case .kimi: nil
         case .kimik2: nil
         case .amp: nil
@@ -339,7 +340,7 @@ final class UsageStore {
             (self.isEnabled(.antigravity) && self.errors[.antigravity] != nil) ||
             (self.isEnabled(.cursor) && self.errors[.cursor] != nil) ||
             (self.isEnabled(.opencode) && self.errors[.opencode] != nil) ||
-        (self.isEnabled(.factory) && self.errors[.factory] != nil) ||
+            (self.isEnabled(.factory) && self.errors[.factory] != nil) ||
             (self.isEnabled(.copilot) && self.errors[.copilot] != nil) ||
             (self.isEnabled(.minimax) && self.errors[.minimax] != nil) ||
             (self.isEnabled(.kimi) && self.errors[.kimi] != nil) ||
@@ -1212,6 +1213,10 @@ extension UsageStore {
                     ampCookieSource: self.settings.ampCookieSource,
                     ampCookieHeader: self.settings.ampCookieHeader)
                 await MainActor.run { self.probeLogs[.amp] = text }
+                return text
+            case .jetbrains:
+                let text = "JetBrains AI debug log not yet implemented"
+                await MainActor.run { self.probeLogs[.jetbrains] = text }
                 return text
             }
         }.value

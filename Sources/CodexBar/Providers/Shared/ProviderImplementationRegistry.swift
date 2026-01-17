@@ -23,10 +23,10 @@ enum ProviderImplementationRegistry {
         _ = ProviderImplementationRegistry.register(CopilotProviderImplementation())
         _ = ProviderImplementationRegistry.register(KiroProviderImplementation())
         _ = ProviderImplementationRegistry.register(VertexAIProviderImplementation())
+        _ = ProviderImplementationRegistry.register(JetBrainsProviderImplementation())
         _ = ProviderImplementationRegistry.register(OpenCodeProviderImplementation())
         _ = ProviderImplementationRegistry.register(KimiProviderImplementation())
         _ = ProviderImplementationRegistry.register(KimiK2ProviderImplementation())
-        _ = ProviderImplementationRegistry.register(OpenCodeProviderImplementation())
         _ = ProviderImplementationRegistry.register(AmpProviderImplementation())
     }()
 

@@ -212,6 +212,7 @@ struct SettingsStoreTests {
             .kiro,
             .vertexai,
             .augment,
+            .jetbrains,
             .kimik2,
             .amp,
             .synthetic,

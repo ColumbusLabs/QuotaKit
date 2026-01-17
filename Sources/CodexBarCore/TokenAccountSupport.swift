@@ -89,7 +89,8 @@ public enum TokenAccountSupportCatalog {
                 injection: .cookieHeader,
                 requiresManualCookieSource: true,
                 cookieName: nil)
-        case .codex, .gemini, .antigravity, .copilot, .kiro, .vertexai, .kimi, .kimik2, .amp, .synthetic:
+        case .codex, .gemini, .antigravity, .copilot, .kiro, .vertexai, .kimi, .kimik2, .amp, .synthetic,
+             .jetbrains:
             nil
         }
     }

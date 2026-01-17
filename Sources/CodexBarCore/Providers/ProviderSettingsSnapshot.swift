@@ -116,6 +116,14 @@ public struct ProviderSettingsSnapshot: Sendable {
         }
     }
 
+    public struct JetBrainsProviderSettings: Sendable {
+        public let ideBasePath: String?
+
+        public init(ideBasePath: String?) {
+            self.ideBasePath = ideBasePath
+        }
+    }
+
     public struct AmpProviderSettings: Sendable {
         public let cookieSource: ProviderCookieSource
         public let manualCookieHeader: String?
@@ -138,6 +146,11 @@ public struct ProviderSettingsSnapshot: Sendable {
     public let kimi: KimiProviderSettings?
     public let augment: AugmentProviderSettings?
     public let amp: AmpProviderSettings?
+    public let jetbrains: JetBrainsProviderSettings?
+
+    public var jetbrainsIDEBasePath: String? {
+        self.jetbrains?.ideBasePath
+    }
 
     public init(
         debugMenuEnabled: Bool,
@@ -151,7 +164,8 @@ public struct ProviderSettingsSnapshot: Sendable {
         copilot: CopilotProviderSettings?,
         kimi: KimiProviderSettings?,
         augment: AugmentProviderSettings?,
-        amp: AmpProviderSettings?)
+        amp: AmpProviderSettings?,
+        jetbrains: JetBrainsProviderSettings? = nil)
     {
         self.debugMenuEnabled = debugMenuEnabled
         self.codex = codex
@@ -165,5 +179,6 @@ public struct ProviderSettingsSnapshot: Sendable {
         self.kimi = kimi
         self.augment = augment
         self.amp = amp
+        self.jetbrains = jetbrains
     }
 }

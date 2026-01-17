@@ -1,5 +1,5 @@
 ---
-summary: "Provider data sources and parsing overview (Codex, Claude, Gemini, Antigravity, Cursor, Droid/Factory, z.ai, Copilot, Kimi, Kimi K2, Kiro, Vertex AI, Augment, Amp)."
+summary: "Provider data sources and parsing overview (Codex, Claude, Gemini, Antigravity, Cursor, Droid/Factory, z.ai, Copilot, Kimi, Kimi K2, Kiro, Vertex AI, Augment, Amp, JetBrains AI)."
 read_when:
   - Adding or modifying provider fetch/parsing
   - Adjusting provider labels, toggles, or metadata
@@ -32,6 +32,7 @@ until the session is invalid, to avoid repeated Keychain prompts.
 | Kimi K2 | API key (Keychain/env) → credit endpoint (`api`). |
 | Kiro | CLI command via `kiro-cli chat --no-interactive "/usage"` (`cli`). |
 | Vertex AI | Google ADC OAuth (gcloud) → Cloud Monitoring quota usage (`oauth`). |
+| JetBrains AI | Local XML quota file (`local`). |
 | Amp | Web settings page via browser cookies (`web`). |
 
 ## Codex
@@ -126,6 +127,12 @@ until the session is invalid, to avoid repeated Keychain prompts.
 - Token cost: scans `~/.claude/projects/` logs filtered to Vertex AI-tagged entries.
 - Requires Cloud Monitoring API access in the current project.
 - Details: `docs/vertexai.md`.
+## JetBrains AI
+- Local XML quota file from IDE configuration directory.
+- Auto-detects installed JetBrains IDEs; uses most recently used.
+- Reads `AIAssistantQuotaManager2.xml` for monthly credits and refill date.
+- Status: none (no status page).
+- Details: `docs/jetbrains.md`.
 
 ## Amp
 - Web settings page (`https://ampcode.com/settings`) via browser cookies.
