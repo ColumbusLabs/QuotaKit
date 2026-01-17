@@ -92,19 +92,21 @@ codexbar --provider claude --all-accounts --format json --pretty
 
 ### Sample output (text)
 ```
-Codex 0.6.0 (codex-cli)
-Session: 72% left
+== Codex 0.6.0 (codex-cli) ==
+Session: 72% left [========----]
 Resets today at 2:15 PM
-Weekly: 41% left
+Weekly: 41% left [====--------]
+Pace: 6% in reserve | Expected 47% used | Lasts until reset
 Resets Fri at 9:00 AM
 Credits: 112.4 left
 
-Claude Code 2.0.58 (web)
-Session: 88% left
+== Claude Code 2.0.58 (web) ==
+Session: 88% left [==========--]
 Resets tomorrow at 1:00 AM
-Weekly: 63% left
+Weekly: 63% left [=======-----]
+Pace: On pace | Expected 37% used | Runs out in 4d
 Resets Sat at 6:00 AM
-Sonnet: 95% left
+Sonnet: 95% left [===========-]
 Account: user@example.com
 Plan: Pro
 ```

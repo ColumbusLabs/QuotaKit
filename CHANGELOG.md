@@ -55,6 +55,7 @@
 
 ### CLI
 - CLI: respect the reset time display setting.
+- CLI: add pink accents, usage bars, and weekly pace lines to text output.
 
 ### Dev & Tests
 - Dev: move Chromium profile discovery into SweetCookieKit (adds Helium net.imput.helium). Thanks @hhushhas!
