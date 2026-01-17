@@ -853,3 +853,23 @@ enum MiniMaxLocalStorageImporter {
     }
 }
 #endif
+
+#if DEBUG && os(macOS)
+extension MiniMaxLocalStorageImporter {
+    static func _extractAccessTokensForTesting(_ value: String) -> [String] {
+        self.extractAccessTokens(from: value)
+    }
+
+    static func _extractGroupIDForTesting(_ value: String) -> String? {
+        self.extractGroupID(from: value)
+    }
+
+    static func _groupIDFromJWTForTesting(_ token: String) -> String? {
+        self.groupID(fromJWT: token)
+    }
+
+    static func _isMiniMaxJWTForTesting(_ token: String) -> Bool {
+        self.isMiniMaxJWT(token)
+    }
+}
+#endif

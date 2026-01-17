@@ -448,6 +448,48 @@ private struct ProviderListView: View {
     private func rowID(provider: UsageProvider, suffix: String) -> String {
         "\(provider.rawValue)-\(suffix)"
     }
+
+    #if DEBUG
+    func _test_renderRows() {
+        for provider in self.providers {
+            let fields = self.settingsFields(provider)
+            let toggles = self.settingsToggles(provider)
+            let pickers = self.settingsPickers(provider)
+            let tokenAccounts = self.settingsTokenAccounts(provider)
+            let isEnabled = self.isEnabled(provider).wrappedValue
+            let shouldShowDivider = provider != self.providers.last
+            let hasExtraRows = !(pickers.isEmpty && fields.isEmpty && toggles.isEmpty && tokenAccounts == nil)
+            _ = shouldShowDivider && (!isEnabled || !hasExtraRows)
+
+            _ = ProviderListProviderRowView(
+                provider: provider,
+                store: self.store,
+                isEnabled: self.isEnabled(provider),
+                subtitle: self.subtitle(provider),
+                errorDisplay: self.isEnabled(provider).wrappedValue ? self.errorDisplay(provider) : nil,
+                isErrorExpanded: self.isErrorExpanded(provider),
+                onCopyError: self.onCopyError).body
+
+            guard isEnabled else { continue }
+
+            for picker in pickers {
+                _ = ProviderListPickerRowView(provider: provider, picker: picker).body
+            }
+
+            if let tokenAccounts, tokenAccounts.isVisible?() ?? true {
+                _ = ProviderListTokenAccountsRowView(descriptor: tokenAccounts).body
+            }
+
+            for field in fields {
+                _ = ProviderListFieldRowView(provider: provider, field: field).body
+            }
+
+            for toggle in toggles {
+                _ = ProviderListToggleRowView(provider: provider, toggle: toggle).body
+            }
+        }
+    }
+    #endif
 }
 
 @MainActor
@@ -972,3 +1014,272 @@ private struct ProviderSettingsConfirmationState: Identifiable {
         self.onConfirm = confirmation.onConfirm
     }
 }
+
+#if DEBUG
+extension ProvidersPane {
+    func _test_binding(for provider: UsageProvider) -> Binding<Bool> {
+        self.binding(for: provider)
+    }
+
+    func _test_providerSubtitle(_ provider: UsageProvider) -> String {
+        self.providerSubtitle(provider)
+    }
+
+    fileprivate func _test_providerErrorDisplay(_ provider: UsageProvider) -> ProviderErrorDisplay? {
+        self.providerErrorDisplay(provider)
+    }
+
+    func _test_menuBarMetricPicker(for provider: UsageProvider) -> ProviderSettingsPickerDescriptor? {
+        self.menuBarMetricPicker(for: provider)
+    }
+
+    func _test_tokenAccountDescriptor(for provider: UsageProvider) -> ProviderSettingsTokenAccountsDescriptor? {
+        self.tokenAccountDescriptor(for: provider)
+    }
+}
+
+@MainActor
+enum ProvidersPaneTestHarness {
+    static func exercise(settings: SettingsStore, store: UsageStore) {
+        self.prepareTestState(settings: settings, store: store)
+        let pane = ProvidersPane(settings: settings, store: store)
+        self.exercisePaneBasics(pane: pane)
+
+        let descriptors = self.makeDescriptors()
+        self.exerciseProviderList(store: store, descriptors: descriptors)
+        self.exerciseRowViews(descriptors: descriptors)
+        self.exerciseErrorViews()
+        self.exerciseViewModifiers()
+    }
+
+    private static func prepareTestState(settings: SettingsStore, store: UsageStore) {
+        store.codexVersion = "1.0.0"
+        store.claudeVersion = "2.0.0 (build 123)"
+        store.cursorVersion = nil
+        store._setSnapshotForTesting(
+            UsageSnapshot(primary: nil, secondary: nil, updatedAt: Date()),
+            provider: .codex)
+        store._setSnapshotForTesting(
+            UsageSnapshot(primary: nil, secondary: nil, updatedAt: Date()),
+            provider: .minimax)
+        store._setErrorForTesting(String(repeating: "x", count: 200), provider: .cursor)
+        store.lastSourceLabels[.minimax] = "cookies"
+        store.refreshingProviders.insert(.codex)
+
+        settings.claudeCookieSource = .manual
+        settings.cursorCookieSource = .manual
+        settings.opencodeCookieSource = .manual
+        settings.factoryCookieSource = .manual
+        settings.minimaxCookieSource = .manual
+        settings.augmentCookieSource = .manual
+    }
+
+    private static func exercisePaneBasics(pane: ProvidersPane) {
+        _ = pane._test_binding(for: .codex).wrappedValue
+        _ = pane._test_providerSubtitle(.codex)
+        _ = pane._test_providerSubtitle(.claude)
+        _ = pane._test_providerSubtitle(.cursor)
+        _ = pane._test_providerSubtitle(.opencode)
+        _ = pane._test_providerSubtitle(.zai)
+        _ = pane._test_providerSubtitle(.synthetic)
+        _ = pane._test_providerSubtitle(.minimax)
+        _ = pane._test_providerSubtitle(.kimi)
+        _ = pane._test_providerSubtitle(.gemini)
+
+        _ = pane._test_providerErrorDisplay(.cursor)
+        _ = pane._test_menuBarMetricPicker(for: .codex)
+        _ = pane._test_menuBarMetricPicker(for: .gemini)
+        _ = pane._test_menuBarMetricPicker(for: .zai)
+
+        if let descriptor = pane._test_tokenAccountDescriptor(for: .claude) {
+            _ = descriptor.isVisible?()
+            _ = descriptor.accounts()
+        }
+    }
+
+    private static func exerciseProviderList(
+        store: UsageStore,
+        descriptors: ProviderListTestDescriptors)
+    {
+        var expanded = false
+        let expandedBinding = Binding(get: { expanded }, set: { expanded = $0 })
+
+        let listView = ProviderListView(
+            providers: [.codex, .claude],
+            store: store,
+            isEnabled: { provider in
+                Binding(
+                    get: { provider == .codex },
+                    set: { _ in })
+            },
+            subtitle: { _ in "Subtitle" },
+            settingsPickers: { _ in [descriptors.picker] },
+            settingsToggles: { _ in [descriptors.toggle] },
+            settingsFields: { _ in [descriptors.fieldPlain, descriptors.fieldSecure] },
+            settingsTokenAccounts: { _ in descriptors.tokenAccountsEmpty },
+            errorDisplay: { _ in descriptors.errorDisplay },
+            isErrorExpanded: { _ in expandedBinding },
+            onCopyError: { _ in },
+            moveProviders: { _, _ in })
+
+        _ = listView.body
+        listView._test_renderRows()
+    }
+
+    private static func exerciseRowViews(descriptors: ProviderListTestDescriptors) {
+        _ = ProviderListReorderHandle(isVisible: true).body
+        _ = ProviderListReorderHandle(isVisible: false).body
+        _ = ProviderListSectionDividerView().body
+        _ = ProviderListBrandIcon(provider: .codex).body
+        _ = ProviderListBrandIcon(provider: .synthetic).body
+        _ = ProviderListToggleRowView(provider: .codex, toggle: descriptors.toggle).body
+        _ = ProviderListPickerRowView(provider: .codex, picker: descriptors.picker).body
+        _ = ProviderListFieldRowView(provider: .codex, field: descriptors.fieldPlain).body
+        _ = ProviderListFieldRowView(provider: .codex, field: descriptors.fieldSecure).body
+        _ = ProviderListTokenAccountsRowView(descriptor: descriptors.tokenAccountsEmpty).body
+        _ = ProviderListTokenAccountsRowView(descriptor: descriptors.tokenAccountsFilled).body
+    }
+
+    private static func exerciseErrorViews() {
+        var errorExpanded = false
+        _ = ProviderErrorView(
+            title: "Error",
+            display: ProviderErrorDisplay(preview: "Preview", full: "Full details"),
+            isExpanded: Binding(get: { errorExpanded }, set: { errorExpanded = $0 }),
+            onCopy: {}).body
+
+        var errorCollapsed = false
+        _ = ProviderErrorView(
+            title: "Error",
+            display: ProviderErrorDisplay(preview: "Same", full: "Same"),
+            isExpanded: Binding(get: { errorCollapsed }, set: { errorCollapsed = $0 }),
+            onCopy: {}).body
+    }
+
+    private static func exerciseViewModifiers() {
+        _ = Text("Action").applyProviderSettingsButtonStyle(.bordered)
+        _ = Text("Action").applyProviderSettingsButtonStyle(.link)
+        _ = Text("Divider").providerSectionDivider(isVisible: true)
+        _ = Text("Divider").providerSectionDivider(isVisible: false)
+    }
+
+    private static func makeDescriptors() -> ProviderListTestDescriptors {
+        let toggleBinding = Binding(get: { true }, set: { _ in })
+        let actionBordered = ProviderSettingsActionDescriptor(
+            id: "action-bordered",
+            title: "Bordered",
+            style: .bordered,
+            isVisible: { true },
+            perform: { await Task.yield() })
+        let actionLink = ProviderSettingsActionDescriptor(
+            id: "action-link",
+            title: "Link",
+            style: .link,
+            isVisible: { true },
+            perform: { await Task.yield() })
+        let toggle = ProviderSettingsToggleDescriptor(
+            id: "toggle",
+            title: "Toggle",
+            subtitle: "Subtitle",
+            binding: toggleBinding,
+            statusText: { "Enabled" },
+            actions: [actionBordered, actionLink],
+            isVisible: { true },
+            onChange: nil,
+            onAppDidBecomeActive: nil,
+            onAppearWhenEnabled: nil)
+
+        let picker = ProviderSettingsPickerDescriptor(
+            id: "picker",
+            title: "Picker",
+            subtitle: "Subtitle",
+            dynamicSubtitle: { "Dynamic subtitle" },
+            binding: Binding(get: { "a" }, set: { _ in }),
+            options: [
+                ProviderSettingsPickerOption(id: "a", title: "A"),
+                ProviderSettingsPickerOption(id: "b", title: "B"),
+            ],
+            isVisible: { true },
+            onChange: nil,
+            trailingText: { "Trailing" })
+
+        let fieldPlain = ProviderSettingsFieldDescriptor(
+            id: "field-plain",
+            title: "Plain",
+            subtitle: "Plain subtitle",
+            kind: .plain,
+            placeholder: "Value",
+            binding: Binding(get: { "" }, set: { _ in }),
+            actions: [actionBordered],
+            isVisible: { true },
+            onActivate: nil)
+        let fieldSecure = ProviderSettingsFieldDescriptor(
+            id: "field-secure",
+            title: "",
+            subtitle: "",
+            kind: .secure,
+            placeholder: "Secret",
+            binding: Binding(get: { "" }, set: { _ in }),
+            actions: [],
+            isVisible: { true },
+            onActivate: nil)
+
+        let tokenAccountsEmpty = ProviderSettingsTokenAccountsDescriptor(
+            id: "token-accounts",
+            title: "Tokens",
+            subtitle: "Subtitle",
+            placeholder: "token",
+            provider: .claude,
+            isVisible: { true },
+            accounts: { [] },
+            activeIndex: { 0 },
+            setActiveIndex: { _ in },
+            addAccount: { _, _ in },
+            removeAccount: { _ in },
+            openConfigFile: {},
+            reloadFromDisk: {})
+
+        let nonEmptyAccount = ProviderTokenAccount(
+            id: UUID(),
+            label: "Primary",
+            token: "token",
+            addedAt: Date().timeIntervalSince1970,
+            lastUsed: nil)
+        let tokenAccountsFilled = ProviderSettingsTokenAccountsDescriptor(
+            id: "token-accounts-filled",
+            title: "Tokens",
+            subtitle: "Subtitle",
+            placeholder: "token",
+            provider: .claude,
+            isVisible: { true },
+            accounts: { [nonEmptyAccount] },
+            activeIndex: { 0 },
+            setActiveIndex: { _ in },
+            addAccount: { _, _ in },
+            removeAccount: { _ in },
+            openConfigFile: {},
+            reloadFromDisk: {})
+
+        let errorDisplay = ProviderErrorDisplay(preview: "Preview", full: "Preview details")
+
+        return ProviderListTestDescriptors(
+            toggle: toggle,
+            picker: picker,
+            fieldPlain: fieldPlain,
+            fieldSecure: fieldSecure,
+            tokenAccountsEmpty: tokenAccountsEmpty,
+            tokenAccountsFilled: tokenAccountsFilled,
+            errorDisplay: errorDisplay)
+    }
+
+    private struct ProviderListTestDescriptors {
+        let toggle: ProviderSettingsToggleDescriptor
+        let picker: ProviderSettingsPickerDescriptor
+        let fieldPlain: ProviderSettingsFieldDescriptor
+        let fieldSecure: ProviderSettingsFieldDescriptor
+        let tokenAccountsEmpty: ProviderSettingsTokenAccountsDescriptor
+        let tokenAccountsFilled: ProviderSettingsTokenAccountsDescriptor
+        let errorDisplay: ProviderErrorDisplay
+    }
+}
+#endif

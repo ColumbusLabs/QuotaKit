@@ -8,7 +8,7 @@ public struct MiniMaxUsageFetcher: Sendable {
     private static let codingPlanPath = "user-center/payment/coding-plan"
     private static let codingPlanQuery = "cycle_type=3"
     private static let codingPlanRemainsPath = "v1/api/openplatform/coding_plan/remains"
-    private static let apiRemainsURL = URL(string: "https://api.minimax.io/v1/coding_plan/remains")!
+    private static let apiRemainsURL = URL(string: "https://api.minimaxi.com/v1/api/openplatform/coding_plan/remains")!
     private struct RemainsContext: Sendable {
         let authorizationToken: String?
         let groupID: String?

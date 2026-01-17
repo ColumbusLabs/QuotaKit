@@ -718,6 +718,14 @@ extension CodexBarCLI {
     static func _decodeFormatForTesting(from values: ParsedValues) -> OutputFormat {
         self.decodeFormat(from: values)
     }
+
+    static func _decodeWebTimeoutForTesting(from values: ParsedValues) -> TimeInterval? {
+        self.decodeWebTimeout(from: values)
+    }
+
+    static func _decodeSourceModeForTesting(from values: ParsedValues) -> ProviderSourceMode? {
+        self.decodeSourceMode(from: values)
+    }
 }
 #endif
 
