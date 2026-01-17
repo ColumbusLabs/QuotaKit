@@ -71,6 +71,7 @@ public enum ProviderDescriptorRegistry {
         _ = ProviderDescriptorRegistry.register(KimiProviderDescriptor.descriptor)
         _ = ProviderDescriptorRegistry.register(OpenCodeProviderDescriptor.descriptor)
         _ = ProviderDescriptorRegistry.register(AmpProviderDescriptor.descriptor)
+        _ = ProviderDescriptorRegistry.register(SyntheticProviderDescriptor.descriptor)
     }()
 
     private static func ensureBootstrapped() {

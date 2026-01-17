@@ -23,6 +23,7 @@ public enum ProviderTokenResolver {
 
     private static let keychainService = "com.steipete.CodexBar"
     private static let zaiAccount = "zai-api-token"
+    private static let syntheticAccount = "synthetic-api-key"
     private static let copilotAccount = "copilot-api-token"
     private static let minimaxCookieAccount = "minimax-cookie"
     private static let minimaxTokenAccount = "minimax-api-token"
@@ -31,6 +32,12 @@ public enum ProviderTokenResolver {
 
     public static func zaiToken(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
         self.zaiResolution(environment: environment)?.token
+    }
+
+    public static func syntheticToken(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
+    {
+        self.syntheticResolution(environment: environment)?.token
     }
 
     public static func copilotToken(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
@@ -59,6 +66,14 @@ public enum ProviderTokenResolver {
         self.resolveEnvThenKeychain(
             envToken: ZaiSettingsReader.apiToken(environment: environment),
             keychainAccount: self.zaiAccount)
+    }
+
+    public static func syntheticResolution(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
+    {
+        self.resolveEnvThenKeychain(
+            envToken: SyntheticSettingsReader.apiKey(environment: environment),
+            keychainAccount: self.syntheticAccount)
     }
 
     public static func copilotResolution(
