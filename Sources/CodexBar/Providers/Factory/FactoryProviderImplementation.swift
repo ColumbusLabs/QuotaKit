@@ -43,25 +43,20 @@ struct FactoryProviderImplementation: ProviderImplementation {
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
-                isVisible: nil,
-                onChange: nil),
+                isVisible: { !context.settings.debugDisableKeychainAccess },
+                onChange: nil,
+                trailingText: {
+                    guard let entry = CookieHeaderCache.load(provider: .factory) else { return nil }
+                    let when = entry.storedAt.relativeDescription()
+                    return "Cached: \(entry.sourceLabel) • \(when)"
+                }),
         ]
     }
 
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
-        [
-            ProviderSettingsFieldDescriptor(
-                id: "factory-cookie-header",
-                title: "",
-                subtitle: "",
-                kind: .secure,
-                placeholder: "Cookie: …",
-                binding: context.stringBinding(\.factoryCookieHeader),
-                actions: [],
-                isVisible: { context.settings.factoryCookieSource == .manual },
-                onActivate: { context.settings.ensureFactoryCookieLoaded() }),
-        ]
+        _ = context
+        return []
     }
 
     @MainActor

@@ -102,6 +102,26 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         case waitingBrowser
     }
 
+    func menuBarMetricWindow(for provider: UsageProvider, snapshot: UsageSnapshot?) -> RateWindow? {
+        switch self.settings.menuBarMetricPreference(for: provider) {
+        case .primary:
+            return snapshot?.primary ?? snapshot?.secondary
+        case .secondary:
+            return snapshot?.secondary ?? snapshot?.primary
+        case .average:
+            guard let primary = snapshot?.primary, let secondary = snapshot?.secondary else {
+                return snapshot?.primary ?? snapshot?.secondary
+            }
+            let usedPercent = (primary.usedPercent + secondary.usedPercent) / 2
+            return RateWindow(usedPercent: usedPercent, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
+        case .automatic:
+            if provider == .factory {
+                return snapshot?.secondary ?? snapshot?.primary
+            }
+            return snapshot?.primary ?? snapshot?.secondary
+        }
+    }
+
     init(
         store: UsageStore,
         settings: SettingsStore,
@@ -119,12 +139,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         // Ensure the icon is rendered at 1:1 without resampling (crisper edges for template images).
         item.button?.imageScaling = .scaleNone
         self.statusItem = item
-        for provider in UsageProvider.allCases {
-            let providerItem = bar.statusItem(withLength: NSStatusItem.variableLength)
-            // Ensure the icon is rendered at 1:1 without resampling (crisper edges for template images).
-            providerItem.button?.imageScaling = .scaleNone
-            self.statusItems[provider] = providerItem
-        }
+        // Status items for individual providers are now created lazily in updateVisibility()
         super.init()
         self.wireBindings()
         self.updateIcons()
@@ -203,10 +218,14 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
 
     private func invalidateMenus() {
         self.menuContentVersion &+= 1
+        // Don't refresh menus while they're open - wait until they close and reopen
+        // This prevents expensive rebuilds while user is navigating the menu
+        guard self.openMenus.isEmpty else { return }
         self.refreshOpenMenusIfNeeded()
         Task { @MainActor in
             // AppKit can ignore menu mutations while tracking; retry on the next run loop.
             await Task.yield()
+            guard self.openMenus.isEmpty else { return }
             self.refreshOpenMenusIfNeeded()
         }
     }
@@ -226,6 +245,18 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         self.updateBlinkingState()
     }
 
+    /// Lazily retrieves or creates a status item for the given provider
+    func lazyStatusItem(for provider: UsageProvider) -> NSStatusItem {
+        if let existing = self.statusItems[provider] {
+            return existing
+        }
+        let bar = NSStatusBar.system
+        let item = bar.statusItem(withLength: NSStatusItem.variableLength)
+        item.button?.imageScaling = .scaleNone
+        self.statusItems[provider] = item
+        return item
+    }
+
     private func updateVisibility() {
         let anyEnabled = !self.store.enabledProviders().isEmpty
         let force = self.store.debugForceAnimation
@@ -239,9 +270,14 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             self.statusItem.isVisible = false
             let fallback = self.fallbackProvider
             for provider in UsageProvider.allCases {
-                let item = self.statusItems[provider]
                 let isEnabled = self.isEnabled(provider)
-                item?.isVisible = isEnabled || fallback == provider || force
+                let shouldBeVisible = isEnabled || fallback == provider || force
+                if shouldBeVisible {
+                    let item = self.lazyStatusItem(for: provider)
+                    item.isVisible = true
+                } else if let item = self.statusItems[provider] {
+                    item.isVisible = false
+                }
             }
             self.attachMenus(fallback: fallback)
         }
@@ -277,23 +313,30 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
 
     private func attachMenus(fallback: UsageProvider? = nil) {
         for provider in UsageProvider.allCases {
-            guard let item = self.statusItems[provider] else { continue }
-            if self.isEnabled(provider) {
-                if self.providerMenus[provider] == nil {
-                    self.providerMenus[provider] = self.makeMenu(for: provider)
+            // Only access/create the status item if it's actually needed
+            let shouldHaveItem = self.isEnabled(provider) || fallback == provider
+
+            if shouldHaveItem {
+                let item = self.lazyStatusItem(for: provider)
+
+                if self.isEnabled(provider) {
+                    if self.providerMenus[provider] == nil {
+                        self.providerMenus[provider] = self.makeMenu(for: provider)
+                    }
+                    let menu = self.providerMenus[provider]
+                    if item.menu !== menu {
+                        item.menu = menu
+                    }
+                } else if fallback == provider {
+                    if self.fallbackMenu == nil {
+                        self.fallbackMenu = self.makeMenu(for: nil)
+                    }
+                    if item.menu !== self.fallbackMenu {
+                        item.menu = self.fallbackMenu
+                    }
                 }
-                let menu = self.providerMenus[provider]
-                if item.menu !== menu {
-                    item.menu = menu
-                }
-            } else if fallback == provider {
-                if self.fallbackMenu == nil {
-                    self.fallbackMenu = self.makeMenu(for: nil)
-                }
-                if item.menu !== self.fallbackMenu {
-                    item.menu = self.fallbackMenu
-                }
-            } else {
+            } else if let item = self.statusItems[provider] {
+                // Item exists but is no longer needed - clear its menu
                 if item.menu != nil {
                     item.menu = nil
                 }

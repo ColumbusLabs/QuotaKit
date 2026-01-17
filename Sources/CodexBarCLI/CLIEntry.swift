@@ -89,6 +89,28 @@ enum CodexBarCLI {
         let noColor = values.flags.contains("noColor")
         let useColor = Self.shouldUseColor(noColor: noColor, format: format)
         let resetStyle = Self.resetTimeDisplayStyleFromDefaults()
+        let providerList = provider.asList
+        let tokenSelection = Self.decodeTokenAccountSelection(from: values)
+        if tokenSelection.allAccounts, tokenSelection.label != nil || tokenSelection.index != nil {
+            Self.exit(
+                code: .failure,
+                message: "Error: --all-accounts cannot be combined with --account or --account-index.")
+        }
+        if tokenSelection.usesOverride {
+            guard providerList.count == 1 else {
+                Self.exit(code: .failure, message: "Error: account selection requires a single provider.")
+            }
+            let target = providerList[0]
+            guard TokenAccountSupportCatalog.support(for: target) != nil else {
+                Self.exit(code: .failure, message: "Error: \(target.rawValue) does not support token accounts.")
+            }
+        }
+        let tokenContext: TokenAccountCLIContext
+        do {
+            tokenContext = try TokenAccountCLIContext(selection: tokenSelection, verbose: verbose)
+        } catch {
+            Self.exit(code: .failure, message: "Error: \(error.localizedDescription)")
+        }
         let fetcher = UsageFetcher()
         let browserDetection = BrowserDetection(cacheTTL: 0)
         let claudeFetcher = ClaudeUsageFetcher(browserDetection: browserDetection)
@@ -102,91 +124,33 @@ enum CodexBarCLI {
         var sections: [String] = []
         var payload: [ProviderPayload] = []
         var exitCode: ExitCode = .success
-
-        let fetchContext = ProviderFetchContext(
-            runtime: .cli,
-            sourceMode: sourceMode,
+        let command = UsageCommandContext(
+            format: format,
             includeCredits: includeCredits,
-            webTimeout: webTimeout,
+            sourceMode: sourceMode,
+            antigravityPlanDebug: antigravityPlanDebug,
+            augmentDebug: augmentDebug,
             webDebugDumpHTML: webDebugDumpHTML,
+            webTimeout: webTimeout,
             verbose: verbose,
-            env: ProcessInfo.processInfo.environment,
-            settings: nil,
+            useColor: useColor,
+            resetStyle: resetStyle,
             fetcher: fetcher,
             claudeFetcher: claudeFetcher,
             browserDetection: browserDetection)
 
-        for p in provider.asList {
+        for p in providerList {
             let status = includeStatus ? await Self.fetchStatus(for: p) : nil
-            var antigravityPlanInfo: AntigravityPlanInfoSummary?
-            let outcome = await Self.fetchProviderUsage(
+            let output = await Self.fetchUsageOutputs(
                 provider: p,
-                context: fetchContext)
-            if verbose {
-                Self.printFetchAttempts(provider: p, attempts: outcome.attempts)
+                status: status,
+                tokenContext: tokenContext,
+                command: command)
+            if output.exitCode != .success {
+                exitCode = output.exitCode
             }
-
-            switch outcome.result {
-            case let .success(result):
-                var dashboard = result.dashboard
-                if antigravityPlanDebug, p == .antigravity {
-                    antigravityPlanInfo = try? await AntigravityStatusProbe().fetchPlanInfoSummary()
-                    if format == .text, let info = antigravityPlanInfo {
-                        Self.printAntigravityPlanInfo(info)
-                    }
-                }
-
-                if augmentDebug, p == .augment {
-                    #if os(macOS)
-                    let dump = await AugmentStatusProbe.latestDumps()
-                    if format == .text, !dump.isEmpty {
-                        Self.writeStderr("Augment API responses:\n\(dump)\n")
-                    }
-                    #endif
-                }
-
-                if dashboard == nil, format == .json, p == .codex {
-                    dashboard = Self.loadOpenAIDashboardIfAvailable(usage: result.usage, fetcher: fetcher)
-                }
-
-                let descriptor = ProviderDescriptorRegistry.descriptor(for: p)
-                let shouldDetectVersion = descriptor.cli.versionDetector != nil
-                    && result.strategyKind != .webDashboard
-                let version = Self.normalizeVersion(
-                    raw: shouldDetectVersion ? Self.detectVersion(for: p, browserDetection: browserDetection) : nil)
-                let source = result.sourceLabel
-                let header = Self.makeHeader(provider: p, version: version, source: source)
-
-                switch format {
-                case .text:
-                    var text = CLIRenderer.renderText(
-                        provider: p,
-                        snapshot: result.usage,
-                        credits: result.credits,
-                        context: RenderContext(
-                            header: header,
-                            status: status,
-                            useColor: useColor,
-                            resetStyle: resetStyle))
-                    if let dashboard, p == .codex, sourceMode.usesWeb {
-                        text += "\n" + Self.renderOpenAIWebDashboardText(dashboard)
-                    }
-                    sections.append(text)
-                case .json:
-                    payload.append(ProviderPayload(
-                        provider: p,
-                        version: version,
-                        source: source,
-                        status: status,
-                        usage: result.usage,
-                        credits: result.credits,
-                        antigravityPlanInfo: antigravityPlanInfo,
-                        openaiDashboard: dashboard))
-                }
-            case let .failure(error):
-                exitCode = Self.mapError(error)
-                Self.printError(error)
-            }
+            sections.append(contentsOf: output.sections)
+            payload.append(contentsOf: output.payload)
         }
 
         switch format {
@@ -260,6 +224,20 @@ enum CodexBarCLI {
         return .text
     }
 
+    static func decodeTokenAccountSelection(from values: ParsedValues) -> TokenAccountCLISelection {
+        let label = values.options["account"]?.last
+        let rawIndex = values.options["accountIndex"]?.last
+        var index: Int?
+        if let rawIndex {
+            guard let parsed = Int(rawIndex), parsed > 0 else {
+                Self.exit(code: .failure, message: "Error: --account-index must be a positive integer.")
+            }
+            index = parsed - 1
+        }
+        let allAccounts = values.flags.contains("allAccounts")
+        return TokenAccountCLISelection(label: label, index: index, allAccounts: allAccounts)
+    }
+
     static func shouldUseColor(noColor: Bool, format: OutputFormat) -> Bool {
         guard format == .text else { return false }
         if noColor { return false }
@@ -268,11 +246,11 @@ enum CodexBarCLI {
         return isatty(STDOUT_FILENO) == 1
     }
 
-    private static func detectVersion(for provider: UsageProvider, browserDetection: BrowserDetection) -> String? {
+    static func detectVersion(for provider: UsageProvider, browserDetection: BrowserDetection) -> String? {
         ProviderDescriptorRegistry.descriptor(for: provider).cli.versionDetector?(browserDetection)
     }
 
-    private static func normalizeVersion(raw: String?) -> String? {
+    static func normalizeVersion(raw: String?) -> String? {
         guard let raw, !raw.isEmpty else { return nil }
         if let match = raw.range(of: #"(\d+(?:\.\d+)+)"#, options: .regularExpression) {
             return String(raw[match]).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -280,7 +258,7 @@ enum CodexBarCLI {
         return raw.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private static func makeHeader(provider: UsageProvider, version: String?, source: String) -> String {
+    static func makeHeader(provider: UsageProvider, version: String?, source: String) -> String {
         let name = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
         if let version, !version.isEmpty {
             return "\(name) \(version) (\(source))"
@@ -288,7 +266,7 @@ enum CodexBarCLI {
         return "\(name) (\(source))"
     }
 
-    private static func printFetchAttempts(provider: UsageProvider, attempts: [ProviderFetchAttempt]) {
+    static func printFetchAttempts(provider: UsageProvider, attempts: [ProviderFetchAttempt]) {
         guard !attempts.isEmpty else { return }
         self.writeStderr("[\(provider.rawValue)] fetch strategies:\n")
         for attempt in attempts {
@@ -370,7 +348,7 @@ enum CodexBarCLI {
         return fallback ? .absolute : .countdown
     }
 
-    private static func fetchProviderUsage(
+    static func fetchProviderUsage(
         provider: UsageProvider,
         context: ProviderFetchContext) async -> ProviderFetchOutcome
     {
@@ -395,7 +373,7 @@ enum CodexBarCLI {
         }
     }
 
-    private static func loadOpenAIDashboardIfAvailable(
+    static func loadOpenAIDashboardIfAvailable(
         usage: UsageSnapshot,
         fetcher: UsageFetcher) -> OpenAIDashboardSnapshot?
     {
@@ -434,7 +412,7 @@ enum CodexBarCLI {
         return ProviderSourceMode(rawValue: raw)
     }
 
-    private static func renderOpenAIWebDashboardText(_ dash: OpenAIDashboardSnapshot) -> String {
+    static func renderOpenAIWebDashboardText(_ dash: OpenAIDashboardSnapshot) -> String {
         var lines: [String] = []
         if let email = dash.signedInEmail, !email.isEmpty {
             lines.append("Web session: \(email)")
@@ -480,7 +458,7 @@ enum CodexBarCLI {
         self.writeStderr("Error: \(error.localizedDescription)\n")
     }
 
-    private static func printAntigravityPlanInfo(_ info: AntigravityPlanInfoSummary) {
+    static func printAntigravityPlanInfo(_ info: AntigravityPlanInfoSummary) {
         let fields: [(String, String?)] = [
             ("planName", info.planName),
             ("planDisplayName", info.planDisplayName),
@@ -546,6 +524,7 @@ enum CodexBarCLI {
                        [--json]
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                        [--provider \(ProviderHelp.list)]
+                       [--account <label>] [--account-index <index>] [--all-accounts]
                        [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth>]
                        [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug] [--augment-debug]
 
@@ -557,6 +536,9 @@ enum CodexBarCLI {
             Auto falls back to Codex CLI only when cookies are missing.
           - Claude: claude.ai API.
             Auto falls back to Claude CLI only when cookies are missing.
+          Token accounts are loaded from ~/Library/Application Support/CodexBar/token-accounts.json.
+          Use --account or --account-index to select a specific token account, or --all-accounts to fetch all.
+          Account selection requires a single provider.
 
         Global flags:
           -h, --help      Show help
@@ -586,6 +568,7 @@ enum CodexBarCLI {
                   [--json]
                   [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                   [--provider \(ProviderHelp.list)]
+                  [--account <label>] [--account-index <index>] [--all-accounts]
                   [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth>]
                   [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug] [--augment-debug]
           codexbar cost [--format text|json]
@@ -635,6 +618,15 @@ private struct UsageOptions: CommanderParsable {
         name: .long("provider"),
         help: ProviderHelp.optionHelp)
     var provider: ProviderSelection?
+
+    @Option(name: .long("account"), help: "Token account label to use (from token-accounts.json)")
+    var account: String?
+
+    @Option(name: .long("account-index"), help: "Token account index (1-based)")
+    var accountIndex: Int?
+
+    @Flag(name: .long("all-accounts"), help: "Fetch all token accounts for the provider")
+    var allAccounts: Bool = false
 
     @Option(name: .long("format"), help: "Output format: text | json")
     var format: OutputFormat?
@@ -755,6 +747,7 @@ enum ProviderHelp {
 
 struct ProviderPayload: Encodable {
     let provider: String
+    let account: String?
     let version: String?
     let source: String
     let status: ProviderStatusPayload?
@@ -765,6 +758,7 @@ struct ProviderPayload: Encodable {
 
     init(
         provider: UsageProvider,
+        account: String?,
         version: String?,
         source: String,
         status: ProviderStatusPayload?,
@@ -774,6 +768,7 @@ struct ProviderPayload: Encodable {
         openaiDashboard: OpenAIDashboardSnapshot?)
     {
         self.provider = provider.rawValue
+        self.account = account
         self.version = version
         self.source = source
         self.status = status

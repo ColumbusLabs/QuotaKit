@@ -383,6 +383,24 @@ public struct AugmentStatusProbe: Sendable {
             return try await self.fetchWithCookieHeader(override)
         }
 
+        if let cached = CookieHeaderCache.load(provider: .augment),
+           !cached.cookieHeader.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            log("Using cached cookie header from \(cached.sourceLabel)")
+            do {
+                return try await self.fetchWithCookieHeader(cached.cookieHeader)
+            } catch let error as AugmentStatusProbeError {
+                switch error {
+                case .notLoggedIn, .sessionExpired:
+                    CookieHeaderCache.clear(provider: .augment)
+                default:
+                    throw error
+                }
+            } catch {
+                throw error
+            }
+        }
+
         // Try importing cookies from the configured browser order first.
         do {
             let session = try AugmentCookieImporter.importSession(logger: log)
@@ -392,6 +410,10 @@ public struct AugmentStatusProbe: Sendable {
             // SUCCESS: Save cookies to fallback store for future use
             await AugmentSessionStore.shared.setCookies(session.cookies)
             log("Saved session cookies to fallback store")
+            CookieHeaderCache.store(
+                provider: .augment,
+                cookieHeader: session.cookieHeader,
+                sourceLabel: session.sourceLabel)
 
             return snapshot
         } catch {

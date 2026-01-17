@@ -4,8 +4,12 @@ import CodexBarCore
 extension StatusItemController {
     // MARK: - Actions reachable from menus
 
+    func refreshStore(forceTokenUsage: Bool) {
+        Task { await self.store.refresh(forceTokenUsage: forceTokenUsage) }
+    }
+
     @objc func refreshNow() {
-        Task { await self.store.refresh(forceTokenUsage: true) }
+        self.refreshStore(forceTokenUsage: true)
     }
 
     @objc func installUpdate() {
@@ -122,7 +126,8 @@ extension StatusItemController {
         }
 
         let provider = self.resolvedShortcutProvider()
-        let item = self.statusItems[provider] ?? self.statusItem
+        // Use the lazy accessor to ensure the item exists
+        let item = self.lazyStatusItem(for: provider)
         item.button?.performClick(nil)
     }
 

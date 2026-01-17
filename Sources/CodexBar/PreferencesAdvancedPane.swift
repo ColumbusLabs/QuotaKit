@@ -50,6 +50,10 @@ struct AdvancedPane: View {
                         subtitle: "Show Codex Credits and Claude Extra usage sections in the menu.",
                         binding: self.$settings.showOptionalCreditsAndExtraUsage)
                     PreferenceToggleRow(
+                        title: "Hide personal information",
+                        subtitle: "Obscure email addresses in the menu bar and menu UI.",
+                        binding: self.$settings.hidePersonalInfo)
+                    PreferenceToggleRow(
                         title: "Merge Icons",
                         subtitle: "Use a single menu bar icon with a provider switcher.",
                         binding: self.$settings.mergeIcons)
@@ -63,6 +67,10 @@ struct AdvancedPane: View {
                         title: "Menu bar shows percent",
                         subtitle: "Replace critter bars with provider branding icons and a percentage.",
                         binding: self.$settings.menuBarShowsBrandIconWithPercent)
+                    PreferenceToggleRow(
+                        title: "Show all token accounts",
+                        subtitle: "Stack token accounts in the menu (otherwise show an account switcher bar).",
+                        binding: self.$settings.showAllTokenAccountsInMenu)
                     PreferenceToggleRow(
                         title: "Surprise me",
                         subtitle: "Check if you like your agents having some fun up there.",

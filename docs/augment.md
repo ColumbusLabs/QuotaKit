@@ -57,6 +57,10 @@ Recognized cookie names:
 - `__Host-authjs.csrf-token`, `authjs.session-token` (AuthJS)
 - `session`, `web_rpc_proxy_session` (Augment-specific)
 
+Cached cookies:
+- Keychain cache `com.steipete.codexbar.cache` (account `cookie.augment`, source + timestamp). Reused before re-importing
+  from browsers.
+
 ### Automatic Session Keepalive
 
 The provider includes an automatic session keepalive system:
@@ -162,4 +166,3 @@ This prevents cookies from other subdomains being sent to the API.
 
 - [Provider Authoring Guide](provider.md) - How to create new providers
 - [Development Guide](DEVELOPMENT.md) - Build and test instructions
-

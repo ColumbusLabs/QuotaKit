@@ -69,7 +69,14 @@ public enum ClaudeProviderDescriptor {
             let manualCookieHeader = CookieHeaderNormalizer.normalize(context.settings?.claude?.manualCookieHeader)
             switch context.sourceMode {
             case .oauth:
-                return [ClaudeOAuthFetchStrategy()]
+                return [
+                    ClaudeOAuthFetchStrategy(),
+                    ClaudeWebFetchStrategy(browserDetection: context.browserDetection),
+                    ClaudeCLIFetchStrategy(
+                        useWebExtras: webExtrasEnabled,
+                        manualCookieHeader: manualCookieHeader,
+                        browserDetection: context.browserDetection),
+                ]
             case .web:
                 return [ClaudeWebFetchStrategy(browserDetection: context.browserDetection)]
             case .cli:
@@ -124,15 +131,21 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
     let id: String = "claude.oauth"
     let kind: ProviderFetchKind = .oauth
 
-    func isAvailable(_: ProviderFetchContext) async -> Bool {
-        guard let creds = try? ClaudeOAuthCredentialsStore.load() else { return false }
-        // Usage endpoint requires user:profile scope.
-        return creds.scopes.contains("user:profile")
+    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
+        guard let creds = try? ClaudeOAuthCredentialsStore.load(environment: context.env) else { return false }
+        // In Auto mode, only prefer OAuth when we know the scope is present.
+        // In OAuth-only mode, still show a useful error message even when the scope is missing.
+        // (The strategy can fall back to Web/CLI when allowed by the fetch plan.)
+        if context.sourceMode == .auto {
+            return creds.scopes.contains("user:profile")
+        }
+        return true
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let fetcher = ClaudeUsageFetcher(
             browserDetection: context.browserDetection,
+            environment: context.env,
             dataSource: .oauth,
             useWebExtras: false)
         let usage = try await fetcher.loadLatestUsage(model: "sonnet")
@@ -142,7 +155,7 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
     }
 
     func shouldFallback(on _: Error, context: ProviderFetchContext) -> Bool {
-        context.sourceMode == .auto
+        context.runtime == .app && (context.sourceMode == .auto || context.sourceMode == .oauth)
     }
 
     fileprivate static func snapshot(from usage: ClaudeUsageSnapshot) -> UsageSnapshot {

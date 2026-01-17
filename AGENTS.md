@@ -37,3 +37,4 @@
 - Favor modern macOS 15+ APIs over legacy/deprecated counterparts when refactoring (Observation, new display link APIs, updated menu item styling, etc.).
 - Keep provider data siloed: when rendering usage or account info for a provider (Claude vs Codex), never display identity/plan fields sourced from a different provider.***
 - Claude CLI status line is custom + user-configurable; never rely on it for usage parsing.
+- Cookie imports: default Chrome-only when possible to avoid other browser prompts; override via browser list when needed.

@@ -75,6 +75,7 @@ struct CLISnapshotTests {
 
         let payload = ProviderPayload(
             provider: .codex,
+            account: nil,
             version: "1.2.3",
             source: "codex-cli",
             status: ProviderStatusPayload(

@@ -349,10 +349,7 @@ extension StatusItemController {
     }
 
     private func menuBarPercentWindow(for provider: UsageProvider, snapshot: UsageSnapshot?) -> RateWindow? {
-        if provider == .factory {
-            return snapshot?.secondary ?? snapshot?.primary
-        }
-        return snapshot?.primary ?? snapshot?.secondary
+        self.menuBarMetricWindow(for: provider, snapshot: snapshot)
     }
 
     private func primaryProviderForUnifiedIcon() -> UsageProvider {

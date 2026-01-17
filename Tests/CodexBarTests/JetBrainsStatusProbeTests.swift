@@ -295,11 +295,14 @@ struct JetBrainsStatusProbeTests {
             codex: nil,
             claude: nil,
             cursor: nil,
+            opencode: nil,
             factory: nil,
             minimax: nil,
             zai: nil,
             copilot: nil,
+            kimi: nil,
             augment: nil,
+            amp: nil,
             jetbrains: ProviderSettingsSnapshot.JetBrainsProviderSettings(ideBasePath: "  \(tildePath)  "))
 
         let probe = JetBrainsStatusProbe(settings: settings)

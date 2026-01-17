@@ -516,11 +516,33 @@ public struct CursorStatusProbe: Sendable {
             return try await self.fetchWithCookieHeader(override)
         }
 
+        if let cached = CookieHeaderCache.load(provider: .cursor),
+           !cached.cookieHeader.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            log("Using cached cookie header from \(cached.sourceLabel)")
+            do {
+                return try await self.fetchWithCookieHeader(cached.cookieHeader)
+            } catch let error as CursorStatusProbeError {
+                if case .notLoggedIn = error {
+                    CookieHeaderCache.clear(provider: .cursor)
+                } else {
+                    throw error
+                }
+            } catch {
+                throw error
+            }
+        }
+
         // Try importing cookies from the configured browser order first.
         do {
             let session = try CursorCookieImporter.importSession(browserDetection: self.browserDetection, logger: log)
             log("Using cookies from \(session.sourceLabel)")
-            return try await self.fetchWithCookieHeader(session.cookieHeader)
+            let snapshot = try await self.fetchWithCookieHeader(session.cookieHeader)
+            CookieHeaderCache.store(
+                provider: .cursor,
+                cookieHeader: session.cookieHeader,
+                sourceLabel: session.sourceLabel)
+            return snapshot
         } catch {
             log("Browser cookie import failed: \(error.localizedDescription)")
         }

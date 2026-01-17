@@ -14,6 +14,7 @@ enum ProviderImplementationRegistry {
         _ = ProviderImplementationRegistry.register(ClaudeProviderImplementation())
         _ = ProviderImplementationRegistry.register(FactoryProviderImplementation())
         _ = ProviderImplementationRegistry.register(ZaiProviderImplementation())
+        _ = ProviderImplementationRegistry.register(SyntheticProviderImplementation())
         _ = ProviderImplementationRegistry.register(MiniMaxProviderImplementation())
         _ = ProviderImplementationRegistry.register(AugmentProviderImplementation())
         _ = ProviderImplementationRegistry.register(CursorProviderImplementation())
@@ -23,6 +24,10 @@ enum ProviderImplementationRegistry {
         _ = ProviderImplementationRegistry.register(KiroProviderImplementation())
         _ = ProviderImplementationRegistry.register(VertexAIProviderImplementation())
         _ = ProviderImplementationRegistry.register(JetBrainsProviderImplementation())
+        _ = ProviderImplementationRegistry.register(OpenCodeProviderImplementation())
+        _ = ProviderImplementationRegistry.register(KimiProviderImplementation())
+        _ = ProviderImplementationRegistry.register(KimiK2ProviderImplementation())
+        _ = ProviderImplementationRegistry.register(AmpProviderImplementation())
     }()
 
     private static func ensureBootstrapped() {

@@ -12,7 +12,10 @@ struct SettingsStoreTests {
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
 
-        let store = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
+        let store = SettingsStore(
+            userDefaults: defaults,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
 
         #expect(store.refreshFrequency == .fiveMinutes)
         #expect(store.refreshFrequency.seconds == 300)
@@ -23,12 +26,18 @@ struct SettingsStoreTests {
         let suite = "SettingsStoreTests-persist"
         let defaultsA = UserDefaults(suiteName: suite)!
         defaultsA.removePersistentDomain(forName: suite)
-        let storeA = SettingsStore(userDefaults: defaultsA, zaiTokenStore: NoopZaiTokenStore())
+        let storeA = SettingsStore(
+            userDefaults: defaultsA,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
 
         storeA.refreshFrequency = .fifteenMinutes
 
         let defaultsB = UserDefaults(suiteName: suite)!
-        let storeB = SettingsStore(userDefaults: defaultsB, zaiTokenStore: NoopZaiTokenStore())
+        let storeB = SettingsStore(
+            userDefaults: defaultsB,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
 
         #expect(storeB.refreshFrequency == .fifteenMinutes)
         #expect(storeB.refreshFrequency.seconds == 900)
@@ -39,14 +48,35 @@ struct SettingsStoreTests {
         let suite = "SettingsStoreTests-selectedMenuProvider"
         let defaultsA = UserDefaults(suiteName: suite)!
         defaultsA.removePersistentDomain(forName: suite)
-        let storeA = SettingsStore(userDefaults: defaultsA, zaiTokenStore: NoopZaiTokenStore())
+        let storeA = SettingsStore(
+            userDefaults: defaultsA,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
 
         storeA.selectedMenuProvider = .claude
 
         let defaultsB = UserDefaults(suiteName: suite)!
-        let storeB = SettingsStore(userDefaults: defaultsB, zaiTokenStore: NoopZaiTokenStore())
+        let storeB = SettingsStore(
+            userDefaults: defaultsB,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
 
         #expect(storeB.selectedMenuProvider == .claude)
+    }
+
+    @Test
+    func persistsOpenCodeWorkspaceIDAcrossInstances() {
+        let suite = "SettingsStoreTests-opencode-workspace"
+        let defaultsA = UserDefaults(suiteName: suite)!
+        defaultsA.removePersistentDomain(forName: suite)
+        let storeA = SettingsStore(userDefaults: defaultsA, zaiTokenStore: NoopZaiTokenStore())
+
+        storeA.opencodeWorkspaceID = "wrk_01KEJ50SHK9YR41HSRSJ6QTFCM"
+
+        let defaultsB = UserDefaults(suiteName: suite)!
+        let storeB = SettingsStore(userDefaults: defaultsB, zaiTokenStore: NoopZaiTokenStore())
+
+        #expect(storeB.opencodeWorkspaceID == "wrk_01KEJ50SHK9YR41HSRSJ6QTFCM")
     }
 
     @Test
@@ -55,7 +85,10 @@ struct SettingsStoreTests {
         let suite = "SettingsStoreTests-sessionQuotaNotifications"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
-        let store = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
+        let store = SettingsStore(
+            userDefaults: defaults,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         #expect(store.sessionQuotaNotificationsEnabled == true)
         #expect(defaults.bool(forKey: key) == true)
     }
@@ -66,7 +99,10 @@ struct SettingsStoreTests {
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
 
-        let store = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
+        let store = SettingsStore(
+            userDefaults: defaults,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
 
         #expect(store.claudeUsageDataSource == .auto)
     }
@@ -77,9 +113,42 @@ struct SettingsStoreTests {
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
 
-        let store = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
+        let store = SettingsStore(
+            userDefaults: defaults,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
 
         #expect(store.codexUsageDataSource == .auto)
+    }
+
+    @Test
+    func persistsZaiAPIRegionAcrossInstances() {
+        let suite = "SettingsStoreTests-zai-region"
+        let defaultsA = UserDefaults(suiteName: suite)!
+        defaultsA.removePersistentDomain(forName: suite)
+        let storeA = SettingsStore(userDefaults: defaultsA, zaiTokenStore: NoopZaiTokenStore())
+
+        storeA.zaiAPIRegion = .bigmodelCN
+
+        let defaultsB = UserDefaults(suiteName: suite)!
+        let storeB = SettingsStore(userDefaults: defaultsB, zaiTokenStore: NoopZaiTokenStore())
+
+        #expect(storeB.zaiAPIRegion == .bigmodelCN)
+    }
+
+    @Test
+    func persistsMiniMaxAPIRegionAcrossInstances() {
+        let suite = "SettingsStoreTests-minimax-region"
+        let defaultsA = UserDefaults(suiteName: suite)!
+        defaultsA.removePersistentDomain(forName: suite)
+        let storeA = SettingsStore(userDefaults: defaultsA, zaiTokenStore: NoopZaiTokenStore())
+
+        storeA.minimaxAPIRegion = .chinaMainland
+
+        let defaultsB = UserDefaults(suiteName: suite)!
+        let storeB = SettingsStore(userDefaults: defaultsB, zaiTokenStore: NoopZaiTokenStore())
+
+        #expect(storeB.minimaxAPIRegion == .chinaMainland)
     }
 
     @Test
@@ -88,7 +157,10 @@ struct SettingsStoreTests {
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
 
-        let store = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
+        let store = SettingsStore(
+            userDefaults: defaults,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
 
         #expect(store.openAIWebAccessEnabled == true)
         #expect(defaults.bool(forKey: "openAIWebAccessEnabled") == true)
@@ -102,7 +174,10 @@ struct SettingsStoreTests {
         defaults.removePersistentDomain(forName: suite)
         defaults.set(true, forKey: "providerDetectionCompleted")
 
-        let store = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
+        let store = SettingsStore(
+            userDefaults: defaults,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
 
         #expect(store.orderedProviders() == UsageProvider.allCases)
     }
@@ -117,22 +192,30 @@ struct SettingsStoreTests {
         // Partial list to mimic "older version" missing providers.
         defaultsA.set([UsageProvider.gemini.rawValue, UsageProvider.codex.rawValue], forKey: "providerOrder")
 
-        let storeA = SettingsStore(userDefaults: defaultsA, zaiTokenStore: NoopZaiTokenStore())
+        let storeA = SettingsStore(
+            userDefaults: defaultsA,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
 
         #expect(storeA.orderedProviders() == [
             .gemini,
             .codex,
             .claude,
             .cursor,
+            .opencode,
             .factory,
             .antigravity,
             .copilot,
             .zai,
             .minimax,
+            .kimi,
             .kiro,
             .vertexai,
             .augment,
             .jetbrains,
+            .kimik2,
+            .amp,
+            .synthetic,
         ])
 
         // Move one provider; ensure it's persisted across instances.
@@ -141,7 +224,10 @@ struct SettingsStoreTests {
 
         let defaultsB = UserDefaults(suiteName: suite)!
         defaultsB.set(true, forKey: "providerDetectionCompleted")
-        let storeB = SettingsStore(userDefaults: defaultsB, zaiTokenStore: NoopZaiTokenStore())
+        let storeB = SettingsStore(
+            userDefaults: defaultsB,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
 
         #expect(storeB.orderedProviders().first == .antigravity)
     }
