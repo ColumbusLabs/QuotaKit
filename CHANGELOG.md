@@ -38,6 +38,7 @@
 - Preferences: add cookie source pickers with contextual helper text for the selected mode.
 - Preferences: add debug switch to disable Keychain access and hide cookie-based web options.
 - Preferences: add per-provider menu bar metric picker (#185) — thanks @HaukeSchnau
+- Menu bar: optional auto-select provider closest to its rate limit and keep switcher progress visible (#159). Thanks @phillco!
 - Preferences: tighten provider rows (inline pickers, compact layout, inline refresh + auto-source status).
 - Preferences: remove the “experimental” label from Antigravity.
 - Menu bar: add display mode picker for percent/pace/both in the menu bar icon (#169). Thanks @PhilETaylor!
