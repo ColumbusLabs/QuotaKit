@@ -609,15 +609,18 @@ extension UsageMenuCardView.Model {
         let resetTimeDisplayStyle: ResetTimeDisplayStyle
         let tokenCostUsageEnabled: Bool
         let showOptionalCreditsAndExtraUsage: Bool
+        let hidePersonalInfo: Bool
         let now: Date
     }
 
     static func make(_ input: Input) -> UsageMenuCardView.Model {
-        let email = Self.email(
+        let email = PersonalInfoRedactor.redactEmail(
+            Self.email(
             for: input.provider,
             snapshot: input.snapshot,
             account: input.account,
-            metadata: input.metadata)
+            metadata: input.metadata),
+            isEnabled: input.hidePersonalInfo)
         let planText = Self.plan(
             for: input.provider,
             snapshot: input.snapshot,
@@ -629,7 +632,9 @@ extension UsageMenuCardView.Model {
         } else {
             Self.creditsLine(metadata: input.metadata, credits: input.credits, error: input.creditsError)
         }
-        let creditsHintText = Self.dashboardHint(provider: input.provider, error: input.dashboardError)
+        let creditsHintText = PersonalInfoRedactor.redactEmails(
+            in: Self.dashboardHint(provider: input.provider, error: input.dashboardError),
+            isEnabled: input.hidePersonalInfo)
         let providerCost: ProviderCostSection? = if input.provider == .claude, !input.showOptionalCreditsAndExtraUsage {
             nil
         } else {
@@ -644,19 +649,22 @@ extension UsageMenuCardView.Model {
             snapshot: input.snapshot,
             isRefreshing: input.isRefreshing,
             lastError: input.lastError)
+        let subtitleText = PersonalInfoRedactor.redactEmails(in: subtitle.text, isEnabled: input.hidePersonalInfo)
         let placeholder = input.snapshot == nil && !input.isRefreshing && input.lastError == nil ? "No usage yet" : nil
 
         return UsageMenuCardView.Model(
             providerName: input.metadata.displayName,
             email: email,
-            subtitleText: subtitle.text,
+            subtitleText: subtitleText ?? subtitle.text,
             subtitleStyle: subtitle.style,
             planText: planText,
             metrics: metrics,
             creditsText: creditsText,
             creditsRemaining: input.credits?.remaining,
             creditsHintText: creditsHintText,
-            creditsHintCopyText: (input.dashboardError?.isEmpty ?? true) ? nil : input.dashboardError,
+            creditsHintCopyText: Self.creditsHintCopyText(
+                dashboardError: input.dashboardError,
+                hidePersonalInfo: input.hidePersonalInfo),
             providerCost: providerCost,
             tokenUsage: tokenUsage,
             placeholder: placeholder,
@@ -718,6 +726,11 @@ extension UsageMenuCardView.Model {
         }
 
         return ("Not fetched yet", .info)
+    }
+
+    private static func creditsHintCopyText(dashboardError: String?, hidePersonalInfo: Bool) -> String? {
+        guard let dashboardError, !dashboardError.isEmpty else { return nil }
+        return hidePersonalInfo ? "" : dashboardError
     }
 
     private static func metrics(input: Input) -> [Metric] {

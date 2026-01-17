@@ -11,6 +11,14 @@ enum UsagePaceText {
 
     private static let minimumExpectedPercent: Double = 3
 
+    static func weeklySummary(provider: UsageProvider, window: RateWindow, now: Date = .init()) -> String? {
+        guard let detail = weeklyDetail(provider: provider, window: window, now: now) else { return nil }
+        if let rightLabel = detail.rightLabel {
+            return "Pace: \(detail.leftLabel) · \(rightLabel)"
+        }
+        return "Pace: \(detail.leftLabel)"
+    }
+
     static func weeklyDetail(provider: UsageProvider, window: RateWindow, now: Date = .init()) -> WeeklyDetail? {
         guard let pace = weeklyPace(provider: provider, window: window, now: now) else { return nil }
         return WeeklyDetail(
