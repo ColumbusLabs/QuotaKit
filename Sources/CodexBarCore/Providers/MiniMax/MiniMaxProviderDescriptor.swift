@@ -229,6 +229,7 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
     }
 
     private static func loadTokenContext(browserDetection: BrowserDetection) -> TokenContext {
+        #if os(macOS)
         let tokenLog: (String) -> Void = { msg in Self.log.debug(msg) }
         let accessTokens = MiniMaxLocalStorageImporter.importAccessTokens(
             browserDetection: browserDetection,
@@ -252,6 +253,10 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
             }
         }
         return TokenContext(tokensByLabel: tokensByLabel, groupIDByLabel: groupIDByLabel)
+        #else
+        _ = browserDetection
+        return TokenContext(tokensByLabel: [:], groupIDByLabel: [:])
+        #endif
     }
 
     private static func attemptFetch(
