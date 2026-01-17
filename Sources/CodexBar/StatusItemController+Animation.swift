@@ -342,39 +342,13 @@ extension StatusItemController {
         }
     }
 
-    private func menuBarPercentText(for provider: UsageProvider, snapshot: UsageSnapshot?) -> String? {
-        guard let window = self.menuBarPercentWindow(for: provider, snapshot: snapshot) else { return nil }
-        let percent = self.settings.usageBarsShowUsed ? window.usedPercent : window.remainingPercent
-        let clamped = min(100, max(0, percent))
-        return String(format: "%.0f%%", clamped)
-    }
-
-    private func menuBarPaceText(for provider: UsageProvider, snapshot: UsageSnapshot?) -> String? {
-        // PACE is calculated from the weekly (secondary) window, not the session (primary) window.
-        guard let window = snapshot?.secondary else { return nil }
-        guard let pace = UsagePaceText.weeklyPace(provider: provider, window: window, now: Date()) else { return nil }
-
-        let deltaValue = Int(abs(pace.deltaPercent).rounded())
-        let sign = pace.deltaPercent >= 0 ? "+" : "-"
-        return "\(sign)\(deltaValue)%"
-    }
-
     func menuBarDisplayText(for provider: UsageProvider, snapshot: UsageSnapshot?) -> String? {
-        let mode = self.settings.menuBarDisplayMode
-
-        switch mode {
-        case .percent:
-            return self.menuBarPercentText(for: provider, snapshot: snapshot)
-        case .pace:
-            return self.menuBarPaceText(for: provider, snapshot: snapshot)
-        case .both:
-            let percentText = self.menuBarPercentText(for: provider, snapshot: snapshot)
-            let paceText = self.menuBarPaceText(for: provider, snapshot: snapshot)
-            if let percent = percentText, let pace = paceText {
-                return "\(percent) · \(pace)"
-            }
-            return nil
-        }
+        MenuBarDisplayText.displayText(
+            mode: self.settings.menuBarDisplayMode,
+            provider: provider,
+            percentWindow: self.menuBarPercentWindow(for: provider, snapshot: snapshot),
+            paceWindow: snapshot?.secondary,
+            showUsed: self.settings.usageBarsShowUsed)
     }
 
     private func menuBarPercentWindow(for provider: UsageProvider, snapshot: UsageSnapshot?) -> RateWindow? {
