@@ -78,7 +78,9 @@ struct ProviderRegistry {
                                 cookieSource: settings.augmentCookieSource,
                                 manualCookieHeader: settings.augmentCookieHeader),
                             jetbrains: ProviderSettingsSnapshot.JetBrainsProviderSettings(
-                                ideBasePath: settings.jetbrainsIDEBasePath.isEmpty ? nil : settings.jetbrainsIDEBasePath))
+                                ideBasePath: settings.jetbrainsIDEBasePath.isEmpty
+                                    ? nil
+                                    : settings.jetbrainsIDEBasePath))
                     }
                     let context = ProviderFetchContext(
                         runtime: .app,

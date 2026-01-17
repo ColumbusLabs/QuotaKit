@@ -14,7 +14,9 @@ JetBrains AI is a local-only provider. We read quota information directly from t
 
 1) **IDE auto-detection**
    - macOS: `~/Library/Application Support/JetBrains/`
+   - macOS (Android Studio): `~/Library/Application Support/Google/`
    - Linux: `~/.config/JetBrains/`
+   - Linux (Android Studio): `~/.config/Google/`
    - Supported IDEs: IntelliJ IDEA, PyCharm, WebStorm, GoLand, CLion, DataGrip, RubyMine, Rider, PhpStorm, RustRover, Android Studio, Fleet, Aqua, DataSpell
    - Selection: most recently modified `AIAssistantQuotaManager2.xml`
 

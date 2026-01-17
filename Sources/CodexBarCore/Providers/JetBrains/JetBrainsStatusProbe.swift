@@ -135,13 +135,11 @@ public struct JetBrainsStatusProbe: Sendable {
     }
 
     private func resolveQuotaFilePath() throws -> (String, JetBrainsIDEInfo?) {
-        if let customPath = self.settings?.jetbrainsIDEBasePath, !customPath.isEmpty {
-            #if os(macOS)
-            let isMacOS = true
-            #else
-            let isMacOS = false
-            #endif
-            let quotaPath = JetBrainsIDEDetector.quotaFilePath(for: customPath, isMacOS: isMacOS)
+        if let customPath = self.settings?.jetbrainsIDEBasePath?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !customPath.isEmpty
+        {
+            let expandedBasePath = (customPath as NSString).expandingTildeInPath
+            let quotaPath = JetBrainsIDEDetector.quotaFilePath(for: expandedBasePath)
             return (quotaPath, nil)
         }
 
@@ -151,7 +149,10 @@ public struct JetBrainsStatusProbe: Sendable {
         return (detectedIDE.quotaFilePath, detectedIDE)
     }
 
-    public static func parseQuotaFile(at path: String, detectedIDE: JetBrainsIDEInfo?) throws -> JetBrainsStatusSnapshot {
+    public static func parseQuotaFile(
+        at path: String,
+        detectedIDE: JetBrainsIDEInfo?) throws -> JetBrainsStatusSnapshot
+    {
         guard FileManager.default.fileExists(atPath: path) else {
             throw JetBrainsStatusProbeError.quotaFileNotFound(path)
         }
@@ -175,8 +176,14 @@ public struct JetBrainsStatusProbe: Sendable {
             throw JetBrainsStatusProbeError.parseError("Invalid XML: \(error.localizedDescription)")
         }
 
-        let quotaInfoRaw = try? document.nodes(forXPath: "//component[@name='AIAssistantQuotaManager2']/option[@name='quotaInfo']/@value").first?.stringValue
-        let nextRefillRaw = try? document.nodes(forXPath: "//component[@name='AIAssistantQuotaManager2']/option[@name='nextRefill']/@value").first?.stringValue
+        let quotaInfoRaw = try? document
+            .nodes(forXPath: "//component[@name='AIAssistantQuotaManager2']/option[@name='quotaInfo']/@value")
+            .first?
+            .stringValue
+        let nextRefillRaw = try? document
+            .nodes(forXPath: "//component[@name='AIAssistantQuotaManager2']/option[@name='nextRefill']/@value")
+            .first?
+            .stringValue
         #else
         let parser = JetBrainsXMLParser()
         let parseResult = parser.parse(data: data)

@@ -9,7 +9,7 @@ struct JetBrainsProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
-        let detectedIDEs = JetBrainsIDEDetector.detectInstalledIDEs()
+        let detectedIDEs = JetBrainsIDEDetector.detectInstalledIDEs(includeMissingQuota: true)
         guard !detectedIDEs.isEmpty else { return [] }
 
         var options: [ProviderSettingsPickerOption] = [
@@ -52,7 +52,7 @@ struct JetBrainsProviderImplementation: ProviderImplementation {
                 actions: [],
                 isVisible: {
                     let detectedIDEs = JetBrainsIDEDetector.detectInstalledIDEs()
-                    return detectedIDEs.isEmpty
+                    return detectedIDEs.isEmpty || !context.settings.jetbrainsIDEBasePath.isEmpty
                 },
                 onActivate: nil),
         ]

@@ -39,8 +39,8 @@ public enum JetBrainsIDEDetector {
 
     private static let quotaFileName = "AIAssistantQuotaManager2.xml"
 
-    public static func detectInstalledIDEs() -> [JetBrainsIDEInfo] {
-        let basePaths = Self.jetBrainsConfigBasePaths()
+    public static func detectInstalledIDEs(includeMissingQuota: Bool = false) -> [JetBrainsIDEInfo] {
+        let basePaths = self.jetBrainsConfigBasePaths()
         var detectedIDEs: [JetBrainsIDEInfo] = []
 
         let fileManager = FileManager.default
@@ -49,8 +49,8 @@ public enum JetBrainsIDEDetector {
             guard let contents = try? fileManager.contentsOfDirectory(atPath: basePath) else { continue }
 
             for dirname in contents {
-                guard let ideInfo = Self.parseIDEDirectory(dirname: dirname, basePath: basePath) else { continue }
-                if fileManager.fileExists(atPath: ideInfo.quotaFilePath) {
+                guard let ideInfo = parseIDEDirectory(dirname: dirname, basePath: basePath) else { continue }
+                if includeMissingQuota || fileManager.fileExists(atPath: ideInfo.quotaFilePath) {
                     detectedIDEs.append(ideInfo)
                 }
             }
@@ -58,14 +58,14 @@ public enum JetBrainsIDEDetector {
 
         return detectedIDEs.sorted { lhs, rhs in
             if lhs.name == rhs.name {
-                return Self.compareVersions(lhs.version, rhs.version) > 0
+                return self.compareVersions(lhs.version, rhs.version) > 0
             }
             return lhs.name < rhs.name
         }
     }
 
     public static func detectLatestIDE() -> JetBrainsIDEInfo? {
-        let ides = Self.detectInstalledIDEs()
+        let ides = self.detectInstalledIDEs()
         guard !ides.isEmpty else { return nil }
 
         let fileManager = FileManager.default
@@ -91,47 +91,34 @@ public enum JetBrainsIDEDetector {
         #if os(macOS)
         return [
             "\(homeDir)/Library/Application Support/JetBrains",
-            "\(homeDir)/Library/Application Support/Google/AndroidStudio",
+            "\(homeDir)/Library/Application Support/Google",
         ]
         #else
         return [
             "\(homeDir)/.config/JetBrains",
             "\(homeDir)/.local/share/JetBrains",
+            "\(homeDir)/.config/Google",
         ]
         #endif
     }
 
     private static func parseIDEDirectory(dirname: String, basePath: String) -> JetBrainsIDEInfo? {
-        for (prefix, displayName) in Self.idePatterns {
-            if dirname.hasPrefix(prefix) {
-                let versionPart = String(dirname.dropFirst(prefix.count))
-                let version = versionPart.isEmpty ? "Unknown" : versionPart
-                let idePath = "\(basePath)/\(dirname)"
-                let quotaFilePath = Self.quotaFilePath(for: idePath)
-                return JetBrainsIDEInfo(
-                    name: displayName,
-                    version: version,
-                    basePath: idePath,
-                    quotaFilePath: quotaFilePath)
-            }
+        for (prefix, displayName) in self.idePatterns where dirname.hasPrefix(prefix) {
+            let versionPart = String(dirname.dropFirst(prefix.count))
+            let version = versionPart.isEmpty ? "Unknown" : versionPart
+            let idePath = "\(basePath)/\(dirname)"
+            let quotaFilePath = quotaFilePath(for: idePath)
+            return JetBrainsIDEInfo(
+                name: displayName,
+                version: version,
+                basePath: idePath,
+                quotaFilePath: quotaFilePath)
         }
         return nil
     }
 
-    private static func quotaFilePath(for ideBasePath: String) -> String {
-        #if os(macOS)
-        return "\(ideBasePath)/options/\(Self.quotaFileName)"
-        #else
-        return "\(ideBasePath)/options/\(Self.quotaFileName)"
-        #endif
-    }
-
-    public static func quotaFilePath(for ideBasePath: String, isMacOS: Bool) -> String {
-        if isMacOS {
-            return "\(ideBasePath)/options/\(Self.quotaFileName)"
-        } else {
-            return "\(ideBasePath)/options/\(Self.quotaFileName)"
-        }
+    public static func quotaFilePath(for ideBasePath: String) -> String {
+        "\(ideBasePath)/options/\(self.quotaFileName)"
     }
 
     private static func compareVersions(_ v1: String, _ v2: String) -> Int {
@@ -139,7 +126,7 @@ public enum JetBrainsIDEDetector {
         let parts2 = v2.split(separator: ".").compactMap { Int($0) }
 
         let maxLen = max(parts1.count, parts2.count)
-        for i in 0 ..< maxLen {
+        for i in 0..<maxLen {
             let p1 = i < parts1.count ? parts1[i] : 0
             let p2 = i < parts2.count ? parts2[i] : 0
             if p1 != p2 {
