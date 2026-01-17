@@ -31,6 +31,10 @@ struct UsageMenuCardView: View {
             let percentStyle: PercentStyle
             let resetText: String?
             let detailText: String?
+            let detailLeftText: String?
+            let detailRightText: String?
+            let pacePercent: Double?
+            let paceOnTop: Bool
 
             var percentLabel: String {
                 String(format: "%.0f%% %@", self.percent, self.percentStyle.labelSuffix)
@@ -105,32 +109,10 @@ struct UsageMenuCardView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     if hasUsage {
                         VStack(alignment: .leading, spacing: 12) {
-                            ForEach(self.model.metrics) { metric in
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(metric.title)
-                                        .font(.body)
-                                        .fontWeight(.medium)
-                                    UsageProgressBar(
-                                        percent: metric.percent,
-                                        tint: self.model.progressColor,
-                                        accessibilityLabel: metric.percentStyle.accessibilityLabel)
-                                    HStack(alignment: .firstTextBaseline) {
-                                        Text(metric.percentLabel)
-                                            .font(.footnote)
-                                        Spacer()
-                                        if let reset = metric.resetText {
-                                            Text(reset)
-                                                .font(.footnote)
-                                                .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                                        }
-                                    }
-                                    if let detail = metric.detailText {
-                                        Text(detail)
-                                            .font(.footnote)
-                                            .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                                            .lineLimit(1)
-                                    }
-                                }
+                            ForEach(self.model.metrics, id: \.id) { metric in
+                                MetricRow(
+                                    metric: metric,
+                                    progressColor: self.model.progressColor)
                             }
                         }
                     }
@@ -215,44 +197,25 @@ private struct UsageMenuCardHeaderView: View {
                     .font(.subheadline)
                     .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
             }
-            if self.model.subtitleStyle == .error {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(self.model.subtitleText)
-                        .font(.footnote)
-                        .foregroundStyle(self.subtitleColor)
-                        .lineLimit(6)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    HStack(alignment: .firstTextBaseline) {
-                        if !self.model.subtitleText.isEmpty {
-                            CopyIconButton(copyText: self.model.subtitleText, isHighlighted: self.isHighlighted)
-                        }
-                        Spacer()
-                        if let plan = self.model.planText {
-                            Text(plan)
-                                .font(.footnote)
-                                .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                                .lineLimit(1)
-                        }
-                    }
+            let subtitleAlignment: VerticalAlignment = self.model.subtitleStyle == .error ? .top : .firstTextBaseline
+            HStack(alignment: subtitleAlignment) {
+                Text(self.model.subtitleText)
+                    .font(.footnote)
+                    .foregroundStyle(self.subtitleColor)
+                    .lineLimit(self.model.subtitleStyle == .error ? 4 : 1)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
+                    .padding(.bottom, self.model.subtitleStyle == .error ? 4 : 0)
+                Spacer()
+                if self.model.subtitleStyle == .error, !self.model.subtitleText.isEmpty {
+                    CopyIconButton(copyText: self.model.subtitleText, isHighlighted: self.isHighlighted)
                 }
-            } else {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(self.model.subtitleText)
+                if let plan = self.model.planText {
+                    Text(plan)
                         .font(.footnote)
-                        .foregroundStyle(self.subtitleColor)
+                        .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                         .lineLimit(1)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .layoutPriority(1)
-                    Spacer()
-                    if let plan = self.model.planText {
-                        Text(plan)
-                            .font(.footnote)
-                            .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                            .lineLimit(1)
-                    }
                 }
             }
         }
@@ -345,6 +308,64 @@ private struct ProviderCostContent: View {
     }
 }
 
+private struct MetricRow: View {
+    let metric: UsageMenuCardView.Model.Metric
+    let progressColor: Color
+    @Environment(\.menuItemHighlighted) private var isHighlighted
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(self.metric.title)
+                .font(.body)
+                .fontWeight(.medium)
+            UsageProgressBar(
+                percent: self.metric.percent,
+                tint: self.progressColor,
+                accessibilityLabel: self.metric.percentStyle.accessibilityLabel,
+                pacePercent: self.metric.pacePercent,
+                paceOnTop: self.metric.paceOnTop)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(self.metric.percentLabel)
+                        .font(.footnote)
+                        .lineLimit(1)
+                    Spacer()
+                    if let rightLabel = self.metric.resetText {
+                        Text(rightLabel)
+                            .font(.footnote)
+                            .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+                            .lineLimit(1)
+                    }
+                }
+                if self.metric.detailLeftText != nil || self.metric.detailRightText != nil {
+                    HStack(alignment: .firstTextBaseline) {
+                        if let detailLeft = self.metric.detailLeftText {
+                            Text(detailLeft)
+                                .font(.footnote)
+                                .foregroundStyle(MenuHighlightStyle.primary(self.isHighlighted))
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        if let detailRight = self.metric.detailRightText {
+                            Text(detailRight)
+                                .font(.footnote)
+                                .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+                                .lineLimit(1)
+                        }
+                    }
+                }
+            }
+            if let detail = self.metric.detailText {
+                Text(detail)
+                    .font(.footnote)
+                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 struct UsageMenuCardHeaderSectionView: View {
     let model: UsageMenuCardView.Model
     let showDivider: Bool
@@ -381,32 +402,10 @@ struct UsageMenuCardUsageSectionView: View {
                         .font(.subheadline)
                 }
             } else {
-                ForEach(self.model.metrics) { metric in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(metric.title)
-                            .font(.body)
-                            .fontWeight(.medium)
-                        UsageProgressBar(
-                            percent: metric.percent,
-                            tint: self.model.progressColor,
-                            accessibilityLabel: metric.percentStyle.accessibilityLabel)
-                        HStack(alignment: .firstTextBaseline) {
-                            Text(metric.percentLabel)
-                                .font(.footnote)
-                            Spacer()
-                            if let reset = metric.resetText {
-                                Text(reset)
-                                    .font(.footnote)
-                                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                            }
-                        }
-                        if let detail = metric.detailText {
-                            Text(detail)
-                                .font(.footnote)
-                                .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                                .lineLimit(1)
-                        }
-                    }
+                ForEach(self.model.metrics, id: \.id) { metric in
+                    MetricRow(
+                        metric: metric,
+                        progressColor: self.model.progressColor)
                 }
             }
             if self.showBottomDivider {
@@ -512,10 +511,7 @@ private struct CreditsBarContent: View {
                     .lineLimit(4)
                     .fixedSize(horizontal: false, vertical: true)
                     .overlay {
-                        let copyText = self.hintCopyText ?? hintText
-                        if !copyText.isEmpty {
-                            ClickToCopyOverlay(copyText: copyText)
-                        }
+                        ClickToCopyOverlay(copyText: self.hintCopyText ?? hintText)
                     }
             }
         }
@@ -618,12 +614,13 @@ extension UsageMenuCardView.Model {
     }
 
     static func make(_ input: Input) -> UsageMenuCardView.Model {
-        let email = Self.email(
+        let email = PersonalInfoRedactor.redactEmail(
+            Self.email(
             for: input.provider,
             snapshot: input.snapshot,
             account: input.account,
-            metadata: input.metadata,
-            hidePersonalInfo: input.hidePersonalInfo)
+            metadata: input.metadata),
+            isEnabled: input.hidePersonalInfo)
         let planText = Self.plan(
             for: input.provider,
             snapshot: input.snapshot,
@@ -635,15 +632,9 @@ extension UsageMenuCardView.Model {
         } else {
             Self.creditsLine(metadata: input.metadata, credits: input.credits, error: input.creditsError)
         }
-        let creditsHintText = Self.dashboardHint(
-            provider: input.provider,
-            error: input.dashboardError,
-            hidePersonalInfo: input.hidePersonalInfo)
-        let creditsHintCopyText: String? = {
-            guard let error = input.dashboardError, !error.isEmpty else { return nil }
-            if input.hidePersonalInfo { return "" }
-            return error
-        }()
+        let creditsHintText = PersonalInfoRedactor.redactEmails(
+            in: Self.dashboardHint(provider: input.provider, error: input.dashboardError),
+            isEnabled: input.hidePersonalInfo)
         let providerCost: ProviderCostSection? = if input.provider == .claude, !input.showOptionalCreditsAndExtraUsage {
             nil
         } else {
@@ -653,26 +644,27 @@ extension UsageMenuCardView.Model {
             provider: input.provider,
             enabled: input.tokenCostUsageEnabled,
             snapshot: input.tokenSnapshot,
-            error: input.tokenError,
-            hidePersonalInfo: input.hidePersonalInfo)
+            error: input.tokenError)
         let subtitle = Self.subtitle(
             snapshot: input.snapshot,
             isRefreshing: input.isRefreshing,
-            lastError: input.lastError,
-            hidePersonalInfo: input.hidePersonalInfo)
+            lastError: input.lastError)
+        let subtitleText = PersonalInfoRedactor.redactEmails(in: subtitle.text, isEnabled: input.hidePersonalInfo)
         let placeholder = input.snapshot == nil && !input.isRefreshing && input.lastError == nil ? "No usage yet" : nil
 
         return UsageMenuCardView.Model(
             providerName: input.metadata.displayName,
             email: email,
-            subtitleText: subtitle.text,
+            subtitleText: subtitleText ?? subtitle.text,
             subtitleStyle: subtitle.style,
             planText: planText,
             metrics: metrics,
             creditsText: creditsText,
             creditsRemaining: input.credits?.remaining,
             creditsHintText: creditsHintText,
-            creditsHintCopyText: creditsHintCopyText,
+            creditsHintCopyText: Self.creditsHintCopyText(
+                dashboardError: input.dashboardError,
+                hidePersonalInfo: input.hidePersonalInfo),
             providerCost: providerCost,
             tokenUsage: tokenUsage,
             placeholder: placeholder,
@@ -683,16 +675,13 @@ extension UsageMenuCardView.Model {
         for provider: UsageProvider,
         snapshot: UsageSnapshot?,
         account: AccountInfo,
-        metadata: ProviderMetadata,
-        hidePersonalInfo: Bool) -> String
+        metadata: ProviderMetadata) -> String
     {
-        if let email = snapshot?.accountEmail(for: provider), !email.isEmpty {
-            return PersonalInfoRedactor.redactEmail(email, isEnabled: hidePersonalInfo)
-        }
+        if let email = snapshot?.accountEmail(for: provider), !email.isEmpty { return email }
         if metadata.usesAccountFallback,
            let email = account.email, !email.isEmpty
         {
-            return PersonalInfoRedactor.redactEmail(email, isEnabled: hidePersonalInfo)
+            return email
         }
         return ""
     }
@@ -722,13 +711,10 @@ extension UsageMenuCardView.Model {
     private static func subtitle(
         snapshot: UsageSnapshot?,
         isRefreshing: Bool,
-        lastError: String?,
-        hidePersonalInfo: Bool) -> (text: String, style: SubtitleStyle)
+        lastError: String?) -> (text: String, style: SubtitleStyle)
     {
         if let lastError, !lastError.isEmpty {
-            let trimmed = lastError.trimmingCharacters(in: .whitespacesAndNewlines)
-            let redacted = PersonalInfoRedactor.redactEmails(in: trimmed, isEnabled: hidePersonalInfo) ?? trimmed
-            return (redacted, .error)
+            return (lastError.trimmingCharacters(in: .whitespacesAndNewlines), .error)
         }
 
         if isRefreshing, snapshot == nil {
@@ -742,6 +728,11 @@ extension UsageMenuCardView.Model {
         return ("Not fetched yet", .info)
     }
 
+    private static func creditsHintCopyText(dashboardError: String?, hidePersonalInfo: Bool) -> String? {
+        guard let dashboardError, !dashboardError.isEmpty else { return nil }
+        return hidePersonalInfo ? "" : dashboardError
+    }
+
     private static func metrics(input: Input) -> [Metric] {
         guard let snapshot = input.snapshot else { return [] }
         var metrics: [Metric] = []
@@ -749,13 +740,6 @@ extension UsageMenuCardView.Model {
         let zaiUsage = input.provider == .zai ? snapshot.zaiUsage : nil
         let zaiTokenDetail = Self.zaiLimitDetailText(limit: zaiUsage?.tokenLimit)
         let zaiTimeDetail = Self.zaiLimitDetailText(limit: zaiUsage?.timeLimit)
-        let minimaxUsage = input.provider == .minimax ? snapshot.minimaxUsage : nil
-        let minimaxPromptDetail = Self.minimaxPromptDetailText(usage: minimaxUsage)
-        let primaryDetailText: String? = {
-            if input.provider == .zai { return zaiTokenDetail }
-            if input.provider == .minimax { return minimaxPromptDetail }
-            return nil
-        }()
         if let primary = snapshot.primary {
             metrics.append(Metric(
                 id: "primary",
@@ -764,17 +748,29 @@ extension UsageMenuCardView.Model {
                     input.usageBarsShowUsed ? primary.usedPercent : primary.remainingPercent),
                 percentStyle: percentStyle,
                 resetText: Self.resetText(for: primary, style: input.resetTimeDisplayStyle, now: input.now),
-                detailText: primaryDetailText))
+                detailText: input.provider == .zai ? zaiTokenDetail : nil,
+                detailLeftText: nil,
+                detailRightText: nil,
+                pacePercent: nil,
+                paceOnTop: true))
         }
         if let weekly = snapshot.secondary {
-            let paceText = UsagePaceText.weekly(provider: input.provider, window: weekly, now: input.now)
+            let paceDetail = Self.weeklyPaceDetail(
+                provider: input.provider,
+                window: weekly,
+                now: input.now,
+                showUsed: input.usageBarsShowUsed)
             metrics.append(Metric(
                 id: "secondary",
                 title: input.metadata.weeklyLabel,
                 percent: Self.clamped(input.usageBarsShowUsed ? weekly.usedPercent : weekly.remainingPercent),
                 percentStyle: percentStyle,
                 resetText: Self.resetText(for: weekly, style: input.resetTimeDisplayStyle, now: input.now),
-                detailText: input.provider == .zai ? zaiTimeDetail : paceText))
+                detailText: input.provider == .zai ? zaiTimeDetail : nil,
+                detailLeftText: paceDetail?.leftLabel,
+                detailRightText: paceDetail?.rightLabel,
+                pacePercent: paceDetail?.pacePercent,
+                paceOnTop: paceDetail?.paceOnTop ?? true))
         }
         if input.metadata.supportsOpus, let opus = snapshot.tertiary {
             metrics.append(Metric(
@@ -783,7 +779,11 @@ extension UsageMenuCardView.Model {
                 percent: Self.clamped(input.usageBarsShowUsed ? opus.usedPercent : opus.remainingPercent),
                 percentStyle: percentStyle,
                 resetText: Self.resetText(for: opus, style: input.resetTimeDisplayStyle, now: input.now),
-                detailText: nil))
+                detailText: nil,
+                detailLeftText: nil,
+                detailRightText: nil,
+                pacePercent: nil,
+                paceOnTop: true))
         }
 
         if input.provider == .codex, let remaining = input.dashboard?.codeReviewRemainingPercent {
@@ -794,7 +794,11 @@ extension UsageMenuCardView.Model {
                 percent: Self.clamped(percent),
                 percentStyle: percentStyle,
                 resetText: nil,
-                detailText: nil))
+                detailText: nil,
+                detailLeftText: nil,
+                detailRightText: nil,
+                pacePercent: nil,
+                paceOnTop: true))
         }
         return metrics
     }
@@ -807,18 +811,32 @@ extension UsageMenuCardView.Model {
         return "\(currentStr) / \(usageStr) (\(remainingStr) remaining)"
     }
 
-    private static func minimaxPromptDetailText(usage: MiniMaxUsageSnapshot?) -> String? {
-        guard let usage else { return nil }
-        guard let current = usage.currentPrompts,
-              let total = usage.availablePrompts,
-              let remaining = usage.remainingPrompts
-        else {
-            return nil
-        }
-        let currentStr = UsageFormatter.tokenCountString(current)
-        let totalStr = UsageFormatter.tokenCountString(total)
-        let remainingStr = UsageFormatter.tokenCountString(remaining)
-        return "\(currentStr) / \(totalStr) (\(remainingStr) remaining)"
+    private struct PaceDetail {
+        let leftLabel: String
+        let rightLabel: String?
+        let pacePercent: Double?
+        let paceOnTop: Bool
+    }
+
+    private static func weeklyPaceDetail(
+        provider: UsageProvider,
+        window: RateWindow,
+        now: Date,
+        showUsed: Bool) -> PaceDetail?
+    {
+        guard let detail = UsagePaceText.weeklyDetail(provider: provider, window: window, now: now) else { return nil }
+        let expectedUsed = detail.expectedUsedPercent
+        let actualUsed = window.usedPercent
+        let expectedPercent = showUsed ? expectedUsed : (100 - expectedUsed)
+        let actualPercent = showUsed ? actualUsed : (100 - actualUsed)
+        if expectedPercent.isFinite == false || actualPercent.isFinite == false { return nil }
+        let paceOnTop = actualUsed <= expectedUsed
+        let pacePercent: Double? = if detail.stage == .onTrack { nil } else { expectedPercent }
+        return PaceDetail(
+            leftLabel: detail.leftLabel,
+            rightLabel: detail.rightLabel,
+            pacePercent: pacePercent,
+            paceOnTop: paceOnTop)
     }
 
     private static func creditsLine(
@@ -836,22 +854,17 @@ extension UsageMenuCardView.Model {
         return metadata.creditsHint
     }
 
-    private static func dashboardHint(
-        provider: UsageProvider,
-        error: String?,
-        hidePersonalInfo: Bool) -> String?
-    {
+    private static func dashboardHint(provider: UsageProvider, error: String?) -> String? {
         guard provider == .codex else { return nil }
         guard let error, !error.isEmpty else { return nil }
-        return PersonalInfoRedactor.redactEmails(in: error, isEnabled: hidePersonalInfo) ?? error
+        return error
     }
 
     private static func tokenUsageSection(
         provider: UsageProvider,
         enabled: Bool,
         snapshot: CostUsageTokenSnapshot?,
-        error: String?,
-        hidePersonalInfo: Bool) -> TokenUsageSection?
+        error: String?) -> TokenUsageSection?
     {
         guard provider == .codex || provider == .claude || provider == .vertexai else { return nil }
         guard enabled else { return nil }
@@ -877,13 +890,12 @@ extension UsageMenuCardView.Model {
             return "Last 30 days: \(monthCost)"
         }()
         let err = (error?.isEmpty ?? true) ? nil : error
-        let redacted = PersonalInfoRedactor.redactEmails(in: err, isEnabled: hidePersonalInfo)
         return TokenUsageSection(
             sessionLine: sessionLine,
             monthLine: monthLine,
             hintLine: nil,
-            errorLine: redacted ?? err,
-            errorCopyText: (error?.isEmpty ?? true) ? nil : (redacted ?? error))
+            errorLine: err,
+            errorCopyText: (error?.isEmpty ?? true) ? nil : error)
     }
 
     private static func providerCostSection(

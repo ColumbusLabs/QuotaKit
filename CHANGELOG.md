@@ -46,6 +46,7 @@
 - Menu: add a toggle to show reset times as absolute clock values (instead of countdowns).
 - Menu: show an “Open Terminal” action when Claude OAuth fails.
 - Menu: add “Hide personal information” toggle and redact emails in menu UI (#137). Thanks @t3dotgg!
+- Menu: keep a pace summary line alongside the visual marker (#155). Thanks @antons!
 - Menu: reduce provider-switch flicker and avoid redundant menu card sizing for faster opens (#132). Thanks @ibehnam!
 - Menu: keep background refresh on open without forcing token usage (#158). Thanks @weequan93!
 - Menu: Cursor switcher shows On-Demand remaining when Plan is exhausted in show-remaining mode (#193). Thanks @vltansky!

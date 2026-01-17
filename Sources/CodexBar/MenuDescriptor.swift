@@ -147,8 +147,8 @@ struct MenuDescriptor {
                     title: meta.weeklyLabel,
                     window: weekly,
                     resetStyle: resetStyle)
-                if let paceText = UsagePaceText.weekly(provider: provider, window: weekly) {
-                    entries.append(.text(paceText, .secondary))
+                if let paceSummary = UsagePaceText.weeklySummary(provider: provider, window: weekly) {
+                    entries.append(.text(paceSummary, .secondary))
                 }
             } else if provider == .claude {
                 entries.append(.text("Weekly usage unavailable for this account.", .secondary))
