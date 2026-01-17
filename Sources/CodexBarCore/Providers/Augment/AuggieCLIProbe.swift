@@ -143,6 +143,18 @@ public struct AuggieCLIProbe: Sendable {
     }
 }
 
+#else
+
+public struct AuggieCLIProbe: Sendable {
+    public init() {}
+
+    public func fetch() async throws -> AugmentStatusSnapshot {
+        throw AugmentStatusProbeError.notSupported
+    }
+}
+
+#endif
+
 public enum AuggieCLIError: LocalizedError {
     case noOutput
     case notAuthenticated
@@ -159,15 +171,3 @@ public enum AuggieCLIError: LocalizedError {
         }
     }
 }
-
-#else
-
-public struct AuggieCLIProbe: Sendable {
-    public init() {}
-
-    public func fetch() async throws -> AugmentStatusSnapshot {
-        throw AugmentStatusProbeError.notSupported
-    }
-}
-
-#endif
