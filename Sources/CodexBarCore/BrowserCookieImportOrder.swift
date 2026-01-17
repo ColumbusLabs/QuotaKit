@@ -28,6 +28,7 @@ extension [Browser] {
     }
 }
 
+#if os(macOS)
 extension Browser {
     var usesKeychainForCookieDecryption: Bool {
         switch self {
@@ -47,3 +48,8 @@ extension Browser {
         }
     }
 }
+#else
+extension Browser {
+    var usesKeychainForCookieDecryption: Bool { false }
+}
+#endif
