@@ -151,20 +151,13 @@ struct TokenAccountCLIContext {
         minimax: ProviderSettingsSnapshot.MiniMaxProviderSettings? = nil,
         augment: ProviderSettingsSnapshot.AugmentProviderSettings? = nil) -> ProviderSettingsSnapshot
     {
-        ProviderSettingsSnapshot(
-            debugMenuEnabled: false,
-            codex: nil,
+        ProviderSettingsSnapshot.make(
             claude: claude,
             cursor: cursor,
             opencode: opencode,
             factory: factory,
             minimax: minimax,
-            zai: nil,
-            copilot: nil,
-            kimi: nil,
-            augment: augment,
-            amp: nil,
-            jetbrains: nil)
+            augment: augment)
     }
 
     func environment(

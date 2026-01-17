@@ -25,7 +25,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
 
 // swiftformat:enable sortDeclarations
 
-public enum IconStyle: Sendable {
+public enum IconStyle: Sendable, CaseIterable {
     case codex
     case claude
     case zai

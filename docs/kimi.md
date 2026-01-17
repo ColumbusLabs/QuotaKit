@@ -1,3 +1,11 @@
+---
+summary: "Kimi provider notes: cookie auth, quotas, and rate-limit parsing."
+read_when:
+  - Adding or modifying the Kimi provider
+  - Debugging Kimi cookie import or usage parsing
+  - Adjusting Kimi menu labels or settings
+---
+
 # Kimi Provider
 
 Tracks usage for [Kimi For Coding](https://www.kimi.com/code) in CodexBar.

@@ -1,6 +1,37 @@
 import Foundation
 
 public struct ProviderSettingsSnapshot: Sendable {
+    public static func make(
+        debugMenuEnabled: Bool = false,
+        codex: CodexProviderSettings? = nil,
+        claude: ClaudeProviderSettings? = nil,
+        cursor: CursorProviderSettings? = nil,
+        opencode: OpenCodeProviderSettings? = nil,
+        factory: FactoryProviderSettings? = nil,
+        minimax: MiniMaxProviderSettings? = nil,
+        zai: ZaiProviderSettings? = nil,
+        copilot: CopilotProviderSettings? = nil,
+        kimi: KimiProviderSettings? = nil,
+        augment: AugmentProviderSettings? = nil,
+        amp: AmpProviderSettings? = nil,
+        jetbrains: JetBrainsProviderSettings? = nil) -> ProviderSettingsSnapshot
+    {
+        ProviderSettingsSnapshot(
+            debugMenuEnabled: debugMenuEnabled,
+            codex: codex,
+            claude: claude,
+            cursor: cursor,
+            opencode: opencode,
+            factory: factory,
+            minimax: minimax,
+            zai: zai,
+            copilot: copilot,
+            kimi: kimi,
+            augment: augment,
+            amp: amp,
+            jetbrains: jetbrains)
+    }
+
     public struct CodexProviderSettings: Sendable {
         public let usageDataSource: CodexUsageDataSource
         public let cookieSource: ProviderCookieSource

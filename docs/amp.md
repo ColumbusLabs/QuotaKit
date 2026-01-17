@@ -1,3 +1,11 @@
+---
+summary: "Amp provider notes: settings scrape, cookie auth, and free-tier usage."
+read_when:
+  - Adding or modifying the Amp provider
+  - Debugging Amp cookie import or settings parsing
+  - Adjusting Amp menu labels or usage math
+---
+
 # Amp Provider
 
 The Amp provider tracks your Amp Free usage by scraping the Amp settings page with browser cookies.

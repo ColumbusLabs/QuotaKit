@@ -32,67 +32,7 @@ public struct TokenAccountSupport: Sendable {
 
 public enum TokenAccountSupportCatalog {
     public static func support(for provider: UsageProvider) -> TokenAccountSupport? {
-        switch provider {
-        case .claude:
-            TokenAccountSupport(
-                title: "Session tokens",
-                subtitle: "Store Claude sessionKey cookies or OAuth access tokens.",
-                placeholder: "Paste sessionKey or OAuth token…",
-                injection: .cookieHeader,
-                requiresManualCookieSource: true,
-                cookieName: "sessionKey")
-        case .zai:
-            TokenAccountSupport(
-                title: "API tokens",
-                subtitle: "Stored locally in token-accounts.json.",
-                placeholder: "Paste token…",
-                injection: .environment(key: ZaiSettingsReader.apiTokenKey),
-                requiresManualCookieSource: false,
-                cookieName: nil)
-        case .cursor:
-            TokenAccountSupport(
-                title: "Session tokens",
-                subtitle: "Store multiple Cursor Cookie headers.",
-                placeholder: "Cookie: …",
-                injection: .cookieHeader,
-                requiresManualCookieSource: true,
-                cookieName: nil)
-        case .opencode:
-            TokenAccountSupport(
-                title: "Session tokens",
-                subtitle: "Store multiple OpenCode Cookie headers.",
-                placeholder: "Cookie: …",
-                injection: .cookieHeader,
-                requiresManualCookieSource: true,
-                cookieName: nil)
-        case .factory:
-            TokenAccountSupport(
-                title: "Session tokens",
-                subtitle: "Store multiple Factory Cookie headers.",
-                placeholder: "Cookie: …",
-                injection: .cookieHeader,
-                requiresManualCookieSource: true,
-                cookieName: nil)
-        case .minimax:
-            TokenAccountSupport(
-                title: "Session tokens",
-                subtitle: "Store multiple MiniMax Cookie headers.",
-                placeholder: "Cookie: …",
-                injection: .cookieHeader,
-                requiresManualCookieSource: true,
-                cookieName: nil)
-        case .augment:
-            TokenAccountSupport(
-                title: "Session tokens",
-                subtitle: "Store multiple Augment Cookie headers.",
-                placeholder: "Cookie: …",
-                injection: .cookieHeader,
-                requiresManualCookieSource: true,
-                cookieName: nil)
-        case .codex, .gemini, .antigravity, .copilot, .kiro, .vertexai, .kimi, .kimik2, .amp, .synthetic,
-             .jetbrains:
-            nil
-        }
+        supportByProvider[provider]
     }
 
     public static func envOverride(for provider: UsageProvider, token: String) -> [String: String]? {

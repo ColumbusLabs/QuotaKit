@@ -137,7 +137,7 @@ struct ProviderRegistry {
         settings.ensureKimiAuthTokenLoaded()
         let kimiHeader = settings.kimiManualCookieHeader
 
-        return ProviderSettingsSnapshot(
+        return ProviderSettingsSnapshot.make(
             debugMenuEnabled: settings.debugMenuEnabled,
             codex: ProviderSettingsSnapshot.CodexProviderSettings(
                 usageDataSource: settings.codexUsageDataSource,

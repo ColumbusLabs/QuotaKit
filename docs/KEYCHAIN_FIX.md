@@ -1,3 +1,11 @@
+---
+summary: "Keychain prompt reduction: ThisDeviceOnly migration and rationale."
+read_when:
+  - Investigating Keychain prompts
+  - Auditing Keychain accessibility changes
+  - Reviewing migration behavior
+---
+
 # Keychain Permission Prompts Fix
 
 ## Problem

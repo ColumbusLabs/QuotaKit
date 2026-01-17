@@ -1,3 +1,11 @@
+---
+summary: "Development setup: stable signing and reducing Keychain prompts."
+read_when:
+  - Setting up local development
+  - Reducing Keychain prompts during rebuilds
+  - Configuring dev signing
+---
+
 # Development Setup Guide
 
 ## Reducing Keychain Permission Prompts
@@ -151,4 +159,3 @@ Or manually:
 pkill -x CodexBar || pkill -f CodexBar.app || true
 open -n CodexBar.app
 ```
-

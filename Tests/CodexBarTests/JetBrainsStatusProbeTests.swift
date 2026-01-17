@@ -290,19 +290,7 @@ struct JetBrainsStatusProbeTests {
             tildePath = testRoot.path
         }
 
-        let settings = ProviderSettingsSnapshot(
-            debugMenuEnabled: false,
-            codex: nil,
-            claude: nil,
-            cursor: nil,
-            opencode: nil,
-            factory: nil,
-            minimax: nil,
-            zai: nil,
-            copilot: nil,
-            kimi: nil,
-            augment: nil,
-            amp: nil,
+        let settings = ProviderSettingsSnapshot.make(
             jetbrains: ProviderSettingsSnapshot.JetBrainsProviderSettings(ideBasePath: "  \(tildePath)  "))
 
         let probe = JetBrainsStatusProbe(settings: settings)

@@ -1,3 +1,11 @@
+---
+summary: "Augment provider notes: cookie auth, keepalive, and credits parsing."
+read_when:
+  - Debugging Augment cookie import or keepalive
+  - Updating Augment usage or credits parsing
+  - Adjusting Augment menu labels or settings
+---
+
 # Augment Provider
 
 The Augment provider tracks your Augment Code usage and credits through browser cookie-based authentication.
