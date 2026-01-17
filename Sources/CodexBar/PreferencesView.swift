@@ -4,6 +4,7 @@ import SwiftUI
 enum PreferencesTab: String, Hashable {
     case general
     case providers
+    case display
     case advanced
     case about
     case debug
@@ -31,6 +32,10 @@ struct PreferencesView: View {
             ProvidersPane(settings: self.settings, store: self.store)
                 .tabItem { Label("Providers", systemImage: "square.grid.2x2") }
                 .tag(PreferencesTab.providers)
+
+            DisplayPane(settings: self.settings)
+                .tabItem { Label("Display", systemImage: "eye") }
+                .tag(PreferencesTab.display)
 
             AdvancedPane(settings: self.settings)
                 .tabItem { Label("Advanced", systemImage: "slider.horizontal.3") }
