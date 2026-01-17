@@ -743,9 +743,11 @@ extension StatusItemController {
         return image
     }
 
-    private func switcherWeeklyRemaining(for provider: UsageProvider) -> Double? {
-        let snapshot = self.store.snapshot(for: provider)
-        let showUsed = self.settings.usageBarsShowUsed
+    nonisolated static func switcherWeeklyPercent(
+        for provider: UsageProvider,
+        snapshot: UsageSnapshot?,
+        showUsed: Bool) -> Double?
+    {
         let window: RateWindow? = switch provider {
         case .factory:
             // Factory prefers secondary window
@@ -767,6 +769,13 @@ extension StatusItemController {
         }
         guard let window else { return nil }
         return showUsed ? window.usedPercent : window.remainingPercent
+    }
+
+    private func switcherWeeklyRemaining(for provider: UsageProvider) -> Double? {
+        Self.switcherWeeklyPercent(
+            for: provider,
+            snapshot: self.store.snapshot(for: provider),
+            showUsed: self.settings.usageBarsShowUsed)
     }
 
     private func selector(for action: MenuDescriptor.MenuAction) -> (Selector, Any?) {
