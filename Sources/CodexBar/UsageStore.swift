@@ -339,13 +339,8 @@ final class UsageStore {
             (self.isEnabled(.antigravity) && self.errors[.antigravity] != nil) ||
             (self.isEnabled(.cursor) && self.errors[.cursor] != nil) ||
             (self.isEnabled(.opencode) && self.errors[.opencode] != nil) ||
-            (self.isEnabled(.factory) && self.errors[.factory] != nil) ||
+        (self.isEnabled(.factory) && self.errors[.factory] != nil) ||
             (self.isEnabled(.copilot) && self.errors[.copilot] != nil) ||
-            (self.isEnabled(.minimax) && self.errors[.minimax] != nil) ||
-            (self.isEnabled(.kimi) && self.errors[.kimi] != nil) ||
-            (self.isEnabled(.kimik2) && self.errors[.kimik2] != nil)
-            (self.isEnabled(.minimax) && self.errors[.minimax] != nil) ||
-            (self.isEnabled(.synthetic) && self.errors[.synthetic] != nil)
             (self.isEnabled(.minimax) && self.errors[.minimax] != nil) ||
             (self.isEnabled(.kimi) && self.errors[.kimi] != nil) ||
             (self.isEnabled(.kimik2) && self.errors[.kimik2] != nil) ||

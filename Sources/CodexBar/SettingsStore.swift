@@ -58,7 +58,7 @@ final class SettingsStore {
     /// Persisted provider display order.
     ///
     /// Stored as raw `UsageProvider` strings so new providers can be appended automatically without breaking.
-    private var providerOrderRaw: [String] {
+    private(set) var providerOrderRaw: [String] {
         didSet { self.userDefaults.set(self.providerOrderRaw, forKey: "providerOrder") }
     }
 
@@ -131,7 +131,7 @@ final class SettingsStore {
     }
 
     /// Optional: choose which quota window drives the menu bar percentage.
-    private var menuBarMetricPreferencesRaw: [String: String] {
+    private(set) var menuBarMetricPreferencesRaw: [String: String] {
         didSet { self.userDefaults.set(self.menuBarMetricPreferencesRaw, forKey: "menuBarMetricPreferences") }
     }
 
@@ -513,7 +513,6 @@ final class SettingsStore {
         }
         set { self.ampCookieSourceRaw = newValue.rawValue }
     }
-    }
 
     private var providerDetectionCompleted: Bool {
         didSet { self.userDefaults.set(self.providerDetectionCompleted, forKey: "providerDetectionCompleted") }
@@ -590,7 +589,7 @@ final class SettingsStore {
     // Cache order to avoid re-building sets/arrays every animation tick.
     @ObservationIgnored private var cachedProviderOrder: [UsageProvider] = []
     @ObservationIgnored private var cachedProviderOrderRaw: [String] = []
-    private var providerToggleRevision: Int = 0
+    private(set) var providerToggleRevision: Int = 0
 
     init(
         userDefaults: UserDefaults = .standard,
@@ -1658,62 +1657,5 @@ enum LaunchAtLoginManager {
         } else {
             try? service.unregister()
         }
-    }
-}
-
-extension SettingsStore {
-    var menuObservationToken: Int {
-        _ = self.providerOrderRaw
-        _ = self.refreshFrequency
-        _ = self.launchAtLogin
-        _ = self.debugMenuEnabled
-        _ = self.debugDisableKeychainAccess
-        _ = self.statusChecksEnabled
-        _ = self.sessionQuotaNotificationsEnabled
-        _ = self.usageBarsShowUsed
-        _ = self.resetTimesShowAbsolute
-        _ = self.menuBarShowsBrandIconWithPercent
-        _ = self.showAllTokenAccountsInMenu
-        _ = self.menuBarMetricPreferencesRaw
-        _ = self.costUsageEnabled
-        _ = self.hidePersonalInfo
-        _ = self.randomBlinkEnabled
-        _ = self.claudeWebExtrasEnabled
-        _ = self.showOptionalCreditsAndExtraUsage
-        _ = self.openAIWebAccessEnabled
-        _ = self.codexUsageDataSource
-        _ = self.claudeUsageDataSource
-        _ = self.codexCookieSource
-        _ = self.claudeCookieSource
-        _ = self.cursorCookieSource
-        _ = self.opencodeCookieSource
-        _ = self.factoryCookieSource
-        _ = self.minimaxCookieSource
-        _ = self.minimaxAPIRegion
-        _ = self.kimiCookieSource
-        _ = self.augmentCookieSource
-        _ = self.ampCookieSource
-        _ = self.mergeIcons
-        _ = self.switcherShowsIcons
-        _ = self.zaiAPIToken
-        _ = self.syntheticAPIToken
-        _ = self.codexCookieHeader
-        _ = self.claudeCookieHeader
-        _ = self.cursorCookieHeader
-        _ = self.opencodeCookieHeader
-        _ = self.opencodeWorkspaceID
-        _ = self.factoryCookieHeader
-        _ = self.minimaxCookieHeader
-        _ = self.minimaxAPIToken
-        _ = self.kimiManualCookieHeader
-        _ = self.kimiK2APIToken
-        _ = self.augmentCookieHeader
-        _ = self.ampCookieHeader
-        _ = self.copilotAPIToken
-        _ = self.tokenAccountsByProvider
-        _ = self.debugLoadingPattern
-        _ = self.selectedMenuProvider
-        _ = self.providerToggleRevision
-        return 0
     }
 }
