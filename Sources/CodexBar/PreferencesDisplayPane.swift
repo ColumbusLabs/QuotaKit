@@ -91,19 +91,6 @@ struct DisplayPane: View {
                         subtitle: "Obscure email addresses in the menu bar and menu UI.",
                         binding: self.$settings.hidePersonalInfo)
                 }
-
-                Divider()
-
-                SettingsSection(contentSpacing: 12) {
-                    Text("Extras")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .textCase(.uppercase)
-                    PreferenceToggleRow(
-                        title: "Surprise me",
-                        subtitle: "Check if you like your agents having some fun up there.",
-                        binding: self.$settings.randomBlinkEnabled)
-                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)

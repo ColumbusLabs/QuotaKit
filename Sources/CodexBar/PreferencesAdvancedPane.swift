@@ -60,6 +60,10 @@ struct AdvancedPane: View {
                         title: "Show Debug Settings",
                         subtitle: "Expose troubleshooting tools in the Debug tab.",
                         binding: self.$settings.debugMenuEnabled)
+                    PreferenceToggleRow(
+                        title: "Surprise me",
+                        subtitle: "Check if you like your agents having some fun up there.",
+                        binding: self.$settings.randomBlinkEnabled)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
