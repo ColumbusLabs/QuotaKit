@@ -386,7 +386,9 @@ public struct GeminiStatusProbe: Sendable {
         }
 
         // Extract Project ID (cloudaicompanionProject)
-        let projectId = json["cloudaicompanionProject"] as? String
+        let rawProjectId = json["cloudaicompanionProject"] as? String
+        let trimmedProjectId = rawProjectId?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let projectId = trimmedProjectId?.isEmpty == true ? nil : trimmedProjectId
 
         guard let currentTier = json["currentTier"] as? [String: Any],
               let tierId = currentTier["id"] as? String
