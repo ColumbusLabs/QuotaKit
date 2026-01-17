@@ -67,6 +67,26 @@ struct AdvancedPane: View {
                         title: "Menu bar shows percent",
                         subtitle: "Replace critter bars with provider branding icons and a percentage.",
                         binding: self.$settings.menuBarShowsBrandIconWithPercent)
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Display mode")
+                                .font(.body)
+                            Text("Choose what to show in the menu bar (Pace shows usage vs. expected).")
+                                .font(.footnote)
+                                .foregroundStyle(.tertiary)
+                        }
+                        Spacer()
+                        Picker("Display mode", selection: self.$settings.menuBarDisplayMode) {
+                            ForEach(MenuBarDisplayMode.allCases) { mode in
+                                Text(mode.label).tag(mode)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: 200)
+                    }
+                    .disabled(!self.settings.menuBarShowsBrandIconWithPercent)
+                    .opacity(self.settings.menuBarShowsBrandIconWithPercent ? 1 : 0.5)
                     PreferenceToggleRow(
                         title: "Show all token accounts",
                         subtitle: "Stack token accounts in the menu (otherwise show an account switcher bar).",

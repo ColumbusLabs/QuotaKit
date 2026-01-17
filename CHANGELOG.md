@@ -39,6 +39,7 @@
 - Preferences: add per-provider menu bar metric picker (#185) — thanks @HaukeSchnau
 - Preferences: tighten provider rows (inline pickers, compact layout, inline refresh + auto-source status).
 - Preferences: remove the “experimental” label from Antigravity.
+- Menu bar: add display mode picker for percent/pace/both in the menu bar icon (#169). Thanks @PhilETaylor!
 - Menu bar: fix combined loading indicator flicker during loading animation (incl. debug replay).
 - Menu bar: prevent blink updates from clobbering the loading animation.
 

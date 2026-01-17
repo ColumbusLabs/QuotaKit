@@ -125,6 +125,17 @@ final class SettingsStore {
         }
     }
 
+    /// Controls what the menu bar displays when brand icon mode is enabled.
+    private var menuBarDisplayModeRaw: String? {
+        didSet {
+            if let raw = self.menuBarDisplayModeRaw {
+                self.userDefaults.set(raw, forKey: "menuBarDisplayMode")
+            } else {
+                self.userDefaults.removeObject(forKey: "menuBarDisplayMode")
+            }
+        }
+    }
+
     /// Optional: show all token accounts stacked in the menu (otherwise show a switcher bar).
     var showAllTokenAccountsInMenu: Bool {
         didSet { self.userDefaults.set(self.showAllTokenAccountsInMenu, forKey: "showAllTokenAccountsInMenu") }
@@ -669,6 +680,8 @@ final class SettingsStore {
         self.resetTimesShowAbsolute = userDefaults.object(forKey: "resetTimesShowAbsolute") as? Bool ?? false
         self.menuBarShowsBrandIconWithPercent = userDefaults.object(
             forKey: "menuBarShowsBrandIconWithPercent") as? Bool ?? false
+        self.menuBarDisplayModeRaw = userDefaults.string(forKey: "menuBarDisplayMode")
+            ?? MenuBarDisplayMode.percent.rawValue
         self.showAllTokenAccountsInMenu = userDefaults.object(
             forKey: "showAllTokenAccountsInMenu") as? Bool ?? false
         let storedMenuBarMetricPreferences = userDefaults.dictionary(
@@ -1650,6 +1663,13 @@ extension SettingsStore {
         default:
             break
         }
+    }
+}
+
+extension SettingsStore {
+    var menuBarDisplayMode: MenuBarDisplayMode {
+        get { MenuBarDisplayMode(rawValue: self.menuBarDisplayModeRaw ?? "") ?? .percent }
+        set { self.menuBarDisplayModeRaw = newValue.rawValue }
     }
 }
 
