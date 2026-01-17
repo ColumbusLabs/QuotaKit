@@ -62,6 +62,8 @@ public struct MiniMaxUsageFetcher: Sendable {
         request.httpMethod = "GET"
         request.setValue("Bearer \(cleaned)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "accept")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("CodexBar", forHTTPHeaderField: "MM-API-Source")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
