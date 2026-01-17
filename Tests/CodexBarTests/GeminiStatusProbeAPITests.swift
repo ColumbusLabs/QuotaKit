@@ -190,8 +190,25 @@ struct GeminiStatusProbeAPITests {
             expiry: Date().addingTimeInterval(3600),
             idToken: nil)
 
+        final class ProjectCapture: @unchecked Sendable {
+            private let lock = NSLock()
+            private var value: String?
+
+            func set(_ newValue: String?) {
+                self.lock.lock()
+                self.value = newValue
+                self.lock.unlock()
+            }
+
+            func get() -> String? {
+                self.lock.lock()
+                defer { self.lock.unlock() }
+                return self.value
+            }
+        }
+
         let projectId = "managed-project-123"
-        var seenProject: String?
+        let seenProject = ProjectCapture()
 
         let dataLoader = GeminiAPITestHelpers.dataLoader { request in
             guard let url = request.url, let host = url.host else {
@@ -212,7 +229,7 @@ struct GeminiStatusProbeAPITests {
                     if let body = request.httpBody,
                        let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any]
                     {
-                        seenProject = json["project"] as? String
+                        seenProject.set(json["project"] as? String)
                     }
                     return GeminiAPITestHelpers.response(
                         url: url.absoluteString,
@@ -229,7 +246,7 @@ struct GeminiStatusProbeAPITests {
 
         let probe = GeminiStatusProbe(timeout: 1, homeDirectory: env.homeURL.path, dataLoader: dataLoader)
         _ = try await probe.fetch()
-        #expect(seenProject == projectId)
+        #expect(seenProject.get() == projectId)
     }
 
     @Test

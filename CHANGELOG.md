@@ -23,6 +23,7 @@
 - MiniMax: add China mainland region option + host overrides (#143). Thanks @nailuoGG!
 - MiniMax: support API token or cookie auth; API token takes precedence and hides cookie UI (#149). Thanks @aonsyed!
 - Gemini: prefer loadCodeAssist project IDs for quota fetches (#172). Thanks @lolwierd!
+- Gemini: honor loadCodeAssist project IDs for quota + support Nix CLI layout (#184). Thanks @HaukeSchnau!
 - Codex/Claude/Cursor/Factory/MiniMax: cookie sources now include Manual (paste a Cookie header) in addition to Automatic.
 - Codex/Claude/Cursor/Factory/MiniMax: skip cookie imports from browsers without usable cookie stores (profile/cookie DB) to avoid unnecessary Keychain prompts.
 - Claude: fix OAuth “Extra usage” spend/limit units when the API returns minor currency units (#97).
