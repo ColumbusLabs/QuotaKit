@@ -3,6 +3,7 @@
 ## 0.18.0 — Unreleased
 ### Providers
 - OpenCode: add web usage provider with workspace override + Chrome-first cookie import (#188). Thanks @anthnykr!
+- OpenCode: refresh provider logo (#190). Thanks @anthnykr!
 - Providers: cache browser cookies in Keychain (per provider) and show cached source/time in settings.
 - Vertex AI: add provider with quota-based usage from gcloud ADC. Thanks @bahag-chaurasiak!
 - Vertex AI: token costs are shown via the Claude provider (same local logs).
