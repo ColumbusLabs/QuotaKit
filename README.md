@@ -22,6 +22,7 @@ brew install --cask steipete/tap/codexbar
 brew install steipete/tap/codexbar
 ```
 Or download `CodexBarCLI-v<tag>-linux-<arch>.tar.gz` from GitHub Releases.
+Linux support via Omarchy: community Waybar module and TUI, driven by the `codexbar` executable.
 
 ### First run
 - Open Settings → Providers and enable what you use.
