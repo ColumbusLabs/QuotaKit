@@ -139,6 +139,27 @@ public struct UsageSnapshot: Codable, Sendable {
         return identity
     }
 
+    public func switcherWeeklyWindow(for provider: UsageProvider, showUsed: Bool) -> RateWindow? {
+        switch provider {
+        case .factory:
+            // Factory prefers secondary window
+            return self.secondary ?? self.primary
+        case .cursor:
+            // Cursor: fall back to On-Demand when Plan is exhausted (only in "show remaining" mode).
+            // In "show used" mode, keep showing primary so 100% used Plan is visible.
+            if !showUsed,
+               let primary = self.primary,
+               primary.remainingPercent <= 0,
+               let secondary = self.secondary
+            {
+                return secondary
+            }
+            return self.primary ?? self.secondary
+        default:
+            return self.primary ?? self.secondary
+        }
+    }
+
     public func accountEmail(for provider: UsageProvider) -> String? {
         self.identity(for: provider)?.accountEmail
     }

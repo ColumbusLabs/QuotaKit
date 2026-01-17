@@ -616,10 +616,10 @@ extension UsageMenuCardView.Model {
     static func make(_ input: Input) -> UsageMenuCardView.Model {
         let email = PersonalInfoRedactor.redactEmail(
             Self.email(
-            for: input.provider,
-            snapshot: input.snapshot,
-            account: input.account,
-            metadata: input.metadata),
+                for: input.provider,
+                snapshot: input.snapshot,
+                account: input.account,
+                metadata: input.metadata),
             isEnabled: input.hidePersonalInfo)
         let planText = Self.plan(
             for: input.provider,

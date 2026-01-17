@@ -1,5 +1,5 @@
-import Foundation
 import CodexBarCore
+import Foundation
 import Testing
 @testable import CodexBar
 
@@ -15,7 +15,7 @@ struct StatusItemControllerMenuTests {
         let secondary = RateWindow(usedPercent: 36, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
         let snapshot = self.makeSnapshot(primary: primary, secondary: secondary)
 
-        let percent = StatusItemController.switcherWeeklyPercent(
+        let percent = StatusItemController.switcherWeeklyMetricPercent(
             for: .cursor,
             snapshot: snapshot,
             showUsed: false)
@@ -29,7 +29,7 @@ struct StatusItemControllerMenuTests {
         let secondary = RateWindow(usedPercent: 36, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
         let snapshot = self.makeSnapshot(primary: primary, secondary: secondary)
 
-        let percent = StatusItemController.switcherWeeklyPercent(
+        let percent = StatusItemController.switcherWeeklyMetricPercent(
             for: .cursor,
             snapshot: snapshot,
             showUsed: true)
@@ -43,7 +43,7 @@ struct StatusItemControllerMenuTests {
         let secondary = RateWindow(usedPercent: 40, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
         let snapshot = self.makeSnapshot(primary: primary, secondary: secondary)
 
-        let percent = StatusItemController.switcherWeeklyPercent(
+        let percent = StatusItemController.switcherWeeklyMetricPercent(
             for: .cursor,
             snapshot: snapshot,
             showUsed: false)
