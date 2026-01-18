@@ -68,6 +68,15 @@ struct AdvancedPane: View {
 
                 Divider()
 
+                SettingsSection(contentSpacing: 10) {
+                    PreferenceToggleRow(
+                        title: "Hide personal information",
+                        subtitle: "Obscure email addresses in the menu bar and menu UI.",
+                        binding: self.$settings.hidePersonalInfo)
+                }
+
+                Divider()
+
                 SettingsSection(
                     title: "Keychain access",
                     caption: """

@@ -9,9 +9,9 @@ enum PreferencesTab: String, Hashable {
     case about
     case debug
 
-    static let defaultWidth: CGFloat = 620
+    static let defaultWidth: CGFloat = 496
     static let providersWidth: CGFloat = 720
-    static let windowHeight: CGFloat = 726
+    static let windowHeight: CGFloat = 580
 
     var preferredWidth: CGFloat {
         self == .providers ? PreferencesTab.providersWidth : PreferencesTab.defaultWidth

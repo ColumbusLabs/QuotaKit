@@ -86,10 +86,6 @@ struct DisplayPane: View {
                         title: "Show all token accounts",
                         subtitle: "Stack token accounts in the menu (otherwise show an account switcher bar).",
                         binding: self.$settings.showAllTokenAccountsInMenu)
-                    PreferenceToggleRow(
-                        title: "Hide personal information",
-                        subtitle: "Obscure email addresses in the menu bar and menu UI.",
-                        binding: self.$settings.hidePersonalInfo)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
