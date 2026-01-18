@@ -38,6 +38,7 @@
 - Preferences: animate settings width and widen Providers on selection.
 - Preferences: shrink default settings size and reduce overall height.
 - Preferences: move “Hide personal information” to Advanced.
+- Providers: shorten fetch subtitle to relative time only.
 - Preferences: move “Access OpenAI via web” into Providers → Codex.
 - Preferences: add usage source pickers for Codex + Claude with auto fallback.
 - Preferences: add cookie source pickers with contextual helper text for the selected mode.
