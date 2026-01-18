@@ -122,30 +122,30 @@ struct ProvidersPane: View {
         }
 
         if cliName == "codex" {
-            return "\(versionText) • \(usageText)"
+            return "\(versionText)\n\(usageText)"
         }
 
         if provider == .cursor {
-            return "web • \(usageText)"
+            return "web\n\(usageText)"
         }
         if provider == .opencode {
-            return "web • \(usageText)"
+            return "web\n\(usageText)"
         }
         if provider == .zai {
-            return "api • \(usageText)"
+            return "api\n\(usageText)"
         }
         if provider == .synthetic {
-            return "api • \(usageText)"
+            return "api\n\(usageText)"
         }
         if provider == .minimax {
             let sourceLabel = self.store.sourceLabel(for: provider)
-            return "\(sourceLabel) • \(usageText)"
+            return "\(sourceLabel)\n\(usageText)"
         }
         if provider == .kimi {
-            return "web • \(usageText)"
+            return "web\n\(usageText)"
         }
 
-        let detail = "\(cliName) \(versionText) • \(usageText)"
+        let detail = "\(cliName) \(versionText)\n\(usageText)"
         return detail
     }
 

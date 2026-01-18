@@ -71,9 +71,11 @@ final class InlineIconToggleButton: NSButton {
     }
 
     func setAllowsTwoLineTitle(_ allow: Bool) {
-        self.titleField.maximumNumberOfLines = allow ? 2 : 1
-        self.titleField.usesSingleLineMode = !allow
-        self.titleField.lineBreakMode = allow ? .byCharWrapping : .byTruncatingTail
+        let hasWhitespace = self.titleField.stringValue.rangeOfCharacter(from: .whitespacesAndNewlines) != nil
+        let shouldWrap = allow && hasWhitespace
+        self.titleField.maximumNumberOfLines = shouldWrap ? 2 : 1
+        self.titleField.usesSingleLineMode = !shouldWrap
+        self.titleField.lineBreakMode = shouldWrap ? .byWordWrapping : .byTruncatingTail
     }
 
     override var intrinsicContentSize: NSSize {
@@ -198,9 +200,11 @@ final class StackedToggleButton: NSButton {
     }
 
     func setAllowsTwoLineTitle(_ allow: Bool) {
-        self.titleField.maximumNumberOfLines = allow ? 2 : 1
-        self.titleField.usesSingleLineMode = !allow
-        self.titleField.lineBreakMode = allow ? .byCharWrapping : .byTruncatingTail
+        let hasWhitespace = self.titleField.stringValue.rangeOfCharacter(from: .whitespacesAndNewlines) != nil
+        let shouldWrap = allow && hasWhitespace
+        self.titleField.maximumNumberOfLines = shouldWrap ? 2 : 1
+        self.titleField.usesSingleLineMode = !shouldWrap
+        self.titleField.lineBreakMode = shouldWrap ? .byWordWrapping : .byTruncatingTail
     }
 
     override var intrinsicContentSize: NSSize {

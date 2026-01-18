@@ -55,7 +55,7 @@ private struct ProviderSidebarRowView: View {
     var body: some View {
         let isRefreshing = self.store.refreshingProviders.contains(self.provider)
         let showStatus = self.store.statusChecksEnabled
-        let statusText = self.isEnabled ? self.subtitle : "Disabled • \(self.subtitle)"
+        let statusText = self.statusText
 
         HStack(alignment: .center, spacing: 10) {
             ProviderSidebarReorderHandle()
@@ -100,6 +100,17 @@ private struct ProviderSidebarRowView: View {
         }
         .contentShape(Rectangle())
         .padding(.vertical, 2)
+    }
+
+    private var statusText: String {
+        guard !self.isEnabled else { return self.subtitle }
+        let lines = self.subtitle.split(separator: "\n", omittingEmptySubsequences: false)
+        if lines.count >= 2 {
+            let first = lines[0]
+            let rest = lines.dropFirst().joined(separator: "\n")
+            return "Disabled — \(first)\n\(rest)"
+        }
+        return "Disabled — \(self.subtitle)"
     }
 }
 

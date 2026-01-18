@@ -415,7 +415,7 @@ final class ProviderSwitcherView: NSView {
         guard count > 1 else { return 1 }
         let maxRows = min(4, count)
         let fourRowThreshold = 15
-        let minimumComfortableAverage: CGFloat = stackedIcons ? 44 : 54
+        let minimumComfortableAverage: CGFloat = stackedIcons ? 50 : 54
         if count >= fourRowThreshold { return maxRows }
         if maxAllowedSegmentWidth >= minimumComfortableAverage { return 1 }
 
@@ -470,7 +470,7 @@ final class ProviderSwitcherView: NSView {
         }
 
         // Only sacrifice padding when we'd otherwise squeeze buttons into unreadable widths.
-        let minimumComfortableAverage: CGFloat = count >= 5 ? 46 : 54
+        let minimumComfortableAverage: CGFloat = count >= 5 ? 50 : 54
 
         if averageButtonWidth(outerPadding: preferred) >= minimumComfortableAverage { return preferred }
         if averageButtonWidth(outerPadding: reduced) >= minimumComfortableAverage { return reduced }

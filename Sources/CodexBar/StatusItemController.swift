@@ -204,9 +204,13 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                let orderChanged = self.settings.providerOrderRaw != self.lastProviderOrderRaw
                 let shouldRefreshOpenMenus = self.shouldRefreshOpenMenusForProviderSwitcher()
                 self.observeSettingsChanges()
                 self.invalidateMenus()
+                if orderChanged {
+                    self.rebuildProviderStatusItems()
+                }
                 self.updateVisibility()
                 self.updateIcons()
                 if shouldRefreshOpenMenus {
@@ -378,6 +382,20 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
                     item.menu = nil
                 }
             }
+        }
+    }
+
+    private func rebuildProviderStatusItems() {
+        let bar = NSStatusBar.system
+        for item in self.statusItems.values {
+            bar.removeStatusItem(item)
+        }
+        self.statusItems.removeAll(keepingCapacity: true)
+
+        for provider in self.settings.orderedProviders() {
+            let item = bar.statusItem(withLength: NSStatusItem.variableLength)
+            item.button?.imageScaling = .scaleNone
+            self.statusItems[provider] = item
         }
     }
 

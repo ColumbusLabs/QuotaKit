@@ -41,6 +41,10 @@
 - Providers: shorten fetch subtitle to relative time only.
 - Preferences: soften provider sidebar background and stabilize drag reordering.
 - Preferences: restrict provider drag handle to handle-only.
+- Menu: avoid single-letter wraps in provider switcher titles.
+- Menu bar: rebuild provider status items on reorder so icons update correctly.
+- Preferences: move provider refresh timing to a dedicated second line.
+- Menu: widen provider switcher buttons to avoid clipped titles.
 - Preferences: move “Access OpenAI via web” into Providers → Codex.
 - Preferences: add usage source pickers for Codex + Claude with auto fallback.
 - Preferences: add cookie source pickers with contextual helper text for the selected mode.
