@@ -180,6 +180,10 @@ final class SparkleUpdaterController: NSObject, UpdaterProviding, SPUUpdaterDele
             }
         }
     }
+
+    nonisolated func allowedChannels(for updater: SPUUpdater) -> Set<String> {
+        UpdateChannel.current.allowedSparkleChannels
+    }
 }
 
 private func isDeveloperIDSigned(bundleURL: URL) -> Bool {
