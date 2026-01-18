@@ -31,7 +31,7 @@ public enum SyntheticProviderDescriptor {
                 supportsTokenCost: false,
                 noDataMessage: { "Synthetic cost summary is not supported." }),
             fetchPlan: ProviderFetchPlan(
-                sourceModes: [.auto, .cli],
+                sourceModes: [.auto, .api],
                 pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [SyntheticAPIFetchStrategy()] })),
             cli: ProviderCLIConfig(
                 name: "synthetic",

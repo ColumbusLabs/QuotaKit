@@ -29,6 +29,8 @@ struct CLIProviderSelectionTests {
         }
         #expect(usage.contains("--json"))
         #expect(root.contains("--json"))
+        #expect(usage.contains("--json-only"))
+        #expect(root.contains("--json-only"))
         #expect(usage.contains("--json-output"))
         #expect(root.contains("--json-output"))
         #expect(usage.contains("--log-level"))

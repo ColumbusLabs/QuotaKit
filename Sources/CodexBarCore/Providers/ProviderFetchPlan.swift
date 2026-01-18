@@ -5,11 +5,12 @@ public enum ProviderRuntime: Sendable {
     case cli
 }
 
-public enum ProviderSourceMode: String, CaseIterable, Sendable {
+public enum ProviderSourceMode: String, CaseIterable, Sendable, Codable {
     case auto
     case web
     case cli
     case oauth
+    case api
 
     public var usesWeb: Bool {
         self == .auto || self == .web

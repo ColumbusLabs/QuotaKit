@@ -32,33 +32,41 @@ tar -xzf CodexBarCLI-v0.17.0-linux-x86_64.tar.gz
 - Standalone: `swift build -c release --product CodexBarCLI` (binary at `./.build/release/CodexBarCLI`).
 - Dependencies: Swift 6.2+, Commander package (`https://github.com/steipete/Commander`).
 
+## Configuration
+CodexBar reads `~/.codexbar/config.json` for provider settings, secrets, and ordering.
+See `docs/configuration.md` for the schema.
+
 ## Command
 - `codexbar` defaults to the `usage` command.
   - `--format text|json` (default: text).
 - `codexbar cost` prints local token cost usage (Claude + Codex) without web/CLI access.
   - `--format text|json` (default: text).
   - `--refresh` ignores cached scans.
-- `--provider codex|claude|zai|gemini|antigravity|cursor|factory|copilot|kimi|kimik2|both|all` (default: your in-app toggles; falls back to Codex).
-  - `--account <label>` / `--account-index <n>` / `--all-accounts` (token accounts from `token-accounts.json`; requires a single provider).
+- `--provider <id|both|all>` (default: enabled providers in config; falls back to defaults when missing).
+  - Provider IDs live in the config file (see `docs/configuration.md`).
+  - `--account <label>` / `--account-index <n>` / `--all-accounts` (token accounts from config; requires a single provider).
   - `--no-credits` (hide Codex credits in text output).
   - `--pretty` (pretty-print JSON).
   - `--status` (fetch provider status pages and include them in output).
   - `--antigravity-plan-debug` (debug: print Antigravity planInfo fields to stderr).
-- `--source <auto|web|cli|oauth>` (default: `auto`).
+- `--source <auto|web|cli|oauth|api>` (default: `auto`).
     - `auto` (macOS only): uses browser cookies for Codex + Claude, with CLI fallback only when cookies are missing.
     - `web` (macOS only): web-only; no CLI fallback.
     - `cli`: CLI-only (Codex RPC → PTY fallback; Claude PTY).
     - `oauth`: Claude OAuth only (debug); no fallback. Not supported for Codex.
+    - `api`: API key flow when the provider supports it (z.ai, Gemini, Copilot, Kimi K2, MiniMax, Synthetic).
     - Output `source` reflects the strategy actually used (`openai-web`, `web`, `oauth`, `api`, `local`, or provider CLI label).
     - Codex web: OpenAI web dashboard (usage limits, credits remaining, code review remaining, usage breakdown).
         - `--web-timeout <seconds>` (default: 60)
         - `--web-debug-dump-html` (writes HTML snapshots to `/tmp` when data is missing)
     - Claude web: claude.ai API (session + weekly usage, plus account metadata when available).
     - Linux: `web/auto` are not supported; CLI prints an error and exits non-zero.
-- Global flags: `-h/--help`, `-V/--version`, `-v/--verbose`, `--no-color`, `--log-level <trace|verbose|debug|info|warning|error|critical>`, `--json-output`.
+- Global flags: `-h/--help`, `-V/--version`, `-v/--verbose`, `--no-color`, `--log-level <trace|verbose|debug|info|warning|error|critical>`, `--json-output`, `--json-only`.
+  - `--json-output`: JSONL logs on stderr (machine-readable).
+  - `--json-only`: suppress non-JSON output; errors become JSON payloads.
 
 ### Token accounts
-The CLI reads multi-account tokens from `~/Library/Application Support/CodexBar/token-accounts.json` (same file as the app).
+The CLI reads multi-account tokens from `~/.codexbar/config.json` (same file as the app).
 - Select a specific account: `--account <label>` (matches the label/email in the file).
 - Select by index (1-based): `--account-index <n>`.
 - Fetch all accounts for the provider: `--all-accounts`.
@@ -88,6 +96,8 @@ codexbar --status                 # include status page indicator/description
 codexbar --provider codex --source web --format json --pretty
 codexbar --provider claude --account steipete@gmail.com
 codexbar --provider claude --all-accounts --format json --pretty
+codexbar --json-only --format json --pretty
+codexbar --provider gemini --source api --format json --pretty
 ```
 
 ### Sample output (text)
@@ -161,10 +171,10 @@ Plan: Pro
 - 1: unexpected failure
 
 ## Notes
-- CLI reuses menubar toggles when present (prefers `com.steipete.codexbar{,.debug}` defaults), otherwise defaults to Codex only.
+- CLI uses the config file for enabled providers, ordering, and secrets.
 - Reset lines follow the in-app reset time display setting when available (default: countdown).
 - Text output uses ANSI colors when stdout is a rich TTY; disable with `--no-color` or `NO_COLOR`/`TERM=dumb`.
-- Copilot CLI queries require `COPILOT_API_TOKEN` (GitHub OAuth token).
+- Copilot CLI queries require an API token via config `apiKey` or `COPILOT_API_TOKEN`.
 - Prefer Codex RPC first, then PTY fallback; Claude defaults to web with CLI fallback when cookies are missing.
 - OpenAI web requires a signed-in `chatgpt.com` session in Safari, Chrome, or Firefox. No passwords are stored; CodexBar reuses cookies.
 - Safari cookie import may require granting CodexBar Full Disk Access (System Settings → Privacy & Security → Full Disk Access).

@@ -32,7 +32,7 @@ public enum MiniMaxProviderDescriptor {
                 supportsTokenCost: false,
                 noDataMessage: { "MiniMax cost summary is not supported." }),
             fetchPlan: ProviderFetchPlan(
-                sourceModes: [.auto, .web],
+                sourceModes: [.auto, .web, .api],
                 pipeline: ProviderFetchPipeline(resolveStrategies: self.resolveStrategies)),
             cli: ProviderCLIConfig(
                 name: "minimax",
@@ -41,6 +41,16 @@ public enum MiniMaxProviderDescriptor {
     }
 
     private static func resolveStrategies(context: ProviderFetchContext) async -> [any ProviderFetchStrategy] {
+        switch context.sourceMode {
+        case .web:
+            return [MiniMaxCodingPlanFetchStrategy()]
+        case .api:
+            return [MiniMaxAPIFetchStrategy()]
+        case .cli, .oauth:
+            return []
+        case .auto:
+            break
+        }
         let apiToken = ProviderTokenResolver.minimaxToken(environment: context.env)
         let apiKeyKind = MiniMaxAPISettingsReader.apiKeyKind(token: apiToken)
         let authMode = MiniMaxAuthMode.resolve(

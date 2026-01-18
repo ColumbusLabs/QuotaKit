@@ -70,6 +70,7 @@
 ### CLI
 - CLI: respect the reset time display setting.
 - CLI: add pink accents, usage bars, and weekly pace lines to text output.
+- CLI: add config-backed provider settings, `--json-only`, and `--source api` for key-based providers.
 
 ### Dev & Tests
 - Dev: move Chromium profile discovery into SweetCookieKit (adds Helium net.imput.helium). Thanks @hhushhas!

@@ -112,7 +112,8 @@ struct CLISnapshotTests {
             usage: snap,
             credits: nil,
             antigravityPlanInfo: nil,
-            openaiDashboard: nil)
+            openaiDashboard: nil,
+            error: nil)
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .secondsSince1970
         let data = try encoder.encode(payload)

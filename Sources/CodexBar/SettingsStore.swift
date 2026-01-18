@@ -61,7 +61,7 @@ final class SettingsStore {
     /// Persisted provider display order.
     ///
     /// Stored as raw `UsageProvider` strings so new providers can be appended automatically without breaking.
-    private(set) var providerOrderRaw: [String] {
+    var providerOrderRaw: [String] {
         didSet { self.userDefaults.set(self.providerOrderRaw, forKey: "providerOrder") }
     }
 
@@ -193,21 +193,13 @@ final class SettingsStore {
 
     private var codexUsageDataSourceRaw: String? {
         didSet {
-            if let raw = self.codexUsageDataSourceRaw {
-                self.userDefaults.set(raw, forKey: "codexUsageDataSource")
-            } else {
-                self.userDefaults.removeObject(forKey: "codexUsageDataSource")
-            }
+            self.updateProviderSource(provider: .codex, raw: self.codexUsageDataSourceRaw)
         }
     }
 
     private var claudeUsageDataSourceRaw: String? {
         didSet {
-            if let raw = self.claudeUsageDataSourceRaw {
-                self.userDefaults.set(raw, forKey: "claudeUsageDataSource")
-            } else {
-                self.userDefaults.removeObject(forKey: "claudeUsageDataSource")
-            }
+            self.updateProviderSource(provider: .claude, raw: self.claudeUsageDataSourceRaw)
         }
     }
 
@@ -253,10 +245,8 @@ final class SettingsStore {
 
     private var opencodeWorkspaceIDRaw: String? {
         didSet {
-            if let raw = self.opencodeWorkspaceIDRaw, !raw.isEmpty {
-                self.userDefaults.set(raw, forKey: "opencodeWorkspaceID")
-            } else {
-                self.userDefaults.removeObject(forKey: "opencodeWorkspaceID")
+            self.updateProviderConfig(provider: .opencode) { entry in
+                entry.workspaceID = self.opencodeWorkspaceIDRaw
             }
         }
     }
@@ -328,12 +318,20 @@ final class SettingsStore {
 
     /// MiniMax API region (stored in UserDefaults).
     var minimaxAPIRegion: MiniMaxAPIRegion {
-        didSet { self.userDefaults.set(self.minimaxAPIRegion.rawValue, forKey: "minimaxAPIRegion") }
+        didSet {
+            self.updateProviderConfig(provider: .minimax) { entry in
+                entry.region = self.minimaxAPIRegion.rawValue
+            }
+        }
     }
 
     /// z.ai API region (stored in UserDefaults).
     var zaiAPIRegion: ZaiAPIRegion {
-        didSet { self.userDefaults.set(self.zaiAPIRegion.rawValue, forKey: "zaiAPIRegion") }
+        didSet {
+            self.updateProviderConfig(provider: .zai) { entry in
+                entry.region = self.zaiAPIRegion.rawValue
+            }
+        }
     }
 
     /// z.ai API token (stored in Keychain).
@@ -537,7 +535,11 @@ final class SettingsStore {
     }
 
     @ObservationIgnored private let userDefaults: UserDefaults
-    @ObservationIgnored private let toggleStore: ProviderToggleStore
+    @ObservationIgnored private let configStore: CodexBarConfigStore
+    @ObservationIgnored private var config: CodexBarConfig
+    @ObservationIgnored private var configPersistTask: Task<Void, Never>?
+    @ObservationIgnored private var configLoading = false
+    @ObservationIgnored let toggleStore: ProviderToggleStore
     @ObservationIgnored private let zaiTokenStore: any ZaiTokenStoring
     @ObservationIgnored private var zaiTokenPersistTask: Task<Void, Never>?
     @ObservationIgnored private var zaiTokenLoaded = false
@@ -599,15 +601,15 @@ final class SettingsStore {
     @ObservationIgnored private var tokenAccountsLoaded = false
     @ObservationIgnored private var tokenAccountsLoading = false
     // Cache enablement so tight UI loops (menu bar animations) don't hit UserDefaults each tick.
-    @ObservationIgnored private var cachedProviderEnablement: [UsageProvider: Bool] = [:]
-    @ObservationIgnored private var cachedProviderEnablementRevision: Int = -1
-    @ObservationIgnored private var cachedEnabledProviders: [UsageProvider] = []
-    @ObservationIgnored private var cachedEnabledProvidersRevision: Int = -1
-    @ObservationIgnored private var cachedEnabledProvidersOrderRaw: [String] = []
+    @ObservationIgnored var cachedProviderEnablement: [UsageProvider: Bool] = [:]
+    @ObservationIgnored var cachedProviderEnablementRevision: Int = -1
+    @ObservationIgnored var cachedEnabledProviders: [UsageProvider] = []
+    @ObservationIgnored var cachedEnabledProvidersRevision: Int = -1
+    @ObservationIgnored var cachedEnabledProvidersOrderRaw: [String] = []
     // Cache order to avoid re-building sets/arrays every animation tick.
-    @ObservationIgnored private var cachedProviderOrder: [UsageProvider] = []
-    @ObservationIgnored private var cachedProviderOrderRaw: [String] = []
-    private(set) var providerToggleRevision: Int = 0
+    @ObservationIgnored var cachedProviderOrder: [UsageProvider] = []
+    @ObservationIgnored var cachedProviderOrderRaw: [String] = []
+    var providerToggleRevision: Int = 0
 
     init(
         userDefaults: UserDefaults = .standard,
@@ -641,7 +643,30 @@ final class SettingsStore {
         copilotTokenStore: any CopilotTokenStoring = KeychainCopilotTokenStore(),
         tokenAccountStore: any ProviderTokenAccountStoring = FileTokenAccountStore())
     {
+        let configStore = CodexBarConfigStore()
+        let legacyStores = CodexBarConfigMigrator.LegacyStores(
+            zaiTokenStore: zaiTokenStore,
+            syntheticTokenStore: syntheticTokenStore,
+            codexCookieStore: codexCookieStore,
+            claudeCookieStore: claudeCookieStore,
+            cursorCookieStore: cursorCookieStore,
+            opencodeCookieStore: opencodeCookieStore,
+            factoryCookieStore: factoryCookieStore,
+            minimaxCookieStore: minimaxCookieStore,
+            minimaxAPITokenStore: minimaxAPITokenStore,
+            kimiTokenStore: kimiTokenStore,
+            kimiK2TokenStore: kimiK2TokenStore,
+            augmentCookieStore: augmentCookieStore,
+            ampCookieStore: ampCookieStore,
+            copilotTokenStore: copilotTokenStore,
+            tokenAccountStore: tokenAccountStore)
+        let config = CodexBarConfigMigrator.loadOrMigrate(
+            configStore: configStore,
+            userDefaults: userDefaults,
+            stores: legacyStores)
         self.userDefaults = userDefaults
+        self.configStore = configStore
+        self.config = config
         self.zaiTokenStore = zaiTokenStore
         self.syntheticTokenStore = syntheticTokenStore
         self.codexCookieStore = codexCookieStore
@@ -657,7 +682,7 @@ final class SettingsStore {
         self.ampCookieStore = ampCookieStore
         self.copilotTokenStore = copilotTokenStore
         self.tokenAccountStore = tokenAccountStore
-        self.providerOrderRaw = userDefaults.stringArray(forKey: "providerOrder") ?? []
+        self.providerOrderRaw = config.orderedProviders().map(\.rawValue)
         let raw = userDefaults.string(forKey: "refreshFrequency") ?? RefreshFrequency.fiveMinutes.rawValue
         self.refreshFrequency = RefreshFrequency(rawValue: raw) ?? .fiveMinutes
         self.launchAtLogin = userDefaults.object(forKey: "launchAtLogin") as? Bool ?? false
@@ -672,31 +697,26 @@ final class SettingsStore {
         }
         self.debugLoadingPatternRaw = userDefaults.string(forKey: "debugLoadingPattern")
         self.statusChecksEnabled = userDefaults.object(forKey: "statusChecksEnabled") as? Bool ?? true
-        let sessionQuotaNotificationsDefault = userDefaults.object(
-            forKey: "sessionQuotaNotificationsEnabled") as? Bool
-        self.sessionQuotaNotificationsEnabled = sessionQuotaNotificationsDefault ?? true
-        if sessionQuotaNotificationsDefault == nil {
-            self.userDefaults.set(true, forKey: "sessionQuotaNotificationsEnabled")
-        }
+        let sessionQuotaDefault = userDefaults.object(forKey: "sessionQuotaNotificationsEnabled") as? Bool
+        self.sessionQuotaNotificationsEnabled = sessionQuotaDefault ?? true
+        if sessionQuotaDefault == nil { self.userDefaults.set(true, forKey: "sessionQuotaNotificationsEnabled") }
         self.usageBarsShowUsed = userDefaults.object(forKey: "usageBarsShowUsed") as? Bool ?? false
         self.resetTimesShowAbsolute = userDefaults.object(forKey: "resetTimesShowAbsolute") as? Bool ?? false
         self.menuBarShowsBrandIconWithPercent = userDefaults.object(
             forKey: "menuBarShowsBrandIconWithPercent") as? Bool ?? false
         self.menuBarDisplayModeRaw = userDefaults.string(forKey: "menuBarDisplayMode")
             ?? MenuBarDisplayMode.percent.rawValue
-        self.showAllTokenAccountsInMenu = userDefaults.object(
-            forKey: "showAllTokenAccountsInMenu") as? Bool ?? false
-        let storedMenuBarMetricPreferences = userDefaults.dictionary(
-            forKey: "menuBarMetricPreferences") as? [String: String] ?? [:]
-        var resolvedMenuBarMetricPreferences = storedMenuBarMetricPreferences
-        if resolvedMenuBarMetricPreferences.isEmpty,
+        self.showAllTokenAccountsInMenu = userDefaults.object(forKey: "showAllTokenAccountsInMenu") as? Bool ?? false
+        let storedPreferences = userDefaults.dictionary(forKey: "menuBarMetricPreferences") as? [String: String] ?? [:]
+        var resolvedPreferences = storedPreferences
+        if resolvedPreferences.isEmpty,
            let menuBarMetricRaw = userDefaults.string(forKey: "menuBarMetricPreference"),
            let legacyPreference = MenuBarMetricPreference(rawValue: menuBarMetricRaw)
         {
-            resolvedMenuBarMetricPreferences = Dictionary(
+            resolvedPreferences = Dictionary(
                 uniqueKeysWithValues: UsageProvider.allCases.map { ($0.rawValue, legacyPreference.rawValue) })
         }
-        self.menuBarMetricPreferencesRaw = resolvedMenuBarMetricPreferences
+        self.menuBarMetricPreferencesRaw = resolvedPreferences
         self.costUsageEnabled = userDefaults.object(forKey: "tokenCostUsageEnabled") as? Bool ?? false
         self.hidePersonalInfo = userDefaults.object(forKey: "hidePersonalInfo") as? Bool ?? false
         self.randomBlinkEnabled = userDefaults.object(forKey: "randomBlinkEnabled") as? Bool ?? false
@@ -704,19 +724,13 @@ final class SettingsStore {
         self.claudeWebExtrasEnabledRaw = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false
         let creditsExtrasDefault = userDefaults.object(forKey: "showOptionalCreditsAndExtraUsage") as? Bool
         self.showOptionalCreditsAndExtraUsage = creditsExtrasDefault ?? true
-        if creditsExtrasDefault == nil {
-            self.userDefaults.set(true, forKey: "showOptionalCreditsAndExtraUsage")
-        }
+        if creditsExtrasDefault == nil { self.userDefaults.set(true, forKey: "showOptionalCreditsAndExtraUsage") }
         let openAIWebAccessDefault = userDefaults.object(forKey: "openAIWebAccessEnabled") as? Bool
         let openAIWebAccessEnabled = openAIWebAccessDefault ?? true
         self.openAIWebAccessEnabled = openAIWebAccessEnabled
-        if openAIWebAccessDefault == nil {
-            self.userDefaults.set(true, forKey: "openAIWebAccessEnabled")
-        }
-        let codexSourceRaw = userDefaults.string(forKey: "codexUsageDataSource")
-        self.codexUsageDataSourceRaw = codexSourceRaw ?? CodexUsageDataSource.auto.rawValue
-        let claudeSourceRaw = userDefaults.string(forKey: "claudeUsageDataSource")
-        self.claudeUsageDataSourceRaw = claudeSourceRaw ?? ClaudeUsageDataSource.auto.rawValue
+        if openAIWebAccessDefault == nil { self.userDefaults.set(true, forKey: "openAIWebAccessEnabled") }
+        self.codexUsageDataSourceRaw = Self.codexSourceRaw(from: config.providerConfig(for: .codex)?.source)
+        self.claudeUsageDataSourceRaw = Self.claudeSourceRaw(from: config.providerConfig(for: .claude)?.source)
         let codexCookieRaw = userDefaults.string(forKey: "codexCookieSource")
         if let codexCookieRaw {
             self.codexCookieSourceRaw = codexCookieRaw
@@ -730,7 +744,7 @@ final class SettingsStore {
             ?? ProviderCookieSource.auto.rawValue
         self.opencodeCookieSourceRaw = userDefaults.string(forKey: "opencodeCookieSource")
             ?? ProviderCookieSource.auto.rawValue
-        self.opencodeWorkspaceIDRaw = userDefaults.string(forKey: "opencodeWorkspaceID")
+        self.opencodeWorkspaceIDRaw = config.providerConfig(for: .opencode)?.workspaceID
         self.factoryCookieSourceRaw = userDefaults.string(forKey: "factoryCookieSource")
             ?? ProviderCookieSource.auto.rawValue
         self.minimaxCookieSourceRaw = userDefaults.string(forKey: "minimaxCookieSource")
@@ -744,153 +758,40 @@ final class SettingsStore {
         self.jetbrainsIDEBasePath = userDefaults.string(forKey: "jetbrainsIDEBasePath") ?? ""
         self.mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true
         self.switcherShowsIcons = userDefaults.object(forKey: "switcherShowsIcons") as? Bool ?? true
-        let minimaxAPIRegionRaw = userDefaults.string(forKey: "minimaxAPIRegion")
-        self.minimaxAPIRegion =
-            MiniMaxAPIRegion(rawValue: minimaxAPIRegionRaw ?? MiniMaxAPIRegion.global.rawValue) ?? .global
-        let zaiAPIRegionRaw = userDefaults.string(forKey: "zaiAPIRegion")
-        self.zaiAPIRegion = ZaiAPIRegion(rawValue: zaiAPIRegionRaw ?? ZaiAPIRegion.global.rawValue) ?? .global
-        self.zaiAPIToken = ""
-        self.syntheticAPIToken = ""
-        self.codexCookieHeader = ""
-        self.claudeCookieHeader = ""
-        self.cursorCookieHeader = ""
-        self.opencodeCookieHeader = ""
-        self.factoryCookieHeader = ""
-        self.minimaxCookieHeader = ""
-        self.minimaxAPIToken = ""
-        self.kimiManualCookieHeader = ""
-        self.kimiK2APIToken = ""
-        self.augmentCookieHeader = ""
-        self.ampCookieHeader = ""
-        self.copilotAPIToken = ""
-        self.tokenAccountsByProvider = [:]
+        let minimaxRegionRaw = config.providerConfig(for: .minimax)?.region
+        self.minimaxAPIRegion = MiniMaxAPIRegion(rawValue: minimaxRegionRaw ?? "") ?? .global
+        let zaiRegionRaw = config.providerConfig(for: .zai)?.region
+        self.zaiAPIRegion = ZaiAPIRegion(rawValue: zaiRegionRaw ?? "") ?? .global
+        self.zaiAPIToken = config.providerConfig(for: .zai)?.sanitizedAPIKey ?? ""
+        self.syntheticAPIToken = config.providerConfig(for: .synthetic)?.sanitizedAPIKey ?? ""
+        self.codexCookieHeader = config.providerConfig(for: .codex)?.sanitizedCookieHeader ?? ""
+        self.claudeCookieHeader = config.providerConfig(for: .claude)?.sanitizedCookieHeader ?? ""
+        self.cursorCookieHeader = config.providerConfig(for: .cursor)?.sanitizedCookieHeader ?? ""
+        self.opencodeCookieHeader = config.providerConfig(for: .opencode)?.sanitizedCookieHeader ?? ""
+        self.factoryCookieHeader = config.providerConfig(for: .factory)?.sanitizedCookieHeader ?? ""
+        self.minimaxCookieHeader = config.providerConfig(for: .minimax)?.sanitizedCookieHeader ?? ""
+        self.minimaxAPIToken = config.providerConfig(for: .minimax)?.sanitizedAPIKey ?? ""
+        self.kimiManualCookieHeader = config.providerConfig(for: .kimi)?.sanitizedCookieHeader ?? ""
+        self.kimiK2APIToken = config.providerConfig(for: .kimik2)?.sanitizedAPIKey ?? ""
+        self.augmentCookieHeader = config.providerConfig(for: .augment)?.sanitizedCookieHeader ?? ""
+        self.ampCookieHeader = config.providerConfig(for: .amp)?.sanitizedCookieHeader ?? ""
+        self.copilotAPIToken = config.providerConfig(for: .copilot)?.sanitizedAPIKey ?? ""
+        self.tokenAccountsByProvider = Dictionary(uniqueKeysWithValues: config.providers.compactMap { entry in
+            guard let accounts = entry.tokenAccounts else { return nil }
+            return (entry.id, accounts)
+        })
         self.selectedMenuProviderRaw = userDefaults.string(forKey: "selectedMenuProvider")
-        self.providerDetectionCompleted = userDefaults.object(
-            forKey: "providerDetectionCompleted") as? Bool ?? false
-        self.toggleStore = ProviderToggleStore(userDefaults: userDefaults)
-        self.toggleStore.purgeLegacyKeys()
-        LaunchAtLoginManager.setEnabled(self.launchAtLogin)
-        self.runInitialProviderDetectionIfNeeded()
+        self.providerDetectionCompleted = userDefaults.object(forKey: "providerDetectionCompleted") as? Bool ?? false
+        self.toggleStore = ProviderToggleStore(userDefaults: userDefaults); self.toggleStore.purgeLegacyKeys()
+        LaunchAtLoginManager.setEnabled(self.launchAtLogin); self.runInitialProviderDetectionIfNeeded()
         self.applyTokenCostDefaultIfNeeded()
-        if self.claudeUsageDataSource != .cli {
-            self.claudeWebExtrasEnabled = false
-        }
+        if self.claudeUsageDataSource != .cli { self.claudeWebExtrasEnabled = false }
         self.openAIWebAccessEnabled = self.codexCookieSource.isEnabled
         Self.sharedDefaults?.set(self.debugDisableKeychainAccess, forKey: "debugDisableKeychainAccess")
         KeychainAccessGate.isDisabled = self.debugDisableKeychainAccess
     }
 
-    func orderedProviders() -> [UsageProvider] {
-        let raw = self.providerOrderRaw
-        if raw == self.cachedProviderOrderRaw, !self.cachedProviderOrder.isEmpty {
-            return self.cachedProviderOrder
-        }
-        let ordered = Self.effectiveProviderOrder(raw: raw)
-        self.cachedProviderOrderRaw = raw
-        self.cachedProviderOrder = ordered
-        return ordered
-    }
-
-    func moveProvider(fromOffsets: IndexSet, toOffset: Int) {
-        var order = self.orderedProviders()
-        order.move(fromOffsets: fromOffsets, toOffset: toOffset)
-        self.providerOrderRaw = order.map(\.rawValue)
-    }
-
-    func isProviderEnabled(provider: UsageProvider, metadata: ProviderMetadata) -> Bool {
-        _ = self.providerToggleRevision
-        return self.toggleStore.isEnabled(metadata: metadata)
-    }
-
-    func isProviderEnabledCached(
-        provider: UsageProvider,
-        metadataByProvider: [UsageProvider: ProviderMetadata]) -> Bool
-    {
-        self.refreshProviderEnablementCacheIfNeeded(metadataByProvider: metadataByProvider)
-        return self.cachedProviderEnablement[provider] ?? false
-    }
-
-    func enabledProvidersOrdered(metadataByProvider: [UsageProvider: ProviderMetadata]) -> [UsageProvider] {
-        self.refreshProviderEnablementCacheIfNeeded(metadataByProvider: metadataByProvider)
-        let orderRaw = self.providerOrderRaw
-        let revision = self.cachedProviderEnablementRevision
-        if revision == self.cachedEnabledProvidersRevision,
-           orderRaw == self.cachedEnabledProvidersOrderRaw,
-           !self.cachedEnabledProviders.isEmpty
-        {
-            return self.cachedEnabledProviders
-        }
-        let enabled = self.orderedProviders().filter { self.cachedProviderEnablement[$0] ?? false }
-        self.cachedEnabledProviders = enabled
-        self.cachedEnabledProvidersRevision = revision
-        self.cachedEnabledProvidersOrderRaw = orderRaw
-        return enabled
-    }
-
-    func setProviderEnabled(provider: UsageProvider, metadata: ProviderMetadata, enabled: Bool) {
-        self.providerToggleRevision &+= 1
-        self.toggleStore.setEnabled(enabled, metadata: metadata)
-    }
-
-    func rerunProviderDetection() {
-        self.runInitialProviderDetectionIfNeeded(force: true)
-    }
-
-    // MARK: - Private
-
-    func isCostUsageEffectivelyEnabled(for provider: UsageProvider) -> Bool {
-        self.costUsageEnabled
-            && ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.supportsTokenCost
-    }
-
-    private static func effectiveProviderOrder(raw: [String]) -> [UsageProvider] {
-        var seen: Set<UsageProvider> = []
-        var ordered: [UsageProvider] = []
-
-        for rawValue in raw {
-            guard let provider = UsageProvider(rawValue: rawValue) else { continue }
-            guard !seen.contains(provider) else { continue }
-            seen.insert(provider)
-            ordered.append(provider)
-        }
-
-        if ordered.isEmpty {
-            ordered = UsageProvider.allCases
-            seen = Set(ordered)
-        }
-
-        if !seen.contains(.factory), let zaiIndex = ordered.firstIndex(of: .zai) {
-            ordered.insert(.factory, at: zaiIndex)
-            seen.insert(.factory)
-        }
-
-        if !seen.contains(.minimax), let zaiIndex = ordered.firstIndex(of: .zai) {
-            let insertIndex = ordered.index(after: zaiIndex)
-            ordered.insert(.minimax, at: insertIndex)
-            seen.insert(.minimax)
-        }
-
-        for provider in UsageProvider.allCases where !seen.contains(provider) {
-            ordered.append(provider)
-        }
-
-        return ordered
-    }
-
-    private func refreshProviderEnablementCacheIfNeeded(
-        metadataByProvider: [UsageProvider: ProviderMetadata])
-    {
-        let revision = self.providerToggleRevision
-        guard revision != self.cachedProviderEnablementRevision else { return }
-        var cache: [UsageProvider: Bool] = [:]
-        for (provider, metadata) in metadataByProvider {
-            cache[provider] = self.toggleStore.isEnabled(metadata: metadata)
-        }
-        self.cachedProviderEnablement = cache
-        self.cachedProviderEnablementRevision = revision
-    }
-
-    private func runInitialProviderDetectionIfNeeded(force: Bool = false) {
+    func runInitialProviderDetectionIfNeeded(force: Bool = false) {
         guard force || !self.providerDetectionCompleted else { return }
         guard let codexMeta = ProviderRegistry.shared.metadata[.codex],
               let claudeMeta = ProviderRegistry.shared.metadata[.claude],
@@ -1005,6 +906,101 @@ final class SettingsStore {
 }
 
 extension SettingsStore {
+    private static func codexSourceRaw(from source: ProviderSourceMode?) -> String? {
+        guard let source else { return nil }
+        switch source {
+        case .auto, .web, .api:
+            return CodexUsageDataSource.auto.rawValue
+        case .cli:
+            return CodexUsageDataSource.cli.rawValue
+        case .oauth:
+            return CodexUsageDataSource.oauth.rawValue
+        }
+    }
+
+    private static func claudeSourceRaw(from source: ProviderSourceMode?) -> String? {
+        guard let source else { return nil }
+        switch source {
+        case .auto, .api:
+            return ClaudeUsageDataSource.auto.rawValue
+        case .web:
+            return ClaudeUsageDataSource.web.rawValue
+        case .cli:
+            return ClaudeUsageDataSource.cli.rawValue
+        case .oauth:
+            return ClaudeUsageDataSource.oauth.rawValue
+        }
+    }
+
+    private func updateProviderConfig(provider: UsageProvider, mutate: (inout ProviderConfig) -> Void) {
+        var config = self.config
+        if let index = config.providers.firstIndex(where: { $0.id == provider }) {
+            var entry = config.providers[index]
+            mutate(&entry)
+            config.providers[index] = entry
+        } else {
+            var entry = ProviderConfig(id: provider)
+            mutate(&entry)
+            config.providers.append(entry)
+        }
+        self.config = config.normalized()
+        self.schedulePersistConfig()
+    }
+
+    private func updateProviderSource(provider: UsageProvider, raw: String?) {
+        guard !self.configLoading else { return }
+        let source: ProviderSourceMode? = {
+            switch provider {
+            case .codex:
+                let dataSource = CodexUsageDataSource(rawValue: raw ?? "") ?? .auto
+                switch dataSource {
+                case .auto: return .auto
+                case .oauth: return .oauth
+                case .cli: return .cli
+                }
+            case .claude:
+                let dataSource = ClaudeUsageDataSource(rawValue: raw ?? "") ?? .auto
+                switch dataSource {
+                case .auto: return .auto
+                case .oauth: return .oauth
+                case .web: return .web
+                case .cli: return .cli
+                }
+            default:
+                return nil
+            }
+        }()
+        self.updateProviderConfig(provider: provider) { entry in
+            entry.source = source
+        }
+    }
+
+    private func schedulePersistConfig() {
+        guard !self.configLoading else { return }
+        self.configPersistTask?.cancel()
+        let store = self.configStore
+        self.configPersistTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 350_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            let snapshot = self.config
+            let error: (any Error)? = await Task.detached(priority: .utility) {
+                do {
+                    try store.save(snapshot)
+                    return nil
+                } catch {
+                    return error
+                }
+            }.value
+            if let error {
+                CodexBarLog.logger("config-store").error("Failed to persist config: \(error)")
+            }
+        }
+    }
+
     private func schedulePersistZaiAPIToken() {
         if self.zaiTokenLoading { return }
         self.zaiTokenPersistTask?.cancel()

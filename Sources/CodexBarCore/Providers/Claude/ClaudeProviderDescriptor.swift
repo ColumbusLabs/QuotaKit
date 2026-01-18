@@ -55,6 +55,8 @@ public enum ClaudeProviderDescriptor {
                     useWebExtras: false,
                     manualCookieHeader: nil,
                     browserDetection: context.browserDetection)]
+            case .api:
+                return []
             case .auto:
                 return [
                     ClaudeWebFetchStrategy(browserDetection: context.browserDetection),
@@ -84,6 +86,8 @@ public enum ClaudeProviderDescriptor {
                     useWebExtras: webExtrasEnabled,
                     manualCookieHeader: manualCookieHeader,
                     browserDetection: context.browserDetection)]
+            case .api:
+                return []
             case .auto:
                 return [
                     ClaudeOAuthFetchStrategy(),

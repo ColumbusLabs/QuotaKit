@@ -5,7 +5,7 @@ import Foundation
 struct UsageCommandContext {
     let format: OutputFormat
     let includeCredits: Bool
-    let sourceMode: ProviderSourceMode
+    let sourceModeOverride: ProviderSourceMode?
     let antigravityPlanDebug: Bool
     let augmentDebug: Bool
     let webDebugDumpHTML: Bool
@@ -13,6 +13,7 @@ struct UsageCommandContext {
     let verbose: Bool
     let useColor: Bool
     let resetStyle: ResetTimeDisplayStyle
+    let jsonOnly: Bool
     let fetcher: UsageFetcher
     let claudeFetcher: ClaudeUsageFetcher
     let browserDetection: BrowserDetection
@@ -50,10 +51,34 @@ extension CodexBarCLI {
                 provider: provider,
                 account: account)
             let settings = tokenContext.settingsSnapshot(for: provider, account: account)
+            let configSource = tokenContext.preferredSourceMode(for: provider)
+            let baseSource = command.sourceModeOverride ?? configSource
             let effectiveSourceMode = tokenContext.effectiveSourceMode(
-                base: command.sourceMode,
+                base: baseSource,
                 provider: provider,
                 account: account)
+
+            #if !os(macOS)
+            if effectiveSourceMode.usesWeb {
+                let error = NSError(
+                    domain: "CodexBarCLI",
+                    code: 1,
+                    userInfo: [NSLocalizedDescriptionKey: "Error: --source web/auto is only supported on macOS."])
+                output.exitCode = .failure
+                if command.format == .json {
+                    output.payload.append(Self.makeErrorPayload(
+                        provider: provider,
+                        account: account?.label,
+                        source: effectiveSourceMode.rawValue,
+                        status: status,
+                        error: error))
+                } else if !command.jsonOnly {
+                    Self.printError(error)
+                }
+                continue
+            }
+            #endif
+
             let fetchContext = ProviderFetchContext(
                 runtime: .cli,
                 sourceMode: effectiveSourceMode,
@@ -69,14 +94,14 @@ extension CodexBarCLI {
             let outcome = await Self.fetchProviderUsage(
                 provider: provider,
                 context: fetchContext)
-            if command.verbose {
+            if command.verbose, !command.jsonOnly {
                 Self.printFetchAttempts(provider: provider, attempts: outcome.attempts)
             }
 
             switch outcome.result {
             case let .success(result):
                 var dashboard = result.dashboard
-                if command.antigravityPlanDebug, provider == .antigravity {
+                if command.antigravityPlanDebug, provider == .antigravity, !command.jsonOnly {
                     antigravityPlanInfo = try? await AntigravityStatusProbe().fetchPlanInfoSummary()
                     if command.format == .text, let info = antigravityPlanInfo {
                         Self.printAntigravityPlanInfo(info)
@@ -86,7 +111,7 @@ extension CodexBarCLI {
                 if command.augmentDebug, provider == .augment {
                     #if os(macOS)
                     let dump = await AugmentStatusProbe.latestDumps()
-                    if command.format == .text, !dump.isEmpty {
+                    if command.format == .text, !dump.isEmpty, !command.jsonOnly {
                         Self.writeStderr("Augment API responses:\n\(dump)\n")
                     }
                     #endif
@@ -122,7 +147,7 @@ extension CodexBarCLI {
                             status: status,
                             useColor: command.useColor,
                             resetStyle: command.resetStyle))
-                    if let dashboard, provider == .codex, command.sourceMode.usesWeb {
+                    if let dashboard, provider == .codex, effectiveSourceMode.usesWeb {
                         text += "\n" + Self.renderOpenAIWebDashboardText(dashboard)
                     }
                     output.sections.append(text)
@@ -136,14 +161,26 @@ extension CodexBarCLI {
                         usage: usage,
                         credits: result.credits,
                         antigravityPlanInfo: antigravityPlanInfo,
-                        openaiDashboard: dashboard))
+                        openaiDashboard: dashboard,
+                        error: nil))
                 }
             case let .failure(error):
                 output.exitCode = Self.mapError(error)
-                if let account {
-                    Self.writeStderr("Error (\(provider.rawValue) - \(account.label)): \(error.localizedDescription)\n")
-                } else {
-                    Self.printError(error)
+                if command.format == .json {
+                    output.payload.append(Self.makeErrorPayload(
+                        provider: provider,
+                        account: account?.label,
+                        source: effectiveSourceMode.rawValue,
+                        status: status,
+                        error: error))
+                } else if !command.jsonOnly {
+                    if let account {
+                        Self
+                            .writeStderr(
+                                "Error (\(provider.rawValue) - \(account.label)): \(error.localizedDescription)\n")
+                    } else {
+                        Self.printError(error)
+                    }
                 }
             }
         }

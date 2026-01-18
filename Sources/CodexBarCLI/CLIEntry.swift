@@ -70,7 +70,9 @@ enum CodexBarCLI {
     // MARK: - Commands
 
     private static func runUsage(_ values: ParsedValues) async {
-        let provider = Self.decodeProvider(from: values)
+        let jsonOnly = values.flags.contains("jsonOnly")
+        let config = Self.loadConfig(jsonOnly: jsonOnly)
+        let provider = Self.decodeProvider(from: values, config: config)
         let format = Self.decodeFormat(from: values)
         let includeCredits = format == .json ? true : !values.flags.contains("noCredits")
         let includeStatus = values.flags.contains("status")
@@ -78,9 +80,8 @@ enum CodexBarCLI {
         let sourceModeRaw = values.options["source"]?.last
         let parsedSourceMode = Self.decodeSourceMode(from: values)
         if sourceModeRaw != nil, parsedSourceMode == nil {
-            Self.exit(code: .failure, message: "Error: --source must be auto|web|cli|oauth.")
+            Self.exit(code: .failure, message: "Error: --source must be auto|web|cli|oauth|api.")
         }
-        let sourceMode = parsedSourceMode ?? .auto
         let antigravityPlanDebug = values.flags.contains("antigravityPlanDebug")
         let augmentDebug = values.flags.contains("augmentDebug")
         let webDebugDumpHTML = values.flags.contains("webDebugDumpHtml")
@@ -107,7 +108,7 @@ enum CodexBarCLI {
         }
         let tokenContext: TokenAccountCLIContext
         do {
-            tokenContext = try TokenAccountCLIContext(selection: tokenSelection, verbose: verbose)
+            tokenContext = try TokenAccountCLIContext(selection: tokenSelection, config: config, verbose: verbose)
         } catch {
             Self.exit(code: .failure, message: "Error: \(error.localizedDescription)")
         }
@@ -116,7 +117,7 @@ enum CodexBarCLI {
         let claudeFetcher = ClaudeUsageFetcher(browserDetection: browserDetection)
 
         #if !os(macOS)
-        if sourceMode.usesWeb {
+        if parsedSourceMode?.usesWeb == true {
             Self.exit(code: .failure, message: "Error: --source web/auto is only supported on macOS.")
         }
         #endif
@@ -127,7 +128,7 @@ enum CodexBarCLI {
         let command = UsageCommandContext(
             format: format,
             includeCredits: includeCredits,
-            sourceMode: sourceMode,
+            sourceModeOverride: parsedSourceMode,
             antigravityPlanDebug: antigravityPlanDebug,
             augmentDebug: augmentDebug,
             webDebugDumpHTML: webDebugDumpHTML,
@@ -135,6 +136,7 @@ enum CodexBarCLI {
             verbose: verbose,
             useColor: useColor,
             resetStyle: resetStyle,
+            jsonOnly: jsonOnly,
             fetcher: fetcher,
             claudeFetcher: claudeFetcher,
             browserDetection: browserDetection)
@@ -177,7 +179,7 @@ enum CodexBarCLI {
     // MARK: - Helpers
 
     private static func bootstrapLogging(values: ParsedValues) {
-        let isJSON = values.flags.contains("jsonOutput")
+        let isJSON = values.flags.contains("jsonOutput") || values.flags.contains("jsonOnly")
         let verbose = values.flags.contains("verbose")
         let rawLevel = values.options["logLevel"]?.last
         let level = Self.resolvedLogLevel(verbose: verbose, rawLevel: rawLevel)
@@ -194,9 +196,9 @@ enum CodexBarCLI {
         return argv
     }
 
-    static func decodeProvider(from values: ParsedValues) -> ProviderSelection {
+    static func decodeProvider(from values: ParsedValues, config: CodexBarConfig) -> ProviderSelection {
         let rawOverride = values.options["provider"]?.last
-        return Self.providerSelection(rawOverride: rawOverride, enabled: Self.enabledProvidersFromDefaults())
+        return Self.providerSelection(rawOverride: rawOverride, enabled: config.enabledProviders())
     }
 
     static func providerSelection(rawOverride: String?, enabled: [UsageProvider]) -> ProviderSelection {
@@ -220,7 +222,9 @@ enum CodexBarCLI {
         if let raw = values.options["format"]?.last, let parsed = OutputFormat(argument: raw) {
             return parsed
         }
-        if values.flags.contains("jsonShortcut") || values.flags.contains("json") { return .json }
+        if values.flags.contains("jsonShortcut") || values.flags.contains("json") || values.flags.contains("jsonOnly") {
+            return .json
+        }
         return .text
     }
 
@@ -303,34 +307,6 @@ enum CodexBarCLI {
                 description: error.localizedDescription,
                 updatedAt: nil,
                 url: urlString)
-        }
-    }
-
-    private static func enabledProvidersFromDefaults() -> [UsageProvider] {
-        // Prefer the app's defaults domain so CLI mirrors in-app toggles.
-        let domains = [
-            "com.steipete.codexbar",
-            "com.steipete.codexbar.debug",
-        ]
-
-        var toggles: [String: Bool] = [:]
-        for domain in domains {
-            if let dict = UserDefaults(suiteName: domain)?.dictionary(forKey: "providerToggles") as? [String: Bool],
-               !dict.isEmpty
-            {
-                toggles = dict
-                break
-            }
-        }
-
-        if toggles.isEmpty {
-            toggles = UserDefaults.standard.dictionary(forKey: "providerToggles") as? [String: Bool] ?? [:]
-        }
-
-        return ProviderDescriptorRegistry.all.compactMap { descriptor in
-            let meta = descriptor.metadata
-            let isOn = toggles[meta.cliName] ?? meta.defaultEnabled
-            return isOn ? descriptor.id : nil
         }
     }
 
@@ -473,6 +449,54 @@ enum CodexBarCLI {
         }
     }
 
+    static func makeErrorPayload(_ error: Error) -> ProviderErrorPayload {
+        ProviderErrorPayload(
+            code: self.mapError(error).rawValue,
+            message: error.localizedDescription)
+    }
+
+    static func makeErrorPayload(
+        provider: UsageProvider,
+        account: String?,
+        source: String,
+        status: ProviderStatusPayload?,
+        error: Error) -> ProviderPayload
+    {
+        ProviderPayload(
+            provider: provider,
+            account: account,
+            version: nil,
+            source: source,
+            status: status,
+            usage: nil,
+            credits: nil,
+            antigravityPlanInfo: nil,
+            openaiDashboard: nil,
+            error: self.makeErrorPayload(error))
+    }
+
+    static func loadConfig(jsonOnly: Bool) -> CodexBarConfig {
+        let store = CodexBarConfigStore()
+        do {
+            if let existing = try store.load() {
+                return existing
+            }
+            return CodexBarConfig.makeDefault()
+        } catch {
+            if jsonOnly {
+                let payload = ProviderErrorPayload(code: ExitCode.failure.rawValue, message: error.localizedDescription)
+                if let data = try? JSONEncoder().encode(payload),
+                   let output = String(data: data, encoding: .utf8)
+                {
+                    print(output)
+                }
+            } else {
+                self.writeStderr("Error: \(error.localizedDescription)\n")
+            }
+            Self.platformExit(ExitCode.failure.rawValue)
+        }
+    }
+
     static func exit(code: ExitCode, message: String? = nil) -> Never {
         if let message {
             self.writeStderr("\(message)\n")
@@ -522,10 +546,11 @@ enum CodexBarCLI {
         Usage:
           codexbar usage [--format text|json]
                        [--json]
+                       [--json-only]
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                        [--provider \(ProviderHelp.list)]
                        [--account <label>] [--account-index <index>] [--all-accounts]
-                       [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth>]
+                       [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth|api>]
                        [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug] [--augment-debug]
 
         Description:
@@ -566,10 +591,11 @@ enum CodexBarCLI {
         Usage:
           codexbar [--format text|json]
                   [--json]
+                  [--json-only]
                   [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                   [--provider \(ProviderHelp.list)]
                   [--account <label>] [--account-index <index>] [--all-accounts]
-                  [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth>]
+                  [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth|api>]
                   [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug] [--augment-debug]
           codexbar cost [--format text|json]
                        [--json]
@@ -599,9 +625,9 @@ enum CodexBarCLI {
 private struct UsageOptions: CommanderParsable {
     private static let sourceHelp: String = {
         #if os(macOS)
-        "Data source: auto | web | cli | oauth (auto uses web then falls back on missing cookies)"
+        "Data source: auto | web | cli | oauth | api (auto uses web then falls back on missing cookies)"
         #else
-        "Data source: auto | web | cli | oauth (web/auto are macOS only)"
+        "Data source: auto | web | cli | oauth | api (web/auto are macOS only)"
         #endif
     }()
 
@@ -633,6 +659,9 @@ private struct UsageOptions: CommanderParsable {
 
     @Flag(name: .long("json"), help: "")
     var jsonShortcut: Bool = false
+
+    @Flag(name: .long("json-only"), help: "Emit JSON only (suppress non-JSON output)")
+    var jsonOnly: Bool = false
 
     @Flag(name: .long("no-credits"), help: "Skip Codex credits line")
     var noCredits: Bool = false
@@ -759,10 +788,11 @@ struct ProviderPayload: Encodable {
     let version: String?
     let source: String
     let status: ProviderStatusPayload?
-    let usage: UsageSnapshot
+    let usage: UsageSnapshot?
     let credits: CreditsSnapshot?
     let antigravityPlanInfo: AntigravityPlanInfoSummary?
     let openaiDashboard: OpenAIDashboardSnapshot?
+    let error: ProviderErrorPayload?
 
     init(
         provider: UsageProvider,
@@ -770,10 +800,11 @@ struct ProviderPayload: Encodable {
         version: String?,
         source: String,
         status: ProviderStatusPayload?,
-        usage: UsageSnapshot,
+        usage: UsageSnapshot?,
         credits: CreditsSnapshot?,
         antigravityPlanInfo: AntigravityPlanInfoSummary?,
-        openaiDashboard: OpenAIDashboardSnapshot?)
+        openaiDashboard: OpenAIDashboardSnapshot?,
+        error: ProviderErrorPayload?)
     {
         self.provider = provider.rawValue
         self.account = account
@@ -784,6 +815,7 @@ struct ProviderPayload: Encodable {
         self.credits = credits
         self.antigravityPlanInfo = antigravityPlanInfo
         self.openaiDashboard = openaiDashboard
+        self.error = error
     }
 }
 
@@ -817,6 +849,11 @@ struct ProviderStatusPayload: Encodable {
         guard let description, !description.isEmpty else { return "" }
         return " – \(description)"
     }
+}
+
+struct ProviderErrorPayload: Encodable {
+    let code: Int32
+    let message: String
 }
 
 private enum StatusFetcher {

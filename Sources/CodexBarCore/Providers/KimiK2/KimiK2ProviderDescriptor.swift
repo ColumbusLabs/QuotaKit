@@ -32,7 +32,7 @@ public enum KimiK2ProviderDescriptor {
                 supportsTokenCost: false,
                 noDataMessage: { "Kimi K2 cost summary is not available." }),
             fetchPlan: ProviderFetchPlan(
-                sourceModes: [.auto],
+                sourceModes: [.auto, .api],
                 pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [KimiK2APIFetchStrategy()] })),
             cli: ProviderCLIConfig(
                 name: "kimik2",
