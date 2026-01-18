@@ -15,6 +15,7 @@ WAIT_FOR_LOCK=0
 RUN_TESTS=0
 DEBUG_LLDB=0
 RELEASE_ARCHES=""
+SIGNING_MODE="${CODEXBAR_SIGNING:-}"
 
 log()  { printf '%s\n' "$*"; }
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -123,6 +124,10 @@ for arg in "$@"; do
   esac
 done
 
+if [[ -z "${SIGNING_MODE}" && -z "${APP_IDENTITY:-}" ]]; then
+  SIGNING_MODE="adhoc"
+fi
+
 acquire_lock
 
 # 2) Kill all running CodexBar instances (debug, release, bundled).
@@ -132,7 +137,7 @@ kill_claude_probes
 
 # 2.5) Delete keychain entries to avoid permission prompts with adhoc signing
 # (adhoc signature changes on every build, making old keychain entries inaccessible)
-if [[ "${CODEXBAR_SIGNING:-adhoc}" == "adhoc" ]]; then
+if [[ "${SIGNING_MODE:-adhoc}" == "adhoc" ]]; then
   log "==> Clearing keychain entries (adhoc signing)"
   security delete-generic-password -s "com.steipete.CodexBar" 2>/dev/null || true
   # Clear all keychain items for the app to avoid multiple prompts
@@ -156,7 +161,11 @@ fi
 if [[ "${DEBUG_LLDB}" == "1" ]]; then
   run_step "package app" env CODEXBAR_ALLOW_LLDB=1 ARCHES="${ARCHES_VALUE}" "${ROOT_DIR}/scripts/package_app.sh" debug
 else
-  run_step "package app" env CODEXBAR_SIGNING=adhoc ARCHES="${ARCHES_VALUE}" "${ROOT_DIR}/scripts/package_app.sh"
+  if [[ -n "${SIGNING_MODE}" ]]; then
+    run_step "package app" env CODEXBAR_SIGNING="${SIGNING_MODE}" ARCHES="${ARCHES_VALUE}" "${ROOT_DIR}/scripts/package_app.sh"
+  else
+    run_step "package app" env ARCHES="${ARCHES_VALUE}" "${ROOT_DIR}/scripts/package_app.sh"
+  fi
 fi
 
 # 4) Launch the packaged app.
