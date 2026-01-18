@@ -74,10 +74,10 @@ extension UsageStore {
         #endif
     }
 
-    func refreshProvider(_ provider: UsageProvider) async {
+    func refreshProvider(_ provider: UsageProvider, allowDisabled: Bool = false) async {
         guard let spec = self.providerSpecs[provider] else { return }
 
-        if !spec.isEnabled() {
+        if !spec.isEnabled(), !allowDisabled {
             self.refreshingProviders.remove(provider)
             await MainActor.run {
                 self.snapshots.removeValue(forKey: provider)

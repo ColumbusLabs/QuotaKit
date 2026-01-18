@@ -1,0 +1,356 @@
+import CodexBarCore
+import SwiftUI
+
+@MainActor
+struct ProviderDetailView: View {
+    let provider: UsageProvider
+    @Bindable var store: UsageStore
+    @Binding var isEnabled: Bool
+    let subtitle: String
+    let model: UsageMenuCardView.Model
+    let settingsPickers: [ProviderSettingsPickerDescriptor]
+    let settingsToggles: [ProviderSettingsToggleDescriptor]
+    let settingsFields: [ProviderSettingsFieldDescriptor]
+    let settingsTokenAccounts: ProviderSettingsTokenAccountsDescriptor?
+    let errorDisplay: ProviderErrorDisplay?
+    @Binding var isErrorExpanded: Bool
+    let onCopyError: (String) -> Void
+    let onRefresh: () -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                ProviderDetailHeaderView(
+                    provider: self.provider,
+                    store: self.store,
+                    isEnabled: self.$isEnabled,
+                    subtitle: self.subtitle,
+                    model: self.model,
+                    onRefresh: self.onRefresh)
+
+                ProviderMetricsInlineView(
+                    provider: self.provider,
+                    model: self.model,
+                    isEnabled: self.isEnabled)
+
+                if let errorDisplay {
+                    ProviderErrorView(
+                        title: "Last \(self.store.metadata(for: self.provider).displayName) fetch failed:",
+                        display: errorDisplay,
+                        isExpanded: self.$isErrorExpanded,
+                        onCopy: { self.onCopyError(errorDisplay.full) })
+                }
+
+                if self.hasSettings {
+                    ProviderSettingsSection(title: "Settings") {
+                        ForEach(self.settingsPickers) { picker in
+                            ProviderSettingsPickerRowView(picker: picker)
+                        }
+                        if let tokenAccounts = self.settingsTokenAccounts,
+                           tokenAccounts.isVisible?() ?? true
+                        {
+                            ProviderSettingsTokenAccountsRowView(descriptor: tokenAccounts)
+                        }
+                        ForEach(self.settingsFields) { field in
+                            ProviderSettingsFieldRowView(field: field)
+                        }
+                    }
+                }
+
+                if !self.settingsToggles.isEmpty {
+                    ProviderSettingsSection(title: "Options") {
+                        ForEach(self.settingsToggles) { toggle in
+                            ProviderSettingsToggleRowView(toggle: toggle)
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: ProviderSettingsMetrics.detailMaxWidth, alignment: .leading)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 4)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var hasSettings: Bool {
+        !self.settingsPickers.isEmpty ||
+            !self.settingsFields.isEmpty ||
+            self.settingsTokenAccounts != nil
+    }
+}
+
+@MainActor
+private struct ProviderDetailHeaderView: View {
+    let provider: UsageProvider
+    @Bindable var store: UsageStore
+    @Binding var isEnabled: Bool
+    let subtitle: String
+    let model: UsageMenuCardView.Model
+    let onRefresh: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                ProviderDetailBrandIcon(provider: self.provider)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(self.store.metadata(for: self.provider).displayName)
+                        .font(.title3.weight(.semibold))
+
+                    Text(self.subtitle)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 12)
+
+                Toggle("Enabled", isOn: self.$isEnabled)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+
+                Button("Refresh") {
+                    self.onRefresh()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+
+            ProviderDetailInfoGrid(
+                provider: self.provider,
+                store: self.store,
+                isEnabled: self.isEnabled,
+                model: self.model)
+        }
+    }
+}
+
+@MainActor
+private struct ProviderDetailBrandIcon: View {
+    let provider: UsageProvider
+
+    var body: some View {
+        if let brand = ProviderBrandIcon.image(for: self.provider) {
+            Image(nsImage: brand)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 28, height: 28)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+        } else {
+            Image(systemName: "circle.dotted")
+                .font(.system(size: 24, weight: .regular))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+        }
+    }
+}
+
+@MainActor
+private struct ProviderDetailInfoGrid: View {
+    let provider: UsageProvider
+    @Bindable var store: UsageStore
+    let isEnabled: Bool
+    let model: UsageMenuCardView.Model
+
+    var body: some View {
+        let status = self.store.status(for: self.provider)
+        let source = self.store.sourceLabel(for: self.provider)
+        let version = self.store.version(for: self.provider) ?? "not detected"
+        let updated = self.updatedText
+        let email = self.model.email
+        let plan = self.model.planText ?? ""
+        let enabledText = self.isEnabled ? "Enabled" : "Disabled"
+
+        Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
+            ProviderDetailInfoRow(label: "State", value: enabledText)
+            ProviderDetailInfoRow(label: "Source", value: source)
+            ProviderDetailInfoRow(label: "Version", value: version)
+            ProviderDetailInfoRow(label: "Updated", value: updated)
+
+            if let status {
+                ProviderDetailInfoRow(label: "Status", value: status.description ?? status.indicator.label)
+            }
+
+            if !email.isEmpty {
+                ProviderDetailInfoRow(label: "Account", value: email)
+            }
+
+            if !plan.isEmpty {
+                ProviderDetailInfoRow(label: "Plan", value: plan)
+            }
+        }
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+    }
+
+    private var updatedText: String {
+        if let updated = self.store.snapshot(for: self.provider)?.updatedAt {
+            return UsageFormatter.updatedString(from: updated)
+        }
+        if self.store.refreshingProviders.contains(self.provider) {
+            return "Refreshing"
+        }
+        return "Not fetched yet"
+    }
+}
+
+private struct ProviderDetailInfoRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        GridRow {
+            Text(self.label)
+                .frame(width: 72, alignment: .leading)
+            Text(self.value)
+                .lineLimit(2)
+        }
+    }
+}
+
+@MainActor
+struct ProviderMetricsInlineView: View {
+    let provider: UsageProvider
+    let model: UsageMenuCardView.Model
+    let isEnabled: Bool
+
+    var body: some View {
+        ProviderSettingsSection(title: "Usage") {
+            if self.model.metrics.isEmpty, self.model.providerCost == nil,
+               self.model.creditsText == nil, self.model.tokenUsage == nil
+            {
+                Text(self.placeholderText)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(self.model.metrics, id: \.id) { metric in
+                    ProviderMetricInlineRow(metric: metric, progressColor: self.model.progressColor)
+                }
+
+                if let credits = self.model.creditsText {
+                    ProviderMetricInlineTextRow(title: "Credits", value: credits)
+                }
+
+                if let providerCost = self.model.providerCost {
+                    ProviderMetricInlineCostRow(section: providerCost, progressColor: self.model.progressColor)
+                }
+
+                if let tokenUsage = self.model.tokenUsage {
+                    ProviderMetricInlineTextRow(title: "Cost", value: tokenUsage.sessionLine)
+                    ProviderMetricInlineTextRow(title: "", value: tokenUsage.monthLine)
+                }
+            }
+        }
+    }
+
+    private var placeholderText: String {
+        if !self.isEnabled {
+            return "Disabled — no recent data"
+        }
+        return self.model.placeholder ?? "No usage yet"
+    }
+}
+
+private struct ProviderMetricInlineRow: View {
+    let metric: UsageMenuCardView.Model.Metric
+    let progressColor: Color
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(self.metric.title)
+                .font(.subheadline.weight(.semibold))
+                .frame(width: ProviderSettingsMetrics.metricLabelWidth, alignment: .leading)
+
+            UsageProgressBar(
+                percent: self.metric.percent,
+                tint: self.progressColor,
+                accessibilityLabel: self.metric.percentStyle.accessibilityLabel,
+                pacePercent: self.metric.pacePercent,
+                paceOnTop: self.metric.paceOnTop)
+                .frame(width: ProviderSettingsMetrics.metricBarWidth)
+
+            Text(self.metric.percentLabel)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+
+            if let resetText = self.metric.resetText, !resetText.isEmpty {
+                Text(resetText)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let detail = self.detailText, !detail.isEmpty {
+                Text(detail)
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var detailText: String? {
+        var parts: [String] = []
+        if let detailText = self.metric.detailText, !detailText.isEmpty {
+            parts.append(detailText)
+        }
+        if let left = self.metric.detailLeftText, !left.isEmpty {
+            parts.append(left)
+        }
+        if let right = self.metric.detailRightText, !right.isEmpty {
+            parts.append(right)
+        }
+        guard !parts.isEmpty else { return nil }
+        return parts.joined(separator: " · ")
+    }
+}
+
+private struct ProviderMetricInlineTextRow: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(self.title)
+                .font(.subheadline.weight(.semibold))
+                .frame(width: ProviderSettingsMetrics.metricLabelWidth, alignment: .leading)
+
+            Text(self.value)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+private struct ProviderMetricInlineCostRow: View {
+    let section: UsageMenuCardView.Model.ProviderCostSection
+    let progressColor: Color
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(self.section.title)
+                .font(.subheadline.weight(.semibold))
+                .frame(width: ProviderSettingsMetrics.metricLabelWidth, alignment: .leading)
+
+            UsageProgressBar(
+                percent: self.section.percentUsed,
+                tint: self.progressColor,
+                accessibilityLabel: "Usage used")
+                .frame(width: ProviderSettingsMetrics.metricBarWidth)
+
+            Text(String(format: "%.0f%% used", self.section.percentUsed))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+
+            Text(self.section.spendLine)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 0)
+        }
+    }
+}
