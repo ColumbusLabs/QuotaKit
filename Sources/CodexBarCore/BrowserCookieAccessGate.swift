@@ -17,6 +17,7 @@ public enum BrowserCookieAccessGate {
 
     public static func shouldAttempt(_ browser: Browser, now: Date = Date()) -> Bool {
         guard browser.usesKeychainForCookieDecryption else { return true }
+        guard !KeychainAccessGate.isDisabled else { return false }
         return self.lock.withLock { state in
             self.loadIfNeeded(&state)
             if let blockedUntil = state.deniedUntilByBrowser[browser.rawValue] {
@@ -25,6 +26,11 @@ public enum BrowserCookieAccessGate {
                 }
                 state.deniedUntilByBrowser.removeValue(forKey: browser.rawValue)
                 self.persist(state)
+            }
+            if self.chromiumKeychainRequiresInteraction() {
+                state.deniedUntilByBrowser[browser.rawValue] = now.addingTimeInterval(self.cooldownInterval)
+                self.persist(state)
+                return false
             }
             return true
         }
@@ -48,6 +54,36 @@ public enum BrowserCookieAccessGate {
             .info(
                 "Browser cookie access denied for \(browser.displayName); suppressing prompts until \(blockedUntil)")
     }
+
+    private static func chromiumKeychainRequiresInteraction() -> Bool {
+        for label in self.safeStorageLabels {
+            switch KeychainAccessPreflight.checkGenericPassword(service: label.service, account: label.account) {
+            case .allowed:
+                return false
+            case .interactionRequired:
+                return true
+            case .notFound, .failure:
+                continue
+            }
+        }
+        return false
+    }
+
+    private static let safeStorageLabels: [(service: String, account: String)] = [
+        ("Chrome Safe Storage", "Chrome"),
+        ("Chromium Safe Storage", "Chromium"),
+        ("Brave Safe Storage", "Brave"),
+        ("Arc Safe Storage", "Arc"),
+        ("Arc Safe Storage", "Arc Beta"),
+        ("Arc Safe Storage", "Arc Canary"),
+        ("ChatGPT Atlas Safe Storage", "ChatGPT Atlas"),
+        ("ChatGPT Atlas Safe Storage", "com.openai.atlas"),
+        ("com.openai.atlas Safe Storage", "com.openai.atlas"),
+        ("Helium Safe Storage", "Helium"),
+        ("net.imput.helium Safe Storage", "net.imput.helium"),
+        ("Microsoft Edge Safe Storage", "Microsoft Edge"),
+        ("Vivaldi Safe Storage", "Vivaldi"),
+    ]
 
     private static func loadIfNeeded(_ state: inout State) {
         guard !state.loaded else { return }
