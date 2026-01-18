@@ -256,6 +256,7 @@ public struct OpenAIDashboardBrowserCookieImporter {
             }
             return nil
         } catch let error as BrowserCookieError {
+            BrowserCookieAccessGate.recordIfNeeded(error)
             if let hint = error.accessDeniedHint {
                 diagnostics.accessDeniedHints.append(hint)
             }
@@ -300,6 +301,7 @@ public struct OpenAIDashboardBrowserCookieImporter {
             }
             return nil
         } catch let error as BrowserCookieError {
+            BrowserCookieAccessGate.recordIfNeeded(error)
             if let hint = error.accessDeniedHint {
                 diagnostics.accessDeniedHints.append(hint)
             }
@@ -344,6 +346,7 @@ public struct OpenAIDashboardBrowserCookieImporter {
             }
             return nil
         } catch let error as BrowserCookieError {
+            BrowserCookieAccessGate.recordIfNeeded(error)
             if let hint = error.accessDeniedHint {
                 diagnostics.accessDeniedHints.append(hint)
             }

@@ -368,6 +368,7 @@ public enum ClaudeWebAPIFetcher {
                     }
                 }
             } catch {
+                BrowserCookieAccessGate.recordIfNeeded(error)
                 log("\(browserSource.displayName) cookie load failed: \(error.localizedDescription)")
             }
         }

@@ -58,6 +58,7 @@ public enum CursorCookieImporter {
                     }
                 }
             } catch {
+                BrowserCookieAccessGate.recordIfNeeded(error)
                 log("\(browserSource.displayName) cookie import failed: \(error.localizedDescription)")
             }
         }

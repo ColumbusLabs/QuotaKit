@@ -25,11 +25,13 @@ public enum KimiCookieImporter {
 
     public static func importSessions(logger: ((String) -> Void)? = nil) throws -> [SessionInfo] {
         var sessions: [SessionInfo] = []
-        for browserSource in self.browsers {
+        let candidates = self.browsers.filter { BrowserCookieAccessGate.shouldAttempt($0) }
+        for browserSource in candidates {
             do {
                 let perSource = try self.importSessions(from: browserSource, logger: logger)
                 sessions.append(contentsOf: perSource)
             } catch {
+                BrowserCookieAccessGate.recordIfNeeded(error)
                 self.emit(
                     "\(browserSource.displayName) cookie import failed: \(error.localizedDescription)",
                     logger: logger)

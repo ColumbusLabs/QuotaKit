@@ -19,7 +19,7 @@ extension [Browser] {
         guard !KeychainAccessGate.isDisabled else {
             return candidates.filter { !$0.usesKeychainForCookieDecryption }
         }
-        return candidates
+        return candidates.filter { BrowserCookieAccessGate.shouldAttempt($0) }
     }
 
     /// Filters a browser list to sources with usable profile data on disk.

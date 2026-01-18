@@ -61,6 +61,7 @@ public enum FactoryCookieImporter {
                 let perSource = try self.importSessions(from: browserSource, logger: logger)
                 sessions.append(contentsOf: perSource)
             } catch {
+                BrowserCookieAccessGate.recordIfNeeded(error)
                 log("\(browserSource.displayName) cookie import failed: \(error.localizedDescription)")
             }
         }
@@ -672,6 +673,7 @@ public struct FactoryStatusProbe: Sendable {
             if let lastError { return .failure(lastError) }
             return .skipped
         } catch {
+            BrowserCookieAccessGate.recordIfNeeded(error)
             logger("Browser cookie import failed: \(error.localizedDescription)")
             return .failure(error)
         }
@@ -794,6 +796,7 @@ public struct FactoryStatusProbe: Sendable {
                     }
                 }
             } catch {
+                BrowserCookieAccessGate.recordIfNeeded(error)
                 log("\(browserSource.displayName) WorkOS cookie import failed: \(error.localizedDescription)")
                 lastError = error
             }

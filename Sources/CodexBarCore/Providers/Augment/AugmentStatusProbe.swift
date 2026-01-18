@@ -94,6 +94,7 @@ public enum AugmentCookieImporter {
                     }
                 }
             } catch {
+                BrowserCookieAccessGate.recordIfNeeded(error)
                 log("\(browserSource.displayName) cookie import failed: \(error.localizedDescription)")
             }
         }
@@ -428,6 +429,7 @@ public struct AugmentStatusProbe: Sendable {
 
             return snapshot
         } catch {
+            BrowserCookieAccessGate.recordIfNeeded(error)
             log("Browser cookie import failed: \(error.localizedDescription)")
         }
 

@@ -45,6 +45,7 @@ public enum MiniMaxCookieImporter {
                 let perSource = try self.importSessions(from: browserSource, logger: logger)
                 sessions.append(contentsOf: perSource)
             } catch {
+                BrowserCookieAccessGate.recordIfNeeded(error)
                 self.emit(
                     "\(browserSource.displayName) cookie import failed: \(error.localizedDescription)",
                     logger: logger)

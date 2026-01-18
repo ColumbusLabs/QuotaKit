@@ -83,6 +83,7 @@ public enum AmpCookieImporter {
                     log("Expected one of: \(Self.sessionCookieNames.joined(separator: ", "))")
                 }
             } catch {
+                BrowserCookieAccessGate.recordIfNeeded(error)
                 log("\(browserSource.displayName) cookie import failed: \(error.localizedDescription)")
             }
         }
