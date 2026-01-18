@@ -66,6 +66,7 @@ See `docs/configuration.md` for the schema.
   - `--json-only`: suppress non-JSON output; errors become JSON payloads.
 - `codexbar config validate` checks `~/.codexbar/config.json` for invalid fields.
   - `--format text|json`, `--pretty`, and `--json-only` are supported.
+  - Warnings keep exit code 0; errors exit non-zero.
 - `codexbar config dump` prints the normalized config JSON.
 
 ### Token accounts
