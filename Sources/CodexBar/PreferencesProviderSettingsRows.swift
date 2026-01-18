@@ -2,17 +2,34 @@ import SwiftUI
 
 struct ProviderSettingsSection<Content: View>: View {
     let title: String
+    let spacing: CGFloat
+    let verticalPadding: CGFloat
+    let horizontalPadding: CGFloat
     @ViewBuilder let content: () -> Content
 
+    init(
+        title: String,
+        spacing: CGFloat = 12,
+        verticalPadding: CGFloat = 10,
+        horizontalPadding: CGFloat = 4,
+        @ViewBuilder content: @escaping () -> Content)
+    {
+        self.title = title
+        self.spacing = spacing
+        self.verticalPadding = verticalPadding
+        self.horizontalPadding = horizontalPadding
+        self.content = content
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: self.spacing) {
             Text(self.title)
                 .font(.headline)
             self.content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 10)
-        .padding(.horizontal, 4)
+        .padding(.vertical, self.verticalPadding)
+        .padding(.horizontal, self.horizontalPadding)
     }
 }
 

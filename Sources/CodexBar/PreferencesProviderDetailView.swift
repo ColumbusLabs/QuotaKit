@@ -219,7 +219,12 @@ struct ProviderMetricsInlineView: View {
     let isEnabled: Bool
 
     var body: some View {
-        ProviderSettingsSection(title: "Usage") {
+        ProviderSettingsSection(
+            title: "Usage",
+            spacing: 8,
+            verticalPadding: 6,
+            horizontalPadding: 0)
+        {
             if self.model.metrics.isEmpty, self.model.providerCost == nil,
                self.model.creditsText == nil, self.model.tokenUsage == nil
             {
@@ -260,12 +265,12 @@ private struct ProviderMetricInlineRow: View {
     let progressColor: Color
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 10) {
             Text(self.metric.title)
                 .font(.subheadline.weight(.semibold))
                 .frame(width: ProviderSettingsMetrics.metricLabelWidth, alignment: .leading)
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
                 UsageProgressBar(
                     percent: self.metric.percent,
                     tint: self.progressColor,
@@ -314,7 +319,7 @@ private struct ProviderMetricInlineRow: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
 
     private var detailText: String? {
@@ -339,7 +344,7 @@ private struct ProviderMetricInlineTextRow: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 1)
     }
 }
 
@@ -348,12 +353,12 @@ private struct ProviderMetricInlineCostRow: View {
     let progressColor: Color
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 10) {
             Text(self.section.title)
                 .font(.subheadline.weight(.semibold))
                 .frame(width: ProviderSettingsMetrics.metricLabelWidth, alignment: .leading)
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
                 UsageProgressBar(
                     percent: self.section.percentUsed,
                     tint: self.progressColor,
@@ -374,6 +379,6 @@ private struct ProviderMetricInlineCostRow: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
 }
