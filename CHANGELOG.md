@@ -37,7 +37,7 @@
 - Preferences: move “Access OpenAI via web” into Providers → Codex.
 - Preferences: add usage source pickers for Codex + Claude with auto fallback.
 - Preferences: add cookie source pickers with contextual helper text for the selected mode.
-- Preferences: add debug switch to disable Keychain access and hide cookie-based web options.
+- Preferences: move “Disable Keychain access” to Advanced and require manual cookies when enabled.
 - Preferences: add per-provider menu bar metric picker (#185) — thanks @HaukeSchnau
 - Menu bar: optional auto-select provider closest to its rate limit and keep switcher progress visible (#159). Thanks @phillco!
 - Preferences: tighten provider rows (inline pickers, compact layout, inline refresh + auto-source status).
