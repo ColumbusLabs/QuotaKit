@@ -12,6 +12,7 @@ enum ProviderSettingsMetrics {
     static let reorderDotSpacing: CGFloat = 3
     static let pickerLabelWidth: CGFloat = 92
     static let sidebarWidth: CGFloat = 240
+    static let sidebarCornerRadius: CGFloat = 12
     static let detailMaxWidth: CGFloat = 640
     static let metricLabelWidth: CGFloat = 140
     static let metricBarWidth: CGFloat = 220

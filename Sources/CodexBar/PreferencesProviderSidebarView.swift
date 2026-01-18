@@ -23,7 +23,7 @@ struct ProviderSidebarListView: View {
                     draggingProvider: self.$draggingProvider)
                     .tag(provider)
                     .onDrop(
-                        of: [UTType.text],
+                        of: [UTType.plainText],
                         delegate: ProviderSidebarDropDelegate(
                             item: provider,
                             providers: self.providers,
@@ -32,6 +32,14 @@ struct ProviderSidebarListView: View {
             }
         }
         .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+        .background(
+            RoundedRectangle(cornerRadius: ProviderSettingsMetrics.sidebarCornerRadius, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor)))
+        .overlay(
+            RoundedRectangle(cornerRadius: ProviderSettingsMetrics.sidebarCornerRadius, style: .continuous)
+                .stroke(Color(nsColor: .separatorColor), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: ProviderSettingsMetrics.sidebarCornerRadius, style: .continuous))
         .frame(minWidth: ProviderSettingsMetrics.sidebarWidth, maxWidth: ProviderSettingsMetrics.sidebarWidth)
     }
 }
