@@ -9,6 +9,7 @@ struct OpenAIWebAccountSwitchTests {
     @Test
     func clearsDashboardWhenCodexEmailChanges() {
         let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "OpenAIWebAccountSwitchTests-clears"),
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.refreshFrequency = .manual
@@ -37,6 +38,7 @@ struct OpenAIWebAccountSwitchTests {
     @Test
     func keepsDashboardWhenCodexEmailStaysSame() {
         let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "OpenAIWebAccountSwitchTests-keeps"),
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.refreshFrequency = .manual

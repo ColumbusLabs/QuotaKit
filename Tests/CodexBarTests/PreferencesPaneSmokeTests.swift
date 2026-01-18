@@ -46,9 +46,11 @@ struct PreferencesPaneSmokeTests {
     private static func makeSettingsStore(suite: String) -> SettingsStore {
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
 
         return SettingsStore(
             userDefaults: defaults,
+            configStore: configStore,
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore(),
             codexCookieStore: InMemoryCookieHeaderStore(),

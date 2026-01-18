@@ -11,9 +11,13 @@ struct ZaiAvailabilityTests {
         let suite = "ZaiAvailabilityTests-token"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
 
         let tokenStore = StubZaiTokenStore(token: "zai-test-token")
-        let settings = SettingsStore(userDefaults: defaults, zaiTokenStore: tokenStore)
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: tokenStore)
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
@@ -22,15 +26,8 @@ struct ZaiAvailabilityTests {
         let metadata = ProviderRegistry.shared.metadata[.zai]!
         settings.setProviderEnabled(provider: .zai, metadata: metadata, enabled: true)
 
-        let envToken = ZaiSettingsReader.apiToken(environment: ProcessInfo.processInfo.environment)
-
-        #expect(settings.zaiAPIToken.isEmpty)
         #expect(store.isEnabled(.zai) == true)
-        if envToken == nil {
-            #expect(settings.zaiAPIToken == "zai-test-token")
-        } else {
-            #expect(settings.zaiAPIToken.isEmpty)
-        }
+        #expect(settings.zaiAPIToken == "zai-test-token")
     }
 }
 

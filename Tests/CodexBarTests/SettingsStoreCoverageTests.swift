@@ -13,12 +13,13 @@ struct SettingsStoreCoverageTests {
         defaults.removePersistentDomain(forName: suite)
         defaults.set(["zai", "codex", "zai", "unknown", "claude"], forKey: "providerOrder")
 
-        let settings = Self.makeSettingsStore(userDefaults: defaults)
+        let configStore = testConfigStore(suiteName: suite)
+        let settings = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
         let ordered = settings.orderedProviders()
         let cached = settings.orderedProviders()
 
         #expect(ordered == cached)
-        #expect(ordered.first == .factory)
+        #expect(ordered.first == .zai)
         #expect(ordered.contains(.minimax))
 
         settings.moveProvider(fromOffsets: IndexSet(integer: 0), toOffset: 2)
@@ -131,7 +132,8 @@ struct SettingsStoreCoverageTests {
         let suite = "SettingsStoreCoverageTests-keychain"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
-        let settings = Self.makeSettingsStore(userDefaults: defaults)
+        let configStore = testConfigStore(suiteName: suite)
+        let settings = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
 
         settings.codexCookieSource = .auto
         settings.claudeCookieSource = .auto
@@ -147,12 +149,17 @@ struct SettingsStoreCoverageTests {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         defaults.set(false, forKey: "debugDisableKeychainAccess")
-        return Self.makeSettingsStore(userDefaults: defaults)
+        let configStore = testConfigStore(suiteName: suiteName)
+        return Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
     }
 
-    private static func makeSettingsStore(userDefaults: UserDefaults) -> SettingsStore {
+    private static func makeSettingsStore(
+        userDefaults: UserDefaults,
+        configStore: CodexBarConfigStore) -> SettingsStore
+    {
         SettingsStore(
             userDefaults: userDefaults,
+            configStore: configStore,
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore(),
             codexCookieStore: InMemoryCookieHeaderStore(),

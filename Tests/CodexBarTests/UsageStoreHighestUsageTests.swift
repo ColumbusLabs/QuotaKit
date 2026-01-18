@@ -9,6 +9,7 @@ struct UsageStoreHighestUsageTests {
     @Test
     func selectsHighestUsageAmongEnabledProviders() {
         let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "UsageStoreHighestUsageTests-selects"),
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.refreshFrequency = .manual
@@ -45,6 +46,7 @@ struct UsageStoreHighestUsageTests {
     @Test
     func skipsFullyUsedProviders() {
         let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "UsageStoreHighestUsageTests-skips"),
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.refreshFrequency = .manual

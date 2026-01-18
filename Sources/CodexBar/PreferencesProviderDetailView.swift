@@ -97,7 +97,7 @@ private struct ProviderDetailHeaderView: View {
                     Text(self.store.metadata(for: self.provider).displayName)
                         .font(.title3.weight(.semibold))
 
-                    Text(self.subtitle)
+                    Text(self.detailSubtitle)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -125,6 +125,16 @@ private struct ProviderDetailHeaderView: View {
                 isEnabled: self.isEnabled,
                 model: self.model)
         }
+    }
+
+    private var detailSubtitle: String {
+        let lines = self.subtitle.split(separator: "\n", omittingEmptySubsequences: false)
+        guard lines.count >= 2 else { return self.subtitle }
+        let first = lines[0]
+        let rest = lines.dropFirst().joined(separator: "\n")
+        let tail = rest.trimmingCharacters(in: .whitespacesAndNewlines)
+        if tail.isEmpty { return String(first) }
+        return "\(first) • \(tail)"
     }
 }
 
@@ -265,12 +275,12 @@ private struct ProviderMetricInlineRow: View {
     let progressColor: Color
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Text(self.metric.title)
-                .font(.subheadline.weight(.semibold))
-                .frame(width: ProviderSettingsMetrics.metricLabelWidth, alignment: .leading)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .center, spacing: 10) {
+                Text(self.metric.title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
 
-            VStack(alignment: .leading, spacing: 4) {
                 UsageProgressBar(
                     percent: self.metric.percent,
                     tint: self.progressColor,
@@ -278,46 +288,44 @@ private struct ProviderMetricInlineRow: View {
                     pacePercent: self.metric.pacePercent,
                     paceOnTop: self.metric.paceOnTop)
                     .frame(minWidth: ProviderSettingsMetrics.metricBarWidth, maxWidth: .infinity)
+            }
 
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(self.metric.percentLabel)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(self.metric.percentLabel)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                Spacer(minLength: 8)
+                if let resetText = self.metric.resetText, !resetText.isEmpty {
+                    Text(resetText)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                        .monospacedDigit()
+                }
+            }
+
+            let hasLeftDetail = self.metric.detailLeftText?.isEmpty == false
+            let hasRightDetail = self.metric.detailRightText?.isEmpty == false
+            if hasLeftDetail || hasRightDetail {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    if let leftDetail = self.metric.detailLeftText, !leftDetail.isEmpty {
+                        Text(leftDetail)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                     Spacer(minLength: 8)
-                    if let resetText = self.metric.resetText, !resetText.isEmpty {
-                        Text(resetText)
+                    if let rightDetail = self.metric.detailRightText, !rightDetail.isEmpty {
+                        Text(rightDetail)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
                 }
-
-                let hasLeftDetail = self.metric.detailLeftText?.isEmpty == false
-                let hasRightDetail = self.metric.detailRightText?.isEmpty == false
-                if hasLeftDetail || hasRightDetail {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        if let leftDetail = self.metric.detailLeftText, !leftDetail.isEmpty {
-                            Text(leftDetail)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer(minLength: 8)
-                        if let rightDetail = self.metric.detailRightText, !rightDetail.isEmpty {
-                            Text(rightDetail)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                if let detail = self.detailText, !detail.isEmpty {
-                    Text(detail)
-                        .font(.footnote)
-                        .foregroundStyle(.tertiary)
-                }
             }
 
-            Spacer(minLength: 0)
+            if let detail = self.detailText, !detail.isEmpty {
+                Text(detail)
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+            }
         }
         .padding(.vertical, 2)
     }

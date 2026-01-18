@@ -11,7 +11,11 @@ struct UsageStorePathDebugTests {
         let suite = "UsageStorePathDebugTests-path"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
-        let settings = SettingsStore(userDefaults: defaults, zaiTokenStore: NoopZaiTokenStore())
+        let configStore = testConfigStore(suiteName: suite)
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore())
         let store = UsageStore(
             fetcher: UsageFetcher(),
             browserDetection: BrowserDetection(cacheTTL: 0),

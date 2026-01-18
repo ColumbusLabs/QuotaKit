@@ -126,13 +126,12 @@ enum ProvidersPaneTestHarness {
             actions: [actionBordered, actionLink],
             isVisible: { true },
             onChange: nil,
-            onAppearWhenEnabled: nil,
-            onAppDidBecomeActive: nil)
+            onAppDidBecomeActive: nil,
+            onAppearWhenEnabled: nil)
         let picker = ProviderSettingsPickerDescriptor(
             id: "picker",
             title: "Picker",
             subtitle: "Picker subtitle",
-            trailingText: { "Trailing" },
             dynamicSubtitle: nil,
             binding: Binding(get: { "a" }, set: { _ in }),
             options: [
@@ -140,13 +139,14 @@ enum ProvidersPaneTestHarness {
                 ProviderSettingsPickerOption(id: "b", title: "Option B"),
             ],
             isVisible: { true },
-            onChange: nil)
+            onChange: nil,
+            trailingText: { "Trailing" })
         let fieldPlain = ProviderSettingsFieldDescriptor(
             id: "plain",
             title: "Field",
             subtitle: "Field subtitle",
-            placeholder: "Placeholder",
             kind: .plain,
+            placeholder: "Placeholder",
             binding: Binding(get: { "" }, set: { _ in }),
             actions: [actionBordered],
             isVisible: { true },
@@ -155,8 +155,8 @@ enum ProvidersPaneTestHarness {
             id: "secure",
             title: "Secure",
             subtitle: "Secure subtitle",
-            placeholder: "Secure",
             kind: .secure,
+            placeholder: "Secure",
             binding: Binding(get: { "" }, set: { _ in }),
             actions: [actionLink],
             isVisible: { true },

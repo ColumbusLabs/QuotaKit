@@ -9,10 +9,13 @@ import Testing
 struct ProviderSettingsDescriptorTests {
     @Test
     func toggleIDsAreUniqueAcrossProviders() {
-        let defaults = UserDefaults(suiteName: "ProviderSettingsDescriptorTests-unique")!
-        defaults.removePersistentDomain(forName: "ProviderSettingsDescriptorTests-unique")
+        let suite = "ProviderSettingsDescriptorTests-unique"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
         let settings = SettingsStore(
             userDefaults: defaults,
+            configStore: configStore,
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         let store = UsageStore(
@@ -81,10 +84,13 @@ struct ProviderSettingsDescriptorTests {
 
     @Test
     func codexExposesUsageAndCookiePickers() {
-        let defaults = UserDefaults(suiteName: "ProviderSettingsDescriptorTests-codex")!
-        defaults.removePersistentDomain(forName: "ProviderSettingsDescriptorTests-codex")
+        let suite = "ProviderSettingsDescriptorTests-codex"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
         let settings = SettingsStore(
             userDefaults: defaults,
+            configStore: configStore,
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         let store = UsageStore(
@@ -119,10 +125,13 @@ struct ProviderSettingsDescriptorTests {
 
     @Test
     func claudeExposesUsageAndCookiePickers() {
-        let defaults = UserDefaults(suiteName: "ProviderSettingsDescriptorTests-claude")!
-        defaults.removePersistentDomain(forName: "ProviderSettingsDescriptorTests-claude")
+        let suite = "ProviderSettingsDescriptorTests-claude"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
         let settings = SettingsStore(
             userDefaults: defaults,
+            configStore: configStore,
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         let store = UsageStore(
@@ -156,10 +165,13 @@ struct ProviderSettingsDescriptorTests {
 
     @Test
     func claudeWebExtrasAutoDisablesWhenLeavingCLI() {
-        let defaults = UserDefaults(suiteName: "ProviderSettingsDescriptorTests-claude-invariant")!
-        defaults.removePersistentDomain(forName: "ProviderSettingsDescriptorTests-claude-invariant")
+        let suite = "ProviderSettingsDescriptorTests-claude-invariant"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
         let settings = SettingsStore(
             userDefaults: defaults,
+            configStore: configStore,
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.debugMenuEnabled = true

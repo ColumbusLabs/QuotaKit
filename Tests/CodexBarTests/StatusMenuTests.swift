@@ -10,8 +10,10 @@ struct StatusMenuTests {
         let suite = "StatusMenuTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
         return SettingsStore(
             userDefaults: defaults,
+            configStore: configStore,
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
     }
@@ -105,6 +107,7 @@ struct StatusMenuTests {
     @Test
     func showsOpenAIWebSubmenusWhenHistoryExists() {
         let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusMenuTests-history"),
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false

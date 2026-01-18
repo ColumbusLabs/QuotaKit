@@ -9,6 +9,7 @@ struct StatusItemAnimationTests {
     @Test
     func mergedIconLoadingAnimationTracksSelectedProviderOnly() {
         let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-merged"),
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
@@ -52,6 +53,7 @@ struct StatusItemAnimationTests {
     @Test
     func mergedIconLoadingAnimationDoesNotFlipLayoutWhenWeeklyHitsZero() {
         let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-weekly"),
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
@@ -114,7 +116,9 @@ struct StatusItemAnimationTests {
 
     @Test
     func menuBarPercentUsesConfiguredMetric() {
-        let settings = SettingsStore(zaiTokenStore: NoopZaiTokenStore())
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-metric"),
+            zaiTokenStore: NoopZaiTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -150,7 +154,9 @@ struct StatusItemAnimationTests {
 
     @Test
     func menuBarPercentUsesAverageForGemini() {
-        let settings = SettingsStore(zaiTokenStore: NoopZaiTokenStore())
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-average"),
+            zaiTokenStore: NoopZaiTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true

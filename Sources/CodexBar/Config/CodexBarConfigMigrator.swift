@@ -40,6 +40,7 @@ struct CodexBarConfigMigrator {
             self.applyLegacyOrderAndToggles(userDefaults: userDefaults, config: &config, state: &state)
         }
 
+        self.applyLegacyCookieSources(userDefaults: userDefaults, config: &config, state: &state)
         self.migrateLegacySecrets(userDefaults: userDefaults, stores: stores, config: &config, state: &state)
         self.migrateLegacyAccounts(stores: stores, config: &config, state: &state)
 
@@ -105,6 +106,43 @@ struct CodexBarConfigMigrator {
         self.migrateMiniMax(userDefaults: userDefaults, stores: stores, config: &config, state: &state)
         self.migrateKimi(userDefaults: userDefaults, stores: stores, config: &config, state: &state)
         self.migrateOpenCode(userDefaults: userDefaults, stores: stores, config: &config, state: &state)
+    }
+
+    private static func applyLegacyCookieSources(
+        userDefaults: UserDefaults,
+        config: inout CodexBarConfig,
+        state: inout MigrationState)
+    {
+        let sources: [(UsageProvider, String)] = [
+            (.codex, "codexCookieSource"),
+            (.claude, "claudeCookieSource"),
+            (.cursor, "cursorCookieSource"),
+            (.opencode, "opencodeCookieSource"),
+            (.factory, "factoryCookieSource"),
+            (.minimax, "minimaxCookieSource"),
+            (.kimi, "kimiCookieSource"),
+            (.augment, "augmentCookieSource"),
+            (.amp, "ampCookieSource"),
+        ]
+
+        for (provider, key) in sources {
+            guard let raw = userDefaults.string(forKey: key),
+                  let source = ProviderCookieSource(rawValue: raw)
+            else { continue }
+            self.updateProvider(provider, config: &config, state: &state) { entry in
+                guard entry.cookieSource == nil else { return false }
+                entry.cookieSource = source
+                return true
+            }
+        }
+
+        if userDefaults.object(forKey: "openAIWebAccessEnabled") as? Bool == false {
+            self.updateProvider(.codex, config: &config, state: &state) { entry in
+                guard entry.cookieSource == nil else { return false }
+                entry.cookieSource = .off
+                return true
+            }
+        }
     }
 
     private static func migrateTokenProviders(

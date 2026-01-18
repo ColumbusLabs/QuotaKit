@@ -58,11 +58,17 @@ enum MenuBarMetricPreference: String, CaseIterable, Identifiable {
 @Observable
 final class SettingsStore {
     private static let sharedDefaults = UserDefaults(suiteName: "group.com.steipete.codexbar")
-    /// Persisted provider display order.
-    ///
-    /// Stored as raw `UsageProvider` strings so new providers can be appended automatically without breaking.
+    private static let isRunningTests: Bool = {
+        let env = ProcessInfo.processInfo.environment
+        if env["XCTestConfigurationFilePath"] != nil { return true }
+        if env["TESTING_LIBRARY_VERSION"] != nil { return true }
+        if env["SWIFT_TESTING"] != nil { return true }
+        return NSClassFromString("XCTestCase") != nil
+    }()
+
+    /// Persisted provider display order (config-backed).
     var providerOrderRaw: [String] {
-        didSet { self.userDefaults.set(self.providerOrderRaw, forKey: "providerOrder") }
+        self.config.providers.map(\.id.rawValue)
     }
 
     var refreshFrequency: RefreshFrequency {
@@ -203,100 +209,10 @@ final class SettingsStore {
         }
     }
 
-    private var codexCookieSourceRaw: String? {
-        didSet {
-            if let raw = self.codexCookieSourceRaw {
-                self.userDefaults.set(raw, forKey: "codexCookieSource")
-            } else {
-                self.userDefaults.removeObject(forKey: "codexCookieSource")
-            }
-        }
-    }
-
-    private var claudeCookieSourceRaw: String? {
-        didSet {
-            if let raw = self.claudeCookieSourceRaw {
-                self.userDefaults.set(raw, forKey: "claudeCookieSource")
-            } else {
-                self.userDefaults.removeObject(forKey: "claudeCookieSource")
-            }
-        }
-    }
-
-    private var cursorCookieSourceRaw: String? {
-        didSet {
-            if let raw = self.cursorCookieSourceRaw {
-                self.userDefaults.set(raw, forKey: "cursorCookieSource")
-            } else {
-                self.userDefaults.removeObject(forKey: "cursorCookieSource")
-            }
-        }
-    }
-
-    private var opencodeCookieSourceRaw: String? {
-        didSet {
-            if let raw = self.opencodeCookieSourceRaw {
-                self.userDefaults.set(raw, forKey: "opencodeCookieSource")
-            } else {
-                self.userDefaults.removeObject(forKey: "opencodeCookieSource")
-            }
-        }
-    }
-
     private var opencodeWorkspaceIDRaw: String? {
         didSet {
             self.updateProviderConfig(provider: .opencode) { entry in
                 entry.workspaceID = self.opencodeWorkspaceIDRaw
-            }
-        }
-    }
-
-    private var factoryCookieSourceRaw: String? {
-        didSet {
-            if let raw = self.factoryCookieSourceRaw {
-                self.userDefaults.set(raw, forKey: "factoryCookieSource")
-            } else {
-                self.userDefaults.removeObject(forKey: "factoryCookieSource")
-            }
-        }
-    }
-
-    private var minimaxCookieSourceRaw: String? {
-        didSet {
-            if let raw = self.minimaxCookieSourceRaw {
-                self.userDefaults.set(raw, forKey: "minimaxCookieSource")
-            } else {
-                self.userDefaults.removeObject(forKey: "minimaxCookieSource")
-            }
-        }
-    }
-
-    private var kimiCookieSourceRaw: String? {
-        didSet {
-            if let raw = self.kimiCookieSourceRaw {
-                self.userDefaults.set(raw, forKey: "kimiCookieSource")
-            } else {
-                self.userDefaults.removeObject(forKey: "kimiCookieSource")
-            }
-        }
-    }
-
-    private var augmentCookieSourceRaw: String? {
-        didSet {
-            if let raw = self.augmentCookieSourceRaw {
-                self.userDefaults.set(raw, forKey: "augmentCookieSource")
-            } else {
-                self.userDefaults.removeObject(forKey: "augmentCookieSource")
-            }
-        }
-    }
-
-    private var ampCookieSourceRaw: String? {
-        didSet {
-            if let raw = self.ampCookieSourceRaw {
-                self.userDefaults.set(raw, forKey: "ampCookieSource")
-            } else {
-                self.userDefaults.removeObject(forKey: "ampCookieSource")
             }
         }
     }
@@ -316,7 +232,7 @@ final class SettingsStore {
         didSet { self.userDefaults.set(self.switcherShowsIcons, forKey: "switcherShowsIcons") }
     }
 
-    /// MiniMax API region (stored in UserDefaults).
+    /// MiniMax API region (stored in config).
     var minimaxAPIRegion: MiniMaxAPIRegion {
         didSet {
             self.updateProviderConfig(provider: .minimax) { entry in
@@ -325,7 +241,7 @@ final class SettingsStore {
         }
     }
 
-    /// z.ai API region (stored in UserDefaults).
+    /// z.ai API region (stored in config).
     var zaiAPIRegion: ZaiAPIRegion {
         didSet {
             self.updateProviderConfig(provider: .zai) { entry in
@@ -334,34 +250,58 @@ final class SettingsStore {
         }
     }
 
-    /// z.ai API token (stored in Keychain).
+    /// z.ai API token (stored in config).
     var zaiAPIToken: String {
-        didSet { self.schedulePersistZaiAPIToken() }
+        didSet {
+            self.updateProviderConfig(provider: .zai) { entry in
+                entry.apiKey = self.normalizedConfigValue(self.zaiAPIToken)
+            }
+        }
     }
 
-    /// Synthetic API key (stored in Keychain).
+    /// Synthetic API key (stored in config).
     var syntheticAPIToken: String {
-        didSet { self.schedulePersistSyntheticAPIToken() }
+        didSet {
+            self.updateProviderConfig(provider: .synthetic) { entry in
+                entry.apiKey = self.normalizedConfigValue(self.syntheticAPIToken)
+            }
+        }
     }
 
-    /// Codex OpenAI cookie header (stored in Keychain).
+    /// Codex OpenAI cookie header (stored in config).
     var codexCookieHeader: String {
-        didSet { self.schedulePersistCodexCookieHeader() }
+        didSet {
+            self.updateProviderConfig(provider: .codex) { entry in
+                entry.cookieHeader = self.normalizedConfigValue(self.codexCookieHeader)
+            }
+        }
     }
 
-    /// Claude session cookie header (stored in Keychain).
+    /// Claude session cookie header (stored in config).
     var claudeCookieHeader: String {
-        didSet { self.schedulePersistClaudeCookieHeader() }
+        didSet {
+            self.updateProviderConfig(provider: .claude) { entry in
+                entry.cookieHeader = self.normalizedConfigValue(self.claudeCookieHeader)
+            }
+        }
     }
 
-    /// Cursor session cookie header (stored in Keychain).
+    /// Cursor session cookie header (stored in config).
     var cursorCookieHeader: String {
-        didSet { self.schedulePersistCursorCookieHeader() }
+        didSet {
+            self.updateProviderConfig(provider: .cursor) { entry in
+                entry.cookieHeader = self.normalizedConfigValue(self.cursorCookieHeader)
+            }
+        }
     }
 
-    /// OpenCode session cookie header (stored in Keychain).
+    /// OpenCode session cookie header (stored in config).
     var opencodeCookieHeader: String {
-        didSet { self.schedulePersistOpenCodeCookieHeader() }
+        didSet {
+            self.updateProviderConfig(provider: .opencode) { entry in
+                entry.cookieHeader = self.normalizedConfigValue(self.opencodeCookieHeader)
+            }
+        }
     }
 
     /// Optional OpenCode workspace ID override.
@@ -373,49 +313,83 @@ final class SettingsStore {
         }
     }
 
-    /// Factory session cookie header (stored in Keychain).
+    /// Factory session cookie header (stored in config).
     var factoryCookieHeader: String {
-        didSet { self.schedulePersistFactoryCookieHeader() }
+        didSet {
+            self.updateProviderConfig(provider: .factory) { entry in
+                entry.cookieHeader = self.normalizedConfigValue(self.factoryCookieHeader)
+            }
+        }
     }
 
-    /// MiniMax session cookie header (stored in Keychain).
+    /// MiniMax session cookie header (stored in config).
     var minimaxCookieHeader: String {
-        didSet { self.schedulePersistMiniMaxCookieHeader() }
+        didSet {
+            self.updateProviderConfig(provider: .minimax) { entry in
+                entry.cookieHeader = self.normalizedConfigValue(self.minimaxCookieHeader)
+            }
+        }
     }
 
-    /// MiniMax API token (stored in Keychain).
+    /// MiniMax API token (stored in config).
     var minimaxAPIToken: String {
-        didSet { self.schedulePersistMiniMaxAPIToken() }
+        didSet {
+            self.updateProviderConfig(provider: .minimax) { entry in
+                entry.apiKey = self.normalizedConfigValue(self.minimaxAPIToken)
+            }
+        }
     }
 
-    /// Augment session cookie header (stored in Keychain).
+    /// Augment session cookie header (stored in config).
     var augmentCookieHeader: String {
-        didSet { self.schedulePersistAugmentCookieHeader() }
+        didSet {
+            self.updateProviderConfig(provider: .augment) { entry in
+                entry.cookieHeader = self.normalizedConfigValue(self.augmentCookieHeader)
+            }
+        }
     }
 
-    /// Amp session cookie header (stored in Keychain).
+    /// Amp session cookie header (stored in config).
     var ampCookieHeader: String {
-        didSet { self.schedulePersistAmpCookieHeader() }
+        didSet {
+            self.updateProviderConfig(provider: .amp) { entry in
+                entry.cookieHeader = self.normalizedConfigValue(self.ampCookieHeader)
+            }
+        }
     }
 
-    /// Copilot API token (stored in Keychain).
+    /// Copilot API token (stored in config).
     var copilotAPIToken: String {
-        didSet { self.schedulePersistCopilotAPIToken() }
+        didSet {
+            self.updateProviderConfig(provider: .copilot) { entry in
+                entry.apiKey = self.normalizedConfigValue(self.copilotAPIToken)
+            }
+        }
     }
 
-    /// Kimi auth token (stored in Keychain).
+    /// Kimi auth token (stored in config).
     var kimiManualCookieHeader: String {
-        didSet { self.schedulePersistKimiAuthToken() }
+        didSet {
+            self.updateProviderConfig(provider: .kimi) { entry in
+                entry.cookieHeader = self.normalizedConfigValue(self.kimiManualCookieHeader)
+            }
+        }
     }
 
-    /// Kimi K2 API token (stored in Keychain).
+    /// Kimi K2 API token (stored in config).
     var kimiK2APIToken: String {
-        didSet { self.schedulePersistKimiK2APIToken() }
+        didSet {
+            self.updateProviderConfig(provider: .kimik2) { entry in
+                entry.apiKey = self.normalizedConfigValue(self.kimiK2APIToken)
+            }
+        }
     }
 
     /// Token accounts loaded from the local config file.
     var tokenAccountsByProvider: [UsageProvider: ProviderTokenAccountData] {
-        didSet { self.schedulePersistTokenAccounts() }
+        didSet {
+            self.updateProviderTokenAccounts(self.tokenAccountsByProvider)
+        }
     }
 
     private var selectedMenuProviderRaw: String? {
@@ -462,70 +436,108 @@ final class SettingsStore {
 
     var codexCookieSource: ProviderCookieSource {
         get {
-            self.resolvedCookieSource(self.codexCookieSourceRaw, fallback: .auto)
+            let fallback: ProviderCookieSource = self.openAIWebAccessEnabled ? .auto : .off
+            return self.resolvedCookieSource(provider: .codex, fallback: fallback)
         }
         set {
-            self.codexCookieSourceRaw = newValue.rawValue
+            self.updateProviderConfig(provider: .codex) { entry in
+                entry.cookieSource = newValue
+            }
             self.openAIWebAccessEnabled = newValue.isEnabled
         }
     }
 
     var claudeCookieSource: ProviderCookieSource {
         get {
-            self.resolvedCookieSource(self.claudeCookieSourceRaw, fallback: .auto)
+            self.resolvedCookieSource(provider: .claude, fallback: .auto)
         }
-        set { self.claudeCookieSourceRaw = newValue.rawValue }
+        set {
+            self.updateProviderConfig(provider: .claude) { entry in
+                entry.cookieSource = newValue
+            }
+        }
     }
 
     var cursorCookieSource: ProviderCookieSource {
         get {
-            self.resolvedCookieSource(self.cursorCookieSourceRaw, fallback: .auto)
+            self.resolvedCookieSource(provider: .cursor, fallback: .auto)
         }
-        set { self.cursorCookieSourceRaw = newValue.rawValue }
+        set {
+            self.updateProviderConfig(provider: .cursor) { entry in
+                entry.cookieSource = newValue
+            }
+        }
     }
 
     var opencodeCookieSource: ProviderCookieSource {
         get {
-            self.resolvedCookieSource(self.opencodeCookieSourceRaw, fallback: .auto)
+            self.resolvedCookieSource(provider: .opencode, fallback: .auto)
         }
-        set { self.opencodeCookieSourceRaw = newValue.rawValue }
+        set {
+            self.updateProviderConfig(provider: .opencode) { entry in
+                entry.cookieSource = newValue
+            }
+        }
     }
 
     var factoryCookieSource: ProviderCookieSource {
         get {
-            self.resolvedCookieSource(self.factoryCookieSourceRaw, fallback: .auto)
+            self.resolvedCookieSource(provider: .factory, fallback: .auto)
         }
-        set { self.factoryCookieSourceRaw = newValue.rawValue }
+        set {
+            self.updateProviderConfig(provider: .factory) { entry in
+                entry.cookieSource = newValue
+            }
+        }
     }
 
     var minimaxCookieSource: ProviderCookieSource {
         get {
-            self.resolvedCookieSource(self.minimaxCookieSourceRaw, fallback: .auto)
+            self.resolvedCookieSource(provider: .minimax, fallback: .auto)
         }
-        set { self.minimaxCookieSourceRaw = newValue.rawValue }
+        set {
+            self.updateProviderConfig(provider: .minimax) { entry in
+                entry.cookieSource = newValue
+            }
+        }
     }
 
     var kimiCookieSource: ProviderCookieSource {
-        get { self.resolvedCookieSource(self.kimiCookieSourceRaw, fallback: .auto) }
-        set { self.kimiCookieSourceRaw = newValue.rawValue }
+        get { self.resolvedCookieSource(provider: .kimi, fallback: .auto) }
+        set {
+            self.updateProviderConfig(provider: .kimi) { entry in
+                entry.cookieSource = newValue
+            }
+        }
     }
 
     var augmentCookieSource: ProviderCookieSource {
         get {
-            self.resolvedCookieSource(self.augmentCookieSourceRaw, fallback: .auto)
+            self.resolvedCookieSource(provider: .augment, fallback: .auto)
         }
-        set { self.augmentCookieSourceRaw = newValue.rawValue }
+        set {
+            self.updateProviderConfig(provider: .augment) { entry in
+                entry.cookieSource = newValue
+            }
+        }
     }
 
     var ampCookieSource: ProviderCookieSource {
         get {
-            self.resolvedCookieSource(self.ampCookieSourceRaw, fallback: .auto)
+            self.resolvedCookieSource(provider: .amp, fallback: .auto)
         }
-        set { self.ampCookieSourceRaw = newValue.rawValue }
+        set {
+            self.updateProviderConfig(provider: .amp) { entry in
+                entry.cookieSource = newValue
+            }
+        }
     }
 
-    private func resolvedCookieSource(_ raw: String?, fallback: ProviderCookieSource) -> ProviderCookieSource {
-        let source = ProviderCookieSource(rawValue: raw ?? "") ?? fallback
+    private func resolvedCookieSource(
+        provider: UsageProvider,
+        fallback: ProviderCookieSource) -> ProviderCookieSource
+    {
+        let source = self.config.providerConfig(for: provider)?.cookieSource ?? fallback
         guard self.debugDisableKeychainAccess else { return source }
         return source == .off ? .off : .manual
     }
@@ -539,80 +551,21 @@ final class SettingsStore {
     @ObservationIgnored private var config: CodexBarConfig
     @ObservationIgnored private var configPersistTask: Task<Void, Never>?
     @ObservationIgnored private var configLoading = false
-    @ObservationIgnored let toggleStore: ProviderToggleStore
-    @ObservationIgnored private let zaiTokenStore: any ZaiTokenStoring
-    @ObservationIgnored private var zaiTokenPersistTask: Task<Void, Never>?
-    @ObservationIgnored private var zaiTokenLoaded = false
-    @ObservationIgnored private var zaiTokenLoading = false
-    @ObservationIgnored private let syntheticTokenStore: any SyntheticTokenStoring
-    @ObservationIgnored private var syntheticTokenPersistTask: Task<Void, Never>?
-    @ObservationIgnored private var syntheticTokenLoaded = false
-    @ObservationIgnored private var syntheticTokenLoading = false
-    @ObservationIgnored private let codexCookieStore: any CookieHeaderStoring
-    @ObservationIgnored private var codexCookiePersistTask: Task<Void, Never>?
-    @ObservationIgnored private var codexCookieLoaded = false
-    @ObservationIgnored private var codexCookieLoading = false
-    @ObservationIgnored private let claudeCookieStore: any CookieHeaderStoring
-    @ObservationIgnored private var claudeCookiePersistTask: Task<Void, Never>?
-    @ObservationIgnored private var claudeCookieLoaded = false
-    @ObservationIgnored private var claudeCookieLoading = false
-    @ObservationIgnored private let cursorCookieStore: any CookieHeaderStoring
-    @ObservationIgnored private var cursorCookiePersistTask: Task<Void, Never>?
-    @ObservationIgnored private var cursorCookieLoaded = false
-    @ObservationIgnored private var cursorCookieLoading = false
-    @ObservationIgnored private let opencodeCookieStore: any CookieHeaderStoring
-    @ObservationIgnored private var opencodeCookiePersistTask: Task<Void, Never>?
-    @ObservationIgnored private var opencodeCookieLoaded = false
-    @ObservationIgnored private var opencodeCookieLoading = false
-    @ObservationIgnored private let factoryCookieStore: any CookieHeaderStoring
-    @ObservationIgnored private var factoryCookiePersistTask: Task<Void, Never>?
-    @ObservationIgnored private var factoryCookieLoaded = false
-    @ObservationIgnored private var factoryCookieLoading = false
-    @ObservationIgnored private let minimaxCookieStore: any MiniMaxCookieStoring
-    @ObservationIgnored private var minimaxCookiePersistTask: Task<Void, Never>?
-    @ObservationIgnored private var minimaxCookieLoaded = false
-    @ObservationIgnored private var minimaxCookieLoading = false
-    @ObservationIgnored private let minimaxAPITokenStore: any MiniMaxAPITokenStoring
-    @ObservationIgnored private var minimaxAPITokenPersistTask: Task<Void, Never>?
-    @ObservationIgnored private var minimaxAPITokenLoaded = false
-    @ObservationIgnored private var minimaxAPITokenLoading = false
-    @ObservationIgnored private let kimiTokenStore: any KimiTokenStoring
-    @ObservationIgnored private var kimiTokenPersistTask: Task<Void, Never>?
-    @ObservationIgnored private var kimiTokenLoaded = false
-    @ObservationIgnored private var kimiTokenLoading = false
-    @ObservationIgnored private let kimiK2TokenStore: any KimiK2TokenStoring
-    @ObservationIgnored private var kimiK2TokenPersistTask: Task<Void, Never>?
-    @ObservationIgnored private var kimiK2TokenLoaded = false
-    @ObservationIgnored private var kimiK2TokenLoading = false
-    @ObservationIgnored private let augmentCookieStore: any CookieHeaderStoring
-    @ObservationIgnored private var augmentCookiePersistTask: Task<Void, Never>?
-    @ObservationIgnored private var augmentCookieLoaded = false
-    @ObservationIgnored private var augmentCookieLoading = false
-    @ObservationIgnored private let ampCookieStore: any CookieHeaderStoring
-    @ObservationIgnored private var ampCookiePersistTask: Task<Void, Never>?
-    @ObservationIgnored private var ampCookieLoaded = false
-    @ObservationIgnored private var ampCookieLoading = false
-    @ObservationIgnored private let copilotTokenStore: any CopilotTokenStoring
-    @ObservationIgnored private var copilotTokenPersistTask: Task<Void, Never>?
-    @ObservationIgnored private var copilotTokenLoaded = false
-    @ObservationIgnored private var copilotTokenLoading = false
-    @ObservationIgnored private let tokenAccountStore: any ProviderTokenAccountStoring
-    @ObservationIgnored private var tokenAccountsPersistTask: Task<Void, Never>?
     @ObservationIgnored private var tokenAccountsLoaded = false
-    @ObservationIgnored private var tokenAccountsLoading = false
     // Cache enablement so tight UI loops (menu bar animations) don't hit UserDefaults each tick.
-    @ObservationIgnored var cachedProviderEnablement: [UsageProvider: Bool] = [:]
-    @ObservationIgnored var cachedProviderEnablementRevision: Int = -1
-    @ObservationIgnored var cachedEnabledProviders: [UsageProvider] = []
-    @ObservationIgnored var cachedEnabledProvidersRevision: Int = -1
-    @ObservationIgnored var cachedEnabledProvidersOrderRaw: [String] = []
+    @ObservationIgnored private var cachedProviderEnablement: [UsageProvider: Bool] = [:]
+    @ObservationIgnored private var cachedProviderEnablementRevision: Int = -1
+    @ObservationIgnored private var cachedEnabledProviders: [UsageProvider] = []
+    @ObservationIgnored private var cachedEnabledProvidersRevision: Int = -1
+    @ObservationIgnored private var cachedEnabledProvidersOrderRaw: [String] = []
     // Cache order to avoid re-building sets/arrays every animation tick.
-    @ObservationIgnored var cachedProviderOrder: [UsageProvider] = []
-    @ObservationIgnored var cachedProviderOrderRaw: [String] = []
-    var providerToggleRevision: Int = 0
+    @ObservationIgnored private var cachedProviderOrder: [UsageProvider] = []
+    @ObservationIgnored private var cachedProviderOrderRaw: [String] = []
+    private(set) var providerToggleRevision: Int = 0
 
     init(
         userDefaults: UserDefaults = .standard,
+        configStore: CodexBarConfigStore = CodexBarConfigStore(),
         zaiTokenStore: any ZaiTokenStoring = KeychainZaiTokenStore(),
         syntheticTokenStore: any SyntheticTokenStoring = KeychainSyntheticTokenStore(),
         codexCookieStore: any CookieHeaderStoring = KeychainCookieHeaderStore(
@@ -643,7 +596,6 @@ final class SettingsStore {
         copilotTokenStore: any CopilotTokenStoring = KeychainCopilotTokenStore(),
         tokenAccountStore: any ProviderTokenAccountStoring = FileTokenAccountStore())
     {
-        let configStore = CodexBarConfigStore()
         let legacyStores = CodexBarConfigMigrator.LegacyStores(
             zaiTokenStore: zaiTokenStore,
             syntheticTokenStore: syntheticTokenStore,
@@ -667,22 +619,7 @@ final class SettingsStore {
         self.userDefaults = userDefaults
         self.configStore = configStore
         self.config = config
-        self.zaiTokenStore = zaiTokenStore
-        self.syntheticTokenStore = syntheticTokenStore
-        self.codexCookieStore = codexCookieStore
-        self.claudeCookieStore = claudeCookieStore
-        self.cursorCookieStore = cursorCookieStore
-        self.opencodeCookieStore = opencodeCookieStore
-        self.factoryCookieStore = factoryCookieStore
-        self.minimaxCookieStore = minimaxCookieStore
-        self.minimaxAPITokenStore = minimaxAPITokenStore
-        self.kimiTokenStore = kimiTokenStore
-        self.kimiK2TokenStore = kimiK2TokenStore
-        self.augmentCookieStore = augmentCookieStore
-        self.ampCookieStore = ampCookieStore
-        self.copilotTokenStore = copilotTokenStore
-        self.tokenAccountStore = tokenAccountStore
-        self.providerOrderRaw = config.orderedProviders().map(\.rawValue)
+        self.configLoading = true
         let raw = userDefaults.string(forKey: "refreshFrequency") ?? RefreshFrequency.fiveMinutes.rawValue
         self.refreshFrequency = RefreshFrequency(rawValue: raw) ?? .fiveMinutes
         self.launchAtLogin = userDefaults.object(forKey: "launchAtLogin") as? Bool ?? false
@@ -731,30 +668,7 @@ final class SettingsStore {
         if openAIWebAccessDefault == nil { self.userDefaults.set(true, forKey: "openAIWebAccessEnabled") }
         self.codexUsageDataSourceRaw = Self.codexSourceRaw(from: config.providerConfig(for: .codex)?.source)
         self.claudeUsageDataSourceRaw = Self.claudeSourceRaw(from: config.providerConfig(for: .claude)?.source)
-        let codexCookieRaw = userDefaults.string(forKey: "codexCookieSource")
-        if let codexCookieRaw {
-            self.codexCookieSourceRaw = codexCookieRaw
-        } else {
-            let fallback = openAIWebAccessEnabled ? ProviderCookieSource.auto : .off
-            self.codexCookieSourceRaw = fallback.rawValue
-        }
-        self.claudeCookieSourceRaw = userDefaults.string(forKey: "claudeCookieSource")
-            ?? ProviderCookieSource.auto.rawValue
-        self.cursorCookieSourceRaw = userDefaults.string(forKey: "cursorCookieSource")
-            ?? ProviderCookieSource.auto.rawValue
-        self.opencodeCookieSourceRaw = userDefaults.string(forKey: "opencodeCookieSource")
-            ?? ProviderCookieSource.auto.rawValue
         self.opencodeWorkspaceIDRaw = config.providerConfig(for: .opencode)?.workspaceID
-        self.factoryCookieSourceRaw = userDefaults.string(forKey: "factoryCookieSource")
-            ?? ProviderCookieSource.auto.rawValue
-        self.minimaxCookieSourceRaw = userDefaults.string(forKey: "minimaxCookieSource")
-            ?? ProviderCookieSource.auto.rawValue
-        self.kimiCookieSourceRaw = userDefaults.string(forKey: "kimiCookieSource")
-            ?? ProviderCookieSource.auto.rawValue
-        self.augmentCookieSourceRaw = userDefaults.string(forKey: "augmentCookieSource")
-            ?? ProviderCookieSource.auto.rawValue
-        self.ampCookieSourceRaw = userDefaults.string(forKey: "ampCookieSource")
-            ?? ProviderCookieSource.auto.rawValue
         self.jetbrainsIDEBasePath = userDefaults.string(forKey: "jetbrainsIDEBasePath") ?? ""
         self.mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true
         self.switcherShowsIcons = userDefaults.object(forKey: "switcherShowsIcons") as? Bool ?? true
@@ -782,7 +696,9 @@ final class SettingsStore {
         })
         self.selectedMenuProviderRaw = userDefaults.string(forKey: "selectedMenuProvider")
         self.providerDetectionCompleted = userDefaults.object(forKey: "providerDetectionCompleted") as? Bool ?? false
-        self.toggleStore = ProviderToggleStore(userDefaults: userDefaults); self.toggleStore.purgeLegacyKeys()
+        userDefaults.removeObject(forKey: "showCodexUsage")
+        userDefaults.removeObject(forKey: "showClaudeUsage")
+        self.configLoading = false
         LaunchAtLoginManager.setEnabled(self.launchAtLogin); self.runInitialProviderDetectionIfNeeded()
         self.applyTokenCostDefaultIfNeeded()
         if self.claudeUsageDataSource != .cli { self.claudeWebExtrasEnabled = false }
@@ -791,30 +707,132 @@ final class SettingsStore {
         KeychainAccessGate.isDisabled = self.debugDisableKeychainAccess
     }
 
-    func runInitialProviderDetectionIfNeeded(force: Bool = false) {
-        guard force || !self.providerDetectionCompleted else { return }
-        guard let codexMeta = ProviderRegistry.shared.metadata[.codex],
-              let claudeMeta = ProviderRegistry.shared.metadata[.claude],
-              let geminiMeta = ProviderRegistry.shared.metadata[.gemini],
-              let antigravityMeta = ProviderRegistry.shared.metadata[.antigravity] else { return }
+    func providerConfig(for provider: UsageProvider) -> ProviderConfig? {
+        self.config.providerConfig(for: provider)
+    }
 
+    func orderedProviders() -> [UsageProvider] {
+        let raw = self.providerOrderRaw
+        if raw == self.cachedProviderOrderRaw, !self.cachedProviderOrder.isEmpty {
+            return self.cachedProviderOrder
+        }
+        let ordered = Self.effectiveProviderOrder(raw: raw)
+        self.cachedProviderOrderRaw = raw
+        self.cachedProviderOrder = ordered
+        return ordered
+    }
+
+    func moveProvider(fromOffsets: IndexSet, toOffset: Int) {
+        var order = self.orderedProviders()
+        order.move(fromOffsets: fromOffsets, toOffset: toOffset)
+        self.setProviderOrder(order)
+    }
+
+    func isProviderEnabled(provider: UsageProvider, metadata: ProviderMetadata) -> Bool {
+        _ = self.providerToggleRevision
+        return self.config.providerConfig(for: provider)?.enabled ?? metadata.defaultEnabled
+    }
+
+    func isProviderEnabledCached(
+        provider: UsageProvider,
+        metadataByProvider: [UsageProvider: ProviderMetadata]) -> Bool
+    {
+        self.refreshProviderEnablementCacheIfNeeded(metadataByProvider: metadataByProvider)
+        return self.cachedProviderEnablement[provider] ?? false
+    }
+
+    func enabledProvidersOrdered(metadataByProvider: [UsageProvider: ProviderMetadata]) -> [UsageProvider] {
+        self.refreshProviderEnablementCacheIfNeeded(metadataByProvider: metadataByProvider)
+        let orderRaw = self.providerOrderRaw
+        let revision = self.cachedProviderEnablementRevision
+        if revision == self.cachedEnabledProvidersRevision,
+           orderRaw == self.cachedEnabledProvidersOrderRaw,
+           !self.cachedEnabledProviders.isEmpty
+        {
+            return self.cachedEnabledProviders
+        }
+        let enabled = self.orderedProviders().filter { self.cachedProviderEnablement[$0] ?? false }
+        self.cachedEnabledProviders = enabled
+        self.cachedEnabledProvidersRevision = revision
+        self.cachedEnabledProvidersOrderRaw = orderRaw
+        return enabled
+    }
+
+    func setProviderEnabled(provider: UsageProvider, metadata _: ProviderMetadata, enabled: Bool) {
+        self.providerToggleRevision &+= 1
+        self.updateProviderConfig(provider: provider) { entry in
+            entry.enabled = enabled
+        }
+    }
+
+    func rerunProviderDetection() {
+        self.runInitialProviderDetectionIfNeeded(force: true)
+    }
+
+    // MARK: - Private
+
+    func isCostUsageEffectivelyEnabled(for provider: UsageProvider) -> Bool {
+        self.costUsageEnabled
+            && ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.supportsTokenCost
+    }
+
+    private static func effectiveProviderOrder(raw: [String]) -> [UsageProvider] {
+        var seen: Set<UsageProvider> = []
+        var ordered: [UsageProvider] = []
+
+        for rawValue in raw {
+            guard let provider = UsageProvider(rawValue: rawValue) else { continue }
+            guard !seen.contains(provider) else { continue }
+            seen.insert(provider)
+            ordered.append(provider)
+        }
+
+        if ordered.isEmpty {
+            ordered = UsageProvider.allCases
+            seen = Set(ordered)
+        }
+
+        if !seen.contains(.factory), let zaiIndex = ordered.firstIndex(of: .zai) {
+            ordered.insert(.factory, at: zaiIndex)
+            seen.insert(.factory)
+        }
+
+        if !seen.contains(.minimax), let zaiIndex = ordered.firstIndex(of: .zai) {
+            let insertIndex = ordered.index(after: zaiIndex)
+            ordered.insert(.minimax, at: insertIndex)
+            seen.insert(.minimax)
+        }
+
+        for provider in UsageProvider.allCases where !seen.contains(provider) {
+            ordered.append(provider)
+        }
+
+        return ordered
+    }
+
+    private func refreshProviderEnablementCacheIfNeeded(
+        metadataByProvider: [UsageProvider: ProviderMetadata])
+    {
+        let revision = self.providerToggleRevision
+        guard revision != self.cachedProviderEnablementRevision else { return }
+        var cache: [UsageProvider: Bool] = [:]
+        for (provider, metadata) in metadataByProvider {
+            cache[provider] = self.config.providerConfig(for: provider)?.enabled ?? metadata.defaultEnabled
+        }
+        self.cachedProviderEnablement = cache
+        self.cachedProviderEnablementRevision = revision
+    }
+
+    private func runInitialProviderDetectionIfNeeded(force: Bool = false) {
+        guard force || !self.providerDetectionCompleted else { return }
         LoginShellPathCache.shared.captureOnce { [weak self] _ in
             Task { @MainActor in
-                await self?.applyProviderDetection(
-                    codexMeta: codexMeta,
-                    claudeMeta: claudeMeta,
-                    geminiMeta: geminiMeta,
-                    antigravityMeta: antigravityMeta)
+                await self?.applyProviderDetection()
             }
         }
     }
 
-    private func applyProviderDetection(
-        codexMeta: ProviderMetadata,
-        claudeMeta: ProviderMetadata,
-        geminiMeta: ProviderMetadata,
-        antigravityMeta: ProviderMetadata) async
-    {
+    private func applyProviderDetection() async {
         guard !self.providerDetectionCompleted else { return }
         let codexInstalled = BinaryLocator.resolveCodexBinary() != nil
         let claudeInstalled = BinaryLocator.resolveClaudeBinary() != nil
@@ -829,10 +847,18 @@ final class SettingsStore {
         let enableAntigravity = antigravityRunning
 
         self.providerToggleRevision &+= 1
-        self.toggleStore.setEnabled(enableCodex, metadata: codexMeta)
-        self.toggleStore.setEnabled(enableClaude, metadata: claudeMeta)
-        self.toggleStore.setEnabled(enableGemini, metadata: geminiMeta)
-        self.toggleStore.setEnabled(enableAntigravity, metadata: antigravityMeta)
+        self.updateProviderConfig(provider: .codex) { entry in
+            entry.enabled = enableCodex
+        }
+        self.updateProviderConfig(provider: .claude) { entry in
+            entry.enabled = enableClaude
+        }
+        self.updateProviderConfig(provider: .gemini) { entry in
+            entry.enabled = enableGemini
+        }
+        self.updateProviderConfig(provider: .antigravity) { entry in
+            entry.enabled = enableAntigravity
+        }
         self.providerDetectionCompleted = true
     }
 
@@ -933,6 +959,7 @@ extension SettingsStore {
     }
 
     private func updateProviderConfig(provider: UsageProvider, mutate: (inout ProviderConfig) -> Void) {
+        guard !self.configLoading else { return }
         var config = self.config
         if let index = config.providers.firstIndex(where: { $0.id == provider }) {
             var entry = config.providers[index]
@@ -975,9 +1002,61 @@ extension SettingsStore {
         }
     }
 
+    private func updateProviderTokenAccounts(_ accounts: [UsageProvider: ProviderTokenAccountData]) {
+        guard !self.configLoading else { return }
+        var config = self.config
+        var seen: Set<UsageProvider> = []
+        for index in config.providers.indices {
+            let provider = config.providers[index].id
+            config.providers[index].tokenAccounts = accounts[provider]
+            seen.insert(provider)
+        }
+        for (provider, data) in accounts where !seen.contains(provider) {
+            config.providers.append(ProviderConfig(id: provider, tokenAccounts: data))
+        }
+        self.config = config.normalized()
+        self.schedulePersistConfig()
+    }
+
+    private func setProviderOrder(_ order: [UsageProvider]) {
+        guard !self.configLoading else { return }
+        let configsByID = Dictionary(uniqueKeysWithValues: self.config.providers.map { ($0.id, $0) })
+        var seen: Set<UsageProvider> = []
+        var ordered: [ProviderConfig] = []
+        ordered.reserveCapacity(max(order.count, self.config.providers.count))
+
+        for provider in order {
+            guard !seen.contains(provider) else { continue }
+            seen.insert(provider)
+            ordered.append(configsByID[provider] ?? ProviderConfig(id: provider))
+        }
+
+        for provider in UsageProvider.allCases where !seen.contains(provider) {
+            ordered.append(configsByID[provider] ?? ProviderConfig(id: provider))
+        }
+
+        var config = self.config
+        config.providers = ordered
+        self.config = config.normalized()
+        self.schedulePersistConfig()
+    }
+
+    private func normalizedConfigValue(_ raw: String) -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     private func schedulePersistConfig() {
         guard !self.configLoading else { return }
         self.configPersistTask?.cancel()
+        if Self.isRunningTests {
+            do {
+                try self.configStore.save(self.config)
+            } catch {
+                CodexBarLog.logger("config-store").error("Failed to persist config: \(error)")
+            }
+            return
+        }
         let store = self.configStore
         self.configPersistTask = Task { @MainActor in
             do {
@@ -997,346 +1076,6 @@ extension SettingsStore {
             }.value
             if let error {
                 CodexBarLog.logger("config-store").error("Failed to persist config: \(error)")
-            }
-        }
-    }
-
-    private func schedulePersistZaiAPIToken() {
-        if self.zaiTokenLoading { return }
-        self.zaiTokenPersistTask?.cancel()
-        let token = self.zaiAPIToken
-        let tokenStore = self.zaiTokenStore
-        self.zaiTokenPersistTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
-                do {
-                    try tokenStore.storeToken(token)
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                // Keep value in memory; persist best-effort.
-                CodexBarLog.logger("zai-token-store").error("Failed to persist z.ai token: \(error)")
-            }
-        }
-    }
-
-    private func schedulePersistSyntheticAPIToken() {
-        if self.syntheticTokenLoading { return }
-        self.syntheticTokenPersistTask?.cancel()
-        let token = self.syntheticAPIToken
-        let tokenStore = self.syntheticTokenStore
-        self.syntheticTokenPersistTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
-                do {
-                    try tokenStore.storeToken(token)
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                CodexBarLog.logger("synthetic-token-store")
-                    .error("Failed to persist Synthetic API key: \(error)")
-            }
-        }
-    }
-
-    private func schedulePersistCodexCookieHeader() {
-        if self.codexCookieLoading { return }
-        self.codexCookiePersistTask?.cancel()
-        let header = self.codexCookieHeader
-        let cookieStore = self.codexCookieStore
-        self.codexCookiePersistTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
-                do {
-                    try cookieStore.storeCookieHeader(header)
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                CodexBarLog.logger("codex-cookie-store").error("Failed to persist Codex cookie: \(error)")
-            }
-        }
-    }
-
-    private func schedulePersistClaudeCookieHeader() {
-        if self.claudeCookieLoading { return }
-        self.claudeCookiePersistTask?.cancel()
-        let header = self.claudeCookieHeader
-        let cookieStore = self.claudeCookieStore
-        self.claudeCookiePersistTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
-                do {
-                    try cookieStore.storeCookieHeader(header)
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                CodexBarLog.logger("claude-cookie-store").error("Failed to persist Claude cookie: \(error)")
-            }
-        }
-    }
-
-    private func schedulePersistCursorCookieHeader() {
-        if self.cursorCookieLoading { return }
-        self.cursorCookiePersistTask?.cancel()
-        let header = self.cursorCookieHeader
-        let cookieStore = self.cursorCookieStore
-        self.cursorCookiePersistTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
-                do {
-                    try cookieStore.storeCookieHeader(header)
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                CodexBarLog.logger("cursor-cookie-store").error("Failed to persist Cursor cookie: \(error)")
-            }
-        }
-    }
-
-    private func schedulePersistOpenCodeCookieHeader() {
-        if self.opencodeCookieLoading { return }
-        self.opencodeCookiePersistTask?.cancel()
-        let header = self.opencodeCookieHeader
-        let cookieStore = self.opencodeCookieStore
-        self.opencodeCookiePersistTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
-                do {
-                    try cookieStore.storeCookieHeader(header)
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                CodexBarLog.logger("opencode-cookie-store").error("Failed to persist OpenCode cookie: \(error)")
-            }
-        }
-    }
-
-    private func schedulePersistAugmentCookieHeader() {
-        if self.augmentCookieLoading { return }
-        self.augmentCookiePersistTask?.cancel()
-        let header = self.augmentCookieHeader
-        let cookieStore = self.augmentCookieStore
-        self.augmentCookiePersistTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
-                do {
-                    try cookieStore.storeCookieHeader(header)
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                CodexBarLog.logger("augment-cookie-store").error("Failed to persist Augment cookie: \(error)")
-            }
-        }
-    }
-
-    private func schedulePersistAmpCookieHeader() {
-        if self.ampCookieLoading { return }
-        self.ampCookiePersistTask?.cancel()
-        let header = self.ampCookieHeader
-        let cookieStore = self.ampCookieStore
-        self.ampCookiePersistTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
-                do {
-                    try cookieStore.storeCookieHeader(header)
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                CodexBarLog.logger("amp-cookie-store").error("Failed to persist Amp cookie: \(error)")
-            }
-        }
-    }
-
-    private func schedulePersistFactoryCookieHeader() {
-        if self.factoryCookieLoading { return }
-        self.factoryCookiePersistTask?.cancel()
-        let header = self.factoryCookieHeader
-        let cookieStore = self.factoryCookieStore
-        self.factoryCookiePersistTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
-                do {
-                    try cookieStore.storeCookieHeader(header)
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                CodexBarLog.logger("factory-cookie-store").error("Failed to persist Factory cookie: \(error)")
-            }
-        }
-    }
-
-    private func schedulePersistMiniMaxCookieHeader() {
-        if self.minimaxCookieLoading { return }
-        self.minimaxCookiePersistTask?.cancel()
-        let header = self.minimaxCookieHeader
-        let cookieStore = self.minimaxCookieStore
-        self.minimaxCookiePersistTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
-                do {
-                    try cookieStore.storeCookieHeader(header)
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                CodexBarLog.logger("minimax-cookie-store").error("Failed to persist MiniMax cookie: \(error)")
-            }
-        }
-    }
-
-    private func schedulePersistMiniMaxAPIToken() {
-        if self.minimaxAPITokenLoading { return }
-        self.minimaxAPITokenPersistTask?.cancel()
-        let token = self.minimaxAPIToken
-        let tokenStore = self.minimaxAPITokenStore
-        self.minimaxAPITokenPersistTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
-                do {
-                    try tokenStore.storeToken(token)
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                CodexBarLog.logger("minimax-api-token-store").error("Failed to persist MiniMax API token: \(error)")
-            }
-        }
-    }
-
-    private func schedulePersistCopilotAPIToken() {
-        if self.copilotTokenLoading { return }
-        self.copilotTokenPersistTask?.cancel()
-        let token = self.copilotAPIToken
-        let tokenStore = self.copilotTokenStore
-        self.copilotTokenPersistTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
-                do {
-                    try tokenStore.storeToken(token)
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                CodexBarLog.logger("copilot-token-store").error("Failed to persist Copilot token: \(error)")
-            }
-        }
-    }
-
-    private func schedulePersistTokenAccounts() {
-        if self.tokenAccountsLoading { return }
-        self.tokenAccountsPersistTask?.cancel()
-        let accounts = self.tokenAccountsByProvider
-        let tokenStore = self.tokenAccountStore
-        self.tokenAccountsPersistTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
-                do {
-                    try tokenStore.storeAccounts(accounts)
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                CodexBarLog.logger("token-account-store").error("Failed to persist token accounts: \(error)")
             }
         }
     }
@@ -1365,113 +1104,19 @@ extension SettingsStore {
         provider == .gemini
     }
 
-    private func schedulePersistKimiAuthToken() {
-        if self.kimiTokenLoading { return }
-        self.kimiTokenPersistTask?.cancel()
-        let token = self.kimiManualCookieHeader
-        let tokenStore = self.kimiTokenStore
-        self.kimiTokenPersistTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
-                do {
-                    try tokenStore.storeToken(token)
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                CodexBarLog.logger("kimi-token-store").error("Failed to persist Kimi token: \(error)")
-            }
-        }
-    }
+    func ensureZaiAPITokenLoaded() {}
 
-    private func schedulePersistKimiK2APIToken() {
-        if self.kimiK2TokenLoading { return }
-        self.kimiK2TokenPersistTask?.cancel()
-        let token = self.kimiK2APIToken
-        let tokenStore = self.kimiK2TokenStore
-        self.kimiK2TokenPersistTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: 350_000_000)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled else { return }
-            let error: (any Error)? = await Task.detached(priority: .utility) { () -> (any Error)? in
-                do {
-                    try tokenStore.storeToken(token)
-                    return nil
-                } catch {
-                    return error
-                }
-            }.value
-            if let error {
-                CodexBarLog.logger("kimi-k2-token-store").error("Failed to persist Kimi K2 token: \(error)")
-            }
-        }
-    }
+    func ensureSyntheticAPITokenLoaded() {}
 
-    func ensureZaiAPITokenLoaded() {
-        guard !self.zaiTokenLoaded else { return }
-        self.zaiTokenLoading = true
-        self.zaiAPIToken = (try? self.zaiTokenStore.loadToken()) ?? ""
-        self.zaiTokenLoading = false
-        self.zaiTokenLoaded = true
-    }
+    func ensureCodexCookieLoaded() {}
 
-    func ensureSyntheticAPITokenLoaded() {
-        guard !self.syntheticTokenLoaded else { return }
-        self.syntheticTokenLoading = true
-        self.syntheticAPIToken = (try? self.syntheticTokenStore.loadToken()) ?? ""
-        self.syntheticTokenLoading = false
-        self.syntheticTokenLoaded = true
-    }
+    func ensureClaudeCookieLoaded() {}
 
-    func ensureCodexCookieLoaded() {
-        guard !self.codexCookieLoaded else { return }
-        self.codexCookieLoading = true
-        self.codexCookieHeader = (try? self.codexCookieStore.loadCookieHeader()) ?? ""
-        self.codexCookieLoading = false
-        self.codexCookieLoaded = true
-    }
+    func ensureCursorCookieLoaded() {}
 
-    func ensureClaudeCookieLoaded() {
-        guard !self.claudeCookieLoaded else { return }
-        self.claudeCookieLoading = true
-        self.claudeCookieHeader = (try? self.claudeCookieStore.loadCookieHeader()) ?? ""
-        self.claudeCookieLoading = false
-        self.claudeCookieLoaded = true
-    }
+    func ensureOpenCodeCookieLoaded() {}
 
-    func ensureCursorCookieLoaded() {
-        guard !self.cursorCookieLoaded else { return }
-        self.cursorCookieLoading = true
-        self.cursorCookieHeader = (try? self.cursorCookieStore.loadCookieHeader()) ?? ""
-        self.cursorCookieLoading = false
-        self.cursorCookieLoaded = true
-    }
-
-    func ensureOpenCodeCookieLoaded() {
-        guard !self.opencodeCookieLoaded else { return }
-        self.opencodeCookieLoading = true
-        self.opencodeCookieHeader = (try? self.opencodeCookieStore.loadCookieHeader()) ?? ""
-        self.opencodeCookieLoading = false
-        self.opencodeCookieLoaded = true
-    }
-
-    func ensureFactoryCookieLoaded() {
-        guard !self.factoryCookieLoaded else { return }
-        self.factoryCookieLoading = true
-        self.factoryCookieHeader = (try? self.factoryCookieStore.loadCookieHeader()) ?? ""
-        self.factoryCookieLoading = false
-        self.factoryCookieLoaded = true
-    }
+    func ensureFactoryCookieLoaded() {}
 
     func minimaxAuthMode(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> MiniMaxAuthMode
@@ -1481,78 +1126,25 @@ extension SettingsStore {
         return MiniMaxAuthMode.resolve(apiToken: apiToken, cookieHeader: cookieHeader)
     }
 
-    func ensureMiniMaxCookieLoaded() {
-        guard !self.minimaxCookieLoaded else { return }
-        self.minimaxCookieLoading = true
-        self.minimaxCookieHeader = (try? self.minimaxCookieStore.loadCookieHeader()) ?? ""
-        self.minimaxCookieLoading = false
-        self.minimaxCookieLoaded = true
-    }
+    func ensureMiniMaxCookieLoaded() {}
 
-    func ensureMiniMaxAPITokenLoaded() {
-        guard !self.minimaxAPITokenLoaded else { return }
-        self.minimaxAPITokenLoading = true
-        self.minimaxAPIToken = (try? self.minimaxAPITokenStore.loadToken()) ?? ""
-        self.minimaxAPITokenLoading = false
-        self.minimaxAPITokenLoaded = true
-    }
+    func ensureMiniMaxAPITokenLoaded() {}
 
-    func ensureKimiAuthTokenLoaded() {
-        guard !self.kimiTokenLoaded else { return }
-        self.kimiTokenLoading = true
-        var token = (try? self.kimiTokenStore.loadToken()) ?? ""
-        if token.isEmpty {
-            if let oldToken = self.userDefaults.string(forKey: "kimiManualCookieHeader"), !oldToken.isEmpty {
-                token = oldToken
-                try? self.kimiTokenStore.storeToken(oldToken)
-                self.userDefaults.removeObject(forKey: "kimiManualCookieHeader")
-            }
-        }
-        self.kimiManualCookieHeader = token
-        self.kimiTokenLoading = false
-        self.kimiTokenLoaded = true
-    }
+    func ensureKimiAuthTokenLoaded() {}
 
-    func ensureKimiK2APITokenLoaded() {
-        guard !self.kimiK2TokenLoaded else { return }
-        self.kimiK2TokenLoading = true
-        self.kimiK2APIToken = (try? self.kimiK2TokenStore.loadToken()) ?? ""
-        self.kimiK2TokenLoading = false
-        self.kimiK2TokenLoaded = true
-    }
+    func ensureKimiK2APITokenLoaded() {}
 
-    func ensureAugmentCookieLoaded() {
-        guard !self.augmentCookieLoaded else { return }
-        self.augmentCookieLoading = true
-        self.augmentCookieHeader = (try? self.augmentCookieStore.loadCookieHeader()) ?? ""
-        self.augmentCookieLoading = false
-        self.augmentCookieLoaded = true
-    }
+    func ensureAugmentCookieLoaded() {}
 
-    func ensureAmpCookieLoaded() {
-        guard !self.ampCookieLoaded else { return }
-        self.ampCookieLoading = true
-        self.ampCookieHeader = (try? self.ampCookieStore.loadCookieHeader()) ?? ""
-        self.ampCookieLoading = false
-        self.ampCookieLoaded = true
-    }
+    func ensureAmpCookieLoaded() {}
 
-    func ensureCopilotAPITokenLoaded() {
-        guard !self.copilotTokenLoaded else { return }
-        self.copilotTokenLoading = true
-        self.copilotAPIToken = (try? self.copilotTokenStore.loadToken()) ?? ""
-        self.copilotTokenLoading = false
-        self.copilotTokenLoaded = true
-    }
+    func ensureCopilotAPITokenLoaded() {}
 
     func ensureTokenAccountsLoaded() {
         guard !self.tokenAccountsLoaded else { return }
-        self.tokenAccountsLoading = true
-        self.tokenAccountsByProvider = (try? self.tokenAccountStore.loadAccounts()) ?? [:]
         for (provider, data) in self.tokenAccountsByProvider where !data.accounts.isEmpty {
             self.applyTokenAccountSideEffects(for: provider)
         }
-        self.tokenAccountsLoading = false
         self.tokenAccountsLoaded = true
     }
 
@@ -1633,10 +1225,12 @@ extension SettingsStore {
 
     func openTokenAccountsFile() {
         do {
-            let url = try self.tokenAccountStore.ensureFileExists()
-            NSWorkspace.shared.open(url)
+            if (try? self.configStore.load()) == nil {
+                try self.configStore.save(self.config)
+            }
+            NSWorkspace.shared.open(self.configStore.fileURL)
         } catch {
-            CodexBarLog.logger("token-account-store").error("Failed to open token accounts file: \(error)")
+            CodexBarLog.logger("config-store").error("Failed to open config file: \(error)")
         }
     }
 }

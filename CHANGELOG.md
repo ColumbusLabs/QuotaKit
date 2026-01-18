@@ -46,6 +46,7 @@
 - Preferences: move provider refresh timing to a dedicated second line.
 - Menu: widen provider switcher buttons to avoid clipped titles.
 - Preferences: tighten provider usage metrics spacing.
+- Preferences: show refresh timing inline in provider detail subtitle.
 - Preferences: move “Access OpenAI via web” into Providers → Codex.
 - Preferences: add usage source pickers for Codex + Claude with auto fallback.
 - Preferences: add cookie source pickers with contextual helper text for the selected mode.
@@ -71,6 +72,7 @@
 - CLI: respect the reset time display setting.
 - CLI: add pink accents, usage bars, and weekly pace lines to text output.
 - CLI: add config-backed provider settings, `--json-only`, and `--source api` for key-based providers.
+- CLI/App: move provider secrets + ordering to `~/.codexbar/config.json` (no Keychain persistence).
 
 ### Dev & Tests
 - Dev: move Chromium profile discovery into SweetCookieKit (adds Helium net.imput.helium). Thanks @hhushhas!

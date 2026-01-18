@@ -36,7 +36,7 @@ struct CopilotProviderImplementation: ProviderImplementation {
                             await CopilotLoginFlow.run(settings: context.settings)
                         }),
                 ],
-                isVisible: { !context.settings.debugDisableKeychainAccess },
+                isVisible: nil,
                 onActivate: { context.settings.ensureCopilotAPITokenLoaded() }),
         ]
     }

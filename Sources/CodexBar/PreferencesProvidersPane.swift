@@ -95,14 +95,14 @@ struct ProvidersPane: View {
         self.selectedProvider = self.providers.first
     }
 
-    private func binding(for provider: UsageProvider) -> Binding<Bool> {
+    func binding(for provider: UsageProvider) -> Binding<Bool> {
         let meta = self.store.metadata(for: provider)
         return Binding(
             get: { self.settings.isProviderEnabled(provider: provider, metadata: meta) },
             set: { self.settings.setProviderEnabled(provider: provider, metadata: meta, enabled: $0) })
     }
 
-    private func providerSubtitle(_ provider: UsageProvider) -> String {
+    func providerSubtitle(_ provider: UsageProvider) -> String {
         let meta = self.store.metadata(for: provider)
         let cliName = meta.cliName
         let version = self.store.version(for: provider)
@@ -121,32 +121,21 @@ struct ProvidersPane: View {
             usageText = "usage not fetched yet"
         }
 
-        if cliName == "codex" {
-            return "\(versionText)\n\(usageText)"
+        let detailLine: String = if cliName == "codex" {
+            versionText
+        } else if provider == .cursor || provider == .opencode {
+            "web"
+        } else if provider == .zai || provider == .synthetic {
+            "api"
+        } else if provider == .minimax {
+            self.store.sourceLabel(for: provider)
+        } else if provider == .kimi {
+            "web"
+        } else {
+            "\(cliName) \(versionText)"
         }
 
-        if provider == .cursor {
-            return "web\n\(usageText)"
-        }
-        if provider == .opencode {
-            return "web\n\(usageText)"
-        }
-        if provider == .zai {
-            return "api\n\(usageText)"
-        }
-        if provider == .synthetic {
-            return "api\n\(usageText)"
-        }
-        if provider == .minimax {
-            let sourceLabel = self.store.sourceLabel(for: provider)
-            return "\(sourceLabel)\n\(usageText)"
-        }
-        if provider == .kimi {
-            return "web\n\(usageText)"
-        }
-
-        let detail = "\(cliName) \(versionText)\n\(usageText)"
-        return detail
+        return "\(detailLine)\n\(usageText)"
     }
 
     private func providerErrorDisplay(_ provider: UsageProvider) -> ProviderErrorDisplay? {
@@ -181,7 +170,7 @@ struct ProvidersPane: View {
             .filter { $0.isVisible?() ?? true }
     }
 
-    private func tokenAccountDescriptor(for provider: UsageProvider) -> ProviderSettingsTokenAccountsDescriptor? {
+    func tokenAccountDescriptor(for provider: UsageProvider) -> ProviderSettingsTokenAccountsDescriptor? {
         guard let support = TokenAccountSupportCatalog.support(for: provider) else { return nil }
         return ProviderSettingsTokenAccountsDescriptor(
             id: "token-accounts-\(provider.rawValue)",
@@ -281,7 +270,7 @@ struct ProvidersPane: View {
             })
     }
 
-    private func menuBarMetricPicker(for provider: UsageProvider) -> ProviderSettingsPickerDescriptor? {
+    func menuBarMetricPicker(for provider: UsageProvider) -> ProviderSettingsPickerDescriptor? {
         if provider == .zai { return nil }
         let metadata = self.store.metadata(for: provider)
         let supportsAverage = self.settings.menuBarMetricSupportsAverage(for: provider)
@@ -314,7 +303,7 @@ struct ProvidersPane: View {
             onChange: nil)
     }
 
-    private func menuCardModel(for provider: UsageProvider) -> UsageMenuCardView.Model {
+    func menuCardModel(for provider: UsageProvider) -> UsageMenuCardView.Model {
         let metadata = self.store.metadata(for: provider)
         let snapshot = self.store.snapshot(for: provider)
         let credits: CreditsSnapshot?

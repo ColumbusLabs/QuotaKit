@@ -123,9 +123,11 @@ struct UsageStoreCoverageTests {
     {
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
 
         return SettingsStore(
             userDefaults: defaults,
+            configStore: configStore,
             zaiTokenStore: zaiTokenStore,
             syntheticTokenStore: syntheticTokenStore,
             codexCookieStore: InMemoryCookieHeaderStore(),

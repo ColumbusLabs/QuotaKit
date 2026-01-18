@@ -90,3 +90,15 @@ final class InMemoryTokenAccountStore: ProviderTokenAccountStoring, @unchecked S
         self.fileURL
     }
 }
+
+func testConfigStore(suiteName: String, reset: Bool = true) -> CodexBarConfigStore {
+    let sanitized = suiteName.replacingOccurrences(of: "/", with: "-")
+    let base = FileManager.default.temporaryDirectory
+        .appendingPathComponent("codexbar-tests", isDirectory: true)
+        .appendingPathComponent(sanitized, isDirectory: true)
+    let url = base.appendingPathComponent("config.json")
+    if reset {
+        try? FileManager.default.removeItem(at: url)
+    }
+    return CodexBarConfigStore(fileURL: url)
+}
