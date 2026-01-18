@@ -104,11 +104,6 @@ private struct ProviderDetailHeaderView: View {
 
                 Spacer(minLength: 12)
 
-                Toggle("", isOn: self.$isEnabled)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-
                 Button {
                     self.onRefresh()
                 } label: {
@@ -117,6 +112,11 @@ private struct ProviderDetailHeaderView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .help("Refresh")
+
+                Toggle("", isOn: self.$isEnabled)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
             }
 
             ProviderDetailInfoGrid(
