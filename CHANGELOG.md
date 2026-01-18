@@ -1,10 +1,15 @@
 # Changelog
 
-## 0.18.0 — Unreleased
+## 0.18.0-beta.1 — 2026-01-18
+### Highlights
+- New providers: OpenCode (web usage), Vertex AI, Kiro, Kimi, Kimi K2, Augment, Amp, Synthetic.
+- Provider source controls: usage source pickers for Codex/Claude, manual cookie headers, cookie caching with source/timestamp.
+- Menu bar upgrades: display mode picker (percent/pace/both), auto-select near limit, absolute reset times, pace summary line.
+- CLI/config revamp: config-backed provider settings, JSON-only errors, config validate/dump.
+
 ### Providers
 - OpenCode: add web usage provider with workspace override + Chrome-first cookie import (#188). Thanks @anthnykr!
 - OpenCode: refresh provider logo (#190). Thanks @anthnykr!
-- Providers: cache browser cookies in Keychain (per provider) and show cached source/time in settings.
 - Vertex AI: add provider with quota-based usage from gcloud ADC. Thanks @bahag-chaurasiak!
 - Vertex AI: token costs are shown via the Claude provider (same local logs).
 - Vertex AI: harden quota usage parsing for edge-case responses.
@@ -15,9 +20,9 @@
 - Kimi K2: add API-key usage provider for credit totals (#147). Thanks @0-CYBERDYNE-SYSTEMS-0!
 - Augment: add provider with browser-cookie usage tracking.
 - Augment: prefer Auggie CLI usage with web fallback, plus session refresh + recovery tools (#142). Thanks @bcharleson!
-- JetBrains AI: include IDEs missing quota files, expand custom paths, and add Android Studio base paths (#194). Thanks @steipete!
 - Amp: add provider with Amp Free usage tracking (#167). Thanks @duailibe!
 - Synthetic: add API-key usage provider with quota snapshots (#171). Thanks @monotykamary!
+- JetBrains AI: include IDEs missing quota files, expand custom paths, and add Android Studio base paths (#194). Thanks @steipete!
 - Cursor: support legacy request-based plans and show individual on-demand usage (#125) — thanks @vltansky
 - Cursor: avoid Intel crash when opening login and harden WebKit teardown. Thanks @meghanto!
 - Cursor: load stored session cookies before reads to make relaunches deterministic.
@@ -26,14 +31,17 @@
 - MiniMax: support API token or cookie auth; API token takes precedence and hides cookie UI (#149). Thanks @aonsyed!
 - Gemini: prefer loadCodeAssist project IDs for quota fetches (#172). Thanks @lolwierd!
 - Gemini: honor loadCodeAssist project IDs for quota + support Nix CLI layout (#184). Thanks @HaukeSchnau!
-- Codex/Claude/Cursor/Factory/MiniMax: cookie sources now include Manual (paste a Cookie header) in addition to Automatic.
-- Codex/Claude/Cursor/Factory/MiniMax: skip cookie imports from browsers without usable cookie stores (profile/cookie DB) to avoid unnecessary Keychain prompts.
-- Providers: suppress repeated Chromium Keychain prompts after access denied and honor disabled Keychain access.
 - Claude: fix OAuth “Extra usage” spend/limit units when the API returns minor currency units (#97).
 - Claude: rescale extra usage costs when plan hints are missing and prefer web plan hints for extras (#181). Thanks @jorda0mega!
 - Usage formatting: fix currency parsing/formatting on non-US locales (e.g., pt-BR). Thanks @mneves75!
 
-### Preferences & UI
+### Provider Sources & Security
+- Providers: cache browser cookies in Keychain (per provider) and show cached source/time in settings.
+- Codex/Claude/Cursor/Factory/MiniMax: cookie sources now include Manual (paste a Cookie header) in addition to Automatic.
+- Codex/Claude/Cursor/Factory/MiniMax: skip cookie imports from browsers without usable cookie stores (profile/cookie DB) to avoid unnecessary Keychain prompts.
+- Providers: suppress repeated Chromium Keychain prompts after access denied and honor disabled Keychain access.
+
+### Preferences & Settings
 - Preferences: swap provider refresh button and enable toggle order.
 - Preferences: animate settings width and widen Providers on selection.
 - Preferences: shrink default settings size and reduce overall height.
@@ -41,10 +49,7 @@
 - Providers: shorten fetch subtitle to relative time only.
 - Preferences: soften provider sidebar background and stabilize drag reordering.
 - Preferences: restrict provider drag handle to handle-only.
-- Menu: avoid single-letter wraps in provider switcher titles.
-- Menu bar: rebuild provider status items on reorder so icons update correctly.
 - Preferences: move provider refresh timing to a dedicated second line.
-- Menu: widen provider switcher buttons to avoid clipped titles.
 - Preferences: tighten provider usage metrics spacing.
 - Preferences: show refresh timing inline in provider detail subtitle.
 - Preferences: move “Access OpenAI via web” into Providers → Codex.
@@ -52,14 +57,10 @@
 - Preferences: add cookie source pickers with contextual helper text for the selected mode.
 - Preferences: move “Disable Keychain access” to Advanced and require manual cookies when enabled.
 - Preferences: add per-provider menu bar metric picker (#185) — thanks @HaukeSchnau
-- Menu bar: optional auto-select provider closest to its rate limit and keep switcher progress visible (#159). Thanks @phillco!
 - Preferences: tighten provider rows (inline pickers, compact layout, inline refresh + auto-source status).
 - Preferences: remove the “experimental” label from Antigravity.
-- Menu bar: add display mode picker for percent/pace/both in the menu bar icon (#169). Thanks @PhilETaylor!
-- Menu bar: fix combined loading indicator flicker during loading animation (incl. debug replay).
-- Menu bar: prevent blink updates from clobbering the loading animation.
 
-### Menu
+### Menu & Menu Bar
 - Menu: add a toggle to show reset times as absolute clock values (instead of countdowns).
 - Menu: show an “Open Terminal” action when Claude OAuth fails.
 - Menu: add “Hide personal information” toggle and redact emails in menu UI (#137). Thanks @t3dotgg!
@@ -67,8 +68,15 @@
 - Menu: reduce provider-switch flicker and avoid redundant menu card sizing for faster opens (#132). Thanks @ibehnam!
 - Menu: keep background refresh on open without forcing token usage (#158). Thanks @weequan93!
 - Menu: Cursor switcher shows On-Demand remaining when Plan is exhausted in show-remaining mode (#193). Thanks @vltansky!
+- Menu: avoid single-letter wraps in provider switcher titles.
+- Menu: widen provider switcher buttons to avoid clipped titles.
+- Menu bar: rebuild provider status items on reorder so icons update correctly.
+- Menu bar: optional auto-select provider closest to its rate limit and keep switcher progress visible (#159). Thanks @phillco!
+- Menu bar: add display mode picker for percent/pace/both in the menu bar icon (#169). Thanks @PhilETaylor!
+- Menu bar: fix combined loading indicator flicker during loading animation (incl. debug replay).
+- Menu bar: prevent blink updates from clobbering the loading animation.
 
-### CLI
+### CLI & Config
 - CLI: respect the reset time display setting.
 - CLI: add pink accents, usage bars, and weekly pace lines to text output.
 - CLI: add config-backed provider settings, `--json-only`, and `--source api` for key-based providers.
