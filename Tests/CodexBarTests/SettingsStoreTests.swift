@@ -209,7 +209,6 @@ struct SettingsStoreTests {
         let suite = "SettingsStoreTests-providerOrder-default"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
-        defaults.set(true, forKey: "providerDetectionCompleted")
         let configStore = testConfigStore(suiteName: suite)
 
         let store = SettingsStore(
@@ -222,15 +221,18 @@ struct SettingsStoreTests {
     }
 
     @Test
-    func providerOrder_persistsAndAppendsNewProviders() {
+    func providerOrder_persistsAndAppendsNewProviders() throws {
         let suite = "SettingsStoreTests-providerOrder-persist"
         let defaultsA = UserDefaults(suiteName: suite)!
         defaultsA.removePersistentDomain(forName: suite)
-        defaultsA.set(true, forKey: "providerDetectionCompleted")
         let configStore = testConfigStore(suiteName: suite)
 
         // Partial list to mimic "older version" missing providers.
-        defaultsA.set([UsageProvider.gemini.rawValue, UsageProvider.codex.rawValue], forKey: "providerOrder")
+        let config = CodexBarConfig(providers: [
+            ProviderConfig(id: .gemini),
+            ProviderConfig(id: .codex),
+        ])
+        try configStore.save(config)
 
         let storeA = SettingsStore(
             userDefaults: defaultsA,
@@ -264,7 +266,6 @@ struct SettingsStoreTests {
         storeA.moveProvider(fromOffsets: IndexSet(integer: antigravityIndex), toOffset: 0)
 
         let defaultsB = UserDefaults(suiteName: suite)!
-        defaultsB.set(true, forKey: "providerDetectionCompleted")
         let storeB = SettingsStore(
             userDefaults: defaultsB,
             configStore: configStore,

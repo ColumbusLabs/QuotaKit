@@ -1,10 +1,6 @@
 import Foundation
-#if canImport(Security)
-import Security
-#endif
 
 public enum ProviderTokenSource: String, Sendable {
-    case keychain
     case environment
 }
 
@@ -19,17 +15,6 @@ public struct ProviderTokenResolution: Sendable {
 }
 
 public enum ProviderTokenResolver {
-    private static let log = CodexBarLog.logger("provider-token")
-
-    private static let keychainService = "com.steipete.CodexBar"
-    private static let zaiAccount = "zai-api-token"
-    private static let syntheticAccount = "synthetic-api-key"
-    private static let copilotAccount = "copilot-api-token"
-    private static let minimaxCookieAccount = "minimax-cookie"
-    private static let minimaxTokenAccount = "minimax-api-token"
-    private static let kimiAuthAccount = "kimi-auth-token"
-    private static let kimiK2Account = "kimi-k2-api-token"
-
     public static func zaiToken(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
         self.zaiResolution(environment: environment)?.token
     }
@@ -63,50 +48,37 @@ public enum ProviderTokenResolver {
     public static func zaiResolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
-        self.resolveEnvThenKeychain(
-            envToken: ZaiSettingsReader.apiToken(environment: environment),
-            keychainAccount: self.zaiAccount)
+        self.resolveEnv(ZaiSettingsReader.apiToken(environment: environment))
     }
 
     public static func syntheticResolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
-        self.resolveEnvThenKeychain(
-            envToken: SyntheticSettingsReader.apiKey(environment: environment),
-            keychainAccount: self.syntheticAccount)
+        self.resolveEnv(SyntheticSettingsReader.apiKey(environment: environment))
     }
 
     public static func copilotResolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
-        self.resolveEnvThenKeychain(
-            envToken: self.cleaned(environment["COPILOT_API_TOKEN"]),
-            keychainAccount: self.copilotAccount)
+        self.resolveEnv(self.cleaned(environment["COPILOT_API_TOKEN"]))
     }
 
     public static func minimaxTokenResolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
-        self.resolveEnvThenKeychain(
-            envToken: MiniMaxAPISettingsReader.apiToken(environment: environment),
-            keychainAccount: self.minimaxTokenAccount)
+        self.resolveEnv(MiniMaxAPISettingsReader.apiToken(environment: environment))
     }
 
     public static func minimaxCookieResolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
-        self.resolveEnvThenKeychain(
-            envToken: MiniMaxSettingsReader.cookieHeader(environment: environment),
-            keychainAccount: self.minimaxCookieAccount)
+        self.resolveEnv(MiniMaxSettingsReader.cookieHeader(environment: environment))
     }
 
     public static func kimiAuthResolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
-        if let resolution = self.resolveKeychainThenEnv(
-            keychainAccount: self.kimiAuthAccount,
-            envToken: KimiSettingsReader.authToken(environment: environment))
-        {
+        if let resolution = self.resolveEnv(KimiSettingsReader.authToken(environment: environment)) {
             return resolution
         }
         #if os(macOS)
@@ -125,9 +97,7 @@ public enum ProviderTokenResolver {
     public static func kimiK2Resolution(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
-        self.resolveEnvThenKeychain(
-            envToken: KimiK2SettingsReader.apiKey(environment: environment),
-            keychainAccount: self.kimiK2Account)
+        self.resolveEnv(KimiK2SettingsReader.apiKey(environment: environment))
     }
 
     private static func cleaned(_ raw: String?) -> String? {
@@ -146,68 +116,8 @@ public enum ProviderTokenResolver {
         return value.isEmpty ? nil : value
     }
 
-    private static func resolveEnvThenKeychain(
-        envToken: String?,
-        keychainAccount: String) -> ProviderTokenResolution?
-    {
-        if let token = envToken {
-            return ProviderTokenResolution(token: token, source: .environment)
-        }
-        if let token = self.keychainToken(service: self.keychainService, account: keychainAccount) {
-            return ProviderTokenResolution(token: token, source: .keychain)
-        }
-        return nil
-    }
-
-    private static func resolveKeychainThenEnv(
-        keychainAccount: String,
-        envToken: String?) -> ProviderTokenResolution?
-    {
-        if let token = self.keychainToken(service: self.keychainService, account: keychainAccount) {
-            return ProviderTokenResolution(token: token, source: .keychain)
-        }
-        if let token = envToken {
-            return ProviderTokenResolution(token: token, source: .environment)
-        }
-        return nil
-    }
-
-    private static func keychainToken(service: String, account: String) -> String? {
-        #if canImport(Security)
-        if KeychainAccessGate.isDisabled {
-            return nil
-        }
-        var result: CFTypeRef?
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-            kSecReturnData as String: true,
-        ]
-
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        if status == errSecItemNotFound {
-            return nil
-        }
-        guard status == errSecSuccess else {
-            self.log.error("Keychain read failed: \(status)")
-            return nil
-        }
-
-        guard let data = result as? Data,
-              let token = String(data: data, encoding: .utf8)?
-                  .trimmingCharacters(in: .whitespacesAndNewlines),
-                  !token.isEmpty
-        else {
-            return nil
-        }
-
-        return token
-        #else
-        _ = service
-        _ = account
-        return nil
-        #endif
+    private static func resolveEnv(_ token: String?) -> ProviderTokenResolution? {
+        guard let token else { return nil }
+        return ProviderTokenResolution(token: token, source: .environment)
     }
 }

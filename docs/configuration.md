@@ -81,3 +81,4 @@ The order of `providers` controls display/order in the app and CLI. Reorder the 
 - Fields not relevant to a provider are ignored.
 - Omitted providers are appended with defaults during normalization.
 - Keep the file private; it contains secrets.
+- Validate the file with `codexbar config validate` (JSON output available with `--format json`).

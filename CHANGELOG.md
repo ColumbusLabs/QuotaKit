@@ -72,7 +72,9 @@
 - CLI: respect the reset time display setting.
 - CLI: add pink accents, usage bars, and weekly pace lines to text output.
 - CLI: add config-backed provider settings, `--json-only`, and `--source api` for key-based providers.
+- CLI: add `config validate`/`config dump` commands and per-provider JSON error payloads.
 - CLI/App: move provider secrets + ordering to `~/.codexbar/config.json` (no Keychain persistence).
+- Providers: resolve API tokens from config/env only (no Keychain fallback).
 
 ### Dev & Tests
 - Dev: move Chromium profile discovery into SweetCookieKit (adds Helium net.imput.helium). Thanks @hhushhas!
@@ -83,6 +85,7 @@
 - Tests: stabilize Claude PTY integration cleanup and reset CLI sessions after probes.
 - Tests: kill leaked codex app-server after tests.
 - Tests: add regression coverage for merged loading icon layout stability.
+- Tests: cover config validation and JSON-only CLI errors.
 - Build: stabilize Swift test runtime.
 
 ## 0.17.0 — 2025-12-31

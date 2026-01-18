@@ -14,7 +14,7 @@ either a Bearer API token or a session cookie header.
 ## Data sources + fallback order
 
 1) **API token** (preferred)
-   - Set in Preferences → Providers → MiniMax (stored in Keychain) or `MINIMAX_API_KEY`.
+   - Set in Preferences → Providers → MiniMax (stored in `~/.codexbar/config.json`) or `MINIMAX_API_KEY`.
    - When present, MiniMax uses the API token and ignores cookies entirely.
 
 2) **Cached cookie header** (automatic, only when no API token)
@@ -33,7 +33,7 @@ either a Bearer API token or a session cookie header.
    - Also extracts `GroupId` when present (appends query param).
 
 5) **Manual session cookie header** (optional override)
-   - Stored in Keychain via Preferences → Providers → MiniMax (Cookie source → Manual).
+   - Stored in `~/.codexbar/config.json` via Preferences → Providers → MiniMax (Cookie source → Manual).
    - Accepts a raw `Cookie:` header or a full "Copy as cURL" string.
    - When a cURL string is pasted, MiniMax extracts the cookie header plus `Authorization: Bearer …` and
      `GroupId=…` for the remains API.

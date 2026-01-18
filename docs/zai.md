@@ -1,5 +1,5 @@
 ---
-summary: "z.ai provider data sources: API token in Keychain/env and quota API response parsing."
+summary: "z.ai provider data sources: API token in config/env and quota API response parsing."
 read_when:
   - Debugging z.ai token storage or quota parsing
   - Updating z.ai API endpoints
@@ -10,12 +10,11 @@ read_when:
 z.ai is API-token based. No browser cookies.
 
 ## Token sources (fallback order)
-1) Preferences token (stored in Keychain).
+1) Config token (`~/.codexbar/config.json` → `providers[].apiKey`).
 2) Environment variable `Z_AI_API_KEY`.
 
-### Keychain location
-- Service: `com.steipete.CodexBar`
-- Account: `zai-api-token`
+### Config location
+- `~/.codexbar/config.json`
 
 ## API endpoint
 - `GET https://api.z.ai/api/monitor/usage/quota/limit`
@@ -43,4 +42,4 @@ z.ai is API-token based. No browser cookies.
 ## Key files
 - `Sources/CodexBarCore/Providers/Zai/ZaiUsageStats.swift`
 - `Sources/CodexBarCore/Providers/Zai/ZaiSettingsReader.swift`
-- `Sources/CodexBar/ZaiTokenStore.swift`
+- `Sources/CodexBar/ZaiTokenStore.swift` (legacy migration helper)

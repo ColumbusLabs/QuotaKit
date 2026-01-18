@@ -11,7 +11,7 @@ extension TokenAccountSupportCatalog {
             cookieName: "sessionKey"),
         .zai: TokenAccountSupport(
             title: "API tokens",
-            subtitle: "Stored locally in token-accounts.json.",
+            subtitle: "Stored in the CodexBar config file.",
             placeholder: "Paste token…",
             injection: .environment(key: ZaiSettingsReader.apiTokenKey),
             requiresManualCookieSource: false,

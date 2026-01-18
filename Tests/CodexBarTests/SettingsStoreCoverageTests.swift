@@ -7,13 +7,17 @@ import Testing
 @Suite
 struct SettingsStoreCoverageTests {
     @Test
-    func providerOrderingAndCaching() {
+    func providerOrderingAndCaching() throws {
         let suite = "SettingsStoreCoverageTests-ordering"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
-        defaults.set(["zai", "codex", "zai", "unknown", "claude"], forKey: "providerOrder")
-
         let configStore = testConfigStore(suiteName: suite)
+        let config = CodexBarConfig(providers: [
+            ProviderConfig(id: .zai),
+            ProviderConfig(id: .codex),
+            ProviderConfig(id: .claude),
+        ])
+        try configStore.save(config)
         let settings = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
         let ordered = settings.orderedProviders()
         let cached = settings.orderedProviders()

@@ -64,6 +64,9 @@ See `docs/configuration.md` for the schema.
 - Global flags: `-h/--help`, `-V/--version`, `-v/--verbose`, `--no-color`, `--log-level <trace|verbose|debug|info|warning|error|critical>`, `--json-output`, `--json-only`.
   - `--json-output`: JSONL logs on stderr (machine-readable).
   - `--json-only`: suppress non-JSON output; errors become JSON payloads.
+- `codexbar config validate` checks `~/.codexbar/config.json` for invalid fields.
+  - `--format text|json`, `--pretty`, and `--json-only` are supported.
+- `codexbar config dump` prints the normalized config JSON.
 
 ### Token accounts
 The CLI reads multi-account tokens from `~/.codexbar/config.json` (same file as the app).
@@ -98,6 +101,8 @@ codexbar --provider claude --account steipete@gmail.com
 codexbar --provider claude --all-accounts --format json --pretty
 codexbar --json-only --format json --pretty
 codexbar --provider gemini --source api --format json --pretty
+codexbar config validate --format json --pretty
+codexbar config dump --pretty
 ```
 
 ### Sample output (text)

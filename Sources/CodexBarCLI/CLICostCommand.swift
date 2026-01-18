@@ -6,8 +6,8 @@ extension CodexBarCLI {
     private static let costSupportedProviders: Set<UsageProvider> = [.claude, .codex]
 
     static func runCost(_ values: ParsedValues) async {
-        let jsonOnly = values.flags.contains("jsonOnly")
-        let config = CodexBarCLI.loadConfig(jsonOnly: jsonOnly)
+        let output = CLIOutputPreferences.from(values: values)
+        let config = CodexBarCLI.loadConfig(output: output)
         let selection = CodexBarCLI.decodeProvider(from: values, config: config)
         let providers = Self.costProviders(from: selection)
         let unsupported = selection.asList.filter { !Self.costSupportedProviders.contains($0) }
@@ -16,16 +16,19 @@ extension CodexBarCLI {
                 .map { ProviderDescriptorRegistry.descriptor(for: $0).metadata.displayName }
                 .sorted()
                 .joined(separator: ", ")
-            if !jsonOnly {
+            if !output.jsonOnly {
                 Self.writeStderr("Skipping providers without local cost usage: \(names)\n")
             }
         }
         guard !providers.isEmpty else {
-            Self.exit(code: .failure, message: "Error: cost is only supported for Claude and Codex.")
+            Self.exit(
+                code: .failure,
+                message: "Error: cost is only supported for Claude and Codex.",
+                output: output,
+                kind: .args)
         }
 
-        let format = Self.decodeFormat(from: values)
-        let pretty = values.flags.contains("pretty")
+        let format = output.format
         let forceRefresh = values.flags.contains("refresh")
         let useColor = Self.shouldUseColor(noColor: values.flags.contains("noColor"), format: format)
 
@@ -50,8 +53,8 @@ extension CodexBarCLI {
                 exitCode = Self.mapError(error)
                 if format == .json {
                     payload.append(Self.makeCostPayload(provider: provider, snapshot: nil, error: error))
-                } else if !jsonOnly {
-                    Self.printError(error)
+                } else if !output.jsonOnly {
+                    Self.writeStderr("Error: \(error.localizedDescription)\n")
                 }
             }
         }
@@ -63,40 +66,11 @@ extension CodexBarCLI {
             }
         case .json:
             if !payload.isEmpty {
-                let encoder = JSONEncoder()
-                encoder.dateEncodingStrategy = .iso8601
-                encoder.outputFormatting = pretty ? [.prettyPrinted, .sortedKeys] : []
-                if let data = try? encoder.encode(payload),
-                   let output = String(data: data, encoding: .utf8)
-                {
-                    print(output)
-                }
+                Self.printJSON(payload, pretty: output.pretty)
             }
         }
 
-        Self.exit(code: exitCode)
-    }
-
-    static func costHelp(version: String) -> String {
-        """
-        CodexBar \(version)
-
-        Usage:
-          codexbar cost [--format text|json]
-                       [--json]
-                       [--json-only]
-                       [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
-                       [--provider \(ProviderHelp.list)]
-                       [--no-color] [--pretty] [--refresh]
-
-        Description:
-          Print local token cost usage from Claude/Codex JSONL logs. This does not require web or CLI access.
-          Uses cached scan results unless --refresh is provided.
-
-        Examples:
-          codexbar cost
-          codexbar cost --provider claude --format json --pretty
-        """
+        Self.exit(code: exitCode, output: output, kind: exitCode == .success ? .runtime : .provider)
     }
 
     static func renderCostText(
@@ -157,7 +131,7 @@ extension CodexBarCLI {
             last30DaysCostUSD: snapshot?.last30DaysCostUSD,
             daily: daily,
             totals: snapshot.flatMap(Self.costTotals(from:)),
-            error: error.map(Self.makeErrorPayload))
+            error: error.map { Self.makeErrorPayload($0) })
     }
 
     private static func costTotals(from snapshot: CostUsageTokenSnapshot) -> CostTotalsPayload? {
@@ -323,10 +297,4 @@ struct CostTotalsPayload: Encodable {
     }
 }
 
-#if DEBUG
-extension CodexBarCLI {
-    static func _costSignatureForTesting() -> CommandSignature {
-        CommandSignature.describe(CostOptions())
-    }
-}
-#endif
+// Intentionally empty.
