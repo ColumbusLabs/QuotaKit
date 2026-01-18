@@ -5,15 +5,14 @@ struct ProviderSettingsSection<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
-                self.content()
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        } label: {
+        VStack(alignment: .leading, spacing: 12) {
             Text(self.title)
                 .font(.headline)
+            self.content()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 4)
     }
 }
 
@@ -23,7 +22,7 @@ struct ProviderSettingsToggleRowView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Toggle(isOn: self.toggle.binding) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(self.toggle.title)
                         .font(.subheadline.weight(.semibold))
@@ -32,8 +31,11 @@ struct ProviderSettingsToggleRowView: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                Spacer(minLength: 8)
+                Toggle("", isOn: self.toggle.binding)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
             }
-            .toggleStyle(.switch)
 
             if self.toggle.binding.wrappedValue {
                 if let status = self.toggle.statusText?(), !status.isEmpty {

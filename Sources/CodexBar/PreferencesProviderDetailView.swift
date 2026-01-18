@@ -66,8 +66,8 @@ struct ProviderDetailView: View {
                 }
             }
             .frame(maxWidth: ProviderSettingsMetrics.detailMaxWidth, alignment: .leading)
-            .padding(.vertical, 8)
-            .padding(.horizontal, 4)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -104,15 +104,19 @@ private struct ProviderDetailHeaderView: View {
 
                 Spacer(minLength: 12)
 
-                Toggle("Enabled", isOn: self.$isEnabled)
+                Toggle("", isOn: self.$isEnabled)
+                    .labelsHidden()
                     .toggleStyle(.switch)
                     .controlSize(.small)
 
-                Button("Refresh") {
+                Button {
                     self.onRefresh()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .help("Refresh")
             }
 
             ProviderDetailInfoGrid(
@@ -256,53 +260,66 @@ private struct ProviderMetricInlineRow: View {
     let progressColor: Color
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             Text(self.metric.title)
                 .font(.subheadline.weight(.semibold))
                 .frame(width: ProviderSettingsMetrics.metricLabelWidth, alignment: .leading)
 
-            UsageProgressBar(
-                percent: self.metric.percent,
-                tint: self.progressColor,
-                accessibilityLabel: self.metric.percentStyle.accessibilityLabel,
-                pacePercent: self.metric.pacePercent,
-                paceOnTop: self.metric.paceOnTop)
-                .frame(width: ProviderSettingsMetrics.metricBarWidth)
+            VStack(alignment: .leading, spacing: 6) {
+                UsageProgressBar(
+                    percent: self.metric.percent,
+                    tint: self.progressColor,
+                    accessibilityLabel: self.metric.percentStyle.accessibilityLabel,
+                    pacePercent: self.metric.pacePercent,
+                    paceOnTop: self.metric.paceOnTop)
+                    .frame(minWidth: ProviderSettingsMetrics.metricBarWidth, maxWidth: .infinity)
 
-            Text(self.metric.percentLabel)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(self.metric.percentLabel)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                    Spacer(minLength: 8)
+                    if let resetText = self.metric.resetText, !resetText.isEmpty {
+                        Text(resetText)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
 
-            if let resetText = self.metric.resetText, !resetText.isEmpty {
-                Text(resetText)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
+                let hasLeftDetail = self.metric.detailLeftText?.isEmpty == false
+                let hasRightDetail = self.metric.detailRightText?.isEmpty == false
+                if hasLeftDetail || hasRightDetail {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        if let leftDetail = self.metric.detailLeftText, !leftDetail.isEmpty {
+                            Text(leftDetail)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 8)
+                        if let rightDetail = self.metric.detailRightText, !rightDetail.isEmpty {
+                            Text(rightDetail)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
 
-            if let detail = self.detailText, !detail.isEmpty {
-                Text(detail)
-                    .font(.footnote)
-                    .foregroundStyle(.tertiary)
+                if let detail = self.detailText, !detail.isEmpty {
+                    Text(detail)
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
+                }
             }
 
             Spacer(minLength: 0)
         }
+        .padding(.vertical, 4)
     }
 
     private var detailText: String? {
-        var parts: [String] = []
-        if let detailText = self.metric.detailText, !detailText.isEmpty {
-            parts.append(detailText)
-        }
-        if let left = self.metric.detailLeftText, !left.isEmpty {
-            parts.append(left)
-        }
-        if let right = self.metric.detailRightText, !right.isEmpty {
-            parts.append(right)
-        }
-        guard !parts.isEmpty else { return nil }
-        return parts.joined(separator: " · ")
+        guard let detailText = self.metric.detailText, !detailText.isEmpty else { return nil }
+        return detailText
     }
 }
 
@@ -322,6 +339,7 @@ private struct ProviderMetricInlineTextRow: View {
 
             Spacer(minLength: 0)
         }
+        .padding(.vertical, 2)
     }
 }
 
@@ -330,27 +348,32 @@ private struct ProviderMetricInlineCostRow: View {
     let progressColor: Color
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             Text(self.section.title)
                 .font(.subheadline.weight(.semibold))
                 .frame(width: ProviderSettingsMetrics.metricLabelWidth, alignment: .leading)
 
-            UsageProgressBar(
-                percent: self.section.percentUsed,
-                tint: self.progressColor,
-                accessibilityLabel: "Usage used")
-                .frame(width: ProviderSettingsMetrics.metricBarWidth)
+            VStack(alignment: .leading, spacing: 6) {
+                UsageProgressBar(
+                    percent: self.section.percentUsed,
+                    tint: self.progressColor,
+                    accessibilityLabel: "Usage used")
+                    .frame(minWidth: ProviderSettingsMetrics.metricBarWidth, maxWidth: .infinity)
 
-            Text(String(format: "%.0f%% used", self.section.percentUsed))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-
-            Text(self.section.spendLine)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(String(format: "%.0f%% used", self.section.percentUsed))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                    Spacer(minLength: 8)
+                    Text(self.section.spendLine)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             Spacer(minLength: 0)
         }
+        .padding(.vertical, 4)
     }
 }

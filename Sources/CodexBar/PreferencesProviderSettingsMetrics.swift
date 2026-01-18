@@ -14,5 +14,5 @@ enum ProviderSettingsMetrics {
     static let sidebarWidth: CGFloat = 240
     static let detailMaxWidth: CGFloat = 640
     static let metricLabelWidth: CGFloat = 140
-    static let metricBarWidth: CGFloat = 150
+    static let metricBarWidth: CGFloat = 220
 }
