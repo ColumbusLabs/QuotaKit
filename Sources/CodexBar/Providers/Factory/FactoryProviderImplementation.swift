@@ -15,24 +15,17 @@ struct FactoryProviderImplementation: ProviderImplementation {
             set: { raw in
                 context.settings.factoryCookieSource = ProviderCookieSource(rawValue: raw) ?? .auto
             })
-        let cookieOptions: [ProviderSettingsPickerOption] = [
-            ProviderSettingsPickerOption(
-                id: ProviderCookieSource.auto.rawValue,
-                title: ProviderCookieSource.auto.displayName),
-            ProviderSettingsPickerOption(
-                id: ProviderCookieSource.manual.rawValue,
-                title: ProviderCookieSource.manual.displayName),
-        ]
+        let cookieOptions = ProviderCookieSourceUI.options(
+            allowsOff: false,
+            keychainDisabled: context.settings.debugDisableKeychainAccess)
 
         let cookieSubtitle: () -> String? = {
-            switch context.settings.factoryCookieSource {
-            case .auto:
-                "Automatic imports browser cookies and WorkOS tokens."
-            case .manual:
-                "Paste a Cookie header from app.factory.ai."
-            case .off:
-                "Factory cookies are disabled."
-            }
+            ProviderCookieSourceUI.subtitle(
+                source: context.settings.factoryCookieSource,
+                keychainDisabled: context.settings.debugDisableKeychainAccess,
+                auto: "Automatic imports browser cookies and WorkOS tokens.",
+                manual: "Paste a Cookie header from app.factory.ai.",
+                off: "Factory cookies are disabled.")
         }
 
         return [
@@ -43,7 +36,7 @@ struct FactoryProviderImplementation: ProviderImplementation {
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
-                isVisible: { !context.settings.debugDisableKeychainAccess },
+                isVisible: nil,
                 onChange: nil,
                 trailingText: {
                     guard let entry = CookieHeaderCache.load(provider: .factory) else { return nil }

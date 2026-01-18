@@ -15,24 +15,17 @@ struct CursorProviderImplementation: ProviderImplementation {
             set: { raw in
                 context.settings.cursorCookieSource = ProviderCookieSource(rawValue: raw) ?? .auto
             })
-        let cookieOptions: [ProviderSettingsPickerOption] = [
-            ProviderSettingsPickerOption(
-                id: ProviderCookieSource.auto.rawValue,
-                title: ProviderCookieSource.auto.displayName),
-            ProviderSettingsPickerOption(
-                id: ProviderCookieSource.manual.rawValue,
-                title: ProviderCookieSource.manual.displayName),
-        ]
+        let cookieOptions = ProviderCookieSourceUI.options(
+            allowsOff: false,
+            keychainDisabled: context.settings.debugDisableKeychainAccess)
 
         let cookieSubtitle: () -> String? = {
-            switch context.settings.cursorCookieSource {
-            case .auto:
-                "Automatic imports browser cookies or stored sessions."
-            case .manual:
-                "Paste a Cookie header from a cursor.com request."
-            case .off:
-                "Cursor cookies are disabled."
-            }
+            ProviderCookieSourceUI.subtitle(
+                source: context.settings.cursorCookieSource,
+                keychainDisabled: context.settings.debugDisableKeychainAccess,
+                auto: "Automatic imports browser cookies or stored sessions.",
+                manual: "Paste a Cookie header from a cursor.com request.",
+                off: "Cursor cookies are disabled.")
         }
 
         return [
@@ -43,7 +36,7 @@ struct CursorProviderImplementation: ProviderImplementation {
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
-                isVisible: { !context.settings.debugDisableKeychainAccess },
+                isVisible: nil,
                 onChange: nil,
                 trailingText: {
                     guard let entry = CookieHeaderCache.load(provider: .cursor) else { return nil }

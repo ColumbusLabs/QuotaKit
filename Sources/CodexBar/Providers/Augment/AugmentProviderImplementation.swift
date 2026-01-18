@@ -15,24 +15,17 @@ struct AugmentProviderImplementation: ProviderImplementation {
             set: { raw in
                 context.settings.augmentCookieSource = ProviderCookieSource(rawValue: raw) ?? .auto
             })
-        let cookieOptions: [ProviderSettingsPickerOption] = [
-            ProviderSettingsPickerOption(
-                id: ProviderCookieSource.auto.rawValue,
-                title: ProviderCookieSource.auto.displayName),
-            ProviderSettingsPickerOption(
-                id: ProviderCookieSource.manual.rawValue,
-                title: ProviderCookieSource.manual.displayName),
-        ]
+        let cookieOptions = ProviderCookieSourceUI.options(
+            allowsOff: false,
+            keychainDisabled: context.settings.debugDisableKeychainAccess)
 
         let cookieSubtitle: () -> String? = {
-            switch context.settings.augmentCookieSource {
-            case .auto:
-                "Automatic imports browser cookies."
-            case .manual:
-                "Paste a Cookie header or cURL capture from the Augment dashboard."
-            case .off:
-                "Augment cookies are disabled."
-            }
+            ProviderCookieSourceUI.subtitle(
+                source: context.settings.augmentCookieSource,
+                keychainDisabled: context.settings.debugDisableKeychainAccess,
+                auto: "Automatic imports browser cookies.",
+                manual: "Paste a Cookie header or cURL capture from the Augment dashboard.",
+                off: "Augment cookies are disabled.")
         }
 
         return [
@@ -43,7 +36,7 @@ struct AugmentProviderImplementation: ProviderImplementation {
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
-                isVisible: { !context.settings.debugDisableKeychainAccess },
+                isVisible: nil,
                 onChange: nil,
                 trailingText: {
                     guard let entry = CookieHeaderCache.load(provider: .augment) else { return nil }

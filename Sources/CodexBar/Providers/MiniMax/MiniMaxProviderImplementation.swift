@@ -20,24 +20,17 @@ struct MiniMaxProviderImplementation: ProviderImplementation {
             set: { raw in
                 context.settings.minimaxCookieSource = ProviderCookieSource(rawValue: raw) ?? .auto
             })
-        let cookieOptions: [ProviderSettingsPickerOption] = [
-            ProviderSettingsPickerOption(
-                id: ProviderCookieSource.auto.rawValue,
-                title: ProviderCookieSource.auto.displayName),
-            ProviderSettingsPickerOption(
-                id: ProviderCookieSource.manual.rawValue,
-                title: ProviderCookieSource.manual.displayName),
-        ]
+        let cookieOptions = ProviderCookieSourceUI.options(
+            allowsOff: false,
+            keychainDisabled: context.settings.debugDisableKeychainAccess)
 
         let cookieSubtitle: () -> String? = {
-            switch context.settings.minimaxCookieSource {
-            case .auto:
-                "Automatic imports browser cookies and local storage tokens."
-            case .manual:
-                "Paste a Cookie header or cURL capture from the Coding Plan page."
-            case .off:
-                "MiniMax cookies are disabled."
-            }
+            ProviderCookieSourceUI.subtitle(
+                source: context.settings.minimaxCookieSource,
+                keychainDisabled: context.settings.debugDisableKeychainAccess,
+                auto: "Automatic imports browser cookies and local storage tokens.",
+                manual: "Paste a Cookie header or cURL capture from the Coding Plan page.",
+                off: "MiniMax cookies are disabled.")
         }
 
         let regionBinding = Binding(
@@ -57,7 +50,7 @@ struct MiniMaxProviderImplementation: ProviderImplementation {
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
-                isVisible: { !context.settings.debugDisableKeychainAccess && authMode().allowsCookies },
+                isVisible: { authMode().allowsCookies },
                 onChange: nil,
                 trailingText: {
                     guard let entry = CookieHeaderCache.load(provider: .minimax) else { return nil }
@@ -128,9 +121,7 @@ struct MiniMaxProviderImplementation: ProviderImplementation {
                         }),
                 ],
                 isVisible: {
-                    !context.settings.debugDisableKeychainAccess &&
-                        authMode().allowsCookies &&
-                        context.settings.minimaxCookieSource == .manual
+                    authMode().allowsCookies && context.settings.minimaxCookieSource == .manual
                 },
                 onActivate: { context.settings.ensureMiniMaxCookieLoaded() }),
         ]

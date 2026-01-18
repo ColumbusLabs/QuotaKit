@@ -33,16 +33,6 @@ struct DebugPane: View {
                 }
 
                 SettingsSection(
-                    title: "Keychain access",
-                    caption: "Disable all Keychain reads/writes and hide cookie-based web settings.")
-                {
-                    PreferenceToggleRow(
-                        title: "Disable Keychain access",
-                        subtitle: "Prevents any Keychain access while enabled.",
-                        binding: self.$settings.debugDisableKeychainAccess)
-                }
-
-                SettingsSection(
                     title: "Loading animations",
                     caption: "Pick a pattern and replay it in the menu bar. \"Random\" keeps the existing behavior.")
                 {

@@ -15,27 +15,17 @@ struct KimiProviderImplementation: ProviderImplementation {
             set: { raw in
                 context.settings.kimiCookieSource = ProviderCookieSource(rawValue: raw) ?? .auto
             })
-        let options: [ProviderSettingsPickerOption] = [
-            ProviderSettingsPickerOption(
-                id: ProviderCookieSource.auto.rawValue,
-                title: ProviderCookieSource.auto.displayName),
-            ProviderSettingsPickerOption(
-                id: ProviderCookieSource.manual.rawValue,
-                title: ProviderCookieSource.manual.displayName),
-            ProviderSettingsPickerOption(
-                id: ProviderCookieSource.off.rawValue,
-                title: ProviderCookieSource.off.displayName),
-        ]
+        let options = ProviderCookieSourceUI.options(
+            allowsOff: true,
+            keychainDisabled: context.settings.debugDisableKeychainAccess)
 
         let subtitle: () -> String? = {
-            switch context.settings.kimiCookieSource {
-            case .auto:
-                "Automatic imports browser cookies."
-            case .manual:
-                "Paste a cookie header or the kimi-auth token value."
-            case .off:
-                "Kimi cookies are disabled."
-            }
+            ProviderCookieSourceUI.subtitle(
+                source: context.settings.kimiCookieSource,
+                keychainDisabled: context.settings.debugDisableKeychainAccess,
+                auto: "Automatic imports browser cookies.",
+                manual: "Paste a cookie header or the kimi-auth token value.",
+                off: "Kimi cookies are disabled.")
         }
 
         return [

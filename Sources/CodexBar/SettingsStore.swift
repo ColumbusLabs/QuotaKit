@@ -82,7 +82,7 @@ final class SettingsStore {
         didSet { self.userDefaults.set(self.debugMenuEnabled, forKey: "debugMenuEnabled") }
     }
 
-    /// Debug-only: disable all Keychain access and hide cookie-based web options.
+    /// Disable all Keychain access (browser cookie imports fall back to manual input).
     var debugDisableKeychainAccess: Bool {
         didSet {
             self.userDefaults.set(self.debugDisableKeychainAccess, forKey: "debugDisableKeychainAccess")
@@ -168,10 +168,10 @@ final class SettingsStore {
         didSet { self.userDefaults.set(self.menuBarShowsHighestUsage, forKey: "menuBarShowsHighestUsage") }
     }
 
-    /// Optional: augment Claude usage with claude.ai web API (via browser cookies),
+    /// Optional: augment Claude usage with claude.ai web API (via cookies),
     /// incl. "Extra usage" spend.
     var claudeWebExtrasEnabled: Bool {
-        get { self.debugDisableKeychainAccess ? false : self.claudeWebExtrasEnabledRaw }
+        get { self.claudeWebExtrasEnabledRaw }
         set { self.claudeWebExtrasEnabledRaw = newValue }
     }
 
@@ -464,8 +464,7 @@ final class SettingsStore {
 
     var codexCookieSource: ProviderCookieSource {
         get {
-            guard !self.debugDisableKeychainAccess else { return .off }
-            return ProviderCookieSource(rawValue: self.codexCookieSourceRaw ?? "") ?? .auto
+            self.resolvedCookieSource(self.codexCookieSourceRaw, fallback: .auto)
         }
         set {
             self.codexCookieSourceRaw = newValue.rawValue
@@ -475,63 +474,62 @@ final class SettingsStore {
 
     var claudeCookieSource: ProviderCookieSource {
         get {
-            guard !self.debugDisableKeychainAccess else { return .off }
-            return ProviderCookieSource(rawValue: self.claudeCookieSourceRaw ?? "") ?? .auto
+            self.resolvedCookieSource(self.claudeCookieSourceRaw, fallback: .auto)
         }
         set { self.claudeCookieSourceRaw = newValue.rawValue }
     }
 
     var cursorCookieSource: ProviderCookieSource {
         get {
-            guard !self.debugDisableKeychainAccess else { return .off }
-            return ProviderCookieSource(rawValue: self.cursorCookieSourceRaw ?? "") ?? .auto
+            self.resolvedCookieSource(self.cursorCookieSourceRaw, fallback: .auto)
         }
         set { self.cursorCookieSourceRaw = newValue.rawValue }
     }
 
     var opencodeCookieSource: ProviderCookieSource {
         get {
-            guard !self.debugDisableKeychainAccess else { return .off }
-            return ProviderCookieSource(rawValue: self.opencodeCookieSourceRaw ?? "") ?? .auto
+            self.resolvedCookieSource(self.opencodeCookieSourceRaw, fallback: .auto)
         }
         set { self.opencodeCookieSourceRaw = newValue.rawValue }
     }
 
     var factoryCookieSource: ProviderCookieSource {
         get {
-            guard !self.debugDisableKeychainAccess else { return .off }
-            return ProviderCookieSource(rawValue: self.factoryCookieSourceRaw ?? "") ?? .auto
+            self.resolvedCookieSource(self.factoryCookieSourceRaw, fallback: .auto)
         }
         set { self.factoryCookieSourceRaw = newValue.rawValue }
     }
 
     var minimaxCookieSource: ProviderCookieSource {
         get {
-            guard !self.debugDisableKeychainAccess else { return .off }
-            return ProviderCookieSource(rawValue: self.minimaxCookieSourceRaw ?? "") ?? .auto
+            self.resolvedCookieSource(self.minimaxCookieSourceRaw, fallback: .auto)
         }
         set { self.minimaxCookieSourceRaw = newValue.rawValue }
     }
 
     var kimiCookieSource: ProviderCookieSource {
-        get { ProviderCookieSource(rawValue: self.kimiCookieSourceRaw ?? "") ?? .auto }
+        get { self.resolvedCookieSource(self.kimiCookieSourceRaw, fallback: .auto) }
         set { self.kimiCookieSourceRaw = newValue.rawValue }
     }
 
     var augmentCookieSource: ProviderCookieSource {
         get {
-            guard !self.debugDisableKeychainAccess else { return .off }
-            return ProviderCookieSource(rawValue: self.augmentCookieSourceRaw ?? "") ?? .auto
+            self.resolvedCookieSource(self.augmentCookieSourceRaw, fallback: .auto)
         }
         set { self.augmentCookieSourceRaw = newValue.rawValue }
     }
 
     var ampCookieSource: ProviderCookieSource {
         get {
-            guard !self.debugDisableKeychainAccess else { return .off }
-            return ProviderCookieSource(rawValue: self.ampCookieSourceRaw ?? "") ?? .auto
+            self.resolvedCookieSource(self.ampCookieSourceRaw, fallback: .auto)
         }
         set { self.ampCookieSourceRaw = newValue.rawValue }
+    }
+
+    private func resolvedCookieSource(_ raw: String?, fallback: ProviderCookieSource) -> ProviderCookieSource {
+        let source = ProviderCookieSource(rawValue: raw ?? "") ?? fallback
+        guard self.debugDisableKeychainAccess else { return source }
+        return source == .off ? .off : .manual
     }
 
     private var providerDetectionCompleted: Bool {

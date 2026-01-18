@@ -65,6 +65,20 @@ struct AdvancedPane: View {
                         subtitle: "Check if you like your agents having some fun up there.",
                         binding: self.$settings.randomBlinkEnabled)
                 }
+
+                Divider()
+
+                SettingsSection(
+                    title: "Keychain access",
+                    caption: """
+                    Disable all Keychain reads and writes. Browser cookie import is unavailable; paste Cookie \
+                    headers manually in Providers.
+                    """) {
+                        PreferenceToggleRow(
+                            title: "Disable Keychain access",
+                            subtitle: "Prevents any Keychain access while enabled.",
+                            binding: self.$settings.debugDisableKeychainAccess)
+                    }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)

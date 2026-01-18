@@ -15,24 +15,17 @@ struct AmpProviderImplementation: ProviderImplementation {
             set: { raw in
                 context.settings.ampCookieSource = ProviderCookieSource(rawValue: raw) ?? .auto
             })
-        let cookieOptions: [ProviderSettingsPickerOption] = [
-            ProviderSettingsPickerOption(
-                id: ProviderCookieSource.auto.rawValue,
-                title: ProviderCookieSource.auto.displayName),
-            ProviderSettingsPickerOption(
-                id: ProviderCookieSource.manual.rawValue,
-                title: ProviderCookieSource.manual.displayName),
-        ]
+        let cookieOptions = ProviderCookieSourceUI.options(
+            allowsOff: false,
+            keychainDisabled: context.settings.debugDisableKeychainAccess)
 
         let cookieSubtitle: () -> String? = {
-            switch context.settings.ampCookieSource {
-            case .auto:
-                "Automatic imports browser cookies."
-            case .manual:
-                "Paste a Cookie header or cURL capture from Amp settings."
-            case .off:
-                "Amp cookies are disabled."
-            }
+            ProviderCookieSourceUI.subtitle(
+                source: context.settings.ampCookieSource,
+                keychainDisabled: context.settings.debugDisableKeychainAccess,
+                auto: "Automatic imports browser cookies.",
+                manual: "Paste a Cookie header or cURL capture from Amp settings.",
+                off: "Amp cookies are disabled.")
         }
 
         return [
