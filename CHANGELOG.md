@@ -45,6 +45,7 @@
 - Menu bar: rebuild provider status items on reorder so icons update correctly.
 - Preferences: move provider refresh timing to a dedicated second line.
 - Menu: widen provider switcher buttons to avoid clipped titles.
+- Preferences: tighten provider usage metrics spacing.
 - Preferences: move “Access OpenAI via web” into Providers → Codex.
 - Preferences: add usage source pickers for Codex + Claude with auto fallback.
 - Preferences: add cookie source pickers with contextual helper text for the selected mode.
