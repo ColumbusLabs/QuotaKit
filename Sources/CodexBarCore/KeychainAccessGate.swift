@@ -21,7 +21,7 @@ public enum KeychainAccessGate {
         }
         set {
             overrideValue = newValue
-            #if canImport(SweetCookieKit)
+            #if os(macOS) && canImport(SweetCookieKit)
             BrowserCookieKeychainAccessGate.isDisabled = newValue
             #endif
         }
