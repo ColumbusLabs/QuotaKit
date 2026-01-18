@@ -35,10 +35,10 @@ struct ProviderSidebarListView: View {
         .scrollContentBackground(.hidden)
         .background(
             RoundedRectangle(cornerRadius: ProviderSettingsMetrics.sidebarCornerRadius, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor)))
+                .fill(Color(nsColor: .windowBackgroundColor)))
         .overlay(
             RoundedRectangle(cornerRadius: ProviderSettingsMetrics.sidebarCornerRadius, style: .continuous)
-                .stroke(Color(nsColor: .separatorColor), lineWidth: 1))
+                .stroke(Color(nsColor: .separatorColor).opacity(0.7), lineWidth: 1))
         .clipShape(RoundedRectangle(cornerRadius: ProviderSettingsMetrics.sidebarCornerRadius, style: .continuous))
         .frame(minWidth: ProviderSettingsMetrics.sidebarWidth, maxWidth: ProviderSettingsMetrics.sidebarWidth)
     }
@@ -59,11 +59,14 @@ private struct ProviderSidebarRowView: View {
 
         HStack(alignment: .center, spacing: 10) {
             ProviderSidebarReorderHandle()
+                .contentShape(Rectangle())
+                .padding(.vertical, 4)
+                .padding(.horizontal, 2)
+                .help("Drag to reorder")
                 .onDrag {
                     self.draggingProvider = self.provider
                     return NSItemProvider(object: self.provider.rawValue as NSString)
                 }
-                .help("Drag to reorder")
 
             ProviderSidebarBrandIcon(provider: self.provider)
 
