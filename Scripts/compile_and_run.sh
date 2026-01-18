@@ -20,6 +20,45 @@ SIGNING_MODE="${CODEXBAR_SIGNING:-}"
 log()  { printf '%s\n' "$*"; }
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
+has_signing_identity() {
+  local identity="${1:-}"
+  if [[ -z "${identity}" ]]; then
+    return 1
+  fi
+  security find-identity -p codesigning -v 2>/dev/null | grep -F "${identity}" >/dev/null 2>&1
+}
+
+resolve_signing_mode() {
+  if [[ -n "${SIGNING_MODE}" ]]; then
+    return
+  fi
+
+  if [[ -n "${APP_IDENTITY:-}" ]]; then
+    if has_signing_identity "${APP_IDENTITY}"; then
+      SIGNING_MODE="identity"
+      return
+    fi
+    log "WARN: APP_IDENTITY not found in Keychain; falling back to adhoc signing."
+    SIGNING_MODE="adhoc"
+    return
+  fi
+
+  local candidate=""
+  for candidate in \
+    "Developer ID Application: Peter Steinberger (Y5PE65HELJ)" \
+    "CodexBar Development"
+  do
+    if has_signing_identity "${candidate}"; then
+      APP_IDENTITY="${candidate}"
+      export APP_IDENTITY
+      SIGNING_MODE="identity"
+      return
+    fi
+  done
+
+  SIGNING_MODE="adhoc"
+}
+
 run_step() {
   local label="$1"; shift
   log "==> ${label}"
@@ -124,8 +163,11 @@ for arg in "$@"; do
   esac
 done
 
-if [[ -z "${SIGNING_MODE}" && -z "${APP_IDENTITY:-}" ]]; then
-  SIGNING_MODE="adhoc"
+resolve_signing_mode
+if [[ "${SIGNING_MODE}" == "adhoc" ]]; then
+  log "==> Signing: adhoc (set APP_IDENTITY or install a dev cert to avoid keychain prompts)"
+else
+  log "==> Signing: ${APP_IDENTITY:-Developer ID Application}"
 fi
 
 acquire_lock
