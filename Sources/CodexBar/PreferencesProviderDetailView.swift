@@ -20,18 +20,21 @@ struct ProviderDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                let labelWidth = self.detailLabelWidth
                 ProviderDetailHeaderView(
                     provider: self.provider,
                     store: self.store,
                     isEnabled: self.$isEnabled,
                     subtitle: self.subtitle,
                     model: self.model,
+                    labelWidth: labelWidth,
                     onRefresh: self.onRefresh)
 
                 ProviderMetricsInlineView(
                     provider: self.provider,
                     model: self.model,
-                    isEnabled: self.isEnabled)
+                    isEnabled: self.isEnabled,
+                    labelWidth: labelWidth)
 
                 if let errorDisplay {
                     ProviderErrorView(
@@ -77,6 +80,38 @@ struct ProviderDetailView: View {
             !self.settingsFields.isEmpty ||
             self.settingsTokenAccounts != nil
     }
+
+    private var detailLabelWidth: CGFloat {
+        var infoLabels = ["State", "Source", "Version", "Updated"]
+        if self.store.status(for: self.provider) != nil {
+            infoLabels.append("Status")
+        }
+        if !self.model.email.isEmpty {
+            infoLabels.append("Account")
+        }
+        if let plan = self.model.planText, !plan.isEmpty {
+            infoLabels.append("Plan")
+        }
+
+        var metricLabels = self.model.metrics.map(\.title)
+        if self.model.creditsText != nil {
+            metricLabels.append("Credits")
+        }
+        if let providerCost = self.model.providerCost {
+            metricLabels.append(providerCost.title)
+        }
+        if self.model.tokenUsage != nil {
+            metricLabels.append("Cost")
+        }
+
+        let infoWidth = ProviderSettingsMetrics.labelWidth(
+            for: infoLabels,
+            font: ProviderSettingsMetrics.infoLabelFont())
+        let metricWidth = ProviderSettingsMetrics.labelWidth(
+            for: metricLabels,
+            font: ProviderSettingsMetrics.metricLabelFont())
+        return max(infoWidth, metricWidth)
+    }
 }
 
 @MainActor
@@ -86,6 +121,7 @@ private struct ProviderDetailHeaderView: View {
     @Binding var isEnabled: Bool
     let subtitle: String
     let model: UsageMenuCardView.Model
+    let labelWidth: CGFloat
     let onRefresh: () -> Void
 
     var body: some View {
@@ -123,7 +159,8 @@ private struct ProviderDetailHeaderView: View {
                 provider: self.provider,
                 store: self.store,
                 isEnabled: self.isEnabled,
-                model: self.model)
+                model: self.model,
+                labelWidth: self.labelWidth)
         }
     }
 
@@ -165,6 +202,7 @@ private struct ProviderDetailInfoGrid: View {
     @Bindable var store: UsageStore
     let isEnabled: Bool
     let model: UsageMenuCardView.Model
+    let labelWidth: CGFloat
 
     var body: some View {
         let status = self.store.status(for: self.provider)
@@ -176,21 +214,24 @@ private struct ProviderDetailInfoGrid: View {
         let enabledText = self.isEnabled ? "Enabled" : "Disabled"
 
         Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
-            ProviderDetailInfoRow(label: "State", value: enabledText)
-            ProviderDetailInfoRow(label: "Source", value: source)
-            ProviderDetailInfoRow(label: "Version", value: version)
-            ProviderDetailInfoRow(label: "Updated", value: updated)
+            ProviderDetailInfoRow(label: "State", value: enabledText, labelWidth: self.labelWidth)
+            ProviderDetailInfoRow(label: "Source", value: source, labelWidth: self.labelWidth)
+            ProviderDetailInfoRow(label: "Version", value: version, labelWidth: self.labelWidth)
+            ProviderDetailInfoRow(label: "Updated", value: updated, labelWidth: self.labelWidth)
 
             if let status {
-                ProviderDetailInfoRow(label: "Status", value: status.description ?? status.indicator.label)
+                ProviderDetailInfoRow(
+                    label: "Status",
+                    value: status.description ?? status.indicator.label,
+                    labelWidth: self.labelWidth)
             }
 
             if !email.isEmpty {
-                ProviderDetailInfoRow(label: "Account", value: email)
+                ProviderDetailInfoRow(label: "Account", value: email, labelWidth: self.labelWidth)
             }
 
             if !plan.isEmpty {
-                ProviderDetailInfoRow(label: "Plan", value: plan)
+                ProviderDetailInfoRow(label: "Plan", value: plan, labelWidth: self.labelWidth)
             }
         }
         .font(.footnote)
@@ -211,11 +252,12 @@ private struct ProviderDetailInfoGrid: View {
 private struct ProviderDetailInfoRow: View {
     let label: String
     let value: String
+    let labelWidth: CGFloat
 
     var body: some View {
         GridRow {
             Text(self.label)
-                .frame(width: 72, alignment: .leading)
+                .frame(width: self.labelWidth, alignment: .leading)
             Text(self.value)
                 .lineLimit(2)
         }
@@ -227,6 +269,7 @@ struct ProviderMetricsInlineView: View {
     let provider: UsageProvider
     let model: UsageMenuCardView.Model
     let isEnabled: Bool
+    let labelWidth: CGFloat
 
     var body: some View {
         ProviderSettingsSection(
@@ -243,20 +286,35 @@ struct ProviderMetricsInlineView: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(self.model.metrics, id: \.id) { metric in
-                    ProviderMetricInlineRow(metric: metric, progressColor: self.model.progressColor)
+                    ProviderMetricInlineRow(
+                        metric: metric,
+                        progressColor: self.model.progressColor,
+                        labelWidth: self.labelWidth)
                 }
 
                 if let credits = self.model.creditsText {
-                    ProviderMetricInlineTextRow(title: "Credits", value: credits)
+                    ProviderMetricInlineTextRow(
+                        title: "Credits",
+                        value: credits,
+                        labelWidth: self.labelWidth)
                 }
 
                 if let providerCost = self.model.providerCost {
-                    ProviderMetricInlineCostRow(section: providerCost, progressColor: self.model.progressColor)
+                    ProviderMetricInlineCostRow(
+                        section: providerCost,
+                        progressColor: self.model.progressColor,
+                        labelWidth: self.labelWidth)
                 }
 
                 if let tokenUsage = self.model.tokenUsage {
-                    ProviderMetricInlineTextRow(title: "Cost", value: tokenUsage.sessionLine)
-                    ProviderMetricInlineTextRow(title: "", value: tokenUsage.monthLine)
+                    ProviderMetricInlineTextRow(
+                        title: "Cost",
+                        value: tokenUsage.sessionLine,
+                        labelWidth: self.labelWidth)
+                    ProviderMetricInlineTextRow(
+                        title: "",
+                        value: tokenUsage.monthLine,
+                        labelWidth: self.labelWidth)
                 }
             }
         }
@@ -273,14 +331,16 @@ struct ProviderMetricsInlineView: View {
 private struct ProviderMetricInlineRow: View {
     let metric: UsageMenuCardView.Model.Metric
     let progressColor: Color
+    let labelWidth: CGFloat
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .center, spacing: 10) {
-                Text(self.metric.title)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
+        HStack(alignment: .top, spacing: 10) {
+            Text(self.metric.title)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .frame(width: self.labelWidth, alignment: .leading)
 
+            VStack(alignment: .leading, spacing: 4) {
                 UsageProgressBar(
                     percent: self.metric.percent,
                     tint: self.progressColor,
@@ -288,44 +348,45 @@ private struct ProviderMetricInlineRow: View {
                     pacePercent: self.metric.pacePercent,
                     paceOnTop: self.metric.paceOnTop)
                     .frame(minWidth: ProviderSettingsMetrics.metricBarWidth, maxWidth: .infinity)
-            }
 
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(self.metric.percentLabel)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-                Spacer(minLength: 8)
-                if let resetText = self.metric.resetText, !resetText.isEmpty {
-                    Text(resetText)
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(self.metric.percentLabel)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                }
-            }
-
-            let hasLeftDetail = self.metric.detailLeftText?.isEmpty == false
-            let hasRightDetail = self.metric.detailRightText?.isEmpty == false
-            if hasLeftDetail || hasRightDetail {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    if let leftDetail = self.metric.detailLeftText, !leftDetail.isEmpty {
-                        Text(leftDetail)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
+                        .monospacedDigit()
                     Spacer(minLength: 8)
-                    if let rightDetail = self.metric.detailRightText, !rightDetail.isEmpty {
-                        Text(rightDetail)
+                    if let resetText = self.metric.resetText, !resetText.isEmpty {
+                        Text(resetText)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
                 }
-            }
 
-            if let detail = self.detailText, !detail.isEmpty {
-                Text(detail)
-                    .font(.footnote)
-                    .foregroundStyle(.tertiary)
+                let hasLeftDetail = self.metric.detailLeftText?.isEmpty == false
+                let hasRightDetail = self.metric.detailRightText?.isEmpty == false
+                if hasLeftDetail || hasRightDetail {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        if let leftDetail = self.metric.detailLeftText, !leftDetail.isEmpty {
+                            Text(leftDetail)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 8)
+                        if let rightDetail = self.metric.detailRightText, !rightDetail.isEmpty {
+                            Text(rightDetail)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                if let detail = self.detailText, !detail.isEmpty {
+                    Text(detail)
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 2)
     }
@@ -339,12 +400,13 @@ private struct ProviderMetricInlineRow: View {
 private struct ProviderMetricInlineTextRow: View {
     let title: String
     let value: String
+    let labelWidth: CGFloat
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(self.title)
                 .font(.subheadline.weight(.semibold))
-                .frame(width: ProviderSettingsMetrics.metricLabelWidth, alignment: .leading)
+                .frame(width: self.labelWidth, alignment: .leading)
 
             Text(self.value)
                 .font(.footnote)
@@ -359,12 +421,13 @@ private struct ProviderMetricInlineTextRow: View {
 private struct ProviderMetricInlineCostRow: View {
     let section: UsageMenuCardView.Model.ProviderCostSection
     let progressColor: Color
+    let labelWidth: CGFloat
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Text(self.section.title)
                 .font(.subheadline.weight(.semibold))
-                .frame(width: ProviderSettingsMetrics.metricLabelWidth, alignment: .leading)
+                .frame(width: self.labelWidth, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 4) {
                 UsageProgressBar(
