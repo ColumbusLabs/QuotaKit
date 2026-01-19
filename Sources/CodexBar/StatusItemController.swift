@@ -77,8 +77,9 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     private var lastProviderOrderRaw: [String]
     private var lastMergeIcons: Bool
     private var lastSwitcherShowsIcons: Bool
+    /// Tracks which providers the merged menu's switcher was built with, to detect when it needs full rebuild.
+    var lastSwitcherProviders: [UsageProvider] = []
     let loginLogger = CodexBarLog.logger("login")
-    private let menuLogger = CodexBarLog.logger("menu")
     var selectedMenuProvider: UsageProvider? {
         get { self.settings.selectedMenuProvider }
         set { self.settings.selectedMenuProvider = newValue }
@@ -289,8 +290,6 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         let configChanged = self.settings.configRevision != self.lastConfigRevision
         let orderChanged = self.settings.providerOrderRaw != self.lastProviderOrderRaw
         let shouldRefreshOpenMenus = self.shouldRefreshOpenMenusForProviderSwitcher()
-        self.menuLogger.debug(
-            "Settings change (\(reason)): configChanged=\(configChanged) orderChanged=\(orderChanged)")
         self.invalidateMenus()
         if orderChanged || configChanged {
             self.rebuildProviderStatusItems()
@@ -332,7 +331,8 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     private func updateVisibility() {
         let anyEnabled = !self.store.enabledProviders().isEmpty
         let force = self.store.debugForceAnimation
-        if self.shouldMergeIcons {
+        let mergeIcons = self.shouldMergeIcons
+        if mergeIcons {
             self.statusItem.isVisible = anyEnabled || force
             for item in self.statusItems.values {
                 item.isVisible = false

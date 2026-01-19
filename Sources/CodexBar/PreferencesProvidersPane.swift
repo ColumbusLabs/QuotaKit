@@ -99,7 +99,9 @@ struct ProvidersPane: View {
         let meta = self.store.metadata(for: provider)
         return Binding(
             get: { self.settings.isProviderEnabled(provider: provider, metadata: meta) },
-            set: { self.settings.setProviderEnabled(provider: provider, metadata: meta, enabled: $0) })
+            set: { newValue in
+                self.settings.setProviderEnabled(provider: provider, metadata: meta, enabled: newValue)
+            })
     }
 
     func providerSubtitle(_ provider: UsageProvider) -> String {
