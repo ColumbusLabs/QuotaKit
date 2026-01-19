@@ -21,6 +21,7 @@ public enum AugmentProviderDescriptor {
             .edgeBeta,
             .brave,
             .arc,
+            .dia,
             .arcBeta,
             .firefox,
         ]
