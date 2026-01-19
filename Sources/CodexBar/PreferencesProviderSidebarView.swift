@@ -89,6 +89,7 @@ private struct ProviderSidebarRowView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
+                    .frame(height: ProviderSettingsMetrics.sidebarSubtitleHeight, alignment: .topLeading)
             }
 
             Spacer(minLength: 8)
