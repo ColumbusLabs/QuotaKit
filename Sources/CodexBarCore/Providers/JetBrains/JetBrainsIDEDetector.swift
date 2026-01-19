@@ -120,6 +120,14 @@ public enum JetBrainsIDEDetector {
         return nil
     }
 
+    #if DEBUG
+    // MARK: - Test hooks (DEBUG-only)
+
+    public static func _parseIDEDirectoryForTesting(dirname: String, basePath: String) -> JetBrainsIDEInfo? {
+        self.parseIDEDirectory(dirname: dirname, basePath: basePath)
+    }
+    #endif
+
     public static func quotaFilePath(for ideBasePath: String) -> String {
         "\(ideBasePath)/options/\(self.quotaFileName)"
     }
