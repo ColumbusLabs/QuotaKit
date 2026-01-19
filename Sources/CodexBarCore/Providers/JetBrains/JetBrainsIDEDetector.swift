@@ -121,6 +121,7 @@ public enum JetBrainsIDEDetector {
     }
 
     #if DEBUG
+
     // MARK: - Test hooks (DEBUG-only)
 
     public static func _parseIDEDirectoryForTesting(dirname: String, basePath: String) -> JetBrainsIDEInfo? {
