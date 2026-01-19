@@ -38,6 +38,15 @@ extension SettingsStore {
         }
     }
 
+    var debugFileLoggingEnabled: Bool {
+        get { self.defaultsState.debugFileLoggingEnabled }
+        set {
+            self.defaultsState.debugFileLoggingEnabled = newValue
+            self.userDefaults.set(newValue, forKey: "debugFileLoggingEnabled")
+            CodexBarLog.setFileLoggingEnabled(newValue)
+        }
+    }
+
     private var debugLoadingPatternRaw: String? {
         get { self.defaultsState.debugLoadingPatternRaw }
         set {

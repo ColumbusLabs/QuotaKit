@@ -2,59 +2,94 @@ import CodexBarCore
 import Foundation
 
 extension SettingsStore {
-    func updateProviderConfig(provider: UsageProvider, mutate: (inout ProviderConfig) -> Void) {
+    private func updateConfig(reason: String, mutate: (inout CodexBarConfig) -> Void) {
         guard !self.configLoading else { return }
         var config = self.config
-        if let index = config.providers.firstIndex(where: { $0.id == provider }) {
-            var entry = config.providers[index]
-            mutate(&entry)
-            config.providers[index] = entry
-        } else {
-            var entry = ProviderConfig(id: provider)
-            mutate(&entry)
-            config.providers.append(entry)
-        }
+        mutate(&config)
         self.config = config.normalized()
         self.schedulePersistConfig()
+        self.bumpConfigRevision(reason: reason)
+    }
+
+    func updateProviderConfig(provider: UsageProvider, mutate: (inout ProviderConfig) -> Void) {
+        self.updateConfig(reason: "provider-\(provider.rawValue)") { config in
+            if let index = config.providers.firstIndex(where: { $0.id == provider }) {
+                var entry = config.providers[index]
+                mutate(&entry)
+                config.providers[index] = entry
+            } else {
+                var entry = ProviderConfig(id: provider)
+                mutate(&entry)
+                config.providers.append(entry)
+            }
+        }
     }
 
     func updateProviderTokenAccounts(_ accounts: [UsageProvider: ProviderTokenAccountData]) {
-        guard !self.configLoading else { return }
-        var config = self.config
-        var seen: Set<UsageProvider> = []
-        for index in config.providers.indices {
-            let provider = config.providers[index].id
-            config.providers[index].tokenAccounts = accounts[provider]
-            seen.insert(provider)
+        self.updateConfig(reason: "token-accounts") { config in
+            var seen: Set<UsageProvider> = []
+            for index in config.providers.indices {
+                let provider = config.providers[index].id
+                config.providers[index].tokenAccounts = accounts[provider]
+                seen.insert(provider)
+            }
+            for (provider, data) in accounts where !seen.contains(provider) {
+                config.providers.append(ProviderConfig(id: provider, tokenAccounts: data))
+            }
         }
-        for (provider, data) in accounts where !seen.contains(provider) {
-            config.providers.append(ProviderConfig(id: provider, tokenAccounts: data))
-        }
-        self.config = config.normalized()
-        self.schedulePersistConfig()
     }
 
     func setProviderOrder(_ order: [UsageProvider]) {
+        self.updateConfig(reason: "order") { config in
+            let configsByID = Dictionary(uniqueKeysWithValues: config.providers.map { ($0.id, $0) })
+            var seen: Set<UsageProvider> = []
+            var ordered: [ProviderConfig] = []
+            ordered.reserveCapacity(max(order.count, config.providers.count))
+
+            for provider in order {
+                guard !seen.contains(provider) else { continue }
+                seen.insert(provider)
+                ordered.append(configsByID[provider] ?? ProviderConfig(id: provider))
+            }
+
+            for provider in UsageProvider.allCases where !seen.contains(provider) {
+                ordered.append(configsByID[provider] ?? ProviderConfig(id: provider))
+            }
+
+            config.providers = ordered
+        }
+    }
+
+    func reloadConfig(reason: String) {
         guard !self.configLoading else { return }
-        let configsByID = Dictionary(uniqueKeysWithValues: self.config.providers.map { ($0.id, $0) })
-        var seen: Set<UsageProvider> = []
-        var ordered: [ProviderConfig] = []
-        ordered.reserveCapacity(max(order.count, self.config.providers.count))
-
-        for provider in order {
-            guard !seen.contains(provider) else { continue }
-            seen.insert(provider)
-            ordered.append(configsByID[provider] ?? ProviderConfig(id: provider))
+        do {
+            guard let loaded = try self.configStore.load() else { return }
+            self.applyExternalConfig(loaded, reason: "reload-\(reason)")
+        } catch {
+            CodexBarLog.logger("config-store").error("Failed to reload config: \(error)")
         }
+    }
 
-        for provider in UsageProvider.allCases where !seen.contains(provider) {
-            ordered.append(configsByID[provider] ?? ProviderConfig(id: provider))
-        }
+    func applyExternalConfig(_ config: CodexBarConfig, reason: String) {
+        guard !self.configLoading else { return }
+        self.configLoading = true
+        self.config = config
+        self.configLoading = false
+        self.bumpConfigRevision(reason: "sync-\(reason)")
+    }
 
-        var config = self.config
-        config.providers = ordered
-        self.config = config.normalized()
-        self.schedulePersistConfig()
+    private func bumpConfigRevision(reason: String) {
+        self.configRevision &+= 1
+        CodexBarLog.logger("settings")
+            .debug("Config revision bumped (\(reason)) -> \(self.configRevision)")
+        NotificationCenter.default.post(
+            name: .codexbarProviderConfigDidChange,
+            object: self,
+            userInfo: [
+                "config": self.config,
+                "reason": reason,
+                "revision": self.configRevision,
+            ])
     }
 
     func normalizedConfigValue(_ raw: String) -> String? {

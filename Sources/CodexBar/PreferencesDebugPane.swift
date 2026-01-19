@@ -25,6 +25,13 @@ struct DebugPane: View {
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
             VStack(alignment: .leading, spacing: 20) {
+                SettingsSection(title: "Logging") {
+                    PreferenceToggleRow(
+                        title: "Enable file logging",
+                        subtitle: "Write logs to \(self.fileLogPath) for debugging.",
+                        binding: self.$settings.debugFileLoggingEnabled)
+                }
+
                 SettingsSection {
                     PreferenceToggleRow(
                         title: "Force animation on next refresh",
@@ -336,6 +343,10 @@ struct DebugPane: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
         }
+    }
+
+    private var fileLogPath: String {
+        CodexBarLog.fileLogURL.path
     }
 
     private var animationPatternBinding: Binding<LoadingPattern?> {

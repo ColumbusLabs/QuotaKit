@@ -80,7 +80,7 @@ final class SettingsStore {
     @ObservationIgnored private var cachedProviderOrder: [UsageProvider] = []
     @ObservationIgnored private var cachedProviderOrderRaw: [String] = []
     @ObservationIgnored var defaultsState: SettingsDefaultsState
-    var providerToggleRevision: Int = 0
+    var configRevision: Int = 0
 
     init(
         userDefaults: UserDefaults = .standard,
@@ -141,6 +141,7 @@ final class SettingsStore {
         self.configLoading = true
         self.defaultsState = Self.loadDefaultsState(userDefaults: userDefaults)
         self.configLoading = false
+        CodexBarLog.setFileLoggingEnabled(self.debugFileLoggingEnabled)
         userDefaults.removeObject(forKey: "showCodexUsage")
         userDefaults.removeObject(forKey: "showClaudeUsage")
         LaunchAtLoginManager.setEnabled(self.launchAtLogin)
@@ -169,6 +170,7 @@ extension SettingsStore {
             }
             return false
         }()
+        let debugFileLoggingEnabled = userDefaults.object(forKey: "debugFileLoggingEnabled") as? Bool ?? false
         let debugLoadingPatternRaw = userDefaults.string(forKey: "debugLoadingPattern")
         let statusChecksEnabled = userDefaults.object(forKey: "statusChecksEnabled") as? Bool ?? true
         let sessionQuotaDefault = userDefaults.object(forKey: "sessionQuotaNotificationsEnabled") as? Bool
@@ -214,6 +216,7 @@ extension SettingsStore {
             launchAtLogin: launchAtLogin,
             debugMenuEnabled: debugMenuEnabled,
             debugDisableKeychainAccess: debugDisableKeychainAccess,
+            debugFileLoggingEnabled: debugFileLoggingEnabled,
             debugLoadingPatternRaw: debugLoadingPatternRaw,
             statusChecksEnabled: statusChecksEnabled,
             sessionQuotaNotificationsEnabled: sessionQuotaNotificationsEnabled,
@@ -261,7 +264,7 @@ extension SettingsStore {
     }
 
     func isProviderEnabled(provider: UsageProvider, metadata: ProviderMetadata) -> Bool {
-        _ = self.providerToggleRevision
+        _ = self.configRevision
         return self.config.providerConfig(for: provider)?.enabled ?? metadata.defaultEnabled
     }
 
@@ -291,7 +294,9 @@ extension SettingsStore {
     }
 
     func setProviderEnabled(provider: UsageProvider, metadata _: ProviderMetadata, enabled: Bool) {
-        self.providerToggleRevision &+= 1
+        CodexBarLog.logger("settings").debug(
+            "Provider toggle updated",
+            metadata: ["provider": provider.rawValue, "enabled": "\(enabled)"])
         self.updateProviderConfig(provider: provider) { entry in
             entry.enabled = enabled
         }
@@ -340,7 +345,7 @@ extension SettingsStore {
     private func refreshProviderEnablementCacheIfNeeded(
         metadataByProvider: [UsageProvider: ProviderMetadata])
     {
-        let revision = self.providerToggleRevision
+        let revision = self.configRevision
         guard revision != self.cachedProviderEnablementRevision else { return }
         var cache: [UsageProvider: Bool] = [:]
         for (provider, metadata) in metadataByProvider {

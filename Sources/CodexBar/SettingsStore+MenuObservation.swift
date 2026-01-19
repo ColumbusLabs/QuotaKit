@@ -54,7 +54,7 @@ extension SettingsStore {
         _ = self.tokenAccountsByProvider
         _ = self.debugLoadingPattern
         _ = self.selectedMenuProvider
-        _ = self.providerToggleRevision
+        _ = self.configRevision
         return 0
     }
 }

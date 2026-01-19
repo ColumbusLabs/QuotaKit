@@ -272,6 +272,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         // Defensive fallback: this should not be hit in normal app lifecycle.
+        CodexBarLog.logger("app")
+            .error("StatusItemController fallback path used; settings/store mismatch likely.")
+        assertionFailure("StatusItemController fallback path used; check app lifecycle wiring.")
         let fallbackSettings = SettingsStore()
         let fetcher = UsageFetcher()
         let browserDetection = BrowserDetection(cacheTTL: BrowserDetection.defaultCacheTTL)

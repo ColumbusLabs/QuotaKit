@@ -25,7 +25,6 @@ extension SettingsStore {
         let enableGemini = geminiInstalled
         let enableAntigravity = antigravityRunning
 
-        self.providerToggleRevision &+= 1
         self.updateProviderConfig(provider: .codex) { entry in
             entry.enabled = enableCodex
         }
