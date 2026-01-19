@@ -6,6 +6,7 @@ import SwiftUI
 struct DebugPane: View {
     @Bindable var settings: SettingsStore
     @Bindable var store: UsageStore
+    @AppStorage("debugFileLoggingEnabled") private var debugFileLoggingEnabled = false
     @State private var currentLogProvider: UsageProvider = .codex
     @State private var currentFetchProvider: UsageProvider = .codex
     @State private var isLoadingLog = false
@@ -29,7 +30,12 @@ struct DebugPane: View {
                     PreferenceToggleRow(
                         title: "Enable file logging",
                         subtitle: "Write logs to \(self.fileLogPath) for debugging.",
-                        binding: self.$settings.debugFileLoggingEnabled)
+                        binding: self.$debugFileLoggingEnabled)
+                        .onChange(of: self.debugFileLoggingEnabled) { _, newValue in
+                            if self.settings.debugFileLoggingEnabled != newValue {
+                                self.settings.debugFileLoggingEnabled = newValue
+                            }
+                        }
                 }
 
                 SettingsSection {
