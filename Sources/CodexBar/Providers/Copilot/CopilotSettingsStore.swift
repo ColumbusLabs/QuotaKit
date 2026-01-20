@@ -14,3 +14,9 @@ extension SettingsStore {
 
     func ensureCopilotAPITokenLoaded() {}
 }
+
+extension SettingsStore {
+    func copilotSettingsSnapshot() -> ProviderSettingsSnapshot.CopilotProviderSettings {
+        ProviderSettingsSnapshot.CopilotProviderSettings()
+    }
+}

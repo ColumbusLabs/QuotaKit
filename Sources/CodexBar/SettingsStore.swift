@@ -72,15 +72,10 @@ final class SettingsStore {
     @ObservationIgnored var configPersistTask: Task<Void, Never>?
     @ObservationIgnored var configLoading = false
     @ObservationIgnored var tokenAccountsLoaded = false
-    @ObservationIgnored private var cachedProviderEnablement: [UsageProvider: Bool] = [:]
-    @ObservationIgnored private var cachedProviderEnablementRevision: Int = -1
-    @ObservationIgnored private var cachedEnabledProviders: [UsageProvider] = []
-    @ObservationIgnored private var cachedEnabledProvidersRevision: Int = -1
-    @ObservationIgnored private var cachedEnabledProvidersOrderRaw: [String] = []
-    @ObservationIgnored private var cachedProviderOrder: [UsageProvider] = []
-    @ObservationIgnored private var cachedProviderOrderRaw: [String] = []
     var defaultsState: SettingsDefaultsState
     var configRevision: Int = 0
+    var providerOrder: [UsageProvider] = []
+    var providerEnablement: [UsageProvider: Bool] = [:]
 
     init(
         userDefaults: UserDefaults = .standard,
@@ -140,6 +135,7 @@ final class SettingsStore {
         self.config = config
         self.configLoading = true
         self.defaultsState = Self.loadDefaultsState(userDefaults: userDefaults)
+        self.updateProviderState(config: config)
         self.configLoading = false
         CodexBarLog.setFileLoggingEnabled(self.debugFileLoggingEnabled)
         userDefaults.removeObject(forKey: "showCodexUsage")
@@ -254,19 +250,24 @@ extension SettingsStore {
         return self.config
     }
 
-    var providerOrderRaw: [String] {
-        self.configSnapshot.providers.map(\.id.rawValue)
+    func updateProviderState(config: CodexBarConfig) {
+        let rawOrder = config.providers.map(\.id.rawValue)
+        self.providerOrder = Self.effectiveProviderOrder(raw: rawOrder)
+        let metadata = ProviderDescriptorRegistry.metadata
+        var enablement: [UsageProvider: Bool] = [:]
+        enablement.reserveCapacity(metadata.count)
+        for provider in UsageProvider.allCases {
+            let defaultEnabled = metadata[provider]?.defaultEnabled ?? false
+            enablement[provider] = config.providerConfig(for: provider)?.enabled ?? defaultEnabled
+        }
+        self.providerEnablement = enablement
     }
 
     func orderedProviders() -> [UsageProvider] {
-        let raw = self.providerOrderRaw
-        if raw == self.cachedProviderOrderRaw, !self.cachedProviderOrder.isEmpty {
-            return self.cachedProviderOrder
+        if self.providerOrder.isEmpty {
+            self.updateProviderState(config: self.configSnapshot)
         }
-        let ordered = Self.effectiveProviderOrder(raw: raw)
-        self.cachedProviderOrderRaw = raw
-        self.cachedProviderOrder = ordered
-        return ordered
+        return self.providerOrder
     }
 
     func moveProvider(fromOffsets: IndexSet, toOffset: Int) {
@@ -276,33 +277,20 @@ extension SettingsStore {
     }
 
     func isProviderEnabled(provider: UsageProvider, metadata: ProviderMetadata) -> Bool {
-        let config = self.configSnapshot
-        return config.providerConfig(for: provider)?.enabled ?? metadata.defaultEnabled
+        self.providerEnablement[provider] ?? metadata.defaultEnabled
     }
 
     func isProviderEnabledCached(
         provider: UsageProvider,
         metadataByProvider: [UsageProvider: ProviderMetadata]) -> Bool
     {
-        self.refreshProviderEnablementCacheIfNeeded(metadataByProvider: metadataByProvider)
-        return self.cachedProviderEnablement[provider] ?? false
+        let defaultEnabled = metadataByProvider[provider]?.defaultEnabled ?? false
+        return self.providerEnablement[provider] ?? defaultEnabled
     }
 
     func enabledProvidersOrdered(metadataByProvider: [UsageProvider: ProviderMetadata]) -> [UsageProvider] {
-        self.refreshProviderEnablementCacheIfNeeded(metadataByProvider: metadataByProvider)
-        let orderRaw = self.providerOrderRaw
-        let revision = self.cachedProviderEnablementRevision
-        if revision == self.cachedEnabledProvidersRevision,
-           orderRaw == self.cachedEnabledProvidersOrderRaw,
-           !self.cachedEnabledProviders.isEmpty
-        {
-            return self.cachedEnabledProviders
-        }
-        let enabled = self.orderedProviders().filter { self.cachedProviderEnablement[$0] ?? false }
-        self.cachedEnabledProviders = enabled
-        self.cachedEnabledProvidersRevision = revision
-        self.cachedEnabledProvidersOrderRaw = orderRaw
-        return enabled
+        _ = metadataByProvider
+        return self.orderedProviders().filter { self.providerEnablement[$0] ?? false }
     }
 
     func setProviderEnabled(provider: UsageProvider, metadata _: ProviderMetadata, enabled: Bool) {
@@ -352,19 +340,5 @@ extension SettingsStore {
         }
 
         return ordered
-    }
-
-    private func refreshProviderEnablementCacheIfNeeded(
-        metadataByProvider: [UsageProvider: ProviderMetadata])
-    {
-        let revision = self.configRevision
-        guard revision != self.cachedProviderEnablementRevision else { return }
-        let config = self.configSnapshot
-        var cache: [UsageProvider: Bool] = [:]
-        for (provider, metadata) in metadataByProvider {
-            cache[provider] = config.providerConfig(for: provider)?.enabled ?? metadata.defaultEnabled
-        }
-        self.cachedProviderEnablement = cache
-        self.cachedProviderEnablementRevision = revision
     }
 }

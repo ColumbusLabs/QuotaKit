@@ -124,34 +124,6 @@ extension SettingsStore {
         guard let support = TokenAccountSupportCatalog.support(for: provider),
               support.requiresManualCookieSource
         else { return }
-
-        switch provider {
-        case .claude:
-            if self.claudeCookieSource != .manual {
-                self.claudeCookieSource = .manual
-            }
-        case .cursor:
-            if self.cursorCookieSource != .manual {
-                self.cursorCookieSource = .manual
-            }
-        case .opencode:
-            if self.opencodeCookieSource != .manual {
-                self.opencodeCookieSource = .manual
-            }
-        case .factory:
-            if self.factoryCookieSource != .manual {
-                self.factoryCookieSource = .manual
-            }
-        case .minimax:
-            if self.minimaxCookieSource != .manual {
-                self.minimaxCookieSource = .manual
-            }
-        case .augment:
-            if self.augmentCookieSource != .manual {
-                self.augmentCookieSource = .manual
-            }
-        default:
-            break
-        }
+        ProviderCatalog.implementation(for: provider)?.applyTokenAccountCookieSource(settings: self)
     }
 }

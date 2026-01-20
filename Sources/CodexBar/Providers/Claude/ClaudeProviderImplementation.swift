@@ -27,6 +27,20 @@ struct ClaudeProviderImplementation: ProviderImplementation {
     }
 
     @MainActor
+    func tokenAccountsVisibility(context: ProviderSettingsContext, support: TokenAccountSupport) -> Bool {
+        guard support.requiresManualCookieSource else { return true }
+        if !context.settings.tokenAccounts(for: context.provider).isEmpty { return true }
+        return context.settings.claudeCookieSource == .manual
+    }
+
+    @MainActor
+    func applyTokenAccountCookieSource(settings: SettingsStore) {
+        if settings.claudeCookieSource != .manual {
+            settings.claudeCookieSource = .manual
+        }
+    }
+
+    @MainActor
     func defaultSourceLabel(context: ProviderSourceLabelContext) -> String? {
         context.settings.claudeUsageDataSource.rawValue
     }

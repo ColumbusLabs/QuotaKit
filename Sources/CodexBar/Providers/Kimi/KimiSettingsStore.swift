@@ -24,3 +24,13 @@ extension SettingsStore {
 
     func ensureKimiAuthTokenLoaded() {}
 }
+
+extension SettingsStore {
+    func kimiSettingsSnapshot(tokenOverride: TokenAccountOverride?) -> ProviderSettingsSnapshot.KimiProviderSettings {
+        _ = tokenOverride
+        self.ensureKimiAuthTokenLoaded()
+        return ProviderSettingsSnapshot.KimiProviderSettings(
+            cookieSource: self.kimiCookieSource,
+            manualCookieHeader: self.kimiManualCookieHeader)
+    }
+}

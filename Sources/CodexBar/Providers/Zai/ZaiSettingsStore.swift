@@ -26,3 +26,9 @@ extension SettingsStore {
 
     func ensureZaiAPITokenLoaded() {}
 }
+
+extension SettingsStore {
+    func zaiSettingsSnapshot() -> ProviderSettingsSnapshot.ZaiProviderSettings {
+        ProviderSettingsSnapshot.ZaiProviderSettings(apiRegion: self.zaiAPIRegion)
+    }
+}

@@ -7,6 +7,7 @@ extension SettingsStore {
         var config = self.config
         mutate(&config)
         self.config = config.normalized()
+        self.updateProviderState(config: self.config)
         self.schedulePersistConfig()
         self.bumpConfigRevision(reason: reason)
     }
@@ -84,6 +85,7 @@ extension SettingsStore {
         guard !self.configLoading else { return }
         self.configLoading = true
         self.config = config
+        self.updateProviderState(config: config)
         self.configLoading = false
         self.bumpConfigRevision(reason: "sync-\(reason)")
     }

@@ -48,6 +48,15 @@ extension SettingsStore {
 }
 
 extension SettingsStore {
+    func claudeSettingsSnapshot(tokenOverride: TokenAccountOverride?) -> ProviderSettingsSnapshot
+    .ClaudeProviderSettings {
+        ProviderSettingsSnapshot.ClaudeProviderSettings(
+            usageDataSource: self.claudeUsageDataSource,
+            webExtrasEnabled: self.claudeWebExtrasEnabled,
+            cookieSource: self.claudeSnapshotCookieSource(tokenOverride: tokenOverride),
+            manualCookieHeader: self.claudeSnapshotCookieHeader(tokenOverride: tokenOverride))
+    }
+
     private static func claudeUsageDataSource(from source: ProviderSourceMode?) -> ClaudeUsageDataSource {
         guard let source else { return .auto }
         switch source {
@@ -60,5 +69,44 @@ extension SettingsStore {
         case .oauth:
             return .oauth
         }
+    }
+
+    private func claudeSnapshotCookieHeader(tokenOverride: TokenAccountOverride?) -> String {
+        let fallback = self.claudeCookieHeader
+        guard let support = TokenAccountSupportCatalog.support(for: .claude),
+              case .cookieHeader = support.injection
+        else {
+            return fallback
+        }
+        guard let account = ProviderTokenAccountSelection.selectedAccount(
+            provider: .claude,
+            settings: self,
+            override: tokenOverride)
+        else {
+            return fallback
+        }
+        if TokenAccountSupportCatalog.isClaudeOAuthToken(account.token) {
+            return ""
+        }
+        return TokenAccountSupportCatalog.normalizedCookieHeader(account.token, support: support)
+    }
+
+    private func claudeSnapshotCookieSource(tokenOverride: TokenAccountOverride?) -> ProviderCookieSource {
+        let fallback = self.claudeCookieSource
+        guard let support = TokenAccountSupportCatalog.support(for: .claude),
+              support.requiresManualCookieSource
+        else {
+            return fallback
+        }
+        if let account = ProviderTokenAccountSelection.selectedAccount(
+            provider: .claude,
+            settings: self,
+            override: tokenOverride),
+            TokenAccountSupportCatalog.isClaudeOAuthToken(account.token)
+        {
+            return .off
+        }
+        if self.tokenAccounts(for: .claude).isEmpty { return fallback }
+        return .manual
     }
 }

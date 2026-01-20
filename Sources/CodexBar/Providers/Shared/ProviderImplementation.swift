@@ -46,6 +46,14 @@ protocol ProviderImplementation: Sendable {
     @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor]
 
+    /// Optional visibility gate for token account settings.
+    @MainActor
+    func tokenAccountsVisibility(context: ProviderSettingsContext, support: TokenAccountSupport) -> Bool
+
+    /// Optional hook to update provider settings when token accounts change.
+    @MainActor
+    func applyTokenAccountCookieSource(settings: SettingsStore)
+
     /// Optional provider-specific login flow. Returns whether to refresh after completion.
     @MainActor
     func runLoginFlow(context: ProviderLoginContext) async -> Bool
@@ -106,6 +114,15 @@ extension ProviderImplementation {
     func settingsPickers(context _: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
         []
     }
+
+    @MainActor
+    func tokenAccountsVisibility(context: ProviderSettingsContext, support: TokenAccountSupport) -> Bool {
+        guard support.requiresManualCookieSource else { return true }
+        return !context.settings.tokenAccounts(for: context.provider).isEmpty
+    }
+
+    @MainActor
+    func applyTokenAccountCookieSource(settings _: SettingsStore) {}
 
     @MainActor
     func runLoginFlow(context _: ProviderLoginContext) async -> Bool {

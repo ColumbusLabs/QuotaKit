@@ -48,6 +48,13 @@ extension SettingsStore {
 }
 
 extension SettingsStore {
+    func codexSettingsSnapshot(tokenOverride: TokenAccountOverride?) -> ProviderSettingsSnapshot.CodexProviderSettings {
+        ProviderSettingsSnapshot.CodexProviderSettings(
+            usageDataSource: self.codexUsageDataSource,
+            cookieSource: self.codexSnapshotCookieSource(tokenOverride: tokenOverride),
+            manualCookieHeader: self.codexSnapshotCookieHeader(tokenOverride: tokenOverride))
+    }
+
     private static func codexUsageDataSource(from source: ProviderSourceMode?) -> CodexUsageDataSource {
         guard let source else { return .auto }
         switch source {
@@ -58,5 +65,33 @@ extension SettingsStore {
         case .oauth:
             return .oauth
         }
+    }
+
+    private func codexSnapshotCookieHeader(tokenOverride: TokenAccountOverride?) -> String {
+        let fallback = self.codexCookieHeader
+        guard let support = TokenAccountSupportCatalog.support(for: .codex),
+              case .cookieHeader = support.injection
+        else {
+            return fallback
+        }
+        guard let account = ProviderTokenAccountSelection.selectedAccount(
+            provider: .codex,
+            settings: self,
+            override: tokenOverride)
+        else {
+            return fallback
+        }
+        return TokenAccountSupportCatalog.normalizedCookieHeader(account.token, support: support)
+    }
+
+    private func codexSnapshotCookieSource(tokenOverride: TokenAccountOverride?) -> ProviderCookieSource {
+        let fallback = self.codexCookieSource
+        guard let support = TokenAccountSupportCatalog.support(for: .codex),
+              support.requiresManualCookieSource
+        else {
+            return fallback
+        }
+        if self.tokenAccounts(for: .codex).isEmpty { return fallback }
+        return .manual
     }
 }

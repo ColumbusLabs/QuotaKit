@@ -77,7 +77,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var animationPhase: Double = 0
     var animationPattern: LoadingPattern = .knightRider
     private var lastConfigRevision: Int
-    private var lastProviderOrderRaw: [String]
+    private var lastProviderOrder: [UsageProvider]
     private var lastMergeIcons: Bool
     private var lastSwitcherShowsIcons: Bool
     /// Tracks which providers the merged menu's switcher was built with, to detect when it needs full rebuild.
@@ -145,7 +145,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         self.updater = updater
         self.preferencesSelection = preferencesSelection
         self.lastConfigRevision = settings.configRevision
-        self.lastProviderOrderRaw = settings.providerOrderRaw
+        self.lastProviderOrder = settings.providerOrder
         self.lastMergeIcons = settings.mergeIcons
         self.lastSwitcherShowsIcons = settings.switcherShowsIcons
         let item = statusBar.statusItem(withLength: NSStatusItem.variableLength)
@@ -271,9 +271,9 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             self.lastConfigRevision = revision
             shouldRefresh = true
         }
-        let orderRaw = self.settings.providerOrderRaw
-        if orderRaw != self.lastProviderOrderRaw {
-            self.lastProviderOrderRaw = orderRaw
+        let order = self.settings.providerOrder
+        if order != self.lastProviderOrder {
+            self.lastProviderOrder = order
             shouldRefresh = true
         }
         let mergeIcons = self.settings.mergeIcons
@@ -291,7 +291,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
 
     private func handleSettingsChange(reason: String) {
         let configChanged = self.settings.configRevision != self.lastConfigRevision
-        let orderChanged = self.settings.providerOrderRaw != self.lastProviderOrderRaw
+        let orderChanged = self.settings.providerOrder != self.lastProviderOrder
         let shouldRefreshOpenMenus = self.shouldRefreshOpenMenusForProviderSwitcher()
         self.invalidateMenus()
         if orderChanged || configChanged {

@@ -163,6 +163,7 @@ struct ProvidersPane: View {
 
     func tokenAccountDescriptor(for provider: UsageProvider) -> ProviderSettingsTokenAccountsDescriptor? {
         guard let support = TokenAccountSupportCatalog.support(for: provider) else { return nil }
+        let context = self.makeSettingsContext(provider: provider)
         return ProviderSettingsTokenAccountsDescriptor(
             id: "token-accounts-\(provider.rawValue)",
             title: support.title,
@@ -170,22 +171,10 @@ struct ProvidersPane: View {
             placeholder: support.placeholder,
             provider: provider,
             isVisible: {
-                guard support.requiresManualCookieSource else { return true }
-                if !self.settings.tokenAccounts(for: provider).isEmpty { return true }
-                switch provider {
-                case .claude: return self.settings.claudeCookieSource == .manual
-                case .cursor: return self.settings.cursorCookieSource == .manual
-                case .opencode: return self.settings.opencodeCookieSource == .manual
-                case .factory: return self.settings.factoryCookieSource == .manual
-                case .minimax:
-                    self.settings.ensureMiniMaxAPITokenLoaded()
-                    if self.settings.minimaxAuthMode().usesAPIToken {
-                        return false
-                    }
-                    return self.settings.minimaxCookieSource == .manual
-                case .augment: return self.settings.augmentCookieSource == .manual
-                default: return true
-                }
+                ProviderCatalog.implementation(for: provider)?
+                    .tokenAccountsVisibility(context: context, support: support)
+                    ?? (!support.requiresManualCookieSource ||
+                        !context.settings.tokenAccounts(for: provider).isEmpty)
             },
             accounts: { self.settings.tokenAccounts(for: provider) },
             activeIndex: {
