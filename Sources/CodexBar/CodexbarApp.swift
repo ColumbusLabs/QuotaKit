@@ -261,14 +261,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Use the classic (non-Liquid Glass) app icon on macOS versions before 26.
     private func configureAppIconForMacOSVersion() {
-        let osVersion = ProcessInfo.processInfo.operatingSystemVersion
-        guard osVersion.majorVersion < 26 else { return }
-
-        guard let classicIconURL = Bundle.main.url(forResource: "Icon-classic", withExtension: "icns"),
-              let classicIcon = NSImage(contentsOf: classicIconURL) else {
-            return
+        if #unavailable(macOS 26) {
+            let bundle: Bundle = {
+                if let bundleURL = Bundle.main.url(forResource: "CodexBar_CodexBar", withExtension: "bundle"),
+                   let resourceBundle = Bundle(url: bundleURL)
+                {
+                    return resourceBundle
+                }
+                return Bundle.main
+            }()
+            guard let classicIconURL = bundle.url(forResource: "Icon-classic", withExtension: "icns"),
+                  let classicIcon = NSImage(contentsOf: classicIconURL) else {
+                return
+            }
+            NSApp.applicationIconImage = classicIcon
         }
-        NSApp.applicationIconImage = classicIcon
     }
 
     private func ensureStatusController() {
