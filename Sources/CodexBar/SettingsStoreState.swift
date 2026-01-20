@@ -8,6 +8,7 @@ struct SettingsDefaultsState: Sendable {
     var debugFileLoggingEnabled: Bool
     var debugLogLevelRaw: String?
     var debugLoadingPatternRaw: String?
+    var debugKeepCLISessionsAlive: Bool
     var statusChecksEnabled: Bool
     var sessionQuotaNotificationsEnabled: Bool
     var usageBarsShowUsed: Bool

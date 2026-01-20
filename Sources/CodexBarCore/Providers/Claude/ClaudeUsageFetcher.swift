@@ -62,6 +62,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     private let dataSource: ClaudeUsageDataSource
     private let useWebExtras: Bool
     private let manualCookieHeader: String?
+    private let keepCLISessionsAlive: Bool
     private let browserDetection: BrowserDetection
     private static let log = CodexBarLog.logger(LogCategories.claudeUsage)
 
@@ -75,13 +76,15 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         environment: [String: String] = ProcessInfo.processInfo.environment,
         dataSource: ClaudeUsageDataSource = .oauth,
         useWebExtras: Bool = false,
-        manualCookieHeader: String? = nil)
+        manualCookieHeader: String? = nil,
+        keepCLISessionsAlive: Bool = false)
     {
         self.browserDetection = browserDetection
         self.environment = environment
         self.dataSource = dataSource
         self.useWebExtras = useWebExtras
         self.manualCookieHeader = manualCookieHeader
+        self.keepCLISessionsAlive = keepCLISessionsAlive
     }
 
     // MARK: - Parsing helpers
@@ -459,7 +462,10 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
 
     private func loadViaPTY(model: String, timeout: TimeInterval = 10) async throws -> ClaudeUsageSnapshot {
         guard TTYCommandRunner.which("claude") != nil else { throw ClaudeUsageError.claudeNotInstalled }
-        let probe = ClaudeStatusProbe(claudeBinary: "claude", timeout: timeout)
+        let probe = ClaudeStatusProbe(
+            claudeBinary: "claude",
+            timeout: timeout,
+            keepCLISessionsAlive: self.keepCLISessionsAlive)
         let snap = try await probe.fetch()
 
         guard let sessionPctLeft = snap.sessionPercentLeft else {

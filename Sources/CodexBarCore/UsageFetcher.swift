@@ -508,8 +508,10 @@ public struct UsageFetcher: Sendable {
         LoginShellPathCache.shared.captureOnce()
     }
 
-    public func loadLatestUsage() async throws -> UsageSnapshot {
-        try await self.withFallback(primary: self.loadRPCUsage, secondary: self.loadTTYUsage)
+    public func loadLatestUsage(keepCLISessionsAlive: Bool = false) async throws -> UsageSnapshot {
+        try await self.withFallback(
+            primary: self.loadRPCUsage,
+            secondary: { try await self.loadTTYUsage(keepCLISessionsAlive: keepCLISessionsAlive) })
     }
 
     private func loadRPCUsage() async throws -> UsageSnapshot {
@@ -546,8 +548,8 @@ public struct UsageFetcher: Sendable {
             identity: identity)
     }
 
-    private func loadTTYUsage() async throws -> UsageSnapshot {
-        let status = try await CodexStatusProbe().fetch()
+    private func loadTTYUsage(keepCLISessionsAlive: Bool) async throws -> UsageSnapshot {
+        let status = try await CodexStatusProbe(keepCLISessionsAlive: keepCLISessionsAlive).fetch()
         guard let fiveLeft = status.fiveHourPercentLeft, let weekLeft = status.weeklyPercentLeft else {
             throw UsageError.noRateLimitsFound
         }
@@ -571,8 +573,10 @@ public struct UsageFetcher: Sendable {
             identity: nil)
     }
 
-    public func loadLatestCredits() async throws -> CreditsSnapshot {
-        try await self.withFallback(primary: self.loadRPCCredits, secondary: self.loadTTYCredits)
+    public func loadLatestCredits(keepCLISessionsAlive: Bool = false) async throws -> CreditsSnapshot {
+        try await self.withFallback(
+            primary: self.loadRPCCredits,
+            secondary: { try await self.loadTTYCredits(keepCLISessionsAlive: keepCLISessionsAlive) })
     }
 
     private func loadRPCCredits() async throws -> CreditsSnapshot {
@@ -585,8 +589,8 @@ public struct UsageFetcher: Sendable {
         return CreditsSnapshot(remaining: remaining, events: [], updatedAt: Date())
     }
 
-    private func loadTTYCredits() async throws -> CreditsSnapshot {
-        let status = try await CodexStatusProbe().fetch()
+    private func loadTTYCredits(keepCLISessionsAlive: Bool) async throws -> CreditsSnapshot {
+        let status = try await CodexStatusProbe(keepCLISessionsAlive: keepCLISessionsAlive).fetch()
         guard let credits = status.credits else { throw UsageError.noRateLimitsFound }
         return CreditsSnapshot(remaining: credits, events: [], updatedAt: Date())
     }

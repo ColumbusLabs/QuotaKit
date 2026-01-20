@@ -268,6 +268,16 @@ struct DebugPane: View {
                     }
                 }
 
+                SettingsSection(
+                    title: "CLI sessions",
+                    caption: "Keep Codex/Claude CLI sessions alive after a probe. Default exits once data is captured.")
+                {
+                    PreferenceToggleRow(
+                        title: "Keep CLI sessions alive",
+                        subtitle: "Skip teardown between probes (debug-only).",
+                        binding: self.$settings.debugKeepCLISessionsAlive)
+                }
+
                 #if DEBUG
                 SettingsSection(
                     title: "Error simulation",

@@ -71,6 +71,7 @@ extension UsageStore {
             _ = self.settings.mergeIcons
             _ = self.settings.selectedMenuProvider
             _ = self.settings.debugLoadingPattern
+            _ = self.settings.debugKeepCLISessionsAlive
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -650,7 +651,8 @@ final class UsageStore {
     private func refreshCreditsIfNeeded() async {
         guard self.isEnabled(.codex) else { return }
         do {
-            let credits = try await self.codexFetcher.loadLatestCredits()
+            let credits = try await self.codexFetcher.loadLatestCredits(
+                keepCLISessionsAlive: self.settings.debugKeepCLISessionsAlive)
             await MainActor.run {
                 self.credits = credits
                 self.lastCreditsError = nil
@@ -1131,7 +1133,10 @@ extension UsageStore {
 
 extension UsageStore {
     func debugDumpClaude() async {
-        let output = await self.claudeFetcher.debugRawProbe(model: "sonnet")
+        let fetcher = ClaudeUsageFetcher(
+            browserDetection: self.browserDetection,
+            keepCLISessionsAlive: self.settings.debugKeepCLISessionsAlive)
+        let output = await fetcher.debugRawProbe(model: "sonnet")
         let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("codexbar-claude-probe.txt")
         try? output.write(to: url, atomically: true, encoding: .utf8)
         await MainActor.run {
@@ -1174,6 +1179,7 @@ extension UsageStore {
         let claudeUsageDataSource = self.settings.claudeUsageDataSource
         let claudeCookieSource = self.settings.claudeCookieSource
         let claudeCookieHeader = self.settings.claudeCookieHeader
+        let keepCLISessionsAlive = self.settings.debugKeepCLISessionsAlive
         let cursorCookieSource = self.settings.cursorCookieSource
         let cursorCookieHeader = self.settings.cursorCookieHeader
         return await Task.detached(priority: .utility) { () -> String in
@@ -1187,7 +1193,8 @@ extension UsageStore {
                     claudeWebExtrasEnabled: claudeWebExtrasEnabled,
                     claudeUsageDataSource: claudeUsageDataSource,
                     claudeCookieSource: claudeCookieSource,
-                    claudeCookieHeader: claudeCookieHeader)
+                    claudeCookieHeader: claudeCookieHeader,
+                    keepCLISessionsAlive: keepCLISessionsAlive)
                 await MainActor.run { self.probeLogs[.claude] = text }
                 return text
             case .zai:
@@ -1278,7 +1285,8 @@ extension UsageStore {
         claudeWebExtrasEnabled: Bool,
         claudeUsageDataSource: ClaudeUsageDataSource,
         claudeCookieSource: ProviderCookieSource,
-        claudeCookieHeader: String) async -> String
+        claudeCookieHeader: String,
+        keepCLISessionsAlive: Bool) async -> String
     {
         await self.runWithTimeout(seconds: 15) {
             var lines: [String] = []
@@ -1346,7 +1354,10 @@ extension UsageStore {
                     return lines.joined(separator: "\n")
                 }
             case .cli:
-                let cli = await self.claudeFetcher.debugRawProbe(model: "sonnet")
+                let fetcher = ClaudeUsageFetcher(
+                    browserDetection: self.browserDetection,
+                    keepCLISessionsAlive: keepCLISessionsAlive)
+                let cli = await fetcher.debugRawProbe(model: "sonnet")
                 lines.append(cli)
                 return lines.joined(separator: "\n")
             case .oauth:

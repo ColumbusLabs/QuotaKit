@@ -140,6 +140,7 @@ struct ProviderRegistry {
 
         return ProviderSettingsSnapshot.make(
             debugMenuEnabled: settings.debugMenuEnabled,
+            debugKeepCLISessionsAlive: settings.debugKeepCLISessionsAlive,
             codex: ProviderSettingsSnapshot.CodexProviderSettings(
                 usageDataSource: settings.codexUsageDataSource,
                 cookieSource: Self.cookieSource(

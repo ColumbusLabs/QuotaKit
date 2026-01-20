@@ -224,12 +224,14 @@ struct ClaudeCLIFetchStrategy: ProviderFetchStrategy {
 
     func isAvailable(_: ProviderFetchContext) async -> Bool { true }
 
-    func fetch(_: ProviderFetchContext) async throws -> ProviderFetchResult {
+    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
+        let keepAlive = context.settings?.debugKeepCLISessionsAlive ?? false
         let fetcher = ClaudeUsageFetcher(
             browserDetection: browserDetection,
             dataSource: .cli,
             useWebExtras: self.useWebExtras,
-            manualCookieHeader: self.manualCookieHeader)
+            manualCookieHeader: self.manualCookieHeader,
+            keepCLISessionsAlive: keepAlive)
         let usage = try await fetcher.loadLatestUsage(model: "sonnet")
         return self.makeResult(
             usage: ClaudeOAuthFetchStrategy.snapshot(from: usage),

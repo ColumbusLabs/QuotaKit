@@ -176,6 +176,7 @@ extension SettingsStore {
             userDefaults.set(debugLogLevelRaw, forKey: "debugLogLevel")
         }
         let debugLoadingPatternRaw = userDefaults.string(forKey: "debugLoadingPattern")
+        let debugKeepCLISessionsAlive = userDefaults.object(forKey: "debugKeepCLISessionsAlive") as? Bool ?? false
         let statusChecksEnabled = userDefaults.object(forKey: "statusChecksEnabled") as? Bool ?? true
         let sessionQuotaDefault = userDefaults.object(forKey: "sessionQuotaNotificationsEnabled") as? Bool
         let sessionQuotaNotificationsEnabled = sessionQuotaDefault ?? true
@@ -223,6 +224,7 @@ extension SettingsStore {
             debugFileLoggingEnabled: debugFileLoggingEnabled,
             debugLogLevelRaw: debugLogLevelRaw,
             debugLoadingPatternRaw: debugLoadingPatternRaw,
+            debugKeepCLISessionsAlive: debugKeepCLISessionsAlive,
             statusChecksEnabled: statusChecksEnabled,
             sessionQuotaNotificationsEnabled: sessionQuotaNotificationsEnabled,
             usageBarsShowUsed: usageBarsShowUsed,

@@ -59,6 +59,14 @@ extension SettingsStore {
         }
     }
 
+    var debugKeepCLISessionsAlive: Bool {
+        get { self.defaultsState.debugKeepCLISessionsAlive }
+        set {
+            self.defaultsState.debugKeepCLISessionsAlive = newValue
+            self.userDefaults.set(newValue, forKey: "debugKeepCLISessionsAlive")
+        }
+    }
+
     var isVerboseLoggingEnabled: Bool {
         self.debugLogLevel.rank <= CodexBarLog.Level.verbose.rank
     }

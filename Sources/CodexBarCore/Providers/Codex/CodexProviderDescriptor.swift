@@ -110,8 +110,11 @@ struct CodexCLIUsageStrategy: ProviderFetchStrategy {
     func isAvailable(_: ProviderFetchContext) async -> Bool { true }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        let usage = try await context.fetcher.loadLatestUsage()
-        let credits = await context.includeCredits ? (try? context.fetcher.loadLatestCredits()) : nil
+        let keepAlive = context.settings?.debugKeepCLISessionsAlive ?? false
+        let usage = try await context.fetcher.loadLatestUsage(keepCLISessionsAlive: keepAlive)
+        let credits = await context.includeCredits
+            ? (try? context.fetcher.loadLatestCredits(keepCLISessionsAlive: keepAlive))
+            : nil
         return self.makeResult(
             usage: usage,
             credits: credits,

@@ -75,6 +75,7 @@ Usage source picker:
 
 ### Codex CLI PTY fallback (`/status`)
 - Runs `codex` in a PTY via `TTYCommandRunner`.
+- Default behavior: exit after each probe; Debug → "Keep CLI sessions alive" keeps it running between probes.
 - Sends `/status`, parses the rendered screen:
   - `Credits:` line
   - `5h limit` line → percent + reset text

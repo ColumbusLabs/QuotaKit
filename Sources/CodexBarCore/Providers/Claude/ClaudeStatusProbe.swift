@@ -46,11 +46,13 @@ public enum ClaudeStatusProbeError: LocalizedError, Sendable {
 public struct ClaudeStatusProbe: Sendable {
     public var claudeBinary: String = "claude"
     public var timeout: TimeInterval = 20.0
+    public var keepCLISessionsAlive: Bool = false
     private static let log = CodexBarLog.logger(LogCategories.claudeProbe)
 
-    public init(claudeBinary: String = "claude", timeout: TimeInterval = 20.0) {
+    public init(claudeBinary: String = "claude", timeout: TimeInterval = 20.0, keepCLISessionsAlive: Bool = false) {
         self.claudeBinary = claudeBinary
         self.timeout = timeout
+        self.keepCLISessionsAlive = keepCLISessionsAlive
     }
 
     public func fetch() async throws -> ClaudeStatusSnapshot {
@@ -64,16 +66,27 @@ public struct ClaudeStatusProbe: Sendable {
 
         // Run commands sequentially through a shared Claude session to avoid warm-up churn.
         let timeout = self.timeout
-        let usage = try await Self.capture(subcommand: "/usage", binary: resolved, timeout: timeout)
-        let status = try? await Self.capture(subcommand: "/status", binary: resolved, timeout: min(timeout, 12))
-        let snap = try Self.parse(text: usage, statusText: status)
+        let keepAlive = self.keepCLISessionsAlive
+        do {
+            let usage = try await Self.capture(subcommand: "/usage", binary: resolved, timeout: timeout)
+            let status = try? await Self.capture(subcommand: "/status", binary: resolved, timeout: min(timeout, 12))
+            let snap = try Self.parse(text: usage, statusText: status)
 
-        Self.log.info("Claude CLI scrape ok", metadata: [
-            "sessionPercentLeft": "\(snap.sessionPercentLeft ?? -1)",
-            "weeklyPercentLeft": "\(snap.weeklyPercentLeft ?? -1)",
-            "opusPercentLeft": "\(snap.opusPercentLeft ?? -1)",
-        ])
-        return snap
+            Self.log.info("Claude CLI scrape ok", metadata: [
+                "sessionPercentLeft": "\(snap.sessionPercentLeft ?? -1)",
+                "weeklyPercentLeft": "\(snap.weeklyPercentLeft ?? -1)",
+                "opusPercentLeft": "\(snap.opusPercentLeft ?? -1)",
+            ])
+            if !keepAlive {
+                await ClaudeCLISession.shared.reset()
+            }
+            return snap
+        } catch {
+            if !keepAlive {
+                await ClaudeCLISession.shared.reset()
+            }
+            throw error
+        }
     }
 
     // MARK: - Parsing helpers

@@ -7,6 +7,7 @@ extension SettingsStore {
         _ = self.launchAtLogin
         _ = self.debugMenuEnabled
         _ = self.debugDisableKeychainAccess
+        _ = self.debugKeepCLISessionsAlive
         _ = self.statusChecksEnabled
         _ = self.sessionQuotaNotificationsEnabled
         _ = self.usageBarsShowUsed

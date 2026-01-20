@@ -3,6 +3,7 @@ import Foundation
 public struct ProviderSettingsSnapshot: Sendable {
     public static func make(
         debugMenuEnabled: Bool = false,
+        debugKeepCLISessionsAlive: Bool = false,
         codex: CodexProviderSettings? = nil,
         claude: ClaudeProviderSettings? = nil,
         cursor: CursorProviderSettings? = nil,
@@ -18,6 +19,7 @@ public struct ProviderSettingsSnapshot: Sendable {
     {
         ProviderSettingsSnapshot(
             debugMenuEnabled: debugMenuEnabled,
+            debugKeepCLISessionsAlive: debugKeepCLISessionsAlive,
             codex: codex,
             claude: claude,
             cursor: cursor,
@@ -166,6 +168,7 @@ public struct ProviderSettingsSnapshot: Sendable {
     }
 
     public let debugMenuEnabled: Bool
+    public let debugKeepCLISessionsAlive: Bool
     public let codex: CodexProviderSettings?
     public let claude: ClaudeProviderSettings?
     public let cursor: CursorProviderSettings?
@@ -185,6 +188,7 @@ public struct ProviderSettingsSnapshot: Sendable {
 
     public init(
         debugMenuEnabled: Bool,
+        debugKeepCLISessionsAlive: Bool,
         codex: CodexProviderSettings?,
         claude: ClaudeProviderSettings?,
         cursor: CursorProviderSettings?,
@@ -199,6 +203,7 @@ public struct ProviderSettingsSnapshot: Sendable {
         jetbrains: JetBrainsProviderSettings? = nil)
     {
         self.debugMenuEnabled = debugMenuEnabled
+        self.debugKeepCLISessionsAlive = debugKeepCLISessionsAlive
         self.codex = codex
         self.claude = claude
         self.cursor = cursor

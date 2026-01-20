@@ -69,7 +69,8 @@ Usage source picker:
   - Account email + inferred plan.
 
 ## CLI PTY (fallback)
-- Runs `claude` in a persistent PTY session (`ClaudeCLISession`).
+- Runs `claude` in a PTY session (`ClaudeCLISession`).
+- Default behavior: exit after each probe; Debug → "Keep CLI sessions alive" keeps it running between probes.
 - Command flow:
   1) Start CLI with `--allowed-tools ""` (no tools).
   2) Auto-respond to first-run prompts (trust files, workspace, telemetry).
