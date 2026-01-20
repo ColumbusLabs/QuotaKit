@@ -6,6 +6,11 @@ import Testing
 @MainActor
 @Suite
 struct StatusMenuTests {
+    private func disableMenuCardsForTesting() {
+        StatusItemController.menuCardRenderingEnabled = false
+        StatusItemController.menuRefreshEnabled = false
+    }
+
     private func makeSettings() -> SettingsStore {
         let suite = "StatusMenuTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
@@ -20,6 +25,7 @@ struct StatusMenuTests {
 
     @Test
     func remembersProviderWhenMenuOpens() {
+        self.disableMenuCardsForTesting()
         let settings = self.makeSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
@@ -43,7 +49,8 @@ struct StatusMenuTests {
             settings: settings,
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection())
+            preferencesSelection: PreferencesSelection(),
+            statusBar: NSStatusBar())
 
         let claudeMenu = controller.makeMenu()
         controller.menuWillOpen(claudeMenu)
@@ -62,6 +69,7 @@ struct StatusMenuTests {
 
     @Test
     func providerToggleUpdatesStatusItemVisibility() {
+        self.disableMenuCardsForTesting()
         let settings = self.makeSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
@@ -86,7 +94,8 @@ struct StatusMenuTests {
             settings: settings,
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection())
+            preferencesSelection: PreferencesSelection(),
+            statusBar: NSStatusBar())
 
         #expect(controller.statusItems[.claude]?.isVisible == true)
 
@@ -99,6 +108,7 @@ struct StatusMenuTests {
 
     @Test
     func hidesOpenAIWebSubmenusWhenNoHistory() {
+        self.disableMenuCardsForTesting()
         let settings = self.makeSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
@@ -132,7 +142,8 @@ struct StatusMenuTests {
             settings: settings,
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection())
+            preferencesSelection: PreferencesSelection(),
+            statusBar: NSStatusBar())
 
         let menu = controller.makeMenu()
         controller.menuWillOpen(menu)
@@ -143,6 +154,7 @@ struct StatusMenuTests {
 
     @Test
     func showsOpenAIWebSubmenusWhenHistoryExists() {
+        self.disableMenuCardsForTesting()
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "StatusMenuTests-history"),
             zaiTokenStore: NoopZaiTokenStore(),
@@ -191,7 +203,8 @@ struct StatusMenuTests {
             settings: settings,
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection())
+            preferencesSelection: PreferencesSelection(),
+            statusBar: NSStatusBar())
 
         let menu = controller.makeMenu()
         controller.menuWillOpen(menu)
@@ -207,6 +220,7 @@ struct StatusMenuTests {
 
     @Test
     func showsCreditsBeforeCostInCodexMenuCardSections() {
+        self.disableMenuCardsForTesting()
         let settings = self.makeSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
@@ -258,7 +272,8 @@ struct StatusMenuTests {
             settings: settings,
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection())
+            preferencesSelection: PreferencesSelection(),
+            statusBar: NSStatusBar())
 
         let menu = controller.makeMenu()
         controller.menuWillOpen(menu)
@@ -272,6 +287,7 @@ struct StatusMenuTests {
 
     @Test
     func showsExtraUsageForClaudeWhenUsingMenuCardSections() {
+        self.disableMenuCardsForTesting()
         let settings = self.makeSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
@@ -334,7 +350,8 @@ struct StatusMenuTests {
             settings: settings,
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection())
+            preferencesSelection: PreferencesSelection(),
+            statusBar: NSStatusBar())
 
         let menu = controller.makeMenu()
         controller.menuWillOpen(menu)
@@ -344,6 +361,7 @@ struct StatusMenuTests {
 
     @Test
     func showsVertexCostWhenUsageErrorPresent() {
+        self.disableMenuCardsForTesting()
         let settings = self.makeSettings()
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
@@ -387,7 +405,8 @@ struct StatusMenuTests {
             settings: settings,
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection())
+            preferencesSelection: PreferencesSelection(),
+            statusBar: NSStatusBar())
 
         let menu = controller.makeMenu()
         controller.menuWillOpen(menu)

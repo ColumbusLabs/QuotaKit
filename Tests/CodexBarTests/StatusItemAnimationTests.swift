@@ -35,7 +35,8 @@ struct StatusItemAnimationTests {
             settings: settings,
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection())
+            preferencesSelection: PreferencesSelection(),
+            statusBar: NSStatusBar())
 
         let snapshot = UsageSnapshot(
             primary: RateWindow(usedPercent: 50, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
@@ -85,7 +86,8 @@ struct StatusItemAnimationTests {
             settings: settings,
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection())
+            preferencesSelection: PreferencesSelection(),
+            statusBar: NSStatusBar())
 
         // Enter loading state: no data, no stale error.
         store._setSnapshotForTesting(nil, provider: .codex)
@@ -137,7 +139,8 @@ struct StatusItemAnimationTests {
             settings: settings,
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection())
+            preferencesSelection: PreferencesSelection(),
+            statusBar: NSStatusBar())
 
         let snapshot = UsageSnapshot(
             primary: RateWindow(usedPercent: 12, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
@@ -175,7 +178,8 @@ struct StatusItemAnimationTests {
             settings: settings,
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection())
+            preferencesSelection: PreferencesSelection(),
+            statusBar: NSStatusBar())
 
         let snapshot = UsageSnapshot(
             primary: RateWindow(usedPercent: 20, windowMinutes: nil, resetsAt: nil, resetDescription: nil),

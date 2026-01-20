@@ -42,7 +42,7 @@ extension StatusItemController {
     func menuWillOpen(_ menu: NSMenu) {
         if self.isHostedSubviewMenu(menu) {
             self.refreshHostedSubviewHeights(in: menu)
-            if self.isOpenAIWebSubviewMenu(menu) {
+            if Self.menuRefreshEnabled, self.isOpenAIWebSubviewMenu(menu) {
                 self.store.requestOpenAIDashboardRefreshIfStale(reason: "submenu open")
             }
             self.openMenus[ObjectIdentifier(menu)] = menu
@@ -77,7 +77,9 @@ extension StatusItemController {
         }
         self.openMenus[ObjectIdentifier(menu)] = menu
         // Only schedule refresh after menu is registered as open - refreshNow is called async
-        self.scheduleOpenMenuRefresh(for: menu)
+        if Self.menuRefreshEnabled {
+            self.scheduleOpenMenuRefresh(for: menu)
+        }
     }
 
     func menuDidClose(_ menu: NSMenu) {
@@ -590,6 +592,18 @@ extension StatusItemController {
         width: CGFloat,
         submenu: NSMenu? = nil) -> NSMenuItem
     {
+        if !Self.menuCardRenderingEnabled {
+            let item = NSMenuItem()
+            item.isEnabled = true
+            item.representedObject = id
+            item.submenu = submenu
+            if submenu != nil {
+                item.target = self
+                item.action = #selector(self.menuCardNoOp(_:))
+            }
+            return item
+        }
+
         let highlightState = MenuCardHighlightState()
         let wrapped = MenuCardSectionContainerView(
             highlightState: highlightState,

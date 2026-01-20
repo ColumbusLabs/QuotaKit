@@ -13,6 +13,9 @@ protocol StatusItemControlling: AnyObject {
 
 @MainActor
 final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControlling {
+    // Disable SwiftUI menu cards + menu refresh work in tests to avoid swiftpm-testing-helper crashes.
+    static var menuCardRenderingEnabled = !SettingsStore.isRunningTests
+    static var menuRefreshEnabled = !SettingsStore.isRunningTests
     typealias Factory = (UsageStore, SettingsStore, AccountInfo, UpdaterProviding, PreferencesSelection)
         -> StatusItemControlling
     static let defaultFactory: Factory = { store, settings, account, updater, selection in
@@ -133,7 +136,8 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         settings: SettingsStore,
         account: AccountInfo,
         updater: UpdaterProviding,
-        preferencesSelection: PreferencesSelection)
+        preferencesSelection: PreferencesSelection,
+        statusBar: NSStatusBar = .system)
     {
         self.store = store
         self.settings = settings
@@ -144,8 +148,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         self.lastProviderOrderRaw = settings.providerOrderRaw
         self.lastMergeIcons = settings.mergeIcons
         self.lastSwitcherShowsIcons = settings.switcherShowsIcons
-        let bar = NSStatusBar.system
-        let item = bar.statusItem(withLength: NSStatusItem.variableLength)
+        let item = statusBar.statusItem(withLength: NSStatusItem.variableLength)
         // Ensure the icon is rendered at 1:1 without resampling (crisper edges for template images).
         item.button?.imageScaling = .scaleNone
         self.statusItem = item
