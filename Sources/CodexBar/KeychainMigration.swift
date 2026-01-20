@@ -1,12 +1,11 @@
 import CodexBarCore
 import Foundation
-import OSLog
 import Security
 
 /// Migrates keychain items to use kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
 /// to prevent permission prompts on every rebuild during development.
 enum KeychainMigration {
-    private static let log = Logger(subsystem: "com.steipete.codexbar", category: "KeychainMigration")
+    private static let log = CodexBarLog.logger("keychain-migration")
     private static let migrationKey = "KeychainMigrationV1Completed"
 
     struct MigrationItem: Hashable, Sendable {
@@ -36,7 +35,7 @@ enum KeychainMigration {
     /// Run migration once per installation
     static func migrateIfNeeded() {
         guard !KeychainAccessGate.isDisabled else {
-            self.log.notice("Keychain access disabled; skipping migration")
+            self.log.info("Keychain access disabled; skipping migration")
             return
         }
         guard !UserDefaults.standard.bool(forKey: self.migrationKey) else {
@@ -44,7 +43,7 @@ enum KeychainMigration {
             return
         }
 
-        self.log.notice("Starting keychain migration to reduce permission prompts")
+        self.log.info("Starting keychain migration to reduce permission prompts")
 
         var migratedCount = 0
         var errorCount = 0
@@ -60,11 +59,11 @@ enum KeychainMigration {
             }
         }
 
-        self.log.notice("Keychain migration complete: \(migratedCount) migrated, \(errorCount) errors")
+        self.log.info("Keychain migration complete: \(migratedCount) migrated, \(errorCount) errors")
         UserDefaults.standard.set(true, forKey: self.migrationKey)
 
         if migratedCount > 0 {
-            self.log.notice("✅ Future rebuilds will not prompt for keychain access")
+            self.log.info("✅ Future rebuilds will not prompt for keychain access")
         }
     }
 

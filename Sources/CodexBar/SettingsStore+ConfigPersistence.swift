@@ -26,6 +26,16 @@ extension SettingsStore {
     }
 
     func updateProviderTokenAccounts(_ accounts: [UsageProvider: ProviderTokenAccountData]) {
+        let summary = accounts
+            .sorted { $0.key.rawValue < $1.key.rawValue }
+            .map { "\($0.key.rawValue)=\($0.value.accounts.count)" }
+            .joined(separator: ",")
+        CodexBarLog.logger("token-accounts").info(
+            "Token accounts updated",
+            metadata: [
+                "providers": "\(accounts.count)",
+                "summary": summary,
+            ])
         self.updateConfig(reason: "token-accounts") { config in
             var seen: Set<UsageProvider> = []
             for index in config.providers.indices {

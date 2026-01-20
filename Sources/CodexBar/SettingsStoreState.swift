@@ -6,6 +6,7 @@ struct SettingsDefaultsState: Sendable {
     var debugMenuEnabled: Bool
     var debugDisableKeychainAccess: Bool
     var debugFileLoggingEnabled: Bool
+    var debugLogLevelRaw: String?
     var debugLoadingPatternRaw: String?
     var statusChecksEnabled: Bool
     var sessionQuotaNotificationsEnabled: Bool

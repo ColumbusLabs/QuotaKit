@@ -13,7 +13,7 @@ extension UsageStore {
             Task { @MainActor in
                 self.augmentKeepalive?.stop()
                 self.augmentKeepalive = nil
-                print("[CodexBar] Augment session keepalive stopped (provider disabled)")
+                self.augmentLogger.info("Augment keepalive stopped (provider disabled)")
             }
         }
         #endif
@@ -21,45 +21,47 @@ extension UsageStore {
 
     func startAugmentKeepalive() {
         #if os(macOS)
-        print("[CodexBar] 🔍 Checking if Augment keepalive should start...")
-        print("[CodexBar]   - Augment enabled: \(self.isEnabled(.augment))")
-        print("[CodexBar]   - Augment available: \(self.isProviderAvailable(.augment))")
+        self.augmentLogger.info(
+            "Augment keepalive check",
+            metadata: [
+                "enabled": self.isEnabled(.augment) ? "1" : "0",
+                "available": self.isProviderAvailable(.augment) ? "1" : "0",
+            ])
 
         // Only start keepalive if Augment is enabled
         guard self.isEnabled(.augment) else {
-            print("[CodexBar] ⚠️ Augment keepalive NOT started - provider is disabled")
-            print("[CodexBar]   Tip: Enable Augment in Settings to activate automatic session management")
+            self.augmentLogger.warning("Augment keepalive not started (provider disabled)")
             return
         }
 
-        let logger: (String) -> Void = { message in
-            print("[CodexBar] \(message)")
+        let logger: (String) -> Void = { [augmentLogger = self.augmentLogger] message in
+            augmentLogger.verbose(message)
         }
 
         // Callback to refresh Augment usage after successful session recovery
         let onSessionRecovered: () async -> Void = { [weak self] in
             guard let self else { return }
-            print("[CodexBar] 🔄 Session recovered - refreshing Augment usage")
+            self.augmentLogger.info("Augment session recovered; refreshing usage")
             await self.refreshProvider(.augment)
         }
 
         self.augmentKeepalive = AugmentSessionKeepalive(logger: logger, onSessionRecovered: onSessionRecovered)
         self.augmentKeepalive?.start()
-        print("[CodexBar] ✅ Augment session keepalive STARTED successfully")
+        self.augmentLogger.info("Augment keepalive started")
         #endif
     }
 
     /// Force refresh Augment session (called from UI button)
     func forceRefreshAugmentSession() async {
         #if os(macOS)
-        print("[CodexBar] 🔄 Force refresh Augment session requested")
+        self.augmentLogger.info("Augment force refresh requested")
         guard let keepalive = self.augmentKeepalive else {
-            print("[CodexBar] ⚠️ Augment keepalive not running - starting it now")
+            self.augmentLogger.warning("Augment keepalive not running; starting")
             self.startAugmentKeepalive()
             // Give it a moment to start
             try? await Task.sleep(for: .seconds(1))
             guard let keepalive = self.augmentKeepalive else {
-                print("[CodexBar] ✗ Failed to start Augment keepalive")
+                self.augmentLogger.error("Augment keepalive failed to start")
                 return
             }
             await keepalive.forceRefresh()
@@ -69,7 +71,7 @@ extension UsageStore {
         await keepalive.forceRefresh()
 
         // Refresh usage after forcing session refresh
-        print("[CodexBar] 🔄 Refreshing Augment usage after session refresh")
+        self.augmentLogger.info("Refreshing Augment usage after session refresh")
         await self.refreshProvider(.augment)
         #endif
     }
@@ -138,7 +140,7 @@ extension UsageStore {
 
                 // Trigger immediate session recovery for Augment when session expires
                 if provider == .augment, error.localizedDescription.contains("session expired") {
-                    print("[CodexBar] 🔐 Augment session expired detected - triggering immediate recovery")
+                    self.augmentLogger.warning("Augment session expired; triggering recovery")
                     Task {
                         await self.forceRefreshAugmentSession()
                     }

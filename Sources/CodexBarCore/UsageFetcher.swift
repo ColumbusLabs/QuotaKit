@@ -293,6 +293,7 @@ private enum RPCWireError: Error, LocalizedError {
 
 // RPC helper used on background tasks; safe because we confine it to the owning task.
 private final class CodexRPCClient: @unchecked Sendable {
+    private static let log = CodexBarLog.logger("codex-rpc")
     private let process = Process()
     private let stdinPipe = Pipe()
     private let stdoutPipe = Pipe()
@@ -342,6 +343,7 @@ private final class CodexRPCClient: @unchecked Sendable {
             ?? TTYCommandRunner.which(executable)
 
         guard let resolvedExec else {
+            Self.log.warning("Codex RPC binary not found", metadata: ["binary": executable])
             throw RPCWireError.startFailed(
                 "Codex CLI not found. Install with `npm i -g @openai/codex` (or bun) then relaunch CodexBar.")
         }
@@ -359,7 +361,9 @@ private final class CodexRPCClient: @unchecked Sendable {
 
         do {
             try self.process.run()
+            Self.log.debug("Codex RPC started", metadata: ["binary": resolvedExec])
         } catch {
+            Self.log.warning("Codex RPC failed to start", metadata: ["error": error.localizedDescription])
             throw RPCWireError.startFailed(error.localizedDescription)
         }
 
@@ -416,6 +420,7 @@ private final class CodexRPCClient: @unchecked Sendable {
 
     func shutdown() {
         if self.process.isRunning {
+            Self.log.debug("Codex RPC stopping")
             self.process.terminate()
         }
     }

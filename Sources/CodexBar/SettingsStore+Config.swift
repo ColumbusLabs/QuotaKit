@@ -20,6 +20,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .codex) { entry in
                 entry.source = source
             }
+            self.logProviderModeChange(provider: .codex, field: "usageSource", value: newValue.rawValue)
         }
     }
 
@@ -38,6 +39,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .claude) { entry in
                 entry.source = source
             }
+            self.logProviderModeChange(provider: .claude, field: "usageSource", value: newValue.rawValue)
             if newValue != .cli {
                 self.claudeWebExtrasEnabled = false
             }
@@ -85,6 +87,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .zai) { entry in
                 entry.apiKey = self.normalizedConfigValue(newValue)
             }
+            self.logSecretUpdate(provider: .zai, field: "apiKey", value: newValue)
         }
     }
 
@@ -94,6 +97,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .synthetic) { entry in
                 entry.apiKey = self.normalizedConfigValue(newValue)
             }
+            self.logSecretUpdate(provider: .synthetic, field: "apiKey", value: newValue)
         }
     }
 
@@ -103,6 +107,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .codex) { entry in
                 entry.cookieHeader = self.normalizedConfigValue(newValue)
             }
+            self.logSecretUpdate(provider: .codex, field: "cookieHeader", value: newValue)
         }
     }
 
@@ -112,6 +117,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .claude) { entry in
                 entry.cookieHeader = self.normalizedConfigValue(newValue)
             }
+            self.logSecretUpdate(provider: .claude, field: "cookieHeader", value: newValue)
         }
     }
 
@@ -121,6 +127,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .cursor) { entry in
                 entry.cookieHeader = self.normalizedConfigValue(newValue)
             }
+            self.logSecretUpdate(provider: .cursor, field: "cookieHeader", value: newValue)
         }
     }
 
@@ -130,6 +137,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .opencode) { entry in
                 entry.cookieHeader = self.normalizedConfigValue(newValue)
             }
+            self.logSecretUpdate(provider: .opencode, field: "cookieHeader", value: newValue)
         }
     }
 
@@ -139,6 +147,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .factory) { entry in
                 entry.cookieHeader = self.normalizedConfigValue(newValue)
             }
+            self.logSecretUpdate(provider: .factory, field: "cookieHeader", value: newValue)
         }
     }
 
@@ -148,6 +157,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .minimax) { entry in
                 entry.cookieHeader = self.normalizedConfigValue(newValue)
             }
+            self.logSecretUpdate(provider: .minimax, field: "cookieHeader", value: newValue)
         }
     }
 
@@ -157,6 +167,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .minimax) { entry in
                 entry.apiKey = self.normalizedConfigValue(newValue)
             }
+            self.logSecretUpdate(provider: .minimax, field: "apiKey", value: newValue)
         }
     }
 
@@ -166,6 +177,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .kimi) { entry in
                 entry.cookieHeader = self.normalizedConfigValue(newValue)
             }
+            self.logSecretUpdate(provider: .kimi, field: "cookieHeader", value: newValue)
         }
     }
 
@@ -175,6 +187,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .kimik2) { entry in
                 entry.apiKey = self.normalizedConfigValue(newValue)
             }
+            self.logSecretUpdate(provider: .kimik2, field: "apiKey", value: newValue)
         }
     }
 
@@ -184,6 +197,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .augment) { entry in
                 entry.cookieHeader = self.normalizedConfigValue(newValue)
             }
+            self.logSecretUpdate(provider: .augment, field: "cookieHeader", value: newValue)
         }
     }
 
@@ -193,6 +207,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .amp) { entry in
                 entry.cookieHeader = self.normalizedConfigValue(newValue)
             }
+            self.logSecretUpdate(provider: .amp, field: "cookieHeader", value: newValue)
         }
     }
 
@@ -202,6 +217,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .copilot) { entry in
                 entry.apiKey = self.normalizedConfigValue(newValue)
             }
+            self.logSecretUpdate(provider: .copilot, field: "apiKey", value: newValue)
         }
     }
 
@@ -226,6 +242,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .codex) { entry in
                 entry.cookieSource = newValue
             }
+            self.logProviderModeChange(provider: .codex, field: "cookieSource", value: newValue.rawValue)
             self.openAIWebAccessEnabled = newValue.isEnabled
         }
     }
@@ -236,6 +253,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .claude) { entry in
                 entry.cookieSource = newValue
             }
+            self.logProviderModeChange(provider: .claude, field: "cookieSource", value: newValue.rawValue)
         }
     }
 
@@ -245,6 +263,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .cursor) { entry in
                 entry.cookieSource = newValue
             }
+            self.logProviderModeChange(provider: .cursor, field: "cookieSource", value: newValue.rawValue)
         }
     }
 
@@ -254,6 +273,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .opencode) { entry in
                 entry.cookieSource = newValue
             }
+            self.logProviderModeChange(provider: .opencode, field: "cookieSource", value: newValue.rawValue)
         }
     }
 
@@ -263,6 +283,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .factory) { entry in
                 entry.cookieSource = newValue
             }
+            self.logProviderModeChange(provider: .factory, field: "cookieSource", value: newValue.rawValue)
         }
     }
 
@@ -272,6 +293,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .minimax) { entry in
                 entry.cookieSource = newValue
             }
+            self.logProviderModeChange(provider: .minimax, field: "cookieSource", value: newValue.rawValue)
         }
     }
 
@@ -281,6 +303,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .kimi) { entry in
                 entry.cookieSource = newValue
             }
+            self.logProviderModeChange(provider: .kimi, field: "cookieSource", value: newValue.rawValue)
         }
     }
 
@@ -290,6 +313,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .augment) { entry in
                 entry.cookieSource = newValue
             }
+            self.logProviderModeChange(provider: .augment, field: "cookieSource", value: newValue.rawValue)
         }
     }
 
@@ -299,6 +323,7 @@ extension SettingsStore {
             self.updateProviderConfig(provider: .amp) { entry in
                 entry.cookieSource = newValue
             }
+            self.logProviderModeChange(provider: .amp, field: "cookieSource", value: newValue.rawValue)
         }
     }
 
@@ -340,6 +365,26 @@ extension SettingsStore {
 }
 
 extension SettingsStore {
+    private func logProviderModeChange(provider: UsageProvider, field: String, value: String) {
+        CodexBarLog.logger("settings").info(
+            "Provider mode updated",
+            metadata: ["provider": provider.rawValue, "field": field, "value": value])
+    }
+
+    private func logSecretUpdate(provider: UsageProvider, field: String, value: String) {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let state = trimmed.isEmpty ? "cleared" : "set"
+        let length = trimmed.count
+        CodexBarLog.logger("settings").info(
+            "Provider secret updated",
+            metadata: [
+                "provider": provider.rawValue,
+                "field": field,
+                "state": state,
+                "length": "\(length)",
+            ])
+    }
+
     private static func codexUsageDataSource(from source: ProviderSourceMode?) -> CodexUsageDataSource {
         guard let source else { return .auto }
         switch source {

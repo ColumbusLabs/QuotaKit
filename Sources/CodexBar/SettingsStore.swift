@@ -171,6 +171,10 @@ extension SettingsStore {
             return false
         }()
         let debugFileLoggingEnabled = userDefaults.object(forKey: "debugFileLoggingEnabled") as? Bool ?? false
+        let debugLogLevelRaw = userDefaults.string(forKey: "debugLogLevel") ?? CodexBarLog.Level.verbose.rawValue
+        if userDefaults.string(forKey: "debugLogLevel") == nil {
+            userDefaults.set(debugLogLevelRaw, forKey: "debugLogLevel")
+        }
         let debugLoadingPatternRaw = userDefaults.string(forKey: "debugLoadingPattern")
         let statusChecksEnabled = userDefaults.object(forKey: "statusChecksEnabled") as? Bool ?? true
         let sessionQuotaDefault = userDefaults.object(forKey: "sessionQuotaNotificationsEnabled") as? Bool
@@ -217,6 +221,7 @@ extension SettingsStore {
             debugMenuEnabled: debugMenuEnabled,
             debugDisableKeychainAccess: debugDisableKeychainAccess,
             debugFileLoggingEnabled: debugFileLoggingEnabled,
+            debugLogLevelRaw: debugLogLevelRaw,
             debugLoadingPatternRaw: debugLoadingPatternRaw,
             statusChecksEnabled: statusChecksEnabled,
             sessionQuotaNotificationsEnabled: sessionQuotaNotificationsEnabled,

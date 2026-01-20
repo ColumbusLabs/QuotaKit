@@ -4,6 +4,7 @@ import SweetCookieKit
 
 enum KeychainPromptCoordinator {
     private static let promptLock = NSLock()
+    private static let log = CodexBarLog.logger("keychain-prompt")
 
     static func install() {
         KeychainPromptHandler.handler = { context in
@@ -16,6 +17,7 @@ enum KeychainPromptCoordinator {
 
     private static func presentKeychainPrompt(_ context: KeychainPromptContext) {
         let (title, message) = self.keychainCopy(for: context)
+        self.log.info("Keychain prompt requested", metadata: ["kind": "\(context.kind)"])
         self.presentAlert(title: title, message: message)
     }
 
@@ -25,6 +27,7 @@ enum KeychainPromptCoordinator {
             "CodexBar will ask macOS Keychain for “\(context.label)” so it can decrypt browser cookies",
             "and authenticate your account. Click OK to continue.",
         ].joined(separator: " ")
+        self.log.info("Browser cookie keychain prompt requested", metadata: ["label": context.label])
         self.presentAlert(title: title, message: message)
     }
 

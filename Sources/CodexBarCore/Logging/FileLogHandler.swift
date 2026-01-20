@@ -120,11 +120,16 @@ struct FileLogHandler: LogHandler {
         if !combined.isEmpty {
             let pairs = combined
                 .sorted(by: { $0.key < $1.key })
-                .map { "\($0.key)=\($0.value)" }
+                .map { key, value in
+                    let rendered = Self.renderMetadataValue(value)
+                    let safeValue = LogRedactor.redact(rendered)
+                    return "\(key)=\(safeValue)"
+                }
                 .joined(separator: " ")
             metaText = " \(pairs)"
         }
-        let lineText = "[\(ts)] [\(level.rawValue.uppercased())] \(self.label): \(message)\(metaText)\n"
+        let safeMessage = LogRedactor.redact("\(message)")
+        let lineText = "[\(ts)] [\(level.rawValue.uppercased())] \(self.label): \(safeMessage)\(metaText)\n"
         _ = source
         _ = file
         _ = function
@@ -136,5 +141,14 @@ struct FileLogHandler: LogHandler {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter.string(from: Date())
+    }
+
+    private static func renderMetadataValue(_ value: Logger.Metadata.Value) -> String {
+        switch value {
+        case let .string(text):
+            text
+        default:
+            String(describing: value)
+        }
     }
 }

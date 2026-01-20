@@ -95,14 +95,12 @@ extension StatusItemController {
     @objc func runSwitchAccount(_ sender: NSMenuItem) {
         if self.loginTask != nil {
             self.loginLogger.info("Switch Account tap ignored: login already in-flight")
-            print("[CodexBar] Switch Account ignored (busy)")
             return
         }
 
         let rawProvider = sender.representedObject as? String
         let provider = rawProvider.flatMap(UsageProvider.init(rawValue:)) ?? self.lastMenuProvider ?? .codex
         self.loginLogger.info("Switch Account tapped", metadata: ["provider": provider.rawValue])
-        print("[CodexBar] Switch Account tapped for provider=\(provider.rawValue)")
 
         self.loginTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -113,12 +111,11 @@ extension StatusItemController {
             self.activeLoginProvider = provider
             self.loginPhase = .requesting
             self.loginLogger.info("Starting login task", metadata: ["provider": provider.rawValue])
-            print("[CodexBar] Starting login task for \(provider.rawValue)")
 
             let shouldRefresh = await self.runLoginFlow(provider: provider)
             if shouldRefresh {
                 await self.store.refresh()
-                print("[CodexBar] Triggered refresh after login")
+                self.loginLogger.info("Triggered refresh after login", metadata: ["provider": provider.rawValue])
             }
         }
     }
@@ -176,7 +173,9 @@ extension StatusItemController {
             var error: NSDictionary?
             appleScript.executeAndReturnError(&error)
             if let error {
-                NSLog("Failed to open Terminal: \(error)")
+                CodexBarLog.logger("terminal").error(
+                    "Failed to open Terminal",
+                    metadata: ["error": String(describing: error)])
             }
         }
     }

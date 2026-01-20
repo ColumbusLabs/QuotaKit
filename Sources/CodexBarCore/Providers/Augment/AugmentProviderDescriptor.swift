@@ -116,7 +116,9 @@ struct AugmentStatusFetchStrategy: ProviderFetchStrategy {
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let probe = AugmentStatusProbe()
         let manual = Self.manualCookieHeader(from: context)
-        let logger: ((String) -> Void)? = context.verbose ? { msg in print("[augment] \(msg)") } : nil
+        let logger: ((String) -> Void)? = context.verbose
+            ? { msg in CodexBarLog.logger("augment").verbose(msg) }
+            : nil
         let snap = try await probe.fetch(cookieHeaderOverride: manual, logger: logger)
         return self.makeResult(
             usage: snap.toUsageSnapshot(),

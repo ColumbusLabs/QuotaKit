@@ -12,6 +12,7 @@ struct OpenAIDashboardWebViewLease {
 @MainActor
 final class OpenAIDashboardWebViewCache {
     static let shared = OpenAIDashboardWebViewCache()
+    fileprivate static let log = CodexBarLog.logger("openai-webview")
 
     private final class Entry {
         let webView: WKWebView
@@ -70,6 +71,7 @@ final class OpenAIDashboardWebViewCache {
                 entry.lastUsedAt = Date()
                 entry.host.close()
                 self.entries.removeValue(forKey: key)
+                Self.log.warning("OpenAI webview prepare failed")
                 throw error
             }
 
@@ -95,6 +97,7 @@ final class OpenAIDashboardWebViewCache {
         } catch {
             self.entries.removeValue(forKey: key)
             host.close()
+            Self.log.warning("OpenAI webview prepare failed")
             throw error
         }
 
@@ -113,6 +116,7 @@ final class OpenAIDashboardWebViewCache {
     func evict(websiteDataStore: WKWebsiteDataStore) {
         let key = ObjectIdentifier(websiteDataStore)
         guard let entry = self.entries.removeValue(forKey: key) else { return }
+        Self.log.debug("OpenAI webview evicted")
         entry.host.close()
     }
 
@@ -123,6 +127,7 @@ final class OpenAIDashboardWebViewCache {
         for (key, entry) in expired {
             entry.host.close()
             self.entries.removeValue(forKey: key)
+            Self.log.debug("OpenAI webview pruned")
         }
     }
 
@@ -187,6 +192,7 @@ private final class OffscreenWebViewHost {
     }
 
     func show() {
+        OpenAIDashboardWebViewCache.log.debug("OpenAI webview show")
         self.window.alphaValue = OpenAIDashboardFetcher.offscreenHostAlphaValue()
         self.window.orderFrontRegardless()
     }
@@ -194,11 +200,13 @@ private final class OffscreenWebViewHost {
     func hide() {
         // Set alpha to 0 so WebKit recognizes the page as inactive and applies
         // its scheduling policy (throttle/suspend), reducing CPU when idle.
+        OpenAIDashboardWebViewCache.log.debug("OpenAI webview hide")
         self.window.alphaValue = 0.0
         self.window.orderOut(nil)
     }
 
     func close() {
+        OpenAIDashboardWebViewCache.log.debug("OpenAI webview close")
         WebKitTeardown.scheduleCleanup(
             owner: self,
             window: self.window,

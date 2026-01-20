@@ -28,6 +28,8 @@ read_when:
 1. **Make code changes** in `Sources/CodexBar/`
 2. **Run** `./Scripts/compile_and_run.sh` to rebuild and launch
 3. **Check logs** in Console.app (filter by "codexbar")
+4. **Optional file log**: enable Debug → Logging → "Enable file logging" to write
+   `~/Library/Logs/CodexBar/CodexBar.log` (verbosity defaults to "Verbose")
 
 ## Keychain Prompts (Development)
 

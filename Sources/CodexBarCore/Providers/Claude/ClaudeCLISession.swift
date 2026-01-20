@@ -7,6 +7,7 @@ import Foundation
 
 actor ClaudeCLISession {
     static let shared = ClaudeCLISession()
+    private static let log = CodexBarLog.logger("claude-cli")
 
     enum SessionError: LocalizedError {
         case launchFailed(String)
@@ -179,13 +180,17 @@ actor ClaudeCLISession {
     }
 
     private func ensureStarted(binary: String) throws {
-        if let proc = self.process, proc.isRunning, self.binaryPath == binary { return }
+        if let proc = self.process, proc.isRunning, self.binaryPath == binary {
+            Self.log.debug("Claude CLI session reused")
+            return
+        }
         self.cleanup()
 
         var primaryFD: Int32 = -1
         var secondaryFD: Int32 = -1
         var win = winsize(ws_row: 50, ws_col: 160, ws_xpixel: 0, ws_ypixel: 0)
         guard openpty(&primaryFD, &secondaryFD, nil, nil, &win) == 0 else {
+            Self.log.warning("Claude CLI PTY openpty failed")
             throw SessionError.launchFailed("openpty failed")
         }
         _ = fcntl(primaryFD, F_SETFL, O_NONBLOCK)
@@ -216,7 +221,11 @@ actor ClaudeCLISession {
 
         do {
             try proc.run()
+            Self.log.debug(
+                "Claude CLI session started",
+                metadata: ["binary": URL(fileURLWithPath: binary).lastPathComponent])
         } catch {
+            Self.log.warning("Claude CLI launch failed", metadata: ["error": error.localizedDescription])
             try? primaryHandle.close()
             try? secondaryHandle.close()
             throw SessionError.launchFailed(error.localizedDescription)
@@ -238,6 +247,9 @@ actor ClaudeCLISession {
     }
 
     private func cleanup() {
+        if self.process != nil {
+            Self.log.debug("Claude CLI session stopping")
+        }
         if let proc = self.process, proc.isRunning, let handle = self.primaryHandle {
             try? handle.write(contentsOf: Data("/exit\n".utf8))
         }

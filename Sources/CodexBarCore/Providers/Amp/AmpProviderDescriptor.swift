@@ -52,7 +52,9 @@ struct AmpStatusFetchStrategy: ProviderFetchStrategy {
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let fetcher = AmpUsageFetcher(browserDetection: context.browserDetection)
         let manual = Self.manualCookieHeader(from: context)
-        let logger: ((String) -> Void)? = context.verbose ? { msg in print("[amp] \(msg)") } : nil
+        let logger: ((String) -> Void)? = context.verbose
+            ? { msg in CodexBarLog.logger("amp").verbose(msg) }
+            : nil
         let snap = try await fetcher.fetch(cookieHeaderOverride: manual, logger: logger)
         return self.makeResult(
             usage: snap.toUsageSnapshot(now: snap.updatedAt),

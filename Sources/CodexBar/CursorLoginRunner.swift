@@ -31,6 +31,7 @@ final class CursorLoginRunner: NSObject {
     private var continuation: CheckedContinuation<Result, Never>?
     private var phaseCallback: ((Phase) -> Void)?
     private var hasCompletedLogin = false
+    private let logger = CodexBarLog.logger("cursor-login")
 
     private static let dashboardURL = URL(string: "https://cursor.com/dashboard")!
     private static let loginURLPattern = "authenticator.cursor.sh"
@@ -47,6 +48,7 @@ final class CursorLoginRunner: NSObject {
         WebKitTeardown.retain(self)
         self.phaseCallback = onPhaseChange
         onPhaseChange(.loading)
+        self.logger.info("Cursor login started")
 
         return await withCheckedContinuation { continuation in
             self.continuation = continuation
@@ -76,6 +78,7 @@ final class CursorLoginRunner: NSObject {
         window.delegate = self
         window.makeKeyAndOrderFront(nil)
         self.window = window
+        self.logger.info("Cursor login window opened")
 
         // Navigate to dashboard (will redirect to login if not authenticated)
         let request = URLRequest(url: Self.dashboardURL)
@@ -85,11 +88,13 @@ final class CursorLoginRunner: NSObject {
     private func complete(with result: Result) {
         guard let continuation = self.continuation else { return }
         self.continuation = nil
+        self.logger.info("Cursor login completed", metadata: ["outcome": "\(result.outcome)"])
         self.scheduleCleanup()
         continuation.resume(returning: result)
     }
 
     private func scheduleCleanup() {
+        self.logger.info("Cursor login window closing")
         WebKitTeardown.scheduleCleanup(owner: self, window: self.window, webView: self.webView)
     }
 
@@ -106,12 +111,14 @@ final class CursorLoginRunner: NSObject {
 
         guard !cursorCookies.isEmpty else {
             self.phaseCallback?(.failed("No session cookies found"))
+            self.logger.warning("Cursor login failed: no session cookies found")
             self.complete(with: Result(outcome: .failed("No session cookies found"), email: nil))
             return
         }
 
         // Save cookies to the session store
         await CursorSessionStore.shared.setCookies(cursorCookies)
+        self.logger.info("Cursor session cookies captured", metadata: ["count": "\(cursorCookies.count)"])
 
         // Try to get user email
         let email = await self.fetchUserEmail()
@@ -178,6 +185,7 @@ extension CursorLoginRunner: WKNavigationDelegate {
     {
         Task { @MainActor in
             self.phaseCallback?(.failed(error.localizedDescription))
+            self.logger.error("Cursor login navigation failed", metadata: ["error": error.localizedDescription])
             self.complete(with: Result(outcome: .failed(error.localizedDescription), email: nil))
         }
     }
@@ -194,6 +202,7 @@ extension CursorLoginRunner: WKNavigationDelegate {
                 return
             }
             self.phaseCallback?(.failed(error.localizedDescription))
+            self.logger.error("Cursor login navigation failed", metadata: ["error": error.localizedDescription])
             self.complete(with: Result(outcome: .failed(error.localizedDescription), email: nil))
         }
     }
@@ -205,6 +214,7 @@ extension CursorLoginRunner: NSWindowDelegate {
     nonisolated func windowWillClose(_ notification: Notification) {
         Task { @MainActor in
             if !self.hasCompletedLogin {
+                self.logger.info("Cursor login cancelled")
                 self.complete(with: Result(outcome: .cancelled, email: nil))
             }
         }

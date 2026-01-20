@@ -205,11 +205,13 @@ final class UsageStore {
     @ObservationIgnored private let sessionQuotaLogger = CodexBarLog.logger("sessionQuota")
     @ObservationIgnored private let openAIWebLogger = CodexBarLog.logger("openai-web")
     @ObservationIgnored private let tokenCostLogger = CodexBarLog.logger("token-cost")
+    @ObservationIgnored let augmentLogger = CodexBarLog.logger("augment")
+    @ObservationIgnored let providerLogger = CodexBarLog.logger("providers")
     @ObservationIgnored private var openAIWebDebugLines: [String] = []
     @ObservationIgnored var failureGates: [UsageProvider: ConsecutiveFailureGate] = [:]
     @ObservationIgnored var tokenFailureGates: [UsageProvider: ConsecutiveFailureGate] = [:]
     @ObservationIgnored var providerSpecs: [UsageProvider: ProviderSpec] = [:]
-    @ObservationIgnored private let providerMetadata: [UsageProvider: ProviderMetadata]
+    @ObservationIgnored let providerMetadata: [UsageProvider: ProviderMetadata]
     @ObservationIgnored private var timerTask: Task<Void, Never>?
     @ObservationIgnored private var tokenTimerTask: Task<Void, Never>?
     @ObservationIgnored private var tokenRefreshSequenceTask: Task<Void, Never>?
@@ -250,6 +252,7 @@ final class UsageStore {
             codexFetcher: fetcher,
             claudeFetcher: self.claudeFetcher,
             browserDetection: browserDetection)
+        self.logStartupState()
         self.bindSettings()
         self.detectVersions()
         self.pathDebugInfo = PathDebugSnapshot(
@@ -1085,8 +1088,9 @@ extension UsageStore {
     }
 
     private func logOpenAIWeb(_ message: String) {
-        self.openAIWebLogger.debug(message)
-        self.openAIWebDebugLines.append(message)
+        let safeMessage = LogRedactor.redact(message)
+        self.openAIWebLogger.debug(safeMessage)
+        self.openAIWebDebugLines.append(safeMessage)
         if self.openAIWebDebugLines.count > 240 {
             self.openAIWebDebugLines.removeFirst(self.openAIWebDebugLines.count - 240)
         }

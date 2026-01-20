@@ -36,6 +36,32 @@ struct DebugPane: View {
                                 self.settings.debugFileLoggingEnabled = newValue
                             }
                         }
+
+                    HStack(alignment: .center, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Verbosity")
+                                .font(.body)
+                            Text("Controls how much detail is logged.")
+                                .font(.footnote)
+                                .foregroundStyle(.tertiary)
+                        }
+                        Spacer()
+                        Picker("Verbosity", selection: self.$settings.debugLogLevel) {
+                            ForEach(CodexBarLog.Level.allCases) { level in
+                                Text(level.displayName).tag(level)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: 160)
+                    }
+
+                    Button {
+                        NSWorkspace.shared.open(CodexBarLog.fileLogURL)
+                    } label: {
+                        Label("Open log file", systemImage: "doc.text.magnifyingglass")
+                    }
+                    .controlSize(.small)
                 }
 
                 SettingsSection {

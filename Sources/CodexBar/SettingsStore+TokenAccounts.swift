@@ -28,6 +28,12 @@ extension SettingsStore {
         self.updateProviderConfig(provider: provider) { entry in
             entry.tokenAccounts = updated
         }
+        CodexBarLog.logger("token-accounts").info(
+            "Active token account updated",
+            metadata: [
+                "provider": provider.rawValue,
+                "index": "\(clamped)",
+            ])
     }
 
     func addTokenAccount(provider: UsageProvider, label: String, token: String) {
@@ -52,6 +58,12 @@ extension SettingsStore {
             entry.tokenAccounts = updated
         }
         self.applyTokenAccountCookieSourceIfNeeded(provider: provider)
+        CodexBarLog.logger("token-accounts").info(
+            "Token account added",
+            metadata: [
+                "provider": provider.rawValue,
+                "count": "\(updated.accounts.count)",
+            ])
     }
 
     func removeTokenAccount(provider: UsageProvider, accountID: UUID) {
@@ -68,6 +80,12 @@ extension SettingsStore {
                     activeIndex: clamped)
             }
         }
+        CodexBarLog.logger("token-accounts").info(
+            "Token account removed",
+            metadata: [
+                "provider": provider.rawValue,
+                "count": "\(filtered.count)",
+            ])
     }
 
     func ensureTokenAccountsLoaded() {

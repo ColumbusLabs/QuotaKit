@@ -22,6 +22,9 @@ public enum BrowserCookieAccessGate {
             self.loadIfNeeded(&state)
             if let blockedUntil = state.deniedUntilByBrowser[browser.rawValue] {
                 if blockedUntil > now {
+                    self.log.debug(
+                        "Cookie access blocked",
+                        metadata: ["browser": browser.displayName, "until": "\(blockedUntil.timeIntervalSince1970)"])
                     return false
                 }
                 state.deniedUntilByBrowser.removeValue(forKey: browser.rawValue)
@@ -30,8 +33,12 @@ public enum BrowserCookieAccessGate {
             if self.chromiumKeychainRequiresInteraction() {
                 state.deniedUntilByBrowser[browser.rawValue] = now.addingTimeInterval(self.cooldownInterval)
                 self.persist(state)
+                self.log.info(
+                    "Cookie access requires keychain interaction; suppressing",
+                    metadata: ["browser": browser.displayName])
                 return false
             }
+            self.log.debug("Cookie access allowed", metadata: ["browser": browser.displayName])
             return true
         }
     }
@@ -52,7 +59,11 @@ public enum BrowserCookieAccessGate {
         }
         self.log
             .info(
-                "Browser cookie access denied for \(browser.displayName); suppressing prompts until \(blockedUntil)")
+                "Browser cookie access denied; suppressing prompts",
+                metadata: [
+                    "browser": browser.displayName,
+                    "until": "\(blockedUntil.timeIntervalSince1970)",
+                ])
     }
 
     private static func chromiumKeychainRequiresInteraction() -> Bool {

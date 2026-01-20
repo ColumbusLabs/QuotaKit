@@ -154,7 +154,7 @@ public enum ClaudeWebAPIFetcher {
         }
 
         let sessionInfo = try extractSessionKeyInfo(browserDetection: browserDetection, logger: log)
-        log("Found session key: \(sessionInfo.key.prefix(20))...")
+        log("Found session key (\(sessionInfo.cookieCount) cookies)")
 
         let usage = try await self.fetchUsage(using: sessionInfo, logger: log)
         CookieHeaderCache.store(
@@ -183,8 +183,7 @@ public enum ClaudeWebAPIFetcher {
 
         // Fetch organization info
         let organization = try await fetchOrganizationInfo(sessionKey: sessionKey, logger: log)
-        log("Organization ID: \(organization.id)")
-        if let name = organization.name { log("Organization name: \(name)") }
+        log("Organization resolved")
 
         var usage = try await fetchUsageData(orgId: organization.id, sessionKey: sessionKey, logger: log)
         if usage.extraUsageCost == nil,

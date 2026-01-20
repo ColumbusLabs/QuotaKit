@@ -103,8 +103,8 @@ public struct OpenAIDashboardBrowserCookieImporter {
         let targetEmail = targetEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedTarget = targetEmail?.isEmpty == false ? targetEmail : nil
 
-        if let normalizedTarget {
-            log("Codex email: \(normalizedTarget)")
+        if normalizedTarget != nil {
+            log("Codex email known; matching required.")
         } else {
             guard allowAnyAccount else {
                 throw ImportError.noCookiesFound
@@ -155,8 +155,7 @@ public struct OpenAIDashboardBrowserCookieImporter {
                 if lhs.sourceLabel == rhs.sourceLabel { return lhs.email < rhs.email }
                 return lhs.sourceLabel < rhs.sourceLabel
             }
-            let emails = Array(Set(found.map(\.email))).sorted()
-            log("No matching browser session found. Candidates signed in as: \(emails.joined(separator: ", "))")
+            log("No matching browser session found. Candidate count: \(found.count)")
             throw ImportError.noMatchingAccount(found: found)
         }
 

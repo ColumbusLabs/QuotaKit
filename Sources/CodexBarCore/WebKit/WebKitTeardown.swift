@@ -7,6 +7,7 @@ import WebKit
 public enum WebKitTeardown {
     private static var retained: [ObjectIdentifier: AnyObject] = [:]
     private static var scheduled: Set<ObjectIdentifier> = []
+    private static let log = CodexBarLog.logger("webkit-teardown")
 
     #if arch(x86_64)
     private static let retainAfterCleanup = true
@@ -36,6 +37,9 @@ public enum WebKitTeardown {
         self.retained[id] = owner
         guard !self.scheduled.contains(id) else { return }
         self.scheduled.insert(id)
+        self.log.debug(
+            "WebKit cleanup scheduled",
+            metadata: ["window": "\(window != nil)", "webView": "\(webView != nil)"])
 
         Task { @MainActor in
             // Let WebKit unwind delegate callbacks before teardown on Intel.
@@ -62,6 +66,9 @@ public enum WebKitTeardown {
     #endif
 
     private static func cleanup(window: NSWindow?, webView: WKWebView?, closeWindow: (() -> Void)?) {
+        self.log.debug(
+            "WebKit cleanup",
+            metadata: ["window": "\(window != nil)", "webView": "\(webView != nil)"])
         webView?.stopLoading()
         webView?.navigationDelegate = nil
         window?.delegate = nil
@@ -90,6 +97,7 @@ public enum WebKitTeardown {
             }
             self.retained.removeValue(forKey: id)
             self.scheduled.remove(id)
+            self.log.debug("WebKit cleanup released")
         }
     }
 

@@ -66,13 +66,14 @@ struct ProviderRegistry {
                             settings: settings,
                             tokenOverride: nil)
                     }
+                    let verbose = settings.debugLogLevel.rank <= CodexBarLog.Level.verbose.rank
                     let context = ProviderFetchContext(
                         runtime: .app,
                         sourceMode: sourceMode,
                         includeCredits: false,
                         webTimeout: 60,
                         webDebugDumpHTML: false,
-                        verbose: false,
+                        verbose: verbose,
                         env: env,
                         settings: snapshot,
                         fetcher: codexFetcher,
