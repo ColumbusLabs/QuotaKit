@@ -80,22 +80,7 @@ public enum BrowserCookieAccessGate {
         return false
     }
 
-    private static let safeStorageLabels: [(service: String, account: String)] = [
-        ("Chrome Safe Storage", "Chrome"),
-        ("Chromium Safe Storage", "Chromium"),
-        ("Brave Safe Storage", "Brave"),
-        ("Arc Safe Storage", "Arc"),
-        ("Arc Safe Storage", "Arc Beta"),
-        ("Arc Safe Storage", "Arc Canary"),
-        ("ChatGPT Atlas Safe Storage", "ChatGPT Atlas"),
-        ("ChatGPT Atlas Safe Storage", "com.openai.atlas"),
-        ("com.openai.atlas Safe Storage", "com.openai.atlas"),
-        ("Helium Safe Storage", "Helium"),
-        ("net.imput.helium Safe Storage", "net.imput.helium"),
-        ("Microsoft Edge Safe Storage", "Microsoft Edge"),
-        ("Vivaldi Safe Storage", "Vivaldi"),
-        ("Dia Safe Storage", "Dia"),
-    ]
+    private static let safeStorageLabels: [(service: String, account: String)] = Browser.safeStorageLabels
 
     private static func loadIfNeeded(_ state: inout State) {
         guard !state.loaded else { return }

@@ -33,52 +33,6 @@ public final class BrowserDetection: Sendable {
         let kind: ProbeKind
     }
 
-    private static let applicationNames: [Browser: String] = [
-        .safari: "Safari",
-        .chrome: "Google Chrome",
-        .chromeBeta: "Google Chrome Beta",
-        .chromeCanary: "Google Chrome Canary",
-        .arc: "Arc",
-        .arcBeta: "Arc Beta",
-        .arcCanary: "Arc Canary",
-        .brave: "Brave Browser",
-        .braveBeta: "Brave Browser Beta",
-        .braveNightly: "Brave Browser Nightly",
-        .edge: "Microsoft Edge",
-        .edgeBeta: "Microsoft Edge Beta",
-        .edgeCanary: "Microsoft Edge Canary",
-        .vivaldi: "Vivaldi",
-        .chromium: "Chromium",
-        .firefox: "Firefox",
-        .zen: "Zen",
-        .chatgptAtlas: "ChatGPT Atlas",
-        .helium: "Helium",
-        .dia: "Dia",
-    ]
-
-    private static let profilePathComponents: [Browser: String] = [
-        .safari: "Library/Cookies/Cookies.binarycookies",
-        .chrome: "Library/Application Support/Google/Chrome",
-        .chromeBeta: "Library/Application Support/Google/Chrome Beta",
-        .chromeCanary: "Library/Application Support/Google/Chrome Canary",
-        .arc: "Library/Application Support/Arc/User Data",
-        .arcBeta: "Library/Application Support/Arc Beta/User Data",
-        .arcCanary: "Library/Application Support/Arc Canary/User Data",
-        .brave: "Library/Application Support/BraveSoftware/Brave-Browser",
-        .braveBeta: "Library/Application Support/BraveSoftware/Brave-Browser-Beta",
-        .braveNightly: "Library/Application Support/BraveSoftware/Brave-Browser-Nightly",
-        .edge: "Library/Application Support/Microsoft Edge",
-        .edgeBeta: "Library/Application Support/Microsoft Edge Beta",
-        .edgeCanary: "Library/Application Support/Microsoft Edge Canary",
-        .vivaldi: "Library/Application Support/Vivaldi",
-        .chromium: "Library/Application Support/Chromium",
-        .firefox: "Library/Application Support/Firefox/Profiles",
-        .zen: "Library/Application Support/zen/Profiles",
-        .chatgptAtlas: "Library/Application Support/ChatGPT Atlas",
-        .helium: "Library/Application Support/net.imput.helium",
-        .dia: "Library/Application Support/Dia/User Data",
-    ]
-
     public init(
         homeDirectory: String = FileManager.default.homeDirectoryForCurrentUser.path,
         cacheTTL: TimeInterval = BrowserDetection.defaultCacheTTL,
@@ -208,35 +162,46 @@ public final class BrowserDetection: Sendable {
     }
 
     private func applicationName(for browser: Browser) -> String? {
-        Self.applicationNames[browser]
+        browser.appBundleName
     }
 
     private func profilePath(for browser: Browser, homeDirectory: String) -> String? {
-        guard let relativePath = Self.profilePathComponents[browser] else { return nil }
-        return "\(homeDirectory)/\(relativePath)"
+        if browser == .safari {
+            return "\(homeDirectory)/Library/Cookies/Cookies.binarycookies"
+        }
+
+        if let relativePath = browser.chromiumProfileRelativePath {
+            return "\(homeDirectory)/Library/Application Support/\(relativePath)"
+        }
+
+        if let geckoFolder = browser.geckoProfilesFolder {
+            return "\(homeDirectory)/Library/Application Support/\(geckoFolder)/Profiles"
+        }
+
+        return nil
     }
 
     private func requiresProfileValidation(_ browser: Browser) -> Bool {
         // Chromium-based browsers should have Default/ or Profile*/ subdirectories
-        switch browser {
-        case .chrome, .chromeBeta, .chromeCanary,
-             .arc, .arcBeta, .arcCanary,
-             .brave, .braveBeta, .braveNightly,
-             .edge, .edgeBeta, .edgeCanary,
-             .vivaldi, .chromium, .chatgptAtlas,
-             .dia:
-            return true
-        case .firefox, .zen:
-            // Firefox should have at least one *.default* directory
-            return true
-        case .helium:
-            // Helium doesn't use the Default/Profile* pattern
-            return false
-        case .safari:
-            return false
-        @unknown default:
+        if browser == .safari {
             return false
         }
+
+        if browser == .helium {
+            // Helium doesn't use the Default/Profile* pattern
+            return false
+        }
+
+        if browser.usesGeckoProfileStore {
+            // Firefox should have at least one *.default* directory
+            return true
+        }
+
+        if browser.usesChromiumProfileStore {
+            return true
+        }
+
+        return false
     }
 
     private func hasValidProfileDirectory(for browser: Browser, at profilePath: String) -> Bool {
@@ -247,7 +212,7 @@ public final class BrowserDetection: Sendable {
             name == "Default" || name.hasPrefix("Profile ") || name.hasPrefix("user-")
         }
 
-        if browser == .firefox || browser == .zen {
+        if browser.usesGeckoProfileStore {
             let hasFirefoxProfile = contents.contains { name in
                 name.contains(".default")
             }
@@ -260,7 +225,7 @@ public final class BrowserDetection: Sendable {
     private func hasValidCookieStore(for browser: Browser, at profilePath: String) -> Bool {
         guard let contents = self.directoryContents(profilePath) else { return false }
 
-        if browser == .firefox || browser == .zen {
+        if browser.usesGeckoProfileStore {
             for name in contents where name.contains(".default") {
                 let cookieDB = "\(profilePath)/\(name)/cookies.sqlite"
                 if self.fileExists(cookieDB) {
