@@ -202,11 +202,11 @@ final class UsageStore {
     @ObservationIgnored private let registry: ProviderRegistry
     @ObservationIgnored let settings: SettingsStore
     @ObservationIgnored private let sessionQuotaNotifier: SessionQuotaNotifier
-    @ObservationIgnored private let sessionQuotaLogger = CodexBarLog.logger("sessionQuota")
-    @ObservationIgnored private let openAIWebLogger = CodexBarLog.logger("openai-web")
-    @ObservationIgnored private let tokenCostLogger = CodexBarLog.logger("token-cost")
-    @ObservationIgnored let augmentLogger = CodexBarLog.logger("augment")
-    @ObservationIgnored let providerLogger = CodexBarLog.logger("providers")
+    @ObservationIgnored private let sessionQuotaLogger = CodexBarLog.logger(LogCategories.sessionQuota)
+    @ObservationIgnored private let openAIWebLogger = CodexBarLog.logger(LogCategories.openAIWeb)
+    @ObservationIgnored private let tokenCostLogger = CodexBarLog.logger(LogCategories.tokenCost)
+    @ObservationIgnored let augmentLogger = CodexBarLog.logger(LogCategories.augment)
+    @ObservationIgnored let providerLogger = CodexBarLog.logger(LogCategories.providers)
     @ObservationIgnored private var openAIWebDebugLines: [String] = []
     @ObservationIgnored var failureGates: [UsageProvider: ConsecutiveFailureGate] = [:]
     @ObservationIgnored var tokenFailureGates: [UsageProvider: ConsecutiveFailureGate] = [:]

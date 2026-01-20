@@ -117,7 +117,7 @@ struct AugmentStatusFetchStrategy: ProviderFetchStrategy {
         let probe = AugmentStatusProbe()
         let manual = Self.manualCookieHeader(from: context)
         let logger: ((String) -> Void)? = context.verbose
-            ? { msg in CodexBarLog.logger("augment").verbose(msg) }
+            ? { msg in CodexBarLog.logger(LogCategories.augment).verbose(msg) }
             : nil
         let snap = try await probe.fetch(cookieHeaderOverride: manual, logger: logger)
         return self.makeResult(

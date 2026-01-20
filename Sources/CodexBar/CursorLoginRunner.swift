@@ -31,7 +31,7 @@ final class CursorLoginRunner: NSObject {
     private var continuation: CheckedContinuation<Result, Never>?
     private var phaseCallback: ((Phase) -> Void)?
     private var hasCompletedLogin = false
-    private let logger = CodexBarLog.logger("cursor-login")
+    private let logger = CodexBarLog.logger(LogCategories.cursorLogin)
 
     private static let dashboardURL = URL(string: "https://cursor.com/dashboard")!
     private static let loginURLPattern = "authenticator.cursor.sh"

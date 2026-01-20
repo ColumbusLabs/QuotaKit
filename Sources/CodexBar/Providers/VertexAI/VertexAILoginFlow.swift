@@ -48,7 +48,7 @@ extension StatusItemController {
             var error: NSDictionary?
             appleScript.executeAndReturnError(&error)
             if let error {
-                CodexBarLog.logger("terminal").error(
+                CodexBarLog.logger(LogCategories.terminal).error(
                     "Failed to open Terminal",
                     metadata: ["error": String(describing: error)])
             }

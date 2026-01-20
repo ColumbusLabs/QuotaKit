@@ -59,6 +59,10 @@ extension SettingsStore {
         }
     }
 
+    var isVerboseLoggingEnabled: Bool {
+        self.debugLogLevel.rank <= CodexBarLog.Level.verbose.rank
+    }
+
     private var debugLoadingPatternRaw: String? {
         get { self.defaultsState.debugLoadingPatternRaw }
         set {
@@ -186,7 +190,7 @@ extension SettingsStore {
         set {
             self.defaultsState.claudeWebExtrasEnabledRaw = newValue
             self.userDefaults.set(newValue, forKey: "claudeWebExtrasEnabled")
-            CodexBarLog.logger("settings").info(
+            CodexBarLog.logger(LogCategories.settings).info(
                 "Claude web extras updated",
                 metadata: ["enabled": newValue ? "1" : "0"])
         }
@@ -205,7 +209,7 @@ extension SettingsStore {
         set {
             self.defaultsState.openAIWebAccessEnabled = newValue
             self.userDefaults.set(newValue, forKey: "openAIWebAccessEnabled")
-            CodexBarLog.logger("settings").info(
+            CodexBarLog.logger(LogCategories.settings).info(
                 "OpenAI web access updated",
                 metadata: ["enabled": newValue ? "1" : "0"])
         }

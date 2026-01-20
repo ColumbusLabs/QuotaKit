@@ -20,7 +20,7 @@ enum LaunchAtLoginManager {
                 try service.unregister()
             }
         } catch {
-            CodexBarLog.logger("launch-at-login").error("Failed to update login item: \(error)")
+            CodexBarLog.logger(LogCategories.launchAtLogin).error("Failed to update login item: \(error)")
         }
     }
 }

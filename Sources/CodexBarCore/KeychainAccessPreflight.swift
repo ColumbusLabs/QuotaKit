@@ -45,7 +45,7 @@ public enum KeychainAccessPreflight {
         case failure(Int)
     }
 
-    private static let log = CodexBarLog.logger("keychain-preflight")
+    private static let log = CodexBarLog.logger(LogCategories.keychainPreflight)
 
     public static func checkGenericPassword(service: String, account: String?) -> Outcome {
         #if os(macOS)

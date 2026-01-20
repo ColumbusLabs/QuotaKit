@@ -13,7 +13,7 @@ public enum BrowserCookieAccessGate {
     private static let lock = OSAllocatedUnfairLock<State>(initialState: State())
     private static let defaultsKey = "browserCookieAccessDeniedUntil"
     private static let cooldownInterval: TimeInterval = 60 * 60 * 6
-    private static let log = CodexBarLog.logger("browser-cookie-gate")
+    private static let log = CodexBarLog.logger(LogCategories.browserCookieGate)
 
     public static func shouldAttempt(_ browser: Browser, now: Date = Date()) -> Bool {
         guard browser.usesKeychainForCookieDecryption else { return true }

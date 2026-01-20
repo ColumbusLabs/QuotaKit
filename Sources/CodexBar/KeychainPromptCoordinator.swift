@@ -4,7 +4,7 @@ import SweetCookieKit
 
 enum KeychainPromptCoordinator {
     private static let promptLock = NSLock()
-    private static let log = CodexBarLog.logger("keychain-prompt")
+    private static let log = CodexBarLog.logger(LogCategories.keychainPrompt)
 
     static func install() {
         KeychainPromptHandler.handler = { context in

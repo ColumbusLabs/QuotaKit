@@ -31,7 +31,7 @@ struct CodexBarConfigMigrator {
         userDefaults: UserDefaults,
         stores: LegacyStores) -> CodexBarConfig
     {
-        let log = CodexBarLog.logger("config-migration")
+        let log = CodexBarLog.logger(LogCategories.configMigration)
         let existing = try? configStore.load()
         var config = (existing ?? CodexBarConfig.makeDefault()).normalized()
         var state = MigrationState()

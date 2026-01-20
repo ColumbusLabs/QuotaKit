@@ -22,7 +22,7 @@ enum CookieHeaderStoreError: LocalizedError {
 }
 
 struct KeychainCookieHeaderStore: CookieHeaderStoring {
-    private static let log = CodexBarLog.logger("cookie-header-store")
+    private static let log = CodexBarLog.logger(LogCategories.cookieHeaderStore)
 
     private let service = "com.steipete.CodexBar"
     private let account: String

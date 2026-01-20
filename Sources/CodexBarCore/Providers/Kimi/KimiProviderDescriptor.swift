@@ -49,7 +49,7 @@ public enum KimiProviderDescriptor {
 struct KimiWebFetchStrategy: ProviderFetchStrategy {
     let id: String = "kimi.web"
     let kind: ProviderFetchKind = .web
-    private static let log = CodexBarLog.logger("kimi-web")
+    private static let log = CodexBarLog.logger(LogCategories.kimiWeb)
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
         if KimiCookieHeader.resolveCookieOverride(context: context) != nil {

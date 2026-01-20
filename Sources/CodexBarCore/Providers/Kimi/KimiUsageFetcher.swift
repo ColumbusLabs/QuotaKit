@@ -5,7 +5,7 @@ import FoundationNetworking
 #endif
 
 public struct KimiUsageFetcher: Sendable {
-    private static let log = CodexBarLog.logger("kimi-api")
+    private static let log = CodexBarLog.logger(LogCategories.kimiAPI)
     private static let usageURL =
         URL(string: "https://www.kimi.com/apiv2/kimi.gateway.billing.v1.BillingService/GetUsages")!
 

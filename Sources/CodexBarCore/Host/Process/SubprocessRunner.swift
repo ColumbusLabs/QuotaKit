@@ -35,7 +35,7 @@ public struct SubprocessResult: Sendable {
 }
 
 public enum SubprocessRunner {
-    private static let log = CodexBarLog.logger("subprocess")
+    private static let log = CodexBarLog.logger(LogCategories.subprocess)
 
     public static func run(
         binary: String,

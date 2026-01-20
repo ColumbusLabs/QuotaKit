@@ -366,23 +366,18 @@ extension SettingsStore {
 
 extension SettingsStore {
     private func logProviderModeChange(provider: UsageProvider, field: String, value: String) {
-        CodexBarLog.logger("settings").info(
+        CodexBarLog.logger(LogCategories.settings).info(
             "Provider mode updated",
             metadata: ["provider": provider.rawValue, "field": field, "value": value])
     }
 
     private func logSecretUpdate(provider: UsageProvider, field: String, value: String) {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        let state = trimmed.isEmpty ? "cleared" : "set"
-        let length = trimmed.count
-        CodexBarLog.logger("settings").info(
+        var metadata = LogMetadata.secretSummary(value)
+        metadata["provider"] = provider.rawValue
+        metadata["field"] = field
+        CodexBarLog.logger(LogCategories.settings).info(
             "Provider secret updated",
-            metadata: [
-                "provider": provider.rawValue,
-                "field": field,
-                "state": state,
-                "length": "\(length)",
-            ])
+            metadata: metadata)
     }
 
     private static func codexUsageDataSource(from source: ProviderSourceMode?) -> CodexUsageDataSource {

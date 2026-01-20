@@ -4,7 +4,7 @@ import FoundationNetworking
 #endif
 
 public struct MiniMaxUsageFetcher: Sendable {
-    private static let log = CodexBarLog.logger("minimax-usage")
+    private static let log = CodexBarLog.logger(LogCategories.minimaxUsage)
     private static let codingPlanPath = "user-center/payment/coding-plan"
     private static let codingPlanQuery = "cycle_type=3"
     private static let codingPlanRemainsPath = "v1/api/openplatform/coding_plan/remains"

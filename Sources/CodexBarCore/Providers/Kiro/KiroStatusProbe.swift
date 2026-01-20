@@ -78,7 +78,7 @@ public enum KiroStatusProbeError: LocalizedError, Sendable {
 public struct KiroStatusProbe: Sendable {
     public init() {}
 
-    private static let logger = CodexBarLog.logger("kiro")
+    private static let logger = CodexBarLog.logger(LogCategories.kiro)
 
     public static func detectVersion() -> String? {
         let process = Process()

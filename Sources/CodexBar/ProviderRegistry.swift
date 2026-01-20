@@ -66,7 +66,7 @@ struct ProviderRegistry {
                             settings: settings,
                             tokenOverride: nil)
                     }
-                    let verbose = settings.debugLogLevel.rank <= CodexBarLog.Level.verbose.rank
+                    let verbose = settings.isVerboseLoggingEnabled
                     let context = ProviderFetchContext(
                         runtime: .app,
                         sourceMode: sourceMode,

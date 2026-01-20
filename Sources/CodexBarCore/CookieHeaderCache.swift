@@ -13,7 +13,7 @@ public enum CookieHeaderCache {
         }
     }
 
-    private static let log = CodexBarLog.logger("cookie-cache")
+    private static let log = CodexBarLog.logger(LogCategories.cookieCache)
     private nonisolated(unsafe) static var legacyBaseURLOverride: URL?
 
     public static func load(provider: UsageProvider) -> Entry? {

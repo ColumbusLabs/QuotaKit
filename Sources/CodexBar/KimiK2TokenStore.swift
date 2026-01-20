@@ -22,7 +22,7 @@ enum KimiK2TokenStoreError: LocalizedError {
 }
 
 struct KeychainKimiK2TokenStore: KimiK2TokenStoring {
-    private static let log = CodexBarLog.logger("kimi-k2-token-store")
+    private static let log = CodexBarLog.logger(LogCategories.kimiK2TokenStore)
 
     private let service = "com.steipete.CodexBar"
     private let account = "kimi-k2-api-token"

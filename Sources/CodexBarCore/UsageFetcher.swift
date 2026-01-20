@@ -293,7 +293,7 @@ private enum RPCWireError: Error, LocalizedError {
 
 // RPC helper used on background tasks; safe because we confine it to the owning task.
 private final class CodexRPCClient: @unchecked Sendable {
-    private static let log = CodexBarLog.logger("codex-rpc")
+    private static let log = CodexBarLog.logger(LogCategories.codexRPC)
     private let process = Process()
     private let stdinPipe = Pipe()
     private let stdoutPipe = Pipe()

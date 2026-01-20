@@ -299,7 +299,7 @@ extension SettingsStore {
     }
 
     func setProviderEnabled(provider: UsageProvider, metadata _: ProviderMetadata, enabled: Bool) {
-        CodexBarLog.logger("settings").debug(
+        CodexBarLog.logger(LogCategories.settings).debug(
             "Provider toggle updated",
             metadata: ["provider": provider.rawValue, "enabled": "\(enabled)"])
         self.updateProviderConfig(provider: provider) { entry in

@@ -86,7 +86,7 @@ extension UsageStore {
             provider: provider,
             settings: self.settings,
             tokenOverride: override)
-        let verbose = self.settings.debugLogLevel.rank <= CodexBarLog.Level.verbose.rank
+        let verbose = self.settings.isVerboseLoggingEnabled
         let context = ProviderFetchContext(
             runtime: .app,
             sourceMode: sourceMode,

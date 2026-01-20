@@ -28,7 +28,7 @@ extension SettingsStore {
         self.updateProviderConfig(provider: provider) { entry in
             entry.tokenAccounts = updated
         }
-        CodexBarLog.logger("token-accounts").info(
+        CodexBarLog.logger(LogCategories.tokenAccounts).info(
             "Active token account updated",
             metadata: [
                 "provider": provider.rawValue,
@@ -58,7 +58,7 @@ extension SettingsStore {
             entry.tokenAccounts = updated
         }
         self.applyTokenAccountCookieSourceIfNeeded(provider: provider)
-        CodexBarLog.logger("token-accounts").info(
+        CodexBarLog.logger(LogCategories.tokenAccounts).info(
             "Token account added",
             metadata: [
                 "provider": provider.rawValue,
@@ -80,7 +80,7 @@ extension SettingsStore {
                     activeIndex: clamped)
             }
         }
-        CodexBarLog.logger("token-accounts").info(
+        CodexBarLog.logger(LogCategories.tokenAccounts).info(
             "Token account removed",
             metadata: [
                 "provider": provider.rawValue,
@@ -94,7 +94,7 @@ extension SettingsStore {
     }
 
     func reloadTokenAccounts() {
-        let log = CodexBarLog.logger("token-accounts")
+        let log = CodexBarLog.logger(LogCategories.tokenAccounts)
         let accounts: [UsageProvider: ProviderTokenAccountData]
         do {
             guard let loaded = try self.configStore.load() else { return }
@@ -114,7 +114,7 @@ extension SettingsStore {
         do {
             try self.configStore.save(self.config)
         } catch {
-            CodexBarLog.logger("token-accounts").error("Failed to persist config: \(error)")
+            CodexBarLog.logger(LogCategories.tokenAccounts).error("Failed to persist config: \(error)")
             return
         }
         NSWorkspace.shared.open(self.configStore.fileURL)

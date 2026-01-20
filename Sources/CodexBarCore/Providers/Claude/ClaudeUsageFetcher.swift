@@ -63,7 +63,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     private let useWebExtras: Bool
     private let manualCookieHeader: String?
     private let browserDetection: BrowserDetection
-    private static let log = CodexBarLog.logger("claude-usage")
+    private static let log = CodexBarLog.logger(LogCategories.claudeUsage)
 
     /// Creates a new ClaudeUsageFetcher.
     /// - Parameters:

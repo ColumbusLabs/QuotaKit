@@ -72,7 +72,7 @@ extension SyntheticUsageSnapshot {
 }
 
 public struct SyntheticUsageFetcher: Sendable {
-    private static let log = CodexBarLog.logger("synthetic-usage")
+    private static let log = CodexBarLog.logger(LogCategories.syntheticUsage)
     private static let quotaAPIURL = "https://api.synthetic.new/v2/quotas"
 
     public static func fetchUsage(apiKey: String, now: Date = Date()) async throws -> SyntheticUsageSnapshot {

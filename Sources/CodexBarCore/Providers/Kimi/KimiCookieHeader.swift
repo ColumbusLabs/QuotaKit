@@ -9,7 +9,7 @@ public struct KimiCookieOverride: Sendable {
 }
 
 public enum KimiCookieHeader {
-    private static let log = CodexBarLog.logger("kimi-cookie")
+    private static let log = CodexBarLog.logger(LogCategories.kimiCookie)
     private static let headerPatterns: [String] = [
         #"(?i)kimi-auth=([A-Za-z0-9._\-+=/]+)"#,
         #"(?i)-H\s*'Cookie:\s*([^']+)'"#,

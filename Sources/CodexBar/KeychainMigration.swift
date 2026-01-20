@@ -5,7 +5,7 @@ import Security
 /// Migrates keychain items to use kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
 /// to prevent permission prompts on every rebuild during development.
 enum KeychainMigration {
-    private static let log = CodexBarLog.logger("keychain-migration")
+    private static let log = CodexBarLog.logger(LogCategories.keychainMigration)
     private static let migrationKey = "KeychainMigrationV1Completed"
 
     struct MigrationItem: Hashable, Sendable {

@@ -249,7 +249,7 @@ private struct ZaiLimitRaw: Codable {
 
 /// Fetches usage stats from the z.ai API
 public struct ZaiUsageFetcher: Sendable {
-    private static let log = CodexBarLog.logger("zai-usage")
+    private static let log = CodexBarLog.logger(LogCategories.zaiUsage)
 
     /// Path for z.ai quota API
     private static let quotaAPIPath = "api/monitor/usage/quota/limit"

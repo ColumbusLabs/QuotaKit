@@ -7,7 +7,7 @@ import Foundation
 
 actor ClaudeCLISession {
     static let shared = ClaudeCLISession()
-    private static let log = CodexBarLog.logger("claude-cli")
+    private static let log = CodexBarLog.logger(LogCategories.claudeCLI)
 
     enum SessionError: LocalizedError {
         case launchFailed(String)

@@ -1,7 +1,7 @@
 import Foundation
 
 public struct ZaiSettingsReader: Sendable {
-    private static let log = CodexBarLog.logger("zai-settings")
+    private static let log = CodexBarLog.logger(LogCategories.zaiSettings)
 
     public static let apiTokenKey = "Z_AI_API_KEY"
     public static let apiHostKey = "Z_AI_API_HOST"

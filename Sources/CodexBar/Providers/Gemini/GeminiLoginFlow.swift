@@ -7,7 +7,7 @@ extension StatusItemController {
         let result = await GeminiLoginRunner.run {
             Task { @MainActor in
                 await store.refresh()
-                CodexBarLog.logger("login").info("Auto-refreshed after Gemini auth")
+                CodexBarLog.logger(LogCategories.login).info("Auto-refreshed after Gemini auth")
             }
         }
         guard !Task.isCancelled else { return }

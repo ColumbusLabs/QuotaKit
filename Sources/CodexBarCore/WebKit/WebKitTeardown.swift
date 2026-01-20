@@ -7,7 +7,7 @@ import WebKit
 public enum WebKitTeardown {
     private static var retained: [ObjectIdentifier: AnyObject] = [:]
     private static var scheduled: Set<ObjectIdentifier> = []
-    private static let log = CodexBarLog.logger("webkit-teardown")
+    private static let log = CodexBarLog.logger(LogCategories.webkitTeardown)
 
     #if arch(x86_64)
     private static let retainAfterCleanup = true

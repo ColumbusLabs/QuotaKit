@@ -358,7 +358,7 @@ final class OpenAICreditsPurchaseWindowController: NSWindowController, WKNavigat
     })();
     """
 
-    private let logger = CodexBarLog.logger("creditsPurchase")
+    private let logger = CodexBarLog.logger(LogCategories.creditsPurchase)
     private var webView: WKWebView?
     private var accountEmail: String?
     private var pendingAutoStart = false

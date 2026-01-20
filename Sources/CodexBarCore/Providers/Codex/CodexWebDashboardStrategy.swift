@@ -71,7 +71,7 @@ private final class WebLogBuffer {
     private var lines: [String] = []
     private let maxCount: Int
     private let verbose: Bool
-    private let logger = CodexBarLog.logger("openai-web")
+    private let logger = CodexBarLog.logger(LogCategories.openAIWeb)
 
     init(maxCount: Int = 300, verbose: Bool) {
         self.maxCount = maxCount

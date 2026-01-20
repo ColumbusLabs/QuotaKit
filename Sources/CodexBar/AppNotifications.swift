@@ -7,7 +7,7 @@ final class AppNotifications {
     static let shared = AppNotifications()
 
     private let centerProvider: @Sendable () -> UNUserNotificationCenter
-    private let logger = CodexBarLog.logger("notifications")
+    private let logger = CodexBarLog.logger(LogCategories.notifications)
     private var authorizationTask: Task<Bool, Never>?
 
     init(centerProvider: @escaping @Sendable () -> UNUserNotificationCenter = { UNUserNotificationCenter.current() }) {

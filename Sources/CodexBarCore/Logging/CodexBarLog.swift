@@ -126,7 +126,7 @@ public enum CodexBarLog {
         self.levelLock.lock()
         self.currentLevel = level
         self.levelLock.unlock()
-        let logger = self.logger("logging")
+        let logger = self.logger(LogCategories.logging)
         logger.info("Log level set to \(level.rawValue)")
     }
 
@@ -147,7 +147,7 @@ public enum CodexBarLog {
     public static func setFileLoggingEnabled(_ enabled: Bool) {
         FileLogSink.shared.setEnabled(enabled, fileURL: self.fileLogURL)
         let state = enabled ? "enabled" : "disabled"
-        let logger = self.logger("logging")
+        let logger = self.logger(LogCategories.logging)
         logger.info("File logging \(state)", metadata: ["path": self.fileLogURL.path])
     }
 }

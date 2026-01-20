@@ -4,7 +4,7 @@ import Foundation
 import SweetCookieKit
 
 public enum KimiCookieImporter {
-    private static let log = CodexBarLog.logger("kimi-cookie")
+    private static let log = CodexBarLog.logger(LogCategories.kimiCookie)
     private static let cookieClient = BrowserCookieClient()
     private static let cookieDomains = ["www.kimi.com", "kimi.com"]
     private static let browsers: [Browser] = [.arc, .chrome, .safari, .edge, .brave, .chromium]

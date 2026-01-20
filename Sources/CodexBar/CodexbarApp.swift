@@ -27,7 +27,7 @@ struct CodexBarApp: App {
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
         let gitCommit = Bundle.main.object(forInfoDictionaryKey: "CodexGitCommit") as? String ?? "unknown"
         let buildTimestamp = Bundle.main.object(forInfoDictionaryKey: "CodexBuildTimestamp") as? String ?? "unknown"
-        CodexBarLog.logger("app").info(
+        CodexBarLog.logger(LogCategories.app).info(
             "CodexBar starting",
             metadata: [
                 "version": version,
@@ -287,7 +287,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         // Defensive fallback: this should not be hit in normal app lifecycle.
-        CodexBarLog.logger("app")
+        CodexBarLog.logger(LogCategories.app)
             .error("StatusItemController fallback path used; settings/store mismatch likely.")
         assertionFailure("StatusItemController fallback path used; check app lifecycle wiring.")
         let fallbackSettings = SettingsStore()

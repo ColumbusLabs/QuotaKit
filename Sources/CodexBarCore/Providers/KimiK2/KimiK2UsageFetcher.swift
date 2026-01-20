@@ -78,7 +78,7 @@ public enum KimiK2UsageError: LocalizedError, Sendable {
 }
 
 public struct KimiK2UsageFetcher: Sendable {
-    private static let log = CodexBarLog.logger("kimi-k2-usage")
+    private static let log = CodexBarLog.logger(LogCategories.kimiK2Usage)
     private static let creditsURL = URL(string: "https://kimi-k2.ai/api/user/credits")!
     private static let jsonSerializer = JSONSerialization.self
     private static let consumedPaths: [[String]] = [

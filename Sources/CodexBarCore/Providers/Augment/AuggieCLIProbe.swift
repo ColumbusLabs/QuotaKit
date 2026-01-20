@@ -4,7 +4,7 @@ import Foundation
 
 /// Fetches Augment usage via `auggie account status` CLI command
 public struct AuggieCLIProbe: Sendable {
-    private static let log = CodexBarLog.logger("auggie-cli")
+    private static let log = CodexBarLog.logger(LogCategories.auggieCLI)
 
     public init() {}
 

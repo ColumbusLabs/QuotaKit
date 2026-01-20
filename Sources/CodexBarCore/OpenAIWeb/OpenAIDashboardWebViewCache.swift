@@ -12,7 +12,7 @@ struct OpenAIDashboardWebViewLease {
 @MainActor
 final class OpenAIDashboardWebViewCache {
     static let shared = OpenAIDashboardWebViewCache()
-    fileprivate static let log = CodexBarLog.logger("openai-webview")
+    fileprivate static let log = CodexBarLog.logger(LogCategories.openAIWebview)
 
     private final class Entry {
         let webView: WKWebView

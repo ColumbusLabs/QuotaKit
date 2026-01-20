@@ -24,7 +24,7 @@ public enum KeychainCacheStore {
         case invalid
     }
 
-    private static let log = CodexBarLog.logger("keychain-cache")
+    private static let log = CodexBarLog.logger(LogCategories.keychainCache)
     private static let cacheService = "com.steipete.codexbar.cache"
     private static let cacheLabel = "CodexBar Cache"
     private nonisolated(unsafe) static var serviceOverride: String?
