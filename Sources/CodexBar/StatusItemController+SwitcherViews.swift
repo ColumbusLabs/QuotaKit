@@ -743,9 +743,9 @@ final class ProviderSwitcherView: NSView {
 
     private func updateWeeklyIndicatorVisibility(for view: NSView) {
         guard let indicator = self.weeklyIndicators[ObjectIdentifier(view)] else { return }
-        // Always show the progress bar, even for the selected segment.
-        indicator.track.isHidden = false
-        indicator.fill.isHidden = false
+        let isSelected = (view as? NSButton)?.state == .on
+        indicator.track.isHidden = isSelected
+        indicator.fill.isHidden = isSelected
     }
 
     private static func weeklyIndicatorColor(for provider: UsageProvider) -> NSColor {
