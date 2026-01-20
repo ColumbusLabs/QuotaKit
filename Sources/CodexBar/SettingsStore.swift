@@ -79,7 +79,7 @@ final class SettingsStore {
     @ObservationIgnored private var cachedEnabledProvidersOrderRaw: [String] = []
     @ObservationIgnored private var cachedProviderOrder: [UsageProvider] = []
     @ObservationIgnored private var cachedProviderOrderRaw: [String] = []
-    @ObservationIgnored var defaultsState: SettingsDefaultsState
+    var defaultsState: SettingsDefaultsState
     var configRevision: Int = 0
 
     init(

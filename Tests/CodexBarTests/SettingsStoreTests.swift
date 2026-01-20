@@ -1,5 +1,6 @@
 import CodexBarCore
 import Foundation
+import Observation
 import Testing
 @testable import CodexBar
 
@@ -202,6 +203,35 @@ struct SettingsStoreTests {
         #expect(store.openAIWebAccessEnabled == true)
         #expect(defaults.bool(forKey: "openAIWebAccessEnabled") == true)
         #expect(store.codexCookieSource == .auto)
+    }
+
+    @Test
+    func menuObservationTokenUpdatesOnDefaultsChange() async {
+        let suite = "SettingsStoreTests-observation-defaults"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        var didChange = false
+
+        withObservationTracking {
+            _ = store.menuObservationToken
+        } onChange: {
+            Task { @MainActor in
+                didChange = true
+            }
+        }
+
+        store.statusChecksEnabled.toggle()
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        #expect(didChange == true)
     }
 
     @Test
