@@ -15,6 +15,11 @@ struct FactoryProviderImplementation: ProviderImplementation {
     }
 
     @MainActor
+    func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
+        .factory(context.settings.factorySettingsSnapshot(tokenOverride: context.tokenOverride))
+    }
+
+    @MainActor
     func tokenAccountsVisibility(context: ProviderSettingsContext, support: TokenAccountSupport) -> Bool {
         guard support.requiresManualCookieSource else { return true }
         if !context.settings.tokenAccounts(for: context.provider).isEmpty { return true }

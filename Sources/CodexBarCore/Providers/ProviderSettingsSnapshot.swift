@@ -218,3 +218,75 @@ public struct ProviderSettingsSnapshot: Sendable {
         self.jetbrains = jetbrains
     }
 }
+
+public enum ProviderSettingsSnapshotContribution: Sendable {
+    case codex(ProviderSettingsSnapshot.CodexProviderSettings)
+    case claude(ProviderSettingsSnapshot.ClaudeProviderSettings)
+    case cursor(ProviderSettingsSnapshot.CursorProviderSettings)
+    case opencode(ProviderSettingsSnapshot.OpenCodeProviderSettings)
+    case factory(ProviderSettingsSnapshot.FactoryProviderSettings)
+    case minimax(ProviderSettingsSnapshot.MiniMaxProviderSettings)
+    case zai(ProviderSettingsSnapshot.ZaiProviderSettings)
+    case copilot(ProviderSettingsSnapshot.CopilotProviderSettings)
+    case kimi(ProviderSettingsSnapshot.KimiProviderSettings)
+    case augment(ProviderSettingsSnapshot.AugmentProviderSettings)
+    case amp(ProviderSettingsSnapshot.AmpProviderSettings)
+    case jetbrains(ProviderSettingsSnapshot.JetBrainsProviderSettings)
+}
+
+public struct ProviderSettingsSnapshotBuilder: Sendable {
+    public var debugMenuEnabled: Bool
+    public var debugKeepCLISessionsAlive: Bool
+    public var codex: ProviderSettingsSnapshot.CodexProviderSettings?
+    public var claude: ProviderSettingsSnapshot.ClaudeProviderSettings?
+    public var cursor: ProviderSettingsSnapshot.CursorProviderSettings?
+    public var opencode: ProviderSettingsSnapshot.OpenCodeProviderSettings?
+    public var factory: ProviderSettingsSnapshot.FactoryProviderSettings?
+    public var minimax: ProviderSettingsSnapshot.MiniMaxProviderSettings?
+    public var zai: ProviderSettingsSnapshot.ZaiProviderSettings?
+    public var copilot: ProviderSettingsSnapshot.CopilotProviderSettings?
+    public var kimi: ProviderSettingsSnapshot.KimiProviderSettings?
+    public var augment: ProviderSettingsSnapshot.AugmentProviderSettings?
+    public var amp: ProviderSettingsSnapshot.AmpProviderSettings?
+    public var jetbrains: ProviderSettingsSnapshot.JetBrainsProviderSettings?
+
+    public init(debugMenuEnabled: Bool = false, debugKeepCLISessionsAlive: Bool = false) {
+        self.debugMenuEnabled = debugMenuEnabled
+        self.debugKeepCLISessionsAlive = debugKeepCLISessionsAlive
+    }
+
+    public mutating func apply(_ contribution: ProviderSettingsSnapshotContribution) {
+        switch contribution {
+        case let .codex(value): self.codex = value
+        case let .claude(value): self.claude = value
+        case let .cursor(value): self.cursor = value
+        case let .opencode(value): self.opencode = value
+        case let .factory(value): self.factory = value
+        case let .minimax(value): self.minimax = value
+        case let .zai(value): self.zai = value
+        case let .copilot(value): self.copilot = value
+        case let .kimi(value): self.kimi = value
+        case let .augment(value): self.augment = value
+        case let .amp(value): self.amp = value
+        case let .jetbrains(value): self.jetbrains = value
+        }
+    }
+
+    public func build() -> ProviderSettingsSnapshot {
+        ProviderSettingsSnapshot(
+            debugMenuEnabled: self.debugMenuEnabled,
+            debugKeepCLISessionsAlive: self.debugKeepCLISessionsAlive,
+            codex: self.codex,
+            claude: self.claude,
+            cursor: self.cursor,
+            opencode: self.opencode,
+            factory: self.factory,
+            minimax: self.minimax,
+            zai: self.zai,
+            copilot: self.copilot,
+            kimi: self.kimi,
+            augment: self.augment,
+            amp: self.amp,
+            jetbrains: self.jetbrains)
+    }
+}

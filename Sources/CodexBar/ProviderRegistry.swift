@@ -74,22 +74,16 @@ struct ProviderRegistry {
         tokenOverride: TokenAccountOverride?) -> ProviderSettingsSnapshot
     {
         settings.ensureTokenAccountsLoaded()
-
-        return ProviderSettingsSnapshot.make(
+        var builder = ProviderSettingsSnapshotBuilder(
             debugMenuEnabled: settings.debugMenuEnabled,
-            debugKeepCLISessionsAlive: settings.debugKeepCLISessionsAlive,
-            codex: settings.codexSettingsSnapshot(tokenOverride: tokenOverride),
-            claude: settings.claudeSettingsSnapshot(tokenOverride: tokenOverride),
-            cursor: settings.cursorSettingsSnapshot(tokenOverride: tokenOverride),
-            opencode: settings.opencodeSettingsSnapshot(tokenOverride: tokenOverride),
-            factory: settings.factorySettingsSnapshot(tokenOverride: tokenOverride),
-            minimax: settings.minimaxSettingsSnapshot(tokenOverride: tokenOverride),
-            zai: settings.zaiSettingsSnapshot(),
-            copilot: settings.copilotSettingsSnapshot(),
-            kimi: settings.kimiSettingsSnapshot(tokenOverride: tokenOverride),
-            augment: settings.augmentSettingsSnapshot(tokenOverride: tokenOverride),
-            amp: settings.ampSettingsSnapshot(tokenOverride: tokenOverride),
-            jetbrains: settings.jetbrainsSettingsSnapshot())
+            debugKeepCLISessionsAlive: settings.debugKeepCLISessionsAlive)
+        let context = ProviderSettingsSnapshotContext(settings: settings, tokenOverride: tokenOverride)
+        for implementation in ProviderCatalog.all {
+            if let contribution = implementation.settingsSnapshot(context: context) {
+                builder.apply(contribution)
+            }
+        }
+        return builder.build()
     }
 
     @MainActor

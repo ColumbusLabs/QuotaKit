@@ -30,3 +30,8 @@ struct ProviderVersionContext {
     let provider: UsageProvider
     let browserDetection: BrowserDetection
 }
+
+struct ProviderSettingsSnapshotContext {
+    let settings: SettingsStore
+    let tokenOverride: TokenAccountOverride?
+}

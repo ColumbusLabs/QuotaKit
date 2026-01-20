@@ -294,19 +294,10 @@ final class UsageStore {
     }
 
     var isStale: Bool {
-        (self.isEnabled(.codex) && self.lastCodexError != nil) ||
-            (self.isEnabled(.claude) && self.lastClaudeError != nil) ||
-            (self.isEnabled(.zai) && self.errors[.zai] != nil) ||
-            (self.isEnabled(.gemini) && self.errors[.gemini] != nil) ||
-            (self.isEnabled(.antigravity) && self.errors[.antigravity] != nil) ||
-            (self.isEnabled(.cursor) && self.errors[.cursor] != nil) ||
-            (self.isEnabled(.opencode) && self.errors[.opencode] != nil) ||
-            (self.isEnabled(.factory) && self.errors[.factory] != nil) ||
-            (self.isEnabled(.copilot) && self.errors[.copilot] != nil) ||
-            (self.isEnabled(.minimax) && self.errors[.minimax] != nil) ||
-            (self.isEnabled(.kimi) && self.errors[.kimi] != nil) ||
-            (self.isEnabled(.kimik2) && self.errors[.kimik2] != nil) ||
-            (self.isEnabled(.synthetic) && self.errors[.synthetic] != nil)
+        for provider in self.enabledProviders() where self.errors[provider] != nil {
+            return true
+        }
+        return false
     }
 
     func enabledProviders() -> [UsageProvider] {

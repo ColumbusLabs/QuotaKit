@@ -21,6 +21,11 @@ struct OpenCodeProviderImplementation: ProviderImplementation {
     }
 
     @MainActor
+    func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
+        .opencode(context.settings.opencodeSettingsSnapshot(tokenOverride: context.tokenOverride))
+    }
+
+    @MainActor
     func tokenAccountsVisibility(context: ProviderSettingsContext, support: TokenAccountSupport) -> Bool {
         guard support.requiresManualCookieSource else { return true }
         if !context.settings.tokenAccounts(for: context.provider).isEmpty { return true }

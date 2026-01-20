@@ -27,6 +27,11 @@ struct ClaudeProviderImplementation: ProviderImplementation {
     }
 
     @MainActor
+    func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
+        .claude(context.settings.claudeSettingsSnapshot(tokenOverride: context.tokenOverride))
+    }
+
+    @MainActor
     func tokenAccountsVisibility(context: ProviderSettingsContext, support: TokenAccountSupport) -> Bool {
         guard support.requiresManualCookieSource else { return true }
         if !context.settings.tokenAccounts(for: context.provider).isEmpty { return true }
@@ -125,5 +130,42 @@ struct ClaudeProviderImplementation: ProviderImplementation {
     func runLoginFlow(context: ProviderLoginContext) async -> Bool {
         await context.controller.runClaudeLoginFlow()
         return true
+    }
+
+    @MainActor
+    func appendUsageMenuEntries(context: ProviderMenuUsageContext, entries: inout [ProviderMenuEntry]) {
+        if context.snapshot?.secondary == nil {
+            entries.append(.text("Weekly usage unavailable for this account.", .secondary))
+        }
+
+        if let cost = context.snapshot?.providerCost,
+           context.settings.showOptionalCreditsAndExtraUsage,
+           cost.currencyCode != "Quota"
+        {
+            let used = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
+            let limit = UsageFormatter.currencyString(cost.limit, currencyCode: cost.currencyCode)
+            entries.append(.text("Extra usage: \(used) / \(limit)", .primary))
+        }
+    }
+
+    @MainActor
+    func loginMenuAction(context: ProviderMenuLoginContext)
+        -> (label: String, action: MenuDescriptor.MenuAction)?
+    {
+        guard self.shouldOpenTerminalForOAuthError(store: context.store) else { return nil }
+        return ("Open Terminal", .openTerminal(command: "claude"))
+    }
+
+    @MainActor
+    private func shouldOpenTerminalForOAuthError(store: UsageStore) -> Bool {
+        guard store.error(for: .claude) != nil else { return false }
+        let attempts = store.fetchAttempts(for: .claude)
+        if attempts.contains(where: { $0.kind == .oauth && ($0.errorDescription?.isEmpty == false) }) {
+            return true
+        }
+        if let error = store.error(for: .claude)?.lowercased(), error.contains("oauth") {
+            return true
+        }
+        return false
     }
 }

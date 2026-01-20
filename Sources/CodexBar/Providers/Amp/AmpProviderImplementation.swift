@@ -15,6 +15,11 @@ struct AmpProviderImplementation: ProviderImplementation {
     }
 
     @MainActor
+    func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
+        .amp(context.settings.ampSettingsSnapshot(tokenOverride: context.tokenOverride))
+    }
+
+    @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
         let cookieBinding = Binding(
             get: { context.settings.ampCookieSource.rawValue },

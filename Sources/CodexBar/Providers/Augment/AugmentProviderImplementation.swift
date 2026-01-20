@@ -15,6 +15,11 @@ struct AugmentProviderImplementation: ProviderImplementation {
     }
 
     @MainActor
+    func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
+        .augment(context.settings.augmentSettingsSnapshot(tokenOverride: context.tokenOverride))
+    }
+
+    @MainActor
     func tokenAccountsVisibility(context: ProviderSettingsContext, support: TokenAccountSupport) -> Bool {
         guard support.requiresManualCookieSource else { return true }
         if !context.settings.tokenAccounts(for: context.provider).isEmpty { return true }
@@ -74,5 +79,20 @@ struct AugmentProviderImplementation: ProviderImplementation {
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
         _ = context
         return []
+    }
+
+    @MainActor
+    func appendActionMenuEntries(context: ProviderMenuActionContext, entries: inout [ProviderMenuEntry]) {
+        entries.append(.action("Refresh Session", .refreshAugmentSession))
+
+        if let error = context.store.error(for: .augment) {
+            if error.contains("session has expired") ||
+                error.contains("No Augment session cookie found")
+            {
+                entries.append(.action(
+                    "Open Augment (Log Out & Back In)",
+                    .loginToProvider(url: "https://app.augmentcode.com")))
+            }
+        }
     }
 }

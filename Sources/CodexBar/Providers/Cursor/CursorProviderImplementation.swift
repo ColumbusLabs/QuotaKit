@@ -20,6 +20,11 @@ struct CursorProviderImplementation: ProviderImplementation {
     }
 
     @MainActor
+    func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
+        .cursor(context.settings.cursorSettingsSnapshot(tokenOverride: context.tokenOverride))
+    }
+
+    @MainActor
     func tokenAccountsVisibility(context: ProviderSettingsContext, support: TokenAccountSupport) -> Bool {
         guard support.requiresManualCookieSource else { return true }
         if !context.settings.tokenAccounts(for: context.provider).isEmpty { return true }
@@ -81,5 +86,17 @@ struct CursorProviderImplementation: ProviderImplementation {
     func runLoginFlow(context: ProviderLoginContext) async -> Bool {
         await context.controller.runCursorLoginFlow()
         return true
+    }
+
+    @MainActor
+    func appendUsageMenuEntries(context: ProviderMenuUsageContext, entries: inout [ProviderMenuEntry]) {
+        guard let cost = context.snapshot?.providerCost, cost.currencyCode != "Quota" else { return }
+        let used = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
+        if cost.limit > 0 {
+            let limitStr = UsageFormatter.currencyString(cost.limit, currencyCode: cost.currencyCode)
+            entries.append(.text("On-Demand: \(used) / \(limitStr)", .primary))
+        } else {
+            entries.append(.text("On-Demand: \(used)", .primary))
+        }
     }
 }

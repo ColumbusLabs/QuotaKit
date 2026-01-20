@@ -58,28 +58,7 @@ struct MenuDescriptor {
     {
         var sections: [Section] = []
 
-        switch provider {
-        case .codex?:
-            sections.append(Self.usageSection(for: .codex, store: store, settings: settings))
-            if let accountSection = Self.accountSection(
-                for: .codex,
-                store: store,
-                settings: settings,
-                account: account)
-            {
-                sections.append(accountSection)
-            }
-        case .claude?:
-            sections.append(Self.usageSection(for: .claude, store: store, settings: settings))
-            if let accountSection = Self.accountSection(
-                for: .claude,
-                store: store,
-                settings: settings,
-                account: account)
-            {
-                sections.append(accountSection)
-            }
-        case let provider?:
+        if let provider {
             sections.append(Self.usageSection(for: provider, store: store, settings: settings))
             if let accountSection = Self.accountSection(
                 for: provider,
@@ -89,7 +68,7 @@ struct MenuDescriptor {
             {
                 sections.append(accountSection)
             }
-        case nil:
+        } else {
             var addedUsage = false
 
             for enabledProvider in store.enabledProviders() {
@@ -153,8 +132,6 @@ struct MenuDescriptor {
                 if let paceSummary = UsagePaceText.weeklySummary(provider: provider, window: weekly) {
                     entries.append(.text(paceSummary, .secondary))
                 }
-            } else if provider == .claude {
-                entries.append(.text("Weekly usage unavailable for this account.", .secondary))
             }
             if meta.supportsOpus, let opus = snap.tertiary {
                 Self.appendRateWindow(
@@ -170,38 +147,20 @@ struct MenuDescriptor {
                     let used = String(format: "%.0f", cost.used)
                     let limit = String(format: "%.0f", cost.limit)
                     entries.append(.text("Quota: \(used) / \(limit)", .primary))
-                } else if settings.showOptionalCreditsAndExtraUsage, provider == .claude {
-                    let used = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
-                    let limit = UsageFormatter.currencyString(cost.limit, currencyCode: cost.currencyCode)
-                    entries.append(.text("Extra usage: \(used) / \(limit)", .primary))
-                } else if provider == .cursor {
-                    let used = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
-                    if cost.limit > 0 {
-                        let limitStr = UsageFormatter.currencyString(cost.limit, currencyCode: cost.currencyCode)
-                        entries.append(.text("On-Demand: \(used) / \(limitStr)", .primary))
-                    } else {
-                        entries.append(.text("On-Demand: \(used)", .primary))
-                    }
                 }
             }
         } else {
             entries.append(.text("No usage yet", .secondary))
         }
 
-        if settings.showOptionalCreditsAndExtraUsage,
-           meta.supportsCredits,
-           provider == .codex
-        {
-            if let credits = store.credits {
-                entries.append(.text("Credits: \(UsageFormatter.creditsString(from: credits.remaining))", .primary))
-                if let latest = credits.events.first {
-                    entries.append(.text("Last spend: \(UsageFormatter.creditEventSummary(latest))", .secondary))
-                }
-            } else {
-                let hint = store.lastCreditsError ?? meta.creditsHint
-                entries.append(.text(hint, .secondary))
-            }
-        }
+        let usageContext = ProviderMenuUsageContext(
+            provider: provider,
+            store: store,
+            settings: settings,
+            metadata: meta,
+            snapshot: store.snapshot(for: provider))
+        ProviderCatalog.implementation(for: provider)?
+            .appendUsageMenuEntries(context: usageContext, entries: &entries)
 
         return Section(entries: entries)
     }
@@ -279,43 +238,39 @@ struct MenuDescriptor {
         var entries: [Entry] = []
         let targetProvider = provider ?? store.enabledProviders().first
         let metadata = targetProvider.map { store.metadata(for: $0) }
-        let shouldOpenClaudeTerminal = Self.shouldOpenTerminalForClaudeOAuthError(
-            provider: targetProvider,
-            store: store)
+        let loginContext = targetProvider.map {
+            ProviderMenuLoginContext(
+                provider: $0,
+                store: store,
+                settings: store.settings,
+                account: account)
+        }
 
         // Show "Add Account" if no account, "Switch Account" if logged in
         if let targetProvider,
-           ProviderCatalog.implementation(for: targetProvider)?.supportsLoginFlow == true
+           let implementation = ProviderCatalog.implementation(for: targetProvider),
+           implementation.supportsLoginFlow
         {
-            let loginAction = self.switchAccountTarget(for: provider, store: store)
-            let hasAccount = self.hasAccount(for: provider, store: store, account: account)
-            let accountLabel: String
-            let accountAction: MenuAction
-            if shouldOpenClaudeTerminal {
-                accountLabel = "Open Terminal"
-                accountAction = .openTerminal(command: "claude")
+            if let loginContext,
+               let override = implementation.loginMenuAction(context: loginContext)
+            {
+                entries.append(.action(override.label, override.action))
             } else {
-                accountLabel = hasAccount ? "Switch Account..." : "Add Account..."
-                accountAction = loginAction
+                let loginAction = self.switchAccountTarget(for: provider, store: store)
+                let hasAccount = self.hasAccount(for: provider, store: store, account: account)
+                let accountLabel = hasAccount ? "Switch Account..." : "Add Account..."
+                entries.append(.action(accountLabel, loginAction))
             }
-            entries.append(.action(accountLabel, accountAction))
         }
 
-        // Show Augment session management options
-        if let targetProvider, targetProvider == .augment {
-            // Always show "Refresh Session" button for Augment
-            entries.append(.action("Refresh Session", .refreshAugmentSession))
-
-            // Show login prompt for session/cookie errors
-            if let error = store.error(for: .augment) {
-                if error.contains("session has expired") ||
-                    error.contains("No Augment session cookie found")
-                {
-                    entries.append(.action(
-                        "Open Augment (Log Out & Back In)",
-                        .loginToProvider(url: "https://app.augmentcode.com")))
-                }
-            }
+        if let targetProvider {
+            let actionContext = ProviderMenuActionContext(
+                provider: targetProvider,
+                store: store,
+                settings: store.settings,
+                account: account)
+            ProviderCatalog.implementation(for: targetProvider)?
+                .appendActionMenuEntries(context: actionContext, entries: &entries)
         }
 
         if metadata?.dashboardURL != nil {
@@ -358,22 +313,6 @@ struct MenuDescriptor {
             return "\(label) — \(freshness)"
         }
         return label
-    }
-
-    private static func shouldOpenTerminalForClaudeOAuthError(
-        provider: UsageProvider?,
-        store: UsageStore) -> Bool
-    {
-        guard provider == .claude else { return false }
-        guard store.error(for: .claude) != nil else { return false }
-        let attempts = store.fetchAttempts(for: .claude)
-        if attempts.contains(where: { $0.kind == .oauth && ($0.errorDescription?.isEmpty == false) }) {
-            return true
-        }
-        if let error = store.error(for: .claude)?.lowercased(), error.contains("oauth") {
-            return true
-        }
-        return false
     }
 
     private static func switchAccountTarget(for provider: UsageProvider?, store: UsageStore) -> MenuAction {

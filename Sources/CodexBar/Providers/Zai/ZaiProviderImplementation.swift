@@ -20,6 +20,12 @@ struct ZaiProviderImplementation: ProviderImplementation {
     }
 
     @MainActor
+    func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
+        _ = context
+        return .zai(context.settings.zaiSettingsSnapshot())
+    }
+
+    @MainActor
     func isAvailable(context: ProviderAvailabilityContext) -> Bool {
         if ZaiSettingsReader.apiToken(environment: context.environment) != nil {
             return true

@@ -20,6 +20,11 @@ struct KimiProviderImplementation: ProviderImplementation {
     }
 
     @MainActor
+    func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
+        .kimi(context.settings.kimiSettingsSnapshot(tokenOverride: context.tokenOverride))
+    }
+
+    @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
         let cookieBinding = Binding(
             get: { context.settings.kimiCookieSource.rawValue },

@@ -50,9 +50,25 @@ protocol ProviderImplementation: Sendable {
     @MainActor
     func tokenAccountsVisibility(context: ProviderSettingsContext, support: TokenAccountSupport) -> Bool
 
+    /// Optional provider-specific settings snapshot contribution.
+    @MainActor
+    func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution?
+
     /// Optional hook to update provider settings when token accounts change.
     @MainActor
     func applyTokenAccountCookieSource(settings: SettingsStore)
+
+    /// Optional provider-specific menu entries for the usage section.
+    @MainActor
+    func appendUsageMenuEntries(context: ProviderMenuUsageContext, entries: inout [ProviderMenuEntry])
+
+    /// Optional provider-specific menu entries for the actions section.
+    @MainActor
+    func appendActionMenuEntries(context: ProviderMenuActionContext, entries: inout [ProviderMenuEntry])
+
+    /// Optional override for the login/switch account menu action.
+    @MainActor
+    func loginMenuAction(context: ProviderMenuLoginContext) -> (label: String, action: MenuDescriptor.MenuAction)?
 
     /// Optional provider-specific login flow. Returns whether to refresh after completion.
     @MainActor
@@ -122,7 +138,25 @@ extension ProviderImplementation {
     }
 
     @MainActor
+    func settingsSnapshot(context _: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
+        nil
+    }
+
+    @MainActor
     func applyTokenAccountCookieSource(settings _: SettingsStore) {}
+
+    @MainActor
+    func appendUsageMenuEntries(context _: ProviderMenuUsageContext, entries _: inout [ProviderMenuEntry]) {}
+
+    @MainActor
+    func appendActionMenuEntries(context _: ProviderMenuActionContext, entries _: inout [ProviderMenuEntry]) {}
+
+    @MainActor
+    func loginMenuAction(context _: ProviderMenuLoginContext)
+        -> (label: String, action: MenuDescriptor.MenuAction)?
+    {
+        nil
+    }
 
     @MainActor
     func runLoginFlow(context _: ProviderLoginContext) async -> Bool {

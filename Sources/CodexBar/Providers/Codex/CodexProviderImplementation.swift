@@ -23,6 +23,11 @@ struct CodexProviderImplementation: ProviderImplementation {
     }
 
     @MainActor
+    func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
+        .codex(context.settings.codexSettingsSnapshot(tokenOverride: context.tokenOverride))
+    }
+
+    @MainActor
     func defaultSourceLabel(context: ProviderSourceLabelContext) -> String? {
         context.settings.codexUsageDataSource.rawValue
     }
@@ -156,6 +161,23 @@ struct CodexProviderImplementation: ProviderImplementation {
                 },
                 onActivate: { context.settings.ensureCodexCookieLoaded() }),
         ]
+    }
+
+    @MainActor
+    func appendUsageMenuEntries(context: ProviderMenuUsageContext, entries: inout [ProviderMenuEntry]) {
+        guard context.settings.showOptionalCreditsAndExtraUsage,
+              context.metadata.supportsCredits
+        else { return }
+
+        if let credits = context.store.credits {
+            entries.append(.text("Credits: \(UsageFormatter.creditsString(from: credits.remaining))", .primary))
+            if let latest = credits.events.first {
+                entries.append(.text("Last spend: \(UsageFormatter.creditEventSummary(latest))", .secondary))
+            }
+        } else {
+            let hint = context.store.lastCreditsError ?? context.metadata.creditsHint
+            entries.append(.text(hint, .secondary))
+        }
     }
 
     @MainActor

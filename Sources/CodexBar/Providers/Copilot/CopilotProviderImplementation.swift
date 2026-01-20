@@ -19,6 +19,12 @@ struct CopilotProviderImplementation: ProviderImplementation {
     }
 
     @MainActor
+    func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
+        _ = context
+        return .copilot(context.settings.copilotSettingsSnapshot())
+    }
+
+    @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
         [
             ProviderSettingsFieldDescriptor(

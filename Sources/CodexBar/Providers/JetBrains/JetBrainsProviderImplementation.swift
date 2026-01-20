@@ -8,6 +8,12 @@ struct JetBrainsProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .jetbrains
 
     @MainActor
+    func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
+        _ = context
+        return .jetbrains(context.settings.jetbrainsSettingsSnapshot())
+    }
+
+    @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
         let detectedIDEs = JetBrainsIDEDetector.detectInstalledIDEs(includeMissingQuota: true)
         guard !detectedIDEs.isEmpty else { return [] }
