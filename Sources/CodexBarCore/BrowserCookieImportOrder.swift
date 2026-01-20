@@ -39,7 +39,8 @@ extension Browser {
              .brave, .braveBeta, .braveNightly,
              .edge, .edgeBeta, .edgeCanary,
              .helium,
-             .vivaldi:
+             .vivaldi,
+             .dia:
             return true
         @unknown default:
             return true

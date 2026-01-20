@@ -199,6 +199,8 @@ public final class BrowserDetection: Sendable {
             return "ChatGPT Atlas"
         case .helium:
             return "Helium"
+        case .dia:
+            return "Dia"
         @unknown default:
             return nil
         }
@@ -242,6 +244,8 @@ public final class BrowserDetection: Sendable {
             return "\(homeDirectory)/Library/Application Support/ChatGPT Atlas"
         case .helium:
             return "\(homeDirectory)/Library/Application Support/net.imput.helium"
+        case .dia:
+            return "\(homeDirectory)/Library/Application Support/Dia/User Data"
         @unknown default:
             return nil
         }
@@ -254,7 +258,8 @@ public final class BrowserDetection: Sendable {
              .arc, .arcBeta, .arcCanary,
              .brave, .braveBeta, .braveNightly,
              .edge, .edgeBeta, .edgeCanary,
-             .vivaldi, .chromium, .chatgptAtlas:
+             .vivaldi, .chromium, .chatgptAtlas,
+             .dia:
             return true
         case .firefox:
             // Firefox should have at least one *.default* directory

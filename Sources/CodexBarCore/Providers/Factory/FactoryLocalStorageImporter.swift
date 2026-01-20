@@ -83,6 +83,7 @@ enum FactoryLocalStorageImporter {
             .arc,
             .arcBeta,
             .arcCanary,
+            .dia,
             .chatgptAtlas,
             .chromium,
             .helium,

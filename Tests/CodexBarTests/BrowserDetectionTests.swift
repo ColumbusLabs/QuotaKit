@@ -79,6 +79,29 @@ struct BrowserDetectionTests {
     }
 
     @Test
+    func diaRequiresProfileData() throws {
+        let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: temp) }
+
+        let detection = BrowserDetection(homeDirectory: temp.path, cacheTTL: 0)
+        #expect(detection.isCookieSourceAvailable(.dia) == false)
+
+        let profile = temp
+            .appendingPathComponent("Library")
+            .appendingPathComponent("Application Support")
+            .appendingPathComponent("Dia")
+            .appendingPathComponent("User Data")
+            .appendingPathComponent("Default")
+        try FileManager.default.createDirectory(at: profile, withIntermediateDirectories: true)
+        let cookiesDir = profile.appendingPathComponent("Network")
+        try FileManager.default.createDirectory(at: cookiesDir, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: cookiesDir.appendingPathComponent("Cookies").path, contents: Data())
+
+        #expect(detection.isCookieSourceAvailable(.dia) == true)
+    }
+
+    @Test
     func firefoxRequiresDefaultProfileDir() throws {
         let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)

@@ -94,6 +94,7 @@ public enum BrowserCookieAccessGate {
         ("net.imput.helium Safe Storage", "net.imput.helium"),
         ("Microsoft Edge Safe Storage", "Microsoft Edge"),
         ("Vivaldi Safe Storage", "Vivaldi"),
+        ("Dia Safe Storage", "Dia"),
     ]
 
     private static func loadIfNeeded(_ state: inout State) {
