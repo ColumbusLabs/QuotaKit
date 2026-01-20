@@ -996,6 +996,16 @@ extension StatusItemController {
         let width = Self.menuCardBaseWidth
         guard !breakdown.isEmpty else { return nil }
 
+        if !Self.menuCardRenderingEnabled {
+            let submenu = NSMenu()
+            submenu.delegate = self
+            let chartItem = NSMenuItem()
+            chartItem.isEnabled = false
+            chartItem.representedObject = "usageBreakdownChart"
+            submenu.addItem(chartItem)
+            return submenu
+        }
+
         let submenu = NSMenu()
         submenu.delegate = self
         let chartView = UsageBreakdownChartMenuView(breakdown: breakdown, width: width)
@@ -1017,6 +1027,16 @@ extension StatusItemController {
         let breakdown = self.store.openAIDashboard?.dailyBreakdown ?? []
         let width = Self.menuCardBaseWidth
         guard !breakdown.isEmpty else { return nil }
+
+        if !Self.menuCardRenderingEnabled {
+            let submenu = NSMenu()
+            submenu.delegate = self
+            let chartItem = NSMenuItem()
+            chartItem.isEnabled = false
+            chartItem.representedObject = "creditsHistoryChart"
+            submenu.addItem(chartItem)
+            return submenu
+        }
 
         let submenu = NSMenu()
         submenu.delegate = self
@@ -1040,6 +1060,16 @@ extension StatusItemController {
         let width = Self.menuCardBaseWidth
         guard let tokenSnapshot = self.store.tokenSnapshot(for: provider) else { return nil }
         guard !tokenSnapshot.daily.isEmpty else { return nil }
+
+        if !Self.menuCardRenderingEnabled {
+            let submenu = NSMenu()
+            submenu.delegate = self
+            let chartItem = NSMenuItem()
+            chartItem.isEnabled = false
+            chartItem.representedObject = "costHistoryChart"
+            submenu.addItem(chartItem)
+            return submenu
+        }
 
         let submenu = NSMenu()
         submenu.delegate = self
