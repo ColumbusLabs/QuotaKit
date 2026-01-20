@@ -127,6 +127,8 @@ struct ProvidersPane: View {
             versionText
         } else if provider == .cursor || provider == .opencode {
             "web"
+        } else if provider == .copilot {
+            "github api"
         } else if provider == .zai || provider == .synthetic {
             "api"
         } else if provider == .minimax {

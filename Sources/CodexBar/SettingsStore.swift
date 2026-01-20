@@ -249,8 +249,13 @@ extension SettingsStore {
 }
 
 extension SettingsStore {
+    var configSnapshot: CodexBarConfig {
+        _ = self.configRevision
+        return self.config
+    }
+
     var providerOrderRaw: [String] {
-        self.config.providers.map(\.id.rawValue)
+        self.configSnapshot.providers.map(\.id.rawValue)
     }
 
     func orderedProviders() -> [UsageProvider] {
@@ -271,8 +276,8 @@ extension SettingsStore {
     }
 
     func isProviderEnabled(provider: UsageProvider, metadata: ProviderMetadata) -> Bool {
-        _ = self.configRevision
-        return self.config.providerConfig(for: provider)?.enabled ?? metadata.defaultEnabled
+        let config = self.configSnapshot
+        return config.providerConfig(for: provider)?.enabled ?? metadata.defaultEnabled
     }
 
     func isProviderEnabledCached(
@@ -354,9 +359,10 @@ extension SettingsStore {
     {
         let revision = self.configRevision
         guard revision != self.cachedProviderEnablementRevision else { return }
+        let config = self.configSnapshot
         var cache: [UsageProvider: Bool] = [:]
         for (provider, metadata) in metadataByProvider {
-            cache[provider] = self.config.providerConfig(for: provider)?.enabled ?? metadata.defaultEnabled
+            cache[provider] = config.providerConfig(for: provider)?.enabled ?? metadata.defaultEnabled
         }
         self.cachedProviderEnablement = cache
         self.cachedProviderEnablementRevision = revision

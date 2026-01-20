@@ -235,6 +235,35 @@ struct SettingsStoreTests {
     }
 
     @Test
+    func configBackedSettingsTriggerObservation() async {
+        let suite = "SettingsStoreTests-observation-config"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        var didChange = false
+
+        withObservationTracking {
+            _ = store.codexCookieSource
+        } onChange: {
+            Task { @MainActor in
+                didChange = true
+            }
+        }
+
+        store.codexCookieSource = .manual
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        #expect(didChange == true)
+    }
+
+    @Test
     func providerOrder_defaultsToAllCases() {
         let suite = "SettingsStoreTests-providerOrder-default"
         let defaults = UserDefaults(suiteName: suite)!

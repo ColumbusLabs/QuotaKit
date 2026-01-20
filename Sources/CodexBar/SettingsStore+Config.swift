@@ -3,12 +3,12 @@ import Foundation
 
 extension SettingsStore {
     func providerConfig(for provider: UsageProvider) -> ProviderConfig? {
-        self.config.providerConfig(for: provider)
+        self.configSnapshot.providerConfig(for: provider)
     }
 
     var codexUsageDataSource: CodexUsageDataSource {
         get {
-            let source = self.config.providerConfig(for: .codex)?.source
+            let source = self.configSnapshot.providerConfig(for: .codex)?.source
             return Self.codexUsageDataSource(from: source)
         }
         set {
@@ -26,7 +26,7 @@ extension SettingsStore {
 
     var claudeUsageDataSource: ClaudeUsageDataSource {
         get {
-            let source = self.config.providerConfig(for: .claude)?.source
+            let source = self.configSnapshot.providerConfig(for: .claude)?.source
             return Self.claudeUsageDataSource(from: source)
         }
         set {
@@ -47,7 +47,7 @@ extension SettingsStore {
     }
 
     var opencodeWorkspaceID: String {
-        get { self.config.providerConfig(for: .opencode)?.workspaceID ?? "" }
+        get { self.configSnapshot.providerConfig(for: .opencode)?.workspaceID ?? "" }
         set {
             let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
             let value = trimmed.isEmpty ? nil : trimmed
@@ -59,7 +59,7 @@ extension SettingsStore {
 
     var minimaxAPIRegion: MiniMaxAPIRegion {
         get {
-            let raw = self.config.providerConfig(for: .minimax)?.region
+            let raw = self.configSnapshot.providerConfig(for: .minimax)?.region
             return MiniMaxAPIRegion(rawValue: raw ?? "") ?? .global
         }
         set {
@@ -71,7 +71,7 @@ extension SettingsStore {
 
     var zaiAPIRegion: ZaiAPIRegion {
         get {
-            let raw = self.config.providerConfig(for: .zai)?.region
+            let raw = self.configSnapshot.providerConfig(for: .zai)?.region
             return ZaiAPIRegion(rawValue: raw ?? "") ?? .global
         }
         set {
@@ -82,7 +82,7 @@ extension SettingsStore {
     }
 
     var zaiAPIToken: String {
-        get { self.config.providerConfig(for: .zai)?.sanitizedAPIKey ?? "" }
+        get { self.configSnapshot.providerConfig(for: .zai)?.sanitizedAPIKey ?? "" }
         set {
             self.updateProviderConfig(provider: .zai) { entry in
                 entry.apiKey = self.normalizedConfigValue(newValue)
@@ -92,7 +92,7 @@ extension SettingsStore {
     }
 
     var syntheticAPIToken: String {
-        get { self.config.providerConfig(for: .synthetic)?.sanitizedAPIKey ?? "" }
+        get { self.configSnapshot.providerConfig(for: .synthetic)?.sanitizedAPIKey ?? "" }
         set {
             self.updateProviderConfig(provider: .synthetic) { entry in
                 entry.apiKey = self.normalizedConfigValue(newValue)
@@ -102,7 +102,7 @@ extension SettingsStore {
     }
 
     var codexCookieHeader: String {
-        get { self.config.providerConfig(for: .codex)?.sanitizedCookieHeader ?? "" }
+        get { self.configSnapshot.providerConfig(for: .codex)?.sanitizedCookieHeader ?? "" }
         set {
             self.updateProviderConfig(provider: .codex) { entry in
                 entry.cookieHeader = self.normalizedConfigValue(newValue)
@@ -112,7 +112,7 @@ extension SettingsStore {
     }
 
     var claudeCookieHeader: String {
-        get { self.config.providerConfig(for: .claude)?.sanitizedCookieHeader ?? "" }
+        get { self.configSnapshot.providerConfig(for: .claude)?.sanitizedCookieHeader ?? "" }
         set {
             self.updateProviderConfig(provider: .claude) { entry in
                 entry.cookieHeader = self.normalizedConfigValue(newValue)
@@ -122,7 +122,7 @@ extension SettingsStore {
     }
 
     var cursorCookieHeader: String {
-        get { self.config.providerConfig(for: .cursor)?.sanitizedCookieHeader ?? "" }
+        get { self.configSnapshot.providerConfig(for: .cursor)?.sanitizedCookieHeader ?? "" }
         set {
             self.updateProviderConfig(provider: .cursor) { entry in
                 entry.cookieHeader = self.normalizedConfigValue(newValue)
@@ -132,7 +132,7 @@ extension SettingsStore {
     }
 
     var opencodeCookieHeader: String {
-        get { self.config.providerConfig(for: .opencode)?.sanitizedCookieHeader ?? "" }
+        get { self.configSnapshot.providerConfig(for: .opencode)?.sanitizedCookieHeader ?? "" }
         set {
             self.updateProviderConfig(provider: .opencode) { entry in
                 entry.cookieHeader = self.normalizedConfigValue(newValue)
@@ -142,7 +142,7 @@ extension SettingsStore {
     }
 
     var factoryCookieHeader: String {
-        get { self.config.providerConfig(for: .factory)?.sanitizedCookieHeader ?? "" }
+        get { self.configSnapshot.providerConfig(for: .factory)?.sanitizedCookieHeader ?? "" }
         set {
             self.updateProviderConfig(provider: .factory) { entry in
                 entry.cookieHeader = self.normalizedConfigValue(newValue)
@@ -152,7 +152,7 @@ extension SettingsStore {
     }
 
     var minimaxCookieHeader: String {
-        get { self.config.providerConfig(for: .minimax)?.sanitizedCookieHeader ?? "" }
+        get { self.configSnapshot.providerConfig(for: .minimax)?.sanitizedCookieHeader ?? "" }
         set {
             self.updateProviderConfig(provider: .minimax) { entry in
                 entry.cookieHeader = self.normalizedConfigValue(newValue)
@@ -162,7 +162,7 @@ extension SettingsStore {
     }
 
     var minimaxAPIToken: String {
-        get { self.config.providerConfig(for: .minimax)?.sanitizedAPIKey ?? "" }
+        get { self.configSnapshot.providerConfig(for: .minimax)?.sanitizedAPIKey ?? "" }
         set {
             self.updateProviderConfig(provider: .minimax) { entry in
                 entry.apiKey = self.normalizedConfigValue(newValue)
@@ -172,7 +172,7 @@ extension SettingsStore {
     }
 
     var kimiManualCookieHeader: String {
-        get { self.config.providerConfig(for: .kimi)?.sanitizedCookieHeader ?? "" }
+        get { self.configSnapshot.providerConfig(for: .kimi)?.sanitizedCookieHeader ?? "" }
         set {
             self.updateProviderConfig(provider: .kimi) { entry in
                 entry.cookieHeader = self.normalizedConfigValue(newValue)
@@ -182,7 +182,7 @@ extension SettingsStore {
     }
 
     var kimiK2APIToken: String {
-        get { self.config.providerConfig(for: .kimik2)?.sanitizedAPIKey ?? "" }
+        get { self.configSnapshot.providerConfig(for: .kimik2)?.sanitizedAPIKey ?? "" }
         set {
             self.updateProviderConfig(provider: .kimik2) { entry in
                 entry.apiKey = self.normalizedConfigValue(newValue)
@@ -192,7 +192,7 @@ extension SettingsStore {
     }
 
     var augmentCookieHeader: String {
-        get { self.config.providerConfig(for: .augment)?.sanitizedCookieHeader ?? "" }
+        get { self.configSnapshot.providerConfig(for: .augment)?.sanitizedCookieHeader ?? "" }
         set {
             self.updateProviderConfig(provider: .augment) { entry in
                 entry.cookieHeader = self.normalizedConfigValue(newValue)
@@ -202,7 +202,7 @@ extension SettingsStore {
     }
 
     var ampCookieHeader: String {
-        get { self.config.providerConfig(for: .amp)?.sanitizedCookieHeader ?? "" }
+        get { self.configSnapshot.providerConfig(for: .amp)?.sanitizedCookieHeader ?? "" }
         set {
             self.updateProviderConfig(provider: .amp) { entry in
                 entry.cookieHeader = self.normalizedConfigValue(newValue)
@@ -212,7 +212,7 @@ extension SettingsStore {
     }
 
     var copilotAPIToken: String {
-        get { self.config.providerConfig(for: .copilot)?.sanitizedAPIKey ?? "" }
+        get { self.configSnapshot.providerConfig(for: .copilot)?.sanitizedAPIKey ?? "" }
         set {
             self.updateProviderConfig(provider: .copilot) { entry in
                 entry.apiKey = self.normalizedConfigValue(newValue)
@@ -223,7 +223,7 @@ extension SettingsStore {
 
     var tokenAccountsByProvider: [UsageProvider: ProviderTokenAccountData] {
         get {
-            Dictionary(uniqueKeysWithValues: self.config.providers.compactMap { entry in
+            Dictionary(uniqueKeysWithValues: self.configSnapshot.providers.compactMap { entry in
                 guard let accounts = entry.tokenAccounts else { return nil }
                 return (entry.id, accounts)
             })
@@ -410,7 +410,7 @@ extension SettingsStore {
         provider: UsageProvider,
         fallback: ProviderCookieSource) -> ProviderCookieSource
     {
-        let source = self.config.providerConfig(for: provider)?.cookieSource ?? fallback
+        let source = self.configSnapshot.providerConfig(for: provider)?.cookieSource ?? fallback
         guard self.debugDisableKeychainAccess == false else { return source == .off ? .off : .manual }
         return source
     }

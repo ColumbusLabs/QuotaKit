@@ -5,7 +5,7 @@ import Foundation
 extension SettingsStore {
     func tokenAccountsData(for provider: UsageProvider) -> ProviderTokenAccountData? {
         guard TokenAccountSupportCatalog.support(for: provider) != nil else { return nil }
-        return self.config.providerConfig(for: provider)?.tokenAccounts
+        return self.configSnapshot.providerConfig(for: provider)?.tokenAccounts
     }
 
     func tokenAccounts(for provider: UsageProvider) -> [ProviderTokenAccount] {
