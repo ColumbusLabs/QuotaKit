@@ -264,12 +264,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        self.configureAppIconForMacOSVersion()
         AppNotifications.shared.requestAuthorizationOnStartup()
         self.ensureStatusController()
         KeyboardShortcuts.onKeyUp(for: .openMenu) { [weak self] in
             Task { @MainActor [weak self] in
                 self?.statusController?.openMenuFromShortcut()
             }
+        }
+    }
+
+    /// Use the classic (non-Liquid Glass) app icon on macOS versions before 26.
+    private func configureAppIconForMacOSVersion() {
+        if #unavailable(macOS 26) {
+            let bundle: Bundle = {
+                if let bundleURL = Bundle.main.url(forResource: "CodexBar_CodexBar", withExtension: "bundle"),
+                   let resourceBundle = Bundle(url: bundleURL)
+                {
+                    return resourceBundle
+                }
+                return Bundle.main
+            }()
+            guard let classicIconURL = bundle.url(forResource: "Icon-classic", withExtension: "icns"),
+                  let classicIcon = NSImage(contentsOf: classicIconURL) else {
+                return
+            }
+            NSApp.applicationIconImage = classicIcon
         }
     }
 
