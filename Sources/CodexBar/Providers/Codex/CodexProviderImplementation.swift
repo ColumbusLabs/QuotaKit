@@ -9,6 +9,30 @@ struct CodexProviderImplementation: ProviderImplementation {
     let supportsLoginFlow: Bool = true
 
     @MainActor
+    func settingsToggles(context: ProviderSettingsContext) -> [ProviderSettingsToggleDescriptor] {
+        let extrasBinding = Binding(
+            get: { context.settings.openAIWebAccessEnabled },
+            set: { enabled in
+                context.settings.openAIWebAccessEnabled = enabled
+                context.store.handleOpenAIWebAccessChange(enabled: enabled)
+            })
+
+        return [
+            ProviderSettingsToggleDescriptor(
+                id: "codex-openai-web-extras",
+                title: "OpenAI web extras",
+                subtitle: "Show usage breakdown, credits history, and code review via chatgpt.com.",
+                binding: extrasBinding,
+                statusText: nil,
+                actions: [],
+                isVisible: nil,
+                onChange: nil,
+                onAppDidBecomeActive: nil,
+                onAppearWhenEnabled: nil),
+        ]
+    }
+
+    @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
         let usageBinding = Binding(
             get: { context.settings.codexUsageDataSource.rawValue },
@@ -58,7 +82,7 @@ struct CodexProviderImplementation: ProviderImplementation {
                 dynamicSubtitle: cookieSubtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
-                isVisible: nil,
+                isVisible: { context.settings.openAIWebAccessEnabled },
                 onChange: nil,
                 trailingText: {
                     guard let entry = CookieHeaderCache.load(provider: .codex) else { return nil }

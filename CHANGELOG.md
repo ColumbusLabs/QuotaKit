@@ -4,6 +4,7 @@
 ### Highlights
 - OpenAI web dashboard refresh cadence now follows 5× the base refresh interval.
 - OpenAI web dashboard WebView is torn down after each scrape to reduce idle CPU.
+- Codex settings now include a toggle to disable OpenAI web extras.
 
 ### Menu & Menu Bar
 - Menu: opening OpenAI web submenus triggers a refresh when the data is stale.

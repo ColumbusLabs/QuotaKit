@@ -219,8 +219,8 @@ extension SettingsStore {
 
     var codexCookieSource: ProviderCookieSource {
         get {
-            let fallback: ProviderCookieSource = self.openAIWebAccessEnabled ? .auto : .off
-            return self.resolvedCookieSource(provider: .codex, fallback: fallback)
+            let resolved = self.resolvedCookieSource(provider: .codex, fallback: .auto)
+            return self.openAIWebAccessEnabled ? resolved : .off
         }
         set {
             self.updateProviderConfig(provider: .codex) { entry in

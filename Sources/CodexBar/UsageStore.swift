@@ -693,6 +693,11 @@ extension UsageStore {
         return base * Self.openAIWebRefreshMultiplier
     }
 
+    func handleOpenAIWebAccessChange(enabled: Bool) {
+        guard enabled == false else { return }
+        self.resetOpenAIWebState()
+    }
+
     func requestOpenAIDashboardRefreshIfStale(reason: String) {
         guard self.isEnabled(.codex), self.settings.codexCookieSource.isEnabled else { return }
         let now = Date()
@@ -748,17 +753,7 @@ extension UsageStore {
 
     private func refreshOpenAIDashboardIfNeeded(force: Bool = false) async {
         guard self.isEnabled(.codex), self.settings.codexCookieSource.isEnabled else {
-            await MainActor.run {
-                self.openAIDashboard = nil
-                self.lastOpenAIDashboardError = nil
-                self.lastOpenAIDashboardSnapshot = nil
-                self.lastOpenAIDashboardTargetEmail = nil
-                self.openAIDashboardRequiresLogin = false
-                self.openAIDashboardCookieImportStatus = nil
-                self.openAIDashboardCookieImportDebugLog = nil
-                self.lastOpenAIDashboardCookieImportAttemptAt = nil
-                self.lastOpenAIDashboardCookieImportEmail = nil
-            }
+            self.resetOpenAIWebState()
             return
         }
 
@@ -1096,6 +1091,18 @@ extension UsageStore {
             self.openAIWebDebugLines.removeFirst(self.openAIWebDebugLines.count - 240)
         }
         self.openAIDashboardCookieImportDebugLog = self.openAIWebDebugLines.joined(separator: "\n")
+    }
+
+    private func resetOpenAIWebState() {
+        self.openAIDashboard = nil
+        self.lastOpenAIDashboardError = nil
+        self.lastOpenAIDashboardSnapshot = nil
+        self.lastOpenAIDashboardTargetEmail = nil
+        self.openAIDashboardRequiresLogin = false
+        self.openAIDashboardCookieImportStatus = nil
+        self.openAIDashboardCookieImportDebugLog = nil
+        self.lastOpenAIDashboardCookieImportAttemptAt = nil
+        self.lastOpenAIDashboardCookieImportEmail = nil
     }
 
     private func dashboardEmailMismatch(expected: String?, actual: String?) -> Bool {
