@@ -140,14 +140,16 @@ struct MenuDescriptor {
                     entries: &entries,
                     title: meta.sessionLabel,
                     window: primary,
-                    resetStyle: resetStyle)
+                    resetStyle: resetStyle,
+                    showUsed: settings.usageBarsShowUsed)
             }
             if let weekly = snap.secondary {
                 Self.appendRateWindow(
                     entries: &entries,
                     title: meta.weeklyLabel,
                     window: weekly,
-                    resetStyle: resetStyle)
+                    resetStyle: resetStyle,
+                    showUsed: settings.usageBarsShowUsed)
                 if let paceSummary = UsagePaceText.weeklySummary(provider: provider, window: weekly) {
                     entries.append(.text(paceSummary, .secondary))
                 }
@@ -159,7 +161,8 @@ struct MenuDescriptor {
                     entries: &entries,
                     title: meta.opusLabel ?? "Sonnet",
                     window: opus,
-                    resetStyle: resetStyle)
+                    resetStyle: resetStyle,
+                    showUsed: settings.usageBarsShowUsed)
             }
 
             if let cost = snap.providerCost {
@@ -400,10 +403,11 @@ struct MenuDescriptor {
         entries: inout [Entry],
         title: String,
         window: RateWindow,
-        resetStyle: ResetTimeDisplayStyle)
+        resetStyle: ResetTimeDisplayStyle,
+        showUsed: Bool)
     {
         let line = UsageFormatter
-            .usageLine(remaining: window.remainingPercent, used: window.usedPercent)
+            .usageLine(remaining: window.remainingPercent, used: window.usedPercent, showUsed: showUsed)
         entries.append(.text("\(title): \(line)", .primary))
         if let reset = UsageFormatter.resetLine(for: window, style: resetStyle) {
             entries.append(.text(reset, .secondary))

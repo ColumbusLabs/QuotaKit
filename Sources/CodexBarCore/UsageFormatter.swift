@@ -6,8 +6,11 @@ public enum ResetTimeDisplayStyle: String, Codable, Sendable {
 }
 
 public enum UsageFormatter {
-    public static func usageLine(remaining: Double, used: Double) -> String {
-        String(format: "%.0f%% left", remaining)
+    public static func usageLine(remaining: Double, used: Double, showUsed: Bool) -> String {
+        let percent = showUsed ? used : remaining
+        let clamped = min(100, max(0, percent))
+        let suffix = showUsed ? "used" : "left"
+        return String(format: "%.0f%% %@", clamped, suffix)
     }
 
     public static func resetCountdownDescription(from date: Date, now: Date = .init()) -> String {

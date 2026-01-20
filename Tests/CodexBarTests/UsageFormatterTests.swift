@@ -7,8 +7,14 @@ import Testing
 struct UsageFormatterTests {
     @Test
     func formatsUsageLine() {
-        let line = UsageFormatter.usageLine(remaining: 25, used: 75)
+        let line = UsageFormatter.usageLine(remaining: 25, used: 75, showUsed: false)
         #expect(line == "25% left")
+    }
+
+    @Test
+    func formatsUsageLineShowUsed() {
+        let line = UsageFormatter.usageLine(remaining: 25, used: 75, showUsed: true)
+        #expect(line == "75% used")
     }
 
     @Test

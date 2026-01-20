@@ -71,7 +71,10 @@ enum CLIRenderer {
     }
 
     static func rateLine(title: String, window: RateWindow, useColor: Bool) -> String {
-        let text = UsageFormatter.usageLine(remaining: window.remainingPercent, used: window.usedPercent)
+        let text = UsageFormatter.usageLine(
+            remaining: window.remainingPercent,
+            used: window.usedPercent,
+            showUsed: false)
         let colored = self.colorizeUsage(text, remainingPercent: window.remainingPercent, useColor: useColor)
         let bar = self.usageBar(remainingPercent: window.remainingPercent, useColor: useColor)
         return "\(title): \(colored) \(bar)"
