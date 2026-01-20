@@ -5,12 +5,7 @@ import Foundation
 @ProviderDescriptorDefinition
 public enum KimiProviderDescriptor {
     static func makeDescriptor() -> ProviderDescriptor {
-        #if os(macOS)
-        let cookieOrder: BrowserCookieImportOrder? = [.arc, .chrome, .safari, .edge, .brave, .chromium]
-        #else
-        let cookieOrder: BrowserCookieImportOrder? = nil
-        #endif
-        return ProviderDescriptor(
+        ProviderDescriptor(
             id: .kimi,
             metadata: ProviderMetadata(
                 id: .kimi,
@@ -26,7 +21,7 @@ public enum KimiProviderDescriptor {
                 defaultEnabled: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
-                browserCookieOrder: cookieOrder,
+                browserCookieOrder: nil,
                 dashboardURL: "https://www.kimi.com/code/console",
                 statusPageURL: nil),
             branding: ProviderBranding(

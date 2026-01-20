@@ -6,6 +6,9 @@
 - OpenAI web dashboard WebView is torn down after each scrape to reduce idle CPU.
 - Codex settings now include a toggle to disable OpenAI web extras.
 
+### Providers
+- Providers: add Dia browser support across cookie import and profile detection (#209). Thanks @validatedev!
+
 ### Menu & Menu Bar
 - Menu: opening OpenAI web submenus triggers a refresh when the data is stale.
 - Debug: add a toggle to keep Codex/Claude CLI sessions alive between probes.

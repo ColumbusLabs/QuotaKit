@@ -7,7 +7,8 @@ public enum KimiCookieImporter {
     private static let log = CodexBarLog.logger(LogCategories.kimiCookie)
     private static let cookieClient = BrowserCookieClient()
     private static let cookieDomains = ["www.kimi.com", "kimi.com"]
-    private static let browsers: [Browser] = [.arc, .chrome, .safari, .edge, .brave, .chromium]
+    private static let cookieImportOrder: BrowserCookieImportOrder =
+        ProviderDefaults.metadata[.kimi]?.browserCookieOrder ?? Browser.defaultImportOrder
 
     public struct SessionInfo: Sendable {
         public let cookies: [HTTPCookie]
@@ -23,9 +24,12 @@ public enum KimiCookieImporter {
         }
     }
 
-    public static func importSessions(logger: ((String) -> Void)? = nil) throws -> [SessionInfo] {
+    public static func importSessions(
+        browserDetection: BrowserDetection = BrowserDetection(),
+        logger: ((String) -> Void)? = nil) throws -> [SessionInfo]
+    {
         var sessions: [SessionInfo] = []
-        let candidates = self.browsers.filter { BrowserCookieAccessGate.shouldAttempt($0) }
+        let candidates = self.cookieImportOrder.cookieImportCandidates(using: browserDetection)
         for browserSource in candidates {
             do {
                 let perSource = try self.importSessions(from: browserSource, logger: logger)
@@ -79,17 +83,23 @@ public enum KimiCookieImporter {
         return sessions
     }
 
-    public static func importSession(logger: ((String) -> Void)? = nil) throws -> SessionInfo {
-        let sessions = try self.importSessions(logger: logger)
+    public static func importSession(
+        browserDetection: BrowserDetection = BrowserDetection(),
+        logger: ((String) -> Void)? = nil) throws -> SessionInfo
+    {
+        let sessions = try self.importSessions(browserDetection: browserDetection, logger: logger)
         guard let first = sessions.first else {
             throw KimiCookieImportError.noCookies
         }
         return first
     }
 
-    public static func hasSession(logger: ((String) -> Void)? = nil) -> Bool {
+    public static func hasSession(
+        browserDetection: BrowserDetection = BrowserDetection(),
+        logger: ((String) -> Void)? = nil) -> Bool
+    {
         do {
-            return try !self.importSessions(logger: logger).isEmpty
+            return try !self.importSessions(browserDetection: browserDetection, logger: logger).isEmpty
         } catch {
             return false
         }

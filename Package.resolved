@@ -1,5 +1,5 @@
 {
-  "originHash" : "a42dd946411c39179f989878ece1eac49993d5f9c8f37c23078df42097bfd8fe",
+  "originHash" : "813e3395c4ab87388b8d2737d132a87f127eb2f994e08db650c043ed0023a90c",
   "pins" : [
     {
       "identity" : "commander",
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/sindresorhus/KeyboardShortcuts",
       "state" : {
-        "revision" : "ac12762853126cf2e7ad63a6a58e1c9f58c6a0ee",
-        "version" : "1.17.0"
+        "revision" : "1aef85578fdd4f9eaeeb8d53b7b4fc31bf08fe27",
+        "version" : "2.4.0"
       }
     },
     {
@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/steipete/SweetCookieKit",
       "state" : {
-        "revision" : "b4e55cafd2cff873b9ad8cf38b60720390e2f33e",
-        "version" : "0.2.1"
+        "revision" : "604de5db277af74d2c190057de75c568b225b8e3",
+        "version" : "0.3.0"
       }
     },
     {

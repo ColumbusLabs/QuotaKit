@@ -30,7 +30,7 @@ extension [Browser] {
 extension Browser {
     var usesKeychainForCookieDecryption: Bool {
         switch self {
-        case .safari, .firefox:
+        case .safari, .firefox, .zen:
             return false
         case .chrome, .chromeBeta, .chromeCanary,
              .arc, .arcBeta, .arcCanary,
