@@ -263,8 +263,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.preferencesSelection = selection
     }
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    func applicationWillFinishLaunching(_ notification: Notification) {
         self.configureAppIconForMacOSVersion()
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
         AppNotifications.shared.requestAuthorizationOnStartup()
         self.ensureStatusController()
         KeyboardShortcuts.onKeyUp(for: .openMenu) { [weak self] in
@@ -277,20 +280,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Use the classic (non-Liquid Glass) app icon on macOS versions before 26.
     private func configureAppIconForMacOSVersion() {
         if #unavailable(macOS 26) {
-            let bundle: Bundle = {
-                if let bundleURL = Bundle.main.url(forResource: "CodexBar_CodexBar", withExtension: "bundle"),
-                   let resourceBundle = Bundle(url: bundleURL)
-                {
-                    return resourceBundle
-                }
-                return Bundle.main
-            }()
-            guard let classicIconURL = bundle.url(forResource: "Icon-classic", withExtension: "icns"),
-                  let classicIcon = NSImage(contentsOf: classicIconURL) else {
-                return
-            }
-            NSApp.applicationIconImage = classicIcon
+            self.applyClassicAppIcon()
         }
+    }
+
+    private func applyClassicAppIcon() {
+        guard let classicIcon = Self.loadClassicIcon() else { return }
+        NSApp.applicationIconImage = classicIcon
+    }
+
+    private static func loadClassicIcon() -> NSImage? {
+        if let url = Bundle.module.url(forResource: "Icon-classic", withExtension: "icns"),
+           let image = NSImage(contentsOf: url)
+        {
+            return image
+        }
+        if let url = Bundle.main.url(forResource: "Icon-classic", withExtension: "icns"),
+           let image = NSImage(contentsOf: url)
+        {
+            return image
+        }
+        return nil
     }
 
     private func ensureStatusController() {
