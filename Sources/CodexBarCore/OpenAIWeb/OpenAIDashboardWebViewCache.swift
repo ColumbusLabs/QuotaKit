@@ -68,7 +68,8 @@ final class OpenAIDashboardWebViewCache {
             } catch {
                 entry.isBusy = false
                 entry.lastUsedAt = Date()
-                entry.host.hide()
+                entry.host.close()
+                self.entries.removeValue(forKey: key)
                 throw error
             }
 
@@ -79,8 +80,8 @@ final class OpenAIDashboardWebViewCache {
                     guard let self, let entry else { return }
                     entry.isBusy = false
                     entry.lastUsedAt = Date()
-                    entry.host.hide()
-                    self.prune(now: Date())
+                    entry.host.close()
+                    self.entries.removeValue(forKey: key)
                 })
         }
 
@@ -104,8 +105,8 @@ final class OpenAIDashboardWebViewCache {
                 guard let self, let entry else { return }
                 entry.isBusy = false
                 entry.lastUsedAt = Date()
-                entry.host.hide()
-                self.prune(now: Date())
+                entry.host.close()
+                self.entries.removeValue(forKey: key)
             })
     }
 

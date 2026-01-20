@@ -42,6 +42,9 @@ extension StatusItemController {
     func menuWillOpen(_ menu: NSMenu) {
         if self.isHostedSubviewMenu(menu) {
             self.refreshHostedSubviewHeights(in: menu)
+            if self.isOpenAIWebSubviewMenu(menu) {
+                self.store.requestOpenAIDashboardRefreshIfStale(reason: "submenu open")
+            }
             self.openMenus[ObjectIdentifier(menu)] = menu
             // Removed redundant async refresh - single pass is sufficient after initial layout
             return
@@ -1050,6 +1053,17 @@ extension StatusItemController {
             "usageBreakdownChart",
             "creditsHistoryChart",
             "costHistoryChart",
+        ]
+        return menu.items.contains { item in
+            guard let id = item.representedObject as? String else { return false }
+            return ids.contains(id)
+        }
+    }
+
+    private func isOpenAIWebSubviewMenu(_ menu: NSMenu) -> Bool {
+        let ids: Set<String> = [
+            "usageBreakdownChart",
+            "creditsHistoryChart",
         ]
         return menu.items.contains { item in
             guard let id = item.representedObject as? String else { return false }

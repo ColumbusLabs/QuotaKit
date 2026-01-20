@@ -686,6 +686,24 @@ final class UsageStore {
 }
 
 extension UsageStore {
+    private static let openAIWebRefreshMultiplier: TimeInterval = 5
+
+    private func openAIWebRefreshIntervalSeconds() -> TimeInterval {
+        let base = max(self.settings.refreshFrequency.seconds ?? 0, 120)
+        return base * Self.openAIWebRefreshMultiplier
+    }
+
+    func requestOpenAIDashboardRefreshIfStale(reason: String) {
+        guard self.isEnabled(.codex), self.settings.codexCookieSource.isEnabled else { return }
+        let now = Date()
+        let refreshInterval = self.openAIWebRefreshIntervalSeconds()
+        let lastUpdatedAt = self.openAIDashboard?.updatedAt ?? self.lastOpenAIDashboardSnapshot?.updatedAt
+        if let lastUpdatedAt, now.timeIntervalSince(lastUpdatedAt) < refreshInterval { return }
+        let stamp = now.formatted(date: .abbreviated, time: .shortened)
+        self.logOpenAIWeb("[\(stamp)] OpenAI web refresh request: \(reason)")
+        Task { await self.refreshOpenAIDashboardIfNeeded(force: true) }
+    }
+
     private func applyOpenAIDashboard(_ dash: OpenAIDashboardSnapshot, targetEmail: String?) async {
         await MainActor.run {
             self.openAIDashboard = dash
@@ -748,7 +766,7 @@ extension UsageStore {
         self.handleOpenAIWebTargetEmailChangeIfNeeded(targetEmail: targetEmail)
 
         let now = Date()
-        let minInterval = max(self.settings.refreshFrequency.seconds ?? 0, 120)
+        let minInterval = self.openAIWebRefreshIntervalSeconds()
         if !force,
            !self.openAIWebAccountDidChange,
            self.lastOpenAIDashboardError == nil,

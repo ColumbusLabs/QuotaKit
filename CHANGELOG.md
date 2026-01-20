@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.18.0-beta.2 — 2026-01-20
+### Highlights
+- OpenAI web dashboard refresh cadence now follows 5× the base refresh interval.
+- OpenAI web dashboard WebView is torn down after each scrape to reduce idle CPU.
+
+### Menu & Menu Bar
+- Menu: opening OpenAI web submenus triggers a refresh when the data is stale.
+
 ## 0.18.0-beta.1 — 2026-01-18
 ### Highlights
 - New providers: OpenCode (web usage), Vertex AI, Kiro, Kimi, Kimi K2, Augment, Amp, Synthetic.
