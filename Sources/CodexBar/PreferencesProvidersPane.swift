@@ -106,13 +106,6 @@ struct ProvidersPane: View {
 
     func providerSubtitle(_ provider: UsageProvider) -> String {
         let meta = self.store.metadata(for: provider)
-        let cliName = meta.cliName
-        let version = self.store.version(for: provider)
-        var versionText = version ?? "not detected"
-        if provider == .claude, let parenRange = versionText.range(of: "(") {
-            versionText = versionText[..<parenRange.lowerBound].trimmingCharacters(in: .whitespaces)
-        }
-
         let usageText: String
         if let snapshot = self.store.snapshot(for: provider) {
             let relative = snapshot.updatedAt.relativeDescription()
@@ -123,21 +116,15 @@ struct ProvidersPane: View {
             usageText = "usage not fetched yet"
         }
 
-        let detailLine: String = if cliName == "codex" {
-            versionText
-        } else if provider == .cursor || provider == .opencode {
-            "web"
-        } else if provider == .copilot {
-            "github api"
-        } else if provider == .zai || provider == .synthetic {
-            "api"
-        } else if provider == .minimax {
-            self.store.sourceLabel(for: provider)
-        } else if provider == .kimi {
-            "web"
-        } else {
-            "\(cliName) \(versionText)"
-        }
+        let presentationContext = ProviderPresentationContext(
+            provider: provider,
+            settings: self.settings,
+            store: self.store,
+            metadata: meta)
+        let presentation = ProviderCatalog.implementation(for: provider)?
+            .presentation(context: presentationContext)
+            ?? ProviderPresentation(detailLine: ProviderPresentation.standardDetailLine)
+        let detailLine = presentation.detailLine(presentationContext)
 
         return "\(detailLine)\n\(usageText)"
     }

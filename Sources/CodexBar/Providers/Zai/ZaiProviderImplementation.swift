@@ -9,6 +9,26 @@ struct ZaiProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .zai
 
     @MainActor
+    func presentation(context _: ProviderPresentationContext) -> ProviderPresentation {
+        ProviderPresentation { _ in "api" }
+    }
+
+    @MainActor
+    func observeSettings(_ settings: SettingsStore) {
+        _ = settings.zaiAPIToken
+        _ = settings.zaiAPIRegion
+    }
+
+    @MainActor
+    func isAvailable(context: ProviderAvailabilityContext) -> Bool {
+        if ZaiSettingsReader.apiToken(environment: context.environment) != nil {
+            return true
+        }
+        context.settings.ensureZaiAPITokenLoaded()
+        return !context.settings.zaiAPIToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
         let binding = Binding(
             get: { context.settings.zaiAPIRegion.rawValue },

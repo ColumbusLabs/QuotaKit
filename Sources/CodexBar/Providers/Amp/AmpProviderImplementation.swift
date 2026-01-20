@@ -9,6 +9,12 @@ struct AmpProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .amp
 
     @MainActor
+    func observeSettings(_ settings: SettingsStore) {
+        _ = settings.ampCookieSource
+        _ = settings.ampCookieHeader
+    }
+
+    @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
         let cookieBinding = Binding(
             get: { context.settings.ampCookieSource.rawValue },

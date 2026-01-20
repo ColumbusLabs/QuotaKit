@@ -8,6 +8,11 @@ struct KimiK2ProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .kimik2
 
     @MainActor
+    func observeSettings(_ settings: SettingsStore) {
+        _ = settings.kimiK2APIToken
+    }
+
+    @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
         [
             ProviderSettingsFieldDescriptor(

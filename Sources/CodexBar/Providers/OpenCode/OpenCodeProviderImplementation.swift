@@ -9,6 +9,18 @@ struct OpenCodeProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .opencode
 
     @MainActor
+    func presentation(context _: ProviderPresentationContext) -> ProviderPresentation {
+        ProviderPresentation { _ in "web" }
+    }
+
+    @MainActor
+    func observeSettings(_ settings: SettingsStore) {
+        _ = settings.opencodeCookieSource
+        _ = settings.opencodeCookieHeader
+        _ = settings.opencodeWorkspaceID
+    }
+
+    @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
         let cookieBinding = Binding(
             get: { context.settings.opencodeCookieSource.rawValue },

@@ -9,6 +9,17 @@ struct KimiProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .kimi
 
     @MainActor
+    func presentation(context _: ProviderPresentationContext) -> ProviderPresentation {
+        ProviderPresentation { _ in "web" }
+    }
+
+    @MainActor
+    func observeSettings(_ settings: SettingsStore) {
+        _ = settings.kimiCookieSource
+        _ = settings.kimiManualCookieHeader
+    }
+
+    @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
         let cookieBinding = Binding(
             get: { context.settings.kimiCookieSource.rawValue },

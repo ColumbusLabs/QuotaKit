@@ -9,12 +9,60 @@ struct CodexProviderImplementation: ProviderImplementation {
     let supportsLoginFlow: Bool = true
 
     @MainActor
+    func presentation(context _: ProviderPresentationContext) -> ProviderPresentation {
+        ProviderPresentation { context in
+            context.store.version(for: context.provider) ?? "not detected"
+        }
+    }
+
+    @MainActor
+    func observeSettings(_ settings: SettingsStore) {
+        _ = settings.codexUsageDataSource
+        _ = settings.codexCookieSource
+        _ = settings.codexCookieHeader
+    }
+
+    @MainActor
+    func defaultSourceLabel(context: ProviderSourceLabelContext) -> String? {
+        context.settings.codexUsageDataSource.rawValue
+    }
+
+    @MainActor
+    func decorateSourceLabel(context: ProviderSourceLabelContext, baseLabel: String) -> String {
+        if context.settings.codexCookieSource.isEnabled,
+           context.store.openAIDashboard != nil,
+           !context.store.openAIDashboardRequiresLogin,
+           !baseLabel.contains("openai-web")
+        {
+            return "\(baseLabel) + openai-web"
+        }
+        return baseLabel
+    }
+
+    @MainActor
+    func sourceMode(context: ProviderSourceModeContext) -> ProviderSourceMode {
+        switch context.settings.codexUsageDataSource {
+        case .auto: .auto
+        case .oauth: .oauth
+        case .cli: .cli
+        }
+    }
+
+    func makeRuntime() -> (any ProviderRuntime)? {
+        CodexProviderRuntime()
+    }
+
+    @MainActor
     func settingsToggles(context: ProviderSettingsContext) -> [ProviderSettingsToggleDescriptor] {
         let extrasBinding = Binding(
             get: { context.settings.openAIWebAccessEnabled },
             set: { enabled in
                 context.settings.openAIWebAccessEnabled = enabled
-                context.store.handleOpenAIWebAccessChange(enabled: enabled)
+                Task { @MainActor in
+                    await context.store.performRuntimeAction(
+                        .openAIWebAccessToggled(enabled),
+                        for: .codex)
+                }
             })
 
         return [

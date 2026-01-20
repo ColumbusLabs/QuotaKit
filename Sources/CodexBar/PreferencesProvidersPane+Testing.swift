@@ -36,9 +36,9 @@ enum ProvidersPaneTestHarness {
     }
 
     private static func prepareTestState(settings: SettingsStore, store: UsageStore) {
-        store.codexVersion = "1.0.0"
-        store.claudeVersion = "2.0.0 (build 123)"
-        store.cursorVersion = nil
+        store.versions[.codex] = "1.0.0"
+        store.versions[.claude] = "2.0.0 (build 123)"
+        store.versions[.cursor] = nil
         store._setSnapshotForTesting(
             UsageSnapshot(primary: nil, secondary: nil, updatedAt: Date()),
             provider: .codex)

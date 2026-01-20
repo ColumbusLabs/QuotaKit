@@ -9,6 +9,16 @@ struct AugmentProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .augment
 
     @MainActor
+    func observeSettings(_ settings: SettingsStore) {
+        _ = settings.augmentCookieSource
+        _ = settings.augmentCookieHeader
+    }
+
+    func makeRuntime() -> (any ProviderRuntime)? {
+        AugmentProviderRuntime()
+    }
+
+    @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
         let cookieBinding = Binding(
             get: { context.settings.augmentCookieSource.rawValue },

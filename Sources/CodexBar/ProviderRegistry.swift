@@ -39,23 +39,9 @@ struct ProviderRegistry {
                 style: descriptor.branding.iconStyle,
                 isEnabled: { settings.isProviderEnabled(provider: provider, metadata: meta) },
                 fetch: {
-                    let sourceMode: ProviderSourceMode = switch provider {
-                    case .codex:
-                        switch settings.codexUsageDataSource {
-                        case .auto: .auto
-                        case .oauth: .oauth
-                        case .cli: .cli
-                        }
-                    case .claude:
-                        switch settings.claudeUsageDataSource {
-                        case .auto: .auto
-                        case .oauth: .oauth
-                        case .web: .web
-                        case .cli: .cli
-                        }
-                    default:
-                        .auto
-                    }
+                    let sourceMode = ProviderCatalog.implementation(for: provider)?
+                        .sourceMode(context: ProviderSourceModeContext(provider: provider, settings: settings))
+                        ?? .auto
                     let snapshot = await MainActor.run {
                         Self.makeSettingsSnapshot(settings: settings, tokenOverride: nil)
                     }

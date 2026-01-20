@@ -10,6 +10,28 @@ protocol ProviderImplementation: Sendable {
     var id: UsageProvider { get }
     var supportsLoginFlow: Bool { get }
 
+    @MainActor
+    func presentation(context: ProviderPresentationContext) -> ProviderPresentation
+
+    @MainActor
+    func observeSettings(_ settings: SettingsStore)
+
+    @MainActor
+    func isAvailable(context: ProviderAvailabilityContext) -> Bool
+
+    @MainActor
+    func defaultSourceLabel(context: ProviderSourceLabelContext) -> String?
+
+    @MainActor
+    func decorateSourceLabel(context: ProviderSourceLabelContext, baseLabel: String) -> String
+
+    @MainActor
+    func sourceMode(context: ProviderSourceModeContext) -> ProviderSourceMode
+
+    func detectVersion(context: ProviderVersionContext) async -> String?
+
+    func makeRuntime() -> (any ProviderRuntime)?
+
     /// Optional provider-specific settings toggles to render in the Providers pane.
     ///
     /// Important: Providers must not return custom SwiftUI views here. Only shared toggle/action descriptors.
@@ -31,6 +53,45 @@ protocol ProviderImplementation: Sendable {
 
 extension ProviderImplementation {
     var supportsLoginFlow: Bool { false }
+    @MainActor
+    func presentation(context _: ProviderPresentationContext) -> ProviderPresentation {
+        ProviderPresentation(detailLine: ProviderPresentation.standardDetailLine)
+    }
+
+    @MainActor
+    func observeSettings(_ settings: SettingsStore) {
+        _ = settings
+    }
+
+    @MainActor
+    func isAvailable(context _: ProviderAvailabilityContext) -> Bool {
+        true
+    }
+
+    @MainActor
+    func defaultSourceLabel(context _: ProviderSourceLabelContext) -> String? {
+        nil
+    }
+
+    @MainActor
+    func decorateSourceLabel(context _: ProviderSourceLabelContext, baseLabel: String) -> String {
+        baseLabel
+    }
+
+    @MainActor
+    func sourceMode(context _: ProviderSourceModeContext) -> ProviderSourceMode {
+        .auto
+    }
+
+    func detectVersion(context: ProviderVersionContext) async -> String? {
+        let detector = ProviderDescriptorRegistry.descriptor(for: self.id).cli.versionDetector
+        return detector?(context.browserDetection)
+    }
+
+    func makeRuntime() -> (any ProviderRuntime)? {
+        nil
+    }
+
     @MainActor
     func settingsToggles(context _: ProviderSettingsContext) -> [ProviderSettingsToggleDescriptor] {
         []

@@ -9,6 +9,21 @@ struct MiniMaxProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .minimax
 
     @MainActor
+    func presentation(context _: ProviderPresentationContext) -> ProviderPresentation {
+        ProviderPresentation { context in
+            context.store.sourceLabel(for: context.provider)
+        }
+    }
+
+    @MainActor
+    func observeSettings(_ settings: SettingsStore) {
+        _ = settings.minimaxCookieSource
+        _ = settings.minimaxCookieHeader
+        _ = settings.minimaxAPIToken
+        _ = settings.minimaxAPIRegion
+    }
+
+    @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
         context.settings.ensureMiniMaxAPITokenLoaded()
         let authMode: () -> MiniMaxAuthMode = {

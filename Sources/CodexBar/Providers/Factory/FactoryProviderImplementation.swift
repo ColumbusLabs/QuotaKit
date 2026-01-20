@@ -9,6 +9,12 @@ struct FactoryProviderImplementation: ProviderImplementation {
     let supportsLoginFlow: Bool = true
 
     @MainActor
+    func observeSettings(_ settings: SettingsStore) {
+        _ = settings.factoryCookieSource
+        _ = settings.factoryCookieHeader
+    }
+
+    @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
         let cookieBinding = Binding(
             get: { context.settings.factoryCookieSource.rawValue },

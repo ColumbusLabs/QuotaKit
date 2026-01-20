@@ -9,6 +9,17 @@ struct CursorProviderImplementation: ProviderImplementation {
     let supportsLoginFlow: Bool = true
 
     @MainActor
+    func presentation(context _: ProviderPresentationContext) -> ProviderPresentation {
+        ProviderPresentation { _ in "web" }
+    }
+
+    @MainActor
+    func observeSettings(_ settings: SettingsStore) {
+        _ = settings.cursorCookieSource
+        _ = settings.cursorCookieHeader
+    }
+
+    @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
         let cookieBinding = Binding(
             get: { context.settings.cursorCookieSource.rawValue },

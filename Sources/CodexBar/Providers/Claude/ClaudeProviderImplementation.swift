@@ -8,6 +8,40 @@ struct ClaudeProviderImplementation: ProviderImplementation {
     let supportsLoginFlow: Bool = true
 
     @MainActor
+    func presentation(context _: ProviderPresentationContext) -> ProviderPresentation {
+        ProviderPresentation { context in
+            var versionText = context.store.version(for: context.provider) ?? "not detected"
+            if let parenRange = versionText.range(of: "(") {
+                versionText = versionText[..<parenRange.lowerBound].trimmingCharacters(in: .whitespaces)
+            }
+            return "\(context.metadata.cliName) \(versionText)"
+        }
+    }
+
+    @MainActor
+    func observeSettings(_ settings: SettingsStore) {
+        _ = settings.claudeUsageDataSource
+        _ = settings.claudeCookieSource
+        _ = settings.claudeCookieHeader
+        _ = settings.claudeWebExtrasEnabled
+    }
+
+    @MainActor
+    func defaultSourceLabel(context: ProviderSourceLabelContext) -> String? {
+        context.settings.claudeUsageDataSource.rawValue
+    }
+
+    @MainActor
+    func sourceMode(context: ProviderSourceModeContext) -> ProviderSourceMode {
+        switch context.settings.claudeUsageDataSource {
+        case .auto: .auto
+        case .oauth: .oauth
+        case .web: .web
+        case .cli: .cli
+        }
+    }
+
+    @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
         let usageBinding = Binding(
             get: { context.settings.claudeUsageDataSource.rawValue },
