@@ -107,6 +107,19 @@ struct StatusProbeTests {
     }
 
     @Test
+    func parseClaudeStatusRemainingKeyword() throws {
+        let sample = """
+        Current session
+        12% remaining (Resets 11am)
+        Current week (all models)
+        40% remaining (Resets Nov 21)
+        """
+        let snap = try ClaudeStatusProbe.parse(text: sample)
+        #expect(snap.sessionPercentLeft == 12)
+        #expect(snap.weeklyPercentLeft == 40)
+    }
+
+    @Test
     func parseClaudeStatusEnterpriseSessionOnly() throws {
         let sample = """
         Current session

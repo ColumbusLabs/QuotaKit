@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.18.0-beta.2 — 2026-01-20
+## 0.18.0-beta.2 — 2026-01-21
 ### Highlights
 - OpenAI web dashboard refresh cadence now follows 5× the base refresh interval.
 - OpenAI web dashboard WebView is torn down after each scrape to reduce idle CPU.
@@ -9,6 +9,7 @@
 ### Providers
 - Providers: add Dia browser support across cookie import and profile detection (#209). Thanks @validatedev!
 - Codex: include archived session logs in local token cost scanning and dedupe by session id.
+- Claude: harden CLI /usage parsing and avoid ANTHROPIC_* env interference during probes.
 
 ### Menu & Menu Bar
 - Menu: opening OpenAI web submenus triggers a refresh when the data is stale.

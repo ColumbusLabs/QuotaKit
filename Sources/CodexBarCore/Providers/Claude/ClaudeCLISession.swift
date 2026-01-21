@@ -35,6 +35,8 @@ actor ClaudeCLISession {
         "Do you trust the files in this folder?": "y\r",
         "Ready to code here?": "\r",
         "Press Enter to continue": "\r",
+        "Show plan usage limits": "\r",
+        "Show Claude Code status": "\r",
     ]
 
     private struct RollingBuffer {
@@ -216,6 +218,7 @@ actor ClaudeCLISession {
         let workingDirectory = ClaudeStatusProbe.probeWorkingDirectoryURL()
         proc.currentDirectoryURL = workingDirectory
         var env = TTYCommandRunner.enrichedEnvironment()
+        env = Self.scrubbedClaudeEnvironment(from: env)
         env["PWD"] = workingDirectory.path
         proc.environment = env
 
@@ -244,6 +247,21 @@ actor ClaudeCLISession {
         self.processGroup = processGroup
         self.binaryPath = binary
         self.startedAt = Date()
+    }
+
+    private static func scrubbedClaudeEnvironment(from base: [String: String]) -> [String: String] {
+        var env = base
+        let explicitKeys: [String] = [
+            ClaudeOAuthCredentialsStore.environmentTokenKey,
+            ClaudeOAuthCredentialsStore.environmentScopesKey,
+        ]
+        for key in explicitKeys {
+            env.removeValue(forKey: key)
+        }
+        for key in env.keys where key.hasPrefix("ANTHROPIC_") {
+            env.removeValue(forKey: key)
+        }
+        return env
     }
 
     private func cleanup() {
