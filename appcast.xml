@@ -3,6 +3,38 @@
     <channel>
         <title>CodexBar</title>
         <item sparkle:channel="beta">
+            <title>0.18.0-beta.2</title>
+            <pubDate>Wed, 21 Jan 2026 08:42:37 +0000</pubDate>
+            <link>https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml</link>
+            <sparkle:version>50</sparkle:version>
+            <sparkle:shortVersionString>0.18.0-beta.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.18.0-beta.2</h2>
+<h3>Highlights</h3>
+<ul>
+<li>OpenAI web dashboard refresh cadence now follows 5× the base refresh interval.</li>
+<li>OpenAI web dashboard WebView is torn down after each scrape to reduce idle CPU.</li>
+<li>Codex settings now include a toggle to disable OpenAI web extras.</li>
+</ul>
+<h3>Providers</h3>
+<ul>
+<li>Providers: add Dia browser support across cookie import and profile detection (#209). Thanks @validatedev!</li>
+<li>Codex: include archived session logs in local token cost scanning and dedupe by session id.</li>
+<li>Claude: harden CLI /usage parsing and avoid ANTHROPIC_* env interference during probes.</li>
+</ul>
+<h3>Menu & Menu Bar</h3>
+<ul>
+<li>Menu: opening OpenAI web submenus triggers a refresh when the data is stale.</li>
+<li>Menu: fix usage line labels to honor “Show usage as used”.</li>
+<li>Debug: add a toggle to keep Codex/Claude CLI sessions alive between probes.</li>
+<li>Debug: add a button to reset CLI probe sessions.</li>
+<li>App icon: use the classic icon on macOS 15 and earlier while keeping Liquid Glass for macOS 26+ (#178). Thanks @zerone0x!</li>
+</ul>
+<p><a href="https://github.com/steipete/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.18.0-beta.2/CodexBar-0.18.0-beta.2.zip" length="22498811" type="application/octet-stream" sparkle:edSignature="Zcy1PnvfyNQnpFvuydwnIQ+lUh1wGF46p92MyVeVAa/z441erCIHZ9bKH4QDlc9cB/QsTkYfk3CvE0lHTu5CCA=="/>
+        </item>
+        <item sparkle:channel="beta">
             <title>0.18.0-beta.1</title>
             <pubDate>Sun, 18 Jan 2026 23:09:38 +0000</pubDate>
             <link>https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml</link>
@@ -136,24 +168,6 @@
 <p><a href="https://github.com/steipete/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.17.0/CodexBar-0.17.0.zip" length="14296774" type="application/octet-stream" sparkle:edSignature="8n//nfQb9cz3hyoc/4+eitFvGl/FJrruUS99aIfqHwgtXhi1V4he9dKh7zKNt78mcP6raJGg+Ha5yHgglfSTDQ=="/>
-        </item>
-        <item>
-            <title>0.16.1</title>
-            <pubDate>Tue, 30 Dec 2025 00:38:14 +0100</pubDate>
-            <link>https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml</link>
-            <sparkle:version>47</sparkle:version>
-            <sparkle:shortVersionString>0.16.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.16.1</h2>
-<ul>
-<li>Menu: reduce layout thrash when opening menus and sizing charts. Thanks @ibehnam!</li>
-<li>Packaging: default release notarization builds universal (arm64 + x86_64) zip.</li>
-<li>OpenAI web: reduce idle CPU by suspending cached WebViews when not scraping. Thanks @douglascamata!</li>
-<li>Icons: switch provider brand icons to SVGs for sharper rendering. Thanks @vandamd!</li>
-</ul>
-<p><a href="https://github.com/steipete/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/steipete/CodexBar/releases/download/v0.16.1/CodexBar-0.16.1.zip" length="13395904" type="application/octet-stream" sparkle:edSignature="gBQTsJQN3QNWznUUT5vR4ui2kCNwkXMISYLspQNit0CzII/vc6wY51JvrcbawM6kqcgQKzC7te2yjPCRnpuTDw=="/>
         </item>
         <item>
             <title>0.14.0</title>
