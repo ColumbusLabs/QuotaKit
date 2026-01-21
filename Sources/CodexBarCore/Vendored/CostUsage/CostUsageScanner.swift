@@ -36,6 +36,12 @@ enum CostUsageScanner {
         let parsedBytes: Int64
         let lastModel: String?
         let lastTotals: CostUsageCodexTotals?
+        let sessionId: String?
+    }
+
+    private struct CodexScanState {
+        var seenSessionIds: Set<String> = []
+        var seenFileIds: Set<String> = []
     }
 
     struct ClaudeParseResult: Sendable {
@@ -140,7 +146,42 @@ enum CostUsageScanner {
             .appendingPathComponent("sessions", isDirectory: true)
     }
 
+    private static func codexSessionsRoots(options: Options) -> [URL] {
+        let root = self.defaultCodexSessionsRoot(options: options)
+        if let archived = self.codexArchivedSessionsRoot(sessionsRoot: root) {
+            return [root, archived]
+        }
+        return [root]
+    }
+
+    private static func codexArchivedSessionsRoot(sessionsRoot: URL) -> URL? {
+        guard sessionsRoot.lastPathComponent == "sessions" else { return nil }
+        return sessionsRoot
+            .deletingLastPathComponent()
+            .appendingPathComponent("archived_sessions", isDirectory: true)
+    }
+
     private static func listCodexSessionFiles(root: URL, scanSinceKey: String, scanUntilKey: String) -> [URL] {
+        let partitioned = self.listCodexSessionFilesByDatePartition(
+            root: root,
+            scanSinceKey: scanSinceKey,
+            scanUntilKey: scanUntilKey)
+        let flat = self.listCodexSessionFilesFlat(root: root, scanSinceKey: scanSinceKey, scanUntilKey: scanUntilKey)
+        var seen: Set<String> = []
+        var out: [URL] = []
+        for item in partitioned + flat where !seen.contains(item.path) {
+            seen.insert(item.path)
+            out.append(item)
+        }
+        return out
+    }
+
+    private static func listCodexSessionFilesByDatePartition(
+        root: URL,
+        scanSinceKey: String,
+        scanUntilKey: String) -> [URL]
+    {
+        guard FileManager.default.fileExists(atPath: root.path) else { return [] }
         var out: [URL] = []
         var date = Self.parseDayKey(scanSinceKey) ?? Date()
         let untilDate = Self.parseDayKey(scanUntilKey) ?? date
@@ -171,6 +212,45 @@ enum CostUsageScanner {
         return out
     }
 
+    private static func listCodexSessionFilesFlat(root: URL, scanSinceKey: String, scanUntilKey: String) -> [URL] {
+        guard FileManager.default.fileExists(atPath: root.path) else { return [] }
+        guard let items = try? FileManager.default.contentsOfDirectory(
+            at: root,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles, .skipsPackageDescendants])
+        else { return [] }
+
+        var out: [URL] = []
+        for item in items where item.pathExtension.lowercased() == "jsonl" {
+            if let dayKey = Self.dayKeyFromFilename(item.lastPathComponent) {
+                if !CostUsageDayRange.isInRange(dayKey: dayKey, since: scanSinceKey, until: scanUntilKey) {
+                    continue
+                }
+            }
+            out.append(item)
+        }
+        return out
+    }
+
+    private static let codexFilenameDateRegex = try? NSRegularExpression(pattern: "(\\d{4}-\\d{2}-\\d{2})")
+
+    private static func dayKeyFromFilename(_ filename: String) -> String? {
+        guard let regex = self.codexFilenameDateRegex else { return nil }
+        let range = NSRange(filename.startIndex..<filename.endIndex, in: filename)
+        guard let match = regex.firstMatch(in: filename, range: range) else { return nil }
+        guard let matchRange = Range(match.range(at: 1), in: filename) else { return nil }
+        return String(filename[matchRange])
+    }
+
+    private static func fileIdentityString(fileURL: URL) -> String? {
+        guard let values = try? fileURL.resourceValues(forKeys: [.fileResourceIdentifierKey]) else { return nil }
+        guard let identifier = values.fileResourceIdentifier else { return nil }
+        if let data = identifier as? Data {
+            return data.base64EncodedString()
+        }
+        return String(describing: identifier)
+    }
+
     static func parseCodexFile(
         fileURL: URL,
         range: CostUsageDayRange,
@@ -180,6 +260,7 @@ enum CostUsageScanner {
     {
         var currentModel = initialModel
         var previousTotals = initialTotals
+        var sessionId: String?
 
         var days: [String: [String: [Int]]] = [:]
 
@@ -212,6 +293,7 @@ enum CostUsageScanner {
                 guard
                     line.bytes.containsAscii(#""type":"event_msg""#)
                     || line.bytes.containsAscii(#""type":"turn_context""#)
+                    || line.bytes.containsAscii(#""type":"session_meta""#)
                 else { return }
 
                 if line.bytes.containsAscii(#""type":"event_msg""#), !line.bytes.containsAscii(#""token_count""#) {
@@ -222,6 +304,19 @@ enum CostUsageScanner {
                     let obj = (try? JSONSerialization.jsonObject(with: line.bytes)) as? [String: Any],
                     let type = obj["type"] as? String
                 else { return }
+
+                if type == "session_meta" {
+                    if sessionId == nil {
+                        let payload = obj["payload"] as? [String: Any]
+                        sessionId = payload?["session_id"] as? String
+                            ?? payload?["sessionId"] as? String
+                            ?? payload?["id"] as? String
+                            ?? obj["session_id"] as? String
+                            ?? obj["sessionId"] as? String
+                            ?? obj["id"] as? String
+                    }
+                    return
+                }
 
                 guard let tsText = obj["timestamp"] as? String else { return }
                 guard let dayKey = Self.dayKeyFromTimestamp(tsText) ?? Self.dayKeyFromParsedISO(tsText) else { return }
@@ -287,7 +382,124 @@ enum CostUsageScanner {
             days: days,
             parsedBytes: parsedBytes,
             lastModel: currentModel,
-            lastTotals: previousTotals)
+            lastTotals: previousTotals,
+            sessionId: sessionId)
+    }
+
+    private static func scanCodexFile(
+        fileURL: URL,
+        range: CostUsageDayRange,
+        cache: inout CostUsageCache,
+        state: inout CodexScanState)
+    {
+        let path = fileURL.path
+        let attrs = (try? FileManager.default.attributesOfItem(atPath: path)) ?? [:]
+        let mtime = (attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+        let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
+        let mtimeMs = Int64(mtime * 1000)
+        let fileId = Self.fileIdentityString(fileURL: fileURL)
+
+        func dropCachedFile(_ cached: CostUsageFileUsage?) {
+            if let cached {
+                Self.applyFileDays(cache: &cache, fileDays: cached.days, sign: -1)
+            }
+            cache.files.removeValue(forKey: path)
+        }
+
+        if let fileId, state.seenFileIds.contains(fileId) {
+            dropCachedFile(cache.files[path])
+            return
+        }
+
+        let cached = cache.files[path]
+        if let cachedSessionId = cached?.sessionId, state.seenSessionIds.contains(cachedSessionId) {
+            dropCachedFile(cached)
+            return
+        }
+
+        let needsSessionId = cached != nil && cached?.sessionId == nil
+        if let cached,
+           cached.mtimeUnixMs == mtimeMs,
+           cached.size == size,
+           !needsSessionId
+        {
+            if let cachedSessionId = cached.sessionId {
+                state.seenSessionIds.insert(cachedSessionId)
+            }
+            if let fileId {
+                state.seenFileIds.insert(fileId)
+            }
+            return
+        }
+
+        if let cached, cached.sessionId != nil {
+            let startOffset = cached.parsedBytes ?? cached.size
+            let canIncremental = size > cached.size && startOffset > 0 && startOffset <= size
+                && cached.lastTotals != nil
+            if canIncremental {
+                let delta = Self.parseCodexFile(
+                    fileURL: fileURL,
+                    range: range,
+                    startOffset: startOffset,
+                    initialModel: cached.lastModel,
+                    initialTotals: cached.lastTotals)
+                let sessionId = delta.sessionId ?? cached.sessionId
+                if let sessionId, state.seenSessionIds.contains(sessionId) {
+                    dropCachedFile(cached)
+                    return
+                }
+
+                if !delta.days.isEmpty {
+                    Self.applyFileDays(cache: &cache, fileDays: delta.days, sign: 1)
+                }
+
+                var mergedDays = cached.days
+                Self.mergeFileDays(existing: &mergedDays, delta: delta.days)
+                cache.files[path] = Self.makeFileUsage(
+                    mtimeUnixMs: mtimeMs,
+                    size: size,
+                    days: mergedDays,
+                    parsedBytes: delta.parsedBytes,
+                    lastModel: delta.lastModel,
+                    lastTotals: delta.lastTotals,
+                    sessionId: sessionId)
+                if let sessionId {
+                    state.seenSessionIds.insert(sessionId)
+                }
+                if let fileId {
+                    state.seenFileIds.insert(fileId)
+                }
+                return
+            }
+        }
+
+        if let cached {
+            Self.applyFileDays(cache: &cache, fileDays: cached.days, sign: -1)
+        }
+
+        let parsed = Self.parseCodexFile(fileURL: fileURL, range: range)
+        let sessionId = parsed.sessionId ?? cached?.sessionId
+        if let sessionId, state.seenSessionIds.contains(sessionId) {
+            cache.files.removeValue(forKey: path)
+            return
+        }
+
+        let usage = Self.makeFileUsage(
+            mtimeUnixMs: mtimeMs,
+            size: size,
+            days: parsed.days,
+            parsedBytes: parsed.parsedBytes,
+            lastModel: parsed.lastModel,
+            lastTotals: parsed.lastTotals,
+            sessionId: sessionId)
+        cache.files[path] = usage
+        Self.applyFileDays(cache: &cache, fileDays: usage.days, sign: 1)
+        if let sessionId {
+            state.seenSessionIds.insert(sessionId)
+        }
+        if let fileId {
+            state.seenFileIds.insert(fileId)
+        }
     }
 
     private static func loadCodexDaily(range: CostUsageDayRange, now: Date, options: Options) -> CostUsageDailyReport {
@@ -297,71 +509,32 @@ enum CostUsageScanner {
         let refreshMs = Int64(max(0, options.refreshMinIntervalSeconds) * 1000)
         let shouldRefresh = refreshMs == 0 || cache.lastScanUnixMs == 0 || nowMs - cache.lastScanUnixMs > refreshMs
 
-        let root = self.defaultCodexSessionsRoot(options: options)
-        let files = Self.listCodexSessionFiles(
-            root: root,
-            scanSinceKey: range.scanSinceKey,
-            scanUntilKey: range.scanUntilKey)
+        let roots = self.codexSessionsRoots(options: options)
+        var seenPaths: Set<String> = []
+        var files: [URL] = []
+        for root in roots {
+            let rootFiles = Self.listCodexSessionFiles(
+                root: root,
+                scanSinceKey: range.scanSinceKey,
+                scanUntilKey: range.scanUntilKey)
+            for fileURL in rootFiles.sorted(by: { $0.path < $1.path }) where !seenPaths.contains(fileURL.path) {
+                seenPaths.insert(fileURL.path)
+                files.append(fileURL)
+            }
+        }
         let filePathsInScan = Set(files.map(\.path))
 
         if shouldRefresh {
             if options.forceRescan {
                 cache = CostUsageCache()
             }
+            var scanState = CodexScanState()
             for fileURL in files {
-                let path = fileURL.path
-                let attrs = (try? FileManager.default.attributesOfItem(atPath: path)) ?? [:]
-                let mtime = (attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
-                let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
-                let mtimeMs = Int64(mtime * 1000)
-
-                if let cached = cache.files[path],
-                   cached.mtimeUnixMs == mtimeMs,
-                   cached.size == size
-                {
-                    continue
-                }
-
-                if let cached = cache.files[path] {
-                    let startOffset = cached.parsedBytes ?? cached.size
-                    let canIncremental = size > cached.size && startOffset > 0 && startOffset <= size
-                        && cached.lastTotals != nil
-                    if canIncremental {
-                        let delta = Self.parseCodexFile(
-                            fileURL: fileURL,
-                            range: range,
-                            startOffset: startOffset,
-                            initialModel: cached.lastModel,
-                            initialTotals: cached.lastTotals)
-                        if !delta.days.isEmpty {
-                            Self.applyFileDays(cache: &cache, fileDays: delta.days, sign: 1)
-                        }
-
-                        var mergedDays = cached.days
-                        Self.mergeFileDays(existing: &mergedDays, delta: delta.days)
-                        cache.files[path] = Self.makeFileUsage(
-                            mtimeUnixMs: mtimeMs,
-                            size: size,
-                            days: mergedDays,
-                            parsedBytes: delta.parsedBytes,
-                            lastModel: delta.lastModel,
-                            lastTotals: delta.lastTotals)
-                        continue
-                    }
-
-                    Self.applyFileDays(cache: &cache, fileDays: cached.days, sign: -1)
-                }
-
-                let parsed = Self.parseCodexFile(fileURL: fileURL, range: range)
-                let usage = Self.makeFileUsage(
-                    mtimeUnixMs: mtimeMs,
-                    size: size,
-                    days: parsed.days,
-                    parsedBytes: parsed.parsedBytes,
-                    lastModel: parsed.lastModel,
-                    lastTotals: parsed.lastTotals)
-                cache.files[path] = usage
-                Self.applyFileDays(cache: &cache, fileDays: usage.days, sign: 1)
+                Self.scanCodexFile(
+                    fileURL: fileURL,
+                    range: range,
+                    cache: &cache,
+                    state: &scanState)
             }
 
             for key in cache.files.keys where !filePathsInScan.contains(key) {
@@ -468,7 +641,8 @@ enum CostUsageScanner {
         days: [String: [String: [Int]]],
         parsedBytes: Int64?,
         lastModel: String? = nil,
-        lastTotals: CostUsageCodexTotals? = nil) -> CostUsageFileUsage
+        lastTotals: CostUsageCodexTotals? = nil,
+        sessionId: String? = nil) -> CostUsageFileUsage
     {
         CostUsageFileUsage(
             mtimeUnixMs: mtimeUnixMs,
@@ -476,7 +650,8 @@ enum CostUsageScanner {
             days: days,
             parsedBytes: parsedBytes,
             lastModel: lastModel,
-            lastTotals: lastTotals)
+            lastTotals: lastTotals,
+            sessionId: sessionId)
     }
 
     static func mergeFileDays(

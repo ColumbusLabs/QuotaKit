@@ -44,7 +44,15 @@ extension SettingsStore {
                 .appendingPathComponent("sessions", isDirectory: true)
         }()
 
+        let archivedCodexRoot: URL? = {
+            guard codexRoot.lastPathComponent == "sessions" else { return nil }
+            return codexRoot
+                .deletingLastPathComponent()
+                .appendingPathComponent("archived_sessions", isDirectory: true)
+        }()
+
         if hasAnyJsonl(in: codexRoot) { return true }
+        if let archivedCodexRoot, hasAnyJsonl(in: archivedCodexRoot) { return true }
 
         let claudeRoots: [URL] = {
             if let env = env["CLAUDE_CONFIG_DIR"]?.trimmingCharacters(in: .whitespacesAndNewlines),

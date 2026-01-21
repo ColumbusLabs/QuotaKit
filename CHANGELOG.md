@@ -8,6 +8,7 @@
 
 ### Providers
 - Providers: add Dia browser support across cookie import and profile detection (#209). Thanks @validatedev!
+- Codex: include archived session logs in local token cost scanning and dedupe by session id.
 
 ### Menu & Menu Bar
 - Menu: opening OpenAI web submenus triggers a refresh when the data is stale.

@@ -64,6 +64,7 @@ struct CostUsageFileUsage: Codable, Sendable {
     var parsedBytes: Int64?
     var lastModel: String?
     var lastTotals: CostUsageCodexTotals?
+    var sessionId: String?
 }
 
 struct CostUsageCodexTotals: Codable, Sendable {

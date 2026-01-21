@@ -97,7 +97,8 @@ Usage source picker:
 ## Cost usage (local log scan)
 - Source files:
   - `~/.codex/sessions/YYYY/MM/DD/*.jsonl`
-  - Or `$CODEX_HOME/sessions/...` if `CODEX_HOME` is set.
+  - `~/.codex/archived_sessions/*.jsonl` (flat; date inferred from filename when present)
+  - Or `$CODEX_HOME/sessions/...` + `$CODEX_HOME/archived_sessions/...` if `CODEX_HOME` is set.
 - Scanner:
   - Parses `event_msg` token_count entries and `turn_context` model markers.
   - Computes input/cached/output token deltas and per-model cost.

@@ -91,6 +91,77 @@ struct CostUsageScannerTests {
     }
 
     @Test
+    func codexDailyReportIncludesArchivedSessionsAndDedupes() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2025, month: 12, day: 22)
+        let iso0 = env.isoString(for: day)
+        let iso1 = env.isoString(for: day.addingTimeInterval(1))
+
+        let model = "openai/gpt-5.2-codex"
+        let sessionMeta: [String: Any] = [
+            "type": "session_meta",
+            "payload": [
+                "session_id": "sess-archived-1",
+            ],
+        ]
+        let turnContext: [String: Any] = [
+            "type": "turn_context",
+            "timestamp": iso0,
+            "payload": [
+                "model": model,
+            ],
+        ]
+        let tokenCount: [String: Any] = [
+            "type": "event_msg",
+            "timestamp": iso1,
+            "payload": [
+                "type": "token_count",
+                "info": [
+                    "total_token_usage": [
+                        "input_tokens": 100,
+                        "cached_input_tokens": 20,
+                        "output_tokens": 10,
+                    ],
+                    "model": model,
+                ],
+            ],
+        ]
+
+        let comps = Calendar.current.dateComponents([.year, .month, .day], from: day)
+        let dayKey = String(format: "%04d-%02d-%02d", comps.year ?? 1970, comps.month ?? 1, comps.day ?? 1)
+        let archivedName = "rollout-\(dayKey)T12-00-00-archived.jsonl"
+        let contents = try env.jsonl([sessionMeta, turnContext, tokenCount])
+        _ = try env.writeCodexArchivedSessionFile(filename: archivedName, contents: contents)
+
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            claudeProjectsRoots: nil,
+            cacheRoot: env.cacheRoot)
+        options.refreshMinIntervalSeconds = 0
+
+        let first = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day,
+            options: options)
+        #expect(first.data.count == 1)
+        #expect(first.data[0].totalTokens == 110)
+
+        _ = try env.writeCodexSessionFile(day: day, filename: "session.jsonl", contents: contents)
+        let second = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day,
+            options: options)
+        #expect(second.data.count == 1)
+        #expect(second.data[0].totalTokens == 110)
+    }
+
+    @Test
     func claudeDailyReportParsesUsageAndCaches() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
@@ -773,7 +844,9 @@ struct CostUsageScannerTests {
 private struct CostUsageTestEnvironment {
     let root: URL
     let cacheRoot: URL
+    let codexHomeRoot: URL
     let codexSessionsRoot: URL
+    let codexArchivedSessionsRoot: URL
     let claudeProjectsRoot: URL
 
     init() throws {
@@ -783,10 +856,14 @@ private struct CostUsageTestEnvironment {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         self.root = root
         self.cacheRoot = root.appendingPathComponent("cache", isDirectory: true)
-        self.codexSessionsRoot = root.appendingPathComponent("codex-sessions", isDirectory: true)
+        self.codexHomeRoot = root.appendingPathComponent("codex-home", isDirectory: true)
+        self.codexSessionsRoot = self.codexHomeRoot.appendingPathComponent("sessions", isDirectory: true)
+        self.codexArchivedSessionsRoot = self.codexHomeRoot
+            .appendingPathComponent("archived_sessions", isDirectory: true)
         self.claudeProjectsRoot = root.appendingPathComponent("claude-projects", isDirectory: true)
         try FileManager.default.createDirectory(at: self.cacheRoot, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: self.codexSessionsRoot, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: self.codexArchivedSessionsRoot, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: self.claudeProjectsRoot, withIntermediateDirectories: true)
     }
 
@@ -834,6 +911,12 @@ private struct CostUsageTestEnvironment {
     func writeClaudeProjectFile(relativePath: String, contents: String) throws -> URL {
         let url = self.claudeProjectsRoot.appendingPathComponent(relativePath, isDirectory: false)
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try contents.write(to: url, atomically: true, encoding: .utf8)
+        return url
+    }
+
+    func writeCodexArchivedSessionFile(filename: String, contents: String) throws -> URL {
+        let url = self.codexArchivedSessionsRoot.appendingPathComponent(filename, isDirectory: false)
         try contents.write(to: url, atomically: true, encoding: .utf8)
         return url
     }
