@@ -290,15 +290,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private static func loadClassicIcon() -> NSImage? {
-        if let url = Bundle.module.url(forResource: "Icon-classic", withExtension: "icns"),
-           let image = NSImage(contentsOf: url)
-        {
-            return image
+        guard let url = self.classicIconURL(),
+              let image = NSImage(contentsOf: url)
+        else {
+            return nil
         }
-        if let url = Bundle.main.url(forResource: "Icon-classic", withExtension: "icns"),
-           let image = NSImage(contentsOf: url)
+        return image
+    }
+
+    private static func classicIconURL() -> URL? {
+        if let url = Bundle.main.url(forResource: "Icon-classic", withExtension: "icns") {
+            return url
+        }
+        if let bundleURL = Bundle.main.url(forResource: "CodexBar_CodexBar", withExtension: "bundle"),
+           let bundle = Bundle(url: bundleURL),
+           let url = bundle.url(forResource: "Icon-classic", withExtension: "icns")
         {
-            return image
+            return url
+        }
+        let rootBundleURL = Bundle.main.bundleURL.appendingPathComponent("CodexBar_CodexBar.bundle")
+        if let bundle = Bundle(url: rootBundleURL),
+           let url = bundle.url(forResource: "Icon-classic", withExtension: "icns")
+        {
+            return url
         }
         return nil
     }
