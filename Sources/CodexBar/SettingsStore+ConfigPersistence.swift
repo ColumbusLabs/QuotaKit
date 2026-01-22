@@ -1,6 +1,38 @@
 import CodexBarCore
 import Foundation
 
+private enum ConfigChangeOrigin {
+    case localUser
+    case externalSync
+    case reload
+}
+
+private struct ConfigChangeContext {
+    let origin: ConfigChangeOrigin
+    let reason: String
+
+    static func local(reason: String) -> Self {
+        Self(origin: .localUser, reason: reason)
+    }
+
+    static func external(reason: String) -> Self {
+        Self(origin: .externalSync, reason: reason)
+    }
+
+    static func reload(reason: String) -> Self {
+        Self(origin: .reload, reason: reason)
+    }
+
+    var shouldBroadcast: Bool {
+        switch self.origin {
+        case .localUser:
+            true
+        case .externalSync, .reload:
+            false
+        }
+    }
+}
+
 extension SettingsStore {
     private func updateConfig(reason: String, mutate: (inout CodexBarConfig) -> Void) {
         guard !self.configLoading else { return }
@@ -9,7 +41,7 @@ extension SettingsStore {
         self.config = config.normalized()
         self.updateProviderState(config: self.config)
         self.schedulePersistConfig()
-        self.bumpConfigRevision(reason: reason)
+        self.bumpConfigRevision(.local(reason: reason))
     }
 
     func updateProviderConfig(provider: UsageProvider, mutate: (inout ProviderConfig) -> Void) {
@@ -87,19 +119,20 @@ extension SettingsStore {
         self.config = config
         self.updateProviderState(config: config)
         self.configLoading = false
-        self.bumpConfigRevision(reason: "sync-\(reason)")
+        self.bumpConfigRevision(.external(reason: "sync-\(reason)"))
     }
 
-    private func bumpConfigRevision(reason: String) {
+    private func bumpConfigRevision(_ context: ConfigChangeContext) {
         self.configRevision &+= 1
         CodexBarLog.logger(LogCategories.settings)
-            .debug("Config revision bumped (\(reason)) -> \(self.configRevision)")
+            .debug("Config revision bumped (\(context.reason)) -> \(self.configRevision)")
+        guard context.shouldBroadcast else { return }
         NotificationCenter.default.post(
             name: .codexbarProviderConfigDidChange,
             object: self,
             userInfo: [
                 "config": self.config,
-                "reason": reason,
+                "reason": context.reason,
                 "revision": self.configRevision,
             ])
     }

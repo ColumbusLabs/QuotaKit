@@ -299,22 +299,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private static func classicIconURL() -> URL? {
-        if let url = Bundle.main.url(forResource: "Icon-classic", withExtension: "icns") {
-            return url
-        }
-        if let bundleURL = Bundle.main.url(forResource: "CodexBar_CodexBar", withExtension: "bundle"),
-           let bundle = Bundle(url: bundleURL),
-           let url = bundle.url(forResource: "Icon-classic", withExtension: "icns")
-        {
-            return url
-        }
-        let rootBundleURL = Bundle.main.bundleURL.appendingPathComponent("CodexBar_CodexBar.bundle")
-        if let bundle = Bundle(url: rootBundleURL),
-           let url = bundle.url(forResource: "Icon-classic", withExtension: "icns")
-        {
-            return url
-        }
-        return nil
+        Bundle.main.url(forResource: "Icon-classic", withExtension: "icns")
     }
 
     private func ensureStatusController() {

@@ -328,6 +328,10 @@ APP_RESOURCES_DIR="$ROOT/Sources/CodexBar/Resources"
 if [[ -d "$APP_RESOURCES_DIR" ]]; then
   cp -R "$APP_RESOURCES_DIR/." "$APP/Contents/Resources/"
 fi
+if [[ ! -f "$APP/Contents/Resources/Icon-classic.icns" ]]; then
+  echo "ERROR: Missing Icon-classic.icns in app bundle resources." >&2
+  exit 1
+fi
 
 # SwiftPM resource bundles (e.g. KeyboardShortcuts) are emitted next to the built binary.
 PREFERRED_BUILD_DIR="$(dirname "$(build_product_path "CodexBar" "${ARCH_LIST[0]}")")"
