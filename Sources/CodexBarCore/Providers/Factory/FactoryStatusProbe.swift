@@ -372,6 +372,7 @@ public struct FactoryStatusSnapshot: Sendable {
             return min(100, max(0, ratio * 100))
         }
 
+        // TODO: Confirm usedRatio contract (0.0-1.0 vs 0.0-100.0) and tighten this fallback.
         // Secondary: percent scale (0.0 - 100.0), only when allowance is missing/unreliable.
         // This avoids misinterpreting slightly-over-1 ratios when we can calculate locally.
         let allowanceIsReliable = allowance > 0 && allowance <= unlimitedThreshold
