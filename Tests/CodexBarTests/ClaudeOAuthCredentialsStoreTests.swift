@@ -52,7 +52,7 @@ struct ClaudeOAuthCredentialsStoreTests {
         defer { KeychainCacheStore.clear(key: cacheKey) }
         ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
         _ = try ClaudeOAuthCredentialsStore.load(environment: [:])
-        KeychainAccessGate.isDisabled = true
+        // Re-store to cache after file check has marked file as "seen"
         KeychainCacheStore.store(key: cacheKey, entry: cacheEntry)
         let creds = try ClaudeOAuthCredentialsStore.load(environment: [:])
 
@@ -123,7 +123,6 @@ struct ClaudeOAuthCredentialsStoreTests {
         defer { KeychainAccessGate.isDisabled = previousGate }
 
         ClaudeOAuthCredentialsStore.invalidateCache()
-        KeychainAccessGate.isDisabled = true
         let creds = try ClaudeOAuthCredentialsStore.load(environment: [:])
 
         #expect(creds.accessToken == "expired-only")

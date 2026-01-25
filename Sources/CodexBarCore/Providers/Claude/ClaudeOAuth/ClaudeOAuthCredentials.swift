@@ -152,8 +152,7 @@ public enum ClaudeOAuthCredentialsStore {
         if let cached = self.cachedCredentials,
            let timestamp = self.cacheTimestamp,
            Date().timeIntervalSince(timestamp) < self.memoryCacheValidityDuration,
-           !cached.isExpired,
-           self.loadFileFingerprint() == self.currentFileFingerprint()
+           !cached.isExpired
         {
             return cached
         }
