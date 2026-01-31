@@ -43,7 +43,9 @@ extension UsageStore {
         }
 
         let outcome = await spec.fetch()
-        if provider == .claude, ClaudeOAuthCredentialsStore.invalidateCacheIfCredentialsFileChanged() {
+        if provider == .claude,
+            ClaudeOAuthCredentialsStore.invalidateCacheIfCredentialsFileChanged()
+        {
             await MainActor.run {
                 self.snapshots.removeValue(forKey: .claude)
                 self.errors[.claude] = nil
@@ -53,6 +55,7 @@ extension UsageStore {
                 self.tokenSnapshots.removeValue(forKey: .claude)
                 self.tokenErrors[.claude] = nil
                 self.failureGates[.claude]?.reset()
+                self.lastTokenFetchAt.removeValue(forKey: .claude)
             }
         }
         await MainActor.run {
@@ -60,7 +63,7 @@ extension UsageStore {
         }
 
         switch outcome.result {
-        case let .success(result):
+        case .success(let result):
             let scoped = result.usage.scoped(to: provider)
             await MainActor.run {
                 self.handleSessionQuotaTransition(provider: provider, snapshot: scoped)
@@ -70,13 +73,15 @@ extension UsageStore {
                 self.failureGates[provider]?.recordSuccess()
             }
             if let runtime = self.providerRuntimes[provider] {
-                let context = ProviderRuntimeContext(provider: provider, settings: self.settings, store: self)
+                let context = ProviderRuntimeContext(
+                    provider: provider, settings: self.settings, store: self)
                 runtime.providerDidRefresh(context: context, provider: provider)
             }
-        case let .failure(error):
+        case .failure(let error):
             await MainActor.run {
                 let hadPriorData = self.snapshots[provider] != nil
-                let shouldSurface = self.failureGates[provider]?
+                let shouldSurface =
+                    self.failureGates[provider]?
                     .shouldSurfaceError(onFailureWithPriorData: hadPriorData) ?? true
                 if shouldSurface {
                     self.errors[provider] = error.localizedDescription
@@ -86,7 +91,8 @@ extension UsageStore {
                 }
             }
             if let runtime = self.providerRuntimes[provider] {
-                let context = ProviderRuntimeContext(provider: provider, settings: self.settings, store: self)
+                let context = ProviderRuntimeContext(
+                    provider: provider, settings: self.settings, store: self)
                 runtime.providerDidFail(context: context, provider: provider, error: error)
             }
         }
