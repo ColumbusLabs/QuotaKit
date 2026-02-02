@@ -6,9 +6,9 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN_DIR="${ROOT_DIR}/.build/lint-tools/bin"
 
 ensure_tools() {
-  if [[ ! -x "${BIN_DIR}/swiftformat" || ! -x "${BIN_DIR}/swiftlint" ]]; then
-    "${ROOT_DIR}/Scripts/install_lint_tools.sh"
-  fi
+  # Always delegate to the installer so pinned versions are enforced.
+  # The installer is idempotent and exits early when the expected versions are already present.
+  "${ROOT_DIR}/Scripts/install_lint_tools.sh"
 }
 
 cmd="${1:-lint}"
@@ -28,4 +28,3 @@ case "$cmd" in
     exit 2
     ;;
 esac
-
