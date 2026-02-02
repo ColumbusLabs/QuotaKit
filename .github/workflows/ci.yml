@@ -31,13 +31,10 @@ jobs:
           echo "TOOLCHAINS=swift-6.2-RELEASE" >> "$GITHUB_ENV"
 
       - name: Install lint tools
-        run: brew install swiftlint swiftformat
+        run: ./Scripts/install_lint_tools.sh
 
-      - name: SwiftFormat (lint)
-        run: swiftformat Sources Tests --lint
-
-      - name: SwiftLint
-        run: swiftlint --strict
+      - name: Lint
+        run: ./Scripts/lint.sh lint
 
       - name: Swift Test
         run: swift test --parallel
