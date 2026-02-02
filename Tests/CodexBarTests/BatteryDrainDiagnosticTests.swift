@@ -10,7 +10,7 @@ import Testing
 @Suite(.serialized)
 struct BatteryDrainDiagnosticTests {
     @Test("Fallback provider should not animate when all providers are disabled")
-    func fallbackProviderDoesNotAnimate() async throws {
+    func fallbackProviderDoesNotAnimate() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "BatteryDrain-AllDisabled"),
             zaiTokenStore: NoopZaiTokenStore(),
@@ -41,14 +41,16 @@ struct BatteryDrainDiagnosticTests {
             preferencesSelection: PreferencesSelection(),
             statusBar: NSStatusBar())
 
-        #expect(controller.needsMenuBarIconAnimation() == false,
-                "Should not animate when only fallback provider is visible")
-        #expect(controller.animationDriver == nil,
-                "Animation driver should not start for fallback provider")
+        #expect(
+            controller.needsMenuBarIconAnimation() == false,
+            "Should not animate when only fallback provider is visible")
+        #expect(
+            controller.animationDriver == nil,
+            "Animation driver should not start for fallback provider")
     }
 
     @Test("Enabled provider with data should not animate")
-    func enabledProviderWithDataDoesNotAnimate() async throws {
+    func enabledProviderWithDataDoesNotAnimate() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "BatteryDrain-HasData"),
             zaiTokenStore: NoopZaiTokenStore(),
@@ -84,14 +86,16 @@ struct BatteryDrainDiagnosticTests {
             preferencesSelection: PreferencesSelection(),
             statusBar: NSStatusBar())
 
-        #expect(controller.needsMenuBarIconAnimation() == false,
-                "Should not animate when provider has data")
-        #expect(controller.animationDriver == nil,
-                "Animation driver should be nil when data is present")
+        #expect(
+            controller.needsMenuBarIconAnimation() == false,
+            "Should not animate when provider has data")
+        #expect(
+            controller.animationDriver == nil,
+            "Animation driver should be nil when data is present")
     }
 
     @Test("Enabled provider without data should animate")
-    func enabledProviderWithoutDataAnimates() async throws {
+    func enabledProviderWithoutDataAnimates() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "BatteryDrain-NoData"),
             zaiTokenStore: NoopZaiTokenStore(),
@@ -120,7 +124,8 @@ struct BatteryDrainDiagnosticTests {
             preferencesSelection: PreferencesSelection(),
             statusBar: NSStatusBar())
 
-        #expect(controller.needsMenuBarIconAnimation() == true,
-                "Should animate when enabled provider has no data")
+        #expect(
+            controller.needsMenuBarIconAnimation() == true,
+            "Should animate when enabled provider has no data")
     }
 }
