@@ -457,7 +457,8 @@ public struct KiroStatusProbe: Sendable {
         }
 
         // Require at least one key pattern to match to avoid silent failures
-        if !matchedPercent, !matchedCredits, !matchedNewFormat {
+        // Only bypass error for managed plans in new format (they don't expose usage data)
+        if !matchedPercent, !matchedCredits, !(matchedNewFormat && isManagedPlan) {
             throw KiroStatusProbeError.parseError(
                 "No recognizable usage patterns found. Kiro CLI output format may have changed.")
         }
