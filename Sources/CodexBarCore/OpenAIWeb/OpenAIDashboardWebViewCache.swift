@@ -35,7 +35,9 @@ final class OpenAIDashboardWebViewCache {
 
     #if DEBUG
     /// Number of cached WebView entries (for testing).
-    var entryCount: Int { self.entries.count }
+    var entryCount: Int {
+        self.entries.count
+    }
 
     /// Check if a WebView is cached for the given data store (for testing).
     func hasCachedEntry(for websiteDataStore: WKWebsiteDataStore) -> Bool {

@@ -30,7 +30,7 @@ public enum OpenAIDashboardWebsiteDataStore {
 
         let id = Self.identifier(forNormalizedEmail: normalized)
         let store = WKWebsiteDataStore(forIdentifier: id)
-        cachedStores[normalized] = store
+        self.cachedStores[normalized] = store
         return store
     }
 
@@ -56,14 +56,14 @@ public enum OpenAIDashboardWebsiteDataStore {
 
         // Remove from cache so a fresh instance is created on next access
         if let normalized = normalizeEmail(email) {
-            cachedStores.removeValue(forKey: normalized)
+            self.cachedStores.removeValue(forKey: normalized)
         }
     }
 
     #if DEBUG
     /// Clear all cached store instances (for test isolation).
     public static func clearCacheForTesting() {
-        cachedStores.removeAll()
+        self.cachedStores.removeAll()
     }
     #endif
 
