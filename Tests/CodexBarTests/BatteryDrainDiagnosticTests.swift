@@ -9,8 +9,14 @@ import Testing
 @MainActor
 @Suite(.serialized)
 struct BatteryDrainDiagnosticTests {
+    private func ensureAppKitInitialized() {
+        _ = NSApplication.shared
+    }
+
     @Test("Fallback provider should not animate when all providers are disabled")
     func fallbackProviderDoesNotAnimate() {
+        self.ensureAppKitInitialized()
+
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "BatteryDrain-AllDisabled"),
             zaiTokenStore: NoopZaiTokenStore(),
@@ -51,6 +57,8 @@ struct BatteryDrainDiagnosticTests {
 
     @Test("Enabled provider with data should not animate")
     func enabledProviderWithDataDoesNotAnimate() {
+        self.ensureAppKitInitialized()
+
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "BatteryDrain-HasData"),
             zaiTokenStore: NoopZaiTokenStore(),
@@ -96,6 +104,8 @@ struct BatteryDrainDiagnosticTests {
 
     @Test("Enabled provider without data should animate")
     func enabledProviderWithoutDataAnimates() {
+        self.ensureAppKitInitialized()
+
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "BatteryDrain-NoData"),
             zaiTokenStore: NoopZaiTokenStore(),
