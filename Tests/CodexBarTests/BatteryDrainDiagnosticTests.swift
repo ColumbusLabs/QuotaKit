@@ -13,6 +13,14 @@ struct BatteryDrainDiagnosticTests {
         _ = NSApplication.shared
     }
 
+    private func makeStatusBarForTesting() -> NSStatusBar {
+        let env = ProcessInfo.processInfo.environment
+        if env["GITHUB_ACTIONS"] == "true" || env["CI"] == "true" {
+            return .system
+        }
+        return NSStatusBar()
+    }
+
     @Test("Fallback provider should not animate when all providers are disabled")
     func fallbackProviderDoesNotAnimate() {
         self.ensureAppKitInitialized()
@@ -45,7 +53,7 @@ struct BatteryDrainDiagnosticTests {
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
             preferencesSelection: PreferencesSelection(),
-            statusBar: NSStatusBar())
+            statusBar: self.makeStatusBarForTesting())
 
         #expect(
             controller.needsMenuBarIconAnimation() == false,
@@ -92,7 +100,7 @@ struct BatteryDrainDiagnosticTests {
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
             preferencesSelection: PreferencesSelection(),
-            statusBar: NSStatusBar())
+            statusBar: self.makeStatusBarForTesting())
 
         #expect(
             controller.needsMenuBarIconAnimation() == false,
@@ -132,7 +140,7 @@ struct BatteryDrainDiagnosticTests {
             account: fetcher.loadAccountInfo(),
             updater: DisabledUpdaterController(),
             preferencesSelection: PreferencesSelection(),
-            statusBar: NSStatusBar())
+            statusBar: self.makeStatusBarForTesting())
 
         #expect(
             controller.needsMenuBarIconAnimation() == true,
