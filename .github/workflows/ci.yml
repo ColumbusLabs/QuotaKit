@@ -36,7 +36,7 @@ jobs:
         run: ./Scripts/lint.sh lint
 
       - name: Swift Test
-        run: swift test
+        run: swift test --no-parallel
 
   build-linux-cli:
     strategy:
