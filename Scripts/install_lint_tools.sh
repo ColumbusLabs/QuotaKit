@@ -41,7 +41,7 @@ install_zip_binary() {
   local binary_name="$4"
 
   local tmp_zip
-  tmp_zip="$(mktemp -t "${label}.XXXX").zip"
+  tmp_zip="$(mktemp -t "${label}.XXXX")"
   local tmp_dir
   tmp_dir="$(mktemp -d -t "${label}.XXXX")"
 
