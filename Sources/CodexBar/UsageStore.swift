@@ -1210,6 +1210,11 @@ extension UsageStore {
                 text = await self.debugOllamaLog(
                     ollamaCookieSource: ollamaCookieSource,
                     ollamaCookieHeader: ollamaCookieHeader)
+            case .openrouter:
+                let resolution = ProviderTokenResolver.openRouterResolution()
+                let hasAny = resolution != nil
+                let source = resolution?.source.rawValue ?? "none"
+                text = "OPENROUTER_API_KEY=\(hasAny ? "present" : "missing") source=\(source)"
             case .warp:
                 let resolution = ProviderTokenResolver.warpResolution()
                 let hasAny = resolution != nil

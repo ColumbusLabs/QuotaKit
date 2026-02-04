@@ -31,6 +31,7 @@ enum ProviderImplementationRegistry {
         case .amp: AmpProviderImplementation()
         case .ollama: OllamaProviderImplementation()
         case .synthetic: SyntheticProviderImplementation()
+        case .openrouter: OpenRouterProviderImplementation()
         case .warp: WarpProviderImplementation()
         }
     }
