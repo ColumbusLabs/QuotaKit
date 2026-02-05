@@ -1251,7 +1251,9 @@ extension UsageStore {
                 ClaudeWebAPIFetcher.hasSessionKey(browserDetection: self.browserDetection) { msg in lines.append(msg) }
             }
             // Don't prompt for keychain access during debug dump
-            let hasOAuthCredentials = (try? ClaudeOAuthCredentialsStore.load(allowKeychainPrompt: false)) != nil
+            let hasOAuthCredentials = (try? ClaudeOAuthCredentialsStore.load(
+                allowKeychainPrompt: false,
+                respectKeychainPromptCooldown: true)) != nil
             let hasClaudeBinary = BinaryLocator.resolveClaudeBinary(
                 env: ProcessInfo.processInfo.environment,
                 loginPATH: LoginShellPathCache.shared.current) != nil

@@ -145,7 +145,8 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
         // - Claude Code has stored OAuth creds in Keychain and we may be able to bootstrap (one prompt max).
         if let creds = try? ClaudeOAuthCredentialsStore.load(
             environment: context.env,
-            allowKeychainPrompt: false)
+            allowKeychainPrompt: false,
+            respectKeychainPromptCooldown: true)
         {
             let hasRequiredScope = creds.scopes.contains("user:profile")
             if hasRequiredScope {

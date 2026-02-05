@@ -4,6 +4,10 @@ import Foundation
 import FoundationNetworking
 #endif
 
+#if canImport(CryptoKit)
+import CryptoKit
+#endif
+
 #if os(macOS)
 import LocalAuthentication
 import Security
@@ -149,11 +153,32 @@ public enum ClaudeOAuthCredentialsStore {
     private static let log = CodexBarLog.logger(LogCategories.claudeUsage)
     private static let fileFingerprintKey = "ClaudeOAuthCredentialsFileFingerprintV1"
     private static let claudeKeychainPromptLock = NSLock()
+    private static let claudeKeychainFingerprintKey = "ClaudeOAuthClaudeKeychainFingerprintV2"
+    private static let claudeKeychainFingerprintLegacyKey = "ClaudeOAuthClaudeKeychainFingerprintV1"
+    private static let claudeKeychainChangeCheckLock = NSLock()
+    private nonisolated(unsafe) static var lastClaudeKeychainChangeCheckAt: Date?
+    private static let claudeKeychainChangeCheckMinimumInterval: TimeInterval = 60
+
+    struct ClaudeKeychainFingerprint: Codable, Equatable, Sendable {
+        let modifiedAt: Int?
+        let createdAt: Int?
+        let persistentRefHash: String?
+    }
 
     #if DEBUG
     private nonisolated(unsafe) static var keychainAccessOverride: Bool?
+    private nonisolated(unsafe) static var claudeKeychainDataOverride: Data?
+    private nonisolated(unsafe) static var claudeKeychainFingerprintOverride: ClaudeKeychainFingerprint?
     static func setKeychainAccessOverrideForTesting(_ disabled: Bool?) {
         self.keychainAccessOverride = disabled
+    }
+
+    static func setClaudeKeychainDataOverrideForTesting(_ data: Data?) {
+        self.claudeKeychainDataOverride = data
+    }
+
+    static func setClaudeKeychainFingerprintOverrideForTesting(_ fingerprint: ClaudeKeychainFingerprint?) {
+        self.claudeKeychainFingerprintOverride = fingerprint
     }
     #endif
 
@@ -192,6 +217,10 @@ public enum ClaudeOAuthCredentialsStore {
         allowKeychainPrompt: Bool = true,
         respectKeychainPromptCooldown: Bool = false) throws -> ClaudeOAuthCredentials
     {
+        // "Silent" keychain probes can still show UI on some macOS configurations. If the caller disallows prompts,
+        // always honor the Claude keychain access cooldown gate to prevent prompt storms in Auto-mode paths.
+        let shouldRespectKeychainPromptCooldownForSilentProbes = respectKeychainPromptCooldown || !allowKeychainPrompt
+
         if let credentials = self.loadFromEnvironment(environment) {
             return credentials
         }
@@ -204,6 +233,12 @@ public enum ClaudeOAuthCredentialsStore {
            Date().timeIntervalSince(timestamp) < self.memoryCacheValidityDuration,
            !cached.isExpired
         {
+            if let synced = self.syncWithClaudeKeychainIfChanged(
+                cached: cached,
+                respectKeychainPromptCooldown: shouldRespectKeychainPromptCooldownForSilentProbes)
+            {
+                return synced
+            }
             return cached
         }
 
@@ -217,6 +252,12 @@ public enum ClaudeOAuthCredentialsStore {
                 if creds.isExpired {
                     expiredCredentials = creds
                 } else {
+                    if let synced = self.syncWithClaudeKeychainIfChanged(
+                        cached: creds,
+                        respectKeychainPromptCooldown: shouldRespectKeychainPromptCooldownForSilentProbes)
+                    {
+                        return synced
+                    }
                     self.writeMemoryCache(credentials: creds, timestamp: Date())
                     return creds
                 }
@@ -536,6 +577,169 @@ public enum ClaudeOAuthCredentialsStore {
         #endif
     }
 
+    private static func syncWithClaudeKeychainIfChanged(
+        cached: ClaudeOAuthCredentials,
+        respectKeychainPromptCooldown: Bool,
+        now: Date = Date()) -> ClaudeOAuthCredentials?
+    {
+        #if os(macOS)
+        if !self.keychainAccessAllowed { return nil }
+        if respectKeychainPromptCooldown,
+           !ClaudeOAuthKeychainAccessGate.shouldAllowPrompt(now: now)
+        {
+            return nil
+        }
+
+        if !self.shouldCheckClaudeKeychainChange(now: now) {
+            return nil
+        }
+
+        guard let currentFingerprint = self.currentClaudeKeychainFingerprintWithoutPrompt() else {
+            return nil
+        }
+        let storedFingerprint = self.loadClaudeKeychainFingerprint()
+        guard currentFingerprint != storedFingerprint else { return nil }
+
+        do {
+            guard let data = try self.loadFromClaudeKeychainNonInteractive() else {
+                return nil
+            }
+            guard let keychainCreds = try? ClaudeOAuthCredentials.parse(data: data) else {
+                self.saveClaudeKeychainFingerprint(currentFingerprint)
+                return nil
+            }
+            self.saveClaudeKeychainFingerprint(currentFingerprint)
+
+            // Only sync if token actually changed to avoid churn on unrelated keychain metadata updates.
+            guard keychainCreds.accessToken != cached.accessToken else { return nil }
+            // Avoid regressing a working cached token if the keychain entry looks invalid/expired.
+            if keychainCreds.isExpired, !cached.isExpired { return nil }
+
+            self.log.info("Claude keychain credentials changed; syncing OAuth cache")
+            self.writeMemoryCache(credentials: keychainCreds, timestamp: now)
+            self.saveToCacheKeychain(data)
+            return keychainCreds
+        } catch let error as ClaudeOAuthCredentialsError {
+            if case let .keychainError(status) = error,
+               status == Int(errSecUserCanceled)
+               || status == Int(errSecAuthFailed)
+               || status == Int(errSecInteractionNotAllowed)
+               || status == Int(errSecNoAccessForItem)
+            {
+                // Back off to avoid repeated keychain probes on systems that still show prompts.
+                ClaudeOAuthKeychainAccessGate.recordDenied(now: now)
+            }
+            return nil
+        } catch {
+            return nil
+        }
+        #else
+        _ = cached
+        _ = respectKeychainPromptCooldown
+        _ = now
+        return nil
+        #endif
+    }
+
+    private static func shouldCheckClaudeKeychainChange(now: Date = Date()) -> Bool {
+        self.claudeKeychainChangeCheckLock.lock()
+        defer { self.claudeKeychainChangeCheckLock.unlock() }
+        if let last = self.lastClaudeKeychainChangeCheckAt,
+           now.timeIntervalSince(last) < self.claudeKeychainChangeCheckMinimumInterval
+        {
+            return false
+        }
+        self.lastClaudeKeychainChangeCheckAt = now
+        return true
+    }
+
+    private static func loadClaudeKeychainFingerprint() -> ClaudeKeychainFingerprint? {
+        // Proactively remove the legacy V1 key (it included the keychain account string, which can be identifying).
+        UserDefaults.standard.removeObject(forKey: self.claudeKeychainFingerprintLegacyKey)
+
+        guard let data = UserDefaults.standard.data(forKey: self.claudeKeychainFingerprintKey) else {
+            return nil
+        }
+        return try? JSONDecoder().decode(ClaudeKeychainFingerprint.self, from: data)
+    }
+
+    private static func saveClaudeKeychainFingerprint(_ fingerprint: ClaudeKeychainFingerprint?) {
+        // Proactively remove the legacy V1 key (it included the keychain account string, which can be identifying).
+        UserDefaults.standard.removeObject(forKey: self.claudeKeychainFingerprintLegacyKey)
+
+        guard let fingerprint else {
+            UserDefaults.standard.removeObject(forKey: self.claudeKeychainFingerprintKey)
+            return
+        }
+        if let data = try? JSONEncoder().encode(fingerprint) {
+            UserDefaults.standard.set(data, forKey: self.claudeKeychainFingerprintKey)
+        }
+    }
+
+    private static func currentClaudeKeychainFingerprintWithoutPrompt() -> ClaudeKeychainFingerprint? {
+        #if DEBUG
+        if let override = self.claudeKeychainFingerprintOverride { return override }
+        #endif
+        #if os(macOS)
+        let newest: ClaudeKeychainCandidate? = self.claudeKeychainCandidatesWithoutPrompt().first
+            ?? self.claudeKeychainLegacyCandidateWithoutPrompt()
+        guard let newest else { return nil }
+
+        let modifiedAt = newest.modifiedAt.map { Int($0.timeIntervalSince1970) }
+        let createdAt = newest.createdAt.map { Int($0.timeIntervalSince1970) }
+        let persistentRefHash = Self.sha256Prefix(newest.persistentRef)
+        return ClaudeKeychainFingerprint(
+            modifiedAt: modifiedAt,
+            createdAt: createdAt,
+            persistentRefHash: persistentRefHash)
+        #else
+        return nil
+        #endif
+    }
+
+    private static func sha256Prefix(_ data: Data) -> String? {
+        #if canImport(CryptoKit)
+        let digest = SHA256.hash(data: data)
+        let hex = digest.compactMap { String(format: "%02x", $0) }.joined()
+        return String(hex.prefix(12))
+        #else
+        _ = data
+        return nil
+        #endif
+    }
+
+    private static func loadFromClaudeKeychainNonInteractive() throws -> Data? {
+        #if DEBUG
+        if let override = self.claudeKeychainDataOverride { return override }
+        #endif
+        #if os(macOS)
+        if !self.keychainAccessAllowed {
+            return nil
+        }
+
+        // Keep semantics aligned with fingerprinting: if there are multiple entries, we only ever consult the newest
+        // candidate (same as currentClaudeKeychainFingerprintWithoutPrompt()) to avoid syncing from a different item.
+        let candidates = self.claudeKeychainCandidatesWithoutPrompt()
+        if let newest = candidates.first {
+            if let data = try self.loadClaudeKeychainData(candidate: newest, allowKeychainPrompt: false),
+               !data.isEmpty
+            {
+                return data
+            }
+            return nil
+        }
+
+        if let data = try self.loadClaudeKeychainLegacyData(allowKeychainPrompt: false),
+           !data.isEmpty
+        {
+            return data
+        }
+        return nil
+        #else
+        return nil
+        #endif
+    }
+
     public static func loadFromClaudeKeychain() throws -> Data {
         #if os(macOS)
         if !self.keychainAccessAllowed {
@@ -631,6 +835,28 @@ public enum ClaudeOAuthCredentialsStore {
             let rhsDate = rhs.modifiedAt ?? rhs.createdAt ?? Date.distantPast
             return lhsDate > rhsDate
         }
+    }
+
+    private static func claudeKeychainLegacyCandidateWithoutPrompt() -> ClaudeKeychainCandidate? {
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: self.claudeKeychainService,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+            kSecReturnAttributes as String: true,
+            kSecReturnPersistentRef as String: true,
+        ]
+        KeychainNoUIQuery.apply(to: &query)
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        guard status == errSecSuccess else { return nil }
+        guard let row = result as? [String: Any] else { return nil }
+        guard let persistentRef = row[kSecValuePersistentRef as String] as? Data else { return nil }
+        return ClaudeKeychainCandidate(
+            persistentRef: persistentRef,
+            account: row[kSecAttrAccount as String] as? String,
+            modifiedAt: row[kSecAttrModificationDate as String] as? Date,
+            createdAt: row[kSecAttrCreationDate as String] as? Date)
     }
 
     private static func loadClaudeKeychainData(
@@ -794,6 +1020,22 @@ public enum ClaudeOAuthCredentialsStore {
     #if DEBUG
     static func _resetCredentialsFileTrackingForTesting() {
         UserDefaults.standard.removeObject(forKey: self.fileFingerprintKey)
+    }
+
+    static func _resetClaudeKeychainChangeTrackingForTesting() {
+        UserDefaults.standard.removeObject(forKey: self.claudeKeychainFingerprintKey)
+        UserDefaults.standard.removeObject(forKey: self.claudeKeychainFingerprintLegacyKey)
+        self.setClaudeKeychainDataOverrideForTesting(nil)
+        self.setClaudeKeychainFingerprintOverrideForTesting(nil)
+        self.claudeKeychainChangeCheckLock.lock()
+        self.lastClaudeKeychainChangeCheckAt = nil
+        self.claudeKeychainChangeCheckLock.unlock()
+    }
+
+    static func _resetClaudeKeychainChangeThrottleForTesting() {
+        self.claudeKeychainChangeCheckLock.lock()
+        self.lastClaudeKeychainChangeCheckAt = nil
+        self.claudeKeychainChangeCheckLock.unlock()
     }
     #endif
 

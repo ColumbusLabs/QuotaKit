@@ -230,7 +230,8 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         case .auto:
             let oauthCreds = try? ClaudeOAuthCredentialsStore.load(
                 environment: self.environment,
-                allowKeychainPrompt: false)
+                allowKeychainPrompt: false,
+                respectKeychainPromptCooldown: true)
             let hasOAuthCredentials = oauthCreds?.scopes.contains("user:profile") ?? false
             let hasWebSession =
                 if let header = self.manualCookieHeader {
