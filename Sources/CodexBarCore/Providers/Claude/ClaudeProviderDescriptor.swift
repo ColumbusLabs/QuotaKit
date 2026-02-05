@@ -136,7 +136,17 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
     let kind: ProviderFetchKind = .oauth
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        // In OAuth-only mode, allow the fetch to run and prompt once when needed.
+        let shouldApplyOAuthRefreshFailureGate = context.runtime == .app
+            && (context.sourceMode == .auto || context.sourceMode == .oauth)
+        let hasEnvironmentOAuthToken = !(context.env[ClaudeOAuthCredentialsStore.environmentTokenKey]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .isEmpty ?? true)
+        if shouldApplyOAuthRefreshFailureGate, !hasEnvironmentOAuthToken {
+            guard ClaudeOAuthRefreshFailureGate.shouldAttempt() else { return false }
+        }
+        // In OAuth-only mode, allow the fetch to run (and prompt when needed) unless:
+        // - refresh is terminal-blocked due to an auth-specific rejection (e.g. invalid_grant), or
+        // - refresh is transiently backed off due to repeated 400/401 failures.
         guard context.sourceMode == .auto else { return true }
 
         // Prefer OAuth in Auto mode only when it’s plausibly usable:

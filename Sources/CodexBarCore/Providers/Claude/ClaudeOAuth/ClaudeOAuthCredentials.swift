@@ -123,7 +123,7 @@ public enum ClaudeOAuthCredentialsError: LocalizedError, Sendable {
         case let .readFailed(message):
             return "Claude OAuth credentials read failed: \(message)"
         case let .refreshFailed(message):
-            return "Claude OAuth token refresh failed: \(message). Run `claude` to re-authenticate."
+            return "Claude OAuth token refresh failed: \(message)"
         case .noRefreshToken:
             return "Claude OAuth refresh token missing. Run `claude` to authenticate."
         }
@@ -158,6 +158,7 @@ public enum ClaudeOAuthCredentialsStore {
     private static let claudeKeychainChangeCheckLock = NSLock()
     private nonisolated(unsafe) static var lastClaudeKeychainChangeCheckAt: Date?
     private static let claudeKeychainChangeCheckMinimumInterval: TimeInterval = 60
+    private static let reauthenticateHint = "Run `claude` to re-authenticate."
 
     struct ClaudeKeychainFingerprint: Codable, Equatable, Sendable {
         let modifiedAt: Int?
@@ -332,19 +333,6 @@ public enum ClaudeOAuthCredentialsStore {
         throw ClaudeOAuthCredentialsError.notFound
     }
 
-    private static func shouldShowClaudeKeychainPreAlert() -> Bool {
-        switch KeychainAccessPreflight.checkGenericPassword(service: self.claudeKeychainService, account: nil) {
-        case .interactionRequired:
-            true
-        case .failure:
-            // If preflight fails, we can't be sure whether interaction is required (or if the preflight itself
-            // is impacted by a misbehaving Keychain configuration). Be conservative and show the pre-alert.
-            true
-        case .allowed, .notFound:
-            false
-        }
-    }
-
     /// Async version of load that automatically refreshes expired tokens.
     /// This is the preferred method - it will refresh tokens using the refresh token
     /// and update CodexBar's keychain cache, so users won't be prompted again
@@ -383,67 +371,6 @@ public enum ClaudeOAuthCredentialsStore {
             self.log.error("Token refresh failed: \(error.localizedDescription)")
             throw error
         }
-    }
-
-    /// Refresh the access token using a refresh token.
-    /// Updates CodexBar's keychain cache with the new credentials.
-    public static func refreshAccessToken(
-        refreshToken: String,
-        existingScopes: [String],
-        existingRateLimitTier: String?) async throws -> ClaudeOAuthCredentials
-    {
-        guard let url = URL(string: self.tokenRefreshEndpoint) else {
-            throw ClaudeOAuthCredentialsError.refreshFailed("Invalid token endpoint URL")
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 30
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-        var components = URLComponents()
-        components.queryItems = [
-            URLQueryItem(name: "grant_type", value: "refresh_token"),
-            URLQueryItem(name: "refresh_token", value: refreshToken),
-            URLQueryItem(name: "client_id", value: self.oauthClientID),
-        ]
-        request.httpBody = (components.percentEncodedQuery ?? "").data(using: .utf8)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let http = response as? HTTPURLResponse else {
-            throw ClaudeOAuthCredentialsError.refreshFailed("Invalid response")
-        }
-
-        guard http.statusCode == 200 else {
-            if http.statusCode == 401 || http.statusCode == 400 {
-                // Refresh token is invalid/expired, or the request was rejected.
-                self.invalidateCache()
-                throw ClaudeOAuthCredentialsError.refreshFailed("HTTP \(http.statusCode)")
-            }
-            throw ClaudeOAuthCredentialsError.refreshFailed("HTTP \(http.statusCode)")
-        }
-
-        // Parse the token response
-        let tokenResponse = try JSONDecoder().decode(TokenRefreshResponse.self, from: data)
-
-        let expiresAt = Date(timeIntervalSinceNow: TimeInterval(tokenResponse.expiresIn))
-
-        let newCredentials = ClaudeOAuthCredentials(
-            accessToken: tokenResponse.accessToken,
-            refreshToken: tokenResponse.refreshToken ?? refreshToken,
-            expiresAt: expiresAt,
-            scopes: existingScopes,
-            rateLimitTier: existingRateLimitTier)
-
-        // Save to CodexBar's keychain cache (not Claude's keychain)
-        self.saveRefreshedCredentialsToCache(newCredentials)
-
-        // Update in-memory cache
-        self.writeMemoryCache(credentials: newCredentials, timestamp: Date())
-
-        return newCredentials
     }
 
     /// Save refreshed credentials to CodexBar's keychain cache
@@ -711,6 +638,16 @@ public enum ClaudeOAuthCredentialsStore {
         #else
         return nil
         #endif
+    }
+
+    static func currentClaudeKeychainFingerprintWithoutPromptForAuthGate() -> ClaudeKeychainFingerprint? {
+        self.currentClaudeKeychainFingerprintWithoutPrompt()
+    }
+
+    static func currentCredentialsFileFingerprintWithoutPromptForAuthGate() -> String? {
+        guard let fingerprint = self.currentFileFingerprint() else { return nil }
+        let modifiedAt = fingerprint.modifiedAt ?? 0
+        return "\(modifiedAt):\(fingerprint.size)"
     }
 
     private static func sha256Prefix(_ data: Data) -> String? {
@@ -1062,4 +999,141 @@ public enum ClaudeOAuthCredentialsStore {
         let home = FileManager.default.homeDirectoryForCurrentUser
         return home.appendingPathComponent(self.credentialsPath)
     }
+}
+
+extension ClaudeOAuthCredentialsStore {
+    private static func shouldShowClaudeKeychainPreAlert() -> Bool {
+        switch KeychainAccessPreflight.checkGenericPassword(service: self.claudeKeychainService, account: nil) {
+        case .interactionRequired:
+            true
+        case .failure:
+            // If preflight fails, we can't be sure whether interaction is required (or if the preflight itself
+            // is impacted by a misbehaving Keychain configuration). Be conservative and show the pre-alert.
+            true
+        case .allowed, .notFound:
+            false
+        }
+    }
+
+    /// Refresh the access token using a refresh token.
+    /// Updates CodexBar's keychain cache with the new credentials.
+    public static func refreshAccessToken(
+        refreshToken: String,
+        existingScopes: [String],
+        existingRateLimitTier: String?) async throws -> ClaudeOAuthCredentials
+    {
+        guard ClaudeOAuthRefreshFailureGate.shouldAttempt() else {
+            let status = ClaudeOAuthRefreshFailureGate.currentBlockStatus()
+            let message = switch status {
+            case .terminal:
+                "Claude OAuth refresh blocked until auth changes. \(self.reauthenticateHint)"
+            case .transient:
+                "Claude OAuth refresh temporarily backed off due to prior failures; will retry automatically."
+            case nil:
+                "Claude OAuth refresh temporarily suppressed due to prior failures; will retry automatically."
+            }
+            throw ClaudeOAuthCredentialsError.refreshFailed(message)
+        }
+
+        guard let url = URL(string: self.tokenRefreshEndpoint) else {
+            throw ClaudeOAuthCredentialsError.refreshFailed("Invalid token endpoint URL")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 30
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        var components = URLComponents()
+        components.queryItems = [
+            URLQueryItem(name: "grant_type", value: "refresh_token"),
+            URLQueryItem(name: "refresh_token", value: refreshToken),
+            URLQueryItem(name: "client_id", value: self.oauthClientID),
+        ]
+        request.httpBody = (components.percentEncodedQuery ?? "").data(using: .utf8)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let http = response as? HTTPURLResponse else {
+            throw ClaudeOAuthCredentialsError.refreshFailed("Invalid response")
+        }
+
+        guard http.statusCode == 200 else {
+            if let disposition = self.refreshFailureDisposition(statusCode: http.statusCode, data: data) {
+                let oauthError = self.extractOAuthErrorCode(from: data)
+                self.log.info(
+                    "Claude OAuth refresh rejected",
+                    metadata: [
+                        "httpStatus": "\(http.statusCode)",
+                        "oauthError": oauthError ?? "nil",
+                        "disposition": disposition.rawValue,
+                    ])
+
+                switch disposition {
+                case .terminalInvalidGrant:
+                    ClaudeOAuthRefreshFailureGate.recordTerminalAuthFailure()
+                    self.invalidateCache()
+                    throw ClaudeOAuthCredentialsError.refreshFailed(
+                        "HTTP \(http.statusCode) invalid_grant. \(self.reauthenticateHint)")
+                case .transientBackoff:
+                    ClaudeOAuthRefreshFailureGate.recordTransientFailure()
+                    let suffix = oauthError.map { " (\($0))" } ?? ""
+                    throw ClaudeOAuthCredentialsError.refreshFailed("HTTP \(http.statusCode)\(suffix)")
+                }
+            }
+            throw ClaudeOAuthCredentialsError.refreshFailed("HTTP \(http.statusCode)")
+        }
+
+        // Parse the token response
+        let tokenResponse = try JSONDecoder().decode(TokenRefreshResponse.self, from: data)
+
+        let expiresAt = Date(timeIntervalSinceNow: TimeInterval(tokenResponse.expiresIn))
+
+        let newCredentials = ClaudeOAuthCredentials(
+            accessToken: tokenResponse.accessToken,
+            refreshToken: tokenResponse.refreshToken ?? refreshToken,
+            expiresAt: expiresAt,
+            scopes: existingScopes,
+            rateLimitTier: existingRateLimitTier)
+
+        // Save to CodexBar's keychain cache (not Claude's keychain)
+        self.saveRefreshedCredentialsToCache(newCredentials)
+
+        // Update in-memory cache
+        self.writeMemoryCache(credentials: newCredentials, timestamp: Date())
+        ClaudeOAuthRefreshFailureGate.recordSuccess()
+
+        return newCredentials
+    }
+
+    private enum RefreshFailureDisposition: String, Sendable {
+        case terminalInvalidGrant
+        case transientBackoff
+    }
+
+    private static func extractOAuthErrorCode(from data: Data) -> String? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+        return json["error"] as? String
+    }
+
+    private static func refreshFailureDisposition(statusCode: Int, data: Data) -> RefreshFailureDisposition? {
+        guard statusCode == 400 || statusCode == 401 else { return nil }
+        if let error = self.extractOAuthErrorCode(from: data)?.lowercased(), error == "invalid_grant" {
+            return .terminalInvalidGrant
+        }
+        return .transientBackoff
+    }
+
+    #if DEBUG
+    static func extractOAuthErrorCodeForTesting(from data: Data) -> String? {
+        self.extractOAuthErrorCode(from: data)
+    }
+
+    static func refreshFailureDispositionForTesting(statusCode: Int, data: Data) -> String? {
+        self.refreshFailureDisposition(statusCode: statusCode, data: data)?.rawValue
+    }
+    #endif
 }
