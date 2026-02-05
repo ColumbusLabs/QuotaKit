@@ -135,7 +135,29 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
     let id: String = "claude.oauth"
     let kind: ProviderFetchKind = .oauth
 
+    #if DEBUG
+    @TaskLocal static var nonInteractiveCredentialsOverride: ClaudeOAuthCredentials?
+    #endif
+
+    private func loadNonInteractiveCredentials(_ context: ProviderFetchContext) -> ClaudeOAuthCredentials? {
+        #if DEBUG
+        if let override = Self.nonInteractiveCredentialsOverride { return override }
+        #endif
+
+        return try? ClaudeOAuthCredentialsStore.load(
+            environment: context.env,
+            allowKeychainPrompt: false,
+            respectKeychainPromptCooldown: true)
+    }
+
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
+        let nonInteractiveCredentials = self.loadNonInteractiveCredentials(context)
+        let hasRequiredScopeWithoutPrompt = nonInteractiveCredentials?.scopes.contains("user:profile") == true
+        if hasRequiredScopeWithoutPrompt, nonInteractiveCredentials?.isExpired == false {
+            // Gate controls refresh attempts, not use of already-valid access tokens.
+            return true
+        }
+
         let shouldApplyOAuthRefreshFailureGate = context.runtime == .app
             && (context.sourceMode == .auto || context.sourceMode == .oauth)
         let hasEnvironmentOAuthToken = !(context.env[ClaudeOAuthCredentialsStore.environmentTokenKey]?
@@ -153,17 +175,9 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
         // - we can load credentials without prompting (env / CodexBar cache / credentials file) AND they meet the
         //   scope requirement, or
         // - Claude Code has stored OAuth creds in Keychain and we may be able to bootstrap (one prompt max).
-        if let creds = try? ClaudeOAuthCredentialsStore.load(
-            environment: context.env,
-            allowKeychainPrompt: false,
-            respectKeychainPromptCooldown: true)
-        {
-            let hasRequiredScope = creds.scopes.contains("user:profile")
-            if hasRequiredScope {
-                if !creds.isExpired { return true }
-                let refreshToken = creds.refreshToken?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                if !refreshToken.isEmpty { return true }
-            }
+        if let creds = nonInteractiveCredentials, hasRequiredScopeWithoutPrompt {
+            let refreshToken = creds.refreshToken?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !refreshToken.isEmpty { return true }
         }
         guard ClaudeOAuthKeychainAccessGate.shouldAllowPrompt() else { return false }
         return ClaudeOAuthCredentialsStore.hasClaudeKeychainCredentialsWithoutPrompt()
