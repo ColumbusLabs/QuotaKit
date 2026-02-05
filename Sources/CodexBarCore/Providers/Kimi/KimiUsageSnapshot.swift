@@ -74,7 +74,7 @@ extension KimiUsageSnapshot {
 
         return UsageSnapshot(
             primary: rateLimitWindow ?? weeklyWindow,
-            secondary: weeklyWindow,
+            secondary: rateLimitWindow != nil ? weeklyWindow : nil,
             tertiary: nil,
             providerCost: nil,
             updatedAt: self.updatedAt,
