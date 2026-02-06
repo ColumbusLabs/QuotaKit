@@ -56,6 +56,24 @@ Prompt mitigation:
 - Background cache-sync-on-change also performs non-interactive Claude keychain probes (`syncWithClaudeKeychainIfChanged`)
   and can update cached OAuth data when the token changes.
 
+### Why two Claude keychain prompts can still happen on startup
+When CodexBar does not have usable OAuth credentials in its own cache (`com.steipete.codexbar.cache` / `oauth.claude`),
+bootstrap falls through to Claude CLI keychain reads.
+
+Current flow can perform up to two interactive reads in one bootstrap call:
+1. Interactive read of the newest discovered keychain candidate.
+2. If that does not return usable data, interactive legacy service-level fallback read.
+
+On some macOS keychain/ACL states, pressing **Allow** (session-only) for the first read does not grant enough access
+for the second read shape, so macOS prompts again. Pressing **Always Allow** usually authorizes both query shapes for
+the app identity and avoids the immediate second prompt.
+
+The prompt copy differs because Security.framework is authorizing different operations:
+- one path is a direct secret-data read for the key item,
+- the fallback path is a key/service access query.
+
+This is OS/keychain ACL behavior, not a `ThisDeviceOnly` migration issue.
+
 ### 3. Claude web cookie cache
 `Sources/CodexBarCore/CookieHeaderCache.swift` and `Sources/CodexBarCore/KeychainCacheStore.swift`
 
