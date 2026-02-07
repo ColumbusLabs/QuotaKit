@@ -389,7 +389,8 @@ public enum ClaudeOAuthCredentialsStore {
                 let memory = self.readMemoryCache()
                 if let cachedRecord = memory.record,
                    let timestamp = memory.timestamp,
-                   Date().timeIntervalSince(timestamp) < self.memoryCacheValidityDuration
+                   Date().timeIntervalSince(timestamp) < self.memoryCacheValidityDuration,
+                   !cachedRecord.credentials.isExpired
                 {
                     return ClaudeOAuthCredentialRecord(
                         credentials: cachedRecord.credentials,
@@ -397,7 +398,8 @@ public enum ClaudeOAuthCredentialsStore {
                         source: .memoryCache)
                 }
                 if case let .found(entry) = KeychainCacheStore.load(key: self.cacheKey, as: CacheEntry.self),
-                   let creds = try? ClaudeOAuthCredentials.parse(data: entry.data)
+                   let creds = try? ClaudeOAuthCredentials.parse(data: entry.data),
+                   !creds.isExpired
                 {
                     return ClaudeOAuthCredentialRecord(
                         credentials: creds,
