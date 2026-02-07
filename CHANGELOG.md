@@ -4,6 +4,8 @@
 ### Highlights
 - Claude OAuth/keychain flows were reworked across a series of follow-up PRs to reduce prompt storms, stabilize
   background behavior, and make refresh failures deterministic (#245, #305, #308, #309). Thanks @manikv12!
+- Claude: harden Claude Code PTY capture for `/usage` and `/status` (prompt automation, safer command palette
+  confirmation, partial UTF-8 handling, and parsing guards against status-bar context meters) (#320).
 - Provider correctness fixes landed for Cursor plan parsing and MiniMax region routing (#240, #234). Thanks @robinebers
   and @theglove44!
 - Menu bar animation behavior was hardened in merged mode and fallback mode (#283, #291). Thanks @vignesh07 and
@@ -37,6 +39,8 @@
   updated to avoid network-dependent flakes (#284). Thanks @vignesh07!
 - Token-account precedence: selected token account env injection now correctly overrides provider config `apiKey`
   values in app and CLI environments. Thanks @arvindcr4!
+- Claude: make Claude CLI probing more resilient by scoping auto-input to the active subcommand and trimming to the
+  latest Usage panel before parsing to avoid false matches from earlier screen fragments (#320).
 
 ### Menu Bar & UI Behavior
 - Prevent fallback-provider loading animation loops (battery/CPU drain when no providers are enabled) (#283). Thanks
@@ -50,6 +54,8 @@
 - Stabilize PTY command timing tests to reduce CI flakiness (#312).
 - Upgrade `actions/checkout` to v6 and `actions/github-script` to v8 for Node 24 compatibility in
   `upstream-monitor.yml` (#290). Thanks @salmanmkc!
+- Tests: add TaskLocal-based keychain/cache overrides so keychain gating and KeychainCacheStore test stores do not
+  leak across concurrent test execution (#320).
 
 ### Docs & Maintenance
 - Update docs for Claude data fetch behavior and keychain troubleshooting notes.
