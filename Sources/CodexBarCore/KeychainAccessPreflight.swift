@@ -81,22 +81,22 @@ public enum KeychainAccessPreflight {
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         switch status {
         case errSecSuccess:
-            self.log.debug("Keychain preflight allowed", metadata: ["service": service, "account": account ?? "<any>"])
+            self.log.debug("Keychain preflight allowed", metadata: ["service": service])
             return .allowed
         case errSecItemNotFound:
             self.log.debug(
                 "Keychain preflight not found",
-                metadata: ["service": service, "account": account ?? "<any>"])
+                metadata: ["service": service])
             return .notFound
         case errSecInteractionNotAllowed:
             self.log.info(
                 "Keychain preflight requires interaction",
-                metadata: ["service": service, "account": account ?? "<any>"])
+                metadata: ["service": service])
             return .interactionRequired
         default:
             self.log.warning(
                 "Keychain preflight failed",
-                metadata: ["service": service, "account": account ?? "<any>", "status": "\(status)"])
+                metadata: ["service": service, "status": "\(status)"])
             return .failure(Int(status))
         }
         #else

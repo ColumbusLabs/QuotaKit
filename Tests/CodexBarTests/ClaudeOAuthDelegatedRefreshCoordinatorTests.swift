@@ -122,4 +122,54 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
         }
         #expect(message.contains("failed"))
     }
+
+    @Test
+    func concurrentAttemptsJoinInFlight() async {
+        ClaudeOAuthDelegatedRefreshCoordinator.resetForTesting()
+        defer { ClaudeOAuthDelegatedRefreshCoordinator.resetForTesting() }
+
+        final class FingerprintBox: @unchecked Sendable {
+            var fingerprint: ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint?
+            init(_ fingerprint: ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint?) {
+                self.fingerprint = fingerprint
+            }
+        }
+
+        final class CounterBox: @unchecked Sendable {
+            private let lock = NSLock()
+            private(set) var count: Int = 0
+            func increment() {
+                self.lock.lock()
+                self.count += 1
+                self.lock.unlock()
+            }
+        }
+
+        let counter = CounterBox()
+        let box = FingerprintBox(ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint(
+            modifiedAt: 1,
+            createdAt: 1,
+            persistentRefHash: "ref1"))
+        ClaudeOAuthDelegatedRefreshCoordinator.setKeychainFingerprintOverrideForTesting { box.fingerprint }
+
+        ClaudeOAuthDelegatedRefreshCoordinator.setCLIAvailableOverrideForTesting(true)
+        ClaudeOAuthDelegatedRefreshCoordinator.setTouchAuthPathOverrideForTesting { _ in
+            counter.increment()
+            try await Task.sleep(nanoseconds: 1_500_000_000)
+            box.fingerprint = ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint(
+                modifiedAt: 2,
+                createdAt: 2,
+                persistentRefHash: "ref2")
+        }
+
+        let now = Date(timeIntervalSince1970: 50000)
+        async let first = ClaudeOAuthDelegatedRefreshCoordinator.attempt(now: now, timeout: 2)
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        async let second = ClaudeOAuthDelegatedRefreshCoordinator.attempt(now: now.addingTimeInterval(30), timeout: 2)
+
+        let outcomes = await [first, second]
+
+        #expect(outcomes.allSatisfy { $0 == .attemptedSucceeded })
+        #expect(counter.count == 1)
+    }
 }

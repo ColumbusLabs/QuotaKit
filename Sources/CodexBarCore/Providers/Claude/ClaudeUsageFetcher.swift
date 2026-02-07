@@ -361,9 +361,15 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                     _ = ClaudeOAuthCredentialsStore.invalidateCacheIfCredentialsFileChanged()
                     ClaudeOAuthCredentialsStore.invalidateCache()
 
+                    let didSyncSilently: Bool = {
+                        guard !self.oauthKeychainPromptCooldownEnabled else { return false }
+                        guard delegatedOutcome == .attemptedSucceeded else { return false }
+                        return ClaudeOAuthCredentialsStore.syncFromClaudeKeychainWithoutPrompt(now: Date())
+                    }()
+
                     let refreshedCreds = try await Self.loadOAuthCredentials(
                         environment: self.environment,
-                        allowKeychainPrompt: !self.oauthKeychainPromptCooldownEnabled,
+                        allowKeychainPrompt: !self.oauthKeychainPromptCooldownEnabled && !didSyncSilently,
                         respectKeychainPromptCooldown: self.oauthKeychainPromptCooldownEnabled)
 
                     if !refreshedCreds.scopes.contains("user:profile") {

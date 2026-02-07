@@ -1007,7 +1007,6 @@ public enum ClaudeOAuthCredentialsStore {
             metadata: [
                 "service": self.claudeKeychainService,
                 "interactive": "\(allowKeychainPrompt)",
-                "persistentRefHash": self.sha256Prefix(candidate.persistentRef) ?? "<nil>",
                 "process": ProcessInfo.processInfo.processName,
             ])
 
@@ -1033,7 +1032,6 @@ public enum ClaudeOAuthCredentialsStore {
                 "interactive": "\(allowKeychainPrompt)",
                 "status": "\(status)",
                 "duration_ms": String(format: "%.2f", durationMs),
-                "persistentRefHash": Self.sha256Prefix(candidate.persistentRef) ?? "<nil>",
                 "process": ProcessInfo.processInfo.processName,
             ])
         switch status {

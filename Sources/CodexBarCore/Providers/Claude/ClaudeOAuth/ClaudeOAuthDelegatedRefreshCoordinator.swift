@@ -18,12 +18,47 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
     private nonisolated(unsafe) static var hasLoadedState = false
     private nonisolated(unsafe) static var lastAttemptAt: Date?
     private nonisolated(unsafe) static var lastCooldownInterval: TimeInterval?
+    private nonisolated(unsafe) static var inFlightAttemptID: UInt64?
+    private nonisolated(unsafe) static var inFlightTask: Task<Outcome, Never>?
+    private nonisolated(unsafe) static var nextAttemptID: UInt64 = 0
 
     public static func attempt(now: Date = Date(), timeout: TimeInterval = 8) async -> Outcome {
         if Task.isCancelled {
             return .attemptedFailed("Cancelled.")
         }
 
+        switch self.inFlightDecision(now: now, timeout: timeout) {
+        case let .join(task):
+            return await task.value
+        case let .start(id, task):
+            let outcome = await task.value
+            self.clearInFlightTaskIfStillCurrent(id: id)
+            return outcome
+        }
+    }
+
+    private enum InFlightDecision {
+        case join(Task<Outcome, Never>)
+        case start(UInt64, Task<Outcome, Never>)
+    }
+
+    private static func inFlightDecision(now: Date, timeout: TimeInterval) -> InFlightDecision {
+        self.stateLock.lock()
+        defer { self.stateLock.unlock() }
+
+        if let existing = self.inFlightTask {
+            return .join(existing)
+        }
+
+        self.nextAttemptID += 1
+        let attemptID = self.nextAttemptID
+        let task = Task { await self.performAttempt(now: now, timeout: timeout) }
+        self.inFlightAttemptID = attemptID
+        self.inFlightTask = task
+        return .start(attemptID, task)
+    }
+
+    private static func performAttempt(now: Date, timeout: TimeInterval) async -> Outcome {
         guard self.isClaudeCLIAvailable() else {
             self.log.info("Claude OAuth delegated refresh skipped: claude CLI unavailable")
             return .cliUnavailable
@@ -70,13 +105,21 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
     }
 
     public static func isInCooldown(now: Date = Date()) -> Bool {
-        guard let lastAttemptAt = self.lastAttemptDate() else { return false }
-        return now.timeIntervalSince(lastAttemptAt) < self.cooldownInterval
+        self.stateLock.lock()
+        defer { self.stateLock.unlock() }
+        self.loadStateIfNeededLocked()
+        guard let lastAttemptAt = self.lastAttemptAt else { return false }
+        let cooldown = self.lastCooldownInterval ?? self.defaultCooldownInterval
+        return now.timeIntervalSince(lastAttemptAt) < cooldown
     }
 
     public static func cooldownRemainingSeconds(now: Date = Date()) -> Int? {
-        guard let lastAttemptAt = self.lastAttemptDate() else { return nil }
-        let remaining = self.cooldownInterval - now.timeIntervalSince(lastAttemptAt)
+        self.stateLock.lock()
+        defer { self.stateLock.unlock() }
+        self.loadStateIfNeededLocked()
+        guard let lastAttemptAt = self.lastAttemptAt else { return nil }
+        let cooldown = self.lastCooldownInterval ?? self.defaultCooldownInterval
+        let remaining = cooldown - now.timeIntervalSince(lastAttemptAt)
         guard remaining > 0 else { return nil }
         return Int(remaining.rounded(.up))
     }
@@ -136,18 +179,13 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         return ClaudeOAuthCredentialsStore.currentClaudeKeychainFingerprintWithoutPromptForAuthGate()
     }
 
-    private static func lastAttemptDate() -> Date? {
+    private static func clearInFlightTaskIfStillCurrent(id: UInt64) {
         self.stateLock.lock()
-        defer { self.stateLock.unlock() }
-        self.loadStateIfNeededLocked()
-        return self.lastAttemptAt
-    }
-
-    private static var cooldownInterval: TimeInterval {
-        self.stateLock.lock()
-        defer { self.stateLock.unlock() }
-        self.loadStateIfNeededLocked()
-        return self.lastCooldownInterval ?? self.defaultCooldownInterval
+        if self.inFlightAttemptID == id {
+            self.inFlightAttemptID = nil
+            self.inFlightTask = nil
+        }
+        self.stateLock.unlock()
     }
 
     private static func recordAttempt(now: Date, cooldown: TimeInterval) {
@@ -165,7 +203,8 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         defer { self.stateLock.unlock() }
         self.loadStateIfNeededLocked()
 
-        if let lastAttemptAt = self.lastAttemptAt, now.timeIntervalSince(lastAttemptAt) < self.cooldownInterval {
+        let cooldown = self.lastCooldownInterval ?? self.defaultCooldownInterval
+        if let lastAttemptAt = self.lastAttemptAt, now.timeIntervalSince(lastAttemptAt) < cooldown {
             return false
         }
 
@@ -218,6 +257,9 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         self.hasLoadedState = true
         self.lastAttemptAt = nil
         self.lastCooldownInterval = nil
+        self.inFlightAttemptID = nil
+        self.inFlightTask = nil
+        self.nextAttemptID = 0
         self.stateLock.unlock()
         UserDefaults.standard.removeObject(forKey: self.cooldownDefaultsKey)
         UserDefaults.standard.removeObject(forKey: self.cooldownIntervalDefaultsKey)
