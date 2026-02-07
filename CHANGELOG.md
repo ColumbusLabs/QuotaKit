@@ -12,6 +12,11 @@
   stabilization plus Node 24-ready GitHub Actions upgrades (#292, #312, #290).
 
 ### Claude OAuth & Keychain (net result)
+- Claude OAuth refresh ownership now keeps Claude CLI as the refresh-token owner for CLI-managed credentials; CodexBar
+  delegates refresh handoff instead of rotating those tokens in its own cache.
+- Claude Auto mode now performs one delegated Claude CLI refresh handoff and one OAuth retry before normal `web -> cli`
+  fallback.
+- Claude OAuth-only mode now keeps strict OAuth semantics (no silent Web/CLI fallback) after delegated retry.
 - Auto-refresh expired Claude OAuth tokens and persist refreshed credentials in CodexBar's cache (#245). Thanks
   @manikv12!
 - Reduce repeated keychain prompts by preferring silent/non-interactive reads in background/availability paths and

@@ -66,6 +66,16 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     private let keepCLISessionsAlive: Bool
     private let browserDetection: BrowserDetection
     private static let log = CodexBarLog.logger(LogCategories.claudeUsage)
+    #if DEBUG
+    @TaskLocal static var loadOAuthCredentialsOverride: (@Sendable (
+        [String: String],
+        Bool,
+        Bool) async throws -> ClaudeOAuthCredentials)?
+    @TaskLocal static var fetchOAuthUsageOverride: (@Sendable (String) async throws -> OAuthUsageResponse)?
+    @TaskLocal static var delegatedRefreshAttemptOverride: (@Sendable (
+        Date,
+        TimeInterval) async -> ClaudeOAuthDelegatedRefreshCoordinator.Outcome)?
+    #endif
 
     /// Creates a new ClaudeUsageFetcher.
     /// - Parameters:
@@ -241,7 +251,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                 }
             let hasCLI = TTYCommandRunner.which("claude") != nil
             if hasOAuthCredentials {
-                var snap = try await self.loadViaOAuth()
+                var snap = try await self.loadViaOAuth(allowDelegatedRetry: true)
                 snap = await self.applyWebExtrasIfNeeded(to: snap)
                 return snap
             }
@@ -257,11 +267,11 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                     // CLI failed; OAuth is the last resort.
                 }
             }
-            var snap = try await self.loadViaOAuth()
+            var snap = try await self.loadViaOAuth(allowDelegatedRetry: true)
             snap = await self.applyWebExtrasIfNeeded(to: snap)
             return snap
         case .oauth:
-            var snap = try await self.loadViaOAuth()
+            var snap = try await self.loadViaOAuth(allowDelegatedRetry: true)
             snap = await self.applyWebExtrasIfNeeded(to: snap)
             return snap
         case .web:
@@ -281,7 +291,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
 
     // MARK: - OAuth API path
 
-    private func loadViaOAuth() async throws -> ClaudeUsageSnapshot {
+    private func loadViaOAuth(allowDelegatedRetry: Bool) async throws -> ClaudeUsageSnapshot {
         do {
             // Allow keychain prompt when no cached credentials exist (bootstrap case)
             let hasCache = ClaudeOAuthCredentialsStore.hasCachedCredentials(environment: self.environment)
@@ -289,10 +299,10 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             let allowKeychainPrompt =
                 !hasCache
                     && (!self.oauthKeychainPromptCooldownEnabled || promptGateAllowsPrompt)
-            // Use loadWithAutoRefresh to automatically refresh expired tokens
-            // This saves the refreshed token to CodexBar's keychain cache,
-            // so users won't be prompted for keychain access again.
-            let creds = try await ClaudeOAuthCredentialsStore.loadWithAutoRefresh(
+            // Ownership-aware credential loading:
+            // - Claude CLI-owned credentials delegate refresh to Claude CLI.
+            // - CodexBar-owned credentials use direct token-endpoint refresh.
+            let creds = try await Self.loadOAuthCredentials(
                 environment: self.environment,
                 allowKeychainPrompt: allowKeychainPrompt,
                 respectKeychainPromptCooldown: self.oauthKeychainPromptCooldownEnabled)
@@ -302,11 +312,52 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                     "Claude OAuth token missing 'user:profile' scope (has: \(creds.scopes.joined(separator: ", "))). "
                         + "Run `claude setup-token` to re-generate credentials, or switch Claude Source to Web/CLI.")
             }
-            let usage = try await ClaudeOAuthUsageFetcher.fetchUsage(accessToken: creds.accessToken)
+            let usage = try await Self.fetchOAuthUsage(accessToken: creds.accessToken)
             return try Self.mapOAuthUsage(usage, credentials: creds)
         } catch let error as ClaudeUsageError {
             throw error
         } catch let error as ClaudeOAuthCredentialsError {
+            if case .refreshDelegatedToClaudeCLI = error {
+                guard allowDelegatedRetry else {
+                    throw ClaudeUsageError.oauthFailed(
+                        "Claude OAuth token expired and delegated Claude CLI refresh did not recover. "
+                            + "Run `claude login`, then retry.")
+                }
+
+                let delegatedOutcome = await Self.attemptDelegatedRefresh()
+                Self.log.info(
+                    "Claude OAuth delegated refresh attempted",
+                    metadata: [
+                        "outcome": Self.delegatedRefreshOutcomeLabel(delegatedOutcome),
+                    ])
+
+                do {
+                    // After delegated refresh, do a single interactive reload of the Claude keychain token.
+                    // On systems where "silent" keychain probes still show UI, this is more predictable and avoids
+                    // a second prompt caused by a post-refresh sync read.
+                    _ = ClaudeOAuthCredentialsStore.invalidateCacheIfCredentialsFileChanged()
+                    ClaudeOAuthCredentialsStore.invalidateCache()
+
+                    let refreshedCreds = try await Self.loadOAuthCredentials(
+                        environment: self.environment,
+                        allowKeychainPrompt: true,
+                        respectKeychainPromptCooldown: false)
+
+                    if !refreshedCreds.scopes.contains("user:profile") {
+                        let scopes = refreshedCreds.scopes.joined(separator: ", ")
+                        throw ClaudeUsageError.oauthFailed(
+                            "Claude OAuth token missing 'user:profile' scope (has: \(scopes)). "
+                                + "Run `claude setup-token` to re-generate credentials, "
+                                + "or switch Claude Source to Web/CLI.")
+                    }
+
+                    let usage = try await Self.fetchOAuthUsage(accessToken: refreshedCreds.accessToken)
+                    return try Self.mapOAuthUsage(usage, credentials: refreshedCreds)
+                } catch {
+                    throw ClaudeUsageError.oauthFailed(
+                        Self.delegatedRefreshFailureMessage(for: delegatedOutcome, retryError: error))
+                }
+            }
             throw ClaudeUsageError.oauthFailed(error.localizedDescription)
         } catch let error as ClaudeOAuthFetchError {
             ClaudeOAuthCredentialsStore.invalidateCache()
@@ -321,6 +372,79 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             throw ClaudeUsageError.oauthFailed(error.localizedDescription)
         } catch {
             throw ClaudeUsageError.oauthFailed(error.localizedDescription)
+        }
+    }
+
+    private static func loadOAuthCredentials(
+        environment: [String: String],
+        allowKeychainPrompt: Bool,
+        respectKeychainPromptCooldown: Bool) async throws -> ClaudeOAuthCredentials
+    {
+        #if DEBUG
+        if let override = loadOAuthCredentialsOverride {
+            return try await override(environment, allowKeychainPrompt, respectKeychainPromptCooldown)
+        }
+        #endif
+        return try await ClaudeOAuthCredentialsStore.loadWithAutoRefresh(
+            environment: environment,
+            allowKeychainPrompt: allowKeychainPrompt,
+            respectKeychainPromptCooldown: respectKeychainPromptCooldown)
+    }
+
+    private static func fetchOAuthUsage(accessToken: String) async throws -> OAuthUsageResponse {
+        #if DEBUG
+        if let override = fetchOAuthUsageOverride {
+            return try await override(accessToken)
+        }
+        #endif
+        return try await ClaudeOAuthUsageFetcher.fetchUsage(accessToken: accessToken)
+    }
+
+    private static func attemptDelegatedRefresh(
+        now: Date = Date(),
+        timeout: TimeInterval = 15) async -> ClaudeOAuthDelegatedRefreshCoordinator.Outcome
+    {
+        #if DEBUG
+        if let override = delegatedRefreshAttemptOverride {
+            return await override(now, timeout)
+        }
+        #endif
+        return await ClaudeOAuthDelegatedRefreshCoordinator.attempt(now: now, timeout: timeout)
+    }
+
+    private static func delegatedRefreshOutcomeLabel(_ outcome: ClaudeOAuthDelegatedRefreshCoordinator
+        .Outcome) -> String
+    {
+        switch outcome {
+        case .skippedByCooldown:
+            "skippedByCooldown"
+        case .cliUnavailable:
+            "cliUnavailable"
+        case .attemptedSucceeded:
+            "attemptedSucceeded"
+        case .attemptedFailed:
+            "attemptedFailed"
+        }
+    }
+
+    private static func delegatedRefreshFailureMessage(
+        for outcome: ClaudeOAuthDelegatedRefreshCoordinator.Outcome,
+        retryError: Error) -> String
+    {
+        let retryDescription = retryError.localizedDescription
+        switch outcome {
+        case .skippedByCooldown:
+            return "Claude OAuth token expired and delegated refresh is cooling down. "
+                + "Please retry shortly, or run `claude login`.\n\(retryDescription)"
+        case .cliUnavailable:
+            return "Claude OAuth token expired and Claude CLI is not available for delegated refresh. "
+                + "Install/configure `claude`, or run `claude login`.\n\(retryDescription)"
+        case .attemptedSucceeded:
+            return "Claude OAuth token is still unavailable after delegated Claude CLI refresh. "
+                + "Run `claude login`, then retry.\n\(retryDescription)"
+        case let .attemptedFailed(message):
+            return "Claude OAuth token expired and delegated Claude CLI refresh failed: \(message). "
+                + "Run `claude login`, then retry.\n\(retryDescription)"
         }
     }
 
