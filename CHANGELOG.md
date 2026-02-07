@@ -19,8 +19,8 @@
 - Claude Auto mode now performs one delegated Claude CLI refresh handoff and one OAuth retry before normal `web -> cli`
   fallback.
 - Claude OAuth-only mode now keeps strict OAuth semantics (no silent Web/CLI fallback) after delegated retry.
-- Fix a Claude Code logout regression caused by refresh token rotation when CodexBar refreshed Claude OAuth creds read
-  from the Claude Code keychain item (#326).
+- Auto-refresh expired Claude OAuth tokens and persist refreshed credentials in CodexBar's cache (#245). Thanks
+  @manikv12!
 - Reduce repeated keychain prompts by preferring silent/non-interactive reads in background/availability paths and
   respecting cooldown gates (#245, #305). Thanks @manikv12!
 - Sync CodexBar's OAuth cache when Claude keychain credentials actually change, with fingerprint-based detection and
