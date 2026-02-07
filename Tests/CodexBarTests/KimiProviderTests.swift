@@ -273,7 +273,7 @@ struct KimiUsageSnapshotConversionTests {
 struct KimiTokenResolverTests {
     @Test
     func resolvesTokenFromEnvironment() {
-        KeychainAccessGate.withIsDisabled(true) {
+        KeychainAccessGate.withTaskOverrideForTesting(true) {
             let env = ["KIMI_AUTH_TOKEN": "test.jwt.token"]
             let token = ProviderTokenResolver.kimiAuthToken(environment: env)
             #expect(token == "test.jwt.token")
@@ -283,7 +283,7 @@ struct KimiTokenResolverTests {
     @Test
     func resolvesTokenFromKeychainFirst() {
         // This test would require mocking the keychain.
-        KeychainAccessGate.withIsDisabled(true) {
+        KeychainAccessGate.withTaskOverrideForTesting(true) {
             let env = ["KIMI_AUTH_TOKEN": "test.env.token"]
             let token = ProviderTokenResolver.kimiAuthToken(environment: env)
             #expect(token == "test.env.token")
@@ -292,7 +292,7 @@ struct KimiTokenResolverTests {
 
     @Test
     func resolutionIncludesSource() {
-        KeychainAccessGate.withIsDisabled(true) {
+        KeychainAccessGate.withTaskOverrideForTesting(true) {
             let env = ["KIMI_AUTH_TOKEN": "test.jwt.token"]
             let resolution = ProviderTokenResolver.kimiAuthResolution(environment: env)
 

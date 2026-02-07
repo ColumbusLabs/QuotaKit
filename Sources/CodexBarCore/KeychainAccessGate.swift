@@ -6,8 +6,8 @@ import SweetCookieKit
 public enum KeychainAccessGate {
     private static let flagKey = "debugDisableKeychainAccess"
     private static let appGroupID = "group.com.steipete.codexbar"
-    private nonisolated(unsafe) static var overrideValue: Bool?
     @TaskLocal private static var taskOverrideValue: Bool?
+    private nonisolated(unsafe) static var overrideValue: Bool?
 
     public nonisolated(unsafe) static var isDisabled: Bool {
         get {
@@ -29,18 +29,9 @@ public enum KeychainAccessGate {
         }
     }
 
-    public static func withIsDisabled<T>(_ isDisabled: Bool, operation: () throws -> T) rethrows -> T {
-        try self.$taskOverrideValue.withValue(isDisabled) {
+    static func withTaskOverrideForTesting<T>(_ disabled: Bool?, operation: () throws -> T) rethrows -> T {
+        try self.$taskOverrideValue.withValue(disabled) {
             try operation()
-        }
-    }
-
-    public static func withIsDisabled<T>(
-        _ isDisabled: Bool,
-        operation: () async throws -> T) async rethrows -> T
-    {
-        try await self.$taskOverrideValue.withValue(isDisabled) {
-            try await operation()
         }
     }
 }
