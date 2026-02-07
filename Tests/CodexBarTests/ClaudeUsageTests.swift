@@ -140,6 +140,109 @@ struct ClaudeUsageTests {
     }
 
     @Test
+    func oauthDelegatedRetry_autoMode_cliUnavailable_failsFast() async throws {
+        let loadCounter = AsyncCounter()
+        let delegatedCounter = AsyncCounter()
+
+        let fetcher = ClaudeUsageFetcher(
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            environment: [:],
+            dataSource: .oauth,
+            oauthKeychainPromptCooldownEnabled: true)
+
+        let delegatedOverride: (@Sendable (Date, TimeInterval) async -> ClaudeOAuthDelegatedRefreshCoordinator
+            .Outcome)? = { _, _ in
+            _ = await delegatedCounter.increment()
+            return .cliUnavailable
+        }
+        let loadCredsOverride: (@Sendable (
+            [String: String],
+            Bool,
+            Bool) async throws -> ClaudeOAuthCredentials)? = { _, _, _ in
+            _ = await loadCounter.increment()
+            throw ClaudeOAuthCredentialsError.refreshDelegatedToClaudeCLI
+        }
+
+        do {
+            _ = try await ClaudeUsageFetcher.$delegatedRefreshAttemptOverride.withValue(delegatedOverride, operation: {
+                try await ClaudeUsageFetcher.$loadOAuthCredentialsOverride.withValue(loadCredsOverride, operation: {
+                    try await fetcher.loadLatestUsage(model: "sonnet")
+                })
+            })
+            Issue.record("Expected delegated retry to fail fast when CLI is unavailable")
+        } catch let error as ClaudeUsageError {
+            guard case let .oauthFailed(message) = error else {
+                Issue.record("Expected ClaudeUsageError.oauthFailed, got \(error)")
+                return
+            }
+            #expect(message.contains("Claude CLI is not available"))
+        } catch {
+            Issue.record("Expected ClaudeUsageError, got \(error)")
+        }
+
+        // Auto-mode: should not attempt a second credential load.
+        #expect(await loadCounter.current() == 1)
+        #expect(await delegatedCounter.current() == 1)
+    }
+
+    @Test
+    func oauthDelegatedRetry_autoMode_attemptedFailed_thenNonInteractiveReloadSucceeds() async throws {
+        let loadCounter = AsyncCounter()
+        let delegatedCounter = AsyncCounter()
+        let usageResponse = try Self.makeOAuthUsageResponse()
+
+        final class FlagBox: @unchecked Sendable {
+            var allowKeychainPromptFlags: [Bool] = []
+        }
+        let flags = FlagBox()
+
+        let fetcher = ClaudeUsageFetcher(
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            environment: [:],
+            dataSource: .oauth,
+            oauthKeychainPromptCooldownEnabled: true)
+
+        let fetchOverride: (@Sendable (String) async throws -> OAuthUsageResponse)? = { _ in usageResponse }
+        let delegatedOverride: (@Sendable (Date, TimeInterval) async -> ClaudeOAuthDelegatedRefreshCoordinator
+            .Outcome)? = { _, _ in
+            _ = await delegatedCounter.increment()
+            return .attemptedFailed("no-change")
+        }
+        let loadCredsOverride: (@Sendable (
+            [String: String],
+            Bool,
+            Bool) async throws -> ClaudeOAuthCredentials)? = { _, allowKeychainPrompt, _ in
+            flags.allowKeychainPromptFlags.append(allowKeychainPrompt)
+            let call = await loadCounter.increment()
+            if call == 1 {
+                throw ClaudeOAuthCredentialsError.refreshDelegatedToClaudeCLI
+            }
+            return ClaudeOAuthCredentials(
+                accessToken: "fresh-token",
+                refreshToken: "refresh-token",
+                expiresAt: Date(timeIntervalSinceNow: 3600),
+                scopes: ["user:profile"],
+                rateLimitTier: nil)
+        }
+
+        let snapshot = try await ClaudeUsageFetcher.$fetchOAuthUsageOverride.withValue(fetchOverride, operation: {
+            try await ClaudeUsageFetcher.$delegatedRefreshAttemptOverride.withValue(delegatedOverride, operation: {
+                try await ClaudeUsageFetcher.$loadOAuthCredentialsOverride.withValue(loadCredsOverride, operation: {
+                    try await fetcher.loadLatestUsage(model: "sonnet")
+                })
+            })
+        })
+
+        #expect(await loadCounter.current() == 2)
+        #expect(await delegatedCounter.current() == 1)
+        #expect(snapshot.primary.usedPercent == 7)
+
+        // Second call in Auto-mode must keep Keychain non-interactive (allowKeychainPrompt=false).
+        #expect(flags.allowKeychainPromptFlags.count == 2)
+        #expect(flags.allowKeychainPromptFlags[1] == false)
+    }
+
+    @Test
     func parsesUsageJSONWhenWeeklyMissing() {
         let json = """
         {

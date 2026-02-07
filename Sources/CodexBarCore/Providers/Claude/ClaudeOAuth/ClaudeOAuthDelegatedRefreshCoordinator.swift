@@ -52,7 +52,8 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
 
         self.nextAttemptID += 1
         let attemptID = self.nextAttemptID
-        let task = Task { await self.performAttempt(now: now, timeout: timeout) }
+        // Detached to avoid inheriting the caller's executor context (e.g. MainActor) and cancellation state.
+        let task = Task.detached(priority: .utility) { await self.performAttempt(now: now, timeout: timeout) }
         self.inFlightAttemptID = attemptID
         self.inFlightTask = task
         return .start(attemptID, task)
@@ -93,11 +94,12 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
 
         self.recordAttempt(now: now, cooldown: self.shortCooldownInterval)
         if let touchError {
-            let message = touchError.localizedDescription
+            let errorType = String(describing: type(of: touchError))
             self.log.warning(
                 "Claude OAuth delegated refresh touch failed",
-                metadata: ["error": message])
-            return .attemptedFailed(message)
+                metadata: ["errorType": errorType])
+            self.log.debug("Claude OAuth delegated refresh touch error: \(touchError.localizedDescription)")
+            return .attemptedFailed(touchError.localizedDescription)
         }
 
         self.log.warning("Claude OAuth delegated refresh touch did not update Claude keychain")

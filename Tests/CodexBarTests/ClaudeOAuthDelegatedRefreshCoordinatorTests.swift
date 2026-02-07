@@ -128,6 +128,41 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
         ClaudeOAuthDelegatedRefreshCoordinator.resetForTesting()
         defer { ClaudeOAuthDelegatedRefreshCoordinator.resetForTesting() }
 
+        actor Gate {
+            private var startedContinuations: [CheckedContinuation<Void, Never>] = []
+            private var releaseContinuations: [CheckedContinuation<Void, Never>] = []
+            private var hasStarted = false
+            private var isReleased = false
+
+            func markStarted() {
+                self.hasStarted = true
+                let continuations = self.startedContinuations
+                self.startedContinuations.removeAll()
+                continuations.forEach { $0.resume() }
+            }
+
+            func waitStarted() async {
+                if self.hasStarted { return }
+                await withCheckedContinuation { cont in
+                    self.startedContinuations.append(cont)
+                }
+            }
+
+            func release() {
+                self.isReleased = true
+                let continuations = self.releaseContinuations
+                self.releaseContinuations.removeAll()
+                continuations.forEach { $0.resume() }
+            }
+
+            func waitRelease() async {
+                if self.isReleased { return }
+                await withCheckedContinuation { cont in
+                    self.releaseContinuations.append(cont)
+                }
+            }
+        }
+
         final class FingerprintBox: @unchecked Sendable {
             var fingerprint: ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint?
             init(_ fingerprint: ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint?) {
@@ -146,6 +181,7 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
         }
 
         let counter = CounterBox()
+        let gate = Gate()
         let box = FingerprintBox(ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint(
             modifiedAt: 1,
             createdAt: 1,
@@ -155,7 +191,8 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
         ClaudeOAuthDelegatedRefreshCoordinator.setCLIAvailableOverrideForTesting(true)
         ClaudeOAuthDelegatedRefreshCoordinator.setTouchAuthPathOverrideForTesting { _ in
             counter.increment()
-            try await Task.sleep(nanoseconds: 1_500_000_000)
+            await gate.markStarted()
+            await gate.waitRelease()
             box.fingerprint = ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint(
                 modifiedAt: 2,
                 createdAt: 2,
@@ -164,9 +201,10 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
 
         let now = Date(timeIntervalSince1970: 50000)
         async let first = ClaudeOAuthDelegatedRefreshCoordinator.attempt(now: now, timeout: 2)
-        try? await Task.sleep(nanoseconds: 100_000_000)
+        await gate.waitStarted()
         async let second = ClaudeOAuthDelegatedRefreshCoordinator.attempt(now: now.addingTimeInterval(30), timeout: 2)
 
+        await gate.release()
         let outcomes = await [first, second]
 
         #expect(outcomes.allSatisfy { $0 == .attemptedSucceeded })

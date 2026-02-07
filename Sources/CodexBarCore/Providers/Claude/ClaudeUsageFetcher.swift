@@ -460,20 +460,20 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         for outcome: ClaudeOAuthDelegatedRefreshCoordinator.Outcome,
         retryError: Error) -> String
     {
-        let retryDescription = retryError.localizedDescription
+        _ = retryError
         switch outcome {
         case .skippedByCooldown:
             return "Claude OAuth token expired and delegated refresh is cooling down. "
-                + "Please retry shortly, or run `claude login`.\n\(retryDescription)"
+                + "Please retry shortly, or run `claude login`."
         case .cliUnavailable:
             return "Claude OAuth token expired and Claude CLI is not available for delegated refresh. "
-                + "Install/configure `claude`, or run `claude login`.\n\(retryDescription)"
+                + "Install/configure `claude`, or run `claude login`."
         case .attemptedSucceeded:
             return "Claude OAuth token is still unavailable after delegated Claude CLI refresh. "
-                + "Run `claude login`, then retry.\n\(retryDescription)"
+                + "Run `claude login`, then retry."
         case let .attemptedFailed(message):
             return "Claude OAuth token expired and delegated Claude CLI refresh failed: \(message). "
-                + "Run `claude login`, then retry.\n\(retryDescription)"
+                + "Run `claude login`, then retry."
         }
     }
 
