@@ -20,6 +20,10 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
     private nonisolated(unsafe) static var lastCooldownInterval: TimeInterval?
 
     public static func attempt(now: Date = Date(), timeout: TimeInterval = 8) async -> Outcome {
+        if Task.isCancelled {
+            return .attemptedFailed("Cancelled.")
+        }
+
         guard self.isClaudeCLIAvailable() else {
             self.log.info("Claude OAuth delegated refresh skipped: claude CLI unavailable")
             return .cliUnavailable
@@ -29,6 +33,10 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
             self.log.debug("Claude OAuth delegated refresh skipped by cooldown")
             return .skippedByCooldown
         }
+
+        // Reserve a short cooldown immediately so concurrent callers don't race past isInCooldown() and start
+        // multiple touches/poll loops.
+        self.recordAttempt(now: now, cooldown: self.shortCooldownInterval)
 
         let fingerprintBefore = self.currentClaudeKeychainFingerprint()
         var touchError: Error?
@@ -100,11 +108,23 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
     {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
+            do {
+                try Task.checkCancellation()
+            } catch {
+                return false
+            }
+
             let current = self.currentClaudeKeychainFingerprint()
             if current != fingerprintBefore {
                 return true
             }
-            try? await Task.sleep(nanoseconds: 250_000_000)
+            do {
+                try await Task.sleep(nanoseconds: 250_000_000)
+            } catch is CancellationError {
+                return false
+            } catch {
+                // Ignore other errors and keep polling until the deadline.
+            }
         }
         return false
     }

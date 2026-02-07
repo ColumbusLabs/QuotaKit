@@ -804,6 +804,10 @@ public enum ClaudeOAuthCredentialsStore {
         if let override = self.claudeKeychainFingerprintOverride { return override }
         #endif
         #if os(macOS)
+        if !self.keychainAccessAllowed {
+            return nil
+        }
+
         let newest: ClaudeKeychainCandidate? = self.claudeKeychainCandidatesWithoutPrompt().first
             ?? self.claudeKeychainLegacyCandidateWithoutPrompt()
         guard let newest else { return nil }

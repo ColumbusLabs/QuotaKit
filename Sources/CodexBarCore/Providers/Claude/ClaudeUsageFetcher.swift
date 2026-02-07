@@ -314,6 +314,8 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             }
             let usage = try await Self.fetchOAuthUsage(accessToken: creds.accessToken)
             return try Self.mapOAuthUsage(usage, credentials: creds)
+        } catch let error as CancellationError {
+            throw error
         } catch let error as ClaudeUsageError {
             throw error
         } catch let error as ClaudeOAuthCredentialsError {
@@ -324,6 +326,8 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                             + "Run `claude login`, then retry.")
                 }
 
+                try Task.checkCancellation()
+
                 let delegatedOutcome = await Self.attemptDelegatedRefresh()
                 Self.log.info(
                     "Claude OAuth delegated refresh attempted",
@@ -332,16 +336,35 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                     ])
 
                 do {
-                    // After delegated refresh, do a single interactive reload of the Claude keychain token.
-                    // On systems where "silent" keychain probes still show UI, this is more predictable and avoids
-                    // a second prompt caused by a post-refresh sync read.
+                    // In Auto mode, avoid forcing interactive Keychain prompts or blocking the fallback chain when
+                    // delegation cannot run.
+                    if self.oauthKeychainPromptCooldownEnabled {
+                        switch delegatedOutcome {
+                        case .skippedByCooldown, .cliUnavailable:
+                            throw ClaudeUsageError.oauthFailed(
+                                "Claude OAuth token expired; delegated refresh is unavailable (outcome="
+                                    + "\(Self.delegatedRefreshOutcomeLabel(delegatedOutcome))).")
+                        case .attemptedSucceeded:
+                            break
+                        case .attemptedFailed:
+                            // Delegation ran but didn't observe a keychain change. We'll attempt a non-interactive
+                            // reload below (allowKeychainPrompt=false) and then allow the Auto chain to fall back.
+                            break
+                        }
+                    }
+
+                    try Task.checkCancellation()
+
+                    // After delegated refresh, reload credentials and retry OAuth once.
+                    // In OAuth mode we allow an interactive Keychain prompt here; in Auto mode we keep it silent to
+                    // avoid bypassing the prompt cooldown and to let the fallback chain proceed.
                     _ = ClaudeOAuthCredentialsStore.invalidateCacheIfCredentialsFileChanged()
                     ClaudeOAuthCredentialsStore.invalidateCache()
 
                     let refreshedCreds = try await Self.loadOAuthCredentials(
                         environment: self.environment,
-                        allowKeychainPrompt: true,
-                        respectKeychainPromptCooldown: false)
+                        allowKeychainPrompt: !self.oauthKeychainPromptCooldownEnabled,
+                        respectKeychainPromptCooldown: self.oauthKeychainPromptCooldownEnabled)
 
                     if !refreshedCreds.scopes.contains("user:profile") {
                         let scopes = refreshedCreds.scopes.joined(separator: ", ")
