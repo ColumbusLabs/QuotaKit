@@ -205,6 +205,17 @@ public enum ClaudeOAuthCredentialsStore {
     private nonisolated(unsafe) static var keychainAccessOverride: Bool?
     private nonisolated(unsafe) static var claudeKeychainDataOverride: Data?
     private nonisolated(unsafe) static var claudeKeychainFingerprintOverride: ClaudeKeychainFingerprint?
+    @TaskLocal private static var taskClaudeKeychainDataOverride: Data?
+    @TaskLocal private static var taskClaudeKeychainFingerprintOverride: ClaudeKeychainFingerprint?
+    final class ClaudeKeychainFingerprintStore: @unchecked Sendable {
+        var fingerprint: ClaudeKeychainFingerprint?
+
+        init(fingerprint: ClaudeKeychainFingerprint? = nil) {
+            self.fingerprint = fingerprint
+        }
+    }
+
+    @TaskLocal private static var taskClaudeKeychainFingerprintStoreOverride: ClaudeKeychainFingerprintStore?
     static func setKeychainAccessOverrideForTesting(_ disabled: Bool?) {
         self.keychainAccessOverride = disabled
     }
@@ -215,6 +226,48 @@ public enum ClaudeOAuthCredentialsStore {
 
     static func setClaudeKeychainFingerprintOverrideForTesting(_ fingerprint: ClaudeKeychainFingerprint?) {
         self.claudeKeychainFingerprintOverride = fingerprint
+    }
+
+    static func withClaudeKeychainOverridesForTesting<T>(
+        data: Data?,
+        fingerprint: ClaudeKeychainFingerprint?,
+        operation: () throws -> T) rethrows -> T
+    {
+        try self.$taskClaudeKeychainDataOverride.withValue(data) {
+            try self.$taskClaudeKeychainFingerprintOverride.withValue(fingerprint) {
+                try operation()
+            }
+        }
+    }
+
+    static func withClaudeKeychainOverridesForTesting<T>(
+        data: Data?,
+        fingerprint: ClaudeKeychainFingerprint?,
+        operation: () async throws -> T) async rethrows -> T
+    {
+        try await self.$taskClaudeKeychainDataOverride.withValue(data) {
+            try await self.$taskClaudeKeychainFingerprintOverride.withValue(fingerprint) {
+                try await operation()
+            }
+        }
+    }
+
+    static func withClaudeKeychainFingerprintStoreOverrideForTesting<T>(
+        _ store: ClaudeKeychainFingerprintStore?,
+        operation: () throws -> T) rethrows -> T
+    {
+        try self.$taskClaudeKeychainFingerprintStoreOverride.withValue(store) {
+            try operation()
+        }
+    }
+
+    static func withClaudeKeychainFingerprintStoreOverrideForTesting<T>(
+        _ store: ClaudeKeychainFingerprintStore?,
+        operation: () async throws -> T) async rethrows -> T
+    {
+        try await self.$taskClaudeKeychainFingerprintStoreOverride.withValue(store) {
+            try await operation()
+        }
     }
     #endif
 
@@ -771,6 +824,15 @@ public enum ClaudeOAuthCredentialsStore {
     }
 
     private static func shouldCheckClaudeKeychainChange(now: Date = Date()) -> Bool {
+        #if DEBUG
+        // Unit tests can supply TaskLocal overrides for the Claude keychain data/fingerprint. Those tests often run
+        // concurrently with other suites, so the global throttle becomes nondeterministic. When an override is
+        // present, bypass the throttle so test expectations don't depend on unrelated activity.
+        if self.taskClaudeKeychainFingerprintOverride != nil || self.claudeKeychainFingerprintOverride != nil {
+            return true
+        }
+        #endif
+
         self.claudeKeychainChangeCheckLock.lock()
         defer { self.claudeKeychainChangeCheckLock.unlock() }
         if let last = self.lastClaudeKeychainChangeCheckAt,
@@ -783,6 +845,11 @@ public enum ClaudeOAuthCredentialsStore {
     }
 
     private static func loadClaudeKeychainFingerprint() -> ClaudeKeychainFingerprint? {
+        #if DEBUG
+        if let store = taskClaudeKeychainFingerprintStoreOverride {
+            return store.fingerprint
+        }
+        #endif
         // Proactively remove the legacy V1 key (it included the keychain account string, which can be identifying).
         UserDefaults.standard.removeObject(forKey: self.claudeKeychainFingerprintLegacyKey)
 
@@ -793,6 +860,12 @@ public enum ClaudeOAuthCredentialsStore {
     }
 
     private static func saveClaudeKeychainFingerprint(_ fingerprint: ClaudeKeychainFingerprint?) {
+        #if DEBUG
+        if let store = taskClaudeKeychainFingerprintStoreOverride {
+            store.fingerprint = fingerprint
+            return
+        }
+        #endif
         // Proactively remove the legacy V1 key (it included the keychain account string, which can be identifying).
         UserDefaults.standard.removeObject(forKey: self.claudeKeychainFingerprintLegacyKey)
 
@@ -807,6 +880,7 @@ public enum ClaudeOAuthCredentialsStore {
 
     private static func currentClaudeKeychainFingerprintWithoutPrompt() -> ClaudeKeychainFingerprint? {
         #if DEBUG
+        if let override = taskClaudeKeychainFingerprintOverride { return override }
         if let override = self.claudeKeychainFingerprintOverride { return override }
         #endif
         #if os(macOS)
@@ -853,6 +927,7 @@ public enum ClaudeOAuthCredentialsStore {
 
     private static func loadFromClaudeKeychainNonInteractive() throws -> Data? {
         #if DEBUG
+        if let override = taskClaudeKeychainDataOverride { return override }
         if let override = self.claudeKeychainDataOverride { return override }
         #endif
         #if os(macOS)
@@ -1240,6 +1315,26 @@ extension ClaudeOAuthCredentialsStore {
     static func syncFromClaudeKeychainWithoutPrompt(now: Date = Date()) -> Bool {
         #if os(macOS)
         if !self.keychainAccessAllowed { return false }
+
+        #if DEBUG
+        // Test hook: allow unit tests to simulate a "silent" keychain read without touching the real Keychain.
+        if let override = self.taskClaudeKeychainDataOverride ?? self.claudeKeychainDataOverride,
+           !override.isEmpty,
+           let creds = try? ClaudeOAuthCredentials.parse(data: override),
+           !creds.isExpired
+        {
+            let fingerprint = self.currentClaudeKeychainFingerprintWithoutPrompt()
+            self.saveClaudeKeychainFingerprint(fingerprint)
+            self.writeMemoryCache(
+                record: ClaudeOAuthCredentialRecord(
+                    credentials: creds,
+                    owner: .claudeCLI,
+                    source: .memoryCache),
+                timestamp: now)
+            self.saveToCacheKeychain(override, owner: .claudeCLI)
+            return true
+        }
+        #endif
 
         let candidates = self.claudeKeychainCandidatesWithoutPrompt()
         for candidate in candidates {

@@ -66,6 +66,10 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     private let keepCLISessionsAlive: Bool
     private let browserDetection: BrowserDetection
     private static let log = CodexBarLog.logger(LogCategories.claudeUsage)
+    private static var isClaudeOAuthFlowDebugEnabled: Bool {
+        ProcessInfo.processInfo.environment["CODEXBAR_DEBUG_CLAUDE_OAUTH_FLOW"] == "1"
+    }
+
     #if DEBUG
     @TaskLocal static var loadOAuthCredentialsOverride: (@Sendable (
         [String: String],
@@ -359,18 +363,37 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                     // In OAuth mode we allow an interactive Keychain prompt here; in Auto mode we keep it silent to
                     // avoid bypassing the prompt cooldown and to let the fallback chain proceed.
                     _ = ClaudeOAuthCredentialsStore.invalidateCacheIfCredentialsFileChanged()
-                    ClaudeOAuthCredentialsStore.invalidateCache()
 
                     let didSyncSilently: Bool = {
-                        guard !self.oauthKeychainPromptCooldownEnabled else { return false }
                         guard delegatedOutcome == .attemptedSucceeded else { return false }
                         return ClaudeOAuthCredentialsStore.syncFromClaudeKeychainWithoutPrompt(now: Date())
                     }()
 
+                    let retryAllowKeychainPrompt = !self.oauthKeychainPromptCooldownEnabled && !didSyncSilently
+                    if Self.isClaudeOAuthFlowDebugEnabled {
+                        Self.log.debug(
+                            "Claude OAuth credential load (post-delegation retry start)",
+                            metadata: [
+                                "cooldownEnabled": "\(self.oauthKeychainPromptCooldownEnabled)",
+                                "didSyncSilently": "\(didSyncSilently)",
+                                "allowKeychainPrompt": "\(retryAllowKeychainPrompt)",
+                                "delegatedOutcome": Self.delegatedRefreshOutcomeLabel(delegatedOutcome),
+                            ])
+                    }
                     let refreshedCreds = try await Self.loadOAuthCredentials(
                         environment: self.environment,
-                        allowKeychainPrompt: !self.oauthKeychainPromptCooldownEnabled && !didSyncSilently,
+                        allowKeychainPrompt: retryAllowKeychainPrompt,
                         respectKeychainPromptCooldown: self.oauthKeychainPromptCooldownEnabled)
+                    if Self.isClaudeOAuthFlowDebugEnabled {
+                        Self.log.debug(
+                            "Claude OAuth credential load (post-delegation retry)",
+                            metadata: [
+                                "cooldownEnabled": "\(self.oauthKeychainPromptCooldownEnabled)",
+                                "didSyncSilently": "\(didSyncSilently)",
+                                "allowKeychainPrompt": "\(retryAllowKeychainPrompt)",
+                                "delegatedOutcome": Self.delegatedRefreshOutcomeLabel(delegatedOutcome),
+                            ])
+                    }
 
                     if !refreshedCreds.scopes.contains("user:profile") {
                         let scopes = refreshedCreds.scopes.joined(separator: ", ")
@@ -383,6 +406,12 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                     let usage = try await Self.fetchOAuthUsage(accessToken: refreshedCreds.accessToken)
                     return try Self.mapOAuthUsage(usage, credentials: refreshedCreds)
                 } catch {
+                    Self.log.debug(
+                        "Claude OAuth post-delegation retry failed",
+                        metadata: Self.delegatedRetryFailureMetadata(
+                            error: error,
+                            oauthKeychainPromptCooldownEnabled: self.oauthKeychainPromptCooldownEnabled,
+                            delegatedOutcome: delegatedOutcome))
                     throw ClaudeUsageError.oauthFailed(
                         Self.delegatedRefreshFailureMessage(for: delegatedOutcome, retryError: error))
                 }
@@ -475,6 +504,38 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             return "Claude OAuth token expired and delegated Claude CLI refresh failed: \(message). "
                 + "Run `claude login`, then retry."
         }
+    }
+
+    private static func delegatedRetryFailureMetadata(
+        error: Error,
+        oauthKeychainPromptCooldownEnabled: Bool,
+        delegatedOutcome: ClaudeOAuthDelegatedRefreshCoordinator.Outcome) -> [String: String]
+    {
+        var metadata: [String: String] = [
+            "errorType": String(describing: type(of: error)),
+            "cooldownEnabled": "\(oauthKeychainPromptCooldownEnabled)",
+            "delegatedOutcome": Self.delegatedRefreshOutcomeLabel(delegatedOutcome),
+        ]
+
+        // Avoid `localizedDescription` here: some error types include server response bodies in their
+        // `errorDescription`, which can leak potentially identifying information into logs.
+        if let oauthError = error as? ClaudeOAuthFetchError {
+            switch oauthError {
+            case .unauthorized:
+                metadata["oauthError"] = "unauthorized"
+            case .invalidResponse:
+                metadata["oauthError"] = "invalidResponse"
+            case let .serverError(statusCode, body):
+                metadata["oauthError"] = "serverError"
+                metadata["httpStatus"] = "\(statusCode)"
+                metadata["bodyLength"] = "\(body?.utf8.count ?? 0)"
+            case let .networkError(underlying):
+                metadata["oauthError"] = "networkError"
+                metadata["underlyingType"] = String(describing: type(of: underlying))
+            }
+        }
+
+        return metadata
     }
 
     private static func mapOAuthUsage(
