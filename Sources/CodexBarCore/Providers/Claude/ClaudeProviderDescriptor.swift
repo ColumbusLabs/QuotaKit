@@ -212,7 +212,8 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
     }
 
     func shouldFallback(on _: Error, context: ProviderFetchContext) -> Bool {
-        // In Auto mode, fall back to CLI if OAuth fails (e.g. user cancels keychain prompt or auth breaks).
+        // In Auto mode, fall back to the next strategy (web/cli) if OAuth fails (e.g. user cancels keychain prompt
+        // or auth breaks).
         context.runtime == .app && context.sourceMode == .auto
     }
 

@@ -29,14 +29,12 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
             return .cliUnavailable
         }
 
-        guard !self.isInCooldown(now: now) else {
+        // Atomically reserve an attempt under the lock so concurrent callers don't race past isInCooldown() and start
+        // multiple touches/poll loops.
+        guard self.reserveAttemptIfNotInCooldown(now: now) else {
             self.log.debug("Claude OAuth delegated refresh skipped by cooldown")
             return .skippedByCooldown
         }
-
-        // Reserve a short cooldown immediately so concurrent callers don't race past isInCooldown() and start
-        // multiple touches/poll loops.
-        self.recordAttempt(now: now, cooldown: self.shortCooldownInterval)
 
         let fingerprintBefore = self.currentClaudeKeychainFingerprint()
         var touchError: Error?
@@ -160,6 +158,23 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         self.lastCooldownInterval = cooldown
         UserDefaults.standard.set(now.timeIntervalSince1970, forKey: self.cooldownDefaultsKey)
         UserDefaults.standard.set(cooldown, forKey: self.cooldownIntervalDefaultsKey)
+    }
+
+    private static func reserveAttemptIfNotInCooldown(now: Date) -> Bool {
+        self.stateLock.lock()
+        defer { self.stateLock.unlock() }
+        self.loadStateIfNeededLocked()
+
+        if let lastAttemptAt = self.lastAttemptAt, now.timeIntervalSince(lastAttemptAt) < self.cooldownInterval {
+            return false
+        }
+
+        // Reserve with a short cooldown; the final outcome will extend or keep it short.
+        self.lastAttemptAt = now
+        self.lastCooldownInterval = self.shortCooldownInterval
+        UserDefaults.standard.set(now.timeIntervalSince1970, forKey: self.cooldownDefaultsKey)
+        UserDefaults.standard.set(self.shortCooldownInterval, forKey: self.cooldownIntervalDefaultsKey)
+        return true
     }
 
     private static func loadStateIfNeededLocked() {
