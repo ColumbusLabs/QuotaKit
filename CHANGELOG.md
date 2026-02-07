@@ -3,7 +3,7 @@
 ## Unreleased
 ### Highlights
 - Claude OAuth/keychain flows were reworked across a series of follow-up PRs to reduce prompt storms, stabilize
-  background behavior, and make refresh failures deterministic (#245, #305, #308, #309). Thanks @manikv12!
+  background behavior, and make failure modes deterministic (#245, #305, #308, #309). Thanks @manikv12!
 - Claude: harden Claude Code PTY capture for `/usage` and `/status` (prompt automation, safer command palette
   confirmation, partial UTF-8 handling, and parsing guards against status-bar context meters) (#320).
 - Provider correctness fixes landed for Cursor plan parsing and MiniMax region routing (#240, #234). Thanks @robinebers
@@ -15,19 +15,17 @@
 
 ### Claude OAuth & Keychain (net result)
 - Claude OAuth refresh ownership now keeps Claude CLI as the refresh-token owner for CLI-managed credentials; CodexBar
-  delegates refresh handoff instead of rotating those tokens in its own cache.
-- Claude Auto mode now performs one delegated Claude CLI refresh handoff and one OAuth retry before normal `web -> cli`
-  fallback.
+  delegates a refresh handoff instead of rotating those tokens in its own cache.
+- Claude Auto mode now performs at most one delegated Claude CLI refresh handoff and one OAuth retry before normal
+  `web -> cli` fallback.
 - Claude OAuth-only mode now keeps strict OAuth semantics (no silent Web/CLI fallback) after delegated retry.
-- Auto-refresh expired Claude OAuth tokens and persist refreshed credentials in CodexBar's cache (#245). Thanks
-  @manikv12!
 - Reduce repeated keychain prompts by preferring silent/non-interactive reads in background/availability paths and
   respecting cooldown gates (#245, #305). Thanks @manikv12!
 - Sync CodexBar's OAuth cache when Claude keychain credentials actually change, with fingerprint-based detection and
   protections against regressing to stale/expired tokens (#305).
 - Show the in-app Claude keychain pre-alert only when preflight suggests interaction is likely; suppress unnecessary
   alerts on silent-success paths (#308).
-- Distinguish terminal vs transient OAuth refresh failures:
+- Distinguish terminal vs transient OAuth auth failures:
   - `invalid_grant` and equivalent auth rejections are terminal-blocked until auth state changes.
   - transient failures use bounded backoff and automatically unblock on successful auth/reauth (#309).
 - Ensure usable Claude OAuth credentials are accepted in non-interactive scenarios and fix Claude auto debug pipeline
