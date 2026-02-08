@@ -45,4 +45,23 @@ struct ClaudeOAuthKeychainAccessGateTests {
             #expect(ClaudeOAuthKeychainAccessGate.shouldAllowPrompt(now: Date()) == false)
         }
     }
+
+    @Test
+    func clearDeniedAllowsImmediateRetry() {
+        KeychainAccessGate.withTaskOverrideForTesting(false) {
+            ClaudeOAuthKeychainAccessGate.resetForTesting()
+            defer { ClaudeOAuthKeychainAccessGate.resetForTesting() }
+
+            let store = ClaudeOAuthKeychainAccessGate.DeniedUntilStore()
+            ClaudeOAuthKeychainAccessGate.withDeniedUntilStoreOverrideForTesting(store) {
+                let now = Date(timeIntervalSince1970: 3000)
+                ClaudeOAuthKeychainAccessGate.recordDenied(now: now)
+                #expect(ClaudeOAuthKeychainAccessGate.shouldAllowPrompt(now: now) == false)
+
+                #expect(ClaudeOAuthKeychainAccessGate.clearDenied(now: now))
+                #expect(ClaudeOAuthKeychainAccessGate.shouldAllowPrompt(now: now))
+                #expect(ClaudeOAuthKeychainAccessGate.clearDenied(now: now) == false)
+            }
+        }
+    }
 }

@@ -1253,7 +1253,8 @@ extension UsageStore {
             // Don't prompt for keychain access during debug dump
             let oauthRecord = try? ClaudeOAuthCredentialsStore.loadRecord(
                 allowKeychainPrompt: false,
-                respectKeychainPromptCooldown: true)
+                respectKeychainPromptCooldown: true,
+                allowClaudeKeychainRepairWithoutPrompt: false)
             let hasOAuthCredentials = oauthRecord?.credentials.scopes.contains("user:profile") == true
             let hasClaudeBinary = ClaudeOAuthDelegatedRefreshCoordinator.isClaudeCLIAvailable()
             let delegatedCooldownSeconds = ClaudeOAuthDelegatedRefreshCoordinator.cooldownRemainingSeconds()
