@@ -24,6 +24,8 @@
   avoid upgrade regressions for users without a persisted region (#344). Thanks @apoorvdarshan!
 - z.ai: handle quota responses with missing token-limit fields, avoid incorrect used-percent calculations, and harden
   empty-response behavior with safer logging (#346). Thanks @MohamedMohana and @halilertekin!
+- z.ai: fix provider visibility in the menu when enabled with token-account credentials (availability now considers the
+  effective fetch environment).
 - Amp: detect login redirects during usage fetch and fail fast when the session is invalid (#339). Thanks @JosephDoUrden!
 - Resource loading: fix app bundle lookup path to avoid "could not load resource bundle" startup failures (#223). Thanks @validatedev!
 - OpenAI Web dashboard: keep WebView instances cached for reuse to reduce repeated network fetch overhead; tests were updated to avoid network-dependent flakes (#284). Thanks @vignesh07!

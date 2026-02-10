@@ -395,10 +395,18 @@ final class UsageStore {
     }
 
     func isProviderAvailable(_ provider: UsageProvider) -> Bool {
+        // Availability should mirror the effective fetch environment, including token-account overrides.
+        // Otherwise providers (notably token-account-backed API providers) can fetch successfully but be
+        // hidden from the menu because their credentials are not in ProcessInfo's environment.
+        let environment = ProviderRegistry.makeEnvironment(
+            base: ProcessInfo.processInfo.environment,
+            provider: provider,
+            settings: self.settings,
+            tokenOverride: nil)
         let context = ProviderAvailabilityContext(
             provider: provider,
             settings: self.settings,
-            environment: ProcessInfo.processInfo.environment)
+            environment: environment)
         return ProviderCatalog.implementation(for: provider)?
             .isAvailable(context: context)
             ?? true
