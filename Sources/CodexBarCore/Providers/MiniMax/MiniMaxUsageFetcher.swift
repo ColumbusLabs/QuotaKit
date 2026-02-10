@@ -58,32 +58,26 @@ public struct MiniMaxUsageFetcher: Sendable {
             throw MiniMaxUsageError.invalidCredentials
         }
 
-        let regionsToTry: [MiniMaxAPIRegion] = {
-            // Historically, MiniMax API token fetching used a China endpoint by default in some configurations.
-            // If the user has no persisted region and we default to `.global`, retry the China endpoint when the
-            // global host rejects the token so upgrades don't regress existing setups.
-            if region == .global { return [.global, .chinaMainland] }
-            return [region]
-        }()
-
-        var lastError: Error?
-        for (index, attemptRegion) in regionsToTry.enumerated() {
-            do {
-                return try await self.fetchUsageOnce(apiToken: cleaned, region: attemptRegion, now: now)
-            } catch let error as MiniMaxUsageError {
-                lastError = error
-                if index == 0, regionsToTry.count > 1, case .invalidCredentials = error {
-                    Self.log.debug("MiniMax API token rejected for global host, retrying China mainland host")
-                    continue
-                }
-                throw error
-            } catch {
-                lastError = error
-                throw error
-            }
+        // Historically, MiniMax API token fetching used a China endpoint by default in some configurations. If the
+        // user has no persisted region and we default to `.global`, retry the China endpoint when the global host
+        // rejects the token so upgrades don't regress existing setups.
+        if region != .global {
+            return try await self.fetchUsageOnce(apiToken: cleaned, region: region, now: now)
         }
 
-        throw lastError ?? MiniMaxUsageError.invalidCredentials
+        do {
+            return try await self.fetchUsageOnce(apiToken: cleaned, region: .global, now: now)
+        } catch let error as MiniMaxUsageError {
+            guard case .invalidCredentials = error else { throw error }
+            Self.log.debug("MiniMax API token rejected for global host, retrying China mainland host")
+            do {
+                return try await self.fetchUsageOnce(apiToken: cleaned, region: .chinaMainland, now: now)
+            } catch {
+                // Preserve the original invalid-credentials error so the fetch pipeline can fall back to web.
+                Self.log.debug("MiniMax China mainland retry failed, preserving global invalidCredentials")
+                throw MiniMaxUsageError.invalidCredentials
+            }
+        }
     }
 
     private static func fetchUsageOnce(

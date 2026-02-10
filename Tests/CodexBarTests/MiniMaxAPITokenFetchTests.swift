@@ -54,6 +54,39 @@ struct MiniMaxAPITokenFetchTests {
     }
 
     @Test
+    func preservesInvalidCredentialsWhenChinaRetryFailsTransport() async throws {
+        let registered = URLProtocol.registerClass(MiniMaxAPITokenStubURLProtocol.self)
+        defer {
+            if registered {
+                URLProtocol.unregisterClass(MiniMaxAPITokenStubURLProtocol.self)
+            }
+            MiniMaxAPITokenStubURLProtocol.handler = nil
+            MiniMaxAPITokenStubURLProtocol.requests = []
+        }
+
+        MiniMaxAPITokenStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            let host = url.host ?? ""
+            if host == "api.minimax.io" {
+                return Self.makeResponse(url: url, body: "{}", statusCode: 401)
+            }
+            if host == "api.minimaxi.com" {
+                throw URLError(.cannotFindHost)
+            }
+            return Self.makeResponse(url: url, body: "{}", statusCode: 404)
+        }
+
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        await #expect(throws: MiniMaxUsageError.invalidCredentials) {
+            _ = try await MiniMaxUsageFetcher.fetchUsage(apiToken: "sk-cp-test", region: .global, now: now)
+        }
+
+        #expect(MiniMaxAPITokenStubURLProtocol.requests.count == 2)
+        #expect(MiniMaxAPITokenStubURLProtocol.requests.first?.url?.host == "api.minimax.io")
+        #expect(MiniMaxAPITokenStubURLProtocol.requests.last?.url?.host == "api.minimaxi.com")
+    }
+
+    @Test
     func doesNotRetryWhenRegionIsChinaMainland() async throws {
         let registered = URLProtocol.registerClass(MiniMaxAPITokenStubURLProtocol.self)
         defer {
