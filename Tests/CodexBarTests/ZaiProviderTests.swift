@@ -176,6 +176,16 @@ struct ZaiUsageSnapshotTests {
 @Suite
 struct ZaiUsageParsingTests {
     @Test
+    func emptyBodyReturnsParseFailed() {
+        #expect {
+            _ = try ZaiUsageFetcher.parseUsageSnapshot(from: Data())
+        } throws: { error in
+            guard case let ZaiUsageError.parseFailed(message) = error else { return false }
+            return message == "Empty response body"
+        }
+    }
+
+    @Test
     func parsesUsageResponse() throws {
         let json = """
         {

@@ -315,6 +315,14 @@ public struct ZaiUsageFetcher: Sendable {
             throw ZaiUsageError.apiError("HTTP \(httpResponse.statusCode): \(errorMessage)")
         }
 
+        // Some upstream issues (wrong endpoint/region/proxy) can yield HTTP 200 with an empty body.
+        // JSONDecoder will otherwise throw an opaque Cocoa error ("data is missing").
+        guard !data.isEmpty else {
+            Self.log.error("z.ai API returned empty body (HTTP 200) for \(quotaURL.absoluteString)")
+            throw ZaiUsageError.parseFailed(
+                "Empty response body (HTTP 200). Check z.ai API region (Global vs BigModel CN) and your API token.")
+        }
+
         // Log raw response for debugging
         if let jsonString = String(data: data, encoding: .utf8) {
             Self.log.debug("z.ai API response: \(jsonString)")
@@ -334,6 +342,10 @@ public struct ZaiUsageFetcher: Sendable {
     }
 
     static func parseUsageSnapshot(from data: Data) throws -> ZaiUsageSnapshot {
+        guard !data.isEmpty else {
+            throw ZaiUsageError.parseFailed("Empty response body")
+        }
+
         let decoder = JSONDecoder()
         let apiResponse = try decoder.decode(ZaiQuotaLimitResponse.self, from: data)
 
