@@ -22,6 +22,7 @@
 - MiniMax: correct API region URL selection to route requests to the expected regional endpoint (#234). Thanks @theglove44!
 - MiniMax: always show the API region picker and retry the China endpoint when the global host rejects the token to
   avoid upgrade regressions for users without a persisted region (#344). Thanks @apoorvdarshan!
+- Claude: add Opus 4.6 pricing so token cost scanning tracks USD consumed correctly (#348). Thanks @arandaschimpf!
 - z.ai: handle quota responses with missing token-limit fields, avoid incorrect used-percent calculations, and harden
   empty-response behavior with safer logging (#346). Thanks @MohamedMohana and @halilertekin!
 - z.ai: fix provider visibility in the menu when enabled with token-account credentials (availability now considers the
