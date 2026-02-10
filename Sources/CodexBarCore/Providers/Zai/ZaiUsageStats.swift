@@ -318,7 +318,7 @@ public struct ZaiUsageFetcher: Sendable {
         // Some upstream issues (wrong endpoint/region/proxy) can yield HTTP 200 with an empty body.
         // JSONDecoder will otherwise throw an opaque Cocoa error ("data is missing").
         guard !data.isEmpty else {
-            Self.log.error("z.ai API returned empty body (HTTP 200) for \(quotaURL.absoluteString)")
+            Self.log.error("z.ai API returned empty body (HTTP 200) for \(Self.safeURLForLogging(quotaURL))")
             throw ZaiUsageError.parseFailed(
                 "Empty response body (HTTP 200). Check z.ai API region (Global vs BigModel CN) and your API token.")
         }
@@ -339,6 +339,13 @@ public struct ZaiUsageFetcher: Sendable {
             Self.log.error("z.ai parsing error: \(error.localizedDescription)")
             throw ZaiUsageError.parseFailed(error.localizedDescription)
         }
+    }
+
+    private static func safeURLForLogging(_ url: URL) -> String {
+        let host = url.host ?? "<unknown-host>"
+        let port = url.port.map { ":\($0)" } ?? ""
+        let path = url.path.isEmpty ? "/" : url.path
+        return "\(host)\(port)\(path)"
     }
 
     static func parseUsageSnapshot(from data: Data) throws -> ZaiUsageSnapshot {
