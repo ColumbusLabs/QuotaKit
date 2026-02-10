@@ -99,6 +99,78 @@ struct ZaiUsageSnapshotTests {
         #expect(usage.primary?.resetDescription == "5 hours window")
         #expect(usage.zaiUsage?.tokenLimit?.usage == nil)
     }
+
+    @Test
+    func mapsUsageSnapshotWindowsWithMissingRemainingUsesCurrentValue() {
+        let reset = Date(timeIntervalSince1970: 123)
+        let tokenLimit = ZaiLimitEntry(
+            type: .tokensLimit,
+            unit: .hours,
+            number: 5,
+            usage: 100,
+            currentValue: 20,
+            remaining: nil,
+            percentage: 25,
+            usageDetails: [],
+            nextResetTime: reset)
+        let snapshot = ZaiUsageSnapshot(
+            tokenLimit: tokenLimit,
+            timeLimit: nil,
+            planName: nil,
+            updatedAt: reset)
+
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(usage.primary?.usedPercent == 20)
+    }
+
+    @Test
+    func mapsUsageSnapshotWindowsWithMissingCurrentValueUsesRemaining() {
+        let reset = Date(timeIntervalSince1970: 123)
+        let tokenLimit = ZaiLimitEntry(
+            type: .tokensLimit,
+            unit: .hours,
+            number: 5,
+            usage: 100,
+            currentValue: nil,
+            remaining: 80,
+            percentage: 25,
+            usageDetails: [],
+            nextResetTime: reset)
+        let snapshot = ZaiUsageSnapshot(
+            tokenLimit: tokenLimit,
+            timeLimit: nil,
+            planName: nil,
+            updatedAt: reset)
+
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(usage.primary?.usedPercent == 20)
+    }
+
+    @Test
+    func mapsUsageSnapshotWindowsWithMissingRemainingAndCurrentValueFallsBackToPercentage() {
+        let reset = Date(timeIntervalSince1970: 123)
+        let tokenLimit = ZaiLimitEntry(
+            type: .tokensLimit,
+            unit: .hours,
+            number: 5,
+            usage: 100,
+            currentValue: nil,
+            remaining: nil,
+            percentage: 25,
+            usageDetails: [],
+            nextResetTime: reset)
+        let snapshot = ZaiUsageSnapshot(
+            tokenLimit: tokenLimit,
+            timeLimit: nil,
+            planName: nil,
+            updatedAt: reset)
+
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(usage.primary?.usedPercent == 25)
+    }
 }
 
 @Suite

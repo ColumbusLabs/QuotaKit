@@ -807,16 +807,17 @@ extension UsageMenuCardView.Model {
 
     private static func zaiLimitDetailText(limit: ZaiLimitEntry?) -> String? {
         guard let limit else { return nil }
-        
+
         if let currentValue = limit.currentValue,
            let usage = limit.usage,
-           let remaining = limit.remaining {
+           let remaining = limit.remaining
+        {
             let currentStr = UsageFormatter.tokenCountString(currentValue)
             let usageStr = UsageFormatter.tokenCountString(usage)
             let remainingStr = UsageFormatter.tokenCountString(remaining)
             return "\(currentStr) / \(usageStr) (\(remainingStr) remaining)"
         }
-        
+
         return nil
     }
 

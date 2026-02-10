@@ -93,17 +93,23 @@ extension ZaiLimitEntry {
     }
 
     private var computedUsedPercent: Double? {
-        guard let usage = self.usage else {
-            return nil
-        }
-        guard usage > 0 else { return nil }
-        let limit = max(0, usage)
-        guard limit > 0 else { return nil }
+        guard let limit = self.usage, limit > 0 else { return nil }
 
-        let remaining = self.remaining ?? 0
-        let currentValue = self.currentValue ?? 0
-        let usedFromRemaining = limit - remaining
-        let used = max(0, min(limit, max(usedFromRemaining, currentValue)))
+        // z.ai sometimes omits quota fields; don't invent zeros (can yield 100% used incorrectly).
+        var usedRaw: Int?
+        if let remaining = self.remaining {
+            let usedFromRemaining = limit - remaining
+            if let currentValue = self.currentValue {
+                usedRaw = max(usedFromRemaining, currentValue)
+            } else {
+                usedRaw = usedFromRemaining
+            }
+        } else if let currentValue = self.currentValue {
+            usedRaw = currentValue
+        }
+        guard let usedRaw else { return nil }
+
+        let used = max(0, min(limit, usedRaw))
         let percent = (Double(used) / Double(limit)) * 100
         return min(100, max(0, percent))
     }
