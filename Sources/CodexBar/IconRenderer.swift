@@ -1,6 +1,7 @@
 import AppKit
 import CodexBarCore
 
+// swiftlint:disable:next type_body_length
 enum IconRenderer {
     private static let creditsCap: Double = 1000
     private static let baseSize = NSSize(width: 18, height: 18)
@@ -586,16 +587,16 @@ enum IconRenderer {
                         let ctx = NSGraphicsContext.current?.cgContext
                         let centerXPx = rectPx.midXPx
                         let eyeCenterYPx = rectPx.y + rectPx.h / 2
-                        
+
                         ctx?.saveGState()
                         ctx?.setShouldAntialias(true) // Smooth edges for tilted ellipse eyes
 
                         // 1. Draw Eyes (Tilted ellipse cutouts - "fox eye" / "cat eye" style)
                         // Eyes are elliptical and tilted outward (outer corners pointing up)
-                        let eyeWidthPx: CGFloat = 5.3125  // Scaled up 125% to match rounded rect face
-                        let eyeHeightPx: CGFloat = 8.5  // Scaled up 125% to match rounded rect face
+                        let eyeWidthPx: CGFloat = 5.3125 // Scaled up 125% to match rounded rect face
+                        let eyeHeightPx: CGFloat = 8.5 // Scaled up 125% to match rounded rect face
                         let eyeOffsetPx: CGFloat = 7
-                        let eyeTiltAngle: CGFloat = .pi / 3  // 60 degrees tilt
+                        let eyeTiltAngle: CGFloat = .pi / 3 // 60 degrees tilt
 
                         let leftEyeCx = Self.grid.pt(centerXPx) - Self.grid.pt(Int(eyeOffsetPx))
                         let rightEyeCx = Self.grid.pt(centerXPx) + Self.grid.pt(Int(eyeOffsetPx))
@@ -603,7 +604,7 @@ enum IconRenderer {
                         let eyeW = Self.grid.pt(Int(eyeWidthPx))
                         let eyeH = Self.grid.pt(Int(eyeHeightPx))
 
-                        // Helper to draw a tilted ellipse eye
+                        /// Draw a tilted ellipse eye at the given center.
                         func drawTiltedEyeCutout(cx: CGFloat, cy: CGFloat, tiltAngle: CGFloat) {
                             let eyeRect = CGRect(
                                 x: -eyeW / 2,

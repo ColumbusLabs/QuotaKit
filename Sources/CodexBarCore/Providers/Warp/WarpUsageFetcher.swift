@@ -25,8 +25,8 @@ public struct WarpUsageSnapshot: Sendable {
         bonusCreditsRemaining: Int = 0,
         bonusCreditsTotal: Int = 0,
         bonusNextExpiration: Date? = nil,
-        bonusNextExpirationRemaining: Int = 0
-    ) {
+        bonusNextExpirationRemaining: Int = 0)
+    {
         self.requestLimit = requestLimit
         self.requestsUsed = requestsUsed
         self.nextRefreshTime = nextRefreshTime
@@ -39,20 +39,18 @@ public struct WarpUsageSnapshot: Sendable {
     }
 
     public func toUsageSnapshot() -> UsageSnapshot {
-        let usedPercent: Double
-        if self.isUnlimited {
-            usedPercent = 0
+        let usedPercent: Double = if self.isUnlimited {
+            0
         } else if self.requestLimit > 0 {
-            usedPercent = min(100, max(0, Double(self.requestsUsed) / Double(self.requestLimit) * 100))
+            min(100, max(0, Double(self.requestsUsed) / Double(self.requestLimit) * 100))
         } else {
-            usedPercent = 0
+            0
         }
 
-        let resetDescription: String?
-        if self.isUnlimited {
-            resetDescription = "Unlimited"
+        let resetDescription: String? = if self.isUnlimited {
+            "Unlimited"
         } else {
-            resetDescription = "\(self.requestsUsed)/\(self.requestLimit) credits"
+            "\(self.requestsUsed)/\(self.requestLimit) credits"
         }
 
         let primary = RateWindow(
@@ -127,47 +125,53 @@ public struct WarpUsageFetcher: Sendable {
     private static let clientID = "warp-app"
 
     private static let graphQLQuery = """
-        query GetRequestLimitInfo($requestContext: RequestContext!) {
-          user(requestContext: $requestContext) {
-            __typename
-            ... on UserOutput {
-              user {
-                requestLimitInfo {
-                  isUnlimited
-                  nextRefreshTime
-                  requestLimit
-                  requestsUsedSinceLastRefresh
-                }
-                bonusGrants {
+    query GetRequestLimitInfo($requestContext: RequestContext!) {
+      user(requestContext: $requestContext) {
+        __typename
+        ... on UserOutput {
+          user {
+            requestLimitInfo {
+              isUnlimited
+              nextRefreshTime
+              requestLimit
+              requestsUsedSinceLastRefresh
+            }
+            bonusGrants {
+              requestCreditsGranted
+              requestCreditsRemaining
+              expiration
+            }
+            workspaces {
+              bonusGrantsInfo {
+                grants {
                   requestCreditsGranted
                   requestCreditsRemaining
                   expiration
-                }
-                workspaces {
-                  bonusGrantsInfo {
-                    grants {
-                      requestCreditsGranted
-                      requestCreditsRemaining
-                      expiration
-                    }
-                  }
                 }
               }
             }
           }
         }
-        """
+      }
+    }
+    """
 
     public static func fetchUsage(apiKey: String) async throws -> WarpUsageSnapshot {
         guard !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw WarpUsageError.missingCredentials
         }
 
+        let osVersion = ProcessInfo.processInfo.operatingSystemVersion
+        let osVersionString = "\(osVersion.majorVersion).\(osVersion.minorVersion).\(osVersion.patchVersion)"
+
         var request = URLRequest(url: self.apiURL)
         request.httpMethod = "POST"
         request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(self.clientID, forHTTPHeaderField: "x-warp-client-id")
+        request.setValue("macOS", forHTTPHeaderField: "x-warp-os-category")
+        request.setValue("macOS", forHTTPHeaderField: "x-warp-os-name")
+        request.setValue(osVersionString, forHTTPHeaderField: "x-warp-os-version")
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
 
         let variables: [String: Any] = [
@@ -176,7 +180,7 @@ public struct WarpUsageFetcher: Sendable {
                 "osContext": [
                     "category": "macOS",
                     "name": "macOS",
-                    "version": "15.0",
+                    "version": osVersionString,
                 ] as [String: Any],
             ] as [String: Any],
         ]
@@ -208,19 +212,43 @@ public struct WarpUsageFetcher: Sendable {
         return try Self.parseResponse(data: data)
     }
 
+    static func _parseResponseForTesting(_ data: Data) throws -> WarpUsageSnapshot {
+        try self.parseResponse(data: data)
+    }
+
     private static func parseResponse(data: Data) throws -> WarpUsageSnapshot {
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let dataObj = json["data"] as? [String: Any],
-              let userObj = dataObj["user"] as? [String: Any],
-              let innerUserObj = userObj["user"] as? [String: Any],
+        guard let root = try? JSONSerialization.jsonObject(with: data),
+              let json = root as? [String: Any]
+        else {
+            throw WarpUsageError.parseFailed("Root JSON is not an object.")
+        }
+
+        if let rawErrors = json["errors"] as? [Any], !rawErrors.isEmpty {
+            let messages = rawErrors.compactMap(Self.graphQLErrorMessage(from:))
+            let summary = messages.isEmpty ? "GraphQL request failed." : messages.prefix(3).joined(separator: " | ")
+            throw WarpUsageError.apiError(200, summary)
+        }
+
+        guard let dataObj = json["data"] as? [String: Any],
+              let userObj = dataObj["user"] as? [String: Any]
+        else {
+            throw WarpUsageError.parseFailed("Missing data.user in response.")
+        }
+
+        let typeName = (userObj["__typename"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard let innerUserObj = userObj["user"] as? [String: Any],
               let limitInfo = innerUserObj["requestLimitInfo"] as? [String: Any]
         else {
+            if let typeName, !typeName.isEmpty, typeName != "UserOutput" {
+                throw WarpUsageError.parseFailed("Unexpected user type '\(typeName)'.")
+            }
             throw WarpUsageError.parseFailed("Unable to extract requestLimitInfo from response.")
         }
 
-        let isUnlimited = limitInfo["isUnlimited"] as? Bool ?? false
-        let requestLimit = limitInfo["requestLimit"] as? Int ?? 0
-        let requestsUsed = limitInfo["requestsUsedSinceLastRefresh"] as? Int ?? 0
+        let isUnlimited = Self.boolValue(limitInfo["isUnlimited"])
+        let requestLimit = self.intValue(limitInfo["requestLimit"])
+        let requestsUsed = self.intValue(limitInfo["requestsUsedSinceLastRefresh"])
 
         var nextRefreshTime: Date?
         if let nextRefreshTimeString = limitInfo["nextRefreshTime"] as? String {
@@ -320,6 +348,39 @@ public struct WarpUsageFetcher: Sendable {
         if let num = value as? NSNumber { return num.intValue }
         if let text = value as? String, let int = Int(text) { return int }
         return 0
+    }
+
+    private static func boolValue(_ value: Any?) -> Bool {
+        if let bool = value as? Bool {
+            return bool
+        }
+        if let number = value as? NSNumber {
+            return number.boolValue
+        }
+        if let text = value as? String {
+            let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if ["true", "1", "yes"].contains(normalized) {
+                return true
+            }
+            if ["false", "0", "no"].contains(normalized) {
+                return false
+            }
+        }
+        return false
+    }
+
+    private static func graphQLErrorMessage(from value: Any) -> String? {
+        if let message = value as? String {
+            let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+        if let dict = value as? [String: Any],
+           let message = dict["message"] as? String
+        {
+            let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+        return nil
     }
 
     private static func parseDate(_ dateString: String) -> Date? {
