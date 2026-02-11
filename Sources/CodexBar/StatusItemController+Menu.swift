@@ -751,7 +751,15 @@ extension StatusItemController {
         let snapshot = self.store.snapshot(for: provider)
         let showUsed = self.settings.usageBarsShowUsed
         let primary = showUsed ? snapshot?.primary?.usedPercent : snapshot?.primary?.remainingPercent
-        let weekly = showUsed ? snapshot?.secondary?.usedPercent : snapshot?.secondary?.remainingPercent
+        var weekly = showUsed ? snapshot?.secondary?.usedPercent : snapshot?.secondary?.remainingPercent
+        if showUsed,
+           provider == .warp,
+           let remaining = snapshot?.secondary?.remainingPercent,
+           remaining <= 0
+        {
+            // Preserve Warp "no bonus/exhausted bonus" layout even in show-used mode.
+            weekly = 0
+        }
         let credits = provider == .codex ? self.store.credits?.remaining : nil
         let stale = self.store.isStale(provider: provider)
         let style = self.store.style(for: provider)

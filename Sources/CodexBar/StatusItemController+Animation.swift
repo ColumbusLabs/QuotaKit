@@ -195,6 +195,14 @@ extension StatusItemController {
         // user setting we pass either "percent left" or "percent used".
         var primary = showUsed ? snapshot?.primary?.usedPercent : snapshot?.primary?.remainingPercent
         var weekly = showUsed ? snapshot?.secondary?.usedPercent : snapshot?.secondary?.remainingPercent
+        if showUsed,
+           primaryProvider == .warp,
+           let remaining = snapshot?.secondary?.remainingPercent,
+           remaining <= 0
+        {
+            // Preserve Warp "no bonus/exhausted bonus" layout even in show-used mode.
+            weekly = 0
+        }
         var credits: Double? = primaryProvider == .codex ? self.store.credits?.remaining : nil
         var stale = self.store.isStale(provider: primaryProvider)
         var morphProgress: Double?
@@ -279,6 +287,14 @@ extension StatusItemController {
         }
         var primary = showUsed ? snapshot?.primary?.usedPercent : snapshot?.primary?.remainingPercent
         var weekly = showUsed ? snapshot?.secondary?.usedPercent : snapshot?.secondary?.remainingPercent
+        if showUsed,
+           provider == .warp,
+           let remaining = snapshot?.secondary?.remainingPercent,
+           remaining <= 0
+        {
+            // Preserve Warp "no bonus/exhausted bonus" layout even in show-used mode.
+            weekly = 0
+        }
         var credits: Double? = provider == .codex ? self.store.credits?.remaining : nil
         var stale = self.store.isStale(provider: provider)
         var morphProgress: Double?
