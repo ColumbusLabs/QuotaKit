@@ -606,18 +606,17 @@ enum IconRenderer {
 
                         /// Draw a tilted ellipse eye at the given center.
                         func drawTiltedEyeCutout(cx: CGFloat, cy: CGFloat, tiltAngle: CGFloat) {
-                            let eyeRect = CGRect(
-                                x: -eyeW / 2,
-                                y: -eyeH / 2,
-                                width: eyeW,
-                                height: eyeH)
-                            let eyePath = NSBezierPath(ovalIn: eyeRect)
+                            guard let ctx else { return }
+                            let eyeRect = CGRect(x: -eyeW / 2, y: -eyeH / 2, width: eyeW, height: eyeH)
 
-                            var transform = AffineTransform.identity
-                            transform.translate(x: cx, y: cy)
-                            transform.rotate(byRadians: tiltAngle)
-                            eyePath.transform(using: transform)
-                            eyePath.fill()
+                            // Use CGContext transforms instead of AffineTransform-on-path so the rotation origin
+                            // is unambiguous and the current blend mode is consistently respected.
+                            ctx.saveGState()
+                            ctx.translateBy(x: cx, y: cy)
+                            ctx.rotate(by: tiltAngle)
+                            ctx.addEllipse(in: eyeRect)
+                            ctx.fillPath()
+                            ctx.restoreGState()
                         }
 
                         if warpEyesFilled {
