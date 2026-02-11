@@ -592,17 +592,17 @@ enum IconRenderer {
                         ctx?.setShouldAntialias(true) // Smooth edges for tilted ellipse eyes
 
                         // 1. Draw Eyes (Tilted ellipse cutouts - "fox eye" / "cat eye" style)
-                        // Eyes are elliptical and tilted outward (outer corners pointing up)
-                        let eyeWidthPx: CGFloat = 5.3125 // Scaled up 125% to match rounded rect face
-                        let eyeHeightPx: CGFloat = 8.5 // Scaled up 125% to match rounded rect face
-                        let eyeOffsetPx: CGFloat = 7
+                        // Keep sizes in integer pixels so grid conversion stays exact.
+                        let eyeWidthPx = 5
+                        let eyeHeightPx = 8
+                        let eyeOffsetPx = 7
                         let eyeTiltAngle: CGFloat = .pi / 3 // 60 degrees tilt
 
-                        let leftEyeCx = Self.grid.pt(centerXPx) - Self.grid.pt(Int(eyeOffsetPx))
-                        let rightEyeCx = Self.grid.pt(centerXPx) + Self.grid.pt(Int(eyeOffsetPx))
+                        let leftEyeCx = Self.grid.pt(centerXPx) - Self.grid.pt(eyeOffsetPx)
+                        let rightEyeCx = Self.grid.pt(centerXPx) + Self.grid.pt(eyeOffsetPx)
                         let eyeCy = Self.grid.pt(eyeCenterYPx)
-                        let eyeW = Self.grid.pt(Int(eyeWidthPx))
-                        let eyeH = Self.grid.pt(Int(eyeHeightPx))
+                        let eyeW = Self.grid.pt(eyeWidthPx)
+                        let eyeH = Self.grid.pt(eyeHeightPx)
 
                         /// Draw a tilted ellipse eye at the given center.
                         func drawTiltedEyeCutout(cx: CGFloat, cy: CGFloat, tiltAngle: CGFloat) {

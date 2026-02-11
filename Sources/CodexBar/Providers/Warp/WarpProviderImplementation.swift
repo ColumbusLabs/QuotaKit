@@ -35,7 +35,7 @@ struct WarpProviderImplementation: ProviderImplementation {
                         }),
                 ],
                 isVisible: nil,
-                onActivate: { context.settings.ensureWarpAPITokenLoaded() }),
+                onActivate: nil),
         ]
     }
 }

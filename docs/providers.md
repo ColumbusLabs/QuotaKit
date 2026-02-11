@@ -34,7 +34,7 @@ until the session is invalid, to avoid repeated Keychain prompts.
 | Vertex AI | Google ADC OAuth (gcloud) → Cloud Monitoring quota usage (`oauth`). |
 | JetBrains AI | Local XML quota file (`local`). |
 | Amp | Web settings page via browser cookies (`web`). |
-| Warp | API token (Keychain/env) → GraphQL request limits (`api`). |
+| Warp | API token (config/env) → GraphQL request limits (`api`). |
 
 ## Codex
 - Web dashboard (when enabled): `https://chatgpt.com/codex/settings/usage` via WebView + browser cookies.

@@ -121,6 +121,13 @@ struct MenuDescriptor {
                     window: primary,
                     resetStyle: resetStyle,
                     showUsed: settings.usageBarsShowUsed)
+                if provider == .warp,
+                   primary.resetsAt != nil,
+                   let detail = primary.resetDescription?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !detail.isEmpty
+                {
+                    entries.append(.text(detail, .secondary))
+                }
             }
             if let weekly = snap.secondary {
                 let weeklyResetOverride: String? = {

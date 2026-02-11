@@ -200,16 +200,22 @@ public struct WarpUsageFetcher: Sendable {
         }
 
         guard httpResponse.statusCode == 200 else {
-            let body = String(data: data, encoding: .utf8) ?? "HTTP \(httpResponse.statusCode)"
-            Self.log.error("Warp API returned \(httpResponse.statusCode): \(body)")
-            throw WarpUsageError.apiError(httpResponse.statusCode, body)
+            let summary = Self.apiErrorSummary(statusCode: httpResponse.statusCode, data: data)
+            Self.log.error("Warp API returned \(httpResponse.statusCode): \(summary)")
+            throw WarpUsageError.apiError(httpResponse.statusCode, summary)
         }
 
-        if let jsonString = String(data: data, encoding: .utf8) {
-            Self.log.debug("Warp API response: \(jsonString)")
+        do {
+            let snapshot = try Self.parseResponse(data: data)
+            Self.log.debug(
+                "Warp usage parsed requestLimit=\(snapshot.requestLimit) requestsUsed=\(snapshot.requestsUsed) "
+                    + "bonusRemaining=\(snapshot.bonusCreditsRemaining) bonusTotal=\(snapshot.bonusCreditsTotal) "
+                    + "isUnlimited=\(snapshot.isUnlimited)")
+            return snapshot
+        } catch {
+            Self.log.error("Warp response parse failed bytes=\(data.count) error=\(error.localizedDescription)")
+            throw error
         }
-
-        return try Self.parseResponse(data: data)
     }
 
     static func _parseResponseForTesting(_ data: Data) throws -> WarpUsageSnapshot {
@@ -381,6 +387,50 @@ public struct WarpUsageFetcher: Sendable {
             return trimmed.isEmpty ? nil : trimmed
         }
         return nil
+    }
+
+    private static func apiErrorSummary(statusCode: Int, data: Data) -> String {
+        guard let root = try? JSONSerialization.jsonObject(with: data),
+              let json = root as? [String: Any]
+        else {
+            return "Unexpected response body (\(data.count) bytes)."
+        }
+
+        if let rawErrors = json["errors"] as? [Any], !rawErrors.isEmpty {
+            let messages = rawErrors.compactMap(Self.graphQLErrorMessage(from:))
+            let joined = messages.prefix(3).joined(separator: " | ")
+            if !joined.isEmpty {
+                return Self.compactSummaryText(joined)
+            }
+        }
+
+        if let error = json["error"] as? String {
+            let trimmed = error.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                return Self.compactSummaryText(trimmed)
+            }
+        }
+
+        if let message = json["message"] as? String {
+            let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                return Self.compactSummaryText(trimmed)
+            }
+        }
+
+        return "HTTP \(statusCode) (\(data.count) bytes)."
+    }
+
+    private static func compactSummaryText(_ text: String, maxLength: Int = 200) -> String {
+        let collapsed = text
+            .components(separatedBy: .newlines)
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if collapsed.count <= maxLength {
+            return collapsed
+        }
+        let limitIndex = collapsed.index(collapsed.startIndex, offsetBy: maxLength)
+        return "\(collapsed[..<limitIndex])..."
     }
 
     private static func parseDate(_ dateString: String) -> Date? {

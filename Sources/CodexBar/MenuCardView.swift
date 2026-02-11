@@ -743,6 +743,14 @@ extension UsageMenuCardView.Model {
         let zaiTokenDetail = Self.zaiLimitDetailText(limit: zaiUsage?.tokenLimit)
         let zaiTimeDetail = Self.zaiLimitDetailText(limit: zaiUsage?.timeLimit)
         if let primary = snapshot.primary {
+            var primaryDetailText: String? = input.provider == .zai ? zaiTokenDetail : nil
+            if input.provider == .warp,
+               primary.resetsAt != nil,
+               let detail = primary.resetDescription,
+               !detail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            {
+                primaryDetailText = detail
+            }
             metrics.append(Metric(
                 id: "primary",
                 title: input.metadata.sessionLabel,
@@ -750,7 +758,7 @@ extension UsageMenuCardView.Model {
                     input.usageBarsShowUsed ? primary.usedPercent : primary.remainingPercent),
                 percentStyle: percentStyle,
                 resetText: Self.resetText(for: primary, style: input.resetTimeDisplayStyle, now: input.now),
-                detailText: input.provider == .zai ? zaiTokenDetail : nil,
+                detailText: primaryDetailText,
                 detailLeftText: nil,
                 detailRightText: nil,
                 pacePercent: nil,

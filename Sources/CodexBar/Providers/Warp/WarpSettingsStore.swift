@@ -11,6 +11,4 @@ extension SettingsStore {
             self.logSecretUpdate(provider: .warp, field: "apiKey", value: newValue)
         }
     }
-
-    func ensureWarpAPITokenLoaded() {}
 }
