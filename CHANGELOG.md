@@ -4,6 +4,7 @@
 ### Highlights
 - Claude OAuth/keychain flows were reworked across a series of follow-up PRs to reduce prompt storms, stabilize background behavior, and make failure modes deterministic (#245, #305, #308, #309). Thanks @manikv12!
 - Claude: harden Claude Code PTY capture for `/usage` and `/status` (prompt automation, safer command palette confirmation, partial UTF-8 handling, and parsing guards against status-bar context meters) (#320).
+- New provider: Warp (credits + add-on credits) (#352). Thanks @Kathie-yu!
 - Provider correctness fixes landed for Cursor plan parsing and MiniMax region routing (#240, #234, #344). Thanks @robinebers
   and @theglove44!
 - Menu bar animation behavior was hardened in merged mode and fallback mode (#283, #291). Thanks @vignesh07 and @Ilakiancs!
@@ -18,6 +19,7 @@
 - CodexBar syncs its cached OAuth token when the Claude Code Keychain entry changes, so updated auth is picked up without requiring a restart.
 
 ### Provider & Usage Fixes
+- Warp: add Warp provider support (credits + add-on credits), configurable via Settings or `WARP_API_KEY`/`WARP_TOKEN` (#352). Thanks @Kathie-yu!
 - Cursor: compute usage against `plan.limit` rather than `breakdown.total` to avoid incorrect limit interpretation (#240). Thanks @robinebers!
 - MiniMax: correct API region URL selection to route requests to the expected regional endpoint (#234). Thanks @theglove44!
 - MiniMax: always show the API region picker and retry the China endpoint when the global host rejects the token to
