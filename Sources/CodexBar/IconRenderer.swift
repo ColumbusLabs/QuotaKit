@@ -582,7 +582,7 @@ enum IconRenderer {
                         }
                     }
 
-                    // Warp twist: "Warp" style face with a diagonal slash
+                    // Warp twist: "Warp" style face with tilted-eye cutouts.
                     if addWarpTwist {
                         let ctx = NSGraphicsContext.current?.cgContext
                         let centerXPx = rectPx.midXPx
