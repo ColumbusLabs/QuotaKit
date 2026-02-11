@@ -165,4 +165,58 @@ struct WarpUsageFetcherTests {
             return message == "Root JSON is not an object."
         }
     }
+
+    @Test
+    func toUsageSnapshotOmitsSecondaryWhenNoBonusCredits() {
+        let source = WarpUsageSnapshot(
+            requestLimit: 100,
+            requestsUsed: 10,
+            nextRefreshTime: Date().addingTimeInterval(3600),
+            isUnlimited: false,
+            updatedAt: Date(),
+            bonusCreditsRemaining: 0,
+            bonusCreditsTotal: 0,
+            bonusNextExpiration: nil,
+            bonusNextExpirationRemaining: 0)
+
+        let snapshot = source.toUsageSnapshot()
+        #expect(snapshot.secondary == nil)
+    }
+
+    @Test
+    func toUsageSnapshotKeepsBonusWindowWhenBonusExists() throws {
+        let source = WarpUsageSnapshot(
+            requestLimit: 100,
+            requestsUsed: 10,
+            nextRefreshTime: Date().addingTimeInterval(3600),
+            isUnlimited: false,
+            updatedAt: Date(),
+            bonusCreditsRemaining: 0,
+            bonusCreditsTotal: 20,
+            bonusNextExpiration: nil,
+            bonusNextExpirationRemaining: 0)
+
+        let snapshot = source.toUsageSnapshot()
+        let secondary = try #require(snapshot.secondary)
+        #expect(secondary.usedPercent == 100)
+    }
+
+    @Test
+    func toUsageSnapshotUnlimitedPrimaryDoesNotShowResetDate() throws {
+        let source = WarpUsageSnapshot(
+            requestLimit: 0,
+            requestsUsed: 0,
+            nextRefreshTime: Date().addingTimeInterval(3600),
+            isUnlimited: true,
+            updatedAt: Date(),
+            bonusCreditsRemaining: 0,
+            bonusCreditsTotal: 0,
+            bonusNextExpiration: nil,
+            bonusNextExpirationRemaining: 0)
+
+        let snapshot = source.toUsageSnapshot()
+        let primary = try #require(snapshot.primary)
+        #expect(primary.resetsAt == nil)
+        #expect(primary.resetDescription == "Unlimited")
+    }
 }

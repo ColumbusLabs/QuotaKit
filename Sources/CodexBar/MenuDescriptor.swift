@@ -115,14 +115,23 @@ struct MenuDescriptor {
         if let snap = store.snapshot(for: provider) {
             let resetStyle = settings.resetTimeDisplayStyle
             if let primary = snap.primary {
+                let warpPrimaryResetOverride: String? = {
+                    guard provider == .warp, primary.resetsAt != nil else { return nil }
+                    let resetOnlyWindow = RateWindow(
+                        usedPercent: primary.usedPercent,
+                        windowMinutes: primary.windowMinutes,
+                        resetsAt: primary.resetsAt,
+                        resetDescription: nil)
+                    return UsageFormatter.resetLine(for: resetOnlyWindow, style: resetStyle)
+                }()
                 Self.appendRateWindow(
                     entries: &entries,
                     title: meta.sessionLabel,
                     window: primary,
                     resetStyle: resetStyle,
-                    showUsed: settings.usageBarsShowUsed)
+                    showUsed: settings.usageBarsShowUsed,
+                    resetOverride: warpPrimaryResetOverride)
                 if provider == .warp,
-                   primary.resetsAt != nil,
                    let detail = primary.resetDescription?.trimmingCharacters(in: .whitespacesAndNewlines),
                    !detail.isEmpty
                 {

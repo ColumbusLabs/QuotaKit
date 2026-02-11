@@ -56,18 +56,10 @@ public struct WarpUsageSnapshot: Sendable {
         let primary = RateWindow(
             usedPercent: usedPercent,
             windowMinutes: nil,
-            resetsAt: self.nextRefreshTime,
+            resetsAt: self.isUnlimited ? nil : self.nextRefreshTime,
             resetDescription: resetDescription)
 
         // Secondary: combined bonus/add-on credits (user + workspace)
-        let bonusUsedPercent: Double = {
-            guard self.bonusCreditsTotal > 0 else {
-                return self.bonusCreditsRemaining > 0 ? 0 : 100
-            }
-            let used = self.bonusCreditsTotal - self.bonusCreditsRemaining
-            return min(100, max(0, Double(used) / Double(self.bonusCreditsTotal) * 100))
-        }()
-
         var bonusDetail: String?
         if self.bonusCreditsRemaining > 0,
            let expiry = self.bonusNextExpiration,
@@ -77,11 +69,27 @@ public struct WarpUsageSnapshot: Sendable {
             bonusDetail = "\(self.bonusNextExpirationRemaining) credits expires on \(dateText)"
         }
 
-        let secondary = RateWindow(
-            usedPercent: bonusUsedPercent,
-            windowMinutes: nil,
-            resetsAt: nil,
-            resetDescription: bonusDetail)
+        let hasBonusWindow = self.bonusCreditsTotal > 0
+            || self.bonusCreditsRemaining > 0
+            || (bonusDetail?.isEmpty == false)
+
+        let secondary: RateWindow?
+        if hasBonusWindow {
+            let bonusUsedPercent: Double = {
+                guard self.bonusCreditsTotal > 0 else {
+                    return self.bonusCreditsRemaining > 0 ? 0 : 100
+                }
+                let used = self.bonusCreditsTotal - self.bonusCreditsRemaining
+                return min(100, max(0, Double(used) / Double(self.bonusCreditsTotal) * 100))
+            }()
+            secondary = RateWindow(
+                usedPercent: bonusUsedPercent,
+                windowMinutes: nil,
+                resetsAt: nil,
+                resetDescription: bonusDetail)
+        } else {
+            secondary = nil
+        }
 
         let identity = ProviderIdentitySnapshot(
             providerID: .warp,
