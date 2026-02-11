@@ -760,6 +760,15 @@ extension StatusItemController {
             // Preserve Warp "no bonus/exhausted bonus" layout even in show-used mode.
             weekly = 0
         }
+        if showUsed,
+           provider == .warp,
+           let remaining = snapshot?.secondary?.remainingPercent,
+           remaining > 0,
+           weekly == 0
+        {
+            // In show-used mode, `0` means "unused", not "missing". Keep the weekly lane present.
+            weekly = 0.0001
+        }
         let credits = provider == .codex ? self.store.credits?.remaining : nil
         let stale = self.store.isStale(provider: provider)
         let style = self.store.style(for: provider)

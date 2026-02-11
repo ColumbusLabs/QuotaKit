@@ -203,6 +203,15 @@ extension StatusItemController {
             // Preserve Warp "no bonus/exhausted bonus" layout even in show-used mode.
             weekly = 0
         }
+        if showUsed,
+           primaryProvider == .warp,
+           let remaining = snapshot?.secondary?.remainingPercent,
+           remaining > 0,
+           weekly == 0
+        {
+            // In show-used mode, `0` means "unused", not "missing". Keep the weekly lane present.
+            weekly = Self.loadingPercentEpsilon
+        }
         var credits: Double? = primaryProvider == .codex ? self.store.credits?.remaining : nil
         var stale = self.store.isStale(provider: primaryProvider)
         var morphProgress: Double?
@@ -294,6 +303,15 @@ extension StatusItemController {
         {
             // Preserve Warp "no bonus/exhausted bonus" layout even in show-used mode.
             weekly = 0
+        }
+        if showUsed,
+           provider == .warp,
+           let remaining = snapshot?.secondary?.remainingPercent,
+           remaining > 0,
+           weekly == 0
+        {
+            // In show-used mode, `0` means "unused", not "missing". Keep the weekly lane present.
+            weekly = Self.loadingPercentEpsilon
         }
         var credits: Double? = provider == .codex ? self.store.credits?.remaining : nil
         var stale = self.store.isStale(provider: provider)
