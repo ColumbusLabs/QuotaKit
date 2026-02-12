@@ -116,6 +116,9 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         policy: ClaudeOAuthKeychainPromptPolicy,
         allowBackgroundDelegatedRefresh: Bool) throws
     {
+        if policy.mode == .never {
+            throw ClaudeUsageError.oauthFailed("Delegated refresh is disabled by 'never' keychain policy.")
+        }
         if policy.mode == .onlyOnUserAction,
            policy.interaction != .userInitiated,
            !allowBackgroundDelegatedRefresh

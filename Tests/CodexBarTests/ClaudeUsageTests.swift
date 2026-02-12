@@ -324,6 +324,57 @@ struct ClaudeUsageTests {
     }
 
     @Test
+    func oauthDelegatedRetry_never_background_suppressesDelegationEvenForCLI() async throws {
+        let loadCounter = AsyncCounter()
+        let delegatedCounter = AsyncCounter()
+
+        let fetcher = ClaudeUsageFetcher(
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            environment: [:],
+            dataSource: .oauth,
+            oauthKeychainPromptCooldownEnabled: true,
+            allowBackgroundDelegatedRefresh: true)
+
+        let delegatedOverride: (@Sendable (
+            Date,
+            TimeInterval) async -> ClaudeOAuthDelegatedRefreshCoordinator.Outcome)? = { _, _ in
+            _ = await delegatedCounter.increment()
+            return .attemptedSucceeded
+        }
+        let loadCredsOverride: (@Sendable (
+            [String: String],
+            Bool,
+            Bool) async throws -> ClaudeOAuthCredentials)? = { _, _, _ in
+            _ = await loadCounter.increment()
+            throw ClaudeOAuthCredentialsError.refreshDelegatedToClaudeCLI
+        }
+
+        do {
+            _ = try await ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.never) {
+                try await ProviderInteractionContext.$current.withValue(.background) {
+                    try await ClaudeUsageFetcher.$delegatedRefreshAttemptOverride.withValue(delegatedOverride) {
+                        try await ClaudeUsageFetcher.$loadOAuthCredentialsOverride.withValue(loadCredsOverride) {
+                            try await fetcher.loadLatestUsage(model: "sonnet")
+                        }
+                    }
+                }
+            }
+            Issue.record("Expected delegated refresh to be suppressed for prompt policy 'never'")
+        } catch let error as ClaudeUsageError {
+            guard case let .oauthFailed(message) = error else {
+                Issue.record("Expected ClaudeUsageError.oauthFailed, got \(error)")
+                return
+            }
+            #expect(message.contains("Delegated refresh is disabled by 'never' keychain policy"))
+        } catch {
+            Issue.record("Expected ClaudeUsageError, got \(error)")
+        }
+
+        #expect(await loadCounter.current() == 1)
+        #expect(await delegatedCounter.current() == 0)
+    }
+
+    @Test
     func oauthBootstrap_onlyOnUserAction_background_startup_allowsInteractiveReadWhenNoCache() async throws {
         final class FlagBox: @unchecked Sendable {
             var allowKeychainPromptFlags: [Bool] = []
