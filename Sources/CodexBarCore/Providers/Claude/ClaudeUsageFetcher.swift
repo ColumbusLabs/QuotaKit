@@ -384,6 +384,24 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             ])
     }
 
+    private static func logDeferredBackgroundDelegatedRecoveryIfNeeded(
+        delegatedOutcome: ClaudeOAuthDelegatedRefreshCoordinator.Outcome,
+        didSyncSilently: Bool,
+        policy: ClaudeOAuthKeychainPromptPolicy)
+    {
+        guard delegatedOutcome == .attemptedSucceeded else { return }
+        guard !didSyncSilently else { return }
+        guard policy.mode == .onlyOnUserAction else { return }
+        guard policy.interaction == .background else { return }
+        self.log.info(
+            "Claude OAuth delegated refresh completed; background recovery deferred until user action",
+            metadata: [
+                "interaction": policy.interactionLabel,
+                "promptMode": policy.mode.rawValue,
+                "delegatedOutcome": self.delegatedRefreshOutcomeLabel(delegatedOutcome),
+            ])
+    }
+
     private func loadViaOAuth(allowDelegatedRetry: Bool) async throws -> ClaudeUsageSnapshot {
         do {
             let promptPolicy = Self.currentClaudeOAuthKeychainPromptPolicy()
@@ -476,12 +494,14 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                     // avoid bypassing the prompt cooldown and to let the fallback chain proceed.
                     _ = ClaudeOAuthCredentialsStore.invalidateCacheIfCredentialsFileChanged()
 
-                    let didSyncSilently: Bool = {
-                        guard delegatedOutcome == .attemptedSucceeded else { return false }
-                        return ClaudeOAuthCredentialsStore.syncFromClaudeKeychainWithoutPrompt(now: Date())
-                    }()
+                    let didSyncSilently = delegatedOutcome == .attemptedSucceeded
+                        && ClaudeOAuthCredentialsStore.syncFromClaudeKeychainWithoutPrompt(now: Date())
 
                     let promptPolicy = Self.currentClaudeOAuthKeychainPromptPolicy()
+                    Self.logDeferredBackgroundDelegatedRecoveryIfNeeded(
+                        delegatedOutcome: delegatedOutcome,
+                        didSyncSilently: didSyncSilently,
+                        policy: promptPolicy)
                     let retryAllowKeychainPrompt = promptPolicy.canPromptNow && !didSyncSilently
                     if retryAllowKeychainPrompt {
                         Self.log.info(

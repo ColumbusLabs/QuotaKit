@@ -260,4 +260,101 @@ struct ClaudeOAuthDelegatedRefreshRecoveryTests {
             }
         }
     }
+
+    @Test
+    func delegatedRefresh_attemptedSucceeded_backgroundOnlyOnUserAction_doesNotRecoverFromKeychain() async throws {
+        let delegatedCounter = AsyncCounter()
+        let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
+
+        try await KeychainCacheStore.withServiceOverrideForTesting(service) {
+            try await KeychainAccessGate.withTaskOverrideForTesting(false) {
+                KeychainCacheStore.setTestStoreForTesting(true)
+                defer { KeychainCacheStore.setTestStoreForTesting(false) }
+
+                ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
+                defer { ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting() }
+                ClaudeOAuthCredentialsStore._resetClaudeKeychainChangeTrackingForTesting()
+                defer { ClaudeOAuthCredentialsStore._resetClaudeKeychainChangeTrackingForTesting() }
+
+                try await ClaudeOAuthCredentialsStore.withIsolatedMemoryCacheForTesting {
+                    let tempDir = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+                    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                    let fileURL = tempDir.appendingPathComponent("credentials.json")
+
+                    await ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(fileURL) {
+                        ClaudeOAuthCredentialsStore.invalidateCache()
+                        let expiredData = self.makeCredentialsData(
+                            accessToken: "expired-token",
+                            expiresAt: Date(timeIntervalSinceNow: -3600))
+                        let cacheKey = KeychainCacheStore.Key.oauth(provider: .claude)
+                        let cacheEntry = ClaudeOAuthCredentialsStore.CacheEntry(
+                            data: expiredData,
+                            storedAt: Date(),
+                            owner: .claudeCLI)
+                        KeychainCacheStore.store(key: cacheKey, entry: cacheEntry)
+                        defer { KeychainCacheStore.clear(key: cacheKey) }
+
+                        // Expired Claude-CLI-owned credentials are still considered cache-present (delegatable).
+                        #expect(ClaudeOAuthCredentialsStore.hasCachedCredentials(environment: [:]) == true)
+
+                        let stubFingerprint = ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint(
+                            modifiedAt: 1,
+                            createdAt: 1,
+                            persistentRefHash: "test")
+                        let keychainOverrideStore = ClaudeOAuthCredentialsStore.ClaudeKeychainOverrideStore(
+                            data: Data(),
+                            fingerprint: stubFingerprint)
+                        let freshData = self.makeCredentialsData(
+                            accessToken: "fresh-token",
+                            expiresAt: Date(timeIntervalSinceNow: 3600))
+
+                        let fetcher = ClaudeUsageFetcher(
+                            browserDetection: BrowserDetection(cacheTTL: 0),
+                            environment: [:],
+                            dataSource: .oauth,
+                            oauthKeychainPromptCooldownEnabled: false,
+                            allowBackgroundDelegatedRefresh: true)
+
+                        let delegatedOverride: (@Sendable (
+                            Date,
+                            TimeInterval) async -> ClaudeOAuthDelegatedRefreshCoordinator.Outcome)? = { _, _ in
+                            keychainOverrideStore.data = freshData
+                            keychainOverrideStore.fingerprint = stubFingerprint
+                            _ = await delegatedCounter.increment()
+                            return .attemptedSucceeded
+                        }
+
+                        do {
+                            _ = try await ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
+                                .onlyOnUserAction)
+                            {
+                                try await ProviderInteractionContext.$current.withValue(.background) {
+                                    try await ClaudeOAuthCredentialsStore
+                                        .withMutableClaudeKeychainOverrideStoreForTesting(keychainOverrideStore) {
+                                            try await ClaudeUsageFetcher.$delegatedRefreshAttemptOverride
+                                                .withValue(delegatedOverride) {
+                                                    try await fetcher.loadLatestUsage(model: "sonnet")
+                                                }
+                                        }
+                                }
+                            }
+                            Issue.record(
+                                "Expected OAuth fetch failure: background keychain recovery should stay blocked")
+                        } catch let error as ClaudeUsageError {
+                            guard case let .oauthFailed(message) = error else {
+                                Issue.record("Expected ClaudeUsageError.oauthFailed, got \(error)")
+                                return
+                            }
+                            #expect(message.contains("still unavailable after delegated Claude CLI refresh"))
+                        } catch {
+                            Issue.record("Expected ClaudeUsageError, got \(error)")
+                        }
+
+                        #expect(await delegatedCounter.current() == 1)
+                    }
+                }
+            }
+        }
+    }
 }
