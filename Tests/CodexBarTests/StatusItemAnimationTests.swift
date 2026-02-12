@@ -171,8 +171,8 @@ struct StatusItemAnimationTests {
         #expect(rep != nil)
         guard let rep else { return }
 
-        // In the Warp "no bonus/exhausted bonus" layout, the bottom bar shows primary usage (10%),
-        // so a pixel near the right side of the bottom bar should *not* be fully opaque.
+        // In the Warp "no bonus/exhausted bonus" layout, the bottom bar is a dimmed track.
+        // A pixel near the right side of the bottom bar should remain subdued (not fully opaque).
         let alpha = (rep.colorAt(x: 25, y: 9) ?? .clear).alphaComponent
         #expect(alpha < 0.6)
     }
