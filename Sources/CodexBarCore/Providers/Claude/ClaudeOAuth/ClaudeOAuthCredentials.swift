@@ -313,6 +313,7 @@ public enum ClaudeOAuthCredentialsStore {
     #if DEBUG
     @TaskLocal private static var taskCredentialsURLOverride: URL?
     #endif
+    @TaskLocal static var allowBackgroundPromptBootstrap: Bool = false
     // In-memory cache (nonisolated for synchronous access)
     private static let memoryCacheLock = NSLock()
     private nonisolated(unsafe) static var cachedCredentialRecord: ClaudeOAuthCredentialRecord?
@@ -1453,12 +1454,10 @@ public enum ClaudeOAuthCredentialsStore {
     {
         guard self.keychainAccessAllowed else { return false }
         switch mode {
-        case .never:
-            return false
+        case .never: return false
         case .onlyOnUserAction:
-            return ProviderInteractionContext.current == .userInitiated
-        case .always:
-            return true
+            return ProviderInteractionContext.current == .userInitiated || self.allowBackgroundPromptBootstrap
+        case .always: return true
         }
     }
 
