@@ -140,8 +140,6 @@ struct ClaudeOAuthCredentialsStorePromptPolicyTests {
                     defer {
                         ClaudeOAuthCredentialsStore.invalidateCache()
                         ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
-                        KeychainPromptHandler.handler = nil
-                        KeychainAccessPreflight.setCheckGenericPasswordOverrideForTesting(nil)
                     }
 
                     let tempDir = FileManager.default.temporaryDirectory
@@ -153,27 +151,33 @@ struct ClaudeOAuthCredentialsStorePromptPolicyTests {
                             accessToken: "keychain-token",
                             expiresAt: Date(timeIntervalSinceNow: 3600))
 
-                        KeychainAccessPreflight.setCheckGenericPasswordOverrideForTesting { _, _ in
+                        var preAlertHits = 0
+                        let preflightOverride: (String, String?) -> KeychainAccessPreflight.Outcome = { _, _ in
                             .allowed
                         }
-
-                        var preAlertHits = 0
-                        KeychainPromptHandler.handler = { _ in
+                        let promptHandler: (KeychainPromptContext) -> Void = { _ in
                             preAlertHits += 1
                         }
-
-                        let creds = try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
-                            .onlyOnUserAction)
-                        {
-                            try ProviderInteractionContext.$current.withValue(.userInitiated) {
-                                try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-                                    data: keychainData,
-                                    fingerprint: nil)
-                                {
-                                    try ClaudeOAuthCredentialsStore.load(environment: [:], allowKeychainPrompt: true)
-                                }
-                            }
-                        }
+                        let creds = try KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting(
+                            preflightOverride,
+                            operation: {
+                                try KeychainPromptHandler.withHandlerForTesting(promptHandler, operation: {
+                                    try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
+                                        .onlyOnUserAction)
+                                    {
+                                        try ProviderInteractionContext.$current.withValue(.userInitiated) {
+                                            try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                                                data: keychainData,
+                                                fingerprint: nil)
+                                            {
+                                                try ClaudeOAuthCredentialsStore.load(
+                                                    environment: [:],
+                                                    allowKeychainPrompt: true)
+                                            }
+                                        }
+                                    }
+                                })
+                            })
 
                         #expect(creds.accessToken == "keychain-token")
                         #expect(preAlertHits == 0)
@@ -197,8 +201,6 @@ struct ClaudeOAuthCredentialsStorePromptPolicyTests {
                     defer {
                         ClaudeOAuthCredentialsStore.invalidateCache()
                         ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
-                        KeychainPromptHandler.handler = nil
-                        KeychainAccessPreflight.setCheckGenericPasswordOverrideForTesting(nil)
                     }
 
                     let tempDir = FileManager.default.temporaryDirectory
@@ -210,32 +212,37 @@ struct ClaudeOAuthCredentialsStorePromptPolicyTests {
                             accessToken: "keychain-token",
                             expiresAt: Date(timeIntervalSinceNow: 3600))
 
-                        KeychainAccessPreflight.setCheckGenericPasswordOverrideForTesting { _, _ in
+                        var preAlertHits = 0
+                        let preflightOverride: (String, String?) -> KeychainAccessPreflight.Outcome = { _, _ in
                             .interactionRequired
                         }
-
-                        var preAlertHits = 0
-                        KeychainPromptHandler.handler = { _ in
+                        let promptHandler: (KeychainPromptContext) -> Void = { _ in
                             preAlertHits += 1
                         }
-
-                        let creds = try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
-                            .onlyOnUserAction)
-                        {
-                            try ProviderInteractionContext.$current.withValue(.userInitiated) {
-                                try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-                                    data: keychainData,
-                                    fingerprint: nil)
-                                {
-                                    try ClaudeOAuthCredentialsStore.load(environment: [:], allowKeychainPrompt: true)
-                                }
-                            }
-                        }
+                        let creds = try KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting(
+                            preflightOverride,
+                            operation: {
+                                try KeychainPromptHandler.withHandlerForTesting(promptHandler, operation: {
+                                    try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
+                                        .onlyOnUserAction)
+                                    {
+                                        try ProviderInteractionContext.$current.withValue(.userInitiated) {
+                                            try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                                                data: keychainData,
+                                                fingerprint: nil)
+                                            {
+                                                try ClaudeOAuthCredentialsStore.load(
+                                                    environment: [:],
+                                                    allowKeychainPrompt: true)
+                                            }
+                                        }
+                                    }
+                                })
+                            })
 
                         #expect(creds.accessToken == "keychain-token")
                         // TODO: tighten this to `== 1` once keychain pre-alert delivery is deduplicated/scoped.
-                        // Today `KeychainPromptHandler.handler` is a global callback, so parallel test activity can
-                        // legitimately observe multiple hits in a single test run.
+                        // This path can currently emit more than one pre-alert during a single load attempt.
                         #expect(preAlertHits >= 1)
                     }
                 }
@@ -257,8 +264,6 @@ struct ClaudeOAuthCredentialsStorePromptPolicyTests {
                     defer {
                         ClaudeOAuthCredentialsStore.invalidateCache()
                         ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
-                        KeychainPromptHandler.handler = nil
-                        KeychainAccessPreflight.setCheckGenericPasswordOverrideForTesting(nil)
                     }
 
                     let tempDir = FileManager.default.temporaryDirectory
@@ -270,32 +275,37 @@ struct ClaudeOAuthCredentialsStorePromptPolicyTests {
                             accessToken: "keychain-token",
                             expiresAt: Date(timeIntervalSinceNow: 3600))
 
-                        KeychainAccessPreflight.setCheckGenericPasswordOverrideForTesting { _, _ in
+                        var preAlertHits = 0
+                        let preflightOverride: (String, String?) -> KeychainAccessPreflight.Outcome = { _, _ in
                             .failure(-1)
                         }
-
-                        var preAlertHits = 0
-                        KeychainPromptHandler.handler = { _ in
+                        let promptHandler: (KeychainPromptContext) -> Void = { _ in
                             preAlertHits += 1
                         }
-
-                        let creds = try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
-                            .onlyOnUserAction)
-                        {
-                            try ProviderInteractionContext.$current.withValue(.userInitiated) {
-                                try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-                                    data: keychainData,
-                                    fingerprint: nil)
-                                {
-                                    try ClaudeOAuthCredentialsStore.load(environment: [:], allowKeychainPrompt: true)
-                                }
-                            }
-                        }
+                        let creds = try KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting(
+                            preflightOverride,
+                            operation: {
+                                try KeychainPromptHandler.withHandlerForTesting(promptHandler, operation: {
+                                    try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
+                                        .onlyOnUserAction)
+                                    {
+                                        try ProviderInteractionContext.$current.withValue(.userInitiated) {
+                                            try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                                                data: keychainData,
+                                                fingerprint: nil)
+                                            {
+                                                try ClaudeOAuthCredentialsStore.load(
+                                                    environment: [:],
+                                                    allowKeychainPrompt: true)
+                                            }
+                                        }
+                                    }
+                                })
+                            })
 
                         #expect(creds.accessToken == "keychain-token")
                         // TODO: tighten this to `== 1` once keychain pre-alert delivery is deduplicated/scoped.
-                        // Today `KeychainPromptHandler.handler` is a global callback, so parallel test activity can
-                        // legitimately observe multiple hits in a single test run.
+                        // This path can currently emit more than one pre-alert during a single load attempt.
                         #expect(preAlertHits >= 1)
                     }
                 }

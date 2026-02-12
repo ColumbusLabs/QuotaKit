@@ -203,7 +203,6 @@ public enum ClaudeOAuthCredentialsStore {
     }
 
     #if DEBUG
-    private nonisolated(unsafe) static var keychainAccessOverride: Bool?
     private nonisolated(unsafe) static var claudeKeychainDataOverride: Data?
     private nonisolated(unsafe) static var claudeKeychainFingerprintOverride: ClaudeKeychainFingerprint?
     @TaskLocal private static var taskClaudeKeychainDataOverride: Data?
@@ -223,10 +222,6 @@ public enum ClaudeOAuthCredentialsStore {
     }
 
     @TaskLocal private static var taskClaudeKeychainFingerprintStoreOverride: ClaudeKeychainFingerprintStore?
-    static func setKeychainAccessOverrideForTesting(_ disabled: Bool?) {
-        self.keychainAccessOverride = disabled
-    }
-
     static func setClaudeKeychainDataOverrideForTesting(_ data: Data?) {
         self.claudeKeychainDataOverride = data
     }
@@ -292,7 +287,7 @@ public enum ClaudeOAuthCredentialsStore {
     }
     #endif
 
-    private struct CredentialsFileFingerprint: Codable, Equatable, Sendable {
+    struct CredentialsFileFingerprint: Codable, Equatable, Sendable {
         let modifiedAtMs: Int?
         let size: Int
     }
@@ -534,7 +529,7 @@ public enum ClaudeOAuthCredentialsStore {
             // Some macOS configurations still show the system keychain prompt even for our "silent" probes.
             // Only show the in-app pre-alert when we have evidence that Keychain interaction is likely.
             if self.shouldShowClaudeKeychainPreAlert() {
-                KeychainPromptHandler.handler?(
+                KeychainPromptHandler.notify(
                     KeychainPromptContext(
                         kind: .claudeOAuth,
                         service: self.claudeKeychainService,
@@ -1442,9 +1437,7 @@ public enum ClaudeOAuthCredentialsStore {
 
     private static var keychainAccessAllowed: Bool {
         #if DEBUG
-        if let override = self.keychainAccessOverride {
-            return !override
-        }
+        if let override = self.taskKeychainAccessOverride { return !override }
         #endif
         return !KeychainAccessGate.isDisabled
     }
@@ -1469,6 +1462,9 @@ public enum ClaudeOAuthCredentialsStore {
     }
 
     private static func loadFileFingerprint() -> CredentialsFileFingerprint? {
+        #if DEBUG
+        if let store = self.taskCredentialsFileFingerprintStoreOverride { return store.load() }
+        #endif
         guard let data = UserDefaults.standard.data(forKey: self.fileFingerprintKey) else {
             return nil
         }
@@ -1476,6 +1472,9 @@ public enum ClaudeOAuthCredentialsStore {
     }
 
     private static func saveFileFingerprint(_ fingerprint: CredentialsFileFingerprint?) {
+        #if DEBUG
+        if let store = self.taskCredentialsFileFingerprintStoreOverride { store.save(fingerprint); return }
+        #endif
         guard let fingerprint else {
             UserDefaults.standard.removeObject(forKey: self.fileFingerprintKey)
             return
@@ -1497,6 +1496,7 @@ public enum ClaudeOAuthCredentialsStore {
 
     #if DEBUG
     static func _resetCredentialsFileTrackingForTesting() {
+        if let store = self.taskCredentialsFileFingerprintStoreOverride { store.save(nil); return }
         UserDefaults.standard.removeObject(forKey: self.fileFingerprintKey)
     }
 
