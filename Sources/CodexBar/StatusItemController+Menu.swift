@@ -52,9 +52,9 @@ extension StatusItemController {
 
         var provider: UsageProvider?
         if self.shouldMergeIcons {
-            self.selectedMenuProvider = self.resolvedMenuProvider()
-            self.lastMenuProvider = self.selectedMenuProvider ?? .codex
-            provider = self.selectedMenuProvider
+            let resolvedProvider = self.resolvedMenuProvider()
+            self.lastMenuProvider = resolvedProvider ?? .codex
+            provider = resolvedProvider
         } else {
             if let menuProvider = self.menuProviders[ObjectIdentifier(menu)] {
                 self.lastMenuProvider = menuProvider
@@ -539,7 +539,7 @@ extension StatusItemController {
 
     private func menuProvider(for menu: NSMenu) -> UsageProvider? {
         if self.shouldMergeIcons {
-            return self.selectedMenuProvider ?? self.resolvedMenuProvider()
+            return self.resolvedMenuProvider()
         }
         if let provider = self.menuProviders[ObjectIdentifier(menu)] {
             return provider
