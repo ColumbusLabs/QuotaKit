@@ -85,15 +85,16 @@ struct StatusMenuTests {
         settings.selectedMenuProvider = nil
 
         let registry = ProviderRegistry.shared
-        if let codexMeta = registry.metadata[.codex] {
-            settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: false)
+        var enabledProviders: [UsageProvider] = []
+        for provider in UsageProvider.allCases {
+            guard let metadata = registry.metadata[provider] else { continue }
+            let shouldEnable = enabledProviders.count < 2
+            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: shouldEnable)
+            if shouldEnable {
+                enabledProviders.append(provider)
+            }
         }
-        if let claudeMeta = registry.metadata[.claude] {
-            settings.setProviderEnabled(provider: .claude, metadata: claudeMeta, enabled: true)
-        }
-        if let geminiMeta = registry.metadata[.gemini] {
-            settings.setProviderEnabled(provider: .gemini, metadata: geminiMeta, enabled: false)
-        }
+        #expect(enabledProviders.count == 2)
 
         let fetcher = UsageFetcher()
         let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
@@ -105,11 +106,14 @@ struct StatusMenuTests {
             preferencesSelection: PreferencesSelection(),
             statusBar: self.makeStatusBarForTesting())
 
+        let expectedResolved = store.enabledProviders().first ?? .codex
+        #expect(store.enabledProviders().count > 1)
+        #expect(controller.shouldMergeIcons == true)
         let menu = controller.makeMenu()
         #expect(settings.selectedMenuProvider == nil)
         controller.menuWillOpen(menu)
         #expect(settings.selectedMenuProvider == nil)
-        #expect(controller.lastMenuProvider == .claude)
+        #expect(controller.lastMenuProvider == expectedResolved)
     }
 
     @Test
