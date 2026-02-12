@@ -123,17 +123,22 @@ struct ClaudeOAuthDelegatedRefreshRecoveryTests {
                             return .attemptedSucceeded
                         }
 
-                        let snapshot = try await ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-                            data: freshData,
-                            fingerprint: fingerprint)
-                        {
-                            try await ClaudeUsageFetcher.$fetchOAuthUsageOverride.withValue(fetchOverride) {
-                                try await ClaudeUsageFetcher.$delegatedRefreshAttemptOverride
-                                    .withValue(delegatedOverride) {
-                                        try await fetcher.loadLatestUsage(model: "sonnet")
+                        let snapshot = try await ClaudeOAuthKeychainPromptPreference
+                            .withTaskOverrideForTesting(.onlyOnUserAction) {
+                                try await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                                    try await ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                                        data: freshData,
+                                        fingerprint: fingerprint)
+                                    {
+                                        try await ClaudeUsageFetcher.$fetchOAuthUsageOverride.withValue(fetchOverride) {
+                                            try await ClaudeUsageFetcher.$delegatedRefreshAttemptOverride
+                                                .withValue(delegatedOverride) {
+                                                    try await fetcher.loadLatestUsage(model: "sonnet")
+                                                }
+                                        }
                                     }
+                                }
                             }
-                        }
 
                         // If Claude keychain already contains fresh credentials, we should recover without needing a
                         // CLI
@@ -222,14 +227,20 @@ struct ClaudeOAuthDelegatedRefreshRecoveryTests {
                             return .attemptedSucceeded
                         }
 
-                        let snapshot = try await ClaudeOAuthCredentialsStore
-                            .withMutableClaudeKeychainOverrideStoreForTesting(
-                                keychainOverrideStore)
-                            {
-                                try await ClaudeUsageFetcher.$fetchOAuthUsageOverride.withValue(fetchOverride) {
-                                    try await ClaudeUsageFetcher.$delegatedRefreshAttemptOverride
-                                        .withValue(delegatedOverride) {
-                                            try await fetcher.loadLatestUsage(model: "sonnet")
+                        let snapshot = try await ClaudeOAuthKeychainPromptPreference
+                            .withTaskOverrideForTesting(.onlyOnUserAction) {
+                                try await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                                    try await ClaudeOAuthCredentialsStore
+                                        .withMutableClaudeKeychainOverrideStoreForTesting(
+                                            keychainOverrideStore)
+                                        {
+                                            try await ClaudeUsageFetcher.$fetchOAuthUsageOverride
+                                                .withValue(fetchOverride) {
+                                                    try await ClaudeUsageFetcher.$delegatedRefreshAttemptOverride
+                                                        .withValue(delegatedOverride) {
+                                                            try await fetcher.loadLatestUsage(model: "sonnet")
+                                                        }
+                                                }
                                         }
                                 }
                             }

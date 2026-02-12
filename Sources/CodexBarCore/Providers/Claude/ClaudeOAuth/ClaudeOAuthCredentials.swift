@@ -783,7 +783,8 @@ public enum ClaudeOAuthCredentialsStore {
 
     public static func hasClaudeKeychainCredentialsWithoutPrompt() -> Bool {
         #if os(macOS)
-        if !self.keychainAccessAllowed { return false }
+        let mode = ClaudeOAuthKeychainPromptPreference.current()
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return false }
         if ProviderInteractionContext.current == .background,
            !ClaudeOAuthKeychainAccessGate.shouldAllowPrompt() { return false }
 
@@ -819,7 +820,8 @@ public enum ClaudeOAuthCredentialsStore {
         now: Date = Date()) -> ClaudeOAuthCredentialRecord?
     {
         #if os(macOS)
-        if !self.keychainAccessAllowed { return nil }
+        let mode = ClaudeOAuthKeychainPromptPreference.current()
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return nil }
         if respectKeychainPromptCooldown,
            !ClaudeOAuthKeychainAccessGate.shouldAllowPrompt(now: now)
         {
@@ -921,7 +923,8 @@ public enum ClaudeOAuthCredentialsStore {
         respectKeychainPromptCooldown: Bool) -> ClaudeOAuthCredentialRecord?
     {
         #if os(macOS)
-        if !self.keychainAccessAllowed { return nil }
+        let mode = ClaudeOAuthKeychainPromptPreference.current()
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return nil }
 
         // If Keychain preflight indicates interaction is likely, skip the silent repair read.
         // Why: non-interactive probes can still show UI on some systems, and if interaction is required we should
@@ -1038,16 +1041,14 @@ public enum ClaudeOAuthCredentialsStore {
     }
 
     private static func currentClaudeKeychainFingerprintWithoutPrompt() -> ClaudeKeychainFingerprint? {
+        let mode = ClaudeOAuthKeychainPromptPreference.current()
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return nil }
         #if DEBUG
         if let store = taskClaudeKeychainOverrideStore { return store.fingerprint }
         if let override = taskClaudeKeychainFingerprintOverride ?? self
             .claudeKeychainFingerprintOverride { return override }
         #endif
         #if os(macOS)
-        if !self.keychainAccessAllowed {
-            return nil
-        }
-
         let newest: ClaudeKeychainCandidate? = self.claudeKeychainCandidatesWithoutPrompt().first
             ?? self.claudeKeychainLegacyCandidateWithoutPrompt()
         guard let newest else { return nil }
@@ -1086,15 +1087,13 @@ public enum ClaudeOAuthCredentialsStore {
     }
 
     private static func loadFromClaudeKeychainNonInteractive() throws -> Data? {
+        let mode = ClaudeOAuthKeychainPromptPreference.current()
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return nil }
         #if DEBUG
         if let store = taskClaudeKeychainOverrideStore { return store.data }
         if let override = taskClaudeKeychainDataOverride ?? self.claudeKeychainDataOverride { return override }
         #endif
         #if os(macOS)
-        if !self.keychainAccessAllowed {
-            return nil
-        }
-
         // Keep semantics aligned with fingerprinting: if there are multiple entries, we only ever consult the newest
         // candidate (same as currentClaudeKeychainFingerprintWithoutPrompt()) to avoid syncing from a different item.
         let candidates = self.claudeKeychainCandidatesWithoutPrompt()
@@ -1119,13 +1118,14 @@ public enum ClaudeOAuthCredentialsStore {
     }
 
     public static func loadFromClaudeKeychain() throws -> Data {
+        let mode = ClaudeOAuthKeychainPromptPreference.current()
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else {
+            throw ClaudeOAuthCredentialsError.notFound
+        }
         #if DEBUG
         if let override = self.claudeKeychainDataOverride { return override }
         #endif
         #if os(macOS)
-        if !self.keychainAccessAllowed {
-            throw ClaudeOAuthCredentialsError.notFound
-        }
         let candidates = self.claudeKeychainCandidatesWithoutPrompt()
         if let newest = candidates.first {
             do {
@@ -1187,6 +1187,8 @@ public enum ClaudeOAuthCredentialsStore {
     }
 
     private static func claudeKeychainCandidatesWithoutPrompt() -> [ClaudeKeychainCandidate] {
+        let mode = ClaudeOAuthKeychainPromptPreference.current()
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return [] }
         if ProviderInteractionContext.current == .background,
            !ClaudeOAuthKeychainAccessGate.shouldAllowPrompt() { return [] }
         var query: [String: Any] = [
@@ -1224,6 +1226,8 @@ public enum ClaudeOAuthCredentialsStore {
     }
 
     private static func claudeKeychainLegacyCandidateWithoutPrompt() -> ClaudeKeychainCandidate? {
+        let mode = ClaudeOAuthKeychainPromptPreference.current()
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return nil }
         if ProviderInteractionContext.current == .background,
            !ClaudeOAuthKeychainAccessGate.shouldAllowPrompt() { return nil }
         var query: [String: Any] = [
@@ -1255,6 +1259,8 @@ public enum ClaudeOAuthCredentialsStore {
         candidate: ClaudeKeychainCandidate,
         allowKeychainPrompt: Bool) throws -> Data?
     {
+        let mode = ClaudeOAuthKeychainPromptPreference.current()
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return nil }
         self.log.debug(
             "Claude keychain data read start",
             metadata: [
@@ -1313,6 +1319,8 @@ public enum ClaudeOAuthCredentialsStore {
     }
 
     private static func loadClaudeKeychainLegacyData(allowKeychainPrompt: Bool) throws -> Data? {
+        let mode = ClaudeOAuthKeychainPromptPreference.current()
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return nil }
         self.log.debug(
             "Claude keychain legacy data read start",
             metadata: [
@@ -1439,6 +1447,20 @@ public enum ClaudeOAuthCredentialsStore {
         return !KeychainAccessGate.isDisabled
     }
 
+    private static func shouldAllowClaudeCodeKeychainAccess(
+        mode: ClaudeOAuthKeychainPromptMode = ClaudeOAuthKeychainPromptPreference.current()) -> Bool
+    {
+        guard self.keychainAccessAllowed else { return false }
+        switch mode {
+        case .never:
+            return false
+        case .onlyOnUserAction:
+            return ProviderInteractionContext.current == .userInitiated
+        case .always:
+            return true
+        }
+    }
+
     private static func credentialsFileURL() -> URL {
         #if DEBUG
         if let override = self.taskCredentialsURLOverride { return override }
@@ -1509,7 +1531,8 @@ extension ClaudeOAuthCredentialsStore {
     @discardableResult
     static func syncFromClaudeKeychainWithoutPrompt(now: Date = Date()) -> Bool {
         #if os(macOS)
-        if !self.keychainAccessAllowed { return false }
+        let mode = ClaudeOAuthKeychainPromptPreference.current()
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return false }
 
         // If background keychain access has been denied/blocked, don't attempt silent reads that could trigger
         // repeated prompts on misbehaving configurations. User actions clear/bypass this gate elsewhere.
@@ -1582,7 +1605,9 @@ extension ClaudeOAuthCredentialsStore {
     }
 
     private static func shouldShowClaudeKeychainPreAlert() -> Bool {
-        switch KeychainAccessPreflight.checkGenericPassword(service: self.claudeKeychainService, account: nil) {
+        let mode = ClaudeOAuthKeychainPromptPreference.current()
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return false }
+        return switch KeychainAccessPreflight.checkGenericPassword(service: self.claudeKeychainService, account: nil) {
         case .interactionRequired:
             true
         case .failure:

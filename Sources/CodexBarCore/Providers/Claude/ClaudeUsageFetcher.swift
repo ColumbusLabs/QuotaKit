@@ -110,6 +110,18 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         return policy
     }
 
+    private static func assertDelegatedRefreshAllowedInCurrentInteraction(
+        policy: ClaudeOAuthKeychainPromptPolicy) throws
+    {
+        if policy.mode == .onlyOnUserAction,
+           policy.interaction != .userInitiated
+        {
+            throw ClaudeUsageError.oauthFailed(
+                "Claude OAuth token expired, but background repair is suppressed when Keychain prompt policy "
+                    + "is set to only prompt on user action. Open the CodexBar menu or click Refresh to retry.")
+        }
+    }
+
     #if DEBUG
     @TaskLocal static var loadOAuthCredentialsOverride: (@Sendable (
         [String: String],
@@ -382,6 +394,9 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                 }
 
                 try Task.checkCancellation()
+
+                let delegatedPromptPolicy = Self.currentClaudeOAuthKeychainPromptPolicy()
+                try Self.assertDelegatedRefreshAllowedInCurrentInteraction(policy: delegatedPromptPolicy)
 
                 let delegatedOutcome = await Self.attemptDelegatedRefresh()
                 Self.log.info(
