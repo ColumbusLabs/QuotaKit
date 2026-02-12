@@ -233,6 +233,9 @@ struct ClaudeOAuthCredentialsStorePromptPolicyTests {
                         }
 
                         #expect(creds.accessToken == "keychain-token")
+                        // TODO: tighten this to `== 1` once keychain pre-alert delivery is deduplicated/scoped.
+                        // Today `KeychainPromptHandler.handler` is a global callback, so parallel test activity can
+                        // legitimately observe multiple hits in a single test run.
                         #expect(preAlertHits >= 1)
                     }
                 }
@@ -290,6 +293,9 @@ struct ClaudeOAuthCredentialsStorePromptPolicyTests {
                         }
 
                         #expect(creds.accessToken == "keychain-token")
+                        // TODO: tighten this to `== 1` once keychain pre-alert delivery is deduplicated/scoped.
+                        // Today `KeychainPromptHandler.handler` is a global callback, so parallel test activity can
+                        // legitimately observe multiple hits in a single test run.
                         #expect(preAlertHits >= 1)
                     }
                 }
