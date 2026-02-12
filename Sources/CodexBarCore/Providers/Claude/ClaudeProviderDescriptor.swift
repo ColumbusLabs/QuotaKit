@@ -211,6 +211,7 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
             environment: context.env,
             dataSource: .oauth,
             oauthKeychainPromptCooldownEnabled: context.sourceMode == .auto,
+            allowBackgroundDelegatedRefresh: context.runtime == .cli,
             useWebExtras: false)
         let usage = try await fetcher.loadLatestUsage(model: "sonnet")
         return self.makeResult(

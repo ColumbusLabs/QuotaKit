@@ -61,6 +61,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     private let environment: [String: String]
     private let dataSource: ClaudeUsageDataSource
     private let oauthKeychainPromptCooldownEnabled: Bool
+    private let allowBackgroundDelegatedRefresh: Bool
     private let useWebExtras: Bool
     private let manualCookieHeader: String?
     private let keepCLISessionsAlive: Bool
@@ -111,10 +112,12 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
     }
 
     private static func assertDelegatedRefreshAllowedInCurrentInteraction(
-        policy: ClaudeOAuthKeychainPromptPolicy) throws
+        policy: ClaudeOAuthKeychainPromptPolicy,
+        allowBackgroundDelegatedRefresh: Bool) throws
     {
         if policy.mode == .onlyOnUserAction,
-           policy.interaction != .userInitiated
+           policy.interaction != .userInitiated,
+           !allowBackgroundDelegatedRefresh
         {
             throw ClaudeUsageError.oauthFailed(
                 "Claude OAuth token expired, but background repair is suppressed when Keychain prompt policy "
@@ -143,6 +146,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         environment: [String: String] = ProcessInfo.processInfo.environment,
         dataSource: ClaudeUsageDataSource = .oauth,
         oauthKeychainPromptCooldownEnabled: Bool = false,
+        allowBackgroundDelegatedRefresh: Bool = false,
         useWebExtras: Bool = false,
         manualCookieHeader: String? = nil,
         keepCLISessionsAlive: Bool = false)
@@ -151,6 +155,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         self.environment = environment
         self.dataSource = dataSource
         self.oauthKeychainPromptCooldownEnabled = oauthKeychainPromptCooldownEnabled
+        self.allowBackgroundDelegatedRefresh = allowBackgroundDelegatedRefresh
         self.useWebExtras = useWebExtras
         self.manualCookieHeader = manualCookieHeader
         self.keepCLISessionsAlive = keepCLISessionsAlive
@@ -396,7 +401,9 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                 try Task.checkCancellation()
 
                 let delegatedPromptPolicy = Self.currentClaudeOAuthKeychainPromptPolicy()
-                try Self.assertDelegatedRefreshAllowedInCurrentInteraction(policy: delegatedPromptPolicy)
+                try Self.assertDelegatedRefreshAllowedInCurrentInteraction(
+                    policy: delegatedPromptPolicy,
+                    allowBackgroundDelegatedRefresh: self.allowBackgroundDelegatedRefresh)
 
                 let delegatedOutcome = await Self.attemptDelegatedRefresh()
                 Self.log.info(

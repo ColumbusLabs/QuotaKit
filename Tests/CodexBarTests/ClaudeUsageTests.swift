@@ -324,6 +324,66 @@ struct ClaudeUsageTests {
     }
 
     @Test
+    func oauthDelegatedRetry_onlyOnUserAction_background_allowsDelegationForCLI() async throws {
+        let loadCounter = AsyncCounter()
+        let delegatedCounter = AsyncCounter()
+        let usageResponse = try Self.makeOAuthUsageResponse()
+
+        final class FlagBox: @unchecked Sendable {
+            var allowKeychainPromptFlags: [Bool] = []
+        }
+        let flags = FlagBox()
+
+        let fetcher = ClaudeUsageFetcher(
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            environment: [:],
+            dataSource: .oauth,
+            oauthKeychainPromptCooldownEnabled: false,
+            allowBackgroundDelegatedRefresh: true)
+
+        let fetchOverride: (@Sendable (String) async throws -> OAuthUsageResponse)? = { _ in usageResponse }
+        let delegatedOverride: (@Sendable (
+            Date,
+            TimeInterval) async -> ClaudeOAuthDelegatedRefreshCoordinator.Outcome)? = { _, _ in
+            _ = await delegatedCounter.increment()
+            return .attemptedSucceeded
+        }
+        let loadCredsOverride: (@Sendable (
+            [String: String],
+            Bool,
+            Bool) async throws -> ClaudeOAuthCredentials)? = { _, allowKeychainPrompt, _ in
+            flags.allowKeychainPromptFlags.append(allowKeychainPrompt)
+            let call = await loadCounter.increment()
+            if call == 1 {
+                throw ClaudeOAuthCredentialsError.refreshDelegatedToClaudeCLI
+            }
+            return ClaudeOAuthCredentials(
+                accessToken: "fresh-token",
+                refreshToken: "refresh-token",
+                expiresAt: Date(timeIntervalSinceNow: 3600),
+                scopes: ["user:profile"],
+                rateLimitTier: nil)
+        }
+
+        let snapshot = try await ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
+            try await ProviderInteractionContext.$current.withValue(.background) {
+                try await ClaudeUsageFetcher.$fetchOAuthUsageOverride.withValue(fetchOverride) {
+                    try await ClaudeUsageFetcher.$delegatedRefreshAttemptOverride.withValue(delegatedOverride) {
+                        try await ClaudeUsageFetcher.$loadOAuthCredentialsOverride.withValue(loadCredsOverride) {
+                            try await fetcher.loadLatestUsage(model: "sonnet")
+                        }
+                    }
+                }
+            }
+        }
+
+        #expect(await loadCounter.current() == 2)
+        #expect(await delegatedCounter.current() == 1)
+        #expect(snapshot.primary.usedPercent == 7)
+        #expect(flags.allowKeychainPromptFlags.allSatisfy { !$0 })
+    }
+
+    @Test
     func parsesUsageJSONWhenWeeklyMissing() {
         let json = """
         {
