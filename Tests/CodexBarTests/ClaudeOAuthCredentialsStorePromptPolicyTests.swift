@@ -130,49 +130,54 @@ struct ClaudeOAuthCredentialsStorePromptPolicyTests {
     func doesNotShowPreAlertWhenClaudeKeychainReadableWithoutInteraction() throws {
         let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
         try KeychainCacheStore.withServiceOverrideForTesting(service) {
-            KeychainCacheStore.setTestStoreForTesting(true)
-            defer { KeychainCacheStore.setTestStoreForTesting(false) }
+            try KeychainAccessGate.withTaskOverrideForTesting(false) {
+                KeychainCacheStore.setTestStoreForTesting(true)
+                defer { KeychainCacheStore.setTestStoreForTesting(false) }
 
-            try ClaudeOAuthCredentialsStore.withIsolatedMemoryCacheForTesting {
-                ClaudeOAuthCredentialsStore.invalidateCache()
-                ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
-                defer {
+                try ClaudeOAuthCredentialsStore.withIsolatedMemoryCacheForTesting {
                     ClaudeOAuthCredentialsStore.invalidateCache()
                     ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
-                    KeychainPromptHandler.handler = nil
-                    KeychainAccessPreflight.setCheckGenericPasswordOverrideForTesting(nil)
-                }
-
-                let tempDir = FileManager.default.temporaryDirectory
-                    .appendingPathComponent(UUID().uuidString, isDirectory: true)
-                try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-                let fileURL = tempDir.appendingPathComponent("credentials.json")
-                try ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(fileURL) {
-                    let keychainData = self.makeCredentialsData(
-                        accessToken: "keychain-token",
-                        expiresAt: Date(timeIntervalSinceNow: 3600))
-
-                    KeychainAccessPreflight.setCheckGenericPasswordOverrideForTesting { _, _ in
-                        .allowed
+                    defer {
+                        ClaudeOAuthCredentialsStore.invalidateCache()
+                        ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
+                        KeychainPromptHandler.handler = nil
+                        KeychainAccessPreflight.setCheckGenericPasswordOverrideForTesting(nil)
                     }
 
-                    var preAlertHits = 0
-                    KeychainPromptHandler.handler = { _ in
-                        preAlertHits += 1
-                    }
+                    let tempDir = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+                    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                    let fileURL = tempDir.appendingPathComponent("credentials.json")
+                    try ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(fileURL) {
+                        let keychainData = self.makeCredentialsData(
+                            accessToken: "keychain-token",
+                            expiresAt: Date(timeIntervalSinceNow: 3600))
 
-                    let creds = try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
-                        try ProviderInteractionContext.$current.withValue(.userInitiated) {
-                            try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-                                data: keychainData,
-                                fingerprint: nil)
-                            {
-                                try ClaudeOAuthCredentialsStore.load(environment: [:], allowKeychainPrompt: true)
+                        KeychainAccessPreflight.setCheckGenericPasswordOverrideForTesting { _, _ in
+                            .allowed
+                        }
+
+                        var preAlertHits = 0
+                        KeychainPromptHandler.handler = { _ in
+                            preAlertHits += 1
+                        }
+
+                        let creds = try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
+                            .onlyOnUserAction)
+                        {
+                            try ProviderInteractionContext.$current.withValue(.userInitiated) {
+                                try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                                    data: keychainData,
+                                    fingerprint: nil)
+                                {
+                                    try ClaudeOAuthCredentialsStore.load(environment: [:], allowKeychainPrompt: true)
+                                }
                             }
                         }
+
+                        #expect(creds.accessToken == "keychain-token")
+                        #expect(preAlertHits == 0)
                     }
-                    #expect(creds.accessToken == "keychain-token")
-                    #expect(preAlertHits == 0)
                 }
             }
         }
@@ -182,49 +187,54 @@ struct ClaudeOAuthCredentialsStorePromptPolicyTests {
     func showsPreAlertWhenClaudeKeychainLikelyRequiresInteraction() throws {
         let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
         try KeychainCacheStore.withServiceOverrideForTesting(service) {
-            KeychainCacheStore.setTestStoreForTesting(true)
-            defer { KeychainCacheStore.setTestStoreForTesting(false) }
+            try KeychainAccessGate.withTaskOverrideForTesting(false) {
+                KeychainCacheStore.setTestStoreForTesting(true)
+                defer { KeychainCacheStore.setTestStoreForTesting(false) }
 
-            try ClaudeOAuthCredentialsStore.withIsolatedMemoryCacheForTesting {
-                ClaudeOAuthCredentialsStore.invalidateCache()
-                ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
-                defer {
+                try ClaudeOAuthCredentialsStore.withIsolatedMemoryCacheForTesting {
                     ClaudeOAuthCredentialsStore.invalidateCache()
                     ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
-                    KeychainPromptHandler.handler = nil
-                    KeychainAccessPreflight.setCheckGenericPasswordOverrideForTesting(nil)
-                }
-
-                let tempDir = FileManager.default.temporaryDirectory
-                    .appendingPathComponent(UUID().uuidString, isDirectory: true)
-                try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-                let fileURL = tempDir.appendingPathComponent("credentials.json")
-                try ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(fileURL) {
-                    let keychainData = self.makeCredentialsData(
-                        accessToken: "keychain-token",
-                        expiresAt: Date(timeIntervalSinceNow: 3600))
-
-                    KeychainAccessPreflight.setCheckGenericPasswordOverrideForTesting { _, _ in
-                        .interactionRequired
+                    defer {
+                        ClaudeOAuthCredentialsStore.invalidateCache()
+                        ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
+                        KeychainPromptHandler.handler = nil
+                        KeychainAccessPreflight.setCheckGenericPasswordOverrideForTesting(nil)
                     }
 
-                    var preAlertHits = 0
-                    KeychainPromptHandler.handler = { _ in
-                        preAlertHits += 1
-                    }
+                    let tempDir = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+                    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                    let fileURL = tempDir.appendingPathComponent("credentials.json")
+                    try ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(fileURL) {
+                        let keychainData = self.makeCredentialsData(
+                            accessToken: "keychain-token",
+                            expiresAt: Date(timeIntervalSinceNow: 3600))
 
-                    let creds = try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
-                        try ProviderInteractionContext.$current.withValue(.userInitiated) {
-                            try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-                                data: keychainData,
-                                fingerprint: nil)
-                            {
-                                try ClaudeOAuthCredentialsStore.load(environment: [:], allowKeychainPrompt: true)
+                        KeychainAccessPreflight.setCheckGenericPasswordOverrideForTesting { _, _ in
+                            .interactionRequired
+                        }
+
+                        var preAlertHits = 0
+                        KeychainPromptHandler.handler = { _ in
+                            preAlertHits += 1
+                        }
+
+                        let creds = try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
+                            .onlyOnUserAction)
+                        {
+                            try ProviderInteractionContext.$current.withValue(.userInitiated) {
+                                try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                                    data: keychainData,
+                                    fingerprint: nil)
+                                {
+                                    try ClaudeOAuthCredentialsStore.load(environment: [:], allowKeychainPrompt: true)
+                                }
                             }
                         }
+
+                        #expect(creds.accessToken == "keychain-token")
+                        #expect(preAlertHits >= 1)
                     }
-                    #expect(creds.accessToken == "keychain-token")
-                    #expect(preAlertHits == 1)
                 }
             }
         }
@@ -234,49 +244,54 @@ struct ClaudeOAuthCredentialsStorePromptPolicyTests {
     func showsPreAlertWhenClaudeKeychainPreflightFails() throws {
         let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
         try KeychainCacheStore.withServiceOverrideForTesting(service) {
-            KeychainCacheStore.setTestStoreForTesting(true)
-            defer { KeychainCacheStore.setTestStoreForTesting(false) }
+            try KeychainAccessGate.withTaskOverrideForTesting(false) {
+                KeychainCacheStore.setTestStoreForTesting(true)
+                defer { KeychainCacheStore.setTestStoreForTesting(false) }
 
-            try ClaudeOAuthCredentialsStore.withIsolatedMemoryCacheForTesting {
-                ClaudeOAuthCredentialsStore.invalidateCache()
-                ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
-                defer {
+                try ClaudeOAuthCredentialsStore.withIsolatedMemoryCacheForTesting {
                     ClaudeOAuthCredentialsStore.invalidateCache()
                     ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
-                    KeychainPromptHandler.handler = nil
-                    KeychainAccessPreflight.setCheckGenericPasswordOverrideForTesting(nil)
-                }
-
-                let tempDir = FileManager.default.temporaryDirectory
-                    .appendingPathComponent(UUID().uuidString, isDirectory: true)
-                try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-                let fileURL = tempDir.appendingPathComponent("credentials.json")
-                try ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(fileURL) {
-                    let keychainData = self.makeCredentialsData(
-                        accessToken: "keychain-token",
-                        expiresAt: Date(timeIntervalSinceNow: 3600))
-
-                    KeychainAccessPreflight.setCheckGenericPasswordOverrideForTesting { _, _ in
-                        .failure(-1)
+                    defer {
+                        ClaudeOAuthCredentialsStore.invalidateCache()
+                        ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
+                        KeychainPromptHandler.handler = nil
+                        KeychainAccessPreflight.setCheckGenericPasswordOverrideForTesting(nil)
                     }
 
-                    var preAlertHits = 0
-                    KeychainPromptHandler.handler = { _ in
-                        preAlertHits += 1
-                    }
+                    let tempDir = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+                    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                    let fileURL = tempDir.appendingPathComponent("credentials.json")
+                    try ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(fileURL) {
+                        let keychainData = self.makeCredentialsData(
+                            accessToken: "keychain-token",
+                            expiresAt: Date(timeIntervalSinceNow: 3600))
 
-                    let creds = try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
-                        try ProviderInteractionContext.$current.withValue(.userInitiated) {
-                            try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-                                data: keychainData,
-                                fingerprint: nil)
-                            {
-                                try ClaudeOAuthCredentialsStore.load(environment: [:], allowKeychainPrompt: true)
+                        KeychainAccessPreflight.setCheckGenericPasswordOverrideForTesting { _, _ in
+                            .failure(-1)
+                        }
+
+                        var preAlertHits = 0
+                        KeychainPromptHandler.handler = { _ in
+                            preAlertHits += 1
+                        }
+
+                        let creds = try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
+                            .onlyOnUserAction)
+                        {
+                            try ProviderInteractionContext.$current.withValue(.userInitiated) {
+                                try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                                    data: keychainData,
+                                    fingerprint: nil)
+                                {
+                                    try ClaudeOAuthCredentialsStore.load(environment: [:], allowKeychainPrompt: true)
+                                }
                             }
                         }
+
+                        #expect(creds.accessToken == "keychain-token")
+                        #expect(preAlertHits >= 1)
                     }
-                    #expect(creds.accessToken == "keychain-token")
-                    #expect(preAlertHits == 1)
                 }
             }
         }
