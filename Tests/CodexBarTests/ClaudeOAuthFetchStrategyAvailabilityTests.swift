@@ -121,6 +121,15 @@ struct ClaudeOAuthFetchStrategyAvailabilityTests {
     func autoMode_userInitiated_clearsKeychainCooldownGate() async {
         let context = self.makeContext(sourceMode: .auto)
         let strategy = ClaudeOAuthFetchStrategy()
+        let recordWithoutRequiredScope = ClaudeOAuthCredentialRecord(
+            credentials: ClaudeOAuthCredentials(
+                accessToken: "expired-token",
+                refreshToken: "refresh-token",
+                expiresAt: Date(timeIntervalSinceNow: -60),
+                scopes: ["user:inference"],
+                rateLimitTier: nil),
+            owner: .claudeCLI,
+            source: .cacheKeychain)
 
         await KeychainAccessGate.withTaskOverrideForTesting(false) {
             ClaudeOAuthKeychainAccessGate.resetForTesting()
@@ -130,9 +139,12 @@ struct ClaudeOAuthFetchStrategyAvailabilityTests {
             ClaudeOAuthKeychainAccessGate.recordDenied(now: now)
             #expect(ClaudeOAuthKeychainAccessGate.shouldAllowPrompt(now: now) == false)
 
-            _ = await ProviderInteractionContext.$current.withValue(.userInitiated) {
-                await strategy.isAvailable(context)
-            }
+            _ = await ClaudeOAuthFetchStrategy.$nonInteractiveCredentialRecordOverride
+                .withValue(recordWithoutRequiredScope) {
+                    await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                        await strategy.isAvailable(context)
+                    }
+                }
 
             #expect(ClaudeOAuthKeychainAccessGate.shouldAllowPrompt(now: now))
         }

@@ -164,31 +164,36 @@ struct ClaudeOAuthCredentialsStoreTests {
 
     @Test
     func returnsExpiredFileWhenNoOtherSources() throws {
-        try KeychainAccessGate.withTaskOverrideForTesting(true) {
-            KeychainCacheStore.setTestStoreForTesting(true)
-            defer { KeychainCacheStore.setTestStoreForTesting(false) }
+        let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
+        try KeychainCacheStore.withServiceOverrideForTesting(service) {
+            try KeychainAccessGate.withTaskOverrideForTesting(true) {
+                KeychainCacheStore.setTestStoreForTesting(true)
+                defer { KeychainCacheStore.setTestStoreForTesting(false) }
 
-            ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
-            defer { ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting() }
+                try ClaudeOAuthCredentialsStore.withIsolatedMemoryCacheForTesting {
+                    ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
+                    defer { ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting() }
 
-            let tempDir = FileManager.default.temporaryDirectory
-                .appendingPathComponent(UUID().uuidString, isDirectory: true)
-            try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-            let fileURL = tempDir.appendingPathComponent("credentials.json")
-            try ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(fileURL) {
-                let expiredData = self.makeCredentialsData(
-                    accessToken: "expired-only",
-                    expiresAt: Date(timeIntervalSinceNow: -3600))
-                try expiredData.write(to: fileURL)
+                    let tempDir = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+                    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                    let fileURL = tempDir.appendingPathComponent("credentials.json")
+                    try ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(fileURL) {
+                        let expiredData = self.makeCredentialsData(
+                            accessToken: "expired-only",
+                            expiresAt: Date(timeIntervalSinceNow: -3600))
+                        try expiredData.write(to: fileURL)
 
-                ClaudeOAuthCredentialsStore.setKeychainAccessOverrideForTesting(true)
-                defer { ClaudeOAuthCredentialsStore.setKeychainAccessOverrideForTesting(nil) }
+                        ClaudeOAuthCredentialsStore.setKeychainAccessOverrideForTesting(true)
+                        defer { ClaudeOAuthCredentialsStore.setKeychainAccessOverrideForTesting(nil) }
 
-                ClaudeOAuthCredentialsStore.invalidateCache()
-                let creds = try ClaudeOAuthCredentialsStore.load(environment: [:])
+                        ClaudeOAuthCredentialsStore.invalidateCache()
+                        let creds = try ClaudeOAuthCredentialsStore.load(environment: [:])
 
-                #expect(creds.accessToken == "expired-only")
-                #expect(creds.isExpired == true)
+                        #expect(creds.accessToken == "expired-only")
+                        #expect(creds.isExpired == true)
+                    }
+                }
             }
         }
     }

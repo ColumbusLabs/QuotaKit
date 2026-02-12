@@ -228,7 +228,7 @@ struct ClaudeOAuthDelegatedRefreshRecoveryTests {
                         }
 
                         let snapshot = try await ClaudeOAuthKeychainPromptPreference
-                            .withTaskOverrideForTesting(.onlyOnUserAction) {
+                            .withTaskOverrideForTesting(.always) {
                                 try await ProviderInteractionContext.$current.withValue(.userInitiated) {
                                     try await ClaudeOAuthCredentialsStore
                                         .withMutableClaudeKeychainOverrideStoreForTesting(

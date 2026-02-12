@@ -1123,7 +1123,8 @@ public enum ClaudeOAuthCredentialsStore {
             throw ClaudeOAuthCredentialsError.notFound
         }
         #if DEBUG
-        if let override = self.claudeKeychainDataOverride { return override }
+        if let store = taskClaudeKeychainOverrideStore, let override = store.data { return override }
+        if let override = taskClaudeKeychainDataOverride ?? self.claudeKeychainDataOverride { return override }
         #endif
         #if os(macOS)
         let candidates = self.claudeKeychainCandidatesWithoutPrompt()
