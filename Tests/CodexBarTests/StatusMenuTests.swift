@@ -76,6 +76,43 @@ struct StatusMenuTests {
     }
 
     @Test
+    func mergedMenuOpenDoesNotPersistResolvedProviderWhenSelectionIsNil() {
+        self.disableMenuCardsForTesting()
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = nil
+
+        let registry = ProviderRegistry.shared
+        if let codexMeta = registry.metadata[.codex] {
+            settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: false)
+        }
+        if let claudeMeta = registry.metadata[.claude] {
+            settings.setProviderEnabled(provider: .claude, metadata: claudeMeta, enabled: true)
+        }
+        if let geminiMeta = registry.metadata[.gemini] {
+            settings.setProviderEnabled(provider: .gemini, metadata: geminiMeta, enabled: false)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        let menu = controller.makeMenu()
+        #expect(settings.selectedMenuProvider == nil)
+        controller.menuWillOpen(menu)
+        #expect(settings.selectedMenuProvider == nil)
+        #expect(controller.lastMenuProvider == .claude)
+    }
+
+    @Test
     func providerToggleUpdatesStatusItemVisibility() {
         self.disableMenuCardsForTesting()
         let settings = self.makeSettings()
