@@ -652,7 +652,7 @@ enum IconRenderer {
                 let creditsRectPx = RectPx(x: barXPx, y: 14, w: barWidthPx, h: 16)
                 let creditsBottomRectPx = RectPx(x: barXPx, y: 4, w: barWidthPx, h: 6)
 
-                // Warp special case: when no bonus or bonus exhausted, show "top full, bottom=monthly"
+                // Warp special case: when no bonus or bonus exhausted, show "top monthly, bottom dimmed"
                 let warpNoBonus = style == .warp && !weeklyAvailable
 
                 if weeklyAvailable {
@@ -670,24 +670,13 @@ enum IconRenderer {
                     drawBar(rectPx: bottomRectPx, remaining: bottomValue)
                 } else if !hasWeekly || warpNoBonus {
                     if style == .warp {
-                        // Warp: no bonus or bonus exhausted -> top=full, bottom=monthly credits
-                        if topValue != nil {
-                            drawBar(
-                                rectPx: topRectPx,
-                                remaining: 100,
-                                addWarpTwist: true,
-                                blink: blink)
-                        } else {
-                            drawBar(
-                                rectPx: topRectPx,
-                                remaining: nil,
-                                addWarpTwist: true,
-                                blink: blink)
-                        }
+                        // Warp: no bonus or bonus exhausted -> top=monthly credits, bottom=dimmed track
                         drawBar(
-                            rectPx: bottomRectPx,
+                            rectPx: topRectPx,
                             remaining: topValue,
+                            addWarpTwist: true,
                             blink: blink)
+                        drawBar(rectPx: bottomRectPx, remaining: nil, alpha: 0.45)
                     } else {
                         // Weekly missing (e.g. Claude enterprise): keep normal layout but
                         // dim the bottom track to indicate N/A.
