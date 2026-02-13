@@ -263,11 +263,7 @@ struct ClaudeWebFetchStrategy: ProviderFetchStrategy {
     let browserDetection: BrowserDetection
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        if let header = Self.manualCookieHeader(from: context) {
-            return ClaudeWebAPIFetcher.hasSessionKey(cookieHeader: header)
-        }
-        guard context.settings?.claude?.cookieSource != .off else { return false }
-        return ClaudeWebAPIFetcher.hasSessionKey(browserDetection: self.browserDetection)
+        Self.isAvailableForFallback(context: context, browserDetection: self.browserDetection)
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
@@ -285,7 +281,20 @@ struct ClaudeWebFetchStrategy: ProviderFetchStrategy {
     func shouldFallback(on error: Error, context: ProviderFetchContext) -> Bool {
         guard context.sourceMode == .auto else { return false }
         _ = error
-        return true
+        // In CLI runtime auto mode, web comes before CLI so fallback is required.
+        // In app runtime auto mode, web is terminal and should surface its concrete error.
+        return context.runtime == .cli
+    }
+
+    fileprivate static func isAvailableForFallback(
+        context: ProviderFetchContext,
+        browserDetection: BrowserDetection) -> Bool
+    {
+        if let header = self.manualCookieHeader(from: context) {
+            return ClaudeWebAPIFetcher.hasSessionKey(cookieHeader: header)
+        }
+        guard context.settings?.claude?.cookieSource != .off else { return false }
+        return ClaudeWebAPIFetcher.hasSessionKey(browserDetection: browserDetection)
     }
 
     private static func manualCookieHeader(from context: ProviderFetchContext) -> String? {
@@ -320,6 +329,10 @@ struct ClaudeCLIFetchStrategy: ProviderFetchStrategy {
     }
 
     func shouldFallback(on _: Error, context: ProviderFetchContext) -> Bool {
-        context.runtime == .app && context.sourceMode == .auto
+        guard context.runtime == .app, context.sourceMode == .auto else { return false }
+        // Only fall through when web is actually available; otherwise preserve actionable CLI errors.
+        return ClaudeWebFetchStrategy.isAvailableForFallback(
+            context: context,
+            browserDetection: self.browserDetection)
     }
 }
