@@ -2,7 +2,7 @@
 
 ## Unreleased
 ### Highlights
-- Claude OAuth/keychain flows were reworked across a series of follow-up PRs to reduce prompt storms, stabilize background behavior, and make failure modes deterministic (#245, #305, #308, #309). Thanks @manikv12!
+- Claude OAuth/keychain flows were reworked across a series of follow-up PRs to reduce prompt storms, stabilize background behavior, surface a setting to control prompt policy and make failure modes deterministic (#245, #305, #308, #309, #364). Thanks @manikv12!
 - Claude: harden Claude Code PTY capture for `/usage` and `/status` (prompt automation, safer command palette confirmation, partial UTF-8 handling, and parsing guards against status-bar context meters) (#320).
 - New provider: Warp (credits + add-on credits) (#352). Thanks @Kathie-yu!
 - Provider correctness fixes landed for Cursor plan parsing and MiniMax region routing (#240, #234, #344). Thanks @robinebers
@@ -10,15 +10,12 @@
 - Menu bar animation behavior was hardened in merged mode and fallback mode (#283, #291). Thanks @vignesh07 and @Ilakiancs!
 - CI/tooling reliability improved via pinned lint tools, deterministic macOS test execution, and PTY timing test stabilization plus Node 24-ready GitHub Actions upgrades (#292, #312, #290).
 
-### Claude OAuth & Keychain (upgrade-relevant behavior)
-- Claude OAuth creds are cached in CodexBar Keychain. This reduces Keychain prompts until the token expires.
-- If Claude OAuth credentials are present but expired, CodexBar performs at most one delegated refresh handoff to the Claude CLI and one OAuth retry before falling back to Web/CLI in Auto mode.
-- Claude Auto mode keeps Keychain prompts suppressed during background refreshes. Interactive Keychain prompting is only attempted during user-initiated repair flows (e.g. menu open / manual refresh) when cached OAuth is missing/expired/unusable.
-- Claude OAuth-only mode stays strict: OAuth failures do not silently fall back to Web/CLI.
-- Keychain prompting is hardened (cooldowns after explicit denial/cancel/no-access + pre-alert only when interaction is likely) to reduce repeated prompts during refresh.
-- CodexBar syncs its cached OAuth token when the Claude Code Keychain entry changes, so updated auth is picked up without requiring a restart.
-- Preferences now expose Claude’s Keychain prompt policy (Never / Only on user action / Always allow prompts) in
-  Providers → Claude; when global Keychain access is disabled in Advanced, the policy remains visible but inactive.
+### Claude OAuth & Keychain
+- Claude OAuth creds are cached in CodexBar Keychain to reduce repeated prompts.
+- Prompts can still appear when Claude OAuth credentials are expired, invalid, or missing and re-auth is required.
+- In Auto mode, background refresh keeps prompts suppressed; interactive prompts are limited to user actions (menu open or manual refresh).
+- OAuth-only mode remains strict (no silent Web/CLI fallback); Auto mode may do one delegated CLI refresh + one OAuth retry before falling back.
+- Preferences now expose a Claude Keychain prompt policy (Never / Only on user action / Always allow prompts) under Providers → Claude; if global Keychain access is disabled in Advanced, this control remains visible but inactive.
 
 ### Provider & Usage Fixes
 - Warp: add Warp provider support (credits + add-on credits), configurable via Settings or `WARP_API_KEY`/`WARP_TOKEN` (#352). Thanks @Kathie-yu!
