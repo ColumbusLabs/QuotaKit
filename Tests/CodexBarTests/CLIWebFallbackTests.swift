@@ -4,10 +4,13 @@ import Testing
 
 @Suite
 struct CLIWebFallbackTests {
-    private func makeContext(sourceMode: ProviderSourceMode = .auto) -> ProviderFetchContext {
+    private func makeContext(
+        runtime: ProviderRuntime = .cli,
+        sourceMode: ProviderSourceMode = .auto) -> ProviderFetchContext
+    {
         let browserDetection = BrowserDetection(cacheTTL: 0)
         return ProviderFetchContext(
-            runtime: .cli,
+            runtime: runtime,
             sourceMode: sourceMode,
             includeCredits: true,
             webTimeout: 60,
@@ -56,5 +59,20 @@ struct CLIWebFallbackTests {
         let strategy = ClaudeWebFetchStrategy(browserDetection: BrowserDetection(cacheTTL: 0))
         #expect(strategy.shouldFallback(on: ClaudeWebAPIFetcher.FetchError.noSessionKeyFound, context: context))
         #expect(strategy.shouldFallback(on: ClaudeWebAPIFetcher.FetchError.unauthorized, context: context))
+    }
+
+    @Test
+    func claudeCLIFallbackIsEnabledOnlyForAppAuto() {
+        let strategy = ClaudeCLIFetchStrategy(
+            useWebExtras: false,
+            manualCookieHeader: nil,
+            browserDetection: BrowserDetection(cacheTTL: 0))
+        let error = ClaudeUsageError.parseFailed("cli failed")
+
+        #expect(strategy.shouldFallback(on: error, context: self.makeContext(runtime: .app, sourceMode: .auto)))
+        #expect(!strategy.shouldFallback(on: error, context: self.makeContext(runtime: .app, sourceMode: .cli)))
+        #expect(!strategy.shouldFallback(on: error, context: self.makeContext(runtime: .app, sourceMode: .web)))
+        #expect(!strategy.shouldFallback(on: error, context: self.makeContext(runtime: .app, sourceMode: .oauth)))
+        #expect(!strategy.shouldFallback(on: error, context: self.makeContext(runtime: .cli, sourceMode: .auto)))
     }
 }

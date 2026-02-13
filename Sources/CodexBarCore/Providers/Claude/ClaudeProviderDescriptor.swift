@@ -84,11 +84,11 @@ public enum ClaudeProviderDescriptor {
             case .auto:
                 return [
                     ClaudeOAuthFetchStrategy(),
-                    ClaudeWebFetchStrategy(browserDetection: context.browserDetection),
                     ClaudeCLIFetchStrategy(
                         useWebExtras: webExtrasEnabled,
                         manualCookieHeader: manualCookieHeader,
                         browserDetection: context.browserDetection),
+                    ClaudeWebFetchStrategy(browserDetection: context.browserDetection),
                 ]
             }
         }
@@ -102,11 +102,15 @@ public enum ClaudeProviderDescriptor {
         selectedDataSource: ClaudeUsageDataSource,
         webExtrasEnabled: Bool,
         hasWebSession: Bool,
+        hasCLI: Bool,
         hasOAuthCredentials: Bool) -> ClaudeUsageStrategy
     {
         if selectedDataSource == .auto {
             if hasOAuthCredentials {
                 return ClaudeUsageStrategy(dataSource: .oauth, useWebExtras: false)
+            }
+            if hasCLI {
+                return ClaudeUsageStrategy(dataSource: .cli, useWebExtras: false)
             }
             if hasWebSession {
                 return ClaudeUsageStrategy(dataSource: .web, useWebExtras: false)
@@ -232,7 +236,7 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
     }
 
     func shouldFallback(on _: Error, context: ProviderFetchContext) -> Bool {
-        // In Auto mode, fall back to the next strategy (web/cli) if OAuth fails (e.g. user cancels keychain prompt
+        // In Auto mode, fall back to the next strategy (cli/web) if OAuth fails (e.g. user cancels keychain prompt
         // or auth breaks).
         context.runtime == .app && context.sourceMode == .auto
     }
@@ -316,6 +320,6 @@ struct ClaudeCLIFetchStrategy: ProviderFetchStrategy {
     }
 
     func shouldFallback(on _: Error, context: ProviderFetchContext) -> Bool {
-        false
+        context.runtime == .app && context.sourceMode == .auto
     }
 }
