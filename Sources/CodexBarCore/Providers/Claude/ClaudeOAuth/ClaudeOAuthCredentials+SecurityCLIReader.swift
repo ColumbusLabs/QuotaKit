@@ -43,7 +43,7 @@ extension ClaudeOAuthCredentialsStore {
             let stderrLength: Int
             let durationMs: Double
             #if DEBUG
-            if let override = self.taskSecurityCLIReadOverride {
+            if let override = self.taskSecurityCLIReadOverride ?? self.securityCLIReadOverride {
                 switch override {
                 case let .data(data):
                     output = data ?? Data()
@@ -54,6 +54,11 @@ extension ClaudeOAuthCredentialsStore {
                     throw SecurityCLIReadError.timedOut
                 case .nonZeroExit:
                     throw SecurityCLIReadError.nonZeroExit(status: 1, stderrLength: 0)
+                case let .dynamic(read):
+                    output = read() ?? Data()
+                    status = 0
+                    stderrLength = 0
+                    durationMs = 0
                 }
             } else {
                 let result = try self.runClaudeSecurityCLIRead(timeout: self.securityCLIReadTimeout)

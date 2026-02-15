@@ -72,7 +72,7 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
             return .skippedByCooldown
         }
 
-        let fingerprintBefore = self.currentClaudeKeychainFingerprint()
+        let baseline = self.currentKeychainChangeObservationBaseline()
         var touchError: Error?
 
         do {
@@ -84,7 +84,7 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         // "Touch succeeded" must mean we actually observed the Claude keychain entry change.
         // Otherwise we end up in a long cooldown with still-expired credentials.
         let changed = await self.waitForClaudeKeychainChange(
-            from: fingerprintBefore,
+            from: baseline,
             timeout: min(max(timeout, 1), 2))
         if changed {
             self.recordAttempt(now: now, cooldown: self.defaultCooldownInterval)
@@ -145,8 +145,20 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         try await ClaudeStatusProbe.touchOAuthAuthPath(timeout: timeout)
     }
 
+    private enum KeychainChangeObservationBaseline: Sendable {
+        case securityFramework(fingerprint: ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint?)
+        case securityCLI(data: Data?)
+    }
+
+    private static func currentKeychainChangeObservationBaseline() -> KeychainChangeObservationBaseline {
+        if ClaudeOAuthKeychainReadStrategyPreference.current() == .securityCLIExperimental {
+            return .securityCLI(data: self.currentClaudeKeychainDataViaSecurityCLIForObservation())
+        }
+        return .securityFramework(fingerprint: self.currentClaudeKeychainFingerprint())
+    }
+
     private static func waitForClaudeKeychainChange(
-        from fingerprintBefore: ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint?,
+        from baseline: KeychainChangeObservationBaseline,
         timeout: TimeInterval) async -> Bool
     {
         // Prefer correctness but bound the delay. Keychain writes can be slightly delayed after the CLI touch.
@@ -157,13 +169,23 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         let delays: [TimeInterval] = [0.2, 0.5, 0.8].filter { $0 <= clampedTimeout }
         let deadline = Date().addingTimeInterval(clampedTimeout)
 
-        func isObservedChange(_ current: ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint?) -> Bool {
-            // Treat "no fingerprint" as "not observed"; we only succeed if we can read a fingerprint and it differs.
-            guard let current else { return false }
-            return current != fingerprintBefore
+        func isObservedChange() -> Bool {
+            switch baseline {
+            case let .securityFramework(fingerprintBefore):
+                // Treat "no fingerprint" as "not observed"; we only succeed if we can read a fingerprint and it
+                // differs.
+                guard let current = self.currentClaudeKeychainFingerprintForObservation() else { return false }
+                return current != fingerprintBefore
+            case let .securityCLI(dataBefore):
+                // In experimental mode, avoid Security.framework observation entirely and detect change from
+                // /usr/bin/security output only.
+                guard let current = self.currentClaudeKeychainDataViaSecurityCLIForObservation() else { return false }
+                guard let dataBefore else { return true }
+                return current != dataBefore
+            }
         }
 
-        if isObservedChange(self.currentClaudeKeychainFingerprintForObservation()) {
+        if isObservedChange() {
             return true
         }
 
@@ -176,7 +198,7 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
                 return false
             }
 
-            if isObservedChange(self.currentClaudeKeychainFingerprintForObservation()) {
+            if isObservedChange() {
                 return true
             }
         }
@@ -210,6 +232,10 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         return ProviderInteractionContext.$current.withValue(.userInitiated) {
             ClaudeOAuthCredentialsStore.currentClaudeKeychainFingerprintWithoutPromptForAuthGate()
         }
+    }
+
+    private static func currentClaudeKeychainDataViaSecurityCLIForObservation() -> Data? {
+        ClaudeOAuthCredentialsStore.loadFromClaudeKeychainViaSecurityCLIIfEnabled(allowKeychainPrompt: false)
     }
 
     private static func clearInFlightTaskIfStillCurrent(id: UInt64) {

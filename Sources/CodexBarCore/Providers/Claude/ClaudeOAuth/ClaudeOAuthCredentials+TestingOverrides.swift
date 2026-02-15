@@ -22,11 +22,13 @@ extension ClaudeOAuthCredentialsStore {
         case data(Data?)
         case timedOut
         case nonZeroExit
+        case dynamic(@Sendable () -> Data?)
     }
 
     @TaskLocal static var taskKeychainAccessOverride: Bool?
     @TaskLocal static var taskCredentialsFileFingerprintStoreOverride: CredentialsFileFingerprintStore?
     @TaskLocal static var taskSecurityCLIReadOverride: SecurityCLIReadOverride?
+    nonisolated(unsafe) static var securityCLIReadOverride: SecurityCLIReadOverride?
 
     static func withKeychainAccessOverrideForTesting<T>(
         _ disabled: Bool?,
@@ -98,6 +100,10 @@ extension ClaudeOAuthCredentialsStore {
         try await self.$taskSecurityCLIReadOverride.withValue(readOverride) {
             try await operation()
         }
+    }
+
+    static func setSecurityCLIReadOverrideForTesting(_ readOverride: SecurityCLIReadOverride?) {
+        self.securityCLIReadOverride = readOverride
     }
 }
 #endif
