@@ -65,7 +65,7 @@ public enum OllamaCookieImporter {
     {
         let log: (String) -> Void = { msg in logger?("[ollama-cookie] \(msg)") }
         let installed = ollamaCookieImportOrder.cookieImportCandidates(using: browserDetection)
-        var fallback: SessionInfo?
+        var candidates: [SessionInfo] = []
 
         for browserSource in installed {
             do {
@@ -77,24 +77,7 @@ public enum OllamaCookieImporter {
                 for source in sources where !source.records.isEmpty {
                     let cookies = BrowserCookieClient.makeHTTPCookies(source.records, origin: query.origin)
                     guard !cookies.isEmpty else { continue }
-                    let names = cookies.map(\.name).joined(separator: ", ")
-                    log("\(source.label) cookies: \(names)")
-
-                    let hasSessionCookie = cookies.contains { cookie in
-                        if Self.sessionCookieNames.contains(cookie.name) { return true }
-                        return cookie.name.lowercased().contains("session")
-                    }
-
-                    if hasSessionCookie {
-                        log("Found Ollama session cookie in \(source.label)")
-                        return SessionInfo(cookies: cookies, sourceLabel: source.label)
-                    }
-
-                    if fallback == nil {
-                        fallback = SessionInfo(cookies: cookies, sourceLabel: source.label)
-                    }
-
-                    log("\(source.label) cookies found, but no recognized session cookie present")
+                    candidates.append(SessionInfo(cookies: cookies, sourceLabel: source.label))
                 }
             } catch {
                 BrowserCookieAccessGate.recordIfNeeded(error)
@@ -102,12 +85,32 @@ public enum OllamaCookieImporter {
             }
         }
 
-        if let fallback {
-            log("Using \(fallback.sourceLabel) cookies without a recognized session token")
-            return fallback
-        }
+        return try self.selectSessionInfo(from: candidates, logger: log)
+    }
 
+    static func selectSessionInfo(
+        from candidates: [SessionInfo],
+        logger: ((String) -> Void)? = nil) throws -> SessionInfo
+    {
+        for candidate in candidates {
+            let names = candidate.cookies.map(\.name).joined(separator: ", ")
+            logger?("\(candidate.sourceLabel) cookies: \(names)")
+            if self.containsRecognizedSessionCookie(in: candidate.cookies) {
+                logger?("Found Ollama session cookie in \(candidate.sourceLabel)")
+                return candidate
+            }
+            logger?("\(candidate.sourceLabel) cookies found, but no recognized session cookie present")
+        }
         throw OllamaUsageError.noSessionCookie
+    }
+
+    private static func containsRecognizedSessionCookie(in cookies: [HTTPCookie]) -> Bool {
+        cookies.contains { cookie in
+            if self.sessionCookieNames.contains(cookie.name) { return true }
+            // next-auth can split tokens into chunked cookies: `<name>.0`, `<name>.1`, ...
+            return cookie.name.hasPrefix("__Secure-next-auth.session-token.") ||
+                cookie.name.hasPrefix("next-auth.session-token.")
+        }
     }
 }
 #endif
