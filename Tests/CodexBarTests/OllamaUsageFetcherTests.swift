@@ -113,7 +113,33 @@ struct OllamaUsageFetcherTests {
     }
 
     @Test
-    func cookieSelectorFallsBackToNonChromeCandidateWhenPreferredPassHasNoSession() throws {
+    func cookieSelectorDoesNotFallbackWhenFallbackDisabled() {
+        let preferred = [
+            OllamaCookieImporter.SessionInfo(
+                cookies: [Self.makeCookie(name: "analytics_session_id", value: "noise")],
+                sourceLabel: "Chrome Profile"),
+        ]
+        let fallback = [
+            OllamaCookieImporter.SessionInfo(
+                cookies: [Self.makeCookie(name: "next-auth.session-token.0", value: "chunk0")],
+                sourceLabel: "Safari Profile"),
+        ]
+
+        do {
+            _ = try OllamaCookieImporter.selectSessionInfoWithFallback(
+                preferredCandidates: preferred,
+                allowFallbackBrowsers: false,
+                loadFallbackCandidates: { fallback })
+            Issue.record("Expected OllamaUsageError.noSessionCookie")
+        } catch OllamaUsageError.noSessionCookie {
+            // expected
+        } catch {
+            Issue.record("Expected OllamaUsageError.noSessionCookie, got \(error)")
+        }
+    }
+
+    @Test
+    func cookieSelectorFallsBackToNonChromeCandidateWhenFallbackEnabled() throws {
         let preferred = [
             OllamaCookieImporter.SessionInfo(
                 cookies: [Self.makeCookie(name: "analytics_session_id", value: "noise")],
@@ -127,6 +153,7 @@ struct OllamaUsageFetcherTests {
 
         let selected = try OllamaCookieImporter.selectSessionInfoWithFallback(
             preferredCandidates: preferred,
+            allowFallbackBrowsers: true,
             loadFallbackCandidates: { fallback })
         #expect(selected.sourceLabel == "Safari Profile")
     }

@@ -77,6 +77,7 @@ public enum OllamaCookieImporter {
     public static func importSession(
         browserDetection: BrowserDetection,
         preferredBrowsers: [Browser] = [.chrome],
+        allowFallbackBrowsers: Bool = false,
         logger: ((String) -> Void)? = nil) throws -> SessionInfo
     {
         let log: (String) -> Void = { msg in logger?("[ollama-cookie] \(msg)") }
@@ -86,6 +87,7 @@ public enum OllamaCookieImporter {
         let preferredCandidates = self.collectSessionInfo(from: preferredSources, logger: log)
         return try self.selectSessionInfoWithFallback(
             preferredCandidates: preferredCandidates,
+            allowFallbackBrowsers: allowFallbackBrowsers,
             loadFallbackCandidates: {
                 guard !preferredBrowsers.isEmpty else { return [] }
                 let fallbackSources = self.fallbackBrowserSources(
@@ -116,9 +118,13 @@ public enum OllamaCookieImporter {
 
     static func selectSessionInfoWithFallback(
         preferredCandidates: [SessionInfo],
+        allowFallbackBrowsers: Bool,
         loadFallbackCandidates: () -> [SessionInfo],
         logger: ((String) -> Void)? = nil) throws -> SessionInfo
     {
+        guard allowFallbackBrowsers else {
+            return try self.selectSessionInfo(from: preferredCandidates, logger: logger)
+        }
         do {
             return try self.selectSessionInfo(from: preferredCandidates, logger: logger)
         } catch OllamaUsageError.noSessionCookie {
