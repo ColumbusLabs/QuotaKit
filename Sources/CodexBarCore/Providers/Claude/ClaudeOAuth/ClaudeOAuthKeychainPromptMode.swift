@@ -46,6 +46,17 @@ public enum ClaudeOAuthKeychainPromptPreference {
         return self.storedMode(userDefaults: userDefaults)
     }
 
+    public static func securityFrameworkFallbackMode(
+        userDefaults: UserDefaults = .standard,
+        readStrategy: ClaudeOAuthKeychainReadStrategy = ClaudeOAuthKeychainReadStrategyPreference.current())
+        -> ClaudeOAuthKeychainPromptMode
+    {
+        if readStrategy == .securityCLIExperimental {
+            return self.storedMode(userDefaults: userDefaults)
+        }
+        return self.effectiveMode(userDefaults: userDefaults, readStrategy: readStrategy)
+    }
+
     #if DEBUG
     static func withTaskOverrideForTesting<T>(
         _ mode: ClaudeOAuthKeychainPromptMode?,

@@ -919,4 +919,35 @@ extension ClaudeUsageTests {
         #expect(await delegatedCounter.current() == 1)
         #expect(snapshot.primary.usedPercent == 7)
     }
+
+    @Test
+    func oauthLoad_experimental_background_fallbackBlocked_propagatesOAuthFailure() async throws {
+        let fetcher = ClaudeUsageFetcher(
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            environment: [:],
+            dataSource: .oauth,
+            oauthKeychainPromptCooldownEnabled: true,
+            allowBackgroundDelegatedRefresh: false)
+
+        let loadCredsOverride: (@Sendable (
+            [String: String],
+            Bool,
+            Bool) async throws -> ClaudeOAuthCredentials)? = { _, _, _ in
+            throw ClaudeOAuthCredentialsError.notFound
+        }
+
+        await #expect(throws: ClaudeUsageError.self) {
+            try await ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+                .securityCLIExperimental,
+                operation: {
+                    try await ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
+                        try await ProviderInteractionContext.$current.withValue(.background) {
+                            try await ClaudeUsageFetcher.$loadOAuthCredentialsOverride.withValue(loadCredsOverride) {
+                                try await fetcher.loadLatestUsage(model: "sonnet")
+                            }
+                        }
+                    }
+                })
+        }
+    }
 }

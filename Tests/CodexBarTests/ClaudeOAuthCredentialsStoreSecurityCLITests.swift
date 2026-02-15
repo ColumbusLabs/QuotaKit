@@ -218,15 +218,15 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
     }
 
     @Test
-    func experimentalReader_hasClaudeKeychainCredentialsWithoutPrompt_usesSecurityCLI() throws {
+    func experimentalReader_hasClaudeKeychainCredentialsWithoutPrompt_usesSecurityCLI() {
         let securityData = self.makeCredentialsData(
             accessToken: "security-available",
             expiresAt: Date(timeIntervalSinceNow: 3600))
 
-        let hasCredentials = try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+        let hasCredentials = ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
             .securityCLIExperimental,
             operation: {
-                try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
+                ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
                     .always,
                     operation: {
                         ProviderInteractionContext.$current.withValue(.userInitiated) {
@@ -243,15 +243,15 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
     }
 
     @Test
-    func experimentalReader_hasClaudeKeychainCredentialsWithoutPrompt_fallsBackWhenSecurityCLIFails() throws {
+    func experimentalReader_hasClaudeKeychainCredentialsWithoutPrompt_fallsBackWhenSecurityCLIFails() {
         let fallbackData = self.makeCredentialsData(
             accessToken: "fallback-available",
             expiresAt: Date(timeIntervalSinceNow: 3600))
 
-        let hasCredentials = try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+        let hasCredentials = ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
             .securityCLIExperimental,
             operation: {
-                try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
+                ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
                     .always,
                     operation: {
                         ProviderInteractionContext.$current.withValue(.userInitiated) {
@@ -273,17 +273,17 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
     }
 
     @Test
-    func experimentalReader_ignoresPromptPolicyAndCooldownForBackgroundSilentCheck() throws {
+    func experimentalReader_ignoresPromptPolicyAndCooldownForBackgroundSilentCheck() {
         let securityData = self.makeCredentialsData(
             accessToken: "security-background",
             expiresAt: Date(timeIntervalSinceNow: 3600))
 
-        let hasCredentials = try KeychainAccessGate.withTaskOverrideForTesting(false) {
-            try ClaudeOAuthKeychainAccessGate.withShouldAllowPromptOverrideForTesting(false) {
-                try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+        let hasCredentials = KeychainAccessGate.withTaskOverrideForTesting(false) {
+            ClaudeOAuthKeychainAccessGate.withShouldAllowPromptOverrideForTesting(false) {
+                ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
                     .securityCLIExperimental,
                     operation: {
-                        try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
+                        ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
                             .never,
                             operation: {
                                 ProviderInteractionContext.$current.withValue(.background) {
@@ -299,5 +299,35 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
         }
 
         #expect(hasCredentials == true)
+    }
+
+    @Test
+    func experimentalReader_loadFromClaudeKeychainFallbackBlockedWhenStoredModeNever() throws {
+        var threwNotFound = false
+        do {
+            _ = try KeychainAccessGate.withTaskOverrideForTesting(false) {
+                try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+                    .securityCLIExperimental,
+                    operation: {
+                        try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
+                            .never,
+                            operation: {
+                                try ProviderInteractionContext.$current.withValue(.background) {
+                                    try ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(
+                                        .nonZeroExit)
+                                    {
+                                        try ClaudeOAuthCredentialsStore.loadFromClaudeKeychain()
+                                    }
+                                }
+                            })
+                    })
+            }
+        } catch let error as ClaudeOAuthCredentialsError {
+            if case .notFound = error {
+                threwNotFound = true
+            }
+        }
+
+        #expect(threwNotFound == true)
     }
 }

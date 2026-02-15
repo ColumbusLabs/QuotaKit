@@ -133,8 +133,8 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 return "Global Keychain access is disabled in Advanced, so this setting is currently inactive."
             }
             if context.settings.claudeOAuthKeychainReadStrategy == .securityCLIExperimental {
-                return "Experimental mode reads via /usr/bin/security. Keychain prompt policy does not apply in this " +
-                    "mode and is hidden."
+                return "Experimental mode reads via /usr/bin/security first. If it falls back to Security.framework, " +
+                    "the stored keychain prompt policy still applies (default: only on user action)."
             }
             return "Standard mode uses Security.framework and respects the keychain prompt policy below."
         }
