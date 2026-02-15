@@ -79,6 +79,33 @@ public struct ClaudeOAuthCredentials: Sendable {
     }
 }
 
+extension ClaudeOAuthCredentials {
+    func diagnosticsMetadata(now: Date = Date()) -> [String: String] {
+        let hasRefreshToken = !(self.refreshToken?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+        let hasUserProfileScope = self.scopes.contains("user:profile")
+
+        var metadata: [String: String] = [
+            "hasRefreshToken": "\(hasRefreshToken)",
+            "scopesCount": "\(self.scopes.count)",
+            "hasUserProfileScope": "\(hasUserProfileScope)",
+        ]
+
+        if let expiresAt = self.expiresAt {
+            let expiresAtMs = Int(expiresAt.timeIntervalSince1970 * 1000.0)
+            let expiresInSec = Int(expiresAt.timeIntervalSince(now).rounded())
+            metadata["expiresAtMs"] = "\(expiresAtMs)"
+            metadata["expiresInSec"] = "\(expiresInSec)"
+            metadata["isExpired"] = "\(now >= expiresAt)"
+        } else {
+            metadata["expiresAtMs"] = "nil"
+            metadata["expiresInSec"] = "nil"
+            metadata["isExpired"] = "true"
+        }
+
+        return metadata
+    }
+}
+
 public enum ClaudeOAuthCredentialOwner: String, Codable, Sendable {
     case claudeCLI
     case codexbar

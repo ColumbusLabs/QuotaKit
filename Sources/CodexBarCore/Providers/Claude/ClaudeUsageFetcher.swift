@@ -303,60 +303,6 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         }
     }
 
-    public func loadLatestUsage(model: String = "sonnet") async throws -> ClaudeUsageSnapshot {
-        switch self.dataSource {
-        case .auto:
-            let oauthCreds = try? ClaudeOAuthCredentialsStore.load(
-                environment: self.environment,
-                allowKeychainPrompt: false,
-                respectKeychainPromptCooldown: true)
-            let hasOAuthCredentials = oauthCreds?.scopes.contains("user:profile") ?? false
-            let hasWebSession =
-                if let header = self.manualCookieHeader {
-                    ClaudeWebAPIFetcher.hasSessionKey(cookieHeader: header)
-                } else {
-                    ClaudeWebAPIFetcher.hasSessionKey(browserDetection: self.browserDetection)
-                }
-            let hasCLI = TTYCommandRunner.which("claude") != nil
-            if hasOAuthCredentials {
-                var snap = try await self.loadViaOAuth(allowDelegatedRetry: true)
-                snap = await self.applyWebExtrasIfNeeded(to: snap)
-                return snap
-            }
-            if hasWebSession {
-                return try await self.loadViaWebAPI()
-            }
-            if hasCLI {
-                do {
-                    var snap = try await self.loadViaPTY(model: model, timeout: 10)
-                    snap = await self.applyWebExtrasIfNeeded(to: snap)
-                    return snap
-                } catch {
-                    // CLI failed; OAuth is the last resort.
-                }
-            }
-            var snap = try await self.loadViaOAuth(allowDelegatedRetry: true)
-            snap = await self.applyWebExtrasIfNeeded(to: snap)
-            return snap
-        case .oauth:
-            var snap = try await self.loadViaOAuth(allowDelegatedRetry: true)
-            snap = await self.applyWebExtrasIfNeeded(to: snap)
-            return snap
-        case .web:
-            return try await self.loadViaWebAPI()
-        case .cli:
-            do {
-                var snap = try await self.loadViaPTY(model: model, timeout: 10)
-                snap = await self.applyWebExtrasIfNeeded(to: snap)
-                return snap
-            } catch {
-                var snap = try await self.loadViaPTY(model: model, timeout: 24)
-                snap = await self.applyWebExtrasIfNeeded(to: snap)
-                return snap
-            }
-        }
-    }
-
     // MARK: - OAuth API path
 
     private func shouldAllowStartupBootstrapPrompt(
@@ -973,6 +919,131 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         guard task.terminationStatus == 0 else { return nil }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         return String(data: data, encoding: .utf8)
+    }
+}
+
+extension ClaudeUsageFetcher {
+    public func loadLatestUsage(model: String = "sonnet") async throws -> ClaudeUsageSnapshot {
+        switch self.dataSource {
+        case .auto:
+            let oauthCreds: ClaudeOAuthCredentials?
+            let oauthProbeError: Error?
+            do {
+                oauthCreds = try ClaudeOAuthCredentialsStore.load(
+                    environment: self.environment,
+                    allowKeychainPrompt: false,
+                    respectKeychainPromptCooldown: true)
+                oauthProbeError = nil
+            } catch {
+                oauthCreds = nil
+                oauthProbeError = error
+            }
+
+            let hasOAuthCredentials = oauthCreds?.scopes.contains("user:profile") ?? false
+            let hasWebSession =
+                if let header = self.manualCookieHeader {
+                    ClaudeWebAPIFetcher.hasSessionKey(cookieHeader: header)
+                } else {
+                    ClaudeWebAPIFetcher.hasSessionKey(browserDetection: self.browserDetection)
+                }
+            let hasCLI = TTYCommandRunner.which("claude") != nil
+
+            var autoDecisionMetadata: [String: String] = [
+                "hasOAuthCredentials": "\(hasOAuthCredentials)",
+                "hasWebSession": "\(hasWebSession)",
+                "hasCLI": "\(hasCLI)",
+                "oauthReadStrategy": ClaudeOAuthKeychainReadStrategyPreference.current().rawValue,
+            ]
+            if let oauthCreds {
+                autoDecisionMetadata["oauthProbe"] = "success"
+                for (key, value) in oauthCreds.diagnosticsMetadata(now: Date()) {
+                    autoDecisionMetadata[key] = value
+                }
+            } else if let oauthProbeError {
+                autoDecisionMetadata["oauthProbe"] = "failure"
+                autoDecisionMetadata["oauthProbeError"] = Self.oauthCredentialProbeErrorLabel(oauthProbeError)
+            } else {
+                autoDecisionMetadata["oauthProbe"] = "none"
+            }
+
+            func logAutoDecision(selected: String) {
+                var metadata = autoDecisionMetadata
+                metadata["selected"] = selected
+                Self.log.debug("Claude auto source decision", metadata: metadata)
+            }
+
+            if hasOAuthCredentials {
+                logAutoDecision(selected: "oauth")
+                var snap = try await self.loadViaOAuth(allowDelegatedRetry: true)
+                snap = await self.applyWebExtrasIfNeeded(to: snap)
+                return snap
+            }
+            if hasWebSession {
+                logAutoDecision(selected: "web")
+                return try await self.loadViaWebAPI()
+            }
+            if hasCLI {
+                do {
+                    logAutoDecision(selected: "cli")
+                    var snap = try await self.loadViaPTY(model: model, timeout: 10)
+                    snap = await self.applyWebExtrasIfNeeded(to: snap)
+                    return snap
+                } catch {
+                    Self.log.debug(
+                        "Claude auto source CLI path failed; falling back to OAuth",
+                        metadata: [
+                            "errorType": String(describing: type(of: error)),
+                        ])
+                }
+            }
+            logAutoDecision(selected: "oauthFallback")
+            var snap = try await self.loadViaOAuth(allowDelegatedRetry: true)
+            snap = await self.applyWebExtrasIfNeeded(to: snap)
+            return snap
+        case .oauth:
+            var snap = try await self.loadViaOAuth(allowDelegatedRetry: true)
+            snap = await self.applyWebExtrasIfNeeded(to: snap)
+            return snap
+        case .web:
+            return try await self.loadViaWebAPI()
+        case .cli:
+            do {
+                var snap = try await self.loadViaPTY(model: model, timeout: 10)
+                snap = await self.applyWebExtrasIfNeeded(to: snap)
+                return snap
+            } catch {
+                var snap = try await self.loadViaPTY(model: model, timeout: 24)
+                snap = await self.applyWebExtrasIfNeeded(to: snap)
+                return snap
+            }
+        }
+    }
+
+    private static func oauthCredentialProbeErrorLabel(_ error: Error) -> String {
+        guard let oauthError = error as? ClaudeOAuthCredentialsError else {
+            return String(describing: type(of: error))
+        }
+
+        return switch oauthError {
+        case .decodeFailed:
+            "decodeFailed"
+        case .missingOAuth:
+            "missingOAuth"
+        case .missingAccessToken:
+            "missingAccessToken"
+        case .notFound:
+            "notFound"
+        case let .keychainError(status):
+            "keychainError:\(status)"
+        case .readFailed:
+            "readFailed"
+        case .refreshFailed:
+            "refreshFailed"
+        case .noRefreshToken:
+            "noRefreshToken"
+        case .refreshDelegatedToClaudeCLI:
+            "refreshDelegatedToClaudeCLI"
+        }
     }
 }
 

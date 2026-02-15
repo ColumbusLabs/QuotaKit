@@ -446,17 +446,33 @@ public enum ClaudeOAuthCredentialsStore {
             allowKeychainPrompt: allowKeychainPrompt,
             respectKeychainPromptCooldown: respectKeychainPromptCooldown)
         let credentials = record.credentials
+        let now = Date()
+        var expiryMetadata = credentials.diagnosticsMetadata(now: now)
+        expiryMetadata["source"] = record.source.rawValue
+        expiryMetadata["owner"] = record.owner.rawValue
+        expiryMetadata["allowKeychainPrompt"] = "\(allowKeychainPrompt)"
+        expiryMetadata["respectPromptCooldown"] = "\(respectKeychainPromptCooldown)"
+        expiryMetadata["readStrategy"] = ClaudeOAuthKeychainReadStrategyPreference.current().rawValue
+
+        let isExpired: Bool = if let expiresAt = credentials.expiresAt {
+            now >= expiresAt
+        } else {
+            true
+        }
 
         // If not expired, return as-is
-        guard credentials.isExpired else {
+        guard isExpired else {
+            self.log.debug("Claude OAuth credentials loaded for usage", metadata: expiryMetadata)
             return credentials
         }
+
+        self.log.info("Claude OAuth credentials considered expired", metadata: expiryMetadata)
 
         switch record.owner {
         case .claudeCLI:
             self.log.info(
                 "Claude OAuth credentials expired; delegating refresh to Claude CLI",
-                metadata: ["source": record.source.rawValue])
+                metadata: expiryMetadata)
             throw ClaudeOAuthCredentialsError.refreshDelegatedToClaudeCLI
         case .environment:
             self.log.warning("Environment OAuth token expired and cannot be auto-refreshed")

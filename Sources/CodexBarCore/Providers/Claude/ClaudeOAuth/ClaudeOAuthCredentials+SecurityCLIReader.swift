@@ -77,7 +77,10 @@ extension ClaudeOAuthCredentialsStore {
 
             let sanitized = self.sanitizeSecurityCLIOutput(output)
             guard !sanitized.isEmpty else { return nil }
-            guard (try? ClaudeOAuthCredentials.parse(data: sanitized)) != nil else {
+            let parsedCredentials: ClaudeOAuthCredentials
+            do {
+                parsedCredentials = try ClaudeOAuthCredentials.parse(data: sanitized)
+            } catch {
                 self.log.warning(
                     "Claude keychain security CLI output invalid; falling back",
                     metadata: [
@@ -85,19 +88,26 @@ extension ClaudeOAuthCredentialsStore {
                         "status": "\(status)",
                         "duration_ms": String(format: "%.2f", durationMs),
                         "stderr_length": "\(stderrLength)",
+                        "payload_bytes": "\(sanitized.count)",
+                        "parse_error_type": String(describing: type(of: error)),
                     ])
                 return nil
             }
 
+            var metadata: [String: String] = [
+                "reader": "securityCLI",
+                "interactive": "\(allowKeychainPrompt)",
+                "status": "\(status)",
+                "duration_ms": String(format: "%.2f", durationMs),
+                "stderr_length": "\(stderrLength)",
+                "payload_bytes": "\(sanitized.count)",
+            ]
+            for (key, value) in parsedCredentials.diagnosticsMetadata(now: Date()) {
+                metadata[key] = value
+            }
             self.log.debug(
                 "Claude keychain security CLI read succeeded",
-                metadata: [
-                    "reader": "securityCLI",
-                    "interactive": "\(allowKeychainPrompt)",
-                    "status": "\(status)",
-                    "duration_ms": String(format: "%.2f", durationMs),
-                    "stderr_length": "\(stderrLength)",
-                ])
+                metadata: metadata)
             return sanitized
         } catch let error as SecurityCLIReadError {
             var metadata: [String: String] = [
