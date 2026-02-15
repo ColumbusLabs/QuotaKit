@@ -14,7 +14,6 @@ import LocalAuthentication
 import Security
 #endif
 
-// swiftlint:disable file_length
 // swiftlint:disable type_body_length
 public enum ClaudeOAuthCredentialsStore {
     private static let credentialsPath = ".claude/.credentials.json"
@@ -51,91 +50,6 @@ public enum ClaudeOAuthCredentialsStore {
         let createdAt: Int?
         let persistentRefHash: String?
     }
-
-    #if DEBUG
-    private nonisolated(unsafe) static var claudeKeychainDataOverride: Data?
-    private nonisolated(unsafe) static var claudeKeychainFingerprintOverride: ClaudeKeychainFingerprint?
-    @TaskLocal private static var taskClaudeKeychainDataOverride: Data?
-    @TaskLocal private static var taskClaudeKeychainFingerprintOverride: ClaudeKeychainFingerprint?
-    @TaskLocal private static var taskMemoryCacheStoreOverride: MemoryCacheStore?
-    final class ClaudeKeychainFingerprintStore: @unchecked Sendable {
-        var fingerprint: ClaudeKeychainFingerprint?
-
-        init(fingerprint: ClaudeKeychainFingerprint? = nil) {
-            self.fingerprint = fingerprint
-        }
-    }
-
-    final class MemoryCacheStore: @unchecked Sendable {
-        var record: ClaudeOAuthCredentialRecord?
-        var timestamp: Date?
-    }
-
-    @TaskLocal private static var taskClaudeKeychainFingerprintStoreOverride: ClaudeKeychainFingerprintStore?
-    static func setClaudeKeychainDataOverrideForTesting(_ data: Data?) {
-        self.claudeKeychainDataOverride = data
-    }
-
-    static func setClaudeKeychainFingerprintOverrideForTesting(_ fingerprint: ClaudeKeychainFingerprint?) {
-        self.claudeKeychainFingerprintOverride = fingerprint
-    }
-
-    static func withClaudeKeychainOverridesForTesting<T>(
-        data: Data?,
-        fingerprint: ClaudeKeychainFingerprint?,
-        operation: () throws -> T) rethrows -> T
-    {
-        try self.$taskClaudeKeychainDataOverride.withValue(data) {
-            try self.$taskClaudeKeychainFingerprintOverride.withValue(fingerprint) {
-                try operation()
-            }
-        }
-    }
-
-    static func withClaudeKeychainOverridesForTesting<T>(
-        data: Data?,
-        fingerprint: ClaudeKeychainFingerprint?,
-        operation: () async throws -> T) async rethrows -> T
-    {
-        try await self.$taskClaudeKeychainDataOverride.withValue(data) {
-            try await self.$taskClaudeKeychainFingerprintOverride.withValue(fingerprint) {
-                try await operation()
-            }
-        }
-    }
-
-    static func withClaudeKeychainFingerprintStoreOverrideForTesting<T>(
-        _ store: ClaudeKeychainFingerprintStore?,
-        operation: () throws -> T) rethrows -> T
-    {
-        try self.$taskClaudeKeychainFingerprintStoreOverride.withValue(store) {
-            try operation()
-        }
-    }
-
-    static func withClaudeKeychainFingerprintStoreOverrideForTesting<T>(
-        _ store: ClaudeKeychainFingerprintStore?,
-        operation: () async throws -> T) async rethrows -> T
-    {
-        try await self.$taskClaudeKeychainFingerprintStoreOverride.withValue(store) {
-            try await operation()
-        }
-    }
-
-    static func withIsolatedMemoryCacheForTesting<T>(operation: () throws -> T) rethrows -> T {
-        let store = MemoryCacheStore()
-        return try self.$taskMemoryCacheStoreOverride.withValue(store) {
-            try operation()
-        }
-    }
-
-    static func withIsolatedMemoryCacheForTesting<T>(operation: () async throws -> T) async rethrows -> T {
-        let store = MemoryCacheStore()
-        return try await self.$taskMemoryCacheStoreOverride.withValue(store) {
-            try await operation()
-        }
-    }
-    #endif
 
     struct CredentialsFileFingerprint: Codable, Equatable, Sendable {
         let modifiedAtMs: Int?
@@ -1795,5 +1709,3 @@ extension ClaudeOAuthCredentialsStore {
     }
     #endif
 }
-
-// swiftlint:enable file_length
