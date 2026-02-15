@@ -7,6 +7,27 @@ import FoundationNetworking
 import SweetCookieKit
 #endif
 
+private let ollamaSessionCookieNames: Set<String> = [
+    "session",
+    "ollama_session",
+    "__Host-ollama_session",
+    "__Secure-next-auth.session-token",
+    "next-auth.session-token",
+]
+
+private func isRecognizedOllamaSessionCookieName(_ name: String) -> Bool {
+    if ollamaSessionCookieNames.contains(name) { return true }
+    // next-auth can split tokens into chunked cookies: `<name>.0`, `<name>.1`, ...
+    return name.hasPrefix("__Secure-next-auth.session-token.") ||
+        name.hasPrefix("next-auth.session-token.")
+}
+
+private func hasRecognizedOllamaSessionCookie(in header: String) -> Bool {
+    CookieHeaderNormalizer.pairs(from: header).contains { pair in
+        isRecognizedOllamaSessionCookieName(pair.name)
+    }
+}
+
 public enum OllamaUsageError: LocalizedError, Sendable {
     case notLoggedIn
     case invalidCredentials
@@ -37,13 +58,7 @@ private let ollamaCookieImportOrder: BrowserCookieImportOrder =
 public enum OllamaCookieImporter {
     private static let cookieClient = BrowserCookieClient()
     private static let cookieDomains = ["ollama.com", "www.ollama.com"]
-    private static let sessionCookieNames: Set<String> = [
-        "session",
-        "ollama_session",
-        "__Host-ollama_session",
-        "__Secure-next-auth.session-token",
-        "next-auth.session-token",
-    ]
+    static let defaultPreferredBrowsers: [Browser] = [.chrome]
 
     public struct SessionInfo: Sendable {
         public let cookies: [HTTPCookie]
@@ -61,10 +76,13 @@ public enum OllamaCookieImporter {
 
     public static func importSession(
         browserDetection: BrowserDetection,
+        preferredBrowsers: [Browser] = [.chrome],
         logger: ((String) -> Void)? = nil) throws -> SessionInfo
     {
         let log: (String) -> Void = { msg in logger?("[ollama-cookie] \(msg)") }
-        let installed = ollamaCookieImportOrder.cookieImportCandidates(using: browserDetection)
+        let installed = preferredBrowsers.isEmpty
+            ? ollamaCookieImportOrder.cookieImportCandidates(using: browserDetection)
+            : preferredBrowsers.cookieImportCandidates(using: browserDetection)
         var candidates: [SessionInfo] = []
 
         for browserSource in installed {
@@ -106,10 +124,7 @@ public enum OllamaCookieImporter {
 
     private static func containsRecognizedSessionCookie(in cookies: [HTTPCookie]) -> Bool {
         cookies.contains { cookie in
-            if self.sessionCookieNames.contains(cookie.name) { return true }
-            // next-auth can split tokens into chunked cookies: `<name>.0`, `<name>.1`, ...
-            return cookie.name.hasPrefix("__Secure-next-auth.session-token.") ||
-                cookie.name.hasPrefix("next-auth.session-token.")
+            isRecognizedOllamaSessionCookieName(cookie.name)
         }
     }
 }
@@ -255,6 +270,10 @@ public struct OllamaUsageFetcher: Sendable {
         logger: ((String) -> Void)? = nil) throws -> String?
     {
         if let override = CookieHeaderNormalizer.normalize(override) {
+            guard hasRecognizedOllamaSessionCookie(in: override) else {
+                logger?("[ollama] Manual cookie header missing recognized session cookie")
+                throw OllamaUsageError.noSessionCookie
+            }
             logger?("[ollama] Using manual cookie header")
             return override
         }

@@ -40,7 +40,34 @@ struct OllamaUsageFetcherTests {
         #expect(resolved == nil)
     }
 
+    @Test
+    func manualModeWithoutRecognizedSessionCookieThrowsNoSessionCookie() {
+        do {
+            _ = try OllamaUsageFetcher.resolveManualCookieHeader(
+                override: "analytics_session_id=noise; theme=dark",
+                manualCookieMode: true)
+            Issue.record("Expected OllamaUsageError.noSessionCookie")
+        } catch OllamaUsageError.noSessionCookie {
+            // expected
+        } catch {
+            Issue.record("Expected OllamaUsageError.noSessionCookie, got \(error)")
+        }
+    }
+
+    @Test
+    func manualModeWithRecognizedSessionCookieAcceptsHeader() throws {
+        let resolved = try OllamaUsageFetcher.resolveManualCookieHeader(
+            override: "next-auth.session-token.0=abc; theme=dark",
+            manualCookieMode: true)
+        #expect(resolved?.contains("next-auth.session-token.0=abc") == true)
+    }
+
     #if os(macOS)
+    @Test
+    func cookieImporterDefaultsToChromeFirst() {
+        #expect(OllamaCookieImporter.defaultPreferredBrowsers == [.chrome])
+    }
+
     @Test
     func cookieSelectorSkipsSessionLikeNoiseAndFindsRecognizedCookie() throws {
         let first = OllamaCookieImporter.SessionInfo(
