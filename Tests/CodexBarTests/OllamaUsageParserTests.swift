@@ -48,7 +48,7 @@ struct OllamaUsageParserTests {
 
     @Test
     func missingUsageThrowsParseFailed() {
-        let html = "<html><body>No usage here.</body></html>"
+        let html = "<html><body>No usage here. login status unknown.</body></html>"
 
         #expect {
             try OllamaUsageParser.parse(html: html)
@@ -60,7 +60,17 @@ struct OllamaUsageParserTests {
 
     @Test
     func signedOutThrowsNotLoggedIn() {
-        let html = "<html><body>Please sign in to Ollama.</body></html>"
+        let html = """
+        <html>
+          <body>
+            <h1>Sign in to Ollama</h1>
+            <form action="/auth/signin" method="post">
+              <input type="email" name="email" />
+              <input type="password" name="password" />
+            </form>
+          </body>
+        </html>
+        """
 
         #expect {
             try OllamaUsageParser.parse(html: html)
@@ -68,6 +78,26 @@ struct OllamaUsageParserTests {
             guard case OllamaUsageError.notLoggedIn = error else { return false }
             return true
         }
+    }
+
+    @Test
+    func parsesHourlyUsageAsPrimaryWindow() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let html = """
+        <div>
+          <span>Hourly usage</span>
+          <span>2.5% used</span>
+          <div class=\"local-time\" data-time=\"2026-01-30T18:00:00Z\">Resets in 3 hours</div>
+          <span>Weekly usage</span>
+          <span>4.2% used</span>
+          <div class=\"local-time\" data-time=\"2026-02-02T00:00:00Z\">Resets in 2 days</div>
+        </div>
+        """
+
+        let snapshot = try OllamaUsageParser.parse(html: html, now: now)
+
+        #expect(snapshot.sessionUsedPercent == 2.5)
+        #expect(snapshot.weeklyUsedPercent == 4.2)
     }
 
     @Test

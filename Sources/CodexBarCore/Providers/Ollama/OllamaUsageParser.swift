@@ -1,10 +1,12 @@
 import Foundation
 
 enum OllamaUsageParser {
+    private static let primaryUsageLabels = ["Session usage", "Hourly usage"]
+
     static func parse(html: String, now: Date = Date()) throws -> OllamaUsageSnapshot {
         let plan = self.parsePlanName(html)
         let email = self.parseAccountEmail(html)
-        let session = self.parseUsageBlock(label: "Session usage", html: html)
+        let session = self.parseUsageBlock(labels: self.primaryUsageLabels, html: html)
         let weekly = self.parseUsageBlock(label: "Weekly usage", html: html)
 
         if session == nil, weekly == nil {
@@ -56,6 +58,15 @@ enum OllamaUsageParser {
         return UsageBlock(usedPercent: usedPercent, resetsAt: resetsAt)
     }
 
+    private static func parseUsageBlock(labels: [String], html: String) -> UsageBlock? {
+        for label in labels {
+            if let parsed = self.parseUsageBlock(label: label, html: html) {
+                return parsed
+            }
+        }
+        return nil
+    }
+
     private static func parsePercent(in text: String) -> Double? {
         let usedPattern = #"([0-9]+(?:\.[0-9]+)?)\s*%\s*used"#
         if let raw = self.firstCapture(in: text, pattern: usedPattern, options: [.caseInsensitive]) {
@@ -103,10 +114,32 @@ enum OllamaUsageParser {
 
     private static func looksSignedOut(_ html: String) -> Bool {
         let lower = html.lowercased()
-        if lower.contains("sign in") || lower.contains("log in") || lower.contains("login") {
+        if lower.contains("sign in to ollama") || lower.contains("log in to ollama") {
             return true
         }
-        if lower.contains("/login") || lower.contains("/signin") {
+        let hasAuthRoute = lower.contains("/api/auth/signin") || lower.contains("/auth/signin")
+        let hasLoginRoute = lower.contains("action=\"/login\"")
+            || lower.contains("action='/login'")
+            || lower.contains("href=\"/login\"")
+            || lower.contains("href='/login'")
+            || lower.contains("action=\"/signin\"")
+            || lower.contains("action='/signin'")
+            || lower.contains("href=\"/signin\"")
+            || lower.contains("href='/signin'")
+        let hasPasswordField = lower.contains("type=\"password\"")
+            || lower.contains("type='password'")
+            || lower.contains("name=\"password\"")
+            || lower.contains("name='password'")
+        let hasEmailField = lower.contains("type=\"email\"")
+            || lower.contains("type='email'")
+            || lower.contains("name=\"email\"")
+            || lower.contains("name='email'")
+        let hasAuthForm = lower.contains("<form")
+
+        if hasAuthRoute, hasAuthForm {
+            return true
+        }
+        if hasAuthForm, hasPasswordField, hasEmailField || hasLoginRoute || lower.contains("sign in") {
             return true
         }
         return false
