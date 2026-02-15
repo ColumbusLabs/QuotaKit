@@ -75,7 +75,7 @@ struct OllamaProviderImplementation: ProviderImplementation {
                         }),
                 ],
                 isVisible: { context.settings.ollamaCookieSource == .manual },
-                onActivate: { }),
+                onActivate: {}),
         ]
     }
 }

@@ -7,7 +7,7 @@ enum OllamaUsageParser {
         let session = self.parseUsageBlock(label: "Session usage", html: html)
         let weekly = self.parseUsageBlock(label: "Weekly usage", html: html)
 
-        if session == nil && weekly == nil {
+        if session == nil, weekly == nil {
             if self.looksSignedOut(html) {
                 throw OllamaUsageError.notLoggedIn
             }

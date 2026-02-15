@@ -24,7 +24,8 @@ extension SettingsStore {
 }
 
 extension SettingsStore {
-    func ollamaSettingsSnapshot(tokenOverride: TokenAccountOverride?) -> ProviderSettingsSnapshot.OllamaProviderSettings {
+    func ollamaSettingsSnapshot(tokenOverride: TokenAccountOverride?) -> ProviderSettingsSnapshot
+    .OllamaProviderSettings {
         ProviderSettingsSnapshot.OllamaProviderSettings(
             cookieSource: self.ollamaSnapshotCookieSource(tokenOverride: tokenOverride),
             manualCookieHeader: self.ollamaSnapshotCookieHeader(tokenOverride: tokenOverride))
