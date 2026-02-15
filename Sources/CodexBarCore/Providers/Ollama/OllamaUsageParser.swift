@@ -114,9 +114,7 @@ enum OllamaUsageParser {
 
     private static func looksSignedOut(_ html: String) -> Bool {
         let lower = html.lowercased()
-        if lower.contains("sign in to ollama") || lower.contains("log in to ollama") {
-            return true
-        }
+        let hasSignInHeading = lower.contains("sign in to ollama") || lower.contains("log in to ollama")
         let hasAuthRoute = lower.contains("/api/auth/signin") || lower.contains("/auth/signin")
         let hasLoginRoute = lower.contains("action=\"/login\"")
             || lower.contains("action='/login'")
@@ -135,11 +133,15 @@ enum OllamaUsageParser {
             || lower.contains("name=\"email\"")
             || lower.contains("name='email'")
         let hasAuthForm = lower.contains("<form")
+        let hasAuthEndpoint = hasAuthRoute || hasLoginRoute
 
-        if hasAuthRoute, hasAuthForm {
+        if hasSignInHeading, hasAuthForm, hasEmailField || hasPasswordField || hasAuthEndpoint {
             return true
         }
-        if hasAuthForm, hasPasswordField, hasEmailField || hasLoginRoute || lower.contains("sign in") {
+        if hasAuthForm, hasAuthEndpoint {
+            return true
+        }
+        if hasAuthForm, hasPasswordField, hasEmailField {
             return true
         }
         return false

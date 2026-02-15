@@ -81,6 +81,26 @@ struct OllamaUsageParserTests {
     }
 
     @Test
+    func genericSignInTextWithoutAuthMarkersThrowsParseFailed() {
+        let html = """
+        <html>
+          <body>
+            <h2>Usage Dashboard</h2>
+            <p>If you have an account, you can sign in from the homepage.</p>
+            <div>No usage rows rendered.</div>
+          </body>
+        </html>
+        """
+
+        #expect {
+            try OllamaUsageParser.parse(html: html)
+        } throws: { error in
+            guard case let OllamaUsageError.parseFailed(message) = error else { return false }
+            return message.contains("Missing Ollama usage data")
+        }
+    }
+
+    @Test
     func parsesHourlyUsageAsPrimaryWindow() throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let html = """

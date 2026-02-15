@@ -52,10 +52,14 @@ struct OllamaStatusFetchStrategy: ProviderFetchStrategy {
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let fetcher = OllamaUsageFetcher(browserDetection: context.browserDetection)
         let manual = Self.manualCookieHeader(from: context)
+        let isManualMode = context.settings?.ollama?.cookieSource == .manual
         let logger: ((String) -> Void)? = context.verbose
             ? { msg in CodexBarLog.logger(LogCategories.ollama).verbose(msg) }
             : nil
-        let snap = try await fetcher.fetch(cookieHeaderOverride: manual, logger: logger)
+        let snap = try await fetcher.fetch(
+            cookieHeaderOverride: manual,
+            manualCookieMode: isManualMode,
+            logger: logger)
         return self.makeResult(
             usage: snap.toUsageSnapshot(),
             sourceLabel: "web")

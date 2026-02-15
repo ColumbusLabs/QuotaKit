@@ -127,11 +127,15 @@ public struct OllamaUsageFetcher: Sendable {
 
     public func fetch(
         cookieHeaderOverride: String? = nil,
+        manualCookieMode: Bool = false,
         logger: ((String) -> Void)? = nil,
         now: Date = Date()) async throws -> OllamaUsageSnapshot
     {
         let log: (String) -> Void = { msg in logger?("[ollama] \(msg)") }
-        let cookieHeader = try await self.resolveCookieHeader(override: cookieHeaderOverride, logger: log)
+        let cookieHeader = try await self.resolveCookieHeader(
+            override: cookieHeaderOverride,
+            manualCookieMode: manualCookieMode,
+            logger: log)
 
         if let logger {
             let names = self.cookieNames(from: cookieHeader)
@@ -164,7 +168,10 @@ public struct OllamaUsageFetcher: Sendable {
         return try OllamaUsageParser.parse(html: html, now: now)
     }
 
-    public func debugRawProbe(cookieHeaderOverride: String? = nil) async -> String {
+    public func debugRawProbe(
+        cookieHeaderOverride: String? = nil,
+        manualCookieMode: Bool = false) async -> String
+    {
         let stamp = ISO8601DateFormatter().string(from: Date())
         var lines: [String] = []
         lines.append("=== Ollama Debug Probe @ \(stamp) ===")
@@ -173,6 +180,7 @@ public struct OllamaUsageFetcher: Sendable {
         do {
             let cookieHeader = try await self.resolveCookieHeader(
                 override: cookieHeaderOverride,
+                manualCookieMode: manualCookieMode,
                 logger: { msg in lines.append("[cookie] \(msg)") })
             let diagnostics = RedirectDiagnostics(cookieHeader: cookieHeader, logger: nil)
             let cookieNames = CookieHeaderNormalizer.pairs(from: cookieHeader).map(\.name)
@@ -222,14 +230,15 @@ public struct OllamaUsageFetcher: Sendable {
 
     private func resolveCookieHeader(
         override: String?,
+        manualCookieMode: Bool,
         logger: ((String) -> Void)?) async throws -> String
     {
-        if let override = CookieHeaderNormalizer.normalize(override) {
-            if !override.isEmpty {
-                logger?("[ollama] Using manual cookie header")
-                return override
-            }
-            throw OllamaUsageError.noSessionCookie
+        if let manualHeader = try Self.resolveManualCookieHeader(
+            override: override,
+            manualCookieMode: manualCookieMode,
+            logger: logger)
+        {
+            return manualHeader
         }
         #if os(macOS)
         let session = try OllamaCookieImporter.importSession(browserDetection: self.browserDetection, logger: logger)
@@ -238,6 +247,21 @@ public struct OllamaUsageFetcher: Sendable {
         #else
         throw OllamaUsageError.noSessionCookie
         #endif
+    }
+
+    static func resolveManualCookieHeader(
+        override: String?,
+        manualCookieMode: Bool,
+        logger: ((String) -> Void)? = nil) throws -> String?
+    {
+        if let override = CookieHeaderNormalizer.normalize(override) {
+            logger?("[ollama] Using manual cookie header")
+            return override
+        }
+        if manualCookieMode {
+            throw OllamaUsageError.noSessionCookie
+        }
+        return nil
     }
 
     private func fetchWithDiagnostics(

@@ -18,6 +18,28 @@ struct OllamaUsageFetcherTests {
         #expect(!OllamaUsageFetcher.shouldAttachCookie(to: nil))
     }
 
+    @Test
+    func manualModeWithoutValidHeaderThrowsNoSessionCookie() {
+        do {
+            _ = try OllamaUsageFetcher.resolveManualCookieHeader(
+                override: nil,
+                manualCookieMode: true)
+            Issue.record("Expected OllamaUsageError.noSessionCookie")
+        } catch OllamaUsageError.noSessionCookie {
+            // expected
+        } catch {
+            Issue.record("Expected OllamaUsageError.noSessionCookie, got \(error)")
+        }
+    }
+
+    @Test
+    func autoModeWithoutHeaderDoesNotForceManualError() throws {
+        let resolved = try OllamaUsageFetcher.resolveManualCookieHeader(
+            override: nil,
+            manualCookieMode: false)
+        #expect(resolved == nil)
+    }
+
     #if os(macOS)
     @Test
     func cookieSelectorSkipsSessionLikeNoiseAndFindsRecognizedCookie() throws {

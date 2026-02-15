@@ -1411,7 +1411,9 @@ extension UsageStore {
             let manualHeader = ollamaCookieSource == .manual
                 ? CookieHeaderNormalizer.normalize(ollamaCookieHeader)
                 : nil
-            return await fetcher.debugRawProbe(cookieHeaderOverride: manualHeader)
+            return await fetcher.debugRawProbe(
+                cookieHeaderOverride: manualHeader,
+                manualCookieMode: ollamaCookieSource == .manual)
         }
     }
 
