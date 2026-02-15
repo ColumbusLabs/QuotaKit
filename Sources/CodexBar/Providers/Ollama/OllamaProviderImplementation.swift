@@ -20,6 +20,20 @@ struct OllamaProviderImplementation: ProviderImplementation {
     }
 
     @MainActor
+    func tokenAccountsVisibility(context: ProviderSettingsContext, support: TokenAccountSupport) -> Bool {
+        guard support.requiresManualCookieSource else { return true }
+        if !context.settings.tokenAccounts(for: context.provider).isEmpty { return true }
+        return context.settings.ollamaCookieSource == .manual
+    }
+
+    @MainActor
+    func applyTokenAccountCookieSource(settings: SettingsStore) {
+        if settings.ollamaCookieSource != .manual {
+            settings.ollamaCookieSource = .manual
+        }
+    }
+
+    @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
         let cookieBinding = Binding(
             get: { context.settings.ollamaCookieSource.rawValue },
@@ -75,7 +89,7 @@ struct OllamaProviderImplementation: ProviderImplementation {
                         }),
                 ],
                 isVisible: { context.settings.ollamaCookieSource == .manual },
-                onActivate: {}),
+                onActivate: { context.settings.ensureOllamaCookieLoaded() }),
         ]
     }
 }

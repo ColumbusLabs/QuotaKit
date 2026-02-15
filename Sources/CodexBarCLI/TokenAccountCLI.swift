@@ -280,13 +280,13 @@ struct TokenAccountCLIContext {
         account: ProviderTokenAccount?,
         config: ProviderConfig?) -> ProviderCookieSource
     {
-        if let override = config?.cookieSource { return override }
         if let account, TokenAccountSupportCatalog.support(for: provider)?.requiresManualCookieSource == true {
             if provider == .claude, TokenAccountSupportCatalog.isClaudeOAuthToken(account.token) {
                 return .off
             }
             return .manual
         }
+        if let override = config?.cookieSource { return override }
         if config?.sanitizedCookieHeader != nil {
             return .manual
         }

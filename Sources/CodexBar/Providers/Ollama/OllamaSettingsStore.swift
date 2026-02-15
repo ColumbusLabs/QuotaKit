@@ -21,6 +21,8 @@ extension SettingsStore {
             self.logProviderModeChange(provider: .ollama, field: "cookieSource", value: newValue.rawValue)
         }
     }
+
+    func ensureOllamaCookieLoaded() {}
 }
 
 extension SettingsStore {
