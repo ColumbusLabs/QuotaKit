@@ -112,6 +112,25 @@ struct OllamaUsageFetcherTests {
         #expect(selected.sourceLabel == "Profile C")
     }
 
+    @Test
+    func cookieSelectorFallsBackToNonChromeCandidateWhenPreferredPassHasNoSession() throws {
+        let preferred = [
+            OllamaCookieImporter.SessionInfo(
+                cookies: [Self.makeCookie(name: "analytics_session_id", value: "noise")],
+                sourceLabel: "Chrome Profile"),
+        ]
+        let fallback = [
+            OllamaCookieImporter.SessionInfo(
+                cookies: [Self.makeCookie(name: "next-auth.session-token.0", value: "chunk0")],
+                sourceLabel: "Safari Profile"),
+        ]
+
+        let selected = try OllamaCookieImporter.selectSessionInfoWithFallback(
+            preferredCandidates: preferred,
+            loadFallbackCandidates: { fallback })
+        #expect(selected.sourceLabel == "Safari Profile")
+    }
+
     private static func makeCookie(
         name: String,
         value: String,
