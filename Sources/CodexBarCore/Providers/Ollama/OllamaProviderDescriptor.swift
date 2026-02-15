@@ -27,7 +27,7 @@ public enum OllamaProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .ollama,
                 iconResourceName: "ProviderIcon-ollama",
-                color: ProviderColor(red: 32 / 255, green: 32 / 255, blue: 32 / 255)),
+                color: ProviderColor(red: 136 / 255, green: 136 / 255, blue: 136 / 255)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Ollama cost summary is not supported." }),
