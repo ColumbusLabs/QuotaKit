@@ -271,4 +271,33 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
 
         #expect(hasCredentials == true)
     }
+
+    @Test
+    func experimentalReader_ignoresPromptPolicyAndCooldownForBackgroundSilentCheck() throws {
+        let securityData = self.makeCredentialsData(
+            accessToken: "security-background",
+            expiresAt: Date(timeIntervalSinceNow: 3600))
+
+        let hasCredentials = try KeychainAccessGate.withTaskOverrideForTesting(false) {
+            try ClaudeOAuthKeychainAccessGate.withShouldAllowPromptOverrideForTesting(false) {
+                try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+                    .securityCLIExperimental,
+                    operation: {
+                        try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
+                            .never,
+                            operation: {
+                                ProviderInteractionContext.$current.withValue(.background) {
+                                    ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(
+                                        .data(securityData))
+                                    {
+                                        ClaudeOAuthCredentialsStore.hasClaudeKeychainCredentialsWithoutPrompt()
+                                    }
+                                }
+                            })
+                    })
+            }
+        }
+
+        #expect(hasCredentials == true)
+    }
 }

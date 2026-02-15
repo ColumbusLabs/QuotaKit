@@ -176,10 +176,12 @@ struct ClaudeOAuthFetchStrategyAvailabilityTests {
                 let fileURL = tempDir.appendingPathComponent("credentials.json")
 
                 let available = await ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(fileURL) {
-                    await ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
-                        await ProviderRefreshContext.$current.withValue(.startup) {
-                            await ProviderInteractionContext.$current.withValue(.background) {
-                                await strategy.isAvailable(context)
+                    await ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(.securityFramework) {
+                        await ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
+                            await ProviderRefreshContext.$current.withValue(.startup) {
+                                await ProviderInteractionContext.$current.withValue(.background) {
+                                    await strategy.isAvailable(context)
+                                }
                             }
                         }
                     }
@@ -188,6 +190,55 @@ struct ClaudeOAuthFetchStrategyAvailabilityTests {
                 #expect(available == true)
             }
         }
+    }
+
+    @Test
+    func autoMode_experimental_reader_ignoresPromptPolicyCooldownGate() async throws {
+        let context = self.makeContext(sourceMode: .auto)
+        let strategy = ClaudeOAuthFetchStrategy()
+        let securityData = Data("""
+        {
+          "claudeAiOauth": {
+            "accessToken": "security-token",
+            "expiresAt": \(Int(Date(timeIntervalSinceNow: 3600).timeIntervalSince1970 * 1000)),
+            "scopes": ["user:profile"]
+          }
+        }
+        """.utf8)
+
+        let recordWithoutRequiredScope = ClaudeOAuthCredentialRecord(
+            credentials: ClaudeOAuthCredentials(
+                accessToken: "token-no-scope",
+                refreshToken: "refresh-token",
+                expiresAt: Date(timeIntervalSinceNow: -60),
+                scopes: ["user:inference"],
+                rateLimitTier: nil),
+            owner: .claudeCLI,
+            source: .cacheKeychain)
+
+        let available = try await KeychainAccessGate.withTaskOverrideForTesting(false) {
+            await ClaudeOAuthKeychainAccessGate.withShouldAllowPromptOverrideForTesting(false) {
+                await ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+                    .securityCLIExperimental)
+                {
+                    await ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
+                        await ClaudeOAuthFetchStrategy.$nonInteractiveCredentialRecordOverride.withValue(
+                            recordWithoutRequiredScope)
+                        {
+                            await ProviderInteractionContext.$current.withValue(.background) {
+                                await ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(.data(
+                                    securityData))
+                                {
+                                    await strategy.isAvailable(context)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        #expect(available == true)
     }
 }
 #endif

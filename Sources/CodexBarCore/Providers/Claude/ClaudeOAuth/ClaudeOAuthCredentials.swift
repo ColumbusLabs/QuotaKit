@@ -343,9 +343,10 @@ public enum ClaudeOAuthCredentialsStore {
         respectKeychainPromptCooldown: Bool,
         lastError: inout Error?) -> ClaudeOAuthCredentialRecord?
     {
+        let shouldApplyPromptCooldown = self.isPromptPolicyApplicable && respectKeychainPromptCooldown
         let promptAllowed =
             allowKeychainPrompt
-                && (!respectKeychainPromptCooldown || ClaudeOAuthKeychainAccessGate.shouldAllowPrompt())
+                && (!shouldApplyPromptCooldown || ClaudeOAuthKeychainAccessGate.shouldAllowPrompt())
         guard promptAllowed else { return nil }
 
         do {
@@ -669,7 +670,8 @@ public enum ClaudeOAuthCredentialsStore {
         #if os(macOS)
         let mode = ClaudeOAuthKeychainPromptPreference.current()
         guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return false }
-        if ProviderInteractionContext.current == .background,
+        if self.isPromptPolicyApplicable,
+           ProviderInteractionContext.current == .background,
            !ClaudeOAuthKeychainAccessGate.shouldAllowPrompt() { return false }
         if self.loadFromClaudeKeychainViaSecurityCLIIfEnabled(allowKeychainPrompt: false) != nil {
             return true
@@ -719,7 +721,8 @@ public enum ClaudeOAuthCredentialsStore {
         #if os(macOS)
         let mode = ClaudeOAuthKeychainPromptPreference.current()
         guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return nil }
-        if respectKeychainPromptCooldown,
+        if self.isPromptPolicyApplicable,
+           respectKeychainPromptCooldown,
            !ClaudeOAuthKeychainAccessGate.shouldAllowPrompt(now: now)
         {
             return nil
@@ -834,7 +837,8 @@ public enum ClaudeOAuthCredentialsStore {
             return nil
         }
 
-        if respectKeychainPromptCooldown,
+        if self.isPromptPolicyApplicable,
+           respectKeychainPromptCooldown,
            ProviderInteractionContext.current != .userInitiated,
            !ClaudeOAuthKeychainAccessGate.shouldAllowPrompt(now: now)
         {
@@ -1107,7 +1111,8 @@ public enum ClaudeOAuthCredentialsStore {
     private static func claudeKeychainCandidatesWithoutPrompt() -> [ClaudeKeychainCandidate] {
         let mode = ClaudeOAuthKeychainPromptPreference.current()
         guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return [] }
-        if ProviderInteractionContext.current == .background,
+        if self.isPromptPolicyApplicable,
+           ProviderInteractionContext.current == .background,
            !ClaudeOAuthKeychainAccessGate.shouldAllowPrompt() { return [] }
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -1146,7 +1151,8 @@ public enum ClaudeOAuthCredentialsStore {
     private static func claudeKeychainLegacyCandidateWithoutPrompt() -> ClaudeKeychainCandidate? {
         let mode = ClaudeOAuthKeychainPromptPreference.current()
         guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return nil }
-        if ProviderInteractionContext.current == .background,
+        if self.isPromptPolicyApplicable,
+           ProviderInteractionContext.current == .background,
            !ClaudeOAuthKeychainAccessGate.shouldAllowPrompt() { return nil }
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -1363,6 +1369,10 @@ public enum ClaudeOAuthCredentialsStore {
         return !KeychainAccessGate.isDisabled
     }
 
+    private static var isPromptPolicyApplicable: Bool {
+        ClaudeOAuthKeychainPromptPreference.isApplicable()
+    }
+
     private static func shouldAllowClaudeCodeKeychainAccess(
         mode: ClaudeOAuthKeychainPromptMode = ClaudeOAuthKeychainPromptPreference.current()) -> Bool
     {
@@ -1457,7 +1467,8 @@ extension ClaudeOAuthCredentialsStore {
 
         // If background keychain access has been denied/blocked, don't attempt silent reads that could trigger
         // repeated prompts on misbehaving configurations. User actions clear/bypass this gate elsewhere.
-        if ProviderInteractionContext.current == .background,
+        if self.isPromptPolicyApplicable,
+           ProviderInteractionContext.current == .background,
            !ClaudeOAuthKeychainAccessGate.shouldAllowPrompt(now: now) { return false }
 
         #if DEBUG
