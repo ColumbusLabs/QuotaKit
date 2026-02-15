@@ -21,7 +21,7 @@ The Ollama provider scrapes the **Plan & Billing** page to extract Cloud Usage l
 
 1. Open **Settings → Providers**.
 2. Enable **Ollama**.
-3. Leave **Cookie source** on **Auto** (recommended).
+3. Leave **Cookie source** on **Auto** (recommended, imports Chrome cookies by default).
 
 ### Manual cookie import (optional)
 
@@ -41,7 +41,8 @@ The Ollama provider scrapes the **Plan & Billing** page to extract Cloud Usage l
 
 ### “No Ollama session cookie found”
 
-Log in to `https://ollama.com/settings` in a supported browser (Safari or Chromium-based), then refresh in CodexBar.
+Log in to `https://ollama.com/settings` in Chrome, then refresh in CodexBar.
+If your active session is only in Safari (or another browser), use **Cookie source → Manual** and paste a cookie header.
 
 ### “Ollama session cookie expired”
 
