@@ -199,6 +199,17 @@ extension SettingsStore {
         }
     }
 
+    var claudeOAuthKeychainReadStrategy: ClaudeOAuthKeychainReadStrategy {
+        get {
+            let raw = self.defaultsState.claudeOAuthKeychainReadStrategyRaw
+            return ClaudeOAuthKeychainReadStrategy(rawValue: raw ?? "") ?? .securityFramework
+        }
+        set {
+            self.defaultsState.claudeOAuthKeychainReadStrategyRaw = newValue.rawValue
+            self.userDefaults.set(newValue.rawValue, forKey: "claudeOAuthKeychainReadStrategy")
+        }
+    }
+
     var claudeWebExtrasEnabled: Bool {
         get { self.claudeWebExtrasEnabledRaw }
         set { self.claudeWebExtrasEnabledRaw = newValue }
