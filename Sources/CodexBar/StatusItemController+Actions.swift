@@ -230,7 +230,7 @@ extension StatusItemController {
         case .missingBinary:
             self.presentLoginAlert(
                 title: "Claude CLI not found",
-                message: "Install the Claude CLI (npm i -g @anthropic-ai/claude-cli) and try again.")
+                message: "Install the Claude CLI (npm i -g @anthropic-ai/claude-code) and try again.")
         case let .launchFailed(message):
             self.presentLoginAlert(title: "Could not start claude /login", message: message)
         case .timedOut:
