@@ -259,6 +259,8 @@ public struct OllamaUsageFetcher: Sendable {
         switch error {
         case OllamaUsageError.invalidCredentials, OllamaUsageError.notLoggedIn:
             true
+        case let OllamaUsageError.parseFailed(message):
+            message.localizedCaseInsensitiveContains("missing ollama usage data")
         default:
             false
         }

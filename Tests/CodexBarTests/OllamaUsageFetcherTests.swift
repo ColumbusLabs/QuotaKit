@@ -66,7 +66,10 @@ struct OllamaUsageFetcherTests {
     func retryPolicyRetriesOnlyForAuthErrors() {
         #expect(OllamaUsageFetcher.shouldRetryWithNextCookieCandidate(after: OllamaUsageError.invalidCredentials))
         #expect(OllamaUsageFetcher.shouldRetryWithNextCookieCandidate(after: OllamaUsageError.notLoggedIn))
-        #expect(!OllamaUsageFetcher.shouldRetryWithNextCookieCandidate(after: OllamaUsageError.parseFailed("bad html")))
+        #expect(OllamaUsageFetcher.shouldRetryWithNextCookieCandidate(
+            after: OllamaUsageError.parseFailed("Missing Ollama usage data.")))
+        #expect(!OllamaUsageFetcher.shouldRetryWithNextCookieCandidate(
+            after: OllamaUsageError.parseFailed("Unexpected parser mismatch.")))
         #expect(!OllamaUsageFetcher.shouldRetryWithNextCookieCandidate(after: OllamaUsageError.networkError("timeout")))
     }
 
