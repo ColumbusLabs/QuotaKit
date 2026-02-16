@@ -246,7 +246,11 @@ extension ClaudeOAuthCredentialsStore {
         }
     }
     #else
-    static func loadFromClaudeKeychainViaSecurityCLIIfEnabled(allowKeychainPrompt _: Bool) -> Data? {
+    static func loadFromClaudeKeychainViaSecurityCLIIfEnabled(
+        allowKeychainPrompt _: Bool,
+        readStrategy _: ClaudeOAuthKeychainReadStrategy = ClaudeOAuthKeychainReadStrategyPreference.current())
+        -> Data?
+    {
         nil
     }
     #endif
