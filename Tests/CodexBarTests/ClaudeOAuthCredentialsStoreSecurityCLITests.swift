@@ -454,6 +454,78 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
     }
 
     @Test
+    func experimentalReader_freshnessSync_background_respectsStoredOnlyOnUserAction() throws {
+        let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
+        try KeychainCacheStore.withServiceOverrideForTesting(service) {
+            try KeychainAccessGate.withTaskOverrideForTesting(false) {
+                KeychainCacheStore.setTestStoreForTesting(true)
+                defer { KeychainCacheStore.setTestStoreForTesting(false) }
+
+                try ClaudeOAuthCredentialsStore.withIsolatedMemoryCacheForTesting {
+                    ClaudeOAuthCredentialsStore.invalidateCache()
+                    ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
+                    defer {
+                        ClaudeOAuthCredentialsStore.invalidateCache()
+                        ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
+                    }
+
+                    let tempDir = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+                    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                    let fileURL = tempDir.appendingPathComponent("credentials.json")
+                    try ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(fileURL) {
+                        let securityData = self.makeCredentialsData(
+                            accessToken: "security-sync-only-on-user-action",
+                            expiresAt: Date(timeIntervalSinceNow: 3600))
+                        final class ReadCounter: @unchecked Sendable {
+                            var count = 0
+                        }
+                        let securityReadCalls = ReadCounter()
+                        let preflightOverride: (String, String?) -> KeychainAccessPreflight.Outcome = { _, _ in
+                            .allowed
+                        }
+
+                        func load(_ interaction: ProviderInteraction) throws -> ClaudeOAuthCredentials {
+                            try KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting(
+                                preflightOverride,
+                                operation: {
+                                    try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+                                        .securityCLIExperimental)
+                                    {
+                                        try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
+                                            .onlyOnUserAction)
+                                        {
+                                            try ProviderInteractionContext.$current.withValue(interaction) {
+                                                try ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(
+                                                    .dynamic { _ in
+                                                        securityReadCalls.count += 1
+                                                        return securityData
+                                                    }) {
+                                                        try ClaudeOAuthCredentialsStore.load(
+                                                            environment: [:],
+                                                            allowKeychainPrompt: false,
+                                                            respectKeychainPromptCooldown: true)
+                                                    }
+                                            }
+                                        }
+                                    }
+                                })
+                        }
+
+                        let first = try load(.userInitiated)
+                        #expect(first.accessToken == "security-sync-only-on-user-action")
+                        #expect(securityReadCalls.count == 1)
+
+                        let second = try load(.background)
+                        #expect(second.accessToken == "security-sync-only-on-user-action")
+                        #expect(securityReadCalls.count == 1)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     func experimentalReader_syncFromClaudeKeychainWithoutPrompt_skipsFingerprintProbeAfterSecurityCLIRead() {
         let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
         KeychainCacheStore.withServiceOverrideForTesting(service) {

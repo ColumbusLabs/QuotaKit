@@ -15,8 +15,11 @@ extension ClaudeOAuthCredentialsStore {
         let account: String?
     }
 
-    static func shouldPreferSecurityCLIKeychainRead() -> Bool {
-        ClaudeOAuthKeychainReadStrategyPreference.current() == .securityCLIExperimental
+    static func shouldPreferSecurityCLIKeychainRead(
+        readStrategy: ClaudeOAuthKeychainReadStrategy = ClaudeOAuthKeychainReadStrategyPreference.current())
+        -> Bool
+    {
+        readStrategy == .securityCLIExperimental
     }
 
     #if os(macOS)
@@ -34,8 +37,12 @@ extension ClaudeOAuthCredentialsStore {
         let durationMs: Double
     }
 
-    static func loadFromClaudeKeychainViaSecurityCLIIfEnabled(allowKeychainPrompt: Bool) -> Data? {
-        guard self.shouldPreferSecurityCLIKeychainRead() else { return nil }
+    static func loadFromClaudeKeychainViaSecurityCLIIfEnabled(
+        allowKeychainPrompt: Bool,
+        readStrategy: ClaudeOAuthKeychainReadStrategy = ClaudeOAuthKeychainReadStrategyPreference.current())
+        -> Data?
+    {
+        guard self.shouldPreferSecurityCLIKeychainRead(readStrategy: readStrategy) else { return nil }
 
         do {
             let preferredAccount = self.preferredClaudeKeychainAccountForSecurityCLIRead()

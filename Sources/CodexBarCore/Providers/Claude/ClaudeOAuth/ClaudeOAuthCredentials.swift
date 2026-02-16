@@ -737,7 +737,9 @@ public enum ClaudeOAuthCredentialsStore {
         guard cached.owner == .claudeCLI else { return false }
         guard self.keychainAccessAllowed else { return false }
 
-        let mode = ClaudeOAuthKeychainPromptPreference.current()
+        // Freshness sync is opportunistic and may perform Security.framework fingerprint checks.
+        // Keep this gated by the user's stored prompt policy even in experimental reader mode.
+        let mode = ClaudeOAuthKeychainPromptPreference.storedMode()
         switch mode {
         case .never:
             return false
