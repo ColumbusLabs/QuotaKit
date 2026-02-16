@@ -441,6 +441,41 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
     }
 
     @Test
+    func experimentalReader_securityCLIRead_doesNotPinAccountInBackground() throws {
+        let securityData = self.makeCredentialsData(
+            accessToken: "security-account-not-pinned",
+            expiresAt: Date(timeIntervalSinceNow: 3600))
+        final class AccountBox: @unchecked Sendable {
+            var value: String?
+        }
+        let pinnedAccount = AccountBox()
+
+        let loaded = try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+            .securityCLIExperimental,
+            operation: {
+                try ClaudeOAuthCredentialsStore.withSecurityCLIReadAccountOverrideForTesting("new-account") {
+                    try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
+                        .always,
+                        operation: {
+                            try ProviderInteractionContext.$current.withValue(.background) {
+                                try ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(
+                                    .dynamic { request in
+                                        pinnedAccount.value = request.account
+                                        return securityData
+                                    }) {
+                                        try ClaudeOAuthCredentialsStore.loadFromClaudeKeychain()
+                                    }
+                            }
+                        })
+                }
+            })
+
+        let creds = try ClaudeOAuthCredentials.parse(data: loaded)
+        #expect(pinnedAccount.value == nil)
+        #expect(creds.accessToken == "security-account-not-pinned")
+    }
+
+    @Test
     func experimentalReader_freshnessSync_skipsSecurityCLIWhenPreflightRequiresInteraction() throws {
         let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
         try KeychainCacheStore.withServiceOverrideForTesting(service) {

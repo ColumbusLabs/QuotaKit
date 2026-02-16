@@ -1402,7 +1402,12 @@ public enum ClaudeOAuthCredentialsStore {
         }
     }
 
-    static func preferredClaudeKeychainAccountForSecurityCLIRead() -> String? {
+    static func preferredClaudeKeychainAccountForSecurityCLIRead(
+        interaction: ProviderInteraction = ProviderInteractionContext.current) -> String?
+    {
+        // Keep the experimental background path fully on /usr/bin/security by default.
+        // Account pinning requires Security.framework candidate probing, so only allow it on explicit user actions.
+        guard interaction == .userInitiated else { return nil }
         #if DEBUG
         if let override = self.taskSecurityCLIReadAccountOverride { return override }
         #endif

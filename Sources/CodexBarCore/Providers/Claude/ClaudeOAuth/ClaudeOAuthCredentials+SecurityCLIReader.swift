@@ -48,7 +48,8 @@ extension ClaudeOAuthCredentialsStore {
         let interactionMetadata = interaction == .userInitiated ? "user" : "background"
 
         do {
-            let preferredAccount = self.preferredClaudeKeychainAccountForSecurityCLIRead()
+            let preferredAccount = self.preferredClaudeKeychainAccountForSecurityCLIRead(
+                interaction: interaction)
             let output: Data
             let status: Int32
             let stderrLength: Int
