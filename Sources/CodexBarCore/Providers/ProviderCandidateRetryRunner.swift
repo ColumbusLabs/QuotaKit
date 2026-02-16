@@ -15,22 +15,16 @@ enum ProviderCandidateRetryRunner {
             throw ProviderCandidateRetryRunnerError.noCandidates
         }
 
-        var lastError: Error?
         for (index, candidate) in candidates.enumerated() {
             do {
                 return try await attempt(candidate)
             } catch {
-                lastError = error
                 let hasMoreCandidates = index + 1 < candidates.count
                 guard hasMoreCandidates, shouldRetry(error) else {
                     throw error
                 }
                 onRetry(candidate, error)
             }
-        }
-
-        if let lastError {
-            throw lastError
         }
         throw ProviderCandidateRetryRunnerError.noCandidates
     }
