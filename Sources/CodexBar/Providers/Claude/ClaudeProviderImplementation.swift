@@ -80,12 +80,6 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 context.settings.claudeOAuthKeychainPromptMode = ClaudeOAuthKeychainPromptMode(rawValue: raw)
                     ?? .onlyOnUserAction
             })
-        let keychainReadStrategyBinding = Binding(
-            get: { context.settings.claudeOAuthKeychainReadStrategy.rawValue },
-            set: { raw in
-                context.settings.claudeOAuthKeychainReadStrategy = ClaudeOAuthKeychainReadStrategy(rawValue: raw)
-                    ?? .securityFramework
-            })
 
         let usageOptions = ClaudeUsageDataSource.allCases.map {
             ProviderSettingsPickerOption(id: $0.rawValue, title: $0.displayName)
@@ -104,15 +98,6 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 id: ClaudeOAuthKeychainPromptMode.always.rawValue,
                 title: "Always allow prompts"),
         ]
-        let keychainReadStrategyOptions: [ProviderSettingsPickerOption] = [
-            ProviderSettingsPickerOption(
-                id: ClaudeOAuthKeychainReadStrategy.securityFramework.rawValue,
-                title: "Standard (default)"),
-            ProviderSettingsPickerOption(
-                id: ClaudeOAuthKeychainReadStrategy.securityCLIExperimental.rawValue,
-                title: "Experimental (/usr/bin/security)"),
-        ]
-
         let cookieSubtitle: () -> String? = {
             ProviderCookieSourceUI.subtitle(
                 source: context.settings.claudeCookieSource,
@@ -125,18 +110,8 @@ struct ClaudeProviderImplementation: ProviderImplementation {
             if context.settings.debugDisableKeychainAccess {
                 return "Global Keychain access is disabled in Advanced, so this setting is currently inactive."
             }
-            return "Controls Claude OAuth Keychain prompts for Standard reader mode. Choosing \"Never prompt\" can " +
-                "make OAuth unavailable; use Web/CLI when needed."
-        }
-        let keychainReadStrategySubtitle: () -> String? = {
-            if context.settings.debugDisableKeychainAccess {
-                return "Global Keychain access is disabled in Advanced, so this setting is currently inactive."
-            }
-            if context.settings.claudeOAuthKeychainReadStrategy == .securityCLIExperimental {
-                return "Experimental mode reads via /usr/bin/security first. If it falls back to Security.framework, " +
-                    "the stored keychain prompt policy still applies (default: only on user action)."
-            }
-            return "Standard mode uses Security.framework and respects the keychain prompt policy below."
+            return "Controls Claude OAuth Keychain prompts when experimental reader mode is off. Choosing " +
+                "\"Never prompt\" can make OAuth unavailable; use Web/CLI when needed."
         }
 
         return [
@@ -161,16 +136,6 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 binding: keychainPromptPolicyBinding,
                 options: keychainPromptPolicyOptions,
                 isVisible: { context.settings.claudeOAuthKeychainReadStrategy == .securityFramework },
-                isEnabled: { !context.settings.debugDisableKeychainAccess },
-                onChange: nil),
-            ProviderSettingsPickerDescriptor(
-                id: "claude-oauth-keychain-reader",
-                title: "OAuth keychain reader",
-                subtitle: "Choose how CodexBar reads Claude OAuth credentials from Keychain.",
-                dynamicSubtitle: keychainReadStrategySubtitle,
-                binding: keychainReadStrategyBinding,
-                options: keychainReadStrategyOptions,
-                isVisible: nil,
                 isEnabled: { !context.settings.debugDisableKeychainAccess },
                 onChange: nil),
             ProviderSettingsPickerDescriptor(

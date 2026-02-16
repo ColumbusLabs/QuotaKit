@@ -168,11 +168,6 @@ struct ProviderSettingsDescriptorTests {
         #expect(optionIDs.contains(ClaudeOAuthKeychainPromptMode.onlyOnUserAction.rawValue))
         #expect(optionIDs.contains(ClaudeOAuthKeychainPromptMode.always.rawValue))
         #expect(keychainPicker.isEnabled?() ?? true)
-        let readStrategyPicker = try #require(pickers.first(where: { $0.id == "claude-oauth-keychain-reader" }))
-        let readStrategyOptionIDs = Set(readStrategyPicker.options.map(\.id))
-        #expect(readStrategyOptionIDs.contains(ClaudeOAuthKeychainReadStrategy.securityFramework.rawValue))
-        #expect(readStrategyOptionIDs.contains(ClaudeOAuthKeychainReadStrategy.securityCLIExperimental.rawValue))
-        #expect(readStrategyPicker.isEnabled?() ?? true)
     }
 
     @Test
@@ -261,10 +256,6 @@ struct ProviderSettingsDescriptorTests {
         #expect(keychainPicker.isEnabled?() == false)
         let subtitle = keychainPicker.dynamicSubtitle?() ?? ""
         #expect(subtitle.localizedCaseInsensitiveContains("inactive"))
-        let readStrategyPicker = try #require(pickers.first(where: { $0.id == "claude-oauth-keychain-reader" }))
-        #expect(readStrategyPicker.isEnabled?() == false)
-        let readStrategySubtitle = readStrategyPicker.dynamicSubtitle?() ?? ""
-        #expect(readStrategySubtitle.localizedCaseInsensitiveContains("inactive"))
     }
 
     @Test

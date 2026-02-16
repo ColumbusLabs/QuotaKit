@@ -210,6 +210,15 @@ extension SettingsStore {
         }
     }
 
+    var claudeOAuthPromptFreeCredentialsEnabled: Bool {
+        get { self.claudeOAuthKeychainReadStrategy == .securityCLIExperimental }
+        set {
+            self.claudeOAuthKeychainReadStrategy = newValue
+                ? .securityCLIExperimental
+                : .securityFramework
+        }
+    }
+
     var claudeWebExtrasEnabled: Bool {
         get { self.claudeWebExtrasEnabledRaw }
         set { self.claudeWebExtrasEnabledRaw = newValue }

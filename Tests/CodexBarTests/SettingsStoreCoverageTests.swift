@@ -220,6 +220,18 @@ struct SettingsStoreCoverageTests {
         #expect(settings.claudeOAuthKeychainReadStrategy == .securityFramework)
     }
 
+    @Test
+    func claudePromptFreeCredentialsToggle_mapsToReadStrategy() {
+        let settings = Self.makeSettingsStore()
+        #expect(settings.claudeOAuthPromptFreeCredentialsEnabled == false)
+
+        settings.claudeOAuthPromptFreeCredentialsEnabled = true
+        #expect(settings.claudeOAuthKeychainReadStrategy == .securityCLIExperimental)
+
+        settings.claudeOAuthPromptFreeCredentialsEnabled = false
+        #expect(settings.claudeOAuthKeychainReadStrategy == .securityFramework)
+    }
+
     private static func makeSettingsStore(suiteName: String = "SettingsStoreCoverageTests") -> SettingsStore {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
