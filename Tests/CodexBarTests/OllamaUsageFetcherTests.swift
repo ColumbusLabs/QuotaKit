@@ -62,6 +62,14 @@ struct OllamaUsageFetcherTests {
         #expect(resolved?.contains("next-auth.session-token.0=abc") == true)
     }
 
+    @Test
+    func retryPolicyRetriesOnlyForAuthErrors() {
+        #expect(OllamaUsageFetcher.shouldRetryWithNextCookieCandidate(after: OllamaUsageError.invalidCredentials))
+        #expect(OllamaUsageFetcher.shouldRetryWithNextCookieCandidate(after: OllamaUsageError.notLoggedIn))
+        #expect(!OllamaUsageFetcher.shouldRetryWithNextCookieCandidate(after: OllamaUsageError.parseFailed("bad html")))
+        #expect(!OllamaUsageFetcher.shouldRetryWithNextCookieCandidate(after: OllamaUsageError.networkError("timeout")))
+    }
+
     #if os(macOS)
     @Test
     func cookieImporterDefaultsToChromeFirst() {
@@ -110,6 +118,22 @@ struct OllamaUsageFetcherTests {
 
         let selected = try OllamaCookieImporter.selectSessionInfo(from: [candidate])
         #expect(selected.sourceLabel == "Profile C")
+    }
+
+    @Test
+    func cookieSelectorKeepsRecognizedCandidatesInOrder() throws {
+        let first = OllamaCookieImporter.SessionInfo(
+            cookies: [Self.makeCookie(name: "session", value: "stale")],
+            sourceLabel: "Chrome Profile A")
+        let second = OllamaCookieImporter.SessionInfo(
+            cookies: [Self.makeCookie(name: "next-auth.session-token.0", value: "valid")],
+            sourceLabel: "Chrome Profile B")
+        let noise = OllamaCookieImporter.SessionInfo(
+            cookies: [Self.makeCookie(name: "analytics_session_id", value: "noise")],
+            sourceLabel: "Chrome Profile C")
+
+        let selected = try OllamaCookieImporter.selectSessionInfos(from: [first, noise, second])
+        #expect(selected.map(\.sourceLabel) == ["Chrome Profile A", "Chrome Profile B"])
     }
 
     @Test
