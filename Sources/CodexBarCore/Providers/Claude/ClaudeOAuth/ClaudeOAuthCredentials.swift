@@ -782,6 +782,29 @@ public enum ClaudeOAuthCredentialsStore {
         }
 
         do {
+            if self.shouldPreferSecurityCLIKeychainRead(),
+               let securityData = self.loadFromClaudeKeychainViaSecurityCLIIfEnabled(allowKeychainPrompt: false),
+               !securityData.isEmpty
+            {
+                // Keep CLI-success repair prompt-safe in experimental mode by avoiding Security.framework fingerprint
+                // probes, which can still show UI on some systems even for "no UI" queries.
+                guard let creds = try? ClaudeOAuthCredentials.parse(data: securityData) else { return nil }
+                if creds.isExpired {
+                    return ClaudeOAuthCredentialRecord(credentials: creds, owner: .claudeCLI, source: .claudeKeychain)
+                }
+
+                self.writeMemoryCache(
+                    record: ClaudeOAuthCredentialRecord(credentials: creds, owner: .claudeCLI, source: .memoryCache),
+                    timestamp: now)
+                self.saveToCacheKeychain(securityData, owner: .claudeCLI)
+
+                self.log.info(
+                    "Claude keychain credentials loaded without prompt; syncing OAuth cache",
+                    metadata: ["interaction": ProviderInteractionContext
+                        .current == .userInitiated ? "user" : "background"])
+                return ClaudeOAuthCredentialRecord(credentials: creds, owner: .claudeCLI, source: .claudeKeychain)
+            }
+
             guard let data = try self.loadFromClaudeKeychainNonInteractive(), !data.isEmpty else { return nil }
             let fingerprint = self.currentClaudeKeychainFingerprintWithoutPrompt()
             guard let creds = try? ClaudeOAuthCredentials.parse(data: data) else {
