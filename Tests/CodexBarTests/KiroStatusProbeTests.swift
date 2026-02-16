@@ -171,6 +171,38 @@ struct KiroStatusProbeTests {
         #expect(snapshot.planName == "Q Developer Pro")
     }
 
+    @Test
+    func rejectsHeaderOnlyNewFormatWithoutManagedMarker() {
+        let output = """
+        Plan: Q Developer Pro
+        Tip: to see context window usage, run /context
+        """
+
+        let probe = KiroStatusProbe()
+        #expect(throws: KiroStatusProbeError.self) {
+            try probe.parse(output: output)
+        }
+    }
+
+    @Test
+    func preservesParsedUsageForManagedPlanWithMetrics() throws {
+        let output = """
+        Plan: Q Developer Enterprise
+        Your plan is managed by admin
+        ████████████████████████████████████████████████████ 40%
+        (20.00 of 50 covered in plan), resets on 03/15
+        """
+
+        let probe = KiroStatusProbe()
+        let snapshot = try probe.parse(output: output)
+
+        #expect(snapshot.planName == "Q Developer Enterprise")
+        #expect(snapshot.creditsPercent == 40)
+        #expect(snapshot.creditsUsed == 20)
+        #expect(snapshot.creditsTotal == 50)
+        #expect(snapshot.resetsAt != nil)
+    }
+
     // MARK: - Snapshot Conversion
 
     @Test

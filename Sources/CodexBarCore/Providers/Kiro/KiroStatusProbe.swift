@@ -379,10 +379,9 @@ public struct KiroStatusProbe: Sendable {
             }
         }
 
-        // Check if this is a managed/enterprise plan with no usage data
+        // Check if this is a managed plan with no usage data
         let isManagedPlan = lowered.contains("managed by admin")
             || lowered.contains("managed by organization")
-            || lowered.contains("enterprise")
 
         // Parse reset date from "resets on 01/01"
         var resetsAt: Date?
@@ -440,9 +439,9 @@ public struct KiroStatusProbe: Sendable {
             }
         }
 
-        // For managed/enterprise plans in new format, we may not have usage data
-        // but we should still show the plan name without error
-        if matchedNewFormat, isManagedPlan {
+        // Managed plans in new format may omit usage metrics. Only fall back to zeros when
+        // we did not parse any usage values, so we do not mask real metrics.
+        if matchedNewFormat, isManagedPlan, !matchedPercent, !matchedCredits {
             // Managed plans don't expose credits; return snapshot with plan name only
             return KiroUsageSnapshot(
                 planName: planName,
@@ -456,9 +455,9 @@ public struct KiroStatusProbe: Sendable {
                 updatedAt: Date())
         }
 
-        // Require at least one key pattern to match to avoid silent failures
-        // Only bypass error for managed plans in new format (they don't expose usage data)
-        if !matchedPercent, !matchedCredits, !(matchedNewFormat && isManagedPlan) {
+        // Require at least one key pattern to match to avoid silent failures.
+        // Managed plans without usage data return early above.
+        if !matchedPercent, !matchedCredits {
             throw KiroStatusProbeError.parseError(
                 "No recognizable usage patterns found. Kiro CLI output format may have changed.")
         }
