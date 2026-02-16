@@ -439,6 +439,58 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
     }
 
     @Test
+    func experimentalReader_syncFromClaudeKeychainWithoutPrompt_skipsFingerprintProbeAfterSecurityCLIRead() {
+        let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
+        KeychainCacheStore.withServiceOverrideForTesting(service) {
+            KeychainAccessGate.withTaskOverrideForTesting(false) {
+                KeychainCacheStore.setTestStoreForTesting(true)
+                defer { KeychainCacheStore.setTestStoreForTesting(false) }
+
+                ClaudeOAuthCredentialsStore.withIsolatedMemoryCacheForTesting {
+                    ClaudeOAuthCredentialsStore.invalidateCache()
+                    defer { ClaudeOAuthCredentialsStore.invalidateCache() }
+
+                    let securityData = self.makeCredentialsData(
+                        accessToken: "security-sync-no-fingerprint-probe",
+                        expiresAt: Date(timeIntervalSinceNow: 3600))
+                    let fingerprintStore = ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprintStore()
+                    let sentinelFingerprint = ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint(
+                        modifiedAt: 123,
+                        createdAt: 122,
+                        persistentRefHash: "sentinel")
+
+                    let synced = ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+                        .securityCLIExperimental,
+                        operation: {
+                            ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.always) {
+                                ProviderInteractionContext.$current.withValue(.background) {
+                                    ClaudeOAuthCredentialsStore.withClaudeKeychainFingerprintStoreOverrideForTesting(
+                                        fingerprintStore)
+                                    {
+                                        ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                                            data: nil,
+                                            fingerprint: sentinelFingerprint)
+                                        {
+                                            ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(
+                                                .data(securityData))
+                                            {
+                                                ClaudeOAuthCredentialsStore.syncFromClaudeKeychainWithoutPrompt(
+                                                    now: Date())
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        })
+
+                    #expect(synced == true)
+                    #expect(fingerprintStore.fingerprint == nil)
+                }
+            }
+        }
+    }
+
+    @Test
     func experimentalReader_loadWithPrompt_doesNotReadWhenGlobalKeychainDisabled() throws {
         let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
         try KeychainCacheStore.withServiceOverrideForTesting(service) {
@@ -495,7 +547,7 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
                     }
 
                     #expect(threwNotFound == true)
-                    #expect(securityReadCalls.count.isZero)
+                    #expect(securityReadCalls.count < 1)
                 }
             }
         }

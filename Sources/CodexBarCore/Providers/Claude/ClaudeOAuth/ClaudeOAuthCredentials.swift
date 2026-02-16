@@ -1517,14 +1517,14 @@ extension ClaudeOAuthCredentialsStore {
            !data.isEmpty
         {
             if let creds = try? ClaudeOAuthCredentials.parse(data: data), !creds.isExpired {
-                self.saveClaudeKeychainFingerprint(self.currentClaudeKeychainFingerprintWithoutPrompt())
+                // Keep delegated refresh recovery on the security CLI path only in experimental mode.
+                // Avoid Security.framework fingerprint probes here because "no UI" queries can still prompt.
                 self.writeMemoryCache(
                     record: ClaudeOAuthCredentialRecord(credentials: creds, owner: .claudeCLI, source: .memoryCache),
                     timestamp: now)
                 self.saveToCacheKeychain(data, owner: .claudeCLI)
                 return true
             }
-            self.saveClaudeKeychainFingerprint(self.currentClaudeKeychainFingerprintWithoutPrompt())
         }
 
         // Skip the silent data read if preflight indicates interaction is likely.
