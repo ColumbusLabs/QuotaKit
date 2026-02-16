@@ -233,6 +233,10 @@ public struct OllamaUsageFetcher: Sendable {
         let sourceLabel: String
     }
 
+    enum RetryableParseFailure: Error, Sendable {
+        case missingUsageData
+    }
+
     public let browserDetection: BrowserDetection
 
     public init(browserDetection: BrowserDetection) {
@@ -259,8 +263,8 @@ public struct OllamaUsageFetcher: Sendable {
         switch error {
         case OllamaUsageError.invalidCredentials, OllamaUsageError.notLoggedIn:
             true
-        case let OllamaUsageError.parseFailed(message):
-            message.localizedCaseInsensitiveContains("missing ollama usage data")
+        case RetryableParseFailure.missingUsageData:
+            true
         default:
             false
         }
@@ -271,52 +275,72 @@ public struct OllamaUsageFetcher: Sendable {
         logger: ((String) -> Void)?,
         now: Date) async throws -> OllamaUsageSnapshot
     {
-        var lastAuthError: Error?
-        for (index, candidate) in candidates.enumerated() {
-            let hasMoreCandidates = index + 1 < candidates.count
-            logger?("[ollama] Using cookies from \(candidate.sourceLabel)")
-            let names = self.cookieNames(from: candidate.cookieHeader)
-            if !names.isEmpty {
-                logger?("[ollama] Cookie names: \(names.joined(separator: ", "))")
-            }
-            let diagnostics = RedirectDiagnostics(cookieHeader: candidate.cookieHeader, logger: logger)
-            do {
-                let (html, responseInfo) = try await self.fetchHTMLWithDiagnostics(
-                    cookieHeader: candidate.cookieHeader,
-                    diagnostics: diagnostics)
-                if let logger {
-                    self.logDiagnostics(responseInfo: responseInfo, diagnostics: diagnostics, logger: logger)
-                }
-                do {
-                    return try OllamaUsageParser.parse(html: html, now: now)
-                } catch {
-                    if let logger {
-                        logger("[ollama] Parse failed: \(error.localizedDescription)")
-                        self.logHTMLHints(html: html, logger: logger)
+        do {
+            return try await ProviderCandidateRetryRunner.run(
+                candidates,
+                shouldRetry: { error in
+                    Self.shouldRetryWithNextCookieCandidate(after: error)
+                },
+                onRetry: { candidate, _ in
+                    logger?("[ollama] Auth failed for \(candidate.sourceLabel); trying next cookie candidate")
+                },
+                attempt: { candidate in
+                    logger?("[ollama] Using cookies from \(candidate.sourceLabel)")
+                    let names = self.cookieNames(from: candidate.cookieHeader)
+                    if !names.isEmpty {
+                        logger?("[ollama] Cookie names: \(names.joined(separator: ", "))")
                     }
-                    guard hasMoreCandidates, Self.shouldRetryWithNextCookieCandidate(after: error) else {
+
+                    let diagnostics = RedirectDiagnostics(cookieHeader: candidate.cookieHeader, logger: logger)
+                    do {
+                        let (html, responseInfo) = try await self.fetchHTMLWithDiagnostics(
+                            cookieHeader: candidate.cookieHeader,
+                            diagnostics: diagnostics)
+                        if let logger {
+                            self.logDiagnostics(responseInfo: responseInfo, diagnostics: diagnostics, logger: logger)
+                        }
+                        do {
+                            return try Self.parseSnapshotForRetry(html: html, now: now)
+                        } catch {
+                            let surfacedError = Self.surfacedError(from: error)
+                            if let logger {
+                                logger("[ollama] Parse failed: \(surfacedError.localizedDescription)")
+                                self.logHTMLHints(html: html, logger: logger)
+                            }
+                            throw error
+                        }
+                    } catch {
+                        if let logger {
+                            self.logDiagnostics(responseInfo: nil, diagnostics: diagnostics, logger: logger)
+                        }
                         throw error
                     }
-                    lastAuthError = error
-                    logger?("[ollama] Auth failed for \(candidate.sourceLabel); trying next cookie candidate")
-                    continue
-                }
-            } catch {
-                if let logger {
-                    self.logDiagnostics(responseInfo: nil, diagnostics: diagnostics, logger: logger)
-                }
-                guard hasMoreCandidates, Self.shouldRetryWithNextCookieCandidate(after: error) else {
-                    throw error
-                }
-                lastAuthError = error
-                logger?("[ollama] Auth failed for \(candidate.sourceLabel); trying next cookie candidate")
-            }
+                })
+        } catch ProviderCandidateRetryRunnerError.noCandidates {
+            throw OllamaUsageError.noSessionCookie
+        } catch {
+            throw Self.surfacedError(from: error)
         }
+    }
 
-        if let lastAuthError {
-            throw lastAuthError
+    private static func parseSnapshotForRetry(html: String, now: Date) throws -> OllamaUsageSnapshot {
+        switch OllamaUsageParser.parseClassified(html: html, now: now) {
+        case let .success(snapshot):
+            return snapshot
+        case .failure(.notLoggedIn):
+            throw OllamaUsageError.notLoggedIn
+        case .failure(.missingUsageData):
+            throw RetryableParseFailure.missingUsageData
         }
-        throw OllamaUsageError.noSessionCookie
+    }
+
+    private static func surfacedError(from error: Error) -> Error {
+        switch error {
+        case RetryableParseFailure.missingUsageData:
+            OllamaUsageError.parseFailed("Missing Ollama usage data.")
+        default:
+            error
+        }
     }
 
     private func resolveCookieCandidates(
