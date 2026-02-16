@@ -354,4 +354,57 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
         #expect(outcome == .attemptedSucceeded)
         #expect(fingerprintCounter.count < 1)
     }
+
+    @Test
+    func experimentalStrategy_observationSkipsSecurityCLIWhenGlobalKeychainDisabled() async {
+        ClaudeOAuthDelegatedRefreshCoordinator.resetForTesting()
+        defer { ClaudeOAuthDelegatedRefreshCoordinator.resetForTesting() }
+        let strategyKey = "claudeOAuthKeychainReadStrategy"
+        let previousStrategy = UserDefaults.standard.string(forKey: strategyKey)
+        UserDefaults.standard.set(
+            ClaudeOAuthKeychainReadStrategy.securityCLIExperimental.rawValue,
+            forKey: strategyKey)
+        defer {
+            if let previousStrategy {
+                UserDefaults.standard.set(previousStrategy, forKey: strategyKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: strategyKey)
+            }
+        }
+
+        final class CounterBox: @unchecked Sendable {
+            private let lock = NSLock()
+            private(set) var count: Int = 0
+            func increment() {
+                self.lock.lock()
+                self.count += 1
+                self.lock.unlock()
+            }
+        }
+
+        let securityReadCounter = CounterBox()
+        let securityData = self.makeCredentialsData(
+            accessToken: "security-should-not-be-read",
+            expiresAt: Date(timeIntervalSinceNow: 3600))
+        ClaudeOAuthDelegatedRefreshCoordinator.setCLIAvailableOverrideForTesting(true)
+        ClaudeOAuthDelegatedRefreshCoordinator.setTouchAuthPathOverrideForTesting { _ in }
+        ClaudeOAuthCredentialsStore.setSecurityCLIReadOverrideForTesting(.dynamic { _ in
+            securityReadCounter.increment()
+            return securityData
+        })
+        defer { ClaudeOAuthCredentialsStore.setSecurityCLIReadOverrideForTesting(nil) }
+        let previousKeychainDisabled = KeychainAccessGate.isDisabled
+        KeychainAccessGate.isDisabled = true
+        defer { KeychainAccessGate.isDisabled = previousKeychainDisabled }
+
+        let outcome = await ClaudeOAuthDelegatedRefreshCoordinator.attempt(
+            now: Date(timeIntervalSince1970: 62000),
+            timeout: 0.1)
+
+        guard case .attemptedFailed = outcome else {
+            Issue.record("Expected .attemptedFailed outcome")
+            return
+        }
+        #expect(securityReadCounter.count < 1)
+    }
 }

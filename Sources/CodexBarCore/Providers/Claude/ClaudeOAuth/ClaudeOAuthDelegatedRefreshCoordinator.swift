@@ -235,7 +235,8 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
     }
 
     private static func currentClaudeKeychainDataViaSecurityCLIForObservation() -> Data? {
-        ClaudeOAuthCredentialsStore.loadFromClaudeKeychainViaSecurityCLIIfEnabled(allowKeychainPrompt: false)
+        guard !KeychainAccessGate.isDisabled else { return nil }
+        return ClaudeOAuthCredentialsStore.loadFromClaudeKeychainViaSecurityCLIIfEnabled(allowKeychainPrompt: false)
     }
 
     private static func clearInFlightTaskIfStillCurrent(id: UInt64) {

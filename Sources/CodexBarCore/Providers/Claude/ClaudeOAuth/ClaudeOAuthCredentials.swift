@@ -309,7 +309,6 @@ public enum ClaudeOAuthCredentialsStore {
                         source: .memoryCache),
                     timestamp: Date())
                 self.saveToCacheKeychain(keychainData, owner: .claudeCLI)
-                self.saveClaudeKeychainFingerprint(self.currentClaudeKeychainFingerprintWithoutPrompt())
                 return record
             }
 
@@ -971,7 +970,6 @@ public enum ClaudeOAuthCredentialsStore {
         if let override = taskClaudeKeychainDataOverride ?? self.claudeKeychainDataOverride { return override }
         #endif
         if let data = self.loadFromClaudeKeychainViaSecurityCLIIfEnabled(allowKeychainPrompt: true) {
-            self.saveClaudeKeychainFingerprint(self.currentClaudeKeychainFingerprintWithoutPrompt())
             return data
         }
         if self.shouldPreferSecurityCLIKeychainRead() {

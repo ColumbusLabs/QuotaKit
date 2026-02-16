@@ -195,6 +195,11 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
             accessToken: "security-direct",
             expiresAt: Date(timeIntervalSinceNow: 3600),
             refreshToken: "security-refresh")
+        let fingerprintStore = ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprintStore()
+        let sentinelFingerprint = ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint(
+            modifiedAt: 200,
+            createdAt: 199,
+            persistentRefHash: "sentinel")
 
         let loaded = try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
             .securityCLIExperimental,
@@ -203,10 +208,19 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
                     .always,
                     operation: {
                         try ProviderInteractionContext.$current.withValue(.userInitiated) {
-                            try ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(
-                                .data(securityData))
+                            try ClaudeOAuthCredentialsStore.withClaudeKeychainFingerprintStoreOverrideForTesting(
+                                fingerprintStore)
                             {
-                                try ClaudeOAuthCredentialsStore.loadFromClaudeKeychain()
+                                try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                                    data: nil,
+                                    fingerprint: sentinelFingerprint)
+                                {
+                                    try ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(
+                                        .data(securityData))
+                                    {
+                                        try ClaudeOAuthCredentialsStore.loadFromClaudeKeychain()
+                                    }
+                                }
                             }
                         }
                     })
@@ -215,6 +229,7 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
         let creds = try ClaudeOAuthCredentials.parse(data: loaded)
         #expect(creds.accessToken == "security-direct")
         #expect(creds.refreshToken == "security-refresh")
+        #expect(fingerprintStore.fingerprint == nil)
     }
 
     @Test
@@ -484,6 +499,70 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
                         })
 
                     #expect(synced == true)
+                    #expect(fingerprintStore.fingerprint == nil)
+                }
+            }
+        }
+    }
+
+    @Test
+    func experimentalReader_loadWithPrompt_skipsFingerprintProbeAfterSecurityCLISuccess() throws {
+        let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
+        try KeychainCacheStore.withServiceOverrideForTesting(service) {
+            try KeychainAccessGate.withTaskOverrideForTesting(false) {
+                KeychainCacheStore.setTestStoreForTesting(true)
+                defer { KeychainCacheStore.setTestStoreForTesting(false) }
+
+                ClaudeOAuthCredentialsStore.invalidateCache()
+                ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
+                defer {
+                    ClaudeOAuthCredentialsStore.invalidateCache()
+                    ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
+                }
+
+                let tempDir = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString, isDirectory: true)
+                try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                let fileURL = tempDir.appendingPathComponent("credentials.json")
+                try ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(fileURL) {
+                    let securityData = self.makeCredentialsData(
+                        accessToken: "security-load-with-prompt",
+                        expiresAt: Date(timeIntervalSinceNow: 3600))
+                    let fingerprintStore = ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprintStore()
+                    let sentinelFingerprint = ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint(
+                        modifiedAt: 321,
+                        createdAt: 320,
+                        persistentRefHash: "sentinel")
+
+                    let creds = try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+                        .securityCLIExperimental,
+                        operation: {
+                            try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.always) {
+                                try ProviderInteractionContext.$current.withValue(.userInitiated) {
+                                    try ClaudeOAuthCredentialsStore
+                                        .withClaudeKeychainFingerprintStoreOverrideForTesting(
+                                            fingerprintStore)
+                                        {
+                                            try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                                                data: nil,
+                                                fingerprint: sentinelFingerprint)
+                                            {
+                                                try ClaudeOAuthCredentialsStore
+                                                    .withSecurityCLIReadOverrideForTesting(
+                                                        .data(securityData))
+                                                    {
+                                                        try ClaudeOAuthCredentialsStore.load(
+                                                            environment: [:],
+                                                            allowKeychainPrompt: true,
+                                                            respectKeychainPromptCooldown: false)
+                                                    }
+                                            }
+                                        }
+                                }
+                            }
+                        })
+
+                    #expect(creds.accessToken == "security-load-with-prompt")
                     #expect(fingerprintStore.fingerprint == nil)
                 }
             }
