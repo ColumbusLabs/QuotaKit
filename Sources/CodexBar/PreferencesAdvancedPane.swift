@@ -85,9 +85,12 @@ struct AdvancedPane: View {
                     """) {
                         PreferenceToggleRow(
                             title: "Claude creds without prompts (experimental)",
-                            subtitle: "Use /usr/bin/security to read Claude credentials and avoid CodexBar " +
+                            subtitle: self.settings.debugDisableKeychainAccess
+                                ? "Inactive while \"Disable Keychain access\" is enabled."
+                                : "Use /usr/bin/security to read Claude credentials and avoid CodexBar " +
                                 "keychain prompts.",
                             binding: self.$settings.claudeOAuthPromptFreeCredentialsEnabled)
+                            .disabled(self.settings.debugDisableKeychainAccess)
                         PreferenceToggleRow(
                             title: "Disable Keychain access",
                             subtitle: "Prevents any Keychain access while enabled.",
