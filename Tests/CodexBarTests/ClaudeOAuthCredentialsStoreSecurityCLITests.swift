@@ -77,6 +77,65 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
     }
 
     @Test
+    func experimentalReader_nonInteractiveBackgroundLoad_stillExecutesSecurityCLIRead() throws {
+        let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
+        try KeychainCacheStore.withServiceOverrideForTesting(service) {
+            try KeychainAccessGate.withTaskOverrideForTesting(false) {
+                KeychainCacheStore.setTestStoreForTesting(true)
+                defer { KeychainCacheStore.setTestStoreForTesting(false) }
+
+                ClaudeOAuthCredentialsStore.invalidateCache()
+                ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
+                defer {
+                    ClaudeOAuthCredentialsStore.invalidateCache()
+                    ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
+                    ClaudeOAuthCredentialsStore.setClaudeKeychainDataOverrideForTesting(nil)
+                    ClaudeOAuthCredentialsStore.setClaudeKeychainFingerprintOverrideForTesting(nil)
+                }
+
+                let tempDir = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString, isDirectory: true)
+                try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                let fileURL = tempDir.appendingPathComponent("credentials.json")
+
+                try ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(fileURL) {
+                    let securityData = self.makeCredentialsData(
+                        accessToken: "security-token-background",
+                        expiresAt: Date(timeIntervalSinceNow: 3600),
+                        refreshToken: "security-refresh-background")
+                    final class ReadCounter: @unchecked Sendable {
+                        var count = 0
+                    }
+                    let securityReadCalls = ReadCounter()
+
+                    let creds = try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+                        .securityCLIExperimental,
+                        operation: {
+                            try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
+                                .onlyOnUserAction,
+                                operation: {
+                                    try ProviderInteractionContext.$current.withValue(.background) {
+                                        try ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(
+                                            .dynamic { _ in
+                                                securityReadCalls.count += 1
+                                                return securityData
+                                            }) {
+                                                try ClaudeOAuthCredentialsStore.load(
+                                                    environment: [:],
+                                                    allowKeychainPrompt: false)
+                                            }
+                                    }
+                                })
+                        })
+
+                    #expect(creds.accessToken == "security-token-background")
+                    #expect(securityReadCalls.count == 1)
+                }
+            }
+        }
+    }
+
+    @Test
     func experimentalReader_fallsBackWhenSecurityCLIThrows() throws {
         let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
         try KeychainCacheStore.withServiceOverrideForTesting(service) {

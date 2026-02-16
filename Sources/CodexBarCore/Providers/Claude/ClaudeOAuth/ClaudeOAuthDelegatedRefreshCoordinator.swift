@@ -269,7 +269,7 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
     {
         guard !keychainAccessDisabled else { return nil }
         return ClaudeOAuthCredentialsStore.loadFromClaudeKeychainViaSecurityCLIIfEnabled(
-            allowKeychainPrompt: false,
+            interaction: .background,
             readStrategy: readStrategy)
     }
 

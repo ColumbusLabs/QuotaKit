@@ -5,10 +5,6 @@ import Foundation
 import FoundationNetworking
 #endif
 
-#if canImport(CryptoKit)
-import CryptoKit
-#endif
-
 #if os(macOS)
 import LocalAuthentication
 import Security
@@ -295,7 +291,8 @@ public enum ClaudeOAuthCredentialsStore {
             guard self.shouldAllowClaudeCodeKeychainAccess(mode: promptMode) else { return nil }
 
             if self.shouldPreferSecurityCLIKeychainRead(),
-               let keychainData = self.loadFromClaudeKeychainViaSecurityCLIIfEnabled(allowKeychainPrompt: true)
+               let keychainData = self.loadFromClaudeKeychainViaSecurityCLIIfEnabled(
+                   interaction: ProviderInteractionContext.current)
             {
                 let creds = try ClaudeOAuthCredentials.parse(data: keychainData)
                 let record = ClaudeOAuthCredentialRecord(
@@ -611,7 +608,9 @@ public enum ClaudeOAuthCredentialsStore {
         if self.isPromptPolicyApplicable,
            ProviderInteractionContext.current == .background,
            !ClaudeOAuthKeychainAccessGate.shouldAllowPrompt() { return false }
-        if self.loadFromClaudeKeychainViaSecurityCLIIfEnabled(allowKeychainPrompt: false) != nil {
+        if self.loadFromClaudeKeychainViaSecurityCLIIfEnabled(
+            interaction: ProviderInteractionContext.current) != nil
+        {
             return true
         }
         #if DEBUG
@@ -783,7 +782,8 @@ public enum ClaudeOAuthCredentialsStore {
 
         do {
             if self.shouldPreferSecurityCLIKeychainRead(),
-               let securityData = self.loadFromClaudeKeychainViaSecurityCLIIfEnabled(allowKeychainPrompt: false),
+               let securityData = self.loadFromClaudeKeychainViaSecurityCLIIfEnabled(
+                   interaction: ProviderInteractionContext.current),
                !securityData.isEmpty
             {
                 // Keep CLI-success repair prompt-safe in experimental mode by avoiding Security.framework fingerprint
@@ -939,26 +939,18 @@ public enum ClaudeOAuthCredentialsStore {
         return "\(modifiedAt):\(fingerprint.size)"
     }
 
-    private static func sha256Prefix(_ data: Data) -> String? {
-        #if canImport(CryptoKit)
-        let digest = SHA256.hash(data: data)
-        let hex = digest.compactMap { String(format: "%02x", $0) }.joined()
-        return String(hex.prefix(12))
-        #else
-        _ = data
-        return nil
-        #endif
-    }
-
     private static func loadFromClaudeKeychainNonInteractive() throws -> Data? {
-        let mode = ClaudeOAuthKeychainPromptPreference.current()
-        guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return nil }
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: ClaudeOAuthKeychainPromptPreference.current()) else {
+            return nil
+        }
         #if DEBUG
         if let store = taskClaudeKeychainOverrideStore { return store.data }
         if let override = taskClaudeKeychainDataOverride ?? self.claudeKeychainDataOverride { return override }
         #endif
         #if os(macOS)
-        if let data = self.loadFromClaudeKeychainViaSecurityCLIIfEnabled(allowKeychainPrompt: false) {
+        if let data = self.loadFromClaudeKeychainViaSecurityCLIIfEnabled(
+            interaction: ProviderInteractionContext.current)
+        {
             return data
         }
 
@@ -986,15 +978,16 @@ public enum ClaudeOAuthCredentialsStore {
     }
 
     public static func loadFromClaudeKeychain() throws -> Data {
-        let mode = ClaudeOAuthKeychainPromptPreference.current()
-        guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else {
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: ClaudeOAuthKeychainPromptPreference.current()) else {
             throw ClaudeOAuthCredentialsError.notFound
         }
         #if DEBUG
         if let store = taskClaudeKeychainOverrideStore, let override = store.data { return override }
         if let override = taskClaudeKeychainDataOverride ?? self.claudeKeychainDataOverride { return override }
         #endif
-        if let data = self.loadFromClaudeKeychainViaSecurityCLIIfEnabled(allowKeychainPrompt: true) {
+        if let data = self.loadFromClaudeKeychainViaSecurityCLIIfEnabled(
+            interaction: ProviderInteractionContext.current)
+        {
             return data
         }
         if self.shouldPreferSecurityCLIKeychainRead() {
@@ -1536,8 +1529,9 @@ extension ClaudeOAuthCredentialsStore {
         }
         #endif
 
-        if let data = self.loadFromClaudeKeychainViaSecurityCLIIfEnabled(allowKeychainPrompt: false),
-           !data.isEmpty
+        if let data = self.loadFromClaudeKeychainViaSecurityCLIIfEnabled(
+            interaction: ProviderInteractionContext.current),
+            !data.isEmpty
         {
             if let creds = try? ClaudeOAuthCredentials.parse(data: data), !creds.isExpired {
                 // Keep delegated refresh recovery on the security CLI path only in experimental mode.

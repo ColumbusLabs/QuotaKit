@@ -37,12 +37,15 @@ extension ClaudeOAuthCredentialsStore {
         let durationMs: Double
     }
 
+    /// Attempts a Claude keychain read via `/usr/bin/security` when the experimental reader is enabled.
+    /// - Important: `interaction` is diagnostics context only and does not gate CLI execution.
     static func loadFromClaudeKeychainViaSecurityCLIIfEnabled(
-        allowKeychainPrompt: Bool,
+        interaction: ProviderInteraction,
         readStrategy: ClaudeOAuthKeychainReadStrategy = ClaudeOAuthKeychainReadStrategyPreference.current())
         -> Data?
     {
         guard self.shouldPreferSecurityCLIKeychainRead(readStrategy: readStrategy) else { return nil }
+        let interactionMetadata = interaction == .userInitiated ? "user" : "background"
 
         do {
             let preferredAccount = self.preferredClaudeKeychainAccountForSecurityCLIRead()
@@ -97,6 +100,7 @@ extension ClaudeOAuthCredentialsStore {
                     "Claude keychain security CLI output invalid; falling back",
                     metadata: [
                         "reader": "securityCLI",
+                        "callerInteraction": interactionMetadata,
                         "status": "\(status)",
                         "duration_ms": String(format: "%.2f", durationMs),
                         "stderr_length": "\(stderrLength)",
@@ -108,7 +112,7 @@ extension ClaudeOAuthCredentialsStore {
 
             var metadata: [String: String] = [
                 "reader": "securityCLI",
-                "interactive": "\(allowKeychainPrompt)",
+                "callerInteraction": interactionMetadata,
                 "status": "\(status)",
                 "duration_ms": String(format: "%.2f", durationMs),
                 "stderr_length": "\(stderrLength)",
@@ -125,7 +129,7 @@ extension ClaudeOAuthCredentialsStore {
         } catch let error as SecurityCLIReadError {
             var metadata: [String: String] = [
                 "reader": "securityCLI",
-                "interactive": "\(allowKeychainPrompt)",
+                "callerInteraction": interactionMetadata,
                 "error_type": String(describing: type(of: error)),
             ]
             switch error {
@@ -147,7 +151,7 @@ extension ClaudeOAuthCredentialsStore {
                 "Claude keychain security CLI read failed; falling back",
                 metadata: [
                     "reader": "securityCLI",
-                    "interactive": "\(allowKeychainPrompt)",
+                    "callerInteraction": interactionMetadata,
                     "error_type": String(describing: type(of: error)),
                 ])
             return nil
@@ -247,7 +251,7 @@ extension ClaudeOAuthCredentialsStore {
     }
     #else
     static func loadFromClaudeKeychainViaSecurityCLIIfEnabled(
-        allowKeychainPrompt _: Bool,
+        interaction _: ProviderInteraction,
         readStrategy _: ClaudeOAuthKeychainReadStrategy = ClaudeOAuthKeychainReadStrategyPreference.current())
         -> Data?
     {
