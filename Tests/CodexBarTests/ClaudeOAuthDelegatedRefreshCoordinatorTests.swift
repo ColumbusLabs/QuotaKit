@@ -338,6 +338,74 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
     }
 
     @Test
+    func experimentalStrategy_missingBaselineDoesNotAutoSucceedWhenLaterReadSucceeds() async {
+        ClaudeOAuthDelegatedRefreshCoordinator.resetForTesting()
+        defer { ClaudeOAuthDelegatedRefreshCoordinator.resetForTesting() }
+        await ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+            .securityCLIExperimental)
+        {
+            final class DataBox: @unchecked Sendable {
+                private let lock = NSLock()
+                private var _data: Data?
+                init(data: Data?) {
+                    self._data = data
+                }
+
+                func load() -> Data? {
+                    self.lock.lock()
+                    defer { self.lock.unlock() }
+                    return self._data
+                }
+
+                func store(_ data: Data?) {
+                    self.lock.lock()
+                    self._data = data
+                    self.lock.unlock()
+                }
+            }
+            final class CounterBox: @unchecked Sendable {
+                private let lock = NSLock()
+                private(set) var count: Int = 0
+                func increment() {
+                    self.lock.lock()
+                    self.count += 1
+                    self.lock.unlock()
+                }
+            }
+            let fingerprintCounter = CounterBox()
+            ClaudeOAuthDelegatedRefreshCoordinator.setKeychainFingerprintOverrideForTesting {
+                fingerprintCounter.increment()
+                return ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint(
+                    modifiedAt: 21,
+                    createdAt: 21,
+                    persistentRefHash: "framework-fingerprint")
+            }
+
+            let afterData = self.makeCredentialsData(
+                accessToken: "security-token-after-baseline-miss",
+                expiresAt: Date(timeIntervalSinceNow: 3600))
+            let dataBox = DataBox(data: nil)
+
+            ClaudeOAuthDelegatedRefreshCoordinator.setCLIAvailableOverrideForTesting(true)
+            ClaudeOAuthDelegatedRefreshCoordinator.setTouchAuthPathOverrideForTesting { _ in
+                dataBox.store(afterData)
+            }
+            ClaudeOAuthCredentialsStore.setSecurityCLIReadOverrideForTesting(.dynamic { _ in dataBox.load() })
+            defer { ClaudeOAuthCredentialsStore.setSecurityCLIReadOverrideForTesting(nil) }
+
+            let outcome = await ClaudeOAuthDelegatedRefreshCoordinator.attempt(
+                now: Date(timeIntervalSince1970: 61500),
+                timeout: 0.1)
+
+            guard case .attemptedFailed = outcome else {
+                Issue.record("Expected .attemptedFailed outcome when baseline is unavailable")
+                return
+            }
+            #expect(fingerprintCounter.count < 1)
+        }
+    }
+
+    @Test
     func experimentalStrategy_observationSkipsSecurityCLIWhenGlobalKeychainDisabled() async {
         ClaudeOAuthDelegatedRefreshCoordinator.resetForTesting()
         defer { ClaudeOAuthDelegatedRefreshCoordinator.resetForTesting() }

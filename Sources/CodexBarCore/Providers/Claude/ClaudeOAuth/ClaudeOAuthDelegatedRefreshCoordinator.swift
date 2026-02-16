@@ -203,11 +203,13 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
             case let .securityCLI(dataBefore):
                 // In experimental mode, avoid Security.framework observation entirely and detect change from
                 // /usr/bin/security output only.
+                // If baseline capture failed (nil), treat observation as inconclusive and do not infer a change from
+                // a later successful read.
+                guard let dataBefore else { return false }
                 guard let current = self.currentClaudeKeychainDataViaSecurityCLIForObservation(
                     readStrategy: readStrategy,
                     keychainAccessDisabled: keychainAccessDisabled)
                 else { return false }
-                guard let dataBefore else { return true }
                 return current != dataBefore
             }
         }
