@@ -11,12 +11,12 @@ extension ClaudeOAuthCredentialsStore {
     private static let securityBinaryPath = "/usr/bin/security"
     private static let securityCLIReadTimeout: TimeInterval = 1.5
 
-    static func shouldPreferSecurityCLIKeychainRead() -> Bool {
-        ClaudeOAuthKeychainReadStrategyPreference.current() == .securityCLIExperimental
+    struct SecurityCLIReadRequest: Sendable {
+        let account: String?
     }
 
-    static func shouldBypassPreAlertForPreferredReader() -> Bool {
-        self.shouldPreferSecurityCLIKeychainRead()
+    static func shouldPreferSecurityCLIKeychainRead() -> Bool {
+        ClaudeOAuthKeychainReadStrategyPreference.current() == .securityCLIExperimental
     }
 
     #if os(macOS)
@@ -38,6 +38,7 @@ extension ClaudeOAuthCredentialsStore {
         guard self.shouldPreferSecurityCLIKeychainRead() else { return nil }
 
         do {
+            let preferredAccount = self.preferredClaudeKeychainAccountForSecurityCLIRead()
             let output: Data
             let status: Int32
             let stderrLength: Int
@@ -55,20 +56,24 @@ extension ClaudeOAuthCredentialsStore {
                 case .nonZeroExit:
                     throw SecurityCLIReadError.nonZeroExit(status: 1, stderrLength: 0)
                 case let .dynamic(read):
-                    output = read() ?? Data()
+                    output = read(SecurityCLIReadRequest(account: preferredAccount)) ?? Data()
                     status = 0
                     stderrLength = 0
                     durationMs = 0
                 }
             } else {
-                let result = try self.runClaudeSecurityCLIRead(timeout: self.securityCLIReadTimeout)
+                let result = try self.runClaudeSecurityCLIRead(
+                    timeout: self.securityCLIReadTimeout,
+                    account: preferredAccount)
                 output = result.stdout
                 status = result.status
                 stderrLength = result.stderrLength
                 durationMs = result.durationMs
             }
             #else
-            let result = try self.runClaudeSecurityCLIRead(timeout: self.securityCLIReadTimeout)
+            let result = try self.runClaudeSecurityCLIRead(
+                timeout: self.securityCLIReadTimeout,
+                account: preferredAccount)
             output = result.stdout
             status = result.status
             stderrLength = result.stderrLength
@@ -101,6 +106,7 @@ extension ClaudeOAuthCredentialsStore {
                 "duration_ms": String(format: "%.2f", durationMs),
                 "stderr_length": "\(stderrLength)",
                 "payload_bytes": "\(sanitized.count)",
+                "accountPinned": preferredAccount == nil ? "0" : "1",
             ]
             for (key, value) in parsedCredentials.diagnosticsMetadata(now: Date()) {
                 metadata[key] = value
@@ -149,19 +155,27 @@ extension ClaudeOAuthCredentialsStore {
         return sanitized
     }
 
-    private static func runClaudeSecurityCLIRead(timeout: TimeInterval) throws -> SecurityCLIReadCommandResult {
+    private static func runClaudeSecurityCLIRead(
+        timeout: TimeInterval,
+        account: String?) throws -> SecurityCLIReadCommandResult
+    {
         guard FileManager.default.isExecutableFile(atPath: self.securityBinaryPath) else {
             throw SecurityCLIReadError.binaryUnavailable
         }
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: self.securityBinaryPath)
-        process.arguments = [
+        var arguments = [
             "find-generic-password",
             "-s",
             self.claudeKeychainService,
-            "-w",
         ]
+        if let account, !account.isEmpty {
+            arguments.append(contentsOf: ["-a", account])
+        }
+        arguments.append("-w")
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: self.securityBinaryPath)
+        process.arguments = arguments
 
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()

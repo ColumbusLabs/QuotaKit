@@ -666,9 +666,7 @@ public enum ClaudeOAuthCredentialsStore {
 
         // Do not attempt a non-interactive data read if preflight indicates interaction is likely.
         // Why: on some systems, Security.framework can still surface UI even for "no UI" queries.
-        if !self.shouldBypassPreAlertForPreferredReader(),
-           self.shouldShowClaudeKeychainPreAlert()
-        {
+        if self.shouldShowClaudeKeychainPreAlert() {
             return nil
         }
 
@@ -767,9 +765,7 @@ public enum ClaudeOAuthCredentialsStore {
         // If Keychain preflight indicates interaction is likely, skip the silent repair read.
         // Why: non-interactive probes can still show UI on some systems, and if interaction is required we should
         // let the interactive prompt path handle it (when allowed).
-        if !self.shouldBypassPreAlertForPreferredReader(),
-           self.shouldShowClaudeKeychainPreAlert()
-        {
+        if self.shouldShowClaudeKeychainPreAlert() {
             return nil
         }
 
@@ -1387,6 +1383,29 @@ public enum ClaudeOAuthCredentialsStore {
         }
     }
 
+    static func preferredClaudeKeychainAccountForSecurityCLIRead() -> String? {
+        #if DEBUG
+        if let override = self.taskSecurityCLIReadAccountOverride { return override }
+        #endif
+        #if os(macOS)
+        let mode = ClaudeOAuthKeychainPromptPreference.current()
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return nil }
+        // Keep experimental mode prompt-safe: avoid Security.framework candidate probes when preflight says
+        // interaction is likely.
+        if self.shouldShowClaudeKeychainPreAlert() {
+            return nil
+        }
+        guard let account = self.claudeKeychainCandidatesWithoutPrompt(promptMode: mode).first?.account,
+              !account.isEmpty
+        else {
+            return nil
+        }
+        return account
+        #else
+        return nil
+        #endif
+    }
+
     private static func credentialsFileURL() -> URL {
         #if DEBUG
         if let override = self.taskCredentialsURLOverride { return override }
@@ -1507,9 +1526,7 @@ extension ClaudeOAuthCredentialsStore {
 
         // Skip the silent data read if preflight indicates interaction is likely.
         // Why: on some systems, Security.framework can still surface UI even for "no UI" probes.
-        if !self.shouldBypassPreAlertForPreferredReader(),
-           self.shouldShowClaudeKeychainPreAlert()
-        {
+        if self.shouldShowClaudeKeychainPreAlert() {
             return false
         }
 

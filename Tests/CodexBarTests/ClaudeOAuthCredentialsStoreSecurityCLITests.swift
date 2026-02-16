@@ -330,4 +330,111 @@ struct ClaudeOAuthCredentialsStoreSecurityCLITests {
 
         #expect(threwNotFound == true)
     }
+
+    @Test
+    func experimentalReader_securityCLIRead_pinsPreferredAccountWhenAvailable() throws {
+        let securityData = self.makeCredentialsData(
+            accessToken: "security-account-pinned",
+            expiresAt: Date(timeIntervalSinceNow: 3600))
+        final class AccountBox: @unchecked Sendable {
+            var value: String?
+        }
+        let pinnedAccount = AccountBox()
+
+        let loaded = try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+            .securityCLIExperimental,
+            operation: {
+                try ClaudeOAuthCredentialsStore.withSecurityCLIReadAccountOverrideForTesting("new-account") {
+                    try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(
+                        .always,
+                        operation: {
+                            try ProviderInteractionContext.$current.withValue(.userInitiated) {
+                                try ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(
+                                    .dynamic { request in
+                                        pinnedAccount.value = request.account
+                                        return securityData
+                                    }) {
+                                        try ClaudeOAuthCredentialsStore.loadFromClaudeKeychain()
+                                    }
+                            }
+                        })
+                }
+            })
+
+        let creds = try ClaudeOAuthCredentials.parse(data: loaded)
+        #expect(pinnedAccount.value == "new-account")
+        #expect(creds.accessToken == "security-account-pinned")
+    }
+
+    @Test
+    func experimentalReader_freshnessSync_skipsSecurityCLIWhenPreflightRequiresInteraction() throws {
+        let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
+        try KeychainCacheStore.withServiceOverrideForTesting(service) {
+            try KeychainAccessGate.withTaskOverrideForTesting(false) {
+                KeychainCacheStore.setTestStoreForTesting(true)
+                defer { KeychainCacheStore.setTestStoreForTesting(false) }
+
+                try ClaudeOAuthCredentialsStore.withIsolatedMemoryCacheForTesting {
+                    ClaudeOAuthCredentialsStore.invalidateCache()
+                    ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
+                    defer {
+                        ClaudeOAuthCredentialsStore.invalidateCache()
+                        ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
+                    }
+
+                    let tempDir = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+                    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                    let fileURL = tempDir.appendingPathComponent("credentials.json")
+                    try ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(fileURL) {
+                        let securityData = self.makeCredentialsData(
+                            accessToken: "security-sync",
+                            expiresAt: Date(timeIntervalSinceNow: 3600))
+                        final class ReadCounter: @unchecked Sendable {
+                            var count = 0
+                        }
+                        let securityReadCalls = ReadCounter()
+
+                        func loadWithPreflight(
+                            _ outcome: KeychainAccessPreflight.Outcome) throws -> ClaudeOAuthCredentials
+                        {
+                            let preflightOverride: (String, String?) -> KeychainAccessPreflight.Outcome = { _, _ in
+                                outcome
+                            }
+                            return try KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting(
+                                preflightOverride,
+                                operation: {
+                                    try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+                                        .securityCLIExperimental)
+                                    {
+                                        try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.always) {
+                                            try ProviderInteractionContext.$current.withValue(.background) {
+                                                try ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(
+                                                    .dynamic { _ in
+                                                        securityReadCalls.count += 1
+                                                        return securityData
+                                                    }) {
+                                                        try ClaudeOAuthCredentialsStore.load(
+                                                            environment: [:],
+                                                            allowKeychainPrompt: false,
+                                                            respectKeychainPromptCooldown: true)
+                                                    }
+                                            }
+                                        }
+                                    }
+                                })
+                        }
+
+                        let first = try loadWithPreflight(.allowed)
+                        #expect(first.accessToken == "security-sync")
+                        #expect(securityReadCalls.count == 1)
+
+                        let second = try loadWithPreflight(.interactionRequired)
+                        #expect(second.accessToken == "security-sync")
+                        #expect(securityReadCalls.count == 1)
+                    }
+                }
+            }
+        }
+    }
 }

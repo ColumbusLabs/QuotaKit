@@ -344,7 +344,7 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
         ClaudeOAuthDelegatedRefreshCoordinator.setTouchAuthPathOverrideForTesting { _ in
             dataBox.store(afterData)
         }
-        ClaudeOAuthCredentialsStore.setSecurityCLIReadOverrideForTesting(.dynamic { dataBox.load() })
+        ClaudeOAuthCredentialsStore.setSecurityCLIReadOverrideForTesting(.dynamic { _ in dataBox.load() })
         defer { ClaudeOAuthCredentialsStore.setSecurityCLIReadOverrideForTesting(nil) }
 
         let outcome = await ClaudeOAuthDelegatedRefreshCoordinator.attempt(
