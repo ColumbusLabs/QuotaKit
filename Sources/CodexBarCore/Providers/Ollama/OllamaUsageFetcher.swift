@@ -238,9 +238,21 @@ public struct OllamaUsageFetcher: Sendable {
     }
 
     public let browserDetection: BrowserDetection
+    private let makeURLSession: @Sendable (URLSessionTaskDelegate?) -> URLSession
 
     public init(browserDetection: BrowserDetection) {
         self.browserDetection = browserDetection
+        self.makeURLSession = { delegate in
+            URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
+        }
+    }
+
+    init(
+        browserDetection: BrowserDetection,
+        makeURLSession: @escaping @Sendable (URLSessionTaskDelegate?) -> URLSession)
+    {
+        self.browserDetection = browserDetection
+        self.makeURLSession = makeURLSession
     }
 
     public func fetch(
@@ -495,7 +507,7 @@ public struct OllamaUsageFetcher: Sendable {
         request.setValue("https://ollama.com", forHTTPHeaderField: "origin")
         request.setValue(Self.settingsURL.absoluteString, forHTTPHeaderField: "referer")
 
-        let session = URLSession(configuration: .ephemeral, delegate: diagnostics, delegateQueue: nil)
+        let session = self.makeURLSession(diagnostics)
         let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw OllamaUsageError.networkError("Invalid response")
