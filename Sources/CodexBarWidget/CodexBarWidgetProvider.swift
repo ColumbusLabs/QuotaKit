@@ -216,7 +216,8 @@ struct CodexBarSwitcherTimelineProvider: TimelineProvider {
     private func availableProviders(from snapshot: WidgetSnapshot) -> [UsageProvider] {
         let enabled = snapshot.enabledProviders
         let providers = enabled.isEmpty ? snapshot.entries.map(\.provider) : enabled
-        return providers.isEmpty ? [.codex] : providers
+        let supported = providers.filter { ProviderChoice(provider: $0) != nil }
+        return supported.isEmpty ? [.codex] : supported
     }
 }
 

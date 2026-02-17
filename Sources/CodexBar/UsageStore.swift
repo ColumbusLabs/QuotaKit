@@ -1154,6 +1154,10 @@ extension UsageStore {
         let ampCookieHeader = self.settings.ampCookieHeader
         let ollamaCookieSource = self.settings.ollamaCookieSource
         let ollamaCookieHeader = self.settings.ollamaCookieHeader
+        let openRouterEnvironment = ProviderConfigEnvironment.applyAPIKeyOverride(
+            base: ProcessInfo.processInfo.environment,
+            provider: .openrouter,
+            config: self.settings.providerConfig(for: .openrouter))
         return await Task.detached(priority: .utility) { () -> String in
             let unimplementedDebugLogMessages: [UsageProvider: String] = [
                 .gemini: "Gemini debug log not yet implemented",
@@ -1211,7 +1215,7 @@ extension UsageStore {
                     ollamaCookieSource: ollamaCookieSource,
                     ollamaCookieHeader: ollamaCookieHeader)
             case .openrouter:
-                let resolution = ProviderTokenResolver.openRouterResolution()
+                let resolution = ProviderTokenResolver.openRouterResolution(environment: openRouterEnvironment)
                 let hasAny = resolution != nil
                 let source = resolution?.source.rawValue ?? "none"
                 text = "OPENROUTER_API_KEY=\(hasAny ? "present" : "missing") source=\(source)"

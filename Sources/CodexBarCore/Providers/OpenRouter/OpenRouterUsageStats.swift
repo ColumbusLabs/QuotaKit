@@ -124,6 +124,8 @@ extension OpenRouterUsageSnapshot {
 public struct OpenRouterUsageFetcher: Sendable {
     private static let log = CodexBarLog.logger(LogCategories.openRouterUsage)
     private static let rateLimitTimeoutSeconds: TimeInterval = 1.0
+    private static let maxErrorBodyLength = 240
+    private static let debugFullErrorBodiesEnvKey = "CODEXBAR_DEBUG_OPENROUTER_ERROR_BODIES"
 
     /// Fetches credits usage from OpenRouter using the provided API key
     public static func fetchUsage(
@@ -149,14 +151,12 @@ public struct OpenRouterUsageFetcher: Sendable {
         }
 
         guard httpResponse.statusCode == 200 else {
-            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            Self.log.error("OpenRouter API returned \(httpResponse.statusCode): \(errorMessage)")
-            throw OpenRouterUsageError.apiError("HTTP \(httpResponse.statusCode): \(errorMessage)")
-        }
-
-        // Log raw response for debugging
-        if let jsonString = String(data: data, encoding: .utf8) {
-            Self.log.debug("OpenRouter credits response: \(jsonString)")
+            let errorSummary = Self.sanitizedResponseBodySummary(data)
+            if Self.debugFullErrorBodiesEnabled, let fullBody = String(data: data, encoding: .utf8), !fullBody.isEmpty {
+                Self.log.debug("OpenRouter non-200 body: \(fullBody)")
+            }
+            Self.log.error("OpenRouter API returned \(httpResponse.statusCode): \(errorSummary)")
+            throw OpenRouterUsageError.apiError("HTTP \(httpResponse.statusCode): \(errorSummary)")
         }
 
         do {
@@ -254,6 +254,28 @@ public struct OpenRouterUsageFetcher: Sendable {
             Self.log.debug("Failed to fetch OpenRouter rate limit: \(error.localizedDescription)")
             return nil
         }
+    }
+
+    private static var debugFullErrorBodiesEnabled: Bool {
+        ProcessInfo.processInfo.environment[self.debugFullErrorBodiesEnvKey] == "1"
+    }
+
+    private static func sanitizedResponseBodySummary(_ data: Data) -> String {
+        guard !data.isEmpty else { return "empty body" }
+
+        guard let rawBody = String(bytes: data, encoding: .utf8) else {
+            return "non-text body (\(data.count) bytes)"
+        }
+
+        let body = rawBody
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !body.isEmpty else { return "non-text body (\(data.count) bytes)" }
+        guard body.count > Self.maxErrorBodyLength else { return body }
+
+        let index = body.index(body.startIndex, offsetBy: Self.maxErrorBodyLength)
+        return "\(body[..<index])… [truncated]"
     }
 }
 
