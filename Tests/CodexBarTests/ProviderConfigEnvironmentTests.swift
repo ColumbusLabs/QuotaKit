@@ -30,6 +30,17 @@ struct ProviderConfigEnvironmentTests {
     }
 
     @Test
+    func appliesAPIKeyOverrideForOpenRouter() {
+        let config = ProviderConfig(id: .openrouter, apiKey: "or-token")
+        let env = ProviderConfigEnvironment.applyAPIKeyOverride(
+            base: [:],
+            provider: .openrouter,
+            config: config)
+
+        #expect(env[OpenRouterSettingsReader.envKey] == "or-token")
+    }
+
+    @Test
     func leavesEnvironmentWhenAPIKeyMissing() {
         let config = ProviderConfig(id: .zai, apiKey: nil)
         let env = ProviderConfigEnvironment.applyAPIKeyOverride(
