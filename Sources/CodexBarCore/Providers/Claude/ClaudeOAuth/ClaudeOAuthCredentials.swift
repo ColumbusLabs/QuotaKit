@@ -605,14 +605,16 @@ public enum ClaudeOAuthCredentialsStore {
         #if os(macOS)
         let mode = ClaudeOAuthKeychainPromptPreference.current()
         guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return false }
-        if self.isPromptPolicyApplicable,
-           ProviderInteractionContext.current == .background,
-           !ClaudeOAuthKeychainAccessGate.shouldAllowPrompt() { return false }
         if self.loadFromClaudeKeychainViaSecurityCLIIfEnabled(
             interaction: ProviderInteractionContext.current) != nil
         {
             return true
         }
+
+        let fallbackPromptMode = ClaudeOAuthKeychainPromptPreference.securityFrameworkFallbackMode()
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: fallbackPromptMode) else { return false }
+        if ProviderInteractionContext.current == .background,
+           !ClaudeOAuthKeychainAccessGate.shouldAllowPrompt() { return false }
         #if DEBUG
         if let store = self.taskClaudeKeychainOverrideStore,
            let data = store.data
@@ -1511,14 +1513,32 @@ extension ClaudeOAuthCredentialsStore {
         let mode = ClaudeOAuthKeychainPromptPreference.current()
         guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return false }
 
-        // If background keychain access has been denied/blocked, don't attempt silent reads that could trigger
-        // repeated prompts on misbehaving configurations. User actions clear/bypass this gate elsewhere.
-        if self.isPromptPolicyApplicable,
-           ProviderInteractionContext.current == .background,
+        if let data = self.loadFromClaudeKeychainViaSecurityCLIIfEnabled(
+            interaction: ProviderInteractionContext.current),
+            !data.isEmpty
+        {
+            if let creds = try? ClaudeOAuthCredentials.parse(data: data), !creds.isExpired {
+                // Keep delegated refresh recovery on the security CLI path only in experimental mode.
+                // Avoid Security.framework fingerprint probes here because "no UI" queries can still prompt.
+                self.writeMemoryCache(
+                    record: ClaudeOAuthCredentialRecord(credentials: creds, owner: .claudeCLI, source: .memoryCache),
+                    timestamp: now)
+                self.saveToCacheKeychain(data, owner: .claudeCLI)
+                return true
+            }
+        }
+
+        let fallbackPromptMode = ClaudeOAuthKeychainPromptPreference.securityFrameworkFallbackMode()
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: fallbackPromptMode) else { return false }
+
+        // If background keychain access has been denied/blocked, don't attempt silent Security.framework fallback
+        // reads that could trigger repeated prompts on misbehaving configurations.
+        if ProviderInteractionContext.current == .background,
            !ClaudeOAuthKeychainAccessGate.shouldAllowPrompt(now: now) { return false }
 
         #if DEBUG
-        // Test hook: allow unit tests to simulate a "silent" keychain read without touching the real Keychain.
+        // Test hook: allow unit tests to simulate a silent Security.framework fallback read without touching
+        // the real Keychain.
         let override = self.taskClaudeKeychainOverrideStore?.data ?? self.taskClaudeKeychainDataOverride
             ?? self.claudeKeychainDataOverride
         if let override,
@@ -1535,21 +1555,6 @@ extension ClaudeOAuthCredentialsStore {
         }
         #endif
 
-        if let data = self.loadFromClaudeKeychainViaSecurityCLIIfEnabled(
-            interaction: ProviderInteractionContext.current),
-            !data.isEmpty
-        {
-            if let creds = try? ClaudeOAuthCredentials.parse(data: data), !creds.isExpired {
-                // Keep delegated refresh recovery on the security CLI path only in experimental mode.
-                // Avoid Security.framework fingerprint probes here because "no UI" queries can still prompt.
-                self.writeMemoryCache(
-                    record: ClaudeOAuthCredentialRecord(credentials: creds, owner: .claudeCLI, source: .memoryCache),
-                    timestamp: now)
-                self.saveToCacheKeychain(data, owner: .claudeCLI)
-                return true
-            }
-        }
-
         // Skip the silent data read if preflight indicates interaction is likely.
         // Why: on some systems, Security.framework can still surface UI even for "no UI" probes.
         if self.shouldShowClaudeKeychainPreAlert() {
@@ -1557,7 +1562,7 @@ extension ClaudeOAuthCredentialsStore {
         }
 
         // Consult only the newest candidate to avoid syncing from a different keychain entry (e.g. old login).
-        if let candidate = self.claudeKeychainCandidatesWithoutPrompt().first,
+        if let candidate = self.claudeKeychainCandidatesWithoutPrompt(promptMode: fallbackPromptMode).first,
            let data = try? self.loadClaudeKeychainData(candidate: candidate, allowKeychainPrompt: false),
            !data.isEmpty
         {
@@ -1579,16 +1584,19 @@ extension ClaudeOAuthCredentialsStore {
             self.saveClaudeKeychainFingerprint(fingerprint)
         }
 
-        if let data = try? self.loadClaudeKeychainLegacyData(allowKeychainPrompt: false),
-           !data.isEmpty,
-           let creds = try? ClaudeOAuthCredentials.parse(data: data),
+        let legacyData = try? self.loadClaudeKeychainLegacyData(
+            allowKeychainPrompt: false,
+            promptMode: fallbackPromptMode)
+        if let legacyData,
+           !legacyData.isEmpty,
+           let creds = try? ClaudeOAuthCredentials.parse(data: legacyData),
            !creds.isExpired
         {
             self.saveClaudeKeychainFingerprint(self.currentClaudeKeychainFingerprintWithoutPrompt())
             self.writeMemoryCache(
                 record: ClaudeOAuthCredentialRecord(credentials: creds, owner: .claudeCLI, source: .memoryCache),
                 timestamp: now)
-            self.saveToCacheKeychain(data, owner: .claudeCLI)
+            self.saveToCacheKeychain(legacyData, owner: .claudeCLI)
             return true
         }
 
