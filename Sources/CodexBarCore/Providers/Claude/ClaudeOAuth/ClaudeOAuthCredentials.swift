@@ -940,23 +940,25 @@ public enum ClaudeOAuthCredentialsStore {
     }
 
     private static func loadFromClaudeKeychainNonInteractive() throws -> Data? {
-        guard self.shouldAllowClaudeCodeKeychainAccess(mode: ClaudeOAuthKeychainPromptPreference.current()) else {
-            return nil
-        }
-        #if DEBUG
-        if let store = taskClaudeKeychainOverrideStore { return store.data }
-        if let override = taskClaudeKeychainDataOverride ?? self.claudeKeychainDataOverride { return override }
-        #endif
         #if os(macOS)
+        let fallbackPromptMode = ClaudeOAuthKeychainPromptPreference.securityFrameworkFallbackMode()
         if let data = self.loadFromClaudeKeychainViaSecurityCLIIfEnabled(
             interaction: ProviderInteractionContext.current)
         {
             return data
         }
 
+        // For experimental strategy, enforce stored prompt policy before any Security.framework fallback probes.
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: fallbackPromptMode) else { return nil }
+
+        #if DEBUG
+        if let store = taskClaudeKeychainOverrideStore { return store.data }
+        if let override = taskClaudeKeychainDataOverride ?? self.claudeKeychainDataOverride { return override }
+        #endif
+
         // Keep semantics aligned with fingerprinting: if there are multiple entries, we only ever consult the newest
         // candidate (same as currentClaudeKeychainFingerprintWithoutPrompt()) to avoid syncing from a different item.
-        let candidates = self.claudeKeychainCandidatesWithoutPrompt()
+        let candidates = self.claudeKeychainCandidatesWithoutPrompt(promptMode: fallbackPromptMode)
         if let newest = candidates.first {
             if let data = try self.loadClaudeKeychainData(candidate: newest, allowKeychainPrompt: false),
                !data.isEmpty
@@ -966,11 +968,10 @@ public enum ClaudeOAuthCredentialsStore {
             return nil
         }
 
-        if let data = try self.loadClaudeKeychainLegacyData(allowKeychainPrompt: false),
-           !data.isEmpty
-        {
-            return data
-        }
+        let legacyData = try self.loadClaudeKeychainLegacyData(
+            allowKeychainPrompt: false,
+            promptMode: fallbackPromptMode)
+        if let legacyData, !legacyData.isEmpty { return legacyData }
         return nil
         #else
         return nil
