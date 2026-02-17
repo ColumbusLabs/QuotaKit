@@ -192,16 +192,6 @@ extension UsageStore {
             accountEmail: resolvedEmail,
             accountOrganization: existing?.accountOrganization,
             loginMethod: existing?.loginMethod)
-        return UsageSnapshot(
-            primary: snapshot.primary,
-            secondary: snapshot.secondary,
-            tertiary: snapshot.tertiary,
-            providerCost: snapshot.providerCost,
-            zaiUsage: snapshot.zaiUsage,
-            minimaxUsage: snapshot.minimaxUsage,
-            openRouterUsage: snapshot.openRouterUsage,
-            cursorRequests: snapshot.cursorRequests,
-            updatedAt: snapshot.updatedAt,
-            identity: identity)
+        return snapshot.withIdentity(identity)
     }
 }

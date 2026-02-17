@@ -176,11 +176,8 @@ public struct UsageSnapshot: Codable, Sendable {
         self.identity(for: provider)?.loginMethod
     }
 
-    public func scoped(to provider: UsageProvider) -> UsageSnapshot {
-        guard let identity else { return self }
-        let scopedIdentity = identity.scoped(to: provider)
-        if scopedIdentity.providerID == identity.providerID { return self }
-        return UsageSnapshot(
+    public func withIdentity(_ identity: ProviderIdentitySnapshot?) -> UsageSnapshot {
+        UsageSnapshot(
             primary: self.primary,
             secondary: self.secondary,
             tertiary: self.tertiary,
@@ -190,7 +187,14 @@ public struct UsageSnapshot: Codable, Sendable {
             openRouterUsage: self.openRouterUsage,
             cursorRequests: self.cursorRequests,
             updatedAt: self.updatedAt,
-            identity: scopedIdentity)
+            identity: identity)
+    }
+
+    public func scoped(to provider: UsageProvider) -> UsageSnapshot {
+        guard let identity else { return self }
+        let scopedIdentity = identity.scoped(to: provider)
+        if scopedIdentity.providerID == identity.providerID { return self }
+        return self.withIdentity(scopedIdentity)
     }
 }
 

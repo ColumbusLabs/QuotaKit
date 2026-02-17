@@ -152,12 +152,12 @@ public struct OpenRouterUsageFetcher: Sendable {
         }
 
         guard httpResponse.statusCode == 200 else {
-            let errorSummary = Self.sanitizedResponseBodySummary(data)
+            let errorSummary = LogRedactor.redact(Self.sanitizedResponseBodySummary(data))
             if Self.debugFullErrorBodiesEnabled, let debugBody = Self.redactedDebugResponseBody(data) {
-                Self.log.debug("OpenRouter non-200 body (redacted): \(debugBody)")
+                Self.log.debug("OpenRouter non-200 body (redacted): \(LogRedactor.redact(debugBody))")
             }
             Self.log.error("OpenRouter API returned \(httpResponse.statusCode): \(errorSummary)")
-            throw OpenRouterUsageError.apiError("HTTP \(httpResponse.statusCode): \(errorSummary)")
+            throw OpenRouterUsageError.apiError("HTTP \(httpResponse.statusCode)")
         }
 
         do {
@@ -310,6 +310,14 @@ public struct OpenRouterUsageFetcher: Sendable {
                 with: replacement.1,
                 options: .regularExpression)
         }
+    }
+
+    static func _sanitizedResponseBodySummaryForTesting(_ body: String) -> String {
+        self.sanitizedResponseBodySummary(Data(body.utf8))
+    }
+
+    static func _redactedDebugResponseBodyForTesting(_ body: String) -> String? {
+        self.redactedDebugResponseBody(Data(body.utf8))
     }
 }
 

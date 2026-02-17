@@ -1,8 +1,8 @@
-import CodexBarCore
 import Foundation
 import Testing
+@testable import CodexBarCore
 
-@Suite
+@Suite(.serialized)
 struct OpenRouterUsageStatsTests {
     @Test
     func toUsageSnapshot_doesNotSetSyntheticResetDescription() {
@@ -19,4 +19,98 @@ struct OpenRouterUsageStatsTests {
         #expect(usage.primary?.resetsAt == nil)
         #expect(usage.primary?.resetDescription == nil)
     }
+
+    @Test
+    func sanitizers_redactSensitiveTokenShapes() {
+        let body = """
+        {"error":"bad token sk-or-v1-abc123","token":"secret-token","authorization":"Bearer sk-or-v1-xyz789"}
+        """
+
+        let summary = OpenRouterUsageFetcher._sanitizedResponseBodySummaryForTesting(body)
+        let debugBody = OpenRouterUsageFetcher._redactedDebugResponseBodyForTesting(body)
+
+        #expect(summary.contains("sk-or-v1-[REDACTED]"))
+        #expect(summary.contains("\"token\":\"[REDACTED]\""))
+        #expect(!summary.contains("secret-token"))
+        #expect(!summary.contains("sk-or-v1-abc123"))
+
+        #expect(debugBody?.contains("sk-or-v1-[REDACTED]") == true)
+        #expect(debugBody?.contains("\"token\":\"[REDACTED]\"") == true)
+        #expect(debugBody?.contains("secret-token") == false)
+        #expect(debugBody?.contains("sk-or-v1-xyz789") == false)
+    }
+
+    @Test
+    func non200FetchThrowsGenericHTTPErrorWithoutBodyDetails() async throws {
+        let registered = URLProtocol.registerClass(OpenRouterStubURLProtocol.self)
+        defer {
+            if registered {
+                URLProtocol.unregisterClass(OpenRouterStubURLProtocol.self)
+            }
+            OpenRouterStubURLProtocol.handler = nil
+        }
+
+        OpenRouterStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            let body = #"{"error":"invalid sk-or-v1-super-secret","token":"dont-leak-me"}"#
+            return Self.makeResponse(url: url, body: body, statusCode: 401)
+        }
+
+        do {
+            _ = try await OpenRouterUsageFetcher.fetchUsage(
+                apiKey: "sk-or-v1-test",
+                environment: ["OPENROUTER_API_URL": "https://openrouter.test/api/v1"])
+            Issue.record("Expected OpenRouterUsageError.apiError")
+        } catch let error as OpenRouterUsageError {
+            guard case let .apiError(message) = error else {
+                Issue.record("Expected apiError, got: \(error)")
+                return
+            }
+            #expect(message == "HTTP 401")
+            #expect(!message.contains("dont-leak-me"))
+            #expect(!message.contains("sk-or-v1-super-secret"))
+        }
+    }
+
+    private static func makeResponse(
+        url: URL,
+        body: String,
+        statusCode: Int = 200) -> (HTTPURLResponse, Data)
+    {
+        let response = HTTPURLResponse(
+            url: url,
+            statusCode: statusCode,
+            httpVersion: "HTTP/1.1",
+            headerFields: ["Content-Type": "application/json"])!
+        return (response, Data(body.utf8))
+    }
+}
+
+final class OpenRouterStubURLProtocol: URLProtocol {
+    nonisolated(unsafe) static var handler: ((URLRequest) throws -> (HTTPURLResponse, Data))?
+
+    override static func canInit(with request: URLRequest) -> Bool {
+        request.url?.host == "openrouter.test"
+    }
+
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        guard let handler = Self.handler else {
+            self.client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+            return
+        }
+        do {
+            let (response, data) = try handler(self.request)
+            self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            self.client?.urlProtocol(self, didLoad: data)
+            self.client?.urlProtocolDidFinishLoading(self)
+        } catch {
+            self.client?.urlProtocol(self, didFailWithError: error)
+        }
+    }
+
+    override func stopLoading() {}
 }

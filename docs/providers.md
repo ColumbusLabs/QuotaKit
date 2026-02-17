@@ -36,7 +36,7 @@ until the session is invalid, to avoid repeated Keychain prompts.
 | Amp | Web settings page via browser cookies (`web`). |
 | Warp | API token (config/env) → GraphQL request limits (`api`). |
 | Ollama | Web settings page via browser cookies (`web`). |
-| OpenRouter | API token (config/env override) → credits API (`api`). |
+| OpenRouter | API token (config, overrides env) → credits API (`api`). |
 
 ## Codex
 - Web dashboard (when enabled): `https://chatgpt.com/codex/settings/usage` via WebView + browser cookies.
