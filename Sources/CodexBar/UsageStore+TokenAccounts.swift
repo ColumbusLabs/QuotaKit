@@ -198,6 +198,8 @@ extension UsageStore {
             tertiary: snapshot.tertiary,
             providerCost: snapshot.providerCost,
             zaiUsage: snapshot.zaiUsage,
+            minimaxUsage: snapshot.minimaxUsage,
+            openRouterUsage: snapshot.openRouterUsage,
             cursorRequests: snapshot.cursorRequests,
             updatedAt: snapshot.updatedAt,
             identity: identity)

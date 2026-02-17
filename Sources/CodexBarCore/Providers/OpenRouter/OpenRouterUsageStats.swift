@@ -125,6 +125,7 @@ public struct OpenRouterUsageFetcher: Sendable {
     private static let log = CodexBarLog.logger(LogCategories.openRouterUsage)
     private static let rateLimitTimeoutSeconds: TimeInterval = 1.0
     private static let maxErrorBodyLength = 240
+    private static let maxDebugErrorBodyLength = 2000
     private static let debugFullErrorBodiesEnvKey = "CODEXBAR_DEBUG_OPENROUTER_ERROR_BODIES"
 
     /// Fetches credits usage from OpenRouter using the provided API key
@@ -152,8 +153,8 @@ public struct OpenRouterUsageFetcher: Sendable {
 
         guard httpResponse.statusCode == 200 else {
             let errorSummary = Self.sanitizedResponseBodySummary(data)
-            if Self.debugFullErrorBodiesEnabled, let fullBody = String(data: data, encoding: .utf8), !fullBody.isEmpty {
-                Self.log.debug("OpenRouter non-200 body: \(fullBody)")
+            if Self.debugFullErrorBodiesEnabled, let debugBody = Self.redactedDebugResponseBody(data) {
+                Self.log.debug("OpenRouter non-200 body (redacted): \(debugBody)")
             }
             Self.log.error("OpenRouter API returned \(httpResponse.statusCode): \(errorSummary)")
             throw OpenRouterUsageError.apiError("HTTP \(httpResponse.statusCode): \(errorSummary)")
@@ -267,7 +268,7 @@ public struct OpenRouterUsageFetcher: Sendable {
             return "non-text body (\(data.count) bytes)"
         }
 
-        let body = rawBody
+        let body = Self.redactSensitiveBodyContent(rawBody)
             .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -276,6 +277,39 @@ public struct OpenRouterUsageFetcher: Sendable {
 
         let index = body.index(body.startIndex, offsetBy: Self.maxErrorBodyLength)
         return "\(body[..<index])… [truncated]"
+    }
+
+    private static func redactedDebugResponseBody(_ data: Data) -> String? {
+        guard let rawBody = String(bytes: data, encoding: .utf8) else { return nil }
+
+        let body = Self.redactSensitiveBodyContent(rawBody)
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !body.isEmpty else { return nil }
+        guard body.count > Self.maxDebugErrorBodyLength else { return body }
+
+        let index = body.index(body.startIndex, offsetBy: Self.maxDebugErrorBodyLength)
+        return "\(body[..<index])… [truncated]"
+    }
+
+    private static func redactSensitiveBodyContent(_ text: String) -> String {
+        let replacements: [(String, String)] = [
+            (#"(?i)(bearer\s+)[A-Za-z0-9._\-]+"#, "$1[REDACTED]"),
+            (#"(?i)(sk-or-v1-)[A-Za-z0-9._\-]+"#, "$1[REDACTED]"),
+            (
+                #"(?i)(\"(?:api_?key|authorization|token|access_token|refresh_token)\"\s*:\s*\")([^\"]+)(\")"#,
+                "$1[REDACTED]$3"),
+            (
+                #"(?i)((?:api_?key|authorization|token|access_token|refresh_token)\s*[=:]\s*)([^,\s]+)"#,
+                "$1[REDACTED]"),
+        ]
+
+        return replacements.reduce(text) { partial, replacement in
+            partial.replacingOccurrences(
+                of: replacement.0,
+                with: replacement.1,
+                options: .regularExpression)
+        }
     }
 }
 

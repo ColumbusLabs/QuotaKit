@@ -11,6 +11,4 @@ extension SettingsStore {
             self.logSecretUpdate(provider: .openrouter, field: "apiKey", value: newValue)
         }
     }
-
-    func ensureOpenRouterAPITokenLoaded() {}
 }

@@ -29,7 +29,6 @@ struct OpenRouterProviderImplementation: ProviderImplementation {
         if OpenRouterSettingsReader.apiToken(environment: context.environment) != nil {
             return true
         }
-        context.settings.ensureOpenRouterAPITokenLoaded()
         return !context.settings.openRouterAPIToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
@@ -50,7 +49,7 @@ struct OpenRouterProviderImplementation: ProviderImplementation {
                 binding: context.stringBinding(\.openRouterAPIToken),
                 actions: [],
                 isVisible: nil,
-                onActivate: { context.settings.ensureOpenRouterAPITokenLoaded() }),
+                onActivate: nil),
         ]
     }
 }

@@ -36,7 +36,7 @@ until the session is invalid, to avoid repeated Keychain prompts.
 | Amp | Web settings page via browser cookies (`web`). |
 | Warp | API token (config/env) → GraphQL request limits (`api`). |
 | Ollama | Web settings page via browser cookies (`web`). |
-| OpenRouter | API token (Keychain/env) → credits API (`api`). |
+| OpenRouter | API token (config/env override) → credits API (`api`). |
 
 ## Codex
 - Web dashboard (when enabled): `https://chatgpt.com/codex/settings/usage` via WebView + browser cookies.
@@ -156,7 +156,7 @@ until the session is invalid, to avoid repeated Keychain prompts.
 - Details: `docs/ollama.md`.
 
 ## OpenRouter
-- API token from Keychain or `OPENROUTER_API_KEY` env var.
+- API token from `~/.codexbar/config.json` (`providerConfig.openrouter.apiKey`) or `OPENROUTER_API_KEY` env var.
 - Credits endpoint: `https://openrouter.ai/api/v1/credits` (returns total credits purchased and usage).
 - Key info endpoint: `https://openrouter.ai/api/v1/key` (returns rate limit info).
 - Override base URL with `OPENROUTER_API_URL` env var.
