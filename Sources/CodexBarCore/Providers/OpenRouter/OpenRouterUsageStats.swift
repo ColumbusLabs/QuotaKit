@@ -99,7 +99,7 @@ extension OpenRouterUsageSnapshot {
             usedPercent: usedPercent,
             windowMinutes: nil,
             resetsAt: nil,
-            resetDescription: "Credits")
+            resetDescription: nil)
 
         // Format balance for identity display
         let balanceStr = String(format: "$%.2f", balance)
@@ -205,7 +205,13 @@ public struct OpenRouterUsageFetcher: Sendable {
                     timeoutSeconds: timeout)
             }
             group.addTask {
-                try? await Task.sleep(nanoseconds: timeoutNanoseconds)
+                do {
+                    try await Task.sleep(nanoseconds: timeoutNanoseconds)
+                } catch {
+                    // Cancelled because the /key request finished first.
+                    return nil
+                }
+                guard !Task.isCancelled else { return nil }
                 Self.log.debug("OpenRouter /key enrichment timed out after \(timeout)s")
                 return nil
             }
