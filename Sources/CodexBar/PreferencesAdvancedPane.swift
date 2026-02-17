@@ -80,9 +80,18 @@ struct AdvancedPane: View {
                 SettingsSection(
                     title: "Keychain access",
                     caption: """
-                    Disable all Keychain reads and writes. Browser cookie import is unavailable; paste Cookie \
-                    headers manually in Providers.
+                    Control how CodexBar uses Keychain. Disabling Keychain access entirely also disables browser \
+                    cookie import.
                     """) {
+                        PreferenceToggleRow(
+                            title: "Claude creds without prompts (experimental)",
+                            subtitle: self.settings.debugDisableKeychainAccess
+                                ? "Inactive while \"Disable Keychain access\" is enabled."
+                                : "Use /usr/bin/security to read Claude credentials and avoid CodexBar " +
+                                "keychain prompts. Claude Keychain prompt policy applies only in " +
+                                "Security.framework mode.",
+                            binding: self.$settings.claudeOAuthPromptFreeCredentialsEnabled)
+                            .disabled(self.settings.debugDisableKeychainAccess)
                         PreferenceToggleRow(
                             title: "Disable Keychain access",
                             subtitle: "Prevents any Keychain access while enabled.",
