@@ -123,6 +123,7 @@ extension OpenRouterUsageSnapshot {
 /// Fetches usage stats from the OpenRouter API
 public struct OpenRouterUsageFetcher: Sendable {
     private static let log = CodexBarLog.logger(LogCategories.openRouterUsage)
+    private static let rateLimitTimeoutSeconds: TimeInterval = 1.0
 
     /// Fetches credits usage from OpenRouter using the provided API key
     public static func fetchUsage(
@@ -162,8 +163,12 @@ public struct OpenRouterUsageFetcher: Sendable {
             let decoder = JSONDecoder()
             let creditsResponse = try decoder.decode(OpenRouterCreditsResponse.self, from: data)
 
-            // Optionally fetch rate limit info from /key endpoint
-            let rateLimit = await fetchRateLimit(apiKey: apiKey, baseURL: baseURL)
+            // Optionally fetch rate limit info from /key endpoint, but keep this bounded so
+            // credits updates are not blocked by a slow or unavailable secondary endpoint.
+            let rateLimit = await fetchRateLimit(
+                apiKey: apiKey,
+                baseURL: baseURL,
+                timeoutSeconds: Self.rateLimitTimeoutSeconds)
 
             return OpenRouterUsageSnapshot(
                 totalCredits: creditsResponse.data.totalCredits,
@@ -184,13 +189,48 @@ public struct OpenRouterUsageFetcher: Sendable {
     }
 
     /// Fetches rate limit info from /key endpoint
-    private static func fetchRateLimit(apiKey: String, baseURL: URL) async -> OpenRouterRateLimit? {
+    private static func fetchRateLimit(
+        apiKey: String,
+        baseURL: URL,
+        timeoutSeconds: TimeInterval) async -> OpenRouterRateLimit?
+    {
+        let timeout = max(0.1, timeoutSeconds)
+        let timeoutNanoseconds = UInt64(timeout * 1_000_000_000)
+
+        return await withTaskGroup(of: OpenRouterRateLimit?.self) { group in
+            group.addTask {
+                await Self.fetchRateLimitRequest(
+                    apiKey: apiKey,
+                    baseURL: baseURL,
+                    timeoutSeconds: timeout)
+            }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: timeoutNanoseconds)
+                Self.log.debug("OpenRouter /key enrichment timed out after \(timeout)s")
+                return nil
+            }
+
+            let result = await group.next()
+            group.cancelAll()
+            if let result {
+                return result
+            }
+            return nil
+        }
+    }
+
+    private static func fetchRateLimitRequest(
+        apiKey: String,
+        baseURL: URL,
+        timeoutSeconds: TimeInterval) async -> OpenRouterRateLimit?
+    {
         let keyURL = baseURL.appendingPathComponent("key")
 
         var request = URLRequest(url: keyURL)
         request.httpMethod = "GET"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = timeoutSeconds
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)

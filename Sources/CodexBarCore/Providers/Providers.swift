@@ -22,8 +22,8 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case amp
     case ollama
     case synthetic
-    case openrouter
     case warp
+    case openrouter
 }
 
 // swiftformat:enable sortDeclarations
@@ -48,8 +48,8 @@ public enum IconStyle: Sendable, CaseIterable {
     case amp
     case ollama
     case synthetic
-    case openrouter
     case warp
+    case openrouter
     case combined
 }
 
