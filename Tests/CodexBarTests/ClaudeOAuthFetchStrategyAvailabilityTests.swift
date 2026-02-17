@@ -242,7 +242,7 @@ struct ClaudeOAuthFetchStrategyAvailabilityTests {
     }
 
     @Test
-    func autoMode_experimental_reader_securityFailure_keepsAvailabilityForNoUIPresenceCheck() async {
+    func autoMode_experimental_reader_securityFailure_blocksAvailabilityWhenStoredPolicyBlocksFallback() async {
         let context = self.makeContext(sourceMode: .auto)
         let strategy = ClaudeOAuthFetchStrategy()
         let fallbackData = Data("""
@@ -292,7 +292,7 @@ struct ClaudeOAuthFetchStrategyAvailabilityTests {
             }
         }
 
-        #expect(available == true)
+        #expect(available == false)
     }
 }
 #endif
