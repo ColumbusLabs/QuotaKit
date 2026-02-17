@@ -270,6 +270,45 @@ struct StatusItemAnimationTests {
     }
 
     @Test
+    func menuBarPercentAutomaticPrefersRateLimitForKimi() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-kimi-automatic"),
+            zaiTokenStore: NoopZaiTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .kimi
+        settings.setMenuBarMetricPreference(.automatic, for: .kimi)
+
+        let registry = ProviderRegistry.shared
+        if let kimiMeta = registry.metadata[.kimi] {
+            settings.setProviderEnabled(provider: .kimi, metadata: kimiMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 12, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 42, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date())
+
+        store._setSnapshotForTesting(snapshot, provider: .kimi)
+        store._setErrorForTesting(nil, provider: .kimi)
+
+        let window = controller.menuBarMetricWindow(for: .kimi, snapshot: snapshot)
+
+        #expect(window?.usedPercent == 42)
+    }
+
+    @Test
     func menuBarPercentUsesAverageForGemini() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "StatusItemAnimationTests-average"),
