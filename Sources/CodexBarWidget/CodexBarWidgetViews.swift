@@ -570,6 +570,7 @@ private struct UsageHistoryChart: View {
 }
 
 enum WidgetColors {
+    // swiftlint:disable:next cyclomatic_complexity
     static func color(for provider: UsageProvider) -> Color {
         switch provider {
         case .codex:

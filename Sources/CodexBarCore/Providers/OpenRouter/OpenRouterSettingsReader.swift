@@ -7,7 +7,7 @@ public enum OpenRouterSettingsReader {
 
     /// Returns the API token from environment if present and non-empty
     public static func apiToken(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
-        cleaned(environment[envKey])
+        self.cleaned(environment[self.envKey])
     }
 
     /// Returns the API URL, defaulting to production endpoint

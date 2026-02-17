@@ -39,6 +39,7 @@ enum ProviderChoice: String, AppEnum {
         }
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     init?(provider: UsageProvider) {
         switch provider {
         case .codex: self = .codex

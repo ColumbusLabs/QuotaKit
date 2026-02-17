@@ -22,13 +22,13 @@ public struct OpenRouterCreditsData: Decodable, Sendable {
 
     /// Remaining credits (total - usage)
     public var balance: Double {
-        max(0, totalCredits - totalUsage)
+        max(0, self.totalCredits - self.totalUsage)
     }
 
     /// Usage percentage (0-100)
     public var usedPercent: Double {
-        guard totalCredits > 0 else { return 0 }
-        return min(100, (totalUsage / totalCredits) * 100)
+        guard self.totalCredits > 0 else { return 0 }
+        return min(100, (self.totalUsage / self.totalCredits) * 100)
     }
 }
 
@@ -88,7 +88,7 @@ public struct OpenRouterUsageSnapshot: Sendable {
 
     /// Returns true if this snapshot contains valid data
     public var isValid: Bool {
-        totalCredits >= 0
+        self.totalCredits >= 0
     }
 }
 
@@ -115,7 +115,7 @@ extension OpenRouterUsageSnapshot {
             tertiary: nil,
             providerCost: nil,
             openRouterUsage: self,
-            updatedAt: updatedAt,
+            updatedAt: self.updatedAt,
             identity: identity)
     }
 }
