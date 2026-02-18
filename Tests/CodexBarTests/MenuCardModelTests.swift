@@ -519,39 +519,6 @@ struct MenuCardModelTests {
     }
 
     @Test
-    func openRouterModel_legacyCachedSnapshotWithoutOpenRouterUsageShowsUnavailableNote() throws {
-        let now = Date()
-        let metadata = try #require(ProviderDefaults.metadata[.openrouter])
-        let snapshot = UsageSnapshot(
-            primary: nil,
-            secondary: nil,
-            updatedAt: now)
-
-        let model = UsageMenuCardView.Model.make(.init(
-            provider: .openrouter,
-            metadata: metadata,
-            snapshot: snapshot,
-            credits: nil,
-            creditsError: nil,
-            dashboard: nil,
-            dashboardError: nil,
-            tokenSnapshot: nil,
-            tokenError: nil,
-            account: AccountInfo(email: nil, plan: nil),
-            isRefreshing: false,
-            lastError: nil,
-            usageBarsShowUsed: false,
-            resetTimeDisplayStyle: .countdown,
-            tokenCostUsageEnabled: false,
-            showOptionalCreditsAndExtraUsage: true,
-            hidePersonalInfo: false,
-            now: now))
-
-        #expect(model.metrics.isEmpty)
-        #expect(model.usageNotes == ["API key limit unavailable right now"])
-    }
-
-    @Test
     func hidesEmailWhenPersonalInfoHidden() throws {
         let now = Date()
         let identity = ProviderIdentitySnapshot(

@@ -263,7 +263,9 @@ extension StatusItemController {
            let brand = ProviderBrandIcon.image(for: primaryProvider)
         {
             self.setButtonTitle(nil, for: button)
-            self.setButtonImage(brand, for: button)
+            self.setButtonImage(
+                Self.brandImageWithStatusOverlay(brand: brand, statusIndicator: statusIndicator),
+                for: button)
             return
         }
 
@@ -307,7 +309,11 @@ extension StatusItemController {
            let brand = ProviderBrandIcon.image(for: provider)
         {
             self.setButtonTitle(nil, for: button)
-            self.setButtonImage(brand, for: button)
+            self.setButtonImage(
+                Self.brandImageWithStatusOverlay(
+                    brand: brand,
+                    statusIndicator: self.store.statusIndicator(for: provider)),
+                for: button)
             return
         }
         var primary = showUsed ? snapshot?.primary?.usedPercent : snapshot?.primary?.remainingPercent
@@ -534,6 +540,46 @@ extension StatusItemController {
             return false
         }
         return openRouterUsage.keyQuotaStatus == .noLimitConfigured
+    }
+
+    nonisolated static func brandImageWithStatusOverlay(
+        brand: NSImage,
+        statusIndicator: ProviderStatusIndicator) -> NSImage
+    {
+        guard statusIndicator.hasIssue else { return brand }
+
+        let image = NSImage(size: brand.size)
+        image.lockFocus()
+        brand.draw(
+            at: .zero,
+            from: NSRect(origin: .zero, size: brand.size),
+            operation: .sourceOver,
+            fraction: 1.0)
+        Self.drawBrandStatusOverlay(indicator: statusIndicator, size: brand.size)
+        image.unlockFocus()
+        image.isTemplate = brand.isTemplate
+        return image
+    }
+
+    private nonisolated static func drawBrandStatusOverlay(indicator: ProviderStatusIndicator, size: NSSize) {
+        guard indicator.hasIssue else { return }
+
+        let color = NSColor.labelColor
+        switch indicator {
+        case .minor, .maintenance:
+            let dotSize = CGSize(width: 4, height: 4)
+            let dotOrigin = CGPoint(x: size.width - dotSize.width - 2, y: 2)
+            color.setFill()
+            NSBezierPath(ovalIn: CGRect(origin: dotOrigin, size: dotSize)).fill()
+        case .major, .critical, .unknown:
+            color.setFill()
+            let lineRect = CGRect(x: size.width - 6, y: 4, width: 2, height: 6)
+            NSBezierPath(roundedRect: lineRect, xRadius: 1, yRadius: 1).fill()
+            let dotRect = CGRect(x: size.width - 6, y: 2, width: 2, height: 2)
+            NSBezierPath(ovalIn: dotRect).fill()
+        case .none:
+            break
+        }
     }
 
     private func advanceAnimationPattern() {

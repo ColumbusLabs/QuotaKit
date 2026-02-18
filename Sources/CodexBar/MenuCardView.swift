@@ -688,24 +688,20 @@ extension UsageMenuCardView.Model {
     }
 
     private static func usageNotes(provider: UsageProvider, snapshot: UsageSnapshot?) -> [String] {
-        guard provider == .openrouter else {
+        guard provider == .openrouter,
+              let openRouter = snapshot?.openRouterUsage
+        else {
             return []
         }
-        guard let snapshot else { return [] }
-        if let openRouter = snapshot.openRouterUsage {
-            switch openRouter.keyQuotaStatus {
-            case .available:
-                return []
-            case .noLimitConfigured:
-                return ["No limit set for the API key"]
-            case .unavailable:
-                return ["API key limit unavailable right now"]
-            }
-        }
-        if snapshot.primary == nil {
+
+        switch openRouter.keyQuotaStatus {
+        case .available:
+            return []
+        case .noLimitConfigured:
+            return ["No limit set for the API key"]
+        case .unavailable:
             return ["API key limit unavailable right now"]
         }
-        return []
     }
 
     private static func email(
