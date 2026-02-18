@@ -259,6 +259,14 @@ extension StatusItemController {
             return
         }
 
+        if Self.shouldUseOpenRouterBrandFallback(provider: primaryProvider, snapshot: snapshot),
+           let brand = ProviderBrandIcon.image(for: primaryProvider)
+        {
+            self.setButtonTitle(nil, for: button)
+            self.setButtonImage(brand, for: button)
+            return
+        }
+
         self.setButtonTitle(nil, for: button)
         if let morphProgress {
             let image = IconRenderer.makeMorphIcon(progress: morphProgress, style: style)
@@ -292,6 +300,14 @@ extension StatusItemController {
             let displayText = self.menuBarDisplayText(for: provider, snapshot: snapshot)
             self.setButtonImage(brand, for: button)
             self.setButtonTitle(displayText, for: button)
+            return
+        }
+
+        if Self.shouldUseOpenRouterBrandFallback(provider: provider, snapshot: snapshot),
+           let brand = ProviderBrandIcon.image(for: provider)
+        {
+            self.setButtonTitle(nil, for: button)
+            self.setButtonImage(brand, for: button)
             return
         }
         var primary = showUsed ? snapshot?.primary?.usedPercent : snapshot?.primary?.remainingPercent
@@ -506,6 +522,18 @@ extension StatusItemController {
         } else {
             UsageProvider.allCases.forEach { self.applyIcon(for: $0, phase: self.animationPhase) }
         }
+    }
+
+    nonisolated static func shouldUseOpenRouterBrandFallback(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> Bool
+    {
+        guard provider == .openrouter,
+              let openRouterUsage = snapshot?.openRouterUsage
+        else {
+            return false
+        }
+        return openRouterUsage.keyQuotaStatus == .noLimitConfigured
     }
 
     private func advanceAnimationPattern() {
