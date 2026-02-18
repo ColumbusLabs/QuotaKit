@@ -312,6 +312,7 @@ public struct OpenRouterUsageFetcher: Sendable {
         }
     }
 
+    #if DEBUG
     static func _sanitizedResponseBodySummaryForTesting(_ body: String) -> String {
         self.sanitizedResponseBodySummary(Data(body.utf8))
     }
@@ -319,6 +320,7 @@ public struct OpenRouterUsageFetcher: Sendable {
     static func _redactedDebugResponseBodyForTesting(_ body: String) -> String? {
         self.redactedDebugResponseBody(Data(body.utf8))
     }
+    #endif
 }
 
 /// Errors that can occur during OpenRouter usage fetching
