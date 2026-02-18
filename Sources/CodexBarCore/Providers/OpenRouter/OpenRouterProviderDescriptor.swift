@@ -27,7 +27,7 @@ public enum OpenRouterProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .openrouter,
                 iconResourceName: "ProviderIcon-openrouter",
-                color: ProviderColor(red: 111 / 255, green: 66 / 255, blue: 193 / 255)),
+                color: ProviderColor(red: 100 / 255, green: 103 / 255, blue: 242 / 255)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "OpenRouter cost summary is not yet supported." }),
