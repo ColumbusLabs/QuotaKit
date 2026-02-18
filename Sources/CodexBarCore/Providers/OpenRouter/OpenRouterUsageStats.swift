@@ -124,9 +124,13 @@ extension OpenRouterUsageSnapshot {
 public struct OpenRouterUsageFetcher: Sendable {
     private static let log = CodexBarLog.logger(LogCategories.openRouterUsage)
     private static let rateLimitTimeoutSeconds: TimeInterval = 1.0
+    private static let creditsRequestTimeoutSeconds: TimeInterval = 15
     private static let maxErrorBodyLength = 240
     private static let maxDebugErrorBodyLength = 2000
     private static let debugFullErrorBodiesEnvKey = "CODEXBAR_DEBUG_OPENROUTER_ERROR_BODIES"
+    private static let httpRefererEnvKey = "OPENROUTER_HTTP_REFERER"
+    private static let clientTitleEnvKey = "OPENROUTER_X_TITLE"
+    private static let defaultClientTitle = "CodexBar"
 
     /// Fetches credits usage from OpenRouter using the provided API key
     public static func fetchUsage(
@@ -144,6 +148,12 @@ public struct OpenRouterUsageFetcher: Sendable {
         request.httpMethod = "GET"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = Self.creditsRequestTimeoutSeconds
+        if let referer = Self.sanitizedHeaderValue(environment[self.httpRefererEnvKey]) {
+            request.setValue(referer, forHTTPHeaderField: "HTTP-Referer")
+        }
+        let title = Self.sanitizedHeaderValue(environment[self.clientTitleEnvKey]) ?? Self.defaultClientTitle
+        request.setValue(title, forHTTPHeaderField: "X-Title")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -153,7 +163,9 @@ public struct OpenRouterUsageFetcher: Sendable {
 
         guard httpResponse.statusCode == 200 else {
             let errorSummary = LogRedactor.redact(Self.sanitizedResponseBodySummary(data))
-            if Self.debugFullErrorBodiesEnabled, let debugBody = Self.redactedDebugResponseBody(data) {
+            if Self.debugFullErrorBodiesEnabled(environment: environment),
+               let debugBody = Self.redactedDebugResponseBody(data)
+            {
                 Self.log.debug("OpenRouter non-200 body (redacted): \(LogRedactor.redact(debugBody))")
             }
             Self.log.error("OpenRouter API returned \(httpResponse.statusCode): \(errorSummary)")
@@ -257,8 +269,12 @@ public struct OpenRouterUsageFetcher: Sendable {
         }
     }
 
-    private static var debugFullErrorBodiesEnabled: Bool {
-        ProcessInfo.processInfo.environment[self.debugFullErrorBodiesEnvKey] == "1"
+    private static func debugFullErrorBodiesEnabled(environment: [String: String]) -> Bool {
+        environment[self.debugFullErrorBodiesEnvKey] == "1"
+    }
+
+    private static func sanitizedHeaderValue(_ raw: String?) -> String? {
+        OpenRouterSettingsReader.cleaned(raw)
     }
 
     private static func sanitizedResponseBodySummary(_ data: Data) -> String {

@@ -72,6 +72,45 @@ struct OpenRouterUsageStatsTests {
         }
     }
 
+    @Test
+    func fetchUsage_setsCreditsTimeoutAndClientHeaders() async throws {
+        let registered = URLProtocol.registerClass(OpenRouterStubURLProtocol.self)
+        defer {
+            if registered {
+                URLProtocol.unregisterClass(OpenRouterStubURLProtocol.self)
+            }
+            OpenRouterStubURLProtocol.handler = nil
+        }
+
+        OpenRouterStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            switch url.path {
+            case "/api/v1/credits":
+                #expect(request.timeoutInterval == 15)
+                #expect(request.value(forHTTPHeaderField: "HTTP-Referer") == "https://codexbar.example")
+                #expect(request.value(forHTTPHeaderField: "X-Title") == "CodexBar QA")
+                let body = #"{"data":{"total_credits":100,"total_usage":40}}"#
+                return Self.makeResponse(url: url, body: body, statusCode: 200)
+            case "/api/v1/key":
+                let body = #"{"data":{"rate_limit":{"requests":120,"interval":"10s"}}}"#
+                return Self.makeResponse(url: url, body: body, statusCode: 200)
+            default:
+                return Self.makeResponse(url: url, body: "{}", statusCode: 404)
+            }
+        }
+
+        let usage = try await OpenRouterUsageFetcher.fetchUsage(
+            apiKey: "sk-or-v1-test",
+            environment: [
+                "OPENROUTER_API_URL": "https://openrouter.test/api/v1",
+                "OPENROUTER_HTTP_REFERER": " https://codexbar.example ",
+                "OPENROUTER_X_TITLE": "CodexBar QA",
+            ])
+
+        #expect(usage.totalCredits == 100)
+        #expect(usage.totalUsage == 40)
+    }
+
     private static func makeResponse(
         url: URL,
         body: String,
