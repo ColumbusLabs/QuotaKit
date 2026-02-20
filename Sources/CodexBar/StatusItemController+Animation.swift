@@ -357,7 +357,7 @@ extension StatusItemController {
         if provider == .codex,
            self.settings.menuBarDisplayMode == .percent,
            !self.settings.usageBarsShowUsed,
-           (sessionExhausted || weeklyExhausted),
+           sessionExhausted || weeklyExhausted,
            let creditsRemaining = self.store.credits?.remaining,
            creditsRemaining > 0
         {
