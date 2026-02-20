@@ -32,7 +32,7 @@ final class NavigationDelegate: NSObject, WKNavigationDelegate {
         self.completeOnce(.failure(error))
     }
 
-    static func shouldIgnoreNavigationError(_ error: Error) -> Bool {
+    nonisolated static func shouldIgnoreNavigationError(_ error: Error) -> Bool {
         let nsError = error as NSError
         return nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled
     }
