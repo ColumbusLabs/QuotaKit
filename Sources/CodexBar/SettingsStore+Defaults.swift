@@ -188,6 +188,37 @@ extension SettingsStore {
         }
     }
 
+    var claudeOAuthKeychainPromptMode: ClaudeOAuthKeychainPromptMode {
+        get {
+            let raw = self.defaultsState.claudeOAuthKeychainPromptModeRaw
+            return ClaudeOAuthKeychainPromptMode(rawValue: raw ?? "") ?? .onlyOnUserAction
+        }
+        set {
+            self.defaultsState.claudeOAuthKeychainPromptModeRaw = newValue.rawValue
+            self.userDefaults.set(newValue.rawValue, forKey: "claudeOAuthKeychainPromptMode")
+        }
+    }
+
+    var claudeOAuthKeychainReadStrategy: ClaudeOAuthKeychainReadStrategy {
+        get {
+            let raw = self.defaultsState.claudeOAuthKeychainReadStrategyRaw
+            return ClaudeOAuthKeychainReadStrategy(rawValue: raw ?? "") ?? .securityFramework
+        }
+        set {
+            self.defaultsState.claudeOAuthKeychainReadStrategyRaw = newValue.rawValue
+            self.userDefaults.set(newValue.rawValue, forKey: "claudeOAuthKeychainReadStrategy")
+        }
+    }
+
+    var claudeOAuthPromptFreeCredentialsEnabled: Bool {
+        get { self.claudeOAuthKeychainReadStrategy == .securityCLIExperimental }
+        set {
+            self.claudeOAuthKeychainReadStrategy = newValue
+                ? .securityCLIExperimental
+                : .securityFramework
+        }
+    }
+
     var claudeWebExtrasEnabled: Bool {
         get { self.claudeWebExtrasEnabledRaw }
         set { self.claudeWebExtrasEnabledRaw = newValue }

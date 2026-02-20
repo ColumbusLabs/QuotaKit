@@ -6,6 +6,19 @@ import Testing
 @MainActor
 @Suite
 struct StatusItemAnimationTests {
+    private func maxAlpha(in rep: NSBitmapImageRep) -> CGFloat {
+        var maxAlpha: CGFloat = 0
+        for x in 0..<rep.pixelsWide {
+            for y in 0..<rep.pixelsHigh {
+                let alpha = (rep.colorAt(x: x, y: y) ?? .clear).alphaComponent
+                if alpha > maxAlpha {
+                    maxAlpha = alpha
+                }
+            }
+        }
+        return maxAlpha
+    }
+
     private func makeStatusBarForTesting() -> NSStatusBar {
         let env = ProcessInfo.processInfo.environment
         if env["GITHUB_ACTIONS"] == "true" || env["CI"] == "true" {
@@ -122,6 +135,112 @@ struct StatusItemAnimationTests {
 
         let alpha = (rep.colorAt(x: 18, y: 12) ?? .clear).alphaComponent
         #expect(alpha > 0.05)
+    }
+
+    @Test
+    func warpNoBonusLayoutIsPreservedInShowUsedModeWhenBonusIsExhausted() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-warp-no-bonus-used"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = false
+        settings.menuBarShowsBrandIconWithPercent = false
+        settings.usageBarsShowUsed = true
+
+        let registry = ProviderRegistry.shared
+        if let warpMeta = registry.metadata[.warp] {
+            settings.setProviderEnabled(provider: .warp, metadata: warpMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        // Primary used=10%. Bonus exhausted: used=100% (remaining=0%).
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 10, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 100, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date())
+        store._setSnapshotForTesting(snapshot, provider: .warp)
+        store._setErrorForTesting(nil, provider: .warp)
+
+        controller.applyIcon(for: .warp, phase: nil)
+
+        guard let image = controller.statusItems[.warp]?.button?.image else {
+            #expect(Bool(false))
+            return
+        }
+        let rep = image.representations.compactMap { $0 as? NSBitmapImageRep }.first(where: {
+            $0.pixelsWide == 36 && $0.pixelsHigh == 36
+        })
+        #expect(rep != nil)
+        guard let rep else { return }
+
+        // In the Warp "no bonus/exhausted bonus" layout, the bottom bar is a dimmed track.
+        // A pixel near the right side of the bottom bar should remain subdued (not fully opaque).
+        let alpha = (rep.colorAt(x: 25, y: 9) ?? .clear).alphaComponent
+        #expect(alpha < 0.6)
+    }
+
+    @Test
+    func warpBonusLaneIsPreservedInShowUsedModeWhenBonusIsUnused() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-warp-unused-bonus-used"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = false
+        settings.menuBarShowsBrandIconWithPercent = false
+        settings.usageBarsShowUsed = true
+
+        let registry = ProviderRegistry.shared
+        if let warpMeta = registry.metadata[.warp] {
+            settings.setProviderEnabled(provider: .warp, metadata: warpMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        // Bonus exists but is unused: used=0% (remaining=100%).
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 10, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 0, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date())
+        store._setSnapshotForTesting(snapshot, provider: .warp)
+        store._setErrorForTesting(nil, provider: .warp)
+
+        controller.applyIcon(for: .warp, phase: nil)
+
+        guard let image = controller.statusItems[.warp]?.button?.image else {
+            #expect(Bool(false))
+            return
+        }
+        let rep = image.representations.compactMap { $0 as? NSBitmapImageRep }.first(where: {
+            $0.pixelsWide == 36 && $0.pixelsHigh == 36
+        })
+        #expect(rep != nil)
+        guard let rep else { return }
+
+        // When we incorrectly treat "0 used" as "no bonus", the Warp branch makes the top bar full (100%).
+        // A pixel near the right side of the top bar should remain in the track-only range for 10% usage.
+        let alpha = (rep.colorAt(x: 31, y: 25) ?? .clear).alphaComponent
+        #expect(alpha < 0.6)
     }
 
     @Test
@@ -358,5 +477,39 @@ struct StatusItemAnimationTests {
             .replacingOccurrences(of: " left", with: "")
 
         #expect(displayText == expected)
+    }
+
+    @Test
+    func brandImageWithStatusOverlayReturnsOriginalImageWhenNoIssue() {
+        let brand = NSImage(size: NSSize(width: 16, height: 16))
+        brand.isTemplate = true
+
+        let output = StatusItemController.brandImageWithStatusOverlay(brand: brand, statusIndicator: .none)
+
+        #expect(output === brand)
+    }
+
+    @Test
+    func brandImageWithStatusOverlayDrawsIssueMark() throws {
+        let size = NSSize(width: 16, height: 16)
+        let brand = NSImage(size: size)
+        brand.lockFocus()
+        NSColor.clear.setFill()
+        NSBezierPath(rect: NSRect(origin: .zero, size: size)).fill()
+        brand.unlockFocus()
+        brand.isTemplate = true
+
+        let baselineData = try #require(brand.tiffRepresentation)
+        let baselineRep = try #require(NSBitmapImageRep(data: baselineData))
+        let baselineAlpha = self.maxAlpha(in: baselineRep)
+
+        let output = StatusItemController.brandImageWithStatusOverlay(brand: brand, statusIndicator: .major)
+
+        #expect(output !== brand)
+        let outputData = try #require(output.tiffRepresentation)
+        let outputRep = try #require(NSBitmapImageRep(data: outputData))
+        let outputAlpha = self.maxAlpha(in: outputRep)
+        #expect(baselineAlpha < 0.01)
+        #expect(outputAlpha > 0.01)
     }
 }

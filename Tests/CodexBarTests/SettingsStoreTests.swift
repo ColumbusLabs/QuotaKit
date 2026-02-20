@@ -363,7 +363,10 @@ struct SettingsStoreTests {
             .jetbrains,
             .kimik2,
             .amp,
+            .ollama,
             .synthetic,
+            .warp,
+            .openrouter,
         ])
 
         // Move one provider; ensure it's persisted across instances.

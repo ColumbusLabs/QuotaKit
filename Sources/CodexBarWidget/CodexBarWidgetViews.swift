@@ -274,7 +274,10 @@ private struct ProviderSwitchChip: View {
         case .kimi: "Kimi"
         case .kimik2: "Kimi K2"
         case .amp: "Amp"
+        case .ollama: "Ollama"
         case .synthetic: "Synthetic"
+        case .openrouter: "OpenRouter"
+        case .warp: "Warp"
         }
     }
 }
@@ -567,6 +570,7 @@ private struct UsageHistoryChart: View {
 }
 
 enum WidgetColors {
+    // swiftlint:disable:next cyclomatic_complexity
     static func color(for provider: UsageProvider) -> Color {
         switch provider {
         case .codex:
@@ -603,8 +607,14 @@ enum WidgetColors {
             Color(red: 76 / 255, green: 0 / 255, blue: 255 / 255) // Kimi K2 purple
         case .amp:
             Color(red: 220 / 255, green: 38 / 255, blue: 38 / 255) // Amp red
+        case .ollama:
+            Color(red: 32 / 255, green: 32 / 255, blue: 32 / 255) // Ollama charcoal
         case .synthetic:
             Color(red: 20 / 255, green: 20 / 255, blue: 20 / 255) // Synthetic charcoal
+        case .openrouter:
+            Color(red: 111 / 255, green: 66 / 255, blue: 193 / 255) // OpenRouter purple
+        case .warp:
+            Color(red: 147 / 255, green: 139 / 255, blue: 180 / 255)
         }
     }
 }

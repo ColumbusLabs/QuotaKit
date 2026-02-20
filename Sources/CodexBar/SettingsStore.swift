@@ -203,6 +203,8 @@ extension SettingsStore {
         let hidePersonalInfo = userDefaults.object(forKey: "hidePersonalInfo") as? Bool ?? false
         let randomBlinkEnabled = userDefaults.object(forKey: "randomBlinkEnabled") as? Bool ?? false
         let menuBarShowsHighestUsage = userDefaults.object(forKey: "menuBarShowsHighestUsage") as? Bool ?? false
+        let claudeOAuthKeychainPromptModeRaw = userDefaults.string(forKey: "claudeOAuthKeychainPromptMode")
+        let claudeOAuthKeychainReadStrategyRaw = userDefaults.string(forKey: "claudeOAuthKeychainReadStrategy")
         let claudeWebExtrasEnabledRaw = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false
         let creditsExtrasDefault = userDefaults.object(forKey: "showOptionalCreditsAndExtraUsage") as? Bool
         let showOptionalCreditsAndExtraUsage = creditsExtrasDefault ?? true
@@ -237,6 +239,8 @@ extension SettingsStore {
             hidePersonalInfo: hidePersonalInfo,
             randomBlinkEnabled: randomBlinkEnabled,
             menuBarShowsHighestUsage: menuBarShowsHighestUsage,
+            claudeOAuthKeychainPromptModeRaw: claudeOAuthKeychainPromptModeRaw,
+            claudeOAuthKeychainReadStrategyRaw: claudeOAuthKeychainReadStrategyRaw,
             claudeWebExtrasEnabledRaw: claudeWebExtrasEnabledRaw,
             showOptionalCreditsAndExtraUsage: showOptionalCreditsAndExtraUsage,
             openAIWebAccessEnabled: openAIWebAccessEnabled,

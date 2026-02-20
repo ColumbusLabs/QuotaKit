@@ -2,24 +2,56 @@
 
 ## Unreleased
 ### Highlights
-- Claude OAuth/keychain flows were reworked across a series of follow-up PRs to reduce prompt storms, stabilize background behavior, and make failure modes deterministic (#245, #305, #308, #309). Thanks @manikv12!
+- Add an experimental option to suppress Claude Keychain prompts.
+- Add OpenRouter provider for credit-based usage tracking (#396). Thanks @chountalas!
+- Add Ollama provider, including token-account support in Settings and CLI (#380). Thanks @CryptoSageSnr!
+
+
+### Providers & Usage
+- OpenRouter: add credit tracking, key-quota popup support, token-account labels, fallback status icons, and updated icon/color (#396). Thanks @chountalas!
+- Ollama: add provider support with token-account support in app/CLI, Chrome-default auto cookie import, and manual-cookie mode (#380). Thanks @CryptoSageSnr!
+- Menu: rebuild the merged provider switcher when “Show usage as used” changes so switcher progress updates immediately (#306). Thanks @Flohhhhh!
+- Update Kiro parsing for `kiro-cli` 1.24+ / Q Developer formats and non-managed plan handling (#288). Thanks @kilhyeonjun!
+- OpenCode: surface clearer HTTP errors. Thanks @SalimBinYousuf1!
+- Warp: update API key setup guidance.
+- Fix Claude setup message package name (#376). Thanks @daegwang!
+
+### Claude OAuth & Keychain
+- Add an experimental Claude OAuth Security-CLI reader path and option in settings.
+- Apply stored prompt mode and fallback policy to silent/noninteractive keychain probes.
+- Add cooldown for background OAuth keychain retries.
+- Disable experimental toggle when keychain access is disabled.
+
+### Dev & Tests
+- Run provider fetches and Claude debug OAuth probes off `MainActor`.
+- Split Claude OAuth test overrides and isolate coordinator tests.
+
+
+## 0.18.0-beta.3 — 2026-02-13
+### Highlights
+- Claude OAuth/keychain flows were reworked across a series of follow-up PRs to reduce prompt storms, stabilize background behavior, surface a setting to control prompt policy and make failure modes deterministic (#245, #305, #308, #309, #364). Thanks @manikv12!
 - Claude: harden Claude Code PTY capture for `/usage` and `/status` (prompt automation, safer command palette confirmation, partial UTF-8 handling, and parsing guards against status-bar context meters) (#320).
-- Provider correctness fixes landed for Cursor plan parsing and MiniMax region routing (#240, #234). Thanks @robinebers
-  and @theglove44!
+- New provider: Warp (credits + add-on credits) (#352). Thanks @Kathie-yu!
+- Provider correctness fixes landed for Cursor plan parsing and MiniMax region routing (#240, #234, #344). Thanks @robinebers and @theglove44!
 - Menu bar animation behavior was hardened in merged mode and fallback mode (#283, #291). Thanks @vignesh07 and @Ilakiancs!
 - CI/tooling reliability improved via pinned lint tools, deterministic macOS test execution, and PTY timing test stabilization plus Node 24-ready GitHub Actions upgrades (#292, #312, #290).
 
-### Claude OAuth & Keychain (upgrade-relevant behavior)
-- Claude OAuth creds are cached in CodexBar Keychain. This reduces Keychain prompts until the token expires.
-- If Claude OAuth credentials are present but expired, CodexBar performs at most one delegated refresh handoff to the Claude CLI and one OAuth retry before falling back to Web/CLI in Auto mode.
-- Claude Auto mode keeps Keychain prompts suppressed during background refreshes. Interactive Keychain prompting is only attempted during user-initiated repair flows (e.g. menu open / manual refresh) when cached OAuth is missing/expired/unusable.
-- Claude OAuth-only mode stays strict: OAuth failures do not silently fall back to Web/CLI.
-- Keychain prompting is hardened (cooldowns after explicit denial/cancel/no-access + pre-alert only when interaction is likely) to reduce repeated prompts during refresh.
-- CodexBar syncs its cached OAuth token when the Claude Code Keychain entry changes, so updated auth is picked up without requiring a restart.
+### Claude OAuth & Keychain
+- Claude OAuth creds are cached in CodexBar Keychain to reduce repeated prompts.
+- Prompts can still appear when Claude OAuth credentials are expired, invalid, or missing and re-auth is required.
+- In Auto mode, background refresh keeps prompts suppressed; interactive prompts are limited to user actions (menu open or manual refresh).
+- OAuth-only mode remains strict (no silent Web/CLI fallback); Auto mode may do one delegated CLI refresh + one OAuth retry before falling back.
+- Preferences now expose a Claude Keychain prompt policy (Never / Only on user action / Always allow prompts) under Providers → Claude; if global Keychain access is disabled in Advanced, this control remains visible but inactive.
 
 ### Provider & Usage Fixes
+- Warp: add Warp provider support (credits + add-on credits), configurable via Settings or `WARP_API_KEY`/`WARP_TOKEN` (#352). Thanks @Kathie-yu!
 - Cursor: compute usage against `plan.limit` rather than `breakdown.total` to avoid incorrect limit interpretation (#240). Thanks @robinebers!
 - MiniMax: correct API region URL selection to route requests to the expected regional endpoint (#234). Thanks @theglove44!
+- MiniMax: always show the API region picker and retry the China endpoint when the global host rejects the token to avoid upgrade regressions for users without a persisted region (#344). Thanks @apoorvdarshan!
+- Claude: add Opus 4.6 pricing so token cost scanning tracks USD consumed correctly (#348). Thanks @arandaschimpf!
+- z.ai: handle quota responses with missing token-limit fields, avoid incorrect used-percent calculations, and harden empty-response behavior with safer logging (#346). Thanks @MohamedMohana and @halilertekin!
+- z.ai: fix provider visibility in the menu when enabled with token-account credentials (availability now considers the effective fetch environment).
+- Amp: detect login redirects during usage fetch and fail fast when the session is invalid (#339). Thanks @JosephDoUrden!
 - Resource loading: fix app bundle lookup path to avoid "could not load resource bundle" startup failures (#223). Thanks @validatedev!
 - OpenAI Web dashboard: keep WebView instances cached for reuse to reduce repeated network fetch overhead; tests were updated to avoid network-dependent flakes (#284). Thanks @vignesh07!
 - Token-account precedence: selected token account env injection now correctly overrides provider config `apiKey` values in app and CLI environments. Thanks @arvindcr4!

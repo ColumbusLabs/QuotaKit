@@ -70,7 +70,10 @@ public enum ProviderDescriptorRegistry {
         .jetbrains: JetBrainsProviderDescriptor.descriptor,
         .kimik2: KimiK2ProviderDescriptor.descriptor,
         .amp: AmpProviderDescriptor.descriptor,
+        .ollama: OllamaProviderDescriptor.descriptor,
         .synthetic: SyntheticProviderDescriptor.descriptor,
+        .openrouter: OpenRouterProviderDescriptor.descriptor,
+        .warp: WarpProviderDescriptor.descriptor,
     ]
     private static let bootstrap: Void = {
         for provider in UsageProvider.allCases {

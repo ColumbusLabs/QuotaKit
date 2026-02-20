@@ -21,6 +21,8 @@ extension SettingsStore {
         _ = self.costUsageEnabled
         _ = self.hidePersonalInfo
         _ = self.randomBlinkEnabled
+        _ = self.claudeOAuthKeychainPromptMode
+        _ = self.claudeOAuthKeychainReadStrategy
         _ = self.claudeWebExtrasEnabled
         _ = self.showOptionalCreditsAndExtraUsage
         _ = self.openAIWebAccessEnabled
@@ -36,6 +38,7 @@ extension SettingsStore {
         _ = self.kimiCookieSource
         _ = self.augmentCookieSource
         _ = self.ampCookieSource
+        _ = self.ollamaCookieSource
         _ = self.mergeIcons
         _ = self.switcherShowsIcons
         _ = self.zaiAPIToken
@@ -52,7 +55,9 @@ extension SettingsStore {
         _ = self.kimiK2APIToken
         _ = self.augmentCookieHeader
         _ = self.ampCookieHeader
+        _ = self.ollamaCookieHeader
         _ = self.copilotAPIToken
+        _ = self.warpAPIToken
         _ = self.tokenAccountsByProvider
         _ = self.debugLoadingPattern
         _ = self.selectedMenuProvider

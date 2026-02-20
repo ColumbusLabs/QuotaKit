@@ -193,6 +193,7 @@ final class UsageStore {
     @ObservationIgnored private var pathDebugRefreshTask: Task<Void, Never>?
     @ObservationIgnored var lastKnownSessionRemaining: [UsageProvider: Double] = [:]
     @ObservationIgnored var lastTokenFetchAt: [UsageProvider: Date] = [:]
+    @ObservationIgnored private var hasCompletedInitialRefresh: Bool = false
     @ObservationIgnored private let tokenFetchTTL: TimeInterval = 60 * 60
     @ObservationIgnored private let tokenFetchTimeout: TimeInterval = 10 * 60
 
@@ -395,10 +396,18 @@ final class UsageStore {
     }
 
     func isProviderAvailable(_ provider: UsageProvider) -> Bool {
+        // Availability should mirror the effective fetch environment, including token-account overrides.
+        // Otherwise providers (notably token-account-backed API providers) can fetch successfully but be
+        // hidden from the menu because their credentials are not in ProcessInfo's environment.
+        let environment = ProviderRegistry.makeEnvironment(
+            base: ProcessInfo.processInfo.environment,
+            provider: provider,
+            settings: self.settings,
+            tokenOverride: nil)
         let context = ProviderAvailabilityContext(
             provider: provider,
             settings: self.settings,
-            environment: ProcessInfo.processInfo.environment)
+            environment: environment)
         return ProviderCatalog.implementation(for: provider)?
             .isAvailable(context: context)
             ?? true
@@ -424,30 +433,37 @@ final class UsageStore {
 
     func refresh(forceTokenUsage: Bool = false) async {
         guard !self.isRefreshing else { return }
-        self.isRefreshing = true
-        defer { self.isRefreshing = false }
+        let refreshPhase: ProviderRefreshPhase = self.hasCompletedInitialRefresh ? .regular : .startup
 
-        await withTaskGroup(of: Void.self) { group in
-            for provider in UsageProvider.allCases {
-                group.addTask { await self.refreshProvider(provider) }
-                group.addTask { await self.refreshStatus(provider) }
+        await ProviderRefreshContext.$current.withValue(refreshPhase) {
+            self.isRefreshing = true
+            defer {
+                self.isRefreshing = false
+                self.hasCompletedInitialRefresh = true
             }
-            group.addTask { await self.refreshCreditsIfNeeded() }
+
+            await withTaskGroup(of: Void.self) { group in
+                for provider in UsageProvider.allCases {
+                    group.addTask { await self.refreshProvider(provider) }
+                    group.addTask { await self.refreshStatus(provider) }
+                }
+                group.addTask { await self.refreshCreditsIfNeeded() }
+            }
+
+            // Token-cost usage can be slow; run it outside the refresh group so we don't block menu updates.
+            self.scheduleTokenRefresh(force: forceTokenUsage)
+
+            // OpenAI web scrape depends on the current Codex account email (which can change after login/account
+            // switch). Run this after Codex usage refresh so we don't accidentally scrape with stale credentials.
+            await self.refreshOpenAIDashboardIfNeeded(force: forceTokenUsage)
+
+            if self.openAIDashboardRequiresLogin {
+                await self.refreshProvider(.codex)
+                await self.refreshCreditsIfNeeded()
+            }
+
+            self.persistWidgetSnapshot(reason: "refresh")
         }
-
-        // Token-cost usage can be slow; run it outside the refresh group so we don't block menu updates.
-        self.scheduleTokenRefresh(force: forceTokenUsage)
-
-        // OpenAI web scrape depends on the current Codex account email (which can change after login/account switch).
-        // Run this after Codex usage refresh so we don't accidentally scrape with stale credentials.
-        await self.refreshOpenAIDashboardIfNeeded(force: forceTokenUsage)
-
-        if self.openAIDashboardRequiresLogin {
-            await self.refreshProvider(.codex)
-            await self.refreshCreditsIfNeeded()
-        }
-
-        self.persistWidgetSnapshot(reason: "refresh")
     }
 
     /// For demo/testing: drop the snapshot so the loading animation plays, then restore the last snapshot.
@@ -1134,102 +1150,99 @@ extension UsageStore {
         let keepCLISessionsAlive = self.settings.debugKeepCLISessionsAlive
         let cursorCookieSource = self.settings.cursorCookieSource
         let cursorCookieHeader = self.settings.cursorCookieHeader
+        let ampCookieSource = self.settings.ampCookieSource
+        let ampCookieHeader = self.settings.ampCookieHeader
+        let ollamaCookieSource = self.settings.ollamaCookieSource
+        let ollamaCookieHeader = self.settings.ollamaCookieHeader
+        let processEnvironment = ProcessInfo.processInfo.environment
+        let openRouterConfigToken = self.settings.providerConfig(for: .openrouter)?.sanitizedAPIKey
+        let openRouterHasConfigToken = !(openRouterConfigToken?.trimmingCharacters(in: .whitespacesAndNewlines)
+            .isEmpty ?? true)
+        let openRouterHasEnvToken = OpenRouterSettingsReader.apiToken(environment: processEnvironment) != nil
+        let openRouterEnvironment = ProviderConfigEnvironment.applyAPIKeyOverride(
+            base: processEnvironment,
+            provider: .openrouter,
+            config: self.settings.providerConfig(for: .openrouter))
         return await Task.detached(priority: .utility) { () -> String in
+            let unimplementedDebugLogMessages: [UsageProvider: String] = [
+                .gemini: "Gemini debug log not yet implemented",
+                .antigravity: "Antigravity debug log not yet implemented",
+                .opencode: "OpenCode debug log not yet implemented",
+                .factory: "Droid debug log not yet implemented",
+                .copilot: "Copilot debug log not yet implemented",
+                .vertexai: "Vertex AI debug log not yet implemented",
+                .kiro: "Kiro debug log not yet implemented",
+                .kimi: "Kimi debug log not yet implemented",
+                .kimik2: "Kimi K2 debug log not yet implemented",
+                .jetbrains: "JetBrains AI debug log not yet implemented",
+            ]
+            let text: String
             switch provider {
             case .codex:
-                let raw = await self.codexFetcher.debugRawRateLimits()
-                await MainActor.run { self.probeLogs[.codex] = raw }
-                return raw
+                text = await self.codexFetcher.debugRawRateLimits()
             case .claude:
-                let text = await self.debugClaudeLog(
+                text = await self.debugClaudeLog(
                     claudeWebExtrasEnabled: claudeWebExtrasEnabled,
                     claudeUsageDataSource: claudeUsageDataSource,
                     claudeCookieSource: claudeCookieSource,
                     claudeCookieHeader: claudeCookieHeader,
                     keepCLISessionsAlive: keepCLISessionsAlive)
-                await MainActor.run { self.probeLogs[.claude] = text }
-                return text
             case .zai:
                 let resolution = ProviderTokenResolver.zaiResolution()
                 let hasAny = resolution != nil
                 let source = resolution?.source.rawValue ?? "none"
-                let text = "Z_AI_API_KEY=\(hasAny ? "present" : "missing") source=\(source)"
-                await MainActor.run { self.probeLogs[.zai] = text }
-                return text
+                text = "Z_AI_API_KEY=\(hasAny ? "present" : "missing") source=\(source)"
             case .synthetic:
                 let resolution = ProviderTokenResolver.syntheticResolution()
                 let hasAny = resolution != nil
                 let source = resolution?.source.rawValue ?? "none"
-                let text = "SYNTHETIC_API_KEY=\(hasAny ? "present" : "missing") source=\(source)"
-                await MainActor.run { self.probeLogs[.synthetic] = text }
-                return text
-            case .gemini:
-                let text = "Gemini debug log not yet implemented"
-                await MainActor.run { self.probeLogs[.gemini] = text }
-                return text
-            case .antigravity:
-                let text = "Antigravity debug log not yet implemented"
-                await MainActor.run { self.probeLogs[.antigravity] = text }
-                return text
+                text = "SYNTHETIC_API_KEY=\(hasAny ? "present" : "missing") source=\(source)"
             case .cursor:
-                let text = await self.debugCursorLog(
+                text = await self.debugCursorLog(
                     cursorCookieSource: cursorCookieSource,
                     cursorCookieHeader: cursorCookieHeader)
-                await MainActor.run { self.probeLogs[.cursor] = text }
-                return text
-            case .opencode:
-                let text = "OpenCode debug log not yet implemented"
-                await MainActor.run { self.probeLogs[.opencode] = text }
-                return text
-            case .factory:
-                let text = "Droid debug log not yet implemented"
-                await MainActor.run { self.probeLogs[.factory] = text }
-                return text
-            case .copilot:
-                let text = "Copilot debug log not yet implemented"
-                await MainActor.run { self.probeLogs[.copilot] = text }
-                return text
             case .minimax:
                 let tokenResolution = ProviderTokenResolver.minimaxTokenResolution()
                 let cookieResolution = ProviderTokenResolver.minimaxCookieResolution()
                 let tokenSource = tokenResolution?.source.rawValue ?? "none"
                 let cookieSource = cookieResolution?.source.rawValue ?? "none"
-                let text = "MINIMAX_API_KEY=\(tokenResolution == nil ? "missing" : "present") " +
+                text = "MINIMAX_API_KEY=\(tokenResolution == nil ? "missing" : "present") " +
                     "source=\(tokenSource) MINIMAX_COOKIE=\(cookieResolution == nil ? "missing" : "present") " +
                     "source=\(cookieSource)"
-                await MainActor.run { self.probeLogs[.minimax] = text }
-                return text
-            case .vertexai:
-                let text = "Vertex AI debug log not yet implemented"
-                await MainActor.run { self.probeLogs[.vertexai] = text }
-                return text
-            case .kiro:
-                let text = "Kiro debug log not yet implemented"
-                await MainActor.run { self.probeLogs[.kiro] = text }
-                return text
             case .augment:
-                let text = await self.debugAugmentLog()
-                await MainActor.run { self.probeLogs[.augment] = text }
-                return text
-            case .kimi:
-                let text = "Kimi debug log not yet implemented"
-                await MainActor.run { self.probeLogs[.kimi] = text }
-                return text
-            case .kimik2:
-                let text = "Kimi K2 debug log not yet implemented"
-                await MainActor.run { self.probeLogs[.kimik2] = text }
-                return text
+                text = await self.debugAugmentLog()
             case .amp:
-                let text = await self.debugAmpLog(
-                    ampCookieSource: self.settings.ampCookieSource,
-                    ampCookieHeader: self.settings.ampCookieHeader)
-                await MainActor.run { self.probeLogs[.amp] = text }
-                return text
-            case .jetbrains:
-                let text = "JetBrains AI debug log not yet implemented"
-                await MainActor.run { self.probeLogs[.jetbrains] = text }
-                return text
+                text = await self.debugAmpLog(
+                    ampCookieSource: ampCookieSource,
+                    ampCookieHeader: ampCookieHeader)
+            case .ollama:
+                text = await self.debugOllamaLog(
+                    ollamaCookieSource: ollamaCookieSource,
+                    ollamaCookieHeader: ollamaCookieHeader)
+            case .openrouter:
+                let resolution = ProviderTokenResolver.openRouterResolution(environment: openRouterEnvironment)
+                let hasAny = resolution != nil
+                let source: String = if resolution == nil {
+                    "none"
+                } else if openRouterHasConfigToken, openRouterHasEnvToken {
+                    "settings-config (overrides env)"
+                } else if openRouterHasConfigToken {
+                    "settings-config"
+                } else {
+                    resolution?.source.rawValue ?? "environment"
+                }
+                text = "OPENROUTER_API_KEY=\(hasAny ? "present" : "missing") source=\(source)"
+            case .warp:
+                let resolution = ProviderTokenResolver.warpResolution()
+                let hasAny = resolution != nil
+                let source = resolution?.source.rawValue ?? "none"
+                text = "WARP_API_KEY=\(hasAny ? "present" : "missing") source=\(source)"
+            case .gemini, .antigravity, .opencode, .factory, .copilot, .vertexai, .kiro, .kimi, .kimik2, .jetbrains:
+                text = unimplementedDebugLogMessages[provider] ?? "Debug log not yet implemented"
             }
+
+            await MainActor.run { self.probeLogs[provider] = text }
+            return text
         }.value
     }
 
@@ -1240,7 +1253,14 @@ extension UsageStore {
         claudeCookieHeader: String,
         keepCLISessionsAlive: Bool) async -> String
     {
-        await self.runWithTimeout(seconds: 15) {
+        struct OAuthDebugProbe: Sendable {
+            let hasCredentials: Bool
+            let ownerRawValue: String
+            let sourceRawValue: String
+            let isExpired: Bool
+        }
+
+        return await self.runWithTimeout(seconds: 15) {
             var lines: [String] = []
             let manualHeader = claudeCookieSource == .manual
                 ? CookieHeaderNormalizer.normalize(claudeCookieHeader)
@@ -1250,12 +1270,20 @@ extension UsageStore {
             } else {
                 ClaudeWebAPIFetcher.hasSessionKey(browserDetection: self.browserDetection) { msg in lines.append(msg) }
             }
-            // Don't prompt for keychain access during debug dump
-            let oauthRecord = try? ClaudeOAuthCredentialsStore.loadRecord(
-                allowKeychainPrompt: false,
-                respectKeychainPromptCooldown: true,
-                allowClaudeKeychainRepairWithoutPrompt: false)
-            let hasOAuthCredentials = oauthRecord?.credentials.scopes.contains("user:profile") == true
+            // Run potentially blocking keychain probes off MainActor so debug dumps don't stall UI rendering.
+            let oauthProbe = await Task.detached(priority: .utility) {
+                // Don't prompt for keychain access during debug dump.
+                let oauthRecord = try? ClaudeOAuthCredentialsStore.loadRecord(
+                    allowKeychainPrompt: false,
+                    respectKeychainPromptCooldown: true,
+                    allowClaudeKeychainRepairWithoutPrompt: false)
+                return OAuthDebugProbe(
+                    hasCredentials: oauthRecord?.credentials.scopes.contains("user:profile") == true,
+                    ownerRawValue: oauthRecord?.owner.rawValue ?? "none",
+                    sourceRawValue: oauthRecord?.source.rawValue ?? "none",
+                    isExpired: oauthRecord?.credentials.isExpired ?? false)
+            }.value
+            let hasOAuthCredentials = oauthProbe.hasCredentials
             let hasClaudeBinary = ClaudeOAuthDelegatedRefreshCoordinator.isClaudeCLIAvailable()
             let delegatedCooldownSeconds = ClaudeOAuthDelegatedRefreshCoordinator.cooldownRemainingSeconds()
 
@@ -1263,19 +1291,20 @@ extension UsageStore {
                 selectedDataSource: claudeUsageDataSource,
                 webExtrasEnabled: claudeWebExtrasEnabled,
                 hasWebSession: hasKey,
+                hasCLI: hasClaudeBinary,
                 hasOAuthCredentials: hasOAuthCredentials)
 
             if claudeUsageDataSource == .auto {
-                lines.append("pipeline_order=oauth→web→cli")
+                lines.append("pipeline_order=oauth→cli→web")
                 lines.append("auto_heuristic=\(strategy.dataSource.rawValue)")
             } else {
                 lines.append("strategy=\(strategy.dataSource.rawValue)")
             }
             lines.append("hasSessionKey=\(hasKey)")
             lines.append("hasOAuthCredentials=\(hasOAuthCredentials)")
-            lines.append("oauthCredentialOwner=\(oauthRecord?.owner.rawValue ?? "none")")
-            lines.append("oauthCredentialSource=\(oauthRecord?.source.rawValue ?? "none")")
-            lines.append("oauthCredentialExpired=\(oauthRecord?.credentials.isExpired ?? false)")
+            lines.append("oauthCredentialOwner=\(oauthProbe.ownerRawValue)")
+            lines.append("oauthCredentialSource=\(oauthProbe.sourceRawValue)")
+            lines.append("oauthCredentialExpired=\(oauthProbe.isExpired)")
             lines.append("delegatedRefreshCLIAvailable=\(hasClaudeBinary)")
             lines.append("delegatedRefreshCooldownActive=\(delegatedCooldownSeconds != nil)")
             if let delegatedCooldownSeconds {
@@ -1407,6 +1436,21 @@ extension UsageStore {
                 ? CookieHeaderNormalizer.normalize(ampCookieHeader)
                 : nil
             return await fetcher.debugRawProbe(cookieHeaderOverride: manualHeader)
+        }
+    }
+
+    private func debugOllamaLog(
+        ollamaCookieSource: ProviderCookieSource,
+        ollamaCookieHeader: String) async -> String
+    {
+        await self.runWithTimeout(seconds: 15) {
+            let fetcher = OllamaUsageFetcher(browserDetection: self.browserDetection)
+            let manualHeader = ollamaCookieSource == .manual
+                ? CookieHeaderNormalizer.normalize(ollamaCookieHeader)
+                : nil
+            return await fetcher.debugRawProbe(
+                cookieHeaderOverride: manualHeader,
+                manualCookieMode: ollamaCookieSource == .manual)
         }
     }
 

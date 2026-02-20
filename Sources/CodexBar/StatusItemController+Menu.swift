@@ -52,9 +52,9 @@ extension StatusItemController {
 
         var provider: UsageProvider?
         if self.shouldMergeIcons {
-            self.selectedMenuProvider = self.resolvedMenuProvider()
-            self.lastMenuProvider = self.selectedMenuProvider ?? .codex
-            provider = self.selectedMenuProvider
+            let resolvedProvider = self.resolvedMenuProvider()
+            self.lastMenuProvider = resolvedProvider ?? .codex
+            provider = resolvedProvider
         } else {
             if let menuProvider = self.menuProviders[ObjectIdentifier(menu)] {
                 self.lastMenuProvider = menuProvider
@@ -120,9 +120,11 @@ extension StatusItemController {
 
         let hasTokenAccountSwitcher = menu.items.contains { $0.view is TokenAccountSwitcherView }
         let switcherProvidersMatch = enabledProviders == self.lastSwitcherProviders
+        let switcherUsageBarsShowUsedMatch = self.settings.usageBarsShowUsed == self.lastSwitcherUsageBarsShowUsed
         let canSmartUpdate = self.shouldMergeIcons &&
             enabledProviders.count > 1 &&
             switcherProvidersMatch &&
+            switcherUsageBarsShowUsedMatch &&
             tokenAccountDisplay == nil &&
             !hasTokenAccountSwitcher &&
             !menu.items.isEmpty &&
@@ -154,6 +156,7 @@ extension StatusItemController {
         // Track which providers the switcher was built with for smart update detection
         if self.shouldMergeIcons, enabledProviders.count > 1 {
             self.lastSwitcherProviders = enabledProviders
+            self.lastSwitcherUsageBarsShowUsed = self.settings.usageBarsShowUsed
         }
         self.addTokenAccountSwitcherIfNeeded(to: menu, display: tokenAccountDisplay)
         let menuContext = MenuCardContext(
@@ -539,7 +542,7 @@ extension StatusItemController {
 
     private func menuProvider(for menu: NSMenu) -> UsageProvider? {
         if self.shouldMergeIcons {
-            return self.selectedMenuProvider ?? self.resolvedMenuProvider()
+            return self.resolvedMenuProvider()
         }
         if let provider = self.menuProviders[ObjectIdentifier(menu)] {
             return provider
@@ -751,7 +754,24 @@ extension StatusItemController {
         let snapshot = self.store.snapshot(for: provider)
         let showUsed = self.settings.usageBarsShowUsed
         let primary = showUsed ? snapshot?.primary?.usedPercent : snapshot?.primary?.remainingPercent
-        let weekly = showUsed ? snapshot?.secondary?.usedPercent : snapshot?.secondary?.remainingPercent
+        var weekly = showUsed ? snapshot?.secondary?.usedPercent : snapshot?.secondary?.remainingPercent
+        if showUsed,
+           provider == .warp,
+           let remaining = snapshot?.secondary?.remainingPercent,
+           remaining <= 0
+        {
+            // Preserve Warp "no bonus/exhausted bonus" layout even in show-used mode.
+            weekly = 0
+        }
+        if showUsed,
+           provider == .warp,
+           let remaining = snapshot?.secondary?.remainingPercent,
+           remaining > 0,
+           weekly == 0
+        {
+            // In show-used mode, `0` means "unused", not "missing". Keep the weekly lane present.
+            weekly = 0.0001
+        }
         let credits = provider == .codex ? self.store.credits?.remaining : nil
         let stale = self.store.isStale(provider: provider)
         let style = self.store.style(for: provider)

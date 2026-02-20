@@ -10,6 +10,7 @@ enum ProviderImplementationRegistry {
     private static let lock = NSLock()
     private static let store = Store()
 
+    // swiftlint:disable:next cyclomatic_complexity
     private static func makeImplementation(for provider: UsageProvider) -> (any ProviderImplementation) {
         switch provider {
         case .codex: CodexProviderImplementation()
@@ -29,7 +30,10 @@ enum ProviderImplementationRegistry {
         case .jetbrains: JetBrainsProviderImplementation()
         case .kimik2: KimiK2ProviderImplementation()
         case .amp: AmpProviderImplementation()
+        case .ollama: OllamaProviderImplementation()
         case .synthetic: SyntheticProviderImplementation()
+        case .openrouter: OpenRouterProviderImplementation()
+        case .warp: WarpProviderImplementation()
         }
     }
 

@@ -21,6 +21,12 @@ public enum ProviderConfigEnvironment {
             }
         case .synthetic:
             env[SyntheticSettingsReader.apiKeyKey] = apiKey
+        case .warp:
+            if let key = WarpSettingsReader.apiKeyEnvironmentKeys.first {
+                env[key] = apiKey
+            }
+        case .openrouter:
+            env[OpenRouterSettingsReader.envKey] = apiKey
         default:
             break
         }
