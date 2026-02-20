@@ -20,6 +20,7 @@ final class NavigationDelegate: NSObject, WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         if Self.shouldIgnoreNavigationError(error) {
+            self.completeOnce(.success(()))
             return
         }
         self.completeOnce(.failure(error))
@@ -27,6 +28,7 @@ final class NavigationDelegate: NSObject, WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         if Self.shouldIgnoreNavigationError(error) {
+            self.completeOnce(.success(()))
             return
         }
         self.completeOnce(.failure(error))
