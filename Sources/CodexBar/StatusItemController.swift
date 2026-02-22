@@ -87,6 +87,8 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var lastSwitcherUsageBarsShowUsed: Bool
     /// Tracks which providers the merged menu's switcher was built with, to detect when it needs full rebuild.
     var lastSwitcherProviders: [UsageProvider] = []
+    /// Tracks which switcher tab state was used for the current merged-menu switcher instance.
+    var lastMergedSwitcherSelection: ProviderSwitcherSelection?
     let loginLogger = CodexBarLog.logger(LogCategories.login)
     var selectedMenuProvider: UsageProvider? {
         get { self.settings.selectedMenuProvider }

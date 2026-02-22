@@ -38,6 +38,10 @@ struct StatusMenuTests {
             .sorted { $0.tag < $1.tag }
     }
 
+    private func representedIDs(in menu: NSMenu) -> [String] {
+        menu.items.compactMap { $0.representedObject as? String }
+    }
+
     @Test
     func remembersProviderWhenMenuOpens() {
         self.disableMenuCardsForTesting()
@@ -316,6 +320,91 @@ struct StatusMenuTests {
         let reopenedSelectedTag = self.switcherButtons(in: reopenedMenu).first(where: { $0.state == .on })?.tag
         #expect(reopenedSelectedTag == 0)
         #expect(settings.selectedMenuProvider == .claude)
+    }
+
+    @Test
+    func overviewTabRendersOverviewRowsForAllActiveProvidersWhenThreeOrFewer() {
+        self.disableMenuCardsForTesting()
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .claude
+        settings.mergedMenuLastSelectedWasOverview = true
+
+        let registry = ProviderRegistry.shared
+        for provider in UsageProvider.allCases {
+            guard let metadata = registry.metadata[provider] else { continue }
+            let shouldEnable = provider == .codex || provider == .claude || provider == .cursor
+            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: shouldEnable)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        let menu = controller.makeMenu()
+        controller.menuWillOpen(menu)
+
+        let ids = self.representedIDs(in: menu)
+        let overviewRows = ids.filter { $0.hasPrefix("overviewRow-") }
+        #expect(overviewRows.count == 3)
+        #expect(overviewRows.contains("overviewRow-codex"))
+        #expect(overviewRows.contains("overviewRow-claude"))
+        #expect(overviewRows.contains("overviewRow-cursor"))
+        #expect(ids.contains("menuCard") == false)
+    }
+
+    @Test
+    func selectingOverviewRowSwitchesToProviderDetail() throws {
+        self.disableMenuCardsForTesting()
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .codex
+        settings.mergedMenuLastSelectedWasOverview = true
+
+        let registry = ProviderRegistry.shared
+        for provider in UsageProvider.allCases {
+            guard let metadata = registry.metadata[provider] else { continue }
+            let shouldEnable = provider == .codex || provider == .claude
+            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: shouldEnable)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        let menu = controller.makeMenu()
+        controller.menuWillOpen(menu)
+
+        let claudeRow = try #require(menu.items.first {
+            ($0.representedObject as? String) == "overviewRow-claude"
+        })
+        let action = try #require(claudeRow.action)
+        let target = try #require(claudeRow.target as? StatusItemController)
+        _ = target.perform(action, with: claudeRow)
+
+        #expect(settings.mergedMenuLastSelectedWasOverview == false)
+        #expect(settings.selectedMenuProvider == .claude)
+
+        let ids = self.representedIDs(in: menu)
+        #expect(ids.contains("menuCard"))
+        #expect(ids.contains(where: { $0.hasPrefix("overviewRow-") }) == false)
+        #expect(self.switcherButtons(in: menu).first(where: { $0.state == .on })?.tag == 2)
     }
 
     @Test
