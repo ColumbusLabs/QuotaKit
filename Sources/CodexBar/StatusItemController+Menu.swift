@@ -346,11 +346,11 @@ extension StatusItemController {
     {
         let overviewProviders = self.settings.reconcileMergedOverviewSelectedProviders(
             activeProviders: enabledProviders)
-        let rows: [(provider: UsageProvider, model: UsageMenuCardView.Model)] = overviewProviders.compactMap {
-            provider in
-            guard let model = self.menuCardModel(for: provider) else { return nil }
-            return (provider: provider, model: model)
-        }
+        let rows: [(provider: UsageProvider, model: UsageMenuCardView.Model)] = overviewProviders
+            .compactMap { provider in
+                guard let model = self.menuCardModel(for: provider) else { return nil }
+                return (provider: provider, model: model)
+            }
         guard !rows.isEmpty else { return false }
 
         for (index, row) in rows.enumerated() {
