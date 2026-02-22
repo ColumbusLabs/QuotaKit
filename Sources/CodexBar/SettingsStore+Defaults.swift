@@ -278,6 +278,26 @@ extension SettingsStore {
         }
     }
 
+    var mergedMenuLastSelectedWasOverview: Bool {
+        get { self.defaultsState.mergedMenuLastSelectedWasOverview }
+        set {
+            self.defaultsState.mergedMenuLastSelectedWasOverview = newValue
+            self.userDefaults.set(newValue, forKey: "mergedMenuLastSelectedWasOverview")
+        }
+    }
+
+    private var mergedOverviewSelectedProvidersRaw: [String] {
+        get { self.defaultsState.mergedOverviewSelectedProvidersRaw }
+        set {
+            self.defaultsState.mergedOverviewSelectedProvidersRaw = newValue
+            if newValue.isEmpty {
+                self.userDefaults.removeObject(forKey: "mergedOverviewSelectedProviders")
+            } else {
+                self.userDefaults.set(newValue, forKey: "mergedOverviewSelectedProviders")
+            }
+        }
+    }
+
     private var selectedMenuProviderRaw: String? {
         get { self.defaultsState.selectedMenuProviderRaw }
         set {
@@ -297,6 +317,72 @@ extension SettingsStore {
         }
     }
 
+    var mergedOverviewSelectedProviders: [UsageProvider] {
+        get { Self.decodeProviders(self.mergedOverviewSelectedProvidersRaw, maxCount: 3) }
+        set {
+            let normalized = Self.normalizeProviders(newValue, maxCount: 3)
+            self.mergedOverviewSelectedProvidersRaw = normalized.map(\.rawValue)
+        }
+    }
+
+    func resolvedMergedOverviewProviders(
+        activeProviders: [UsageProvider],
+        maxVisibleProviders: Int = 3) -> [UsageProvider]
+    {
+        guard maxVisibleProviders > 0 else { return [] }
+        let normalizedActive = Self.normalizeProviders(activeProviders)
+        if normalizedActive.count <= maxVisibleProviders { return normalizedActive }
+
+        let selectedSet = Set(self.mergedOverviewSelectedProviders)
+        var resolved = normalizedActive.filter { selectedSet.contains($0) }
+        if resolved.count < maxVisibleProviders {
+            for provider in normalizedActive where !selectedSet.contains(provider) {
+                resolved.append(provider)
+                if resolved.count == maxVisibleProviders { break }
+            }
+        }
+
+        return Array(resolved.prefix(maxVisibleProviders))
+    }
+
+    @discardableResult
+    func reconcileMergedOverviewSelectedProviders(
+        activeProviders: [UsageProvider],
+        maxVisibleProviders: Int = 3) -> [UsageProvider]
+    {
+        guard maxVisibleProviders > 0 else {
+            if !self.mergedOverviewSelectedProviders.isEmpty {
+                self.mergedOverviewSelectedProviders = []
+            }
+            return []
+        }
+
+        let normalizedActive = Self.normalizeProviders(activeProviders)
+        if normalizedActive.count <= maxVisibleProviders {
+            if normalizedActive != self.mergedOverviewSelectedProviders {
+                self.mergedOverviewSelectedProviders = normalizedActive
+            }
+            return normalizedActive
+        }
+
+        let activeSet = Set(normalizedActive)
+        let sanitizedSelection = Self.normalizeProviders(
+            self.mergedOverviewSelectedProviders.filter { activeSet.contains($0) },
+            maxCount: maxVisibleProviders)
+        if sanitizedSelection != self.mergedOverviewSelectedProviders {
+            self.mergedOverviewSelectedProviders = sanitizedSelection
+        }
+
+        let resolved = self.resolvedMergedOverviewProviders(
+            activeProviders: normalizedActive,
+            maxVisibleProviders: maxVisibleProviders)
+        if resolved != self.mergedOverviewSelectedProviders {
+            self.mergedOverviewSelectedProviders = resolved
+        }
+
+        return resolved
+    }
+
     var providerDetectionCompleted: Bool {
         get { self.defaultsState.providerDetectionCompleted }
         set {
@@ -308,5 +394,28 @@ extension SettingsStore {
     var debugLoadingPattern: LoadingPattern? {
         get { self.debugLoadingPatternRaw.flatMap(LoadingPattern.init(rawValue:)) }
         set { self.debugLoadingPatternRaw = newValue?.rawValue }
+    }
+}
+
+extension SettingsStore {
+    private static func normalizeProviders(_ providers: [UsageProvider], maxCount: Int? = nil) -> [UsageProvider] {
+        var seen: Set<UsageProvider> = []
+        var normalized: [UsageProvider] = []
+        for provider in providers where !seen.contains(provider) {
+            seen.insert(provider)
+            normalized.append(provider)
+            if let maxCount, normalized.count >= maxCount { break }
+        }
+        return normalized
+    }
+
+    private static func decodeProviders(_ rawProviders: [String], maxCount: Int? = nil) -> [UsageProvider] {
+        var providers: [UsageProvider] = []
+        providers.reserveCapacity(rawProviders.count)
+        for raw in rawProviders {
+            guard let provider = UsageProvider(rawValue: raw) else { continue }
+            providers.append(provider)
+        }
+        return self.normalizeProviders(providers, maxCount: maxCount)
     }
 }

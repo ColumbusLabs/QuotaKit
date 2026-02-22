@@ -215,6 +215,10 @@ extension SettingsStore {
         let jetbrainsIDEBasePath = userDefaults.string(forKey: "jetbrainsIDEBasePath") ?? ""
         let mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true
         let switcherShowsIcons = userDefaults.object(forKey: "switcherShowsIcons") as? Bool ?? true
+        let mergedMenuLastSelectedWasOverview = userDefaults.object(
+            forKey: "mergedMenuLastSelectedWasOverview") as? Bool ?? false
+        let mergedOverviewSelectedProvidersRaw = userDefaults.array(
+            forKey: "mergedOverviewSelectedProviders") as? [String] ?? []
         let selectedMenuProviderRaw = userDefaults.string(forKey: "selectedMenuProvider")
         let providerDetectionCompleted = userDefaults.object(forKey: "providerDetectionCompleted") as? Bool ?? false
 
@@ -247,6 +251,8 @@ extension SettingsStore {
             jetbrainsIDEBasePath: jetbrainsIDEBasePath,
             mergeIcons: mergeIcons,
             switcherShowsIcons: switcherShowsIcons,
+            mergedMenuLastSelectedWasOverview: mergedMenuLastSelectedWasOverview,
+            mergedOverviewSelectedProvidersRaw: mergedOverviewSelectedProvidersRaw,
             selectedMenuProviderRaw: selectedMenuProviderRaw,
             providerDetectionCompleted: providerDetectionCompleted)
     }

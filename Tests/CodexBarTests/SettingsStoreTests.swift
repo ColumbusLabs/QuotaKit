@@ -74,6 +74,171 @@ struct SettingsStoreTests {
     }
 
     @Test
+    func persistsMergedMenuLastSelectedWasOverviewAcrossInstances() throws {
+        let suite = "SettingsStoreTests-merged-last-overview"
+        let defaultsA = try #require(UserDefaults(suiteName: suite))
+        defaultsA.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let storeA = SettingsStore(
+            userDefaults: defaultsA,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        storeA.mergedMenuLastSelectedWasOverview = true
+
+        let defaultsB = try #require(UserDefaults(suiteName: suite))
+        let storeB = SettingsStore(
+            userDefaults: defaultsB,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        #expect(storeB.mergedMenuLastSelectedWasOverview == true)
+    }
+
+    @Test
+    func mergedOverviewSelectedProvidersPersistsAndNormalizesAcrossInstances() throws {
+        let suite = "SettingsStoreTests-merged-overview-selection"
+        let defaultsA = try #require(UserDefaults(suiteName: suite))
+        defaultsA.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let storeA = SettingsStore(
+            userDefaults: defaultsA,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        storeA.mergedOverviewSelectedProviders = [.opencode, .codex, .opencode, .claude]
+        #expect(storeA.mergedOverviewSelectedProviders == [.opencode, .codex, .claude])
+
+        let defaultsB = try #require(UserDefaults(suiteName: suite))
+        let storeB = SettingsStore(
+            userDefaults: defaultsB,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        #expect(storeB.mergedOverviewSelectedProviders == [.opencode, .codex, .claude])
+    }
+
+    @Test
+    func mergedOverviewSelectedProvidersIgnoresInvalidRawValues() throws {
+        let suite = "SettingsStoreTests-merged-overview-invalid-raw"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defaults.set(["codex", "unknown-provider", "claude", "codex"], forKey: "mergedOverviewSelectedProviders")
+        let configStore = testConfigStore(suiteName: suite)
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        #expect(store.mergedOverviewSelectedProviders == [.codex, .claude])
+    }
+
+    @Test
+    func resolvedMergedOverviewProvidersDefaultsToFirstThreeWhenSelectionEmpty() throws {
+        let suite = "SettingsStoreTests-merged-overview-default-first-three"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        let activeProviders: [UsageProvider] = [.codex, .claude, .cursor, .opencode, .warp]
+        let resolved = store.resolvedMergedOverviewProviders(activeProviders: activeProviders)
+
+        #expect(resolved == [.codex, .claude, .cursor])
+    }
+
+    @Test
+    func resolvedMergedOverviewProvidersUsesProviderOrderNotSelectionOrder() throws {
+        let suite = "SettingsStoreTests-merged-overview-order"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        store.mergedOverviewSelectedProviders = [.opencode, .codex, .cursor]
+        let activeProviders: [UsageProvider] = [.codex, .claude, .cursor, .opencode]
+        let resolved = store.resolvedMergedOverviewProviders(activeProviders: activeProviders)
+
+        #expect(resolved == [.codex, .cursor, .opencode])
+    }
+
+    @Test
+    func reconcileMergedOverviewSelectionRemovesUnavailableAndAutoFills() throws {
+        let suite = "SettingsStoreTests-merged-overview-reconcile"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        store.mergedOverviewSelectedProviders = [.codex, .claude, .opencode]
+        let activeProviders: [UsageProvider] = [.codex, .cursor, .gemini, .opencode]
+
+        let resolved = store.reconcileMergedOverviewSelectedProviders(activeProviders: activeProviders)
+
+        #expect(resolved == [.codex, .opencode, .cursor])
+        #expect(store.mergedOverviewSelectedProviders == [.codex, .opencode, .cursor])
+    }
+
+    @Test
+    func reconcileMergedOverviewSelectionKeepsAllActiveWhenThreeOrFewer() throws {
+        let suite = "SettingsStoreTests-merged-overview-three-or-fewer"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        store.mergedOverviewSelectedProviders = [.codex, .claude, .cursor]
+        let activeProviders: [UsageProvider] = [.codex, .claude]
+
+        let resolved = store.reconcileMergedOverviewSelectedProviders(activeProviders: activeProviders)
+
+        #expect(resolved == [.codex, .claude])
+        #expect(store.mergedOverviewSelectedProviders == [.codex, .claude])
+    }
+
+    @Test
+    func reconcileMergedOverviewSelectionExpandsStaleSubsetWhenThreeOrFewer() throws {
+        let suite = "SettingsStoreTests-merged-overview-three-or-fewer-subset"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        store.mergedOverviewSelectedProviders = [.codex]
+        let activeProviders: [UsageProvider] = [.codex, .claude, .cursor]
+
+        let resolved = store.reconcileMergedOverviewSelectedProviders(activeProviders: activeProviders)
+
+        #expect(resolved == [.codex, .claude, .cursor])
+        #expect(store.mergedOverviewSelectedProviders == [.codex, .claude, .cursor])
+    }
+
+    @Test
     func persistsOpenCodeWorkspaceIDAcrossInstances() throws {
         let suite = "SettingsStoreTests-opencode-workspace"
         let defaultsA = try #require(UserDefaults(suiteName: suite))
