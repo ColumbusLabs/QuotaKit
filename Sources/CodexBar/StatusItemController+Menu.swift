@@ -196,7 +196,8 @@ extension StatusItemController {
             store: self.store,
             settings: self.settings,
             account: self.account,
-            updateReady: self.updater.updateStatus.isUpdateReady)
+            updateReady: self.updater.updateStatus.isUpdateReady,
+            includeContextualActions: !isOverviewSelected)
 
         self.addProviderSwitcherIfNeeded(
             to: menu,
