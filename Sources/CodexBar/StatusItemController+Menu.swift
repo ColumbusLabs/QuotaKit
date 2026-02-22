@@ -359,7 +359,11 @@ extension StatusItemController {
             let item = self.makeMenuCardItem(
                 OverviewMenuCardRowView(model: row.model, width: menuWidth),
                 id: identifier,
-                width: menuWidth)
+                width: menuWidth,
+                onClick: { [weak self, weak menu] in
+                    guard let self, let menu else { return }
+                    self.selectOverviewProvider(row.provider, menu: menu)
+                })
             item.target = self
             item.action = #selector(self.selectOverviewProvider(_:))
             menu.addItem(item)
@@ -705,7 +709,8 @@ extension StatusItemController {
         _ view: some View,
         id: String,
         width: CGFloat,
-        submenu: NSMenu? = nil) -> NSMenuItem
+        submenu: NSMenu? = nil,
+        onClick: (() -> Void)? = nil) -> NSMenuItem
     {
         if !Self.menuCardRenderingEnabled {
             let item = NSMenuItem()
@@ -726,7 +731,7 @@ extension StatusItemController {
         {
             view
         }
-        let hosting = MenuCardItemHostingView(rootView: wrapped, highlightState: highlightState)
+        let hosting = MenuCardItemHostingView(rootView: wrapped, highlightState: highlightState, onClick: onClick)
         // Set frame with target width immediately
         let height = self.menuCardHeight(for: hosting, width: width)
         hosting.frame = NSRect(origin: .zero, size: NSSize(width: width, height: height))
@@ -960,6 +965,7 @@ extension StatusItemController {
     private final class MenuCardItemHostingView<Content: View>: NSHostingView<Content>, MenuCardHighlighting,
     MenuCardMeasuring {
         private let highlightState: MenuCardHighlightState
+        private let onClick: (() -> Void)?
         override var allowsVibrancy: Bool {
             true
         }
@@ -970,19 +976,33 @@ extension StatusItemController {
             return NSSize(width: self.frame.width, height: size.height)
         }
 
-        init(rootView: Content, highlightState: MenuCardHighlightState) {
+        init(rootView: Content, highlightState: MenuCardHighlightState, onClick: (() -> Void)? = nil) {
             self.highlightState = highlightState
+            self.onClick = onClick
             super.init(rootView: rootView)
         }
 
         required init(rootView: Content) {
             self.highlightState = MenuCardHighlightState()
+            self.onClick = nil
             super.init(rootView: rootView)
         }
 
         @available(*, unavailable)
         required init?(coder: NSCoder) {
             fatalError("init(coder:) has not been implemented")
+        }
+
+        override func mouseDown(with event: NSEvent) {
+            if let onClick {
+                onClick()
+                return
+            }
+            super.mouseDown(with: event)
+        }
+
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+            true
         }
 
         func measuredHeight(width: CGFloat) -> CGFloat {
@@ -1341,6 +1361,10 @@ extension StatusItemController {
             return
         }
 
+        self.selectOverviewProvider(provider, menu: menu)
+    }
+
+    private func selectOverviewProvider(_ provider: UsageProvider, menu: NSMenu) {
         self.settings.mergedMenuLastSelectedWasOverview = false
         self.lastMergedSwitcherSelection = nil
         self.selectedMenuProvider = provider
