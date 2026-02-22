@@ -31,6 +31,13 @@ struct StatusMenuTests {
             syntheticTokenStore: NoopSyntheticTokenStore())
     }
 
+    private func switcherButtons(in menu: NSMenu) -> [NSButton] {
+        guard let switcherView = menu.items.first?.view as? ProviderSwitcherView else { return [] }
+        return switcherView.subviews
+            .compactMap { $0 as? NSButton }
+            .sorted { $0.tag < $1.tag }
+    }
+
     @Test
     func remembersProviderWhenMenuOpens() {
         self.disableMenuCardsForTesting()
@@ -228,6 +235,87 @@ struct StatusMenuTests {
         if let initialSwitcherID, let updatedSwitcher {
             #expect(initialSwitcherID != ObjectIdentifier(updatedSwitcher))
         }
+    }
+
+    @Test
+    func mergedSwitcherIncludesOverviewTabWhenMultipleProvidersEnabled() {
+        self.disableMenuCardsForTesting()
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .claude
+        settings.mergedMenuLastSelectedWasOverview = false
+
+        let registry = ProviderRegistry.shared
+        for provider in UsageProvider.allCases {
+            guard let metadata = registry.metadata[provider] else { continue }
+            let shouldEnable = provider == .codex || provider == .claude
+            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: shouldEnable)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        let menu = controller.makeMenu()
+        controller.menuWillOpen(menu)
+
+        let buttons = self.switcherButtons(in: menu)
+        #expect(buttons.count == store.enabledProviders().count + 1)
+        #expect(buttons.contains(where: { $0.tag == 0 }))
+        #expect(buttons.first(where: { $0.state == .on })?.tag == 2)
+    }
+
+    @Test
+    func mergedSwitcherOverviewSelectionPersistsWithoutOverwritingProviderSelection() {
+        self.disableMenuCardsForTesting()
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .claude
+        settings.mergedMenuLastSelectedWasOverview = false
+
+        let registry = ProviderRegistry.shared
+        for provider in UsageProvider.allCases {
+            guard let metadata = registry.metadata[provider] else { continue }
+            let shouldEnable = provider == .codex || provider == .claude
+            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: shouldEnable)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        let menu = controller.makeMenu()
+        controller.menuWillOpen(menu)
+        let overviewButton = self.switcherButtons(in: menu).first(where: { $0.tag == 0 })
+        #expect(overviewButton != nil)
+        overviewButton?.performClick(nil)
+
+        #expect(settings.mergedMenuLastSelectedWasOverview == true)
+        #expect(settings.selectedMenuProvider == .claude)
+
+        controller.menuDidClose(menu)
+
+        let reopenedMenu = controller.makeMenu()
+        controller.menuWillOpen(reopenedMenu)
+        let reopenedSelectedTag = self.switcherButtons(in: reopenedMenu).first(where: { $0.state == .on })?.tag
+        #expect(reopenedSelectedTag == 0)
+        #expect(settings.selectedMenuProvider == .claude)
     }
 
     @Test

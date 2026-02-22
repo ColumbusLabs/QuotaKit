@@ -4,6 +4,17 @@ import Observation
 import QuartzCore
 import SwiftUI
 
+extension ProviderSwitcherSelection {
+    fileprivate var provider: UsageProvider? {
+        switch self {
+        case .overview:
+            nil
+        case let .provider(provider):
+            provider
+        }
+    }
+}
+
 // MARK: - NSMenu construction
 
 extension StatusItemController {
@@ -108,8 +119,11 @@ extension StatusItemController {
     }
 
     private func populateMenu(_ menu: NSMenu, provider: UsageProvider?) {
-        let selectedProvider = provider
         let enabledProviders = self.store.enabledProviders()
+        let switcherSelection = self.shouldMergeIcons && enabledProviders.count > 1
+            ? self.resolvedSwitcherSelection(enabledProviders: enabledProviders)
+            : nil
+        let selectedProvider = switcherSelection?.provider ?? provider
         let menuWidth = self.menuCardWidth(for: enabledProviders, menu: menu)
         let currentProvider = selectedProvider ?? enabledProviders.first ?? .codex
         let tokenAccountDisplay = self.tokenAccountMenuDisplay(for: currentProvider)
@@ -152,7 +166,7 @@ extension StatusItemController {
         self.addProviderSwitcherIfNeeded(
             to: menu,
             enabledProviders: enabledProviders,
-            selectedProvider: selectedProvider)
+            selection: switcherSelection ?? .provider(currentProvider))
         // Track which providers the switcher was built with for smart update detection
         if self.shouldMergeIcons, enabledProviders.count > 1 {
             self.lastSwitcherProviders = enabledProviders
@@ -261,12 +275,12 @@ extension StatusItemController {
     private func addProviderSwitcherIfNeeded(
         to menu: NSMenu,
         enabledProviders: [UsageProvider],
-        selectedProvider: UsageProvider?)
+        selection: ProviderSwitcherSelection)
     {
         guard self.shouldMergeIcons, enabledProviders.count > 1 else { return }
         let switcherItem = self.makeProviderSwitcherItem(
             providers: enabledProviders,
-            selected: selectedProvider,
+            selected: selection,
             menu: menu)
         menu.addItem(switcherItem)
         menu.addItem(.separator())
@@ -425,12 +439,13 @@ extension StatusItemController {
 
     private func makeProviderSwitcherItem(
         providers: [UsageProvider],
-        selected: UsageProvider?,
+        selected: ProviderSwitcherSelection,
         menu: NSMenu) -> NSMenuItem
     {
         let view = ProviderSwitcherView(
             providers: providers,
             selected: selected,
+            includesOverview: true,
             width: self.menuCardWidth(for: providers, menu: menu),
             showsIcons: self.settings.switcherShowsIcons,
             iconProvider: { [weak self] provider in
@@ -439,11 +454,20 @@ extension StatusItemController {
             weeklyRemainingProvider: { [weak self] provider in
                 self?.switcherWeeklyRemaining(for: provider)
             },
-            onSelect: { [weak self, weak menu] provider in
+            onSelect: { [weak self, weak menu] selection in
                 guard let self, let menu else { return }
-                self.selectedMenuProvider = provider
-                self.lastMenuProvider = provider
-                self.populateMenu(menu, provider: provider)
+                switch selection {
+                case .overview:
+                    self.settings.mergedMenuLastSelectedWasOverview = true
+                    let provider = self.resolvedMenuProvider()
+                    self.lastMenuProvider = provider ?? .codex
+                    self.populateMenu(menu, provider: provider)
+                case let .provider(provider):
+                    self.settings.mergedMenuLastSelectedWasOverview = false
+                    self.selectedMenuProvider = provider
+                    self.lastMenuProvider = provider
+                    self.populateMenu(menu, provider: provider)
+                }
                 self.markMenuFresh(menu)
                 self.applyIcon(phase: nil)
             })
@@ -479,13 +503,20 @@ extension StatusItemController {
         return item
     }
 
-    private func resolvedMenuProvider() -> UsageProvider? {
-        let enabled = self.store.enabledProviders()
+    private func resolvedMenuProvider(enabledProviders: [UsageProvider]? = nil) -> UsageProvider? {
+        let enabled = enabledProviders ?? self.store.enabledProviders()
         if enabled.isEmpty { return .codex }
         if let selected = self.selectedMenuProvider, enabled.contains(selected) {
             return selected
         }
         return enabled.first
+    }
+
+    private func resolvedSwitcherSelection(enabledProviders: [UsageProvider]) -> ProviderSwitcherSelection {
+        if self.settings.mergedMenuLastSelectedWasOverview {
+            return .overview
+        }
+        return .provider(self.resolvedMenuProvider(enabledProviders: enabledProviders) ?? .codex)
     }
 
     private func tokenAccountMenuDisplay(for provider: UsageProvider) -> TokenAccountMenuDisplay? {
