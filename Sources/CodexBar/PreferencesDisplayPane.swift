@@ -1,8 +1,13 @@
+import CodexBarCore
 import SwiftUI
 
 @MainActor
 struct DisplayPane: View {
+    private static let maxOverviewProviders = 3
+
+    @State private var isOverviewProviderPopoverPresented = false
     @Bindable var settings: SettingsStore
+    @Bindable var store: UsageStore
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
@@ -77,11 +82,153 @@ struct DisplayPane: View {
                         title: "Show all token accounts",
                         subtitle: "Stack token accounts in the menu (otherwise show an account switcher bar).",
                         binding: self.$settings.showAllTokenAccountsInMenu)
+                    self.overviewProviderSelector
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
+            .onAppear {
+                self.reconcileOverviewSelection()
+            }
+            .onChange(of: self.settings.mergeIcons) { _, isEnabled in
+                guard isEnabled else {
+                    self.isOverviewProviderPopoverPresented = false
+                    return
+                }
+                self.reconcileOverviewSelection()
+            }
+            .onChange(of: self.activeProvidersInOrder) { _, _ in
+                if self.activeProvidersInOrder.count <= Self.maxOverviewProviders {
+                    self.isOverviewProviderPopoverPresented = false
+                }
+                self.reconcileOverviewSelection()
+            }
         }
+    }
+
+    private var overviewProviderSelector: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .center, spacing: 12) {
+                Text("Overview tab providers")
+                    .font(.body)
+                Spacer(minLength: 0)
+                if self.showsOverviewConfigureButton {
+                    Button("Configure…") {
+                        self.isOverviewProviderPopoverPresented = true
+                    }
+                    .offset(y: 1)
+                    .popover(isPresented: self.$isOverviewProviderPopoverPresented, arrowEdge: .bottom) {
+                        self.overviewProviderPopover
+                    }
+                }
+            }
+
+            if !self.settings.mergeIcons {
+                Text("Enable Merge Icons to configure Overview tab providers.")
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+            } else if self.activeProvidersInOrder.count <= Self.maxOverviewProviders {
+                Text(
+                    "Overview automatically shows all enabled providers when " +
+                        "\(self.activeProvidersInOrder.count) or fewer are active.")
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+            } else {
+                Text(self.overviewProviderSelectionSummary)
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(2)
+                    .truncationMode(.tail)
+            }
+        }
+    }
+
+    private var overviewProviderPopover: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Choose up to 3 providers")
+                .font(.headline)
+            Text("Overview rows always follow provider order.")
+                .font(.footnote)
+                .foregroundStyle(.tertiary)
+
+            ScrollView(.vertical, showsIndicators: true) {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(self.activeProvidersInOrder, id: \.self) { provider in
+                        Toggle(
+                            isOn: Binding(
+                                get: { self.overviewSelectedProviders.contains(provider) },
+                                set: { shouldSelect in
+                                    self.setOverviewProviderSelection(provider: provider, isSelected: shouldSelect)
+                                })) {
+                            Text(self.providerDisplayName(provider))
+                                .font(.body)
+                        }
+                        .toggleStyle(.checkbox)
+                        .disabled(
+                            !self.overviewSelectedProviders.contains(provider) &&
+                                self.overviewSelectedProviders.count >= Self.maxOverviewProviders)
+                    }
+                }
+            }
+            .frame(maxHeight: 220)
+        }
+        .padding(12)
+        .frame(width: 280)
+    }
+
+    private var activeProvidersInOrder: [UsageProvider] {
+        self.store.enabledProviders()
+    }
+
+    private var overviewSelectedProviders: [UsageProvider] {
+        let activeSet = Set(self.activeProvidersInOrder)
+        return self.settings.mergedOverviewSelectedProviders.filter { activeSet.contains($0) }
+    }
+
+    private var showsOverviewConfigureButton: Bool {
+        self.settings.mergeIcons && self.activeProvidersInOrder.count > Self.maxOverviewProviders
+    }
+
+    private var overviewProviderSelectionSummary: String {
+        let selectedNames = self.overviewSelectedProviders.map(self.providerDisplayName)
+        guard !selectedNames.isEmpty else { return "No providers selected" }
+        return selectedNames.joined(separator: ", ")
+    }
+
+    private func providerDisplayName(_ provider: UsageProvider) -> String {
+        ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
+    }
+
+    private func setOverviewProviderSelection(provider: UsageProvider, isSelected: Bool) {
+        var selectedProviders = self.overviewSelectedProviders
+        let activeProviders = self.activeProvidersInOrder
+        if isSelected {
+            guard !selectedProviders.contains(provider) else { return }
+            guard selectedProviders.count < Self.maxOverviewProviders else { return }
+            selectedProviders.append(provider)
+        } else {
+            selectedProviders.removeAll(where: { $0 == provider })
+        }
+
+        if activeProviders.count > Self.maxOverviewProviders {
+            let activeSet = Set(activeProviders)
+            selectedProviders = selectedProviders.filter { activeSet.contains($0) }
+            if selectedProviders.count < Self.maxOverviewProviders {
+                for candidate in activeProviders where !selectedProviders.contains(candidate) {
+                    if !isSelected, candidate == provider { continue }
+                    selectedProviders.append(candidate)
+                    if selectedProviders.count == Self.maxOverviewProviders { break }
+                }
+            }
+        }
+
+        self.settings.mergedOverviewSelectedProviders = selectedProviders
+    }
+
+    private func reconcileOverviewSelection() {
+        _ = self.settings.reconcileMergedOverviewSelectedProviders(
+            activeProviders: self.activeProvidersInOrder,
+            maxVisibleProviders: Self.maxOverviewProviders)
     }
 }
