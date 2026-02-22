@@ -362,6 +362,87 @@ struct StatusMenuTests {
     }
 
     @Test
+    func overviewTabWithExplicitEmptySelectionShowsEmptyStateInsteadOfProviderDetail() {
+        self.disableMenuCardsForTesting()
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .codex
+        settings.mergedMenuLastSelectedWasOverview = true
+        settings.mergedOverviewSelectedProviders = []
+
+        let registry = ProviderRegistry.shared
+        for provider in UsageProvider.allCases {
+            guard let metadata = registry.metadata[provider] else { continue }
+            let shouldEnable = provider == .codex ||
+                provider == .claude ||
+                provider == .cursor ||
+                provider == .opencode
+            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: shouldEnable)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        let menu = controller.makeMenu()
+        controller.menuWillOpen(menu)
+
+        let ids = self.representedIDs(in: menu)
+        #expect(ids.contains("overviewEmptyState"))
+        #expect(ids.contains(where: { $0.hasPrefix("overviewRow-") }) == false)
+        #expect(ids.contains(where: { $0.hasPrefix("menuCard") }) == false)
+        #expect(menu.items.contains(where: { $0.title == "No providers selected for Overview." }))
+    }
+
+    @Test
+    func overviewRowsKeepMenuItemActionInRenderedMode() throws {
+        StatusItemController.menuCardRenderingEnabled = true
+        StatusItemController.menuRefreshEnabled = false
+        defer { self.disableMenuCardsForTesting() }
+
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .codex
+        settings.mergedMenuLastSelectedWasOverview = true
+
+        let registry = ProviderRegistry.shared
+        for provider in UsageProvider.allCases {
+            guard let metadata = registry.metadata[provider] else { continue }
+            let shouldEnable = provider == .codex || provider == .claude
+            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: shouldEnable)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        let menu = controller.makeMenu()
+        controller.menuWillOpen(menu)
+
+        let claudeRow = try #require(menu.items.first {
+            ($0.representedObject as? String) == "overviewRow-claude"
+        })
+        #expect(claudeRow.action != nil)
+        #expect(claudeRow.target is StatusItemController)
+    }
+
+    @Test
     func overviewTabOmitsContextualProviderActions() {
         self.disableMenuCardsForTesting()
         let settings = self.makeSettings()

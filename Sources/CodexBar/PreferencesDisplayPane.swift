@@ -201,29 +201,11 @@ struct DisplayPane: View {
     }
 
     private func setOverviewProviderSelection(provider: UsageProvider, isSelected: Bool) {
-        var selectedProviders = self.overviewSelectedProviders
-        let activeProviders = self.activeProvidersInOrder
-        if isSelected {
-            guard !selectedProviders.contains(provider) else { return }
-            guard selectedProviders.count < Self.maxOverviewProviders else { return }
-            selectedProviders.append(provider)
-        } else {
-            selectedProviders.removeAll(where: { $0 == provider })
-        }
-
-        if activeProviders.count > Self.maxOverviewProviders {
-            let activeSet = Set(activeProviders)
-            selectedProviders = selectedProviders.filter { activeSet.contains($0) }
-            if selectedProviders.count < Self.maxOverviewProviders {
-                for candidate in activeProviders where !selectedProviders.contains(candidate) {
-                    if !isSelected, candidate == provider { continue }
-                    selectedProviders.append(candidate)
-                    if selectedProviders.count == Self.maxOverviewProviders { break }
-                }
-            }
-        }
-
-        self.settings.mergedOverviewSelectedProviders = selectedProviders
+        _ = self.settings.setMergedOverviewProviderSelection(
+            provider: provider,
+            isSelected: isSelected,
+            activeProviders: self.activeProvidersInOrder,
+            maxVisibleProviders: Self.maxOverviewProviders)
     }
 
     private func reconcileOverviewSelection() {

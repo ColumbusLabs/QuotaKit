@@ -45,6 +45,7 @@ private struct OverviewMenuCardRowView: View {
 
 extension StatusItemController {
     private static let menuCardBaseWidth: CGFloat = 310
+    private static let maxOverviewProviders = 3
     private static let overviewRowIdentifierPrefix = "overviewRow-"
     private static let menuOpenRefreshDelay: Duration = .seconds(1.2)
     private struct OpenAIWebMenuItems {
@@ -216,13 +217,17 @@ extension StatusItemController {
             menuWidth: menuWidth,
             tokenAccountDisplay: tokenAccountDisplay,
             openAIContext: openAIContext)
-        if isOverviewSelected,
-           self.addOverviewRows(
-               to: menu,
-               enabledProviders: enabledProviders,
-               menuWidth: menuWidth)
-        {
-            menu.addItem(.separator())
+        if isOverviewSelected {
+            if self.addOverviewRows(
+                to: menu,
+                enabledProviders: enabledProviders,
+                menuWidth: menuWidth)
+            {
+                menu.addItem(.separator())
+            } else {
+                self.addOverviewEmptyState(to: menu, enabledProviders: enabledProviders)
+                menu.addItem(.separator())
+            }
         } else {
             let addedOpenAIWebItems = self.addMenuCards(to: menu, context: menuContext)
             self.addOpenAIWebItemsIfNeeded(
@@ -364,6 +369,7 @@ extension StatusItemController {
                     guard let self, let menu else { return }
                     self.selectOverviewProvider(row.provider, menu: menu)
                 })
+            // Keep menu item action wired for keyboard activation and accessibility action paths.
             item.target = self
             item.action = #selector(self.selectOverviewProvider(_:))
             menu.addItem(item)
@@ -372,6 +378,21 @@ extension StatusItemController {
             }
         }
         return true
+    }
+
+    private func addOverviewEmptyState(to menu: NSMenu, enabledProviders: [UsageProvider]) {
+        let resolvedProviders = self.settings.resolvedMergedOverviewProviders(
+            activeProviders: enabledProviders,
+            maxVisibleProviders: Self.maxOverviewProviders)
+        let message = if resolvedProviders.isEmpty {
+            "No providers selected for Overview."
+        } else {
+            "No overview data available."
+        }
+        let item = NSMenuItem(title: message, action: nil, keyEquivalent: "")
+        item.isEnabled = false
+        item.representedObject = "overviewEmptyState"
+        menu.addItem(item)
     }
 
     private func addMenuCards(to menu: NSMenu, context: MenuCardContext) -> Bool {
@@ -681,12 +702,38 @@ extension StatusItemController {
             guard !Task.isCancelled else { return }
             guard self.openMenus[ObjectIdentifier(menu)] != nil else { return }
             guard !self.store.isRefreshing else { return }
-            let provider = self.menuProvider(for: menu) ?? self.resolvedMenuProvider()
-            let isStale = provider.map { self.store.isStale(provider: $0) } ?? self.store.isStale
-            let hasSnapshot = provider.map { self.store.snapshot(for: $0) != nil } ?? true
-            guard isStale || !hasSnapshot else { return }
+            guard self.menuNeedsDelayedRefreshRetry(for: menu) else { return }
             self.refreshStore(forceTokenUsage: false)
         }
+    }
+
+    private func menuNeedsDelayedRefreshRetry(for menu: NSMenu) -> Bool {
+        let providersToCheck = self.delayedRefreshRetryProviders(for: menu)
+        guard !providersToCheck.isEmpty else { return false }
+        return providersToCheck.contains { provider in
+            self.store.isStale(provider: provider) || self.store.snapshot(for: provider) == nil
+        }
+    }
+
+    private func delayedRefreshRetryProviders(for menu: NSMenu) -> [UsageProvider] {
+        let enabledProviders = self.store.enabledProviders()
+        guard !enabledProviders.isEmpty else { return [] }
+
+        if self.shouldMergeIcons,
+           enabledProviders.count > 1,
+           self.resolvedSwitcherSelection(enabledProviders: enabledProviders) == .overview
+        {
+            return self.settings.resolvedMergedOverviewProviders(
+                activeProviders: enabledProviders,
+                maxVisibleProviders: Self.maxOverviewProviders)
+        }
+
+        if let provider = self.menuProvider(for: menu)
+            ?? self.resolvedMenuProvider(enabledProviders: enabledProviders)
+        {
+            return [provider]
+        }
+        return enabledProviders
     }
 
     private func refreshMenuCardHeights(in menu: NSMenu) {
@@ -980,6 +1027,11 @@ extension StatusItemController {
             self.highlightState = highlightState
             self.onClick = onClick
             super.init(rootView: rootView)
+            if onClick != nil {
+                let recognizer = NSClickGestureRecognizer(target: self, action: #selector(self.handlePrimaryClick(_:)))
+                recognizer.buttonMask = 0x1
+                self.addGestureRecognizer(recognizer)
+            }
         }
 
         required init(rootView: Content) {
@@ -993,16 +1045,13 @@ extension StatusItemController {
             fatalError("init(coder:) has not been implemented")
         }
 
-        override func mouseDown(with event: NSEvent) {
-            if let onClick {
-                onClick()
-                return
-            }
-            super.mouseDown(with: event)
-        }
-
         override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
             true
+        }
+
+        @objc private func handlePrimaryClick(_ recognizer: NSClickGestureRecognizer) {
+            guard recognizer.state == .ended else { return }
+            self.onClick?()
         }
 
         func measuredHeight(width: CGFloat) -> CGFloat {
@@ -1365,6 +1414,7 @@ extension StatusItemController {
     }
 
     private func selectOverviewProvider(_ provider: UsageProvider, menu: NSMenu) {
+        if !self.settings.mergedMenuLastSelectedWasOverview, self.selectedMenuProvider == provider { return }
         self.settings.mergedMenuLastSelectedWasOverview = false
         self.lastMergedSwitcherSelection = nil
         self.selectedMenuProvider = provider
