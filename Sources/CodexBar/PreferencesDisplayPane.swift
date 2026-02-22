@@ -3,7 +3,7 @@ import SwiftUI
 
 @MainActor
 struct DisplayPane: View {
-    private static let maxOverviewProviders = 3
+    private static let maxOverviewProviders = SettingsStore.mergedOverviewProviderLimit
 
     @State private var isOverviewProviderPopoverPresented = false
     @Bindable var settings: SettingsStore
@@ -146,7 +146,7 @@ struct DisplayPane: View {
 
     private var overviewProviderPopover: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Choose up to 3 providers")
+            Text("Choose up to \(Self.maxOverviewProviders) providers")
                 .font(.headline)
             Text("Overview rows always follow provider order.")
                 .font(.footnote)

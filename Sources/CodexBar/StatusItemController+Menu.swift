@@ -45,7 +45,7 @@ private struct OverviewMenuCardRowView: View {
 
 extension StatusItemController {
     private static let menuCardBaseWidth: CGFloat = 310
-    private static let maxOverviewProviders = 3
+    private static let maxOverviewProviders = SettingsStore.mergedOverviewProviderLimit
     private static let overviewRowIdentifierPrefix = "overviewRow-"
     private static let menuOpenRefreshDelay: Duration = .seconds(1.2)
     private struct OpenAIWebMenuItems {
