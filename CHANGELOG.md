@@ -2,7 +2,8 @@
 
 ## Unreleased
 ### Highlights
-- Add an experimental option to suppress Claude Keychain prompts.
+- Add a merged-menu Overview tab with configurable providers and row-to-provider navigation (#416).
+- Add an experimental option to suppress Claude Keychain prompts (#388).
 - Add OpenRouter provider for credit-based usage tracking (#396). Thanks @chountalas!
 - Add Ollama provider, including token-account support in Settings and CLI (#380). Thanks @CryptoSageSnr!
 
@@ -17,6 +18,11 @@
 - OpenCode: surface clearer HTTP errors. Thanks @SalimBinYousuf1!
 - Warp: update API key setup guidance.
 - Fix Claude setup message package name (#376). Thanks @daegwang!
+
+### Menu & Settings
+- Merged menu: add an Overview switcher tab that shows up to three provider usage rows in provider order (#416).
+- Settings: add "Overview tab providers" controls to choose/deselect Overview providers, with persisted selection reconciliation as enabled providers change (#416).
+- Menu: hide contextual provider actions while Overview is selected and rebuild switcher state when overview availability changes (#416).
 
 ### Claude OAuth & Keychain
 - Add an experimental Claude OAuth Security-CLI reader path and option in settings.
