@@ -216,7 +216,7 @@ struct SettingsStoreTests {
     }
 
     @Test
-    func reconcileMergedOverviewSelectionKeepsStoredPreferenceWhenThreeOrFewer() throws {
+    func reconcileMergedOverviewSelectionDoesNotClobberStoredPreferenceWhenThreeOrFewer() throws {
         let suite = "SettingsStoreTests-merged-overview-three-or-fewer"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -237,7 +237,7 @@ struct SettingsStoreTests {
     }
 
     @Test
-    func reconcileMergedOverviewSelectionDoesNotRewriteSubsetWhenThreeOrFewer() throws {
+    func reconcileMergedOverviewSelectionIgnoresStaleSubsetWithoutPersistingAutoFillWhenThreeOrFewer() throws {
         let suite = "SettingsStoreTests-merged-overview-three-or-fewer-subset"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -255,6 +255,54 @@ struct SettingsStoreTests {
 
         #expect(resolved == [.codex, .claude, .cursor])
         #expect(store.mergedOverviewSelectedProviders == [.codex])
+    }
+
+    @Test
+    func mergedOverviewSelectionAllowsDeselectingProvidersWhenThreeOrFewer() throws {
+        let suite = "SettingsStoreTests-merged-overview-deselect-three-or-fewer"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        let activeProviders: [UsageProvider] = [.codex, .claude, .cursor]
+        #expect(store.resolvedMergedOverviewProviders(activeProviders: activeProviders) == activeProviders)
+
+        _ = store.setMergedOverviewProviderSelection(
+            provider: .claude,
+            isSelected: false,
+            activeProviders: activeProviders)
+
+        #expect(store.mergedOverviewSelectedProviders == [.codex, .cursor])
+        #expect(store.resolvedMergedOverviewProviders(activeProviders: activeProviders) == [.codex, .cursor])
+    }
+
+    @Test
+    func mergedOverviewSelectionAppliesWhenSameActiveSetIsReordered() throws {
+        let suite = "SettingsStoreTests-merged-overview-ordered-context"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        let initialActiveProviders: [UsageProvider] = [.codex, .claude, .cursor]
+        _ = store.setMergedOverviewProviderSelection(
+            provider: .claude,
+            isSelected: false,
+            activeProviders: initialActiveProviders)
+
+        let reorderedActiveProviders: [UsageProvider] = [.cursor, .codex, .claude]
+        let resolved = store.resolvedMergedOverviewProviders(activeProviders: reorderedActiveProviders)
+
+        #expect(resolved == [.cursor, .codex])
     }
 
     @Test
@@ -279,6 +327,66 @@ struct SettingsStoreTests {
 
         #expect(store.mergedOverviewSelectedProviders == [.codex, .claude])
         #expect(store.resolvedMergedOverviewProviders(activeProviders: activeProviders) == [.codex, .claude])
+    }
+
+    @Test
+    func reconcileMergedOverviewSelectionPreservesStoredSubsetWhenActiveDropsToThreeOrFewer() throws {
+        let suite = "SettingsStoreTests-merged-overview-preserve-subset-across-drop"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        let activeProviders: [UsageProvider] = [.codex, .claude, .cursor, .opencode]
+        _ = store.setMergedOverviewProviderSelection(
+            provider: .claude,
+            isSelected: false,
+            activeProviders: activeProviders)
+        _ = store.setMergedOverviewProviderSelection(
+            provider: .opencode,
+            isSelected: true,
+            activeProviders: activeProviders)
+        #expect(store.mergedOverviewSelectedProviders == [.codex, .cursor, .opencode])
+
+        let reducedActiveProviders: [UsageProvider] = [.codex, .claude, .cursor]
+        let resolvedWhenReduced = store.reconcileMergedOverviewSelectedProviders(
+            activeProviders: reducedActiveProviders)
+
+        #expect(resolvedWhenReduced == [.codex, .claude, .cursor])
+        #expect(store.mergedOverviewSelectedProviders == [.codex, .cursor, .opencode])
+
+        let resolvedWhenRestored = store.resolvedMergedOverviewProviders(activeProviders: activeProviders)
+        #expect(resolvedWhenRestored == [.codex, .cursor, .opencode])
+    }
+
+    @Test
+    func reconcileMergedOverviewSelectionClearsPreferenceWhenNoProvidersActive() throws {
+        let suite = "SettingsStoreTests-merged-overview-clear-on-empty-active"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        let activeProviders: [UsageProvider] = [.codex, .claude, .cursor, .opencode]
+        _ = store.setMergedOverviewProviderSelection(
+            provider: .codex,
+            isSelected: false,
+            activeProviders: activeProviders)
+        #expect(store.resolvedMergedOverviewProviders(activeProviders: activeProviders) == [.claude, .cursor])
+
+        let resolvedWhenEmpty = store.reconcileMergedOverviewSelectedProviders(activeProviders: [])
+        #expect(resolvedWhenEmpty == [])
+
+        let resolvedAfterReenable = store.resolvedMergedOverviewProviders(activeProviders: activeProviders)
+        #expect(resolvedAfterReenable == [.codex, .claude, .cursor])
     }
 
     @Test

@@ -3,6 +3,8 @@ import Foundation
 import ServiceManagement
 
 extension SettingsStore {
+    private static let mergedOverviewSelectionEditedActiveProvidersKey = "mergedOverviewSelectionEditedActiveProviders"
+
     var refreshFrequency: RefreshFrequency {
         get { self.defaultsState.refreshFrequency }
         set {
@@ -329,18 +331,53 @@ extension SettingsStore {
         self.userDefaults.object(forKey: "mergedOverviewSelectedProviders") != nil
     }
 
+    private var mergedOverviewSelectionEditedActiveProvidersRaw: [String]? {
+        get {
+            self.userDefaults.array(forKey: Self.mergedOverviewSelectionEditedActiveProvidersKey) as? [String]
+        }
+        set {
+            if let newValue {
+                self.userDefaults.set(newValue, forKey: Self.mergedOverviewSelectionEditedActiveProvidersKey)
+            } else {
+                self.userDefaults.removeObject(forKey: Self.mergedOverviewSelectionEditedActiveProvidersKey)
+            }
+        }
+    }
+
+    private func mergedOverviewSelectionApplies(to activeProviders: [UsageProvider]) -> Bool {
+        guard let editedRaw = self.mergedOverviewSelectionEditedActiveProvidersRaw else { return false }
+        let editedSet = Set(editedRaw)
+        let activeSet = Set(Self.normalizeProviders(activeProviders).map(\.rawValue))
+        return editedSet == activeSet
+    }
+
+    private func markMergedOverviewSelectionEdited(for activeProviders: [UsageProvider]) {
+        let signature = Set(Self.normalizeProviders(activeProviders).map(\.rawValue))
+        self.mergedOverviewSelectionEditedActiveProvidersRaw = Array(signature).sorted()
+    }
+
+    private func clearMergedOverviewSelectionPreference() {
+        self.defaultsState.mergedOverviewSelectedProvidersRaw = []
+        self.userDefaults.removeObject(forKey: "mergedOverviewSelectedProviders")
+        self.mergedOverviewSelectionEditedActiveProvidersRaw = nil
+    }
+
     func resolvedMergedOverviewProviders(
         activeProviders: [UsageProvider],
         maxVisibleProviders: Int = SettingsStore.mergedOverviewProviderLimit) -> [UsageProvider]
     {
         guard maxVisibleProviders > 0 else { return [] }
         let normalizedActive = Self.normalizeProviders(activeProviders)
-        if normalizedActive.count <= maxVisibleProviders { return normalizedActive }
-
-        let selectedSet = Set(self.mergedOverviewSelectedProviders)
-        if selectedSet.isEmpty, !self.hasMergedOverviewSelectionPreference {
+        guard self.hasMergedOverviewSelectionPreference else {
             return Array(normalizedActive.prefix(maxVisibleProviders))
         }
+        if normalizedActive.count <= maxVisibleProviders,
+           !self.mergedOverviewSelectionApplies(to: normalizedActive)
+        {
+            return normalizedActive
+        }
+
+        let selectedSet = Set(self.mergedOverviewSelectedProviders)
         return Array(normalizedActive.filter { selectedSet.contains($0) }.prefix(maxVisibleProviders))
     }
 
@@ -350,34 +387,33 @@ extension SettingsStore {
         maxVisibleProviders: Int = SettingsStore.mergedOverviewProviderLimit) -> [UsageProvider]
     {
         guard maxVisibleProviders > 0 else {
-            if !self.mergedOverviewSelectedProviders.isEmpty {
-                self.mergedOverviewSelectedProviders = []
-            }
+            self.clearMergedOverviewSelectionPreference()
             return []
         }
 
         let normalizedActive = Self.normalizeProviders(activeProviders)
-        if normalizedActive.count <= maxVisibleProviders {
-            return normalizedActive
+        if normalizedActive.isEmpty {
+            self.clearMergedOverviewSelectionPreference()
+            return []
         }
 
-        let activeSet = Set(normalizedActive)
-        let sanitizedSelection = Array(
-            normalizedActive
-                .filter { activeSet.contains($0) && self.mergedOverviewSelectedProviders.contains($0) }
-                .prefix(maxVisibleProviders))
-        if sanitizedSelection != self.mergedOverviewSelectedProviders {
-            self.mergedOverviewSelectedProviders = sanitizedSelection
+        let shouldPersistResolvedSelection = normalizedActive.count > maxVisibleProviders ||
+            self.mergedOverviewSelectionApplies(to: normalizedActive)
+
+        if self.hasMergedOverviewSelectionPreference, shouldPersistResolvedSelection {
+            let selectedSet = Set(self.mergedOverviewSelectedProviders)
+            let sanitizedSelection = Array(
+                normalizedActive
+                    .filter { selectedSet.contains($0) }
+                    .prefix(maxVisibleProviders))
+            if sanitizedSelection != self.mergedOverviewSelectedProviders {
+                self.mergedOverviewSelectedProviders = sanitizedSelection
+            }
         }
 
-        let resolved = self.resolvedMergedOverviewProviders(
+        return self.resolvedMergedOverviewProviders(
             activeProviders: normalizedActive,
             maxVisibleProviders: maxVisibleProviders)
-        if resolved != self.mergedOverviewSelectedProviders {
-            self.mergedOverviewSelectedProviders = resolved
-        }
-
-        return resolved
     }
 
     @discardableResult
@@ -388,20 +424,25 @@ extension SettingsStore {
         maxVisibleProviders: Int = SettingsStore.mergedOverviewProviderLimit) -> [UsageProvider]
     {
         guard maxVisibleProviders > 0 else {
-            self.mergedOverviewSelectedProviders = []
+            self.clearMergedOverviewSelectionPreference()
             return []
         }
 
         let normalizedActive = Self.normalizeProviders(activeProviders)
-        guard normalizedActive.contains(provider) else { return self.mergedOverviewSelectedProviders }
+        guard normalizedActive.contains(provider) else {
+            return self.resolvedMergedOverviewProviders(
+                activeProviders: normalizedActive,
+                maxVisibleProviders: maxVisibleProviders)
+        }
 
-        let selectedSet = Set(self.mergedOverviewSelectedProviders)
-        let activeSelection = normalizedActive.filter { selectedSet.contains($0) }
-        var updatedSet = Set(activeSelection)
+        let currentSelection = self.resolvedMergedOverviewProviders(
+            activeProviders: normalizedActive,
+            maxVisibleProviders: maxVisibleProviders)
+        var updatedSet = Set(currentSelection)
 
         if isSelected {
-            guard updatedSet.contains(provider) || activeSelection.count < maxVisibleProviders else {
-                return activeSelection
+            guard updatedSet.contains(provider) || currentSelection.count < maxVisibleProviders else {
+                return currentSelection
             }
             updatedSet.insert(provider)
         } else {
@@ -413,6 +454,7 @@ extension SettingsStore {
                 .filter { updatedSet.contains($0) }
                 .prefix(maxVisibleProviders))
         self.mergedOverviewSelectedProviders = updatedSelection
+        self.markMergedOverviewSelectionEdited(for: normalizedActive)
         return updatedSelection
     }
 

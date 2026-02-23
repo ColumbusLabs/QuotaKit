@@ -99,7 +99,7 @@ struct DisplayPane: View {
                 self.reconcileOverviewSelection()
             }
             .onChange(of: self.activeProvidersInOrder) { _, _ in
-                if self.activeProvidersInOrder.count <= Self.maxOverviewProviders {
+                if self.activeProvidersInOrder.isEmpty {
                     self.isOverviewProviderPopoverPresented = false
                 }
                 self.reconcileOverviewSelection()
@@ -128,10 +128,8 @@ struct DisplayPane: View {
                 Text("Enable Merge Icons to configure Overview tab providers.")
                     .font(.footnote)
                     .foregroundStyle(.tertiary)
-            } else if self.activeProvidersInOrder.count <= Self.maxOverviewProviders {
-                Text(
-                    "Overview automatically shows all enabled providers when " +
-                        "\(self.activeProvidersInOrder.count) or fewer are active.")
+            } else if self.activeProvidersInOrder.isEmpty {
+                Text("No enabled providers available for Overview.")
                     .font(.footnote)
                     .foregroundStyle(.tertiary)
             } else {
@@ -182,12 +180,13 @@ struct DisplayPane: View {
     }
 
     private var overviewSelectedProviders: [UsageProvider] {
-        let activeSet = Set(self.activeProvidersInOrder)
-        return self.settings.mergedOverviewSelectedProviders.filter { activeSet.contains($0) }
+        self.settings.resolvedMergedOverviewProviders(
+            activeProviders: self.activeProvidersInOrder,
+            maxVisibleProviders: Self.maxOverviewProviders)
     }
 
     private var showsOverviewConfigureButton: Bool {
-        self.settings.mergeIcons && self.activeProvidersInOrder.count > Self.maxOverviewProviders
+        self.settings.mergeIcons && !self.activeProvidersInOrder.isEmpty
     }
 
     private var overviewProviderSelectionSummary: String {

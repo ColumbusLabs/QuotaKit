@@ -148,8 +148,11 @@ extension StatusItemController {
 
     private func populateMenu(_ menu: NSMenu, provider: UsageProvider?) {
         let enabledProviders = self.store.enabledProviders()
+        let includesOverview = self.includesOverviewTab(enabledProviders: enabledProviders)
         let switcherSelection = self.shouldMergeIcons && enabledProviders.count > 1
-            ? self.resolvedSwitcherSelection(enabledProviders: enabledProviders)
+            ? self.resolvedSwitcherSelection(
+                enabledProviders: enabledProviders,
+                includesOverview: includesOverview)
             : nil
         let isOverviewSelected = switcherSelection == .overview
         let selectedProvider = if isOverviewSelected {
@@ -203,6 +206,7 @@ extension StatusItemController {
         self.addProviderSwitcherIfNeeded(
             to: menu,
             enabledProviders: enabledProviders,
+            includesOverview: includesOverview,
             selection: switcherSelection ?? .provider(currentProvider))
         // Track which providers the switcher was built with for smart update detection
         if self.shouldMergeIcons, enabledProviders.count > 1 {
@@ -326,11 +330,13 @@ extension StatusItemController {
     private func addProviderSwitcherIfNeeded(
         to menu: NSMenu,
         enabledProviders: [UsageProvider],
+        includesOverview: Bool,
         selection: ProviderSwitcherSelection)
     {
         guard self.shouldMergeIcons, enabledProviders.count > 1 else { return }
         let switcherItem = self.makeProviderSwitcherItem(
             providers: enabledProviders,
+            includesOverview: includesOverview,
             selected: selection,
             menu: menu)
         menu.addItem(switcherItem)
@@ -541,13 +547,14 @@ extension StatusItemController {
 
     private func makeProviderSwitcherItem(
         providers: [UsageProvider],
+        includesOverview: Bool,
         selected: ProviderSwitcherSelection,
         menu: NSMenu) -> NSMenuItem
     {
         let view = ProviderSwitcherView(
             providers: providers,
             selected: selected,
-            includesOverview: true,
+            includesOverview: includesOverview,
             width: self.menuCardWidth(for: providers, menu: menu),
             showsIcons: self.settings.switcherShowsIcons,
             iconProvider: { [weak self] provider in
@@ -616,8 +623,17 @@ extension StatusItemController {
         return enabled.first
     }
 
-    private func resolvedSwitcherSelection(enabledProviders: [UsageProvider]) -> ProviderSwitcherSelection {
-        if self.settings.mergedMenuLastSelectedWasOverview {
+    private func includesOverviewTab(enabledProviders: [UsageProvider]) -> Bool {
+        !self.settings.resolvedMergedOverviewProviders(
+            activeProviders: enabledProviders,
+            maxVisibleProviders: Self.maxOverviewProviders).isEmpty
+    }
+
+    private func resolvedSwitcherSelection(
+        enabledProviders: [UsageProvider],
+        includesOverview: Bool) -> ProviderSwitcherSelection
+    {
+        if includesOverview, self.settings.mergedMenuLastSelectedWasOverview {
             return .overview
         }
         return .provider(self.resolvedMenuProvider(enabledProviders: enabledProviders) ?? .codex)
@@ -718,10 +734,13 @@ extension StatusItemController {
     private func delayedRefreshRetryProviders(for menu: NSMenu) -> [UsageProvider] {
         let enabledProviders = self.store.enabledProviders()
         guard !enabledProviders.isEmpty else { return [] }
+        let includesOverview = self.includesOverviewTab(enabledProviders: enabledProviders)
 
         if self.shouldMergeIcons,
            enabledProviders.count > 1,
-           self.resolvedSwitcherSelection(enabledProviders: enabledProviders) == .overview
+           self.resolvedSwitcherSelection(
+               enabledProviders: enabledProviders,
+               includesOverview: includesOverview) == .overview
         {
             return self.settings.resolvedMergedOverviewProviders(
                 activeProviders: enabledProviders,
