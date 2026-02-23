@@ -172,12 +172,14 @@ extension StatusItemController {
         let switcherProvidersMatch = enabledProviders == self.lastSwitcherProviders
         let switcherUsageBarsShowUsedMatch = self.settings.usageBarsShowUsed == self.lastSwitcherUsageBarsShowUsed
         let switcherSelectionMatches = switcherSelection == self.lastMergedSwitcherSelection
+        let switcherOverviewAvailabilityMatches = includesOverview == self.lastSwitcherIncludesOverview
         let canSmartUpdate = self.shouldMergeIcons &&
             enabledProviders.count > 1 &&
             !isOverviewSelected &&
             switcherProvidersMatch &&
             switcherUsageBarsShowUsedMatch &&
             switcherSelectionMatches &&
+            switcherOverviewAvailabilityMatches &&
             tokenAccountDisplay == nil &&
             !hasTokenAccountSwitcher &&
             !menu.items.isEmpty &&
@@ -213,6 +215,7 @@ extension StatusItemController {
             self.lastSwitcherProviders = enabledProviders
             self.lastSwitcherUsageBarsShowUsed = self.settings.usageBarsShowUsed
             self.lastMergedSwitcherSelection = switcherSelection
+            self.lastSwitcherIncludesOverview = includesOverview
         }
         self.addTokenAccountSwitcherIfNeeded(to: menu, display: tokenAccountDisplay)
         let menuContext = MenuCardContext(

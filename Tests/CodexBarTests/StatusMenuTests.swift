@@ -323,6 +323,60 @@ struct StatusMenuTests {
     }
 
     @Test
+    func openMenuRebuildsSwitcherWhenOverviewAvailabilityChanges() {
+        self.disableMenuCardsForTesting()
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .codex
+        settings.mergedMenuLastSelectedWasOverview = false
+
+        let registry = ProviderRegistry.shared
+        for provider in UsageProvider.allCases {
+            guard let metadata = registry.metadata[provider] else { continue }
+            let shouldEnable = provider == .codex || provider == .claude
+            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: shouldEnable)
+        }
+
+        let activeProviders: [UsageProvider] = [.codex, .claude]
+        _ = settings.setMergedOverviewProviderSelection(
+            provider: .codex,
+            isSelected: false,
+            activeProviders: activeProviders)
+        _ = settings.setMergedOverviewProviderSelection(
+            provider: .claude,
+            isSelected: false,
+            activeProviders: activeProviders)
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        let menu = controller.makeMenu()
+        controller.menuWillOpen(menu)
+
+        let initialButtons = self.switcherButtons(in: menu)
+        #expect(initialButtons.count == activeProviders.count)
+
+        _ = settings.setMergedOverviewProviderSelection(
+            provider: .codex,
+            isSelected: true,
+            activeProviders: activeProviders)
+        controller.menuContentVersion &+= 1
+        controller.refreshOpenMenusIfNeeded()
+
+        let updatedButtons = self.switcherButtons(in: menu)
+        #expect(updatedButtons.count == activeProviders.count + 1)
+    }
+
+    @Test
     func overviewTabOmitsContextualProviderActions() {
         self.disableMenuCardsForTesting()
         let settings = self.makeSettings()
