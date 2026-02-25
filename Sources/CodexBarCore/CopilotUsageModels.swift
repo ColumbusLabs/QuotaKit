@@ -266,13 +266,17 @@ public struct CopilotUsageResponse: Sendable, Decodable {
             // Without a monthly denominator, avoid fabricating a misleading percentage.
             return nil
         }
+        guard let limited else {
+            // Without the limited/remaining value, usage is unknown.
+            return nil
+        }
 
         let entitlement = max(0, monthly)
         guard entitlement > 0 else {
             // A zero denominator cannot produce a meaningful percentage.
             return nil
         }
-        let remaining = max(0, limited ?? monthly)
+        let remaining = max(0, limited)
         let percentRemaining = max(0, min(100, (remaining / entitlement) * 100))
 
         return QuotaSnapshot(

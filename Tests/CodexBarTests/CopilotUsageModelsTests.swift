@@ -132,6 +132,46 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
+    func doesNotAssumeFullQuotaWhenLimitedQuotasAreMissing() throws {
+        let response = try Self.decodeFixture(
+            """
+            {
+              "copilot_plan": "free",
+              "monthly_quotas": {
+                "chat": 500,
+                "completions": 300
+              }
+            }
+            """)
+
+        #expect(response.quotaSnapshots.premiumInteractions == nil)
+        #expect(response.quotaSnapshots.chat == nil)
+    }
+
+    @Test
+    func computesMonthlyFallbackPerQuotaOnlyWhenLimitedValueExists() throws {
+        let response = try Self.decodeFixture(
+            """
+            {
+              "copilot_plan": "free",
+              "monthly_quotas": {
+                "chat": 500,
+                "completions": 300
+              },
+              "limited_user_quotas": {
+                "completions": 60
+              }
+            }
+            """)
+
+        #expect(response.quotaSnapshots.premiumInteractions?.quotaId == "completions")
+        #expect(response.quotaSnapshots.premiumInteractions?.entitlement == 300)
+        #expect(response.quotaSnapshots.premiumInteractions?.remaining == 60)
+        #expect(response.quotaSnapshots.premiumInteractions?.percentRemaining == 20)
+        #expect(response.quotaSnapshots.chat == nil)
+    }
+
+    @Test
     func decodesUnknownQuotaSnapshotKeysUsingFallback() throws {
         let response = try Self.decodeFixture(
             """
