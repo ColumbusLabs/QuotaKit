@@ -49,18 +49,23 @@ public struct CopilotUsageResponse: Sendable, Decodable {
 
         public init(from decoder: any Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
-            self.entitlement = Self.decodeNumberIfPresent(container: container, key: .entitlement) ?? 0
-            self.remaining = Self.decodeNumberIfPresent(container: container, key: .remaining) ?? 0
+            let decodedEntitlement = Self.decodeNumberIfPresent(container: container, key: .entitlement)
+            let decodedRemaining = Self.decodeNumberIfPresent(container: container, key: .remaining)
+            self.entitlement = decodedEntitlement ?? 0
+            self.remaining = decodedRemaining ?? 0
             let decodedPercent = Self.decodeNumberIfPresent(container: container, key: .percentRemaining)
             if let decodedPercent {
                 self.percentRemaining = max(0, min(100, decodedPercent))
                 self.hasPercentRemaining = true
-            } else if self.entitlement > 0 {
-                let derived = (self.remaining / self.entitlement) * 100
+            } else if let entitlement = decodedEntitlement,
+                      entitlement > 0,
+                      let remaining = decodedRemaining
+            {
+                let derived = (remaining / entitlement) * 100
                 self.percentRemaining = max(0, min(100, derived))
                 self.hasPercentRemaining = true
             } else {
-                // Without percent_remaining and a usable entitlement denominator, the percent is unknown.
+                // Without percent_remaining and both inputs for derivation, the percent is unknown.
                 self.percentRemaining = 0
                 self.hasPercentRemaining = false
             }
@@ -232,8 +237,8 @@ public struct CopilotUsageResponse: Sendable, Decodable {
             self.quotaSnapshots = directSnapshots ?? QuotaSnapshots(premiumInteractions: nil, chat: nil)
         }
         self.copilotPlan = try container.decodeIfPresent(String.self, forKey: .copilotPlan) ?? "unknown"
-        self.assignedDate = try container.decodeIfPresent(String.self, forKey: .assignedDate) ?? ""
-        self.quotaResetDate = try container.decodeIfPresent(String.self, forKey: .quotaResetDate) ?? ""
+        self.assignedDate = try container.decodeIfPresent(String.self, forKey: .assignedDate)
+        self.quotaResetDate = try container.decodeIfPresent(String.self, forKey: .quotaResetDate)
     }
 
     private static func makeQuotaSnapshots(monthly: QuotaCounts?, limited: QuotaCounts?) -> QuotaSnapshots? {
@@ -257,12 +262,12 @@ public struct CopilotUsageResponse: Sendable, Decodable {
         }
 
         let entitlement = max(0, monthly)
-        let remaining = max(0, limited ?? monthly)
-        let percentRemaining: Double = if entitlement > 0 {
-            max(0, min(100, (remaining / entitlement) * 100))
-        } else {
-            0
+        guard entitlement > 0 else {
+            // A zero denominator cannot produce a meaningful percentage.
+            return nil
         }
+        let remaining = max(0, limited ?? monthly)
+        let percentRemaining = max(0, min(100, (remaining / entitlement) * 100))
 
         return QuotaSnapshot(
             entitlement: entitlement,

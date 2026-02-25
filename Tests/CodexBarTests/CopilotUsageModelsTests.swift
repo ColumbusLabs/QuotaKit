@@ -60,6 +60,50 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
+    func preservesMissingDateFieldsAsNil() throws {
+        let response = try Self.decodeFixture(
+            """
+            {
+              "copilot_plan": "free",
+              "quota_snapshots": {
+                "chat": {
+                  "entitlement": 200,
+                  "remaining": 75,
+                  "percent_remaining": 37.5,
+                  "quota_id": "chat"
+                }
+              }
+            }
+            """)
+
+        #expect(response.assignedDate == nil)
+        #expect(response.quotaResetDate == nil)
+    }
+
+    @Test
+    func preservesExplicitEmptyDateFields() throws {
+        let response = try Self.decodeFixture(
+            """
+            {
+              "copilot_plan": "free",
+              "assigned_date": "",
+              "quota_reset_date": "",
+              "quota_snapshots": {
+                "chat": {
+                  "entitlement": 200,
+                  "remaining": 75,
+                  "percent_remaining": 37.5,
+                  "quota_id": "chat"
+                }
+              }
+            }
+            """)
+
+        #expect(response.assignedDate?.isEmpty == true)
+        #expect(response.quotaResetDate?.isEmpty == true)
+    }
+
+    @Test
     func decodesMonthlyAndLimitedQuotaPayload() throws {
         let response = try Self.decodeFixture(
             """
@@ -151,6 +195,54 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
+    func marksPercentRemainingAsUnavailableWhenRemainingIsMissing() throws {
+        let response = try Self.decodeFixture(
+            """
+            {
+              "copilot_plan": "free",
+              "quota_snapshots": {
+                "chat": {
+                  "entitlement": 120,
+                  "quota_id": "chat"
+                }
+              }
+            }
+            """)
+
+        #expect(response.quotaSnapshots.chat?.hasPercentRemaining == false)
+        #expect(response.quotaSnapshots.chat?.percentRemaining == 0)
+    }
+
+    @Test
+    func fallsBackToMonthlyWhenDirectSnapshotIsMissingRemaining() throws {
+        let response = try Self.decodeFixture(
+            """
+            {
+              "copilot_plan": "free",
+              "quota_snapshots": {
+                "chat": {
+                  "entitlement": 120,
+                  "quota_id": "chat"
+                }
+              },
+              "monthly_quotas": {
+                "chat": 400
+              },
+              "limited_user_quotas": {
+                "chat": 100
+              }
+            }
+            """)
+
+        #expect(response.quotaSnapshots.premiumInteractions == nil)
+        #expect(response.quotaSnapshots.chat?.quotaId == "chat")
+        #expect(response.quotaSnapshots.chat?.entitlement == 400)
+        #expect(response.quotaSnapshots.chat?.remaining == 100)
+        #expect(response.quotaSnapshots.chat?.percentRemaining == 25)
+        #expect(response.quotaSnapshots.chat?.hasPercentRemaining == true)
+    }
+
+    @Test
     func fallsBackToMonthlyWhenDirectSnapshotsLackComputablePercent() throws {
         let response = try Self.decodeFixture(
             """
@@ -177,6 +269,25 @@ struct CopilotUsageModelsTests {
         #expect(response.quotaSnapshots.chat?.remaining == 100)
         #expect(response.quotaSnapshots.chat?.percentRemaining == 25)
         #expect(response.quotaSnapshots.chat?.hasPercentRemaining == true)
+    }
+
+    @Test
+    func skipsMonthlyFallbackWhenMonthlyDenominatorIsZero() throws {
+        let response = try Self.decodeFixture(
+            """
+            {
+              "copilot_plan": "free",
+              "monthly_quotas": {
+                "chat": 0
+              },
+              "limited_user_quotas": {
+                "chat": 0
+              }
+            }
+            """)
+
+        #expect(response.quotaSnapshots.premiumInteractions == nil)
+        #expect(response.quotaSnapshots.chat == nil)
     }
 
     private static func decodeFixture(_ fixture: String) throws -> CopilotUsageResponse {
