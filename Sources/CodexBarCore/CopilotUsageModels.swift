@@ -144,6 +144,12 @@ public struct CopilotUsageResponse: Sendable, Decodable {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             var premium = try container.decodeIfPresent(QuotaSnapshot.self, forKey: .premiumInteractions)
             var chat = try container.decodeIfPresent(QuotaSnapshot.self, forKey: .chat)
+            if premium?.isPlaceholder == true {
+                premium = nil
+            }
+            if chat?.isPlaceholder == true {
+                chat = nil
+            }
 
             if premium == nil || chat == nil {
                 let dynamic = try decoder.container(keyedBy: AnyCodingKey.self)

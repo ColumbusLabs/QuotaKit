@@ -156,6 +156,29 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
+    func ignoresPlaceholderKnownSnapshotWhenSelectingUnknownKeyFallback() throws {
+        let response = try Self.decodeFixture(
+            """
+            {
+              "copilot_plan": "free",
+              "quota_snapshots": {
+                "premium_interactions": {},
+                "mystery_bucket": {
+                  "entitlement": 100,
+                  "remaining": 40,
+                  "percent_remaining": 40,
+                  "quota_id": "mystery_bucket"
+                }
+              }
+            }
+            """)
+
+        #expect(response.quotaSnapshots.premiumInteractions == nil)
+        #expect(response.quotaSnapshots.chat?.quotaId == "mystery_bucket")
+        #expect(response.quotaSnapshots.chat?.hasPercentRemaining == true)
+    }
+
+    @Test
     func derivesPercentRemainingWhenMissingButEntitlementExists() throws {
         let response = try Self.decodeFixture(
             """
