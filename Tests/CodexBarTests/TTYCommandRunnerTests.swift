@@ -2,17 +2,19 @@ import Foundation
 import Testing
 @testable import CodexBarCore
 
-@Suite
+@Suite(.serialized)
 struct TTYCommandRunnerEnvTests {
     @Test
-    func shutdownCleanupDrainsTrackedTTYProcesses() {
+    func shutdownFenceDrainsTrackedTTYProcesses() {
         TTYCommandRunner._test_resetTrackedProcesses()
         defer { TTYCommandRunner._test_resetTrackedProcesses() }
 
-        TTYCommandRunner._test_trackProcess(pid: pid_t(Int32.max), binary: "codex", processGroup: nil)
+        #expect(TTYCommandRunner._test_registerTrackedProcess(pid: 1001, binary: "codex"))
         #expect(TTYCommandRunner._test_trackedProcessCount() == 1)
 
-        TTYCommandRunner.terminateActiveProcessesForAppShutdown()
+        let drained = TTYCommandRunner._test_drainTrackedProcessesForShutdown()
+        #expect(drained.count == 1)
+        #expect(drained[0].pid == 1001)
         #expect(TTYCommandRunner._test_trackedProcessCount() == 0)
     }
 
@@ -22,6 +24,19 @@ struct TTYCommandRunnerEnvTests {
         defer { TTYCommandRunner._test_resetTrackedProcesses() }
 
         TTYCommandRunner._test_trackProcess(pid: 0, binary: "codex", processGroup: nil)
+        #expect(TTYCommandRunner._test_trackedProcessCount() == 0)
+    }
+
+    @Test
+    func shutdownFenceRejectsNewRegistrations() {
+        TTYCommandRunner._test_resetTrackedProcesses()
+        defer { TTYCommandRunner._test_resetTrackedProcesses() }
+
+        #expect(TTYCommandRunner._test_registerTrackedProcess(pid: 2001, binary: "codex"))
+        let drained = TTYCommandRunner._test_drainTrackedProcessesForShutdown()
+        #expect(drained.count == 1)
+
+        #expect(TTYCommandRunner._test_registerTrackedProcess(pid: 2002, binary: "codex") == false)
         #expect(TTYCommandRunner._test_trackedProcessCount() == 0)
     }
 
