@@ -77,6 +77,7 @@ public struct CopilotUsageFetcher: Sendable {
     private func makeRateWindow(from snapshot: CopilotUsageResponse.QuotaSnapshot?) -> RateWindow? {
         guard let snapshot else { return nil }
         guard !snapshot.isPlaceholder else { return nil }
+        guard snapshot.hasPercentRemaining else { return nil }
         // percent_remaining is 0-100 based on the JSON example in the web app source
         let usedPercent = max(0, 100 - snapshot.percentRemaining)
 

@@ -4,15 +4,20 @@ import Foundation
 @MainActor
 extension UsageStore {
     /// Returns the enabled provider with the highest usage percentage (closest to rate limit).
-    /// Excludes providers already at 100% since they're fully rate-limited.
+    /// Excludes providers that are fully rate-limited.
     func providerWithHighestUsage() -> (provider: UsageProvider, usedPercent: Double)? {
         var highest: (provider: UsageProvider, usedPercent: Double)?
         for provider in self.enabledProviders() {
             guard let snapshot = self.snapshots[provider] else { continue }
             let window = self.menuBarMetricWindowForHighestUsage(provider: provider, snapshot: snapshot)
             let percent = window?.usedPercent ?? 0
-            // Skip providers already at 100% - they're fully rate-limited.
-            guard percent < 100 else { continue }
+            guard !self.shouldExcludeFromHighestUsage(
+                provider: provider,
+                snapshot: snapshot,
+                metricPercent: percent)
+            else {
+                continue
+            }
             if highest == nil || percent > highest!.usedPercent {
                 highest = (provider, percent)
             }
@@ -45,5 +50,23 @@ extension UsageStore {
             }
             return snapshot.primary ?? snapshot.secondary
         }
+    }
+
+    private func shouldExcludeFromHighestUsage(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot,
+        metricPercent: Double)
+        -> Bool
+    {
+        guard metricPercent >= 100 else { return false }
+        if provider == .copilot,
+           self.settings.menuBarMetricPreference(for: provider) == .automatic,
+           let primary = snapshot.primary,
+           let secondary = snapshot.secondary
+        {
+            // In automatic mode Copilot can have one depleted lane while another still has quota.
+            return primary.usedPercent >= 100 && secondary.usedPercent >= 100
+        }
+        return true
     }
 }

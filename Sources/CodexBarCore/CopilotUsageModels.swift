@@ -21,6 +21,7 @@ public struct CopilotUsageResponse: Sendable, Decodable {
         public let remaining: Double
         public let percentRemaining: Double
         public let quotaId: String
+        public let hasPercentRemaining: Bool
         public var isPlaceholder: Bool {
             self.entitlement == 0 && self.remaining == 0 && self.percentRemaining == 0 && self.quotaId.isEmpty
         }
@@ -36,20 +37,50 @@ public struct CopilotUsageResponse: Sendable, Decodable {
             entitlement: Double,
             remaining: Double,
             percentRemaining: Double,
-            quotaId: String)
+            quotaId: String,
+            hasPercentRemaining: Bool = true)
         {
             self.entitlement = entitlement
             self.remaining = remaining
             self.percentRemaining = percentRemaining
             self.quotaId = quotaId
+            self.hasPercentRemaining = hasPercentRemaining
         }
 
         public init(from decoder: any Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
-            self.entitlement = try container.decodeIfPresent(Double.self, forKey: .entitlement) ?? 0
-            self.remaining = try container.decodeIfPresent(Double.self, forKey: .remaining) ?? 0
-            self.percentRemaining = try container.decodeIfPresent(Double.self, forKey: .percentRemaining) ?? 0
+            self.entitlement = Self.decodeNumberIfPresent(container: container, key: .entitlement) ?? 0
+            self.remaining = Self.decodeNumberIfPresent(container: container, key: .remaining) ?? 0
+            let decodedPercent = Self.decodeNumberIfPresent(container: container, key: .percentRemaining)
+            if let decodedPercent {
+                self.percentRemaining = max(0, min(100, decodedPercent))
+                self.hasPercentRemaining = true
+            } else if self.entitlement > 0 {
+                let derived = (self.remaining / self.entitlement) * 100
+                self.percentRemaining = max(0, min(100, derived))
+                self.hasPercentRemaining = true
+            } else {
+                // Without percent_remaining and a usable entitlement denominator, the percent is unknown.
+                self.percentRemaining = 0
+                self.hasPercentRemaining = false
+            }
             self.quotaId = try container.decodeIfPresent(String.self, forKey: .quotaId) ?? ""
+        }
+
+        private static func decodeNumberIfPresent(
+            container: KeyedDecodingContainer<CodingKeys>,
+            key: CodingKeys) -> Double?
+        {
+            if let value = try? container.decodeIfPresent(Double.self, forKey: key) {
+                return value
+            }
+            if let value = try? container.decodeIfPresent(Int.self, forKey: key) {
+                return Double(value)
+            }
+            if let value = try? container.decodeIfPresent(String.self, forKey: key) {
+                return Double(value)
+            }
+            return nil
         }
     }
 
@@ -241,10 +272,16 @@ public struct CopilotUsageResponse: Sendable, Decodable {
     }
 
     private static func hasUsableQuota(in snapshots: QuotaSnapshots) -> Bool {
-        if let premium = snapshots.premiumInteractions, !premium.isPlaceholder {
+        if let premium = snapshots.premiumInteractions,
+           !premium.isPlaceholder,
+           premium.hasPercentRemaining
+        {
             return true
         }
-        if let chat = snapshots.chat, !chat.isPlaceholder {
+        if let chat = snapshots.chat,
+           !chat.isPlaceholder,
+           chat.hasPercentRemaining
+        {
             return true
         }
         return false
