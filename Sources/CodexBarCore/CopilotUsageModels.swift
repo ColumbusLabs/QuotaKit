@@ -235,10 +235,12 @@ public struct CopilotUsageResponse: Sendable, Decodable {
         let monthlyQuotas = try container.decodeIfPresent(QuotaCounts.self, forKey: .monthlyQuotas)
         let limitedUserQuotas = try container.decodeIfPresent(QuotaCounts.self, forKey: .limitedUserQuotas)
         let monthlyLimitedSnapshots = Self.makeQuotaSnapshots(monthly: monthlyQuotas, limited: limitedUserQuotas)
-        if let directSnapshots, Self.hasUsableQuota(in: directSnapshots) {
-            self.quotaSnapshots = directSnapshots
-        } else if let monthlyLimitedSnapshots {
-            self.quotaSnapshots = monthlyLimitedSnapshots
+        let premium = Self.usableQuotaSnapshot(from: directSnapshots?.premiumInteractions) ??
+            Self.usableQuotaSnapshot(from: monthlyLimitedSnapshots?.premiumInteractions)
+        let chat = Self.usableQuotaSnapshot(from: directSnapshots?.chat) ??
+            Self.usableQuotaSnapshot(from: monthlyLimitedSnapshots?.chat)
+        if premium != nil || chat != nil {
+            self.quotaSnapshots = QuotaSnapshots(premiumInteractions: premium, chat: chat)
         } else {
             self.quotaSnapshots = directSnapshots ?? QuotaSnapshots(premiumInteractions: nil, chat: nil)
         }
@@ -286,19 +288,10 @@ public struct CopilotUsageResponse: Sendable, Decodable {
             quotaId: quotaID)
     }
 
-    private static func hasUsableQuota(in snapshots: QuotaSnapshots) -> Bool {
-        if let premium = snapshots.premiumInteractions,
-           !premium.isPlaceholder,
-           premium.hasPercentRemaining
-        {
-            return true
+    private static func usableQuotaSnapshot(from snapshot: QuotaSnapshot?) -> QuotaSnapshot? {
+        guard let snapshot, !snapshot.isPlaceholder, snapshot.hasPercentRemaining else {
+            return nil
         }
-        if let chat = snapshots.chat,
-           !chat.isPlaceholder,
-           chat.hasPercentRemaining
-        {
-            return true
-        }
-        return false
+        return snapshot
     }
 }

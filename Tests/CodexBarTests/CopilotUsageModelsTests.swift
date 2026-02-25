@@ -172,6 +172,42 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
+    func mergesDirectAndMonthlyFallbackLanesWhenDirectIsPartial() throws {
+        let response = try Self.decodeFixture(
+            """
+            {
+              "copilot_plan": "free",
+              "quota_snapshots": {
+                "chat": {
+                  "entitlement": 200,
+                  "remaining": 75,
+                  "percent_remaining": 37.5,
+                  "quota_id": "chat"
+                }
+              },
+              "monthly_quotas": {
+                "chat": 500,
+                "completions": 300
+              },
+              "limited_user_quotas": {
+                "chat": 125,
+                "completions": 60
+              }
+            }
+            """)
+
+        #expect(response.quotaSnapshots.chat?.quotaId == "chat")
+        #expect(response.quotaSnapshots.chat?.entitlement == 200)
+        #expect(response.quotaSnapshots.chat?.remaining == 75)
+        #expect(response.quotaSnapshots.chat?.percentRemaining == 37.5)
+
+        #expect(response.quotaSnapshots.premiumInteractions?.quotaId == "completions")
+        #expect(response.quotaSnapshots.premiumInteractions?.entitlement == 300)
+        #expect(response.quotaSnapshots.premiumInteractions?.remaining == 60)
+        #expect(response.quotaSnapshots.premiumInteractions?.percentRemaining == 20)
+    }
+
+    @Test
     func decodesUnknownQuotaSnapshotKeysUsingFallback() throws {
         let response = try Self.decodeFixture(
             """
