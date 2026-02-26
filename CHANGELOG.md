@@ -11,6 +11,7 @@
 ### Providers & Usage
 - OpenRouter: add provider support with credit tracking, key-quota popup support, token-account labels, fallback status icons, and updated icon/color (#396). Thanks @chountalas!
 - Ollama: add provider support with token-account support in app/CLI, Chrome-default auto cookie import, and manual-cookie mode (#380). Thanks @CryptoSageSnr!
+- MiniMax: make both Settings "Open Coding Plan" actions region-aware so China mainland selection opens `platform.minimaxi.com` instead of the global domain (#426, fixes #378). Thanks @bald-ai!
 - Codex: in percent display mode with "show remaining," show remaining credits in the menu bar when session or weekly usage is exhausted (#336). Thanks @teron131!
 - Copilot: harden free-plan quota parsing and fallback behavior by treating underdetermined values as unknown, preserving missing metadata as nil (#432, supersedes #393). Thanks @emanuelst!
 - Menu: rebuild the merged provider switcher when “Show usage as used” changes so switcher progress updates immediately (#306). Thanks @Flohhhhh!
