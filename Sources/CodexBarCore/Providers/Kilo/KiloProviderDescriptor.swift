@@ -78,7 +78,7 @@ struct KiloAPIFetchStrategy: ProviderFetchStrategy {
     func shouldFallback(on error: Error, context: ProviderFetchContext) -> Bool {
         guard context.sourceMode == .auto else { return false }
         guard let kiloError = error as? KiloUsageError else { return false }
-        return kiloError == .missingCredentials
+        return kiloError == .missingCredentials || kiloError == .unauthorized
     }
 
     private static func resolveToken(environment: [String: String]) -> String? {

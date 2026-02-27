@@ -366,6 +366,17 @@ struct KiloUsageFetcherTests {
         #expect(outcome.attempts.map(\.strategyID) == ["kilo.api", "kilo.cli"])
     }
 
+    @Test
+    func apiStrategyFallsBackOnUnauthorizedOnlyInAutoMode() {
+        let strategy = KiloAPIFetchStrategy()
+        #expect(strategy.shouldFallback(
+            on: KiloUsageError.unauthorized,
+            context: self.makeContext(sourceMode: .auto)))
+        #expect(!strategy.shouldFallback(
+            on: KiloUsageError.unauthorized,
+            context: self.makeContext(sourceMode: .api)))
+    }
+
     private func makeTemporaryHomeDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

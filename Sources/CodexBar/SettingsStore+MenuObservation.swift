@@ -28,6 +28,8 @@ extension SettingsStore {
         _ = self.openAIWebAccessEnabled
         _ = self.codexUsageDataSource
         _ = self.claudeUsageDataSource
+        _ = self.kiloUsageDataSource
+        _ = self.kiloExtrasEnabled
         _ = self.codexCookieSource
         _ = self.claudeCookieSource
         _ = self.cursorCookieSource
