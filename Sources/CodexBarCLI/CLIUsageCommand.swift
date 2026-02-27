@@ -301,6 +301,10 @@ extension CodexBarCLI {
                     : nil)
             let source = result.sourceLabel
             let header = Self.makeHeader(provider: provider, version: version, source: source)
+            let notes = Self.usageTextNotes(
+                provider: provider,
+                sourceMode: effectiveSourceMode,
+                resolvedSourceLabel: source)
 
             switch command.format {
             case .text:
@@ -312,7 +316,8 @@ extension CodexBarCLI {
                         header: header,
                         status: status,
                         useColor: command.useColor,
-                        resetStyle: command.resetStyle))
+                        resetStyle: command.resetStyle,
+                        notes: notes))
                 if let dashboard, provider == .codex, effectiveSourceMode.usesWeb {
                     text += "\n" + Self.renderOpenAIWebDashboardText(dashboard)
                 }
@@ -346,6 +351,13 @@ extension CodexBarCLI {
                         "Error (\(provider.rawValue) - \(account.label)): \(error.localizedDescription)\n")
                 } else {
                     Self.writeStderr("Error: \(error.localizedDescription)\n")
+                }
+                if let summary = Self.kiloAutoFallbackSummary(
+                    provider: provider,
+                    sourceMode: effectiveSourceMode,
+                    attempts: outcome.attempts)
+                {
+                    Self.writeStderr("\(summary)\n")
                 }
             }
         }

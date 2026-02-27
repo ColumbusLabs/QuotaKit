@@ -125,6 +125,13 @@ Resets Sat at 6:00 AM
 Sonnet: 95% left [===========-]
 Account: user@example.com
 Plan: Pro
+
+== Kilo (cli) ==
+Credits: 60% left [=======-----]
+40/100 credits
+Plan: Kilo Pass Pro
+Activity: Auto top-up: visa
+Note: Using CLI fallback
 ```
 
 ### Sample output (JSON, pretty)
@@ -182,6 +189,9 @@ Plan: Pro
 - Text output uses ANSI colors when stdout is a rich TTY; disable with `--no-color` or `NO_COLOR`/`TERM=dumb`.
 - Copilot CLI queries require an API token via config `apiKey` or `COPILOT_API_TOKEN`.
 - Prefer Codex RPC first, then PTY fallback; Claude defaults to web with CLI fallback when cookies are missing.
+- Kilo text output splits identity into `Plan:` and `Activity:` lines; in `--source auto`, resolved CLI fetches add
+  `Note: Using CLI fallback`.
+- Kilo auto-mode failures include a fallback-attempt summary line in text mode (API attempt then CLI attempt).
 - OpenAI web requires a signed-in `chatgpt.com` session in Safari, Chrome, or Firefox. No passwords are stored; CodexBar reuses cookies.
 - Safari cookie import may require granting CodexBar Full Disk Access (System Settings → Privacy & Security → Full Disk Access).
 - The `openaiDashboard` JSON field is normally sourced from the app’s cached dashboard snapshot; `--source auto|web` refreshes it live via WebKit using a per-account cookie store.
