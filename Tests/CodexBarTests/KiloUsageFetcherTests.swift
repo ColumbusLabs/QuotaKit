@@ -4,6 +4,39 @@ import Testing
 
 @Suite
 struct KiloUsageFetcherTests {
+    private struct StubClaudeFetcher: ClaudeUsageFetching {
+        func loadLatestUsage(model _: String) async throws -> ClaudeUsageSnapshot {
+            throw ClaudeUsageError.parseFailed("stub")
+        }
+
+        func debugRawProbe(model _: String) async -> String {
+            "stub"
+        }
+
+        func detectVersion() -> String? {
+            nil
+        }
+    }
+
+    private func makeContext(
+        env: [String: String] = [:],
+        sourceMode: ProviderSourceMode = .api) -> ProviderFetchContext
+    {
+        let browserDetection = BrowserDetection(cacheTTL: 0)
+        return ProviderFetchContext(
+            runtime: .cli,
+            sourceMode: sourceMode,
+            includeCredits: false,
+            webTimeout: 1,
+            webDebugDumpHTML: false,
+            verbose: false,
+            env: env,
+            settings: nil,
+            fetcher: UsageFetcher(environment: env),
+            claudeFetcher: StubClaudeFetcher(),
+            browserDetection: browserDetection)
+    }
+
     @Test
     func batchURLUsesAuthenticatedTRPCBatchFormat() throws {
         let baseURL = try #require(URL(string: "https://kilo.example/trpc"))
@@ -246,5 +279,22 @@ struct KiloUsageFetcherTests {
         await #expect(throws: KiloUsageError.missingCredentials) {
             _ = try await KiloUsageFetcher.fetchUsage(apiKey: "  ", environment: [:])
         }
+    }
+
+    @Test
+    func descriptorFetchOutcomeWithoutCredentialsReturnsActionableError() async {
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: .kilo)
+        let outcome = await descriptor.fetchOutcome(context: self.makeContext())
+
+        switch outcome.result {
+        case .success:
+            Issue.record("Expected missing credentials failure")
+        case let .failure(error):
+            #expect((error as? KiloUsageError) == .missingCredentials)
+        }
+
+        #expect(outcome.attempts.count == 1)
+        #expect(outcome.attempts.first?.strategyID == "kilo.api")
+        #expect(outcome.attempts.first?.wasAvailable == true)
     }
 }

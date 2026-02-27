@@ -46,7 +46,10 @@ struct KiloAPIFetchStrategy: ProviderFetchStrategy {
     let kind: ProviderFetchKind = .apiToken
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        Self.resolveToken(environment: context.env) != nil
+        _ = context
+        // Keep strategy available so missing credentials surface as KiloUsageError.missingCredentials
+        // instead of generic ProviderFetchError.noAvailableStrategy.
+        return true
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
