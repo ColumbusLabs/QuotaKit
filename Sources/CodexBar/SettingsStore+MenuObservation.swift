@@ -55,6 +55,7 @@ extension SettingsStore {
         _ = self.minimaxAPIToken
         _ = self.kimiManualCookieHeader
         _ = self.kimiK2APIToken
+        _ = self.kiloAPIToken
         _ = self.augmentCookieHeader
         _ = self.ampCookieHeader
         _ = self.ollamaCookieHeader

@@ -673,6 +673,7 @@ struct SettingsStoreTests {
             .zai,
             .minimax,
             .kimi,
+            .kilo,
             .kiro,
             .vertexai,
             .augment,
