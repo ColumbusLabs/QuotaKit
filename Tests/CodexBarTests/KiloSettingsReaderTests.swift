@@ -31,4 +31,11 @@ struct KiloSettingsReaderTests {
         let descriptor = ProviderDescriptorRegistry.descriptor(for: .kilo)
         #expect(descriptor.branding.iconResourceName == "ProviderIcon-kilo")
     }
+
+    @Test
+    func descriptorSupportsAutoAPIAndCLISourceModes() {
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: .kilo)
+        let expected: Set<ProviderSourceMode> = [.auto, .api, .cli]
+        #expect(descriptor.fetchPlan.sourceModes == expected)
+    }
 }

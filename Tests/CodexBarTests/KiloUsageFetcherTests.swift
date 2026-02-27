@@ -297,4 +297,87 @@ struct KiloUsageFetcherTests {
         #expect(outcome.attempts.first?.strategyID == "kilo.api")
         #expect(outcome.attempts.first?.wasAvailable == true)
     }
+
+    @Test
+    func descriptorAPIModeIgnoresCLISessionFallback() async throws {
+        let homeDirectory = try self.makeTemporaryHomeDirectory()
+        defer { try? FileManager.default.removeItem(at: homeDirectory) }
+        try self.writeKiloAuthFile(
+            homeDirectory: homeDirectory,
+            contents: #"{"kilo":{"access":"file-token"}}"#)
+
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: .kilo)
+        let outcome = await descriptor.fetchOutcome(context: self.makeContext(
+            env: ["HOME": homeDirectory.path],
+            sourceMode: .api))
+
+        switch outcome.result {
+        case .success:
+            Issue.record("Expected missing API credentials failure")
+        case let .failure(error):
+            #expect((error as? KiloUsageError) == .missingCredentials)
+        }
+
+        #expect(outcome.attempts.count == 1)
+        #expect(outcome.attempts.first?.strategyID == "kilo.api")
+    }
+
+    @Test
+    func descriptorCLIModeMissingSessionReturnsActionableError() async throws {
+        let homeDirectory = try self.makeTemporaryHomeDirectory()
+        defer { try? FileManager.default.removeItem(at: homeDirectory) }
+        let expectedPath = KiloSettingsReader.defaultAuthFileURL(homeDirectory: homeDirectory).path
+
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: .kilo)
+        let outcome = await descriptor.fetchOutcome(context: self.makeContext(
+            env: ["HOME": homeDirectory.path],
+            sourceMode: .cli))
+
+        switch outcome.result {
+        case .success:
+            Issue.record("Expected missing CLI session failure")
+        case let .failure(error):
+            #expect((error as? KiloUsageError) == .cliSessionMissing(expectedPath))
+        }
+
+        #expect(outcome.attempts.count == 1)
+        #expect(outcome.attempts.first?.strategyID == "kilo.cli")
+    }
+
+    @Test
+    func descriptorAutoModeFallsBackFromAPIToCLI() async throws {
+        let homeDirectory = try self.makeTemporaryHomeDirectory()
+        defer { try? FileManager.default.removeItem(at: homeDirectory) }
+        let expectedPath = KiloSettingsReader.defaultAuthFileURL(homeDirectory: homeDirectory).path
+
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: .kilo)
+        let outcome = await descriptor.fetchOutcome(context: self.makeContext(
+            env: ["HOME": homeDirectory.path],
+            sourceMode: .auto))
+
+        switch outcome.result {
+        case .success:
+            Issue.record("Expected missing CLI session failure after API fallback")
+        case let .failure(error):
+            #expect((error as? KiloUsageError) == .cliSessionMissing(expectedPath))
+        }
+
+        #expect(outcome.attempts.count == 2)
+        #expect(outcome.attempts.map(\.strategyID) == ["kilo.api", "kilo.cli"])
+    }
+
+    private func makeTemporaryHomeDirectory() throws -> URL {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
+    private func writeKiloAuthFile(homeDirectory: URL, contents: String) throws {
+        let fileURL = KiloSettingsReader.defaultAuthFileURL(homeDirectory: homeDirectory)
+        try FileManager.default.createDirectory(
+            at: fileURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        try contents.write(to: fileURL, atomically: true, encoding: .utf8)
+    }
 }

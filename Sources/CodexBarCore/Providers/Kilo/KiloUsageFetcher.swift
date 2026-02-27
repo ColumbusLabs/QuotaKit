@@ -128,6 +128,9 @@ public struct KiloUsageSnapshot: Sendable {
 
 public enum KiloUsageError: LocalizedError, Sendable, Equatable {
     case missingCredentials
+    case cliSessionMissing(String)
+    case cliSessionUnreadable(String)
+    case cliSessionInvalid(String)
     case unauthorized
     case endpointNotFound
     case serviceUnavailable(Int)
@@ -138,9 +141,15 @@ public enum KiloUsageError: LocalizedError, Sendable, Equatable {
     public var errorDescription: String? {
         switch self {
         case .missingCredentials:
-            "Kilo API credentials missing. Set KILO_API_KEY or add kilo.access to ~/.local/share/kilo/auth.json."
+            "Kilo API credentials missing. Set KILO_API_KEY."
+        case let .cliSessionMissing(path):
+            "Kilo CLI session not found at \(path). Run `kilo login` to create ~/.local/share/kilo/auth.json."
+        case let .cliSessionUnreadable(path):
+            "Kilo CLI session file is unreadable at \(path). Fix permissions or run `kilo login` again."
+        case let .cliSessionInvalid(path):
+            "Kilo CLI session file is invalid at \(path). Run `kilo login` to refresh auth.json."
         case .unauthorized:
-            "Kilo API authentication failed (401/403). Refresh your token and update KILO_API_KEY or auth.json."
+            "Kilo authentication failed (401/403). Refresh KILO_API_KEY or run `kilo login`."
         case .endpointNotFound:
             "Kilo API endpoint not found (404). Verify the tRPC batch path and procedure names."
         case let .serviceUnavailable(statusCode):
