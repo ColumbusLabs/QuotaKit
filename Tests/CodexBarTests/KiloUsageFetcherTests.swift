@@ -217,7 +217,52 @@ struct KiloUsageFetcherTests {
         let snapshot = parsed.toUsageSnapshot()
 
         #expect(snapshot.primary?.usedPercent == 40)
-        #expect(snapshot.primary?.resetDescription == "Credits: 40/100")
+        #expect(snapshot.primary?.resetDescription == "40/100 credits")
+    }
+
+    @Test
+    func parseSnapshotKeepsZeroTotalVisibleWhenActivityExists() throws {
+        let json = """
+        [
+          {
+            "result": {
+              "data": {
+                "json": {
+                  "creditsUsed": 0,
+                  "creditsRemaining": 0
+                }
+              }
+            }
+          },
+          {
+            "result": {
+              "data": {
+                "json": {
+                  "planName": "Kilo Pass Pro"
+                }
+              }
+            }
+          },
+          {
+            "result": {
+              "data": {
+                "json": {
+                  "enabled": true,
+                  "paymentMethod": "visa"
+                }
+              }
+            }
+          }
+        ]
+        """
+
+        let parsed = try KiloUsageFetcher._parseSnapshotForTesting(Data(json.utf8))
+        let snapshot = parsed.toUsageSnapshot()
+
+        #expect(snapshot.primary?.remainingPercent == 0)
+        #expect(snapshot.primary?.usedPercent == 100)
+        #expect(snapshot.primary?.resetDescription == "0/0 credits")
+        #expect(snapshot.loginMethod(for: .kilo)?.contains("Auto top-up: visa") == true)
     }
 
     @Test

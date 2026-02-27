@@ -35,15 +35,20 @@ public struct KiloUsageSnapshot: Sendable {
         let used = self.resolvedUsed
 
         let primary: RateWindow?
-        if let total, total > 0 {
-            let usedPercent = min(100, max(0, (used / total) * 100))
+        if let total {
+            let usedPercent: Double = if total > 0 {
+                min(100, max(0, (used / total) * 100))
+            } else {
+                // Preserve a visible exhausted state for valid zero-total snapshots.
+                100
+            }
             let usedText = Self.compactNumber(used)
             let totalText = Self.compactNumber(total)
             primary = RateWindow(
                 usedPercent: usedPercent,
                 windowMinutes: nil,
                 resetsAt: nil,
-                resetDescription: "Credits: \(usedText)/\(totalText)")
+                resetDescription: "\(usedText)/\(totalText) credits")
         } else {
             primary = nil
         }
