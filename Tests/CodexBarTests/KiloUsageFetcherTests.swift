@@ -266,6 +266,48 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
+    func parseSnapshotTreatsZeroBalanceWithoutCreditBlocksAsVisibleZeroTotal() throws {
+        let json = """
+        [
+          {
+            "result": {
+              "data": {
+                "creditBlocks": [],
+                "totalBalance_mUsd": 0,
+                "isFirstPurchase": true,
+                "autoTopUpEnabled": false
+              }
+            }
+          },
+          {
+            "result": {
+              "data": {
+                "subscription": null
+              }
+            }
+          },
+          {
+            "result": {
+              "data": {
+                "enabled": false,
+                "amountCents": 5000,
+                "paymentMethod": null
+              }
+            }
+          }
+        ]
+        """
+
+        let parsed = try KiloUsageFetcher._parseSnapshotForTesting(Data(json.utf8))
+        let snapshot = parsed.toUsageSnapshot()
+
+        #expect(snapshot.primary?.usedPercent == 100)
+        #expect(snapshot.primary?.remainingPercent == 0)
+        #expect(snapshot.primary?.resetDescription == "0/0 credits")
+        #expect(snapshot.loginMethod(for: .kilo) == "Auto top-up: off")
+    }
+
+    @Test
     func parseSnapshotMapsUnauthorizedTRPCError() {
         let json = """
         [

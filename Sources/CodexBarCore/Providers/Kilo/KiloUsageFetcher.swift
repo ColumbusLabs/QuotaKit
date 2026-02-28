@@ -409,6 +409,15 @@ public struct KiloUsageFetcher: Sendable {
             total = used + remaining
         }
 
+        if used == nil, total == nil, remaining == nil,
+           let balanceMilliUSD = self.firstDouble(forKeys: ["totalBalance_mUsd"], in: contexts),
+           balanceMilliUSD == 0
+        {
+            // Kilo may return an empty creditBlocks list for zero-balance accounts.
+            // Keep this visible as an explicit exhausted edge state instead of "no data".
+            return (0, 0, 0)
+        }
+
         return (used, total, remaining)
     }
 
