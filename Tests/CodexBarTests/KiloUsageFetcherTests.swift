@@ -422,6 +422,17 @@ struct KiloUsageFetcherTests {
             context: self.makeContext(sourceMode: .api)))
     }
 
+    @Test
+    func apiStrategyFallsBackOnMissingCredentialsOnlyInAutoMode() {
+        let strategy = KiloAPIFetchStrategy()
+        #expect(strategy.shouldFallback(
+            on: KiloUsageError.missingCredentials,
+            context: self.makeContext(sourceMode: .auto)))
+        #expect(!strategy.shouldFallback(
+            on: KiloUsageError.missingCredentials,
+            context: self.makeContext(sourceMode: .api)))
+    }
+
     private func makeTemporaryHomeDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

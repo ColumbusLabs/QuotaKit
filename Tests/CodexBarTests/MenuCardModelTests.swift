@@ -607,6 +607,73 @@ struct MenuCardModelTests {
     }
 
     @Test
+    func kiloModelDoesNotShowFallbackNoteWhenNotAutoToCLI() throws {
+        let now = Date()
+        let metadata = try #require(ProviderDefaults.metadata[.kilo])
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: 40,
+                windowMinutes: nil,
+                resetsAt: nil,
+                resetDescription: "40/100 credits"),
+            secondary: nil,
+            tertiary: nil,
+            updatedAt: now,
+            identity: ProviderIdentitySnapshot(
+                providerID: .kilo,
+                accountEmail: nil,
+                accountOrganization: nil,
+                loginMethod: "Kilo Pass Pro · Auto top-up: visa"))
+
+        let apiModel = UsageMenuCardView.Model.make(.init(
+            provider: .kilo,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
+            sourceLabel: "api",
+            kiloAutoMode: true,
+            hidePersonalInfo: false,
+            now: now))
+
+        let nonAutoModel = UsageMenuCardView.Model.make(.init(
+            provider: .kilo,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
+            sourceLabel: "cli",
+            kiloAutoMode: false,
+            hidePersonalInfo: false,
+            now: now))
+
+        #expect(!apiModel.usageNotes.contains("Using CLI fallback"))
+        #expect(!nonAutoModel.usageNotes.contains("Using CLI fallback"))
+    }
+
+    @Test
     func kiloModelShowsPrimaryDetailWhenResetDateMissing() throws {
         let now = Date()
         let metadata = try #require(ProviderDefaults.metadata[.kilo])
