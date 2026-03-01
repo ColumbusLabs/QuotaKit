@@ -782,9 +782,10 @@ extension UsageMenuCardView.Model {
         account: AccountInfo,
         metadata: ProviderMetadata) -> String?
     {
-        if provider == .kilo,
-           let pass = self.kiloLoginPass(snapshot: snapshot)
-        {
+        if provider == .kilo {
+            guard let pass = self.kiloLoginPass(snapshot: snapshot) else {
+                return nil
+            }
             return self.planDisplay(pass)
         }
         if let plan = snapshot?.loginMethod(for: provider), !plan.isEmpty {
@@ -822,7 +823,16 @@ extension UsageMenuCardView.Model {
         guard !parts.isEmpty else {
             return (nil, [])
         }
-        return (parts.first, Array(parts.dropFirst()))
+        let first = parts[0]
+        if self.isKiloActivitySegment(first) {
+            return (nil, parts)
+        }
+        return (first, Array(parts.dropFirst()))
+    }
+
+    private static func isKiloActivitySegment(_ text: String) -> Bool {
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return normalized.hasPrefix("auto top-up:")
     }
 
     private static func subtitle(

@@ -607,6 +607,45 @@ struct MenuCardModelTests {
     }
 
     @Test
+    func kiloModelTreatsAutoTopUpOnlyLoginAsActivity() throws {
+        let now = Date()
+        let metadata = try #require(ProviderDefaults.metadata[.kilo])
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            tertiary: nil,
+            updatedAt: now,
+            identity: ProviderIdentitySnapshot(
+                providerID: .kilo,
+                accountEmail: nil,
+                accountOrganization: nil,
+                loginMethod: "Auto top-up: off"))
+
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .kilo,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
+            hidePersonalInfo: false,
+            now: now))
+
+        #expect(model.planText == nil)
+        #expect(model.usageNotes.contains("Auto top-up: off"))
+    }
+
+    @Test
     func kiloModelDoesNotShowFallbackNoteWhenNotAutoToCLI() throws {
         let now = Date()
         let metadata = try #require(ProviderDefaults.metadata[.kilo])
