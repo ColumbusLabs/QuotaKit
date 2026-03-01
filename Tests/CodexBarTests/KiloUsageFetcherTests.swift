@@ -455,6 +455,85 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
+    func parseSnapshotDegradesOptionalAutoTopUpTRPCError() throws {
+        let json = """
+        [
+          {
+            "result": {
+              "data": {
+                "json": {
+                  "creditsUsed": 10,
+                  "creditsRemaining": 90
+                }
+              }
+            }
+          },
+          {
+            "result": {
+              "data": {
+                "json": {
+                  "planName": "Starter"
+                }
+              }
+            }
+          },
+          {
+            "error": {
+              "json": {
+                "message": "Internal server error",
+                "data": {
+                  "code": "INTERNAL_SERVER_ERROR"
+                }
+              }
+            }
+          }
+        ]
+        """
+
+        let parsed = try KiloUsageFetcher._parseSnapshotForTesting(Data(json.utf8))
+        let snapshot = parsed.toUsageSnapshot()
+
+        #expect(snapshot.primary?.usedPercent == 10)
+        #expect(snapshot.loginMethod(for: .kilo) == "Starter")
+    }
+
+    @Test
+    func parseSnapshotKeepsRequiredProcedureTRPCErrorFatal() {
+        let json = """
+        [
+          {
+            "result": {
+              "data": {
+                "json": {
+                  "creditsUsed": 10,
+                  "creditsRemaining": 90
+                }
+              }
+            }
+          },
+          {
+            "error": {
+              "json": {
+                "message": "Unauthorized",
+                "data": {
+                  "code": "UNAUTHORIZED"
+                }
+              }
+            }
+          }
+        ]
+        """
+
+        #expect {
+            _ = try KiloUsageFetcher._parseSnapshotForTesting(Data(json.utf8))
+        } throws: { error in
+            guard let kiloError = error as? KiloUsageError else { return false }
+            guard case .unauthorized = kiloError else { return false }
+            return true
+        }
+    }
+
+    @Test
     func parseSnapshotMapsUnauthorizedTRPCError() {
         let json = """
         [

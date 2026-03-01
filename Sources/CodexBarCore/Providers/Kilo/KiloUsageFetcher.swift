@@ -249,6 +249,10 @@ public struct KiloUsageFetcher: Sendable {
         "user.getAutoTopUpPaymentMethod",
     ]
 
+    private static let optionalProcedures: Set<String> = [
+        "user.getAutoTopUpPaymentMethod",
+    ]
+
     private static let maxTopLevelEntries = procedures.count
 
     public static func fetchUsage(
@@ -353,6 +357,9 @@ public struct KiloUsageFetcher: Sendable {
         for (index, procedure) in self.procedures.enumerated() {
             guard let entry = entriesByIndex[index] else { continue }
             if let mappedError = self.trpcError(from: entry) {
+                guard self.isRequiredProcedure(procedure) else {
+                    continue
+                }
                 throw mappedError
             }
             if let payload = self.resultPayload(from: entry) {
@@ -380,6 +387,10 @@ public struct KiloUsageFetcher: Sendable {
             autoTopUpEnabled: autoTopUp.enabled,
             autoTopUpMethod: autoTopUp.method,
             updatedAt: Date())
+    }
+
+    private static func isRequiredProcedure(_ procedure: String) -> Bool {
+        !self.optionalProcedures.contains(procedure)
     }
 
     private static func responseEntriesByIndex(from root: Any) throws -> [Int: [String: Any]] {
