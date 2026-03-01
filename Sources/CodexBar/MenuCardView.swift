@@ -950,8 +950,10 @@ extension UsageMenuCardView.Model {
                let detail = weekly.resetDescription,
                !detail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             {
-                weeklyResetText = nil
                 weeklyDetailText = detail
+                if weekly.resetsAt == nil {
+                    weeklyResetText = nil
+                }
             }
             metrics.append(Metric(
                 id: "secondary",
@@ -964,6 +966,18 @@ extension UsageMenuCardView.Model {
                 detailRightText: paceDetail?.rightLabel,
                 pacePercent: paceDetail?.pacePercent,
                 paceOnTop: paceDetail?.paceOnTop ?? true))
+        }
+        if input.provider == .kilo,
+           metrics.contains(where: { $0.id == "primary" }),
+           metrics.contains(where: { $0.id == "secondary" })
+        {
+            metrics.sort { lhs, rhs in
+                let kiloOrder: [String: Int] = [
+                    "secondary": 0,
+                    "primary": 1,
+                ]
+                return (kiloOrder[lhs.id] ?? Int.max) < (kiloOrder[rhs.id] ?? Int.max)
+            }
         }
         if input.metadata.supportsOpus, let opus = snapshot.tertiary {
             metrics.append(Metric(

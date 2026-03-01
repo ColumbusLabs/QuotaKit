@@ -146,7 +146,11 @@ struct MenuDescriptor {
                 let weeklyResetOverride: String? = {
                     guard provider == .warp || provider == .kilo else { return nil }
                     let detail = weekly.resetDescription?.trimmingCharacters(in: .whitespacesAndNewlines)
-                    return (detail?.isEmpty ?? true) ? nil : detail
+                    guard let detail, !detail.isEmpty else { return nil }
+                    if provider == .kilo, weekly.resetsAt != nil {
+                        return nil
+                    }
+                    return detail
                 }()
                 Self.appendRateWindow(
                     entries: &entries,
@@ -155,6 +159,13 @@ struct MenuDescriptor {
                     resetStyle: resetStyle,
                     showUsed: settings.usageBarsShowUsed,
                     resetOverride: weeklyResetOverride)
+                if provider == .kilo,
+                   weekly.resetsAt != nil,
+                   let detail = weekly.resetDescription?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !detail.isEmpty
+                {
+                    entries.append(.text(detail, .secondary))
+                }
                 if let paceSummary = UsagePaceText.weeklySummary(provider: provider, window: weekly) {
                     entries.append(.text(paceSummary, .secondary))
                 }

@@ -7,6 +7,11 @@ public struct KiloUsageSnapshot: Sendable {
     public let creditsUsed: Double?
     public let creditsTotal: Double?
     public let creditsRemaining: Double?
+    public let passUsed: Double?
+    public let passTotal: Double?
+    public let passRemaining: Double?
+    public let passBonus: Double?
+    public let passResetsAt: Date?
     public let planName: String?
     public let autoTopUpEnabled: Bool?
     public let autoTopUpMethod: String?
@@ -16,6 +21,11 @@ public struct KiloUsageSnapshot: Sendable {
         creditsUsed: Double?,
         creditsTotal: Double?,
         creditsRemaining: Double?,
+        passUsed: Double? = nil,
+        passTotal: Double? = nil,
+        passRemaining: Double? = nil,
+        passBonus: Double? = nil,
+        passResetsAt: Date? = nil,
         planName: String?,
         autoTopUpEnabled: Bool?,
         autoTopUpMethod: String?,
@@ -24,6 +34,11 @@ public struct KiloUsageSnapshot: Sendable {
         self.creditsUsed = creditsUsed
         self.creditsTotal = creditsTotal
         self.creditsRemaining = creditsRemaining
+        self.passUsed = passUsed
+        self.passTotal = passTotal
+        self.passRemaining = passRemaining
+        self.passBonus = passBonus
+        self.passResetsAt = passResetsAt
         self.planName = planName
         self.autoTopUpEnabled = autoTopUpEnabled
         self.autoTopUpMethod = autoTopUpMethod
@@ -60,7 +75,7 @@ public struct KiloUsageSnapshot: Sendable {
 
         return UsageSnapshot(
             primary: primary,
-            secondary: nil,
+            secondary: self.passWindow,
             tertiary: nil,
             providerCost: nil,
             updatedAt: self.updatedAt,
@@ -91,11 +106,61 @@ public struct KiloUsageSnapshot: Sendable {
         return 0
     }
 
+    private var resolvedPassTotal: Double? {
+        if let passTotal { return max(0, passTotal) }
+        if let passUsed, let passRemaining {
+            return max(0, passUsed + passRemaining)
+        }
+        return nil
+    }
+
+    private var resolvedPassUsed: Double {
+        if let passUsed {
+            return max(0, passUsed)
+        }
+        if let total = self.resolvedPassTotal,
+           let passRemaining
+        {
+            return max(0, total - passRemaining)
+        }
+        return 0
+    }
+
+    private var passWindow: RateWindow? {
+        guard let total = self.resolvedPassTotal else {
+            return nil
+        }
+
+        let used = self.resolvedPassUsed
+        let bonus = max(0, self.passBonus ?? 0)
+        let baseCredits = max(0, total - bonus)
+        let usedPercent: Double = if total > 0 {
+            min(100, max(0, (used / total) * 100))
+        } else {
+            100
+        }
+
+        var detail = "$\(Self.currencyNumber(used)) / $\(Self.currencyNumber(baseCredits))"
+        if bonus > 0 {
+            detail += " (+ $\(Self.currencyNumber(bonus)) bonus)"
+        }
+
+        return RateWindow(
+            usedPercent: usedPercent,
+            windowMinutes: nil,
+            resetsAt: self.passResetsAt,
+            resetDescription: detail)
+    }
+
     private static func compactNumber(_ value: Double) -> String {
         if value.rounded(.towardZero) == value {
             return String(Int(value))
         }
         return String(format: "%.2f", value)
+    }
+
+    private static func currencyNumber(_ value: Double) -> String {
+        String(format: "%.2f", max(0, value))
     }
 
     private static func makeLoginMethod(
@@ -170,6 +235,14 @@ public enum KiloUsageError: LocalizedError, Sendable, Equatable {
 }
 
 public struct KiloUsageFetcher: Sendable {
+    private struct KiloPassFields {
+        let used: Double?
+        let total: Double?
+        let remaining: Double?
+        let bonus: Double?
+        let resetsAt: Date?
+    }
+
     static let procedures = [
         "user.getCreditBlocks",
         "kiloPass.getState",
@@ -288,13 +361,21 @@ public struct KiloUsageFetcher: Sendable {
         }
 
         let creditFields = self.creditFields(from: payloadsByProcedure[self.procedures[0]])
+        let passFields = self.passFields(from: payloadsByProcedure[self.procedures[1]])
         let planName = self.planName(from: payloadsByProcedure[self.procedures[1]])
-        let autoTopUp = self.autoTopUpState(from: payloadsByProcedure[self.procedures[2]])
+        let autoTopUp = self.autoTopUpState(
+            creditBlocksPayload: payloadsByProcedure[self.procedures[0]],
+            autoTopUpPayload: payloadsByProcedure[self.procedures[2]])
 
         return KiloUsageSnapshot(
             creditsUsed: creditFields.used,
             creditsTotal: creditFields.total,
             creditsRemaining: creditFields.remaining,
+            passUsed: passFields.used,
+            passTotal: passFields.total,
+            passRemaining: passFields.remaining,
+            passBonus: passFields.bonus,
+            passResetsAt: passFields.resetsAt,
             planName: planName,
             autoTopUpEnabled: autoTopUp.enabled,
             autoTopUpMethod: autoTopUp.method,
@@ -377,8 +458,39 @@ public struct KiloUsageFetcher: Sendable {
         guard let payload else { return (nil, nil, nil) }
 
         let contexts = self.dictionaryContexts(from: payload)
-        let blocks = self.firstArray(forKeys: ["creditBlocks", "blocks"], in: contexts)
-        let blockContexts = (blocks ?? []).compactMap { $0 as? [String: Any] }
+        let blocks = self.firstArray(forKeys: ["creditBlocks"], in: contexts)
+
+        if let blocks {
+            var totalFromBlocks: Double = 0
+            var remainingFromBlocks: Double = 0
+            var sawTotal = false
+            var sawRemaining = false
+
+            for case let block as [String: Any] in blocks {
+                if let amountMicroUSD = self.double(from: block["amount_mUsd"]) {
+                    totalFromBlocks += amountMicroUSD / 1_000_000
+                    sawTotal = true
+                }
+                if let balanceMicroUSD = self.double(from: block["balance_mUsd"]) {
+                    remainingFromBlocks += balanceMicroUSD / 1_000_000
+                    sawRemaining = true
+                }
+            }
+
+            if sawTotal || sawRemaining {
+                let total = sawTotal ? max(0, totalFromBlocks) : nil
+                let remaining = sawRemaining ? max(0, remainingFromBlocks) : nil
+                let used: Double? = if let total, let remaining {
+                    max(0, total - remaining)
+                } else {
+                    nil
+                }
+                return (used, total, remaining)
+            }
+        }
+
+        let genericBlocks = self.firstArray(forKeys: ["blocks"], in: contexts)
+        let blockContexts = (genericBlocks ?? []).compactMap { $0 as? [String: Any] }
 
         var used = self.firstDouble(
             forKeys: ["used", "usedCredits", "consumed", "spent", "creditsUsed"],
@@ -418,14 +530,207 @@ public struct KiloUsageFetcher: Sendable {
             return (0, 0, 0)
         }
 
+        if used == nil,
+           total == nil,
+           remaining == nil,
+           let balanceMilliUSD = self.firstDouble(forKeys: ["totalBalance_mUsd"], in: contexts)
+        {
+            let balance = max(0, balanceMilliUSD / 1_000_000)
+            return (max(0, 0), balance, balance)
+        }
+
         return (used, total, remaining)
     }
 
+    private static func passFields(from payload: Any?) -> KiloPassFields {
+        if let subscription = self.subscriptionData(from: payload) {
+            let used = self.double(from: subscription["currentPeriodUsageUsd"]).map { max(0, $0) }
+            let baseCredits = self.double(from: subscription["currentPeriodBaseCreditsUsd"]).map { max(0, $0) }
+            let bonusCredits = max(0, self.double(from: subscription["currentPeriodBonusCreditsUsd"]) ?? 0)
+            let total = baseCredits.map { $0 + bonusCredits }
+            let remaining: Double? = if let total, let used {
+                max(0, total - used)
+            } else {
+                nil
+            }
+            let resetsAt = self.date(from: subscription["nextBillingAt"])
+                ?? self.date(from: subscription["nextRenewalAt"])
+                ?? self.date(from: subscription["renewsAt"])
+                ?? self.date(from: subscription["renewAt"])
+
+            return KiloPassFields(
+                used: used,
+                total: total,
+                remaining: remaining,
+                bonus: bonusCredits > 0 ? bonusCredits : nil,
+                resetsAt: resetsAt)
+        }
+
+        return self.fallbackPassFields(from: payload)
+    }
+
+    private static func fallbackPassFields(from payload: Any?) -> KiloPassFields {
+        let contexts = self.dictionaryContexts(from: payload)
+        guard !contexts.isEmpty else {
+            return KiloPassFields(used: nil, total: nil, remaining: nil, bonus: nil, resetsAt: nil)
+        }
+
+        var total = self.moneyAmount(
+            centsKeys: [
+                "amountCents",
+                "totalCents",
+                "planAmountCents",
+                "monthlyAmountCents",
+                "limitCents",
+                "includedCents",
+                "valueCents",
+            ],
+            milliUSDKeys: [
+                "amount_mUsd",
+                "total_mUsd",
+                "planAmount_mUsd",
+                "limit_mUsd",
+                "included_mUsd",
+                "value_mUsd",
+            ],
+            plainKeys: [
+                "amount",
+                "total",
+                "limit",
+                "included",
+                "value",
+                "creditsTotal",
+                "totalCredits",
+                "planAmount",
+            ],
+            in: contexts)
+        var used = self.moneyAmount(
+            centsKeys: [
+                "usedCents",
+                "spentCents",
+                "consumedCents",
+                "usedAmountCents",
+                "consumedAmountCents",
+            ],
+            milliUSDKeys: [
+                "used_mUsd",
+                "spent_mUsd",
+                "consumed_mUsd",
+                "usedAmount_mUsd",
+            ],
+            plainKeys: [
+                "used",
+                "spent",
+                "consumed",
+                "usage",
+                "creditsUsed",
+                "usedAmount",
+                "consumedAmount",
+            ],
+            in: contexts)
+        var remaining = self.moneyAmount(
+            centsKeys: [
+                "remainingCents",
+                "remainingAmountCents",
+                "availableCents",
+                "leftCents",
+                "balanceCents",
+            ],
+            milliUSDKeys: [
+                "remaining_mUsd",
+                "available_mUsd",
+                "left_mUsd",
+                "balance_mUsd",
+            ],
+            plainKeys: [
+                "remaining",
+                "available",
+                "left",
+                "balance",
+                "creditsRemaining",
+                "remainingAmount",
+                "availableAmount",
+            ],
+            in: contexts)
+        let bonus = self.moneyAmount(
+            centsKeys: [
+                "bonusCents",
+                "bonusAmountCents",
+                "includedBonusCents",
+                "bonusRemainingCents",
+            ],
+            milliUSDKeys: [
+                "bonus_mUsd",
+                "bonusAmount_mUsd",
+            ],
+            plainKeys: [
+                "bonus",
+                "bonusAmount",
+                "bonusCredits",
+                "includedBonus",
+            ],
+            in: contexts)
+        let resetsAt = self.firstDate(
+            forKeys: [
+                "resetAt",
+                "resetsAt",
+                "nextResetAt",
+                "renewAt",
+                "renewsAt",
+                "nextRenewalAt",
+                "currentPeriodEnd",
+                "periodEndsAt",
+                "expiresAt",
+                "expiryAt",
+            ],
+            in: contexts)
+
+        if total == nil,
+           let used,
+           let remaining
+        {
+            total = used + remaining
+        }
+        if used == nil,
+           let total,
+           let remaining
+        {
+            used = max(0, total - remaining)
+        }
+        if remaining == nil,
+           let total,
+           let used
+        {
+            remaining = max(0, total - used)
+        }
+
+        return KiloPassFields(
+            used: used,
+            total: total,
+            remaining: remaining,
+            bonus: bonus,
+            resetsAt: resetsAt)
+    }
+
     private static func planName(from payload: Any?) -> String? {
+        if let subscription = self.subscriptionData(from: payload) {
+            if let tier = self.string(from: subscription["tier"]) {
+                let trimmed = tier.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    return self.planNameForTier(trimmed)
+                }
+            }
+            return "Kilo Pass"
+        }
+
         let contexts = self.dictionaryContexts(from: payload)
         let candidates = [
-            self.firstString(forKeys: ["planName", "name", "tier"], in: contexts),
+            self.firstString(
+                forKeys: ["planName", "tier", "tierName", "passName", "subscriptionName"],
+                in: contexts),
             self.stringValue(for: ["plan", "name"], in: contexts),
+            self.stringValue(for: ["subscription", "plan", "name"], in: contexts),
+            self.stringValue(for: ["subscription", "name"], in: contexts),
             self.stringValue(for: ["pass", "name"], in: contexts),
             self.stringValue(for: ["state", "name"], in: contexts),
             self.stringValue(for: ["state"], in: contexts),
@@ -437,32 +742,111 @@ public struct KiloUsageFetcher: Sendable {
             }
             return trimmed
         }
+        if let fallback = self.firstString(forKeys: ["name"], in: contexts),
+           fallback.lowercased().contains("pass")
+        {
+            return fallback
+        }
         return nil
     }
 
-    private static func autoTopUpState(from payload: Any?) -> (enabled: Bool?, method: String?) {
-        let contexts = self.dictionaryContexts(from: payload)
-        let enabled = self.firstBool(forKeys: ["enabled", "isEnabled", "autoTopUpEnabled", "active"], in: contexts)
-            ?? self.boolFromStatusString(self.firstString(forKeys: ["status"], in: contexts))
+    private static func autoTopUpState(
+        creditBlocksPayload: Any?,
+        autoTopUpPayload: Any?) -> (enabled: Bool?, method: String?)
+    {
+        let creditContexts = self.dictionaryContexts(from: creditBlocksPayload)
+        let autoTopUpContexts = self.dictionaryContexts(from: autoTopUpPayload)
+        let enabled = self.firstBool(forKeys: ["enabled", "isEnabled", "active"], in: autoTopUpContexts)
+            ?? self.boolFromStatusString(self.firstString(forKeys: ["status"], in: autoTopUpContexts))
+            ?? self.firstBool(forKeys: ["autoTopUpEnabled"], in: creditContexts)
 
-        let method = self.firstString(
+        let rawMethod = self.firstString(
             forKeys: ["paymentMethod", "paymentMethodType", "method", "cardBrand"],
-            in: contexts)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            in: autoTopUpContexts)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let amount = self.moneyAmount(
+            centsKeys: ["amountCents"],
+            milliUSDKeys: [],
+            plainKeys: ["amount", "topUpAmount", "amountUsd"],
+            in: autoTopUpContexts)
 
-        return (enabled, method?.isEmpty == true ? nil : method)
+        let method: String? = if let rawMethod, !rawMethod.isEmpty {
+            rawMethod
+        } else if let amount, amount > 0 {
+            self.currencyAmountLabel(amount)
+        } else {
+            nil
+        }
+
+        return (enabled, method)
+    }
+
+    private static func subscriptionData(from payload: Any?) -> [String: Any]? {
+        guard let payloadDictionary = payload as? [String: Any] else {
+            return nil
+        }
+
+        if let subscription = payloadDictionary["subscription"] as? [String: Any] {
+            return subscription
+        }
+
+        if payloadDictionary["subscription"] is NSNull {
+            return nil
+        }
+
+        let hasSubscriptionShape = payloadDictionary["currentPeriodUsageUsd"] != nil ||
+            payloadDictionary["currentPeriodBaseCreditsUsd"] != nil ||
+            payloadDictionary["currentPeriodBonusCreditsUsd"] != nil ||
+            payloadDictionary["tier"] != nil
+        return hasSubscriptionShape ? payloadDictionary : nil
+    }
+
+    private static func planNameForTier(_ tier: String) -> String {
+        switch tier {
+        case "tier_19":
+            "Starter"
+        case "tier_49":
+            "Pro"
+        case "tier_199":
+            "Expert"
+        default:
+            tier
+        }
+    }
+
+    private static func string(from raw: Any?) -> String? {
+        if let value = raw as? String {
+            return value
+        }
+        return nil
     }
 
     private static func dictionaryContexts(from payload: Any?) -> [[String: Any]] {
         guard let payload else { return [] }
         guard let dictionary = payload as? [String: Any] else { return [] }
 
-        var contexts: [[String: Any]] = [dictionary]
+        var contexts: [[String: Any]] = []
+        var queue: [([String: Any], Int)] = [(dictionary, 0)]
+        let maxDepth = 2
 
-        if let data = dictionary["data"] as? [String: Any] {
-            contexts.append(data)
-        }
-        if let result = dictionary["result"] as? [String: Any] {
-            contexts.append(result)
+        while !queue.isEmpty {
+            let (current, depth) = queue.removeFirst()
+            contexts.append(current)
+
+            guard depth < maxDepth else {
+                continue
+            }
+
+            for value in current.values {
+                if let nested = value as? [String: Any] {
+                    queue.append((nested, depth + 1))
+                    continue
+                }
+                if let nestedArray = value as? [Any] {
+                    for case let nested as [String: Any] in nestedArray {
+                        queue.append((nested, depth + 1))
+                    }
+                }
+            }
         }
 
         return contexts
@@ -510,6 +894,39 @@ public struct KiloUsageFetcher: Sendable {
             }
         }
         return nil
+    }
+
+    private static func firstDate(forKeys keys: [String], in contexts: [[String: Any]]) -> Date? {
+        for context in contexts {
+            for key in keys {
+                if let value = self.date(from: context[key]) {
+                    return value
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func moneyAmount(
+        centsKeys: [String],
+        milliUSDKeys: [String],
+        plainKeys: [String],
+        in contexts: [[String: Any]]) -> Double?
+    {
+        if let cents = self.firstDouble(forKeys: centsKeys, in: contexts) {
+            return cents / 100
+        }
+        if let milliUSD = self.firstDouble(forKeys: milliUSDKeys, in: contexts) {
+            return milliUSD / 1_000_000
+        }
+        return self.firstDouble(forKeys: plainKeys, in: contexts)
+    }
+
+    private static func currencyAmountLabel(_ amount: Double) -> String {
+        if amount.rounded(.towardZero) == amount {
+            return String(format: "$%.0f", amount)
+        }
+        return String(format: "$%.2f", amount)
     }
 
     private static func stringValue(for path: [String], in dictionary: [String: Any]) -> String? {
@@ -562,6 +979,42 @@ public struct KiloUsageFetcher: Sendable {
         default:
             nil
         }
+    }
+
+    private static func date(from raw: Any?) -> Date? {
+        switch raw {
+        case let value as Date:
+            return value
+        case let value as Double:
+            return self.dateFromEpoch(value)
+        case let value as Int:
+            return self.dateFromEpoch(Double(value))
+        case let value as NSNumber:
+            return self.dateFromEpoch(value.doubleValue)
+        case let value as String:
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return nil }
+            if let numeric = Double(trimmed) {
+                return self.dateFromEpoch(numeric)
+            }
+
+            let withFractional = ISO8601DateFormatter()
+            withFractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let parsed = withFractional.date(from: trimmed) {
+                return parsed
+            }
+
+            let plain = ISO8601DateFormatter()
+            plain.formatOptions = [.withInternetDateTime]
+            return plain.date(from: trimmed)
+        default:
+            return nil
+        }
+    }
+
+    private static func dateFromEpoch(_ value: Double) -> Date {
+        let seconds = abs(value) > 10_000_000_000 ? value / 1000 : value
+        return Date(timeIntervalSince1970: seconds)
     }
 
     private static func bool(from raw: Any?) -> Bool? {

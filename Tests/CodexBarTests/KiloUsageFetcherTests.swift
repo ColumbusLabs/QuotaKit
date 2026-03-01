@@ -117,6 +117,153 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
+    func parseSnapshotMapsKiloPassWindowFromSubscriptionState() throws {
+        let json = """
+        [
+          {
+            "result": {
+              "data": {
+                "creditBlocks": [
+                  {
+                    "id": "cb-1",
+                    "effective_date": "2026-02-01T00:00:00Z",
+                    "expiry_date": null,
+                    "balance_mUsd": 19000000,
+                    "amount_mUsd": 19000000,
+                    "is_free": false
+                  }
+                ],
+                "totalBalance_mUsd": 19000000,
+                "autoTopUpEnabled": false
+              }
+            }
+          },
+          {
+            "result": {
+              "data": {
+                "subscription": {
+                  "tier": "tier_19",
+                  "currentPeriodUsageUsd": 0,
+                  "currentPeriodBaseCreditsUsd": 19.0,
+                  "currentPeriodBonusCreditsUsd": 9.5,
+                  "nextBillingAt": "2026-03-28T04:00:00.000Z"
+                }
+              }
+            }
+          },
+          {
+            "result": {
+              "data": {
+                "enabled": false,
+                "amountCents": 5000,
+                "paymentMethod": null
+              }
+            }
+          }
+        ]
+        """
+
+        let parsed = try KiloUsageFetcher._parseSnapshotForTesting(Data(json.utf8))
+        let snapshot = parsed.toUsageSnapshot()
+
+        #expect(snapshot.primary?.usedPercent == 0)
+        #expect(snapshot.secondary?.usedPercent == 0)
+        #expect(snapshot.secondary?.resetsAt != nil)
+        #expect(snapshot.secondary?.resetDescription == "$0.00 / $19.00 (+ $9.50 bonus)")
+        #expect(snapshot.loginMethod(for: .kilo) == "Starter · Auto top-up: off")
+    }
+
+    @Test
+    func parseSnapshotMapsKnownTierNamesAndDefaultsToKiloPass() throws {
+        let proTierJSON = """
+        [
+          { "result": { "data": { "creditBlocks": [], "totalBalance_mUsd": 0, "autoTopUpEnabled": false } } },
+          { "result": { "data": { "subscription": { "tier": "tier_49" } } } },
+          { "result": { "data": { "enabled": false, "paymentMethod": null } } }
+        ]
+        """
+        let proTierSnapshot = try KiloUsageFetcher._parseSnapshotForTesting(Data(proTierJSON.utf8)).toUsageSnapshot()
+        #expect(proTierSnapshot.loginMethod(for: .kilo) == "Pro · Auto top-up: off")
+
+        let noTierJSON = """
+        [
+          { "result": { "data": { "creditBlocks": [], "totalBalance_mUsd": 0, "autoTopUpEnabled": false } } },
+          { "result": { "data": { "subscription": {
+            "currentPeriodUsageUsd": 1.0,
+            "currentPeriodBaseCreditsUsd": 19.0
+          } } } },
+          { "result": { "data": { "enabled": false, "paymentMethod": null } } }
+        ]
+        """
+        let noTierSnapshot = try KiloUsageFetcher._parseSnapshotForTesting(Data(noTierJSON.utf8)).toUsageSnapshot()
+        #expect(noTierSnapshot.loginMethod(for: .kilo) == "Kilo Pass · Auto top-up: off")
+    }
+
+    @Test
+    func parseSnapshotUsesAutoTopUpAmountWhenEnabledWithoutPaymentMethod() throws {
+        let json = """
+        [
+          { "result": { "data": { "creditBlocks": [], "totalBalance_mUsd": 0, "autoTopUpEnabled": true } } },
+          { "result": { "data": { "subscription": null } } },
+          { "result": { "data": { "enabled": true, "amountCents": 5000, "paymentMethod": null } } }
+        ]
+        """
+
+        let snapshot = try KiloUsageFetcher._parseSnapshotForTesting(Data(json.utf8)).toUsageSnapshot()
+        #expect(snapshot.loginMethod(for: .kilo) == "Auto top-up: $50")
+    }
+
+    @Test
+    func parseSnapshotFallbackPassFieldsUseMicroDollarScale() throws {
+        let json = """
+        [
+          {
+            "result": {
+              "data": {
+                "json": {
+                  "blocks": [
+                    {
+                      "usedCredits": 0,
+                      "totalCredits": 19,
+                      "remainingCredits": 19
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "result": {
+              "data": {
+                "json": {
+                  "planName": "Starter",
+                  "amount_mUsd": 28500000,
+                  "used_mUsd": 3500000,
+                  "bonus_mUsd": 9500000,
+                  "nextRenewalAt": "2026-03-28T04:00:00.000Z"
+                }
+              }
+            }
+          },
+          {
+            "result": {
+              "data": {
+                "json": {
+                  "enabled": false,
+                  "paymentMethod": null
+                }
+              }
+            }
+          }
+        ]
+        """
+
+        let snapshot = try KiloUsageFetcher._parseSnapshotForTesting(Data(json.utf8)).toUsageSnapshot()
+        #expect(snapshot.secondary?.resetDescription == "$3.50 / $19.00 (+ $9.50 bonus)")
+        #expect(snapshot.loginMethod(for: .kilo) == "Starter · Auto top-up: off")
+    }
+
+    @Test
     func parseSnapshotTreatsEmptyAndNullBusinessFieldsAsNoDataSuccess() throws {
         let json = """
         [
