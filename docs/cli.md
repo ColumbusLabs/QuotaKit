@@ -54,12 +54,13 @@ See `docs/configuration.md` for the schema.
     - `web` (macOS only): web-only; no CLI fallback.
     - `cli`: CLI-only (Codex RPC → PTY fallback; Claude PTY).
     - `oauth`: Claude OAuth only (debug); no fallback. Not supported for Codex.
-    - `api`: API key flow when the provider supports it (z.ai, Gemini, Copilot, Kimi K2, MiniMax, Synthetic).
+    - `api`: API key flow when the provider supports it (z.ai, Gemini, Copilot, Kilo, Kimi K2, MiniMax, Warp, OpenRouter, Synthetic).
     - Output `source` reflects the strategy actually used (`openai-web`, `web`, `oauth`, `api`, `local`, or provider CLI label).
     - Codex web: OpenAI web dashboard (usage limits, credits remaining, code review remaining, usage breakdown).
         - `--web-timeout <seconds>` (default: 60)
         - `--web-debug-dump-html` (writes HTML snapshots to `/tmp` when data is missing)
     - Claude web: claude.ai API (session + weekly usage, plus account metadata when available).
+    - Kilo auto: app.kilo.ai API first, then CLI auth fallback (`~/.local/share/kilo/auth.json`) on missing/unauthorized API credentials.
     - Linux: `web/auto` are not supported; CLI prints an error and exits non-zero.
 - Global flags: `-h/--help`, `-V/--version`, `-v/--verbose`, `--no-color`, `--log-level <trace|verbose|debug|info|warning|error|critical>`, `--json-output`, `--json-only`.
   - `--json-output`: JSONL logs on stderr (machine-readable).
@@ -102,6 +103,7 @@ codexbar --provider claude --account steipete@gmail.com
 codexbar --provider claude --all-accounts --format json --pretty
 codexbar --json-only --format json --pretty
 codexbar --provider gemini --source api --format json --pretty
+KILO_API_KEY=... codexbar --provider kilo --source api --format json --pretty
 codexbar config validate --format json --pretty
 codexbar config dump --pretty
 ```
