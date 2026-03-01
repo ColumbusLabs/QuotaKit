@@ -95,12 +95,17 @@ extension CodexBarCLI {
         }
 
         #if !os(macOS)
-        if parsedSourceMode?.usesWeb == true {
-            Self.exit(
-                code: .failure,
-                message: "Error: --source web/auto is only supported on macOS.",
-                output: output,
-                kind: .runtime)
+        if let parsedSourceMode {
+            let requiresWeb = providerList.contains { selectedProvider in
+                Self.sourceModeRequiresWebSupport(parsedSourceMode, provider: selectedProvider)
+            }
+            if requiresWeb {
+                Self.exit(
+                    code: .failure,
+                    message: "Error: selected source requires web support and is only supported on macOS.",
+                    output: output,
+                    kind: .runtime)
+            }
         }
         #endif
 
@@ -246,7 +251,7 @@ extension CodexBarCLI {
             account: account)
 
         #if !os(macOS)
-        if effectiveSourceMode.usesWeb {
+        if Self.sourceModeRequiresWebSupport(effectiveSourceMode, provider: provider) {
             return Self.webSourceUnsupportedOutput(
                 provider: provider,
                 account: account,
@@ -406,7 +411,8 @@ extension CodexBarCLI {
         let error = NSError(
             domain: "CodexBarCLI",
             code: 1,
-            userInfo: [NSLocalizedDescriptionKey: "Error: --source web/auto is only supported on macOS."])
+            userInfo: [NSLocalizedDescriptionKey:
+                "Error: selected source requires web support and is only supported on macOS."])
         output.exitCode = .failure
         if command.format == .json {
             output.payload.append(Self.makeProviderErrorPayload(
@@ -420,5 +426,16 @@ extension CodexBarCLI {
             Self.writeStderr("Error: \(error.localizedDescription)\n")
         }
         return output
+    }
+
+    static func sourceModeRequiresWebSupport(_ sourceMode: ProviderSourceMode, provider: UsageProvider) -> Bool {
+        switch sourceMode {
+        case .web:
+            true
+        case .auto:
+            ProviderDescriptorRegistry.descriptor(for: provider).fetchPlan.sourceModes.contains(.web)
+        case .cli, .oauth, .api:
+            false
+        }
     }
 }

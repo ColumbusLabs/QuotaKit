@@ -189,4 +189,12 @@ struct CLIEntryTests {
             sourceMode: .auto,
             attempts: attempts) == nil)
     }
+
+    @Test
+    func sourceModeRequiresWebSupportIsProviderAware() {
+        #expect(CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .kilo))
+        #expect(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .codex))
+        #expect(!CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .kilo))
+        #expect(!CodexBarCLI.sourceModeRequiresWebSupport(.api, provider: .kilo))
+    }
 }
