@@ -57,10 +57,6 @@ struct DisplayPane: View {
                     }
                     .disabled(!self.settings.menuBarShowsBrandIconWithPercent)
                     .opacity(self.settings.menuBarShowsBrandIconWithPercent ? 1 : 0.5)
-                    PreferenceToggleRow(
-                        title: "Historical tracking",
-                        subtitle: "Stores local usage history (8 weeks) to personalize Pace predictions.",
-                        binding: self.$settings.historicalTrackingEnabled)
                 }
 
                 Divider()
