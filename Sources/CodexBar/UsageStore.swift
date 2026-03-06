@@ -57,6 +57,7 @@ extension UsageStore {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.observeSettingsChanges()
+                guard self.startupBehavior.automaticallyStartsBackgroundWork else { return }
                 self.startTimer()
                 self.updateProviderRuntimes()
                 await self.refreshHistoricalDatasetIfNeeded()
@@ -69,6 +70,30 @@ extension UsageStore {
 @MainActor
 @Observable
 final class UsageStore {
+    enum StartupBehavior: Sendable {
+        case automatic
+        case full
+        case testing
+
+        var automaticallyStartsBackgroundWork: Bool {
+            switch self {
+            case .automatic, .full:
+                true
+            case .testing:
+                false
+            }
+        }
+
+        func resolved(isRunningTests: Bool) -> StartupBehavior {
+            switch self {
+            case .automatic:
+                isRunningTests ? .testing : .full
+            case .full, .testing:
+                self
+            }
+        }
+    }
+
     var snapshots: [UsageProvider: UsageSnapshot] = [:]
     var errors: [UsageProvider: String] = [:]
     var lastSourceLabels: [UsageProvider: String] = [:]
@@ -131,6 +156,7 @@ final class UsageStore {
     @ObservationIgnored private var hasCompletedInitialRefresh: Bool = false
     @ObservationIgnored private let tokenFetchTTL: TimeInterval = 60 * 60
     @ObservationIgnored private let tokenFetchTimeout: TimeInterval = 10 * 60
+    @ObservationIgnored private let startupBehavior: StartupBehavior
 
     init(
         fetcher: UsageFetcher,
@@ -140,7 +166,8 @@ final class UsageStore {
         settings: SettingsStore,
         registry: ProviderRegistry = .shared,
         historicalUsageHistoryStore: HistoricalUsageHistoryStore = HistoricalUsageHistoryStore(),
-        sessionQuotaNotifier: any SessionQuotaNotifying = SessionQuotaNotifier())
+        sessionQuotaNotifier: any SessionQuotaNotifying = SessionQuotaNotifier(),
+        startupBehavior: StartupBehavior = .automatic)
     {
         self.codexFetcher = fetcher
         self.browserDetection = browserDetection
@@ -150,6 +177,7 @@ final class UsageStore {
         self.registry = registry
         self.historicalUsageHistoryStore = historicalUsageHistoryStore
         self.sessionQuotaNotifier = sessionQuotaNotifier
+        self.startupBehavior = startupBehavior.resolved(isRunningTests: Self.isRunningTestsProcess())
         self.providerMetadata = registry.metadata
         self
             .failureGates = Dictionary(
@@ -169,14 +197,15 @@ final class UsageStore {
         })
         self.logStartupState()
         self.bindSettings()
-        self.detectVersions()
-        self.updateProviderRuntimes()
         self.pathDebugInfo = PathDebugSnapshot(
             codexBinary: nil,
             claudeBinary: nil,
             geminiBinary: nil,
             effectivePATH: PathBuilder.effectivePATH(purposes: [.rpc, .tty, .nodeTooling]),
             loginShellPATH: LoginShellPathCache.shared.current?.joined(separator: ":"))
+        guard self.startupBehavior.automaticallyStartsBackgroundWork else { return }
+        self.detectVersions()
+        self.updateProviderRuntimes()
         Task { @MainActor [weak self] in
             self?.schedulePathDebugInfoRefresh()
         }
@@ -191,6 +220,16 @@ final class UsageStore {
         Task { await self.refresh() }
         self.startTimer()
         self.startTokenTimer()
+    }
+
+    private static func isRunningTestsProcess() -> Bool {
+        let environment = ProcessInfo.processInfo.environment
+        if environment["XCTestConfigurationFilePath"] != nil { return true }
+        if environment["XCTestSessionIdentifier"] != nil { return true }
+        if environment["SWIFT_TESTING_ENABLED"] != nil { return true }
+        return CommandLine.arguments.contains { argument in
+            argument.contains("xctest") || argument.contains("swift-testing")
+        }
     }
 
     /// Returns the login method (plan type) for the specified provider, if available.
