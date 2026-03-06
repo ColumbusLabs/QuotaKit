@@ -10,6 +10,7 @@
 - Reduce CPU/energy regressions and JSONL scanner overhead in Codex/web usage paths (#402, #392). Thanks @bald-ai and @asonawalla!
 
 ### Providers & Usage
+- Claude: surface rate-limit errors from the CLI `/usage` probe with a user-friendly message, and harden "Failed to load usage data" matching against whitespace-collapsed output.
 - OpenRouter: add provider support with credit tracking, key-quota popup support, token-account labels, fallback status icons, and updated icon/color (#396). Thanks @chountalas!
 - Ollama: add provider support with token-account support in app/CLI, Chrome-default auto cookie import, and manual-cookie mode (#380). Thanks @CryptoSageSnr!
 - Kilo: add provider support with source-mode fallback, clearer credential/login guidance, auto top-up activity labeling, zero-balance credit handling, and pass parsing/menu rendering (#454). Thanks @coreh!
@@ -30,6 +31,7 @@
 - Menu: hide contextual provider actions while Overview is selected and rebuild switcher state when overview availability changes (#416).
 
 ### Claude OAuth & Keychain
+- Use a `claude-code/<version>` User-Agent for OAuth usage requests instead of a generic identifier.
 - Add an experimental Claude OAuth Security-CLI reader path and option in settings.
 - Apply stored prompt mode and fallback policy to silent/noninteractive keychain probes.
 - Add cooldown for background OAuth keychain retries.
