@@ -573,6 +573,37 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
+    func backfill_treatsOmittedRecentZeroUsageDaysAsCoverage() async {
+        let fileURL = Self.makeTempURL()
+        let store = HistoricalUsageHistoryStore(fileURL: fileURL)
+        let now = Self.gregorianDate(year: 2026, month: 2, day: 26, hour: 20)
+        let resetsAt = now.addingTimeInterval(2 * 24 * 60 * 60)
+        let referenceWindow = RateWindow(
+            usedPercent: 50,
+            windowMinutes: 10080,
+            resetsAt: resetsAt,
+            resetDescription: nil)
+
+        let breakdown = Self.syntheticBreakdown(
+            endingAt: now,
+            days: 35,
+            dailyCredits: 10,
+            overridesByDayOffset: [
+                0: 0,
+                1: 0,
+            ])
+            .filter { $0.totalCreditsUsed > 0 }
+
+        let dataset = await store.backfillCodexWeeklyFromUsageBreakdown(
+            breakdown,
+            referenceWindow: referenceWindow,
+            now: now,
+            accountKey: nil)
+
+        #expect((dataset?.weeks.count ?? 0) >= 3)
+    }
+
+    @Test
     func partialDayCredits_areNotUndercountedAtAsOfTime() {
         let asOf = Self.gregorianDate(year: 2026, month: 2, day: 26, hour: 12)
         let start = Self.gregorianDate(year: 2026, month: 2, day: 20, hour: 0)

@@ -531,7 +531,39 @@ actor HistoricalUsageHistoryStore {
         }
 
         dayUsages.sort { lhs, rhs in lhs.start < rhs.start }
-        return dayUsages
+        return Self.fillMissingZeroUsageDays(in: dayUsages, through: asOf)
+    }
+
+    private static func fillMissingZeroUsageDays(in dayUsages: [DayUsage], through asOf: Date) -> [DayUsage] {
+        guard let firstStart = dayUsages.first?.start else { return [] }
+
+        let calendar = Self.gregorianCalendar()
+        let finalDayStart = calendar.startOfDay(for: asOf)
+        guard firstStart <= finalDayStart else { return dayUsages }
+
+        let creditsByStart = Dictionary(uniqueKeysWithValues: dayUsages.map { ($0.start, $0.creditsUsed) })
+        let daySpan = max(0, calendar.dateComponents([.day], from: firstStart, to: finalDayStart).day ?? 0)
+        var filled: [DayUsage] = []
+        filled.reserveCapacity(daySpan + 1)
+
+        var cursor = firstStart
+        while cursor <= finalDayStart {
+            guard let nominalEnd = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            let effectiveEnd: Date = if cursor <= asOf, asOf < nominalEnd {
+                asOf
+            } else {
+                nominalEnd
+            }
+            guard effectiveEnd > cursor else { break }
+            filled.append(DayUsage(
+                start: cursor,
+                end: effectiveEnd,
+                creditsUsed: creditsByStart[cursor] ?? 0))
+            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            cursor = next
+        }
+
+        return filled
     }
 
     private static func dayStart(for key: String) -> Date? {
