@@ -340,6 +340,8 @@ struct StatusProbeTests {
         #expect(snap.sessionPercentLeft == 94)
         #expect(snap.weeklyPercentLeft == 96)
         #expect(snap.opusPercentLeft == 99)
+        #expect(snap.secondaryResetDescription == "ResetsFeb12at1:29pm(Asia/Calcutta)")
+        #expect(snap.opusResetDescription == "ResetsFeb12at1:29pm(Asia/Calcutta)")
     }
 
     @Test
@@ -518,6 +520,16 @@ struct StatusProbeTests {
             minute: 0,
             second: 0))
         #expect(parsedDateTime == dateExpected)
+    }
+
+    @Test
+    func parsesClaudeResetWithCompactDateAndTimeNoSpaces() throws {
+        let now = Date(timeIntervalSince1970: 1_773_097_200) // Mar 10, 2026 12:00:00 UTC
+        let parsed = ClaudeStatusProbe.parseResetDate(from: "ResetsMar13at12:30pm(Asia/Calcutta)", now: now)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "Asia/Calcutta"))
+        let expected = calendar.date(from: DateComponents(year: 2026, month: 3, day: 13, hour: 12, minute: 30))
+        #expect(parsed == expected)
     }
 
     @Test
