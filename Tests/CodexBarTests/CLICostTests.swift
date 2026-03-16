@@ -4,10 +4,9 @@ import Foundation
 import Testing
 @testable import CodexBarCLI
 
-@Suite
 struct CLICostTests {
     @Test
-    func costJsonShortcutDoesNotEnableJsonLogs() throws {
+    func `cost json shortcut does not enable json logs`() throws {
         let signature = CodexBarCLI._costSignatureForTesting()
         let parser = CommandParser(signature: signature)
         let parsed = try parser.parse(arguments: ["--json"])
@@ -18,7 +17,7 @@ struct CLICostTests {
     }
 
     @Test
-    func rendersCostTextSnapshot() {
+    func `renders cost text snapshot`() {
         let snap = CostUsageTokenSnapshot(
             sessionTokens: 1200,
             sessionCostUSD: 1.25,
@@ -37,7 +36,7 @@ struct CLICostTests {
     }
 
     @Test
-    func encodesCostPayloadJSON() throws {
+    func `encodes cost payload JSON`() throws {
         let payload = CostPayload(
             provider: "claude",
             source: "local",
@@ -88,7 +87,7 @@ struct CLICostTests {
     }
 
     @Test
-    func encodesExactCodexModelIDsAndZeroCostBreakdowns() throws {
+    func `encodes exact codex model I ds and zero cost breakdowns`() throws {
         let payload = CostPayload(
             provider: "codex",
             source: "local",

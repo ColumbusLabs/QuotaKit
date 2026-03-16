@@ -3,10 +3,9 @@ import Foundation
 import Testing
 @testable import CodexBar
 
-@Suite
 struct GeminiMenuCardTests {
     @Test
-    func geminiModelUsesFlashLiteTitleForTertiaryMetric() throws {
+    func `gemini model uses flash lite title for tertiary metric`() throws {
         let now = Date()
         let identity = ProviderIdentitySnapshot(
             providerID: .gemini,

@@ -72,7 +72,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         ProcessInfo.processInfo.environment["CODEXBAR_DEBUG_CLAUDE_OAUTH_FLOW"] == "1"
     }
 
-    private struct ClaudeOAuthKeychainPromptPolicy: Sendable {
+    private struct ClaudeOAuthKeychainPromptPolicy {
         let mode: ClaudeOAuthKeychainPromptMode
         let isApplicable: Bool
         let interaction: ProviderInteraction

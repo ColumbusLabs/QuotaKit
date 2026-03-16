@@ -1,16 +1,16 @@
 import CodexBarCore
 import Foundation
 
-enum HistoricalUsageWindowKind: String, Codable, Sendable {
+enum HistoricalUsageWindowKind: String, Codable {
     case secondary
 }
 
-enum HistoricalUsageRecordSource: String, Codable, Sendable {
+enum HistoricalUsageRecordSource: String, Codable {
     case live
     case backfill
 }
 
-struct HistoricalUsageRecord: Codable, Sendable {
+struct HistoricalUsageRecord: Codable {
     let v: Int
     let provider: UsageProvider
     let windowKind: HistoricalUsageWindowKind
@@ -57,13 +57,13 @@ struct HistoricalUsageRecord: Codable, Sendable {
     }
 }
 
-struct HistoricalWeekProfile: Sendable {
+struct HistoricalWeekProfile {
     let resetsAt: Date
     let windowMinutes: Int
     let curve: [Double]
 }
 
-struct CodexHistoricalDataset: Sendable {
+struct CodexHistoricalDataset {
     static let gridPointCount = 169
     let weeks: [HistoricalWeekProfile]
 }

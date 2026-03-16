@@ -3,10 +3,9 @@ import Foundation
 import Testing
 @testable import CodexBar
 
-@Suite
 struct UsagePaceTextTests {
     @Test
-    func weeklyPaceDetail_providesLeftRightLabels() throws {
+    func `weekly pace detail provides left right labels`() throws {
         let now = Date(timeIntervalSince1970: 0)
         let window = RateWindow(
             usedPercent: 50,
@@ -22,7 +21,7 @@ struct UsagePaceTextTests {
     }
 
     @Test
-    func weeklyPaceDetail_reportsLastsUntilReset() throws {
+    func `weekly pace detail reports lasts until reset`() throws {
         let now = Date(timeIntervalSince1970: 0)
         let window = RateWindow(
             usedPercent: 10,
@@ -38,7 +37,7 @@ struct UsagePaceTextTests {
     }
 
     @Test
-    func weeklyPaceSummary_formatsSingleLineText() throws {
+    func `weekly pace summary formats single line text`() throws {
         let now = Date(timeIntervalSince1970: 0)
         let window = RateWindow(
             usedPercent: 50,
@@ -53,7 +52,7 @@ struct UsagePaceTextTests {
     }
 
     @Test
-    func weeklyPaceDetail_formatsRoundedRiskWhenAvailable() {
+    func `weekly pace detail formats rounded risk when available`() {
         let now = Date(timeIntervalSince1970: 0)
         let pace = UsagePace(
             stage: .ahead,

@@ -1,14 +1,14 @@
 import Foundation
 
 enum CostUsagePricing {
-    struct CodexPricing: Sendable {
+    struct CodexPricing {
         let inputCostPerToken: Double
         let outputCostPerToken: Double
         let cacheReadInputCostPerToken: Double?
         let displayLabel: String?
     }
 
-    struct ClaudePricing: Sendable {
+    struct ClaudePricing {
         let inputCostPerToken: Double
         let outputCostPerToken: Double
         let cacheCreationInputCostPerToken: Double

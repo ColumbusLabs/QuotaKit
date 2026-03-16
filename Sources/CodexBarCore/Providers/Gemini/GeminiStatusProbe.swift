@@ -360,7 +360,7 @@ public struct GeminiStatusProbe: Sendable {
         return nil
     }
 
-    private struct CodeAssistStatus: Sendable {
+    private struct CodeAssistStatus {
         let tier: GeminiUserTierId?
         let projectId: String?
 

@@ -4,10 +4,9 @@ import Testing
 @testable import CodexBar
 
 @MainActor
-@Suite
 struct UsageStoreCoverageTests {
     @Test
-    func providerWithHighestUsageAndIconStyle() throws {
+    func `provider with highest usage and icon style`() throws {
         let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-highest")
         let store = Self.makeUsageStore(settings: settings)
         let metadata = ProviderRegistry.shared.metadata
@@ -50,7 +49,7 @@ struct UsageStoreCoverageTests {
     }
 
     @Test
-    func sourceLabelAddsOpenAIWeb() {
+    func `source label adds open AI web`() {
         let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-source")
         settings.debugDisableKeychainAccess = false
         settings.codexUsageDataSource = .oauth
@@ -72,7 +71,7 @@ struct UsageStoreCoverageTests {
     }
 
     @Test
-    func sourceLabelUsesConfiguredKiloSource() {
+    func `source label uses configured kilo source`() {
         let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-kilo-source")
         settings.kiloUsageDataSource = .api
 
@@ -81,7 +80,7 @@ struct UsageStoreCoverageTests {
     }
 
     @Test
-    func providerWithHighestUsagePrefersKimiRateLimitWindow() throws {
+    func `provider with highest usage prefers kimi rate limit window`() throws {
         let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-kimi-highest")
         let store = Self.makeUsageStore(settings: settings)
         let metadata = ProviderRegistry.shared.metadata
@@ -109,7 +108,7 @@ struct UsageStoreCoverageTests {
     }
 
     @Test
-    func providerAvailabilityAndSubscriptionDetection() {
+    func `provider availability and subscription detection`() {
         let zaiStore = InMemoryZaiTokenStore(value: "zai-token")
         let syntheticStore = InMemorySyntheticTokenStore(value: "synthetic-token")
         let settings = Self.makeSettingsStore(
@@ -135,7 +134,7 @@ struct UsageStoreCoverageTests {
     }
 
     @Test
-    func statusIndicatorsAndFailureGate() {
+    func `status indicators and failure gate`() {
         #expect(!ProviderStatusIndicator.none.hasIssue)
         #expect(ProviderStatusIndicator.maintenance.hasIssue)
         #expect(ProviderStatusIndicator.unknown.label == "Status unknown")

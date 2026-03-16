@@ -175,7 +175,7 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         try await ClaudeStatusProbe.touchOAuthAuthPath(timeout: timeout)
     }
 
-    private enum KeychainChangeObservationBaseline: Sendable {
+    private enum KeychainChangeObservationBaseline {
         case securityFramework(fingerprint: ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint?)
         case securityCLI(data: Data?)
     }

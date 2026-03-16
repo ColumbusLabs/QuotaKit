@@ -53,7 +53,7 @@ enum CostUsageCacheIO {
     }
 }
 
-struct CostUsageCache: Codable, Sendable {
+struct CostUsageCache: Codable {
     var version: Int = 1
     var lastScanUnixMs: Int64 = 0
 
@@ -67,7 +67,7 @@ struct CostUsageCache: Codable, Sendable {
     var roots: [String: Int64]?
 }
 
-struct CostUsageFileUsage: Codable, Sendable {
+struct CostUsageFileUsage: Codable {
     var mtimeUnixMs: Int64
     var size: Int64
     var days: [String: [String: [Int]]]
@@ -77,7 +77,7 @@ struct CostUsageFileUsage: Codable, Sendable {
     var sessionId: String?
 }
 
-struct CostUsageCodexTotals: Codable, Sendable {
+struct CostUsageCodexTotals: Codable {
     var input: Int
     var cached: Int
     var output: Int

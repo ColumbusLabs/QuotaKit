@@ -5,7 +5,7 @@ import Testing
 @Suite(.serialized)
 struct TTYCommandRunnerEnvTests {
     @Test
-    func shutdownFenceDrainsTrackedTTYProcesses() {
+    func `shutdown fence drains tracked TTY processes`() {
         TTYCommandRunner._test_resetTrackedProcesses()
         defer { TTYCommandRunner._test_resetTrackedProcesses() }
 
@@ -19,7 +19,7 @@ struct TTYCommandRunnerEnvTests {
     }
 
     @Test
-    func trackedProcessHelpersIgnoreInvalidPID() {
+    func `tracked process helpers ignore invalid PID`() {
         TTYCommandRunner._test_resetTrackedProcesses()
         defer { TTYCommandRunner._test_resetTrackedProcesses() }
 
@@ -28,7 +28,7 @@ struct TTYCommandRunnerEnvTests {
     }
 
     @Test
-    func shutdownFenceRejectsNewRegistrations() {
+    func `shutdown fence rejects new registrations`() {
         TTYCommandRunner._test_resetTrackedProcesses()
         defer { TTYCommandRunner._test_resetTrackedProcesses() }
 
@@ -41,7 +41,7 @@ struct TTYCommandRunnerEnvTests {
     }
 
     @Test
-    func shutdownResolverSkipsHostProcessGroupFallback() {
+    func `shutdown resolver skips host process group fallback`() {
         let hostGroup: pid_t = 4242
         let targets: [(pid: pid_t, binary: String, processGroup: pid_t?)] = [
             (pid: 100, binary: "codex", processGroup: nil),
@@ -63,7 +63,7 @@ struct TTYCommandRunnerEnvTests {
     }
 
     @Test
-    func preservesEnvironmentAndSetsTerm() {
+    func `preserves environment and sets term`() {
         let baseEnv: [String: String] = [
             "PATH": "/custom/bin",
             "HOME": "/Users/tester",
@@ -83,7 +83,7 @@ struct TTYCommandRunnerEnvTests {
     }
 
     @Test
-    func backfillsHomeWhenMissing() {
+    func `backfills home when missing`() {
         let merged = TTYCommandRunner.enrichedEnvironment(
             baseEnv: ["PATH": "/custom/bin"],
             loginPATH: nil,
@@ -93,7 +93,7 @@ struct TTYCommandRunnerEnvTests {
     }
 
     @Test
-    func preservesExistingTermAndCustomVars() {
+    func `preserves existing term and custom vars`() {
         let merged = TTYCommandRunner.enrichedEnvironment(
             baseEnv: [
                 "PATH": "/custom/bin",
@@ -111,7 +111,7 @@ struct TTYCommandRunnerEnvTests {
     }
 
     @Test
-    func setsWorkingDirectoryWhenProvided() throws {
+    func `sets working directory when provided`() throws {
         let fm = FileManager.default
         let dir = fm.temporaryDirectory.appendingPathComponent("codexbar-tty-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -123,7 +123,7 @@ struct TTYCommandRunnerEnvTests {
     }
 
     @Test
-    func autoRespondsToTrustPrompt() throws {
+    func `auto responds to trust prompt`() throws {
         let fm = FileManager.default
         let dir = fm.temporaryDirectory.appendingPathComponent("codexbar-tty-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -160,7 +160,7 @@ struct TTYCommandRunnerEnvTests {
     }
 
     @Test
-    func stopsWhenOutputIsIdle() throws {
+    func `stops when output is idle`() throws {
         let fm = FileManager.default
         let dir = fm.temporaryDirectory.appendingPathComponent("codexbar-tty-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -195,7 +195,7 @@ struct TTYCommandRunnerEnvTests {
     }
 
     @Test
-    func rollingBufferDetectsNeedleAcrossBoundary() {
+    func `rolling buffer detects needle across boundary`() {
         var scanner = TTYCommandRunner.RollingBuffer(maxNeedle: 6)
         let needle = Data("hello".utf8)
         let first = scanner.append(Data("he".utf8))
@@ -205,7 +205,7 @@ struct TTYCommandRunnerEnvTests {
     }
 
     @Test
-    func lowercasedASCIIOnlyTouchesAscii() {
+    func `lowercased ASCII only touches ascii`() {
         let data = Data("UpDaTe".utf8)
         let lowered = TTYCommandRunner.lowercasedASCII(data)
         #expect(String(data: lowered, encoding: .utf8) == "update")

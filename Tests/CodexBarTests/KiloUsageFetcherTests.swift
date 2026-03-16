@@ -2,7 +2,6 @@ import Foundation
 import Testing
 @testable import CodexBarCore
 
-@Suite
 struct KiloUsageFetcherTests {
     private struct StubClaudeFetcher: ClaudeUsageFetching {
         func loadLatestUsage(model _: String) async throws -> ClaudeUsageSnapshot {
@@ -38,7 +37,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func batchURLUsesAuthenticatedTRPCBatchFormat() throws {
+    func `batch URL uses authenticated TRPC batch format`() throws {
         let baseURL = try #require(URL(string: "https://kilo.example/trpc"))
         let url = try KiloUsageFetcher._buildBatchURLForTesting(baseURL: baseURL)
 
@@ -65,7 +64,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func parseSnapshotMapsBusinessFieldsAndIdentity() throws {
+    func `parse snapshot maps business fields and identity`() throws {
         let json = """
         [
           {
@@ -117,7 +116,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func parseSnapshotMapsKiloPassWindowFromSubscriptionState() throws {
+    func `parse snapshot maps kilo pass window from subscription state`() throws {
         let json = """
         [
           {
@@ -174,7 +173,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func parseSnapshotMapsKnownTierNamesAndDefaultsToKiloPass() throws {
+    func `parse snapshot maps known tier names and defaults to kilo pass`() throws {
         let proTierJSON = """
         [
           { "result": { "data": { "creditBlocks": [], "totalBalance_mUsd": 0, "autoTopUpEnabled": false } } },
@@ -200,7 +199,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func parseSnapshotUsesAutoTopUpAmountWhenEnabledWithoutPaymentMethod() throws {
+    func `parse snapshot uses auto top up amount when enabled without payment method`() throws {
         let json = """
         [
           { "result": { "data": { "creditBlocks": [], "totalBalance_mUsd": 0, "autoTopUpEnabled": true } } },
@@ -214,7 +213,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func parseSnapshotFallbackPassFieldsUseMicroDollarScale() throws {
+    func `parse snapshot fallback pass fields use micro dollar scale`() throws {
         let json = """
         [
           {
@@ -264,7 +263,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func parseSnapshotTreatsEmptyAndNullBusinessFieldsAsNoDataSuccess() throws {
+    func `parse snapshot treats empty and null business fields as no data success`() throws {
         let json = """
         [
           {
@@ -309,7 +308,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func parseSnapshotKeepsSparseIndexedObjectRoutingByProcedureIndex() throws {
+    func `parse snapshot keeps sparse indexed object routing by procedure index`() throws {
         let json = """
         {
           "0": {
@@ -344,7 +343,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func parseSnapshotUsesTopLevelCreditsUsedFallback() throws {
+    func `parse snapshot uses top level credits used fallback`() throws {
         let json = """
         [
           {
@@ -368,7 +367,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func parseSnapshotKeepsZeroTotalVisibleWhenActivityExists() throws {
+    func `parse snapshot keeps zero total visible when activity exists`() throws {
         let json = """
         [
           {
@@ -413,7 +412,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func parseSnapshotTreatsZeroBalanceWithoutCreditBlocksAsVisibleZeroTotal() throws {
+    func `parse snapshot treats zero balance without credit blocks as visible zero total`() throws {
         let json = """
         [
           {
@@ -455,7 +454,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func parseSnapshotDegradesOptionalAutoTopUpTRPCError() throws {
+    func `parse snapshot degrades optional auto top up TRPC error`() throws {
         let json = """
         [
           {
@@ -498,7 +497,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func parseSnapshotKeepsRequiredProcedureTRPCErrorFatal() {
+    func `parse snapshot keeps required procedure TRPC error fatal`() {
         let json = """
         [
           {
@@ -534,7 +533,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func parseSnapshotMapsUnauthorizedTRPCError() {
+    func `parse snapshot maps unauthorized TRPC error`() {
         let json = """
         [
           {
@@ -560,7 +559,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func parseSnapshotMapsInvalidJSONToParseError() {
+    func `parse snapshot maps invalid JSON to parse error`() {
         #expect {
             _ = try KiloUsageFetcher._parseSnapshotForTesting(Data("not-json".utf8))
         } throws: { error in
@@ -571,7 +570,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func statusErrorMappingCoversAuthAndServerFailures() {
+    func `status error mapping covers auth and server failures`() {
         #expect(KiloUsageFetcher._statusErrorForTesting(401) == .unauthorized)
         #expect(KiloUsageFetcher._statusErrorForTesting(403) == .unauthorized)
         #expect(KiloUsageFetcher._statusErrorForTesting(404) == .endpointNotFound)
@@ -588,14 +587,14 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func fetchUsageWithoutCredentialsFailsFast() async {
+    func `fetch usage without credentials fails fast`() async {
         await #expect(throws: KiloUsageError.missingCredentials) {
             _ = try await KiloUsageFetcher.fetchUsage(apiKey: "  ", environment: [:])
         }
     }
 
     @Test
-    func descriptorFetchOutcomeWithoutCredentialsReturnsActionableError() async {
+    func `descriptor fetch outcome without credentials returns actionable error`() async {
         let descriptor = ProviderDescriptorRegistry.descriptor(for: .kilo)
         let outcome = await descriptor.fetchOutcome(context: self.makeContext())
 
@@ -612,7 +611,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func descriptorAPIModeIgnoresCLISessionFallback() async throws {
+    func `descriptor API mode ignores CLI session fallback`() async throws {
         let homeDirectory = try self.makeTemporaryHomeDirectory()
         defer { try? FileManager.default.removeItem(at: homeDirectory) }
         try self.writeKiloAuthFile(
@@ -636,7 +635,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func descriptorCLIModeMissingSessionReturnsActionableError() async throws {
+    func `descriptor CLI mode missing session returns actionable error`() async throws {
         let homeDirectory = try self.makeTemporaryHomeDirectory()
         defer { try? FileManager.default.removeItem(at: homeDirectory) }
         let expectedPath = KiloSettingsReader.defaultAuthFileURL(homeDirectory: homeDirectory).path
@@ -658,7 +657,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func descriptorAutoModeFallsBackFromAPIToCLI() async throws {
+    func `descriptor auto mode falls back from API to CLI`() async throws {
         let homeDirectory = try self.makeTemporaryHomeDirectory()
         defer { try? FileManager.default.removeItem(at: homeDirectory) }
         let expectedPath = KiloSettingsReader.defaultAuthFileURL(homeDirectory: homeDirectory).path
@@ -680,7 +679,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func apiStrategyFallsBackOnUnauthorizedOnlyInAutoMode() {
+    func `api strategy falls back on unauthorized only in auto mode`() {
         let strategy = KiloAPIFetchStrategy()
         #expect(strategy.shouldFallback(
             on: KiloUsageError.unauthorized,
@@ -691,7 +690,7 @@ struct KiloUsageFetcherTests {
     }
 
     @Test
-    func apiStrategyFallsBackOnMissingCredentialsOnlyInAutoMode() {
+    func `api strategy falls back on missing credentials only in auto mode`() {
         let strategy = KiloAPIFetchStrategy()
         #expect(strategy.shouldFallback(
             on: KiloUsageError.missingCredentials,

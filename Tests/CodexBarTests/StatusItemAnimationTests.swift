@@ -4,7 +4,6 @@ import Testing
 @testable import CodexBar
 
 @MainActor
-@Suite
 struct StatusItemAnimationTests {
     private func maxAlpha(in rep: NSBitmapImageRep) -> CGFloat {
         var maxAlpha: CGFloat = 0
@@ -28,7 +27,7 @@ struct StatusItemAnimationTests {
     }
 
     @Test
-    func mergedIconLoadingAnimationTracksSelectedProviderOnly() {
+    func `merged icon loading animation tracks selected provider only`() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "StatusItemAnimationTests-merged"),
             zaiTokenStore: NoopZaiTokenStore(),
@@ -73,7 +72,7 @@ struct StatusItemAnimationTests {
     }
 
     @Test
-    func mergedIconLoadingAnimationDoesNotFlipLayoutWhenWeeklyHitsZero() {
+    func `merged icon loading animation does not flip layout when weekly hits zero`() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "StatusItemAnimationTests-weekly"),
             zaiTokenStore: NoopZaiTokenStore(),
@@ -138,7 +137,7 @@ struct StatusItemAnimationTests {
     }
 
     @Test
-    func warpNoBonusLayoutIsPreservedInShowUsedModeWhenBonusIsExhausted() {
+    func `warp no bonus layout is preserved in show used mode when bonus is exhausted`() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "StatusItemAnimationTests-warp-no-bonus-used"),
             zaiTokenStore: NoopZaiTokenStore(),
@@ -191,7 +190,7 @@ struct StatusItemAnimationTests {
     }
 
     @Test
-    func warpBonusLaneIsPreservedInShowUsedModeWhenBonusIsUnused() {
+    func `warp bonus lane is preserved in show used mode when bonus is unused`() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "StatusItemAnimationTests-warp-unused-bonus-used"),
             zaiTokenStore: NoopZaiTokenStore(),
@@ -244,7 +243,7 @@ struct StatusItemAnimationTests {
     }
 
     @Test
-    func menuBarPercentUsesConfiguredMetric() {
+    func `menu bar percent uses configured metric`() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "StatusItemAnimationTests-metric"),
             zaiTokenStore: NoopZaiTokenStore())
@@ -283,7 +282,7 @@ struct StatusItemAnimationTests {
     }
 
     @Test
-    func menuBarPercentAutomaticPrefersRateLimitForKimi() {
+    func `menu bar percent automatic prefers rate limit for kimi`() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "StatusItemAnimationTests-kimi-automatic"),
             zaiTokenStore: NoopZaiTokenStore())
@@ -322,7 +321,7 @@ struct StatusItemAnimationTests {
     }
 
     @Test
-    func menuBarPercentUsesAverageForGemini() {
+    func `menu bar percent uses average for gemini`() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "StatusItemAnimationTests-average"),
             zaiTokenStore: NoopZaiTokenStore())
@@ -361,7 +360,7 @@ struct StatusItemAnimationTests {
     }
 
     @Test
-    func menuBarDisplayTextFormatsPercentAndPace() {
+    func `menu bar display text formats percent and pace`() {
         let now = Date(timeIntervalSince1970: 0)
         let percentWindow = RateWindow(usedPercent: 40, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
         let paceWindow = RateWindow(
@@ -393,14 +392,8 @@ struct StatusItemAnimationTests {
     }
 
     @Test
-    func menuBarDisplayTextHidesWhenPaceUnavailable() {
-        let now = Date(timeIntervalSince1970: 0)
+    func `menu bar display text hides when pace unavailable`() {
         let percentWindow = RateWindow(usedPercent: 40, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
-        let paceWindow = RateWindow(
-            usedPercent: 30,
-            windowMinutes: 10080,
-            resetsAt: now.addingTimeInterval(60 * 60 * 24 * 6),
-            resetDescription: nil)
 
         let pace = MenuBarDisplayText.displayText(
             mode: .pace,
@@ -416,14 +409,8 @@ struct StatusItemAnimationTests {
     }
 
     @Test
-    func menuBarDisplayTextRequiresProvidedPaceForCodex() {
-        let now = Date(timeIntervalSince1970: 0)
+    func `menu bar display text requires provided pace for codex`() {
         let percentWindow = RateWindow(usedPercent: 40, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
-        let paceWindow = RateWindow(
-            usedPercent: 30,
-            windowMinutes: 10080,
-            resetsAt: now.addingTimeInterval(60 * 60 * 24 * 6),
-            resetDescription: nil)
 
         let pace = MenuBarDisplayText.displayText(
             mode: .pace,
@@ -441,7 +428,7 @@ struct StatusItemAnimationTests {
     }
 
     @Test
-    func menuBarDisplayTextUsesCreditsWhenCodexWeeklyIsExhausted() {
+    func `menu bar display text uses credits when codex weekly is exhausted`() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "StatusItemAnimationTests-credits-fallback"),
             zaiTokenStore: NoopZaiTokenStore())
@@ -487,7 +474,7 @@ struct StatusItemAnimationTests {
     }
 
     @Test
-    func menuBarDisplayTextUsesCreditsWhenCodexSessionIsExhausted() {
+    func `menu bar display text uses credits when codex session is exhausted`() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "StatusItemAnimationTests-credits-fallback-session"),
             zaiTokenStore: NoopZaiTokenStore())
@@ -533,7 +520,7 @@ struct StatusItemAnimationTests {
     }
 
     @Test
-    func menuBarDisplayTextShowsZeroPercentForKiloZeroTotalEdge() {
+    func `menu bar display text shows zero percent for kilo zero total edge`() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "StatusItemAnimationTests-kilo-zero-edge"),
             zaiTokenStore: NoopZaiTokenStore(),
@@ -579,7 +566,7 @@ struct StatusItemAnimationTests {
     }
 
     @Test
-    func brandImageWithStatusOverlayReturnsOriginalImageWhenNoIssue() {
+    func `brand image with status overlay returns original image when no issue`() {
         let brand = NSImage(size: NSSize(width: 16, height: 16))
         brand.isTemplate = true
 
@@ -589,7 +576,7 @@ struct StatusItemAnimationTests {
     }
 
     @Test
-    func brandImageWithStatusOverlayDrawsIssueMark() throws {
+    func `brand image with status overlay draws issue mark`() throws {
         let size = NSSize(width: 16, height: 16)
         let brand = NSImage(size: size)
         brand.lockFocus()

@@ -5,23 +5,22 @@ import Testing
 #if os(macOS)
 import SweetCookieKit
 
-@Suite
 struct BrowserDetectionTests {
     @Test
-    func safariAlwaysInstalled() {
+    func `safari always installed`() {
         #expect(BrowserDetection(cacheTTL: 0).isAppInstalled(.safari) == true)
         #expect(BrowserDetection(cacheTTL: 0).isCookieSourceAvailable(.safari) == true)
     }
 
     @Test
-    func filterInstalledIncludesSafari() {
+    func `filter installed includes safari`() {
         let detection = BrowserDetection(cacheTTL: 0)
         let browsers: [Browser] = [.safari, .chrome, .firefox]
         #expect(browsers.cookieImportCandidates(using: detection).contains(.safari))
     }
 
     @Test
-    func filterPreservesOrder() {
+    func `filter preserves order`() {
         BrowserCookieAccessGate.resetForTesting()
 
         let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -46,7 +45,7 @@ struct BrowserDetectionTests {
     }
 
     @Test
-    func chromeRequiresProfileData() throws {
+    func `chrome requires profile data`() throws {
         let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: temp) }
@@ -69,7 +68,7 @@ struct BrowserDetectionTests {
     }
 
     @Test
-    func diaRequiresProfileData() throws {
+    func `dia requires profile data`() throws {
         let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: temp) }
@@ -92,7 +91,7 @@ struct BrowserDetectionTests {
     }
 
     @Test
-    func firefoxRequiresDefaultProfileDir() throws {
+    func `firefox requires default profile dir`() throws {
         let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: temp) }
@@ -114,7 +113,7 @@ struct BrowserDetectionTests {
     }
 
     @Test
-    func zenAcceptsUppercaseDefaultProfileDir() throws {
+    func `zen accepts uppercase default profile dir`() throws {
         let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: temp) }
@@ -138,15 +137,14 @@ struct BrowserDetectionTests {
 
 #else
 
-@Suite
 struct BrowserDetectionTests {
     @Test
-    func nonMacOSReturnsNoBrowsers() {
+    func `non mac OS returns no browsers`() {
         #expect(BrowserDetection(cacheTTL: 0).isCookieSourceAvailable(Browser()) == false)
     }
 
     @Test
-    func nonMacOSFilterReturnsEmpty() {
+    func `non mac OS filter returns empty`() {
         let detection = BrowserDetection(cacheTTL: 0)
         let browsers = [Browser(), Browser()]
         #expect(browsers.cookieImportCandidates(using: detection).isEmpty == true)

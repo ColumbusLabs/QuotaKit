@@ -4,7 +4,6 @@ import Testing
 @testable import CodexBar
 
 @MainActor
-@Suite
 struct UsageStoreSessionQuotaTransitionTests {
     @MainActor
     final class SessionQuotaNotifierSpy: SessionQuotaNotifying {
@@ -16,7 +15,7 @@ struct UsageStoreSessionQuotaTransitionTests {
     }
 
     @Test
-    func copilotSwitchFromPrimaryToSecondaryResetsBaseline() {
+    func `copilot switch from primary to secondary resets baseline`() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "UsageStoreSessionQuotaTransitionTests-primary-secondary"),
             zaiTokenStore: NoopZaiTokenStore(),
@@ -48,7 +47,7 @@ struct UsageStoreSessionQuotaTransitionTests {
     }
 
     @Test
-    func copilotSwitchFromSecondaryToPrimaryResetsBaseline() {
+    func `copilot switch from secondary to primary resets baseline`() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "UsageStoreSessionQuotaTransitionTests-secondary-primary"),
             zaiTokenStore: NoopZaiTokenStore(),

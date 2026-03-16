@@ -2,10 +2,9 @@ import CodexBarCore
 import Foundation
 import Testing
 
-@Suite
 struct ProviderTokenResolverTests {
     @Test
-    func zaiResolutionUsesEnvironmentToken() {
+    func `zai resolution uses environment token`() {
         let env = [ZaiSettingsReader.apiTokenKey: "token"]
         let resolution = ProviderTokenResolver.zaiResolution(environment: env)
         #expect(resolution?.token == "token")
@@ -13,14 +12,14 @@ struct ProviderTokenResolverTests {
     }
 
     @Test
-    func copilotResolutionTrimsToken() {
+    func `copilot resolution trims token`() {
         let env = ["COPILOT_API_TOKEN": "  token  "]
         let resolution = ProviderTokenResolver.copilotResolution(environment: env)
         #expect(resolution?.token == "token")
     }
 
     @Test
-    func warpResolutionUsesEnvironmentToken() {
+    func `warp resolution uses environment token`() {
         let env = ["WARP_API_KEY": "wk-test-token"]
         let resolution = ProviderTokenResolver.warpResolution(environment: env)
         #expect(resolution?.token == "wk-test-token")
@@ -28,21 +27,21 @@ struct ProviderTokenResolverTests {
     }
 
     @Test
-    func warpResolutionTrimsToken() {
+    func `warp resolution trims token`() {
         let env = ["WARP_API_KEY": "  wk-token  "]
         let resolution = ProviderTokenResolver.warpResolution(environment: env)
         #expect(resolution?.token == "wk-token")
     }
 
     @Test
-    func warpResolutionReturnsNilWhenMissing() {
+    func `warp resolution returns nil when missing`() {
         let env: [String: String] = [:]
         let resolution = ProviderTokenResolver.warpResolution(environment: env)
         #expect(resolution == nil)
     }
 
     @Test
-    func kiloResolutionPrefersEnvironmentOverAuthFile() throws {
+    func `kilo resolution prefers environment over auth file`() throws {
         let fileURL = try self.makeKiloAuthFile(contents: #"{"kilo":{"access":"file-token"}}"#)
         defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
 
@@ -54,7 +53,7 @@ struct ProviderTokenResolverTests {
     }
 
     @Test
-    func kiloResolutionFallsBackToAuthFile() throws {
+    func `kilo resolution falls back to auth file`() throws {
         let fileURL = try self.makeKiloAuthFile(contents: #"{"kilo":{"access":"file-token"}}"#)
         defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
 
@@ -65,7 +64,7 @@ struct ProviderTokenResolverTests {
     }
 
     @Test
-    func kiloResolutionReturnsNilForMalformedAuthFile() throws {
+    func `kilo resolution returns nil for malformed auth file`() throws {
         let fileURL = try self.makeKiloAuthFile(contents: #"{not-json}"#)
         defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
 

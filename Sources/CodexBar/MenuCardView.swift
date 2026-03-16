@@ -5,7 +5,7 @@ import SwiftUI
 /// SwiftUI card used inside the NSMenu to mirror Apple's rich menu panels.
 struct UsageMenuCardView: View {
     struct Model {
-        enum PercentStyle: String, Sendable {
+        enum PercentStyle: String {
             case left
             case used
 
@@ -47,7 +47,7 @@ struct UsageMenuCardView: View {
             case error
         }
 
-        struct TokenUsageSection: Sendable {
+        struct TokenUsageSection {
             let sessionLine: String
             let monthLine: String
             let hintLine: String?
@@ -55,7 +55,7 @@ struct UsageMenuCardView: View {
             let errorCopyText: String?
         }
 
-        struct ProviderCostSection: Sendable {
+        struct ProviderCostSection {
             let title: String
             let percentUsed: Double
             let spendLine: String

@@ -4,10 +4,9 @@ import Testing
 @testable import CodexBar
 
 @MainActor
-@Suite
 struct PreferencesPaneSmokeTests {
     @Test
-    func buildsPreferencePanesWithDefaultSettings() {
+    func `builds preference panes with default settings`() {
         let settings = Self.makeSettingsStore(suite: "PreferencesPaneSmokeTests-default")
         let store = Self.makeUsageStore(settings: settings)
 
@@ -22,7 +21,7 @@ struct PreferencesPaneSmokeTests {
     }
 
     @Test
-    func buildsPreferencePanesWithToggledSettings() {
+    func `builds preference panes with toggled settings`() {
         let settings = Self.makeSettingsStore(suite: "PreferencesPaneSmokeTests-toggled")
         settings.menuBarShowsBrandIconWithPercent = true
         settings.menuBarShowsHighestUsage = true

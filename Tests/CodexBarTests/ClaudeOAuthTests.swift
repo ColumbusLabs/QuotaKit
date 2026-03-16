@@ -2,10 +2,9 @@ import Foundation
 import Testing
 @testable import CodexBarCore
 
-@Suite
 struct ClaudeOAuthTests {
     @Test
-    func parsesOAuthCredentials() throws {
+    func `parses O auth credentials`() throws {
         let json = """
         {
           "claudeAiOauth": {
@@ -26,7 +25,7 @@ struct ClaudeOAuthTests {
     }
 
     @Test
-    func missingAccessTokenThrows() {
+    func `missing access token throws`() {
         let json = """
         {
           "claudeAiOauth": {
@@ -42,7 +41,7 @@ struct ClaudeOAuthTests {
     }
 
     @Test
-    func missingOAuthBlockThrows() {
+    func `missing O auth block throws`() {
         let json = """
         { "other": { "accessToken": "nope" } }
         """
@@ -52,7 +51,7 @@ struct ClaudeOAuthTests {
     }
 
     @Test
-    func treatsMissingExpiryAsExpired() {
+    func `treats missing expiry as expired`() {
         let creds = ClaudeOAuthCredentials(
             accessToken: "token",
             refreshToken: nil,
@@ -63,7 +62,7 @@ struct ClaudeOAuthTests {
     }
 
     @Test
-    func mapsOAuthUsageToSnapshot() throws {
+    func `maps O auth usage to snapshot`() throws {
         let json = """
         {
           "five_hour": { "utilization": 12.5, "resets_at": "2025-12-25T12:00:00.000Z" },
@@ -83,7 +82,7 @@ struct ClaudeOAuthTests {
     }
 
     @Test
-    func mapsOAuthExtraUsage() throws {
+    func `maps O auth extra usage`() throws {
         // OAuth API returns values in cents (minor units), same as Web API.
         // The normalization always converts to dollars (major units).
         let json = """
@@ -103,7 +102,7 @@ struct ClaudeOAuthTests {
     }
 
     @Test
-    func mapsOAuthExtraUsageMinorUnitsAsMajorUnits() throws {
+    func `maps O auth extra usage minor units as major units`() throws {
         let json = """
         {
           "five_hour": { "utilization": 1, "resets_at": "2025-12-25T12:00:00.000Z" },
@@ -122,7 +121,7 @@ struct ClaudeOAuthTests {
     }
 
     @Test
-    func normalizesHighLimitOAuthExtraUsage() throws {
+    func `normalizes high limit O auth extra usage`() throws {
         let json = """
         {
           "five_hour": { "utilization": 1, "resets_at": "2025-12-25T12:00:00.000Z" },
@@ -143,7 +142,7 @@ struct ClaudeOAuthTests {
     }
 
     @Test
-    func normalizesOAuthExtraUsageCentsToMajorUnits() throws {
+    func `normalizes O auth extra usage cents to major units`() throws {
         let json = """
         {
           "five_hour": { "utilization": 1, "resets_at": "2025-12-25T12:00:00.000Z" },
@@ -162,7 +161,7 @@ struct ClaudeOAuthTests {
     }
 
     @Test
-    func prefersOpusWhenSonnetMissing() throws {
+    func `prefers opus when sonnet missing`() throws {
         let json = """
         {
           "five_hour": { "utilization": 10, "resets_at": "2025-12-25T12:00:00.000Z" },
@@ -174,7 +173,7 @@ struct ClaudeOAuthTests {
     }
 
     @Test
-    func includesBodyInOAuth403Error() {
+    func `includes body in O auth403 error`() {
         let err = ClaudeOAuthFetchError.serverError(
             403,
             "HTTP 403: OAuth token does not meet scope requirement user:profile")
@@ -183,7 +182,7 @@ struct ClaudeOAuthTests {
     }
 
     @Test
-    func oauthUsageUserAgentUsesClaudeCodeVersion() {
+    func `oauth usage user agent uses claude code version`() {
         #expect(
             ClaudeOAuthUsageFetcher._userAgentForTesting(versionString: "2.1.70 (Claude Code)")
                 == "claude-code/2.1.70")
@@ -191,7 +190,7 @@ struct ClaudeOAuthTests {
     }
 
     @Test
-    func skipsExtraUsageWhenDisabled() throws {
+    func `skips extra usage when disabled`() throws {
         let json = """
         {
           "five_hour": { "utilization": 1, "resets_at": "2025-12-25T12:00:00.000Z" },
@@ -209,7 +208,7 @@ struct ClaudeOAuthTests {
     // MARK: - Scope-based strategy resolution
 
     @Test
-    func prefersOAuthWhenAvailable() {
+    func `prefers O auth when available`() {
         let strategy = ClaudeProviderDescriptor.resolveUsageStrategy(
             selectedDataSource: .auto,
             webExtrasEnabled: false,
@@ -220,7 +219,7 @@ struct ClaudeOAuthTests {
     }
 
     @Test
-    func fallsBackToCLIWhenOAuthMissingAndCLIAvailable() {
+    func `falls back to CLI when O auth missing and CLI available`() {
         let strategy = ClaudeProviderDescriptor.resolveUsageStrategy(
             selectedDataSource: .auto,
             webExtrasEnabled: false,
@@ -231,7 +230,7 @@ struct ClaudeOAuthTests {
     }
 
     @Test
-    func fallsBackToWebWhenOAuthMissingAndCLIMissing() {
+    func `falls back to web when O auth missing and CLI missing`() {
         let strategy = ClaudeProviderDescriptor.resolveUsageStrategy(
             selectedDataSource: .auto,
             webExtrasEnabled: false,
@@ -242,7 +241,7 @@ struct ClaudeOAuthTests {
     }
 
     @Test
-    func fallsBackToCLIWhenOAuthMissingAndWebMissing() {
+    func `falls back to CLI when O auth missing and web missing`() {
         let strategy = ClaudeProviderDescriptor.resolveUsageStrategy(
             selectedDataSource: .auto,
             webExtrasEnabled: false,

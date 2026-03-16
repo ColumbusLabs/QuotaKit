@@ -3,10 +3,9 @@ import Foundation
 import Testing
 @testable import CodexBar
 
-@Suite
 struct MenuCardKiloPassTests {
     @Test
-    func kiloModelShowsPassBeforeCreditsAndKeepsResetWithDetail() throws {
+    func `kilo model shows pass before credits and keeps reset with detail`() throws {
         let now = Date()
         let metadata = try #require(ProviderDefaults.metadata[.kilo])
         let snapshot = UsageSnapshot(

@@ -2,10 +2,9 @@ import Foundation
 import Testing
 @testable import CodexBarCore
 
-@Suite
 struct CostUsageCacheTests {
     @Test
-    func cacheFileURL_usesCodexSpecificArtifactVersion() {
+    func `cache file URL uses codex specific artifact version`() {
         let root = URL(fileURLWithPath: "/tmp/codexbar-cost-cache", isDirectory: true)
 
         let codexURL = CostUsageCacheIO.cacheFileURL(provider: .codex, cacheRoot: root)

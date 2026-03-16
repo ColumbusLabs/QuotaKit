@@ -2,10 +2,9 @@ import CodexBarCore
 import Foundation
 import Testing
 
-@Suite
 struct CopilotUsageModelsTests {
     @Test
-    func decodesQuotaSnapshotsPayload() throws {
+    func `decodes quota snapshots payload`() throws {
         let response = try Self.decodeFixture(
             """
             {
@@ -37,7 +36,7 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
-    func decodesChatOnlyQuotaSnapshotsPayload() throws {
+    func `decodes chat only quota snapshots payload`() throws {
         let response = try Self.decodeFixture(
             """
             {
@@ -60,7 +59,7 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
-    func preservesMissingDateFieldsAsNil() throws {
+    func `preserves missing date fields as nil`() throws {
         let response = try Self.decodeFixture(
             """
             {
@@ -81,7 +80,7 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
-    func preservesExplicitEmptyDateFields() throws {
+    func `preserves explicit empty date fields`() throws {
         let response = try Self.decodeFixture(
             """
             {
@@ -104,7 +103,7 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
-    func decodesMonthlyAndLimitedQuotaPayload() throws {
+    func `decodes monthly and limited quota payload`() throws {
         let response = try Self.decodeFixture(
             """
             {
@@ -132,7 +131,7 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
-    func doesNotAssumeFullQuotaWhenLimitedQuotasAreMissing() throws {
+    func `does not assume full quota when limited quotas are missing`() throws {
         let response = try Self.decodeFixture(
             """
             {
@@ -149,7 +148,7 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
-    func computesMonthlyFallbackPerQuotaOnlyWhenLimitedValueExists() throws {
+    func `computes monthly fallback per quota only when limited value exists`() throws {
         let response = try Self.decodeFixture(
             """
             {
@@ -172,7 +171,7 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
-    func mergesDirectAndMonthlyFallbackLanesWhenDirectIsPartial() throws {
+    func `merges direct and monthly fallback lanes when direct is partial`() throws {
         let response = try Self.decodeFixture(
             """
             {
@@ -208,7 +207,7 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
-    func decodesUnknownQuotaSnapshotKeysUsingFallback() throws {
+    func `decodes unknown quota snapshot keys using fallback`() throws {
         let response = try Self.decodeFixture(
             """
             {
@@ -232,7 +231,7 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
-    func ignoresPlaceholderKnownSnapshotWhenSelectingUnknownKeyFallback() throws {
+    func `ignores placeholder known snapshot when selecting unknown key fallback`() throws {
         let response = try Self.decodeFixture(
             """
             {
@@ -255,7 +254,7 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
-    func derivesPercentRemainingWhenMissingButEntitlementExists() throws {
+    func `derives percent remaining when missing but entitlement exists`() throws {
         let response = try Self.decodeFixture(
             """
             {
@@ -275,7 +274,7 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
-    func marksPercentRemainingAsUnavailableWhenUnderdetermined() throws {
+    func `marks percent remaining as unavailable when underdetermined`() throws {
         let response = try Self.decodeFixture(
             """
             {
@@ -294,7 +293,7 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
-    func marksPercentRemainingAsUnavailableWhenRemainingIsMissing() throws {
+    func `marks percent remaining as unavailable when remaining is missing`() throws {
         let response = try Self.decodeFixture(
             """
             {
@@ -313,7 +312,7 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
-    func fallsBackToMonthlyWhenDirectSnapshotIsMissingRemaining() throws {
+    func `falls back to monthly when direct snapshot is missing remaining`() throws {
         let response = try Self.decodeFixture(
             """
             {
@@ -342,7 +341,7 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
-    func fallsBackToMonthlyWhenDirectSnapshotsLackComputablePercent() throws {
+    func `falls back to monthly when direct snapshots lack computable percent`() throws {
         let response = try Self.decodeFixture(
             """
             {
@@ -371,7 +370,7 @@ struct CopilotUsageModelsTests {
     }
 
     @Test
-    func skipsMonthlyFallbackWhenMonthlyDenominatorIsZero() throws {
+    func `skips monthly fallback when monthly denominator is zero`() throws {
         let response = try Self.decodeFixture(
             """
             {

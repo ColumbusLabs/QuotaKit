@@ -102,7 +102,7 @@ extension ClaudeOAuthCredentialsStore {
         }
     }
 
-    enum SecurityCLIReadOverride: Sendable {
+    enum SecurityCLIReadOverride {
         case data(Data?)
         case timedOut
         case nonZeroExit

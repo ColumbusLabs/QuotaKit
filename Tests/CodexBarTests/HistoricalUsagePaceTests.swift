@@ -3,10 +3,9 @@ import Foundation
 import Testing
 @testable import CodexBar
 
-@Suite
 struct HistoricalUsagePaceTests {
     @Test
-    func historyStore_reconstructsDeterministicMonotoneCurve() async throws {
+    func `history store reconstructs deterministic monotone curve`() async throws {
         let fileURL = Self.makeTempURL()
         let store = HistoricalUsageHistoryStore(fileURL: fileURL)
         let windowMinutes = 10080
@@ -47,7 +46,7 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
-    func reconstructWeekCurve_anchorsAtZeroAtWindowStart() async throws {
+    func `reconstruct week curve anchors at zero at window start`() async throws {
         let fileURL = Self.makeTempURL()
         let store = HistoricalUsageHistoryStore(fileURL: fileURL)
         let windowMinutes = 10080
@@ -80,7 +79,7 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
-    func reconstructWeekCurve_addsEndAnchorWithoutBreakingMonotonicity() async throws {
+    func `reconstruct week curve adds end anchor without breaking monotonicity`() async throws {
         let fileURL = Self.makeTempURL()
         let store = HistoricalUsageHistoryStore(fileURL: fileURL)
         let windowMinutes = 10080
@@ -116,7 +115,7 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
-    func historyStore_requiresStartAndEndCoverageForCompleteWeek() async {
+    func `history store requires start and end coverage for complete week`() async {
         let fileURL = Self.makeTempURL()
         let store = HistoricalUsageHistoryStore(fileURL: fileURL)
         let windowMinutes = 10080
@@ -149,7 +148,7 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
-    func evaluator_appliesSmoothedProbabilityAndHidesRiskBelowThreshold() throws {
+    func `evaluator applies smoothed probability and hides risk below threshold`() throws {
         let now = Date(timeIntervalSince1970: 0)
         let windowMinutes = 10080
         let duration = TimeInterval(windowMinutes) * 60
@@ -197,7 +196,7 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
-    func evaluator_neverReturnsNegativeEtaWithOutlierWeek() {
+    func `evaluator never returns negative eta with outlier week`() {
         let now = Date(timeIntervalSince1970: 0)
         let windowMinutes = 10080
         let duration = TimeInterval(windowMinutes) * 60
@@ -229,7 +228,7 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
-    func historyStore_backfillsFromUsageBreakdownWhenHistoryIsEmpty() async {
+    func `history store backfills from usage breakdown when history is empty`() async {
         let fileURL = Self.makeTempURL()
         let store = HistoricalUsageHistoryStore(fileURL: fileURL)
         let now = Date(timeIntervalSince1970: 1_770_000_000)
@@ -252,7 +251,7 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
-    func historyStore_backfillIsIdempotentForExistingWeeks() async {
+    func `history store backfill is idempotent for existing weeks`() async {
         let fileURL = Self.makeTempURL()
         let store = HistoricalUsageHistoryStore(fileURL: fileURL)
         let now = Date(timeIntervalSince1970: 1_770_000_000)
@@ -286,7 +285,7 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
-    func historyStore_backfillFillsIncompleteExistingWeek() async {
+    func `history store backfill fills incomplete existing week`() async {
         let fileURL = Self.makeTempURL()
         let store = HistoricalUsageHistoryStore(fileURL: fileURL)
         let now = Date(timeIntervalSince1970: 1_770_000_000)
@@ -321,7 +320,7 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
-    func historyStore_shouldAcceptDoesNotCrossWindowMinutesRegimes() async throws {
+    func `history store should accept does not cross window minutes regimes`() async throws {
         let fileURL = Self.makeTempURL()
         let store = HistoricalUsageHistoryStore(fileURL: fileURL)
         let sampledAt = Date(timeIntervalSince1970: 1_770_000_000)
@@ -353,7 +352,7 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
-    func weeksWithResetJitter_areGroupedTogether() async {
+    func `weeks with reset jitter are grouped together`() async {
         let fileURL = Self.makeTempURL()
         let store = HistoricalUsageHistoryStore(fileURL: fileURL)
         let windowMinutes = 10080
@@ -386,7 +385,7 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
-    func backfill_matchesIncompleteWeek_whenResetJitterExists() async throws {
+    func `backfill matches incomplete week when reset jitter exists`() async throws {
         let fileURL = Self.makeTempURL()
         let store = HistoricalUsageHistoryStore(fileURL: fileURL)
         let now = Date(timeIntervalSince1970: 1_770_000_000)
@@ -428,7 +427,7 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
-    func backfill_doesNotStopAtThreeWeeks_whenMoreBackfillableWeeksExist() async throws {
+    func `backfill does not stop at three weeks when more backfillable weeks exist`() async throws {
         let fileURL = Self.makeTempURL()
         let store = HistoricalUsageHistoryStore(fileURL: fileURL)
         let now = Date(timeIntervalSince1970: 1_770_000_000)
@@ -474,7 +473,7 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
-    func loadDataset_usesOnlyCurrentAccountKey() async throws {
+    func `load dataset uses only current account key`() async throws {
         let fileURL = Self.makeTempURL()
         let store = HistoricalUsageHistoryStore(fileURL: fileURL)
         let windowMinutes = 10080
@@ -514,7 +513,7 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
-    func backfill_filtersByAccountKey() async throws {
+    func `backfill filters by account key`() async throws {
         let fileURL = Self.makeTempURL()
         let store = HistoricalUsageHistoryStore(fileURL: fileURL)
         let now = Date(timeIntervalSince1970: 1_770_000_000)
@@ -548,7 +547,7 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
-    func coverageTolerance_allowsDayBoundaryShiftWithoutNoOp() async {
+    func `coverage tolerance allows day boundary shift without no op`() async {
         let fileURL = Self.makeTempURL()
         let store = HistoricalUsageHistoryStore(fileURL: fileURL)
         let now = Date(timeIntervalSince1970: 1_770_000_000)
@@ -573,7 +572,7 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
-    func backfill_treatsOmittedRecentZeroUsageDaysAsCoverage() async {
+    func `backfill treats omitted recent zero usage days as coverage`() async {
         let fileURL = Self.makeTempURL()
         let store = HistoricalUsageHistoryStore(fileURL: fileURL)
         let now = Self.gregorianDate(year: 2026, month: 2, day: 26, hour: 20)
@@ -604,7 +603,7 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
-    func partialDayCredits_areNotUndercountedAtAsOfTime() {
+    func `partial day credits are not undercounted at as of time`() {
         let asOf = Self.gregorianDate(year: 2026, month: 2, day: 26, hour: 12)
         let start = Self.gregorianDate(year: 2026, month: 2, day: 20, hour: 0)
         let breakdown = Self.syntheticBreakdown(
@@ -626,7 +625,7 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
-    func gregorianDayParsing_isStableForYYYYMMDD() {
+    func `gregorian day parsing is stable for YYYYMMDD`() {
         let parsed = HistoricalUsageHistoryStore._dayStartForTesting("2026-02-26")
         let expected = Self.gregorianDate(year: 2026, month: 2, day: 26, hour: 0)
         #expect(parsed == expected)
@@ -634,7 +633,7 @@ struct HistoricalUsagePaceTests {
 
     @MainActor
     @Test
-    func backfill_skipsWhenTimestampMismatchExceeds5Minutes() async throws {
+    func `backfill skips when timestamp mismatch exceeds5 minutes`() async throws {
         let store = try Self.makeUsageStoreForBackfillTests(
             suite: "HistoricalUsagePaceTests-backfill-mismatch",
             historyFileURL: Self.makeTempURL())
@@ -675,7 +674,7 @@ struct HistoricalUsagePaceTests {
 
     @MainActor
     @Test
-    func backfill_usesDashboardSecondaryWhenAvailable() async throws {
+    func `backfill uses dashboard secondary when available`() async throws {
         let store = try Self.makeUsageStoreForBackfillTests(
             suite: "HistoricalUsagePaceTests-backfill-dashboard-secondary",
             historyFileURL: Self.makeTempURL())
@@ -723,7 +722,7 @@ struct HistoricalUsagePaceTests {
     }
 
     @Test
-    func willLastDecision_usesSmoothedProbabilityWhenRiskHidden() throws {
+    func `will last decision uses smoothed probability when risk hidden`() throws {
         let now = Date(timeIntervalSince1970: 0)
         let windowMinutes = 10080
         let duration = TimeInterval(windowMinutes) * 60
@@ -756,7 +755,7 @@ struct HistoricalUsagePaceTests {
 
     @MainActor
     @Test
-    func usageStore_fallsBackToLinearWhenHistoryDisabledOrInsufficient() throws {
+    func `usage store falls back to linear when history disabled or insufficient`() throws {
         let suite = "HistoricalUsagePaceTests-usage-store"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)

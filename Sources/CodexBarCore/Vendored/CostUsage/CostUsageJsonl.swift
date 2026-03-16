@@ -1,7 +1,7 @@
 import Foundation
 
 enum CostUsageJsonl {
-    struct Line: Sendable {
+    struct Line {
         let bytes: Data
         let wasTruncated: Bool
     }

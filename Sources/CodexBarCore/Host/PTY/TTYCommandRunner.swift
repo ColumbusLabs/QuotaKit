@@ -196,7 +196,7 @@ public struct TTYCommandRunner {
         return resolvedTargets
     }
 
-    struct RollingBuffer: Sendable {
+    struct RollingBuffer {
         private let maxNeedle: Int
         private var tail = Data()
 

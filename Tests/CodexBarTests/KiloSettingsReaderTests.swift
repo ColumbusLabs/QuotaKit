@@ -1,10 +1,9 @@
 import CodexBarCore
 import Testing
 
-@Suite
 struct KiloSettingsReaderTests {
     @Test
-    func apiURLDefaultsToAppKiloAITrpc() {
+    func `api URL defaults to app kilo AI trpc`() {
         let url = KiloSettingsReader.apiURL(environment: [:])
 
         #expect(url.scheme == "https")
@@ -13,7 +12,7 @@ struct KiloSettingsReaderTests {
     }
 
     @Test
-    func apiURLIgnoresEnvironmentOverride() {
+    func `api URL ignores environment override`() {
         let url = KiloSettingsReader.apiURL(environment: ["KILO_API_URL": "https://proxy.example.com/trpc"])
 
         #expect(url.host() == "app.kilo.ai")
@@ -21,19 +20,19 @@ struct KiloSettingsReaderTests {
     }
 
     @Test
-    func descriptorUsesAppKiloAIDashboard() {
+    func `descriptor uses app kilo AI dashboard`() {
         let descriptor = ProviderDescriptorRegistry.descriptor(for: .kilo)
         #expect(descriptor.metadata.dashboardURL == "https://app.kilo.ai/account/usage")
     }
 
     @Test
-    func descriptorUsesDedicatedKiloIconResource() {
+    func `descriptor uses dedicated kilo icon resource`() {
         let descriptor = ProviderDescriptorRegistry.descriptor(for: .kilo)
         #expect(descriptor.branding.iconResourceName == "ProviderIcon-kilo")
     }
 
     @Test
-    func descriptorSupportsAutoAPIAndCLISourceModes() {
+    func `descriptor supports auto API and CLI source modes`() {
         let descriptor = ProviderDescriptorRegistry.descriptor(for: .kilo)
         let expected: Set<ProviderSourceMode> = [.auto, .api, .cli]
         #expect(descriptor.fetchPlan.sourceModes == expected)

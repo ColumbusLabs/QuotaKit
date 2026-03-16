@@ -76,7 +76,7 @@ struct UsageOptions: CommanderParsable {
     var augmentDebug: Bool = false
 }
 
-enum ProviderSelection: Sendable, ExpressibleFromArgument {
+enum ProviderSelection: ExpressibleFromArgument {
     case single(UsageProvider)
     case both
     case all
@@ -120,7 +120,7 @@ enum ProviderSelection: Sendable, ExpressibleFromArgument {
     }
 }
 
-enum OutputFormat: String, Sendable, ExpressibleFromArgument {
+enum OutputFormat: String, ExpressibleFromArgument {
     case text
     case json
 

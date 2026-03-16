@@ -3,23 +3,22 @@ import Testing
 import WebKit
 @testable import CodexBarCore
 
-@Suite
 struct OpenAIDashboardNavigationDelegateTests {
-    @Test("ignores NSURLErrorCancelled")
-    func ignoresCancelledNavigationError() {
+    @Test
+    func `ignores NSURLErrorCancelled`() {
         let error = NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled)
         #expect(NavigationDelegate.shouldIgnoreNavigationError(error))
     }
 
-    @Test("does not ignore non-cancelled URL errors")
-    func doesNotIgnoreOtherURLErrors() {
+    @Test
+    func `does not ignore non-cancelled URL errors`() {
         let error = NSError(domain: NSURLErrorDomain, code: NSURLErrorTimedOut)
         #expect(!NavigationDelegate.shouldIgnoreNavigationError(error))
     }
 
     @MainActor
-    @Test("cancelled failure is ignored until finish")
-    func cancelledFailureIsIgnoredUntilFinish() {
+    @Test
+    func `cancelled failure is ignored until finish`() {
         let webView = WKWebView()
         var result: Result<Void, Error>?
         let delegate = NavigationDelegate { result = $0 }
@@ -37,8 +36,8 @@ struct OpenAIDashboardNavigationDelegateTests {
     }
 
     @MainActor
-    @Test("cancelled provisional failure is ignored until real failure")
-    func cancelledProvisionalFailureIsIgnoredUntilRealFailure() {
+    @Test
+    func `cancelled provisional failure is ignored until real failure`() {
         let webView = WKWebView()
         var result: Result<Void, Error>?
         let delegate = NavigationDelegate { result = $0 }
@@ -61,8 +60,8 @@ struct OpenAIDashboardNavigationDelegateTests {
         }
     }
 
-    @Test("navigation timeout fails with timed out error")
-    func navigationTimeoutFailsWithTimedOutError() async {
+    @Test
+    func `navigation timeout fails with timed out error`() async {
         final class DelegateBox: @unchecked Sendable {
             var delegate: NavigationDelegate?
         }

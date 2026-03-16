@@ -22,13 +22,13 @@ public final class BrowserDetection: Sendable {
         let timestamp: Date
     }
 
-    private enum ProbeKind: Int, Hashable, Sendable {
+    private enum ProbeKind: Int, Hashable {
         case appInstalled
         case usableProfileData
         case usableCookieStore
     }
 
-    private struct CacheKey: Hashable, Sendable {
+    private struct CacheKey: Hashable {
         let browser: Browser
         let kind: ProbeKind
     }

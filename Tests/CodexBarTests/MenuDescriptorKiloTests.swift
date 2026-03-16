@@ -4,10 +4,9 @@ import Testing
 @testable import CodexBar
 
 @MainActor
-@Suite
 struct MenuDescriptorKiloTests {
     @Test
-    func kiloCreditsDetailDoesNotRenderAsResetLine() throws {
+    func `kilo credits detail does not render as reset line`() throws {
         let suite = "MenuDescriptorKiloTests-kilo-detail"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -59,7 +58,7 @@ struct MenuDescriptorKiloTests {
     }
 
     @Test
-    func kiloPassDetailKeepsResetLineWhenResetDateExists() throws {
+    func `kilo pass detail keeps reset line when reset date exists`() throws {
         let suite = "MenuDescriptorKiloTests-kilo-pass-reset"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -115,7 +114,7 @@ struct MenuDescriptorKiloTests {
     }
 
     @Test
-    func kiloAutoTopUpOnlyRendersActivityWithoutPlanLabel() throws {
+    func `kilo auto top up only renders activity without plan label`() throws {
         let suite = "MenuDescriptorKiloTests-kilo-activity-only"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)

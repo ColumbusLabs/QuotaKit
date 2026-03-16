@@ -2,7 +2,7 @@ import CodexBarCore
 import Foundation
 
 enum UsagePaceText {
-    struct WeeklyDetail: Sendable {
+    struct WeeklyDetail {
         let leftLabel: String
         let rightLabel: String?
         let expectedUsedPercent: Double

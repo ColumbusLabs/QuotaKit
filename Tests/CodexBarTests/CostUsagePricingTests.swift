@@ -1,10 +1,9 @@
 import Testing
 @testable import CodexBarCore
 
-@Suite
 struct CostUsagePricingTests {
     @Test
-    func normalizesCodexModelVariantsExactly() {
+    func `normalizes codex model variants exactly`() {
         #expect(CostUsagePricing.normalizeCodexModel("openai/gpt-5-codex") == "gpt-5-codex")
         #expect(CostUsagePricing.normalizeCodexModel("gpt-5.2-codex") == "gpt-5.2-codex")
         #expect(CostUsagePricing.normalizeCodexModel("gpt-5.1-codex-max") == "gpt-5.1-codex-max")
@@ -14,7 +13,7 @@ struct CostUsagePricingTests {
     }
 
     @Test
-    func codexCostSupportsGpt51CodexMax() {
+    func `codex cost supports gpt51 codex max`() {
         let cost = CostUsagePricing.codexCostUSD(
             model: "gpt-5.1-codex-max",
             inputTokens: 100,
@@ -24,7 +23,7 @@ struct CostUsagePricingTests {
     }
 
     @Test
-    func codexCostSupportsGpt53Codex() {
+    func `codex cost supports gpt53 codex`() {
         let cost = CostUsagePricing.codexCostUSD(
             model: "gpt-5.3-codex",
             inputTokens: 100,
@@ -34,7 +33,7 @@ struct CostUsagePricingTests {
     }
 
     @Test
-    func codexCostReturnsZeroForResearchPreviewModel() {
+    func `codex cost returns zero for research preview model`() {
         let cost = CostUsagePricing.codexCostUSD(
             model: "gpt-5.3-codex-spark",
             inputTokens: 100,
@@ -46,12 +45,12 @@ struct CostUsagePricingTests {
     }
 
     @Test
-    func normalizesClaudeOpus41DatedVariants() {
+    func `normalizes claude opus41 dated variants`() {
         #expect(CostUsagePricing.normalizeClaudeModel("claude-opus-4-1-20250805") == "claude-opus-4-1")
     }
 
     @Test
-    func claudeCostSupportsOpus41DatedVariant() {
+    func `claude cost supports opus41 dated variant`() {
         let cost = CostUsagePricing.claudeCostUSD(
             model: "claude-opus-4-1-20250805",
             inputTokens: 10,
@@ -62,7 +61,7 @@ struct CostUsagePricingTests {
     }
 
     @Test
-    func claudeCostSupportsOpus46DatedVariant() {
+    func `claude cost supports opus46 dated variant`() {
         let cost = CostUsagePricing.claudeCostUSD(
             model: "claude-opus-4-6-20260205",
             inputTokens: 10,
@@ -73,7 +72,7 @@ struct CostUsagePricingTests {
     }
 
     @Test
-    func claudeCostReturnsNilForUnknownModels() {
+    func `claude cost returns nil for unknown models`() {
         let cost = CostUsagePricing.claudeCostUSD(
             model: "glm-4.6",
             inputTokens: 100,

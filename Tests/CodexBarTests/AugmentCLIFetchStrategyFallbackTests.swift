@@ -6,7 +6,6 @@ import Testing
 
 /// Regression tests for #474: verify that CLI timeout errors trigger fallback
 /// to the web strategy instead of stalling the refresh cycle.
-@Suite
 struct AugmentCLIFetchStrategyFallbackTests {
     private struct StubClaudeFetcher: ClaudeUsageFetching {
         func loadLatestUsage(model _: String) async throws -> ClaudeUsageSnapshot {
@@ -42,7 +41,7 @@ struct AugmentCLIFetchStrategyFallbackTests {
     // fallback=true path — the desired behavior for infrastructure errors.
 
     @Test
-    func timeoutErrorFallsBackToWeb() {
+    func `timeout error falls back to web`() {
         let strategy = AugmentCLIFetchStrategy()
         let context = self.makeContext()
         let error = SubprocessRunnerError.timedOut("auggie-account-status")
@@ -50,7 +49,7 @@ struct AugmentCLIFetchStrategyFallbackTests {
     }
 
     @Test
-    func binaryNotFoundFallsBackToWeb() {
+    func `binary not found falls back to web`() {
         let strategy = AugmentCLIFetchStrategy()
         let context = self.makeContext()
         let error = SubprocessRunnerError.binaryNotFound("/usr/local/bin/auggie")
@@ -58,7 +57,7 @@ struct AugmentCLIFetchStrategyFallbackTests {
     }
 
     @Test
-    func launchFailedFallsBackToWeb() {
+    func `launch failed falls back to web`() {
         let strategy = AugmentCLIFetchStrategy()
         let context = self.makeContext()
         let error = SubprocessRunnerError.launchFailed("permission denied")
@@ -66,28 +65,28 @@ struct AugmentCLIFetchStrategyFallbackTests {
     }
 
     @Test
-    func notAuthenticatedFallsBackToWeb() {
+    func `not authenticated falls back to web`() {
         let strategy = AugmentCLIFetchStrategy()
         let context = self.makeContext()
         #expect(strategy.shouldFallback(on: AuggieCLIError.notAuthenticated, context: context) == true)
     }
 
     @Test
-    func noOutputFallsBackToWeb() {
+    func `no output falls back to web`() {
         let strategy = AugmentCLIFetchStrategy()
         let context = self.makeContext()
         #expect(strategy.shouldFallback(on: AuggieCLIError.noOutput, context: context) == true)
     }
 
     @Test
-    func parseErrorDoesNotFallBack() {
+    func `parse error does not fall back`() {
         let strategy = AugmentCLIFetchStrategy()
         let context = self.makeContext()
         #expect(strategy.shouldFallback(on: AuggieCLIError.parseError("bad data"), context: context) == false)
     }
 
     @Test
-    func nonZeroExitFallsBackToWeb() {
+    func `non zero exit falls back to web`() {
         let strategy = AugmentCLIFetchStrategy()
         let context = self.makeContext()
         let error = SubprocessRunnerError.nonZeroExit(code: 1, stderr: "crash")

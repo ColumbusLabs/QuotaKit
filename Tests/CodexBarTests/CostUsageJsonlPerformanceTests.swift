@@ -5,7 +5,7 @@ import Testing
 @Suite(.serialized)
 struct CostUsageJsonlPerformanceTests {
     @Test
-    func scannerBenchmarkBeatsFrontBufferBaseline() throws {
+    func `scanner benchmark beats front buffer baseline`() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(
             "codexbar-cost-usage-bench-\(UUID().uuidString)",
             isDirectory: true)

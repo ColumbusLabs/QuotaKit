@@ -2,7 +2,7 @@ import CodexBarCore
 import Commander
 import Foundation
 
-struct TokenAccountCLISelection: Sendable {
+struct TokenAccountCLISelection {
     let label: String?
     let index: Int?
     let allAccounts: Bool

@@ -5,10 +5,9 @@ import Testing
 @testable import CodexBar
 
 @MainActor
-@Suite
 struct ProviderSettingsDescriptorTests {
     @Test
-    func toggleIDsAreUniqueAcrossProviders() throws {
+    func `toggle I ds are unique across providers`() throws {
         let suite = "ProviderSettingsDescriptorTests-unique"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -83,7 +82,7 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
-    func codexExposesUsageAndCookiePickers() throws {
+    func `codex exposes usage and cookie pickers`() throws {
         let suite = "ProviderSettingsDescriptorTests-codex"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -126,7 +125,7 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
-    func claudeExposesUsageAndCookiePickers() throws {
+    func `claude exposes usage and cookie pickers`() throws {
         let suite = "ProviderSettingsDescriptorTests-claude"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -173,7 +172,7 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
-    func claudePromptPolicyPickerHiddenWhenExperimentalReaderSelected() throws {
+    func `claude prompt policy picker hidden when experimental reader selected`() throws {
         let suite = "ProviderSettingsDescriptorTests-claude-prompt-hidden-experimental"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -217,7 +216,7 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
-    func claudeKeychainPromptPolicyPickerDisabledWhenGlobalKeychainDisabled() throws {
+    func `claude keychain prompt policy picker disabled when global keychain disabled`() throws {
         let suite = "ProviderSettingsDescriptorTests-claude-keychain-disabled"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -261,7 +260,7 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
-    func claudeWebExtrasAutoDisablesWhenLeavingCLI() throws {
+    func `claude web extras auto disables when leaving CLI`() throws {
         let suite = "ProviderSettingsDescriptorTests-claude-invariant"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -280,7 +279,7 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
-    func kiloExposesUsageSourcePickerAndApiFieldOnly() throws {
+    func `kilo exposes usage source picker and api field only`() throws {
         let suite = "ProviderSettingsDescriptorTests-kilo"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)

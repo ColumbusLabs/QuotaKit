@@ -4,10 +4,9 @@ import Testing
 @testable import CodexBar
 
 @MainActor
-@Suite
 struct UsageStoreHighestUsageTests {
     @Test
-    func selectsHighestUsageAmongEnabledProviders() {
+    func `selects highest usage among enabled providers`() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "UsageStoreHighestUsageTests-selects"),
             zaiTokenStore: NoopZaiTokenStore(),
@@ -44,7 +43,7 @@ struct UsageStoreHighestUsageTests {
     }
 
     @Test
-    func skipsFullyUsedProviders() {
+    func `skips fully used providers`() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "UsageStoreHighestUsageTests-skips"),
             zaiTokenStore: NoopZaiTokenStore(),
@@ -81,7 +80,7 @@ struct UsageStoreHighestUsageTests {
     }
 
     @Test
-    func automaticMetricUsesSecondaryForKimiWhenRankingHighestUsage() {
+    func `automatic metric uses secondary for kimi when ranking highest usage`() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "UsageStoreHighestUsageTests-kimi-automatic"),
             zaiTokenStore: NoopZaiTokenStore(),
@@ -119,7 +118,7 @@ struct UsageStoreHighestUsageTests {
     }
 
     @Test
-    func automaticMetricKeepsCopilotMostConstrainedRanking() {
+    func `automatic metric keeps copilot most constrained ranking`() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "UsageStoreHighestUsageTests-copilot-automatic"),
             zaiTokenStore: NoopZaiTokenStore(),
@@ -157,7 +156,7 @@ struct UsageStoreHighestUsageTests {
     }
 
     @Test
-    func automaticMetricDoesNotExcludePartiallyAvailableCopilotAtHundredPercent() {
+    func `automatic metric does not exclude partially available copilot at hundred percent`() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "UsageStoreHighestUsageTests-copilot-partial-100"),
             zaiTokenStore: NoopZaiTokenStore(),
@@ -195,7 +194,7 @@ struct UsageStoreHighestUsageTests {
     }
 
     @Test
-    func automaticMetricExcludesCopilotWhenBothLanesAreExhausted() {
+    func `automatic metric excludes copilot when both lanes are exhausted`() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "UsageStoreHighestUsageTests-copilot-both-100"),
             zaiTokenStore: NoopZaiTokenStore(),

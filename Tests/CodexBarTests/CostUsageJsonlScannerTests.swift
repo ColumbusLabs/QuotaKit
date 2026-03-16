@@ -2,10 +2,9 @@ import Foundation
 import Testing
 @testable import CodexBarCore
 
-@Suite
 struct CostUsageJsonlScannerTests {
     @Test
-    func jsonlScannerHandlesLinesAcrossReadChunks() throws {
+    func `jsonl scanner handles lines across read chunks`() throws {
         let root = try self.makeTemporaryRoot()
         defer { try? FileManager.default.removeItem(at: root) }
 
@@ -32,7 +31,7 @@ struct CostUsageJsonlScannerTests {
     }
 
     @Test
-    func jsonlScannerMarksPrefixLimitedLinesAsTruncated() throws {
+    func `jsonl scanner marks prefix limited lines as truncated`() throws {
         let root = try self.makeTemporaryRoot()
         defer { try? FileManager.default.removeItem(at: root) }
 

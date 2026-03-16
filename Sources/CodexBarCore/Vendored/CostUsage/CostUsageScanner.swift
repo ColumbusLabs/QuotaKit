@@ -1,13 +1,13 @@
 import Foundation
 
 enum CostUsageScanner {
-    enum ClaudeLogProviderFilter: Sendable {
+    enum ClaudeLogProviderFilter {
         case all
         case vertexAIOnly
         case excludeVertexAI
     }
 
-    struct Options: Sendable {
+    struct Options {
         var codexSessionsRoot: URL?
         var claudeProjectsRoots: [URL]?
         var cacheRoot: URL?
@@ -31,7 +31,7 @@ enum CostUsageScanner {
         }
     }
 
-    struct CodexParseResult: Sendable {
+    struct CodexParseResult {
         let days: [String: [String: [Int]]]
         let parsedBytes: Int64
         let lastModel: String?
@@ -44,7 +44,7 @@ enum CostUsageScanner {
         var seenFileIds: Set<String> = []
     }
 
-    struct ClaudeParseResult: Sendable {
+    struct ClaudeParseResult {
         let days: [String: [String: [Int]]]
         let parsedBytes: Int64
     }
@@ -78,7 +78,7 @@ enum CostUsageScanner {
 
     // MARK: - Day keys
 
-    struct CostUsageDayRange: Sendable {
+    struct CostUsageDayRange {
         let sinceKey: String
         let untilKey: String
         let scanSinceKey: String

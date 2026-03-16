@@ -1,6 +1,6 @@
 import Foundation
 
-struct SettingsDefaultsState: Sendable {
+struct SettingsDefaultsState {
     var refreshFrequency: RefreshFrequency
     var launchAtLogin: Bool
     var debugMenuEnabled: Bool

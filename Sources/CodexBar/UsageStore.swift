@@ -70,7 +70,7 @@ extension UsageStore {
 @MainActor
 @Observable
 final class UsageStore {
-    enum StartupBehavior: Sendable {
+    enum StartupBehavior {
         case automatic
         case full
         case testing

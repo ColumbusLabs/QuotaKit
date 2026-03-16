@@ -2,10 +2,9 @@ import Foundation
 import Testing
 @testable import CodexBarCore
 
-@Suite
 struct WidgetSnapshotTests {
     @Test
-    func widgetSnapshotRoundTrip() throws {
+    func `widget snapshot round trip`() throws {
         let entry = WidgetSnapshot.ProviderEntry(
             provider: .codex,
             updatedAt: Date(),
@@ -43,7 +42,7 @@ struct WidgetSnapshotTests {
     }
 
     @Test
-    func widgetSnapshotRoundTripPreservesKiloProvider() throws {
+    func `widget snapshot round trip preserves kilo provider`() throws {
         let entry = WidgetSnapshot.ProviderEntry(
             provider: .kilo,
             updatedAt: Date(),
@@ -80,7 +79,7 @@ struct WidgetSnapshotTests {
     }
 
     @Test
-    func widgetSnapshotRoundTripPreservesKiloZeroTotalEdgeState() throws {
+    func `widget snapshot round trip preserves kilo zero total edge state`() throws {
         let now = Date()
         let kiloSnapshot = KiloUsageSnapshot(
             creditsUsed: 0,

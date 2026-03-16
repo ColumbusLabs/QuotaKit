@@ -1322,7 +1322,7 @@ extension StatusItemController {
     }
 
     private func isHostedSubviewMenu(_ menu: NSMenu) -> Bool {
-        let ids: Set<String> = [
+        let ids: Set = [
             "usageBreakdownChart",
             "creditsHistoryChart",
             "costHistoryChart",
@@ -1334,7 +1334,7 @@ extension StatusItemController {
     }
 
     private func isOpenAIWebSubviewMenu(_ menu: NSMenu) -> Bool {
-        let ids: Set<String> = [
+        let ids: Set = [
             "usageBreakdownChart",
             "creditsHistoryChart",
         ]
