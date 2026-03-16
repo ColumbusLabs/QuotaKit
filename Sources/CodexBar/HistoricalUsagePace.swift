@@ -155,7 +155,10 @@ actor HistoricalUsageHistoryStore {
 
         let windowStart = resetsAt.addingTimeInterval(-duration)
         let calibrationEnd = Self.clampDate(now, lower: windowStart, upper: resetsAt)
-        let dayUsages = Self.parseDayUsages(from: breakdown, asOf: calibrationEnd)
+        let dayUsages = Self.parseDayUsages(
+            from: breakdown,
+            asOf: calibrationEnd,
+            fillingFrom: windowStart)
         guard !dayUsages.isEmpty else { return existingDataset }
         guard let coverageStart = dayUsages.first?.start, let coverageEnd = dayUsages.last?.end else {
             return existingDataset
@@ -507,7 +510,11 @@ actor HistoricalUsageHistoryStore {
         let creditsUsed: Double
     }
 
-    private static func parseDayUsages(from breakdown: [OpenAIDashboardDailyBreakdown], asOf: Date) -> [DayUsage] {
+    private static func parseDayUsages(
+        from breakdown: [OpenAIDashboardDailyBreakdown],
+        asOf: Date,
+        fillingFrom expectedCoverageStart: Date? = nil) -> [DayUsage]
+    {
         var creditsByStart: [Date: Double] = [:]
         creditsByStart.reserveCapacity(breakdown.count)
 
@@ -531,22 +538,34 @@ actor HistoricalUsageHistoryStore {
         }
 
         dayUsages.sort { lhs, rhs in lhs.start < rhs.start }
-        return Self.fillMissingZeroUsageDays(in: dayUsages, through: asOf)
+        return Self.fillMissingZeroUsageDays(
+            in: dayUsages,
+            through: asOf,
+            fillingFrom: expectedCoverageStart)
     }
 
-    private static func fillMissingZeroUsageDays(in dayUsages: [DayUsage], through asOf: Date) -> [DayUsage] {
+    private static func fillMissingZeroUsageDays(
+        in dayUsages: [DayUsage],
+        through asOf: Date,
+        fillingFrom expectedCoverageStart: Date? = nil) -> [DayUsage]
+    {
         guard let firstStart = dayUsages.first?.start else { return [] }
 
         let calendar = Self.gregorianCalendar()
+        let fillStart: Date = if let expectedCoverageStart {
+            min(firstStart, calendar.startOfDay(for: expectedCoverageStart))
+        } else {
+            firstStart
+        }
         let finalDayStart = calendar.startOfDay(for: asOf)
-        guard firstStart <= finalDayStart else { return dayUsages }
+        guard fillStart <= finalDayStart else { return dayUsages }
 
         let creditsByStart = Dictionary(uniqueKeysWithValues: dayUsages.map { ($0.start, $0.creditsUsed) })
-        let daySpan = max(0, calendar.dateComponents([.day], from: firstStart, to: finalDayStart).day ?? 0)
+        let daySpan = max(0, calendar.dateComponents([.day], from: fillStart, to: finalDayStart).day ?? 0)
         var filled: [DayUsage] = []
         filled.reserveCapacity(daySpan + 1)
 
-        var cursor = firstStart
+        var cursor = fillStart
         while cursor <= finalDayStart {
             guard let nominalEnd = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
             let effectiveEnd: Date = if cursor <= asOf, asOf < nominalEnd {
