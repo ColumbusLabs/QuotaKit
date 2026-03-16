@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.18.0 — 2026-03-15
 ### Highlights
 - Add Kilo provider support with API/CLI source modes, widget integration, and pass/credit handling (#454). Built on work by @coreh.
 - Add Ollama provider, including token-account support in Settings and CLI (#380). Thanks @CryptoSageSnr!
@@ -52,11 +52,6 @@
 - Codex/OpenAI web: reduce CPU and energy overhead by shortening failed CLI probe windows, capping web retry timeouts, and using adaptive idle blink scheduling (#402). Thanks @bald-ai!
 - Cost usage scanner: optimize JSONL chunk parsing to avoid buffer-front removal overhead on large logs (#392). Thanks @asonawalla!
 - TTY runner: fence shutdown registration to avoid launch/shutdown races, isolate process groups before shutdown rejection, and ensure lingering CLI descendants are cleaned up on app termination (#429). Thanks @uraimo!
-
-### Dev & Tests
-- Run provider fetches and Claude debug OAuth probes off `MainActor`.
-- Split Claude OAuth test overrides and isolate coordinator tests.
-- Docs: explain pace tracking terminology in the UI guide, including "deficit", "reserve", and "on pace" meanings (#421). Thanks @bald-ai!
 
 
 ## 0.18.0-beta.3 — 2026-02-13
