@@ -200,13 +200,15 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
     public let providers: [ProviderUsageSnapshot]
     public let syncTimestamp: Date
     public let deviceName: String
+    /// Stable UUID identifying the source Mac. Used as CloudKit record name.
+    public let deviceID: String?
     /// Mac app version (e.g. "0.18.0-beta.3")
     public let appVersion: String?
     /// Mobile version (e.g. "1.0.0")
     public let mobileVersion: String?
 
     private enum CodingKeys: String, CodingKey {
-        case providers, syncTimestamp, deviceName, appVersion
+        case providers, syncTimestamp, deviceName, deviceID, appVersion
         case mobileVersion
         /// Legacy key for backward compatibility with older synced data.
         case syncVersion
@@ -216,12 +218,14 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         providers: [ProviderUsageSnapshot],
         syncTimestamp: Date,
         deviceName: String,
+        deviceID: String? = nil,
         appVersion: String? = nil,
         mobileVersion: String? = nil)
     {
         self.providers = providers
         self.syncTimestamp = syncTimestamp
         self.deviceName = deviceName
+        self.deviceID = deviceID
         self.appVersion = appVersion
         self.mobileVersion = mobileVersion
     }
@@ -231,6 +235,7 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         self.providers = try container.decode([ProviderUsageSnapshot].self, forKey: .providers)
         self.syncTimestamp = try container.decode(Date.self, forKey: .syncTimestamp)
         self.deviceName = try container.decode(String.self, forKey: .deviceName)
+        self.deviceID = try container.decodeIfPresent(String.self, forKey: .deviceID)
         self.appVersion = try container.decodeIfPresent(String.self, forKey: .appVersion)
         // Read from "mobileVersion" first; fall back to legacy "syncVersion" key.
         self.mobileVersion = try container.decodeIfPresent(String.self, forKey: .mobileVersion)
@@ -242,6 +247,7 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         try container.encode(self.providers, forKey: .providers)
         try container.encode(self.syncTimestamp, forKey: .syncTimestamp)
         try container.encode(self.deviceName, forKey: .deviceName)
+        try container.encodeIfPresent(self.deviceID, forKey: .deviceID)
         try container.encodeIfPresent(self.appVersion, forKey: .appVersion)
         try container.encodeIfPresent(self.mobileVersion, forKey: .mobileVersion)
     }

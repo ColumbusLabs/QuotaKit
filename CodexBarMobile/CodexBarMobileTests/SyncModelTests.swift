@@ -67,7 +67,8 @@ struct SyncModelTests {
         let synced = SyncedUsageSnapshot(
             providers: [provider],
             syncTimestamp: Date(timeIntervalSince1970: 1_700_000_000),
-            deviceName: "Test Mac")
+            deviceName: "Test Mac",
+            deviceID: "test-uuid-123")
 
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -81,6 +82,25 @@ struct SyncModelTests {
         #expect(decoded.providers[0].providerID == "codex")
         #expect(decoded.providers[0].isError == true)
         #expect(decoded.deviceName == "Test Mac")
+        #expect(decoded.deviceID == "test-uuid-123")
+    }
+
+    @Test("SyncedUsageSnapshot without deviceID decodes with nil (backward compat)")
+    func deviceIDBackwardCompat() throws {
+        let oldJSON = """
+        {
+            "providers": [],
+            "syncTimestamp": "2023-11-14T22:13:20Z",
+            "deviceName": "Old Mac"
+        }
+        """
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(SyncedUsageSnapshot.self, from: Data(oldJSON.utf8))
+
+        #expect(decoded.deviceName == "Old Mac")
+        #expect(decoded.deviceID == nil)
     }
 
     @Test("SyncRateWindow remainingPercent clamps to zero")

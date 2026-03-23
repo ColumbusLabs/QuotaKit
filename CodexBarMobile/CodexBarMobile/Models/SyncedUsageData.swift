@@ -2,55 +2,145 @@ import CodexBarSync
 import Foundation
 import Observation
 
-/// ViewModel for the iOS app. Observes iCloud sync changes and exposes
-/// the latest `SyncedUsageSnapshot` to SwiftUI views.
+/// Detailed sync status for UI display.
+enum SyncStatus: Sendable, Equatable {
+    /// Successfully synced, showing how long ago.
+    case synced(ago: TimeInterval)
+    /// Currently fetching data from CloudKit.
+    case syncing
+    /// Sync failed with a specific error message.
+    case error(message: String)
+    /// No Mac data found — Mac app may not be running or sync is not configured.
+    case noData
+    /// CloudKit returned data but it couldn't be decoded (version mismatch).
+    case incompatibleData
+
+    var isError: Bool {
+        switch self {
+        case .error, .noData, .incompatibleData: true
+        default: false
+        }
+    }
+}
+
+/// ViewModel for the iOS app. Fetches usage snapshots from CloudKit (all devices),
+/// merges them, and exposes the result to SwiftUI views. Falls back to KVS for
+/// backward compatibility with older Mac app versions.
 @Observable
 @MainActor
 final class SyncedUsageData {
+    /// Merged snapshot from all devices (primary data source for views).
     var snapshot: SyncedUsageSnapshot?
-    var lastSyncError: String?
+
+    /// Per-device snapshots before merging (for debug/display).
+    var deviceSnapshots: [SyncedUsageSnapshot] = []
+
+    /// Current sync status with detailed error information.
+    var syncStatus: SyncStatus = .noData
+
+    /// Legacy error string (kept for backward compat with existing UI).
+    var lastSyncError: String? {
+        switch syncStatus {
+        case .error(let message): message
+        case .noData: String(localized: "No Mac data found")
+        case .incompatibleData: String(localized: "Data format incompatible. Please update Mac app.")
+        default: nil
+        }
+    }
+
+    /// Number of Mac devices contributing data.
+    var deviceCount: Int { deviceSnapshots.count }
 
     private let reader: CloudSyncReader
+    private var isObservingKVS = false
 
     init(reader: CloudSyncReader = CloudSyncReader()) {
         self.reader = reader
-        // Load any existing snapshot immediately
-        self.snapshot = reader.latestSnapshot()
+        // Load any existing KVS snapshot immediately (fast, synchronous)
+        if let kvsSnapshot = reader.latestKVSSnapshot() {
+            self.snapshot = kvsSnapshot
+            self.deviceSnapshots = [kvsSnapshot]
+            self.syncStatus = .synced(ago: Date().timeIntervalSince(kvsSnapshot.syncTimestamp))
+        }
     }
 
-    /// Starts observing iCloud KVS changes.
+    /// Starts observing: fetches from CloudKit, sets up KVS fallback, and configures subscription.
     func startObserving() {
-        reader.startObserving { [weak self] result in
-            guard let self else { return }
-            switch result {
-            case .success(let newSnapshot):
-                self.snapshot = newSnapshot
-                self.lastSyncError = nil
-            case .empty:
-                // No data yet, not necessarily an error
-                break
-            case .quotaExceeded:
-                self.lastSyncError = String(localized: "iCloud storage quota exceeded")
-            case .accountChanged:
-                self.lastSyncError = String(localized: "iCloud account changed")
-                // Try to reload with new account
-                self.snapshot = self.reader.latestSnapshot()
-            case .initialSync:
-                // Initial sync in progress, data may arrive soon
-                self.lastSyncError = nil
+        // 1. Start KVS observation (backward compat with old Mac apps)
+        if !isObservingKVS {
+            isObservingKVS = true
+            reader.startKVSObserving { [weak self] result in
+                guard let self else { return }
+                // Only use KVS data if we have no CloudKit data yet
+                if self.deviceSnapshots.isEmpty {
+                    switch result {
+                    case .success(let kvsSnapshot):
+                        self.snapshot = kvsSnapshot
+                        self.deviceSnapshots = [kvsSnapshot]
+                        self.syncStatus = .synced(ago: 0)
+                    case .empty:
+                        break
+                    case .quotaExceeded:
+                        self.syncStatus = .error(message: String(localized: "iCloud storage quota exceeded"))
+                    case .accountChanged:
+                        self.snapshot = self.reader.latestKVSSnapshot()
+                    case .initialSync:
+                        break
+                    }
+                }
             }
         }
+
+        // 2. Fetch from CloudKit (primary)
+        Task {
+            await self.fetchFromCloudKit()
+        }
+
+        // 3. Set up CloudKit subscription for push notifications
+        Task {
+            try? await self.reader.setupSubscription()
+        }
     }
 
-    /// Force-reads the latest snapshot from iCloud.
-    func refresh() {
-        let syncAttempted = self.reader.synchronize()
-        self.snapshot = self.reader.latestSnapshot()
-        if self.snapshot != nil {
-            self.lastSyncError = nil
-        } else if !syncAttempted {
-            self.lastSyncError = String(localized: "iCloud sync unavailable")
+    /// Fetches latest data from CloudKit, merges all device snapshots.
+    func fetchFromCloudKit() async {
+        self.syncStatus = .syncing
+
+        let result = await reader.fetchAllDeviceSnapshots()
+
+        switch result {
+        case .success(let snapshots):
+            self.deviceSnapshots = snapshots
+            if let merged = CloudSyncReader.mergeSnapshots(snapshots) {
+                self.snapshot = merged
+                self.syncStatus = .synced(ago: Date().timeIntervalSince(merged.syncTimestamp))
+            } else {
+                self.syncStatus = .incompatibleData
+            }
+
+        case .empty:
+            // No CloudKit data — fall back to KVS if available
+            if let kvsSnapshot = reader.latestKVSSnapshot() {
+                self.snapshot = kvsSnapshot
+                self.deviceSnapshots = [kvsSnapshot]
+                self.syncStatus = .synced(ago: Date().timeIntervalSince(kvsSnapshot.syncTimestamp))
+            } else {
+                self.syncStatus = .noData
+            }
+
+        case .error(let cloudError):
+            // CloudKit failed — fall back to KVS if available
+            if self.snapshot == nil, let kvsSnapshot = reader.latestKVSSnapshot() {
+                self.snapshot = kvsSnapshot
+                self.deviceSnapshots = [kvsSnapshot]
+            }
+            self.syncStatus = .error(message: cloudError.description)
         }
+    }
+
+    /// Force-refreshes data from CloudKit.
+    func refresh() async {
+        await fetchFromCloudKit()
     }
 
     /// Returns the age of the last sync in a human-readable format, or nil if no sync exists.
@@ -69,5 +159,10 @@ final class SyncedUsageData {
             let days = Int(interval / 86400)
             return "\(days.formatted())\(String(localized: "d ago"))"
         }
+    }
+
+    /// Names of all Mac devices contributing data.
+    var deviceNames: [String] {
+        deviceSnapshots.map(\.deviceName)
     }
 }

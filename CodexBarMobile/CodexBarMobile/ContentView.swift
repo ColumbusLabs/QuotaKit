@@ -196,7 +196,7 @@ private struct ProviderListView: View {
             .padding(.bottom, 24)
         }
         .refreshable {
-            self.usageData.refresh()
+            await self.usageData.refresh()
         }
         .modifier(SoftScrollEdgeModifier())
     }
@@ -401,7 +401,7 @@ private struct CostDashboardView: View {
             .padding(.bottom, 24)
         }
         .refreshable {
-            self.usageData.refresh()
+            await self.usageData.refresh()
         }
         .modifier(SoftScrollEdgeModifier())
     }

@@ -11,7 +11,7 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
     var nextResult: SyncPushResult = .success
 
     @discardableResult
-    func pushSnapshot(_ snapshot: SyncedUsageSnapshot) -> SyncPushResult {
+    func pushSnapshot(_ snapshot: SyncedUsageSnapshot) async -> SyncPushResult {
         self.pushCount += 1
         self.lastSnapshot = snapshot
         return self.nextResult
@@ -47,7 +47,7 @@ struct SyncCoordinatorTests {
         let mock = MockSyncPusher()
         let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
 
-        coordinator.pushCurrentSnapshot()
+        await coordinator.pushCurrentSnapshot()
 
         #expect(mock.pushCount == 0)
         #expect(coordinator.lastSyncTime == nil)
@@ -61,7 +61,7 @@ struct SyncCoordinatorTests {
         let mock = MockSyncPusher()
         let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
 
-        coordinator.pushCurrentSnapshot()
+        await coordinator.pushCurrentSnapshot()
 
         // Push may or may not happen depending on whether there are enabled providers.
         // With default config, providers may be enabled, so check status tracking.
@@ -81,7 +81,7 @@ struct SyncCoordinatorTests {
         mock.nextResult = .failure("iCloud sync unavailable")
         let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
 
-        coordinator.pushCurrentSnapshot()
+        await coordinator.pushCurrentSnapshot()
 
         if mock.pushCount > 0 {
             #expect(coordinator.lastSyncTime != nil)
@@ -98,7 +98,7 @@ struct SyncCoordinatorTests {
         let mock = MockSyncPusher()
         let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
 
-        coordinator.pushCurrentSnapshot()
+        await coordinator.pushCurrentSnapshot()
 
         // isSyncing should be false after synchronous push completes
         #expect(coordinator.isSyncing == false)
@@ -155,7 +155,7 @@ struct SyncCoordinatorTests {
         let mock = MockSyncPusher()
         let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
 
-        coordinator.pushCurrentSnapshot()
+        await coordinator.pushCurrentSnapshot()
 
         let provider = try #require(mock.lastSnapshot?.providers
             .first(where: { $0.providerID == UsageProvider.codex.rawValue }))
@@ -203,7 +203,7 @@ struct SyncCoordinatorTests {
         let mock = MockSyncPusher()
         let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
 
-        coordinator.pushCurrentSnapshot()
+        await coordinator.pushCurrentSnapshot()
 
         let provider = try #require(mock.lastSnapshot?.providers
             .first(where: { $0.providerID == UsageProvider.codex.rawValue }))

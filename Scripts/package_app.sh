@@ -178,6 +178,14 @@ cat > "$APP_ENTITLEMENTS" <<PLIST
     </array>
     <key>com.apple.developer.ubiquity-kvstore-identifier</key>
     <string>${ICLOUD_KVS_ID}</string>
+    <key>com.apple.developer.icloud-services</key>
+    <array>
+        <string>CloudKit</string>
+    </array>
+    <key>com.apple.developer.icloud-container-identifiers</key>
+    <array>
+        <string>iCloud.com.o1xhack.codexbar</string>
+    </array>
 EOF
 fi)
     $(if [[ "$NEEDS_GET_TASK_ALLOW" == "1" ]]; then echo "    <key>com.apple.security.get-task-allow</key>

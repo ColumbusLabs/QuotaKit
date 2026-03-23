@@ -2,6 +2,26 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.0.0 (23)] — 2026-03-23
+
+### Changed
+- **iCloud sync upgraded from KVS to CloudKit** — each Mac now writes its own device record; iPhone merges all devices
+- Multi-Mac support: providers from different Macs are combined on iPhone instead of last-write-wins
+- Cost data from local-source providers (Claude, Codex, VertexAI) is summed across devices; account-level providers deduplicate
+- Sync status now shows specific CloudKit errors (network, auth, quota) instead of generic "synced/not synced"
+- Mac side generates a stable device UUID (persisted in UserDefaults) for CloudKit record identity
+- KVS dual-write maintained for backward compatibility with older iOS builds
+
+### Added
+- `CloudSyncError` enum with CKError-to-user-readable mapping
+- `MultiDeviceSyncResult` for multi-device CloudKit fetch results
+- `SyncStatus` enum (`.synced` / `.syncing` / `.error` / `.noData` / `.incompatibleData`)
+- `deviceID` field on `SyncedUsageSnapshot` for per-device CloudKit records
+- CKQuerySubscription setup for silent push notifications on record changes
+- Multi-device merge logic with per-provider cost aggregation strategy
+- CloudKit + background remote notification entitlements (iOS + Mac)
+- 13 new tests: multi-device merge (9), sync error mapping (14 total in suite)
+
 ## [1.0.0 (22)] — 2026-03-21
 
 ### Added

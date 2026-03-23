@@ -174,7 +174,9 @@ struct GeneralPane: View {
             }
 
             Button("Sync Now") {
-                self.syncCoordinator.pushCurrentSnapshot()
+                Task {
+                    await self.syncCoordinator.pushCurrentSnapshot()
+                }
             }
             .controlSize(.small)
             .disabled(self.syncCoordinator.isSyncing)

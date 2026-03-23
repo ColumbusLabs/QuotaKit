@@ -21,10 +21,14 @@ final class SyncCoordinator {
     private(set) var lastSyncMessage: String?
     private(set) var isSyncing: Bool = false
 
+    /// Stable device UUID for this Mac, persisted across app launches.
+    private let deviceID: String
+
     init(store: UsageStore, settings: SettingsStore, syncManager: any SyncPushing = CloudSyncManager.shared) {
         self.store = store
         self.settings = settings
         self.syncManager = syncManager
+        self.deviceID = Self.stableDeviceID()
     }
 
     /// Starts observing `UsageStore` snapshot changes.
@@ -44,14 +48,14 @@ final class SyncCoordinator {
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self, self.isObserving else { return }
-                self.pushCurrentSnapshot()
+                await self.pushCurrentSnapshot()
                 self.observeLoop()
             }
         }
     }
 
     /// Builds and pushes the current state to iCloud.
-    func pushCurrentSnapshot() {
+    func pushCurrentSnapshot() async {
         guard self.settings.iCloudSyncEnabled else { return }
 
         let enabledProviders = self.store.enabledProviders()
@@ -136,10 +140,11 @@ final class SyncCoordinator {
             providers: providerSnapshots,
             syncTimestamp: Date(),
             deviceName: deviceName,
+            deviceID: self.deviceID,
             appVersion: appVersion,
             mobileVersion: mobileVersion)
 
-        let result = self.syncManager.pushSnapshot(synced)
+        let result = await self.syncManager.pushSnapshot(synced)
         self.lastSyncTime = Date()
         self.lastSyncSucceeded = result.succeeded
         self.lastSyncMessage = result.message
@@ -236,5 +241,16 @@ final class SyncCoordinator {
         default:
             rawName
         }
+    }
+
+    /// Returns a stable UUID for this Mac, creating and persisting one if needed.
+    private static func stableDeviceID() -> String {
+        let defaults = UserDefaults.standard
+        if let existing = defaults.string(forKey: CloudSyncConstants.deviceIDKey) {
+            return existing
+        }
+        let newID = UUID().uuidString
+        defaults.set(newID, forKey: CloudSyncConstants.deviceIDKey)
+        return newID
     }
 }
