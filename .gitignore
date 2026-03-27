@@ -29,6 +29,9 @@ Codexbar.app/
 Icon.iconset
 debug_*.swift
 
+# Provisioning (contains developer certificates — sensitive)
+Provisioning/
+
 # Misc
 .DS_Store
 .vscode/
