@@ -99,11 +99,11 @@ private struct OnboardingSheet: View {
     }
 }
 
-/// Applies `.tabBarMinimizeBehavior(.onScrollDown)` on iOS 26+, no-op on older systems.
+/// Keeps the tab bar always visible (no auto-minimize on scroll).
 private struct TabBarMinimizeModifier: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26, *) {
-            content.tabBarMinimizeBehavior(.onScrollDown)
+            content.tabBarMinimizeBehavior(.never)
         } else {
             content
         }
@@ -220,17 +220,6 @@ private struct SyncStatusBar: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            if let error = self.usageData.lastSyncError {
-                HStack(spacing: 5) {
-                    Image(systemName: "exclamationmark.icloud.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.red)
-                    Text(error)
-                        .font(.caption2)
-                        .foregroundStyle(.red)
-                }
-            }
-
             if let snapshot = self.usageData.snapshot {
                 HStack(spacing: 6) {
                     Image(systemName: "arrow.triangle.2.circlepath")
@@ -239,14 +228,6 @@ private struct SyncStatusBar: View {
                     Text(snapshot.syncTimestamp.formatted(.relative(presentation: .named)))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Text("·")
-                        .foregroundStyle(.quaternary)
-                    Image(systemName: "laptopcomputer")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                    Text(snapshot.deviceName)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
                 }
 
                 Text("Data pushed by Mac · Pull to check for updates")
@@ -1021,6 +1002,17 @@ private struct SettingsTab: View {
                     }
                 }
 
+                Section("Developer") {
+                    NavigationLink {
+                        RawSyncDataView(usageData: self.usageData)
+                    } label: {
+                        SettingSummaryRow(
+                            title: "Raw Sync Data",
+                            symbolName: "doc.text.magnifyingglass",
+                            summary: String(localized: "Per-device unmerged data for debugging"))
+                    }
+                }
+
                 Section("Open Source") {
                     Link(destination: URL(string: "https://github.com/o1xhack/CodexBar")!) {
                         Label {
@@ -1130,28 +1122,375 @@ private struct AboutSyncDetailView: View {
                 }
             }
 
-            Section("Sync") {
-                if let snapshot = self.usageData.snapshot {
-                    LabeledContent(
-                        "Last Sync",
-                        value: snapshot.syncTimestamp.formatted(date: .abbreviated, time: .shortened))
-                    LabeledContent("Source Device", value: snapshot.deviceName)
-                    LabeledContent("Providers", value: "\(snapshot.providers.count)")
+            // MARK: Mac Update Prompt
+            if self.usageData.usingKVSFallback {
+                Section {
+                    HStack(spacing: 12) {
+                        Image(systemName: "arrow.down.app.fill")
+                            .font(.title2)
+                            .foregroundStyle(.orange)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Mac Update Available")
+                                .font(.subheadline.weight(.semibold))
+                            Text("Your Mac is using legacy sync. Update CodexBar on Mac to unlock CloudKit multi-device sync.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Link(destination: URL(string: "https://github.com/o1xhack/CodexBar/releases")!) {
+                        Label("Download Latest Mac Version", systemImage: "arrow.down.circle")
+                    }
+                }
+            }
+
+            // MARK: Sync Status
+            Section {
+                HStack {
+                    self.syncStatusIcon
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(self.syncStatusTitle)
+                            .font(.body)
+                        if let detail = self.syncStatusDetail {
+                            Text(detail)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Button {
+                        Task { await self.usageData.refresh() }
+                    } label: {
+                        if case .syncing = self.usageData.syncStatus {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                    }
+                    .disabled(self.usageData.syncStatus == .syncing)
+                }
+            } header: {
+                Text("Sync Status")
+            } footer: {
+                if let error = self.usageData.lastSyncError {
+                    Text(error)
+                        .foregroundStyle(.red)
+                }
+            }
+
+            // MARK: Devices
+            Section {
+                if self.usageData.deviceSnapshots.isEmpty {
+                    Text("No devices synced yet")
+                        .foregroundStyle(.secondary)
                 } else {
-                    Text("Not yet synced")
+                    ForEach(Array(self.usageData.deviceSnapshots.enumerated()), id: \.offset) { _, device in
+                        HStack {
+                            Image(systemName: "laptopcomputer")
+                                .foregroundStyle(.secondary)
+                                .frame(width: 24)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(device.deviceName)
+                                    .font(.body)
+                                HStack(spacing: 8) {
+                                    Text(device.syncTimestamp.formatted(.relative(presentation: .named)))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Text("·")
+                                        .foregroundStyle(.quaternary)
+                                    Text("\(device.providers.count) providers")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+            } header: {
+                HStack {
+                    Text("Devices")
+                    Spacer()
+                    Text("\(self.usageData.deviceCount)")
                         .foregroundStyle(.secondary)
                 }
             }
 
             Section("How It Works") {
-                Label("CodexBar on your Mac pushes usage data to iCloud", systemImage: "laptopcomputer")
-                Label("This app reads the latest snapshot via iCloud Key-Value Store", systemImage: "icloud")
+                Label("CodexBar on your Mac pushes usage data to iCloud via CloudKit", systemImage: "laptopcomputer")
+                Label("This app reads snapshots from all your Macs and merges them", systemImage: "icloud")
                 Label(
                     "Data syncs automatically when both devices are online",
                     systemImage: "arrow.triangle.2.circlepath")
             }
         }
         .navigationTitle("About & Sync")
+    }
+
+    private var syncStatusIcon: some View {
+        Group {
+            switch self.usageData.syncStatus {
+            case .synced:
+                Image(systemName: "checkmark.icloud.fill")
+                    .foregroundStyle(.green)
+            case .syncing:
+                Image(systemName: "arrow.triangle.2.circlepath.icloud.fill")
+                    .foregroundStyle(.blue)
+            case .error:
+                Image(systemName: "exclamationmark.icloud.fill")
+                    .foregroundStyle(.red)
+            case .noData:
+                Image(systemName: "icloud.slash.fill")
+                    .foregroundStyle(.orange)
+            case .incompatibleData:
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.yellow)
+            }
+        }
+        .font(.title2)
+    }
+
+    private var syncStatusTitle: String {
+        switch self.usageData.syncStatus {
+        case .synced: String(localized: "Synced")
+        case .syncing: String(localized: "Syncing…")
+        case .error: String(localized: "Sync Error")
+        case .noData: String(localized: "No Data")
+        case .incompatibleData: String(localized: "Incompatible Data")
+        }
+    }
+
+    private var syncStatusDetail: String? {
+        switch self.usageData.syncStatus {
+        case .synced(let ago):
+            if ago < 60 { return String(localized: "Last synced just now") }
+            if let snapshot = self.usageData.snapshot {
+                return String(localized: "Last synced \(snapshot.syncTimestamp.formatted(.relative(presentation: .named)))")
+            }
+            return nil
+        case .syncing: return nil
+        case .noData: return String(localized: "Waiting for Mac to push data")
+        case .incompatibleData: return String(localized: "Please update CodexBar on Mac")
+        case .error: return nil
+        }
+    }
+}
+
+// MARK: - Raw Sync Data (Developer Debug View)
+
+private struct RawSyncDataView: View {
+    let usageData: SyncedUsageData
+
+    var body: some View {
+        List {
+            if self.usageData.deviceSnapshots.isEmpty {
+                Section {
+                    Text("No device data available")
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                ForEach(Array(self.usageData.deviceSnapshots.enumerated()), id: \.offset) { _, device in
+                    RawDeviceSection(device: device)
+                }
+            }
+        }
+        .navigationTitle("Raw Sync Data")
+    }
+}
+
+private struct RawDeviceSection: View {
+    let device: SyncedUsageSnapshot
+
+    var body: some View {
+        Section {
+            LabeledContent("Device ID", value: self.device.deviceID ?? "N/A")
+            LabeledContent("Device Name", value: self.device.deviceName)
+            LabeledContent("App Version", value: self.device.appVersion ?? "Unknown")
+            LabeledContent("Sync Time", value: self.device.syncTimestamp.formatted(date: .abbreviated, time: .shortened))
+            LabeledContent("Providers", value: "\(self.device.providers.count)")
+
+            ForEach(self.device.providers, id: \.providerID) { provider in
+                RawProviderRow(provider: provider)
+            }
+        } header: {
+            HStack {
+                Image(systemName: "laptopcomputer")
+                Text(self.device.deviceName)
+            }
+        }
+    }
+}
+
+private struct RawProviderRow: View {
+    let provider: ProviderUsageSnapshot
+
+    var body: some View {
+        NavigationLink {
+            RawProviderDetailView(provider: self.provider)
+        } label: {
+            HStack {
+                Text(self.provider.providerName)
+                    .fontWeight(.medium)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    if let cost = self.provider.costSummary {
+                        Text(String(format: "$%.2f", cost.sessionCostUSD ?? 0))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let window = self.provider.allRateWindows.first {
+                        Text("\(window.label ?? "Usage"): \(Int(window.usedPercent))%")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct RawProviderDetailView: View {
+    let provider: ProviderUsageSnapshot
+
+    var body: some View {
+        List {
+            Section("Overview") {
+                LabeledContent("Provider", value: self.provider.providerName)
+                LabeledContent("ID", value: self.provider.providerID)
+                if let email = self.provider.accountEmail {
+                    LabeledContent("Account", value: email)
+                }
+                if let login = self.provider.loginMethod {
+                    LabeledContent("Login", value: login)
+                }
+                LabeledContent("Last Updated", value: self.provider.lastUpdated.formatted(date: .abbreviated, time: .shortened))
+                if self.provider.isError {
+                    LabeledContent("Status", value: self.provider.statusMessage ?? "Error")
+                        .foregroundStyle(.red)
+                }
+            }
+
+            if let cost = self.provider.costSummary {
+                Section("Cost Summary") {
+                    LabeledContent("Session", value: self.formatCost(cost.sessionCostUSD))
+                    LabeledContent("Session Tokens", value: self.formatTokens(cost.sessionTokens))
+                    LabeledContent("30 Days", value: self.formatCost(cost.last30DaysCostUSD))
+                    LabeledContent("30 Days Tokens", value: self.formatTokens(cost.last30DaysTokens))
+                }
+            }
+
+            self.rateWindowsSection
+
+            if let cost = self.provider.costSummary, !cost.daily.isEmpty {
+                self.dailyCostSection(cost.daily)
+            }
+        }
+        .navigationTitle(self.provider.providerName)
+    }
+
+    @ViewBuilder
+    private var rateWindowsSection: some View {
+        let windows = self.provider.allRateWindows
+        if !windows.isEmpty {
+            Section("Rate Limits") {
+                ForEach(Array(windows.enumerated()), id: \.offset) { _, window in
+                    RawRateWindowRow(window: window)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func dailyCostSection(_ daily: [SyncDailyPoint]) -> some View {
+        let sorted = daily.sorted { $0.dayKey > $1.dayKey }
+        Section("Daily Cost (\(sorted.count) days)") {
+            ForEach(sorted, id: \.dayKey) { day in
+                RawDailyPointRow(day: day)
+            }
+        }
+    }
+
+    private func formatCost(_ value: Double?) -> String {
+        guard let value else { return "N/A" }
+        return String(format: "$%.2f", value)
+    }
+
+    private func formatTokens(_ value: Int?) -> String {
+        guard let value else { return "N/A" }
+        if value >= 1_000_000 {
+            return String(format: "%.1fM", Double(value) / 1_000_000)
+        } else if value >= 1_000 {
+            return String(format: "%.1fK", Double(value) / 1_000)
+        }
+        return "\(value)"
+    }
+}
+
+private struct RawRateWindowRow: View {
+    let window: SyncRateWindow
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(self.window.label ?? "Rate Limit")
+                Spacer()
+                Text("\(Int(self.window.usedPercent))% used")
+                    .foregroundStyle(self.window.usedPercent > 80 ? .red : .secondary)
+            }
+            ProgressView(value: min(self.window.usedPercent, 100), total: 100)
+                .tint(self.window.usedPercent > 80 ? .red : .blue)
+            if let reset = self.window.resetDescription {
+                Text("Resets \(reset)")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+private struct RawDailyPointRow: View {
+    let day: SyncDailyPoint
+
+    var body: some View {
+        DisclosureGroup {
+            self.breakdownContent
+        } label: {
+            HStack {
+                Text(self.day.dayKey)
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(String(format: "$%.2f", self.day.costUSD))
+                        .font(.body.monospacedDigit())
+                    Text(self.formatTokens(self.day.totalTokens))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var breakdownContent: some View {
+        if !self.day.modelBreakdowns.isEmpty {
+            ForEach(self.day.modelBreakdowns, id: \.label) { item in
+                LabeledContent(item.label, value: String(format: "$%.2f", item.costUSD))
+            }
+        }
+        if !self.day.serviceBreakdowns.isEmpty {
+            ForEach(self.day.serviceBreakdowns, id: \.label) { item in
+                LabeledContent(item.label, value: String(format: "$%.2f", item.costUSD))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func formatTokens(_ value: Int) -> String {
+        if value >= 1_000_000 {
+            return String(format: "%.1fM tokens", Double(value) / 1_000_000)
+        } else if value >= 1_000 {
+            return String(format: "%.1fK tokens", Double(value) / 1_000)
+        }
+        return "\(value) tokens"
     }
 }
 
@@ -1178,8 +1517,34 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.0.0 (21)",
+            version: "1.1.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "Multi-device CloudKit sync. Requires updated Mac app."),
+            sections: [
+                .init(
+                    title: String(localized: "Important"),
+                    items: [
+                        String(localized: "Version 1.1.0 requires the latest CodexBar Mac app (0.18.0-mobile-1.1.0 or later) to unlock CloudKit sync. Download it from GitHub: github.com/o1xhack/CodexBar/releases"),
+                    ]),
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(localized: "CloudKit multi-device sync — data from multiple Macs is now merged on iPhone instead of last-write-wins."),
+                        String(localized: "New Sync Detail page in Settings — view sync status, connected devices, and detailed error info."),
+                        String(localized: "Raw Sync Data inspector — per-device unmerged data with daily cost breakdowns for debugging."),
+                        String(localized: "Specific CloudKit error messages — network, auth, quota issues now show exact cause instead of generic errors."),
+                    ]),
+                .init(
+                    title: String(localized: "Improvements"),
+                    items: [
+                        String(localized: "Tab bar no longer hides when scrolling."),
+                        String(localized: "Simplified sync status bar at the bottom of Usage and Cost tabs."),
+                        String(localized: "Legacy KVS sync maintained as fallback for older Mac app versions."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.0.0 (21)",
+            status: "",
             summary: String(localized: "The first App Store release. Works with CodexBar on Mac."),
             sections: [
                 .init(

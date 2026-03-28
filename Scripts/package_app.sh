@@ -172,7 +172,11 @@ cat > "$APP_ENTITLEMENTS" <<PLIST
 <plist version="1.0">
 <dict>
     $(if [[ "$INCLUDE_SHARED_ENTITLEMENTS" == "1" ]]; then cat <<EOF
-<key>com.apple.security.application-groups</key>
+<key>com.apple.application-identifier</key>
+    <string>3TUERHN53E.${BUNDLE_ID}</string>
+    <key>com.apple.developer.team-identifier</key>
+    <string>3TUERHN53E</string>
+    <key>com.apple.security.application-groups</key>
     <array>
         <string>${APP_GROUP_ID}</string>
     </array>

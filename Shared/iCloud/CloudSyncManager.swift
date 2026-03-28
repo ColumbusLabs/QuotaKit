@@ -108,8 +108,12 @@ public enum SyncResult: Sendable {
 public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     public static let shared = CloudSyncManager()
 
-    private let container: CKContainer
-    private let privateDatabase: CKDatabase
+    /// CloudKit container and database — optional because CKContainer(identifier:) will
+    /// hard-crash (_os_crash / SIGTRAP) if the CloudKit entitlement is missing or misconfigured.
+    /// We probe for the entitlement at init time; if absent, CloudKit is disabled and we use KVS only.
+    private let _container: CKContainer?
+    private let _privateDatabase: CKDatabase?
+    private let cloudKitAvailable: Bool
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
@@ -124,10 +128,33 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     #endif
 
     private init() {
-        self.container = CKContainer(identifier: CloudSyncConstants.containerIdentifier)
-        self.privateDatabase = container.privateCloudDatabase
         encoder.dateEncodingStrategy = .iso8601
         decoder.dateDecodingStrategy = .iso8601
+
+        // Probe for CloudKit entitlement before touching CKContainer.
+        var available = false
+        #if os(macOS)
+        // SecTaskCopyValueForEntitlement reads the actual code-signing entitlements.
+        if let task = SecTaskCreateFromSelf(nil) {
+            let value = SecTaskCopyValueForEntitlement(
+                task, "com.apple.developer.icloud-services" as CFString, nil)
+            if let services = value as? [String], services.contains("CloudKit") {
+                available = true
+            }
+        }
+        #else
+        // iOS entitlements are guaranteed by the provisioning profile.
+        available = true
+        #endif
+        if available {
+            let c = CKContainer(identifier: CloudSyncConstants.containerIdentifier)
+            self._container = c
+            self._privateDatabase = c.privateCloudDatabase
+        } else {
+            self._container = nil
+            self._privateDatabase = nil
+        }
+        self.cloudKitAvailable = available
     }
 
     // MARK: - CloudKit Write (Mac side)
@@ -142,8 +169,14 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             return .failure(message)
         }
 
-        // 1. Push to CloudKit (primary)
-        let result = await self.pushToCloudKit(snapshot: snapshot, data: data)
+        // 1. Push to CloudKit (primary) — skipped if entitlement not available
+        let result: SyncPushResult
+        if cloudKitAvailable {
+            result = await self.pushToCloudKit(snapshot: snapshot, data: data)
+        } else {
+            self.logInfo("CloudKit not available (missing entitlement), using KVS only")
+            result = .success
+        }
 
         // 2. Also push to KVS for backward compatibility with older iOS versions
         self.pushToKVS(data: data)
@@ -163,7 +196,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         // Fetch existing record to avoid conflicts, or create new
         let record: CKRecord
         do {
-            record = try await privateDatabase.record(for: recordID)
+            record = try await _privateDatabase!.record(for: recordID)
         } catch let error as CKError where error.code == .unknownItem {
             record = CKRecord(recordType: CloudSyncConstants.recordType, recordID: recordID)
         } catch {
@@ -179,13 +212,33 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         record["payload"] = data as CKRecordValue
 
         do {
-            try await privateDatabase.save(record)
+            try await _privateDatabase!.save(record)
             self.logInfo("Pushed snapshot to CloudKit", metadata: [
                 "deviceID": deviceID,
                 "providers": "\(snapshot.providers.count)",
                 "bytes": "\(data.count)",
             ])
             return .success
+        } catch let error as CKError where error.code == .serverRecordChanged {
+            // Conflict: re-fetch the server record and retry once
+            self.logInfo("CloudKit conflict, retrying with server record")
+            guard let serverRecord = error.userInfo[CKRecordChangedErrorServerRecordKey] as? CKRecord else {
+                return .failure("CloudKit conflict but no server record returned")
+            }
+            serverRecord["deviceName"] = snapshot.deviceName as CKRecordValue
+            serverRecord["deviceID"] = deviceID as CKRecordValue
+            serverRecord["appVersion"] = (snapshot.appVersion ?? "") as CKRecordValue
+            serverRecord["syncTimestamp"] = snapshot.syncTimestamp as CKRecordValue
+            serverRecord["payload"] = data as CKRecordValue
+            do {
+                try await _privateDatabase!.save(serverRecord)
+                self.logInfo("CloudKit conflict resolved, snapshot saved")
+                return .success
+            } catch {
+                let retryError = CloudSyncError(from: error as? CKError ?? CKError(.internalError))
+                self.logError("CloudKit retry failed: \(retryError.description)")
+                return .failure(retryError.description)
+            }
         } catch let error as CKError {
             let syncError = CloudSyncError(from: error)
             self.logError("CloudKit save failed: \(syncError.description)")
@@ -200,13 +253,15 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
 
     /// Fetches usage snapshots from all devices via CloudKit.
     public func fetchAllDeviceSnapshots() async -> MultiDeviceSyncResult {
+        guard cloudKitAvailable, _privateDatabase != nil else {
+            return .error(CloudSyncError(from: CKError(.serviceUnavailable)))
+        }
         let query = CKQuery(
             recordType: CloudSyncConstants.recordType,
             predicate: NSPredicate(value: true))
-        query.sortDescriptors = [NSSortDescriptor(key: "syncTimestamp", ascending: false)]
 
         do {
-            let (matchResults, _) = try await privateDatabase.records(matching: query)
+            let (matchResults, _) = try await _privateDatabase!.records(matching: query)
 
             var snapshots: [SyncedUsageSnapshot] = []
             for (recordID, result) in matchResults {
@@ -223,6 +278,9 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
                     self.logError("Failed to fetch record \(recordID.recordName): \(error.localizedDescription)")
                 }
             }
+
+            // Sort by syncTimestamp descending (newest first), client-side.
+            snapshots.sort { $0.syncTimestamp > $1.syncTimestamp }
 
             if snapshots.isEmpty {
                 self.logInfo("CloudKit query returned no decodable snapshots")
@@ -248,6 +306,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// Sets up a CloudKit subscription to receive push notifications when device records change.
     /// Call this once during app initialization on iOS.
     public func setupSubscription() async throws {
+        guard cloudKitAvailable, _privateDatabase != nil else { return }
         let subscription = CKQuerySubscription(
             recordType: CloudSyncConstants.recordType,
             predicate: NSPredicate(value: true),
@@ -259,7 +318,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         subscription.notificationInfo = notificationInfo
 
         do {
-            try await privateDatabase.save(subscription)
+            try await _privateDatabase!.save(subscription)
             self.logInfo("CloudKit subscription set up successfully")
         } catch let error as CKError where error.code == .serverRejectedRequest {
             // Subscription may already exist — that's fine

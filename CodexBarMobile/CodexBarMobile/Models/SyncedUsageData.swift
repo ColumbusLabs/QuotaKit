@@ -38,6 +38,9 @@ final class SyncedUsageData {
     /// Current sync status with detailed error information.
     var syncStatus: SyncStatus = .noData
 
+    /// True when data comes from KVS fallback (old Mac app without CloudKit).
+    var usingKVSFallback: Bool = false
+
     /// Legacy error string (kept for backward compat with existing UI).
     var lastSyncError: String? {
         switch syncStatus {
@@ -111,6 +114,7 @@ final class SyncedUsageData {
         switch result {
         case .success(let snapshots):
             self.deviceSnapshots = snapshots
+            self.usingKVSFallback = false
             if let merged = CloudSyncReader.mergeSnapshots(snapshots) {
                 self.snapshot = merged
                 self.syncStatus = .synced(ago: Date().timeIntervalSince(merged.syncTimestamp))
@@ -123,6 +127,7 @@ final class SyncedUsageData {
             if let kvsSnapshot = reader.latestKVSSnapshot() {
                 self.snapshot = kvsSnapshot
                 self.deviceSnapshots = [kvsSnapshot]
+                self.usingKVSFallback = true
                 self.syncStatus = .synced(ago: Date().timeIntervalSince(kvsSnapshot.syncTimestamp))
             } else {
                 self.syncStatus = .noData
