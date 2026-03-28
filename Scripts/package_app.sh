@@ -190,6 +190,8 @@ cat > "$APP_ENTITLEMENTS" <<PLIST
     <array>
         <string>iCloud.com.o1xhack.codexbar</string>
     </array>
+    <key>com.apple.developer.icloud-container-environment</key>
+    <string>Production</string>
 EOF
 fi)
     $(if [[ "$NEEDS_GET_TASK_ALLOW" == "1" ]]; then echo "    <key>com.apple.security.get-task-allow</key>

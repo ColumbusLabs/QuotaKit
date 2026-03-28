@@ -128,6 +128,18 @@ jj git push --bookmark mobile-dev
 
 ## Step 7 — Push & Release
 
+### CloudKit Environment — CRITICAL
+
+All builds (Mac and iOS) **must** use CloudKit **Production** environment:
+
+- **Mac** (`Scripts/package_app.sh`): entitlements must include `com.apple.developer.icloud-container-environment` = `Production`
+- **iOS** (`CodexBarMobile/CodexBarMobile.entitlements`): must include `com.apple.developer.icloud-container-environment` = `Production`
+- **iOS via Xcode debug**: also uses Production (set in entitlements), so Xcode installs and TestFlight share the same CloudKit database
+
+If this entitlement is missing, Mac defaults to Development environment and TestFlight iOS uses Production — data goes to different databases and sync appears broken.
+
+### iOS — Archive & Upload
+
 When the user asks to upload / archive / release:
 
 ```bash
@@ -136,18 +148,39 @@ cd CodexBarMobile && xcodegen generate
 
 # 2. Archive
 xcodebuild -project CodexBarMobile.xcodeproj -scheme CodexBarMobile \
-  -sdk iphoneos -configuration Release \
-  -archivePath build/CodexBarMobile.xcarchive archive
+  -destination 'generic/platform=iOS' -configuration Release \
+  -archivePath /tmp/CodexBarMobile.xcarchive archive -allowProvisioningUpdates
 
 # 3. Export & upload to App Store Connect
 xcodebuild -exportArchive \
-  -archivePath build/CodexBarMobile.xcarchive \
+  -archivePath /tmp/CodexBarMobile.xcarchive \
   -exportOptionsPlist /tmp/ExportOptions.plist \
-  -exportPath build/export
-
-# 4. Clean up build artifacts
-rm -rf CodexBarMobile/build
+  -allowProvisioningUpdates
 ```
+
+### Mac — Sign, Notarize & DMG
+
+```bash
+# 1. Build, sign, notarize (uses Scripts/sign-and-notarize.sh)
+APP_IDENTITY="9720E3A49EFC964A9F734712B8938D8DAE25DA90" bash Scripts/sign-and-notarize.sh
+
+# 2. Create DMG from notarized zip (NOT from Dropbox directory — avoids xattr pollution)
+CLEAN="/tmp/codexbar-dmg" && rm -rf "$CLEAN" && mkdir -p "$CLEAN/extract" "$CLEAN/dmg" \
+  && ditto -x -k "CodexBar-*.zip" "$CLEAN/extract" \
+  && mv "$CLEAN/extract/CodexBar.app" "$CLEAN/dmg/CodexBar.app" \
+  && ln -s /Applications "$CLEAN/dmg/Applications" \
+  && hdiutil create -volname "CodexBar" -srcfolder "$CLEAN/dmg" -ov -format UDZO "CodexBar-VERSION.dmg" \
+  && rm -rf "$CLEAN"
+
+# 3. Tag & GitHub Release
+git tag -a "vTAG" -m "message"
+git push origin "vTAG"
+gh api repos/o1xhack/CodexBar/releases -X POST -f tag_name="vTAG" ...
+```
+
+**DMG naming**: `CodexBar-{MAC_VERSION}-mobile-{MOBILE_VERSION}.dmg` (e.g. `CodexBar-0.18.0-mobile-1.1.0.dmg`)
+
+**Signing note**: Use the SHA-1 fingerprint for `APP_IDENTITY` to avoid ambiguity when multiple Developer ID certificates exist.
 
 ---
 

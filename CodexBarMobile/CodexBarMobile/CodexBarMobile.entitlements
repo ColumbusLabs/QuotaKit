@@ -12,6 +12,8 @@
 	<array>
 		<string>iCloud.com.o1xhack.codexbar</string>
 	</array>
+	<key>com.apple.developer.icloud-container-environment</key>
+	<string>Production</string>
 	<key>aps-environment</key>
 	<string>development</string>
 </dict>
