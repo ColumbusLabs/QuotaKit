@@ -1,7 +1,28 @@
 # Changelog
 
 ## 0.18.0 — 2026-03-15
-### Highlights
+
+### Highlights — Mobile 1.1.0
+- **iCloud sync upgraded from KVS to CloudKit** for reliable multi-device sync.
+- Each Mac now writes its own CloudKit device record; iPhone merges all devices automatically.
+- Multi-Mac support: providers from different Macs are combined on iPhone instead of last-write-wins.
+- Cost data from local-source providers (Claude, Codex, VertexAI) is summed across devices; account-level providers deduplicate.
+- Sync status shows specific CloudKit errors (network, auth, quota) instead of generic messages.
+- Mac generates a stable device UUID (persisted in UserDefaults) for CloudKit record identity.
+- Set CloudKit container environment to Production for both Mac and iOS.
+- Composite Sparkle build number (`BUILD_NUMBER.MOBILE_VERSION`) for upstream-safe version detection.
+- Updated About page with fork project links (GitHub, Website, Twitter, Email) and license.
+
+### Mobile 1.0.0
+- Sync cost/usage data (session cost, 30-day cost, daily spend) to iOS via iCloud KVS.
+- Sync dynamic rate windows with labels (Session, Weekly, Sonnet, etc.).
+- Push Mac app version and mobile version in iCloud payload for iOS traceability.
+- Diagnose iCloud sync failures when the Mac build is missing iCloud entitlement or has no active iCloud account.
+- Show explicit iCloud sync failure reasons in Mac Settings instead of reporting a false success state.
+- Display "Mobile 1.0.0" in Mac About panel alongside app version.
+- Update signing identity and Sparkle keys for o1xhack fork.
+
+### CodexBar 0.18.0 (Upstream)
 - Add Kilo provider support with API/CLI source modes, widget integration, and pass/credit handling (#454). Built on work by @coreh.
 - Add Ollama provider, including token-account support in Settings and CLI (#380). Thanks @CryptoSageSnr!
 - Add OpenRouter provider for credit-based usage tracking (#396). Thanks @chountalas!
@@ -9,28 +30,6 @@
 - Add a merged-menu Overview tab with configurable providers and row-to-provider navigation (#416). @ratulsarna
 - Add an experimental option to suppress Claude Keychain prompts (#388).
 - Reduce CPU/energy regressions and JSONL scanner overhead in Codex/web usage paths (#402, #392). Thanks @bald-ai and @asonawalla!
-
-### iCloud Sync (Mobile 1.1.0)
-- Upgrade iCloud sync from KVS to CloudKit for reliable multi-device sync.
-- Each Mac now writes its own CloudKit device record; iPhone merges all devices automatically.
-- Multi-Mac support: providers from different Macs are combined on iPhone instead of last-write-wins.
-- Cost data from local-source providers (Claude, Codex, VertexAI) is summed across devices; account-level providers deduplicate.
-- Sync status shows specific CloudKit errors (network, auth, quota) instead of generic messages.
-- Mac generates a stable device UUID (persisted in UserDefaults) for CloudKit record identity.
-- Set CloudKit container environment to Production for both Mac and iOS.
-- Use composite Sparkle build number (`BUILD_NUMBER.MOBILE_VERSION`) to detect mobile-only updates without conflicting with upstream versioning.
-
-### iCloud Sync (Mobile 1.0.0)
-- Rename `SYNC_VERSION` to `MOBILE_VERSION` for collaborative mobile-dev branch tracking.
-- Fix cost data scanner missing new JSONL log files created after the root directory mtime.
-- Push Mac app version and mobile version in iCloud payload for iOS traceability.
-- Sync cost/usage data (session cost, 30-day cost, daily spend) to iOS via iCloud KVS.
-- Sync dynamic rate windows with labels (Session, Weekly, Sonnet, etc.).
-- Diagnose iCloud sync failures when the Mac build is missing iCloud entitlement or has no active iCloud account.
-- Show explicit iCloud sync failure reasons in Mac Settings instead of reporting a false success state.
-- Make iOS pull-to-refresh synchronize iCloud KVS before re-reading the latest snapshot.
-- Display "Mobile 1.0.0" in Mac About panel alongside app version.
-- Update signing identity and Sparkle keys for o1xhack fork.
 
 ### Providers & Usage
 - Codex: add historical pace risk forecasting and backfill, gate pace computation by display mode, and handle zero-usage days in historical data (#482, supersedes #438). Thanks @tristanmanchester!

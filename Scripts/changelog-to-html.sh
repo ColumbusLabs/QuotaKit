@@ -61,7 +61,16 @@ if [[ -z "$version_content" ]]; then
   exit 0
 fi
 
-echo "<h2>CodexBar $VERSION</h2>"
+MOBILE_VERSION=""
+if [[ -f "$SCRIPT_DIR/../version.env" ]]; then
+  # shellcheck disable=SC1091
+  source "$SCRIPT_DIR/../version.env"
+fi
+if [[ -n "$MOBILE_VERSION" ]]; then
+  echo "<h2>CodexBar ${VERSION}-Mobile ${MOBILE_VERSION}</h2>"
+else
+  echo "<h2>CodexBar $VERSION</h2>"
+fi
 
 in_list=false
 while IFS= read -r line; do
