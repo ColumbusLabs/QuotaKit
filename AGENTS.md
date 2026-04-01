@@ -158,29 +158,18 @@ xcodebuild -exportArchive \
   -allowProvisioningUpdates
 ```
 
-### Mac — Sign, Notarize & DMG
+### Mac — Sign, Notarize & Release
 
-```bash
-# 1. Build, sign, notarize (uses Scripts/sign-and-notarize.sh)
-APP_IDENTITY="9720E3A49EFC964A9F734712B8938D8DAE25DA90" bash Scripts/sign-and-notarize.sh
+**Complete workflow:** [`docs/RELEASING-MOBILE.md`](docs/RELEASING-MOBILE.md)
 
-# 2. Create DMG from notarized zip (NOT from Dropbox directory — avoids xattr pollution)
-CLEAN="/tmp/codexbar-dmg" && rm -rf "$CLEAN" && mkdir -p "$CLEAN/extract" "$CLEAN/dmg" \
-  && ditto -x -k "CodexBar-*.zip" "$CLEAN/extract" \
-  && mv "$CLEAN/extract/CodexBar.app" "$CLEAN/dmg/CodexBar.app" \
-  && ln -s /Applications "$CLEAN/dmg/Applications" \
-  && hdiutil create -volname "CodexBar" -srcfolder "$CLEAN/dmg" -ov -format UDZO "CodexBar-VERSION.dmg" \
-  && rm -rf "$CLEAN"
+Quick summary:
+1. Update `CHANGELOG.md` — Mobile changes first, upstream second
+2. `./Scripts/sign-and-notarize.sh` — builds, signs with `Developer ID Application: Yuxiao Wang (3TUERHN53E)`, notarizes
+3. Generate appcast with `make_appcast.sh` (set `SPARKLE_DOWNLOAD_URL_PREFIX` to full tag URL)
+4. Create GitHub release on `o1xhack/CodexBar` (not upstream)
+5. Push appcast to `mobile-dev`
 
-# 3. Tag & GitHub Release
-git tag -a "vTAG" -m "message"
-git push origin "vTAG"
-gh api repos/o1xhack/CodexBar/releases -X POST -f tag_name="vTAG" ...
-```
-
-**DMG naming**: `CodexBar-{MAC_VERSION}-mobile-{MOBILE_VERSION}.dmg` (e.g. `CodexBar-0.18.0-mobile-1.1.0.dmg`)
-
-**Signing note**: Use the SHA-1 fingerprint for `APP_IDENTITY` to avoid ambiguity when multiple Developer ID certificates exist.
+**Build number:** `BUILD_NUMBER.MOBILE_VERSION` (e.g. `53.1.1.0`). See `docs/sparkle.md` for details.
 
 ---
 
