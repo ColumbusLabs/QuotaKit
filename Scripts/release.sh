@@ -51,6 +51,7 @@ gh release create "$TAG" "${RELEASE_ASSET_BASENAME}.zip" "${RELEASE_ASSET_BASENA
 
 SPARKLE_PRIVATE_KEY_FILE="$KEY_FILE" \
   SPARKLE_RELEASE_VERSION="$MARKETING_VERSION" \
+  SPARKLE_DOWNLOAD_URL_PREFIX="https://github.com/o1xhack/CodexBar/releases/download/${TAG}/" \
   "$ROOT/Scripts/make_appcast.sh" \
   "${RELEASE_ASSET_BASENAME}.zip" \
   "$FEED_URL"

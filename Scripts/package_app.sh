@@ -230,7 +230,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleExecutable</key><string>CodexBar</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>${MARKETING_VERSION}</string>
-    <key>CFBundleVersion</key><string>${BUILD_NUMBER}</string>
+    <key>CFBundleVersion</key><string>${BUILD_NUMBER}.${MOBILE_VERSION}</string>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>LSUIElement</key><true/>
     <key>CFBundleIconFile</key><string>Icon</string>
@@ -334,7 +334,7 @@ if [[ -n "$(resolve_binary_path "CodexBarWidget" "${ARCH_LIST[0]}")" ]]; then
     <key>CFBundleExecutable</key><string>CodexBarWidget</string>
     <key>CFBundlePackageType</key><string>XPC!</string>
     <key>CFBundleShortVersionString</key><string>${MARKETING_VERSION}</string>
-    <key>CFBundleVersion</key><string>${BUILD_NUMBER}</string>
+    <key>CFBundleVersion</key><string>${BUILD_NUMBER}.${MOBILE_VERSION}</string>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>NSExtension</key>
     <dict>

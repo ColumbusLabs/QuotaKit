@@ -16,6 +16,34 @@ read_when:
 - LSUIElement: works; updater window will show when checking. App is non-sandboxed.
 - Channels: stable vs beta are served from the same appcast. Beta items are tagged with `sparkle:channel="beta"`; About → Update Channel controls `allowedChannels`.
 
+## Build number scheme (fork)
+
+The fork uses a composite `CFBundleVersion` to track both the upstream build
+number and the mobile companion version independently:
+
+```
+CFBundleVersion = {BUILD_NUMBER}.{MOBILE_VERSION}
+                    53          . 1.1.0
+```
+
+- `BUILD_NUMBER` (from `version.env`) stays in sync with the upstream base build.
+- `MOBILE_VERSION` (from `version.env`) is the iOS companion version.
+- `package_app.sh` joins them as `${BUILD_NUMBER}.${MOBILE_VERSION}`.
+
+Sparkle's `SUStandardVersionComparator` compares dot-separated components
+numerically, so this scheme handles all update scenarios correctly:
+
+| Installed | Appcast | Detected? | Scenario |
+|-----------|---------|-----------|----------|
+| `53` | `53.1.0.0` | Yes | Upstream-only user → fork build |
+| `53.1.0.0` | `53.1.1.0` | Yes | Mobile version bump (same upstream base) |
+| `53.1.1.0` | `54` | Yes | Upstream build bump |
+| `53.1.1.0` | `54.1.1.0` | Yes | Both bumped |
+
+This avoids build-number collisions when merging from upstream, since the
+upstream's plain `53` and the fork's `53.1.1.0` occupy different version
+spaces.
+
 ## Release flow
 1) Build & notarize as usual (`./Scripts/sign-and-notarize.sh`), producing notarized `CodexBar-<ver>.zip`.
 2) Generate appcast entry with Sparkle `generate_appcast` using the Ed25519 private key; HTML release notes come from `CHANGELOG.md` via `Scripts/changelog-to-html.sh`. For beta releases: set `SPARKLE_CHANNEL=beta` to tag the entry.
