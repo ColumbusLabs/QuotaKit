@@ -72,10 +72,10 @@ struct AboutPane: View {
                 AboutLinkRow(
                     icon: "chevron.left.slash.chevron.right",
                     title: "GitHub",
-                    url: "https://github.com/steipete/CodexBar")
-                AboutLinkRow(icon: "globe", title: "Website", url: "https://steipete.me")
-                AboutLinkRow(icon: "bird", title: "Twitter", url: "https://twitter.com/steipete")
-                AboutLinkRow(icon: "envelope", title: "Email", url: "mailto:peter@steipete.me")
+                    url: "https://github.com/o1xhack/CodexBar")
+                AboutLinkRow(icon: "globe", title: "Website", url: "https://codexbarios.o1xhack.com")
+                AboutLinkRow(icon: "bird", title: "Twitter", url: "https://x.com/o1xhack")
+                AboutLinkRow(icon: "envelope", title: "Email", url: "mailto:o1xhack@gmail.com")
             }
             .padding(.top, 8)
             .frame(maxWidth: .infinity)
@@ -114,7 +114,7 @@ struct AboutPane: View {
                     .foregroundStyle(.secondary)
             }
 
-            Text("© 2025 Peter Steinberger. MIT License.")
+            Text("Based on CodexBar by Peter Steinberger. © 2026 Yuxiao Wang. MIT License.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .padding(.top, 4)
@@ -152,7 +152,7 @@ struct AboutPane: View {
     }
 
     private func openProjectHome() {
-        guard let url = URL(string: "https://github.com/steipete/CodexBar") else { return }
+        guard let url = URL(string: "https://github.com/o1xhack/CodexBar") else { return }
         NSWorkspace.shared.open(url)
     }
 }

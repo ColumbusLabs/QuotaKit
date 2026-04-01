@@ -10,6 +10,16 @@
 - Add an experimental option to suppress Claude Keychain prompts (#388).
 - Reduce CPU/energy regressions and JSONL scanner overhead in Codex/web usage paths (#402, #392). Thanks @bald-ai and @asonawalla!
 
+### iCloud Sync (Mobile 1.1.0)
+- Upgrade iCloud sync from KVS to CloudKit for reliable multi-device sync.
+- Each Mac now writes its own CloudKit device record; iPhone merges all devices automatically.
+- Multi-Mac support: providers from different Macs are combined on iPhone instead of last-write-wins.
+- Cost data from local-source providers (Claude, Codex, VertexAI) is summed across devices; account-level providers deduplicate.
+- Sync status shows specific CloudKit errors (network, auth, quota) instead of generic messages.
+- Mac generates a stable device UUID (persisted in UserDefaults) for CloudKit record identity.
+- Set CloudKit container environment to Production for both Mac and iOS.
+- Use composite Sparkle build number (`BUILD_NUMBER.MOBILE_VERSION`) to detect mobile-only updates without conflicting with upstream versioning.
+
 ### iCloud Sync (Mobile 1.0.0)
 - Rename `SYNC_VERSION` to `MOBILE_VERSION` for collaborative mobile-dev branch tracking.
 - Fix cost data scanner missing new JSONL log files created after the root directory mtime.

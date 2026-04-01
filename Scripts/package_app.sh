@@ -234,7 +234,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>LSUIElement</key><true/>
     <key>CFBundleIconFile</key><string>Icon</string>
-    <key>NSHumanReadableCopyright</key><string>© 2025 Peter Steinberger. MIT License.</string>
+    <key>NSHumanReadableCopyright</key><string>Based on CodexBar by Peter Steinberger. © 2026 Yuxiao Wang. MIT License.</string>
     <key>SUFeedURL</key><string>${FEED_URL}</string>
     <key>SUPublicEDKey</key><string>eBPpE8Yx+2Dbl/viiieSBqdfSC8t20g657Dgas+Xw3o=</string>
     <key>SUEnableAutomaticChecks</key><${AUTO_CHECKS}/>

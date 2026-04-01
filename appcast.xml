@@ -20,6 +20,17 @@
 <li>Add an experimental option to suppress Claude Keychain prompts (#388).</li>
 <li>Reduce CPU/energy regressions and JSONL scanner overhead in Codex/web usage paths (#402, #392). Thanks @bald-ai and @asonawalla!</li>
 </ul>
+<h3>iCloud Sync (Mobile 1.1.0)</h3>
+<ul>
+<li>Upgrade iCloud sync from KVS to CloudKit for reliable multi-device sync.</li>
+<li>Each Mac now writes its own CloudKit device record; iPhone merges all devices automatically.</li>
+<li>Multi-Mac support: providers from different Macs are combined on iPhone instead of last-write-wins.</li>
+<li>Cost data from local-source providers (Claude, Codex, VertexAI) is summed across devices; account-level providers deduplicate.</li>
+<li>Sync status shows specific CloudKit errors (network, auth, quota) instead of generic messages.</li>
+<li>Mac generates a stable device UUID (persisted in UserDefaults) for CloudKit record identity.</li>
+<li>Set CloudKit container environment to Production for both Mac and iOS.</li>
+<li>Use composite Sparkle build number (<code>BUILD_NUMBER.MOBILE_VERSION</code>) to detect mobile-only updates without conflicting with upstream versioning.</li>
+</ul>
 <h3>iCloud Sync (Mobile 1.0.0)</h3>
 <ul>
 <li>Rename <code>SYNC_VERSION</code> to <code>MOBILE_VERSION</code> for collaborative mobile-dev branch tracking.</li>
@@ -82,7 +93,7 @@
 </ul>
 <p><a href="https://github.com/o1xhack/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar/releases/download/v0.18.0-mobile.1.1.0/CodexBar-0.18.0-mobile.1.1.0.zip" length="25137329" type="application/octet-stream" sparkle:edSignature="7M3c+5Zhoq3PVAeP/CXcY0t1FrgQXm1kSQVjTuwdHN293OHF75pLhghJptB1I1JEPPuX0ArBsvPwVg2VVxo1Dw=="/>
+            <enclosure url="https://github.com/o1xhack/CodexBar/releases/download/v0.18.0-mobile.1.1.0/CodexBar-0.18.0-mobile.1.1.0.zip" length="25137549" type="application/octet-stream" sparkle:edSignature="m9rcyfULpMbpSSXRk5OnWshrlMkg8Vqxe+yGSgYgIRZjxgSB1WBuyCmmqgOsdR6xIb8lFMpMQqNLuVwrC4nhDg=="/>
         </item>
         <item>
             <title>0.18.0</title>
