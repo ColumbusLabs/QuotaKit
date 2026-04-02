@@ -1699,6 +1699,7 @@ private struct UsageSettingsView: View {
     @AppStorage(MobileSettingsKeys.showRemainingUsage) private var showRemainingUsage =
         UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode.remaining.rawValue
     @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidePersonalInfo = false
+    @AppStorage(MobileSettingsKeys.sessionQuotaNotificationsEnabled) private var sessionQuotaNotifications = true
 
     var body: some View {
         List {
@@ -1729,6 +1730,19 @@ private struct UsageSettingsView: View {
                 Text("Press and hold on the chart to inspect the exact value for a given day.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Toggle(isOn: self.$sessionQuotaNotifications) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Session quota notifications")
+                        Text("Notifies when the 5-hour session quota hits 0% and when it becomes available again.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Notifications")
             }
 
             Section {

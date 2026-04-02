@@ -2,6 +2,19 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.1.0 (25)] — 2026-04-01
+
+### Added
+- **Session quota push notifications** — iOS receives silent push from CloudKit when Mac detects quota changes, posts local notification for depleted/restored events
+- `AppDelegate` with remote notification handler for CloudKit silent push processing
+- `SessionQuotaMonitor` for detecting quota state transitions (depleted ≤0.01% / restored)
+- `LocalNotificationManager` for posting user-visible notifications with sound
+- Notification toggle in Settings → Usage → Notifications section (enabled by default)
+- 4-language localization for all notification strings
+
+### Changed
+- App architecture upgraded: added `UIApplicationDelegateAdaptor` for background notification handling
+
 ## [1.0.0 (23)] — 2026-03-23
 
 ### Changed

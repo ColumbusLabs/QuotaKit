@@ -3,6 +3,7 @@ import SwiftUI
 
 @main
 struct CodexBarMobileApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var usageData: SyncedUsageData
 
     init() {

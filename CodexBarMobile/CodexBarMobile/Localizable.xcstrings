@@ -841,6 +841,62 @@
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "長按圖表可查看某一天的精確數值。" } }
       }
     },
+    "Notifications" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Notifications" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "通知" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "通知" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "通知" } }
+      }
+    },
+    "Notifies when the 5-hour session quota hits 0% and when it becomes available again." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Notifies when the 5-hour session quota hits 0% and when it becomes available again." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "5時間セッションクォータが0%になった時と再び利用可能になった時に通知します。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "当5小时会话配额降至0%以及恢复可用时发送通知。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "當5小時會話配額降至0%以及恢復可用時傳送通知。" } }
+      }
+    },
+    "Session quota notifications" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Session quota notifications" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "セッションクォータ通知" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "会话配额通知" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "會話配額通知" } }
+      }
+    },
+    "%@ session depleted" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%@ session depleted" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "%@ セッション枯渇" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%@ 会话已耗尽" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "%@ 會話已耗盡" } }
+      }
+    },
+    "%@ session restored" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%@ session restored" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "%@ セッション回復" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%@ 会话已恢复" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "%@ 會話已恢復" } }
+      }
+    },
+    "0% left. Will notify when it's available again." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "0% left. Will notify when it's available again." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "残り0%。再び利用可能になったら通知します。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "剩余0%。恢复可用时将通知你。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "剩餘0%。恢復可用時將通知你。" } }
+      }
+    },
+    "Session quota is available again." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Session quota is available again." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "セッションクォータが再び利用可能になりました。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "会话配额已恢复可用。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "會話配額已恢復可用。" } }
+      }
+    },
     "Privacy" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Privacy" } },
