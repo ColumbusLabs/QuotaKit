@@ -20,7 +20,9 @@ CodexBar is a macOS menu bar app that tracks AI coding tool usage (Claude, Codex
 
 Quick summary:
 
-> Research → Design → Implementation → Testing → Documentation → Commit → Push & Release
+> Research → Design → Implementation → Testing → Documentation → Commit → Todoist 同步 → Push & Release
+
+8. **Todoist 同步**：Commit 之后，同步更新 Todoist 任务状态，详见下方「Todoist 同步规则」
 
 See `AGENTS.md` for the full process, rules, and checklists.
 
@@ -82,3 +84,76 @@ See `AGENTS.md` for the full process, rules, and checklists.
 - **不跳过本地化**：所有用户可见文本必须包含 4 种语言
 - **不跳过版本号**：每次提交必须 bump `CURRENT_PROJECT_VERSION`
 - **不手动编辑 .xcodeproj**：通过 `xcodegen generate` 从 `project.yml` 生成
+
+### Todoist 同步规则
+项目使用 Todoist（Dev 项目，Board 视图）进行任务管理。每次开发活动必须与 Todoist 保持同步。
+
+#### 看板栏目
+| 栏目 | 含义 |
+|------|------|
+| **Backlog** | 待规划/排期，尚未开始 |
+| **In Progress** | 正在开发中 |
+| **Review / Testing** | 开发完成，待审查/测试 |
+| **Done / Release** | 全部完成，待发布或已发布 |
+
+#### 标签体系
+
+**必打标签：**
+- `CodexBar-Mobile` — 项目标签，所有任务必须打上
+
+**按性质叠加：**
+- `Bug` — Bug 修复任务
+- `商业化` — 将来纳入会员收费的功能
+
+**标签管理：**
+- 创建前必须先搜索已有标签（`find-labels`），存在则复用，不存在才新建
+- 多个标签可叠加
+
+**自动判断规则（创建任务时）：**
+- 修复类（"修复"、"bug"、"crash"、"闪退"）→ 打 `Bug`
+- 涉及付费/会员功能 → 打 `商业化`
+
+#### 任务创建规范
+
+**必填字段：** content、description、labels（项目标签+性质标签）、priority（p1-p4）
+**子任务：** 预计 >1 天或 >1 PR 的任务必须拆分子任务
+**Bug 入栏：** P1 线上故障 → In Progress；P2+ 非紧急 → Backlog
+
+#### 开发流程中的 Todoist 操作
+
+**开始工作时：**
+1. 在 Todoist 搜索对应任务（按标签 `CodexBar-Mobile` + 关键词）
+2. **如果没有对应任务**：自动创建新任务，根据任务性质打上对应标签，填写所有必填字段
+3. 将任务移到 **In Progress** 栏目
+
+**每次 Commit 后：**
+4. 在对应任务下添加 comment，包含：
+   - 日期标记：`[YYYY-MM-DD]`
+   - 简要描述本次进展
+   - Commit 链接：`https://github.com/o1xhack/CodexBar/commit/<sha>`
+
+**开发完成时：**
+5. 将任务移到 **Review / Testing** 栏目（不直接标记完成）
+6. 添加 comment 说明已完成开发，等待验证；如有 PR 附上链接
+
+**彻底完成时（二次确认）：**
+7. 经过审查/测试/用户确认后，才将任务移到 **Done / Release**
+8. 添加最终 comment（验证结论）
+9. **由用户确认后**才标记任务为完成（勾选）
+
+**任务阻塞时：**
+10. 在 comment 记录阻塞原因和依赖项，标题加 `[Blocked]`
+
+**会话结束时（跨会话交接）：**
+11. 未完成任务在 comment 记录：当前状态、下一步、阻塞点
+
+#### 职责边界
+- **Todoist**：任务状态流转 + 进度日志（摘要 + commit 链接）
+- **CHANGELOG.md**：面向开发者的变更记录
+- **plan.md**：项目计划与功能进度跟踪
+- Todoist comment 不重复写完整变更内容，指向 CHANGELOG 即可
+
+#### 注意事项
+- **不要直接标记完成**：开发完成 ≠ 任务完成，必须经过 Review/Testing 二次确认
+- **状态变动必须移栏**：任务状态变化时，同步移动到对应栏目
+- **新发现的 Bug**：立即创建任务，打 `Bug` 标签，P1 放 In Progress，P2+ 放 Backlog
