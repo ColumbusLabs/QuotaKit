@@ -19,9 +19,11 @@ struct ClaudeOAuthFetchStrategyAvailabilityTests {
         }
     }
 
-    private func makeContext(sourceMode: ProviderSourceMode) -> ProviderFetchContext {
-        let env: [String: String] = [:]
-        return ProviderFetchContext(
+    private func makeContext(
+        sourceMode: ProviderSourceMode,
+        env: [String: String] = [:]) -> ProviderFetchContext
+    {
+        ProviderFetchContext(
             runtime: .app,
             sourceMode: sourceMode,
             includeCredits: false,
@@ -154,44 +156,63 @@ struct ClaudeOAuthFetchStrategyAvailabilityTests {
     func `auto mode only on user action background startup without cache is available for bootstrap`() async throws {
         let context = self.makeContext(sourceMode: .auto)
         let strategy = ClaudeOAuthFetchStrategy()
-        let service = "com.o1xhack.codexbar.cache.tests.\(UUID().uuidString)"
+        let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
 
         try await KeychainCacheStore.withServiceOverrideForTesting(service) {
-            try await KeychainAccessGate.withTaskOverrideForTesting(false) {
-                KeychainCacheStore.setTestStoreForTesting(true)
-                defer { KeychainCacheStore.setTestStoreForTesting(false) }
+            KeychainCacheStore.setTestStoreForTesting(true)
+            defer { KeychainCacheStore.setTestStoreForTesting(false) }
 
-                try await ClaudeOAuthCredentialsStore.withIsolatedMemoryCacheForTesting {
+            try await ClaudeOAuthCredentialsStore.withIsolatedMemoryCacheForTesting {
+                ClaudeOAuthCredentialsStore.invalidateCache()
+                ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
+                ClaudeOAuthKeychainAccessGate.resetForTesting()
+                defer {
                     ClaudeOAuthCredentialsStore.invalidateCache()
                     ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
                     ClaudeOAuthKeychainAccessGate.resetForTesting()
-                    defer {
-                        ClaudeOAuthCredentialsStore.invalidateCache()
-                        ClaudeOAuthCredentialsStore._resetCredentialsFileTrackingForTesting()
-                        ClaudeOAuthKeychainAccessGate.resetForTesting()
-                    }
+                }
 
-                    let tempDir = FileManager.default.temporaryDirectory
-                        .appendingPathComponent(UUID().uuidString, isDirectory: true)
-                    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-                    let fileURL = tempDir.appendingPathComponent("credentials.json")
+                let tempDir = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString, isDirectory: true)
+                try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+                let fileURL = tempDir.appendingPathComponent("credentials.json")
 
-                    let available = await ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(fileURL) {
-                        await ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(.securityFramework) {
-                            await ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
-                                await ProviderRefreshContext.$current.withValue(.startup) {
-                                    await ProviderInteractionContext.$current.withValue(.background) {
-                                        await strategy.isAvailable(context)
-                                    }
+                let available = await ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(fileURL) {
+                    await ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(.securityFramework) {
+                        await ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
+                            await ProviderRefreshContext.$current.withValue(.startup) {
+                                await ProviderInteractionContext.$current.withValue(.background) {
+                                    await strategy.isAvailable(context)
                                 }
                             }
                         }
                     }
-
-                    #expect(available == true)
                 }
+
+                #expect(available == true)
             }
         }
+    }
+
+    @Test
+    func `auto mode expired Claude CLI creds env provided CLI override returns available`() async throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let cliURL = tempDir.appendingPathComponent("claude")
+        try Data("#!/bin/sh\nexit 0\n".utf8).write(to: cliURL)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: cliURL.path)
+
+        let context = self.makeContext(
+            sourceMode: .auto,
+            env: ["CLAUDE_CLI_PATH": cliURL.path])
+        let strategy = ClaudeOAuthFetchStrategy()
+        let available = await ClaudeOAuthFetchStrategy.$nonInteractiveCredentialRecordOverride
+            .withValue(self.expiredRecord()) {
+                await strategy.isAvailable(context)
+            }
+
+        #expect(available == true)
     }
 
     @Test

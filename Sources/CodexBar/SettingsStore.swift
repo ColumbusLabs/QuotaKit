@@ -42,6 +42,7 @@ enum MenuBarMetricPreference: String, CaseIterable, Identifiable {
     case automatic
     case primary
     case secondary
+    case tertiary
     case average
 
     var id: String {
@@ -53,6 +54,7 @@ enum MenuBarMetricPreference: String, CaseIterable, Identifiable {
         case .automatic: "Automatic"
         case .primary: "Primary"
         case .secondary: "Secondary"
+        case .tertiary: "Tertiary"
         case .average: "Average"
         }
     }
@@ -61,7 +63,7 @@ enum MenuBarMetricPreference: String, CaseIterable, Identifiable {
 @MainActor
 @Observable
 final class SettingsStore {
-    static let sharedDefaults = UserDefaults(suiteName: "group.com.o1xhack.codexbar")
+    static let sharedDefaults = UserDefaults(suiteName: "group.com.steipete.codexbar")
     static let mergedOverviewProviderLimit = 3
     static let isRunningTests: Bool = {
         let env = ProcessInfo.processInfo.environment
@@ -147,6 +149,7 @@ final class SettingsStore {
         userDefaults.removeObject(forKey: "showClaudeUsage")
         LaunchAtLoginManager.setEnabled(self.launchAtLogin)
         self.runInitialProviderDetectionIfNeeded()
+        self.ensureAlibabaProviderAutoEnabledIfNeeded()
         self.applyTokenCostDefaultIfNeeded()
         if self.claudeUsageDataSource != .cli { self.claudeWebExtrasEnabled = false }
         self.openAIWebAccessEnabled = self.codexCookieSource.isEnabled
@@ -157,8 +160,12 @@ final class SettingsStore {
 
 extension SettingsStore {
     private static func loadDefaultsState(userDefaults: UserDefaults) -> SettingsDefaultsState {
-        let refreshRaw = userDefaults.string(forKey: "refreshFrequency") ?? RefreshFrequency.fiveMinutes.rawValue
-        let refreshFrequency = RefreshFrequency(rawValue: refreshRaw) ?? .fiveMinutes
+        let refreshDefault = userDefaults.string(forKey: "refreshFrequency")
+            .flatMap(RefreshFrequency.init(rawValue:))
+        let refreshFrequency = refreshDefault ?? .fiveMinutes
+        if refreshDefault == nil {
+            userDefaults.set(refreshFrequency.rawValue, forKey: "refreshFrequency")
+        }
         let launchAtLogin = userDefaults.object(forKey: "launchAtLogin") as? Bool ?? false
         let debugMenuEnabled = userDefaults.object(forKey: "debugMenuEnabled") as? Bool ?? false
         let debugDisableKeychainAccess: Bool = {
@@ -192,6 +199,7 @@ extension SettingsStore {
             ?? MenuBarDisplayMode.percent.rawValue
         let historicalTrackingEnabled = userDefaults.object(forKey: "historicalTrackingEnabled") as? Bool ?? false
         let showAllTokenAccountsInMenu = userDefaults.object(forKey: "showAllTokenAccountsInMenu") as? Bool ?? false
+        let iCloudSyncEnabled = userDefaults.object(forKey: "iCloudSyncEnabled") as? Bool ?? true
         let storedPreferences = userDefaults.dictionary(forKey: "menuBarMetricPreferences") as? [String: String] ?? [:]
         var resolvedPreferences = storedPreferences
         if resolvedPreferences.isEmpty,
@@ -223,7 +231,6 @@ extension SettingsStore {
             forKey: "mergedOverviewSelectedProviders") as? [String] ?? []
         let selectedMenuProviderRaw = userDefaults.string(forKey: "selectedMenuProvider")
         let providerDetectionCompleted = userDefaults.object(forKey: "providerDetectionCompleted") as? Bool ?? false
-        let iCloudSyncEnabled = userDefaults.object(forKey: "iCloudSyncEnabled") as? Bool ?? true
 
         return SettingsDefaultsState(
             refreshFrequency: refreshFrequency,
@@ -242,6 +249,7 @@ extension SettingsStore {
             menuBarDisplayModeRaw: menuBarDisplayModeRaw,
             historicalTrackingEnabled: historicalTrackingEnabled,
             showAllTokenAccountsInMenu: showAllTokenAccountsInMenu,
+            iCloudSyncEnabled: iCloudSyncEnabled,
             menuBarMetricPreferencesRaw: resolvedPreferences,
             costUsageEnabled: costUsageEnabled,
             hidePersonalInfo: hidePersonalInfo,
@@ -258,8 +266,7 @@ extension SettingsStore {
             mergedMenuLastSelectedWasOverview: mergedMenuLastSelectedWasOverview,
             mergedOverviewSelectedProvidersRaw: mergedOverviewSelectedProvidersRaw,
             selectedMenuProviderRaw: selectedMenuProviderRaw,
-            providerDetectionCompleted: providerDetectionCompleted,
-            iCloudSyncEnabled: iCloudSyncEnabled)
+            providerDetectionCompleted: providerDetectionCompleted)
     }
 }
 

@@ -242,8 +242,11 @@ extension StatusItemController {
                 currentProvider: currentProvider,
                 context: openAIContext,
                 addedOpenAIWebItems: addedOpenAIWebItems)
+            if self.addUsageHistoryMenuItemIfNeeded(to: menu, provider: currentProvider) {
+                menu.addItem(.separator())
+            }
         }
-        self.addActionableSections(descriptor.sections, to: menu)
+        self.addActionableSections(descriptor.sections, to: menu, width: menuWidth)
     }
 
     /// Smart update: only rebuild content sections when switching providers (keep the switcher intact).
@@ -291,7 +294,10 @@ extension StatusItemController {
             currentProvider: currentProvider,
             context: openAIContext,
             addedOpenAIWebItems: addedOpenAIWebItems)
-        self.addActionableSections(descriptor.sections, to: menu)
+        if self.addUsageHistoryMenuItemIfNeeded(to: menu, provider: currentProvider) {
+            menu.addItem(.separator())
+        }
+        self.addActionableSections(descriptor.sections, to: menu, width: menuWidth)
     }
 
     private struct OpenAIWebContext {
@@ -486,7 +492,7 @@ extension StatusItemController {
         menu.addItem(.separator())
     }
 
-    private func addActionableSections(_ sections: [MenuDescriptor.Section], to menu: NSMenu) {
+    private func addActionableSections(_ sections: [MenuDescriptor.Section], to menu: NSMenu, width: CGFloat) {
         let actionableSections = sections.filter { section in
             section.entries.contains { entry in
                 if case .action = entry { return true }
@@ -497,6 +503,10 @@ extension StatusItemController {
             for entry in section.entries {
                 switch entry {
                 case let .text(text, style):
+                    if style == .secondary {
+                        menu.addItem(self.makeWrappedSecondaryTextItem(text: text, width: width))
+                        continue
+                    }
                     let item = NSMenuItem(title: text, action: nil, keyEquivalent: "")
                     item.isEnabled = false
                     if style == .headline {
@@ -536,6 +546,46 @@ extension StatusItemController {
                 menu.addItem(.separator())
             }
         }
+    }
+
+    private func makeWrappedSecondaryTextItem(text: String, width: CGFloat) -> NSMenuItem {
+        let item = NSMenuItem(title: text, action: nil, keyEquivalent: "")
+        let view = self.makeWrappedSecondaryTextView(text: text)
+        let height = self.menuTextItemHeight(for: view, width: width)
+        view.frame = NSRect(origin: .zero, size: NSSize(width: width, height: height))
+        item.view = view
+        item.isEnabled = false
+        item.toolTip = text
+        return item
+    }
+
+    private func makeWrappedSecondaryTextView(text: String) -> NSView {
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        let textField = NSTextField(wrappingLabelWithString: text)
+        textField.font = NSFont.menuFont(ofSize: NSFont.smallSystemFontSize)
+        textField.textColor = NSColor.secondaryLabelColor
+        textField.lineBreakMode = .byWordWrapping
+        textField.maximumNumberOfLines = 0
+        textField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        textField.translatesAutoresizingMaskIntoConstraints = false
+
+        container.addSubview(textField)
+        NSLayoutConstraint.activate([
+            textField.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 18),
+            textField.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -10),
+            textField.topAnchor.constraint(equalTo: container.topAnchor, constant: 2),
+            textField.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -2),
+        ])
+
+        return container
+    }
+
+    private func menuTextItemHeight(for view: NSView, width: CGFloat) -> CGFloat {
+        view.frame = NSRect(origin: .zero, size: NSSize(width: width, height: 1))
+        view.layoutSubtreeIfNeeded()
+        return max(1, ceil(view.fittingSize.height))
     }
 
     func makeMenu(for provider: UsageProvider?) -> NSMenu {
@@ -776,11 +826,13 @@ extension StatusItemController {
         }
     }
 
-    private func makeMenuCardItem(
+    func makeMenuCardItem(
         _ view: some View,
         id: String,
         width: CGFloat,
         submenu: NSMenu? = nil,
+        submenuIndicatorAlignment: Alignment = .topTrailing,
+        submenuIndicatorTopPadding: CGFloat = 8,
         onClick: (() -> Void)? = nil) -> NSMenuItem
     {
         if !Self.menuCardRenderingEnabled {
@@ -798,7 +850,9 @@ extension StatusItemController {
         let highlightState = MenuCardHighlightState()
         let wrapped = MenuCardSectionContainerView(
             highlightState: highlightState,
-            showsSubmenuIndicator: submenu != nil)
+            showsSubmenuIndicator: submenu != nil,
+            submenuIndicatorAlignment: submenuIndicatorAlignment,
+            submenuIndicatorTopPadding: submenuIndicatorTopPadding)
         {
             view
         }
@@ -1093,15 +1147,21 @@ extension StatusItemController {
     private struct MenuCardSectionContainerView<Content: View>: View {
         @Bindable var highlightState: MenuCardHighlightState
         let showsSubmenuIndicator: Bool
+        let submenuIndicatorAlignment: Alignment
+        let submenuIndicatorTopPadding: CGFloat
         let content: Content
 
         init(
             highlightState: MenuCardHighlightState,
             showsSubmenuIndicator: Bool,
+            submenuIndicatorAlignment: Alignment,
+            submenuIndicatorTopPadding: CGFloat,
             @ViewBuilder content: () -> Content)
         {
             self.highlightState = highlightState
             self.showsSubmenuIndicator = showsSubmenuIndicator
+            self.submenuIndicatorAlignment = submenuIndicatorAlignment
+            self.submenuIndicatorTopPadding = submenuIndicatorTopPadding
             self.content = content()
         }
 
@@ -1117,12 +1177,12 @@ extension StatusItemController {
                             .padding(.vertical, 2)
                     }
                 }
-                .overlay(alignment: .topTrailing) {
+                .overlay(alignment: self.submenuIndicatorAlignment) {
                     if self.showsSubmenuIndicator {
                         Image(systemName: "chevron.right")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(MenuHighlightStyle.secondary(self.highlightState.isHighlighted))
-                            .padding(.top, 8)
+                            .padding(.top, self.submenuIndicatorTopPadding)
                             .padding(.trailing, 10)
                     }
                 }
@@ -1326,6 +1386,7 @@ extension StatusItemController {
             "usageBreakdownChart",
             "creditsHistoryChart",
             "costHistoryChart",
+            "usageHistoryChart",
         ]
         return menu.items.contains { item in
             guard let id = item.representedObject as? String else { return false }
@@ -1412,7 +1473,7 @@ extension StatusItemController {
             tokenSnapshot: tokenSnapshot,
             tokenError: tokenError,
             account: self.account,
-            isRefreshing: self.store.isRefreshing,
+            isRefreshing: self.store.shouldShowRefreshingMenuCard(for: target),
             lastError: errorOverride ?? self.store.error(for: target),
             usageBarsShowUsed: self.settings.usageBarsShowUsed,
             resetTimeDisplayStyle: self.settings.resetTimeDisplayStyle,

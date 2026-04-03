@@ -52,7 +52,7 @@ struct ClaudeOAuthCredentialsStoreSecurityCLIFallbackPolicyTests {
 
     @Test
     func `experimental reader sync from claude keychain without prompt background fallback blocked by stored policy`() {
-        let service = "com.o1xhack.codexbar.cache.tests.\(UUID().uuidString)"
+        let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
         KeychainCacheStore.withServiceOverrideForTesting(service) {
             KeychainAccessGate.withTaskOverrideForTesting(false) {
                 KeychainCacheStore.setTestStoreForTesting(true)

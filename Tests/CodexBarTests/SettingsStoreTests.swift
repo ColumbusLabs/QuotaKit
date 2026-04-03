@@ -21,6 +21,25 @@ struct SettingsStoreTests {
 
         #expect(store.refreshFrequency == .fiveMinutes)
         #expect(store.refreshFrequency.seconds == 300)
+        #expect(defaults.string(forKey: "refreshFrequency") == RefreshFrequency.fiveMinutes.rawValue)
+    }
+
+    @Test
+    func `repairs unrecognized refresh frequency raw value`() throws {
+        let suite = "SettingsStoreTests-invalid-refresh"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defaults.set("legacyValue", forKey: "refreshFrequency")
+        let configStore = testConfigStore(suiteName: suite)
+
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        #expect(store.refreshFrequency == .fiveMinutes)
+        #expect(defaults.string(forKey: "refreshFrequency") == RefreshFrequency.fiveMinutes.rawValue)
     }
 
     @Test
@@ -730,6 +749,7 @@ struct SettingsStoreTests {
             .claude,
             .cursor,
             .opencode,
+            .alibaba,
             .factory,
             .antigravity,
             .copilot,
@@ -761,5 +781,48 @@ struct SettingsStoreTests {
             syntheticTokenStore: NoopSyntheticTokenStore())
 
         #expect(storeB.orderedProviders().first == .antigravity)
+    }
+
+    @Test
+    func `setting alibaba API key enables provider`() throws {
+        let suite = "SettingsStoreTests-alibaba-enable-on-token"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        let metadata = try #require(ProviderDescriptorRegistry.metadata[.alibaba])
+        store.setProviderEnabled(provider: .alibaba, metadata: metadata, enabled: false)
+
+        store.alibabaCodingPlanAPIToken = "cpk-test-token"
+
+        #expect(store.isProviderEnabled(provider: .alibaba, metadata: metadata))
+    }
+
+    @Test
+    func `alibaba provider auto enables on startup when token exists`() throws {
+        let suite = "SettingsStoreTests-alibaba-auto-enable-startup"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+
+        let config = CodexBarConfig(providers: [
+            ProviderConfig(id: .alibaba, enabled: false, apiKey: "cpk-startup-token"),
+        ])
+        try configStore.save(config)
+
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        let metadata = try #require(ProviderDescriptorRegistry.metadata[.alibaba])
+        #expect(store.isProviderEnabled(provider: .alibaba, metadata: metadata))
     }
 }

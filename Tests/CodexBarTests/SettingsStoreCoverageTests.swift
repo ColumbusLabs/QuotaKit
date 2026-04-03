@@ -82,6 +82,56 @@ struct SettingsStoreCoverageTests {
     }
 
     @Test
+    func `claude snapshot uses OAuth routing for OAuth token accounts`() {
+        let settings = Self.makeSettingsStore()
+        settings.addTokenAccount(provider: .claude, label: "OAuth", token: "Bearer sk-ant-oat-account-token")
+
+        let snapshot = settings.claudeSettingsSnapshot(tokenOverride: nil)
+
+        #expect(snapshot.usageDataSource == .auto)
+        #expect(snapshot.cookieSource == .off)
+        #expect(snapshot.manualCookieHeader?.isEmpty == true)
+    }
+
+    @Test
+    func `claude snapshot uses manual cookie routing for session key accounts`() {
+        let settings = Self.makeSettingsStore()
+        settings.addTokenAccount(provider: .claude, label: "Cookie", token: "sk-ant-session-token")
+
+        let snapshot = settings.claudeSettingsSnapshot(tokenOverride: nil)
+
+        #expect(snapshot.usageDataSource == .auto)
+        #expect(snapshot.cookieSource == .manual)
+        #expect(snapshot.manualCookieHeader == "sessionKey=sk-ant-session-token")
+    }
+
+    @Test
+    func `claude snapshot normalizes config manual cookie input through shared route`() {
+        let settings = Self.makeSettingsStore()
+        settings.claudeCookieSource = .manual
+        settings.claudeCookieHeader = "Cookie: sessionKey=sk-ant-session-token; foo=bar"
+
+        let snapshot = settings.claudeSettingsSnapshot(tokenOverride: nil)
+
+        #expect(snapshot.usageDataSource == .auto)
+        #expect(snapshot.cookieSource == .manual)
+        #expect(snapshot.manualCookieHeader == "sessionKey=sk-ant-session-token; foo=bar")
+    }
+
+    @Test
+    func `claude snapshot does not fall back to config cookie for malformed selected token account`() {
+        let settings = Self.makeSettingsStore()
+        settings.claudeCookieSource = .manual
+        settings.claudeCookieHeader = "Cookie: sessionKey=sk-ant-config-cookie"
+        settings.addTokenAccount(provider: .claude, label: "Malformed", token: "Cookie:")
+
+        let snapshot = settings.claudeSettingsSnapshot(tokenOverride: nil)
+
+        #expect(snapshot.cookieSource == .manual)
+        #expect(snapshot.manualCookieHeader?.isEmpty == true)
+    }
+
+    @Test
     func `token cost usage source detection`() throws {
         let fileManager = FileManager.default
         let root = fileManager.temporaryDirectory.appendingPathComponent(

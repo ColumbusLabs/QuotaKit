@@ -57,10 +57,6 @@ cd /Users/steipete/Projects/codexbar && open -n /Users/steipete/Projects/codexba
 
 ### Release
 ```bash
-# One-time local setup (kept out of git)
-mkdir -p ~/.codexbar-secrets
-cp .codexbar-release.local.env.example ~/.codexbar-secrets/codexbar-release.env
-
 # Sign and notarize (keep in foreground!)
 ./Scripts/sign-and-notarize.sh
 
@@ -104,7 +100,6 @@ git push origin feature/my-feature
 - `Scripts/package_app.sh` - Package app bundle
 - `Scripts/sign-and-notarize.sh` - Release signing
 - `Scripts/make_appcast.sh` - Generate appcast XML
-- `Scripts/load-release-secrets.sh` - Load local-only release secrets from `~/.codexbar-secrets/`
 
 ### Documentation
 - `docs/augment.md` - Augment provider guide
@@ -128,7 +123,7 @@ git push origin feature/my-feature
 
 ### Debugging Augment Issues
 1. Enable debug logging: `export CODEXBAR_LOG_LEVEL=debug`
-2. Check Console.app for "com.o1xhack.codexbar"
+2. Check Console.app for "com.steipete.codexbar"
 3. Use Settings → Debug → Augment → Show Debug Info
 4. Check `docs/augment.md` troubleshooting section
 

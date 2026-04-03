@@ -118,6 +118,45 @@ struct UsageStoreHighestUsageTests {
     }
 
     @Test
+    func `automatic metric uses antigravity tertiary when leading lanes are missing`() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "UsageStoreHighestUsageTests-antigravity-tertiary"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        settings.setMenuBarMetricPreference(.automatic, for: .antigravity)
+
+        let registry = ProviderRegistry.shared
+        if let codexMeta = registry.metadata[.codex] {
+            settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
+        }
+        if let antigravityMeta = registry.metadata[.antigravity] {
+            settings.setProviderEnabled(provider: .antigravity, metadata: antigravityMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+
+        let codexSnapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 70, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            updatedAt: Date())
+        let antigravitySnapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            tertiary: RateWindow(usedPercent: 85, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date())
+
+        store._setSnapshotForTesting(codexSnapshot, provider: .codex)
+        store._setSnapshotForTesting(antigravitySnapshot, provider: .antigravity)
+
+        let highest = store.providerWithHighestUsage()
+        #expect(highest?.provider == .antigravity)
+        #expect(highest?.usedPercent == 85)
+    }
+
+    @Test
     func `automatic metric keeps copilot most constrained ranking`() {
         let settings = SettingsStore(
             configStore: testConfigStore(suiteName: "UsageStoreHighestUsageTests-copilot-automatic"),
@@ -229,5 +268,122 @@ struct UsageStoreHighestUsageTests {
         let highest = store.providerWithHighestUsage()
         #expect(highest?.provider == .codex)
         #expect(highest?.usedPercent == 80)
+    }
+
+    @Test
+    func `automatic metric uses tertiary when it is most constrained for cursor`() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "UsageStoreHighestUsageTests-cursor-tertiary"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        settings.setMenuBarMetricPreference(.automatic, for: .cursor)
+
+        let registry = ProviderRegistry.shared
+        if let codexMeta = registry.metadata[.codex] {
+            settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
+        }
+        if let cursorMeta = registry.metadata[.cursor] {
+            settings.setProviderEnabled(provider: .cursor, metadata: cursorMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+
+        let codexSnapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 50, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            updatedAt: Date())
+        let cursorSnapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 10, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 20, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            tertiary: RateWindow(usedPercent: 95, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date())
+
+        store._setSnapshotForTesting(codexSnapshot, provider: .codex)
+        store._setSnapshotForTesting(cursorSnapshot, provider: .cursor)
+
+        let highest = store.providerWithHighestUsage()
+        #expect(highest?.provider == .cursor)
+        #expect(highest?.usedPercent == 95)
+    }
+
+    @Test
+    func `automatic metric excludes cursor when all opus lanes are exhausted`() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "UsageStoreHighestUsageTests-cursor-all-100"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        settings.setMenuBarMetricPreference(.automatic, for: .cursor)
+
+        let registry = ProviderRegistry.shared
+        if let codexMeta = registry.metadata[.codex] {
+            settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
+        }
+        if let cursorMeta = registry.metadata[.cursor] {
+            settings.setProviderEnabled(provider: .cursor, metadata: cursorMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+
+        let codexSnapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 80, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            updatedAt: Date())
+        let cursorSnapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 100, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 100, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            tertiary: RateWindow(usedPercent: 100, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date())
+
+        store._setSnapshotForTesting(codexSnapshot, provider: .codex)
+        store._setSnapshotForTesting(cursorSnapshot, provider: .cursor)
+
+        let highest = store.providerWithHighestUsage()
+        #expect(highest?.provider == .codex)
+        #expect(highest?.usedPercent == 80)
+    }
+
+    @Test
+    func `cursor highest usage keeps provider when saved tertiary falls back to automatic`() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "UsageStoreHighestUsageTests-cursor-missing-tertiary"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        settings.setMenuBarMetricPreference(.tertiary, for: .cursor)
+
+        let registry = ProviderRegistry.shared
+        if let codexMeta = registry.metadata[.codex] {
+            settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
+        }
+        if let cursorMeta = registry.metadata[.cursor] {
+            settings.setProviderEnabled(provider: .cursor, metadata: cursorMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+
+        let codexSnapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 40, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            updatedAt: Date())
+        let cursorSnapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 100, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 60, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            tertiary: nil,
+            updatedAt: Date())
+
+        store._setSnapshotForTesting(codexSnapshot, provider: .codex)
+        store._setSnapshotForTesting(cursorSnapshot, provider: .cursor)
+
+        let highest = store.providerWithHighestUsage()
+        #expect(highest?.provider == .cursor)
+        #expect(highest?.usedPercent == 100)
     }
 }

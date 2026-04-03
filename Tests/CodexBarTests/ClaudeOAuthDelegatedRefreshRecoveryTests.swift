@@ -62,7 +62,7 @@ struct ClaudeOAuthDelegatedRefreshRecoveryTests {
         let delegatedCounter = AsyncCounter()
         let usageResponse = try Self.makeOAuthUsageResponse()
         let tokenCapture = TokenCapture()
-        let service = "com.o1xhack.codexbar.cache.tests.\(UUID().uuidString)"
+        let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
 
         try await KeychainCacheStore.withServiceOverrideForTesting(service) {
             try await KeychainAccessGate.withTaskOverrideForTesting(false) {
@@ -121,10 +121,12 @@ struct ClaudeOAuthDelegatedRefreshRecoveryTests {
                                 }
                                 let delegatedOverride: (@Sendable (
                                     Date,
-                                    TimeInterval) async -> ClaudeOAuthDelegatedRefreshCoordinator.Outcome)? = { _, _ in
-                                    _ = await delegatedCounter.increment()
-                                    return .attemptedSucceeded
-                                }
+                                    TimeInterval,
+                                    [String: String]) async -> ClaudeOAuthDelegatedRefreshCoordinator.Outcome)? =
+                                    { _, _, _ in
+                                        _ = await delegatedCounter.increment()
+                                        return .attemptedSucceeded
+                                    }
 
                                 let snapshot = try await ClaudeOAuthKeychainPromptPreference
                                     .withTaskOverrideForTesting(.onlyOnUserAction) {
@@ -166,7 +168,7 @@ struct ClaudeOAuthDelegatedRefreshRecoveryTests {
         let delegatedCounter = AsyncCounter()
         let usageResponse = try Self.makeOAuthUsageResponse()
         let tokenCapture = TokenCapture()
-        let service = "com.o1xhack.codexbar.cache.tests.\(UUID().uuidString)"
+        let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
 
         try await KeychainCacheStore.withServiceOverrideForTesting(service) {
             try await KeychainAccessGate.withTaskOverrideForTesting(false) {
@@ -229,13 +231,16 @@ struct ClaudeOAuthDelegatedRefreshRecoveryTests {
 
                                 let delegatedOverride: (@Sendable (
                                     Date,
-                                    TimeInterval) async -> ClaudeOAuthDelegatedRefreshCoordinator.Outcome)? = { _, _ in
-                                    // Simulate Claude CLI writing fresh credentials after the delegated refresh touch.
-                                    keychainOverrideStore.data = freshData
-                                    keychainOverrideStore.fingerprint = stubFingerprint
-                                    _ = await delegatedCounter.increment()
-                                    return .attemptedSucceeded
-                                }
+                                    TimeInterval,
+                                    [String: String]) async -> ClaudeOAuthDelegatedRefreshCoordinator.Outcome)? =
+                                    { _, _, _ in
+                                        // Simulate Claude CLI writing fresh credentials after the delegated refresh
+                                        // touch.
+                                        keychainOverrideStore.data = freshData
+                                        keychainOverrideStore.fingerprint = stubFingerprint
+                                        _ = await delegatedCounter.increment()
+                                        return .attemptedSucceeded
+                                    }
 
                                 let snapshot = try await ClaudeOAuthKeychainPromptPreference
                                     .withTaskOverrideForTesting(.always) {
@@ -278,7 +283,7 @@ struct ClaudeOAuthDelegatedRefreshRecoveryTests {
         async throws
     {
         let delegatedCounter = AsyncCounter()
-        let service = "com.o1xhack.codexbar.cache.tests.\(UUID().uuidString)"
+        let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
 
         try await KeychainCacheStore.withServiceOverrideForTesting(service) {
             try await KeychainAccessGate.withTaskOverrideForTesting(false) {
@@ -333,12 +338,14 @@ struct ClaudeOAuthDelegatedRefreshRecoveryTests {
 
                             let delegatedOverride: (@Sendable (
                                 Date,
-                                TimeInterval) async -> ClaudeOAuthDelegatedRefreshCoordinator.Outcome)? = { _, _ in
-                                keychainOverrideStore.data = freshData
-                                keychainOverrideStore.fingerprint = stubFingerprint
-                                _ = await delegatedCounter.increment()
-                                return .attemptedSucceeded
-                            }
+                                TimeInterval,
+                                [String: String]) async -> ClaudeOAuthDelegatedRefreshCoordinator.Outcome)? =
+                                { _, _, _ in
+                                    keychainOverrideStore.data = freshData
+                                    keychainOverrideStore.fingerprint = stubFingerprint
+                                    _ = await delegatedCounter.increment()
+                                    return .attemptedSucceeded
+                                }
 
                             do {
                                 _ = try await ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(

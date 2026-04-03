@@ -1,5 +1,5 @@
 ---
-summary: "Provider data sources and parsing overview (Codex, Claude, Gemini, Antigravity, Cursor, Droid/Factory, z.ai, Copilot, Kimi, Kilo, Kimi K2, Kiro, Warp, Vertex AI, Augment, Amp, Ollama, JetBrains AI, OpenRouter)."
+summary: "Provider data sources and parsing overview (Codex, Claude, Gemini, Antigravity, Cursor, OpenCode, Alibaba Coding Plan, Droid/Factory, z.ai, Copilot, Kimi, Kilo, Kimi K2, Kiro, Warp, Vertex AI, Augment, Amp, Ollama, JetBrains AI, OpenRouter)."
 read_when:
   - Adding or modifying provider fetch/parsing
   - Adjusting provider labels, toggles, or metadata
@@ -13,7 +13,7 @@ Legend: web (browser cookies/WebView), cli (RPC/PTy), oauth (API), api token, lo
 Source labels (CLI/header): `openai-web`, `web`, `oauth`, `api`, `local`, plus provider-specific CLI labels (e.g. `codex-cli`, `claude`).
 
 Cookie-based providers expose a Cookie source picker (Automatic or Manual) in Settings → Providers.
-Browser cookie imports are cached in Keychain (`com.o1xhack.codexbar.cache`, account `cookie.<provider>`) and reused
+Browser cookie imports are cached in Keychain (`com.steipete.codexbar.cache`, account `cookie.<provider>`) and reused
 until the session is invalid, to avoid repeated Keychain prompts.
 
 | Provider | Strategies (ordered for auto) |
@@ -24,6 +24,7 @@ until the session is invalid, to avoid repeated Keychain prompts.
 | Antigravity | Local LSP/HTTP probe (`local`). |
 | Cursor | Web API via cookies → stored WebKit session (`web`). |
 | OpenCode | Web dashboard via cookies (`web`). |
+| Alibaba Coding Plan | Console RPC via web cookies (auto/manual) with API key fallback (`web`, `api`). |
 | Droid/Factory | Web cookies → stored tokens → local storage → WorkOS cookies (`web`). |
 | z.ai | API token (Keychain/env) → quota API (`api`). |
 | MiniMax | Manual cookie header (Keychain/env) → browser cookies (+ local storage access token) → coding plan page (HTML) with remains API fallback (`web`). |
@@ -113,6 +114,15 @@ until the session is invalid, to avoid repeated Keychain prompts.
 - `POST https://opencode.ai/_server` (workspaces + subscription usage).
 - Status: none yet.
 - Details: `docs/opencode.md`.
+
+## Alibaba Coding Plan
+- Web mode uses console RPC host (`bailian-singapore-cs.alibabacloud.com` for intl) with form payload + `sec_token`.
+- Cookie sources: browser import (`auto`) or manual header (`cookieSource: manual`).
+- API key fallback from Settings (`providerConfig.alibaba.apiKey`) or `ALIBABA_CODING_PLAN_API_KEY` env var.
+- Region hosts: international (`ap-southeast-1`) and China mainland (`cn-beijing`).
+- Overrides: `ALIBABA_CODING_PLAN_HOST` or `ALIBABA_CODING_PLAN_QUOTA_URL`.
+- Status: `https://status.aliyun.com` (link only, no auto-polling).
+- Details: `docs/alibaba-coding-plan.md`.
 
 ## Droid (Factory)
 - Web API via Factory cookies, bearer tokens, and WorkOS refresh tokens.

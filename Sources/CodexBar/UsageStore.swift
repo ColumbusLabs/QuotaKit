@@ -57,6 +57,7 @@ extension UsageStore {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.observeSettingsChanges()
+                self.probeLogs = [:]
                 guard self.startupBehavior.automaticallyStartsBackgroundWork else { return }
                 self.startTimer()
                 self.updateProviderRuntimes()
@@ -117,8 +118,8 @@ final class UsageStore {
     var statuses: [UsageProvider: ProviderStatus] = [:]
     var probeLogs: [UsageProvider: String] = [:]
     var historicalPaceRevision: Int = 0
-    @ObservationIgnored private var lastCreditsSnapshot: CreditsSnapshot?
-    @ObservationIgnored private var creditsFailureStreak: Int = 0
+    @ObservationIgnored var lastCreditsSnapshot: CreditsSnapshot?
+    @ObservationIgnored var creditsFailureStreak: Int = 0
     @ObservationIgnored private var lastOpenAIDashboardSnapshot: OpenAIDashboardSnapshot?
     @ObservationIgnored private var lastOpenAIDashboardTargetEmail: String?
     @ObservationIgnored private var lastOpenAIDashboardCookieImportAttemptAt: Date?
@@ -147,16 +148,20 @@ final class UsageStore {
     @ObservationIgnored private var tokenTimerTask: Task<Void, Never>?
     @ObservationIgnored private var tokenRefreshSequenceTask: Task<Void, Never>?
     @ObservationIgnored private var pathDebugRefreshTask: Task<Void, Never>?
+    @ObservationIgnored var codexPlanHistoryBackfillTask: Task<Void, Never>?
     @ObservationIgnored let historicalUsageHistoryStore: HistoricalUsageHistoryStore
+    @ObservationIgnored let planUtilizationHistoryStore: PlanUtilizationHistoryStore
     @ObservationIgnored var codexHistoricalDataset: CodexHistoricalDataset?
     @ObservationIgnored var codexHistoricalDatasetAccountKey: String?
     @ObservationIgnored var lastKnownSessionRemaining: [UsageProvider: Double] = [:]
     @ObservationIgnored var lastKnownSessionWindowSource: [UsageProvider: SessionQuotaWindowSource] = [:]
     @ObservationIgnored var lastTokenFetchAt: [UsageProvider: Date] = [:]
+    @ObservationIgnored var planUtilizationHistory: [UsageProvider: PlanUtilizationHistoryBuckets] = [:]
     @ObservationIgnored private var hasCompletedInitialRefresh: Bool = false
     @ObservationIgnored private let tokenFetchTTL: TimeInterval = 60 * 60
     @ObservationIgnored private let tokenFetchTimeout: TimeInterval = 10 * 60
     @ObservationIgnored private let startupBehavior: StartupBehavior
+    @ObservationIgnored let planUtilizationPersistenceCoordinator: PlanUtilizationHistoryPersistenceCoordinator
 
     init(
         fetcher: UsageFetcher,
@@ -166,6 +171,7 @@ final class UsageStore {
         settings: SettingsStore,
         registry: ProviderRegistry = .shared,
         historicalUsageHistoryStore: HistoricalUsageHistoryStore = HistoricalUsageHistoryStore(),
+        planUtilizationHistoryStore: PlanUtilizationHistoryStore = .defaultAppSupport(),
         sessionQuotaNotifier: any SessionQuotaNotifying = SessionQuotaNotifier(),
         startupBehavior: StartupBehavior = .automatic)
     {
@@ -176,8 +182,11 @@ final class UsageStore {
         self.settings = settings
         self.registry = registry
         self.historicalUsageHistoryStore = historicalUsageHistoryStore
+        self.planUtilizationHistoryStore = planUtilizationHistoryStore
         self.sessionQuotaNotifier = sessionQuotaNotifier
         self.startupBehavior = startupBehavior.resolved(isRunningTests: Self.isRunningTestsProcess())
+        self.planUtilizationPersistenceCoordinator = PlanUtilizationHistoryPersistenceCoordinator(
+            store: planUtilizationHistoryStore)
         self.providerMetadata = registry.metadata
         self
             .failureGates = Dictionary(
@@ -195,6 +204,7 @@ final class UsageStore {
         self.providerRuntimes = Dictionary(uniqueKeysWithValues: ProviderCatalog.all.compactMap { implementation in
             implementation.makeRuntime().map { (implementation.id, $0) }
         })
+        self.planUtilizationHistory = planUtilizationHistoryStore.load()
         self.logStartupState()
         self.bindSettings()
         self.pathDebugInfo = PathDebugSnapshot(
@@ -246,11 +256,7 @@ final class UsageStore {
     /// Determines if a login method string indicates a Claude subscription plan.
     /// Known subscription indicators: Max, Pro, Ultra, Team (case-insensitive).
     nonisolated static func isSubscriptionPlan(_ loginMethod: String?) -> Bool {
-        guard let method = loginMethod?.lowercased(), !method.isEmpty else {
-            return false
-        }
-        let subscriptionIndicators = ["max", "pro", "ultra", "team"]
-        return subscriptionIndicators.contains { method.contains($0) }
+        ClaudePlan.isSubscriptionLoginMethod(loginMethod)
     }
 
     func version(for provider: UsageProvider) -> String? {
@@ -395,6 +401,7 @@ final class UsageStore {
     func refresh(forceTokenUsage: Bool = false) async {
         guard !self.isRefreshing else { return }
         let refreshPhase: ProviderRefreshPhase = self.hasCompletedInitialRefresh ? .regular : .startup
+        let refreshStartedAt = Date()
 
         await ProviderRefreshContext.$current.withValue(refreshPhase) {
             self.isRefreshing = true
@@ -408,7 +415,7 @@ final class UsageStore {
                     group.addTask { await self.refreshProvider(provider) }
                     group.addTask { await self.refreshStatus(provider) }
                 }
-                group.addTask { await self.refreshCreditsIfNeeded() }
+                group.addTask { await self.refreshCreditsIfNeeded(minimumSnapshotUpdatedAt: refreshStartedAt) }
             }
 
             // Token-cost usage can be slow; run it outside the refresh group so we don't block menu updates.
@@ -420,7 +427,7 @@ final class UsageStore {
 
             if self.openAIDashboardRequiresLogin {
                 await self.refreshProvider(.codex)
-                await self.refreshCreditsIfNeeded()
+                await self.refreshCreditsIfNeeded(minimumSnapshotUpdatedAt: refreshStartedAt)
             }
 
             self.persistWidgetSnapshot(reason: "refresh")
@@ -497,6 +504,7 @@ final class UsageStore {
         self.timerTask?.cancel()
         self.tokenTimerTask?.cancel()
         self.tokenRefreshSequenceTask?.cancel()
+        self.codexPlanHistoryBackfillTask?.cancel()
     }
 
     enum SessionQuotaWindowSource: String {
@@ -616,47 +624,6 @@ final class UsageStore {
                         indicator: .unknown,
                         description: error.localizedDescription,
                         updatedAt: nil)
-                }
-            }
-        }
-    }
-
-    private func refreshCreditsIfNeeded() async {
-        guard self.isEnabled(.codex) else { return }
-        do {
-            let credits = try await self.codexFetcher.loadLatestCredits(
-                keepCLISessionsAlive: self.settings.debugKeepCLISessionsAlive)
-            await MainActor.run {
-                self.credits = credits
-                self.lastCreditsError = nil
-                self.lastCreditsSnapshot = credits
-                self.creditsFailureStreak = 0
-            }
-        } catch {
-            let message = error.localizedDescription
-            if message.localizedCaseInsensitiveContains("data not available yet") {
-                await MainActor.run {
-                    if let cached = self.lastCreditsSnapshot {
-                        self.credits = cached
-                        self.lastCreditsError = nil
-                    } else {
-                        self.credits = nil
-                        self.lastCreditsError = "Codex credits are still loading; will retry shortly."
-                    }
-                }
-                return
-            }
-
-            await MainActor.run {
-                self.creditsFailureStreak += 1
-                if let cached = self.lastCreditsSnapshot {
-                    self.credits = cached
-                    let stamp = cached.updatedAt.formatted(date: .abbreviated, time: .shortened)
-                    self.lastCreditsError =
-                        "Last Codex credits refresh failed: \(message). Cached values from \(stamp)."
-                } else {
-                    self.lastCreditsError = message
-                    self.credits = nil
                 }
             }
         }
@@ -1137,10 +1104,6 @@ extension UsageStore {
         }
     }
 
-    func debugClaudeDump() async -> String {
-        await ClaudeStatusProbe.latestDumps()
-    }
-
     func debugAugmentDump() async -> String {
         await AugmentStatusProbe.latestDumps()
     }
@@ -1154,7 +1117,15 @@ extension UsageStore {
         let claudeUsageDataSource = self.settings.claudeUsageDataSource
         let claudeCookieSource = self.settings.claudeCookieSource
         let claudeCookieHeader = self.settings.claudeCookieHeader
-        let keepCLISessionsAlive = self.settings.debugKeepCLISessionsAlive
+        let claudeDebugConfiguration: ClaudeDebugLogConfiguration? = if provider == .claude {
+            await self.makeClaudeDebugConfiguration(
+                fallbackUsageDataSource: claudeUsageDataSource,
+                fallbackWebExtrasEnabled: claudeWebExtrasEnabled,
+                fallbackCookieSource: claudeCookieSource,
+                fallbackCookieHeader: claudeCookieHeader)
+        } else {
+            nil
+        }
         let cursorCookieSource = self.settings.cursorCookieSource
         let cursorCookieHeader = self.settings.cursorCookieHeader
         let ampCookieSource = self.settings.ampCookieSource
@@ -1170,11 +1141,15 @@ extension UsageStore {
             base: processEnvironment,
             provider: .openrouter,
             config: self.settings.providerConfig(for: .openrouter))
-        return await Task.detached(priority: .utility) { () -> String in
+        let codexFetcher = self.codexFetcher
+        let browserDetection = self.browserDetection
+        let claudeDebugExecutionContext = self.currentClaudeDebugExecutionContext()
+        let text = await Task.detached(priority: .utility) { () -> String in
             let unimplementedDebugLogMessages: [UsageProvider: String] = [
                 .gemini: "Gemini debug log not yet implemented",
                 .antigravity: "Antigravity debug log not yet implemented",
                 .opencode: "OpenCode debug log not yet implemented",
+                .alibaba: "Alibaba Coding Plan debug log not yet implemented",
                 .factory: "Droid debug log not yet implemented",
                 .copilot: "Copilot debug log not yet implemented",
                 .vertexai: "Vertex AI debug log not yet implemented",
@@ -1184,209 +1159,209 @@ extension UsageStore {
                 .kimik2: "Kimi K2 debug log not yet implemented",
                 .jetbrains: "JetBrains AI debug log not yet implemented",
             ]
-            let text: String
-            switch provider {
-            case .codex:
-                text = await self.codexFetcher.debugRawRateLimits()
-            case .claude:
-                text = await self.debugClaudeLog(
-                    claudeWebExtrasEnabled: claudeWebExtrasEnabled,
-                    claudeUsageDataSource: claudeUsageDataSource,
-                    claudeCookieSource: claudeCookieSource,
-                    claudeCookieHeader: claudeCookieHeader,
-                    keepCLISessionsAlive: keepCLISessionsAlive)
-            case .zai:
-                let resolution = ProviderTokenResolver.zaiResolution()
-                let hasAny = resolution != nil
-                let source = resolution?.source.rawValue ?? "none"
-                text = "Z_AI_API_KEY=\(hasAny ? "present" : "missing") source=\(source)"
-            case .synthetic:
-                let resolution = ProviderTokenResolver.syntheticResolution()
-                let hasAny = resolution != nil
-                let source = resolution?.source.rawValue ?? "none"
-                text = "SYNTHETIC_API_KEY=\(hasAny ? "present" : "missing") source=\(source)"
-            case .cursor:
-                text = await self.debugCursorLog(
-                    cursorCookieSource: cursorCookieSource,
-                    cursorCookieHeader: cursorCookieHeader)
-            case .minimax:
-                let tokenResolution = ProviderTokenResolver.minimaxTokenResolution()
-                let cookieResolution = ProviderTokenResolver.minimaxCookieResolution()
-                let tokenSource = tokenResolution?.source.rawValue ?? "none"
-                let cookieSource = cookieResolution?.source.rawValue ?? "none"
-                text = "MINIMAX_API_KEY=\(tokenResolution == nil ? "missing" : "present") " +
-                    "source=\(tokenSource) MINIMAX_COOKIE=\(cookieResolution == nil ? "missing" : "present") " +
-                    "source=\(cookieSource)"
-            case .augment:
-                text = await self.debugAugmentLog()
-            case .amp:
-                text = await self.debugAmpLog(
-                    ampCookieSource: ampCookieSource,
-                    ampCookieHeader: ampCookieHeader)
-            case .ollama:
-                text = await self.debugOllamaLog(
-                    ollamaCookieSource: ollamaCookieSource,
-                    ollamaCookieHeader: ollamaCookieHeader)
-            case .openrouter:
-                let resolution = ProviderTokenResolver.openRouterResolution(environment: openRouterEnvironment)
-                let hasAny = resolution != nil
-                let source: String = if resolution == nil {
-                    "none"
-                } else if openRouterHasConfigToken, openRouterHasEnvToken {
-                    "settings-config (overrides env)"
-                } else if openRouterHasConfigToken {
-                    "settings-config"
-                } else {
-                    resolution?.source.rawValue ?? "environment"
+            let buildText = {
+                switch provider {
+                case .codex:
+                    return await codexFetcher.debugRawRateLimits()
+                case .claude:
+                    guard let claudeDebugConfiguration else {
+                        return "Claude debug log configuration unavailable"
+                    }
+                    return await claudeDebugExecutionContext.apply {
+                        await Self.debugClaudeLog(
+                            browserDetection: browserDetection,
+                            configuration: claudeDebugConfiguration)
+                    }
+                case .zai:
+                    let resolution = ProviderTokenResolver.zaiResolution()
+                    let hasAny = resolution != nil
+                    let source = resolution?.source.rawValue ?? "none"
+                    return "Z_AI_API_KEY=\(hasAny ? "present" : "missing") source=\(source)"
+                case .synthetic:
+                    let resolution = ProviderTokenResolver.syntheticResolution()
+                    let hasAny = resolution != nil
+                    let source = resolution?.source.rawValue ?? "none"
+                    return "SYNTHETIC_API_KEY=\(hasAny ? "present" : "missing") source=\(source)"
+                case .cursor:
+                    return await Self.debugCursorLog(
+                        browserDetection: browserDetection,
+                        cursorCookieSource: cursorCookieSource,
+                        cursorCookieHeader: cursorCookieHeader)
+                case .minimax:
+                    let tokenResolution = ProviderTokenResolver.minimaxTokenResolution()
+                    let cookieResolution = ProviderTokenResolver.minimaxCookieResolution()
+                    let tokenSource = tokenResolution?.source.rawValue ?? "none"
+                    let cookieSource = cookieResolution?.source.rawValue ?? "none"
+                    return "MINIMAX_API_KEY=\(tokenResolution == nil ? "missing" : "present") " +
+                        "source=\(tokenSource) MINIMAX_COOKIE=\(cookieResolution == nil ? "missing" : "present") " +
+                        "source=\(cookieSource)"
+                case .alibaba:
+                    let resolution = ProviderTokenResolver.alibabaTokenResolution()
+                    let hasAny = resolution != nil
+                    let source = resolution?.source.rawValue ?? "none"
+                    return "ALIBABA_CODING_PLAN_API_KEY=\(hasAny ? "present" : "missing") source=\(source)"
+                case .augment:
+                    return await Self.debugAugmentLog()
+                case .amp:
+                    return await Self.debugAmpLog(
+                        browserDetection: browserDetection,
+                        ampCookieSource: ampCookieSource,
+                        ampCookieHeader: ampCookieHeader)
+                case .ollama:
+                    return await Self.debugOllamaLog(
+                        browserDetection: browserDetection,
+                        ollamaCookieSource: ollamaCookieSource,
+                        ollamaCookieHeader: ollamaCookieHeader)
+                case .openrouter:
+                    let resolution = ProviderTokenResolver.openRouterResolution(environment: openRouterEnvironment)
+                    let hasAny = resolution != nil
+                    let source: String = if resolution == nil {
+                        "none"
+                    } else if openRouterHasConfigToken, openRouterHasEnvToken {
+                        "settings-config (overrides env)"
+                    } else if openRouterHasConfigToken {
+                        "settings-config"
+                    } else {
+                        resolution?.source.rawValue ?? "environment"
+                    }
+                    return "OPENROUTER_API_KEY=\(hasAny ? "present" : "missing") source=\(source)"
+                case .warp:
+                    let resolution = ProviderTokenResolver.warpResolution()
+                    let hasAny = resolution != nil
+                    let source = resolution?.source.rawValue ?? "none"
+                    return "WARP_API_KEY=\(hasAny ? "present" : "missing") source=\(source)"
+                case .gemini, .antigravity, .opencode, .factory, .copilot, .vertexai, .kilo, .kiro, .kimi,
+                     .kimik2, .jetbrains:
+                    return unimplementedDebugLogMessages[provider] ?? "Debug log not yet implemented"
                 }
-                text = "OPENROUTER_API_KEY=\(hasAny ? "present" : "missing") source=\(source)"
-            case .warp:
-                let resolution = ProviderTokenResolver.warpResolution()
-                let hasAny = resolution != nil
-                let source = resolution?.source.rawValue ?? "none"
-                text = "WARP_API_KEY=\(hasAny ? "present" : "missing") source=\(source)"
-            case .gemini, .antigravity, .opencode, .factory, .copilot, .vertexai, .kilo, .kiro, .kimi, .kimik2,
-                 .jetbrains:
-                text = unimplementedDebugLogMessages[provider] ?? "Debug log not yet implemented"
             }
-
-            await MainActor.run { self.probeLogs[provider] = text }
-            return text
+            return await claudeDebugExecutionContext.apply {
+                await buildText()
+            }
         }.value
+        self.probeLogs[provider] = text
+        return text
     }
 
-    private func debugClaudeLog(
-        claudeWebExtrasEnabled: Bool,
-        claudeUsageDataSource: ClaudeUsageDataSource,
-        claudeCookieSource: ProviderCookieSource,
-        claudeCookieHeader: String,
-        keepCLISessionsAlive: Bool) async -> String
+    private func makeClaudeDebugConfiguration(
+        fallbackUsageDataSource: ClaudeUsageDataSource,
+        fallbackWebExtrasEnabled: Bool,
+        fallbackCookieSource: ProviderCookieSource,
+        fallbackCookieHeader: String) async -> ClaudeDebugLogConfiguration
     {
-        struct OAuthDebugProbe: Sendable {
-            let hasCredentials: Bool
-            let ownerRawValue: String
-            let sourceRawValue: String
-            let isExpired: Bool
+        await MainActor.run {
+            let sourceMode = self.sourceMode(for: .claude)
+            let snapshot = ProviderRegistry.makeSettingsSnapshot(settings: self.settings, tokenOverride: nil)
+            let environment = ProviderRegistry.makeEnvironment(
+                base: ProcessInfo.processInfo.environment,
+                provider: .claude,
+                settings: self.settings,
+                tokenOverride: nil)
+            let claudeSettings = snapshot.claude ?? ProviderSettingsSnapshot.ClaudeProviderSettings(
+                usageDataSource: fallbackUsageDataSource,
+                webExtrasEnabled: fallbackWebExtrasEnabled,
+                cookieSource: fallbackCookieSource,
+                manualCookieHeader: fallbackCookieHeader)
+            return ClaudeDebugLogConfiguration(
+                runtime: CodexBarCore.ProviderRuntime.app,
+                sourceMode: sourceMode,
+                environment: environment,
+                webExtrasEnabled: claudeSettings.webExtrasEnabled,
+                usageDataSource: claudeSettings.usageDataSource,
+                cookieSource: claudeSettings.cookieSource,
+                cookieHeader: claudeSettings.manualCookieHeader ?? "",
+                keepCLISessionsAlive: snapshot.debugKeepCLISessionsAlive)
         }
+    }
 
-        return await self.runWithTimeout(seconds: 15) {
-            var lines: [String] = []
-            let manualHeader = claudeCookieSource == .manual
-                ? CookieHeaderNormalizer.normalize(claudeCookieHeader)
-                : nil
-            let hasKey = if let manualHeader {
-                ClaudeWebAPIFetcher.hasSessionKey(cookieHeader: manualHeader)
-            } else {
-                ClaudeWebAPIFetcher.hasSessionKey(browserDetection: self.browserDetection) { msg in lines.append(msg) }
-            }
-            // Run potentially blocking keychain probes off MainActor so debug dumps don't stall UI rendering.
-            let oauthProbe = await Task.detached(priority: .utility) {
-                // Don't prompt for keychain access during debug dump.
-                let oauthRecord = try? ClaudeOAuthCredentialsStore.loadRecord(
-                    allowKeychainPrompt: false,
-                    respectKeychainPromptCooldown: true,
-                    allowClaudeKeychainRepairWithoutPrompt: false)
-                return OAuthDebugProbe(
-                    hasCredentials: oauthRecord?.credentials.scopes.contains("user:profile") == true,
-                    ownerRawValue: oauthRecord?.owner.rawValue ?? "none",
-                    sourceRawValue: oauthRecord?.source.rawValue ?? "none",
-                    isExpired: oauthRecord?.credentials.isExpired ?? false)
-            }.value
-            let hasOAuthCredentials = oauthProbe.hasCredentials
-            let hasClaudeBinary = ClaudeOAuthDelegatedRefreshCoordinator.isClaudeCLIAvailable()
-            let delegatedCooldownSeconds = ClaudeOAuthDelegatedRefreshCoordinator.cooldownRemainingSeconds()
+    private struct ClaudeDebugExecutionContext {
+        let interaction: ProviderInteraction
+        let refreshPhase: ProviderRefreshPhase
+        #if DEBUG
+        let keychainServiceOverride: String?
+        let credentialsURLOverride: URL?
+        let testingOverrides: ClaudeOAuthCredentialsStore.TestingOverridesSnapshot
+        let keychainDeniedUntilStoreOverride: ClaudeOAuthKeychainAccessGate.DeniedUntilStore?
+        let keychainPromptModeOverride: ClaudeOAuthKeychainPromptMode?
+        let keychainReadStrategyOverride: ClaudeOAuthKeychainReadStrategy?
+        let cliPathOverride: String?
+        let statusFetchOverride: ClaudeStatusProbe.FetchOverride?
+        #endif
 
-            let strategy = ClaudeProviderDescriptor.resolveUsageStrategy(
-                selectedDataSource: claudeUsageDataSource,
-                webExtrasEnabled: claudeWebExtrasEnabled,
-                hasWebSession: hasKey,
-                hasCLI: hasClaudeBinary,
-                hasOAuthCredentials: hasOAuthCredentials)
-
-            if claudeUsageDataSource == .auto {
-                lines.append("pipeline_order=oauth→cli→web")
-                lines.append("auto_heuristic=\(strategy.dataSource.rawValue)")
-            } else {
-                lines.append("strategy=\(strategy.dataSource.rawValue)")
-            }
-            lines.append("hasSessionKey=\(hasKey)")
-            lines.append("hasOAuthCredentials=\(hasOAuthCredentials)")
-            lines.append("oauthCredentialOwner=\(oauthProbe.ownerRawValue)")
-            lines.append("oauthCredentialSource=\(oauthProbe.sourceRawValue)")
-            lines.append("oauthCredentialExpired=\(oauthProbe.isExpired)")
-            lines.append("delegatedRefreshCLIAvailable=\(hasClaudeBinary)")
-            lines.append("delegatedRefreshCooldownActive=\(delegatedCooldownSeconds != nil)")
-            if let delegatedCooldownSeconds {
-                lines.append("delegatedRefreshCooldownSeconds=\(delegatedCooldownSeconds)")
-            }
-            lines.append("hasClaudeBinary=\(hasClaudeBinary)")
-            if strategy.useWebExtras {
-                lines.append("web_extras=enabled")
-            }
-            lines.append("")
-
-            switch strategy.dataSource {
-            case .auto:
-                lines.append("Auto source selected.")
-                return lines.joined(separator: "\n")
-            case .web:
-                do {
-                    let web = try await ClaudeWebAPIFetcher
-                        .fetchUsage(browserDetection: self.browserDetection) { msg in lines.append(msg) }
-                    lines.append("")
-                    lines.append("Web API summary:")
-
-                    let sessionReset = web.sessionResetsAt?.description ?? "nil"
-                    lines.append("session_used=\(web.sessionPercentUsed)% resetsAt=\(sessionReset)")
-
-                    if let weekly = web.weeklyPercentUsed {
-                        let weeklyReset = web.weeklyResetsAt?.description ?? "nil"
-                        lines.append("weekly_used=\(weekly)% resetsAt=\(weeklyReset)")
-                    } else {
-                        lines.append("weekly_used=nil")
+        func apply<T>(_ operation: () async -> T) async -> T {
+            await ProviderInteractionContext.$current.withValue(self.interaction) {
+                await ProviderRefreshContext.$current.withValue(self.refreshPhase) {
+                    #if DEBUG
+                    return await KeychainCacheStore.withServiceOverrideForTesting(self.keychainServiceOverride) {
+                        await ClaudeOAuthCredentialsStore
+                            .withCredentialsURLOverrideForTesting(self.credentialsURLOverride) {
+                                await ClaudeOAuthCredentialsStore
+                                    .withTestingOverridesSnapshotForTask(self.testingOverrides) {
+                                        await ClaudeOAuthKeychainAccessGate
+                                            .withDeniedUntilStoreOverrideForTesting(self
+                                                .keychainDeniedUntilStoreOverride)
+                                            {
+                                                await ClaudeOAuthKeychainPromptPreference
+                                                    .withTaskOverrideForTesting(self.keychainPromptModeOverride) {
+                                                        await ClaudeOAuthKeychainReadStrategyPreference
+                                                            .withTaskOverrideForTesting(self
+                                                                .keychainReadStrategyOverride)
+                                                            {
+                                                                await ClaudeCLIResolver
+                                                                    .withResolvedBinaryPathOverrideForTesting(self
+                                                                        .cliPathOverride)
+                                                                    {
+                                                                        await ClaudeStatusProbe
+                                                                            .withFetchOverrideForTesting(self
+                                                                                .statusFetchOverride)
+                                                                            {
+                                                                                await operation()
+                                                                            }
+                                                                    }
+                                                            }
+                                                    }
+                                            }
+                                    }
+                            }
                     }
-
-                    lines.append("opus_used=\(web.opusPercentUsed?.description ?? "nil")")
-
-                    if let extra = web.extraUsageCost {
-                        let resetsAt = extra.resetsAt?.description ?? "nil"
-                        let period = extra.period ?? "nil"
-                        let line =
-                            "extra_usage used=\(extra.used) limit=\(extra.limit) " +
-                            "currency=\(extra.currencyCode) period=\(period) resetsAt=\(resetsAt)"
-                        lines.append(line)
-                    } else {
-                        lines.append("extra_usage=nil")
-                    }
-
-                    return lines.joined(separator: "\n")
-                } catch {
-                    lines.append("Web API failed: \(error.localizedDescription)")
-                    return lines.joined(separator: "\n")
+                    #else
+                    return await operation()
+                    #endif
                 }
-            case .cli:
-                let fetcher = ClaudeUsageFetcher(
-                    browserDetection: self.browserDetection,
-                    keepCLISessionsAlive: keepCLISessionsAlive)
-                let cli = await fetcher.debugRawProbe(model: "sonnet")
-                lines.append(cli)
-                return lines.joined(separator: "\n")
-            case .oauth:
-                lines.append("OAuth source selected.")
-                return lines.joined(separator: "\n")
             }
         }
     }
 
-    private func debugCursorLog(
+    private func currentClaudeDebugExecutionContext() -> ClaudeDebugExecutionContext {
+        #if DEBUG
+        ClaudeDebugExecutionContext(
+            interaction: ProviderInteractionContext.current,
+            refreshPhase: ProviderRefreshContext.current,
+            keychainServiceOverride: KeychainCacheStore.currentServiceOverrideForTesting,
+            credentialsURLOverride: ClaudeOAuthCredentialsStore.currentCredentialsURLOverrideForTesting,
+            testingOverrides: ClaudeOAuthCredentialsStore.currentTestingOverridesSnapshotForTask,
+            keychainDeniedUntilStoreOverride: ClaudeOAuthKeychainAccessGate.currentDeniedUntilStoreOverrideForTesting,
+            keychainPromptModeOverride: ClaudeOAuthKeychainPromptPreference.currentTaskOverrideForTesting,
+            keychainReadStrategyOverride: ClaudeOAuthKeychainReadStrategyPreference.currentTaskOverrideForTesting,
+            cliPathOverride: ClaudeCLIResolver.currentResolvedBinaryPathOverrideForTesting,
+            statusFetchOverride: ClaudeStatusProbe.currentFetchOverrideForTesting)
+        #else
+        ClaudeDebugExecutionContext(
+            interaction: ProviderInteractionContext.current,
+            refreshPhase: ProviderRefreshContext.current)
+        #endif
+    }
+
+    private static func debugCursorLog(
+        browserDetection: BrowserDetection,
         cursorCookieSource: ProviderCookieSource,
         cursorCookieHeader: String) async -> String
     {
-        await self.runWithTimeout(seconds: 15) {
+        await runWithTimeout(seconds: 15) {
             var lines: [String] = []
 
             do {
-                let probe = CursorStatusProbe(browserDetection: self.browserDetection)
+                let probe = CursorStatusProbe(browserDetection: browserDetection)
                 let snapshot: CursorStatusSnapshot = if cursorCookieSource == .manual,
                                                         let normalizedHeader = CookieHeaderNormalizer
                                                             .normalize(cursorCookieHeader)
@@ -1428,19 +1403,20 @@ extension UsageStore {
         }
     }
 
-    private func debugAugmentLog() async -> String {
-        await self.runWithTimeout(seconds: 15) {
+    private static func debugAugmentLog() async -> String {
+        await runWithTimeout(seconds: 15) {
             let probe = AugmentStatusProbe()
             return await probe.debugRawProbe()
         }
     }
 
-    private func debugAmpLog(
+    private static func debugAmpLog(
+        browserDetection: BrowserDetection,
         ampCookieSource: ProviderCookieSource,
         ampCookieHeader: String) async -> String
     {
-        await self.runWithTimeout(seconds: 15) {
-            let fetcher = AmpUsageFetcher(browserDetection: self.browserDetection)
+        await runWithTimeout(seconds: 15) {
+            let fetcher = AmpUsageFetcher(browserDetection: browserDetection)
             let manualHeader = ampCookieSource == .manual
                 ? CookieHeaderNormalizer.normalize(ampCookieHeader)
                 : nil
@@ -1448,31 +1424,19 @@ extension UsageStore {
         }
     }
 
-    private func debugOllamaLog(
+    private static func debugOllamaLog(
+        browserDetection: BrowserDetection,
         ollamaCookieSource: ProviderCookieSource,
         ollamaCookieHeader: String) async -> String
     {
-        await self.runWithTimeout(seconds: 15) {
-            let fetcher = OllamaUsageFetcher(browserDetection: self.browserDetection)
+        await runWithTimeout(seconds: 15) {
+            let fetcher = OllamaUsageFetcher(browserDetection: browserDetection)
             let manualHeader = ollamaCookieSource == .manual
                 ? CookieHeaderNormalizer.normalize(ollamaCookieHeader)
                 : nil
             return await fetcher.debugRawProbe(
                 cookieHeaderOverride: manualHeader,
                 manualCookieMode: ollamaCookieSource == .manual)
-        }
-    }
-
-    private func runWithTimeout(seconds: Double, operation: @escaping @Sendable () async -> String) async -> String {
-        await withTaskGroup(of: String?.self) { group -> String in
-            group.addTask { await operation() }
-            group.addTask {
-                try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
-                return nil
-            }
-            let result = await group.next()?.flatMap(\.self)
-            group.cancelAll()
-            return result ?? "Probe timed out after \(Int(seconds))s"
         }
     }
 

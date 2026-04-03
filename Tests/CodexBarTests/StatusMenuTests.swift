@@ -42,6 +42,28 @@ struct StatusMenuTests {
     }
 
     @Test
+    func `alibaba dashboard action follows selected region`() {
+        self.disableMenuCardsForTesting()
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = false
+        settings.alibabaCodingPlanAPIRegion = .chinaMainland
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        #expect(controller.dashboardURL(for: .alibaba) == AlibabaCodingPlanAPIRegion.chinaMainland.dashboardURL)
+    }
+
+    @Test
     func `remembers provider when menu opens`() {
         self.disableMenuCardsForTesting()
         let settings = self.makeSettings()
@@ -413,6 +435,46 @@ struct StatusMenuTests {
         #expect(titles.contains("Settings..."))
         #expect(titles.contains("About CodexBar"))
         #expect(titles.contains("Quit"))
+    }
+
+    @Test
+    func `status blurb uses wrapped view-backed menu item`() {
+        self.disableMenuCardsForTesting()
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = true
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = false
+
+        let registry = ProviderRegistry.shared
+        for provider in UsageProvider.allCases {
+            guard let metadata = registry.metadata[provider] else { continue }
+            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: provider == .codex)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let statusText = "An SSL error has occurred and a secure connection to the server cannot be made."
+        store.statuses[.codex] = ProviderStatus(
+            indicator: .critical,
+            description: statusText,
+            updatedAt: nil)
+
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        let menu = controller.makeMenu(for: .codex)
+        controller.menuWillOpen(menu)
+
+        let statusItem = menu.items.first(where: { $0.toolTip == statusText })
+        #expect(statusItem != nil)
+        #expect(statusItem?.view != nil)
+        #expect(statusItem?.title == statusText)
+        #expect(statusItem?.view?.frame.width == 310)
     }
 
     @Test

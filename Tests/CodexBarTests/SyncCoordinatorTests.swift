@@ -40,7 +40,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func pushSkippedWhenSyncDisabled() {
+    func pushSkippedWhenSyncDisabled() async {
         let settings = self.makeSettingsStore(suite: "SyncCoord-disabled")
         settings.iCloudSyncEnabled = false
         let store = self.makeUsageStore(settings: settings)
@@ -54,7 +54,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func pushSucceedsWhenSyncEnabled() {
+    func pushSucceedsWhenSyncEnabled() async {
         let settings = self.makeSettingsStore(suite: "SyncCoord-enabled")
         settings.iCloudSyncEnabled = true
         let store = self.makeUsageStore(settings: settings)
@@ -73,7 +73,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func pushFailureTracksStatus() {
+    func pushFailureTracksStatus() async {
         let settings = self.makeSettingsStore(suite: "SyncCoord-failure")
         settings.iCloudSyncEnabled = true
         let store = self.makeUsageStore(settings: settings)
@@ -91,7 +91,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func isSyncingIsFalseAfterPush() {
+    func isSyncingIsFalseAfterPush() async {
         let settings = self.makeSettingsStore(suite: "SyncCoord-syncing")
         settings.iCloudSyncEnabled = true
         let store = self.makeUsageStore(settings: settings)
@@ -105,7 +105,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func pushIncludesModelAndServiceBreakdowns() throws {
+    func pushIncludesModelAndServiceBreakdowns() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-breakdowns")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -173,7 +173,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func pushBuildsCodexCostSummaryFromDashboardWhenTokenSnapshotMissing() throws {
+    func pushBuildsCodexCostSummaryFromDashboardWhenTokenSnapshotMissing() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-dashboardFallback")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(

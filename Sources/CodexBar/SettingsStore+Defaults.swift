@@ -150,6 +150,14 @@ extension SettingsStore {
         }
     }
 
+    var iCloudSyncEnabled: Bool {
+        get { self.defaultsState.iCloudSyncEnabled }
+        set {
+            self.defaultsState.iCloudSyncEnabled = newValue
+            self.userDefaults.set(newValue, forKey: "iCloudSyncEnabled")
+        }
+    }
+
     var historicalTrackingEnabled: Bool {
         get { self.defaultsState.historicalTrackingEnabled }
         set {
@@ -471,14 +479,6 @@ extension SettingsStore {
         set {
             self.defaultsState.providerDetectionCompleted = newValue
             self.userDefaults.set(newValue, forKey: "providerDetectionCompleted")
-        }
-    }
-
-    var iCloudSyncEnabled: Bool {
-        get { self.defaultsState.iCloudSyncEnabled }
-        set {
-            self.defaultsState.iCloudSyncEnabled = newValue
-            self.userDefaults.set(newValue, forKey: "iCloudSyncEnabled")
         }
     }
 

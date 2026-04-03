@@ -25,7 +25,7 @@ public enum KeychainCacheStore {
     }
 
     private static let log = CodexBarLog.logger(LogCategories.keychainCache)
-    private static let cacheService = "com.o1xhack.codexbar.cache"
+    private static let cacheService = "com.steipete.codexbar.cache"
     private static let cacheLabel = "CodexBar Cache"
     private nonisolated(unsafe) static var globalServiceOverride: String?
     @TaskLocal private static var serviceOverride: String?
@@ -141,7 +141,7 @@ public enum KeychainCacheStore {
         self.globalServiceOverride = service
     }
 
-    static func withServiceOverrideForTesting<T>(
+    public static func withServiceOverrideForTesting<T>(
         _ service: String?,
         operation: () throws -> T) rethrows -> T
     {
@@ -150,13 +150,26 @@ public enum KeychainCacheStore {
         }
     }
 
-    static func withServiceOverrideForTesting<T>(
+    public static func withServiceOverrideForTesting<T>(
         _ service: String?,
         operation: () async throws -> T) async rethrows -> T
     {
         try await self.$serviceOverride.withValue(service) {
             try await operation()
         }
+    }
+
+    public static func withCurrentServiceOverrideForTesting<T>(
+        operation: () async throws -> T) async rethrows -> T
+    {
+        let service = self.serviceOverride
+        return try await self.$serviceOverride.withValue(service) {
+            try await operation()
+        }
+    }
+
+    public static var currentServiceOverrideForTesting: String? {
+        self.serviceOverride
     }
 
     static func setTestStoreForTesting(_ enabled: Bool) {

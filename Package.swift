@@ -68,20 +68,19 @@ let package = Package(
                 ]),
         ]
 
-        // Shared iCloud sync library (used by Mac app and iOS companion app)
-        targets.append(.target(
-            name: "CodexBarSync",
-            path: "Shared",
-            swiftSettings: [
-                .enableUpcomingFeature("StrictConcurrency"),
-            ]))
-
         #if os(macOS)
         targets.append(contentsOf: [
             .executableTarget(
                 name: "CodexBarClaudeWatchdog",
                 dependencies: [],
                 path: "Sources/CodexBarClaudeWatchdog",
+                swiftSettings: [
+                    .enableUpcomingFeature("StrictConcurrency"),
+                ]),
+            .target(
+                name: "CodexBarSync",
+                dependencies: [],
+                path: "Shared",
                 swiftSettings: [
                     .enableUpcomingFeature("StrictConcurrency"),
                 ]),
@@ -121,7 +120,7 @@ let package = Package(
 
         targets.append(.testTarget(
             name: "CodexBarTests",
-            dependencies: ["CodexBar", "CodexBarCore", "CodexBarCLI"],
+            dependencies: ["CodexBar", "CodexBarCore", "CodexBarCLI", "CodexBarWidget"],
             path: "Tests",
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency"),

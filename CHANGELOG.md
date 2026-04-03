@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.19.0 — 2026-04-02
+
+### Highlights — Mobile 1.1.0
+- Merge upstream CodexBar 0.19.0 with all Mac-side improvements.
+- Session quota push notifications (CloudKit silent push → iOS local notification).
+- Composite Sparkle build number (`BUILD_NUMBER.MOBILE_VERSION`) for upstream-safe versioning.
+
+### CodexBar 0.19.0 (Upstream)
+- Add Alibaba Coding Plan provider with region-aware quota fetching, widget integration, and browser-cookie import defaults (#574).
+- Align Cursor usage with the dashboard's Total/Auto/API lanes (#587). Thanks @Rag30!
+- Add subscription utilization history chart to the menu with DST-safe data point identification (#589). Thanks @maxceem!
+- Refactor the Claude provider end to end into clearer, better-tested components while preserving behavior (#494). @ratulsarna
+- Add reset time display for Codex code review limits (#581). Thanks @Q1CHENL!
+- Add per-model token counts to cost history (#546). Thanks @iam-brain!
+- Fix Antigravity model selection to use stable model-family matching (#590). Thanks @skainguyen1412!
+- Add GPT-5.4 mini and nano pricing (#561). Thanks @iam-brain!
+- Menu bar: in Both display mode, fall back to percent when pace data is unavailable (#527). Thanks @Astro-Han!
+- Settings: persist resolved refresh cadence default to UserDefaults (#519). Thanks @Astro-Han!
+- Menu: wrap long status blurbs and preserve wrapped titles (#543). Thanks @zkforge!
+
 ## 0.18.0 — 2026-03-15
 
 ### Highlights — Mobile 1.1.0

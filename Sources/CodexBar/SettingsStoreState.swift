@@ -17,6 +17,7 @@ struct SettingsDefaultsState {
     var menuBarDisplayModeRaw: String?
     var historicalTrackingEnabled: Bool
     var showAllTokenAccountsInMenu: Bool
+    var iCloudSyncEnabled: Bool
     var menuBarMetricPreferencesRaw: [String: String]
     var costUsageEnabled: Bool
     var hidePersonalInfo: Bool
@@ -34,5 +35,4 @@ struct SettingsDefaultsState {
     var mergedOverviewSelectedProvidersRaw: [String]
     var selectedMenuProviderRaw: String?
     var providerDetectionCompleted: Bool
-    var iCloudSyncEnabled: Bool
 }
