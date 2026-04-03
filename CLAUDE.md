@@ -91,10 +91,11 @@ See `AGENTS.md` for the full process, rules, and checklists.
 #### 看板栏目
 | 栏目 | 含义 |
 |------|------|
-| **Backlog** | 待规划/排期，尚未开始 |
+| **Backlog** | 待规划/排期 |
 | **In Progress** | 正在开发中 |
-| **Review / Testing** | 开发完成，待审查/测试 |
-| **Done / Release** | 全部完成，待发布或已发布 |
+| **Code Complete** | 代码完成，等待人工验证 |
+| **QA** | 人工验证：真机测试、TestFlight 内测 |
+| **Release** | 确认通过，可发布或已发布 |
 
 #### 标签体系
 
@@ -132,12 +133,12 @@ See `AGENTS.md` for the full process, rules, and checklists.
    - 简要描述本次进展
    - Commit 链接：`https://github.com/o1xhack/CodexBar/commit/<sha>`
 
-**开发完成时：**
-5. 将任务移到 **Review / Testing** 栏目（不直接标记完成）
-6. 添加 comment 说明已完成开发，等待验证；如有 PR 附上链接
+**代码完成时：**
+5. 将任务移到 **Code Complete** 栏目（不直接标记完成）
+6. 添加 comment 说明代码已完成，等待人工验证；如有 PR 附上链接
 
-**彻底完成时（二次确认）：**
-7. 经过审查/测试/用户确认后，才将任务移到 **Done / Release**
+**人工验证通过后：**
+7. 经过 QA（真机测试/TestFlight/用户验收）后，移到 **Release**
 8. 添加最终 comment（验证结论）
 9. **由用户确认后**才标记任务为完成（勾选）
 
@@ -154,6 +155,7 @@ See `AGENTS.md` for the full process, rules, and checklists.
 - Todoist comment 不重复写完整变更内容，指向 CHANGELOG 即可
 
 #### 注意事项
-- **不要直接标记完成**：开发完成 ≠ 任务完成，必须经过 Review/Testing 二次确认
+- **不要直接标记完成**：代码完成 ≠ 任务完成，必须经过 QA 人工验证
 - **状态变动必须移栏**：任务状态变化时，同步移动到对应栏目
 - **新发现的 Bug**：立即创建任务，打 `Bug` 标签，P1 放 In Progress，P2+ 放 Backlog
+- **QA 发现问题**：任务移回 In Progress，comment 说明问题
