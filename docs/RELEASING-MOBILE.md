@@ -44,10 +44,10 @@ CFBundleVersion = BUILD_NUMBER.MOBILE_VERSION
 
 ## CHANGELOG Structure
 
-The `CHANGELOG.md` for version 0.18.0 is structured as:
+The `CHANGELOG.md` for version 0.19.0 is structured as:
 
 ```
-## 0.18.0 — DATE
+## 0.19.0 — DATE
 
 ### Highlights — Mobile X.Y.Z     ← Our changes first
 - ...
@@ -55,7 +55,7 @@ The `CHANGELOG.md` for version 0.18.0 is structured as:
 ### Mobile (previous version)      ← Previous mobile changes
 - ...
 
-### CodexBar 0.18.0 (Upstream)     ← Upstream changes, clearly labeled
+### CodexBar 0.19.0 (Upstream)     ← Upstream changes, clearly labeled
 - ...
 
 ### Providers & Usage              ← Upstream detail sections
@@ -64,7 +64,7 @@ The `CHANGELOG.md` for version 0.18.0 is structured as:
 
 `Scripts/changelog-to-html.sh` reads `MOBILE_VERSION` from `version.env` and generates the title as:
 ```
-CodexBar 0.18.0-Mobile 1.1.0
+CodexBar 0.19.0-Mobile 1.1.0
 ```
 
 ## Release Steps
@@ -74,8 +74,8 @@ CodexBar 0.18.0-Mobile 1.1.0
 ```bash
 # Only if bumping versions
 vim version.env
-# MARKETING_VERSION=0.18.0   ← follows upstream
-# BUILD_NUMBER=53             ← follows upstream
+# MARKETING_VERSION=0.19.0   ← follows upstream
+# BUILD_NUMBER=54             ← follows upstream
 # MOBILE_VERSION=1.1.0        ← our mobile version
 ```
 
@@ -116,7 +116,7 @@ PATH="$PWD/.build/artifacts/sparkle/Sparkle/bin:$PATH" \
   "https://raw.githubusercontent.com/o1xhack/CodexBar/mobile-dev/appcast.xml"
 ```
 
-**Important:** `SPARKLE_DOWNLOAD_URL_PREFIX` must include the full tag (e.g. `v0.18.0-mobile.1.1.0/`), not just the marketing version.
+**Important:** `SPARKLE_DOWNLOAD_URL_PREFIX` must include the full tag (e.g. `v0.19.0-mobile.1.1.0/`), not just the marketing version.
 
 ### 5. Create tag and GitHub release
 
