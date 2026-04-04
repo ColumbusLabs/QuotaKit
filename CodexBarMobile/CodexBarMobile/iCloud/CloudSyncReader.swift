@@ -149,7 +149,8 @@ final class CloudSyncReader: @unchecked Sendable {
             lastUpdated: base.lastUpdated,
             costSummary: mergedCost,
             budget: base.budget,
-            rateWindows: base.rateWindows)
+            rateWindows: base.rateWindows,
+            utilizationHistory: base.utilizationHistory)
     }
 
     /// Sums cost data from multiple devices.

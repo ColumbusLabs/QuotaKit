@@ -30,6 +30,11 @@ struct ProviderDetailView: View {
                     BudgetProgressView(budget: budget, tintColor: self.providerColor)
                 }
 
+                // Utilization history chart
+                if let history = self.provider.utilizationHistory, !history.isEmpty {
+                    UtilizationHistoryView(series: history, tintColor: self.providerColor)
+                }
+
                 // Daily chart
                 if let cost = self.provider.costSummary, !cost.daily.isEmpty {
                     self.dailyChartSection(cost.daily)

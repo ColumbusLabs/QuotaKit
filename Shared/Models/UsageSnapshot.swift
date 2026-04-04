@@ -127,6 +127,32 @@ public struct SyncBudgetSnapshot: Codable, Sendable, Equatable {
     }
 }
 
+/// A single data point in the subscription utilization history.
+public struct SyncUtilizationEntry: Codable, Sendable, Equatable {
+    public let capturedAt: Date
+    public let usedPercent: Double
+    public let resetsAt: Date?
+
+    public init(capturedAt: Date, usedPercent: Double, resetsAt: Date?) {
+        self.capturedAt = capturedAt
+        self.usedPercent = usedPercent
+        self.resetsAt = resetsAt
+    }
+}
+
+/// A named series of utilization history entries (e.g. "session", "weekly", "opus").
+public struct SyncUtilizationSeries: Codable, Sendable, Equatable {
+    public let name: String
+    public let windowMinutes: Int
+    public let entries: [SyncUtilizationEntry]
+
+    public init(name: String, windowMinutes: Int, entries: [SyncUtilizationEntry]) {
+        self.name = name
+        self.windowMinutes = windowMinutes
+        self.entries = entries
+    }
+}
+
 /// A single provider's usage snapshot for iCloud sync.
 public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let providerID: String
@@ -142,6 +168,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let lastUpdated: Date
     public let costSummary: SyncCostSummary?
     public let budget: SyncBudgetSnapshot?
+    /// Subscription utilization history (session/weekly/opus) for chart display.
+    public let utilizationHistory: [SyncUtilizationSeries]?
 
     /// All available rate windows. Prefers `rateWindows` if non-empty, otherwise falls back to primary/secondary.
     public var allRateWindows: [SyncRateWindow] {
@@ -161,7 +189,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         lastUpdated: Date,
         costSummary: SyncCostSummary? = nil,
         budget: SyncBudgetSnapshot? = nil,
-        rateWindows: [SyncRateWindow] = [])
+        rateWindows: [SyncRateWindow] = [],
+        utilizationHistory: [SyncUtilizationSeries]? = nil)
     {
         self.providerID = providerID
         self.providerName = providerName
@@ -175,6 +204,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.lastUpdated = lastUpdated
         self.costSummary = costSummary
         self.budget = budget
+        self.utilizationHistory = utilizationHistory
     }
 
     /// Backward-compatible decoder: old payloads without `rateWindows`/`costSummary`/`budget` still decode.
@@ -192,6 +222,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.lastUpdated = try container.decode(Date.self, forKey: .lastUpdated)
         self.costSummary = try container.decodeIfPresent(SyncCostSummary.self, forKey: .costSummary)
         self.budget = try container.decodeIfPresent(SyncBudgetSnapshot.self, forKey: .budget)
+        self.utilizationHistory = try container.decodeIfPresent([SyncUtilizationSeries].self, forKey: .utilizationHistory)
     }
 }
 

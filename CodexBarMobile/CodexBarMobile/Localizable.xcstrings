@@ -881,6 +881,78 @@
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "%@ 會話已恢復" } }
       }
     },
+    "Subscription Utilization" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Subscription Utilization" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "サブスクリプション利用率" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "订阅利用率" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "訂閱利用率" } }
+      }
+    },
+    "Session" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Session" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "セッション" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "会话" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "會話" } }
+      }
+    },
+    "Weekly" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Weekly" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "週間" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "每周" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "每週" } }
+      }
+    },
+    "Opus" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Opus" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Opus" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Opus" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "Opus" } }
+      }
+    },
+    "No utilization data yet. Keep CodexBar running on your Mac to start recording." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No utilization data yet. Keep CodexBar running on your Mac to start recording." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "利用率データがまだありません。Mac で CodexBar を起動したままにしてください。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "暂无利用率数据。请保持 Mac 上的 CodexBar 运行以开始记录。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "尚無利用率資料。請保持 Mac 上的 CodexBar 運行以開始記錄。" } }
+      }
+    },
+    "Avg" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Avg" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "平均" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "平均" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "平均" } }
+      }
+    },
+    "Press and hold to inspect" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Press and hold to inspect" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "長押しで詳細を表示" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "长按查看详情" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "長按查看詳情" } }
+      }
+    },
+    "%d data points" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%d data points" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "%d データポイント" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%d 个数据点" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "%d 個資料點" } }
+      }
+    },
+    "Resets %@" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Resets %@" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "%@ にリセット" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%@ 重置" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "%@ 重置" } }
+      }
+    },
     "0% left. Will notify when it's available again." : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "0% left. Will notify when it's available again." } },

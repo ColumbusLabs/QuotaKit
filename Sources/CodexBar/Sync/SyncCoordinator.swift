@@ -116,6 +116,9 @@ final class SyncCoordinator {
                     resetsAt: pc.resetsAt)
             }
 
+            // Map utilization history
+            let utilizationHistory = self.makeUtilizationHistory(for: provider)
+
             let providerSnapshot = ProviderUsageSnapshot(
                 providerID: provider.rawValue,
                 providerName: meta?.displayName ?? provider.rawValue.capitalized,
@@ -128,7 +131,8 @@ final class SyncCoordinator {
                 lastUpdated: snapshot?.updatedAt ?? Date(),
                 costSummary: costSummary,
                 budget: budgetSnap,
-                rateWindows: rateWindows)
+                rateWindows: rateWindows,
+                utilizationHistory: utilizationHistory)
 
             providerSnapshots.append(providerSnapshot)
         }
@@ -227,6 +231,45 @@ final class SyncCoordinator {
                 }
             return (daily.day, services)
         })
+    }
+
+    private func makeUtilizationHistory(for provider: UsageProvider) -> [SyncUtilizationSeries]? {
+        let buckets = self.store.planUtilizationHistory[provider]
+        guard let buckets, !buckets.isEmpty else { return nil }
+
+        // Use preferred account or unscoped history
+        let histories: [PlanUtilizationSeriesHistory]
+        if let key = buckets.preferredAccountKey, let accountHistories = buckets.accounts[key], !accountHistories.isEmpty {
+            histories = accountHistories
+        } else if !buckets.unscoped.isEmpty {
+            histories = buckets.unscoped
+        } else if let mostRecent = buckets.accounts.values
+            .filter({ !$0.isEmpty })
+            .max(by: {
+                ($0.compactMap(\.latestCapturedAt).max() ?? .distantPast) <
+                ($1.compactMap(\.latestCapturedAt).max() ?? .distantPast)
+            }) {
+            histories = mostRecent
+        } else {
+            return nil
+        }
+
+        // Cap entries per series to keep CloudKit payload within CKRecord limits.
+        // 730 hourly samples ≈ 1 month of data, ~70KB per series.
+        let maxEntriesPerSeries = 730
+
+        return histories.map { series in
+            let capped = series.entries.suffix(maxEntriesPerSeries)
+            return SyncUtilizationSeries(
+                name: series.name.rawValue,
+                windowMinutes: series.windowMinutes,
+                entries: capped.map { entry in
+                    SyncUtilizationEntry(
+                        capturedAt: entry.capturedAt,
+                        usedPercent: entry.usedPercent,
+                        resetsAt: entry.resetsAt)
+                })
+        }
     }
 
     private func breakdownTotal(_ breakdowns: [SyncCostBreakdown]) -> Double? {

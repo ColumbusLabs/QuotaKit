@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		02E554F44482449A6E303DF8 /* CostShareCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEB7FFB253C0CC0CA9876CCB /* CostShareCardView.swift */; };
+		06AF0C16DB94FEF7CEB249F1 /* UtilizationHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49BBB0416BFC7E4E74CC4B6C /* UtilizationHistoryView.swift */; };
 		0708B75CE4F9E291D3AF8879 /* MobileDisplayPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82B8A4D1FFD04AA72E89022F /* MobileDisplayPreferences.swift */; };
 		07F02876676ED6B3B7B4A6AD /* CodexBarSync.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; };
 		1C76BDECF25CDFD185543DD7 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DB158532BABEE359B60F8B5 /* AppDelegate.swift */; };
@@ -113,6 +114,7 @@
 		32F236B9E5AABE3378DAF97F /* SyncModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncModelTests.swift; sourceTree = "<group>"; };
 		3CAFBA243E25814E22BAAA6B /* ProviderUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderUsageView.swift; sourceTree = "<group>"; };
 		48D17C7D2668994C4942329B /* SyncedUsageData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncedUsageData.swift; sourceTree = "<group>"; };
+		49BBB0416BFC7E4E74CC4B6C /* UtilizationHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilizationHistoryView.swift; sourceTree = "<group>"; };
 		659AB52B3040BA1405250826 /* SessionQuotaMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionQuotaMonitor.swift; sourceTree = "<group>"; };
 		68E69F28C0538809129FB6D3 /* UsageCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageCardView.swift; sourceTree = "<group>"; };
 		6B9D488D2E7E34286B71E8E7 /* UsageSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageSnapshot.swift; sourceTree = "<group>"; };
@@ -302,6 +304,7 @@
 				CB05AAA074EEE8CC4379BD42 /* ProviderDetailView.swift */,
 				3CAFBA243E25814E22BAAA6B /* ProviderUsageView.swift */,
 				68E69F28C0538809129FB6D3 /* UsageCardView.swift */,
+				49BBB0416BFC7E4E74CC4B6C /* UtilizationHistoryView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -487,6 +490,7 @@
 				22F7A87A27DD192FED7FFB03 /* SessionQuotaMonitor.swift in Sources */,
 				5DF56542F0C2F51860FE8AD8 /* SyncedUsageData.swift in Sources */,
 				F72DCBEFB2A9EF020F632516 /* UsageCardView.swift in Sources */,
+				06AF0C16DB94FEF7CEB249F1 /* UtilizationHistoryView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
