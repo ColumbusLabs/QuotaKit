@@ -1,156 +1,130 @@
-# iOS + iCloud Sync
+---
+summary: "Current iCloud sync architecture: CloudKit multi-device sync with silent push notifications."
+read_when:
+  - Understanding how Mac data reaches the iOS app
+  - Debugging sync issues between Mac and iOS
+  - Adding new data fields to the sync payload
+---
 
-## Overview
+# iOS CloudKit Sync Architecture
 
-CodexBarMobile is a companion iOS app that displays LLM usage data synced from the macOS CodexBar app via iCloud Key-Value Storage (`NSUbiquitousKeyValueStore`).
+> Replaces the original KVS-based sync (docs/ios-icloud-sync.md). CloudKit upgrade shipped in Mobile 1.0.0 (Build 23).
 
-## Architecture
-
-```
-Mac: UsageStore → SyncCoordinator → CloudSyncManager.pushSnapshot()
-                                          ↓
-                              NSUbiquitousKeyValueStore (iCloud)
-                                          ↓
-iOS: CloudSyncReader → SyncedUsageData → SwiftUI Views
-```
-
-### Data Flow
-
-1. **Mac side**: `SyncCoordinator` observes `UsageStore.snapshots` via Swift Observation. On each change, it builds a `SyncedUsageSnapshot` containing all enabled providers' usage data and pushes it to iCloud KVS.
-
-2. **iCloud**: `NSUbiquitousKeyValueStore` automatically syncs the JSON payload between devices signed into the same iCloud account.
-
-3. **iOS side**: `CloudSyncReader` listens for `didChangeExternallyNotification` and updates `SyncedUsageData` (an `@Observable` ViewModel), which drives the SwiftUI views.
-
-## Directory Structure
+## Architecture Overview
 
 ```
-Shared/                         ← Shared between Mac and iOS
-├── Models/
-│   └── UsageSnapshot.swift     ← SyncRateWindow, ProviderUsageSnapshot, SyncedUsageSnapshot
-└── iCloud/
-    ├── CloudConstants.swift    ← KVS key, size limits
-    └── CloudSyncManager.swift  ← Read/write to NSUbiquitousKeyValueStore
-
-Sources/CodexBar/Sync/          ← Mac-side sync code (part of CodexBar target)
-├── SyncCoordinator.swift       ← Observes UsageStore, pushes snapshots
-└── SyncModifier.swift          ← SwiftUI modifier for app integration
-
-CodexBarMobile/                 ← iOS app
-├── Package.swift               ← SPM package (depends on CodexBarSync)
-├── CodexBarMobile/
-│   ├── CodexBarMobileApp.swift ← App entry point
-│   ├── ContentView.swift       ← Main provider list
-│   ├── Views/
-│   │   ├── ProviderUsageView.swift  ← Provider usage card
-│   │   ├── UsageCardView.swift      ← Progress bar component
-│   │   └── EmptyStateView.swift     ← Empty/waiting state
-│   ├── iCloud/
-│   │   └── CloudSyncReader.swift    ← iCloud observation wrapper
-│   ├── Models/
-│   │   └── SyncedUsageData.swift    ← @Observable ViewModel
-│   └── CodexBarMobile.entitlements  ← iCloud KVS entitlement
-└── CodexBarMobileTests/
-    └── SyncModelTests.swift    ← Codable round-trip tests
+Mac A (deviceID: uuid-aaa)          Mac B (deviceID: uuid-bbb)
+        │                                   │
+        ▼                                   ▼
+  SyncCoordinator                     SyncCoordinator
+        │                                   │
+        ▼                                   ▼
+  CloudSyncManager.pushSnapshot()     CloudSyncManager.pushSnapshot()
+        │                                   │
+        ▼                                   ▼
+┌──────────────────────────────────────────────────┐
+│            CloudKit Private Database              │
+│                                                   │
+│  DeviceSnapshot/uuid-aaa    DeviceSnapshot/uuid-bbb│
+│   ├─ payload (JSON)          ├─ payload (JSON)     │
+│   ├─ deviceName              ├─ deviceName         │
+│   ├─ syncTimestamp           ├─ syncTimestamp       │
+│   └─ appVersion              └─ appVersion         │
+└──────────────┬───────────────────────────────────┘
+               │ CKQuerySubscription
+               │ (shouldSendContentAvailable = true)
+               ▼
+         ┌──────────┐
+         │  iPhone   │
+         │           │
+         │  AppDelegate.didReceiveRemoteNotification
+         │     ↓
+         │  CloudSyncReader.fetchAllDeviceSnapshots()
+         │     ↓
+         │  mergeSnapshots() ← combines all devices
+         │     ↓
+         │  SessionQuotaMonitor ← detects depleted/restored
+         │     ↓
+         │  Local notification to user
+         └──────────┘
 ```
 
-## Sync Mechanism
+## Key Components
 
-### Why NSUbiquitousKeyValueStore?
+### Mac Side (Writer)
 
-- **Data size**: Usage data is a few KB (20 providers x ~200 bytes each). Well under the 1 MB limit.
-- **Simplicity**: No CloudKit container setup, no schema, no conflict resolution needed.
-- **Automatic**: System handles push/pull transparently.
-- **No server**: Zero backend infrastructure required.
+| Component | File | Role |
+|-----------|------|------|
+| `SyncCoordinator` | `Sources/CodexBar/Sync/SyncCoordinator.swift` | Observes UsageStore, builds SyncedUsageSnapshot, pushes to CloudKit |
+| `CloudSyncManager` | `Shared/iCloud/CloudSyncManager.swift` | CKRecord CRUD, CKSubscription setup |
+| `CloudConstants` | `Shared/iCloud/CloudConstants.swift` | Container ID, record type, keys |
 
-### KVS Key
+### iOS Side (Reader)
 
-`com.codexbar.usage.snapshot` — single key containing the full JSON payload.
+| Component | File | Role |
+|-----------|------|------|
+| `AppDelegate` | `CodexBarMobile/AppDelegate.swift` | Receives silent push, triggers fetch + quota check |
+| `CloudSyncReader` | `CodexBarMobile/iCloud/CloudSyncReader.swift` | Fetches all device snapshots, merges multi-device data |
+| `SyncedUsageData` | `CodexBarMobile/Models/SyncedUsageData.swift` | Observable view model, CloudKit + KVS fallback |
+| `SessionQuotaMonitor` | `CodexBarMobile/Notifications/SessionQuotaMonitor.swift` | Detects quota transitions, posts local notifications |
 
-### Payload Format
+### Shared (Both Platforms)
 
-```json
-{
-  "providers": [
-    {
-      "providerID": "claude",
-      "providerName": "Claude",
-      "primary": {
-        "usedPercent": 42.5,
-        "windowMinutes": 300,
-        "resetsAt": "2024-01-15T10:30:00Z",
-        "resetDescription": "Resets in 2h 30m"
-      },
-      "secondary": { ... },
-      "accountEmail": "user@example.com",
-      "loginMethod": "Pro",
-      "statusMessage": null,
-      "isError": false,
-      "lastUpdated": "2024-01-15T08:00:00Z"
-    }
-  ],
-  "syncTimestamp": "2024-01-15T08:00:00Z",
-  "deviceName": "My MacBook Pro"
-}
-```
+| Component | File | Role |
+|-----------|------|------|
+| `SyncedUsageSnapshot` | `Shared/Models/UsageSnapshot.swift` | Root payload: providers, timestamp, device info |
+| `ProviderUsageSnapshot` | `Shared/Models/UsageSnapshot.swift` | Per-provider: rate windows, cost, budget, utilization history |
+| `CloudSyncManager` | `Shared/iCloud/CloudSyncManager.swift` | Push/fetch/subscribe operations |
 
-## Mac Integration
+## CloudKit Record Schema
 
-### Changes to Existing Files
+**Record Type:** `DeviceSnapshot`
+**Container:** `iCloud.com.o1xhack.codexbar`
+**Environment:** Production (both Mac and iOS)
 
-Two existing files were modified:
+| Field | Type | Description |
+|-------|------|-------------|
+| `recordName` | String | = deviceID (stable UUID per Mac) |
+| `deviceName` | String | `Host.current().localizedName` |
+| `deviceID` | String | Stable UUID persisted in UserDefaults |
+| `appVersion` | String | Mac CFBundleShortVersionString |
+| `syncTimestamp` | Date | Push time |
+| `payload` | Data | JSON-encoded `SyncedUsageSnapshot` |
 
-1. **`Package.swift`** — Added `CodexBarSync` target (pointing to `Shared/`) and added it as a dependency of `CodexBar`.
-2. **`CodexBarApp.swift`** — Added `.modifier(CloudSyncModifier(store: self.store))` to the hidden keepalive window.
+## Multi-Device Merge Strategy
 
-The sync files (`SyncCoordinator.swift`, `SyncModifier.swift`) live in `Sources/CodexBar/Sync/` as part of the existing `CodexBar` target.
+When iOS fetches snapshots from multiple Macs:
 
-### Entitlements
+1. Group providers by `providerID + accountEmail`
+2. Same provider+account across devices:
+   - Rate limits, identity, status: use most recent `lastUpdated`
+   - Local-cost providers (Claude, Codex, VertexAI): **SUM** daily costs
+   - Account-level providers: use most recent
+   - Utilization history: use most recent device's data
+3. Different providers: combine all
 
-Both Mac and iOS apps must use the same KVS identifier:
+## Silent Push Notifications
 
-```xml
-<key>com.apple.developer.ubiquity-kvstore-identifier</key>
-<string>$(TeamIdentifierPrefix)com.codexbar.shared</string>
-```
+- `CKQuerySubscription` on `DeviceSnapshot` with `shouldSendContentAvailable = true`
+- iOS `AppDelegate.didReceiveRemoteNotification` receives silent push
+- Fetches latest data, runs `SessionQuotaMonitor.detectTransitions()`
+- Posts local notification for depleted (<=0.0001%) / restored transitions
+- Works in background; system controls wake frequency
 
-## iOS App
+## Backward Compatibility
 
-- **Minimum deployment**: iOS 17.0
-- **Features**: Read-only display of synced usage data
-- **No configuration**: All provider setup happens on the Mac side
+- Mac still dual-writes to KVS (`com.codexbar.usage.snapshot`) for old iOS versions
+- iOS reads CloudKit first; falls back to KVS if no CloudKit data
+- New fields (utilizationHistory) use `decodeIfPresent` — old payloads decode safely
 
-### What iOS does NOT do
+## Entitlements Required
 
-- No provider configuration/settings
-- No cookie import or OAuth flows
-- No CLI integration
-- No WidgetKit (future enhancement)
-- No data fetching — purely a sync consumer
+**Mac (`Scripts/package_app.sh`):**
+- `com.apple.developer.icloud-services`: CloudKit
+- `com.apple.developer.icloud-container-identifiers`: iCloud.com.o1xhack.codexbar
+- `com.apple.developer.icloud-container-environment`: Production
 
-## Testing
-
-### Unit Tests
-
-```bash
-cd CodexBarMobile && swift test
-```
-
-Tests cover:
-- `ProviderUsageSnapshot` JSON round-trip
-- `SyncedUsageSnapshot` JSON round-trip
-- `SyncRateWindow.remainingPercent` clamping
-- Empty provider list encoding
-
-### Manual Testing
-
-1. Build and run CodexBar on Mac with iCloud entitlements
-2. Build and run CodexBarMobile on iPhone/Simulator
-3. Verify usage data appears on iOS after Mac refreshes
-4. Verify data updates when Mac usage changes
-
-## Future Enhancements
-
-- **WidgetKit**: Home screen widget showing top provider usage
-- **CloudKit upgrade**: If data grows beyond KVS limits, migrate to `CKRecord`
-- **Push notifications**: `CKSubscription` for real-time alerts when nearing rate limits
+**iOS (`CodexBarMobile.entitlements`):**
+- Same CloudKit entitlements
+- `aps-environment`: development (auto-replaced to production for TestFlight/App Store)
+- `UIBackgroundModes`: remote-notification

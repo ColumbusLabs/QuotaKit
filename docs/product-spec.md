@@ -99,15 +99,17 @@
 
 ```
 Step 1: 用户打开 App
-    -> App 读取 iCloud KVS 中的 snapshot
-    -> 渲染 Provider 卡片和费用数据
+    -> App 从 CloudKit 拉取所有 Mac 设备的 DeviceSnapshot
+    -> 合并多设备数据 → 渲染 Provider 卡片和费用数据
 Step 2: Mac 端 CodexBar 更新数据
-    -> 自动推送到 iCloud KVS
-    -> iOS 收到通知 → 刷新 UI
+    -> SyncCoordinator 推送到 CloudKit
+    -> CKSubscription 触发 iOS silent push
+    -> AppDelegate 后台唤醒 → 拉取最新数据 → 检测 quota 变化
+    -> 如有 depleted/restored → 发送本地通知
 Step 3: 用户下拉刷新
-    -> 主动请求 iCloud 同步
+    -> 主动请求 CloudKit 同步
     -> 更新数据显示
-    -> 异常：iCloud 配额超限 → 显示错误提示
+    -> 异常：CloudKit 错误（网络/账号/配额）→ 显示具体错误
 ```
 
 ### 费用分享流程
@@ -128,15 +130,17 @@ Step 3: 用户点击 Share
 
 | Feature | Priority | Status | Description |
 |---------|----------|--------|-------------|
-| iCloud 数据同步 | P0 | Implemented | 通过 NSUbiquitousKeyValueStore 接收 Mac 端数据 |
+| CloudKit 多设备同步 | P0 | Implemented | CloudKit DeviceSnapshot，多 Mac 合并，KVS fallback |
+| Session Quota 推送通知 | P0 | Implemented | CloudKit silent push → 本地通知（depleted/restored） |
 | Provider 用量卡片 | P0 | Implemented | 实时 rate limit 进度条 + 账户信息 |
 | Cost 仪表盘 | P0 | Implemented | 概览、趋势图、占比分析 |
 | 交互式图表 | P0 | Implemented | 折线/柱状图、长按查看、横向滚动 |
 | 4 语言本地化 | P0 | Implemented | en/zh-Hans/zh-Hant/ja |
-| 一键分享费用卡片 | P1 | Implemented | 3 种时间段、堆叠图表、QR 码 |
-| Daily Utilization Chart | P1 | Blocked | 等上游 PR #565 合并 |
+| 一键分享费用卡片 | P1 | Implemented | 3 种时间段、堆叠图表、QR 码、Classic/Vibe 风格 |
+| Subscription Utilization Chart | P1 | Implemented | Session/Weekly/Opus 利用率历史柱状图 |
 | Widget 桌面小组件 | P2 | Pending | 显示当日/当周费用摘要 |
-| iPad 适配 | P2 | Pending | 利用大屏展示更丰富图表 |
+| Alternate App Icons | P2 | In Progress | 多套图标风格（黑白极简 + 霓虹赛博） |
+| iPad 适配 | P3 | Pending | 利用大屏展示更丰富图表 |
 
 ---
 
@@ -161,8 +165,9 @@ Step 3: 用户点击 Share
 
 | Trigger Scenario | Notification Type | Content | Description |
 |------------------|-------------------|---------|-------------|
-| iCloud 同步失败 | In-app banner | 同步错误详情 | 显示在 Usage Tab 顶部 |
-| iCloud 配额超限 | In-app banner | "iCloud 存储配额已满" | 提示用户清理空间 |
+| CloudKit 同步失败 | In-app banner | 同步错误详情（网络/账号/配额） | 显示在 Usage Tab 顶部 |
+| Session quota depleted | Push notification | "{Provider} session depleted" | 本地通知，后台触发 |
+| Session quota restored | Push notification | "{Provider} session restored" | 本地通知，后台触发 |
 
 ---
 

@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**CodexBar iOS** — Last updated: 2026-03-15
+**CodexBar iOS** — Last updated: 2026-04-04
 
 ## Summary
 
@@ -16,7 +16,7 @@ We do not collect any data. Specifically:
 
 ## iCloud Sync
 
-The app uses Apple's iCloud Key-Value Store to receive usage data from the companion macOS app on the same Apple ID. This data (AI provider usage metrics) stays entirely within your private iCloud account and is never sent to us or any third party.
+The app uses Apple's iCloud CloudKit to receive usage data from the companion macOS app on the same Apple ID. Each Mac maintains its own device record, and the iPhone merges data from all connected Macs. This data (AI provider usage metrics) stays entirely within your private iCloud account and is never sent to us or any third party.
 
 ## On-Device Only
 
