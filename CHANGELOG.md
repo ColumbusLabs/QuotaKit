@@ -2,6 +2,25 @@
 
 ## 0.19.0 — 2026-04-02
 
+This release merges upstream CodexBar 0.19.0 into our fork, ensuring full compatibility and laying the groundwork for upcoming mobile features. Mobile-side support for the new upstream capabilities is in development.
+
+### Mobile 1.1.0 (No Change)
+- iCloud sync upgraded from KVS to CloudKit for multi-device sync.
+- Session quota push notifications for iOS.
+- Composite Sparkle build number for upstream-safe version detection.
+
+### CodexBar 0.19.0 (Upstream)
+- Alibaba Coding Plan provider with region-aware quota fetching.
+- Subscription utilization history chart in menu bar.
+- Claude provider end-to-end refactor with expanded tests.
+- Cursor dashboard alignment (Total/Auto/API lanes).
+- Codex code review reset time display.
+- Per-model token counts in cost history.
+- GPT-5.4 mini and nano pricing.
+- Antigravity model selection fix.
+
+---
+
 本版本将上游 CodexBar 0.19.0 完整合并至我们的分支，确保全面兼容并为后续移动端功能开发奠定基础。上游新功能的移动端适配正在开发中。
 
 ### Mobile 1.1.0（无变更）
