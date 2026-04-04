@@ -10,7 +10,7 @@
             <sparkle:shortVersionString>0.19.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<h2>CodexBar 0.19.0-Mobile 1.1.0</h2>
-<p>本版本将上游 CodexBar 0.19.0 完整合并至我们的分支，确保全面兼容并为后续移动端功能开发奠定基础。上游新功能的移动端适配正在开发中。</p>
+本版本将上游 CodexBar 0.19.0 完整合并至我们的分支，确保全面兼容并为后续移动端功能开发奠定基础。上游新功能的移动端适配正在开发中。
 <h3>Mobile 1.1.0（无变更）</h3>
 <ul>
 <li>iCloud 同步从 KVS 升级至 CloudKit，支持多设备同步。</li>
@@ -28,6 +28,7 @@
 <li>GPT-5.4 mini 和 nano 定价支持。</li>
 <li>Antigravity 模型选择修复。</li>
 </ul>
+<p><a href="https://github.com/o1xhack/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar/releases/download/v0.19.0-mobile.1.1.0/CodexBar-0.19.0-mobile.1.1.0.zip" length="26369716" type="application/octet-stream" sparkle:edSignature="nUDgeHem4pTH6DVS6Q8/awT7ClHMZVmWedVRlbEIFL15z4xhjjiR0FGdkkZZwqvsRPgW3lU7V65qzsiumLAWDg=="/>
         </item>

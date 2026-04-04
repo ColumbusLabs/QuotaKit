@@ -2,23 +2,22 @@
 
 ## 0.19.0 — 2026-04-02
 
-### Highlights — Mobile 1.1.0
-- Merge upstream CodexBar 0.19.0 with all Mac-side improvements.
-- Session quota push notifications (CloudKit silent push → iOS local notification).
-- Composite Sparkle build number (`BUILD_NUMBER.MOBILE_VERSION`) for upstream-safe versioning.
+本版本将上游 CodexBar 0.19.0 完整合并至我们的分支，确保全面兼容并为后续移动端功能开发奠定基础。上游新功能的移动端适配正在开发中。
 
-### CodexBar 0.19.0 (Upstream)
-- Add Alibaba Coding Plan provider with region-aware quota fetching, widget integration, and browser-cookie import defaults (#574).
-- Align Cursor usage with the dashboard's Total/Auto/API lanes (#587). Thanks @Rag30!
-- Add subscription utilization history chart to the menu with DST-safe data point identification (#589). Thanks @maxceem!
-- Refactor the Claude provider end to end into clearer, better-tested components while preserving behavior (#494). @ratulsarna
-- Add reset time display for Codex code review limits (#581). Thanks @Q1CHENL!
-- Add per-model token counts to cost history (#546). Thanks @iam-brain!
-- Fix Antigravity model selection to use stable model-family matching (#590). Thanks @skainguyen1412!
-- Add GPT-5.4 mini and nano pricing (#561). Thanks @iam-brain!
-- Menu bar: in Both display mode, fall back to percent when pace data is unavailable (#527). Thanks @Astro-Han!
-- Settings: persist resolved refresh cadence default to UserDefaults (#519). Thanks @Astro-Han!
-- Menu: wrap long status blurbs and preserve wrapped titles (#543). Thanks @zkforge!
+### Mobile 1.1.0（无变更）
+- iCloud 同步从 KVS 升级至 CloudKit，支持多设备同步。
+- 会话配额推送通知：iOS 后台接收耗尽/恢复提醒。
+- Sparkle 复合版本号方案，避免与上游版本号冲突。
+
+### CodexBar 0.19.0（上游更新）
+- 新增阿里巴巴 Coding Plan 服务商，支持区域化配额查询。
+- 菜单栏新增订阅利用率历史图表。
+- Claude 服务商端到端重构，测试覆盖更完整。
+- Cursor 用量与仪表盘 Total/Auto/API 对齐。
+- Codex 代码审查限制显示重置时间。
+- 费用历史新增每模型 Token 统计。
+- GPT-5.4 mini 和 nano 定价支持。
+- Antigravity 模型选择修复。
 
 ## 0.18.0 — 2026-03-15
 
