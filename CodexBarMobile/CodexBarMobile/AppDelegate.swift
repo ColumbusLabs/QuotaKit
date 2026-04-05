@@ -29,16 +29,38 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         return true
     }
 
+    // MARK: - Remote Notification Registration
+
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        let token = deviceToken.map { String(format: "%02x", $0) }.joined()
+        print("[CodexBar] Remote notifications registered. Token: \(token.prefix(16))...")
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: Error
+    ) {
+        print("[CodexBar] ERROR: Failed to register for remote notifications: \(error.localizedDescription)")
+    }
+
+    // MARK: - Remote Notification Handling
+
     func application(
         _ application: UIApplication,
         didReceiveRemoteNotification userInfo: [AnyHashable: Any]
     ) async -> UIBackgroundFetchResult {
+        print("[CodexBar] Received remote notification: \(userInfo)")
+
         let reader = CloudSyncReader()
         let result = await reader.fetchAllDeviceSnapshots()
 
         switch result {
         case .success(let snapshots):
             guard let merged = CloudSyncReader.mergeSnapshots(snapshots) else {
+                print("[CodexBar] Remote notification: no mergeable data")
                 return .noData
             }
 
@@ -46,6 +68,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             // even when notifications are disabled. This prevents
             // stale notifications firing when the toggle is re-enabled.
             let transitions = quotaMonitor.detectTransitions(in: merged)
+            print("[CodexBar] Transitions detected: \(transitions.map { "\($0.providerName): \($0.transition)" })")
 
             // Check both: iOS-side toggle AND Mac-side push toggle (from snapshot)
             let key = MobileSettingsKeys.sessionQuotaNotificationsEnabled
@@ -57,15 +80,20 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
                     await LocalNotificationManager.shared.postSessionQuotaNotification(
                         providerName: pt.providerName,
                         transition: pt.transition)
+                    print("[CodexBar] Posted local notification: \(pt.providerName) \(pt.transition)")
                 }
+            } else {
+                print("[CodexBar] Notifications suppressed (local=\(localEnabled), mac=\(macPushEnabled))")
             }
 
             return transitions.isEmpty ? .noData : .newData
 
         case .empty:
+            print("[CodexBar] Remote notification: CloudKit returned empty")
             return .noData
 
-        case .error:
+        case .error(let syncError):
+            print("[CodexBar] Remote notification: CloudKit error: \(syncError)")
             return .failed
         }
     }

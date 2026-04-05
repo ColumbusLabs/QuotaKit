@@ -21,6 +21,9 @@ final class SyncCoordinator {
     private(set) var lastSyncMessage: String?
     private(set) var isSyncing: Bool = false
 
+    /// When set, normal sync is paused to let test data persist in CloudKit.
+    private var testLockUntil: Date?
+
     /// Stable device UUID for this Mac, persisted across app launches.
     private let deviceID: String
 
@@ -57,6 +60,11 @@ final class SyncCoordinator {
     /// Builds and pushes the current state to iCloud.
     func pushCurrentSnapshot() async {
         guard self.settings.iCloudSyncEnabled else { return }
+
+        // Don't overwrite test data while test lock is active
+        if let lockUntil = self.testLockUntil, Date() < lockUntil {
+            return
+        }
 
         let enabledProviders = self.store.enabledProviders()
         guard !enabledProviders.isEmpty else { return }
@@ -161,8 +169,12 @@ final class SyncCoordinator {
 
     /// DEV-only: pushes a synthetic snapshot with a specific session usage percent
     /// so iOS can detect a quota transition (depleted/restored).
+    /// Pauses normal sync for 30 seconds to prevent test data from being overwritten.
     @discardableResult
     func pushTestSnapshot(provider: UsageProvider = .claude, simulatedUsedPercent: Double) async -> SyncPushResult {
+        // Lock normal sync for 30 seconds so test data stays in CloudKit
+        self.testLockUntil = Date().addingTimeInterval(30)
+
         let meta = self.store.providerMetadata[provider]
         let testProvider = ProviderUsageSnapshot(
             providerID: provider.rawValue,
