@@ -64,31 +64,70 @@ struct MobilePane: View {
                             Image(systemName: "hammer.fill")
                                 .foregroundStyle(.orange)
                                 .font(.caption)
-                            Text("DEV — Push Notification Testing")
+                            Text("DEV — iOS Push Testing")
                                 .font(.caption)
                                 .foregroundStyle(.orange)
                                 .textCase(.uppercase)
                         }
 
-                        Text("These buttons simulate quota transitions and push the snapshot to CloudKit, " +
-                            "triggering an iOS notification.")
+                        Text("Simulates quota transitions and pushes to CloudKit. " +
+                            "iOS should receive a local notification for each test.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
 
-                        HStack(spacing: 12) {
-                            Button {
-                                self.testPush(.depleted)
-                            } label: {
-                                Label("Test Depleted", systemImage: "exclamationmark.triangle")
-                            }
-                            .controlSize(.small)
+                        // Codex
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Codex")
+                                .font(.subheadline.bold())
+                            HStack(spacing: 12) {
+                                Button {
+                                    self.testPush(.depleted, provider: .codex)
+                                } label: {
+                                    Label("Depleted", systemImage: "bell.badge")
+                                }
+                                .controlSize(.small)
 
-                            Button {
-                                self.testPush(.restored)
-                            } label: {
-                                Label("Test Restored", systemImage: "checkmark.circle")
+                                Button {
+                                    self.testPush(.restored, provider: .codex)
+                                } label: {
+                                    Label("Restored", systemImage: "bell")
+                                }
+                                .controlSize(.small)
                             }
-                            .controlSize(.small)
+                        }
+
+                        // Claude
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Claude")
+                                .font(.subheadline.bold())
+                            HStack(spacing: 12) {
+                                Button {
+                                    self.testPush(.depleted, provider: .claude)
+                                } label: {
+                                    Label("Depleted", systemImage: "bell.badge")
+                                }
+                                .controlSize(.small)
+
+                                Button {
+                                    self.testPush(.restored, provider: .claude)
+                                } label: {
+                                    Label("Restored", systemImage: "bell")
+                                }
+                                .controlSize(.small)
+                            }
+                        }
+
+                        // Test result
+                        if let result = self.lastTestResult {
+                            HStack(spacing: 6) {
+                                Image(systemName: result.succeeded ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundStyle(result.succeeded ? .green : .red)
+                                    .font(.footnote)
+                                Text(result.message)
+                                    .font(.footnote)
+                                    .foregroundStyle(result.succeeded ? Color.secondary : Color.red)
+                                    .textSelection(.enabled)
+                            }
                         }
                     }
                 }
@@ -101,6 +140,7 @@ struct MobilePane: View {
     // MARK: - Notification Permission
 
     @State private var notificationAuthorized: Bool?
+    @State private var lastTestResult: (succeeded: Bool, message: String)?
 
     @ViewBuilder
     private var notificationPermissionStatus: some View {
@@ -206,15 +246,29 @@ struct MobilePane: View {
 
     // MARK: - Test Push
 
-    private func testPush(_ transition: SessionQuotaTransition) {
-        // Post Mac-side notification
-        SessionQuotaNotifier().post(transition: transition, provider: .claude, badge: 1)
+    private func testPush(_ transition: SessionQuotaTransition, provider: UsageProvider) {
+        let providerName = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
+        let transitionName = transition == .depleted ? "depleted" : "restored"
+        self.lastTestResult = nil
 
-        // Push a snapshot with a synthetic session window that iOS can detect as a transition.
-        // Depleted = 100% used (0% remaining), Restored = 0% used (100% remaining).
         Task {
-            await self.syncCoordinator.pushTestSnapshot(
+            // 1. Post Mac-side notification
+            SessionQuotaNotifier().post(transition: transition, provider: provider, badge: 1)
+
+            // 2. Push synthetic snapshot to CloudKit → triggers iOS silent push
+            let result = await self.syncCoordinator.pushTestSnapshot(
+                provider: provider,
                 simulatedUsedPercent: transition == .depleted ? 100.0 : 0.0)
+
+            if result.succeeded {
+                self.lastTestResult = (
+                    succeeded: true,
+                    message: "✓ \(providerName) \(transitionName) pushed to CloudKit. Check iOS for notification.")
+            } else {
+                self.lastTestResult = (
+                    succeeded: false,
+                    message: "✗ \(providerName) \(transitionName) failed: \(result.message ?? "Unknown error")")
+            }
         }
     }
 

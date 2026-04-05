@@ -161,10 +161,12 @@ final class SyncCoordinator {
 
     /// DEV-only: pushes a synthetic snapshot with a specific session usage percent
     /// so iOS can detect a quota transition (depleted/restored).
-    func pushTestSnapshot(simulatedUsedPercent: Double) async {
+    @discardableResult
+    func pushTestSnapshot(provider: UsageProvider = .claude, simulatedUsedPercent: Double) async -> SyncPushResult {
+        let meta = self.store.providerMetadata[provider]
         let testProvider = ProviderUsageSnapshot(
-            providerID: "claude",
-            providerName: "Claude",
+            providerID: provider.rawValue,
+            providerName: meta?.displayName ?? provider.rawValue.capitalized,
             primary: SyncRateWindow(
                 label: "Session",
                 usedPercent: simulatedUsedPercent,
@@ -192,6 +194,7 @@ final class SyncCoordinator {
         self.lastSyncTime = Date()
         self.lastSyncSucceeded = result.succeeded
         self.lastSyncMessage = result.message
+        return result
     }
 
     private func makeCostSummary(for provider: UsageProvider) -> SyncCostSummary? {
