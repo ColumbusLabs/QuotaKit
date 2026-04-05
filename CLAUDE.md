@@ -24,6 +24,16 @@ Quick summary:
 
 8. **Todoist 同步**：Commit 之后，同步更新 Todoist 任务状态，详见下方「Todoist 同步规则」
 
+### Post-Commit Checklist（每次 git commit 后必须立刻执行，无例外）
+
+```
+git commit → git push → Todoist comment (含 commit 链接) → 移到 Code Complete
+```
+
+四步必须连续完成，不能拆开、不能延后、不能"等会儿补"。
+不管改动大小、不管是 bug fix 还是文档、不管用户有没有明确要求。
+只要有 `git commit`，就跑这个 checklist。
+
 See `AGENTS.md` for the full process, rules, and checklists.
 
 ## Key File Locations
