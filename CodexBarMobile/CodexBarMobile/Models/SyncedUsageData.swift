@@ -115,6 +115,18 @@ final class SyncedUsageData {
         case .success(let snapshots):
             self.deviceSnapshots = snapshots
             self.usingKVSFallback = false
+            // Debug: log utilization data presence
+            for snap in snapshots {
+                for p in snap.providers {
+                    let histCount = p.utilizationHistory?.count ?? 0
+                    let entryCount = p.utilizationHistory?.reduce(0) { $0 + $1.entries.count } ?? 0
+                    if histCount > 0 {
+                        print("[CodexBar] Provider \(p.providerName): \(histCount) utilization series, \(entryCount) total entries")
+                    } else {
+                        print("[CodexBar] Provider \(p.providerName): NO utilization data")
+                    }
+                }
+            }
             if let merged = CloudSyncReader.mergeSnapshots(snapshots) {
                 self.snapshot = merged
                 self.syncStatus = .synced(ago: Date().timeIntervalSince(merged.syncTimestamp))

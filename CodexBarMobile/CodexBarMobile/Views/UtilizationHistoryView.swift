@@ -21,6 +21,8 @@ struct UtilizationHistoryView: View {
         return self.series[index]
     }
 
+    @State private var scrollPosition: Int?
+
     private let trackColor = Color.primary.opacity(0.06)
     private let barWidth: CGFloat = 10
     private let visibleBars = 15
@@ -206,7 +208,8 @@ struct UtilizationHistoryView: View {
         }
         .chartLegend(.hidden)
         .chartScrollableAxes(.horizontal)
-        .chartXVisibleDomain(length: self.visibleBars)
+        .chartXVisibleDomain(length: min(points.count, self.visibleBars))
+        .chartScrollPosition(initialX: max(0, points.count - self.visibleBars))
         .chartXSelection(value: self.$selectedIndex)
     }
 
