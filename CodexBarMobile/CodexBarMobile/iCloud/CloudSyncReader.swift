@@ -113,13 +113,19 @@ final class CloudSyncReader: @unchecked Sendable {
             ? deviceNames[0]
             : deviceNames.joined(separator: ", ")
 
+        // If ANY device has push disabled, respect that (conservative approach)
+        let pushEnabled: Bool? = snapshots.contains(where: { $0.notificationPushEnabled == false })
+            ? false
+            : snapshots.first?.notificationPushEnabled
+
         return SyncedUsageSnapshot(
             providers: mergedProviders,
             syncTimestamp: latestTimestamp,
             deviceName: combinedDeviceName,
             deviceID: nil,
             appVersion: snapshots.first?.appVersion,
-            mobileVersion: snapshots.first?.mobileVersion)
+            mobileVersion: snapshots.first?.mobileVersion,
+            notificationPushEnabled: pushEnabled)
     }
 
     /// Merges multiple entries of the same provider+account from different devices.

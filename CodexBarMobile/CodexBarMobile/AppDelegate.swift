@@ -47,10 +47,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             // stale notifications firing when the toggle is re-enabled.
             let transitions = quotaMonitor.detectTransitions(in: merged)
 
+            // Check both: iOS-side toggle AND Mac-side push toggle (from snapshot)
             let key = MobileSettingsKeys.sessionQuotaNotificationsEnabled
-            let enabled = UserDefaults.standard.object(forKey: key) as? Bool ?? true
+            let localEnabled = UserDefaults.standard.object(forKey: key) as? Bool ?? true
+            let macPushEnabled = merged.notificationPushEnabled ?? true
 
-            if enabled {
+            if localEnabled, macPushEnabled {
                 for pt in transitions {
                     await LocalNotificationManager.shared.postSessionQuotaNotification(
                         providerName: pt.providerName,

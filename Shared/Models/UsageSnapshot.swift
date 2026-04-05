@@ -237,10 +237,12 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
     public let appVersion: String?
     /// Mobile version (e.g. "1.0.0")
     public let mobileVersion: String?
+    /// When false, iOS should suppress push notifications for this snapshot.
+    public let notificationPushEnabled: Bool?
 
     private enum CodingKeys: String, CodingKey {
         case providers, syncTimestamp, deviceName, deviceID, appVersion
-        case mobileVersion
+        case mobileVersion, notificationPushEnabled
         /// Legacy key for backward compatibility with older synced data.
         case syncVersion
     }
@@ -251,7 +253,8 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         deviceName: String,
         deviceID: String? = nil,
         appVersion: String? = nil,
-        mobileVersion: String? = nil)
+        mobileVersion: String? = nil,
+        notificationPushEnabled: Bool? = nil)
     {
         self.providers = providers
         self.syncTimestamp = syncTimestamp
@@ -259,6 +262,7 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         self.deviceID = deviceID
         self.appVersion = appVersion
         self.mobileVersion = mobileVersion
+        self.notificationPushEnabled = notificationPushEnabled
     }
 
     public init(from decoder: Decoder) throws {
@@ -271,6 +275,7 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         // Read from "mobileVersion" first; fall back to legacy "syncVersion" key.
         self.mobileVersion = try container.decodeIfPresent(String.self, forKey: .mobileVersion)
             ?? container.decodeIfPresent(String.self, forKey: .syncVersion)
+        self.notificationPushEnabled = try container.decodeIfPresent(Bool.self, forKey: .notificationPushEnabled)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -281,5 +286,6 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         try container.encodeIfPresent(self.deviceID, forKey: .deviceID)
         try container.encodeIfPresent(self.appVersion, forKey: .appVersion)
         try container.encodeIfPresent(self.mobileVersion, forKey: .mobileVersion)
+        try container.encodeIfPresent(self.notificationPushEnabled, forKey: .notificationPushEnabled)
     }
 }

@@ -158,6 +158,14 @@ extension SettingsStore {
         }
     }
 
+    var notificationPushToiOSEnabled: Bool {
+        get { self.defaultsState.notificationPushToiOSEnabled }
+        set {
+            self.defaultsState.notificationPushToiOSEnabled = newValue
+            self.userDefaults.set(newValue, forKey: "notificationPushToiOSEnabled")
+        }
+    }
+
     var historicalTrackingEnabled: Bool {
         get { self.defaultsState.historicalTrackingEnabled }
         set {

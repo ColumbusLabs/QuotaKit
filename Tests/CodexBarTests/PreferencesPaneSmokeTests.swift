@@ -11,10 +11,11 @@ struct PreferencesPaneSmokeTests {
         let store = Self.makeUsageStore(settings: settings)
 
         let sync = SyncCoordinator(store: store, settings: settings)
-        _ = GeneralPane(settings: settings, store: store, syncCoordinator: sync).body
+        _ = GeneralPane(settings: settings, store: store).body
         _ = DisplayPane(settings: settings, store: store).body
         _ = AdvancedPane(settings: settings).body
         _ = ProvidersPane(settings: settings, store: store).body
+        _ = MobilePane(settings: settings, syncCoordinator: sync).body
         _ = DebugPane(settings: settings, store: store).body
         _ = AboutPane(updater: DisabledUpdaterController()).body
 
@@ -37,10 +38,11 @@ struct PreferencesPaneSmokeTests {
         store._setErrorForTesting("Example error", provider: .codex)
 
         let sync = SyncCoordinator(store: store, settings: settings)
-        _ = GeneralPane(settings: settings, store: store, syncCoordinator: sync).body
+        _ = GeneralPane(settings: settings, store: store).body
         _ = DisplayPane(settings: settings, store: store).body
         _ = AdvancedPane(settings: settings).body
         _ = ProvidersPane(settings: settings, store: store).body
+        _ = MobilePane(settings: settings, syncCoordinator: sync).body
         _ = DebugPane(settings: settings, store: store).body
         _ = AboutPane(updater: DisabledUpdaterController()).body
     }

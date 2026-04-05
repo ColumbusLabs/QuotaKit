@@ -146,7 +146,8 @@ final class SyncCoordinator {
             deviceName: deviceName,
             deviceID: self.deviceID,
             appVersion: appVersion,
-            mobileVersion: mobileVersion)
+            mobileVersion: mobileVersion,
+            notificationPushEnabled: self.settings.notificationPushToiOSEnabled)
 
         let result = await self.syncManager.pushSnapshot(synced)
         self.lastSyncTime = Date()
@@ -156,6 +157,41 @@ final class SyncCoordinator {
 
     func stopObserving() {
         self.isObserving = false
+    }
+
+    /// DEV-only: pushes a synthetic snapshot with a specific session usage percent
+    /// so iOS can detect a quota transition (depleted/restored).
+    func pushTestSnapshot(simulatedUsedPercent: Double) async {
+        let testProvider = ProviderUsageSnapshot(
+            providerID: "claude",
+            providerName: "Claude",
+            primary: SyncRateWindow(
+                label: "Session",
+                usedPercent: simulatedUsedPercent,
+                windowMinutes: 300,
+                resetsAt: Date().addingTimeInterval(3600),
+                resetDescription: "Test"),
+            secondary: nil,
+            accountEmail: "dev-test@codexbar.app",
+            loginMethod: "DEV Test",
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date())
+
+        let deviceName = Host.current().localizedName ?? "Mac"
+        let synced = SyncedUsageSnapshot(
+            providers: [testProvider],
+            syncTimestamp: Date(),
+            deviceName: deviceName,
+            deviceID: self.deviceID,
+            appVersion: "DEV-TEST",
+            mobileVersion: Bundle.main.object(forInfoDictionaryKey: "CodexMobileVersion") as? String,
+            notificationPushEnabled: true)
+
+        let result = await self.syncManager.pushSnapshot(synced)
+        self.lastSyncTime = Date()
+        self.lastSyncSucceeded = result.succeeded
+        self.lastSyncMessage = result.message
     }
 
     private func makeCostSummary(for provider: UsageProvider) -> SyncCostSummary? {

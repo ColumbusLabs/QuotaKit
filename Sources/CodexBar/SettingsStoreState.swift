@@ -18,6 +18,7 @@ struct SettingsDefaultsState {
     var historicalTrackingEnabled: Bool
     var showAllTokenAccountsInMenu: Bool
     var iCloudSyncEnabled: Bool
+    var notificationPushToiOSEnabled: Bool
     var menuBarMetricPreferencesRaw: [String: String]
     var costUsageEnabled: Bool
     var hidePersonalInfo: Bool

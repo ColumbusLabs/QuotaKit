@@ -6,6 +6,7 @@ enum PreferencesTab: String, Hashable {
     case providers
     case display
     case advanced
+    case mobile
     case about
     case debug
 
@@ -34,7 +35,7 @@ struct PreferencesView: View {
 
     var body: some View {
         TabView(selection: self.$selection.tab) {
-            GeneralPane(settings: self.settings, store: self.store, syncCoordinator: self.syncCoordinator)
+            GeneralPane(settings: self.settings, store: self.store)
                 .tabItem { Label("General", systemImage: "gearshape") }
                 .tag(PreferencesTab.general)
 
@@ -49,6 +50,10 @@ struct PreferencesView: View {
             AdvancedPane(settings: self.settings)
                 .tabItem { Label("Advanced", systemImage: "slider.horizontal.3") }
                 .tag(PreferencesTab.advanced)
+
+            MobilePane(settings: self.settings, syncCoordinator: self.syncCoordinator)
+                .tabItem { Label("Mobile", systemImage: "iphone") }
+                .tag(PreferencesTab.mobile)
 
             AboutPane(updater: self.updater)
                 .tabItem { Label("About", systemImage: "info.circle") }

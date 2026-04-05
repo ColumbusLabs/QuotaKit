@@ -200,6 +200,7 @@ extension SettingsStore {
         let historicalTrackingEnabled = userDefaults.object(forKey: "historicalTrackingEnabled") as? Bool ?? false
         let showAllTokenAccountsInMenu = userDefaults.object(forKey: "showAllTokenAccountsInMenu") as? Bool ?? false
         let iCloudSyncEnabled = userDefaults.object(forKey: "iCloudSyncEnabled") as? Bool ?? true
+        let notificationPushToiOSEnabled = userDefaults.object(forKey: "notificationPushToiOSEnabled") as? Bool ?? true
         let storedPreferences = userDefaults.dictionary(forKey: "menuBarMetricPreferences") as? [String: String] ?? [:]
         var resolvedPreferences = storedPreferences
         if resolvedPreferences.isEmpty,
@@ -250,6 +251,7 @@ extension SettingsStore {
             historicalTrackingEnabled: historicalTrackingEnabled,
             showAllTokenAccountsInMenu: showAllTokenAccountsInMenu,
             iCloudSyncEnabled: iCloudSyncEnabled,
+            notificationPushToiOSEnabled: notificationPushToiOSEnabled,
             menuBarMetricPreferencesRaw: resolvedPreferences,
             costUsageEnabled: costUsageEnabled,
             hidePersonalInfo: hidePersonalInfo,
