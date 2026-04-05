@@ -1,5 +1,6 @@
 import CodexBarCore
 import SwiftUI
+@preconcurrency import UserNotifications
 
 @MainActor
 struct MobilePane: View {
@@ -46,16 +47,12 @@ struct MobilePane: View {
                         .textCase(.uppercase)
 
                     PreferenceToggleRow(
-                        title: "Session quota notifications",
-                        subtitle: "Notifies when the 5-hour session quota hits 0% and when it becomes " +
-                            "available again.",
-                        binding: self.$settings.sessionQuotaNotificationsEnabled)
-
-                    PreferenceToggleRow(
                         title: "Push notifications to iOS",
                         subtitle: "When enabled, quota changes are synced to CloudKit so the iOS app " +
                             "can show push notifications.",
                         binding: self.$settings.notificationPushToiOSEnabled)
+
+                    self.notificationPermissionStatus
                 }
 
                 // DEV-only test section
@@ -97,6 +94,61 @@ struct MobilePane: View {
                 }
 
                 Spacer(minLength: 0)
+            }
+        }
+    }
+
+    // MARK: - Notification Permission
+
+    @State private var notificationAuthorized: Bool?
+
+    @ViewBuilder
+    private var notificationPermissionStatus: some View {
+        HStack(spacing: 8) {
+            if let authorized = self.notificationAuthorized {
+                if authorized {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .font(.footnote)
+                    Text("Mac notification permission granted")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.footnote)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Mac notification permission not granted")
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                        Text("Push to iOS requires Mac notifications to detect quota changes.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("Open Settings") {
+                        NSWorkspace.shared.open(
+                            URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings")!)
+                    }
+                    .controlSize(.small)
+                }
+            } else {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Checking notification permission…")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .onAppear {
+            self.checkNotificationPermission()
+        }
+    }
+
+    private func checkNotificationPermission() {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                self.notificationAuthorized = settings.authorizationStatus == .authorized
             }
         }
     }
