@@ -327,6 +327,9 @@ private struct CostDashboardView: View {
             VStack(alignment: .leading, spacing: 18) {
                 self.summarySection
 
+                // Aggregate utilization across providers
+                UtilizationAggregateView(providers: self.insights.providerRows.map(\.provider))
+
                 if !self.insights.providerRows.isEmpty {
                     self.contributionSection(
                         title: "Provider Share",

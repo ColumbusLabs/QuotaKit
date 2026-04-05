@@ -2,18 +2,14 @@ import Charts
 import CodexBarSync
 import SwiftUI
 
-/// Displays subscription utilization history as a bar chart.
-/// Design follows Mac-side PlanUtilizationHistoryChartMenuView:
-/// - Dual-layer bars (track + fill)
-/// - Hidden Y-axis, minimal X-axis
-/// - Segmented series picker
-/// - Detail line at bottom (not popup)
+/// Displays subscription utilization history as a capsule bar chart.
+/// Design: V4 Capsule — thick rounded bars with track layer, horizontal scrolling.
 struct UtilizationHistoryView: View {
     let series: [SyncUtilizationSeries]
     let tintColor: Color
 
     @State private var selectedSeriesIndex = 0
-    @State private var selectedEntry: SyncUtilizationEntry?
+    @State private var selectedIndex: Int?
 
     private var activeSeries: SyncUtilizationSeries? {
         let index = min(self.selectedSeriesIndex, self.series.count - 1)
@@ -21,17 +17,14 @@ struct UtilizationHistoryView: View {
         return self.series[index]
     }
 
-    private let trackColor = Color.primary.opacity(0.08)
-    private let barWidth: CGFloat = 6
+    private let trackColor = Color.primary.opacity(0.06)
+    private let barWidth: CGFloat = 10
+    private let visibleBars = 15
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Header + picker
-            HStack {
-                Text("Subscription Utilization")
-                    .font(.headline)
-                Spacer()
-            }
+            Text("Subscription Utilization")
+                .font(.headline)
 
             if self.series.count > 1 {
                 Picker("Series", selection: self.$selectedSeriesIndex) {
@@ -41,16 +34,14 @@ struct UtilizationHistoryView: View {
                 }
                 .pickerStyle(.segmented)
                 .onChange(of: self.selectedSeriesIndex) { _, _ in
-                    self.selectedEntry = nil
+                    self.selectedIndex = nil
                 }
             }
 
             if let active = self.activeSeries, !active.entries.isEmpty {
-                // Chart
-                self.chartView(active)
+                self.capsuleChart(active)
                     .frame(height: 140)
 
-                // Detail line (Mac-style: single line at bottom)
                 self.detailLine(active)
                     .frame(height: 16)
             } else {
@@ -65,33 +56,32 @@ struct UtilizationHistoryView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
     }
 
-    // MARK: - Chart (Mac-style dual-layer bars)
+    // MARK: - Capsule Chart
 
-    private func chartView(_ series: SyncUtilizationSeries) -> some View {
+    private func capsuleChart(_ series: SyncUtilizationSeries) -> some View {
         Chart {
             ForEach(Array(series.entries.enumerated()), id: \.offset) { index, entry in
-                // Track bar (full 100% height, subtle background)
+                // Track (full height, rounded capsule look)
                 BarMark(
-                    x: .value("Index", index),
-                    yStart: .value("Start", 0),
-                    yEnd: .value("End", 100),
+                    x: .value("I", index),
+                    yStart: .value("S", 0),
+                    yEnd: .value("E", 100),
                     width: .fixed(self.barWidth))
                     .foregroundStyle(self.trackColor)
+                    .cornerRadius(5)
 
-                // Fill bar (actual utilization)
+                // Fill (actual utilization)
                 BarMark(
-                    x: .value("Index", index),
-                    yStart: .value("Start", 0),
-                    yEnd: .value("End", entry.usedPercent),
+                    x: .value("I", index),
+                    yStart: .value("S", 0),
+                    yEnd: .value("E", entry.usedPercent),
                     width: .fixed(self.barWidth))
                     .foregroundStyle(self.tintColor)
+                    .cornerRadius(5)
             }
 
-            // Selection rule mark
-            if let selected = self.selectedEntry,
-               let selectedIndex = series.entries.firstIndex(where: { $0.capturedAt == selected.capturedAt })
-            {
-                RuleMark(x: .value("Selected", selectedIndex))
+            if let si = self.selectedIndex, si >= 0, si < series.entries.count {
+                RuleMark(x: .value("S", si))
                     .foregroundStyle(Color.secondary.opacity(0.5))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
             }
@@ -99,7 +89,7 @@ struct UtilizationHistoryView: View {
         .chartYScale(domain: 0 ... 100)
         .chartYAxis(.hidden)
         .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 5)) { value in
+            AxisMarks(values: .automatic(desiredCount: 4)) { value in
                 AxisGridLine().foregroundStyle(.clear)
                 AxisTick().foregroundStyle(.clear)
                 AxisValueLabel {
@@ -112,34 +102,17 @@ struct UtilizationHistoryView: View {
             }
         }
         .chartLegend(.hidden)
-        .chartOverlay { proxy in
-            GeometryReader { geometry in
-                Rectangle()
-                    .fill(.clear)
-                    .contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { drag in
-                                guard let plotFrame = proxy.plotFrame else { return }
-                                let plotOrigin = geometry[plotFrame].origin
-                                let xInPlot = drag.location.x - plotOrigin.x
-                                guard let idx: Int = proxy.value(atX: xInPlot),
-                                      idx >= 0, idx < series.entries.count
-                                else { return }
-                                self.selectedEntry = series.entries[idx]
-                            }
-                            .onEnded { _ in
-                                self.selectedEntry = nil
-                            })
-            }
-        }
+        .chartScrollableAxes(.horizontal)
+        .chartXVisibleDomain(length: self.visibleBars)
+        .chartXSelection(value: self.$selectedIndex)
     }
 
-    // MARK: - Detail Line (Mac-style)
+    // MARK: - Detail Line
 
     @ViewBuilder
     private func detailLine(_ series: SyncUtilizationSeries) -> some View {
-        if let entry = self.selectedEntry {
+        if let si = self.selectedIndex, si >= 0, si < series.entries.count {
+            let entry = series.entries[si]
             HStack {
                 Text(Self.fullDateLabel(entry.capturedAt))
                 Spacer()
