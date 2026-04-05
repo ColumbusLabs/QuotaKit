@@ -4,10 +4,11 @@ import SwiftUI
 
 /// Displays subscription utilization history as a capsule bar chart (V4 style).
 ///
-/// Key behavior matching Mac-side PlanUtilizationHistoryChartMenuView:
-/// - Entries grouped by period boundaries (5h for session, 7d for weekly)
-/// - Gaps between observed periods filled with zero-value bars
-/// - Each bar = one reset window, not one raw entry
+/// Layout rules (matching Cost daily chart behavior):
+/// - Fixed visible window of 30 bar positions
+/// - Data right-aligned: sparse data shows on the right, left is empty
+/// - When data > 30: horizontal scrolling enabled, default to rightmost
+/// - Each bar = one reset window (session=5h, weekly=7d)
 struct UtilizationHistoryView: View {
     let series: [SyncUtilizationSeries]
     let tintColor: Color
@@ -21,11 +22,10 @@ struct UtilizationHistoryView: View {
         return self.series[index]
     }
 
-    @State private var scrollPosition: Int?
-
     private let trackColor = Color.primary.opacity(0.06)
     private let barWidth: CGFloat = 10
-    private let visibleBars = 15
+    /// Fixed visible window size — matches Cost chart's ~30 bars per screen
+    private let windowSize = 30
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -45,11 +45,12 @@ struct UtilizationHistoryView: View {
             }
 
             if let active = self.activeSeries {
-                let points = Self.buildDisplayPoints(from: active)
-                if !points.isEmpty {
-                    self.capsuleChart(points)
+                let rawPoints = Self.buildPeriodPoints(from: active)
+                if !rawPoints.isEmpty {
+                    let displayPoints = Self.rightAlignPoints(rawPoints, windowSize: self.windowSize)
+                    self.capsuleChart(displayPoints, dataCount: rawPoints.count)
                         .frame(height: 140)
-                    self.detailLine(points)
+                    self.detailLine(displayPoints)
                         .frame(height: 16)
                 } else {
                     self.emptyState
@@ -70,38 +71,33 @@ struct UtilizationHistoryView: View {
             .padding(.vertical, 20)
     }
 
-    // MARK: - Build Display Points (Mac-style period grouping)
+    // MARK: - Data Processing
 
     struct DisplayPoint: Identifiable {
         let id: Int
-        let date: Date
+        let date: Date?
         let usedPercent: Double
         let isObserved: Bool
+        /// True for padding slots (no data, just spacing)
+        let isPadding: Bool
     }
 
-    /// Groups raw entries into period-aligned display points.
-    /// Session (windowMinutes=300): one bar per 5-hour window.
-    /// Weekly (windowMinutes=10080): one bar per 7-day window.
-    private static func buildDisplayPoints(from series: SyncUtilizationSeries) -> [DisplayPoint] {
+    /// Groups raw entries into period-aligned points.
+    private static func buildPeriodPoints(from series: SyncUtilizationSeries) -> [DisplayPoint] {
         guard !series.entries.isEmpty, series.windowMinutes > 0 else { return [] }
 
         let windowSeconds = Double(series.windowMinutes) * 60
-
-        // Find the latest reset boundary to build a lattice
         let latestReset = series.entries.compactMap(\.resetsAt).max()
 
-        // Group entries by period boundary
         var bestByPeriod: [Int: (date: Date, usedPercent: Double)] = [:]
 
         for entry in series.entries {
             let boundary: Date
             if let reset = entry.resetsAt ?? latestReset {
-                // Align to period grid based on reset time
                 let diff = reset.timeIntervalSince(entry.capturedAt)
                 let periodIndex = Int(floor(diff / windowSeconds))
                 boundary = reset.addingTimeInterval(-Double(periodIndex) * windowSeconds)
             } else {
-                // Fallback: quantize by window size from epoch
                 let epoch = entry.capturedAt.timeIntervalSince1970
                 let slot = floor(epoch / windowSeconds) * windowSeconds
                 boundary = Date(timeIntervalSince1970: slot)
@@ -110,7 +106,6 @@ struct UtilizationHistoryView: View {
             let periodKey = Int(boundary.timeIntervalSince1970 / windowSeconds)
 
             if let existing = bestByPeriod[periodKey] {
-                // Keep the highest observed value for this period
                 if entry.usedPercent > existing.usedPercent {
                     bestByPeriod[periodKey] = (date: boundary, usedPercent: entry.usedPercent)
                 }
@@ -121,7 +116,6 @@ struct UtilizationHistoryView: View {
 
         guard !bestByPeriod.isEmpty else { return [] }
 
-        // Build continuous sequence with gap filling
         let sortedKeys = bestByPeriod.keys.sorted()
         let minKey = sortedKeys.first!
         let maxKey = sortedKeys.last!
@@ -132,60 +126,86 @@ struct UtilizationHistoryView: View {
         for key in minKey ... maxKey {
             if let observed = bestByPeriod[key] {
                 points.append(DisplayPoint(
-                    id: idx,
-                    date: observed.date,
+                    id: idx, date: observed.date,
                     usedPercent: min(100, max(0, observed.usedPercent)),
-                    isObserved: true))
+                    isObserved: true, isPadding: false))
             } else {
-                // Gap: no data for this period
                 let gapDate = Date(timeIntervalSince1970: Double(key) * windowSeconds)
                 points.append(DisplayPoint(
-                    id: idx,
-                    date: gapDate,
-                    usedPercent: 0,
-                    isObserved: false))
+                    id: idx, date: gapDate,
+                    usedPercent: 0, isObserved: false, isPadding: false))
             }
             idx += 1
         }
 
-        // Limit to last 60 points to keep scrolling manageable
-        if points.count > 60 {
-            points = Array(points.suffix(60))
+        // Keep last 90 points max for scrolling
+        if points.count > 90 {
+            points = Array(points.suffix(90))
             for i in points.indices {
                 points[i] = DisplayPoint(
-                    id: i,
-                    date: points[i].date,
+                    id: i, date: points[i].date,
                     usedPercent: points[i].usedPercent,
-                    isObserved: points[i].isObserved)
+                    isObserved: points[i].isObserved, isPadding: false)
             }
         }
 
         return points
     }
 
-    // MARK: - Capsule Chart
+    /// Right-aligns data: if fewer than windowSize points, pad left with empty slots.
+    /// Result always has at least windowSize items (or more for scrollable).
+    private static func rightAlignPoints(_ data: [DisplayPoint], windowSize: Int) -> [DisplayPoint] {
+        if data.count >= windowSize {
+            return data  // Enough data, scrolling handles the rest
+        }
 
-    private func capsuleChart(_ points: [DisplayPoint]) -> some View {
+        // Pad left with empty slots
+        let paddingCount = windowSize - data.count
+        var result: [DisplayPoint] = []
+
+        for i in 0 ..< paddingCount {
+            result.append(DisplayPoint(
+                id: i, date: nil,
+                usedPercent: 0, isObserved: false, isPadding: true))
+        }
+
+        for (offset, point) in data.enumerated() {
+            result.append(DisplayPoint(
+                id: paddingCount + offset, date: point.date,
+                usedPercent: point.usedPercent,
+                isObserved: point.isObserved, isPadding: false))
+        }
+
+        return result
+    }
+
+    // MARK: - Chart
+
+    private func capsuleChart(_ points: [DisplayPoint], dataCount: Int) -> some View {
         Chart {
             ForEach(points) { point in
-                BarMark(
-                    x: .value("I", point.id),
-                    yStart: .value("S", 0),
-                    yEnd: .value("E", 100),
-                    width: .fixed(self.barWidth))
-                    .foregroundStyle(self.trackColor)
-                    .cornerRadius(5)
+                if !point.isPadding {
+                    // Track
+                    BarMark(
+                        x: .value("I", point.id),
+                        yStart: .value("S", 0),
+                        yEnd: .value("E", 100),
+                        width: .fixed(self.barWidth))
+                        .foregroundStyle(self.trackColor)
+                        .cornerRadius(5)
 
-                BarMark(
-                    x: .value("I", point.id),
-                    yStart: .value("S", 0),
-                    yEnd: .value("E", point.usedPercent),
-                    width: .fixed(self.barWidth))
-                    .foregroundStyle(point.isObserved ? self.tintColor : self.tintColor.opacity(0.2))
-                    .cornerRadius(5)
+                    // Fill
+                    BarMark(
+                        x: .value("I", point.id),
+                        yStart: .value("S", 0),
+                        yEnd: .value("E", point.usedPercent),
+                        width: .fixed(self.barWidth))
+                        .foregroundStyle(point.isObserved ? self.tintColor : self.tintColor.opacity(0.2))
+                        .cornerRadius(5)
+                }
             }
 
-            if let si = self.selectedIndex, si >= 0, si < points.count {
+            if let si = self.selectedIndex, si >= 0, si < points.count, !points[si].isPadding {
                 RuleMark(x: .value("S", si))
                     .foregroundStyle(Color.secondary.opacity(0.5))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
@@ -193,13 +213,16 @@ struct UtilizationHistoryView: View {
         }
         .chartYScale(domain: 0 ... 100)
         .chartYAxis(.hidden)
+        .chartXScale(domain: 0 ... max(points.count - 1, self.windowSize - 1))
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 4)) { value in
                 AxisGridLine().foregroundStyle(.clear)
                 AxisTick().foregroundStyle(.clear)
                 AxisValueLabel {
-                    if let idx = value.as(Int.self), idx >= 0, idx < points.count {
-                        Text(Self.axisLabel(for: points[idx].date))
+                    if let idx = value.as(Int.self), idx >= 0, idx < points.count,
+                       let date = points[idx].date
+                    {
+                        Text(Self.axisLabel(for: date))
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
@@ -207,9 +230,10 @@ struct UtilizationHistoryView: View {
             }
         }
         .chartLegend(.hidden)
-        .chartScrollableAxes(.horizontal)
-        .chartXVisibleDomain(length: min(points.count, self.visibleBars))
-        .chartScrollPosition(initialX: max(0, points.count - self.visibleBars))
+        .modifier(ScrollableIfNeeded(
+            dataCount: dataCount,
+            windowSize: self.windowSize,
+            totalPoints: points.count))
         .chartXSelection(value: self.$selectedIndex)
     }
 
@@ -217,13 +241,14 @@ struct UtilizationHistoryView: View {
 
     @ViewBuilder
     private func detailLine(_ points: [DisplayPoint]) -> some View {
-        if let si = self.selectedIndex, si >= 0, si < points.count {
+        if let si = self.selectedIndex, si >= 0, si < points.count, !points[si].isPadding {
             let point = points[si]
             HStack {
-                Text(Self.fullDateLabel(point.date))
+                if let date = point.date {
+                    Text(Self.fullDateLabel(date))
+                }
                 if !point.isObserved {
-                    Text("(no data)")
-                        .foregroundStyle(.tertiary)
+                    Text("(no data)").foregroundStyle(.tertiary)
                 }
                 Spacer()
                 Text(String(format: "%.0f%% used", point.usedPercent))
@@ -267,5 +292,24 @@ struct UtilizationHistoryView: View {
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+}
+
+// MARK: - Conditional Scroll Modifier
+
+private struct ScrollableIfNeeded: ViewModifier {
+    let dataCount: Int
+    let windowSize: Int
+    let totalPoints: Int
+
+    func body(content: Content) -> some View {
+        if self.dataCount > self.windowSize {
+            content
+                .chartScrollableAxes(.horizontal)
+                .chartXVisibleDomain(length: self.windowSize)
+                .chartScrollPosition(initialX: self.totalPoints - self.windowSize)
+        } else {
+            content
+        }
     }
 }
