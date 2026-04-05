@@ -6,9 +6,14 @@ struct MobilePane: View {
     @Bindable var settings: SettingsStore
     let syncCoordinator: SyncCoordinator
 
-    /// True when running a debug/dev build (bundle ID contains ".debug").
-    private static var isDevelopmentBuild: Bool {
+    /// True when running in development mode. Checks:
+    /// 1. Debug bundle ID (.debug suffix)
+    /// 2. CODEXBAR_DEV=1 environment variable
+    /// 3. Debug menu is enabled in Settings → Advanced
+    private var isDevelopmentBuild: Bool {
         Bundle.main.bundleIdentifier?.contains(".debug") == true
+            || ProcessInfo.processInfo.environment["CODEXBAR_DEV"] == "1"
+            || self.settings.debugMenuEnabled
     }
 
     var body: some View {
@@ -54,7 +59,7 @@ struct MobilePane: View {
                 }
 
                 // DEV-only test section
-                if Self.isDevelopmentBuild {
+                if self.isDevelopmentBuild {
                     Divider()
 
                     SettingsSection(contentSpacing: 12) {
