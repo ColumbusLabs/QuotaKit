@@ -160,35 +160,39 @@ struct UtilizationAggregateView: View {
     }
 
     private static func buildChartData(from providers: [ProviderUsageSnapshot], windowSize: Int) -> ChartData? {
-        // Get providers with utilization data
-        let providerSeries = providers.compactMap { provider -> (id: String, name: String, color: Color, entries: [SyncUtilizationEntry])? in
+        // Get providers with utilization data, group entries by period
+        let providerGrouped = providers.compactMap { provider -> (id: String, name: String, color: Color, points: [(date: Date, usedPercent: Double)])? in
             guard let history = provider.utilizationHistory,
                   let series = history.first(where: { $0.name == "weekly" }) ?? history.first,
                   !series.entries.isEmpty
             else { return nil }
+
+            let grouped = Self.groupByPeriod(entries: series.entries, windowMinutes: series.windowMinutes)
+            guard !grouped.isEmpty else { return nil }
+
             return (id: provider.providerID, name: provider.providerName,
                     color: Self.providerColor(for: provider.providerID),
-                    entries: series.entries)
+                    points: grouped)
         }
 
-        guard !providerSeries.isEmpty else { return nil }
+        guard !providerGrouped.isEmpty else { return nil }
 
-        let providerInfos = providerSeries.map { ProviderInfo(id: $0.id, name: $0.name, color: $0.color) }
-        let maxCount = providerSeries.map(\.entries.count).max() ?? 0
+        let providerInfos = providerGrouped.map { ProviderInfo(id: $0.id, name: $0.name, color: $0.color) }
+        let maxCount = providerGrouped.map(\.points.count).max() ?? 0
 
-        // Build bars (one per time slot, stacked by provider)
+        // Build bars (one per period, stacked by provider)
         var realBars: [Bar] = []
         for i in 0 ..< maxCount {
             var segments: [BarSegment] = []
             var date: Date?
-            for ps in providerSeries {
-                if i < ps.entries.count {
-                    let entry = ps.entries[i]
+            for pg in providerGrouped {
+                if i < pg.points.count {
+                    let point = pg.points[i]
                     segments.append(BarSegment(
-                        providerID: ps.id,
-                        providerName: ps.name,
-                        usedPercent: entry.usedPercent))
-                    if date == nil { date = entry.capturedAt }
+                        providerID: pg.id,
+                        providerName: pg.name,
+                        usedPercent: point.usedPercent))
+                    if date == nil { date = point.date }
                 }
             }
             realBars.append(Bar(id: i, date: date, segments: segments, isPadding: false))
@@ -209,13 +213,52 @@ struct UtilizationAggregateView: View {
             bars = realBars
         }
 
-        // Calculate overall average
-        let allAvgs = providerSeries.map { ps in
-            ps.entries.reduce(0.0) { $0 + $1.usedPercent } / Double(ps.entries.count)
+        // Calculate overall average from grouped points
+        let allAvgs = providerGrouped.map { pg in
+            pg.points.reduce(0.0) { $0 + $1.usedPercent } / Double(max(pg.points.count, 1))
         }
-        let overallAvg = allAvgs.reduce(0.0, +) / Double(max(providerSeries.count, 1))
+        let overallAvg = allAvgs.reduce(0.0, +) / Double(max(providerGrouped.count, 1))
 
         return ChartData(bars: bars, providerInfos: providerInfos, overallAvg: overallAvg, realBarCount: realBars.count)
+    }
+
+    // MARK: - Period Grouping (same logic as UtilizationHistoryView)
+
+    /// Groups raw entries into one point per reset window (e.g. one per week for weekly).
+    private static func groupByPeriod(entries: [SyncUtilizationEntry], windowMinutes: Int) -> [(date: Date, usedPercent: Double)] {
+        guard !entries.isEmpty, windowMinutes > 0 else { return [] }
+
+        let windowSeconds = Double(windowMinutes) * 60
+        let latestReset = entries.compactMap(\.resetsAt).max()
+
+        var bestByPeriod: [Int: (date: Date, usedPercent: Double)] = [:]
+
+        for entry in entries {
+            let boundary: Date
+            if let reset = entry.resetsAt ?? latestReset {
+                let diff = reset.timeIntervalSince(entry.capturedAt)
+                let periodIndex = Int(floor(diff / windowSeconds))
+                boundary = reset.addingTimeInterval(-Double(periodIndex) * windowSeconds)
+            } else {
+                let epoch = entry.capturedAt.timeIntervalSince1970
+                let slot = floor(epoch / windowSeconds) * windowSeconds
+                boundary = Date(timeIntervalSince1970: slot)
+            }
+
+            let periodKey = Int(boundary.timeIntervalSince1970 / windowSeconds)
+
+            if let existing = bestByPeriod[periodKey] {
+                if entry.usedPercent > existing.usedPercent {
+                    bestByPeriod[periodKey] = (date: boundary, usedPercent: entry.usedPercent)
+                }
+            } else {
+                bestByPeriod[periodKey] = (date: boundary, usedPercent: entry.usedPercent)
+            }
+        }
+
+        return bestByPeriod.keys.sorted().compactMap { key in
+            bestByPeriod[key]
+        }
     }
 
     // MARK: - Helpers
