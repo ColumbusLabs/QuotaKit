@@ -63,7 +63,7 @@ struct UtilizationAggregateView: View {
                             x: .value("I", bar.id),
                             y: .value("V", segment.usedPercent),
                             width: .fixed(self.barWidth))
-                            .foregroundStyle(by: .value("P", segment.providerName))
+                            .foregroundStyle(segment.color)
                     }
                 }
             }
@@ -74,9 +74,6 @@ struct UtilizationAggregateView: View {
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
             }
         }
-        .chartForegroundStyleScale(
-            domain: data.providerInfos.map(\.name),
-            range: data.providerInfos.map(\.color))
         .chartYAxis(.hidden)
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 4)) { value in
@@ -144,6 +141,7 @@ struct UtilizationAggregateView: View {
         let providerID: String
         let providerName: String
         let usedPercent: Double
+        let color: Color
     }
 
     struct Bar: Identifiable {
@@ -192,7 +190,8 @@ struct UtilizationAggregateView: View {
                     segments.append(BarSegment(
                         providerID: pg.id,
                         providerName: pg.name,
-                        usedPercent: point.usedPercent))
+                        usedPercent: point.usedPercent,
+                        color: pg.color))
                     if date == nil { date = point.date }
                 }
             }
