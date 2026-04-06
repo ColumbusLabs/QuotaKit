@@ -143,14 +143,11 @@ final class CloudSyncReader: @unchecked Sendable {
             mergedCost = base.costSummary
         }
 
-        // Use utilization history from the device with the most recent data
-        let mergedUtilization = entries
-            .compactMap(\.utilizationHistory)
-            .filter { !$0.isEmpty }
-            .max(by: {
-                ($0.flatMap(\.entries).map(\.capturedAt).max() ?? .distantPast) <
-                ($1.flatMap(\.entries).map(\.capturedAt).max() ?? .distantPast)
-            })
+        // Merge utilization history from ALL devices and dedup by hour.
+        // Session quota is account-level — both Macs observe the same quota.
+        // More devices = more sampling points of the same metric.
+        let mergedUtilization = Self.mergeUtilizationHistories(
+            entries.compactMap(\.utilizationHistory))
 
         return ProviderUsageSnapshot(
             providerID: base.providerID,
@@ -219,5 +216,105 @@ final class CloudSyncReader: @unchecked Sendable {
             last30DaysCostUSD: mergedDaily.isEmpty ? nil : totalCost,
             last30DaysTokens: mergedDaily.isEmpty ? nil : totalTokens,
             daily: mergedDaily)
+    }
+
+    // MARK: - Utilization History Merge + Hourly Dedup
+
+    /// Merges utilization histories from multiple devices.
+    /// Session quota is account-level, so entries from different Macs
+    /// are observations of the SAME metric at different times.
+    ///
+    /// Steps:
+    /// 1. Collect entries from all devices per series name
+    /// 2. Dedup by hour: group by floor(capturedAt / 1h), take average
+    /// 3. Result: clean hourly data regardless of device count
+    private static func mergeUtilizationHistories(
+        _ histories: [[SyncUtilizationSeries]]
+    ) -> [SyncUtilizationSeries]? {
+        let allSeries = histories.flatMap { $0 }
+        guard !allSeries.isEmpty else { return nil }
+
+        // Group by (name, windowMinutes) to avoid mixing incompatible time windows
+        struct SeriesKey: Hashable {
+            let name: String
+            let windowMinutes: Int
+        }
+
+        var entriesByKey: [SeriesKey: [SyncUtilizationEntry]] = [:]
+
+        for series in allSeries {
+            let key = SeriesKey(name: series.name, windowMinutes: series.windowMinutes)
+            entriesByKey[key, default: []].append(contentsOf: series.entries)
+        }
+
+        // Dedup each series by hour
+        var result: [SyncUtilizationSeries] = []
+
+        for (key, entries) in entriesByKey {
+            let deduped = Self.dedupByHour(entries)
+            guard !deduped.isEmpty else { continue }
+            result.append(SyncUtilizationSeries(
+                name: key.name,
+                windowMinutes: key.windowMinutes,
+                entries: deduped))
+        }
+
+        // Sort: session first, then weekly, then others
+        result.sort { lhs, rhs in
+            let order = ["session": 0, "weekly": 1, "opus": 2]
+            return (order[lhs.name] ?? 99) < (order[rhs.name] ?? 99)
+        }
+
+        return result.isEmpty ? nil : result
+    }
+
+    /// Groups entries by hour + reset segment, averages within each bucket.
+    /// Keeps reset boundaries separate to avoid mixing pre/post-reset samples.
+    private static func dedupByHour(_ entries: [SyncUtilizationEntry]) -> [SyncUtilizationEntry] {
+        guard !entries.isEmpty else { return [] }
+
+        let hourInterval: TimeInterval = 3600
+
+        // Key: (hourSlot, resetBoundary) — different reset windows in the same hour stay separate
+        struct BucketKey: Hashable {
+            let hourSlot: Int
+            let resetEpoch: Int  // floor(resetsAt / hourInterval), or -1 if nil
+        }
+
+        var buckets: [BucketKey: (totalPercent: Double, count: Int, latestReset: Date?, latestCaptured: Date)] = [:]
+
+        for entry in entries {
+            let hourSlot = Int(floor(entry.capturedAt.timeIntervalSince1970 / hourInterval))
+            let resetEpoch = entry.resetsAt.map { Int(floor($0.timeIntervalSince1970 / hourInterval)) } ?? -1
+            let key = BucketKey(hourSlot: hourSlot, resetEpoch: resetEpoch)
+
+            if var bucket = buckets[key] {
+                bucket.totalPercent += entry.usedPercent
+                bucket.count += 1
+                if entry.capturedAt > bucket.latestCaptured {
+                    bucket.latestCaptured = entry.capturedAt
+                    bucket.latestReset = entry.resetsAt ?? bucket.latestReset
+                }
+                buckets[key] = bucket
+            } else {
+                buckets[key] = (
+                    totalPercent: entry.usedPercent,
+                    count: 1,
+                    latestReset: entry.resetsAt,
+                    latestCaptured: entry.capturedAt)
+            }
+        }
+
+        // Convert back to entries, sorted by time
+        return buckets.keys
+            .sorted { $0.hourSlot < $1.hourSlot || ($0.hourSlot == $1.hourSlot && $0.resetEpoch < $1.resetEpoch) }
+            .map { key in
+                let bucket = buckets[key]!
+                let avg = bucket.totalPercent / Double(bucket.count)
+                return SyncUtilizationEntry(
+                    capturedAt: bucket.latestCaptured,
+                    usedPercent: min(100, max(0, avg)),
+                    resetsAt: bucket.latestReset)
+            }
     }
 }
