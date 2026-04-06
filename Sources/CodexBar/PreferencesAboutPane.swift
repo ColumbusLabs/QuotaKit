@@ -30,7 +30,7 @@ struct AboutPane: View {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
-        formatter.locale = .current
+        formatter.locale = Locale(identifier: "en_US")
         return formatter.string(from: date)
     }
 

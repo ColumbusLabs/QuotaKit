@@ -126,6 +126,12 @@ final class SyncCoordinator {
 
             // Map utilization history
             let utilizationHistory = self.makeUtilizationHistory(for: provider)
+            if let uh = utilizationHistory {
+                let totalEntries = uh.reduce(0) { $0 + $1.entries.count }
+                print("[CodexBar Sync] \(provider.rawValue): \(uh.count) utilization series, \(totalEntries) entries")
+            } else {
+                print("[CodexBar Sync] \(provider.rawValue): no utilization history")
+            }
 
             let providerSnapshot = ProviderUsageSnapshot(
                 providerID: provider.rawValue,

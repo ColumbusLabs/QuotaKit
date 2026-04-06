@@ -143,6 +143,15 @@ final class CloudSyncReader: @unchecked Sendable {
             mergedCost = base.costSummary
         }
 
+        // Use utilization history from the device with the most recent data
+        let mergedUtilization = entries
+            .compactMap(\.utilizationHistory)
+            .filter { !$0.isEmpty }
+            .max(by: {
+                ($0.flatMap(\.entries).map(\.capturedAt).max() ?? .distantPast) <
+                ($1.flatMap(\.entries).map(\.capturedAt).max() ?? .distantPast)
+            })
+
         return ProviderUsageSnapshot(
             providerID: base.providerID,
             providerName: base.providerName,
@@ -156,7 +165,7 @@ final class CloudSyncReader: @unchecked Sendable {
             costSummary: mergedCost,
             budget: base.budget,
             rateWindows: base.rateWindows,
-            utilizationHistory: base.utilizationHistory)
+            utilizationHistory: mergedUtilization)
     }
 
     /// Sums cost data from multiple devices.
