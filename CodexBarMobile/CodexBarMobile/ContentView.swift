@@ -327,11 +327,6 @@ private struct CostDashboardView: View {
             VStack(alignment: .leading, spacing: 18) {
                 self.summarySection
 
-                // Aggregate utilization across all synced providers
-                if let snapshot = self.usageData.snapshot {
-                    UtilizationAggregateView(providers: snapshot.providers)
-                }
-
                 if !self.insights.providerRows.isEmpty {
                     self.contributionSection(
                         title: "Provider Share",
@@ -348,6 +343,12 @@ private struct CostDashboardView: View {
 
                 if !self.insights.dailyPoints.isEmpty {
                     self.trendSection
+                }
+
+                // Subscription Utilization — independent section
+                if let snapshot = self.usageData.snapshot {
+                    UtilizationAggregateView(providers: snapshot.providers)
+                        .padding(.top, 4)
                 }
 
                 if !self.insights.modelRows.isEmpty {
