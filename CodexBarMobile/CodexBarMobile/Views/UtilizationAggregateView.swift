@@ -113,8 +113,9 @@ struct UtilizationAggregateView: View {
                     Text(Self.fullDateLabel(date))
                 }
                 Spacer()
-                let total = bar.segments.reduce(0.0) { $0 + $1.usedPercent }
-                Text(String(format: "%.0f%% total", total))
+                let avg = bar.segments.isEmpty ? 0.0
+                    : bar.segments.reduce(0.0) { $0 + $1.usedPercent } / Double(bar.segments.count)
+                Text(String(format: "%.0f%% avg", avg))
                     .fontWeight(.medium)
             }
             .font(.caption)
