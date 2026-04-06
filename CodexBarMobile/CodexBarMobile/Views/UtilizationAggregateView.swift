@@ -163,12 +163,12 @@ struct UtilizationAggregateView: View {
         // Get providers with utilization data
         let providerSeries = providers.compactMap { provider -> (id: String, name: String, color: Color, entries: [SyncUtilizationEntry])? in
             guard let history = provider.utilizationHistory,
-                  let session = history.first(where: { $0.name == "session" }) ?? history.first,
-                  !session.entries.isEmpty
+                  let series = history.first(where: { $0.name == "weekly" }) ?? history.first,
+                  !series.entries.isEmpty
             else { return nil }
             return (id: provider.providerID, name: provider.providerName,
                     color: Self.providerColor(for: provider.providerID),
-                    entries: session.entries)
+                    entries: series.entries)
         }
 
         guard !providerSeries.isEmpty else { return nil }
