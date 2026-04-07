@@ -2,6 +2,11 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.1.0 (32)] — 2026-04-06
+
+### Removed
+- Release notes items mistakenly appended to the 1.1.0 in-app catalog (`MobileReleaseNotesCatalog`) in build 31. The in-app catalog is reserved for major version updates and should not be touched on minor build bumps.
+
 ## [1.1.0 (31)] — 2026-04-06
 
 ### Changed
