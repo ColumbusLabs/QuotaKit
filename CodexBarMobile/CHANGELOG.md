@@ -2,6 +2,13 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.1.0 (33)] — 2026-04-06
+
+### Changed
+- Subscription Utilization section title now uses `.headline` (was `.title3.bold()`), matching every other section header in the Cost tab
+- Provider share rows are now merged directly into the Subscription Utilization section — the previous "Provider Share" sub-header (title + caption) is gone, and the cards sit under the daily chart as part of the same section
+- Section subtitle updated to describe the whole section ("Session quota usage trend across synced providers.")
+
 ## [1.1.0 (32)] — 2026-04-06
 
 ### Removed

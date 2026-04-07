@@ -19,25 +19,36 @@ struct UtilizationAggregateView: View {
 
     var body: some View {
         if let m = self.model {
-            VStack(alignment: .leading, spacing: 16) {
-                // Title
+            VStack(alignment: .leading, spacing: 10) {
+                // Title — matches other Cost-tab section headers (.headline)
                 Text("Subscription Utilization")
-                    .font(.title3.bold())
+                    .font(.headline)
+                    .padding(.top, 4)
+
+                Text("Session quota usage trend across synced providers.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 // 4 Summary Cards
                 self.summaryCards(m)
 
-                // Daily Trend Chart
+                // Daily Trend Chart + Detail Line
                 if !m.dayBars.isEmpty {
-                    self.dailyChart(m)
-                        .frame(height: 120)
-                    self.detailLine(m)
-                        .frame(height: 16)
+                    VStack(alignment: .leading, spacing: 6) {
+                        self.dailyChart(m)
+                            .frame(height: 120)
+                        self.detailLine(m)
+                            .frame(height: 16)
+                    }
                 }
 
-                // Provider Share Breakdown
+                // Provider cards — merged directly into this section (no sub-header)
                 if !m.providerShares.isEmpty {
-                    self.providerShareSection(m)
+                    VStack(spacing: 12) {
+                        ForEach(m.providerShares) { row in
+                            self.providerShareRow(row)
+                        }
+                    }
                 }
             }
         }
@@ -160,49 +171,35 @@ struct UtilizationAggregateView: View {
         }
     }
 
-    // MARK: - Provider Share Section
+    // MARK: - Provider Share Row
 
-    private func providerShareSection(_ m: AggregateModel) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Provider Share")
-                .font(.headline)
-                .padding(.top, 4)
+    private func providerShareRow(_ row: ProviderShare) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Circle()
+                    .fill(row.color)
+                    .frame(width: 10, height: 10)
 
-            Text("30-day utilization share across synced providers.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            VStack(spacing: 12) {
-                ForEach(m.providerShares) { row in
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            Circle()
-                                .fill(row.color)
-                                .frame(width: 10, height: 10)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(row.name)
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                Text(String(format: "%.0f%% avg use", row.rawAvgPercent))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                            Text(String(format: "%.0f%%", row.sharePercent))
-                                .font(.title3.monospacedDigit().bold())
-                        }
-
-                        ProgressView(value: row.sharePercent / 100)
-                            .tint(row.color)
-                            .scaleEffect(y: 1.8, anchor: .center)
-                    }
-                    .padding(14)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(row.name)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text(String(format: "%.0f%% avg use", row.rawAvgPercent))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text(String(format: "%.0f%%", row.sharePercent))
+                    .font(.title3.monospacedDigit().bold())
             }
+
+            ProgressView(value: row.sharePercent / 100)
+                .tint(row.color)
+                .scaleEffect(y: 1.8, anchor: .center)
         }
+        .padding(14)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     // MARK: - Data Model

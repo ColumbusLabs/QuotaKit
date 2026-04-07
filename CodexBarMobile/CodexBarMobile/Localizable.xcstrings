@@ -33,12 +33,12 @@
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "已同步 provider 的近 30 天費用占比。" } }
       }
     },
-    "30-day utilization share across synced providers." : {
+    "Session quota usage trend across synced providers." : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "30-day utilization share across synced providers." } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "同期済みプロバイダ全体での過去30日間の利用率比率です。" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已同步 provider 的近 30 天利用率占比。" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "已同步 provider 的近 30 天利用率占比。" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Session quota usage trend across synced providers." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "同期済みプロバイダ全体でのセッションクォータ使用率のトレンド。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已同步 provider 的会话配额使用趋势。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "已同步 provider 的會話配額使用趨勢。" } }
       }
     },
     "30d" : {
