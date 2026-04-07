@@ -249,14 +249,6 @@
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "CodexBar（示範）" } }
       }
     },
-    "CodexBar on your Mac pushes usage data to iCloud" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "CodexBar on your Mac pushes usage data to iCloud" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Mac の CodexBar が使用データを iCloud に送信します" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Mac 上的 CodexBar 会把使用数据推送到 iCloud" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "Mac 上的 CodexBar 會把使用資料推送到 iCloud" } }
-      }
-    },
     "Configure the Cost page" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Configure the Cost page" } },
@@ -359,14 +351,6 @@
         "ja" : { "stringUnit" : { "state" : "translated", "value" : "データは Mac から送信されています · 下に引いて更新を確認" } },
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "数据由 Mac 推送 · 下拉检查更新" } },
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "資料由 Mac 推送 · 下拉檢查更新" } }
-      }
-    },
-    "Data syncs automatically when both devices are online" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Data syncs automatically when both devices are online" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "両方のデバイスがオンラインならデータは自動同期されます" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "当两台设备都在线时，数据会自动同步" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "當兩台裝置都在線時，資料會自動同步" } }
       }
     },
     "Date" : {
@@ -479,14 +463,6 @@
         "ja" : { "stringUnit" : { "state" : "translated", "value" : "履歴" } },
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "历史版本" } },
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "歷史版本" } }
-      }
-    },
-    "How It Works" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "How It Works" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "仕組み" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "工作原理" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "運作原理" } }
       }
     },
     "Improved" : {
@@ -1225,12 +1201,20 @@
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "新增設定引導、下拉刷新支援，以及上架分發所需的 App Store 隱私項。" } }
       }
     },
-    "Show Setup Guide" : {
+    "Setup Guide" : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Show Setup Guide" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "セットアップガイドを表示" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "显示设置指南" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "顯示設定指南" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Setup Guide" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "セットアップガイド" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设置指南" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "設定指南" } }
+      }
+    },
+    "Walk through how CodexBar syncs from Mac to iPhone" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Walk through how CodexBar syncs from Mac to iPhone" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "CodexBar が Mac から iPhone にどう同期するかを案内します" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "带你了解 CodexBar 如何从 Mac 同步到 iPhone" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "帶你了解 CodexBar 如何從 Mac 同步到 iPhone" } }
       }
     },
     "Showing demo data" : {
@@ -1303,14 +1287,6 @@
         "ja" : { "stringUnit" : { "state" : "translated", "value" : "Mac から iCloud Key-Value Store で同期する、CodexBar 初の iPhone コンパニオン App です。" } },
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "CodexBar 首个 iPhone 配套 App，可通过 iCloud 键值存储从 Mac 同步数据。" } },
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "CodexBar 首個 iPhone 配套 App，可透過 iCloud 鍵值儲存從 Mac 同步資料。" } }
-      }
-    },
-    "This app reads the latest snapshot via iCloud Key-Value Store" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "This app reads the latest snapshot via iCloud Key-Value Store" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "この App は iCloud Key-Value Store から最新スナップショットを読み取ります" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "本 App 会通过 iCloud 键值存储读取最新快照" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "本 App 會透過 iCloud 鍵值儲存讀取最新快照" } }
       }
     },
     "Top Driver" : {

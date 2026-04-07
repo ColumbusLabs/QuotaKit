@@ -939,6 +939,16 @@ private struct SettingsTab: View {
         NavigationStack {
             List {
                 Section {
+                    Button {
+                        self.showingSetupGuide = true
+                    } label: {
+                        SettingSummaryRow(
+                            title: "Setup Guide",
+                            symbolName: "sparkles",
+                            summary: String(localized: "Walk through how CodexBar syncs from Mac to iPhone"))
+                    }
+                    .tint(.primary)
+
                     NavigationLink {
                         AboutSyncDetailView(usageData: self.usageData)
                     } label: {
@@ -975,20 +985,6 @@ private struct SettingsTab: View {
                             title: "Cost Setting",
                             symbolName: "dollarsign.circle.fill",
                             summary: String(localized: "Configure the Cost page"))
-                    }
-                }
-
-                Section("How It Works") {
-                    Label("CodexBar on your Mac pushes usage data to iCloud", systemImage: "laptopcomputer")
-                    Label("This app reads the latest snapshot via iCloud Key-Value Store", systemImage: "icloud")
-                    Label(
-                        "Data syncs automatically when both devices are online",
-                        systemImage: "arrow.triangle.2.circlepath")
-
-                    Button {
-                        self.showingSetupGuide = true
-                    } label: {
-                        Label("Show Setup Guide", systemImage: "questionmark.circle")
                     }
                 }
 
@@ -1221,13 +1217,6 @@ private struct AboutSyncDetailView: View {
                 }
             }
 
-            Section("How It Works") {
-                Label("CodexBar on your Mac pushes usage data to iCloud via CloudKit", systemImage: "laptopcomputer")
-                Label("This app reads snapshots from all your Macs and merges them", systemImage: "icloud")
-                Label(
-                    "Data syncs automatically when both devices are online",
-                    systemImage: "arrow.triangle.2.circlepath")
-            }
         }
         .navigationTitle("About & Sync")
     }

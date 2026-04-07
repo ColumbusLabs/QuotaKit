@@ -2,6 +2,16 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.1.0 (37)] — 2026-04-06
+
+### Changed
+- **Promoted Setup Guide to a top-level Settings row.** It now sits at the very top of the first section (above About & Sync), opens the existing Setup Guide sheet on tap, and uses the `sparkles` icon.
+
+### Removed
+- The standalone "How It Works" section in Settings (previously listed 3 informational items plus a Show Setup Guide button). Now redundant with the promoted Setup Guide entry.
+- The "How It Works" section inside About & Sync detail — duplicated the same information.
+- Dead localization keys: `How It Works`, `Show Setup Guide`, `CodexBar on your Mac pushes usage data to iCloud`, `Data syncs automatically when both devices are online`, `This app reads the latest snapshot via iCloud Key-Value Store`.
+
 ## [1.1.0 (36)] — 2026-04-06
 
 ### Changed
