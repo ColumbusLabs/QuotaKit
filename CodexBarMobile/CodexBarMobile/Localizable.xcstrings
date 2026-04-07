@@ -905,6 +905,22 @@
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "訂閱利用率" } }
       }
     },
+    "Push Diagnostic" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Push Diagnostic" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "プッシュ診断" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "推送诊断" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "推送診斷" } }
+      }
+    },
+    "Mac→iOS notification chain state" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Mac→iOS notification chain state" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Mac→iOS 通知チェーンの状態" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Mac→iOS 通知链路状态" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "Mac→iOS 通知鏈路狀態" } }
+      }
+    },
     "Session" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Session" } },

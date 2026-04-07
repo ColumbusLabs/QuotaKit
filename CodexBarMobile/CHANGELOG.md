@@ -2,6 +2,19 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.1.0 (34)] — 2026-04-06
+
+### Added
+- **Push Diagnostic** developer view (Settings → Developer → Push Diagnostic) that surfaces every step of the Mac→iOS push notification chain in-app: APNS registration, CKSubscription status, UN authorization, last silent push received, last fetch result, last transitions, last local notification post, and a rolling event log
+- `PushDiagnosticStore` — observable store tracking registration/subscription/push/fetch/transition/notification state with a 100-entry event log
+- Manual diagnostic actions: "Fetch Now", "Re-create CKSubscription", "Post Test Local Notification", "Clear Event Log"
+- `CloudSyncReader.setupSubscriptionWithDiagnostics()` wrapper that captures any error thrown from the shared `CloudSyncManager.setupSubscription()` instead of letting it be swallowed by `try?`
+- `LocalNotificationManager.postDiagnosticTestNotification()` for verifying the UN pipeline end-to-end from the Diagnostic view
+
+### Changed
+- `AppDelegate` now reports every remote-notification lifecycle event (registration success/failure, push received, fetch result, transitions, notification post) into `PushDiagnosticStore` so the diagnostic view updates live
+- `LocalNotificationManager.postSessionQuotaNotification` now returns `Bool` so the caller can record success/failure in diagnostics
+
 ## [1.1.0 (33)] — 2026-04-06
 
 ### Changed

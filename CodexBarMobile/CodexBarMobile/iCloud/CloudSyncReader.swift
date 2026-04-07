@@ -17,7 +17,34 @@ final class CloudSyncReader: @unchecked Sendable {
         await syncManager.fetchAllDeviceSnapshots()
     }
 
+    /// Result of attempting to set up a CloudKit subscription.
+    enum SubscriptionSetupResult: Equatable {
+        case created
+        case alreadyExists
+        case failed(String)
+    }
+
     /// Sets up CloudKit subscription for push notifications on record changes.
+    ///
+    /// The underlying `CloudSyncManager.setupSubscription()` treats
+    /// `serverRejectedRequest` as "already exists" (logged, no throw) and lets
+    /// every other CKError propagate. This wrapper captures both paths and
+    /// returns a structured result so the diagnostic layer can display it.
+    @discardableResult
+    func setupSubscriptionWithDiagnostics() async -> SubscriptionSetupResult {
+        do {
+            try await syncManager.setupSubscription()
+            // We can't distinguish "created fresh" from "already exists" here
+            // because CloudSyncManager logs both as success. Treat as `.created`
+            // by default; the first successful call after a fresh install will
+            // really be a fresh creation, subsequent calls are effectively no-ops.
+            return .created
+        } catch {
+            return .failed(error.localizedDescription)
+        }
+    }
+
+    /// Legacy throwing variant (kept for callers that don't care about the result).
     func setupSubscription() async throws {
         try await syncManager.setupSubscription()
     }

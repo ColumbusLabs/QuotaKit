@@ -36,7 +36,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     ) {
         let token = deviceToken.map { String(format: "%02x", $0) }.joined()
-        print("[CodexBar] Remote notifications registered. Token: \(token.prefix(16))...")
+        let prefix = String(token.prefix(16))
+        print("[CodexBar] Remote notifications registered. Token: \(prefix)...")
+        Task { @MainActor in
+            PushDiagnosticStore.shared.recordRegistrationSuccess(tokenPrefix: prefix)
+        }
     }
 
     func application(
@@ -44,6 +48,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         didFailToRegisterForRemoteNotificationsWithError error: Error
     ) {
         print("[CodexBar] ERROR: Failed to register for remote notifications: \(error.localizedDescription)")
+        Task { @MainActor in
+            PushDiagnosticStore.shared.recordRegistrationFailure(error)
+        }
     }
 
     // MARK: - Remote Notification Handling
@@ -52,23 +59,42 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         _ application: UIApplication,
         didReceiveRemoteNotification userInfo: [AnyHashable: Any]
     ) async -> UIBackgroundFetchResult {
+        let summary = userInfo
+            .map { "\($0.key)=\($0.value)" }
+            .sorted()
+            .joined(separator: ", ")
         print("[CodexBar] Received remote notification: \(userInfo)")
+        await MainActor.run {
+            PushDiagnosticStore.shared.recordPushReceived(userInfoSummary: summary)
+        }
 
         let reader = CloudSyncReader()
         let result = await reader.fetchAllDeviceSnapshots()
 
         switch result {
         case .success(let snapshots):
+            await MainActor.run {
+                PushDiagnosticStore.shared.recordFetch(.success(deviceCount: snapshots.count))
+            }
             guard let merged = CloudSyncReader.mergeSnapshots(snapshots) else {
                 print("[CodexBar] Remote notification: no mergeable data")
+                await MainActor.run {
+                    PushDiagnosticStore.shared.recordFetch(.empty)
+                }
                 return .noData
             }
 
             // Always detect transitions to keep baseline current,
             // even when notifications are disabled. This prevents
             // stale notifications firing when the toggle is re-enabled.
-            let transitions = quotaMonitor.detectTransitions(in: merged)
-            print("[CodexBar] Transitions detected: \(transitions.map { "\($0.providerName): \($0.transition)" })")
+            let transitions = self.quotaMonitor.detectTransitions(in: merged)
+            let transitionSummary = transitions.isEmpty
+                ? "(none)"
+                : transitions.map { "\($0.providerName):\($0.transition)" }.joined(separator: ", ")
+            print("[CodexBar] Transitions detected: \(transitionSummary)")
+            await MainActor.run {
+                PushDiagnosticStore.shared.recordTransitions(transitionSummary, count: transitions.count)
+            }
 
             // Check both: iOS-side toggle AND Mac-side push toggle (from snapshot)
             let key = MobileSettingsKeys.sessionQuotaNotificationsEnabled
@@ -76,24 +102,41 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             let macPushEnabled = merged.notificationPushEnabled ?? true
 
             if localEnabled, macPushEnabled {
+                var posted = 0
                 for pt in transitions {
-                    await LocalNotificationManager.shared.postSessionQuotaNotification(
+                    let ok = await LocalNotificationManager.shared.postSessionQuotaNotification(
                         providerName: pt.providerName,
                         transition: pt.transition)
+                    if ok { posted += 1 }
                     print("[CodexBar] Posted local notification: \(pt.providerName) \(pt.transition)")
                 }
+                if !transitions.isEmpty {
+                    await MainActor.run {
+                        PushDiagnosticStore.shared.recordNotificationPost(.success(count: posted))
+                    }
+                }
             } else {
-                print("[CodexBar] Notifications suppressed (local=\(localEnabled), mac=\(macPushEnabled))")
+                let reason = "local=\(localEnabled), mac=\(macPushEnabled)"
+                print("[CodexBar] Notifications suppressed (\(reason))")
+                await MainActor.run {
+                    PushDiagnosticStore.shared.recordNotificationPost(.suppressed(reason: reason))
+                }
             }
 
             return transitions.isEmpty ? .noData : .newData
 
         case .empty:
             print("[CodexBar] Remote notification: CloudKit returned empty")
+            await MainActor.run {
+                PushDiagnosticStore.shared.recordFetch(.empty)
+            }
             return .noData
 
         case .error(let syncError):
             print("[CodexBar] Remote notification: CloudKit error: \(syncError)")
+            await MainActor.run {
+                PushDiagnosticStore.shared.recordFetch(.failed(message: syncError.description))
+            }
             return .failed
         }
     }
