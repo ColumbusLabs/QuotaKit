@@ -881,6 +881,94 @@
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "訂閱利用率" } }
       }
     },
+    "Subscription Utilization charts and cleaner Settings." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Subscription Utilization charts and cleaner Settings." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "サブスクリプション利用率グラフと整理された設定。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "订阅使用率图表，设置界面更精简。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "訂閱使用率圖表，設定介面更精簡。" } }
+      }
+    },
+    "Version 1.2.0 works best with the latest CodexBar Mac app (0.19.0 or later). Utilization History sync relies on Mac-side fixes shipped in that release. Download from GitHub: github.com/o1xhack/CodexBar/releases" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Version 1.2.0 works best with the latest CodexBar Mac app (0.19.0 or later). Utilization History sync relies on Mac-side fixes shipped in that release. Download from GitHub: github.com/o1xhack/CodexBar/releases" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "バージョン 1.2.0 は最新の CodexBar Mac アプリ（0.19.0 以降）で最も良く動作します。利用率履歴の同期はそのリリースで提供される Mac 側の修正に依存します。GitHub からダウンロード: github.com/o1xhack/CodexBar/releases" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "1.2.0 版本建议搭配最新的 CodexBar Mac 应用（0.19.0 或更高版本）使用。利用率历史同步依赖于该版本中的 Mac 端修复。从 GitHub 下载：github.com/o1xhack/CodexBar/releases" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "1.2.0 版本建議搭配最新的 CodexBar Mac 應用程式（0.19.0 或更高版本）使用。使用率歷史同步依賴於該版本中的 Mac 端修復。從 GitHub 下載：github.com/o1xhack/CodexBar/releases" } }
+      }
+    },
+    "Subscription Utilization in the Cost tab — 30-day daily chart with Today / This Week / 14 Days / 30 Days summary cards, each with delta vs the previous period." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Subscription Utilization in the Cost tab — 30-day daily chart with Today / This Week / 14 Days / 30 Days summary cards, each with delta vs the previous period." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Cost タブにサブスクリプション利用率を追加 — 30 日間の日次グラフと 4 つの期間サマリーカード（Today / This Week / 14 Days / 30 Days）、それぞれ前期間との差分を表示。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Cost 标签新增订阅使用率 — 30 天日级图表，配 4 张周期摘要卡片（Today / This Week / 14 Days / 30 Days），每张都显示与上一周期的对比。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "Cost 標籤新增訂閱使用率 — 30 天日級圖表，配 4 張週期摘要卡片（Today / This Week / 14 Days / 30 Days），每張都顯示與上一週期的對比。" } }
+      }
+    },
+    "Provider Share breakdown — each provider's proportional share of total utilization, summing to 100%." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Provider Share breakdown — each provider's proportional share of total utilization, summing to 100%." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Provider Share の内訳 — 各プロバイダが総利用率に占める比率（合計 100%）。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Provider Share 细分 — 每个 provider 在总利用率中的占比，合计 100%。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "Provider Share 細分 — 每個 provider 在總使用率中的占比，合計 100%。" } }
+      }
+    },
+    "Subscription Utilization History chart on every provider detail page." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Subscription Utilization History chart on every provider detail page." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "各プロバイダ詳細ページにサブスクリプション利用率履歴グラフを追加。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "每个 provider 详情页新增订阅使用率历史图表。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "每個 provider 詳情頁新增訂閱使用率歷史圖表。" } }
+      }
+    },
+    "Push Diagnostic developer tool — inspect the Mac→iOS notification chain in Settings → Developer Tools." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Push Diagnostic developer tool — inspect the Mac→iOS notification chain in Settings → Developer Tools." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "プッシュ診断の開発者ツール — Settings → Developer Tools で Mac→iOS 通知チェーンを検査できます。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "推送诊断开发者工具 — 在 Settings → Developer Tools 中查看 Mac→iOS 通知链路。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "推送診斷開發者工具 — 在 Settings → Developer Tools 中檢視 Mac→iOS 通知鏈路。" } }
+      }
+    },
+    "Setup Guide is now a top-level Settings row." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Setup Guide is now a top-level Settings row." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "セットアップガイドが Settings のトップレベルの項目になりました。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设置指南现在是 Settings 顶部的一行。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "設定指南現在是 Settings 頂部的一行。" } }
+      }
+    },
+    "Multi-device utilization merge — data from all your Macs is combined and deduped by hour for consistent charts." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Multi-device utilization merge — data from all your Macs is combined and deduped by hour for consistent charts." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "マルチデバイス利用率マージ — すべての Mac からのデータを時間ごとに統合・重複排除し、一貫したグラフを表示します。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "多设备利用率合并 — 所有 Mac 的数据按小时合并和去重，保持图表一致。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "多裝置使用率合併 — 所有 Mac 的資料按小時合併和去重，保持圖表一致。" } }
+      }
+    },
+    "Developer Tools consolidated — Raw Sync Data and Push Diagnostic share one entry." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Developer Tools consolidated — Raw Sync Data and Push Diagnostic share one entry." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Developer Tools を統合 — Raw Sync Data とプッシュ診断が 1 つの入口を共有します。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Developer Tools 整合 — Raw Sync Data 和推送诊断共用一个入口。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "Developer Tools 整合 — Raw Sync Data 和推送診斷共用一個入口。" } }
+      }
+    },
+    "Removed the redundant How It Works sections from Settings and About & Sync." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Removed the redundant How It Works sections from Settings and About & Sync." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Settings と About & Sync の冗長な How It Works セクションを削除しました。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "删除 Settings 和 About & Sync 中冗余的 How It Works 区块。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "刪除 Settings 和 About & Sync 中冗餘的 How It Works 區塊。" } }
+      }
+    },
+    "About page build timestamp is now always shown in English regardless of system language." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "About page build timestamp is now always shown in English regardless of system language." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "About ページのビルドタイムスタンプは、システム言語に関係なく常に英語で表示されます。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "About 页面的构建时间戳无论系统语言都始终以英文显示。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "About 頁面的建置時間戳記無論系統語言都始終以英文顯示。" } }
+      }
+    },
     "Push Diagnostic" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Push Diagnostic" } },

@@ -1792,8 +1792,36 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.1.0",
+            version: "1.2.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "Subscription Utilization charts and cleaner Settings."),
+            sections: [
+                .init(
+                    title: String(localized: "Important"),
+                    items: [
+                        String(localized: "Version 1.2.0 works best with the latest CodexBar Mac app (0.19.0 or later). Utilization History sync relies on Mac-side fixes shipped in that release. Download from GitHub: github.com/o1xhack/CodexBar/releases"),
+                    ]),
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(localized: "Subscription Utilization in the Cost tab — 30-day daily chart with Today / This Week / 14 Days / 30 Days summary cards, each with delta vs the previous period."),
+                        String(localized: "Provider Share breakdown — each provider's proportional share of total utilization, summing to 100%."),
+                        String(localized: "Subscription Utilization History chart on every provider detail page."),
+                        String(localized: "Push Diagnostic developer tool — inspect the Mac→iOS notification chain in Settings → Developer Tools."),
+                        String(localized: "Setup Guide is now a top-level Settings row."),
+                    ]),
+                .init(
+                    title: String(localized: "Improvements"),
+                    items: [
+                        String(localized: "Multi-device utilization merge — data from all your Macs is combined and deduped by hour for consistent charts."),
+                        String(localized: "Developer Tools consolidated — Raw Sync Data and Push Diagnostic share one entry."),
+                        String(localized: "Removed the redundant How It Works sections from Settings and About & Sync."),
+                        String(localized: "About page build timestamp is now always shown in English regardless of system language."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.1.0",
+            status: "",
             summary: String(localized: "Multi-device CloudKit sync. Requires updated Mac app."),
             sections: [
                 .init(

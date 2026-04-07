@@ -2,6 +2,31 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.2.0 (38)] — 2026-04-06
+
+Marketing version bump that rolls up all the utilization, multi-device sync, and Settings reorganization work since 1.1.0.
+
+### Added
+- **Subscription Utilization section in the Cost tab** — 30-day daily bar chart aligned with the cost chart, four period summary cards (Today / This Week / 14 Days / 30 Days) each with delta vs the previous period, and an inline Provider Share breakdown that shows each provider's proportional share of total utilization (sums to 100%).
+- **Subscription Utilization History chart on each provider detail page** — scrollable per-period bars (V4 Capsule style) covering session, weekly, and opus limits.
+- **Push Diagnostic developer tool** — Settings → Developer Tools → Push Diagnostic. Surfaces APNS registration, CKSubscription state, UN authorization, last silent push, fetch/transition/notification results, and a 100-entry rolling event log. Manual actions: Fetch Now, Re-create CKSubscription, Post Test Local Notification, Clear Log.
+- **Multi-device utilization merge** — utilization entries from all Macs are combined and deduped by `(hourSlot, resetEpoch)` so the chart stays consistent no matter how many devices report.
+- Setup Guide promoted to a top-level Settings row (above About & Sync); tapping opens the existing onboarding sheet.
+
+### Changed
+- Provider breakdown in the Cost tab now shows proportional share (summing to 100%) instead of raw average percentages, matching the visual style of the cost Provider Share section.
+- Subscription Utilization section title uses `.headline` to match every other Cost-tab section header.
+- Developer Tools consolidated under a single Settings entry that navigates into a dedicated container page listing Raw Sync Data and Push Diagnostic.
+- About page build timestamp is forced to `en_US` locale regardless of system language (app is English).
+
+### Removed
+- "How It Works" section from Settings (previously listed 3 informational items plus a Show Setup Guide button) — redundant with the promoted Setup Guide entry.
+- "How It Works" subsection inside About & Sync detail — duplicated the same info.
+- Dead localization keys for the removed strings.
+
+### Fixed
+- CloudKit utilization merge now picks the entry with the freshest `capturedAt` per hour bucket instead of the one with more entries — prevents stale data from an inactive Mac from overwriting fresh data from an active one.
+
 ## [1.1.0 (37)] — 2026-04-06
 
 ### Changed
