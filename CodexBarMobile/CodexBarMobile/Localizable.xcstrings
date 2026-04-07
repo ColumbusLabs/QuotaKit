@@ -9,6 +9,14 @@
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "7 天" } }
       }
     },
+    "14 Days" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "14 Days" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "14日間" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "14 天" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "14 天" } }
+      }
+    },
     "30 Days" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "30 Days" } },
@@ -23,6 +31,14 @@
         "ja" : { "stringUnit" : { "state" : "translated", "value" : "同期済みプロバイダ全体での過去30日間の費用比率です。" } },
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已同步 provider 的近 30 天费用占比。" } },
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "已同步 provider 的近 30 天費用占比。" } }
+      }
+    },
+    "30-day utilization share across synced providers." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "30-day utilization share across synced providers." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "同期済みプロバイダ全体での過去30日間の利用率比率です。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已同步 provider 的近 30 天利用率占比。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "已同步 provider 的近 30 天利用率占比。" } }
       }
     },
     "30d" : {
@@ -889,6 +905,30 @@
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "訂閱利用率" } }
       }
     },
+    "Subscription Utilization chart now uses daily bars matching the Cost chart's 30-day window." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Subscription Utilization chart now uses daily bars matching the Cost chart's 30-day window." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Subscription Utilization グラフが日次バーになり、Cost グラフの30日間ウィンドウと一致するようになりました。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "订阅使用率图表现在使用日级柱状图，与 Cost 图表的 30 天窗口对齐。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "訂閱使用率圖表現在使用日級柱狀圖，與 Cost 圖表的 30 天視窗對齊。" } }
+      }
+    },
+    "Four period summary cards (Today, This Week, 14 Days, 30 Days) with delta vs previous period." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Four period summary cards (Today, This Week, 14 Days, 30 Days) with delta vs previous period." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "4つの期間サマリーカード（今日、今週、14日間、30日間）で前期間との差分を表示。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "四张周期摘要卡片（今日、本周、14 天、30 天），各自与前一周期对比。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "四張週期摘要卡片（今日、本週、14 天、30 天），各自與前一週期對比。" } }
+      }
+    },
+    "Provider Share breakdown replaces raw averages with proportional shares (summing to 100%)." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Provider Share breakdown replaces raw averages with proportional shares (summing to 100%)." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Provider Share の内訳は、生の平均値の代わりに比率（合計100%）を表示するようになりました。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Provider Share 细分用占比（合计 100%）替代原始平均值。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "Provider Share 細分用占比（合計 100%）替代原始平均值。" } }
+      }
+    },
     "Session" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Session" } },
@@ -1271,6 +1311,14 @@
         "ja" : { "stringUnit" : { "state" : "translated", "value" : "モデル単位の課金を公開している Provider 全体で、主要なコスト要因となっているモデルです。" } },
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "支持模型级计费的 provider 中，主要费用来源模型。" } },
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "支援模型級計費的 provider 中，主要費用來源模型。" } }
+      }
+    },
+    "This Week" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This Week" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "今週" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "本周" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "本週" } }
       }
     },
     "Today" : {

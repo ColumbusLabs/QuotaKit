@@ -2,6 +2,17 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.1.0 (31)] — 2026-04-06
+
+### Changed
+- **Subscription Utilization chart redesigned with daily granularity** — bars are now per-calendar-day (matching the Cost chart's 30-day window) instead of per-week
+- **Four period summary cards** — Today, This Week, 14 Days, 30 Days, each with delta vs previous period (orange ↑ / green ↓)
+- **Provider Share breakdown** — replaces raw average % with proportional share% (sums to 100% across providers), styled to match the Cost tab's Provider Share section
+- 30-day raw average shown as subtitle context for each provider in the share breakdown
+
+### Added
+- 4-language localization for new strings: `14 Days`, `This Week`, and `30-day utilization share across synced providers.`
+
 ## [1.1.0 (25)] — 2026-04-01
 
 ### Added

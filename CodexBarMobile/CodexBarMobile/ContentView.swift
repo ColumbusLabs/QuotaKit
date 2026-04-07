@@ -1543,6 +1543,9 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Improvements"),
                     items: [
+                        String(localized: "Subscription Utilization chart now uses daily bars matching the Cost chart's 30-day window."),
+                        String(localized: "Four period summary cards (Today, This Week, 14 Days, 30 Days) with delta vs previous period."),
+                        String(localized: "Provider Share breakdown replaces raw averages with proportional shares (summing to 100%)."),
                         String(localized: "Tab bar no longer hides when scrolling."),
                         String(localized: "Simplified sync status bar at the bottom of Usage and Cost tabs."),
                         String(localized: "Legacy KVS sync maintained as fallback for older Mac app versions."),
