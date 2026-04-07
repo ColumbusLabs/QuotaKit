@@ -1008,23 +1008,14 @@ private struct SettingsTab: View {
                     }
                 }
 
-                Section("Developer Tools") {
+                Section("Developer") {
                     NavigationLink {
-                        RawSyncDataView(usageData: self.usageData)
+                        DeveloperToolsView(usageData: self.usageData)
                     } label: {
                         SettingSummaryRow(
-                            title: "Raw Sync Data",
-                            symbolName: "doc.text.magnifyingglass",
-                            summary: String(localized: "Per-device unmerged data for debugging"))
-                    }
-
-                    NavigationLink {
-                        PushDiagnosticView(usageData: self.usageData)
-                    } label: {
-                        SettingSummaryRow(
-                            title: "Push Diagnostic",
-                            symbolName: "bell.badge.waveform",
-                            summary: String(localized: "Mac→iOS notification chain state"))
+                            title: "Developer Tools",
+                            symbolName: "wrench.and.screwdriver",
+                            summary: String(localized: "Sync inspector, push diagnostic, and more"))
                     }
                 }
 
@@ -1506,6 +1497,40 @@ private struct RawDailyPointRow: View {
             return String(format: "%.1fK tokens", Double(value) / 1_000)
         }
         return "\(value) tokens"
+    }
+}
+
+// MARK: - Developer Tools (container listing all dev tools)
+
+private struct DeveloperToolsView: View {
+    let usageData: SyncedUsageData
+
+    var body: some View {
+        List {
+            Section {
+                NavigationLink {
+                    RawSyncDataView(usageData: self.usageData)
+                } label: {
+                    SettingSummaryRow(
+                        title: "Raw Sync Data",
+                        symbolName: "doc.text.magnifyingglass",
+                        summary: String(localized: "Per-device unmerged data for debugging"))
+                }
+
+                NavigationLink {
+                    PushDiagnosticView(usageData: self.usageData)
+                } label: {
+                    SettingSummaryRow(
+                        title: "Push Diagnostic",
+                        symbolName: "bell.badge.waveform",
+                        summary: String(localized: "Mac→iOS notification chain state"))
+                }
+            } footer: {
+                Text("These tools expose internal sync and notification state to help diagnose issues. No sensitive data is shown.")
+                    .font(.caption2)
+            }
+        }
+        .navigationTitle("Developer Tools")
     }
 }
 

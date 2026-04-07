@@ -2,6 +2,11 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.1.0 (36)] — 2026-04-06
+
+### Changed
+- **Consolidated dev tools under a single "Developer Tools" entry** — Settings → Developer now shows one row that navigates into a dedicated page listing Raw Sync Data and Push Diagnostic. Future tools can be added there without cluttering the main Settings list.
+
 ## [1.1.0 (35)] — 2026-04-06
 
 ### Changed

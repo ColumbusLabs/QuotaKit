@@ -921,6 +921,22 @@
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "開發者工具" } }
       }
     },
+    "Sync inspector, push diagnostic, and more" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sync inspector, push diagnostic, and more" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "同期インスペクタ、プッシュ診断、その他" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "同步检查器、推送诊断等" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "同步檢查器、推送診斷等" } }
+      }
+    },
+    "These tools expose internal sync and notification state to help diagnose issues. No sensitive data is shown." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "These tools expose internal sync and notification state to help diagnose issues. No sensitive data is shown." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "これらのツールは内部の同期および通知の状態を表示し、問題の診断に役立ちます。機密データは表示されません。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "这些工具用于查看内部同步和通知状态以帮助排查问题，不会显示任何敏感信息。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "這些工具用於查看內部同步和通知狀態以協助排查問題，不會顯示任何敏感資訊。" } }
+      }
+    },
     "Mac→iOS notification chain state" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Mac→iOS notification chain state" } },
