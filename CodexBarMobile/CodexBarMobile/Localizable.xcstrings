@@ -913,6 +913,14 @@
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "推送診斷" } }
       }
     },
+    "Developer Tools" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Developer Tools" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "開発者ツール" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "开发者工具" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "開發者工具" } }
+      }
+    },
     "Mac→iOS notification chain state" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Mac→iOS notification chain state" } },

@@ -2,6 +2,11 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.1.0 (35)] — 2026-04-06
+
+### Changed
+- Renamed the Settings → Developer section to **Developer Tools**, now housing both "Raw Sync Data" and "Push Diagnostic". These screens are intentionally shipped to production builds so end users can self-diagnose sync/push issues (no sensitive data exposed).
+
 ## [1.1.0 (34)] — 2026-04-06
 
 ### Added

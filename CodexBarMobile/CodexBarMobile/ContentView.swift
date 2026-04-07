@@ -1008,7 +1008,7 @@ private struct SettingsTab: View {
                     }
                 }
 
-                Section("Developer") {
+                Section("Developer Tools") {
                     NavigationLink {
                         RawSyncDataView(usageData: self.usageData)
                     } label: {
