@@ -10,8 +10,21 @@ public enum CloudSyncConstants {
     /// The CloudKit record type for per-device usage snapshots.
     public static let recordType = "DeviceSnapshot"
 
-    /// CloudKit subscription ID for receiving push notifications on record changes.
-    public static let subscriptionID = "device-snapshot-changes"
+    /// Custom record zone name for per-device usage snapshots and quota transition events.
+    /// Kept in a custom zone rather than `_defaultZone` because `CKQuerySubscription`
+    /// is unreliable on the private database default zone.
+    public static let customZoneName = "DeviceSnapshotsZone"
+
+    /// CloudKit record type for visible quota change push events (alert push design).
+    /// One record per (deviceID, provider, state, hourBucket) — see
+    /// `Research/004-alert-push-cloudkit.md`.
+    public static let quotaTransitionRecordType = "QuotaTransition"
+
+    /// Subscription IDs for the two visible alert-push subscriptions iOS creates.
+    /// Each subscription's predicate filters on `state`, and its `notificationInfo`
+    /// holds the localization key for the matching template.
+    public static let quotaTransitionDepletedSubscriptionID = "quota-transition-depleted"
+    public static let quotaTransitionRestoredSubscriptionID = "quota-transition-restored"
 
     /// UserDefaults key for the stable device UUID (persisted on each Mac).
     public static let deviceIDKey = "com.codexbar.sync.deviceID"

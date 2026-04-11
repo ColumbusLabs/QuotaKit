@@ -133,6 +133,7 @@ final class UsageStore {
     @ObservationIgnored private let registry: ProviderRegistry
     @ObservationIgnored let settings: SettingsStore
     @ObservationIgnored private let sessionQuotaNotifier: any SessionQuotaNotifying
+    @ObservationIgnored private let quotaTransitionWriter: any QuotaTransitionWriting
     @ObservationIgnored private let sessionQuotaLogger = CodexBarLog.logger(LogCategories.sessionQuota)
     @ObservationIgnored private let openAIWebLogger = CodexBarLog.logger(LogCategories.openAIWeb)
     @ObservationIgnored private let tokenCostLogger = CodexBarLog.logger(LogCategories.tokenCost)
@@ -173,6 +174,7 @@ final class UsageStore {
         historicalUsageHistoryStore: HistoricalUsageHistoryStore = HistoricalUsageHistoryStore(),
         planUtilizationHistoryStore: PlanUtilizationHistoryStore = .defaultAppSupport(),
         sessionQuotaNotifier: any SessionQuotaNotifying = SessionQuotaNotifier(),
+        quotaTransitionWriter: any QuotaTransitionWriting = QuotaTransitionWriter(),
         startupBehavior: StartupBehavior = .automatic)
     {
         self.codexFetcher = fetcher
@@ -184,6 +186,7 @@ final class UsageStore {
         self.historicalUsageHistoryStore = historicalUsageHistoryStore
         self.planUtilizationHistoryStore = planUtilizationHistoryStore
         self.sessionQuotaNotifier = sessionQuotaNotifier
+        self.quotaTransitionWriter = quotaTransitionWriter
         self.startupBehavior = startupBehavior.resolved(isRunningTests: Self.isRunningTestsProcess())
         self.planUtilizationPersistenceCoordinator = PlanUtilizationHistoryPersistenceCoordinator(
             store: planUtilizationHistoryStore)
@@ -553,53 +556,57 @@ final class UsageStore {
             self.lastKnownSessionWindowSource[provider] = currentSource
         }
 
-        guard self.settings.sessionQuotaNotificationsEnabled else {
-            if SessionQuotaNotificationLogic.isDepleted(currentRemaining) ||
-                SessionQuotaNotificationLogic.isDepleted(previousRemaining)
-            {
-                let providerText = provider.rawValue
-                let message =
-                    "notifications disabled: provider=\(providerText) " +
-                    "prev=\(previousRemaining ?? -1) curr=\(currentRemaining)"
-                self.sessionQuotaLogger.debug(message)
-            }
-            return
-        }
-
-        guard previousRemaining != nil else {
+        // Compute the transition first, BEFORE any notification gates. This is essential
+        // so the Mac-local notification path and the iOS-push path can be controlled
+        // independently — a user may turn off Mac local notifications but still want
+        // iOS push, or vice versa.
+        let transition: SessionQuotaTransition
+        if previousRemaining == nil {
+            // Startup case: if we observe a depleted state on the very first sample,
+            // synthesize a `.depleted` transition (preserving the original behaviour).
             if SessionQuotaNotificationLogic.isDepleted(currentRemaining) {
                 let providerText = provider.rawValue
-                let message = "startup depleted: provider=\(providerText) curr=\(currentRemaining)"
-                self.sessionQuotaLogger.info(message)
-                self.sessionQuotaNotifier.post(transition: .depleted, provider: provider, badge: nil)
+                self.sessionQuotaLogger.info(
+                    "startup depleted: provider=\(providerText) curr=\(currentRemaining)")
+                transition = .depleted
+            } else {
+                transition = .none
             }
-            return
+        } else {
+            transition = SessionQuotaNotificationLogic.transition(
+                previousRemaining: previousRemaining,
+                currentRemaining: currentRemaining)
         }
 
-        let transition = SessionQuotaNotificationLogic.transition(
-            previousRemaining: previousRemaining,
-            currentRemaining: currentRemaining)
-        guard transition != .none else {
+        if transition == .none {
             if SessionQuotaNotificationLogic.isDepleted(currentRemaining) ||
                 SessionQuotaNotificationLogic.isDepleted(previousRemaining)
             {
                 let providerText = provider.rawValue
-                let message =
+                self.sessionQuotaLogger.debug(
                     "no transition: provider=\(providerText) " +
-                    "prev=\(previousRemaining ?? -1) curr=\(currentRemaining)"
-                self.sessionQuotaLogger.debug(message)
+                        "prev=\(previousRemaining ?? -1) curr=\(currentRemaining)")
             }
             return
         }
 
         let providerText = provider.rawValue
         let transitionText = String(describing: transition)
-        let message =
+        self.sessionQuotaLogger.info(
             "transition \(transitionText): provider=\(providerText) " +
-            "prev=\(previousRemaining ?? -1) curr=\(currentRemaining)"
-        self.sessionQuotaLogger.info(message)
+                "prev=\(previousRemaining ?? -1) curr=\(currentRemaining)")
 
-        self.sessionQuotaNotifier.post(transition: transition, provider: provider, badge: nil)
+        // Branch A — Mac local notification (existing behaviour, unchanged gate).
+        if self.settings.sessionQuotaNotificationsEnabled {
+            self.sessionQuotaNotifier.post(transition: transition, provider: provider, badge: nil)
+        }
+
+        // Branch B — iOS push via CloudKit alert push (independent gate). The writer
+        // turns the transition into a CKRecord; CloudKit fires a visible push to all
+        // devices subscribed to the user's iCloud account.
+        if self.settings.notificationPushToiOSEnabled {
+            self.quotaTransitionWriter.write(transition: transition, provider: provider)
+        }
     }
 
     private func refreshStatus(_ provider: UsageProvider) async {

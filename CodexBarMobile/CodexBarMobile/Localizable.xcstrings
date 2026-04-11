@@ -1680,6 +1680,42 @@
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已用" } },
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "已用" } }
       }
+    },
+    "Push.QuotaDepleted.title" : {
+      "comment" : "Title of iOS push when a session quota becomes depleted. %@ is the provider name, e.g. Codex.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%@" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "%@" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%@" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "%@" } }
+      }
+    },
+    "Push.QuotaDepleted.body" : {
+      "comment" : "Body of iOS push when a session quota becomes depleted.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Session quota depleted" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "セッション枠を使い切りました" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "会话额度已耗尽" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "工作階段額度已耗盡" } }
+      }
+    },
+    "Push.QuotaRestored.title" : {
+      "comment" : "Title of iOS push when a session quota becomes available again. %@ is the provider name.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%@" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "%@" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%@" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "%@" } }
+      }
+    },
+    "Push.QuotaRestored.body" : {
+      "comment" : "Body of iOS push when a session quota becomes available again.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Session quota restored" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "セッション枠が復活しました" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "会话额度已恢复" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "工作階段額度已恢復" } }
+      }
     }
   },
   "version" : "1.0"

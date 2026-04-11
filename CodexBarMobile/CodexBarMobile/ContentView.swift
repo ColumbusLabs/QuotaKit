@@ -1,6 +1,7 @@
 import Charts
 import CodexBarSync
 import SwiftUI
+import UIKit
 
 enum CostChartStyle: String, CaseIterable, Identifiable {
     case bars
@@ -1507,15 +1508,15 @@ private struct DeveloperToolsView: View {
                 }
 
                 NavigationLink {
-                    PushDiagnosticView(usageData: self.usageData)
+                    PushSetupDiagnosticView()
                 } label: {
                     SettingSummaryRow(
-                        title: "Push Diagnostic",
+                        title: "Push Setup",
                         symbolName: "bell.badge.waveform",
-                        summary: String(localized: "Mac→iOS notification chain state"))
+                        summary: "Alert push subscription state")
                 }
             } footer: {
-                Text("These tools expose internal sync and notification state to help diagnose issues. No sensitive data is shown.")
+                Text("These tools expose internal sync and push state to help diagnose issues.")
                     .font(.caption2)
             }
         }
@@ -1523,251 +1524,76 @@ private struct DeveloperToolsView: View {
     }
 }
 
-// MARK: - Push Diagnostic (Developer Debug View)
+// MARK: - Push Setup Diagnostic View
 
-private struct PushDiagnosticView: View {
-    let usageData: SyncedUsageData
-    @State private var store = PushDiagnosticStore.shared
-    @State private var isFetching = false
+private struct PushSetupDiagnosticView: View {
+    @State private var diag = PushSetupDiagnostic.shared
 
     var body: some View {
         List {
-            Section {
-                self.chainRow(
-                    title: "APNS Registration",
-                    status: self.store.registrationState.label,
-                    timestamp: self.store.registrationUpdatedAt,
-                    level: self.level(for: self.store.registrationState))
-                self.chainRow(
-                    title: "CKSubscription",
-                    status: self.store.subscriptionState.label,
-                    timestamp: self.store.subscriptionUpdatedAt,
-                    level: self.level(for: self.store.subscriptionState))
-                self.chainRow(
-                    title: "UN Authorization",
-                    status: self.authLabel,
-                    timestamp: nil,
-                    level: self.store.notificationAuthorized == true ? .ok :
-                        (self.store.notificationAuthorized == false ? .error : .pending))
-                self.chainRow(
-                    title: "Last Silent Push",
-                    status: self.store.lastPushReceivedAt.map { self.relativeTime($0) } ?? "—",
-                    timestamp: self.store.lastPushReceivedAt,
-                    level: self.store.lastPushReceivedAt == nil ? .pending : .ok)
-                self.chainRow(
-                    title: "Last Fetch",
-                    status: self.store.lastFetchState.label,
-                    timestamp: self.store.lastFetchAt,
-                    level: self.level(for: self.store.lastFetchState))
-                self.chainRow(
-                    title: "Last Transitions",
-                    status: self.store.lastTransitionSummary,
-                    timestamp: self.store.lastTransitionAt,
-                    level: self.store.totalTransitionCount > 0 ? .ok : .pending)
-                self.chainRow(
-                    title: "Last Local Notification",
-                    status: self.store.lastNotificationState.label,
-                    timestamp: self.store.lastNotificationAt,
-                    level: self.level(for: self.store.lastNotificationState))
-            } header: {
-                Text("Push Chain State")
-            } footer: {
-                Text("Each row should transition from pending → OK after Mac pushes a test. If any row stays pending or shows FAILED, that's where the chain breaks.")
-                    .font(.caption2)
+            Section("Setup Status") {
+                self.row("Zone", self.diag.zoneStatus)
+                self.row("Depleted Sub", self.diag.depletedSubStatus)
+                self.row("Restored Sub", self.diag.restoredSubStatus)
+                self.row("Permission", self.diag.notificationPermission)
+                self.row("APNs Registration", self.diag.remoteRegistration)
             }
 
-            Section("Counters") {
-                LabeledContent("Silent pushes received", value: "\(self.store.totalPushCount)")
-                LabeledContent("Transitions detected (total)", value: "\(self.store.totalTransitionCount)")
-                LabeledContent("Connected devices", value: "\(self.usageData.deviceCount)")
-            }
+            Section("Subscription List (from iOS)") {
+                Text(self.diag.subscriptionList)
+                    .font(.caption2.monospaced())
+                    .textSelection(.enabled)
 
-            Section("Manual Actions") {
-                Button {
+                Button("Refresh") {
                     Task {
-                        self.isFetching = true
-                        await self.usageData.fetchFromCloudKit()
-                        PushDiagnosticStore.shared.recordFetch(
-                            .success(deviceCount: self.usageData.deviceCount))
-                        self.isFetching = false
-                    }
-                } label: {
-                    HStack {
-                        Label("Fetch Now", systemImage: "arrow.clockwise.icloud")
-                        if self.isFetching {
-                            Spacer()
-                            ProgressView().controlSize(.small)
-                        }
+                        await PushSetupDiagnostic.shared.refreshSubscriptionList()
                     }
                 }
-                .disabled(self.isFetching)
+                .controlSize(.small)
+            }
 
-                Button {
-                    Task {
-                        await self.usageData.forceResubscribe()
-                    }
-                } label: {
-                    Label("Re-create CKSubscription", systemImage: "arrow.triangle.2.circlepath")
-                }
-
-                Button {
-                    Task {
-                        let ok = await LocalNotificationManager.shared.postDiagnosticTestNotification()
-                        await MainActor.run {
-                            PushDiagnosticStore.shared.recordNotificationPost(
-                                ok ? .success(count: 1)
-                                   : .failed(message: "Could not add notification request"))
-                        }
-                    }
-                } label: {
-                    Label("Post Test Local Notification", systemImage: "bell.badge")
-                }
-
-                Button(role: .destructive) {
-                    self.store.clearLog()
-                } label: {
-                    Label("Clear Event Log", systemImage: "trash")
+            if let error = self.diag.lastError {
+                Section("Last Error") {
+                    Text(error)
+                        .font(.caption2)
+                        .foregroundStyle(.red)
+                        .textSelection(.enabled)
                 }
             }
 
-            if !self.store.log.isEmpty {
-                Section("Event Log (\(self.store.log.count))") {
-                    ForEach(self.store.log) { entry in
-                        self.logRow(entry)
+            Section("Actions") {
+                Button("Force Re-run Setup") {
+                    Task { @MainActor in
+                        await QuotaTransitionSubscriptions.shared.setupIfNeeded()
                     }
                 }
             }
-        }
-        .navigationTitle("Push Diagnostic")
-    }
 
-    // MARK: - Helpers
-
-    private enum Level {
-        case pending, ok, warning, error
-        var color: Color {
-            switch self {
-            case .pending: .secondary
-            case .ok: .green
-            case .warning: .orange
-            case .error: .red
-            }
-        }
-        var symbol: String {
-            switch self {
-            case .pending: "circle"
-            case .ok: "checkmark.circle.fill"
-            case .warning: "exclamationmark.triangle.fill"
-            case .error: "xmark.circle.fill"
-            }
-        }
-    }
-
-    private func level(for state: PushDiagnosticStore.RegistrationState) -> Level {
-        switch state {
-        case .pending: .pending
-        case .success: .ok
-        case .failed: .error
-        }
-    }
-
-    private func level(for state: PushDiagnosticStore.SubscriptionState) -> Level {
-        switch state {
-        case .pending: .pending
-        case .created, .alreadyExists: .ok
-        case .failed: .error
-        }
-    }
-
-    private func level(for state: PushDiagnosticStore.FetchState) -> Level {
-        switch state {
-        case .none: .pending
-        case .success: .ok
-        case .empty: .warning
-        case .failed: .error
-        }
-    }
-
-    private func level(for state: PushDiagnosticStore.NotificationPostState) -> Level {
-        switch state {
-        case .none: .pending
-        case .success: .ok
-        case .suppressed: .warning
-        case .failed: .error
-        }
-    }
-
-    private var authLabel: String {
-        switch self.store.notificationAuthorized {
-        case true: "Granted"
-        case false: "Denied"
-        case nil: "Not yet requested"
-        case .some: "Unknown"
-        }
-    }
-
-    private func chainRow(title: String, status: String, timestamp: Date?, level: Level) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline) {
-                Image(systemName: level.symbol)
-                    .foregroundStyle(level.color)
-                    .font(.footnote)
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-                if let ts = timestamp {
-                    Text(self.relativeTime(ts))
+            if let ts = self.diag.lastUpdated {
+                Section {
+                    Text("Last updated: \(ts.formatted(.dateTime))")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
             }
-            Text(status)
+        }
+        .navigationTitle("Push Setup")
+    }
+
+    private func row(_ title: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.subheadline.bold())
+            Text(value)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(value.hasPrefix("✓") ? .green :
+                    (value.hasPrefix("✗") ? .red : .secondary))
                 .textSelection(.enabled)
         }
         .padding(.vertical, 2)
     }
-
-    private func logRow(_ entry: PushDiagnosticStore.LogEntry) -> some View {
-        HStack(alignment: .top, spacing: 6) {
-            Text(self.entryTimestamp(entry.timestamp))
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(.tertiary)
-                .frame(width: 60, alignment: .leading)
-            Circle()
-                .fill(self.color(for: entry.level))
-                .frame(width: 6, height: 6)
-                .padding(.top, 5)
-            Text(entry.message)
-                .font(.caption)
-                .foregroundStyle(.primary)
-                .textSelection(.enabled)
-        }
-    }
-
-    private func color(for level: PushDiagnosticStore.LogEntry.Level) -> Color {
-        switch level {
-        case .info: .green
-        case .warning: .orange
-        case .error: .red
-        }
-    }
-
-    private func relativeTime(_ date: Date) -> String {
-        let interval = Date().timeIntervalSince(date)
-        if interval < 60 { return "\(Int(interval))s ago" }
-        if interval < 3600 { return "\(Int(interval / 60))m ago" }
-        if interval < 86400 { return "\(Int(interval / 3600))h ago" }
-        return "\(Int(interval / 86400))d ago"
-    }
-
-    private func entryTimestamp(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        return formatter.string(from: date)
-    }
 }
+
 
 private struct ReleaseNotesVersion: Identifiable {
     struct Section: Identifiable {
@@ -2002,7 +1828,6 @@ private struct UsageSettingsView: View {
     @AppStorage(MobileSettingsKeys.showRemainingUsage) private var showRemainingUsage =
         UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode.remaining.rawValue
     @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidePersonalInfo = false
-    @AppStorage(MobileSettingsKeys.sessionQuotaNotificationsEnabled) private var sessionQuotaNotifications = true
 
     var body: some View {
         List {
@@ -2033,19 +1858,6 @@ private struct UsageSettingsView: View {
                 Text("Press and hold on the chart to inspect the exact value for a given day.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-            }
-
-            Section {
-                Toggle(isOn: self.$sessionQuotaNotifications) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Session quota notifications")
-                        Text("Notifies when the 5-hour session quota hits 0% and when it becomes available again.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            } header: {
-                Text("Notifications")
             }
 
             Section {

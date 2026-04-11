@@ -2,6 +2,60 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.2.0 (42)] — 2026-04-08
+
+### Added
+- **Mac→iOS push notifications, v2 (CloudKit alert push design).** When a session quota becomes depleted or restored on the Mac, iPhone receives a visible push notification ("Codex" / "Session quota depleted") delivered directly by APNs without the iOS app needing to wake up. **Background App Refresh is no longer required.** See `Research/004-alert-push-cloudkit.md` for the full design rationale.
+  - Mac side: when a transition is detected, write a small `QuotaTransition` record to CloudKit (provider name + state + timestamp + deviceID), debounced 5 minutes per (provider, state).
+  - iOS side: two `CKQuerySubscription`s on `QuotaTransition` (one filtered by `state == "depleted"`, one by `state == "restored"`), each with a `notificationInfo.titleLocalizationKey` + `titleLocalizationArgs = ["providerName"]` that lets CloudKit fill in the provider name from the record at push time.
+  - Localized in 4 languages (en / ja / zh-Hans / zh-Hant).
+- **Independent Mac and iOS notification toggles.** Mac local notifications (Settings → General) and iOS push notifications (Mac Settings → Mobile → "Push notifications to iOS") are now decoupled. You can keep Mac silent and still get alerts on your iPhone, or vice versa, or both, or neither.
+- **Mac DEV "iOS Push Test" buttons** (Settings → Mobile, debug build only) — writes a real `QuotaTransition` record so the full pipeline can be exercised end-to-end without waiting for an actual quota change.
+
+### Changed
+- `UsageStore.handleSessionQuotaTransition` refactored: transition computation moved before the `sessionQuotaNotificationsEnabled` gate, so the Mac local notification path and iOS push path can be controlled independently. Existing Mac local notification behaviour (gated by `sessionQuotaNotificationsEnabled`) is preserved unchanged.
+
+### Notes
+- Compared to the v1 silent-push design (rolled back in build 41): no Background App Refresh dependency, no UN authorization required for the silent-push path, no iOS app wake-up needed, no client-side baseline tracking, no diagnostic infrastructure. Net deletion of ~700 lines from build 40 → 41 → 42.
+
+## [1.2.0 (41)] — 2026-04-08
+
+### Removed
+- **Mac→iOS push notification feature, in its entirety.** The CloudKit silent push (`shouldSendContentAvailable=true`) architecture is dropped because it requires Background App Refresh to be enabled on the device — and even then is silently throttled by iOS in many real-world conditions. The feature will return in a future release built on a different architecture (alert push triggered by a small server-decided record, no client-side wake-up needed).
+- `AppDelegate.swift` (remote notification handler), `SessionQuotaMonitor.swift` (transition detection), `LocalNotificationManager.swift` (local notification posting), `PushDiagnosticStore.swift` (debug store)
+- iOS Push Diagnostic developer tool and its navigation entry under Developer Tools
+- iOS "Session quota notifications" toggle in Usage Setting
+- iOS `aps-environment` entitlement and `UIBackgroundModes` from `Info.plist`
+- Mac `MacPushDiagnostics.swift` (Mac-side debug pane) and the entire DEV "iOS Push Testing" section in `PreferencesMobilePane`
+- Mac "Push notifications to iOS" toggle and `notificationPushToiOSEnabled` setting
+- `SyncCoordinator.pushTestSnapshot` and the test-lock plumbing
+- `CloudSyncManager.setupSubscription` and `subscriptionID` constant
+
+### Notes
+- iCloud data sync (Mac→iOS usage data display) is unaffected — that path still uses `pushSnapshot` / `fetchAllDeviceSnapshots` on the existing custom zone.
+- The `DeviceSnapshotsZone` custom record zone is intentionally kept (rather than reverting to `_defaultZone`) so the future Plan B work can reuse it without another data migration.
+
+## [1.2.0 (40)] — 2026-04-08
+
+### Added
+- **`UIBackgroundModes: fetch`** in Info.plist alongside the existing `remote-notification`. Apple's `CKQuerySubscription` documentation explicitly requires both Background Modes to be enabled for silent push notifications to wake the app. The previous build was missing `fetch`.
+- **Runtime Environment** section in Push Diagnostic showing the values that actually shipped in the signed binary, not what the source files claim:
+  - `aps-environment` read from `SecTaskCopyValueForEntitlement` — proves whether the device registered with Sandbox or Production APNs
+  - `icloud-container-environment` — must match Mac side
+  - `Background App Refresh` status — required for silent push delivery
+  - `Low Power Mode` — iOS throttles silent push when on
+  Mismatches are highlighted in orange so the user can spot them at a glance.
+
+## [1.2.0 (39)] — 2026-04-08
+
+### Fixed
+- **CloudKit silent push delivery (root-cause fix)** — `DeviceSnapshot` records now live in a custom record zone (`DeviceSnapshotsZone`) instead of `_defaultZone`, and iOS subscribes via `CKRecordZoneSubscription` instead of `CKQuerySubscription`. The previous architecture was the documented dead-end for private-database silent push: query subscriptions on the default zone do not deliver pushes reliably (Apple's official `apple/sample-cloudkit-privatedb-sync` uses the same custom-zone + zone-subscription pattern). On first launch the iOS app self-heals: it queries the server for the existing subscription, deletes the legacy `CKQuerySubscription` if found, and creates a fresh `CKRecordZoneSubscription` bound to the current APNs device token.
+
+### Changed
+- `CloudSyncManager.fetchAllDeviceSnapshots()` now reads from BOTH the custom zone (where build 39+ Macs write) and the default zone (where pre-39 Macs may still be writing). Snapshots are deduped by `deviceID` keeping the most recent `syncTimestamp` per device, so the iOS app stays correct during the cross-device migration window.
+- `CloudSyncManager.ensureCustomZoneExists()` and `setupSubscription(forceRecreate:)` use a fetch-first self-healing pattern: every call queries the server's actual state instead of trusting a local UserDefaults flag. This is robust to iCloud account switches, manual server-side resets, and external dashboard deletions.
+- Push Diagnostic "Re-create CKSubscription" button now passes `forceRecreate: true`, bypassing the no-op fast path so the user can manually refresh the device-token binding after a TestFlight reinstall.
+
 ## [1.2.0 (38)] — 2026-04-06
 
 Marketing version bump that rolls up all the utilization, multi-device sync, and Settings reorganization work since 1.1.0.

@@ -98,42 +98,6 @@ final class SyncedUsageData {
         Task {
             await self.fetchFromCloudKit()
         }
-
-        // 3. Set up CloudKit subscription for push notifications
-        Task {
-            let result = await self.reader.setupSubscriptionWithDiagnostics()
-            await MainActor.run {
-                switch result {
-                case .created:
-                    PushDiagnosticStore.shared.recordSubscriptionCreated()
-                case .alreadyExists:
-                    PushDiagnosticStore.shared.recordSubscriptionAlreadyExists()
-                case .failed(let message):
-                    PushDiagnosticStore.shared.recordSubscriptionFailure(
-                        NSError(
-                            domain: "CodexBar.PushDiagnostic",
-                            code: -1,
-                            userInfo: [NSLocalizedDescriptionKey: message]))
-                }
-            }
-        }
-    }
-
-    /// Forces a fresh CloudKit subscription setup. For the Push Diagnostic view.
-    func forceResubscribe() async {
-        let result = await self.reader.setupSubscriptionWithDiagnostics()
-        switch result {
-        case .created:
-            PushDiagnosticStore.shared.recordSubscriptionCreated()
-        case .alreadyExists:
-            PushDiagnosticStore.shared.recordSubscriptionAlreadyExists()
-        case .failed(let message):
-            PushDiagnosticStore.shared.recordSubscriptionFailure(
-                NSError(
-                    domain: "CodexBar.PushDiagnostic",
-                    code: -1,
-                    userInfo: [NSLocalizedDescriptionKey: message]))
-        }
     }
 
     /// Fetches latest data from CloudKit, merges all device snapshots.

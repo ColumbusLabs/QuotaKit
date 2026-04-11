@@ -1,6 +1,7 @@
+import CloudKit
 import CodexBarCore
+import CodexBarSync
 import SwiftUI
-@preconcurrency import UserNotifications
 
 @MainActor
 struct MobilePane: View {
@@ -10,12 +11,14 @@ struct MobilePane: View {
     /// True when running in development mode. Checks:
     /// 1. Debug bundle ID (.debug suffix)
     /// 2. CODEXBAR_DEV=1 environment variable
-    /// 3. Debug menu is enabled in Settings → Advanced
+    /// 3. Debug menu enabled in Settings → Advanced
     private var isDevelopmentBuild: Bool {
         Bundle.main.bundleIdentifier?.contains(".debug") == true
             || ProcessInfo.processInfo.environment["CODEXBAR_DEV"] == "1"
             || self.settings.debugMenuEnabled
     }
+
+    @State private var lastTestResult: String?
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
@@ -39,97 +42,25 @@ struct MobilePane: View {
 
                 Divider()
 
-                // Notifications
+                // iOS Push Notifications (independent of Mac local notifications)
                 SettingsSection(contentSpacing: 12) {
-                    Text("Notifications")
+                    Text("iOS Push Notifications")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
 
                     PreferenceToggleRow(
                         title: "Push notifications to iOS",
-                        subtitle: "When enabled, quota changes are synced to CloudKit so the iOS app " +
-                            "can show push notifications.",
+                        subtitle: "When a session quota is depleted or restored, send a visible " +
+                            "alert push to the iOS companion app via iCloud. This is independent " +
+                            "of Mac local notifications — you can keep Mac quiet but still get " +
+                            "alerts on your iPhone.",
                         binding: self.$settings.notificationPushToiOSEnabled)
-
-                    self.notificationPermissionStatus
                 }
 
-                // DEV-only test section
                 if self.isDevelopmentBuild {
                     Divider()
-
-                    SettingsSection(contentSpacing: 12) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "hammer.fill")
-                                .foregroundStyle(.orange)
-                                .font(.caption)
-                            Text("DEV — iOS Push Testing")
-                                .font(.caption)
-                                .foregroundStyle(.orange)
-                                .textCase(.uppercase)
-                        }
-
-                        Text("Simulates quota transitions and pushes to CloudKit. " +
-                            "iOS should receive a local notification for each test.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-
-                        // Codex
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Codex")
-                                .font(.subheadline.bold())
-                            HStack(spacing: 12) {
-                                Button {
-                                    self.testPush(.depleted, provider: .codex)
-                                } label: {
-                                    Label("Depleted", systemImage: "bell.badge")
-                                }
-                                .controlSize(.small)
-
-                                Button {
-                                    self.testPush(.restored, provider: .codex)
-                                } label: {
-                                    Label("Restored", systemImage: "bell")
-                                }
-                                .controlSize(.small)
-                            }
-                        }
-
-                        // Claude
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Claude")
-                                .font(.subheadline.bold())
-                            HStack(spacing: 12) {
-                                Button {
-                                    self.testPush(.depleted, provider: .claude)
-                                } label: {
-                                    Label("Depleted", systemImage: "bell.badge")
-                                }
-                                .controlSize(.small)
-
-                                Button {
-                                    self.testPush(.restored, provider: .claude)
-                                } label: {
-                                    Label("Restored", systemImage: "bell")
-                                }
-                                .controlSize(.small)
-                            }
-                        }
-
-                        // Test result
-                        if let result = self.lastTestResult {
-                            HStack(spacing: 6) {
-                                Image(systemName: result.succeeded ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundStyle(result.succeeded ? .green : .red)
-                                    .font(.footnote)
-                                Text(result.message)
-                                    .font(.footnote)
-                                    .foregroundStyle(result.succeeded ? Color.secondary : Color.red)
-                                    .textSelection(.enabled)
-                            }
-                        }
-                    }
+                    self.devTestSection
                 }
 
                 Spacer(minLength: 0)
@@ -137,60 +68,179 @@ struct MobilePane: View {
         }
     }
 
-    // MARK: - Notification Permission
-
-    @State private var notificationAuthorized: Bool?
-    @State private var lastTestResult: (succeeded: Bool, message: String)?
+    // MARK: - DEV Test
 
     @ViewBuilder
-    private var notificationPermissionStatus: some View {
-        HStack(spacing: 8) {
-            if let authorized = self.notificationAuthorized {
-                if authorized {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                        .font(.footnote)
-                    Text("Mac notification permission granted")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                        .font(.footnote)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Mac notification permission not granted")
-                            .font(.footnote)
-                            .foregroundStyle(.orange)
-                        Text("Push to iOS requires Mac notifications to detect quota changes.")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button("Open Settings") {
-                        NSWorkspace.shared.open(
-                            URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings")!)
-                    }
-                    .controlSize(.small)
-                }
-            } else {
-                ProgressView()
-                    .controlSize(.small)
-                Text("Checking notification permission…")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+    private var devTestSection: some View {
+        SettingsSection(contentSpacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "hammer.fill")
+                    .foregroundStyle(.orange)
+                    .font(.caption)
+                Text("DEV — iOS Push Test")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .textCase(.uppercase)
             }
-        }
-        .onAppear {
-            self.checkNotificationPermission()
+
+            Text("Writes a real `QuotaTransition` record to CloudKit, which fires the same " +
+                "alert push the iOS app would receive in production. Subject to the toggle " +
+                "above (must be ON).")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 12) {
+                Button {
+                    self.runTestPush(state: "depleted")
+                } label: {
+                    Label("Test Codex Depleted", systemImage: "bell.badge")
+                }
+                .controlSize(.small)
+                .disabled(!self.settings.notificationPushToiOSEnabled)
+
+                Button {
+                    self.runTestPush(state: "restored")
+                } label: {
+                    Label("Test Codex Restored", systemImage: "bell")
+                }
+                .controlSize(.small)
+                .disabled(!self.settings.notificationPushToiOSEnabled)
+            }
+
+            Button {
+                self.verifyPushSetup()
+            } label: {
+                Label("Verify Push Setup", systemImage: "checklist")
+            }
+            .controlSize(.small)
+
+            if let lastTestResult {
+                Text(lastTestResult)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
-    private func checkNotificationPermission() {
-        UNUserNotificationCenter.current().getNotificationSettings { settings in
-            DispatchQueue.main.async {
-                self.notificationAuthorized = settings.authorizationStatus == .authorized
+    private func verifyPushSetup() {
+        self.lastTestResult = "Querying CloudKit…"
+        Task {
+            let container = CKContainer(identifier: CloudSyncConstants.containerIdentifier)
+            let db = container.privateCloudDatabase
+            var lines: [String] = ["=== Verify Push Setup ==="]
+
+            // 1. List all subscriptions
+            do {
+                let subs = try await db.allSubscriptions()
+                lines.append("Subscriptions: \(subs.count)")
+                for sub in subs {
+                    var desc = "  [\(sub.subscriptionID)] type=\(type(of: sub))"
+                    if let q = sub as? CKQuerySubscription {
+                        desc += " recordType=\(q.recordType ?? "nil")"
+                        desc += " zoneID=\(q.zoneID?.zoneName ?? "nil")"
+                        desc += " predicate=\(q.predicate.predicateFormat)"
+                        desc += " options=\(q.querySubscriptionOptions.rawValue)"
+                    }
+                    if let info = sub.notificationInfo {
+                        desc += " titleKey=\(info.titleLocalizationKey ?? "nil")"
+                        desc += " alertKey=\(info.alertLocalizationKey ?? "nil")"
+                        desc += " sound=\(info.soundName ?? "nil")"
+                        desc += " contentAvail=\(info.shouldSendContentAvailable)"
+                    }
+                    lines.append(desc)
+                }
+            } catch {
+                lines.append("Subscriptions ERROR: \(error.localizedDescription)")
+            }
+
+            // 2. Query QuotaTransition records
+            let zoneID = CKRecordZone.ID(
+                zoneName: CloudSyncConstants.customZoneName,
+                ownerName: CKCurrentUserDefaultName)
+            do {
+                let query = CKQuery(
+                    recordType: CloudSyncConstants.quotaTransitionRecordType,
+                    predicate: NSPredicate(value: true))
+                let (results, _) = try await db.records(
+                    matching: query, inZoneWith: zoneID)
+                lines.append("QuotaTransition records: \(results.count)")
+                for (id, result) in results {
+                    switch result {
+                    case .success(let record):
+                        let prov = (record["providerName"] as? String) ?? "?"
+                        let st = (record["state"] as? String) ?? "?"
+                        lines.append("  \(id.recordName): \(prov) \(st)")
+                    case .failure(let err):
+                        lines.append("  \(id.recordName): ERROR \(err.localizedDescription)")
+                    }
+                }
+            } catch {
+                lines.append("QuotaTransition records ERROR: \(error.localizedDescription)")
+            }
+
+            // 3. Try to create a test subscription (same config as iOS) to surface errors
+            lines.append("")
+            lines.append("--- Attempting test subscription create ---")
+            let testSubID = "mac-verify-test-sub"
+            // Delete any prior test sub
+            do {
+                try await db.deleteSubscription(withID: testSubID)
+            } catch {}
+
+            do {
+                let predicate = NSPredicate(format: "state == %@", "depleted")
+                let sub = CKQuerySubscription(
+                    recordType: CloudSyncConstants.quotaTransitionRecordType,
+                    predicate: predicate,
+                    subscriptionID: testSubID,
+                    options: [.firesOnRecordCreation, .firesOnRecordUpdate])
+                sub.zoneID = zoneID
+                let info = CKSubscription.NotificationInfo()
+                info.titleLocalizationKey = "Push.QuotaDepleted.title"
+                info.titleLocalizationArgs = ["providerName"]
+                info.alertLocalizationKey = "Push.QuotaDepleted.body"
+                info.soundName = "default"
+                sub.notificationInfo = info
+                _ = try await db.modifySubscriptions(saving: [sub], deleting: [])
+                lines.append("✓ Test subscription created OK — schema is valid")
+                // Clean up
+                try? await db.deleteSubscription(withID: testSubID)
+            } catch let error as CKError {
+                lines.append("✗ CKError code=\(error.code.rawValue) \(error.localizedDescription)")
+                if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError {
+                    lines.append("  underlying: \(underlying.domain) #\(underlying.code) \(underlying.localizedDescription)")
+                }
+            } catch {
+                lines.append("✗ Error: \(error.localizedDescription)")
+            }
+
+            self.lastTestResult = lines.joined(separator: "\n")
+        }
+    }
+
+    private func runTestPush(state: String) {
+        self.lastTestResult = "Writing \(state) record…"
+        Task {
+            let result = await CloudSyncManager.shared.writeQuotaTransition(
+                providerName: "Codex",
+                providerID: "codex",
+                state: state,
+                transitionAt: Date())
+            if result.succeeded {
+                self.lastTestResult = "✓ Wrote \(state) record at \(self.shortTime()). " +
+                    "Check iPhone for push within ~10s."
+            } else {
+                self.lastTestResult = "✗ Write failed: \(result.message ?? "unknown")"
             }
         }
+    }
+
+    private func shortTime() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter.string(from: Date())
     }
 
     // MARK: - Sync Status
@@ -241,34 +291,6 @@ struct MobilePane: View {
             }
             .controlSize(.small)
             .disabled(self.syncCoordinator.isSyncing)
-        }
-    }
-
-    // MARK: - Test Push
-
-    private func testPush(_ transition: SessionQuotaTransition, provider: UsageProvider) {
-        let providerName = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
-        let transitionName = transition == .depleted ? "depleted" : "restored"
-        self.lastTestResult = nil
-
-        Task {
-            // 1. Post Mac-side notification
-            SessionQuotaNotifier().post(transition: transition, provider: provider, badge: 1)
-
-            // 2. Push synthetic snapshot to CloudKit → triggers iOS silent push
-            let result = await self.syncCoordinator.pushTestSnapshot(
-                provider: provider,
-                simulatedUsedPercent: transition == .depleted ? 100.0 : 0.0)
-
-            if result.succeeded {
-                self.lastTestResult = (
-                    succeeded: true,
-                    message: "✓ \(providerName) \(transitionName) pushed to CloudKit. Check iOS for notification.")
-            } else {
-                self.lastTestResult = (
-                    succeeded: false,
-                    message: "✗ \(providerName) \(transitionName) failed: \(result.message ?? "Unknown error")")
-            }
         }
     }
 

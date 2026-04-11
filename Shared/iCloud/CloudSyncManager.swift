@@ -105,6 +105,13 @@ public enum SyncResult: Sendable {
 /// - Mac side calls `pushSnapshot(_:)` to save a per-device record to CloudKit.
 /// - iOS side calls `fetchAllDeviceSnapshots()` to read all device records and merge.
 /// - KVS dual-write is maintained during the transition period for older app versions.
+///
+/// **Custom zone:** All `DeviceSnapshot` records live in a custom record zone
+/// (`CloudSyncConstants.customZoneName`), not the default zone. This is required for
+/// CloudKit silent push notifications via `CKRecordZoneSubscription` to fire reliably
+/// on the private database — the default zone of the private database does not deliver
+/// silent push reliably (see `apple/sample-cloudkit-privatedb-sync` and Apple's
+/// "Remote Records" documentation).
 public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     public static let shared = CloudSyncManager()
 
@@ -116,6 +123,10 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     private let cloudKitAvailable: Bool
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+
+    /// The custom record zone where all `DeviceSnapshot` records live.
+    /// See class doc-comment for why a custom zone is required.
+    private let customZone = CKRecordZone(zoneName: CloudSyncConstants.customZoneName)
 
     // Legacy KVS
     private let kvsStore = NSUbiquitousKeyValueStore.default
@@ -184,6 +195,34 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         return result
     }
 
+    /// Ensures the custom record zone exists on the server.
+    ///
+    /// Uses fetch-then-create pattern: queries the server for the zone, only creates if
+    /// missing. This is self-healing across iCloud account switches and server-side
+    /// resets — a stale local cache cannot mask a missing server zone (which would
+    /// otherwise cause every write to fail with `.zoneNotFound`).
+    ///
+    /// Cost: one extra zone fetch per call. Cheap enough to call from every push.
+    private func ensureCustomZoneExists() async throws {
+        // Fast path: zone already exists on server.
+        do {
+            _ = try await _privateDatabase!.recordZone(for: customZone.zoneID)
+            return
+        } catch let error as CKError {
+            if error.code != .zoneNotFound {
+                // Network or other error — propagate, don't silently mask
+                throw error
+            }
+            // Fall through to create
+        }
+
+        _ = try await _privateDatabase!.modifyRecordZones(
+            saving: [customZone], deleting: [])
+        self.logInfo("Custom zone created", metadata: [
+            "zone": customZone.zoneID.zoneName,
+        ])
+    }
+
     private func pushToCloudKit(snapshot: SyncedUsageSnapshot, data: Data) async -> SyncPushResult {
         guard let deviceID = snapshot.deviceID else {
             let message = "iCloud sync failed: no device ID in snapshot."
@@ -191,7 +230,18 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             return .failure(message)
         }
 
-        let recordID = CKRecord.ID(recordName: deviceID)
+        // Ensure the custom zone exists before writing into it. Without this, the first
+        // write to a non-existent zone fails with .zoneNotFound.
+        do {
+            try await ensureCustomZoneExists()
+        } catch {
+            let syncError = CloudSyncError(from: error as? CKError ?? CKError(.internalError))
+            let message = "Failed to create custom zone: \(syncError.description)"
+            self.logError(message)
+            return .failure(message)
+        }
+
+        let recordID = CKRecord.ID(recordName: deviceID, zoneID: customZone.zoneID)
 
         // Fetch existing record to avoid conflicts, or create new
         let record: CKRecord
@@ -249,9 +299,95 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         }
     }
 
+    // MARK: - CloudKit Quota Transition Write (Mac side, alert push trigger)
+
+    /// Writes a `QuotaTransition` record to CloudKit so iOS receives a visible alert
+    /// push via the matching `CKQuerySubscription`. Called from Mac when quota state
+    /// crosses the depleted/restored boundary, gated by user setting.
+    ///
+    /// `recordName` is derived from `(deviceID, providerID, state, hourBucket)` so
+    /// concurrent transitions for the same `(provider, state)` from the same Mac in
+    /// the same hour collapse to a single record (idempotent overwrite). The matching
+    /// subscription's `firesOnRecordCreation` then fires at most once per hour for
+    /// that combination, preventing notification spam.
+    public func writeQuotaTransition(
+        providerName: String,
+        providerID: String,
+        state: String,
+        transitionAt: Date) async -> SyncPushResult
+    {
+        guard cloudKitAvailable, _privateDatabase != nil else {
+            return .failure("CloudKit not available")
+        }
+
+        do {
+            try await ensureCustomZoneExists()
+        } catch {
+            let syncError = CloudSyncError(from: error as? CKError ?? CKError(.internalError))
+            return .failure("Failed to create custom zone: \(syncError.description)")
+        }
+
+        let deviceID = self.stableDeviceID()
+        let hourBucket = Int(transitionAt.timeIntervalSince1970 / 3600)
+        let recordName = "\(deviceID)-\(providerID)-\(state)-\(hourBucket)"
+        let recordID = CKRecord.ID(recordName: recordName, zoneID: customZone.zoneID)
+
+        // Always build a fresh record (this is idempotent-overwrite by design — same
+        // hour-bucket for same provider+state collapses to one record).
+        let record = CKRecord(
+            recordType: CloudSyncConstants.quotaTransitionRecordType, recordID: recordID)
+        record["providerName"] = providerName as CKRecordValue
+        record["providerID"] = providerID as CKRecordValue
+        record["state"] = state as CKRecordValue
+        record["transitionAt"] = transitionAt as CKRecordValue
+        record["deviceID"] = deviceID as CKRecordValue
+
+        do {
+            try await _privateDatabase!.save(record)
+            self.logInfo("QuotaTransition record written", metadata: [
+                "providerName": providerName,
+                "state": state,
+                "recordName": recordName,
+            ])
+            return .success
+        } catch let error as CKError where error.code == .serverRecordChanged {
+            // Same-hour record already exists — that's the idempotent case, treat as success.
+            self.logInfo("QuotaTransition same-hour collision (idempotent overwrite)", metadata: [
+                "recordName": recordName,
+            ])
+            return .success
+        } catch let error as CKError {
+            let syncError = CloudSyncError(from: error)
+            self.logError("QuotaTransition save failed: \(syncError.description)")
+            return .failure(syncError.description)
+        } catch {
+            self.logError("QuotaTransition save failed: \(error.localizedDescription)")
+            return .failure(error.localizedDescription)
+        }
+    }
+
+    /// Returns a stable UUID for this Mac, persisted across launches in `UserDefaults`.
+    /// Mirrors the same key used by `SyncCoordinator`'s record name on the Mac side so
+    /// the value is shared across the two writers.
+    private func stableDeviceID() -> String {
+        let defaults = UserDefaults.standard
+        if let existing = defaults.string(forKey: CloudSyncConstants.deviceIDKey) {
+            return existing
+        }
+        let newID = UUID().uuidString
+        defaults.set(newID, forKey: CloudSyncConstants.deviceIDKey)
+        return newID
+    }
+
     // MARK: - CloudKit Read (iOS side)
 
     /// Fetches usage snapshots from all devices via CloudKit.
+    ///
+    /// Reads from BOTH the custom zone (where new builds write) and the default zone
+    /// (where old Mac builds may still write during the migration window). Snapshots are
+    /// deduped by `deviceID` keeping the most recent `syncTimestamp` per device, so a
+    /// freshly-upgraded Mac writing to the custom zone replaces any stale default-zone
+    /// record from the same device.
     public func fetchAllDeviceSnapshots() async -> MultiDeviceSyncResult {
         guard cloudKitAvailable, _privateDatabase != nil else {
             return .error(CloudSyncError(from: CKError(.serviceUnavailable)))
@@ -260,70 +396,101 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             recordType: CloudSyncConstants.recordType,
             predicate: NSPredicate(value: true))
 
+        var snapshots: [SyncedUsageSnapshot] = []
+        var firstError: CloudSyncError?
+
+        // Read from custom zone (primary, where new builds write).
+        // .zoneNotFound is an expected first-run condition — treat it as empty, not error.
+        do {
+            let (matchResults, _) = try await _privateDatabase!.records(
+                matching: query, inZoneWith: customZone.zoneID)
+            snapshots.append(contentsOf: self.decodeSnapshots(matchResults, source: "custom"))
+        } catch let error as CKError where error.code == .zoneNotFound {
+            self.logInfo("Custom zone does not exist yet (first run on this device)")
+        } catch let error as CKError {
+            firstError = CloudSyncError(from: error)
+            self.logError("Custom zone query failed: \(firstError!.description)")
+        } catch {
+            firstError = .unknown(error.localizedDescription)
+            self.logError("Custom zone query failed: \(error.localizedDescription)")
+        }
+
+        // Read from default zone (legacy, where old Mac builds still write).
+        // This is the migration safety net — once all Macs are on the new build, the
+        // default zone is empty and this query returns nothing.
         do {
             let (matchResults, _) = try await _privateDatabase!.records(matching: query)
-
-            var snapshots: [SyncedUsageSnapshot] = []
-            for (recordID, result) in matchResults {
-                switch result {
-                case .success(let record):
-                    if let data = record["payload"] as? Data,
-                       let snapshot = try? decoder.decode(SyncedUsageSnapshot.self, from: data)
-                    {
-                        snapshots.append(snapshot)
-                    } else {
-                        self.logError("Failed to decode snapshot from record \(recordID.recordName)")
-                    }
-                case .failure(let error):
-                    self.logError("Failed to fetch record \(recordID.recordName): \(error.localizedDescription)")
-                }
-            }
-
-            // Sort by syncTimestamp descending (newest first), client-side.
-            snapshots.sort { $0.syncTimestamp > $1.syncTimestamp }
-
-            if snapshots.isEmpty {
-                self.logInfo("CloudKit query returned no decodable snapshots")
-                return .empty
-            }
-
-            self.logInfo("Fetched snapshots from CloudKit", metadata: [
-                "devices": "\(snapshots.count)",
-            ])
-            return .success(snapshots)
+            snapshots.append(contentsOf: self.decodeSnapshots(matchResults, source: "default"))
         } catch let error as CKError {
-            let syncError = CloudSyncError(from: error)
-            self.logError("CloudKit query failed: \(syncError.description)")
-            return .error(syncError)
+            // Only surface this error if the custom-zone read also failed.
+            if firstError == nil {
+                firstError = CloudSyncError(from: error)
+                self.logError("Default zone query failed: \(firstError!.description)")
+            } else {
+                self.logError("Default zone query also failed: \(error.localizedDescription)")
+            }
         } catch {
-            self.logError("CloudKit query failed: \(error.localizedDescription)")
-            return .error(.unknown(error.localizedDescription))
+            if firstError == nil {
+                firstError = .unknown(error.localizedDescription)
+            }
         }
+
+        // Dedupe by deviceID, keeping the most recent syncTimestamp per device.
+        // After Mac upgrades, the custom-zone version of each device will be newer.
+        var byDeviceID: [String: SyncedUsageSnapshot] = [:]
+        for snapshot in snapshots {
+            let key = snapshot.deviceID ?? snapshot.deviceName
+            if let existing = byDeviceID[key] {
+                if snapshot.syncTimestamp > existing.syncTimestamp {
+                    byDeviceID[key] = snapshot
+                }
+            } else {
+                byDeviceID[key] = snapshot
+            }
+        }
+        snapshots = Array(byDeviceID.values)
+
+        // Sort by syncTimestamp descending (newest first), client-side.
+        snapshots.sort { $0.syncTimestamp > $1.syncTimestamp }
+
+        if snapshots.isEmpty {
+            if let firstError {
+                return .error(firstError)
+            }
+            self.logInfo("CloudKit query returned no decodable snapshots")
+            return .empty
+        }
+
+        self.logInfo("Fetched snapshots from CloudKit", metadata: [
+            "devices": "\(snapshots.count)",
+        ])
+        return .success(snapshots)
     }
 
-    // MARK: - CloudKit Subscription (iOS side)
-
-    /// Sets up a CloudKit subscription to receive push notifications when device records change.
-    /// Call this once during app initialization on iOS.
-    public func setupSubscription() async throws {
-        guard cloudKitAvailable, _privateDatabase != nil else { return }
-        let subscription = CKQuerySubscription(
-            recordType: CloudSyncConstants.recordType,
-            predicate: NSPredicate(value: true),
-            subscriptionID: CloudSyncConstants.subscriptionID,
-            options: [.firesOnRecordCreation, .firesOnRecordUpdate, .firesOnRecordDeletion])
-
-        let notificationInfo = CKSubscription.NotificationInfo()
-        notificationInfo.shouldSendContentAvailable = true // Silent push
-        subscription.notificationInfo = notificationInfo
-
-        do {
-            try await _privateDatabase!.save(subscription)
-            self.logInfo("CloudKit subscription set up successfully")
-        } catch let error as CKError where error.code == .serverRejectedRequest {
-            // Subscription may already exist — that's fine
-            self.logInfo("CloudKit subscription already exists, skipping")
+    /// Decodes a CloudKit query match result list into snapshot objects, logging any failures.
+    private func decodeSnapshots(
+        _ matchResults: [(CKRecord.ID, Result<CKRecord, Error>)],
+        source: String) -> [SyncedUsageSnapshot]
+    {
+        var result: [SyncedUsageSnapshot] = []
+        for (recordID, queryResult) in matchResults {
+            switch queryResult {
+            case .success(let record):
+                if let data = record["payload"] as? Data,
+                   let snapshot = try? decoder.decode(SyncedUsageSnapshot.self, from: data)
+                {
+                    result.append(snapshot)
+                } else {
+                    self.logError(
+                        "Failed to decode snapshot from \(source) record \(recordID.recordName)")
+                }
+            case .failure(let error):
+                self.logError(
+                    "Failed to fetch \(source) record \(recordID.recordName): " +
+                        error.localizedDescription)
+            }
         }
+        return result
     }
 
     // MARK: - Legacy KVS (backward compatibility)

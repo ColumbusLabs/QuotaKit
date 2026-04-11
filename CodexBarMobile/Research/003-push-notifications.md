@@ -1,8 +1,26 @@
-# 003: Mac→iOS 推送通知
+# 003: Mac→iOS 推送通知（silent push 方案，已废弃）
 
-- **Status**: in-progress
+- **Status**: SUPERSEDED — 架构在生产中验证不可行，2026-04-08 在 1.2.0 build 41 中整体回滚
 - **Created**: 2026-04-01
+- **Superseded by**: [004-alert-push-cloudkit.md](004-alert-push-cloudkit.md)
 - **Goal**: Mac 端检测到 session quota 变化（depleted/restored）时，iOS 端即使不在前台也能收到推送提醒
+
+## 为什么废弃
+
+本文档描述的方案基于 CloudKit silent push (`shouldSendContentAvailable=true`) → AppDelegate.didReceiveRemoteNotification → 后台 fetch → SessionQuotaMonitor 检测变化 → LocalNotificationManager 发本地通知。
+
+实际部署后发现两个根本性限制：
+
+1. **iOS silent push 强制要求 Background App Refresh**。用户必须手动在 Settings → App → Background App Refresh 打开。关闭即整条链路废弃。
+2. **即使开了，iOS 系统会激进 throttle silent push**（基于电量、使用频率、历史 wake 成功率），实际投递率远低于 alert push。
+
+附加问题：架构上，**所有"该发什么文案"的判断都在客户端**——必须 wake app → fetch → 对比 baseline → 计算 transition → post local notification。这条链路任何一环（CloudKit subscription / APNs / iOS wake / fetch / 计算）失败都会断。
+
+替代方案见 [004-alert-push-cloudkit.md](004-alert-push-cloudkit.md)：用 CloudKit 的 alert push（`alertLocalizationKey` + `titleLocalizationArgs` 直接读 record 字段），让 iOS 系统在 APNs 层直接弹通知，**完全绕过 silent push 的 throttle 路径和 BG Refresh 依赖**。
+
+---
+
+## 以下是原 silent push 方案的历史记录
 
 ## 背景
 

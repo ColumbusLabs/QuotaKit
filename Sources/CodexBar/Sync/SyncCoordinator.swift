@@ -21,9 +21,6 @@ final class SyncCoordinator {
     private(set) var lastSyncMessage: String?
     private(set) var isSyncing: Bool = false
 
-    /// When set, normal sync is paused to let test data persist in CloudKit.
-    private var testLockUntil: Date?
-
     /// Stable device UUID for this Mac, persisted across app launches.
     private let deviceID: String
 
@@ -60,11 +57,6 @@ final class SyncCoordinator {
     /// Builds and pushes the current state to iCloud.
     func pushCurrentSnapshot() async {
         guard self.settings.iCloudSyncEnabled else { return }
-
-        // Don't overwrite test data while test lock is active
-        if let lockUntil = self.testLockUntil, Date() < lockUntil {
-            return
-        }
 
         let enabledProviders = self.store.enabledProviders()
         guard !enabledProviders.isEmpty else { return }
@@ -160,8 +152,7 @@ final class SyncCoordinator {
             deviceName: deviceName,
             deviceID: self.deviceID,
             appVersion: appVersion,
-            mobileVersion: mobileVersion,
-            notificationPushEnabled: self.settings.notificationPushToiOSEnabled)
+            mobileVersion: mobileVersion)
 
         let result = await self.syncManager.pushSnapshot(synced)
         self.lastSyncTime = Date()
@@ -171,48 +162,6 @@ final class SyncCoordinator {
 
     func stopObserving() {
         self.isObserving = false
-    }
-
-    /// DEV-only: pushes a synthetic snapshot with a specific session usage percent
-    /// so iOS can detect a quota transition (depleted/restored).
-    /// Pauses normal sync for 30 seconds to prevent test data from being overwritten.
-    @discardableResult
-    func pushTestSnapshot(provider: UsageProvider = .claude, simulatedUsedPercent: Double) async -> SyncPushResult {
-        // Lock normal sync for 30 seconds so test data stays in CloudKit
-        self.testLockUntil = Date().addingTimeInterval(30)
-
-        let meta = self.store.providerMetadata[provider]
-        let testProvider = ProviderUsageSnapshot(
-            providerID: provider.rawValue,
-            providerName: meta?.displayName ?? provider.rawValue.capitalized,
-            primary: SyncRateWindow(
-                label: "Session",
-                usedPercent: simulatedUsedPercent,
-                windowMinutes: 300,
-                resetsAt: Date().addingTimeInterval(3600),
-                resetDescription: "Test"),
-            secondary: nil,
-            accountEmail: "dev-test@codexbar.app",
-            loginMethod: "DEV Test",
-            statusMessage: nil,
-            isError: false,
-            lastUpdated: Date())
-
-        let deviceName = Host.current().localizedName ?? "Mac"
-        let synced = SyncedUsageSnapshot(
-            providers: [testProvider],
-            syncTimestamp: Date(),
-            deviceName: deviceName,
-            deviceID: self.deviceID,
-            appVersion: "DEV-TEST",
-            mobileVersion: Bundle.main.object(forInfoDictionaryKey: "CodexMobileVersion") as? String,
-            notificationPushEnabled: true)
-
-        let result = await self.syncManager.pushSnapshot(synced)
-        self.lastSyncTime = Date()
-        self.lastSyncSucceeded = result.succeeded
-        self.lastSyncMessage = result.message
-        return result
     }
 
     private func makeCostSummary(for provider: UsageProvider) -> SyncCostSummary? {

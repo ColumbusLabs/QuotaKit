@@ -74,7 +74,20 @@ fi
 
 in_list=false
 while IFS= read -r line; do
-  if [[ "$line" =~ ^- ]]; then
+  # Markdown horizontal rule (---) — close any open list and emit <hr/>.
+  # Must be checked BEFORE the "starts with -" branch, otherwise the line
+  # would be wrapped in <ul> and rendered as literal text.
+  if [[ "$line" =~ ^---+$ ]]; then
+    if [[ "$in_list" == true ]]; then
+      echo "</ul>"
+      in_list=false
+    fi
+    echo "<hr/>"
+    continue
+  fi
+
+  # List item: dash followed by a space (avoids matching "---" or "--foo").
+  if [[ "$line" =~ ^-[[:space:]] ]]; then
     if [[ "$in_list" == false ]]; then
       echo "<ul>"
       in_list=true

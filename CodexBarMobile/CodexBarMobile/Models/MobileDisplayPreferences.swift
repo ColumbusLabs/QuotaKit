@@ -8,7 +8,6 @@ enum MobileSettingsKeys {
     static let openCostByDefault = "openCostByDefault"
     static let usagePercentDisplayMode = "usagePercentDisplayMode"
     static let showRemainingUsage = "showRemainingUsage"
-    static let sessionQuotaNotificationsEnabled = "sessionQuotaNotificationsEnabled"
 }
 
 enum UsagePercentDisplayMode: String, CaseIterable, Identifiable {
