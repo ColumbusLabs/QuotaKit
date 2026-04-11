@@ -128,44 +128,38 @@ struct MobilePane: View {
         self.lastTestResult = "Querying CloudKit…"
         Task {
             let container = CKContainer(identifier: CloudSyncConstants.containerIdentifier)
-            let db = container.privateCloudDatabase
             var lines: [String] = ["=== Verify Push Setup ==="]
 
-            // 1. List all subscriptions
-            do {
-                let subs = try await db.allSubscriptions()
-                lines.append("Subscriptions: \(subs.count)")
-                for sub in subs {
-                    var desc = "  [\(sub.subscriptionID)] type=\(type(of: sub))"
-                    if let q = sub as? CKQuerySubscription {
-                        desc += " recordType=\(q.recordType ?? "nil")"
-                        desc += " zoneID=\(q.zoneID?.zoneName ?? "nil")"
-                        desc += " predicate=\(q.predicate.predicateFormat)"
-                        desc += " options=\(q.querySubscriptionOptions.rawValue)"
+            // 1. List subscriptions on BOTH databases
+            for (label, db) in [("Private", container.privateCloudDatabase),
+                                ("Public", container.publicCloudDatabase)] {
+                do {
+                    let subs = try await db.allSubscriptions()
+                    lines.append("\(label) DB Subscriptions: \(subs.count)")
+                    for sub in subs {
+                        var desc = "  [\(sub.subscriptionID)] \(type(of: sub))"
+                        if let q = sub as? CKQuerySubscription {
+                            desc += " rt=\(q.recordType ?? "nil") zone=\(q.zoneID?.zoneName ?? "default")"
+                            desc += " pred=\(q.predicate.predicateFormat)"
+                        }
+                        if let info = sub.notificationInfo {
+                            desc += " alert=\(info.alertBody ?? "nil") sound=\(info.soundName ?? "nil")"
+                        }
+                        lines.append(desc)
                     }
-                    if let info = sub.notificationInfo {
-                        desc += " titleKey=\(info.titleLocalizationKey ?? "nil")"
-                        desc += " alertKey=\(info.alertLocalizationKey ?? "nil")"
-                        desc += " sound=\(info.soundName ?? "nil")"
-                        desc += " contentAvail=\(info.shouldSendContentAvailable)"
-                    }
-                    lines.append(desc)
+                } catch {
+                    lines.append("\(label) DB Subscriptions ERROR: \(error.localizedDescription)")
                 }
-            } catch {
-                lines.append("Subscriptions ERROR: \(error.localizedDescription)")
             }
 
-            // 2. Query QuotaTransition records
-            let zoneID = CKRecordZone.ID(
-                zoneName: CloudSyncConstants.customZoneName,
-                ownerName: CKCurrentUserDefaultName)
+            // 2. Query QuotaTransition records on PUBLIC DB (where build 46+ writes)
+            let publicDB = container.publicCloudDatabase
             do {
                 let query = CKQuery(
                     recordType: CloudSyncConstants.quotaTransitionRecordType,
                     predicate: NSPredicate(value: true))
-                let (results, _) = try await db.records(
-                    matching: query, inZoneWith: zoneID)
-                lines.append("QuotaTransition records: \(results.count)")
+                let (results, _) = try await publicDB.records(matching: query)
+                lines.append("Public DB QuotaTransition records: \(results.count)")
                 for (id, result) in results {
                     switch result {
                     case .success(let record):
@@ -177,10 +171,27 @@ struct MobilePane: View {
                     }
                 }
             } catch {
-                lines.append("QuotaTransition records ERROR: \(error.localizedDescription)")
+                lines.append("Public DB QuotaTransition ERROR: \(error.localizedDescription)")
             }
 
-            // 3. Try to create a test subscription (same config as iOS) to surface errors
+            // Old: also show private DB custom zone records for reference
+            let privateDB = container.privateCloudDatabase
+            let zoneID = CKRecordZone.ID(
+                zoneName: CloudSyncConstants.customZoneName,
+                ownerName: CKCurrentUserDefaultName)
+            do {
+                let query = CKQuery(
+                    recordType: CloudSyncConstants.quotaTransitionRecordType,
+                    predicate: NSPredicate(value: true))
+                let (results, _) = try await privateDB.records(
+                    matching: query, inZoneWith: zoneID)
+                lines.append("Private DB (custom zone) QuotaTransition records: \(results.count)")
+            } catch {
+                lines.append("Private DB QuotaTransition: \(error.localizedDescription)")
+            }
+
+            // 3. Try to create a test subscription on PUBLIC DB to surface errors
+            let db = container.publicCloudDatabase
             lines.append("")
             lines.append("--- Attempting test subscription create ---")
             let testSubID = "mac-verify-test-sub"
@@ -196,12 +207,14 @@ struct MobilePane: View {
                     predicate: predicate,
                     subscriptionID: testSubID,
                     options: [.firesOnRecordCreation, .firesOnRecordUpdate])
-                sub.zoneID = zoneID
+                // Do NOT set zoneID — public DB uses default zone only
                 let info = CKSubscription.NotificationInfo()
+                info.alertBody = "Session quota depleted"
                 info.titleLocalizationKey = "Push.QuotaDepleted.title"
                 info.titleLocalizationArgs = ["providerName"]
                 info.alertLocalizationKey = "Push.QuotaDepleted.body"
                 info.soundName = "default"
+                info.shouldBadge = true
                 sub.notificationInfo = info
                 _ = try await db.modifySubscriptions(saving: [sub], deleting: [])
                 lines.append("✓ Test subscription created OK — schema is valid")

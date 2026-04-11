@@ -60,21 +60,6 @@ final class QuotaTransitionSubscriptions {
 
     // MARK: - Internals
 
-    private func ensureCustomZoneExists(
-        database: CKDatabase,
-        zoneID: CKRecordZone.ID) async throws
-    {
-        do {
-            _ = try await database.recordZone(for: zoneID)
-            return
-        } catch let error as CKError where error.code == .zoneNotFound {
-            // Fall through to create
-        }
-        let zone = CKRecordZone(zoneID: zoneID)
-        _ = try await database.modifyRecordZones(saving: [zone], deleting: [])
-        print("[CodexBar Push v2] Created custom zone: \(zoneID.zoneName)")
-    }
-
     /// Creates or repairs a single subscription. Strategy:
     ///
     /// 1. Try to fetch the existing subscription by ID.
