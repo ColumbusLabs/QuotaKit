@@ -320,10 +320,10 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             return .failure("CloudKit not available")
         }
 
-        // QuotaTransition records live in the DEFAULT zone (not the custom zone used
-        // by DeviceSnapshot). All known working examples of CKQuerySubscription with
-        // alertBody use the default zone. Custom zone + alert push appears unsupported
-        // (subscription save succeeds but push never fires).
+        // QuotaTransition records live in the PUBLIC database. All known working
+        // examples of CKQuerySubscription + alertBody use the public database.
+        // Private database subscriptions appear to save without error but never
+        // fire push — tested with both custom zone and default zone.
         let deviceID = self.stableDeviceID()
         let hourBucket = Int(transitionAt.timeIntervalSince1970 / 3600)
         let recordName = "\(deviceID)-\(providerID)-\(state)-\(hourBucket)"
@@ -340,8 +340,8 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         record["deviceID"] = deviceID as CKRecordValue
 
         do {
-            try await _privateDatabase!.save(record)
-            self.logInfo("QuotaTransition record written", metadata: [
+            try await _container!.publicCloudDatabase.save(record)
+            self.logInfo("QuotaTransition record written (public DB)", metadata: [
                 "providerName": providerName,
                 "state": state,
                 "recordName": recordName,

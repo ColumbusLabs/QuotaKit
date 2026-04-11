@@ -31,26 +31,15 @@ final class QuotaTransitionSubscriptions {
     func setupIfNeeded() async {
         let diag = await PushSetupDiagnostic.shared
         let container = CKContainer(identifier: containerIdentifier)
-        let database = container.privateCloudDatabase
-        let zoneID = CKRecordZone.ID(
-            zoneName: customZoneName, ownerName: CKCurrentUserDefaultName)
+        // Use PUBLIC database — private database subscriptions save without error
+        // but never persist or fire push. All working tutorials use public DB.
+        let database = container.publicCloudDatabase
+        // Public database uses the default zone only — no custom zone needed.
+        await diag.recordZone("✓ public DB (no custom zone needed)")
 
-        // Step 1: ensure custom zone exists.
-        do {
-            try await self.ensureCustomZoneExists(database: database, zoneID: zoneID)
-            await diag.recordZone("✓ zone exists")
-        } catch {
-            let msg = "ensureCustomZoneExists failed: \(error.localizedDescription)"
-            print("[CodexBar Push v2] \(msg)")
-            await diag.recordZone("✗ \(msg)")
-            await diag.recordError(msg)
-            return
-        }
-
-        // Step 2: configure both subscriptions independently.
+        // Configure both subscriptions independently.
         await self.configureSubscription(
             database: database,
-            zoneID: zoneID,
             subscriptionID: CloudSyncConstants.quotaTransitionDepletedSubscriptionID,
             stateValue: "depleted",
             titleLocalizationKey: "Push.QuotaDepleted.title",
@@ -59,7 +48,6 @@ final class QuotaTransitionSubscriptions {
 
         await self.configureSubscription(
             database: database,
-            zoneID: zoneID,
             subscriptionID: CloudSyncConstants.quotaTransitionRestoredSubscriptionID,
             stateValue: "restored",
             titleLocalizationKey: "Push.QuotaRestored.title",
@@ -98,7 +86,6 @@ final class QuotaTransitionSubscriptions {
     ///    and try again next launch — never destructively modify on transient failures.
     private func configureSubscription(
         database: CKDatabase,
-        zoneID: CKRecordZone.ID,
         subscriptionID: String,
         stateValue: String,
         titleLocalizationKey: String,
