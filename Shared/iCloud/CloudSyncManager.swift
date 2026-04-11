@@ -320,17 +320,14 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             return .failure("CloudKit not available")
         }
 
-        do {
-            try await ensureCustomZoneExists()
-        } catch {
-            let syncError = CloudSyncError(from: error as? CKError ?? CKError(.internalError))
-            return .failure("Failed to create custom zone: \(syncError.description)")
-        }
-
+        // QuotaTransition records live in the DEFAULT zone (not the custom zone used
+        // by DeviceSnapshot). All known working examples of CKQuerySubscription with
+        // alertBody use the default zone. Custom zone + alert push appears unsupported
+        // (subscription save succeeds but push never fires).
         let deviceID = self.stableDeviceID()
         let hourBucket = Int(transitionAt.timeIntervalSince1970 / 3600)
         let recordName = "\(deviceID)-\(providerID)-\(state)-\(hourBucket)"
-        let recordID = CKRecord.ID(recordName: recordName, zoneID: customZone.zoneID)
+        let recordID = CKRecord.ID(recordName: recordName)
 
         // Always build a fresh record (this is idempotent-overwrite by design — same
         // hour-bucket for same provider+state collapses to one record).

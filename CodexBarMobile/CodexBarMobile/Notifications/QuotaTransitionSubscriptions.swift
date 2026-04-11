@@ -139,7 +139,6 @@ final class QuotaTransitionSubscriptions {
            Self.matches(
                existing: existingQuery,
                recordType: self.recordType,
-               zoneID: zoneID,
                predicate: desiredPredicate,
                options: desiredOptions,
                titleLocalizationKey: titleLocalizationKey,
@@ -168,12 +167,15 @@ final class QuotaTransitionSubscriptions {
             }
         }
 
+        // QuotaTransition records live in the DEFAULT zone. All working examples of
+        // CKQuerySubscription + alertBody use default zone. Custom zone + alert push
+        // appears unsupported (subscription saves but push never fires).
         let subscription = CKQuerySubscription(
             recordType: self.recordType,
             predicate: desiredPredicate,
             subscriptionID: subscriptionID,
             options: desiredOptions)
-        subscription.zoneID = zoneID
+        // Note: do NOT set subscription.zoneID — default zone is intentional.
 
         let info = CKSubscription.NotificationInfo()
         // Set alertBody as a static fallback — CloudKit's internal priority logic may
@@ -218,7 +220,6 @@ final class QuotaTransitionSubscriptions {
     private static func matches(
         existing: CKQuerySubscription,
         recordType: String,
-        zoneID: CKRecordZone.ID,
         predicate: NSPredicate,
         options: CKQuerySubscription.Options,
         titleLocalizationKey: String,
@@ -227,7 +228,7 @@ final class QuotaTransitionSubscriptions {
         soundName: String) -> Bool
     {
         guard existing.recordType == recordType,
-              existing.zoneID == zoneID,
+              existing.zoneID == nil,
               existing.predicate.predicateFormat == predicate.predicateFormat,
               existing.querySubscriptionOptions == options
         else { return false }
