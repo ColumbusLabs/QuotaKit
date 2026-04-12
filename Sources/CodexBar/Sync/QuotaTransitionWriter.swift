@@ -63,11 +63,22 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
         // initial write fails (network blip / auth glitch). The timestamp is only set
         // after the write succeeds, so failed writes don't start the debounce window.
 
-        Task { [providerName, stateString] in
+        // v1: English-only notification text. Mac writes the display text directly
+        // into the record; iOS subscription reads it via alertLocalizationArgs.
+        // Localization would require either: Mac detecting iOS locale (not possible),
+        // or iOS using alertLocalizationKey with a static key (but CKRecordZoneSubscription
+        // has no predicate, so we can't vary the key by state). Acceptable for v1.
+        let notifBody = stateString == "depleted"
+            ? "Session quota depleted"
+            : "Session quota restored"
+
+        Task { [providerName, stateString, notifBody] in
             let result = await CloudSyncManager.shared.writeQuotaTransition(
                 providerName: providerName,
                 providerID: provider.rawValue,
                 state: stateString,
+                notificationTitle: providerName,
+                notificationBody: notifBody,
                 transitionAt: now)
             if result.succeeded {
                 self.lastWriteByKey[key] = now

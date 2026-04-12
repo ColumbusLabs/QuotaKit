@@ -1528,6 +1528,7 @@ private struct DeveloperToolsView: View {
 
 private struct PushSetupDiagnosticView: View {
     @State private var diag = PushSetupDiagnostic.shared
+    @State private var persistenceTestResult: String?
 
     var body: some View {
         List {
@@ -1566,6 +1567,21 @@ private struct PushSetupDiagnosticView: View {
                     Task { @MainActor in
                         await QuotaTransitionSubscriptions.shared.setupIfNeeded()
                     }
+                }
+
+                Button("Verify Subscription Persistence") {
+                    self.persistenceTestResult = "Running…"
+                    Task { @MainActor in
+                        let result = await QuotaTransitionSubscriptions.shared.runPersistenceTest()
+                        self.persistenceTestResult = result
+                    }
+                }
+
+                if let result = self.persistenceTestResult {
+                    Text(result)
+                        .font(.caption)
+                        .foregroundStyle(result.hasPrefix("✓") ? .green : .red)
+                        .textSelection(.enabled)
                 }
             }
 

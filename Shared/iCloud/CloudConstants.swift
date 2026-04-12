@@ -10,10 +10,13 @@ public enum CloudSyncConstants {
     /// The CloudKit record type for per-device usage snapshots.
     public static let recordType = "DeviceSnapshot"
 
-    /// Custom record zone name for per-device usage snapshots and quota transition events.
-    /// Kept in a custom zone rather than `_defaultZone` because `CKQuerySubscription`
-    /// is unreliable on the private database default zone.
+    /// Custom record zone name for per-device usage snapshots.
     public static let customZoneName = "DeviceSnapshotsZone"
+
+    /// Dedicated zone for quota transition push events. Separate from DeviceSnapshotsZone
+    /// so the CKRecordZoneSubscription only fires for QuotaTransition changes, not for
+    /// every DeviceSnapshot update (which happens every ~60s).
+    public static let quotaTransitionsZoneName = "QuotaTransitionsZone"
 
     /// CloudKit record type for visible quota change push events (alert push design).
     /// One record per (deviceID, provider, state, hourBucket) — see

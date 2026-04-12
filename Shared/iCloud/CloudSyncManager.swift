@@ -301,36 +301,59 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
 
     // MARK: - CloudKit Quota Transition Write (Mac side, alert push trigger)
 
+    /// The dedicated zone for quota transition push events.
+    private let quotaTransitionsZone = CKRecordZone(
+        zoneName: CloudSyncConstants.quotaTransitionsZoneName)
+
+    /// Ensures the QuotaTransitionsZone exists on the private database.
+    /// Same fetch-first pattern as `ensureCustomZoneExists`.
+    private func ensureQuotaTransitionsZoneExists() async throws {
+        do {
+            _ = try await _privateDatabase!.recordZone(for: quotaTransitionsZone.zoneID)
+            return
+        } catch let error as CKError {
+            if error.code != .zoneNotFound { throw error }
+        }
+        _ = try await _privateDatabase!.modifyRecordZones(
+            saving: [quotaTransitionsZone], deleting: [])
+        self.logInfo("QuotaTransitionsZone created")
+    }
+
     /// Writes a `QuotaTransition` record to CloudKit so iOS receives a visible alert
-    /// push via the matching `CKQuerySubscription`. Called from Mac when quota state
-    /// crosses the depleted/restored boundary, gated by user setting.
+    /// push via the `CKRecordZoneSubscription` on `QuotaTransitionsZone`.
+    ///
+    /// The notification text is written directly into record fields (`notificationTitle`
+    /// and `notificationBody`) so the subscription's `titleLocalizationArgs` /
+    /// `alertLocalizationArgs` can read them at push time. Mac decides the message,
+    /// iOS just displays it.
     ///
     /// `recordName` is derived from `(deviceID, providerID, state, hourBucket)` so
-    /// concurrent transitions for the same `(provider, state)` from the same Mac in
-    /// the same hour collapse to a single record (idempotent overwrite). The matching
-    /// subscription's `firesOnRecordCreation` then fires at most once per hour for
-    /// that combination, preventing notification spam.
+    /// concurrent transitions collapse to one record per hour (idempotent overwrite).
     public func writeQuotaTransition(
         providerName: String,
         providerID: String,
         state: String,
+        notificationTitle: String,
+        notificationBody: String,
         transitionAt: Date) async -> SyncPushResult
     {
         guard cloudKitAvailable, _privateDatabase != nil else {
             return .failure("CloudKit not available")
         }
 
-        // QuotaTransition records live in the PUBLIC database. All known working
-        // examples of CKQuerySubscription + alertBody use the public database.
-        // Private database subscriptions appear to save without error but never
-        // fire push — tested with both custom zone and default zone.
+        do {
+            try await ensureQuotaTransitionsZoneExists()
+        } catch {
+            let syncError = CloudSyncError(from: error as? CKError ?? CKError(.internalError))
+            return .failure("Failed to create QuotaTransitionsZone: \(syncError.description)")
+        }
+
         let deviceID = self.stableDeviceID()
         let hourBucket = Int(transitionAt.timeIntervalSince1970 / 3600)
         let recordName = "\(deviceID)-\(providerID)-\(state)-\(hourBucket)"
-        let recordID = CKRecord.ID(recordName: recordName)
+        let recordID = CKRecord.ID(
+            recordName: recordName, zoneID: quotaTransitionsZone.zoneID)
 
-        // Always build a fresh record (this is idempotent-overwrite by design — same
-        // hour-bucket for same provider+state collapses to one record).
         let record = CKRecord(
             recordType: CloudSyncConstants.quotaTransitionRecordType, recordID: recordID)
         record["providerName"] = providerName as CKRecordValue
@@ -338,20 +361,19 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         record["state"] = state as CKRecordValue
         record["transitionAt"] = transitionAt as CKRecordValue
         record["deviceID"] = deviceID as CKRecordValue
+        record["notificationTitle"] = notificationTitle as CKRecordValue
+        record["notificationBody"] = notificationBody as CKRecordValue
 
         do {
-            try await _container!.publicCloudDatabase.save(record)
-            self.logInfo("QuotaTransition record written (public DB)", metadata: [
+            try await _privateDatabase!.save(record)
+            self.logInfo("QuotaTransition record written", metadata: [
                 "providerName": providerName,
                 "state": state,
                 "recordName": recordName,
             ])
             return .success
         } catch let error as CKError where error.code == .serverRecordChanged {
-            // Same-hour record already exists — that's the idempotent case, treat as success.
-            self.logInfo("QuotaTransition same-hour collision (idempotent overwrite)", metadata: [
-                "recordName": recordName,
-            ])
+            self.logInfo("QuotaTransition same-hour collision (idempotent overwrite)")
             return .success
         } catch let error as CKError {
             let syncError = CloudSyncError(from: error)

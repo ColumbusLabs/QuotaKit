@@ -193,40 +193,75 @@ struct MobilePane: View {
             // 3. Try to create a test subscription on PUBLIC DB to surface errors
             let db = container.publicCloudDatabase
             lines.append("")
-            lines.append("--- Attempting test subscription create ---")
-            let testSubID = "mac-verify-test-sub"
-            // Delete any prior test sub
+            // --- Test A: CKQuerySubscription persistence ---
+            lines.append("")
+            lines.append("--- Test A: CKQuerySubscription persistence ---")
+            let testQuerySubID = "mac-test-query-sub"
+            defer { Task { try? await db.deleteSubscription(withID: testQuerySubID) } }
             do {
-                try await db.deleteSubscription(withID: testSubID)
-            } catch {}
-
-            do {
-                let predicate = NSPredicate(format: "state == %@", "depleted")
+                try? await db.deleteSubscription(withID: testQuerySubID)
                 let sub = CKQuerySubscription(
                     recordType: CloudSyncConstants.quotaTransitionRecordType,
-                    predicate: predicate,
-                    subscriptionID: testSubID,
-                    options: [.firesOnRecordCreation, .firesOnRecordUpdate])
-                // Do NOT set zoneID — public DB uses default zone only
+                    predicate: NSPredicate(format: "state == %@", "depleted"),
+                    subscriptionID: testQuerySubID,
+                    options: [.firesOnRecordCreation])
                 let info = CKSubscription.NotificationInfo()
-                info.alertBody = "Session quota depleted"
-                info.titleLocalizationKey = "Push.QuotaDepleted.title"
-                info.titleLocalizationArgs = ["providerName"]
-                info.alertLocalizationKey = "Push.QuotaDepleted.body"
+                info.alertBody = "Test"
                 info.soundName = "default"
-                info.shouldBadge = true
                 sub.notificationInfo = info
                 _ = try await db.modifySubscriptions(saving: [sub], deleting: [])
-                lines.append("✓ Test subscription created OK — schema is valid")
-                // Clean up
-                try? await db.deleteSubscription(withID: testSubID)
-            } catch let error as CKError {
-                lines.append("✗ CKError code=\(error.code.rawValue) \(error.localizedDescription)")
-                if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError {
-                    lines.append("  underlying: \(underlying.domain) #\(underlying.code) \(underlying.localizedDescription)")
+                lines.append("  save: ✓")
+
+                // NOW check if it actually persisted
+                let allSubs = try await db.allSubscriptions()
+                let found = allSubs.first(where: { $0.subscriptionID == testQuerySubID })
+                if found != nil {
+                    lines.append("  allSubscriptions: ✓ FOUND — CKQuerySubscription persists!")
+                } else {
+                    lines.append("  allSubscriptions: ✗ NOT FOUND — save succeeded but didn't persist")
+                    lines.append("  (total subs: \(allSubs.count))")
                 }
             } catch {
-                lines.append("✗ Error: \(error.localizedDescription)")
+                lines.append("  ✗ Error: \(error.localizedDescription)")
+            }
+
+            // --- Test B: CKRecordZoneSubscription persistence (on private DB) ---
+            lines.append("")
+            lines.append("--- Test B: CKRecordZoneSubscription persistence ---")
+            let testZoneSubID = "mac-test-zone-sub"
+            defer { Task { try? await container.privateCloudDatabase.deleteSubscription(withID: testZoneSubID) } }
+            let privDB = container.privateCloudDatabase
+            let testZoneID = CKRecordZone.ID(
+                zoneName: CloudSyncConstants.quotaTransitionsZoneName,
+                ownerName: CKCurrentUserDefaultName)
+            do {
+                // Ensure zone exists before creating a zone subscription
+                do {
+                    _ = try await privDB.recordZone(for: testZoneID)
+                } catch let ckErr as CKError where ckErr.code == .zoneNotFound {
+                    _ = try await privDB.modifyRecordZones(
+                        saving: [CKRecordZone(zoneID: testZoneID)], deleting: [])
+                }
+                try? await privDB.deleteSubscription(withID: testZoneSubID)
+                let sub = CKRecordZoneSubscription(
+                    zoneID: testZoneID, subscriptionID: testZoneSubID)
+                let info = CKSubscription.NotificationInfo()
+                info.alertBody = "Test zone"
+                info.soundName = "default"
+                sub.notificationInfo = info
+                _ = try await privDB.modifySubscriptions(saving: [sub], deleting: [])
+                lines.append("  save: ✓")
+
+                let allSubs = try await privDB.allSubscriptions()
+                let found = allSubs.first(where: { $0.subscriptionID == testZoneSubID })
+                if found != nil {
+                    lines.append("  allSubscriptions: ✓ FOUND — CKRecordZoneSubscription persists!")
+                } else {
+                    lines.append("  allSubscriptions: ✗ NOT FOUND")
+                    lines.append("  (total subs: \(allSubs.count))")
+                }
+            } catch {
+                lines.append("  ✗ Error: \(error.localizedDescription)")
             }
 
             self.lastTestResult = lines.joined(separator: "\n")
@@ -236,10 +271,14 @@ struct MobilePane: View {
     private func runTestPush(state: String) {
         self.lastTestResult = "Writing \(state) record…"
         Task {
+            let body = state == "depleted"
+                ? "Session quota depleted" : "Session quota restored"
             let result = await CloudSyncManager.shared.writeQuotaTransition(
                 providerName: "Codex",
                 providerID: "codex",
                 state: state,
+                notificationTitle: "Codex",
+                notificationBody: body,
                 transitionAt: Date())
             if result.succeeded {
                 self.lastTestResult = "✓ Wrote \(state) record at \(self.shortTime()). " +

@@ -55,8 +55,8 @@ final class PushSetupDiagnostic {
     /// Queries CloudKit for the actual subscription list from THIS app's perspective.
     func refreshSubscriptionList() async {
         let container = CKContainer(identifier: CloudSyncConstants.containerIdentifier)
-        // Must match QuotaTransitionSubscriptions which uses publicCloudDatabase
-        let db = container.publicCloudDatabase
+        // Must match QuotaTransitionSubscriptions which uses privateCloudDatabase
+        let db = container.privateCloudDatabase
         do {
             let subs = try await db.allSubscriptions()
             var lines: [String] = ["\(subs.count) subscription(s):"]
