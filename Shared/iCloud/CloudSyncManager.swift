@@ -322,10 +322,9 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// Writes a `QuotaTransition` record to CloudKit so iOS receives a visible alert
     /// push via the `CKRecordZoneSubscription` on `QuotaTransitionsZone`.
     ///
-    /// The notification text is written directly into record fields (`notificationTitle`
-    /// and `notificationBody`) so the subscription's `titleLocalizationArgs` /
-    /// `alertLocalizationArgs` can read them at push time. Mac decides the message,
-    /// iOS just displays it.
+    /// The subscription reads `providerName` and `state` directly from the record
+    /// fields via `titleLocalizationArgs` / `alertLocalizationArgs`. No extra fields
+    /// needed — only fields that already exist in the Production schema are written.
     ///
     /// `recordName` is derived from `(deviceID, providerID, state, hourBucket)` so
     /// concurrent transitions collapse to one record per hour (idempotent overwrite).
@@ -333,8 +332,6 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         providerName: String,
         providerID: String,
         state: String,
-        notificationTitle: String,
-        notificationBody: String,
         transitionAt: Date) async -> SyncPushResult
     {
         guard cloudKitAvailable, _privateDatabase != nil else {
@@ -361,8 +358,6 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         record["state"] = state as CKRecordValue
         record["transitionAt"] = transitionAt as CKRecordValue
         record["deviceID"] = deviceID as CKRecordValue
-        record["notificationTitle"] = notificationTitle as CKRecordValue
-        record["notificationBody"] = notificationBody as CKRecordValue
 
         do {
             try await _privateDatabase!.save(record)

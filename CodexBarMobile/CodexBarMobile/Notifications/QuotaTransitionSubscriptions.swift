@@ -170,14 +170,14 @@ final class QuotaTransitionSubscriptions {
             zoneID: zoneID, subscriptionID: subscriptionID)
         subscription.recordType = recordType
 
+        // MINIMAL config — identical to what the persistence test uses.
+        // Localization args caused subscription to silently not persist
+        // (CloudKit may validate field references against Production schema).
+        // Once push delivery is confirmed working, we can add args back
+        // after deploying the new fields to Production schema.
         let info = CKSubscription.NotificationInfo()
-        info.alertBody = "Session quota changed"  // static fallback
-        info.titleLocalizationKey = "%@"
-        info.titleLocalizationArgs = ["notificationTitle"]
-        info.alertLocalizationKey = "%@"
-        info.alertLocalizationArgs = ["notificationBody"]
+        info.alertBody = "Session quota changed"
         info.soundName = "default"
-        info.shouldBadge = true
         subscription.notificationInfo = info
 
         _ = try await database.modifySubscriptions(

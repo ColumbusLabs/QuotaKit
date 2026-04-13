@@ -271,14 +271,10 @@ struct MobilePane: View {
     private func runTestPush(state: String) {
         self.lastTestResult = "Writing \(state) record…"
         Task {
-            let body = state == "depleted"
-                ? "Session quota depleted" : "Session quota restored"
             let result = await CloudSyncManager.shared.writeQuotaTransition(
                 providerName: "Codex",
                 providerID: "codex",
                 state: state,
-                notificationTitle: "Codex",
-                notificationBody: body,
                 transitionAt: Date())
             if result.succeeded {
                 self.lastTestResult = "✓ Wrote \(state) record at \(self.shortTime()). " +
