@@ -63,11 +63,17 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
         // initial write fails (network blip / auth glitch). The timestamp is only set
         // after the write succeeds, so failed writes don't start the debounce window.
 
-        Task { [providerName, stateString] in
+        let notifBody = stateString == "depleted"
+            ? "Session quota depleted"
+            : "Session quota restored"
+
+        Task { [providerName, stateString, notifBody] in
             let result = await CloudSyncManager.shared.writeQuotaTransition(
                 providerName: providerName,
                 providerID: provider.rawValue,
                 state: stateString,
+                notificationTitle: providerName,
+                notificationBody: notifBody,
                 transitionAt: now)
             if result.succeeded {
                 self.lastWriteByKey[key] = now

@@ -332,6 +332,8 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         providerName: String,
         providerID: String,
         state: String,
+        notificationTitle: String = "",
+        notificationBody: String = "",
         transitionAt: Date) async -> SyncPushResult
     {
         guard cloudKitAvailable, _privateDatabase != nil else {
@@ -347,7 +349,11 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
 
         let deviceID = self.stableDeviceID()
         let hourBucket = Int(transitionAt.timeIntervalSince1970 / 3600)
-        let recordName = "\(deviceID)-\(providerID)-\(state)-\(hourBucket)"
+        // recordName intentionally EXCLUDES deviceID so multiple Macs detecting
+        // the same transition in the same hour collapse to a single record (last
+        // writer wins). This prevents duplicate push notifications when 2+ Macs
+        // observe the same quota change simultaneously.
+        let recordName = "\(providerID)-\(state)-\(hourBucket)"
         let recordID = CKRecord.ID(
             recordName: recordName, zoneID: quotaTransitionsZone.zoneID)
 
@@ -358,6 +364,9 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         record["state"] = state as CKRecordValue
         record["transitionAt"] = transitionAt as CKRecordValue
         record["deviceID"] = deviceID as CKRecordValue
+        // Note: notificationTitle/notificationBody are accepted as params but NOT
+        // written to the record until they are deployed to Production schema.
+        // Writing undeployed fields causes CloudKit Production to reject the save.
 
         do {
             try await _privateDatabase!.save(record)

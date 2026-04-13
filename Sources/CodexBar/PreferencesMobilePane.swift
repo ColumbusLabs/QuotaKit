@@ -89,23 +89,45 @@ struct MobilePane: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
-            HStack(spacing: 12) {
-                Button {
-                    self.runTestPush(state: "depleted")
-                } label: {
-                    Label("Test Codex Depleted", systemImage: "bell.badge")
+            // Codex
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Codex").font(.caption.bold())
+                HStack(spacing: 12) {
+                    Button {
+                        self.runTestPush(provider: "Codex", providerID: "codex", state: "depleted")
+                    } label: {
+                        Label("Depleted", systemImage: "bell.badge")
+                    }
+                    .controlSize(.small)
+                    Button {
+                        self.runTestPush(provider: "Codex", providerID: "codex", state: "restored")
+                    } label: {
+                        Label("Restored", systemImage: "bell")
+                    }
+                    .controlSize(.small)
                 }
-                .controlSize(.small)
-                .disabled(!self.settings.notificationPushToiOSEnabled)
-
-                Button {
-                    self.runTestPush(state: "restored")
-                } label: {
-                    Label("Test Codex Restored", systemImage: "bell")
-                }
-                .controlSize(.small)
-                .disabled(!self.settings.notificationPushToiOSEnabled)
             }
+            .disabled(!self.settings.notificationPushToiOSEnabled)
+
+            // Claude
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Claude").font(.caption.bold())
+                HStack(spacing: 12) {
+                    Button {
+                        self.runTestPush(provider: "Claude", providerID: "claude", state: "depleted")
+                    } label: {
+                        Label("Depleted", systemImage: "bell.badge")
+                    }
+                    .controlSize(.small)
+                    Button {
+                        self.runTestPush(provider: "Claude", providerID: "claude", state: "restored")
+                    } label: {
+                        Label("Restored", systemImage: "bell")
+                    }
+                    .controlSize(.small)
+                }
+            }
+            .disabled(!self.settings.notificationPushToiOSEnabled)
 
             Button {
                 self.verifyPushSetup()
@@ -268,13 +290,17 @@ struct MobilePane: View {
         }
     }
 
-    private func runTestPush(state: String) {
-        self.lastTestResult = "Writing \(state) record…"
+    private func runTestPush(provider: String, providerID: String, state: String) {
+        self.lastTestResult = "Writing \(provider) \(state)…"
         Task {
+            let body = state == "depleted"
+                ? "Session quota depleted" : "Session quota restored"
             let result = await CloudSyncManager.shared.writeQuotaTransition(
-                providerName: "Codex",
-                providerID: "codex",
+                providerName: provider,
+                providerID: providerID,
                 state: state,
+                notificationTitle: provider,
+                notificationBody: body,
                 transitionAt: Date())
             if result.succeeded {
                 self.lastTestResult = "✓ Wrote \(state) record at \(self.shortTime()). " +
