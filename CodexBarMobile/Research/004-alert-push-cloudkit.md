@@ -1,18 +1,29 @@
 # 004: Mac→iOS 推送通知（CloudKit alert push 方案）
 
-- **Status**: done — shipped in Build 50 (2026-04-13) with a **zone-split** variant rather than the CKQuerySubscription-predicate design originally proposed below. See "Implementation note" directly under this header for the divergence.
+- **Status**: done — shipped in Build 51 (2026-04-13) with a **zone-split + iOS-side localization** variant. Diverges from the CKQuerySubscription-predicate + CloudKit-args design originally proposed below. See "Implementation note" directly under this header.
 - **Created**: 2026-04-08
 - **Supersedes**: [003-push-notifications.md](003-push-notifications.md)
 - **Goal**: Mac 端检测到 quota 变化时，iOS 收到一条**用户可见的本地化通知**，**不要求 Background App Refresh**，**不需要 app 唤醒跑代码**，**不需要服务端**
 
-## Implementation note (Build 50, 2026-04-13)
+## Implementation note (final form, Build 51, 2026-04-13)
 
-Builds 42–49 iterated on this design and converged to a final form that **diverges from the "Subscription 设计" section below in one important way**: state differentiation is encoded in the **zone** rather than in a subscription predicate.
+Builds 42–50 iterated on this design. Build 51 is the stable final form; below is what actually shipped and why it diverges from the original design in two ways.
 
+### Divergence 1 — state by zone, not by predicate
 - **Original plan** (below): one zone, two `CKQuerySubscription`s filtered by `state == "depleted"` / `"restored"`.
-- **What shipped in Build 50**: two zones (`QuotaDepletedZone` / `QuotaRestoredZone`), each with a `CKRecordZoneSubscription` carrying its own static `titleLocalizationKey` / `alertLocalizationKey`. Mac picks the destination zone based on state.
+- **Shipped**: two zones (`QuotaDepletedZone` / `QuotaRestoredZone`), each with a `CKRecordZoneSubscription`. Mac picks the destination zone based on state.
+- **Reason**: A/B testing across Builds 42–48 confirmed that `CKQuerySubscription` saves without error but never persists on this CloudKit container. `CKRecordZoneSubscription` does persist, but has no predicate support — so state differentiation moved from predicate to zone.
 
-**Reason for the change**: A/B testing across Builds 42–48 confirmed that `CKQuerySubscription` saves without error but never persists on this CloudKit container (`allSubscriptions()` returns empty immediately). `CKRecordZoneSubscription` does persist, but it has no predicate support — so state differentiation had to move from predicate to zone. The locale-aware text design (`Push.QuotaDepleted.*` / `Push.QuotaRestored.*` localization keys + `titleLocalizationArgs = ["providerName"]`) is preserved as originally specified.
+### Divergence 2 — localization on iOS, not via CloudKit args
+- **Original plan** (below): subscription uses `titleLocalizationKey` + `titleLocalizationArgs = ["providerName"]`; CloudKit pulls the `providerName` field from the record at push time and substitutes it into the `%@` template; iOS resolves the template against the iPhone's locale.
+- **Build 50 tried this with `["providerName"]`** (a field long-present in the Production schema since Build 48). On-device verification showed `allSubscriptions()` returned only the legacy `device-snapshot-changes` sub — the two new quota subs silently didn't persist. **Same failure mode as Build 49 (commit `65960ac8`), which had also used args.**
+- **Definitive learning**: any subscription carrying `titleLocalizationArgs` / `alertLocalizationArgs` is silently dropped by CloudKit on this container, regardless of which field the args reference. Production-deployed vs undeployed field doesn't matter.
+- **Shipped in Build 51**: no args. Each subscription's `alertBody` is a **static, locale-resolved** string, chosen at subscription-creation time via `String(localized: "Push.QuotaDepleted.body")` / `"Push.QuotaRestored.body"` against the iPhone's current locale. CloudKit delivers that literal string verbatim. Locale changes propagate on next app launch because the `"already correct"` check compares the stored body against a freshly-resolved `String(localized: …)`, mismatches on locale change, and recreates the sub.
+
+### What this means for future work
+- Any design that depends on the subscription reading record fields (Plan A-style pass-through) is **not viable on this container**.
+- iOS-side `String(localized:)` at sub-creation time is the replacement pattern for anything where the discriminator is known statically at sub-creation (e.g. zone-specific state).
+- If Mac needs to push *dynamic* per-record text to iOS later (e.g. provider name embedded in the notification body), a `UNNotificationServiceExtension` on iOS is the architectural escape hatch, not CloudKit args.
 
 The rest of this document describes the original design and is kept for historical reference.
 

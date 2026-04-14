@@ -16,24 +16,29 @@ import Foundation
 /// CKRecordZoneSubscription does not support NSPredicate, so the `state`
 /// differentiation is encoded in the **zone choice** instead: Mac writes depleted
 /// records to `QuotaDepletedZone` and restored records to `QuotaRestoredZone`.
-/// Each zone carries its own subscription with the matching static localization
-/// key, which is how each iPhone renders the text in its own locale.
+/// Each zone carries its own subscription with a state-specific, locale-resolved
+/// `alertBody` — the zone split is what lets iOS pre-pick the right text per state
+/// at subscription-creation time.
 ///
-/// **How notification text works:**
-/// Each subscription has a static `titleLocalizationKey` + `alertLocalizationKey`
-/// pointing at `Push.QuotaDepleted.*` / `Push.QuotaRestored.*` in
-/// `Localizable.xcstrings`. `titleLocalizationArgs = ["providerName"]` lets
-/// CloudKit substitute the record's `providerName` field into the title template
-/// at push time. iOS resolves both keys against its own locale, so a Chinese
-/// iPhone and a Japanese iPhone see the same push in their own language without
-/// the Mac knowing anything about iOS-side locale.
+/// **How notification text works (Build 51+):**
+/// Each subscription's `alertBody` is resolved at creation time via
+/// `String(localized: "Push.QuotaDepleted.body")` / `"Push.QuotaRestored.body"`,
+/// which bakes the iPhone's current locale's text into the subscription payload.
+/// CloudKit then delivers that literal string as the push body. No subscription
+/// args, no server-side localization — the subscription stores a concrete
+/// locale-specific string chosen by iOS when it registered the subscription.
 ///
-/// **Why `providerName` is the only referenced field:**
-/// Historical failure mode (Build 49, commit `65960ac8`): subscriptions whose
-/// `titleLocalizationArgs` / `alertLocalizationArgs` referenced **undeployed**
-/// Production schema fields (like `notificationTitle`/`notificationBody`) were
-/// silently dropped by CloudKit on save. `providerName` has been written to
-/// Production records since Build 48, so referencing it in args is safe.
+/// **Why no `titleLocalizationArgs` / `alertLocalizationArgs` (historical):**
+/// Build 49 (commit `65960ac8`) and Build 50 both proved that **any subscription
+/// carrying args is silently dropped by CloudKit on this container**, regardless
+/// of whether the referenced field is in the Production schema. Build 50 tried
+/// `args = ["providerName"]` — `providerName` has been in the Production schema
+/// since Build 48, but the args-carrying sub still didn't persist
+/// (`allSubscriptions()` returned only `device-snapshot-changes` after save).
+/// We therefore build the final text on iOS at sub-creation and skip args
+/// entirely. Locale updates propagate naturally: the `"already correct"` check
+/// compares on the current-locale `alertBody`, so a locale change forces
+/// delete + recreate with the new text on next launch.
 @MainActor
 final class QuotaTransitionSubscriptions {
     static let shared = QuotaTransitionSubscriptions()
@@ -42,25 +47,27 @@ final class QuotaTransitionSubscriptions {
     private let recordType = CloudSyncConstants.quotaTransitionRecordType
 
     /// One config per state-specific zone. Adding a third state (e.g. "warning")
-    /// only requires a new entry here + the matching zone on Mac + Localizable keys.
+    /// only requires a new entry here + the matching zone on Mac + a Localizable key.
+    ///
+    /// `localizedAlertBody` is a closure so each call resolves against the iPhone's
+    /// **current** locale — not the locale that was active when this array was
+    /// initialised. That's how a locale change picks up the new text on the next
+    /// `setupIfNeeded()` run.
     private struct SubConfig {
         let zoneName: String
         let subscriptionID: String
-        let titleKey: String
-        let bodyKey: String
+        let localizedAlertBody: () -> String
     }
 
     private let configs: [SubConfig] = [
         SubConfig(
             zoneName: CloudSyncConstants.quotaDepletedZoneName,
             subscriptionID: CloudSyncConstants.quotaTransitionDepletedSubscriptionID,
-            titleKey: "Push.QuotaDepleted.title",
-            bodyKey: "Push.QuotaDepleted.body"),
+            localizedAlertBody: { String(localized: "Push.QuotaDepleted.body") }),
         SubConfig(
             zoneName: CloudSyncConstants.quotaRestoredZoneName,
             subscriptionID: CloudSyncConstants.quotaTransitionRestoredSubscriptionID,
-            titleKey: "Push.QuotaRestored.title",
-            bodyKey: "Push.QuotaRestored.body"),
+            localizedAlertBody: { String(localized: "Push.QuotaRestored.body") }),
     ]
 
     private init() {}
@@ -217,17 +224,22 @@ final class QuotaTransitionSubscriptions {
         }
         // Other errors propagate (don't destructively modify on transient failures)
 
-        // Check if already correct. Must match zoneID, recordType, AND the full
-        // localization config — otherwise we recreate with the current values.
-        // Missing any of these checks would let a stale Build 48 sub (static
-        // alertBody only) pass as "correct" and never get upgraded.
+        // Resolve the alert body against iPhone's current locale. We compare the
+        // existing sub's stored string against this freshly-resolved one, so a
+        // locale change naturally triggers recreate.
+        let expectedBody = config.localizedAlertBody()
+
+        // Check if already correct. Match zoneID, recordType, and the
+        // locale-resolved alertBody. NO localization args on the sub — args are
+        // silently dropped by CloudKit on this container (Build 49 and Build 50
+        // both proved this). An existing sub carrying args (shipped Build 50)
+        // will fail this check and get replaced.
         if let zoneSub = existing as? CKRecordZoneSubscription,
            zoneSub.zoneID == zoneID,
            zoneSub.recordType == recordType,
            let info = zoneSub.notificationInfo,
-           info.titleLocalizationKey == config.titleKey,
-           info.titleLocalizationArgs == ["providerName"],
-           info.alertLocalizationKey == config.bodyKey,
+           info.alertBody == expectedBody,
+           (info.titleLocalizationArgs ?? []).isEmpty,
            (info.alertLocalizationArgs ?? []).isEmpty
         {
             return false // already correct
@@ -238,26 +250,16 @@ final class QuotaTransitionSubscriptions {
             try? await database.deleteSubscription(withID: config.subscriptionID)
         }
 
-        // Create new CKRecordZoneSubscription with locale-aware notification info.
-        //
-        // `titleLocalizationKey` + `args = ["providerName"]` tells CloudKit to pull
-        // the record's `providerName` field into the `%@` template at push time.
-        // iOS resolves the key against `Localizable.xcstrings` using the iPhone's
-        // current locale.
-        //
-        // `alertBody` is kept as a debugging fallback: if the localization key
-        // lookup ever fails, iOS falls back to displaying this literal text
-        // instead of an empty body. Not localized (English-only).
+        // Create a new CKRecordZoneSubscription with a **static** alertBody that
+        // is already locale-resolved. CloudKit delivers this literal string as
+        // the push body — no server-side substitution, no args. See class comment
+        // for why args aren't viable on this container.
         let subscription = CKRecordZoneSubscription(
             zoneID: zoneID, subscriptionID: config.subscriptionID)
         subscription.recordType = recordType
 
         let info = CKSubscription.NotificationInfo()
-        info.alertBody = "Session quota changed"
-        info.titleLocalizationKey = config.titleKey
-        info.titleLocalizationArgs = ["providerName"]
-        info.alertLocalizationKey = config.bodyKey
-        // No alertLocalizationArgs — body template has no placeholder per locale.
+        info.alertBody = expectedBody
         info.soundName = "default"
         subscription.notificationInfo = info
 

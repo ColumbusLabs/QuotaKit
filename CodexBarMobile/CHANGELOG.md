@@ -2,6 +2,19 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.2.0 (51)] — 2026-04-13
+
+### Fixed
+- **Push notification subscription persistence — regression from Build 50 fixed.** Build 50 tried to use `CKSubscription.NotificationInfo.titleLocalizationArgs = ["providerName"]` on the assumption that `providerName` (present in the Production schema since Build 48) was safe to reference. On-device verification proved otherwise: `allSubscriptions()` returned only the legacy `device-snapshot-changes` sub after install, same failure mode as Build 49 (commit `65960ac8`). **Any subscription carrying args is silently dropped by CloudKit on this container, regardless of which field the args reference.**
+
+### Changed
+- **Push notification text is now localized on the iOS side via `String(localized:)`.** The `alertBody` is resolved at subscription-creation time against the iPhone's current locale (using the pre-translated `Push.QuotaDepleted.body` / `Push.QuotaRestored.body` keys in `Localizable.xcstrings`) and baked into the subscription payload as a literal string. CloudKit delivers that string verbatim at push time — no args, no server-side substitution. Each iPhone sees the push in its own language (en / ja / zh-Hans / zh-Hant); Mac-side language is irrelevant.
+- If the user switches iPhone locale between sessions, the push text updates on next app launch: the `"already correct"` check compares the stored `alertBody` against a freshly-resolved `String(localized: …)`, mismatches, and recreates the subscription with the new locale's text.
+- The Build 50 zone split (`QuotaDepletedZone` / `QuotaRestoredZone`) is **retained**. State differentiation still comes from the zone, which is how iOS knows at setup time which localized body to bake into which subscription.
+
+### Notes
+- Definitive takeaway recorded in `Research/004-alert-push-cloudkit.md`: subscription localization args are unusable on this CloudKit container. Pass-through-from-record designs (Plan A) are not viable. The replacement pattern is iOS-side `String(localized:)` at subscription-creation time, keyed off the zone (which is state-specific).
+
 ## [1.2.0 (50)] — 2026-04-13
 
 ### Added
