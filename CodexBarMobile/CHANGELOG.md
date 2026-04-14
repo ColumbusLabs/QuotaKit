@@ -2,10 +2,12 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [1.2.0 (51)] — 2026-04-13
+## [1.2.0 (52)] — 2026-04-13
+
+> **Version label note:** `xcodebuild -exportArchive` auto-bumps `CFBundleVersion` on App Store Connect collision. The commit that produced this build (`8654c6d7`) was authored with `CURRENT_PROJECT_VERSION = 51` but uploaded as 52 because 51 was already present on ASC. The `project.yml` bump 51 → 52 in the subsequent commit reconciles the label.
 
 ### Fixed
-- **Push notification subscription persistence — regression from Build 50 fixed.** Build 50 tried to use `CKSubscription.NotificationInfo.titleLocalizationArgs = ["providerName"]` on the assumption that `providerName` (present in the Production schema since Build 48) was safe to reference. On-device verification proved otherwise: `allSubscriptions()` returned only the legacy `device-snapshot-changes` sub after install, same failure mode as Build 49 (commit `65960ac8`). **Any subscription carrying args is silently dropped by CloudKit on this container, regardless of which field the args reference.**
+- **Push notification subscription persistence — regression from Build 51 fixed.** Build 51 (the commit that shipped as TestFlight 52 — see label note above; the preceding TestFlight 51 was labelled "Build 50" in the commit that produced it) tried to use `CKSubscription.NotificationInfo.titleLocalizationArgs = ["providerName"]` on the assumption that `providerName` (present in the Production schema since the post-Build-48 Shared changes) was safe to reference. On-device verification proved otherwise: `allSubscriptions()` returned only the legacy `device-snapshot-changes` sub after install, same failure mode as the earlier arg-stripping build (commit `65960ac8`). **Any subscription carrying args is silently dropped by CloudKit on this container, regardless of which field the args reference.**
 
 ### Changed
 - **Push notification text is now localized on the iOS side via `String(localized:)`.** The `alertBody` is resolved at subscription-creation time against the iPhone's current locale (using the pre-translated `Push.QuotaDepleted.body` / `Push.QuotaRestored.body` keys in `Localizable.xcstrings`) and baked into the subscription payload as a literal string. CloudKit delivers that string verbatim at push time — no args, no server-side substitution. Each iPhone sees the push in its own language (en / ja / zh-Hans / zh-Hant); Mac-side language is irrelevant.
@@ -15,10 +17,12 @@ All notable changes to the CodexBar iOS companion app will be documented in this
 ### Notes
 - Definitive takeaway recorded in `Research/004-alert-push-cloudkit.md`: subscription localization args are unusable on this CloudKit container. Pass-through-from-record designs (Plan A) are not viable. The replacement pattern is iOS-side `String(localized:)` at subscription-creation time, keyed off the zone (which is state-specific).
 
-## [1.2.0 (50)] — 2026-04-13
+## [1.2.0 (51)] — 2026-04-13
 
-### Added
-- **Locale-aware Mac→iOS push notifications.** Each iPhone now renders the quota push in its own locale (English / 简体中文 / 繁體中文 / 日本語) using the pre-translated `Push.QuotaDepleted.*` and `Push.QuotaRestored.*` keys in `Localizable.xcstrings`. Mac writes only the untranslated `providerName` field into the record; CloudKit substitutes it into the title template at push time via `titleLocalizationArgs = ["providerName"]`, and iOS resolves the templates against its current locale.
+> **Version label note:** This entry was committed as "(build 50)" in commit `c899e997` (`project.yml` = 50), but `xcodebuild -exportArchive` auto-bumped the upload to 51 after App Store Connect rejected 50 as a duplicate. TestFlight delivered build 51. **Build 51 turned out to have a regression (see 52 below) — iOS `allSubscriptions()` returned only the legacy `device-snapshot-changes` sub, the two new quota subs did not persist.**
+
+### Added (attempted — regressed)
+- **Locale-aware Mac→iOS push notifications.** Each iPhone was intended to render the quota push in its own locale (English / 简体中文 / 繁體中文 / 日本語) using the pre-translated `Push.QuotaDepleted.*` and `Push.QuotaRestored.*` keys in `Localizable.xcstrings`. Mac writes only the untranslated `providerName` field into the record; CloudKit was to substitute it into the title template at push time via `titleLocalizationArgs = ["providerName"]`, and iOS was to resolve the templates against its current locale.
 
 ### Changed
 - **Quota transition state differentiation moved from predicate to zone.** Instead of a single zone-wide subscription with a static `alertBody = "Session quota changed"`, iOS now carries two `CKRecordZoneSubscription`s — one on the new `QuotaDepletedZone` and one on `QuotaRestoredZone` — each with its own localization key. The split lets each subscription own a static `titleLocalizationKey` / `alertLocalizationKey` while staying on the persisting subscription type (`CKRecordZoneSubscription` — `CKQuerySubscription` is still silently non-persisting on this container).
