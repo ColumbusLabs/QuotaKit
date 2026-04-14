@@ -1,9 +1,20 @@
 # 004: Mac→iOS 推送通知（CloudKit alert push 方案）
 
-- **Status**: research-complete, awaiting plan approval
+- **Status**: done — shipped in Build 50 (2026-04-13) with a **zone-split** variant rather than the CKQuerySubscription-predicate design originally proposed below. See "Implementation note" directly under this header for the divergence.
 - **Created**: 2026-04-08
 - **Supersedes**: [003-push-notifications.md](003-push-notifications.md)
 - **Goal**: Mac 端检测到 quota 变化时，iOS 收到一条**用户可见的本地化通知**，**不要求 Background App Refresh**，**不需要 app 唤醒跑代码**，**不需要服务端**
+
+## Implementation note (Build 50, 2026-04-13)
+
+Builds 42–49 iterated on this design and converged to a final form that **diverges from the "Subscription 设计" section below in one important way**: state differentiation is encoded in the **zone** rather than in a subscription predicate.
+
+- **Original plan** (below): one zone, two `CKQuerySubscription`s filtered by `state == "depleted"` / `"restored"`.
+- **What shipped in Build 50**: two zones (`QuotaDepletedZone` / `QuotaRestoredZone`), each with a `CKRecordZoneSubscription` carrying its own static `titleLocalizationKey` / `alertLocalizationKey`. Mac picks the destination zone based on state.
+
+**Reason for the change**: A/B testing across Builds 42–48 confirmed that `CKQuerySubscription` saves without error but never persists on this CloudKit container (`allSubscriptions()` returns empty immediately). `CKRecordZoneSubscription` does persist, but it has no predicate support — so state differentiation had to move from predicate to zone. The locale-aware text design (`Push.QuotaDepleted.*` / `Push.QuotaRestored.*` localization keys + `titleLocalizationArgs = ["providerName"]`) is preserved as originally specified.
+
+The rest of this document describes the original design and is kept for historical reference.
 
 ## 为什么换方案
 

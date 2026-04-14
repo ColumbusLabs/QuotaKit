@@ -2,6 +2,20 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.2.0 (50)] — 2026-04-13
+
+### Added
+- **Locale-aware Mac→iOS push notifications.** Each iPhone now renders the quota push in its own locale (English / 简体中文 / 繁體中文 / 日本語) using the pre-translated `Push.QuotaDepleted.*` and `Push.QuotaRestored.*` keys in `Localizable.xcstrings`. Mac writes only the untranslated `providerName` field into the record; CloudKit substitutes it into the title template at push time via `titleLocalizationArgs = ["providerName"]`, and iOS resolves the templates against its current locale.
+
+### Changed
+- **Quota transition state differentiation moved from predicate to zone.** Instead of a single zone-wide subscription with a static `alertBody = "Session quota changed"`, iOS now carries two `CKRecordZoneSubscription`s — one on the new `QuotaDepletedZone` and one on `QuotaRestoredZone` — each with its own localization key. The split lets each subscription own a static `titleLocalizationKey` / `alertLocalizationKey` while staying on the persisting subscription type (`CKRecordZoneSubscription` — `CKQuerySubscription` is still silently non-persisting on this container).
+- `CloudSyncManager.writeQuotaTransition` picks the destination zone from the transition state and drops `notificationTitle` / `notificationBody` parameters (no longer needed). `recordName` is now `(providerID, hourBucket)` — state is implicit in the zone.
+- The Build 42–49 legacy subscription `quota-transition-zone-sub` is explicitly deleted on upgrade. The legacy `QuotaTransitionsZone` is left in place (no harm: Mac no longer writes to it).
+
+### Notes
+- **No CloudKit Dashboard schema deploy is required for this change.** Zones are created on-demand, and the only field referenced by subscription args (`providerName`) has been in the Production schema since Build 48. This avoids the Build 49 (`65960ac8`) failure mode where args referencing undeployed fields caused subscriptions to silently not persist.
+- Covers the v4 push notification iteration through Builds 43–49 (subscription type, DB, zone, localization). See `Research/004-alert-push-cloudkit.md`.
+
 ## [1.2.0 (42)] — 2026-04-08
 
 ### Added

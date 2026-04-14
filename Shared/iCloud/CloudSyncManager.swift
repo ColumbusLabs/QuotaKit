@@ -301,61 +301,80 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
 
     // MARK: - CloudKit Quota Transition Write (Mac side, alert push trigger)
 
-    /// The dedicated zone for quota transition push events.
-    private let quotaTransitionsZone = CKRecordZone(
-        zoneName: CloudSyncConstants.quotaTransitionsZoneName)
+    /// Zone for "depleted" push events. One CKRecordZoneSubscription on this zone
+    /// carries the `Push.QuotaDepleted.*` localization keys.
+    private let quotaDepletedZone = CKRecordZone(
+        zoneName: CloudSyncConstants.quotaDepletedZoneName)
 
-    /// Ensures the QuotaTransitionsZone exists on the private database.
+    /// Zone for "restored" push events. Paired with `quotaDepletedZone`.
+    ///
+    /// **Why split state into two zones instead of predicate filtering:**
+    /// CKQuerySubscription (which supports NSPredicate) does not persist on this
+    /// CloudKit container — save succeeds but `allSubscriptions()` returns empty
+    /// (A/B test confirmed, see `QuotaTransitionSubscriptions.swift`). Splitting
+    /// by zone lets each `CKRecordZoneSubscription` carry its own **static**
+    /// localization key while using the persisting subscription type.
+    private let quotaRestoredZone = CKRecordZone(
+        zoneName: CloudSyncConstants.quotaRestoredZoneName)
+
+    /// Returns the push zone that carries a given transition state.
+    private func quotaZone(for state: String) -> CKRecordZone {
+        state == "depleted" ? quotaDepletedZone : quotaRestoredZone
+    }
+
+    /// Ensures a given quota push zone exists on the private database.
     /// Same fetch-first pattern as `ensureCustomZoneExists`.
-    private func ensureQuotaTransitionsZoneExists() async throws {
+    private func ensureQuotaZoneExists(_ zone: CKRecordZone) async throws {
         do {
-            _ = try await _privateDatabase!.recordZone(for: quotaTransitionsZone.zoneID)
+            _ = try await _privateDatabase!.recordZone(for: zone.zoneID)
             return
         } catch let error as CKError {
             if error.code != .zoneNotFound { throw error }
         }
         _ = try await _privateDatabase!.modifyRecordZones(
-            saving: [quotaTransitionsZone], deleting: [])
-        self.logInfo("QuotaTransitionsZone created")
+            saving: [zone], deleting: [])
+        self.logInfo("\(zone.zoneID.zoneName) created")
     }
 
-    /// Writes a `QuotaTransition` record to CloudKit so iOS receives a visible alert
-    /// push via the `CKRecordZoneSubscription` on `QuotaTransitionsZone`.
+    /// Writes a `QuotaTransition` record to the **state-specific** CloudKit zone so
+    /// iOS receives a visible alert push via the matching `CKRecordZoneSubscription`.
     ///
-    /// The subscription reads `providerName` and `state` directly from the record
-    /// fields via `titleLocalizationArgs` / `alertLocalizationArgs`. No extra fields
-    /// needed — only fields that already exist in the Production schema are written.
+    /// State is encoded in the **zone** (`QuotaDepletedZone` / `QuotaRestoredZone`),
+    /// not in a field used by the subscription. This lets each iOS subscription
+    /// carry static `Push.QuotaDepleted.*` / `Push.QuotaRestored.*` localization
+    /// keys, so each iPhone sees the notification in its own locale.
     ///
-    /// `recordName` is derived from `(deviceID, providerID, state, hourBucket)` so
-    /// concurrent transitions collapse to one record per hour (idempotent overwrite).
+    /// Only fields that already exist in the Production schema are written
+    /// (`providerName`, `providerID`, `state`, `transitionAt`, `deviceID`). No new
+    /// fields — so no CloudKit Dashboard schema deploy is required for this change.
+    ///
+    /// `recordName` is derived from `(providerID, hourBucket)` so concurrent
+    /// transitions from multiple Macs within the same hour collapse to a single
+    /// record per zone (idempotent overwrite). State is not part of the name
+    /// because it is already implied by the zone.
     public func writeQuotaTransition(
         providerName: String,
         providerID: String,
         state: String,
-        notificationTitle: String = "",
-        notificationBody: String = "",
         transitionAt: Date) async -> SyncPushResult
     {
         guard cloudKitAvailable, _privateDatabase != nil else {
             return .failure("CloudKit not available")
         }
 
+        let zone = self.quotaZone(for: state)
+
         do {
-            try await ensureQuotaTransitionsZoneExists()
+            try await ensureQuotaZoneExists(zone)
         } catch {
             let syncError = CloudSyncError(from: error as? CKError ?? CKError(.internalError))
-            return .failure("Failed to create QuotaTransitionsZone: \(syncError.description)")
+            return .failure("Failed to create \(zone.zoneID.zoneName): \(syncError.description)")
         }
 
         let deviceID = self.stableDeviceID()
         let hourBucket = Int(transitionAt.timeIntervalSince1970 / 3600)
-        // recordName intentionally EXCLUDES deviceID so multiple Macs detecting
-        // the same transition in the same hour collapse to a single record (last
-        // writer wins). This prevents duplicate push notifications when 2+ Macs
-        // observe the same quota change simultaneously.
-        let recordName = "\(providerID)-\(state)-\(hourBucket)"
-        let recordID = CKRecord.ID(
-            recordName: recordName, zoneID: quotaTransitionsZone.zoneID)
+        let recordName = "\(providerID)-\(hourBucket)"
+        let recordID = CKRecord.ID(recordName: recordName, zoneID: zone.zoneID)
 
         let record = CKRecord(
             recordType: CloudSyncConstants.quotaTransitionRecordType, recordID: recordID)
@@ -364,15 +383,13 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         record["state"] = state as CKRecordValue
         record["transitionAt"] = transitionAt as CKRecordValue
         record["deviceID"] = deviceID as CKRecordValue
-        // Note: notificationTitle/notificationBody are accepted as params but NOT
-        // written to the record until they are deployed to Production schema.
-        // Writing undeployed fields causes CloudKit Production to reject the save.
 
         do {
             try await _privateDatabase!.save(record)
             self.logInfo("QuotaTransition record written", metadata: [
                 "providerName": providerName,
                 "state": state,
+                "zone": zone.zoneID.zoneName,
                 "recordName": recordName,
             ])
             return .success

@@ -13,20 +13,35 @@ public enum CloudSyncConstants {
     /// Custom record zone name for per-device usage snapshots.
     public static let customZoneName = "DeviceSnapshotsZone"
 
-    /// Dedicated zone for quota transition push events. Separate from DeviceSnapshotsZone
-    /// so the CKRecordZoneSubscription only fires for QuotaTransition changes, not for
-    /// every DeviceSnapshot update (which happens every ~60s).
+    /// Legacy zone used by Build 42–49. Kept only so we can delete the stale
+    /// `quota-transition-zone-sub` on upgrade; no new records are written here.
     public static let quotaTransitionsZoneName = "QuotaTransitionsZone"
 
+    /// Dedicated zone for "quota depleted" push events. Split by state (not predicate)
+    /// because CKQuerySubscription does not persist on this container (A/B test
+    /// confirmed, see `QuotaTransitionSubscriptions.swift`). Splitting by zone lets
+    /// each CKRecordZoneSubscription carry its own static localization key.
+    public static let quotaDepletedZoneName = "QuotaDepletedZone"
+
+    /// Dedicated zone for "quota restored" push events. See `quotaDepletedZoneName`.
+    public static let quotaRestoredZoneName = "QuotaRestoredZone"
+
     /// CloudKit record type for visible quota change push events (alert push design).
-    /// One record per (deviceID, provider, state, hourBucket) — see
+    /// One record per (provider, hourBucket) within each state-specific zone — see
     /// `Research/004-alert-push-cloudkit.md`.
     public static let quotaTransitionRecordType = "QuotaTransition"
 
-    /// Subscription IDs for the two visible alert-push subscriptions iOS creates.
-    /// Each subscription's predicate filters on `state`, and its `notificationInfo`
-    /// holds the localization key for the matching template.
+    /// Subscription ID used by Build 42–49 (single zone-level sub on
+    /// `QuotaTransitionsZone`). Kept as a constant so the new setup code can
+    /// delete it during upgrade.
+    public static let quotaTransitionLegacySubscriptionID = "quota-transition-zone-sub"
+
+    /// Subscription ID for the "depleted" CKRecordZoneSubscription on
+    /// `QuotaDepletedZone`.
     public static let quotaTransitionDepletedSubscriptionID = "quota-transition-depleted"
+
+    /// Subscription ID for the "restored" CKRecordZoneSubscription on
+    /// `QuotaRestoredZone`.
     public static let quotaTransitionRestoredSubscriptionID = "quota-transition-restored"
 
     /// UserDefaults key for the stable device UUID (persisted on each Mac).

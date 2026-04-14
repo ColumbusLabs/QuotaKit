@@ -1716,6 +1716,14 @@
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "会话额度已恢复" } },
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "工作階段額度已恢復" } }
       }
+    },
+    "Push notifications from Mac — when a session quota hits 0% or becomes available again on Mac, your iPhone receives a notification in its own language." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Push notifications from Mac — when a session quota hits 0% or becomes available again on Mac, your iPhone receives a notification in its own language." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Mac からのプッシュ通知 — Mac でセッションクォータが 0% になったとき、または再び利用可能になったとき、iPhone がその言語で通知を受け取ります。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "来自 Mac 的推送通知 —— 当 Mac 上会话额度耗尽或恢复可用时，iPhone 将以自己的语言收到通知。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "來自 Mac 的推送通知 —— 當 Mac 上工作階段額度耗盡或恢復可用時，iPhone 將以自己的語言收到通知。" } }
+      }
     }
   },
   "version" : "1.0"

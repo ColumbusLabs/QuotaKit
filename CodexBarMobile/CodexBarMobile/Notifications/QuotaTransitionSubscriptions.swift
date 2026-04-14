@@ -2,86 +2,151 @@ import CloudKit
 import CodexBarSync
 import Foundation
 
-/// Sets up a `CKRecordZoneSubscription` on the `QuotaTransitionsZone` to receive
-/// visible alert push notifications when Mac writes a `QuotaTransition` record.
+/// Sets up two `CKRecordZoneSubscription`s (one per state-specific zone) to receive
+/// visible, locale-aware alert push notifications when Mac writes a `QuotaTransition`
+/// record.
 ///
 /// **Why CKRecordZoneSubscription, not CKQuerySubscription:**
 /// A/B testing confirmed that CKQuerySubscription saves without error but never
-/// persists on this CloudKit container (allSubscriptions returns empty immediately
-/// after a successful save). CKRecordZoneSubscription DOES persist — the old
-/// `device-snapshot-changes` subscription proves this.
+/// persists on this CloudKit container (`allSubscriptions()` returns empty
+/// immediately after a successful save). CKRecordZoneSubscription DOES persist —
+/// the old `device-snapshot-changes` subscription proves this.
 ///
-/// **Why a dedicated zone:**
-/// CKRecordZoneSubscription fires on all record changes in the zone. Using the
-/// same zone as DeviceSnapshot (which updates every ~60s) would spam the user.
-/// A dedicated `QuotaTransitionsZone` + `recordType = "QuotaTransition"` ensures
-/// pushes only fire for quota change events.
+/// **Why two zones instead of one zone + state predicate:**
+/// CKRecordZoneSubscription does not support NSPredicate, so the `state`
+/// differentiation is encoded in the **zone choice** instead: Mac writes depleted
+/// records to `QuotaDepletedZone` and restored records to `QuotaRestoredZone`.
+/// Each zone carries its own subscription with the matching static localization
+/// key, which is how each iPhone renders the text in its own locale.
 ///
 /// **How notification text works:**
-/// Mac writes `notificationTitle` and `notificationBody` fields into each record.
-/// The subscription's `titleLocalizationArgs` and `alertLocalizationArgs` reference
-/// these field names. CloudKit reads the values at push time and populates the
-/// notification — Mac decides the text, iOS just displays it.
+/// Each subscription has a static `titleLocalizationKey` + `alertLocalizationKey`
+/// pointing at `Push.QuotaDepleted.*` / `Push.QuotaRestored.*` in
+/// `Localizable.xcstrings`. `titleLocalizationArgs = ["providerName"]` lets
+/// CloudKit substitute the record's `providerName` field into the title template
+/// at push time. iOS resolves both keys against its own locale, so a Chinese
+/// iPhone and a Japanese iPhone see the same push in their own language without
+/// the Mac knowing anything about iOS-side locale.
+///
+/// **Why `providerName` is the only referenced field:**
+/// Historical failure mode (Build 49, commit `65960ac8`): subscriptions whose
+/// `titleLocalizationArgs` / `alertLocalizationArgs` referenced **undeployed**
+/// Production schema fields (like `notificationTitle`/`notificationBody`) were
+/// silently dropped by CloudKit on save. `providerName` has been written to
+/// Production records since Build 48, so referencing it in args is safe.
 @MainActor
 final class QuotaTransitionSubscriptions {
     static let shared = QuotaTransitionSubscriptions()
 
     private let containerIdentifier = CloudSyncConstants.containerIdentifier
-    private let zoneName = CloudSyncConstants.quotaTransitionsZoneName
     private let recordType = CloudSyncConstants.quotaTransitionRecordType
-    private let subscriptionID = "quota-transition-zone-sub"
+
+    /// One config per state-specific zone. Adding a third state (e.g. "warning")
+    /// only requires a new entry here + the matching zone on Mac + Localizable keys.
+    private struct SubConfig {
+        let zoneName: String
+        let subscriptionID: String
+        let titleKey: String
+        let bodyKey: String
+    }
+
+    private let configs: [SubConfig] = [
+        SubConfig(
+            zoneName: CloudSyncConstants.quotaDepletedZoneName,
+            subscriptionID: CloudSyncConstants.quotaTransitionDepletedSubscriptionID,
+            titleKey: "Push.QuotaDepleted.title",
+            bodyKey: "Push.QuotaDepleted.body"),
+        SubConfig(
+            zoneName: CloudSyncConstants.quotaRestoredZoneName,
+            subscriptionID: CloudSyncConstants.quotaTransitionRestoredSubscriptionID,
+            titleKey: "Push.QuotaRestored.title",
+            bodyKey: "Push.QuotaRestored.body"),
+    ]
 
     private init() {}
 
-    /// Configures the subscription if needed. Idempotent and safe to call on every
-    /// launch and on every `CKAccountChangedNotification`.
+    /// Configures both state-specific subscriptions if needed, and deletes the
+    /// Build 42–49 legacy single-sub (`quota-transition-zone-sub`) on upgrade.
+    /// Idempotent and safe to call on every launch and on every
+    /// `CKAccountChangedNotification`.
     func setupIfNeeded() async {
         let diag = await PushSetupDiagnostic.shared
         let container = CKContainer(identifier: containerIdentifier)
         let database = container.privateCloudDatabase
-        let zoneID = CKRecordZone.ID(
-            zoneName: zoneName, ownerName: CKCurrentUserDefaultName)
 
-        // Step 1: ensure QuotaTransitionsZone exists
-        do {
-            try await self.ensureZoneExists(database: database, zoneID: zoneID)
-            await diag.recordZone("✓ \(zoneName) exists")
-        } catch {
-            let msg = "ensureZoneExists failed: \(error.localizedDescription)"
-            print("[CodexBar Push v4] \(msg)")
-            await diag.recordZone("✗ \(msg)")
-            await diag.recordError(msg)
-            return
-        }
+        // Step 0: clean up the Build 42–49 legacy single-sub if present. Mac no
+        // longer writes to its zone, so it would never fire, but we remove it to
+        // keep `allSubscriptions()` tidy.
+        try? await database.deleteSubscription(
+            withID: CloudSyncConstants.quotaTransitionLegacySubscriptionID)
 
-        // Step 2: configure the CKRecordZoneSubscription
-        do {
-            let created = try await self.configureSubscription(
-                database: database, zoneID: zoneID)
-            let msg = created ? "✓ created" : "✓ already correct"
-            print("[CodexBar Push v4] Subscription \(msg)")
-            await diag.recordDepletedSub(msg)
-            await diag.recordRestoredSub(msg)
-        } catch {
-            let msg = "✗ subscription setup failed: \(error.localizedDescription)"
-            print("[CodexBar Push v4] \(msg)")
-            await diag.recordDepletedSub(msg)
-            await diag.recordRestoredSub(msg)
-            await diag.recordError(msg)
+        // Step 1–2: for each state-specific config, ensure zone + subscription.
+        for config in configs {
+            await self.setup(config: config, database: database, diag: diag)
         }
 
         // Step 3: refresh subscription list from iOS perspective
         await diag.refreshSubscriptionList()
     }
 
-    /// Runs a persistence test: create a temporary CKRecordZoneSubscription, check
-    /// if allSubscriptions returns it, then delete. Returns a human-readable result.
+    private func setup(
+        config: SubConfig, database: CKDatabase, diag: PushSetupDiagnostic) async
+    {
+        let zoneID = CKRecordZone.ID(
+            zoneName: config.zoneName, ownerName: CKCurrentUserDefaultName)
+
+        // Ensure zone exists
+        do {
+            try await self.ensureZoneExists(database: database, zoneID: zoneID)
+            await diag.recordZone("✓ \(config.zoneName) exists")
+        } catch {
+            let msg = "✗ ensureZoneExists(\(config.zoneName)) failed: " +
+                "\(error.localizedDescription)"
+            print("[CodexBar Push v5] \(msg)")
+            await diag.recordZone(msg)
+            await diag.recordError(msg)
+            return
+        }
+
+        // Configure the subscription
+        do {
+            let created = try await self.configureSubscription(
+                database: database, zoneID: zoneID, config: config)
+            let msg = "✓ \(config.subscriptionID) " +
+                (created ? "created" : "already correct")
+            print("[CodexBar Push v5] \(msg)")
+            await self.report(msg: msg, config: config, diag: diag)
+        } catch {
+            let msg = "✗ \(config.subscriptionID) setup failed: " +
+                "\(error.localizedDescription)"
+            print("[CodexBar Push v5] \(msg)")
+            await self.report(msg: msg, config: config, diag: diag)
+            await diag.recordError(msg)
+        }
+    }
+
+    private func report(
+        msg: String, config: SubConfig, diag: PushSetupDiagnostic) async
+    {
+        if config.subscriptionID
+            == CloudSyncConstants.quotaTransitionDepletedSubscriptionID
+        {
+            await diag.recordDepletedSub(msg)
+        } else {
+            await diag.recordRestoredSub(msg)
+        }
+    }
+
+    /// Runs a persistence test on a bare CKRecordZoneSubscription in the depleted
+    /// zone. Returns a human-readable result. Representative of both real subs
+    /// since they share the same subscription type and zone pattern.
     func runPersistenceTest() async -> String {
         let container = CKContainer(identifier: containerIdentifier)
         let database = container.privateCloudDatabase
         let testID = "ios-persistence-test"
         let zoneID = CKRecordZone.ID(
-            zoneName: zoneName, ownerName: CKCurrentUserDefaultName)
+            zoneName: CloudSyncConstants.quotaDepletedZoneName,
+            ownerName: CKCurrentUserDefaultName)
 
         do {
             try await self.ensureZoneExists(database: database, zoneID: zoneID)
@@ -134,49 +199,65 @@ final class QuotaTransitionSubscriptions {
         }
         let zone = CKRecordZone(zoneID: zoneID)
         _ = try await database.modifyRecordZones(saving: [zone], deleting: [])
-        print("[CodexBar Push v4] Created zone: \(zoneID.zoneName)")
+        print("[CodexBar Push v5] Created zone: \(zoneID.zoneName)")
     }
 
-    /// Creates or repairs the subscription. Returns true if created, false if
-    /// already correct (no-op).
+    /// Creates or repairs the subscription for a given config. Returns true if
+    /// created, false if already correct (no-op).
     private func configureSubscription(
-        database: CKDatabase, zoneID: CKRecordZone.ID) async throws -> Bool
+        database: CKDatabase, zoneID: CKRecordZone.ID, config: SubConfig)
+        async throws -> Bool
     {
         // Fetch existing
         let existing: CKSubscription?
         do {
-            existing = try await database.subscription(for: subscriptionID)
+            existing = try await database.subscription(for: config.subscriptionID)
         } catch let error as CKError where error.code == .unknownItem {
             existing = nil
         }
         // Other errors propagate (don't destructively modify on transient failures)
 
-        // Check if already correct
+        // Check if already correct. Must match zoneID, recordType, AND the full
+        // localization config — otherwise we recreate with the current values.
+        // Missing any of these checks would let a stale Build 48 sub (static
+        // alertBody only) pass as "correct" and never get upgraded.
         if let zoneSub = existing as? CKRecordZoneSubscription,
            zoneSub.zoneID == zoneID,
            zoneSub.recordType == recordType,
-           zoneSub.notificationInfo?.alertBody != nil
+           let info = zoneSub.notificationInfo,
+           info.titleLocalizationKey == config.titleKey,
+           info.titleLocalizationArgs == ["providerName"],
+           info.alertLocalizationKey == config.bodyKey,
+           (info.alertLocalizationArgs ?? []).isEmpty
         {
             return false // already correct
         }
 
         // Delete stale subscription if exists
         if existing != nil {
-            try? await database.deleteSubscription(withID: subscriptionID)
+            try? await database.deleteSubscription(withID: config.subscriptionID)
         }
 
-        // Create new CKRecordZoneSubscription
+        // Create new CKRecordZoneSubscription with locale-aware notification info.
+        //
+        // `titleLocalizationKey` + `args = ["providerName"]` tells CloudKit to pull
+        // the record's `providerName` field into the `%@` template at push time.
+        // iOS resolves the key against `Localizable.xcstrings` using the iPhone's
+        // current locale.
+        //
+        // `alertBody` is kept as a debugging fallback: if the localization key
+        // lookup ever fails, iOS falls back to displaying this literal text
+        // instead of an empty body. Not localized (English-only).
         let subscription = CKRecordZoneSubscription(
-            zoneID: zoneID, subscriptionID: subscriptionID)
+            zoneID: zoneID, subscriptionID: config.subscriptionID)
         subscription.recordType = recordType
 
-        // MINIMAL config — identical to what the persistence test uses.
-        // Localization args caused subscription to silently not persist
-        // (CloudKit may validate field references against Production schema).
-        // Once push delivery is confirmed working, we can add args back
-        // after deploying the new fields to Production schema.
         let info = CKSubscription.NotificationInfo()
         info.alertBody = "Session quota changed"
+        info.titleLocalizationKey = config.titleKey
+        info.titleLocalizationArgs = ["providerName"]
+        info.alertLocalizationKey = config.bodyKey
+        // No alertLocalizationArgs — body template has no placeholder per locale.
         info.soundName = "default"
         subscription.notificationInfo = info
 
