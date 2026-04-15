@@ -31,11 +31,16 @@ fi
 extract_version_section() {
   local version=$1
   local file=$2
+  # Grab ONLY the first occurrence of `## <version>` — if the changelog ever
+  # ends up with a duplicate heading for the same version (e.g. accidental
+  # split across dates), the second occurrence must NOT be appended to the
+  # first. We reach `exit` on any `## ` heading encountered after the first
+  # match, regardless of whether it also matches `version`.
   awk -v version="$version" '
     BEGIN { found=0 }
     /^## / {
-      if ($0 ~ "^##[[:space:]]+" version "([[:space:]].*|$)") { found=1; next }
       if (found) { exit }
+      if ($0 ~ "^##[[:space:]]+" version "([[:space:]].*|$)") { found=1; next }
     }
     found { print }
   ' "$file"
