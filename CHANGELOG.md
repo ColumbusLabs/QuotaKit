@@ -1,5 +1,49 @@
 # Changelog
 
+## 0.19.0 — 2026-04-15
+
+This release ships the Mac-side changes that support Mobile 1.2.0: a CloudKit push notification writer (with multi-Mac dedup and 5-minute debounce per provider/state), 4 DEV test buttons in Preferences → Mobile, and an About-page locale fix. Upstream CodexBar features are unchanged from the 2026-04-04 release.
+
+### Highlights — Mobile 1.2.0
+- **Subscription Utilization visualization on iPhone** — see each session / weekly / opus quota per provider and across all providers, with a 30-day daily bar chart in the Cost tab and a utilization history chart on every provider detail page.
+- **Multi-Mac data merge on iPhone** — if you run CodexBar on more than one Mac, iPhone now dedupes data by hour and combines across Macs, so iPhone charts stay consistent regardless of which Mac was last active.
+- **Mac→iPhone push notifications** — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a localized notification that includes the provider name (e.g. "Codex session quota depleted" / "Codex 的会话额度已耗尽"). Background App Refresh is not required.
+
+### Mac — Mobile 1.2.0 push infrastructure
+- **`QuotaTransition` CloudKit record writer** — every session quota transition writes one record into the matching `Quota-{providerID}-{state}Zone` (~46 zones for 23 providers × 2 states). iPhone has a pre-baked `CKRecordZoneSubscription` per zone, with the provider name baked into the localized `alertBody` at subscription setup.
+- **5-minute debounce per `(provider, state)`** to prevent oscillation near 0% from spamming.
+- **Multi-Mac dedup** — `recordName = (providerID, hourBucket)` collapses concurrent transitions from 2+ Macs in the same hour to one record, so iPhone receives at most one push per `(provider, state)` per hour.
+- **DEV test buttons in Preferences → Mobile** (debug builds only) — Codex / Claude × Depleted / Restored, for end-to-end push validation without waiting for a real quota change.
+
+### Mac — fixes
+- About page build date is now formatted with `en_US_POSIX` locale, avoiding mixed Chinese + English format on Chinese-system Macs.
+
+### CodexBar 0.19.0 (Upstream)
+No change since the 2026-04-04 release.
+
+---
+
+本版本带来 Mobile 1.2.0 配套的 Mac 端改动：CloudKit 推送通知写入（支持多 Mac 去重和按 provider/state 的 5 分钟 debounce）、Preferences → Mobile 下的 4 个 DEV 测试按钮，以及 About 页 locale 修复。上游 CodexBar 自 2026-04-04 起无变化。
+
+### 亮点 — Mobile 1.2.0
+- **iPhone 订阅利用率可视化** —— 直观看到每个 session / weekly / opus 额度的使用情况，可按 Provider 分开看也可以跨 Provider 看总体。Cost tab 有 30 天日级柱状图，每个 Provider 详情页还有独立的利用率历史图。
+- **iPhone 多 Mac 数据合并** —— 如果你在多台 Mac 上使用 CodexBar，iPhone 上会按小时去重后把所有 Mac 的数据合并，不管最后活跃的是哪台 Mac，iPhone 图表都一致。
+- **Mac→iPhone 推送通知** —— 当你任何一台 Mac 上会话额度耗尽或恢复可用时，iPhone 收到一条本地化的通知，内容包含 Provider 名称（如"Codex 的会话额度已耗尽"）。不需要启用 Background App Refresh。
+
+### Mac — Mobile 1.2.0 推送基础设施
+- **`QuotaTransition` CloudKit record 写入** —— 每次会话额度状态变化，Mac 向对应的 `Quota-{providerID}-{state}Zone`（23 providers × 2 states ≈ 46 个 zone）写一条 record。iPhone 端为每个 zone 预创建 `CKRecordZoneSubscription`，subscription 创建时就把 Provider 名烤进 `alertBody`。
+- **5 分钟 (provider, state) 级 debounce**，防止额度在 0% 附近抖动导致重复推送。
+- **多 Mac 去重** —— `recordName` 用 `(providerID, hourBucket)`，多台 Mac 同一小时内检测到同一状态变化合并为单条 record，iPhone 每小时每种 `(provider, state)` 最多收到 1 条推送。
+- **Preferences → Mobile 新增 4 个 DEV 测试按钮**（仅 debug 构建），Codex / Claude × 耗尽 / 恢复，端到端验证推送链路无需等真实额度变化。
+
+### Mac — 修复
+- About 页 Build 日期强制 `en_US_POSIX` locale，避免中文系统 Mac 显示中英文混合格式。
+
+### CodexBar 0.19.0（上游）
+自 2026-04-04 发布以来无变化。
+
+---
+
 ## 0.19.0 — 2026-04-02
 
 This release merges upstream CodexBar 0.19.0 into our fork, ensuring full compatibility and laying the groundwork for upcoming mobile features. Mobile-side support for the new upstream capabilities is in development.
