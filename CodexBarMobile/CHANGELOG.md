@@ -2,6 +2,22 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.2.0 (54)] — 2026-04-14
+
+### Fixed
+- **Push notifications now show the provider name in the body** — e.g. "Codex 的会话额度已耗尽" on a Chinese iPhone, "Codex session quota depleted" on an English iPhone. Build 53's `UNNotificationServiceExtension` approach proved unreliable on this CloudKit container — on-device verification showed the extension didn't wake, very likely because the container silently strips the `shouldSendMutableContent` flag the same way it strips `titleLocalizationArgs`. Build 54 falls back all the way to the mechanism Build 48 / 52 proved persists reliably (a plain `CKRecordZoneSubscription` with a static `alertBody`) and scales it horizontally.
+
+### Changed
+- **One subscription per `(provider, state)` pair, ≈ 46 subscriptions total**, each with the provider's display name pre-baked into its `alertBody` via `String(format: "%@ session quota depleted", providerName)` against localized templates (`Push.QuotaDepleted.bodyWithProvider` / `Push.QuotaRestored.bodyWithProvider`, 4 languages). The iPhone's locale is resolved at subscription-setup time.
+- **Mac `writeQuotaTransition` routes to a per-provider zone** named `Quota-{providerID}-{state}Zone` (e.g. `Quota-codex-depletedZone`). The shared Build 52/53 `QuotaDepletedZone` / `QuotaRestoredZone` are no longer written to — Mac simply picks the zone matching the current `(provider, state)`.
+- **`QuotaProviderList` (shared)** lists the 23 providers + display names that track `UsageProvider` on Mac. New provider additions upstream require an iOS shipping update to be subscribed to.
+- **Sub setup batched**: a single `modifyRecordZones(saving: [...46 zones])` + a diff-driven `modifySubscriptions(saving: [drifted subs only], deleting: [])`. Returning launches whose configs are already correct cost only one `allSubscriptions()` round-trip.
+- **Legacy subs deleted on upgrade**: `quota-transition-zone-sub` (Build 42–49) + `quota-transition-depleted` / `quota-transition-restored` (Build 52/53).
+
+### Notes
+- **The `CodexBarMobilePushExtension` target is retained but dormant**: subscriptions no longer set `shouldSendMutableContent`, so iOS will never wake the extension. We keep the code around as a future-revival hook; for the foreseeable future the plain static-body mechanism is the only one that has been empirically proven on this container.
+- **The body text includes the provider; the title stays as the iOS default "CodexBar"**. Title override requires the extension path, which this container does not support.
+
 ## [1.2.0 (53)] — 2026-04-14
 
 ### Added

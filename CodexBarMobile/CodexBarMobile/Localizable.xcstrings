@@ -1717,6 +1717,24 @@
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "工作階段額度已恢復" } }
       }
     },
+    "Push.QuotaDepleted.bodyWithProvider" : {
+      "comment" : "Body of iOS push when a specific provider's session quota becomes depleted. %@ is the provider name, e.g. Codex.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%@ session quota depleted" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "%@ のセッション枠を使い切りました" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%@ 的会话额度已耗尽" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "%@ 的工作階段額度已耗盡" } }
+      }
+    },
+    "Push.QuotaRestored.bodyWithProvider" : {
+      "comment" : "Body of iOS push when a specific provider's session quota becomes available again. %@ is the provider name.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%@ session quota restored" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "%@ のセッション枠が復活しました" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%@ 的会话额度已恢复" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "%@ 的工作階段額度已恢復" } }
+      }
+    },
     "Push notifications from Mac — when a session quota hits 0% or becomes available again on Mac, your iPhone receives a notification in its own language." : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Push notifications from Mac — when a session quota hits 0% or becomes available again on Mac, your iPhone receives a notification in its own language." } },
@@ -1725,12 +1743,12 @@
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "來自 Mac 的推送通知 —— 當 Mac 上工作階段額度耗盡或恢復可用時，iPhone 將以自己的語言收到通知。" } }
       }
     },
-    "Push notifications now show the provider name (Codex, Claude, etc.) in the title." : {
+    "Push notifications now include the provider name in the message — e.g. \"Codex session quota depleted\" instead of just \"Session quota depleted\"." : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Push notifications now show the provider name (Codex, Claude, etc.) in the title." } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "プッシュ通知のタイトルにプロバイダ名（Codex、Claude など）が表示されるようになりました。" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "推送通知现在会在标题中显示提供方名称（Codex、Claude 等）。" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "推送通知現在會在標題中顯示提供方名稱（Codex、Claude 等）。" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Push notifications now include the provider name in the message — e.g. \"Codex session quota depleted\" instead of just \"Session quota depleted\"." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "プッシュ通知の本文にプロバイダ名が含まれるようになりました — 例：「Codex のセッション枠を使い切りました」（以前は「セッション枠を使い切りました」のみ）。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "推送通知现在会在正文中包含提供方名称 —— 例如“Codex 的会话额度已耗尽”，而不是仅“会话额度已耗尽”。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "推送通知現在會在正文中包含提供方名稱 —— 例如「Codex 的工作階段額度已耗盡」，而不是僅「工作階段額度已耗盡」。" } }
       }
     }
   },
