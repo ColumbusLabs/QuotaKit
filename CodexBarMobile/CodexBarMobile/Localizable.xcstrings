@@ -1888,6 +1888,62 @@
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "保留旧版 KVS 同步作为老版 Mac 应用的兼容回退。" } },
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "保留舊版 KVS 同步作為舊版 Mac 應用程式的相容回退。" } }
       }
+    },
+    "Data pushed by Mac · Pull to check for updates" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Data pushed by Mac · Pull to check for updates" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Mac からデータがプッシュされました · 下に引いて更新を確認" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Mac 已推送数据 · 下拉刷新检查更新" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "Mac 已推送資料 · 下拉重新整理檢查更新" } }
+      }
+    },
+    "Mac Update Available" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Mac Update Available" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Mac の更新があります" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Mac 有可用更新" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "Mac 有可用更新" } }
+      }
+    },
+    "Your Mac is using legacy sync. Update CodexBar on Mac to unlock CloudKit multi-device sync." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Your Mac is using legacy sync. Update CodexBar on Mac to unlock CloudKit multi-device sync." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Mac は旧式の同期方式を使用しています。CodexBar Mac アプリを更新して CloudKit マルチデバイス同期を有効にしてください。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "你的 Mac 正在使用旧版同步。更新 Mac 端 CodexBar 以启用 CloudKit 多设备同步。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "你的 Mac 正在使用舊版同步。更新 Mac 端 CodexBar 以啟用 CloudKit 多裝置同步。" } }
+      }
+    },
+    "Download Latest Mac Version" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Download Latest Mac Version" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "最新の Mac 版をダウンロード" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "下载最新 Mac 版本" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "下載最新 Mac 版本" } }
+      }
+    },
+    "Sync Status" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sync Status" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "同期ステータス" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "同步状态" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "同步狀態" } }
+      }
+    },
+    "No devices synced yet" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No devices synced yet" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "まだ同期されたデバイスはありません" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "还没有设备同步" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "還沒有裝置同步" } }
+      }
+    },
+    "No device data available" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No device data available" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "利用可能なデバイスデータがありません" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "没有可用的设备数据" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "沒有可用的裝置資料" } }
+      }
     }
   },
   "version" : "1.0"

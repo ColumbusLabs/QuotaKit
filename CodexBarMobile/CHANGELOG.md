@@ -2,6 +2,15 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.2.0 (57)] — 2026-04-15
+
+### Fixed
+- **Setup Guide (onboarding) had hardcoded English text "v1.1.0 — New Mac App Required" at the top of the Chinese/Japanese/Traditional-Chinese pages.** The upgrade-notice block was introduced for the 1.0.0 → 1.1.0 transition, never updated for 1.2.0, and never added to `Localizable.xcstrings`. Dropped the entire block — the same information (download Mac app from GitHub) is already covered by Step 1 of the setup and by the Important section of the 1.2.0 release notes. One less thing to keep in sync across four languages.
+- **Audit of all `Text(…)` literals found 7 more hardcoded English strings missing from `Localizable.xcstrings`**: `"Data pushed by Mac · Pull to check for updates"` (the Usage/Cost tab status bar), `"Mac Update Available"` + `"Your Mac is using legacy sync. …"` + `"Download Latest Mac Version"` (the legacy-sync upgrade banner in About & Sync), `"Sync Status"` + `"No devices synced yet"` + `"No device data available"` (About & Sync section labels / empty states). Added 4-language translations for all 7. Developer Tools strings deliberately left in English per earlier decision.
+
+### Notes
+- The onboarding trigger logic is unchanged: it compares `@AppStorage("onboardingSeenVersion")` against `CFBundleShortVersionString` (the marketing version, e.g. `1.2.0`), not the build number. A build-only update from 1.2.0 (56) to 1.2.0 (57) **does not** retrigger onboarding. Onboarding only auto-shows on a marketing version bump (e.g. 1.1.0 → 1.2.0) or when the user explicitly taps `Settings → Setup Guide`.
+
 ## [1.2.0 (56)] — 2026-04-14
 
 ### Changed
