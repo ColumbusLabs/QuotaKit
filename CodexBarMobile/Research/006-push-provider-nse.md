@@ -1,6 +1,6 @@
 # 006: Mac→iOS push provider via UNNotificationServiceExtension (chosen design)
 
-- **Status**: done — shipped in Build 53 (2026-04-14)
+- **Status**: superseded by [007-push-per-provider-subscriptions.md](007-push-per-provider-subscriptions.md). Build 53 shipped this design, but on-device verification showed the `UNNotificationServiceExtension` never woke — push titles all stayed as the iOS default "CodexBar". Most likely this CloudKit container silently strips `shouldSendMutableContent = true` the same way it strips `titleLocalizationArgs`. Build 54 moved to a per-provider-subscriptions design (see 007) which is the final shipped form. The extension target is retained but dormant.
 - **Sibling**: [005-push-provider-alternatives.md](005-push-provider-alternatives.md) (the 14 alternatives explored and rejected)
 - **Builds on**: [004-alert-push-cloudkit.md](004-alert-push-cloudkit.md) (Build 52 zone-split + locale-baked-at-sub-creation)
 

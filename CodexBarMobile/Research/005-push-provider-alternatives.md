@@ -1,8 +1,9 @@
 # 005: Mac→iOS push provider name — alternatives explored
 
-- **Status**: archive — alternatives that were considered and rejected for the Build 53 push-with-provider-name work
+- **Status**: archive — alternatives that were considered and rejected for the push-with-provider-name work
 - **Created**: 2026-04-14
-- **Sibling**: [006-push-provider-nse.md](006-push-provider-nse.md) (the chosen approach)
+- **Sibling**: [007-push-per-provider-subscriptions.md](007-push-per-provider-subscriptions.md) (the shipped design — Build 54)
+- **Also**: [006-push-provider-nse.md](006-push-provider-nse.md) (Build 53 NSE design, superseded when the extension failed to wake on this container)
 - **Predecessor**: [004-alert-push-cloudkit.md](004-alert-push-cloudkit.md) (the working state without provider name through Build 52)
 
 ## Goal recap
