@@ -108,7 +108,7 @@ public enum CursorCookieImporter {
 
         do {
             let query = BrowserCookieQuery(domains: Self.cookieDomains)
-            let sources = try Self.cookieClient.records(
+            let sources = try Self.cookieClient.codexBarRecords(
                 matching: query,
                 in: browser,
                 logger: log)

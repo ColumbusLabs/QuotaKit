@@ -12,6 +12,8 @@ struct CodexBarApp: App {
     @State private var settings: SettingsStore
     @State private var store: UsageStore
     @State private var syncCoordinator: SyncCoordinator
+    @State private var managedCodexAccountCoordinator: ManagedCodexAccountCoordinator
+    @State private var codexAccountPromotionCoordinator: CodexAccountPromotionCoordinator
     private let preferencesSelection: PreferencesSelection
     private let account: AccountInfo
 
@@ -42,21 +44,34 @@ struct CodexBarApp: App {
 
         let preferencesSelection = PreferencesSelection()
         let settings = SettingsStore()
+        let managedCodexAccountCoordinator = ManagedCodexAccountCoordinator()
+        managedCodexAccountCoordinator.onManagedAccountsDidChange = {
+            _ = settings.persistResolvedCodexActiveSourceCorrectionIfNeeded()
+        }
+        _ = settings.persistResolvedCodexActiveSourceCorrectionIfNeeded()
         let fetcher = UsageFetcher()
         let browserDetection = BrowserDetection(cacheTTL: BrowserDetection.defaultCacheTTL)
         let account = fetcher.loadAccountInfo()
         let store = UsageStore(fetcher: fetcher, browserDetection: browserDetection, settings: settings)
+        let codexAccountPromotionCoordinator = CodexAccountPromotionCoordinator(
+            settingsStore: settings,
+            usageStore: store,
+            managedAccountCoordinator: managedCodexAccountCoordinator)
         self.preferencesSelection = preferencesSelection
         _settings = State(wrappedValue: settings)
         _store = State(wrappedValue: store)
         _syncCoordinator = State(wrappedValue: SyncCoordinator(store: store, settings: settings))
+        _managedCodexAccountCoordinator = State(wrappedValue: managedCodexAccountCoordinator)
+        _codexAccountPromotionCoordinator = State(wrappedValue: codexAccountPromotionCoordinator)
         self.account = account
         CodexBarLog.setLogLevel(settings.debugLogLevel)
-        self.appDelegate.configure(
+        self.appDelegate.configure(.init(
             store: store,
             settings: settings,
             account: account,
-            selection: preferencesSelection)
+            selection: preferencesSelection,
+            managedCodexAccountCoordinator: managedCodexAccountCoordinator,
+            codexAccountPromotionCoordinator: codexAccountPromotionCoordinator))
     }
 
     @SceneBuilder
@@ -76,7 +91,9 @@ struct CodexBarApp: App {
                 store: self.store,
                 updater: self.appDelegate.updaterController,
                 selection: self.preferencesSelection,
-                syncCoordinator: self.syncCoordinator)
+                syncCoordinator: self.syncCoordinator,
+                managedCodexAccountCoordinator: self.managedCodexAccountCoordinator,
+                codexAccountPromotionCoordinator: self.codexAccountPromotionCoordinator)
         }
         .defaultSize(width: PreferencesTab.general.preferredWidth, height: PreferencesTab.general.preferredHeight)
         .windowResizability(.contentSize)
@@ -255,18 +272,31 @@ private func makeUpdaterController() -> UpdaterProviding {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    struct Dependencies {
+        let store: UsageStore
+        let settings: SettingsStore
+        let account: AccountInfo
+        let selection: PreferencesSelection
+        let managedCodexAccountCoordinator: ManagedCodexAccountCoordinator
+        let codexAccountPromotionCoordinator: CodexAccountPromotionCoordinator
+    }
+
     let updaterController: UpdaterProviding = makeUpdaterController()
     private var statusController: StatusItemControlling?
     private var store: UsageStore?
     private var settings: SettingsStore?
     private var account: AccountInfo?
     private var preferencesSelection: PreferencesSelection?
+    private var managedCodexAccountCoordinator: ManagedCodexAccountCoordinator?
+    private var codexAccountPromotionCoordinator: CodexAccountPromotionCoordinator?
 
-    func configure(store: UsageStore, settings: SettingsStore, account: AccountInfo, selection: PreferencesSelection) {
-        self.store = store
-        self.settings = settings
-        self.account = account
-        self.preferencesSelection = selection
+    func configure(_ dependencies: Dependencies) {
+        self.store = dependencies.store
+        self.settings = dependencies.settings
+        self.account = dependencies.account
+        self.preferencesSelection = dependencies.selection
+        self.managedCodexAccountCoordinator = dependencies.managedCodexAccountCoordinator
+        self.codexAccountPromotionCoordinator = dependencies.codexAccountPromotionCoordinator
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -315,13 +345,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func ensureStatusController() {
         if self.statusController != nil { return }
 
-        if let store, let settings, let account, let selection = self.preferencesSelection {
+        if let store,
+           let settings,
+           let account,
+           let selection = self.preferencesSelection,
+           let managedCodexAccountCoordinator,
+           let codexAccountPromotionCoordinator
+        {
             self.statusController = StatusItemController.factory(
                 store,
                 settings,
                 account,
                 self.updaterController,
-                selection)
+                selection,
+                managedCodexAccountCoordinator,
+                codexAccountPromotionCoordinator)
             return
         }
 
@@ -334,11 +372,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let browserDetection = BrowserDetection(cacheTTL: BrowserDetection.defaultCacheTTL)
         let fallbackAccount = fetcher.loadAccountInfo()
         let fallbackStore = UsageStore(fetcher: fetcher, browserDetection: browserDetection, settings: fallbackSettings)
+        let fallbackManagedCodexAccountCoordinator = ManagedCodexAccountCoordinator()
+        let fallbackCodexAccountPromotionCoordinator = CodexAccountPromotionCoordinator(
+            settingsStore: fallbackSettings,
+            usageStore: fallbackStore,
+            managedAccountCoordinator: fallbackManagedCodexAccountCoordinator)
         self.statusController = StatusItemController.factory(
             fallbackStore,
             fallbackSettings,
             fallbackAccount,
             self.updaterController,
-            PreferencesSelection())
+            PreferencesSelection(),
+            fallbackManagedCodexAccountCoordinator,
+            fallbackCodexAccountPromotionCoordinator)
     }
 }

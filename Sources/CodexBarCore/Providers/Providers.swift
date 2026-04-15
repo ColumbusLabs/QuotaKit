@@ -7,6 +7,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case claude
     case cursor
     case opencode
+    case opencodego
     case alibaba
     case factory
     case gemini
@@ -26,6 +27,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case synthetic
     case warp
     case openrouter
+    case perplexity
 }
 
 // swiftformat:enable sortDeclarations
@@ -39,6 +41,7 @@ public enum IconStyle: Sendable, CaseIterable {
     case antigravity
     case cursor
     case opencode
+    case opencodego
     case alibaba
     case factory
     case copilot
@@ -54,6 +57,7 @@ public enum IconStyle: Sendable, CaseIterable {
     case synthetic
     case warp
     case openrouter
+    case perplexity
     case combined
 }
 
