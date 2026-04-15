@@ -2,6 +2,11 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.2.0 (56)] — 2026-04-14
+
+### Changed
+- **1.2.0 release notes restructured per user feedback**: the Settings / Developer Tools bullet moved from `What's New` to `Improvements` (it is a tidy, not a feature), and the "About page build date in English" clause was removed entirely — that fix landed on the Mac side (commit `686311b3`, task `6gJG6vpwJxG6frm2` "1.2.0 · Mac 端 Utilization CloudKit 完善 + 版本升级 + About 修复") and does not belong in iOS release notes. Final structure: 3 `What's New` items (Utilization, Multi-Mac, Push) + 1 `Improvements` item.
+
 ## [1.2.0 (55)] — 2026-04-14
 
 ### Fixed

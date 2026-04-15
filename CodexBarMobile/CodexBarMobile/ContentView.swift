@@ -1649,7 +1649,11 @@ private enum MobileReleaseNotesCatalog {
                         String(localized: "Subscription Utilization visualization — see how much of each session / weekly / opus quota you're using, per provider and across all providers. 30-day daily bar chart in the Cost tab with Today / This Week / 14 Days / 30 Days summary cards, plus a utilization history chart on every provider detail page."),
                         String(localized: "Multi-Mac data merge — if you run CodexBar on more than one Mac, data from all of them is deduped by hour and combined on iPhone, so your iPhone charts stay consistent regardless of which Mac was last active."),
                         String(localized: "Push notifications from Mac — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a localized notification that includes the provider name (e.g. \"Codex session quota depleted\" / \"Codex 的会话额度已耗尽\"). Background App Refresh does not need to be enabled."),
-                        String(localized: "Settings and Developer Tools streamlined — Setup Guide promoted to the top of Settings; Push Diagnostic tool added under Developer Tools to inspect the Mac→iOS push chain; redundant How It Works sections removed; About page build date is always in English."),
+                    ]),
+                .init(
+                    title: String(localized: "Improvements"),
+                    items: [
+                        String(localized: "Settings and Developer Tools streamlined — Setup Guide promoted to the top of Settings; Push Diagnostic tool added under Developer Tools to inspect the Mac→iOS push chain; redundant How It Works sections removed."),
                     ]),
             ]),
         ReleaseNotesVersion(

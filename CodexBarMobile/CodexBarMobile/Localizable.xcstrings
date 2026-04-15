@@ -1809,12 +1809,12 @@
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "來自 Mac 的推送通知 —— 當你的任何一台 Mac 上工作階段額度耗盡或恢復可用時，iPhone 會收到一條已本地化的通知，內容包含 Provider 名稱（如「Codex 的工作階段額度已耗盡」）。不需要啟用 Background App Refresh。" } }
       }
     },
-    "Settings and Developer Tools streamlined — Setup Guide promoted to the top of Settings; Push Diagnostic tool added under Developer Tools to inspect the Mac→iOS push chain; redundant How It Works sections removed; About page build date is always in English." : {
+    "Settings and Developer Tools streamlined — Setup Guide promoted to the top of Settings; Push Diagnostic tool added under Developer Tools to inspect the Mac→iOS push chain; redundant How It Works sections removed." : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Settings and Developer Tools streamlined — Setup Guide promoted to the top of Settings; Push Diagnostic tool added under Developer Tools to inspect the Mac→iOS push chain; redundant How It Works sections removed; About page build date is always in English." } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "設定と開発者ツールを整理 — 設定の先頭に Setup Guide を追加、Developer Tools 配下に Mac→iOS プッシュチェーンを確認できる Push Diagnostic ツールを新設、冗長な How It Works セクションを削除、About ページのビルド日付は常に英語で表示。" } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设置与开发者工具整理 —— 新手引导提升到 Settings 顶部；Developer Tools 下新增 Push Diagnostic 工具用于查看 Mac→iOS 推送链路；移除冗余的 How It Works 区块；About 页的 Build 日期始终以英文显示。" } },
-        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "設定與開發者工具整理 —— 新手引導提升到 Settings 頂部；Developer Tools 下新增 Push Diagnostic 工具用於檢視 Mac→iOS 推送鏈路；移除冗餘的 How It Works 區塊；About 頁的 Build 日期始終以英文顯示。" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Settings and Developer Tools streamlined — Setup Guide promoted to the top of Settings; Push Diagnostic tool added under Developer Tools to inspect the Mac→iOS push chain; redundant How It Works sections removed." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "設定と開発者ツールを整理 — 設定の先頭に Setup Guide を追加、Developer Tools 配下に Mac→iOS プッシュチェーンを確認できる Push Diagnostic ツールを新設、冗長な How It Works セクションを削除。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设置与开发者工具整理 —— 新手引导提升到 Settings 顶部；Developer Tools 下新增 Push Diagnostic 工具用于查看 Mac→iOS 推送链路；移除冗余的 How It Works 区块。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "設定與開發者工具整理 —— 新手引導提升到 Settings 頂部；Developer Tools 下新增 Push Diagnostic 工具用於檢視 Mac→iOS 推送鏈路；移除冗餘的 How It Works 區塊。" } }
       }
     },
     "Multi-device CloudKit sync. Requires updated Mac app." : {
