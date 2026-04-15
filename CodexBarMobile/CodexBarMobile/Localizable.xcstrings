@@ -1944,6 +1944,24 @@
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "没有可用的设备数据" } },
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "沒有可用的裝置資料" } }
       }
+    },
+    "v1.2.0 — New Mac App Required" : {
+      "comment" : "Setup Guide upgrade-notice title. Bump version on each marketing-version cut.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "v1.2.0 — New Mac App Required" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "v1.2.0 — Mac アプリの更新が必要" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "v1.2.0 —— 需要更新 Mac 应用" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "v1.2.0 —— 需要更新 Mac 應用程式" } }
+      }
+    },
+    "Subscription Utilization and Mac→iPhone push notifications need CodexBar Mac 0.19.0 (Build 54.1.2.0) or later. Get it from github.com/o1xhack/CodexBar/releases." : {
+      "comment" : "Setup Guide upgrade-notice body. Mirrors the Release Notes Important section.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Subscription Utilization and Mac→iPhone push notifications need CodexBar Mac 0.19.0 (Build 54.1.2.0) or later. Get it from github.com/o1xhack/CodexBar/releases." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "サブスクリプション利用率と Mac→iPhone プッシュ通知には CodexBar Mac 0.19.0 (Build 54.1.2.0) 以降が必要です。github.com/o1xhack/CodexBar/releases から入手してください。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "订阅利用率和 Mac→iPhone 推送通知需要 Mac 版 CodexBar 升级到 0.19.0 (Build 54.1.2.0) 或更新版本。从 github.com/o1xhack/CodexBar/releases 下载。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "訂閱利用率和 Mac→iPhone 推送通知需要 Mac 版 CodexBar 升級到 0.19.0 (Build 54.1.2.0) 或更新版本。從 github.com/o1xhack/CodexBar/releases 下載。" } }
+      }
     }
   },
   "version" : "1.0"

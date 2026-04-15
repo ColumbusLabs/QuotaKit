@@ -29,6 +29,23 @@ struct OnboardingView: View {
                 }
                 .padding(.top, 24)
 
+                // Upgrade notice — kept evergreen by mirroring the
+                // Release Notes Important section. Update text + bump
+                // version requirement on every marketing-version cut.
+                VStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.arrow.circlepath")
+                        .font(.title2)
+                        .foregroundStyle(.orange)
+                    Text("v1.2.0 — New Mac App Required")
+                        .font(.subheadline.weight(.semibold))
+                    Text("Subscription Utilization and Mac→iPhone push notifications need CodexBar Mac 0.19.0 (Build 54.1.2.0) or later. Get it from github.com/o1xhack/CodexBar/releases.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding()
+                .background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+
                 // Steps
                 VStack(spacing: 20) {
                     ForEach(Array(self.steps.enumerated()), id: \.offset) { index, step in

@@ -2,6 +2,12 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.2.0 (58)] — 2026-04-15
+
+### Reverted (partially) + improved
+- **Restored the Setup Guide upgrade-notice block** that Build 57 deleted. The decision to drop it was wrong — that orange "Important" callout is a prominent way to tell new users they need a specific Mac version before iPhone features will work, and removing it left the Setup Guide silent on the Mac requirement (only Step 1 said "install on Mac" without specifying which Mac version).
+- Block text updated for the 1.2.0 era: title `"v1.2.0 — New Mac App Required"`, body `"Subscription Utilization and Mac→iPhone push notifications need CodexBar Mac 0.19.0 (Build 54.1.2.0) or later."`. Both strings added to `Localizable.xcstrings` with full en / ja / zh-Hans / zh-Hant translations — the gap that made the original Build 56-and-earlier text fall back to English on non-English iPhones.
+
 ## [1.2.0 (57)] — 2026-04-15
 
 ### Fixed
