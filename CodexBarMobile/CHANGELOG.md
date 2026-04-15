@@ -2,6 +2,17 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.2.0 (55)] — 2026-04-14
+
+### Fixed
+- **1.1.0 release notes were English-only on non-English iPhones** — all 8 of the 1.1.0 `What's New` / `Improvements` / Important / summary entries were never added to `Localizable.xcstrings`, so Chinese / Japanese / Traditional-Chinese users saw the raw English `String(localized:)` keys. Added full 4-language translations for every 1.1.0 entry.
+- **1.2.0 release notes had untranslated section headers** — the `"Important"` and `"Improvements"` section titles were missing from `Localizable.xcstrings` while the item bodies were localized, which made the 1.2.0 notes render as a bizarre mix of Chinese body text under English headers. Added 4-language translations for both titles.
+
+### Changed
+- **1.2.0 release notes rewritten around the four features that 1.2.0 actually ships** (Subscription Utilization visualization, multi-Mac data merge, Mac→iPhone push notifications with provider name, streamlined Settings + Developer Tools). `Improvements` section folded into the fourth "What's New" bullet. All four bullets translated to en / ja / zh-Hans / zh-Hant.
+- **Important section now requires (not recommends) Mac 0.19.0 (Build 54.1.2.0) or later** — previous wording said "works best with the latest Mac app", which understated the dependency. Subscription Utilization data collection and Mac→iOS push both genuinely need that Mac version.
+- **Push Setup diagnostic subscription list grouped by ID pattern** — before Build 55 the `allSubscriptions()` output listed all 47 subscriptions one per line, drowning the real signal; now grouped into `device-snapshot-changes`, `quota-*-depleted-sub`, `quota-*-restored-sub`, and a `quota-transition-*` LEGACY bucket (should always be 0 after a healthy Build 54 upgrade). Each group shows its count + a sample `alertBody`.
+
 ## [1.2.0 (54)] — 2026-04-14
 
 ### Fixed

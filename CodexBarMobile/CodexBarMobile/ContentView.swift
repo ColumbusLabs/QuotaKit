@@ -1636,31 +1636,20 @@ private enum MobileReleaseNotesCatalog {
         ReleaseNotesVersion(
             version: "1.2.0",
             status: String(localized: "Latest"),
-            summary: String(localized: "Subscription Utilization charts and cleaner Settings."),
+            summary: String(localized: "Subscription Utilization, multi-Mac sync, and push notifications from Mac."),
             sections: [
                 .init(
                     title: String(localized: "Important"),
                     items: [
-                        String(localized: "Version 1.2.0 works best with the latest CodexBar Mac app (0.19.0 or later). Utilization History sync relies on Mac-side fixes shipped in that release. Download from GitHub: github.com/o1xhack/CodexBar/releases"),
+                        String(localized: "You must update CodexBar on Mac to 0.19.0 (Build 54.1.2.0) or later to use this release. Subscription Utilization data collection and Mac→iOS push notifications both depend on Mac-side changes in that version. Download from github.com/o1xhack/CodexBar/releases."),
                     ]),
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "Subscription Utilization in the Cost tab — 30-day daily chart with Today / This Week / 14 Days / 30 Days summary cards, each with delta vs the previous period."),
-                        String(localized: "Provider Share breakdown — each provider's proportional share of total utilization, summing to 100%."),
-                        String(localized: "Subscription Utilization History chart on every provider detail page."),
-                        String(localized: "Push notifications from Mac — when a session quota hits 0% or becomes available again on Mac, your iPhone receives a notification in its own language."),
-                        String(localized: "Push notifications now include the provider name in the message — e.g. \"Codex session quota depleted\" instead of just \"Session quota depleted\"."),
-                        String(localized: "Push Diagnostic developer tool — inspect the Mac→iOS notification chain in Settings → Developer Tools."),
-                        String(localized: "Setup Guide is now a top-level Settings row."),
-                    ]),
-                .init(
-                    title: String(localized: "Improvements"),
-                    items: [
-                        String(localized: "Multi-device utilization merge — data from all your Macs is combined and deduped by hour for consistent charts."),
-                        String(localized: "Developer Tools consolidated — Raw Sync Data and Push Diagnostic share one entry."),
-                        String(localized: "Removed the redundant How It Works sections from Settings and About & Sync."),
-                        String(localized: "About page build timestamp is now always shown in English regardless of system language."),
+                        String(localized: "Subscription Utilization visualization — see how much of each session / weekly / opus quota you're using, per provider and across all providers. 30-day daily bar chart in the Cost tab with Today / This Week / 14 Days / 30 Days summary cards, plus a utilization history chart on every provider detail page."),
+                        String(localized: "Multi-Mac data merge — if you run CodexBar on more than one Mac, data from all of them is deduped by hour and combined on iPhone, so your iPhone charts stay consistent regardless of which Mac was last active."),
+                        String(localized: "Push notifications from Mac — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a localized notification that includes the provider name (e.g. \"Codex session quota depleted\" / \"Codex 的会话额度已耗尽\"). Background App Refresh does not need to be enabled."),
+                        String(localized: "Settings and Developer Tools streamlined — Setup Guide promoted to the top of Settings; Push Diagnostic tool added under Developer Tools to inspect the Mac→iOS push chain; redundant How It Works sections removed; About page build date is always in English."),
                     ]),
             ]),
         ReleaseNotesVersion(

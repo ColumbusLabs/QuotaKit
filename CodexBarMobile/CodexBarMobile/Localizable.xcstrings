@@ -1746,9 +1746,147 @@
     "Push notifications now include the provider name in the message — e.g. \"Codex session quota depleted\" instead of just \"Session quota depleted\"." : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Push notifications now include the provider name in the message — e.g. \"Codex session quota depleted\" instead of just \"Session quota depleted\"." } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "プッシュ通知の本文にプロバイダ名が含まれるようになりました — 例：「Codex のセッション枠を使い切りました」（以前は「セッション枠を使い切りました」のみ）。" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "プッシュ通知の本文にプロバイダ名が含まれるようになりました — 例:「Codex のセッション枠を使い切りました」(以前は「セッション枠を使い切りました」のみ)。" } },
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "推送通知现在会在正文中包含提供方名称 —— 例如“Codex 的会话额度已耗尽”，而不是仅“会话额度已耗尽”。" } },
         "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "推送通知現在會在正文中包含提供方名稱 —— 例如「Codex 的工作階段額度已耗盡」，而不是僅「工作階段額度已耗盡」。" } }
+      }
+    },
+    "Important" : {
+      "comment" : "Release-notes section title for must-read items.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Important" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "重要" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "重要" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "重要" } }
+      }
+    },
+    "Improvements" : {
+      "comment" : "Release-notes section title for small improvements.",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Improvements" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "改善点" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "改进" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "改進" } }
+      }
+    },
+    "Subscription Utilization, multi-Mac sync, and push notifications from Mac." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Subscription Utilization, multi-Mac sync, and push notifications from Mac." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "サブスクリプション利用率、複数 Mac の同期、Mac からのプッシュ通知。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "订阅利用率可视化、多 Mac 数据合并，以及来自 Mac 的推送通知。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "訂閱利用率可視化、多 Mac 資料合併，以及來自 Mac 的推送通知。" } }
+      }
+    },
+    "You must update CodexBar on Mac to 0.19.0 (Build 54.1.2.0) or later to use this release. Subscription Utilization data collection and Mac→iOS push notifications both depend on Mac-side changes in that version. Download from github.com/o1xhack/CodexBar/releases." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "You must update CodexBar on Mac to 0.19.0 (Build 54.1.2.0) or later to use this release. Subscription Utilization data collection and Mac→iOS push notifications both depend on Mac-side changes in that version. Download from github.com/o1xhack/CodexBar/releases." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "このリリースを使用するには、Mac 版 CodexBar を 0.19.0 (Build 54.1.2.0) 以降に更新する必要があります。サブスクリプション利用率のデータ収集と Mac→iOS プッシュ通知は、いずれもこの Mac 版の変更に依存しています。github.com/o1xhack/CodexBar/releases からダウンロードしてください。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "必须将 Mac 版 CodexBar 更新到 0.19.0（Build 54.1.2.0）或更新版本才能使用本次更新。利用率数据采集和 Mac→iPhone 推送通知都依赖该版本的 Mac 端改动。从 github.com/o1xhack/CodexBar/releases 下载。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "必須將 Mac 版 CodexBar 更新到 0.19.0（Build 54.1.2.0）或更新版本才能使用本次更新。利用率資料採集和 Mac→iPhone 推送通知都依賴該版本的 Mac 端改動。從 github.com/o1xhack/CodexBar/releases 下載。" } }
+      }
+    },
+    "Subscription Utilization visualization — see how much of each session / weekly / opus quota you're using, per provider and across all providers. 30-day daily bar chart in the Cost tab with Today / This Week / 14 Days / 30 Days summary cards, plus a utilization history chart on every provider detail page." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Subscription Utilization visualization — see how much of each session / weekly / opus quota you're using, per provider and across all providers. 30-day daily bar chart in the Cost tab with Today / This Week / 14 Days / 30 Days summary cards, plus a utilization history chart on every provider detail page." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "サブスクリプション利用率の可視化 — 各 session / weekly / opus クォータの使用状況を、プロバイダごとにも全プロバイダ横断でも確認できます。Cost タブには過去 30 日の日次棒グラフと Today / This Week / 14 Days / 30 Days のサマリーカードがあり、各プロバイダの詳細ページには利用率履歴グラフが追加されます。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "订阅利用率可视化 —— 直观看到每个 session / weekly / opus 额度的使用情况，可按 Provider 分开看也可以跨 Provider 看总体。Cost tab 有 30 天日级柱状图 + Today / This Week / 14 Days / 30 Days 周期卡片，每个 Provider 详情页还有独立的利用率历史图。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "訂閱利用率可視化 —— 直觀看到每個 session / weekly / opus 額度的使用情況，可按 Provider 分開看也可以跨 Provider 看總體。Cost 分頁有 30 天日級柱狀圖 + Today / This Week / 14 Days / 30 Days 週期卡片，每個 Provider 詳情頁還有獨立的利用率歷史圖。" } }
+      }
+    },
+    "Multi-Mac data merge — if you run CodexBar on more than one Mac, data from all of them is deduped by hour and combined on iPhone, so your iPhone charts stay consistent regardless of which Mac was last active." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Multi-Mac data merge — if you run CodexBar on more than one Mac, data from all of them is deduped by hour and combined on iPhone, so your iPhone charts stay consistent regardless of which Mac was last active." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "複数 Mac のデータ統合 — 複数の Mac で CodexBar を使用している場合、すべての Mac のデータが時間単位で重複排除され iPhone 上で統合されます。最後にアクティブだった Mac に関わらず、iPhone のチャートは一貫して表示されます。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "多 Mac 数据合并 —— 如果你在多台 Mac 上使用 CodexBar，所有 Mac 的数据现在都会在 iPhone 上按小时去重后合并，不管最后活跃的是哪台 Mac，iPhone 图表都一致。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "多 Mac 資料合併 —— 如果你在多台 Mac 上使用 CodexBar，所有 Mac 的資料現在都會在 iPhone 上按小時去重後合併，不管最後活躍的是哪台 Mac，iPhone 圖表都一致。" } }
+      }
+    },
+    "Push notifications from Mac — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a localized notification that includes the provider name (e.g. \"Codex session quota depleted\" / \"Codex 的会话额度已耗尽\"). Background App Refresh does not need to be enabled." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Push notifications from Mac — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a localized notification that includes the provider name (e.g. \"Codex session quota depleted\" / \"Codex 的会话额度已耗尽\"). Background App Refresh does not need to be enabled." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Mac からのプッシュ通知 — いずれかの Mac でセッションクォータが 0% になったとき、または再び利用可能になったとき、iPhone はプロバイダ名を含むローカライズされた通知を受け取ります (例:「Codex のセッション枠を使い切りました」)。Background App Refresh を有効化する必要はありません。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "来自 Mac 的推送通知 —— 当你的任何一台 Mac 上会话额度耗尽或恢复可用时，iPhone 会收到一条已本地化的通知，内容包含 Provider 名称（如“Codex 的会话额度已耗尽”）。不需要启用 Background App Refresh。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "來自 Mac 的推送通知 —— 當你的任何一台 Mac 上工作階段額度耗盡或恢復可用時，iPhone 會收到一條已本地化的通知，內容包含 Provider 名稱（如「Codex 的工作階段額度已耗盡」）。不需要啟用 Background App Refresh。" } }
+      }
+    },
+    "Settings and Developer Tools streamlined — Setup Guide promoted to the top of Settings; Push Diagnostic tool added under Developer Tools to inspect the Mac→iOS push chain; redundant How It Works sections removed; About page build date is always in English." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Settings and Developer Tools streamlined — Setup Guide promoted to the top of Settings; Push Diagnostic tool added under Developer Tools to inspect the Mac→iOS push chain; redundant How It Works sections removed; About page build date is always in English." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "設定と開発者ツールを整理 — 設定の先頭に Setup Guide を追加、Developer Tools 配下に Mac→iOS プッシュチェーンを確認できる Push Diagnostic ツールを新設、冗長な How It Works セクションを削除、About ページのビルド日付は常に英語で表示。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设置与开发者工具整理 —— 新手引导提升到 Settings 顶部；Developer Tools 下新增 Push Diagnostic 工具用于查看 Mac→iOS 推送链路；移除冗余的 How It Works 区块；About 页的 Build 日期始终以英文显示。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "設定與開發者工具整理 —— 新手引導提升到 Settings 頂部；Developer Tools 下新增 Push Diagnostic 工具用於檢視 Mac→iOS 推送鏈路；移除冗餘的 How It Works 區塊；About 頁的 Build 日期始終以英文顯示。" } }
+      }
+    },
+    "Multi-device CloudKit sync. Requires updated Mac app." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Multi-device CloudKit sync. Requires updated Mac app." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "複数デバイス対応の CloudKit 同期。最新の Mac アプリが必要です。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "多设备 CloudKit 同步。需要更新 Mac 应用。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "多裝置 CloudKit 同步。需要更新 Mac 應用程式。" } }
+      }
+    },
+    "Version 1.1.0 requires the latest CodexBar Mac app (0.18.0-mobile-1.1.0 or later) to unlock CloudKit sync. Download it from GitHub: github.com/o1xhack/CodexBar/releases" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Version 1.1.0 requires the latest CodexBar Mac app (0.18.0-mobile-1.1.0 or later) to unlock CloudKit sync. Download it from GitHub: github.com/o1xhack/CodexBar/releases" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "バージョン 1.1.0 では、CloudKit 同期を有効にするため最新の Mac 版 CodexBar (0.18.0-mobile-1.1.0 以降) が必要です。GitHub からダウンロード: github.com/o1xhack/CodexBar/releases" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "版本 1.1.0 需要最新的 Mac 版 CodexBar（0.18.0-mobile-1.1.0 或更新）才能启用 CloudKit 同步。从 GitHub 下载: github.com/o1xhack/CodexBar/releases" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "版本 1.1.0 需要最新的 Mac 版 CodexBar（0.18.0-mobile-1.1.0 或更新）才能啟用 CloudKit 同步。從 GitHub 下載: github.com/o1xhack/CodexBar/releases" } }
+      }
+    },
+    "CloudKit multi-device sync — data from multiple Macs is now merged on iPhone instead of last-write-wins." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "CloudKit multi-device sync — data from multiple Macs is now merged on iPhone instead of last-write-wins." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "CloudKit マルチデバイス同期 — 複数 Mac のデータが従来の last-write-wins ではなく、iPhone 上で合算表示されるようになりました。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "CloudKit 多设备同步 —— 多台 Mac 的数据现在在 iPhone 上合并展示，不再是 last-write-wins。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "CloudKit 多裝置同步 —— 多台 Mac 的資料現在在 iPhone 上合併展示，不再是 last-write-wins。" } }
+      }
+    },
+    "New Sync Detail page in Settings — view sync status, connected devices, and detailed error info." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "New Sync Detail page in Settings — view sync status, connected devices, and detailed error info." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "設定に新しい「同期の詳細」ページを追加 — 同期ステータス、接続デバイス、詳細なエラー情報を確認できます。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设置中新增“同步详情”页 —— 查看同步状态、已连设备和详细错误信息。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "設定中新增「同步詳情」頁 —— 檢視同步狀態、已連裝置和詳細錯誤資訊。" } }
+      }
+    },
+    "Raw Sync Data inspector — per-device unmerged data with daily cost breakdowns for debugging." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Raw Sync Data inspector — per-device unmerged data with daily cost breakdowns for debugging." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Raw 同期データインスペクタ — デバッグ用にデバイスごとの未合算データと日ごとのコスト内訳を表示。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "原始同步数据查看器 —— 用于调试的每台设备未合并数据和每日费用明细。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "原始同步資料檢視器 —— 用於除錯的每台裝置未合併資料和每日費用明細。" } }
+      }
+    },
+    "Specific CloudKit error messages — network, auth, quota issues now show exact cause instead of generic errors." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Specific CloudKit error messages — network, auth, quota issues now show exact cause instead of generic errors." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "CloudKit エラーメッセージを具体化 — ネットワーク、認証、クォータの問題が汎用メッセージではなく原因ごとに表示されます。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "具体的 CloudKit 错误信息 —— 网络、认证、配额问题现在会显示确切原因，而不是通用错误。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "具體的 CloudKit 錯誤訊息 —— 網路、認證、配額問題現在會顯示確切原因，而不是通用錯誤。" } }
+      }
+    },
+    "Tab bar no longer hides when scrolling." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Tab bar no longer hides when scrolling." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "スクロール時にタブバーが隠れなくなりました。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "滚动时底部标签栏不再隐藏。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "捲動時底部分頁列不再隱藏。" } }
+      }
+    },
+    "Simplified sync status bar at the bottom of Usage and Cost tabs." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Simplified sync status bar at the bottom of Usage and Cost tabs." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "「使用量」と「費用」タブ下部の同期ステータスバーを簡略化しました。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "“用量”和“费用”标签底部的同步状态栏已简化。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "「用量」和「費用」分頁底部的同步狀態列已簡化。" } }
+      }
+    },
+    "Legacy KVS sync maintained as fallback for older Mac app versions." : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Legacy KVS sync maintained as fallback for older Mac app versions." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "旧バージョンの Mac アプリ向けフォールバックとして、旧 KVS 同期を維持。" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "保留旧版 KVS 同步作为老版 Mac 应用的兼容回退。" } },
+        "zh-Hant" : { "stringUnit" : { "state" : "translated", "value" : "保留舊版 KVS 同步作為舊版 Mac 應用程式的相容回退。" } }
       }
     }
   },
