@@ -4,6 +4,97 @@
         <title>CodexBar</title>
         <item>
             <title>0.19.0</title>
+            <pubDate>Wed, 15 Apr 2026 00:10:22 -0700</pubDate>
+            <link>https://raw.githubusercontent.com/o1xhack/CodexBar/mobile-dev/appcast.xml</link>
+            <sparkle:version>54.1.2.0</sparkle:version>
+            <sparkle:shortVersionString>0.19.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.19.0-Mobile 1.2.0</h2>
+This release ships the Mac-side changes that support Mobile 1.2.0: a CloudKit push notification writer (with multi-Mac dedup and 5-minute debounce per provider/state), 4 DEV test buttons in Preferences → Mobile, and an About-page locale fix. Upstream CodexBar features are unchanged from the 2026-04-04 release.
+<h3>Highlights — Mobile 1.2.0</h3>
+<ul>
+<li><strong>Subscription Utilization visualization on iPhone</strong> — see each session / weekly / opus quota per provider and across all providers, with a 30-day daily bar chart in the Cost tab and a utilization history chart on every provider detail page.</li>
+<li><strong>Multi-Mac data merge on iPhone</strong> — if you run CodexBar on more than one Mac, iPhone now dedupes data by hour and combines across Macs, so iPhone charts stay consistent regardless of which Mac was last active.</li>
+<li><strong>Mac→iPhone push notifications</strong> — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a localized notification that includes the provider name (e.g. "Codex session quota depleted" / "Codex 的会话额度已耗尽"). Background App Refresh is not required.</li>
+</ul>
+<h3>Mac — Mobile 1.2.0 push infrastructure</h3>
+<ul>
+<li><strong><code>QuotaTransition</code> CloudKit record writer</strong> — every session quota transition writes one record into the matching <code>Quota-{providerID}-{state}Zone</code> (~46 zones for 23 providers × 2 states). iPhone has a pre-baked <code>CKRecordZoneSubscription</code> per zone, with the provider name baked into the localized <code>alertBody</code> at subscription setup.</li>
+<li><strong>5-minute debounce per <code>(provider, state)</code></strong> to prevent oscillation near 0% from spamming.</li>
+<li><strong>Multi-Mac dedup</strong> — <code>recordName = (providerID, hourBucket)</code> collapses concurrent transitions from 2+ Macs in the same hour to one record, so iPhone receives at most one push per <code>(provider, state)</code> per hour.</li>
+<li><strong>DEV test buttons in Preferences → Mobile</strong> (debug builds only) — Codex / Claude × Depleted / Restored, for end-to-end push validation without waiting for a real quota change.</li>
+</ul>
+<h3>Mac — fixes</h3>
+<ul>
+<li>About page build date is now formatted with <code>en_US_POSIX</code> locale, avoiding mixed Chinese + English format on Chinese-system Macs.</li>
+</ul>
+<h3>CodexBar 0.19.0 (Upstream)</h3>
+No change since the 2026-04-04 release.
+<hr/>
+本版本带来 Mobile 1.2.0 配套的 Mac 端改动：CloudKit 推送通知写入（支持多 Mac 去重和按 provider/state 的 5 分钟 debounce）、Preferences → Mobile 下的 4 个 DEV 测试按钮，以及 About 页 locale 修复。上游 CodexBar 自 2026-04-04 起无变化。
+<h3>亮点 — Mobile 1.2.0</h3>
+<ul>
+<li><strong>iPhone 订阅利用率可视化</strong> —— 直观看到每个 session / weekly / opus 额度的使用情况，可按 Provider 分开看也可以跨 Provider 看总体。Cost tab 有 30 天日级柱状图，每个 Provider 详情页还有独立的利用率历史图。</li>
+<li><strong>iPhone 多 Mac 数据合并</strong> —— 如果你在多台 Mac 上使用 CodexBar，iPhone 上会按小时去重后把所有 Mac 的数据合并，不管最后活跃的是哪台 Mac，iPhone 图表都一致。</li>
+<li><strong>Mac→iPhone 推送通知</strong> —— 当你任何一台 Mac 上会话额度耗尽或恢复可用时，iPhone 收到一条本地化的通知，内容包含 Provider 名称（如"Codex 的会话额度已耗尽"）。不需要启用 Background App Refresh。</li>
+</ul>
+<h3>Mac — Mobile 1.2.0 推送基础设施</h3>
+<ul>
+<li><strong><code>QuotaTransition</code> CloudKit record 写入</strong> —— 每次会话额度状态变化，Mac 向对应的 <code>Quota-{providerID}-{state}Zone</code>（23 providers × 2 states ≈ 46 个 zone）写一条 record。iPhone 端为每个 zone 预创建 <code>CKRecordZoneSubscription</code>，subscription 创建时就把 Provider 名烤进 <code>alertBody</code>。</li>
+<li><strong>5 分钟 (provider, state) 级 debounce</strong>，防止额度在 0% 附近抖动导致重复推送。</li>
+<li><strong>多 Mac 去重</strong> —— <code>recordName</code> 用 <code>(providerID, hourBucket)</code>，多台 Mac 同一小时内检测到同一状态变化合并为单条 record，iPhone 每小时每种 <code>(provider, state)</code> 最多收到 1 条推送。</li>
+<li><strong>Preferences → Mobile 新增 4 个 DEV 测试按钮</strong>（仅 debug 构建），Codex / Claude × 耗尽 / 恢复，端到端验证推送链路无需等真实额度变化。</li>
+</ul>
+<h3>Mac — 修复</h3>
+<ul>
+<li>About 页 Build 日期强制 <code>en_US_POSIX</code> locale，避免中文系统 Mac 显示中英文混合格式。</li>
+</ul>
+<h3>CodexBar 0.19.0（上游）</h3>
+自 2026-04-04 发布以来无变化。
+<hr/>
+This release merges upstream CodexBar 0.19.0 into our fork, ensuring full compatibility and laying the groundwork for upcoming mobile features. Mobile-side support for the new upstream capabilities is in development.
+<h3>Mobile 1.1.0 (No Change)</h3>
+<ul>
+<li>iCloud sync upgraded from KVS to CloudKit for multi-device sync.</li>
+<li>Session quota push notifications for iOS.</li>
+<li>Composite Sparkle build number for upstream-safe version detection.</li>
+</ul>
+<h3>CodexBar 0.19.0 (Upstream)</h3>
+<ul>
+<li>Alibaba Coding Plan provider with region-aware quota fetching.</li>
+<li>Subscription utilization history chart in menu bar.</li>
+<li>Claude provider end-to-end refactor with expanded tests.</li>
+<li>Cursor dashboard alignment (Total/Auto/API lanes).</li>
+<li>Codex code review reset time display.</li>
+<li>Per-model token counts in cost history.</li>
+<li>GPT-5.4 mini and nano pricing.</li>
+<li>Antigravity model selection fix.</li>
+</ul>
+<hr/>
+本版本将上游 CodexBar 0.19.0 完整合并至我们的分支，确保全面兼容并为后续移动端功能开发奠定基础。上游新功能的移动端适配正在开发中。
+<h3>Mobile 1.1.0（无变更）</h3>
+<ul>
+<li>iCloud 同步从 KVS 升级至 CloudKit，支持多设备同步。</li>
+<li>会话配额推送通知：iOS 后台接收耗尽/恢复提醒。</li>
+<li>Sparkle 复合版本号方案，避免与上游版本号冲突。</li>
+</ul>
+<h3>CodexBar 0.19.0（上游更新）</h3>
+<ul>
+<li>新增阿里巴巴 Coding Plan 服务商，支持区域化配额查询。</li>
+<li>菜单栏新增订阅利用率历史图表。</li>
+<li>Claude 服务商端到端重构，测试覆盖更完整。</li>
+<li>Cursor 用量与仪表盘 Total/Auto/API 对齐。</li>
+<li>Codex 代码审查限制显示重置时间。</li>
+<li>费用历史新增每模型 Token 统计。</li>
+<li>GPT-5.4 mini 和 nano 定价支持。</li>
+<li>Antigravity 模型选择修复。</li>
+</ul>
+<p><a href="https://github.com/o1xhack/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/o1xhack/CodexBar/releases/download/v0.19.0-mobile.1.2.0/CodexBar-0.19.0-mobile.1.2.0.zip" length="26491561" type="application/octet-stream" sparkle:edSignature="uFpneJdO//rTz3AiZvVRkmqh6u9nJqEnyAFE1OTGr/XTJz6/yOEK+yyB+IgAMryeQ2FnlNxC05KlI+CFVGBiDQ=="/>
+        </item>
+        <item>
+            <title>0.19.0</title>
             <pubDate>Fri, 03 Apr 2026 17:23:09 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar/mobile-dev/appcast.xml</link>
             <sparkle:version>54.1.1.0</sparkle:version>
@@ -143,88 +234,6 @@ This release merges upstream CodexBar 0.19.0 into our fork, ensuring full compat
 <p><a href="https://github.com/o1xhack/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar/releases/download/v0.18.0-mobile.1.1.0/CodexBar-0.18.0-mobile.1.1.0.zip" length="25137549" type="application/octet-stream" sparkle:edSignature="m9rcyfULpMbpSSXRk5OnWshrlMkg8Vqxe+yGSgYgIRZjxgSB1WBuyCmmqgOsdR6xIb8lFMpMQqNLuVwrC4nhDg=="/>
-        </item>
-        <item>
-            <title>0.18.0</title>
-            <pubDate>Tue, 17 Mar 2026 23:44:49 +0800</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar/mobile-dev/appcast.xml</link>
-            <sparkle:version>53</sparkle:version>
-            <sparkle:shortVersionString>0.18.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.18.0</h2>
-<h3>Highlights</h3>
-<ul>
-<li>Add Kilo provider support with API/CLI source modes, widget integration, and pass/credit handling (#454). Built on work by @coreh.</li>
-<li>Add Ollama provider, including token-account support in Settings and CLI (#380). Thanks @CryptoSageSnr!</li>
-<li>Add OpenRouter provider for credit-based usage tracking (#396). Thanks @chountalas!</li>
-<li>Add Codex historical pace with risk forecasting, backfill, and zero-usage-day handling (#482, supersedes #438). Thanks @tristanmanchester!</li>
-<li>Add a merged-menu Overview tab with configurable providers and row-to-provider navigation (#416). @ratulsarna</li>
-<li>Add an experimental option to suppress Claude Keychain prompts (#388).</li>
-<li>Reduce CPU/energy regressions and JSONL scanner overhead in Codex/web usage paths (#402, #392). Thanks @bald-ai and @asonawalla!</li>
-</ul>
-<h3>iCloud Sync (Mobile 1.0.0)</h3>
-<ul>
-<li>Rename <code>SYNC_VERSION</code> to <code>MOBILE_VERSION</code> for collaborative mobile-dev branch tracking.</li>
-<li>Fix cost data scanner missing new JSONL log files created after the root directory mtime.</li>
-<li>Push Mac app version and mobile version in iCloud payload for iOS traceability.</li>
-<li>Sync cost/usage data (session cost, 30-day cost, daily spend) to iOS via iCloud KVS.</li>
-<li>Sync dynamic rate windows with labels (Session, Weekly, Sonnet, etc.).</li>
-<li>Diagnose iCloud sync failures when the Mac build is missing iCloud entitlement or has no active iCloud account.</li>
-<li>Show explicit iCloud sync failure reasons in Mac Settings instead of reporting a false success state.</li>
-<li>Make iOS pull-to-refresh synchronize iCloud KVS before re-reading the latest snapshot.</li>
-<li>Display "Mobile 1.0.0" in Mac About panel alongside app version.</li>
-<li>Update signing identity and Sparkle keys for o1xhack fork.</li>
-</ul>
-<h3>Providers & Usage</h3>
-<ul>
-<li>Codex: add historical pace risk forecasting and backfill, gate pace computation by display mode, and handle zero-usage days in historical data (#482, supersedes #438). Thanks @tristanmanchester!</li>
-<li>Kilo: add provider support with source-mode fallback, clearer credential/login guidance, auto top-up activity labeling, zero-balance credit handling, and pass parsing/menu rendering (#454). Thanks @coreh!</li>
-<li>Ollama: add provider support with token-account support in app/CLI, Chrome-default auto cookie import, and manual-cookie mode (#380). Thanks @CryptoSageSnr!</li>
-<li>OpenRouter: add provider support with credit tracking, key-quota popup support, token-account labels, fallback status icons, and updated icon/color (#396). Thanks @chountalas!</li>
-<li>Gemini: show separate Pro, Flash, and Flash Lite meters by splitting Gemini CLI quota buckets for <code>gemini-2.5-flash</code> and <code>gemini-2.5-flash-lite</code> (#496). Thanks @aladh</li>
-<li>Codex: in percent display mode with "show remaining," show remaining credits in the menu bar when session or weekly usage is exhausted (#336). Thanks @teron131!</li>
-<li>Claude: surface rate-limit errors from the CLI <code>/usage</code> probe with a user-friendly message, and harden "Failed to load usage data" matching against whitespace-collapsed output.</li>
-<li>Claude: restore weekly/Sonnet reset parsing from whitespace-collapsed CLI <code>/usage</code> output so reset times and pace details still appear after CLI fallback.</li>
-<li>Claude: fix extra-usage double conversion so OAuth/Web values stay on a single normalization path (#472, supersedes #463). Thanks @Priyans-hu!</li>
-<li>Claude: remove root-directory mtime short-circuiting in cost scanning so new session logs inside existing <code>~/.claude/projects/*</code> folders are discovered reliably (#462, fixes #411). Thanks @Priyans-hu!</li>
-<li>Copilot: harden free-plan quota parsing and fallback behavior by treating underdetermined values as unknown, preserving missing metadata as nil (#432, supersedes #393). Thanks @emanuelst!</li>
-<li>OpenCode: treat explicit <code>null</code> subscription responses as missing usage data, skip POST fallback, and return a clearer workspace-specific error (#412).</li>
-<li>OpenCode: surface clearer HTTP errors. Thanks @SalimBinYousuf1!</li>
-<li>Codex: preserve exact GPT-5 model IDs in local cost history, add GPT-5.4 pricing, and label zero-cost <code>gpt-5.3-codex-spark</code> sessions as "Research Preview" in cost breakdowns (#511). Thanks @iam-brain!</li>
-<li>Augment: prevent refresh stalls when <code>auggie account status</code> hangs by replacing unbounded CLI waits with timed subprocess execution and fallback handling (#481). Thanks @bryant24hao!</li>
-<li>Update Kiro parsing for <code>kiro-cli</code> 1.24+ / Q Developer formats and non-managed plan handling (#288). Thanks @kilhyeonjun!</li>
-<li>Kimi: in automatic metric mode, prioritize the 5-hour rate-limit window for menu bar and merged highest-usage calculations (#390). Thanks @ajaxjiang96!</li>
-<li>Browser cookie import: match Gecko <code>*.default*</code> profile directories case-insensitively so Firefox/Zen cookie detection works with uppercase <code>.Default</code> directories (#422). Thanks @bald-ai!</li>
-<li>MiniMax: make both Settings "Open Coding Plan" actions region-aware so China mainland selection opens <code>platform.minimaxi.com</code> instead of the global domain (#426, fixes #378). Thanks @bald-ai!</li>
-<li>Menu: rebuild the merged provider switcher when “Show usage as used” changes so switcher progress updates immediately (#306). Thanks @Flohhhhh!</li>
-<li>Warp: update API key setup guidance.</li>
-<li>Claude: update the "not installed" help link to the current Claude Code documentation URL (#431). Thanks @skebby11!</li>
-<li>Fix Claude setup message package name (#376). Thanks @daegwang!</li>
-</ul>
-<h3>Menu & Settings</h3>
-<ul>
-<li>Merged menu: keep Merge Icons, the switcher, and Overview tied to user-enabled providers even when some providers are temporarily unavailable, while defaulting menu content and icon state to an available provider when possible (#525). Thanks @Astro-Han!</li>
-<li>Merged menu: add an Overview switcher tab that shows up to three provider usage rows in provider order (#416).</li>
-<li>Settings: add "Overview tab providers" controls to choose/deselect Overview providers, with persisted selection reconciliation as enabled providers change (#416).</li>
-<li>Menu: hide contextual provider actions while Overview is selected and rebuild switcher state when overview availability changes (#416).</li>
-</ul>
-<h3>Claude OAuth & Keychain</h3>
-<ul>
-<li>Add an experimental Claude OAuth Security-CLI reader path and option in settings.</li>
-<li>Apply stored prompt mode and fallback policy to silent/noninteractive keychain probes.</li>
-<li>Add cooldown for background OAuth keychain retries.</li>
-<li>Disable experimental toggle when keychain access is disabled.</li>
-<li>Use a <code>claude-code/<version></code> User-Agent for OAuth usage requests instead of a generic identifier.</li>
-</ul>
-<h3>Performance & Reliability</h3>
-<ul>
-<li>Codex/OpenAI web: reduce CPU and energy overhead by shortening failed CLI probe windows, capping web retry timeouts, and using adaptive idle blink scheduling (#402). Thanks @bald-ai!</li>
-<li>Cost usage scanner: optimize JSONL chunk parsing to avoid buffer-front removal overhead on large logs (#392). Thanks @asonawalla!</li>
-<li>TTY runner: fence shutdown registration to avoid launch/shutdown races, isolate process groups before shutdown rejection, and ensure lingering CLI descendants are cleaned up on app termination (#429). Thanks @uraimo!</li>
-</ul>
-<p><a href="https://github.com/o1xhack/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar/releases/download/v0.18.0-mobile.1.0.0/CodexBar-0.18.0-mobile.1.0.0.zip" length="25084873" type="application/octet-stream" sparkle:edSignature="7eIDChbFotje8ClQRlxPNpjwcvuwhaW7b6tnmzv37iip1cWwuf46SqPvNwV7z8bGIOVgfBuvewti++lQfNfyDQ=="/>
         </item>
         <item>
             <title>0.14.0</title>
