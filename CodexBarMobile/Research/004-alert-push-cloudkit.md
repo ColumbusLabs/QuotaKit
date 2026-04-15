@@ -1,6 +1,6 @@
 # 004: Mac→iOS 推送通知（CloudKit alert push 方案）
 
-- **Status**: done — shipped in Build 52 (2026-04-13) with a **zone-split + iOS-side localization** variant. Diverges from the CKQuerySubscription-predicate + CloudKit-args design originally proposed below. See "Implementation note" directly under this header.
+- **Status**: superseded — Build 52 shipped this design's zone-split form (state and locale only). Build 53 layers a `UNNotificationServiceExtension` on top to add the provider name as the title; see [006-push-provider-nse.md](006-push-provider-nse.md) for the current design and [005-push-provider-alternatives.md](005-push-provider-alternatives.md) for the 14 alternatives evaluated and rejected.
 - **Created**: 2026-04-08
 - **Supersedes**: [003-push-notifications.md](003-push-notifications.md)
 - **Goal**: Mac 端检测到 quota 变化时，iOS 收到一条**用户可见的本地化通知**，**不要求 Background App Refresh**，**不需要 app 唤醒跑代码**，**不需要服务端**

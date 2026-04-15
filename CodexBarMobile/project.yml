@@ -35,7 +35,26 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.o1xhack.codexbar.sync
         GENERATE_INFOPLIST_FILE: true
         MARKETING_VERSION: "1.2.0"
-        CURRENT_PROJECT_VERSION: "52"
+        CURRENT_PROJECT_VERSION: "53"
+
+  CodexBarMobilePushExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: CodexBarMobilePushExtension
+        excludes:
+          - "**/.DS_Store"
+    dependencies:
+      - target: CodexBarSync
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.o1xhack.codexbar.mobile.pushextension
+        MARKETING_VERSION: "1.2.0"
+        CURRENT_PROJECT_VERSION: "53"
+        DEVELOPMENT_TEAM: 3TUERHN53E
+        INFOPLIST_FILE: CodexBarMobilePushExtension/Info.plist
+        CODE_SIGN_ENTITLEMENTS: CodexBarMobilePushExtension/PushExtension.entitlements
+        SKIP_INSTALL: true
 
   CodexBarMobile:
     type: application
@@ -46,11 +65,12 @@ targets:
           - "**/.DS_Store"
     dependencies:
       - target: CodexBarSync
+      - target: CodexBarMobilePushExtension
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.o1xhack.codexbar.mobile
         MARKETING_VERSION: "1.2.0"
-        CURRENT_PROJECT_VERSION: "52"
+        CURRENT_PROJECT_VERSION: "53"
         DEVELOPMENT_TEAM: 3TUERHN53E
         INFOPLIST_FILE: CodexBarMobile/Info.plist
         CODE_SIGN_ENTITLEMENTS: CodexBarMobile/CodexBarMobile.entitlements

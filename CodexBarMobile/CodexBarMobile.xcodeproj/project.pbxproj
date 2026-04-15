@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		02E554F44482449A6E303DF8 /* CostShareCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEB7FFB253C0CC0CA9876CCB /* CostShareCardView.swift */; };
+		05A1216E90C95AAE2D36B013 /* QuotaZoneNotificationParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C98FA5E42A83275CBD79FDB /* QuotaZoneNotificationParserTests.swift */; };
 		06AF0C16DB94FEF7CEB249F1 /* UtilizationHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49BBB0416BFC7E4E74CC4B6C /* UtilizationHistoryView.swift */; };
 		0708B75CE4F9E291D3AF8879 /* MobileDisplayPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82B8A4D1FFD04AA72E89022F /* MobileDisplayPreferences.swift */; };
 		07F02876676ED6B3B7B4A6AD /* CodexBarSync.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; };
@@ -23,6 +24,8 @@
 		4CD1E3131D8E3A04E8B13201 /* BudgetProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77C776CEA57C84E7ECA6192C /* BudgetProgressView.swift */; };
 		5318530147AE0495BD05345D /* CodexBarSync.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5DF56542F0C2F51860FE8AD8 /* SyncedUsageData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48D17C7D2668994C4942329B /* SyncedUsageData.swift */; };
+		61BEB22E497DAC7C2FE2AC9C /* CodexBarMobilePushExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 81B87DC9EB24AAEFE036F9F7 /* CodexBarMobilePushExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		6552CAFC19A45A6D83821AC0 /* QuotaZoneNotificationParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA3F7A048F7301BC92A1A2 /* QuotaZoneNotificationParser.swift */; };
 		6977A50D67FD6F33CE7E9D54 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1C3F51A2F6DE018A276166F7 /* PrivacyInfo.xcprivacy */; };
 		6BDEE365DD4A92F13A88ED72 /* SyncModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32F236B9E5AABE3378DAF97F /* SyncModelTests.swift */; };
 		6BEB6B051976D09ED07BFFD3 /* UtilizationAggregateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87DED80F5FABD5A2FBAF5F98 /* UtilizationAggregateView.swift */; };
@@ -38,6 +41,8 @@
 		B050FB5BF5817C3844A27F32 /* ProviderDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB05AAA074EEE8CC4379BD42 /* ProviderDetailView.swift */; };
 		B0BD7B9F90964EE0B5859675 /* CloudKitMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC8893A8B73134178D35F274 /* CloudKitMergeTests.swift */; };
 		B7EC6DFB5C971047AC6D544C /* CodexBarMobileUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E53728795F865E33900DA3C3 /* CodexBarMobileUITests.swift */; };
+		C41E99EEEAFD859D56F08AD2 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BBBF160B317AF2B0C136E2B /* NotificationService.swift */; };
+		C88251CF2987E9D135DFA5C0 /* CodexBarSync.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; };
 		CF5946FFB17517210EEC1EFF /* CyberShareCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 158C8DC0415A1D743CD3D63A /* CyberShareCardView.swift */; };
 		D0624B0227BF503DC77AC09C /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B47F282E1FA9E215551D09F6 /* Localizable.xcstrings */; };
 		D5E7E85EEE6528E04FDA9446 /* PreviewData.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92153BD74B2B08AE61B76E2 /* PreviewData.swift */; };
@@ -62,6 +67,13 @@
 			remoteGlobalIDString = 5547EC44D00232824E4A565F;
 			remoteInfo = CodexBarSync;
 		};
+		B45C5B25C6A221E251454AA0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C4095294D0D55415E29FF461 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5547EC44D00232824E4A565F;
+			remoteInfo = CodexBarSync;
+		};
 		D7570DCE00FB4C0F1BD0B855 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = C4095294D0D55415E29FF461 /* Project object */;
@@ -76,9 +88,27 @@
 			remoteGlobalIDString = BFE9125269D971C3EB23E583;
 			remoteInfo = CodexBarMobile;
 		};
+		FC2AFEF0C1A62639AE155332 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C4095294D0D55415E29FF461 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 59BBAD176F2AF8C44F838B73;
+			remoteInfo = CodexBarMobilePushExtension;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		A604DB7C28C561BD55D2E3C9 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				61BEB22E497DAC7C2FE2AC9C /* CodexBarMobilePushExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B1D3390E3B77D1D40386B376 /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -104,6 +134,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		01AA3F7A048F7301BC92A1A2 /* QuotaZoneNotificationParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaZoneNotificationParser.swift; sourceTree = "<group>"; };
 		04473E13F793B1EDF3EF4280 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		0AC8949E5A683B18E778EAC3 /* CloudSyncReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncReader.swift; sourceTree = "<group>"; };
 		14429075896F45B38264DC77 /* CloudSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncManager.swift; sourceTree = "<group>"; };
@@ -111,21 +142,26 @@
 		18B11DCC99D3362E7225B2D1 /* SyncErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncErrorTests.swift; sourceTree = "<group>"; };
 		1C3F51A2F6DE018A276166F7 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		252CB6CF0CDF983CD183384F /* MobileChartAxisFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileChartAxisFormatter.swift; sourceTree = "<group>"; };
+		2C98FA5E42A83275CBD79FDB /* QuotaZoneNotificationParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaZoneNotificationParserTests.swift; sourceTree = "<group>"; };
 		32F236B9E5AABE3378DAF97F /* SyncModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncModelTests.swift; sourceTree = "<group>"; };
 		3CAFBA243E25814E22BAAA6B /* ProviderUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderUsageView.swift; sourceTree = "<group>"; };
 		3E96BD45E3A15C7DA40EA93F /* PushSetupDiagnostic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushSetupDiagnostic.swift; sourceTree = "<group>"; };
 		48D17C7D2668994C4942329B /* SyncedUsageData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncedUsageData.swift; sourceTree = "<group>"; };
 		49BBB0416BFC7E4E74CC4B6C /* UtilizationHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilizationHistoryView.swift; sourceTree = "<group>"; };
+		523FB93D267EE1CADF39FE8F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		68E69F28C0538809129FB6D3 /* UsageCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageCardView.swift; sourceTree = "<group>"; };
 		6B9D488D2E7E34286B71E8E7 /* UsageSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageSnapshot.swift; sourceTree = "<group>"; };
+		6BBBF160B317AF2B0C136E2B /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		6C72A51985FA627302CDAC57 /* CostShareService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostShareService.swift; sourceTree = "<group>"; };
 		6F8B2EE4A4A283389BC42245 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		74B0A596604D1C8CA137C073 /* CostMetricCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostMetricCard.swift; sourceTree = "<group>"; };
 		77C776CEA57C84E7ECA6192C /* BudgetProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetProgressView.swift; sourceTree = "<group>"; };
 		7A260F62AFF50B05ED7E6401 /* ShareCardRenderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCardRenderTests.swift; sourceTree = "<group>"; };
+		81B87DC9EB24AAEFE036F9F7 /* CodexBarMobilePushExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = CodexBarMobilePushExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		82B8A4D1FFD04AA72E89022F /* MobileDisplayPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileDisplayPreferences.swift; sourceTree = "<group>"; };
 		8515047932479670A9749119 /* CostShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostShareSheet.swift; sourceTree = "<group>"; };
 		87DED80F5FABD5A2FBAF5F98 /* UtilizationAggregateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilizationAggregateView.swift; sourceTree = "<group>"; };
+		91D669E4E22F7C5868623D33 /* PushExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PushExtension.entitlements; sourceTree = "<group>"; };
 		9578A435334E38DB06D035CB /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		9CCC87791F1A5C860229EACF /* MobileDisplayFormattingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileDisplayFormattingTests.swift; sourceTree = "<group>"; };
 		A40C52452E873B1A89E7AD21 /* CodexBarMobileUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CodexBarMobileUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -147,6 +183,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		4251029BEF52B56E0E090364 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C88251CF2987E9D135DFA5C0 /* CodexBarSync.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8C3EC901AA02BB1D1A8D0105 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -190,6 +234,7 @@
 			children = (
 				BC8893A8B73134178D35F274 /* CloudKitMergeTests.swift */,
 				9CCC87791F1A5C860229EACF /* MobileDisplayFormattingTests.swift */,
+				2C98FA5E42A83275CBD79FDB /* QuotaZoneNotificationParserTests.swift */,
 				7A260F62AFF50B05ED7E6401 /* ShareCardRenderTests.swift */,
 				18B11DCC99D3362E7225B2D1 /* SyncErrorTests.swift */,
 				32F236B9E5AABE3378DAF97F /* SyncModelTests.swift */,
@@ -201,6 +246,7 @@
 			isa = PBXGroup;
 			children = (
 				A45A7C39DD816CBE4C4EF9EB /* CodexBarMobile.app */,
+				81B87DC9EB24AAEFE036F9F7 /* CodexBarMobilePushExtension.appex */,
 				F1706346D05559DDD5AA66F0 /* CodexBarMobileTests.xctest */,
 				A40C52452E873B1A89E7AD21 /* CodexBarMobileUITests.xctest */,
 				D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */,
@@ -215,6 +261,24 @@
 				F2BA90E690B546A77A86EE29 /* QuotaTransitionSubscriptions.swift */,
 			);
 			path = Notifications;
+			sourceTree = "<group>";
+		};
+		40E8C082323391AE263B8168 /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				01AA3F7A048F7301BC92A1A2 /* QuotaZoneNotificationParser.swift */,
+			);
+			path = Notifications;
+			sourceTree = "<group>";
+		};
+		5FEBB76DB8FB667851477450 /* CodexBarMobilePushExtension */ = {
+			isa = PBXGroup;
+			children = (
+				523FB93D267EE1CADF39FE8F /* Info.plist */,
+				6BBBF160B317AF2B0C136E2B /* NotificationService.swift */,
+				91D669E4E22F7C5868623D33 /* PushExtension.entitlements */,
+			);
+			path = CodexBarMobilePushExtension;
 			sourceTree = "<group>";
 		};
 		72BD66B5E4391FD19D1AAEF4 /* Preview Content */ = {
@@ -237,6 +301,7 @@
 			isa = PBXGroup;
 			children = (
 				07432B82F0DB64FB138D0C2C /* CodexBarMobile */,
+				5FEBB76DB8FB667851477450 /* CodexBarMobilePushExtension */,
 				083215A88C2B4B4095D1CE98 /* CodexBarMobileTests */,
 				E53208DBBF9448AFE1933120 /* CodexBarMobileUITests */,
 				F386B1ED277BE636CCA375AD /* Shared */,
@@ -249,6 +314,7 @@
 			children = (
 				B81A012795332305519003C2 /* iCloud */,
 				E48ACB00DD8BE4E69213E83A /* Models */,
+				40E8C082323391AE263B8168 /* Notifications */,
 			);
 			name = Shared;
 			path = ../../Shared;
@@ -337,6 +403,25 @@
 			productReference = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */;
 			productType = "com.apple.product-type.framework";
 		};
+		59BBAD176F2AF8C44F838B73 /* CodexBarMobilePushExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 86A1FEA2B0FEDAC116B4912F /* Build configuration list for PBXNativeTarget "CodexBarMobilePushExtension" */;
+			buildPhases = (
+				308217704D0781D696794157 /* Sources */,
+				4251029BEF52B56E0E090364 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				2A92D417345C26685C861695 /* PBXTargetDependency */,
+			);
+			name = CodexBarMobilePushExtension;
+			packageProductDependencies = (
+			);
+			productName = CodexBarMobilePushExtension;
+			productReference = 81B87DC9EB24AAEFE036F9F7 /* CodexBarMobilePushExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		62A1D41F26DB4CE375E6F965 /* CodexBarMobileTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = B56C851EDF2802A060989937 /* Build configuration list for PBXNativeTarget "CodexBarMobileTests" */;
@@ -383,12 +468,14 @@
 				270A1988244667AB0A6D6822 /* Sources */,
 				4B0B3F0CEB60F0F98D1E7F20 /* Resources */,
 				C11E8A8A0235BC717D7E9850 /* Frameworks */,
+				A604DB7C28C561BD55D2E3C9 /* Embed Foundation Extensions */,
 				B1D3390E3B77D1D40386B376 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				70477089E5434E5DCA20E2E7 /* PBXTargetDependency */,
+				F9380FC838B8EAF9E3EA318D /* PBXTargetDependency */,
 			);
 			name = CodexBarMobile;
 			packageProductDependencies = (
@@ -406,6 +493,9 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
+					59BBAD176F2AF8C44F838B73 = {
+						DevelopmentTeam = 3TUERHN53E;
+					};
 					A02A488005F484BB2BC37276 = {
 						TestTargetID = BFE9125269D971C3EB23E583;
 					};
@@ -432,6 +522,7 @@
 			projectRoot = "";
 			targets = (
 				BFE9125269D971C3EB23E583 /* CodexBarMobile */,
+				59BBAD176F2AF8C44F838B73 /* CodexBarMobilePushExtension */,
 				62A1D41F26DB4CE375E6F965 /* CodexBarMobileTests */,
 				A02A488005F484BB2BC37276 /* CodexBarMobileUITests */,
 				5547EC44D00232824E4A565F /* CodexBarSync */,
@@ -459,6 +550,7 @@
 			files = (
 				B0BD7B9F90964EE0B5859675 /* CloudKitMergeTests.swift in Sources */,
 				8A9A4E2E1CA72E072FCBB851 /* MobileDisplayFormattingTests.swift in Sources */,
+				05A1216E90C95AAE2D36B013 /* QuotaZoneNotificationParserTests.swift in Sources */,
 				383E1D735F75F0B574447EDF /* ShareCardRenderTests.swift in Sources */,
 				E408D96A71E1052A78D540CC /* SyncErrorTests.swift in Sources */,
 				6BDEE365DD4A92F13A88ED72 /* SyncModelTests.swift in Sources */,
@@ -494,6 +586,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		308217704D0781D696794157 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C41E99EEEAFD859D56F08AD2 /* NotificationService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		409510E037685851DE204052 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -508,6 +608,7 @@
 			files = (
 				3FF73F5DB65C0589C032253A /* CloudConstants.swift in Sources */,
 				47E56DB489686A9CF257EA70 /* CloudSyncManager.swift in Sources */,
+				6552CAFC19A45A6D83821AC0 /* QuotaZoneNotificationParser.swift in Sources */,
 				6C6973342A6DB39DA86008A8 /* UsageSnapshot.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -515,6 +616,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		2A92D417345C26685C861695 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5547EC44D00232824E4A565F /* CodexBarSync */;
+			targetProxy = B45C5B25C6A221E251454AA0 /* PBXContainerItemProxy */;
+		};
 		2CE34A89B129C709BE0945D9 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 5547EC44D00232824E4A565F /* CodexBarSync */;
@@ -535,6 +641,11 @@
 			target = BFE9125269D971C3EB23E583 /* CodexBarMobile */;
 			targetProxy = 13303FE3AF80A6B5E8BBE646 /* PBXContainerItemProxy */;
 		};
+		F9380FC838B8EAF9E3EA318D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 59BBAD176F2AF8C44F838B73 /* CodexBarMobilePushExtension */;
+			targetProxy = FC2AFEF0C1A62639AE155332 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -542,7 +653,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 52;
+				CURRENT_PROJECT_VERSION = 53;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -717,13 +828,33 @@
 			};
 			name = Release;
 		};
+		883B4F450889FA6A99BE0C73 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
+				CURRENT_PROJECT_VERSION = 53;
+				DEVELOPMENT_TEAM = 3TUERHN53E;
+				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.o1xhack.codexbar.mobile.pushextension;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 		A086DDCAC990129CC320BB8B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 52;
+				CURRENT_PROJECT_VERSION = 53;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -761,7 +892,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 52;
+				CURRENT_PROJECT_VERSION = 53;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -797,7 +928,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 52;
+				CURRENT_PROJECT_VERSION = 53;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -814,6 +945,26 @@
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		EA9E1DC33C5830587AF80B8A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
+				CURRENT_PROJECT_VERSION = 53;
+				DEVELOPMENT_TEAM = 3TUERHN53E;
+				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.o1xhack.codexbar.mobile.pushextension;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -834,6 +985,15 @@
 			buildConfigurations = (
 				25EF2E0B6B9568B5E7C0E3E0 /* Debug */,
 				EA57092D3B891AC66A2B6F67 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		86A1FEA2B0FEDAC116B4912F /* Build configuration list for PBXNativeTarget "CodexBarMobilePushExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				883B4F450889FA6A99BE0C73 /* Debug */,
+				EA9E1DC33C5830587AF80B8A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

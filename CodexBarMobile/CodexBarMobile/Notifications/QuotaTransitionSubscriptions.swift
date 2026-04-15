@@ -229,16 +229,20 @@ final class QuotaTransitionSubscriptions {
         // locale change naturally triggers recreate.
         let expectedBody = config.localizedAlertBody()
 
-        // Check if already correct. Match zoneID, recordType, and the
-        // locale-resolved alertBody. NO localization args on the sub — args are
-        // silently dropped by CloudKit on this container (Build 49 and Build 50
-        // both proved this). An existing sub carrying args (shipped Build 50)
-        // will fail this check and get replaced.
+        // Check if already correct. Match zoneID, recordType, the locale-resolved
+        // alertBody, AND `shouldSendMutableContent = true` (Build 53 onwards —
+        // tells APNs to set `mutable-content: 1` so iOS invokes the
+        // NotificationServiceExtension to inject the provider name as title).
+        // NO localization args on the sub — args are silently dropped by CloudKit
+        // on this container (Build 49 and Build 50 both proved this). An existing
+        // Build 52 sub (without mutable-content) will fail this check and get
+        // replaced on first launch of Build 53.
         if let zoneSub = existing as? CKRecordZoneSubscription,
            zoneSub.zoneID == zoneID,
            zoneSub.recordType == recordType,
            let info = zoneSub.notificationInfo,
            info.alertBody == expectedBody,
+           info.shouldSendMutableContent == true,
            (info.titleLocalizationArgs ?? []).isEmpty,
            (info.alertLocalizationArgs ?? []).isEmpty
         {
@@ -250,10 +254,17 @@ final class QuotaTransitionSubscriptions {
             try? await database.deleteSubscription(withID: config.subscriptionID)
         }
 
-        // Create a new CKRecordZoneSubscription with a **static** alertBody that
-        // is already locale-resolved. CloudKit delivers this literal string as
-        // the push body — no server-side substitution, no args. See class comment
-        // for why args aren't viable on this container.
+        // Create a new CKRecordZoneSubscription. The locale-resolved `alertBody`
+        // is the **fallback** displayed to the user if our
+        // `NotificationServiceExtension` fails to fetch the provider name within
+        // its ~30s budget. With the extension running normally, it overrides
+        // `content.title` with the provider name at delivery time.
+        //
+        // `shouldSendMutableContent = true` is the only thing CloudKit needs to
+        // emit `mutable-content: 1` in the APNs payload — that flag is what
+        // wakes our extension. It does NOT reference any record fields, so it
+        // does not trigger the "args silently drop" failure mode we hit in
+        // Build 49/50 when we tried `titleLocalizationArgs = ["providerName"]`.
         let subscription = CKRecordZoneSubscription(
             zoneID: zoneID, subscriptionID: config.subscriptionID)
         subscription.recordType = recordType
@@ -261,6 +272,7 @@ final class QuotaTransitionSubscriptions {
         let info = CKSubscription.NotificationInfo()
         info.alertBody = expectedBody
         info.soundName = "default"
+        info.shouldSendMutableContent = true
         subscription.notificationInfo = info
 
         _ = try await database.modifySubscriptions(

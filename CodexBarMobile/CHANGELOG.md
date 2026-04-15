@@ -2,6 +2,20 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.2.0 (53)] — 2026-04-14
+
+### Added
+- **Push notifications now include the provider name as the title.** Mac local notifications have always shown e.g. "Codex session depleted" — iOS push from Build 52 only showed the state ("会话额度已耗尽") without provider. Build 53 closes this gap via a new `UNNotificationServiceExtension` (`CodexBarMobilePushExtension`) target that intercepts the push, fetches the latest `QuotaTransition` record from the triggering zone, reads `providerName`, and sets it as `content.title`. The Build 52 locale-resolved body is preserved as `content.body`, so a Chinese iPhone now sees title "Codex" + body "会话额度已耗尽" instead of just "会话额度已耗尽".
+
+### Architecture notes
+- The extension target carries its own iCloud + CloudKit container entitlements (Production environment) so it can fetch records from the same private database the main app uses.
+- Subscriptions now set `info.shouldSendMutableContent = true` so APNs flags pushes with `mutable-content: 1`, which is what wakes the extension. This boolean does not reference any record fields, so it does not trigger the Build 49/50 "args silently drop" failure mode (`titleLocalizationArgs` / `alertLocalizationArgs` referencing record fields). The "already correct" check on existing subscriptions is updated to require `shouldSendMutableContent`, so Build 52 subs are recreated on first launch of Build 53.
+- Extension fetch path: `CKQuery(recordType: "QuotaTransition", predicate: TRUEPREDICATE)` against the state-specific zone with `desiredKeys: ["providerName", "transitionAt"]`, sorted in code by `transitionAt` (no Sortable schema requirement). If the fetch fails or times out (~30s budget), the extension delivers the unmodified push content — same UX as Build 52, no regression.
+- Pure parsing helpers moved to `Shared/Notifications/QuotaZoneNotificationParser.swift` so the test target can verify them without depending on the extension target. Seven new unit tests in `CodexBarMobileTests/QuotaZoneNotificationParserTests.swift` cover zone-name acceptance, legacy-zone rejection, empty/non-CloudKit `userInfo` handling.
+
+### Research
+- 15 alternative architectures for adding provider-in-push were enumerated by parallel research agents and are documented in `Research/005-push-provider-alternatives.md`. The chosen `UNNotificationServiceExtension` design (matching alternative #14 in that doc) is fully described in `Research/006-push-provider-nse.md`.
+
 ## [1.2.0 (52)] — 2026-04-13
 
 > **Version label note:** `xcodebuild -exportArchive` auto-bumps `CFBundleVersion` on App Store Connect collision. The commit that produced this build (`8654c6d7`) was authored with `CURRENT_PROJECT_VERSION = 51` but uploaded as 52 because 51 was already present on ASC. The `project.yml` bump 51 → 52 in the subsequent commit reconciles the label.

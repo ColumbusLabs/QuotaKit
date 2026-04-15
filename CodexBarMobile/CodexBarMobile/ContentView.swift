@@ -1650,6 +1650,7 @@ private enum MobileReleaseNotesCatalog {
                         String(localized: "Provider Share breakdown — each provider's proportional share of total utilization, summing to 100%."),
                         String(localized: "Subscription Utilization History chart on every provider detail page."),
                         String(localized: "Push notifications from Mac — when a session quota hits 0% or becomes available again on Mac, your iPhone receives a notification in its own language."),
+                        String(localized: "Push notifications now show the provider name (Codex, Claude, etc.) in the title."),
                         String(localized: "Push Diagnostic developer tool — inspect the Mac→iOS notification chain in Settings → Developer Tools."),
                         String(localized: "Setup Guide is now a top-level Settings row."),
                     ]),
