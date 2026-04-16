@@ -1,5 +1,77 @@
 # Changelog
 
+## 0.20.0 — 2026-04-16
+
+Mac-side alignment with upstream CodexBar 0.20. Mobile companion stays at 1.2.0 (iOS app unchanged; all 1.2.0 features — Subscription Utilization, multi-Mac merge, Mac→iPhone push — carry forward). New upstream providers (Perplexity, OpenCode Go) appear in the Mac app; iPhone 1.2.0 displays them as fallback cards, full iOS-side adaptation ships in Mobile 1.3.0.
+
+### Highlights — upstream 0.20 (Mac)
+- **Codex system account switching** — switch between system accounts/profiles without manually logging out and back in (contribution by @ratulsarna).
+- **Perplexity provider** (PR #606) — recurring, bonus, and purchased-credit tracking; Pro/Max plan detection; browser-cookie auto-import with manual-cookie fallback.
+- **OpenCode Go** — separate provider from OpenCode Zen, with 5-hour / weekly / monthly web usage tracking, widget integration, and browser-cookie support.
+- **Claude token/cost accuracy** — fixes cross-file double counting of subagent JSONL logs and streaming chunk deduplication; adds `claude-sonnet-4-6` pricing.
+
+### Mac — providers & usage
+- Codex: workspace attribution for account labels and same-email multi-workspace accounts.
+- Codex: reconcile live-system and managed accounts by canonical identity, preserve per-account usage/history/dashboard state, OAuth CLI fallback, tighter OpenAI web ownership gating.
+- Codex: normalize weekly-only rate limits across OAuth and CLI/RPC; free-plan accounts render as Weekly instead of a fake Session.
+- Codex: end-to-end refactor into clearer components (CodexDashboardAuthority / CodexAccountReconciliation / CodexIdentity / CodexConsumerProjection / ManagedCodexAccountCoordinator).
+- OpenCode: preserve product separation between Zen and Go; harden cookie/domain behavior for authenticated web fetches.
+- Cost history: merge supported pi session usage into Codex/Claude provider history (#653).
+
+### Mac — menu & settings
+- Codex: UI for switching the system-level Codex account and promoting a managed account into the live system slot.
+- Claude: "Avoid Keychain prompts" enabled by default (experimental label removed).
+- Fix alignment of menu chart hover coordinates on macOS.
+
+### Mac — fixes (selected)
+- Cursor fetch crash path (#663).
+- z.ai 5-hour lane selection.
+- Ollama `__Secure-session` cookie recognition (#707).
+- Edge browser cookie import for Codex (#694).
+- Antigravity localhost TLS challenges (#693).
+- Battery-drain mitigations: menu bar updates and OpenAI web extras (#708, #684).
+- Menu bar icon regression on macOS 26 RenderBox Metal shader (#677).
+- Claude CLI well-known path fallback precedence (#675).
+
+### Fork — carried forward from 0.19.0
+- iOS CloudKit sync layer (Shared/, Sources/CodexBar/Sync/) — no changes this release; continues to write `DeviceSnapshot` and `QuotaTransition` records in the same schema, so existing iPhone 1.2.0 installs keep working against the Mac 0.20.0 binary.
+
+---
+
+2026-04-16 Mac 端对齐上游 CodexBar 0.20。Mobile 版本保持 1.2.0（iOS 代码未动，1.2.0 所有能力 —— 订阅利用率、多 Mac 合并、Mac→iPhone 推送 —— 全部沿用）。上游新增 Provider（Perplexity、OpenCode Go）会出现在 Mac 端；iPhone 1.2.0 以兜底卡片形式显示，完整的 iOS 端适配在 Mobile 1.3.0 推出。
+
+### 亮点 — 上游 0.20（Mac）
+- **Codex 系统账号切换** —— 不用手动登出再登入即可切换系统账号/profile（@ratulsarna 贡献）。
+- **Perplexity 服务商**（PR #606）—— recurring / 赠送 / 购买三段式 credit 追踪，Pro/Max 套餐识别，浏览器 cookie 自动导入加手动 cookie 兜底。
+- **OpenCode Go** —— 从 OpenCode Zen 分离出独立 provider，支持 5 小时 / 周 / 月 web 用量追踪、widget、浏览器 cookie。
+- **Claude token/费用修正** —— 修复子 agent JSONL 跨文件重复计数和流式分片去重；新增 `claude-sonnet-4-6` 定价。
+
+### Mac — 服务商 & 用量
+- Codex：账号 label 的 workspace 归属，支持同 email 多 workspace。
+- Codex：用 canonical 身份协调实时与 managed 账号，保留每账号独立用量/历史/dashboard；OAuth CLI 兜底；OpenAI web 所有权收紧。
+- Codex：周限额在 OAuth/CLI/RPC 间归一化，免费账号显示为 Weekly 而非虚假 Session。
+- Codex：端到端重构（CodexDashboardAuthority / CodexAccountReconciliation / CodexIdentity / CodexConsumerProjection / ManagedCodexAccountCoordinator 等）。
+- OpenCode：Zen 与 Go 的产品边界保留；web 认证抓取的 cookie/domain 行为强化。
+- 费用历史：支持将 pi session 用量合并到 Codex/Claude 历史（#653）。
+
+### Mac — 菜单 & 设置
+- Codex：切换系统级 Codex 账号、将 managed 账号晋升为 live system 的 UI。
+- Claude："避免 Keychain 弹窗" 改为默认开启（不再是 experimental）。
+- 修复 macOS 上菜单栏图表 hover 坐标对齐。
+
+### Mac — 修复（节选）
+- Cursor 抓取崩溃路径（#663）。
+- z.ai 5 小时额度通道选择。
+- Ollama `__Secure-session` cookie 识别（#707）。
+- Edge 浏览器 cookie 导入 for Codex（#694）。
+- Antigravity localhost TLS 握手。
+- 电量回归修复（#708、#684）。
+- macOS 26 RenderBox Metal 着色器导致的菜单栏图标不显示（#677）。
+- Claude CLI well-known 路径 fallback 优先级（#675）。
+
+### Fork — 沿用自 0.19.0
+- iOS CloudKit 同步层（Shared/、Sources/CodexBar/Sync/）本次零改动；仍按原 schema 写 `DeviceSnapshot` 与 `QuotaTransition`，现网 iPhone 1.2.0 安装配 Mac 0.20.0 二进制正常工作。
+
 ## 0.19.0 — 2026-04-15
 
 This release ships the Mac-side changes that support Mobile 1.2.0: a CloudKit push notification writer (with multi-Mac dedup and 5-minute debounce per provider/state), 4 DEV test buttons in Preferences → Mobile, and an About-page locale fix. Upstream CodexBar 0.19.0 features are unchanged since the original release.
