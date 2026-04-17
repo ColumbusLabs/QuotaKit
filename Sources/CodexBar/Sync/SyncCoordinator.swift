@@ -245,7 +245,9 @@ final class SyncCoordinator {
 
         // Use preferred account or unscoped history
         let histories: [PlanUtilizationSeriesHistory]
-        if let key = buckets.preferredAccountKey, let accountHistories = buckets.accounts[key], !accountHistories.isEmpty {
+        if let key = buckets.preferredAccountKey, let accountHistories = buckets.accounts[key],
+           !accountHistories.isEmpty
+        {
             histories = accountHistories
         } else if !buckets.unscoped.isEmpty {
             histories = buckets.unscoped
@@ -253,8 +255,9 @@ final class SyncCoordinator {
             .filter({ !$0.isEmpty })
             .max(by: {
                 ($0.compactMap(\.latestCapturedAt).max() ?? .distantPast) <
-                ($1.compactMap(\.latestCapturedAt).max() ?? .distantPast)
-            }) {
+                    ($1.compactMap(\.latestCapturedAt).max() ?? .distantPast)
+            })
+        {
             histories = mostRecent
         } else {
             return nil

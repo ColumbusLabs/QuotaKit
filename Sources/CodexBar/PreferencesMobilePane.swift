@@ -70,7 +70,6 @@ struct MobilePane: View {
 
     // MARK: - DEV Test
 
-    @ViewBuilder
     private var devTestSection: some View {
         SettingsSection(contentSpacing: 10) {
             HStack(spacing: 6) {
@@ -150,11 +149,13 @@ struct MobilePane: View {
         self.lastTestResult = "Querying CloudKit…"
         Task {
             let container = CKContainer(identifier: CloudSyncConstants.containerIdentifier)
-            var lines: [String] = ["=== Verify Push Setup ==="]
+            var lines = ["=== Verify Push Setup ==="]
 
             // 1. List subscriptions on BOTH databases
-            for (label, db) in [("Private", container.privateCloudDatabase),
-                                ("Public", container.publicCloudDatabase)] {
+            for (label, db) in [
+                ("Private", container.privateCloudDatabase),
+                ("Public", container.publicCloudDatabase),
+            ] {
                 do {
                     let subs = try await db.allSubscriptions()
                     lines.append("\(label) DB Subscriptions: \(subs.count)")
@@ -184,11 +185,11 @@ struct MobilePane: View {
                 lines.append("Public DB QuotaTransition records: \(results.count)")
                 for (id, result) in results {
                     switch result {
-                    case .success(let record):
+                    case let .success(record):
                         let prov = (record["providerName"] as? String) ?? "?"
                         let st = (record["state"] as? String) ?? "?"
                         lines.append("  \(id.recordName): \(prov) \(st)")
-                    case .failure(let err):
+                    case let .failure(err):
                         lines.append("  \(id.recordName): ERROR \(err.localizedDescription)")
                     }
                 }

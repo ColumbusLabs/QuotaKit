@@ -89,8 +89,8 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
 
 private func stateString(for transition: SessionQuotaTransition) -> String {
     switch transition {
-    case .depleted: return "depleted"
-    case .restored: return "restored"
-    case .none: return "none"
+    case .depleted: "depleted"
+    case .restored: "restored"
+    case .none: "none"
     }
 }

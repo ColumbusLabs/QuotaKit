@@ -25,7 +25,8 @@ func showAbout() {
         ])
     }
 
-    let credits = NSMutableAttributedString(string: "Based on CodexBar by Peter Steinberger\n© 2026 Yuxiao Wang — MIT License\n")
+    let credits =
+        NSMutableAttributedString(string: "Based on CodexBar by Peter Steinberger\n© 2026 Yuxiao Wang — MIT License\n")
     credits.append(makeLink("GitHub", urlString: "https://github.com/o1xhack/CodexBar"))
     credits.append(separator)
     credits.append(makeLink("Website", urlString: "https://codexbarios.o1xhack.com"))
