@@ -2,7 +2,7 @@
 
 ## 0.20.0 — 2026-04-16
 
-Mac-side alignment with upstream CodexBar 0.20. Mobile companion stays at 1.2.0 (iOS app unchanged; all 1.2.0 features — Subscription Utilization, multi-Mac merge, Mac→iPhone push — carry forward). New upstream providers (Perplexity, OpenCode Go) appear in the Mac app; iPhone 1.2.0 displays them as fallback cards, full iOS-side adaptation ships in Mobile 1.3.0.
+Mac-side alignment with upstream CodexBar 0.20. Mobile companion stays at 1.2.0. New upstream providers (Perplexity, OpenCode Go) appear in the Mac app; iPhone 1.2.0 displays them as fallback cards, full iOS-side adaptation ships in Mobile 1.3.0.
 
 ### Highlights — upstream 0.20 (Mac)
 - **Codex system account switching** — switch between system accounts/profiles without manually logging out and back in (contribution by @ratulsarna).
@@ -33,12 +33,9 @@ Mac-side alignment with upstream CodexBar 0.20. Mobile companion stays at 1.2.0 
 - Menu bar icon regression on macOS 26 RenderBox Metal shader (#677).
 - Claude CLI well-known path fallback precedence (#675).
 
-### Fork — carried forward from 0.19.0
-- iOS CloudKit sync layer (Shared/, Sources/CodexBar/Sync/) — no changes this release; continues to write `DeviceSnapshot` and `QuotaTransition` records in the same schema, so existing iPhone 1.2.0 installs keep working against the Mac 0.20.0 binary.
-
 ---
 
-2026-04-16 Mac 端对齐上游 CodexBar 0.20。Mobile 版本保持 1.2.0（iOS 代码未动，1.2.0 所有能力 —— 订阅利用率、多 Mac 合并、Mac→iPhone 推送 —— 全部沿用）。上游新增 Provider（Perplexity、OpenCode Go）会出现在 Mac 端；iPhone 1.2.0 以兜底卡片形式显示，完整的 iOS 端适配在 Mobile 1.3.0 推出。
+2026-04-16 Mac 端对齐上游 CodexBar 0.20。Mobile 版本保持 1.2.0。上游新增 Provider（Perplexity、OpenCode Go）会出现在 Mac 端；iPhone 1.2.0 以兜底卡片形式显示，完整的 iOS 端适配在 Mobile 1.3.0 推出。
 
 ### 亮点 — 上游 0.20（Mac）
 - **Codex 系统账号切换** —— 不用手动登出再登入即可切换系统账号/profile（@ratulsarna 贡献）。
@@ -68,9 +65,6 @@ Mac-side alignment with upstream CodexBar 0.20. Mobile companion stays at 1.2.0 
 - 电量回归修复（#708、#684）。
 - macOS 26 RenderBox Metal 着色器导致的菜单栏图标不显示（#677）。
 - Claude CLI well-known 路径 fallback 优先级（#675）。
-
-### Fork — 沿用自 0.19.0
-- iOS CloudKit 同步层（Shared/、Sources/CodexBar/Sync/）本次零改动；仍按原 schema 写 `DeviceSnapshot` 与 `QuotaTransition`，现网 iPhone 1.2.0 安装配 Mac 0.20.0 二进制正常工作。
 
 ## 0.19.0 — 2026-04-15
 
