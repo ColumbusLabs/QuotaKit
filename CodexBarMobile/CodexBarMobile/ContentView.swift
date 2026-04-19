@@ -498,19 +498,23 @@ private struct CostDashboardView: View {
             }
             .chartXSelection(value: self.$selectedDay)
             .chartScrollableAxes(.horizontal)
-            // Visible domain + 1-day right padding. Combined with the compact
-            // numeric label format ("4/18" instead of "Apr 18" below), this
-            // keeps the last stride label fully visible when scrolled to today
-            // without wasting significant right-side space.
-            .chartXVisibleDomain(length: (Self.chartVisibleDays + 1) * 24 * 60 * 60)
+            // No extra right-side padding — axis labels use anchor .topTrailing
+            // below so the label extends LEFT of the tick (slash just left of
+            // the rightmost bar), matching UtilizationHistoryView's style.
+            // The latest data is always on the right, so left-anchored labels
+            // never clip regardless of how close the last bar is to the edge.
+            .chartXVisibleDomain(length: Self.chartVisibleDays * 24 * 60 * 60)
             .chartScrollPosition(initialX: Self.chartScrollInitialDate(points: self.insights.dailyPoints))
             .chartXAxis {
                 AxisMarks(values: .stride(by: .day, count: 7)) { _ in
                     AxisGridLine()
-                    // Compact numeric format ("4/18" ≈ 30pt wide) vs abbreviated
-                    // month format ("Apr 18" ≈ 50pt wide). Shorter labels clip
-                    // less easily at the chart's trailing edge.
-                    AxisValueLabel(format: .dateTime.month(.defaultDigits).day())
+                    // Compact "4/18" style (same as UtilizationHistoryView)
+                    // with anchor .topTrailing so the label's right edge aligns
+                    // with the tick → label extends leftward, never clips at
+                    // the chart's trailing edge when scrolled to today.
+                    AxisValueLabel(
+                        format: .dateTime.month(.defaultDigits).day(.defaultDigits),
+                        anchor: .topTrailing)
                 }
             }
             .chartYAxis {
