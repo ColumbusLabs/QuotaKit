@@ -131,8 +131,12 @@ final class CloudSyncReader: @unchecked Sendable {
         // Use the most recent sync timestamp across all devices
         let latestTimestamp = snapshots.map(\.syncTimestamp).max() ?? Date()
 
-        // Build device name list for display
-        let deviceNames = snapshots.map(\.deviceName)
+        // Build device name list for display. Sort first so the combined string is stable
+        // across fetches regardless of server iteration order — without this, SwiftDataBridge's
+        // deviceID fallback (`"legacy:" + deviceName`) would see "Mac A, Mac B" at one moment
+        // and "Mac B, Mac A" at another, producing duplicate merged-device rows in the local
+        // store. Flagged in Codex review (P2).
+        let deviceNames = snapshots.map(\.deviceName).sorted()
         let combinedDeviceName = deviceNames.count == 1
             ? deviceNames[0]
             : deviceNames.joined(separator: ", ")

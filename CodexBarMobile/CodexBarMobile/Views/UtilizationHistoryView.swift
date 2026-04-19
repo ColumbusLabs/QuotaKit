@@ -33,15 +33,26 @@ struct UtilizationHistoryView: View {
     /// Fixed visible window size — matches Cost chart's ~30 bars per screen
     private let windowSize = 30
 
-    /// Identity key covering series count, selected index, and active series content signature.
+    /// Identity key covering series metadata AND a value-level content signature for the
+    /// active series. The signature catches in-place mutations where entry count and max
+    /// `capturedAt` don't change but `usedPercent` does (e.g. multi-device merge re-averages
+    /// the hourly bucket for an existing timestamp after a second device's sample arrives).
+    /// Previous key (count + latest-only) missed such updates. Flagged in Codex review (P2).
+    ///
+    /// Uses a `Double` accumulator rather than `Hasher` — see `UtilizationAggregateView`
+    /// for the same reasoning.
     static func identityKey(series: [SyncUtilizationSeries], selectedSeriesIndex: Int) -> String {
         let idx = max(0, min(selectedSeriesIndex, series.count - 1))
         guard idx >= 0, idx < series.count else {
             return "empty"
         }
         let active = series[idx]
-        let latestEntry = active.entries.map(\.capturedAt).max()?.timeIntervalSince1970 ?? 0
-        return "\(idx)|\(active.name)|\(active.windowMinutes)|\(active.entries.count)|\(latestEntry)"
+        var contentSignature: Double = 0
+        for entry in active.entries {
+            contentSignature += entry.capturedAt.timeIntervalSince1970
+            contentSignature += entry.usedPercent * 1_000_000
+        }
+        return "\(idx)|\(active.name)|\(active.windowMinutes)|\(active.entries.count)|\(contentSignature)"
     }
 
     private var identityKey: String {

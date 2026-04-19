@@ -14,12 +14,33 @@ struct UtilizationAggregateView: View {
     private let barWidth: CGFloat = 8
     private let windowSize = 30  // 30 days to match the cost chart
 
-    /// Identity key for `providers` input. Stable when the same provider data is re-supplied.
-    /// Changes when a provider is added/removed or when any provider's lastUpdated advances.
+    /// Identity key for `providers` input. The provider-ID join + max `lastUpdated` catches
+    /// provider-level changes; the `contentSignature` accumulator also captures in-place
+    /// mutations to utilization entries (e.g. multi-device merge re-averages an hourly bucket
+    /// after a second device contributes and the bucket's `usedPercent` changes while count
+    /// and max `capturedAt` stay put). Flagged in Codex review (P2).
+    ///
+    /// The content signature uses a commutative `Double` accumulator instead of a sorted
+    /// hash so we avoid comparison closures / `Hasher` — both of which produced crashes
+    /// in the swift-testing runner (likely related to strict-concurrency capture analysis
+    /// on the struct type). Addition over `Double` is deterministic for our fixed input
+    /// ranges and the signature only needs to be stable within a single app run (SwiftUI
+    /// `.task(id:)` compares identity within that run; persistence is not required).
     static func identityKey(for providers: [ProviderUsageSnapshot], windowSize: Int) -> String {
         let ids = providers.map(\.providerID).sorted().joined(separator: ",")
         let latest = providers.map(\.lastUpdated).max()?.timeIntervalSince1970 ?? 0
-        return "\(ids)|\(latest)|\(windowSize)"
+        var contentSignature: Double = 0
+        for provider in providers {
+            guard let history = provider.utilizationHistory else { continue }
+            for series in history {
+                contentSignature += Double(series.entries.count)
+                for entry in series.entries {
+                    contentSignature += entry.capturedAt.timeIntervalSince1970
+                    contentSignature += entry.usedPercent * 1_000_000
+                }
+            }
+        }
+        return "\(ids)|\(latest)|\(windowSize)|\(contentSignature)"
     }
 
     private var identityKey: String {
