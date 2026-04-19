@@ -440,6 +440,15 @@ private struct CostDashboardView: View {
         return Calendar.current.date(byAdding: .day, value: -(chartVisibleDays - 1), to: last.date) ?? last.date
     }
 
+    /// Locale-independent "M/d" formatter (e.g. "4/18"), matching
+    /// UtilizationHistoryView's axis style. Avoids `.dateTime` which rearranges
+    /// to "d/M" on en_GB and similar locales.
+    private static func dailyAxisLabel(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M/d"
+        return formatter.string(from: date)
+    }
+
     private var trendSection: some View {
         // Precompute axis values once per trendSection build. The input is `insights.dailyPoints`
         // which is stable across hover (`selectedDay`) changes, so we avoid recomputing
@@ -506,15 +515,19 @@ private struct CostDashboardView: View {
             .chartXVisibleDomain(length: Self.chartVisibleDays * 24 * 60 * 60)
             .chartScrollPosition(initialX: Self.chartScrollInitialDate(points: self.insights.dailyPoints))
             .chartXAxis {
-                AxisMarks(values: .stride(by: .day, count: 7)) { _ in
+                AxisMarks(values: .stride(by: .day, count: 7)) { value in
                     AxisGridLine()
-                    // Compact "4/18" style (same as UtilizationHistoryView)
-                    // with anchor .topTrailing so the label's right edge aligns
-                    // with the tick → label extends leftward, never clips at
-                    // the chart's trailing edge when scrolled to today.
-                    AxisValueLabel(
-                        format: .dateTime.month(.defaultDigits).day(.defaultDigits),
-                        anchor: .topTrailing)
+                    // Match UtilizationHistoryView's axis-label style: hard-coded
+                    // "M/d" (locale-independent), not `.dateTime` which produces
+                    // "18/04" on en_GB iPhones. Centered on the gridline (default
+                    // anchor). Short labels + small chart trailing margin below
+                    // keeps the last '4/18' visible without looking shifted.
+                    AxisValueLabel {
+                        if let date = value.as(Date.self) {
+                            Text(Self.dailyAxisLabel(for: date))
+                                .font(.caption2)
+                        }
+                    }
                 }
             }
             .chartYAxis {
