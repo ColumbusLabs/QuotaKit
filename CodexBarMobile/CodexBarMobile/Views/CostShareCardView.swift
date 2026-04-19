@@ -166,7 +166,10 @@ private struct TodayCard: View {
     let theme: ShareCardTheme
 
     var body: some View {
-        VStack(spacing: 0) {
+        // Compute once per render; `displayProviders` is O(providers.count) but is invoked
+        // in multiple ForEach blocks below — cache locally to avoid repeated recomputation.
+        let providers = data.displayProviders
+        return VStack(spacing: 0) {
             // Header
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -203,7 +206,7 @@ private struct TodayCard: View {
 
             // Provider breakdown (top 3 + Others)
             VStack(spacing: 8) {
-                ForEach(Array(data.displayProviders.enumerated()), id: \.offset) { _, provider in
+                ForEach(Array(providers.enumerated()), id: \.offset) { _, provider in
                     HStack(spacing: 8) {
                         Circle()
                             .fill(provider.color)
@@ -227,7 +230,7 @@ private struct TodayCard: View {
             // Share bar
             GeometryReader { geo in
                 HStack(spacing: 2) {
-                    ForEach(Array(data.displayProviders.enumerated()), id: \.offset) { _, p in
+                    ForEach(Array(providers.enumerated()), id: \.offset) { _, p in
                         RoundedRectangle(cornerRadius: 3)
                             .fill(p.color)
                             .frame(width: max(4, geo.size.width * p.share))
@@ -289,7 +292,9 @@ private struct ChartCard: View {
     private var barHeight: CGFloat { is30Day ? 140 : 150 }
 
     var body: some View {
-        VStack(spacing: 0) {
+        // Compute once per render; referenced in 30+ StackedBar instantiations plus legend row.
+        let providers = data.displayProviders
+        return VStack(spacing: 0) {
             // Header — matches Today card style
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -322,7 +327,7 @@ private struct ChartCard: View {
                     ForEach(Array(data.dailyBars.enumerated()), id: \.offset) { _, day in
                         let totalH = max(2, CGFloat(day.cost / maxCost) * barHeight)
                         StackedBar(
-                            providers: data.displayProviders,
+                            providers: providers,
                             totalHeight: totalH,
                             cornerRadius: is30Day ? 2 : 4
                         )
@@ -396,7 +401,7 @@ private struct ChartCard: View {
 
             // Provider dots (top 3 + Others)
             HStack(spacing: 8) {
-                ForEach(Array(data.displayProviders.enumerated()), id: \.offset) { _, p in
+                ForEach(Array(providers.enumerated()), id: \.offset) { _, p in
                     HStack(spacing: 3) {
                         Circle().fill(p.color).frame(width: 6, height: 6)
                         Text(p.name)

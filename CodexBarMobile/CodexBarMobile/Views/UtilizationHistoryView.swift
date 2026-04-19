@@ -16,6 +16,12 @@ struct UtilizationHistoryView: View {
     @State private var selectedSeriesIndex = 0
     @State private var selectedIndex: Int?
 
+    /// Cached (rawPoints, displayPoints) for the active series. Invalidated via `.task(id:)`
+    /// when the series identity or selected index changes — NOT when hover `selectedIndex` moves.
+    @State private var cachedRawPoints: [DisplayPoint] = []
+    @State private var cachedDisplayPoints: [DisplayPoint] = []
+    @State private var cachedHasData = false
+
     private var activeSeries: SyncUtilizationSeries? {
         let index = min(self.selectedSeriesIndex, self.series.count - 1)
         guard index >= 0, index < self.series.count else { return nil }
@@ -26,6 +32,21 @@ struct UtilizationHistoryView: View {
     private let barWidth: CGFloat = 10
     /// Fixed visible window size — matches Cost chart's ~30 bars per screen
     private let windowSize = 30
+
+    /// Identity key covering series count, selected index, and active series content signature.
+    static func identityKey(series: [SyncUtilizationSeries], selectedSeriesIndex: Int) -> String {
+        let idx = max(0, min(selectedSeriesIndex, series.count - 1))
+        guard idx >= 0, idx < series.count else {
+            return "empty"
+        }
+        let active = series[idx]
+        let latestEntry = active.entries.map(\.capturedAt).max()?.timeIntervalSince1970 ?? 0
+        return "\(idx)|\(active.name)|\(active.windowMinutes)|\(active.entries.count)|\(latestEntry)"
+    }
+
+    private var identityKey: String {
+        Self.identityKey(series: self.series, selectedSeriesIndex: self.selectedSeriesIndex)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -44,23 +65,35 @@ struct UtilizationHistoryView: View {
                 }
             }
 
-            if let active = self.activeSeries {
-                let rawPoints = Self.buildPeriodPoints(from: active)
-                if !rawPoints.isEmpty {
-                    let displayPoints = Self.rightAlignPoints(rawPoints, windowSize: self.windowSize)
-                    self.capsuleChart(displayPoints, dataCount: rawPoints.count)
-                        .frame(height: 140)
-                    self.detailLine(displayPoints)
-                        .frame(height: 16)
-                } else {
-                    self.emptyState
-                }
+            if self.cachedHasData {
+                self.capsuleChart(self.cachedDisplayPoints, dataCount: self.cachedRawPoints.count)
+                    .frame(height: 140)
+                self.detailLine(self.cachedDisplayPoints)
+                    .frame(height: 16)
             } else {
                 self.emptyState
             }
         }
         .padding(16)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .task(id: self.identityKey) {
+            guard let active = self.activeSeries else {
+                self.cachedRawPoints = []
+                self.cachedDisplayPoints = []
+                self.cachedHasData = false
+                return
+            }
+            let raw = Self.buildPeriodPoints(from: active)
+            if raw.isEmpty {
+                self.cachedRawPoints = []
+                self.cachedDisplayPoints = []
+                self.cachedHasData = false
+            } else {
+                self.cachedRawPoints = raw
+                self.cachedDisplayPoints = Self.rightAlignPoints(raw, windowSize: self.windowSize)
+                self.cachedHasData = true
+            }
+        }
     }
 
     private var emptyState: some View {
