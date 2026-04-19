@@ -43,8 +43,24 @@ enum SwiftDataBridge {
         deviceSnapshots: [SyncedUsageSnapshot],
         into context: ModelContext
     ) throws {
+        // Build the set of deviceIDs that should exist after this upsert. Anything
+        // currently in the store but NOT in this set has been removed upstream
+        // (user disconnected a Mac, reset sync, etc.) and must be pruned. Without
+        // this, stale DeviceRecord rows accumulate forever. Flagged in Codex review (P2).
+        var incomingDeviceIDs: Set<String> = []
         for snapshot in deviceSnapshots {
+            let deviceID = snapshot.deviceID ?? Self.deviceIDFallback(for: snapshot)
+            incomingDeviceIDs.insert(deviceID)
             try Self.upsertSnapshot(snapshot, into: context)
+        }
+
+        // Prune DeviceRecord rows that correspond to devices that disappeared
+        // from upstream. Cascades to ProviderSnapshotModel and UtilizationEntryModel
+        // via @Relationship(deleteRule: .cascade).
+        let allDevicesDescriptor = FetchDescriptor<DeviceRecord>()
+        let existingDevices = try context.fetch(allDevicesDescriptor)
+        for device in existingDevices where !incomingDeviceIDs.contains(device.deviceID) {
+            context.delete(device)
         }
     }
 

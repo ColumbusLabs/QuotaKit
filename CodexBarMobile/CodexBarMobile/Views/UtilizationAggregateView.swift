@@ -14,33 +14,40 @@ struct UtilizationAggregateView: View {
     private let barWidth: CGFloat = 8
     private let windowSize = 30  // 30 days to match the cost chart
 
-    /// Identity key for `providers` input. The provider-ID join + max `lastUpdated` catches
-    /// provider-level changes; the `contentSignature` accumulator also captures in-place
-    /// mutations to utilization entries (e.g. multi-device merge re-averages an hourly bucket
-    /// after a second device contributes and the bucket's `usedPercent` changes while count
-    /// and max `capturedAt` stay put). Flagged in Codex review (P2).
+    /// Identity key for `providers` input. Uses a collision-resistant per-entry string
+    /// serialization so caches invalidate whenever ANY entry changes value — not just
+    /// when an additive signature shifts. Previous commutative `Double` accumulator was
+    /// vulnerable to `+x / -x` cancellation across buckets (two different states could
+    /// share the same summed signature). Flagged in Codex review (P2).
     ///
-    /// The content signature uses a commutative `Double` accumulator instead of a sorted
-    /// hash so we avoid comparison closures / `Hasher` — both of which produced crashes
-    /// in the swift-testing runner (likely related to strict-concurrency capture analysis
-    /// on the struct type). Addition over `Double` is deterministic for our fixed input
-    /// ranges and the signature only needs to be stable within a single app run (SwiftUI
-    /// `.task(id:)` compares identity within that run; persistence is not required).
+    /// Iterates `providers` in natural order (no closure-based sort — that produced a
+    /// swift-testing runner crash in an earlier attempt), then builds a per-provider
+    /// signature and sorts those strings with Swift's default `Array<String>.sort()`
+    /// so provider ordering doesn't affect the key.
     static func identityKey(for providers: [ProviderUsageSnapshot], windowSize: Int) -> String {
-        let ids = providers.map(\.providerID).sorted().joined(separator: ",")
-        let latest = providers.map(\.lastUpdated).max()?.timeIntervalSince1970 ?? 0
-        var contentSignature: Double = 0
+        var providerSigs: [String] = []
         for provider in providers {
-            guard let history = provider.utilizationHistory else { continue }
-            for series in history {
-                contentSignature += Double(series.entries.count)
-                for entry in series.entries {
-                    contentSignature += entry.capturedAt.timeIntervalSince1970
-                    contentSignature += entry.usedPercent * 1_000_000
+            var parts: [String] = [
+                provider.providerID,
+                "\(provider.lastUpdated.timeIntervalSince1970)",
+            ]
+            if let history = provider.utilizationHistory {
+                for series in history {
+                    parts.append("s=\(series.name)")
+                    parts.append("n=\(series.entries.count)")
+                    for entry in series.entries {
+                        parts.append("t=\(entry.capturedAt.timeIntervalSince1970)")
+                        parts.append("u=\(entry.usedPercent)")
+                        if let resetsAt = entry.resetsAt {
+                            parts.append("r=\(resetsAt.timeIntervalSince1970)")
+                        }
+                    }
                 }
             }
+            providerSigs.append(parts.joined(separator: "·"))
         }
-        return "\(ids)|\(latest)|\(windowSize)|\(contentSignature)"
+        providerSigs.sort()
+        return "ws=\(windowSize)|" + providerSigs.joined(separator: "§")
     }
 
     private var identityKey: String {

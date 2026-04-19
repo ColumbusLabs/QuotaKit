@@ -33,33 +33,30 @@ struct UtilizationHistoryView: View {
     /// Fixed visible window size — matches Cost chart's ~30 bars per screen
     private let windowSize = 30
 
-    /// Identity key covering series metadata AND a value-level content signature for the
-    /// active series. The signature catches in-place mutations where entry count and max
-    /// `capturedAt` don't change but `usedPercent` does (e.g. multi-device merge re-averages
-    /// the hourly bucket for an existing timestamp after a second device's sample arrives).
-    /// Previous key (count + latest-only) missed such updates. Flagged in Codex review (P2).
-    ///
-    /// Uses a `Double` accumulator rather than `Hasher` — see `UtilizationAggregateView`
-    /// for the same reasoning.
+    /// Identity key covering series metadata AND a collision-resistant per-entry content
+    /// signature. Serializes each entry's `capturedAt + usedPercent + resetsAt` rather than
+    /// summing them, so no two different series states can share a key (previous additive
+    /// approach allowed `+x / -x` cancellation). Flagged in Codex review (P2).
     static func identityKey(series: [SyncUtilizationSeries], selectedSeriesIndex: Int) -> String {
         let idx = max(0, min(selectedSeriesIndex, series.count - 1))
         guard idx >= 0, idx < series.count else {
             return "empty"
         }
         let active = series[idx]
-        var contentSignature: Double = 0
+        var parts: [String] = [
+            "idx=\(idx)",
+            "n=\(active.name)",
+            "wm=\(active.windowMinutes)",
+            "c=\(active.entries.count)",
+        ]
         for entry in active.entries {
-            contentSignature += entry.capturedAt.timeIntervalSince1970
-            contentSignature += entry.usedPercent * 1_000_000
-            // `buildPeriodPoints` uses `resetsAt` to compute period boundaries; if the
-            // reset timestamp shifts without other fields changing, the chart alignment
-            // changes but the cache would not invalidate without this term. Flagged in
-            // Codex review (P2).
-            if let resetsAt = entry.resetsAt {
-                contentSignature += resetsAt.timeIntervalSince1970 * 0.001
-            }
+            parts.append("t=\(entry.capturedAt.timeIntervalSince1970)")
+            parts.append("u=\(entry.usedPercent)")
+            // `buildPeriodPoints` uses `resetsAt` for period boundaries; shifts here
+            // must invalidate even if capturedAt/usedPercent are unchanged.
+            parts.append("r=\(entry.resetsAt?.timeIntervalSince1970 ?? -1)")
         }
-        return "\(idx)|\(active.name)|\(active.windowMinutes)|\(active.entries.count)|\(contentSignature)"
+        return parts.joined(separator: "|")
     }
 
     private var identityKey: String {
