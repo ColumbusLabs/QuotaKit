@@ -1,6 +1,7 @@
 import CodexBarSync
 import Foundation
 import Observation
+import SwiftData
 
 /// Detailed sync status for UI display.
 enum SyncStatus: Sendable, Equatable {
@@ -125,6 +126,14 @@ final class SyncedUsageData {
             if let merged = CloudSyncReader.mergeSnapshots(snapshots) {
                 self.snapshot = merged
                 self.syncStatus = .synced(ago: Date().timeIntervalSince(merged.syncTimestamp))
+                // P2a parallel-write: mirror into SwiftData. Views still read
+                // from the @Observable path; this just populates the store so
+                // P2b can flip views to @Query without a data migration step.
+                let context = ModelContainerFactory.sharedMainContext()
+                CloudSyncReader.persistToSwiftData(
+                    deviceSnapshots: snapshots,
+                    merged: merged,
+                    context: context)
             } else {
                 self.syncStatus = .incompatibleData
             }
@@ -176,5 +185,16 @@ final class SyncedUsageData {
     /// Names of all Mac devices contributing data.
     var deviceNames: [String] {
         deviceSnapshots.map(\.deviceName)
+    }
+
+    /// Stable identity for view-layer cache invalidation (Contract C3).
+    /// Returns nil when there is no merged snapshot yet.
+    var snapshotIdentityKey: SnapshotIdentityKey? {
+        guard let snapshot else { return nil }
+        let providers = snapshot.providers
+        let latest = providers.map(\.lastUpdated).max() ?? snapshot.syncTimestamp
+        return SnapshotIdentityKey.make(
+            providerIDs: providers.map(\.providerID),
+            lastUpdated: latest)
     }
 }

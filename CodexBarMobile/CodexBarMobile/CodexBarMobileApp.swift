@@ -1,5 +1,6 @@
 import CloudKit
 import CodexBarSync
+import SwiftData
 import SwiftUI
 import UIKit
 import UserNotifications
@@ -43,6 +44,10 @@ struct CodexBarMobileApp: App {
                     usageData.startObserving()
                 }
         }
+        // P2a: attach SwiftData container. Views do not yet use @Query;
+        // this makes the mainContext available for P2b migration and ensures
+        // the container is bootstrapped at launch for parallel-write.
+        .modelContainer(ModelContainerFactory.shared())
     }
 }
 

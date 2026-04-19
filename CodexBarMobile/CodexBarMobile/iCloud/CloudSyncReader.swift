@@ -1,5 +1,6 @@
 import CodexBarSync
 import Foundation
+import SwiftData
 
 /// iOS-side reader that fetches usage snapshots from CloudKit (all devices)
 /// and falls back to legacy KVS for older Mac app versions.
@@ -55,6 +56,34 @@ final class CloudSyncReader: @unchecked Sendable {
 
     func stopObserving() {
         syncManager.stopKVSObserving()
+    }
+
+    // MARK: - SwiftData parallel write (P2a)
+
+    /// Mirrors the in-memory merged result into the SwiftData store.
+    ///
+    /// P2a is additive: the old `@Observable` path continues to drive views.
+    /// This method exists so `SyncedUsageData` can call it right after
+    /// `mergeSnapshots(...)` completes, keeping the two sources in lockstep.
+    ///
+    /// Writes both the raw per-device snapshots (so SwiftData retains
+    /// per-device granularity that views will use in P2b) and the merged
+    /// snapshot (recorded as a synthetic "legacy:<deviceName>" device row).
+    static func persistToSwiftData(
+        deviceSnapshots: [SyncedUsageSnapshot],
+        merged: SyncedUsageSnapshot?,
+        context: ModelContext
+    ) {
+        do {
+            try SwiftDataBridge.upsert(deviceSnapshots: deviceSnapshots, into: context)
+            if let merged {
+                try SwiftDataBridge.upsert(mergedSnapshot: merged, into: context)
+            }
+        } catch {
+            // P2a is parallel-write; failures here must never break the
+            // legacy path. Log and move on.
+            print("[CodexBar SwiftData] Parallel-write upsert failed: \(error)")
+        }
     }
 
     // MARK: - Multi-device merge
