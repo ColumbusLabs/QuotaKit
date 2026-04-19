@@ -9,17 +9,37 @@ struct UtilizationAggregateView: View {
     let providers: [ProviderUsageSnapshot]
 
     @State private var selectedIndex: Int?
+    @State private var cachedModel: AggregateModel?
 
     private let barWidth: CGFloat = 8
     private let windowSize = 30  // 30 days to match the cost chart
 
-    private var model: AggregateModel? {
-        Self.buildModel(from: self.providers, windowSize: self.windowSize)
+    /// Identity key for `providers` input. Stable when the same provider data is re-supplied.
+    /// Changes when a provider is added/removed or when any provider's lastUpdated advances.
+    static func identityKey(for providers: [ProviderUsageSnapshot], windowSize: Int) -> String {
+        let ids = providers.map(\.providerID).sorted().joined(separator: ",")
+        let latest = providers.map(\.lastUpdated).max()?.timeIntervalSince1970 ?? 0
+        return "\(ids)|\(latest)|\(windowSize)"
+    }
+
+    private var identityKey: String {
+        Self.identityKey(for: self.providers, windowSize: self.windowSize)
     }
 
     var body: some View {
-        if let m = self.model {
-            VStack(alignment: .leading, spacing: 10) {
+        Group {
+            if let m = self.cachedModel {
+                self.content(m)
+            }
+        }
+        .task(id: self.identityKey) {
+            self.cachedModel = Self.buildModel(from: self.providers, windowSize: self.windowSize)
+        }
+    }
+
+    @ViewBuilder
+    private func content(_ m: AggregateModel) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
                 // Title — matches other Cost-tab section headers (.headline)
                 Text("Subscription Utilization")
                     .font(.headline)
@@ -50,7 +70,6 @@ struct UtilizationAggregateView: View {
                         }
                     }
                 }
-            }
         }
     }
 

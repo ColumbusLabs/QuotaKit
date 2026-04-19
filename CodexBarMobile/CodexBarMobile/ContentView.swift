@@ -241,10 +241,27 @@ private struct SyncStatusBar: View {
 
 // MARK: - Cost Tab
 
+/// Helper shared by `CostTab` and tests to produce a stable cache-identity key.
+/// Placed at file scope so `@testable import CodexBarMobile` can call it without
+/// exposing the private `CostTab` type.
+enum CostTabIdentityKeyHelper {
+    static func make(snapshot: SyncedUsageSnapshot?, isDemoMode: Bool) -> String {
+        guard let snapshot else { return "nil|\(isDemoMode)" }
+        let ts = snapshot.syncTimestamp.timeIntervalSince1970
+        let device = snapshot.deviceID ?? snapshot.deviceName
+        return "\(device)|\(ts)|\(snapshot.providers.count)|\(isDemoMode)"
+    }
+}
+
 private struct CostTab: View {
     let usageData: SyncedUsageData
     @Binding var isDemoMode: Bool
     @State private var showShareSheet = false
+
+    /// Cached dashboard insights, invalidated via `.task(id:)` when the snapshot identity changes.
+    /// Avoids re-running the O(providers × daily × breakdowns) aggregation in `CostDashboardInsights.init`
+    /// on unrelated state changes (e.g. `showShareSheet` toggle).
+    @State private var cachedInsights: CostDashboardInsights?
 
     private var displaySnapshot: SyncedUsageSnapshot? {
         if self.isDemoMode {
@@ -253,23 +270,28 @@ private struct CostTab: View {
         return self.usageData.snapshot
     }
 
-    private var currentInsights: CostDashboardInsights? {
-        guard let snapshot = self.displaySnapshot else { return nil }
-        let insights = CostDashboardInsights(snapshot: snapshot)
-        return insights.hasDisplayData ? insights : nil
+    /// Identity key for the snapshot driving `cachedInsights`. Stable across re-renders as long as
+    /// the snapshot's sync timestamp + source device + demo flag are unchanged.
+    private var insightsIdentityKey: String {
+        CostTabIdentityKeyHelper.make(snapshot: self.displaySnapshot, isDemoMode: self.isDemoMode)
+    }
+
+    /// Non-nil only when cached insights actually contain display data.
+    private var displayableInsights: CostDashboardInsights? {
+        guard let insights = self.cachedInsights, insights.hasDisplayData else { return nil }
+        return insights
     }
 
     var body: some View {
         NavigationStack {
             Group {
-                if let snapshot = self.displaySnapshot {
-                    let insights = CostDashboardInsights(snapshot: snapshot)
-                    if insights.hasDisplayData {
+                if self.displaySnapshot != nil {
+                    if let insights = self.displayableInsights {
                         CostDashboardView(
                             insights: insights,
                             usageData: self.usageData,
                             isDemoMode: self.isDemoMode)
-                    } else {
+                    } else if self.cachedInsights != nil {
                         EmptyStateView(
                             title: "No Cost Data Yet",
                             message: "Enable cost collection in CodexBar on your Mac to see provider spend, breakdowns, and budgets here.",
@@ -292,7 +314,7 @@ private struct CostTab: View {
                         }
                     }
                 }
-                if self.currentInsights != nil {
+                if self.displayableInsights != nil {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             self.showShareSheet = true
@@ -303,8 +325,15 @@ private struct CostTab: View {
                 }
             }
             .sheet(isPresented: $showShareSheet) {
-                if let insights = self.currentInsights {
+                if let insights = self.displayableInsights {
                     CostShareSheet(insights: insights)
+                }
+            }
+            .task(id: self.insightsIdentityKey) {
+                if let snapshot = self.displaySnapshot {
+                    self.cachedInsights = CostDashboardInsights(snapshot: snapshot)
+                } else {
+                    self.cachedInsights = nil
                 }
             }
         }
@@ -437,7 +466,11 @@ private struct CostDashboardView: View {
     }
 
     private var trendSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        // Precompute axis values once per trendSection build. The input is `insights.dailyPoints`
+        // which is stable across hover (`selectedDay`) changes, so we avoid recomputing
+        // `axisValues(for:)` on every chart re-render triggered by selection.
+        let yAxisValues = MobileChartAxisFormatter.axisValues(for: self.insights.dailyPoints.map(\.costUSD))
+        return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 4) {
                 Text("Daily Spend")
                     .font(.headline)
@@ -499,7 +532,7 @@ private struct CostDashboardView: View {
                 }
             }
             .chartYAxis {
-                AxisMarks(values: MobileChartAxisFormatter.axisValues(for: self.insights.dailyPoints.map(\.costUSD))) {
+                AxisMarks(values: yAxisValues) {
                     value in
                     AxisGridLine()
                     AxisValueLabel {
