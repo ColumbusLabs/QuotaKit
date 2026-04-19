@@ -14,40 +14,37 @@ struct UtilizationAggregateView: View {
     private let barWidth: CGFloat = 8
     private let windowSize = 30  // 30 days to match the cost chart
 
-    /// Identity key for `providers` input. Uses a collision-resistant per-entry string
-    /// serialization so caches invalidate whenever ANY entry changes value — not just
-    /// when an additive signature shifts. Previous commutative `Double` accumulator was
-    /// vulnerable to `+x / -x` cancellation across buckets (two different states could
-    /// share the same summed signature). Flagged in Codex review (P2).
+    /// Identity key for `providers` input. Cheap O(N) over providers — does NOT iterate
+    /// utilization entries. This property is the `.task(id:)` key and is recomputed on
+    /// every render including hover/drag state changes, so the per-frame cost must stay
+    /// bounded by provider count (typically ≤ 25), not entry count (up to 730 × 3 series
+    /// per provider).
     ///
-    /// Iterates `providers` in natural order (no closure-based sort — that produced a
-    /// swift-testing runner crash in an earlier attempt), then builds a per-provider
-    /// signature and sorts those strings with Swift's default `Array<String>.sort()`
-    /// so provider ordering doesn't affect the key.
+    /// Correctness: every upstream change to utilization entries arrives via a fresh
+    /// provider snapshot whose `lastUpdated` is bumped by the Mac-side fetcher; iOS's
+    /// `mergeSnapshots` preserves `max(lastUpdated)` across devices. Therefore
+    /// `max(lastUpdated)` IS a sufficient content-invalidation signal in this app's
+    /// data flow. A content-only mutation without any `lastUpdated` bump would be a
+    /// protocol violation rather than a legitimate state we need to cache-invalidate
+    /// against. A previous attempt to include full entry-level content (per Codex
+    /// review P2) re-paid the O(N) cost on every hover frame, negating the caching
+    /// win — that was a worse trade-off than tolerating a theoretical gap that our
+    /// data flow precludes.
     static func identityKey(for providers: [ProviderUsageSnapshot], windowSize: Int) -> String {
-        var providerSigs: [String] = []
+        let ids = providers.map(\.providerID).sorted().joined(separator: ",")
+        let latest = providers.map(\.lastUpdated).max()?.timeIntervalSince1970 ?? 0
+        // Count entries via plain for-loops rather than nested reduce-with-closure;
+        // closure variants have caused the swift-testing runner to crash at test
+        // invocation boundaries on the View struct type (same class of issue as the
+        // earlier sorted(by:) attempt).
+        var totalEntries = 0
         for provider in providers {
-            var parts: [String] = [
-                provider.providerID,
-                "\(provider.lastUpdated.timeIntervalSince1970)",
-            ]
-            if let history = provider.utilizationHistory {
-                for series in history {
-                    parts.append("s=\(series.name)")
-                    parts.append("n=\(series.entries.count)")
-                    for entry in series.entries {
-                        parts.append("t=\(entry.capturedAt.timeIntervalSince1970)")
-                        parts.append("u=\(entry.usedPercent)")
-                        if let resetsAt = entry.resetsAt {
-                            parts.append("r=\(resetsAt.timeIntervalSince1970)")
-                        }
-                    }
-                }
+            guard let history = provider.utilizationHistory else { continue }
+            for series in history {
+                totalEntries += series.entries.count
             }
-            providerSigs.append(parts.joined(separator: "·"))
         }
-        providerSigs.sort()
-        return "ws=\(windowSize)|" + providerSigs.joined(separator: "§")
+        return "\(ids)|\(latest)|\(windowSize)|n=\(totalEntries)"
     }
 
     private var identityKey: String {

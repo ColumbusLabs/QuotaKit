@@ -33,30 +33,27 @@ struct UtilizationHistoryView: View {
     /// Fixed visible window size — matches Cost chart's ~30 bars per screen
     private let windowSize = 30
 
-    /// Identity key covering series metadata AND a collision-resistant per-entry content
-    /// signature. Serializes each entry's `capturedAt + usedPercent + resetsAt` rather than
-    /// summing them, so no two different series states can share a key (previous additive
-    /// approach allowed `+x / -x` cancellation). Flagged in Codex review (P2).
+    /// Identity key for the active series. Cheap O(1) — fixed number of string
+    /// interpolations regardless of entry count. This property is the `.task(id:)` key
+    /// and gets recomputed on every render, including during chart hover/drag where
+    /// `selectedIndex` state changes every frame. O(entry-count) serialization in this
+    /// hot path would negate the caching win.
+    ///
+    /// Correctness relies on the same data-flow guarantee as
+    /// `UtilizationAggregateView.identityKey` — see that method's comment. Summary:
+    /// upstream always bumps the owning provider's `lastUpdated` when utilization
+    /// changes, and the latest-captured timestamp on the active series also bumps
+    /// when new entries arrive. Together they give sufficient invalidation without
+    /// touching every entry.
     static func identityKey(series: [SyncUtilizationSeries], selectedSeriesIndex: Int) -> String {
         let idx = max(0, min(selectedSeriesIndex, series.count - 1))
         guard idx >= 0, idx < series.count else {
             return "empty"
         }
         let active = series[idx]
-        var parts: [String] = [
-            "idx=\(idx)",
-            "n=\(active.name)",
-            "wm=\(active.windowMinutes)",
-            "c=\(active.entries.count)",
-        ]
-        for entry in active.entries {
-            parts.append("t=\(entry.capturedAt.timeIntervalSince1970)")
-            parts.append("u=\(entry.usedPercent)")
-            // `buildPeriodPoints` uses `resetsAt` for period boundaries; shifts here
-            // must invalidate even if capturedAt/usedPercent are unchanged.
-            parts.append("r=\(entry.resetsAt?.timeIntervalSince1970 ?? -1)")
-        }
-        return parts.joined(separator: "|")
+        let latestCaptured = active.entries.last?.capturedAt.timeIntervalSince1970 ?? 0
+        let latestReset = active.entries.last?.resetsAt?.timeIntervalSince1970 ?? -1
+        return "\(idx)|\(active.name)|\(active.windowMinutes)|c=\(active.entries.count)|lc=\(latestCaptured)|lr=\(latestReset)"
     }
 
     private var identityKey: String {

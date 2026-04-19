@@ -62,6 +62,11 @@ enum SwiftDataBridge {
         for device in existingDevices where !incomingDeviceIDs.contains(device.deviceID) {
             context.delete(device)
         }
+
+        // Persist the top-level prune. `upsertSnapshot` saves per-snapshot state already,
+        // but device deletions happen only here, so without a final save() they would stay
+        // pending in memory and revert on app relaunch. Flagged in Codex review (P2).
+        try context.save()
     }
 
     // MARK: - Core upsert
