@@ -282,7 +282,10 @@ struct UtilizationHistoryView: View {
         }
         .chartYScale(domain: 0 ... 100)
         .chartYAxis(.hidden)
-        .chartXScale(domain: 0 ... max(points.count - 1, self.windowSize - 1))
+        // Widen the trailing edge by 1 slot so the rightmost bar + label get
+        // fully painted when the chart is scrolled to the right edge (fixed-width
+        // BarMarks clip at the chartXVisibleDomain boundary otherwise).
+        .chartXScale(domain: 0 ... max(points.count, self.windowSize))
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 4)) { value in
                 AxisGridLine().foregroundStyle(.clear)
