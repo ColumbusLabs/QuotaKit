@@ -22,22 +22,23 @@ enum SwiftDataBridge {
     // MARK: - Public entry points
 
     /// Upsert the *merged* snapshot that the legacy path currently produces.
-    /// The merged snapshot has a synthetic deviceID of `nil` (it represents
-    /// the merged view across devices), so we derive a stable fallback from
-    /// `deviceName` to keep it as a distinct row from the individual devices.
-    ///
-    /// Prefer `upsert(deviceSnapshots:)` when raw per-device data is available
-    /// — that gives SwiftData per-device granularity.
-    static func upsert(
-        mergedSnapshot snapshot: SyncedUsageSnapshot,
-        into context: ModelContext
-    ) throws {
-        try Self.upsertSnapshot(snapshot, into: context)
-    }
-
     /// Upsert raw per-device snapshots (the unmerged array returned by
     /// `CloudSyncReader.fetchAllDeviceSnapshots`). Each snapshot becomes (or
     /// updates) its own `DeviceRecord` with its own set of providers.
+    ///
+    /// Note: there is intentionally no separate "merged snapshot" upsert API.
+    /// A merged snapshot's `deviceName` is derived from the set of
+    /// contributing devices, which changes as devices are added/removed —
+    /// storing it as a row under a `"legacy:<deviceName>"` fallback key
+    /// orphans the old merged row every time the set changes. P2b views
+    /// instead re-derive the merged view on the fly via `@Query` against
+    /// per-device rows, which are keyed by stable deviceID.
+    ///
+    /// Legacy snapshots from the KVS fallback path (single-device Macs that
+    /// predate CloudKit sync) still arrive with `deviceID == nil` but carry
+    /// a stable single `deviceName`; they land in a `"legacy:<deviceName>"`
+    /// row via `deviceIDFallback` — that's fine because the name IS stable
+    /// for a single device.
     static func upsert(
         deviceSnapshots: [SyncedUsageSnapshot],
         into context: ModelContext
@@ -176,7 +177,16 @@ enum SwiftDataBridge {
         into provider: ProviderSnapshotModel,
         context: ModelContext
     ) throws {
-        guard !history.isEmpty else { return }
+        // Upstream utilization history is a rolling window on Mac (session cap 730 entries).
+        // Entries that age out upstream must also be pruned locally, otherwise the mirror
+        // grows forever and P2b @Query charts would show stale buckets. If the incoming
+        // history is empty we clear everything on this provider. Flagged in Codex review (P2).
+        guard !history.isEmpty else {
+            for existing in provider.utilizationEntries {
+                context.delete(existing)
+            }
+            return
+        }
 
         // Index existing entries by (seriesName, capturedAt.timeIntervalSince1970)
         // for O(1) dedup. Using the Unix timestamp as the key avoids the
@@ -191,9 +201,12 @@ enum SwiftDataBridge {
             existingByKey[key] = entry
         }
 
+        // Build the set of keys present in the incoming history — the eventual "kept" set.
+        var incomingKeys: Set<EntryKey> = []
         for series in history {
             for entry in series.entries {
                 let key = EntryKey(series: series.name, captured: entry.capturedAt.timeIntervalSince1970)
+                incomingKeys.insert(key)
                 if let existing = existingByKey[key] {
                     existing.usedPercent = entry.usedPercent
                     existing.resetsAt = entry.resetsAt
@@ -210,6 +223,12 @@ enum SwiftDataBridge {
                     existingByKey[key] = model
                 }
             }
+        }
+
+        // Prune entries that existed locally but disappeared from the rolling-window
+        // history upstream.
+        for (key, existing) in existingByKey where !incomingKeys.contains(key) {
+            context.delete(existing)
         }
     }
 

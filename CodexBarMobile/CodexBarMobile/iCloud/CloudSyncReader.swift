@@ -60,25 +60,27 @@ final class CloudSyncReader: @unchecked Sendable {
 
     // MARK: - SwiftData parallel write (P2a)
 
-    /// Mirrors the in-memory merged result into the SwiftData store.
+    /// Mirrors the raw per-device CloudKit snapshots into the SwiftData store.
     ///
     /// P2a is additive: the old `@Observable` path continues to drive views.
     /// This method exists so `SyncedUsageData` can call it right after
     /// `mergeSnapshots(...)` completes, keeping the two sources in lockstep.
     ///
-    /// Writes both the raw per-device snapshots (so SwiftData retains
-    /// per-device granularity that views will use in P2b) and the merged
-    /// snapshot (recorded as a synthetic "legacy:<deviceName>" device row).
+    /// Writes ONLY per-device rows. The merged snapshot is not persisted —
+    /// P2b's @Query-based views will re-derive the merged view on the fly
+    /// from per-device rows, so storing a separate merged row would be
+    /// redundant duplication. Codex review (P2) also flagged that the
+    /// synthetic "legacy:<deviceName>" key for merged snapshots shifts
+    /// whenever the set of contributing devices changes, which would
+    /// orphan prior merged rows. Per-device rows are keyed by stable
+    /// deviceID, so they accumulate cleanly.
     static func persistToSwiftData(
         deviceSnapshots: [SyncedUsageSnapshot],
-        merged: SyncedUsageSnapshot?,
+        merged _: SyncedUsageSnapshot?,
         context: ModelContext
     ) {
         do {
             try SwiftDataBridge.upsert(deviceSnapshots: deviceSnapshots, into: context)
-            if let merged {
-                try SwiftDataBridge.upsert(mergedSnapshot: merged, into: context)
-            }
         } catch {
             // P2a is parallel-write; failures here must never break the
             // legacy path. Log and move on.

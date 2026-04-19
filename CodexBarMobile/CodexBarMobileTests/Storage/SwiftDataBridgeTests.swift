@@ -155,21 +155,54 @@ struct SwiftDataBridgeTests {
     }
 
     @Test("Snapshots without deviceID map to a deterministic fallback row")
-    func testMergedSnapshotFallbackDeviceID() throws {
+    func testLegacySnapshotFallbackDeviceID() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
-        let merged = SyncedUsageSnapshot(
+        // Legacy KVS snapshot — single-device Mac, no deviceID but stable deviceName.
+        let legacy = SyncedUsageSnapshot(
             providers: [self.makeProvider(lastUpdated: self.ts1)],
             syncTimestamp: self.ts1,
-            deviceName: "Merged",
+            deviceName: "Old Mac",
             deviceID: nil)
 
-        try SwiftDataBridge.upsert(mergedSnapshot: merged, into: context)
-        try SwiftDataBridge.upsert(mergedSnapshot: merged, into: context)
+        try SwiftDataBridge.upsert(deviceSnapshots: [legacy], into: context)
+        try SwiftDataBridge.upsert(deviceSnapshots: [legacy], into: context)
 
         let devices = try context.fetch(FetchDescriptor<DeviceRecord>())
         #expect(devices.count == 1)
         #expect(devices.first?.deviceID.hasPrefix("legacy:") == true)
+    }
+
+    @Test("Utilization entries aged out upstream are pruned locally")
+    func testUtilizationEntriesPruned() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+
+        let e1 = SyncUtilizationEntry(capturedAt: self.ts1, usedPercent: 10, resetsAt: nil)
+        let e2 = SyncUtilizationEntry(capturedAt: self.ts2, usedPercent: 20, resetsAt: nil)
+        let seriesBoth = SyncUtilizationSeries(name: "session", windowMinutes: 300, entries: [e1, e2])
+        let providerBoth = self.makeProvider(lastUpdated: self.ts2, utilization: [seriesBoth])
+        let snapshot1 = self.makeSnapshot(
+            deviceID: "mac-prune",
+            providers: [providerBoth],
+            timestamp: self.ts2)
+        try SwiftDataBridge.upsert(deviceSnapshots: [snapshot1], into: context)
+
+        let rowsAfterFirst = try context.fetch(FetchDescriptor<UtilizationEntryModel>())
+        #expect(rowsAfterFirst.count == 2)
+
+        // Second upsert drops e1 from the rolling window — only e2 remains upstream.
+        let seriesPruned = SyncUtilizationSeries(name: "session", windowMinutes: 300, entries: [e2])
+        let providerPruned = self.makeProvider(lastUpdated: self.ts2, utilization: [seriesPruned])
+        let snapshot2 = self.makeSnapshot(
+            deviceID: "mac-prune",
+            providers: [providerPruned],
+            timestamp: self.ts2)
+        try SwiftDataBridge.upsert(deviceSnapshots: [snapshot2], into: context)
+
+        let rowsAfterSecond = try context.fetch(FetchDescriptor<UtilizationEntryModel>())
+        #expect(rowsAfterSecond.count == 1)
+        #expect(rowsAfterSecond.first?.capturedAt == self.ts2)
     }
 }
