@@ -517,12 +517,12 @@ private struct CostDashboardView: View {
             .chartXAxis {
                 AxisMarks(values: .stride(by: .day, count: 7)) { value in
                     AxisGridLine()
-                    // Match UtilizationHistoryView's axis-label style: hard-coded
-                    // "M/d" (locale-independent), not `.dateTime` which produces
-                    // "18/04" on en_GB iPhones. Centered on the gridline (default
-                    // anchor). Short labels + small chart trailing margin below
-                    // keeps the last '4/18' visible without looking shifted.
-                    AxisValueLabel {
+                    // Hard-coded "M/d" (locale-independent, same as
+                    // UtilizationHistoryView). Anchor `.top` centers the label
+                    // horizontally on the gridline — default axis anchor is
+                    // `.topLeading` which extends the label to the right of the
+                    // tick (what the user saw as 'wrong-side padding').
+                    AxisValueLabel(anchor: .top) {
                         if let date = value.as(Date.self) {
                             Text(Self.dailyAxisLabel(for: date))
                                 .font(.caption2)
