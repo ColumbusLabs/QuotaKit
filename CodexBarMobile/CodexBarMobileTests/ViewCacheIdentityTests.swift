@@ -181,44 +181,8 @@ struct ViewCacheIdentityTests {
         #expect(display.last?.name == String(localized: "Others"))
     }
 
-    // MARK: - Hotspot 5: CostTab (CostDashboardInsights identity)
-
-    @Test("CostTab.insightsIdentityKey: same snapshot → same key")
-    func insights_sameInput_sameKey() {
-        let snapshot = Self.makeSnapshot()
-        let k1 = CostTabIdentityKeyHelper.make(snapshot: snapshot, isDemoMode: false)
-        let k2 = CostTabIdentityKeyHelper.make(snapshot: snapshot, isDemoMode: false)
-        #expect(k1 == k2)
-    }
-
-    @Test("CostTab.insightsIdentityKey: changed syncTimestamp → different key")
-    func insights_changedTimestamp_differentKey() {
-        let s1 = Self.makeSnapshot(syncTimestamp: Date(timeIntervalSince1970: 1_700_000_000))
-        let s2 = Self.makeSnapshot(syncTimestamp: Date(timeIntervalSince1970: 1_700_000_300))
-        #expect(CostTabIdentityKeyHelper.make(snapshot: s1, isDemoMode: false)
-            != CostTabIdentityKeyHelper.make(snapshot: s2, isDemoMode: false))
-    }
-
-    @Test("CostTab.insightsIdentityKey: changed deviceID → different key")
-    func insights_changedDevice_differentKey() {
-        let s1 = Self.makeSnapshot(deviceID: "mac-1")
-        let s2 = Self.makeSnapshot(deviceID: "mac-2")
-        #expect(CostTabIdentityKeyHelper.make(snapshot: s1, isDemoMode: false)
-            != CostTabIdentityKeyHelper.make(snapshot: s2, isDemoMode: false))
-    }
-
-    @Test("CostTab.insightsIdentityKey: toggling demo mode → different key")
-    func insights_demoMode_affectsKey() {
-        let snapshot = Self.makeSnapshot()
-        #expect(CostTabIdentityKeyHelper.make(snapshot: snapshot, isDemoMode: false)
-            != CostTabIdentityKeyHelper.make(snapshot: snapshot, isDemoMode: true))
-    }
-
-    @Test("CostTab.insightsIdentityKey: nil snapshot produces stable key")
-    func insights_nilSnapshot_stable() {
-        #expect(CostTabIdentityKeyHelper.make(snapshot: nil, isDemoMode: false)
-            == CostTabIdentityKeyHelper.make(snapshot: nil, isDemoMode: false))
-        #expect(CostTabIdentityKeyHelper.make(snapshot: nil, isDemoMode: false)
-            != CostTabIdentityKeyHelper.make(snapshot: nil, isDemoMode: true))
-    }
+    // Note: Hotspot 5 (CostTab) reverted to synchronous compute — no cache identity needed.
+    // See ContentView.swift CostTab.currentInsights; Cost tab has no hover interaction so
+    // per-render recompute cost is acceptable. Async cache caused UI test failures because
+    // first render had cachedInsights=nil and rendered nothing until .task(id:) fired.
 }

@@ -19,3 +19,5 @@ This directory contains research documents for features being considered for Cod
 |---|---------|--------|---------|------|------|
 | 001 | Daily Provider Utilization Chart | `blocked-upstream` | [upstream PR #565](https://github.com/steipete/CodexBar/pull/565) | [001-daily-utilization-chart.md](001-daily-utilization-chart.md) | 2026-03-19 |
 | 002 | Cost Share Card (One-Tap Share) | `done` | — | [002-cost-share-card.md](002-cost-share-card.md) | 2026-03-19 |
+| 008 | iOS Data Architecture Refactor (CloudKit split + view caching + local persistence) | `ready` | — | [008-ios-data-architecture-refactor.md](008-ios-data-architecture-refactor.md) | 2026-04-18 |
+| 009 | iOS 1.3.0 Implementation Plan (SwiftData + per-provider CloudKit + change tokens) | `ready` | — | [009-1.3.0-implementation-plan.md](009-1.3.0-implementation-plan.md) | 2026-04-18 |

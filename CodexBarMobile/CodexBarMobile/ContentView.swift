@@ -241,27 +241,10 @@ private struct SyncStatusBar: View {
 
 // MARK: - Cost Tab
 
-/// Helper shared by `CostTab` and tests to produce a stable cache-identity key.
-/// Placed at file scope so `@testable import CodexBarMobile` can call it without
-/// exposing the private `CostTab` type.
-enum CostTabIdentityKeyHelper {
-    static func make(snapshot: SyncedUsageSnapshot?, isDemoMode: Bool) -> String {
-        guard let snapshot else { return "nil|\(isDemoMode)" }
-        let ts = snapshot.syncTimestamp.timeIntervalSince1970
-        let device = snapshot.deviceID ?? snapshot.deviceName
-        return "\(device)|\(ts)|\(snapshot.providers.count)|\(isDemoMode)"
-    }
-}
-
 private struct CostTab: View {
     let usageData: SyncedUsageData
     @Binding var isDemoMode: Bool
     @State private var showShareSheet = false
-
-    /// Cached dashboard insights, invalidated via `.task(id:)` when the snapshot identity changes.
-    /// Avoids re-running the O(providers × daily × breakdowns) aggregation in `CostDashboardInsights.init`
-    /// on unrelated state changes (e.g. `showShareSheet` toggle).
-    @State private var cachedInsights: CostDashboardInsights?
 
     private var displaySnapshot: SyncedUsageSnapshot? {
         if self.isDemoMode {
@@ -270,28 +253,27 @@ private struct CostTab: View {
         return self.usageData.snapshot
     }
 
-    /// Identity key for the snapshot driving `cachedInsights`. Stable across re-renders as long as
-    /// the snapshot's sync timestamp + source device + demo flag are unchanged.
-    private var insightsIdentityKey: String {
-        CostTabIdentityKeyHelper.make(snapshot: self.displaySnapshot, isDemoMode: self.isDemoMode)
-    }
-
-    /// Non-nil only when cached insights actually contain display data.
-    private var displayableInsights: CostDashboardInsights? {
-        guard let insights = self.cachedInsights, insights.hasDisplayData else { return nil }
-        return insights
+    /// Synchronous computed insights. `CostDashboardInsights.init` is O(providers × daily × breakdowns)
+    /// which is fine to recompute per render here — Cost tab has no hover/selection state that would
+    /// trigger frequent re-renders. (Hover-heavy views UtilizationAggregateView / UtilizationHistoryView
+    /// use `@State` + `.task(id:)` caching because hover changes selection state every frame.)
+    /// Synchronous compute ensures first render has data for UI tests and user-perceived responsiveness.
+    private var currentInsights: CostDashboardInsights? {
+        guard let snapshot = self.displaySnapshot else { return nil }
+        let insights = CostDashboardInsights(snapshot: snapshot)
+        return insights.hasDisplayData ? insights : nil
     }
 
     var body: some View {
         NavigationStack {
             Group {
                 if self.displaySnapshot != nil {
-                    if let insights = self.displayableInsights {
+                    if let insights = self.currentInsights {
                         CostDashboardView(
                             insights: insights,
                             usageData: self.usageData,
                             isDemoMode: self.isDemoMode)
-                    } else if self.cachedInsights != nil {
+                    } else {
                         EmptyStateView(
                             title: "No Cost Data Yet",
                             message: "Enable cost collection in CodexBar on your Mac to see provider spend, breakdowns, and budgets here.",
@@ -314,7 +296,7 @@ private struct CostTab: View {
                         }
                     }
                 }
-                if self.displayableInsights != nil {
+                if self.currentInsights != nil {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             self.showShareSheet = true
@@ -325,15 +307,8 @@ private struct CostTab: View {
                 }
             }
             .sheet(isPresented: $showShareSheet) {
-                if let insights = self.displayableInsights {
+                if let insights = self.currentInsights {
                     CostShareSheet(insights: insights)
-                }
-            }
-            .task(id: self.insightsIdentityKey) {
-                if let snapshot = self.displaySnapshot {
-                    self.cachedInsights = CostDashboardInsights(snapshot: snapshot)
-                } else {
-                    self.cachedInsights = nil
                 }
             }
         }
