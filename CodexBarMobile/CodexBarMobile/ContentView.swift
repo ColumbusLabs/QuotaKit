@@ -498,18 +498,19 @@ private struct CostDashboardView: View {
             }
             .chartXSelection(value: self.$selectedDay)
             .chartScrollableAxes(.horizontal)
-            // Visible domain + 2-day right padding so the last stride label
-            // (today's date) doesn't clip when the chart is scrolled to the
-            // right edge. Stride `.day, count: 7` places labels every 7 days
-            // and the last one lands exactly on today's data point, which
-            // SwiftUI Charts draws at the trailing pixel without internal
-            // padding; 12h wasn't enough, 2 days consistently leaves room.
-            .chartXVisibleDomain(length: (Self.chartVisibleDays + 2) * 24 * 60 * 60)
+            // Visible domain + 1-day right padding. Combined with the compact
+            // numeric label format ("4/18" instead of "Apr 18" below), this
+            // keeps the last stride label fully visible when scrolled to today
+            // without wasting significant right-side space.
+            .chartXVisibleDomain(length: (Self.chartVisibleDays + 1) * 24 * 60 * 60)
             .chartScrollPosition(initialX: Self.chartScrollInitialDate(points: self.insights.dailyPoints))
             .chartXAxis {
                 AxisMarks(values: .stride(by: .day, count: 7)) { _ in
                     AxisGridLine()
-                    AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                    // Compact numeric format ("4/18" ≈ 30pt wide) vs abbreviated
+                    // month format ("Apr 18" ≈ 50pt wide). Shorter labels clip
+                    // less easily at the chart's trailing edge.
+                    AxisValueLabel(format: .dateTime.month(.defaultDigits).day())
                 }
             }
             .chartYAxis {
