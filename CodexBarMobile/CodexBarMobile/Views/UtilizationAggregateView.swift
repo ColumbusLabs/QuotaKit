@@ -9,6 +9,7 @@ struct UtilizationAggregateView: View {
     let providers: [ProviderUsageSnapshot]
 
     @State private var selectedIndex: Int?
+    @State private var cachedKey: String = ""
     @State private var cachedModel: AggregateModel?
 
     private let barWidth: CGFloat = 8
@@ -52,13 +53,30 @@ struct UtilizationAggregateView: View {
     }
 
     var body: some View {
-        Group {
-            if let m = self.cachedModel {
+        // Synchronous cache resolution:
+        // - Cache hit (identity stable, e.g. hover) → return cached model, ZERO compute
+        // - Cache miss → compute synchronously so the view has data on THIS frame.
+        //   `.onChange(initial: true)` fires just after to persist the result into
+        //   @State so subsequent renders hit the cache.
+        // Previous `.task(id:)` pattern rendered empty on first frame while the async
+        // task populated the cache — user reported the entire Subscription Utilization
+        // section disappearing. Sync fallback fixes that without sacrificing hover
+        // performance (identity is stable during hover, so cache stays warm).
+        let currentKey = self.identityKey
+        let model: AggregateModel? = (self.cachedKey == currentKey)
+            ? self.cachedModel
+            : Self.buildModel(from: self.providers, windowSize: self.windowSize)
+
+        return Group {
+            if let m = model {
                 self.content(m)
             }
         }
-        .task(id: self.identityKey) {
-            self.cachedModel = Self.buildModel(from: self.providers, windowSize: self.windowSize)
+        .onChange(of: currentKey, initial: true) { _, newKey in
+            if self.cachedKey != newKey {
+                self.cachedModel = Self.buildModel(from: self.providers, windowSize: self.windowSize)
+                self.cachedKey = newKey
+            }
         }
     }
 

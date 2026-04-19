@@ -16,8 +16,9 @@ struct UtilizationHistoryView: View {
     @State private var selectedSeriesIndex = 0
     @State private var selectedIndex: Int?
 
-    /// Cached (rawPoints, displayPoints) for the active series. Invalidated via `.task(id:)`
-    /// when the series identity or selected index changes — NOT when hover `selectedIndex` moves.
+    /// Cache (rawPoints, displayPoints, hasData) keyed on `identityKey`. Invalidated via
+    /// synchronous check in body + `.onChange(initial: true)` — see body for rationale.
+    @State private var cachedKey: String = ""
     @State private var cachedRawPoints: [DisplayPoint] = []
     @State private var cachedDisplayPoints: [DisplayPoint] = []
     @State private var cachedHasData = false
@@ -77,18 +78,13 @@ struct UtilizationHistoryView: View {
                 }
             }
 
-            if self.cachedHasData {
-                self.capsuleChart(self.cachedDisplayPoints, dataCount: self.cachedRawPoints.count)
-                    .frame(height: 140)
-                self.detailLine(self.cachedDisplayPoints)
-                    .frame(height: 16)
-            } else {
-                self.emptyState
-            }
+            self.resolvedContent()
         }
         .padding(16)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-        .task(id: self.identityKey) {
+        .onChange(of: self.identityKey, initial: true) { _, newKey in
+            guard self.cachedKey != newKey else { return }
+            self.cachedKey = newKey
             guard let active = self.activeSeries else {
                 self.cachedRawPoints = []
                 self.cachedDisplayPoints = []
@@ -105,6 +101,34 @@ struct UtilizationHistoryView: View {
                 self.cachedDisplayPoints = Self.rightAlignPoints(raw, windowSize: self.windowSize)
                 self.cachedHasData = true
             }
+        }
+    }
+
+    /// Resolves cached points synchronously on cache miss. Keeps the chart populated on
+    /// the very first frame — fixes the right-edge clip regression that appeared when
+    /// `.task(id:)` left cached arrays empty during first render and `ScrollableIfNeeded`
+    /// locked in the wrong `dataCount`.
+    private func resolvedPoints() -> (raw: [DisplayPoint], display: [DisplayPoint], hasData: Bool) {
+        if self.cachedKey == self.identityKey {
+            return (self.cachedRawPoints, self.cachedDisplayPoints, self.cachedHasData)
+        }
+        guard let active = self.activeSeries else { return ([], [], false) }
+        let computed = Self.buildPeriodPoints(from: active)
+        if computed.isEmpty { return ([], [], false) }
+        let display = Self.rightAlignPoints(computed, windowSize: self.windowSize)
+        return (computed, display, true)
+    }
+
+    @ViewBuilder
+    private func resolvedContent() -> some View {
+        let resolved = self.resolvedPoints()
+        if resolved.hasData {
+            self.capsuleChart(resolved.display, dataCount: resolved.raw.count)
+                .frame(height: 140)
+            self.detailLine(resolved.display)
+                .frame(height: 16)
+        } else {
+            self.emptyState
         }
     }
 
