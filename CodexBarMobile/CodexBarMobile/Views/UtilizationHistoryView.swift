@@ -51,6 +51,13 @@ struct UtilizationHistoryView: View {
         for entry in active.entries {
             contentSignature += entry.capturedAt.timeIntervalSince1970
             contentSignature += entry.usedPercent * 1_000_000
+            // `buildPeriodPoints` uses `resetsAt` to compute period boundaries; if the
+            // reset timestamp shifts without other fields changing, the chart alignment
+            // changes but the cache would not invalidate without this term. Flagged in
+            // Codex review (P2).
+            if let resetsAt = entry.resetsAt {
+                contentSignature += resetsAt.timeIntervalSince1970 * 0.001
+            }
         }
         return "\(idx)|\(active.name)|\(active.windowMinutes)|\(active.entries.count)|\(contentSignature)"
     }

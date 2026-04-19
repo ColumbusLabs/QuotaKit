@@ -61,12 +61,34 @@ enum SwiftDataBridge {
             lastSyncAt: snapshot.syncTimestamp,
             in: context)
 
+        // Build the set of composite keys present in this snapshot. Anything on the
+        // existing DeviceRecord that is NOT in this set has been removed upstream
+        // (user disconnected a provider on Mac) and must be pruned locally to keep
+        // the SwiftData mirror in lockstep. Without this, phantom provider rows
+        // accumulate forever. Flagged in Codex review (P2).
+        let incomingKeys: Set<String> = Set(snapshot.providers.map { provider in
+            ProviderSnapshotModel.makeCompositeKey(
+                deviceID: deviceID,
+                providerID: provider.providerID,
+                accountEmail: provider.accountEmail)
+        })
+
         for provider in snapshot.providers {
             try Self.upsertProvider(provider, deviceID: deviceID, device: device, in: context)
         }
 
-        // Flush pending inserts so @Attribute(.unique) lookups resolve on the
-        // next call (e.g. when upserting multiple device snapshots in one pass).
+        // Prune rows that belonged to this device but disappeared from the
+        // incoming snapshot. Cascade delete on the provider → utilization
+        // relationship cleans up orphan entries automatically.
+        let staleDescriptor = FetchDescriptor<ProviderSnapshotModel>(
+            predicate: #Predicate { $0.deviceID == deviceID })
+        let existingForDevice = try context.fetch(staleDescriptor)
+        for existing in existingForDevice where !incomingKeys.contains(existing.compositeKey) {
+            context.delete(existing)
+        }
+
+        // Flush pending inserts/deletes so @Attribute(.unique) lookups resolve
+        // on the next call (e.g. when upserting multiple device snapshots in one pass).
         try context.save()
     }
 
