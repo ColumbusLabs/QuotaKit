@@ -593,12 +593,75 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
 
     /// Fetches usage snapshots from all devices via CloudKit.
     ///
-    /// Reads from BOTH the custom zone (where new builds write) and the default zone
-    /// (where old Mac builds may still write during the migration window). Snapshots are
-    /// deduped by `deviceID` keeping the most recent `syncTimestamp` per device, so a
-    /// freshly-upgraded Mac writing to the custom zone replaces any stale default-zone
-    /// record from the same device.
+    /// Queries **three** sources and merges them by `deviceID`:
+    /// - `DeviceProvidersZone` — per-provider records (P4 Mac builds). Winner
+    ///   per device: a device that shows up here is fully represented by its
+    ///   per-provider records and its legacy monolithic record is ignored.
+    /// - `DeviceSnapshotsZone` custom zone — monolithic records from post-Build
+    ///   48 Mac builds that predate P4.
+    /// - default zone — monolithic records from the pre-42 era that wrote to
+    ///   the default zone.
+    ///
+    /// Dedup rule: per-device priority is `providerZone > customZone > defaultZone`.
+    /// Within a tier, most recent `syncTimestamp` wins (e.g. two legacy records
+    /// for the same device across the Build 48 migration). `.empty` from the
+    /// new zone is normal pre-P4 and does not cascade into the overall result.
     public func fetchAllDeviceSnapshots() async -> MultiDeviceSyncResult {
+        guard cloudKitAvailable, _privateDatabase != nil else {
+            return .error(CloudSyncError(from: CKError(.serviceUnavailable)))
+        }
+
+        // Fetch new zone first. Its failures are non-fatal (pre-P4, schema not
+        // deployed, etc.) — we still want legacy data to flow through.
+        let perProviderResult = await self.fetchPerProviderDeviceSnapshots()
+        var perProviderSnapshots: [SyncedUsageSnapshot] = []
+        var perProviderError: CloudSyncError?
+        switch perProviderResult {
+        case .success(let snaps):
+            perProviderSnapshots = snaps
+        case .empty:
+            break
+        case .error(let error):
+            perProviderError = error
+        }
+
+        let legacyResult = await self.fetchLegacyDeviceSnapshots()
+        var legacySnapshots: [SyncedUsageSnapshot] = []
+        var legacyError: CloudSyncError?
+        switch legacyResult {
+        case .success(let snaps):
+            legacySnapshots = snaps
+        case .empty:
+            break
+        case .error(let error):
+            legacyError = error
+        }
+
+        let merged = Self.prioritiseByDevice(
+            perProvider: perProviderSnapshots, legacy: legacySnapshots)
+
+        if merged.isEmpty {
+            // Surface whichever error came up, preferring legacy since that
+            // was historically the canonical failure signal.
+            if let legacyError { return .error(legacyError) }
+            if let perProviderError { return .error(perProviderError) }
+            self.logInfo("CloudKit query returned no decodable snapshots")
+            return .empty
+        }
+
+        self.logInfo("Fetched merged snapshots from CloudKit", metadata: [
+            "devices": "\(merged.count)",
+            "providerZone": "\(perProviderSnapshots.count)",
+            "legacy": "\(legacySnapshots.count)",
+        ])
+        return .success(merged)
+    }
+
+    /// Reads legacy `DeviceSnapshot` records from both the custom zone (Build
+    /// 48+ Macs) and the default zone (pre-42 Macs). Used as fallback when the
+    /// new per-provider zone has no data for a given device. This is the
+    /// pre-P4 implementation of `fetchAllDeviceSnapshots`, renamed.
+    private func fetchLegacyDeviceSnapshots() async -> MultiDeviceSyncResult {
         guard cloudKitAvailable, _privateDatabase != nil else {
             return .error(CloudSyncError(from: CKError(.serviceUnavailable)))
         }
@@ -675,6 +738,154 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             "devices": "\(snapshots.count)",
         ])
         return .success(snapshots)
+    }
+
+    // MARK: - CloudKit Per-Provider Read (iOS side, P5)
+
+    /// Fetches per-provider snapshot records from `DeviceProvidersZone` (P4's
+    /// write target) and reconstructs one `SyncedUsageSnapshot` per device by
+    /// grouping the envelopes by `deviceID`.
+    ///
+    /// Returns `.empty` when the zone doesn't exist yet — this is the expected
+    /// state on iOS builds before any P4 Mac has written to the new zone (or
+    /// when Production schema isn't deployed yet). Callers fall back to
+    /// `fetchAllDeviceSnapshots()` (legacy zones) for those devices.
+    ///
+    /// Individual record decode/decompress failures are logged and skipped —
+    /// one bad record never fails the whole fetch, matching the legacy
+    /// `decodeSnapshots` behavior.
+    public func fetchPerProviderDeviceSnapshots() async -> MultiDeviceSyncResult {
+        guard cloudKitAvailable, _privateDatabase != nil else {
+            return .error(CloudSyncError(from: CKError(.serviceUnavailable)))
+        }
+
+        let query = CKQuery(
+            recordType: CloudSyncConstants.providerRecordType,
+            predicate: NSPredicate(value: true))
+
+        let matchResults: [(CKRecord.ID, Result<CKRecord, Error>)]
+        do {
+            let (results, _) = try await _privateDatabase!.records(
+                matching: query, inZoneWith: providerZone.zoneID)
+            matchResults = results
+        } catch let error as CKError where error.code == .zoneNotFound {
+            self.logInfo("Provider zone does not exist yet (no P4 Mac has uploaded)")
+            return .empty
+        } catch let error as CKError where error.code == .unknownItem {
+            // Record type hasn't been deployed in Production yet. Not a failure
+            // — we just haven't gotten the new data path to light up yet.
+            self.logInfo("Provider record type not in Production schema yet")
+            return .empty
+        } catch let error as CKError {
+            let syncError = CloudSyncError(from: error)
+            self.logError("Provider zone query failed: \(syncError.description)")
+            return .error(syncError)
+        } catch {
+            self.logError("Provider zone query failed: \(error.localizedDescription)")
+            return .error(.unknown(error.localizedDescription))
+        }
+
+        // Decode each record into an envelope.
+        var envelopesByDeviceID: [String: [ProviderUsageEnvelope]] = [:]
+        for (recordID, result) in matchResults {
+            switch result {
+            case .success(let record):
+                guard let envelope = self.decodeEnvelope(from: record) else {
+                    self.logError(
+                        "Failed to decode provider envelope from \(recordID.recordName)")
+                    continue
+                }
+                envelopesByDeviceID[envelope.deviceID, default: []].append(envelope)
+            case .failure(let error):
+                self.logError(
+                    "Failed to fetch provider record \(recordID.recordName): " +
+                        error.localizedDescription)
+            }
+        }
+
+        if envelopesByDeviceID.isEmpty {
+            return .empty
+        }
+
+        let snapshots = Self.reconstructSnapshots(envelopesByDeviceID: envelopesByDeviceID)
+
+        self.logInfo("Fetched per-provider records from CloudKit", metadata: [
+            "devices": "\(snapshots.count)",
+            "records": "\(matchResults.count)",
+        ])
+        return .success(snapshots)
+    }
+
+    /// Groups per-provider envelopes into one `SyncedUsageSnapshot` per
+    /// device. Device-level metadata is taken from the envelope with the most
+    /// recent `syncTimestamp`; provider order inside the snapshot is sorted
+    /// by `lastUpdated` descending so the most-recently-refreshed provider
+    /// bubbles up. Pure function — lifted out for unit testing.
+    public static func reconstructSnapshots(
+        envelopesByDeviceID: [String: [ProviderUsageEnvelope]]
+    ) -> [SyncedUsageSnapshot] {
+        var snapshots: [SyncedUsageSnapshot] = []
+        snapshots.reserveCapacity(envelopesByDeviceID.count)
+        for (_, envelopes) in envelopesByDeviceID {
+            guard let latestEnvelope = envelopes.max(by: {
+                $0.syncTimestamp < $1.syncTimestamp
+            }) else {
+                continue
+            }
+            let providers = envelopes
+                .map(\.provider)
+                .sorted { $0.lastUpdated > $1.lastUpdated }
+
+            snapshots.append(SyncedUsageSnapshot(
+                providers: providers,
+                syncTimestamp: latestEnvelope.syncTimestamp,
+                deviceName: latestEnvelope.deviceName,
+                deviceID: latestEnvelope.deviceID,
+                appVersion: latestEnvelope.appVersion,
+                mobileVersion: latestEnvelope.mobileVersion,
+                notificationPushEnabled: latestEnvelope.notificationPushEnabled))
+        }
+        snapshots.sort { $0.syncTimestamp > $1.syncTimestamp }
+        return snapshots
+    }
+
+    /// Per-device priority merge of new-zone and legacy-zone results. Pure
+    /// function — lifted out for unit testing. A device in `perProvider` wins
+    /// over the same device in `legacy`; devices only in one side pass
+    /// through unchanged.
+    public static func prioritiseByDevice(
+        perProvider: [SyncedUsageSnapshot],
+        legacy: [SyncedUsageSnapshot]
+    ) -> [SyncedUsageSnapshot] {
+        var byKey: [String: SyncedUsageSnapshot] = [:]
+        for snapshot in perProvider {
+            let key = snapshot.deviceID ?? snapshot.deviceName
+            byKey[key] = snapshot
+        }
+        for snapshot in legacy {
+            let key = snapshot.deviceID ?? snapshot.deviceName
+            if byKey[key] == nil {
+                byKey[key] = snapshot
+            }
+        }
+        return Array(byKey.values).sorted { $0.syncTimestamp > $1.syncTimestamp }
+    }
+
+    /// Extracts a `ProviderUsageEnvelope` from a `DeviceProviderSnapshot`
+    /// CKRecord. Returns `nil` if the payload is missing, version-mismatched,
+    /// or fails to decompress/decode.
+    private func decodeEnvelope(from record: CKRecord) -> ProviderUsageEnvelope? {
+        guard let payload = record["payload"] as? Data else { return nil }
+        // encodingVersion is advisory — missing or zero means "legacy v1 zlib
+        // JSON", which is what we know how to decode. Unknown future versions
+        // return nil so we don't silently mis-decode.
+        if let version = record["encodingVersion"] as? Int,
+           version > CloudSyncConstants.providerPayloadVersion
+        {
+            return nil
+        }
+        guard let json = try? PayloadCompression.decompress(payload) else { return nil }
+        return try? self.decoder.decode(ProviderUsageEnvelope.self, from: json)
     }
 
     /// Decodes a CloudKit query match result list into snapshot objects, logging any failures.
