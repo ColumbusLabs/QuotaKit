@@ -13,6 +13,24 @@ public enum CloudSyncConstants {
     /// Custom record zone name for per-device usage snapshots.
     public static let customZoneName = "DeviceSnapshotsZone"
 
+    /// Record type for per-provider snapshot records (P4 — split from the
+    /// monolithic `DeviceSnapshot` payload so each provider can be uploaded and
+    /// downloaded incrementally, and so a single provider's state never has to
+    /// share CloudKit's 1MB-per-record budget with everything else).
+    public static let providerRecordType = "DeviceProviderSnapshot"
+
+    /// Dedicated zone for per-provider snapshot records. New zone (not reused
+    /// from `customZoneName`) so a future server-side prune of legacy
+    /// `DeviceSnapshot` records never disturbs provider-level data, and so
+    /// per-provider `CKRecordZoneSubscription` subs can be set up independently.
+    public static let providerZoneName = "DeviceProvidersZone"
+
+    /// Bumped when the on-wire payload format changes (compression algorithm,
+    /// envelope shape, etc.). Stored in the `encodingVersion` CKRecord field so
+    /// readers can reject records they don't understand instead of silently
+    /// decoding garbage.
+    public static let providerPayloadVersion = 1
+
     /// Legacy zone used by Build 42–49. Kept only so we can delete the stale
     /// `quota-transition-zone-sub` on upgrade; no new records are written here.
     public static let quotaTransitionsZoneName = "QuotaTransitionsZone"

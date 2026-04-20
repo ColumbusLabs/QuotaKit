@@ -24,6 +24,26 @@ final class SyncCoordinator {
     /// Stable device UUID for this Mac, persisted across app launches.
     private let deviceID: String
 
+    /// Per-provider content-hash cache (P4). Keyed by composite
+    /// `providerID|accountEmail`, value is a stable hash of the provider's
+    /// encoded JSON. Used to diff incoming pushes so `pushPerProviderRecords`
+    /// only uploads providers whose data actually changed.
+    ///
+    /// In-memory only — rebuilt on every process launch. The cost of
+    /// rebuilding is one extra full upload on Mac startup, which is fine; the
+    /// alternative (persisting to UserDefaults) risks the cache drifting out of
+    /// sync with what's actually on CloudKit.
+    private var lastProviderHashes: [String: Int] = [:]
+
+    /// Stable encoder used for the per-provider diff. Sorted keys so byte-level
+    /// hashing is insensitive to encoding key order.
+    private let providerDiffEncoder: JSONEncoder = {
+        let e = JSONEncoder()
+        e.dateEncodingStrategy = .iso8601
+        e.outputFormatting = [.sortedKeys]
+        return e
+    }()
+
     init(store: UsageStore, settings: SettingsStore, syncManager: any SyncPushing = CloudSyncManager.shared) {
         self.store = store
         self.settings = settings
@@ -158,6 +178,87 @@ final class SyncCoordinator {
         self.lastSyncTime = Date()
         self.lastSyncSucceeded = result.succeeded
         self.lastSyncMessage = result.message
+
+        // P4: additive per-provider write to DeviceProvidersZone. Diff against
+        // the in-memory hash cache so unchanged providers are skipped. Failure
+        // here is logged but does NOT override `lastSyncSucceeded` — the
+        // legacy-zone write is still authoritative while iOS readers haven't
+        // migrated yet (see Research/010).
+        let (envelopes, hashUpdates) = self.buildPerProviderDelta(
+            from: providerSnapshots, synced: synced)
+        if !envelopes.isEmpty {
+            let perProviderResult =
+                await self.syncManager.pushPerProviderRecords(envelopes)
+            if perProviderResult.succeeded {
+                for (key, hash) in hashUpdates {
+                    self.lastProviderHashes[key] = hash
+                }
+            } else {
+                print(
+                    "[CodexBar Sync] per-provider write failed: " +
+                        (perProviderResult.message ?? "unknown"))
+            }
+        }
+    }
+
+    /// Produces the envelopes that should be uploaded this cycle plus the
+    /// hash-cache updates to apply on success. Pure function over
+    /// `providerSnapshots` and the in-memory hash state.
+    private func buildPerProviderDelta(
+        from providerSnapshots: [ProviderUsageSnapshot],
+        synced: SyncedUsageSnapshot
+    ) -> (envelopes: [ProviderUsageEnvelope], hashUpdates: [String: Int]) {
+        var envelopes: [ProviderUsageEnvelope] = []
+        var updates: [String: Int] = [:]
+
+        for provider in providerSnapshots {
+            let key = Self.perProviderHashKey(
+                providerID: provider.providerID,
+                accountEmail: provider.accountEmail)
+            guard let data = try? providerDiffEncoder.encode(provider) else {
+                // Encode fallback: include anyway so we don't silently drop a
+                // provider just because its JSON encoding briefly failed.
+                envelopes.append(ProviderUsageEnvelope(
+                    deviceID: self.deviceID,
+                    deviceName: synced.deviceName,
+                    appVersion: synced.appVersion,
+                    mobileVersion: synced.mobileVersion,
+                    syncTimestamp: synced.syncTimestamp,
+                    notificationPushEnabled: synced.notificationPushEnabled,
+                    provider: provider))
+                continue
+            }
+            let hash = Self.stableHash(for: data)
+            if self.lastProviderHashes[key] == hash {
+                continue // unchanged — skip
+            }
+            envelopes.append(ProviderUsageEnvelope(
+                deviceID: self.deviceID,
+                deviceName: synced.deviceName,
+                appVersion: synced.appVersion,
+                mobileVersion: synced.mobileVersion,
+                syncTimestamp: synced.syncTimestamp,
+                notificationPushEnabled: synced.notificationPushEnabled,
+                provider: provider))
+            updates[key] = hash
+        }
+        return (envelopes, updates)
+    }
+
+    private static func perProviderHashKey(providerID: String, accountEmail: String?) -> String {
+        "\(providerID)|\(accountEmail ?? "_")"
+    }
+
+    /// Deterministic hash of a provider's encoded JSON. Uses FNV-1a (64-bit)
+    /// so it's cheap, stable across process launches, and collision-free in
+    /// the range we care about (≤100 providers × app lifetime).
+    private static func stableHash(for data: Data) -> Int {
+        var hash: UInt64 = 0xcbf29ce484222325
+        for byte in data {
+            hash ^= UInt64(byte)
+            hash = hash &* 0x100000001b3
+        }
+        return Int(bitPattern: UInt(truncatingIfNeeded: hash))
     }
 
     func stopObserving() {

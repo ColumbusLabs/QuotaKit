@@ -10,11 +10,25 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
     var lastSnapshot: SyncedUsageSnapshot?
     var nextResult: SyncPushResult = .success
 
+    // P4 — per-provider write tracking
+    var perProviderCallCount = 0
+    var lastPerProviderEnvelopes: [ProviderUsageEnvelope] = []
+    var nextPerProviderResult: SyncPushResult = .success
+
     @discardableResult
     func pushSnapshot(_ snapshot: SyncedUsageSnapshot) async -> SyncPushResult {
         self.pushCount += 1
         self.lastSnapshot = snapshot
         return self.nextResult
+    }
+
+    @discardableResult
+    func pushPerProviderRecords(
+        _ envelopes: [ProviderUsageEnvelope]
+    ) async -> SyncPushResult {
+        self.perProviderCallCount += 1
+        self.lastPerProviderEnvelopes = envelopes
+        return self.nextPerProviderResult
     }
 }
 
@@ -270,5 +284,126 @@ struct SyncCoordinatorTests {
 
         settings.iCloudSyncEnabled = true
         #expect(defaults.bool(forKey: "iCloudSyncEnabled") == true)
+    }
+
+    // MARK: - P4 per-provider dual-write
+
+    @Test
+    func perProviderWriteFiresAlongsideLegacyOnFirstPush() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-perprov-first")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+
+        let store = self.makeUsageStore(settings: settings)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 100,
+                sessionCostUSD: 0.1,
+                last30DaysTokens: 1000,
+                last30DaysCostUSD: 1.0,
+                daily: [],
+                updatedAt: Date()),
+            provider: .codex)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        await coordinator.pushCurrentSnapshot()
+
+        // Legacy write ran once; per-provider write ran once with the Codex envelope.
+        #expect(mock.pushCount == 1)
+        #expect(mock.perProviderCallCount == 1)
+        #expect(mock.lastPerProviderEnvelopes.count >= 1)
+        #expect(mock.lastPerProviderEnvelopes.contains { $0.provider.providerID == "codex" })
+    }
+
+    @Test
+    func perProviderWriteSkippedWhenDataUnchanged() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-perprov-unchanged")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+
+        let store = self.makeUsageStore(settings: settings)
+        let fixedSnapshot = CostUsageTokenSnapshot(
+            sessionTokens: 100,
+            sessionCostUSD: 0.1,
+            last30DaysTokens: 1000,
+            last30DaysCostUSD: 1.0,
+            daily: [],
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
+        store._setTokenSnapshotForTesting(fixedSnapshot, provider: .codex)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        await coordinator.pushCurrentSnapshot()
+        let firstCallEnvelopes = mock.lastPerProviderEnvelopes
+
+        // Second push with unchanged data: coordinator's diff cache should
+        // surface an empty envelope array, so the mock records either a
+        // zero-length call or no call at all.
+        await coordinator.pushCurrentSnapshot()
+
+        #expect(!firstCallEnvelopes.isEmpty) // first push wrote envelopes
+        // Second push skipped everything — either no call, or explicit empty.
+        // Coordinator guards on `!envelopes.isEmpty` so it should be no call.
+        #expect(mock.perProviderCallCount == 1)
+    }
+
+    @Test
+    func perProviderWriteSendsOnlyChangedProviderOnIncrementalUpdate() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-perprov-incr")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        try settings.setProviderEnabled(
+            provider: .claude,
+            metadata: #require(ProviderDefaults.metadata[.claude]),
+            enabled: true)
+
+        let store = self.makeUsageStore(settings: settings)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 100, sessionCostUSD: 0.1,
+                last30DaysTokens: 1000, last30DaysCostUSD: 1.0,
+                daily: [], updatedAt: Date(timeIntervalSince1970: 1_700_000_000)),
+            provider: .codex)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 50, sessionCostUSD: 0.05,
+                last30DaysTokens: 500, last30DaysCostUSD: 0.5,
+                daily: [], updatedAt: Date(timeIntervalSince1970: 1_700_000_000)),
+            provider: .claude)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        // First push — both providers upload.
+        await coordinator.pushCurrentSnapshot()
+        let firstCount = mock.lastPerProviderEnvelopes.count
+        #expect(firstCount >= 2)
+
+        // Change ONLY Codex.
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 200, sessionCostUSD: 0.2,
+                last30DaysTokens: 2000, last30DaysCostUSD: 2.0,
+                daily: [], updatedAt: Date(timeIntervalSince1970: 1_700_001_000)),
+            provider: .codex)
+
+        await coordinator.pushCurrentSnapshot()
+
+        // Second call should contain only the changed provider.
+        #expect(mock.perProviderCallCount == 2)
+        #expect(mock.lastPerProviderEnvelopes.count == 1)
+        #expect(mock.lastPerProviderEnvelopes.first?.provider.providerID == "codex")
     }
 }
