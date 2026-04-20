@@ -51,29 +51,22 @@ struct CodexBarMobileApp: App {
     }
 }
 
-extension Notification.Name {
-    /// Posted by AppDelegate when a silent CloudKit push arrives from the
-    /// per-provider zone. `SyncedUsageData` listens and triggers its
-    /// incremental refresh path.
-    static let codexBarProviderZoneDidChange = Notification.Name(
-        "com.o1xhack.codexbar.providerZoneDidChange")
-}
-
 // MARK: - AppDelegate
 
-/// `UIApplicationDelegate` for:
+/// Minimal `UIApplicationDelegate` for the alert-push design. Only responsibilities:
 ///
 /// 1. Request notification permission on first launch (`.alert + .sound + .badge`).
+///    The user must grant this for visible push notifications to display.
 /// 2. Register for remote notifications so iOS hands the device's APNs token to
 ///    CloudKit's internal subscription dispatcher.
-/// 3. Configure the alert-push `(provider, state)` subscriptions **and** the
-///    P7 silent-push subscription on `DeviceProvidersZone`.
-/// 4. Re-run all subscription setup on `CKAccountChangedNotification`.
-/// 5. Handle incoming silent pushes on `DeviceProvidersZone` by posting
-///    `.codexBarProviderZoneDidChange` so `SyncedUsageData` can run the
-///    incremental change-token fetch.
-/// 6. As `UNUserNotificationCenterDelegate`, allow notifications to display in
+/// 3. Configure the two `CKQuerySubscription`s on `QuotaTransition` records.
+/// 4. Re-run subscription setup on `CKAccountChangedNotification` so the new account
+///    gets fresh subscriptions.
+/// 5. As `UNUserNotificationCenterDelegate`, allow notifications to display in
 ///    foreground (otherwise iOS suppresses them by default for the active app).
+///
+/// We deliberately do NOT implement `didReceiveRemoteNotification` — alert pushes
+/// are displayed by the system without app code running.
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
     func application(
@@ -105,11 +98,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         // 2. Register for remote notifications so CloudKit knows the APNs token.
         application.registerForRemoteNotifications()
 
-        // 3. Set up the alert-push subscriptions and the P7 silent-push
-        //    subscription on DeviceProvidersZone.
+        // 3. Set up the two CKQuerySubscriptions on the user's private database.
         Task { @MainActor in
             await QuotaTransitionSubscriptions.shared.setupIfNeeded()
-            await DeviceProviderZoneSubscription.shared.setupIfNeeded()
         }
 
         // 4. Re-setup on iCloud account change.
@@ -120,30 +111,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             object: nil)
 
         return true
-    }
-
-    /// Handle silent CloudKit push. Today only the DeviceProvidersZone
-    /// subscription fires here (quota subs render their alertBody without
-    /// app code). On match, broadcast so SyncedUsageData can run its
-    /// change-token fetch; it'll apply the delta to SwiftData and views
-    /// refresh.
-    func application(
-        _: UIApplication,
-        didReceiveRemoteNotification userInfo: [AnyHashable: Any],
-        fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
-    ) {
-        guard DeviceProviderZoneSubscription.isPushForThisSubscription(userInfo: userInfo) else {
-            // Not ours (shouldn't happen — alert subs don't go through this
-            // handler — but stay defensive).
-            completionHandler(.noData)
-            return
-        }
-        NotificationCenter.default.post(
-            name: .codexBarProviderZoneDidChange, object: nil)
-        // We report .newData optimistically — the real fetch is async and
-        // completes after this handler returns. iOS awards us future
-        // background time budget based on this signal.
-        completionHandler(.newData)
     }
 
     func application(
@@ -173,7 +140,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         print("[CodexBar Push v2] iCloud account changed — re-running subscription setup")
         Task { @MainActor in
             await QuotaTransitionSubscriptions.shared.setupIfNeeded()
-            await DeviceProviderZoneSubscription.shared.setupIfNeeded()
         }
     }
 

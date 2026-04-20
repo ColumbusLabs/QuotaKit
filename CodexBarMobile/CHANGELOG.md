@@ -2,6 +2,22 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (60)] — 2026-04-19 — dev build · rollback P6 + P7
+
+Multi-device data regression reverted. Build 59 shipped P6 (change-token incremental sync) and P7 (silent push → incremental refresh), but the incremental path read per-device state from SwiftData, which also contained historical rows populated by past legacy-zone full-fetch upserts. When Mac A (on the new per-provider zone) triggered a silent push, the incremental path wrote Mac A's fresh delta to SwiftData, then reconstructed the "per-provider zone set" by reading SwiftData — which wrongly included stale Mac B rows from legacy history. The priority merge then let stale Mac B data win over the fresh legacy fetch, producing flicker / missing-data symptoms in multi-Mac setups.
+
+### Reverted
+- **P7 · Silent-push-driven refresh** — subscription setup, AppDelegate `didReceiveRemoteNotification` handler, and the `SyncedUsageData.refreshIncremental` observer are all removed. Silent pushes to `DeviceProvidersZone` no longer trigger any iOS work.
+- **P6 · Change-token incremental sync** — `CKFetchRecordZoneChangesOperation` path, change-token persistence, `SwiftDataBridge.applyPerProviderDelta`, and the `CodexBarMobileTests/Storage/PerProviderDeltaTests` suite are all removed.
+
+### Kept (still correct)
+- **P3 · SwiftData cold-start hydrate** — unchanged, no multi-device issue.
+- **P4 · Mac dual-write** — Mac still writes per-provider records to `DeviceProvidersZone` alongside the monolithic legacy record. Shared types (`ProviderUsageEnvelope`, `PayloadCompression`) retained.
+- **P5 · Dual-zone reader** — the FULL-fetch path (app open / pull-to-refresh) queries both zones fresh from CloudKit every time and priority-merges per device. This path never touched SwiftData for the priority decision, so it didn't have the bug.
+
+### Design debt carried forward
+The incremental + silent-push behavior needs a redesign before it can come back. The lesson: SwiftData is a read-through cache, not a per-zone "what's in this zone" mirror, because full-fetch upserts and delta upserts both write to it indiscriminately. Any future incremental path must either track zone-of-origin on `DeviceRecord`, or stop reading SwiftData for priority decisions and query CloudKit fresh each push.
+
 ## [1.3.0 (59)] — 2026-04-19 — dev build (refactor-1.3.0)
 
 Internal-only build. No user-visible feature changes yet; the tap target is the sync pipeline, which reshapes how device data flows from Mac → CloudKit → iPhone.
