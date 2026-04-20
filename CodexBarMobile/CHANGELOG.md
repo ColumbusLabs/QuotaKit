@@ -2,6 +2,20 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (61)] — 2026-04-19 — dev build · P6 + P7 v2 (cache-based, multi-device-safe)
+
+### Re-introduced, re-designed
+- **P6 · Change-token incremental sync (v2)** — `CKFetchRecordZoneChangesOperation` on `DeviceProvidersZone` is back, with a clean separation from SwiftData: the v1 bug (stale SwiftData rows from past full-fetch upserts leaking into the per-provider bucket) is eliminated because the incremental path now writes to an in-memory `SnapshotCache` with explicit `perProviderByDevice` vs `legacyByDevice` slots.
+- **P7 · Silent-push-driven refresh (v2)** — `CKRecordZoneSubscription` on `DeviceProvidersZone` and the `AppDelegate.didReceiveRemoteNotification` routing are both restored, now triggering `SyncedUsageData.refreshIncremental` which applies the change-token delta to the cache. Legacy bucket is never touched by a silent push.
+
+### Design changes vs v1
+- `SnapshotCache` (in `CodexBarMobile/Models/SnapshotCache.swift`) keeps per-zone slots explicitly. Priority merge reads from it and never consults SwiftData.
+- Token persistence via `SwiftDataBridge.loadChangeToken` / `saveChangeToken` kept (tokens are explicitly zone-scoped, no ambiguity). `applyPerProviderDelta` deleted — cache replaces its role.
+- `SyncedUsageData.fetchFromCloudKit` now calls the two zone queries separately and feeds both into `cache.replaceFromFullFetch`. Prior logic that went through `CloudSyncManager.fetchAllDeviceSnapshots`'s internal priority merge is still available but unused by the cache path — kept for completeness.
+
+### Multi-device trace
+Research/011 carries six explicit scenarios (Mac-A-new + Mac-B-old, both new, both legacy, iPhone-old × Mac-new, iPhone-new × Mac-old, 2 iPhones × 2 Macs). The test suite `SnapshotCacheTests` has assertions that mirror three of them directly.
+
 ## [1.3.0 (60)] — 2026-04-19 — dev build · rollback P6 + P7
 
 Multi-device data regression reverted. Build 59 shipped P6 (change-token incremental sync) and P7 (silent push → incremental refresh), but the incremental path read per-device state from SwiftData, which also contained historical rows populated by past legacy-zone full-fetch upserts. When Mac A (on the new per-provider zone) triggered a silent push, the incremental path wrote Mac A's fresh delta to SwiftData, then reconstructed the "per-provider zone set" by reading SwiftData — which wrongly included stale Mac B rows from legacy history. The priority merge then let stale Mac B data win over the fresh legacy fetch, producing flicker / missing-data symptoms in multi-Mac setups.

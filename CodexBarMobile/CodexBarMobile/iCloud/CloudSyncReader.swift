@@ -1,3 +1,4 @@
+import CloudKit
 import CodexBarSync
 import Foundation
 import SwiftData
@@ -16,6 +17,25 @@ final class CloudSyncReader: @unchecked Sendable {
     /// Fetches snapshots from all devices via CloudKit.
     func fetchAllDeviceSnapshots() async -> MultiDeviceSyncResult {
         await syncManager.fetchAllDeviceSnapshots()
+    }
+
+    // MARK: - Cache-based flow (v2 — Research/011)
+
+    /// Per-provider zone only. Caller owns the priority-merge decision.
+    func fetchPerProviderDeviceSnapshots() async -> MultiDeviceSyncResult {
+        await syncManager.fetchPerProviderDeviceSnapshots()
+    }
+
+    /// Legacy zones only (custom zone + default zone).
+    func fetchLegacyDeviceSnapshots() async -> MultiDeviceSyncResult {
+        await syncManager.fetchLegacyDeviceSnapshots()
+    }
+
+    /// Incremental change-token fetch for the per-provider zone.
+    func fetchPerProviderZoneChanges(
+        since token: CKServerChangeToken?
+    ) async -> CloudSyncManager.PerProviderZoneChanges {
+        await syncManager.fetchPerProviderZoneChanges(since: token)
     }
 
     // MARK: - Legacy KVS (backward compatibility)

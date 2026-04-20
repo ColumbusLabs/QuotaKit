@@ -354,4 +354,45 @@ enum SwiftDataBridge {
     static func deviceIDFallback(for snapshot: SyncedUsageSnapshot) -> String {
         "legacy:" + snapshot.deviceName
     }
+
+    // MARK: - Change-token persistence (v2 P6 re-introduction)
+    //
+    // v1 P6 (Build 59) stored the token here AND also wrote incremental
+    // per-provider rows here via applyPerProviderDelta. The delta writer was
+    // the source of the multi-device regression and has been removed. Only
+    // token load/save remain — that's fine because tokens are scoped by
+    // zoneName explicitly, no ambiguity with legacy data.
+
+    /// Reads the persisted `CKServerChangeToken` for the named zone, if any.
+    /// Returns `nil` on first-ever sync or after a token-expiry reset.
+    static func loadChangeToken(
+        forZone zoneName: String,
+        from context: ModelContext
+    ) throws -> Data? {
+        let descriptor = FetchDescriptor<SyncStateRecord>(
+            predicate: #Predicate { $0.zoneName == zoneName })
+        return try context.fetch(descriptor).first?.changeTokenData
+    }
+
+    /// Persists the server change token for `zoneName`. Pass `tokenData: nil`
+    /// to clear (called after `.changeTokenExpired` so the next fetch is a
+    /// full replay).
+    static func saveChangeToken(
+        forZone zoneName: String,
+        tokenData: Data?,
+        context: ModelContext
+    ) throws {
+        let descriptor = FetchDescriptor<SyncStateRecord>(
+            predicate: #Predicate { $0.zoneName == zoneName })
+        if let existing = try context.fetch(descriptor).first {
+            existing.changeTokenData = tokenData
+            existing.lastSyncAt = Date()
+        } else {
+            context.insert(SyncStateRecord(
+                zoneName: zoneName,
+                changeTokenData: tokenData,
+                lastSyncAt: Date()))
+        }
+        try context.save()
+    }
 }
