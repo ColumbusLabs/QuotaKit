@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.20.1 — 2026-04-20 — dev build on refactor-1.3.0
+
+Internal dev build to exercise the iOS 1.3.0 CloudKit sync refactor end-to-end. **Not a public release** (BUILD_NUMBER stays 55; no appcast, no Sparkle OTA). Lives on the `refactor-1.3.0` branch.
+
+### Added
+- **Per-provider CloudKit writes (P4)** — each provider becomes its own `DeviceProviderSnapshot` record in a new `DeviceProvidersZone`, alongside the existing monolithic `DeviceSnapshot` in `DeviceSnapshotsZone`. Payload is zlib-compressed JSON (~10× reduction on dense utilization blobs). `SyncCoordinator` keeps an in-memory hash cache per `(providerID, accountEmail)` so each push only uploads providers whose content actually changed.
+- **Dual-write is additive** — the legacy monolithic zone continues to be authoritative. New-zone write failures (e.g. missing Production schema) degrade gracefully without affecting legacy writes.
+
+### Requires
+- CloudKit Production schema for `DeviceProviderSnapshot` deployed (done 2026-04-20 via Development → Deployments → Deploy Schema Changes).
+- iOS companion 1.3.0 (Build 61+) to consume new-zone data. Older iPhones (1.2.0) ignore the new zone and keep reading the legacy record — no regression.
+
+### Design
+- Full design: `CodexBarMobile/Research/010-mac-per-provider-cloudkit.md`.
+
 ## 0.20.0 — 2026-04-16
 
 Mac-side alignment with upstream CodexBar 0.20. Mobile companion stays at 1.2.0. New upstream providers (Perplexity, OpenCode Go) appear in the Mac app; iPhone 1.2.0 displays them as fallback cards, full iOS-side adaptation ships in Mobile 1.3.0.
