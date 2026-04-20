@@ -125,7 +125,15 @@ private struct UsageTab: View {
     }
 
     var body: some View {
-        NavigationStack {
+        let t0 = CFAbsoluteTimeGetCurrent()
+        let snap = self.displaySnapshot
+        let snapPresent = snap != nil
+        let providerCount = snap?.providers.count ?? 0
+        print("[CodexBar Timing] UsageTab.body start @\(String(format: "%.3f", t0)) snapshot=\(snapPresent) providers=\(providerCount)")
+        defer {
+            print("[CodexBar Timing] UsageTab.body end   Δ=\(String(format: "%.3fs", CFAbsoluteTimeGetCurrent() - t0))")
+        }
+        return NavigationStack {
             Group {
                 if let snapshot = self.displaySnapshot {
                     if snapshot.providers.isEmpty {
@@ -169,13 +177,21 @@ private struct ProviderListView: View {
     let isDemoMode: Bool
 
     var body: some View {
-        ScrollView {
+        let t0 = CFAbsoluteTimeGetCurrent()
+        print("[CodexBar Timing] ProviderListView.body start @\(String(format: "%.3f", t0)) providers=\(self.snapshot.providers.count)")
+        defer {
+            print("[CodexBar Timing] ProviderListView.body end   Δ=\(String(format: "%.3fs", CFAbsoluteTimeGetCurrent() - t0))")
+        }
+        return ScrollView {
             LazyVStack(spacing: 16) {
                 ForEach(self.snapshot.providers, id: \.providerID) { provider in
                     NavigationLink {
                         ProviderDetailView(provider: provider)
                     } label: {
                         ProviderUsageView(provider: provider)
+                            .onAppear {
+                                print("[CodexBar Timing] ProviderUsageView onAppear provider=\(provider.providerID) @\(String(format: "%.3f", CFAbsoluteTimeGetCurrent()))")
+                            }
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("provider-card-\(provider.providerID)")

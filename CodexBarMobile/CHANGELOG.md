@@ -2,6 +2,10 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (62)] — 2026-04-20 — dev build · diagnostic timing prints
+
+Non-functional. Adds `[CodexBar Timing]` print lines in `SyncedUsageData.init`, `UsageTab.body`, `ProviderListView.body`, and per-card `onAppear` so I can measure the "Usage tab blank ~1–2s on cold start" observation. To be removed once the root cause is confirmed.
+
 ## [1.3.0 (61)] — 2026-04-19 — dev build · P6 + P7 v2 (cache-based, multi-device-safe)
 
 ### Re-introduced, re-designed
