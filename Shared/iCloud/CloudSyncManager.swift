@@ -661,7 +661,11 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// 48+ Macs) and the default zone (pre-42 Macs). Used as fallback when the
     /// new per-provider zone has no data for a given device. This is the
     /// pre-P4 implementation of `fetchAllDeviceSnapshots`, renamed.
-    private func fetchLegacyDeviceSnapshots() async -> MultiDeviceSyncResult {
+    ///
+    /// Public so P6's incremental reader path can pull ONLY the legacy slice
+    /// (it already got its own per-provider deltas via change tokens and
+    /// doesn't want to re-query the new zone).
+    public func fetchLegacyDeviceSnapshots() async -> MultiDeviceSyncResult {
         guard cloudKitAvailable, _privateDatabase != nil else {
             return .error(CloudSyncError(from: CKError(.serviceUnavailable)))
         }
@@ -869,6 +873,163 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             }
         }
         return Array(byKey.values).sorted { $0.syncTimestamp > $1.syncTimestamp }
+    }
+
+    // MARK: - CloudKit Change-Token Incremental Fetch (iOS side, P6)
+
+    /// Result of an incremental fetch against `DeviceProvidersZone`.
+    public struct PerProviderZoneChanges: Sendable {
+        /// Envelopes decoded from records that were added or modified since
+        /// the caller's previous token.
+        public let upserted: [ProviderUsageEnvelope]
+        /// Composite recordNames of records the server reports as deleted.
+        /// Use `CloudSyncManager.perProviderRecordName(...)` to build matching
+        /// keys for local dedup.
+        public let deletedRecordNames: [String]
+        /// Token to persist for the next incremental fetch. May be `nil` only
+        /// when the server had nothing to report and no previous token was
+        /// provided.
+        public let newToken: CKServerChangeToken?
+        /// `true` when the server rejected the input token as expired. The
+        /// caller MUST clear its stored token and retry with `token: nil`,
+        /// expecting a full replay.
+        public let tokenExpired: Bool
+        /// `true` when the zone doesn't exist on the server (P4 Mac hasn't
+        /// written yet, or account reset). Treat as empty.
+        public let zoneMissing: Bool
+
+        public init(
+            upserted: [ProviderUsageEnvelope],
+            deletedRecordNames: [String],
+            newToken: CKServerChangeToken?,
+            tokenExpired: Bool,
+            zoneMissing: Bool)
+        {
+            self.upserted = upserted
+            self.deletedRecordNames = deletedRecordNames
+            self.newToken = newToken
+            self.tokenExpired = tokenExpired
+            self.zoneMissing = zoneMissing
+        }
+    }
+
+    /// Fetch per-provider record changes since `token`. Pass `nil` for a full
+    /// replay (first sync on this device, or after a prior token expiry).
+    ///
+    /// The `CKFetchRecordZoneChangesOperation` path is ~50× cheaper than
+    /// `fetchPerProviderDeviceSnapshots` once deltas are small (a dozen
+    /// changed envelopes vs. the full ~2MB corpus).
+    public func fetchPerProviderZoneChanges(
+        since token: CKServerChangeToken?
+    ) async -> PerProviderZoneChanges {
+        guard cloudKitAvailable, let db = _privateDatabase else {
+            return .init(
+                upserted: [], deletedRecordNames: [],
+                newToken: token, tokenExpired: false, zoneMissing: false)
+        }
+
+        let zoneID = providerZone.zoneID
+        let config = CKFetchRecordZoneChangesOperation.ZoneConfiguration()
+        config.previousServerChangeToken = token
+        let op = CKFetchRecordZoneChangesOperation(
+            recordZoneIDs: [zoneID],
+            configurationsByRecordZoneID: [zoneID: config])
+        op.fetchAllChanges = true
+        op.qualityOfService = .utility
+
+        // Accumulators — written on the op's callback queue, drained inside
+        // the continuation on completion. The op runs its callbacks on a
+        // private CloudKit queue, so no cross-actor sharing inside `op`'s own
+        // closures; we `nonisolated(unsafe)` the mutation to keep Swift 6
+        // strict concurrency happy — CloudKit serialises these per op.
+        nonisolated(unsafe) var upserted: [ProviderUsageEnvelope] = []
+        nonisolated(unsafe) var deleted: [String] = []
+        nonisolated(unsafe) var capturedToken: CKServerChangeToken? = token
+
+        op.recordWasChangedBlock = { _, result in
+            switch result {
+            case .success(let record):
+                if let envelope = Self.decodeEnvelopeStatic(from: record) {
+                    upserted.append(envelope)
+                }
+            case .failure:
+                break
+            }
+        }
+        op.recordWithIDWasDeletedBlock = { recordID, _ in
+            deleted.append(recordID.recordName)
+        }
+        op.recordZoneChangeTokensUpdatedBlock = { _, newToken, _ in
+            if let newToken { capturedToken = newToken }
+        }
+        op.recordZoneFetchResultBlock = { _, result in
+            if case .success(let fetchResult) = result {
+                capturedToken = fetchResult.serverChangeToken
+            }
+        }
+
+        do {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                op.fetchRecordZoneChangesResultBlock = { result in
+                    switch result {
+                    case .success:
+                        continuation.resume()
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    }
+                }
+                db.add(op)
+            }
+        } catch let error as CKError where error.code == .changeTokenExpired {
+            self.logInfo("Change token expired — caller should retry with nil")
+            return .init(
+                upserted: [], deletedRecordNames: [],
+                newToken: nil, tokenExpired: true, zoneMissing: false)
+        } catch let error as CKError where error.code == .zoneNotFound {
+            self.logInfo("Provider zone not found (pre-P4 Mac or schema pending)")
+            return .init(
+                upserted: [], deletedRecordNames: [],
+                newToken: nil, tokenExpired: false, zoneMissing: true)
+        } catch let error as CKError where error.code == .userDeletedZone {
+            self.logInfo("Provider zone was deleted server-side")
+            return .init(
+                upserted: [], deletedRecordNames: [],
+                newToken: nil, tokenExpired: false, zoneMissing: true)
+        } catch {
+            self.logError("Change-token fetch failed: \(error.localizedDescription)")
+            // Return existing token unchanged — caller retains it and will
+            // retry next cycle. No data mutation.
+            return .init(
+                upserted: [], deletedRecordNames: [],
+                newToken: token, tokenExpired: false, zoneMissing: false)
+        }
+
+        self.logInfo("Per-provider zone changes fetched", metadata: [
+            "upserted": "\(upserted.count)",
+            "deleted": "\(deleted.count)",
+            "token": capturedToken == nil ? "nil" : "captured",
+        ])
+        return .init(
+            upserted: upserted,
+            deletedRecordNames: deleted,
+            newToken: capturedToken,
+            tokenExpired: false,
+            zoneMissing: false)
+    }
+
+    /// Static version of `decodeEnvelope` for use inside CloudKit operation
+    /// callbacks where `self` can't be captured safely.
+    private static func decodeEnvelopeStatic(from record: CKRecord) -> ProviderUsageEnvelope? {
+        guard let payload = record["payload"] as? Data else { return nil }
+        if let version = record["encodingVersion"] as? Int,
+           version > CloudSyncConstants.providerPayloadVersion
+        {
+            return nil
+        }
+        guard let json = try? PayloadCompression.decompress(payload) else { return nil }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try? decoder.decode(ProviderUsageEnvelope.self, from: json)
     }
 
     /// Extracts a `ProviderUsageEnvelope` from a `DeviceProviderSnapshot`

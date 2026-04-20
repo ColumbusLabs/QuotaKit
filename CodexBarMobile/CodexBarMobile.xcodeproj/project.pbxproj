@@ -13,6 +13,7 @@
 		0708B75CE4F9E291D3AF8879 /* MobileDisplayPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82B8A4D1FFD04AA72E89022F /* MobileDisplayPreferences.swift */; };
 		077031C35540946781793E79 /* ModelContainerFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F2CB0BE3DD9918D7E958219 /* ModelContainerFactory.swift */; };
 		07F02876676ED6B3B7B4A6AD /* CodexBarSync.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; };
+		083B58D37B98B435D9A11A54 /* PerProviderDeltaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34D916CC6A19DF19C3305F3D /* PerProviderDeltaTests.swift */; };
 		0C35C0A3E872B4821C3A7D0B /* SwiftDataBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E6F79FB9AFFC795399FAFBF /* SwiftDataBridgeTests.swift */; };
 		15E1F684F0EFDD39DB30A2D6 /* ModelContainerFactoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1DABA431C3A96BC06782271 /* ModelContainerFactoryTests.swift */; };
 		1E05BEE4F76DC16C3AA0C014 /* CloudSyncReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AC8949E5A683B18E778EAC3 /* CloudSyncReader.swift */; };
@@ -157,6 +158,7 @@
 		273C987230CB40BB514BC840 /* PayloadCompression.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayloadCompression.swift; sourceTree = "<group>"; };
 		2C98FA5E42A83275CBD79FDB /* QuotaZoneNotificationParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaZoneNotificationParserTests.swift; sourceTree = "<group>"; };
 		32F236B9E5AABE3378DAF97F /* SyncModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncModelTests.swift; sourceTree = "<group>"; };
+		34D916CC6A19DF19C3305F3D /* PerProviderDeltaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerProviderDeltaTests.swift; sourceTree = "<group>"; };
 		3CAFBA243E25814E22BAAA6B /* ProviderUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderUsageView.swift; sourceTree = "<group>"; };
 		3E6F79FB9AFFC795399FAFBF /* SwiftDataBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataBridgeTests.swift; sourceTree = "<group>"; };
 		3E96BD45E3A15C7DA40EA93F /* PushSetupDiagnostic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushSetupDiagnostic.swift; sourceTree = "<group>"; };
@@ -302,6 +304,7 @@
 			isa = PBXGroup;
 			children = (
 				C1DABA431C3A96BC06782271 /* ModelContainerFactoryTests.swift */,
+				34D916CC6A19DF19C3305F3D /* PerProviderDeltaTests.swift */,
 				5A393218B2702DC47F1003A5 /* SnapshotIdentityKeyTests.swift */,
 				3E6F79FB9AFFC795399FAFBF /* SwiftDataBridgeTests.swift */,
 			);
@@ -601,6 +604,7 @@
 				37D05E7A04ABF89129C7D284 /* DualZoneReaderTests.swift in Sources */,
 				8A9A4E2E1CA72E072FCBB851 /* MobileDisplayFormattingTests.swift in Sources */,
 				15E1F684F0EFDD39DB30A2D6 /* ModelContainerFactoryTests.swift in Sources */,
+				083B58D37B98B435D9A11A54 /* PerProviderDeltaTests.swift in Sources */,
 				05A1216E90C95AAE2D36B013 /* QuotaZoneNotificationParserTests.swift in Sources */,
 				383E1D735F75F0B574447EDF /* ShareCardRenderTests.swift in Sources */,
 				67C5AF7FC62936A0A28189B3 /* SnapshotIdentityKeyTests.swift in Sources */,

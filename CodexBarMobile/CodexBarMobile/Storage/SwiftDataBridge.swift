@@ -354,4 +354,83 @@ enum SwiftDataBridge {
     static func deviceIDFallback(for snapshot: SyncedUsageSnapshot) -> String {
         "legacy:" + snapshot.deviceName
     }
+
+    // MARK: - P6 · Incremental delta apply
+
+    /// Applies a per-provider delta from
+    /// `CloudSyncManager.fetchPerProviderZoneChanges` to the local SwiftData
+    /// store. Upserts added/modified envelopes and deletes rows whose
+    /// composite key appears in `deletedRecordNames`. Idempotent — safe to
+    /// re-apply the same delta.
+    ///
+    /// This is the P6 path that avoids the full-fetch + `upsert(deviceSnapshots:)`
+    /// cycle. Each envelope touches ONE `ProviderSnapshotModel` row plus its
+    /// utilization entries; devices not mentioned in the delta are untouched.
+    static func applyPerProviderDelta(
+        envelopes: [ProviderUsageEnvelope],
+        deletedRecordNames: [String],
+        context: ModelContext
+    ) throws {
+        // Upsert each envelope's provider data, attaching to the correct
+        // DeviceRecord (create-on-demand if that's a new device for us).
+        for envelope in envelopes {
+            let device = try Self.fetchOrCreateDevice(
+                deviceID: envelope.deviceID,
+                deviceName: envelope.deviceName,
+                appVersion: envelope.appVersion,
+                lastSyncAt: envelope.syncTimestamp,
+                in: context)
+            try Self.upsertProvider(
+                envelope.provider,
+                deviceID: envelope.deviceID,
+                device: device,
+                in: context)
+        }
+
+        // Deletion: the CloudKit recordName matches our composite key by
+        // construction (see CloudSyncManager.perProviderRecordName), so we
+        // can fetch by that key directly.
+        if !deletedRecordNames.isEmpty {
+            let namesToDelete = Set(deletedRecordNames)
+            let descriptor = FetchDescriptor<ProviderSnapshotModel>(
+                predicate: #Predicate { namesToDelete.contains($0.compositeKey) })
+            let rows = try context.fetch(descriptor)
+            for row in rows { context.delete(row) }
+        }
+
+        try context.save()
+    }
+
+    /// Reads the persisted `CKServerChangeToken` for the named zone, if any.
+    /// Returns `nil` on first-ever sync or after a token-expiry reset.
+    static func loadChangeToken(
+        forZone zoneName: String,
+        from context: ModelContext
+    ) throws -> Data? {
+        let descriptor = FetchDescriptor<SyncStateRecord>(
+            predicate: #Predicate { $0.zoneName == zoneName })
+        return try context.fetch(descriptor).first?.changeTokenData
+    }
+
+    /// Persists the server change token for `zoneName`. Pass `tokenData: nil`
+    /// to clear (called after `.changeTokenExpired` so the next fetch is a
+    /// full replay).
+    static func saveChangeToken(
+        forZone zoneName: String,
+        tokenData: Data?,
+        context: ModelContext
+    ) throws {
+        let descriptor = FetchDescriptor<SyncStateRecord>(
+            predicate: #Predicate { $0.zoneName == zoneName })
+        if let existing = try context.fetch(descriptor).first {
+            existing.changeTokenData = tokenData
+            existing.lastSyncAt = Date()
+        } else {
+            context.insert(SyncStateRecord(
+                zoneName: zoneName,
+                changeTokenData: tokenData,
+                lastSyncAt: Date()))
+        }
+        try context.save()
+    }
 }
