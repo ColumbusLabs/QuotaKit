@@ -253,6 +253,98 @@ enum SwiftDataBridge {
         }
     }
 
+    // MARK: - Read (P3 · hydrate view state from SwiftData on cold start)
+
+    /// Reconstruct `[SyncedUsageSnapshot]` — one per `DeviceRecord` — from the
+    /// local SwiftData store. Used by `SyncedUsageData` at app launch to show
+    /// the last-known merged state INSTANTLY, before the (slow) CloudKit fetch
+    /// returns. Without this, cold-start shows KVS fallback (single device's
+    /// partial data) and visibly jumps when CloudKit eventually lands.
+    ///
+    /// Returns `[]` when the store is empty (first launch on this device) —
+    /// the caller should then fall back to KVS.
+    static func readAllDeviceSnapshots(from context: ModelContext) throws -> [SyncedUsageSnapshot] {
+        let deviceDescriptor = FetchDescriptor<DeviceRecord>(
+            sortBy: [SortDescriptor(\.deviceID)])
+        let devices = try context.fetch(deviceDescriptor)
+        guard !devices.isEmpty else { return [] }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        var snapshots: [SyncedUsageSnapshot] = []
+        snapshots.reserveCapacity(devices.count)
+
+        for device in devices {
+            var providers: [ProviderUsageSnapshot] = []
+            providers.reserveCapacity(device.providers.count)
+
+            for row in device.providers {
+                let rateWindows = (try? decoder.decode([SyncRateWindow].self, from: row.rateWindowsData)) ?? []
+                let costSummary = row.costSummaryData.flatMap {
+                    try? decoder.decode(SyncCostSummary.self, from: $0)
+                }
+                let budget = row.budgetData.flatMap {
+                    try? decoder.decode(SyncBudgetSnapshot.self, from: $0)
+                }
+
+                // Reconstruct utilization history by grouping the flat entry rows
+                // back into series. Sort by series name for stability, and by
+                // `capturedAt` within each series so downstream `.last` semantics
+                // (e.g. UtilizationHistoryView latest-capture lookups) match the
+                // CloudKit shape.
+                let grouped = Dictionary(grouping: row.utilizationEntries, by: { $0.seriesName })
+                var seriesList: [SyncUtilizationSeries] = []
+                seriesList.reserveCapacity(grouped.count)
+                for (seriesName, entries) in grouped.sorted(by: { $0.key < $1.key }) {
+                    let sortedEntries = entries.sorted(by: { $0.capturedAt < $1.capturedAt })
+                    let windowMinutes = sortedEntries.first?.windowMinutes ?? 0
+                    let syncEntries = sortedEntries.map {
+                        SyncUtilizationEntry(
+                            capturedAt: $0.capturedAt,
+                            usedPercent: $0.usedPercent,
+                            resetsAt: $0.resetsAt)
+                    }
+                    seriesList.append(SyncUtilizationSeries(
+                        name: seriesName,
+                        windowMinutes: windowMinutes,
+                        entries: syncEntries))
+                }
+
+                providers.append(ProviderUsageSnapshot(
+                    providerID: row.providerID,
+                    providerName: row.providerName,
+                    primary: nil,
+                    secondary: nil,
+                    accountEmail: row.accountEmail,
+                    loginMethod: row.loginMethod,
+                    statusMessage: row.statusMessage,
+                    isError: row.isError,
+                    lastUpdated: row.lastUpdated,
+                    costSummary: costSummary,
+                    budget: budget,
+                    rateWindows: rateWindows,
+                    utilizationHistory: seriesList.isEmpty ? nil : seriesList))
+            }
+
+            // Skip devices that have no provider rows — they're placeholders from
+            // a partial upsert and would produce an empty snapshot that confuses
+            // the merge layer.
+            guard !providers.isEmpty else { continue }
+
+            snapshots.append(SyncedUsageSnapshot(
+                providers: providers,
+                syncTimestamp: device.lastSyncAt,
+                deviceName: device.deviceName,
+                deviceID: device.deviceID.hasPrefix("legacy:") ? nil : device.deviceID,
+                appVersion: device.appVersion,
+                mobileVersion: nil,
+                notificationPushEnabled: nil))
+        }
+
+        return snapshots
+    }
+
     // MARK: - Fallbacks
 
     /// Deterministic synthetic deviceID for snapshots that arrive without one

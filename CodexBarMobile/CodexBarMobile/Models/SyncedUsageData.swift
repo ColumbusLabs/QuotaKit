@@ -60,11 +60,46 @@ final class SyncedUsageData {
 
     init(reader: CloudSyncReader = CloudSyncReader()) {
         self.reader = reader
-        // Load any existing KVS snapshot immediately (fast, synchronous)
+
+        // P3: hydrate from SwiftData BEFORE falling back to KVS. SwiftData holds
+        // the last fully-merged multi-device snapshot (P2 parallel-write put it
+        // there after the last successful CloudKit fetch). Using it eliminates
+        // the cold-start jump users saw as "$46 flashes then → $1,600+" —
+        // the $46 value came from the single-device KVS fallback below, which
+        // is authoritative only when there's literally no local mirror yet.
+        let context = ModelContainerFactory.sharedMainContext()
+        if let hydrated = Self.hydrateFromSwiftData(context: context) {
+            self.deviceSnapshots = hydrated.devices
+            self.snapshot = hydrated.merged
+            self.syncStatus = .synced(ago: Date().timeIntervalSince(hydrated.merged.syncTimestamp))
+            return
+        }
+
+        // Fall back to KVS — legacy single-device snapshot from older Mac apps
+        // that predate CloudKit writes. Also the cold-start path when SwiftData
+        // is empty (very first launch).
         if let kvsSnapshot = reader.latestKVSSnapshot() {
             self.snapshot = kvsSnapshot
             self.deviceSnapshots = [kvsSnapshot]
             self.syncStatus = .synced(ago: Date().timeIntervalSince(kvsSnapshot.syncTimestamp))
+        }
+    }
+
+    /// Reads SwiftData's per-device rows + runs the standard merge. Returns
+    /// `nil` when the store is empty (no prior CloudKit sync ever succeeded on
+    /// this device) or any decode fails.
+    private static func hydrateFromSwiftData(
+        context: ModelContext
+    ) -> (devices: [SyncedUsageSnapshot], merged: SyncedUsageSnapshot)? {
+        do {
+            let devices = try SwiftDataBridge.readAllDeviceSnapshots(from: context)
+            guard !devices.isEmpty, let merged = CloudSyncReader.mergeSnapshots(devices) else {
+                return nil
+            }
+            return (devices, merged)
+        } catch {
+            print("[CodexBar SwiftData] hydrate on launch failed: \(error)")
+            return nil
         }
     }
 
