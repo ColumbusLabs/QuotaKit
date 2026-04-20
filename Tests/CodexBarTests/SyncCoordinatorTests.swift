@@ -338,6 +338,16 @@ struct SyncCoordinatorTests {
             daily: [],
             updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
         store._setTokenSnapshotForTesting(fixedSnapshot, provider: .codex)
+        // Pin `updatedAt` so SyncCoordinator's `lastUpdated` is stable
+        // between pushes. Without this, fallback `Date()` differs by ≥1s
+        // between pushes on a slow CI runner, the diff hash flips, and
+        // the "unchanged" assertion racily fails.
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_000)),
+            provider: .codex)
 
         let mock = MockSyncPusher()
         let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
@@ -388,6 +398,21 @@ struct SyncCoordinatorTests {
                 daily: [],
                 updatedAt: Date(timeIntervalSince1970: 1_700_000_000)),
             provider: .claude)
+        // Pin UsageSnapshot.updatedAt for both providers so SyncCoordinator's
+        // `lastUpdated` fallback to `Date()` doesn't leak wall-clock between
+        // pushes (see perProviderWriteSkippedWhenDataUnchanged comment).
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_000)),
+            provider: .codex)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_000)),
+            provider: .claude)
 
         let mock = MockSyncPusher()
         let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
@@ -397,7 +422,7 @@ struct SyncCoordinatorTests {
         let firstCount = mock.lastPerProviderEnvelopes.count
         #expect(firstCount >= 2)
 
-        // Change ONLY Codex.
+        // Change ONLY Codex (token snapshot + UsageSnapshot.updatedAt).
         store._setTokenSnapshotForTesting(
             CostUsageTokenSnapshot(
                 sessionTokens: 200,
@@ -405,6 +430,12 @@ struct SyncCoordinatorTests {
                 last30DaysTokens: 2000,
                 last30DaysCostUSD: 2.0,
                 daily: [],
+                updatedAt: Date(timeIntervalSince1970: 1_700_001_000)),
+            provider: .codex)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: nil,
+                secondary: nil,
                 updatedAt: Date(timeIntervalSince1970: 1_700_001_000)),
             provider: .codex)
 

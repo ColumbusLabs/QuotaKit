@@ -2,6 +2,21 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (59)] — 2026-04-19 — dev build (refactor-1.3.0)
+
+Internal-only build. No user-visible feature changes yet; the tap target is the sync pipeline, which reshapes how device data flows from Mac → CloudKit → iPhone.
+
+### Refactored (sync layer, invisible to users on this build)
+- **P3 · SwiftData-hydrated cold start** — `SyncedUsageData.init` now tries the local SwiftData mirror before falling back to KVS, so the Cost tab no longer flashes a stale "$46" before settling on the real total a second later. First launch on a fresh phone still uses KVS (SwiftData empty).
+- **P4 · Mac dual-write** (requires Mac 0.20.1+) — Mac writes each provider into its own CloudKit record in a new `DeviceProvidersZone`, zlib-compressed, in addition to the monolithic `DeviceSnapshot` legacy zone. Older iOS builds keep reading legacy; this build can use either.
+- **P5 · Dual-zone reader with priority merge** — iOS queries both zones; per-device, the new per-provider records win over the legacy monolithic record, with graceful fallback when either side is empty.
+- **P6 · Change-token incremental sync** — `CKFetchRecordZoneChangesOperation` with persisted `CKServerChangeToken` replaces the full-table query for the per-provider zone. Typical sync transfer drops from ~2 MB to a few dozen KB. `changeTokenExpired` triggers a transparent full replay.
+- **P7 · Silent-push-driven refresh** — new `CKRecordZoneSubscription` with `shouldSendContentAvailable = true` on `DeviceProvidersZone`. When Mac writes, iOS wakes silently, runs the change-token fetch, applies to SwiftData, and views refresh — without the user pulling to refresh.
+
+### Notes
+- End-to-end (new zone actually populated) requires a Mac running 0.20.1+ AND the CloudKit Production schema to be deployed for the new record type. Until both land, iOS silently falls back to legacy, zero regression.
+- Build 59 includes Build 58's bug fix for compositeKey format mismatch between SwiftData and CloudKit record names (aligned on `"_"` for nil `accountEmail`).
+
 ## [1.2.0 (58)] — 2026-04-15
 
 ### Reverted (partially) + improved
