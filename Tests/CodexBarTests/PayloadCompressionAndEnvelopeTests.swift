@@ -8,14 +8,13 @@ struct PayloadCompressionTests {
     func roundTripsRealisticPayload() throws {
         // Simulate the shape of a real per-provider envelope: repeated Date
         // strings + repeated doubles, which is what zlib exploits.
-        let json =
-            """
-            {"entries":\(
-                (0..<500).map { i in
-                    "{\"capturedAt\":\"2026-04-\(String(format: "%02d", (i%28)+1))T10:00:00Z\",\"usedPercent\":\(Double(i%100))}"
-                }.joined(separator: ",")
-            )]}
-            """
+        let entries = (0..<500).map { i -> String in
+            let day = String(format: "%02d", (i % 28) + 1)
+            let captured = "2026-04-\(day)T10:00:00Z"
+            let used = Double(i % 100)
+            return "{\"capturedAt\":\"\(captured)\",\"usedPercent\":\(used)}"
+        }
+        let json = "{\"entries\":[\(entries.joined(separator: ","))]}"
         let data = Data(json.utf8)
 
         let compressed = try PayloadCompression.compress(data)

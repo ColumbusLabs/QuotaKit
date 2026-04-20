@@ -24,8 +24,8 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
 
     @discardableResult
     func pushPerProviderRecords(
-        _ envelopes: [ProviderUsageEnvelope]
-    ) async -> SyncPushResult {
+        _ envelopes: [ProviderUsageEnvelope]) async -> SyncPushResult
+    {
         self.perProviderCallCount += 1
         self.lastPerProviderEnvelopes = envelopes
         return self.nextPerProviderResult
@@ -372,15 +372,21 @@ struct SyncCoordinatorTests {
         let store = self.makeUsageStore(settings: settings)
         store._setTokenSnapshotForTesting(
             CostUsageTokenSnapshot(
-                sessionTokens: 100, sessionCostUSD: 0.1,
-                last30DaysTokens: 1000, last30DaysCostUSD: 1.0,
-                daily: [], updatedAt: Date(timeIntervalSince1970: 1_700_000_000)),
+                sessionTokens: 100,
+                sessionCostUSD: 0.1,
+                last30DaysTokens: 1000,
+                last30DaysCostUSD: 1.0,
+                daily: [],
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_000)),
             provider: .codex)
         store._setTokenSnapshotForTesting(
             CostUsageTokenSnapshot(
-                sessionTokens: 50, sessionCostUSD: 0.05,
-                last30DaysTokens: 500, last30DaysCostUSD: 0.5,
-                daily: [], updatedAt: Date(timeIntervalSince1970: 1_700_000_000)),
+                sessionTokens: 50,
+                sessionCostUSD: 0.05,
+                last30DaysTokens: 500,
+                last30DaysCostUSD: 0.5,
+                daily: [],
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_000)),
             provider: .claude)
 
         let mock = MockSyncPusher()
@@ -394,9 +400,12 @@ struct SyncCoordinatorTests {
         // Change ONLY Codex.
         store._setTokenSnapshotForTesting(
             CostUsageTokenSnapshot(
-                sessionTokens: 200, sessionCostUSD: 0.2,
-                last30DaysTokens: 2000, last30DaysCostUSD: 2.0,
-                daily: [], updatedAt: Date(timeIntervalSince1970: 1_700_001_000)),
+                sessionTokens: 200,
+                sessionCostUSD: 0.2,
+                last30DaysTokens: 2000,
+                last30DaysCostUSD: 2.0,
+                daily: [],
+                updatedAt: Date(timeIntervalSince1970: 1_700_001_000)),
             provider: .codex)
 
         await coordinator.pushCurrentSnapshot()

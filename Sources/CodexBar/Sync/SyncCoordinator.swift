@@ -206,8 +206,8 @@ final class SyncCoordinator {
     /// `providerSnapshots` and the in-memory hash state.
     private func buildPerProviderDelta(
         from providerSnapshots: [ProviderUsageSnapshot],
-        synced: SyncedUsageSnapshot
-    ) -> (envelopes: [ProviderUsageEnvelope], hashUpdates: [String: Int]) {
+        synced: SyncedUsageSnapshot) -> (envelopes: [ProviderUsageEnvelope], hashUpdates: [String: Int])
+    {
         var envelopes: [ProviderUsageEnvelope] = []
         var updates: [String: Int] = [:]
 
@@ -253,10 +253,10 @@ final class SyncCoordinator {
     /// so it's cheap, stable across process launches, and collision-free in
     /// the range we care about (≤100 providers × app lifetime).
     private static func stableHash(for data: Data) -> Int {
-        var hash: UInt64 = 0xcbf29ce484222325
+        var hash: UInt64 = 0xCBF2_9CE4_8422_2325
         for byte in data {
             hash ^= UInt64(byte)
-            hash = hash &* 0x100000001b3
+            hash = hash &* 0x100_0000_01B3
         }
         return Int(bitPattern: UInt(truncatingIfNeeded: hash))
     }
