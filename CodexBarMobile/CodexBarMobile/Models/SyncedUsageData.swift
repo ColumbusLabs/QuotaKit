@@ -105,6 +105,18 @@ final class SyncedUsageData {
 
     /// Starts observing: fetches from CloudKit, sets up KVS fallback, and configures subscription.
     func startObserving() {
+        // P7: respond to silent pushes from DeviceProvidersZone by running
+        // the incremental fetch. Posted by AppDelegate.
+        NotificationCenter.default.addObserver(
+            forName: .codexBarProviderZoneDidChange,
+            object: nil,
+            queue: .main)
+        { [weak self] _ in
+            Task { @MainActor [weak self] in
+                await self?.refreshIncremental()
+            }
+        }
+
         // 1. Start KVS observation (backward compat with old Mac apps)
         if !isObservingKVS {
             isObservingKVS = true
@@ -197,6 +209,43 @@ final class SyncedUsageData {
     /// Force-refreshes data from CloudKit.
     func refresh() async {
         await fetchFromCloudKit()
+    }
+
+    /// P7: incremental refresh driven by the silent-push handler. Uses the
+    /// change-token path so the over-the-wire cost is a few envelopes instead
+    /// of the full snapshot corpus, then re-reads the merged state from
+    /// SwiftData. Falls back to the full fetch if the incremental path
+    /// errors out.
+    func refreshIncremental() async {
+        self.syncStatus = .syncing
+
+        let context = ModelContainerFactory.sharedMainContext()
+        let result = await reader.fetchAllDeviceSnapshotsIncremental(context: context)
+
+        switch result {
+        case .success(let snapshots):
+            self.deviceSnapshots = snapshots
+            self.usingKVSFallback = false
+            if let merged = CloudSyncReader.mergeSnapshots(snapshots) {
+                self.snapshot = merged
+                self.syncStatus = .synced(ago: Date().timeIntervalSince(merged.syncTimestamp))
+            } else {
+                self.syncStatus = .incompatibleData
+            }
+        case .empty:
+            // Zone missing + SwiftData empty — no regression, just keep
+            // showing whatever we already had.
+            if let merged = self.snapshot {
+                self.syncStatus = .synced(ago: Date().timeIntervalSince(merged.syncTimestamp))
+            } else {
+                self.syncStatus = .noData
+            }
+        case .error(let cloudError):
+            // Incremental failed — fall back to the full-fetch path so we
+            // don't leave the user staring at stale data.
+            print("[CodexBar P7] incremental refresh hit error, falling back: \(cloudError.description)")
+            await self.fetchFromCloudKit()
+        }
     }
 
     /// Returns the age of the last sync in a human-readable format, or nil if no sync exists.
