@@ -392,11 +392,16 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             "zone": providerZone.zoneID.zoneName,
         ])
         if !encodeFailures.isEmpty {
-            // Partial success — surface as a non-fatal warning in the result
-            // string so upstream callers can log but continue.
-            return SyncPushResult(
-                succeeded: true,
-                message: "Encoded \(records.count) / failed \(encodeFailures.count)")
+            // Partial-encode failures: return `.failure` so the coordinator
+            // does NOT mark the failed composites as synced. Next push
+            // re-attempts them. A `.success` with warning would update the
+            // coordinator's hash cache for composites that never uploaded,
+            // silently skipping retries until their content changes again
+            // (Codex review P2 on Build 66 — the re-upload of the composites
+            // that DID land this cycle is wasted bandwidth but correct,
+            // and encode failures are exceedingly rare in practice).
+            return .failure(
+                "Encoded \(records.count), failed to encode \(encodeFailures.count); will retry next cycle")
         }
         return .success
     }

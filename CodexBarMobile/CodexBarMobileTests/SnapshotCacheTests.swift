@@ -366,6 +366,53 @@ struct SnapshotCacheTests {
         #expect(cache.perProviderByDevice["mac-A"] == nil)
     }
 
+    // MARK: - Codex review P1 — preserve on transient fetch error
+
+    @Test("Nil perProviderSnapshots preserves existing per-provider bucket")
+    func nilPerProviderArgPreserves() {
+        var cache = SnapshotCache()
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [snapshot(
+                deviceID: "mac-A", deviceName: "Mac A",
+                providers: [provider(id: "codex", lastUpdated: t3)],
+                timestamp: t3)],
+            legacySnapshots: [])
+        let before = cache.perProviderByDevice["mac-A"]?.count
+        #expect(before == 1)
+
+        // Transient legacy error: pass nil for legacy. Per-provider bucket
+        // is refreshed with empty, legacy bucket preserved.
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: nil,  // transient error on per-provider zone
+            legacySnapshots: [])        // legacy authoritatively empty
+
+        // Per-provider bucket preserved as-is.
+        #expect(cache.perProviderByDevice["mac-A"]?.count == 1)
+        // Legacy bucket cleared (authoritative empty from pass).
+        #expect(cache.legacyByDevice.isEmpty)
+    }
+
+    @Test("Nil legacySnapshots preserves existing legacy bucket")
+    func nilLegacyArgPreserves() {
+        var cache = SnapshotCache()
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [],
+            legacySnapshots: [snapshot(
+                deviceID: "mac-B", deviceName: "Mac B",
+                providers: [provider(id: "claude", lastUpdated: t1)],
+                timestamp: t1)])
+        #expect(cache.legacyByDevice["mac-B"] != nil)
+
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [],
+            legacySnapshots: nil) // transient legacy error
+
+        // Legacy preserved.
+        #expect(cache.legacyByDevice["mac-B"] != nil)
+    }
+
+    // MARK: - Ghost filter
+
     @Test("Provider with just an error message is NOT a ghost (keep)")
     func errorProviderNotGhost() {
         var cache = SnapshotCache()

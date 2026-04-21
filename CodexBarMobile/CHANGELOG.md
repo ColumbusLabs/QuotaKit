@@ -2,6 +2,17 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (67)] — 2026-04-21 — dev build · Codex review fixes (2 correctness issues)
+
+Codex CLI review of `refactor-1.3.0` vs `mobile-dev` surfaced two P-level defects — both now fixed.
+
+### Fixed
+- **P1 · Transient CloudKit failures no longer blank out cached data** (`SyncedUsageData.fetchFromCloudKit`). Previously `replaceFromFullFetch` was called unconditionally even when both zone queries returned `.error`, wiping the in-memory cache and showing the user a blank screen whenever they launched offline or CloudKit was momentarily unreachable. Now each zone's result is classified: `.success` / `.empty` replace that bucket, `.error` preserves it. If BOTH zones error, the cache is left entirely untouched and only the sync status flips to `.error`. `SnapshotCache.replaceFromFullFetch` now takes optional args where `nil` means "leave this bucket alone."
+- **P2 · Partial-encode failures no longer silently skip retries** (`CloudSyncManager.pushPerProviderRecords`). The method used to return `.success(message: "Encoded X / failed Y")` when some envelopes failed to encode; the Mac `SyncCoordinator` then updated `lastProviderHashes` for all submitted providers, including the ones that never reached CloudKit, so they stayed stale until their content changed again. Now partial-encode failures return `.failure` — the coordinator keeps the pre-push hash cache and retries everyone next cycle. Slightly wasteful (re-uploads the ones that did land this cycle) but correct.
+
+### Tests
+- `SnapshotCacheTests` +2 cases: `nilPerProviderArgPreserves`, `nilLegacyArgPreserves`.
+
 ## [1.3.0 (66)] — 2026-04-20 — dev build · fix Usage cold-start blank (two root causes)
 
 User reported Usage tab shows blank on cold start while Cost shows data instantly. After two rounds of wrong diagnosis (TabView lazy, then `.thickMaterial` GPU cost), Build 64/65 diagnostic prints exposed the actual root causes.

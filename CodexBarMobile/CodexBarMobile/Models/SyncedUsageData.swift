@@ -175,30 +175,46 @@ final class SyncedUsageData {
         let per = await perProviderResult
         let legacy = await legacyResult
 
-        // Unpack results. Either zone may be empty (brand-new iPhone, or
-        // pre-P4 Macs). Only a hard error from BOTH is fatal.
-        var perProviderSnapshots: [SyncedUsageSnapshot] = []
-        var legacySnapshots: [SyncedUsageSnapshot] = []
+        // Unpack results per zone. `.error` means transient failure — DO NOT
+        // wipe that bucket, preserve whatever was cached before (Codex
+        // review P1). `.empty` / `.success` are authoritative and DO replace
+        // the bucket.
+        let perArg: [SyncedUsageSnapshot]?
         var firstError: CloudSyncError?
-
         switch per {
-        case .success(let snaps): perProviderSnapshots = snaps
-        case .empty: break
-        case .error(let e): firstError = e
+        case .success(let snaps): perArg = snaps
+        case .empty: perArg = []
+        case .error(let e):
+            perArg = nil
+            firstError = e
         }
+        let legacyArg: [SyncedUsageSnapshot]?
         switch legacy {
-        case .success(let snaps): legacySnapshots = snaps
-        case .empty: break
-        case .error(let e): firstError = firstError ?? e
+        case .success(let snaps): legacyArg = snaps
+        case .empty: legacyArg = []
+        case .error(let e):
+            legacyArg = nil
+            firstError = firstError ?? e
         }
 
-        // Replace cache atomically with fresh data from both zones. The
-        // single `replaceFromFullFetch` call can't interleave with a silent
-        // push handler mid-mutation — @MainActor serializes, and there's no
-        // `await` between building the local value and writing it.
+        // If BOTH zones errored, preserve the entire cache — don't show the
+        // user blank content just because CloudKit was momentarily
+        // unreachable. Surface the error in status but leave `snapshot`
+        // pointing at whatever was hydrated / from last successful fetch.
+        if perArg == nil && legacyArg == nil {
+            if let firstError {
+                self.syncStatus = .error(message: firstError.description)
+            } else {
+                self.syncStatus = .noData
+            }
+            return
+        }
+
+        // At least one zone returned authoritative data — apply selectively.
+        // Nil args preserve their bucket unchanged.
         self.cache.replaceFromFullFetch(
-            perProviderSnapshots: perProviderSnapshots,
-            legacySnapshots: legacySnapshots)
+            perProviderSnapshots: perArg,
+            legacySnapshots: legacyArg)
 
         self.usingKVSFallback = false
 

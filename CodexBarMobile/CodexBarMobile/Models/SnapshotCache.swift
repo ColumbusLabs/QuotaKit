@@ -70,48 +70,59 @@ struct SnapshotCache: Sendable {
 
     /// Replace the cache contents from a full CKQuery round-trip.
     ///
+    /// Each argument is **optional**: pass `nil` to leave that bucket
+    /// untouched (used when its zone fetch errored transiently — a network
+    /// blip shouldn't wipe valid cached state; Codex review P1 on Build 66).
+    /// Pass `[]` to authoritatively clear that bucket (its zone returned
+    /// legitimate empty / zoneNotFound, distinct from error).
+    ///
     /// `perProviderSnapshots` = reconstructed-from-envelopes snapshots whose
     /// `deviceID` is authoritative (they came from the new zone).
     /// `legacySnapshots` = monolithic snapshots from the legacy zones.
     mutating func replaceFromFullFetch(
-        perProviderSnapshots: [SyncedUsageSnapshot],
-        legacySnapshots: [SyncedUsageSnapshot]
+        perProviderSnapshots: [SyncedUsageSnapshot]?,
+        legacySnapshots: [SyncedUsageSnapshot]?
     ) {
-        self.perProviderByDevice.removeAll(keepingCapacity: true)
-        self.legacyByDevice.removeAll(keepingCapacity: true)
+        if let perProviderSnapshots {
+            self.perProviderByDevice.removeAll(keepingCapacity: true)
 
-        // Populate per-provider bucket. Each snapshot represents one device's
-        // worth of envelopes. Composite key groups providers within the device.
-        // Ghost records (no rate / cost / budget / error / status) are
-        // dropped — see `isGhost` for rationale.
-        for snapshot in perProviderSnapshots {
-            guard let deviceID = snapshot.deviceID else { continue }
-            var byComposite: [String: ProviderUsageSnapshot] = [:]
-            for provider in snapshot.providers where !Self.isGhost(provider) {
-                byComposite[Self.compositeKey(for: provider)] = provider
-            }
-            guard !byComposite.isEmpty else { continue }
-            self.perProviderByDevice[deviceID] = byComposite
-            self.deviceMetadata[deviceID] = Metadata(
-                deviceName: snapshot.deviceName,
-                appVersion: snapshot.appVersion,
-                mobileVersion: snapshot.mobileVersion,
-                syncTimestamp: snapshot.syncTimestamp,
-                notificationPushEnabled: snapshot.notificationPushEnabled)
-        }
-
-        // Populate legacy bucket. If a device only appears here (not in
-        // per-provider bucket) its metadata comes from here instead.
-        for snapshot in legacySnapshots {
-            let deviceID = snapshot.deviceID ?? Self.syntheticDeviceID(from: snapshot)
-            self.legacyByDevice[deviceID] = snapshot
-            if self.deviceMetadata[deviceID] == nil {
+            // Populate per-provider bucket. Each snapshot represents one device's
+            // worth of envelopes. Composite key groups providers within the device.
+            // Ghost records (no rate / cost / budget / error / status) are
+            // dropped — see `isGhost` for rationale.
+            for snapshot in perProviderSnapshots {
+                guard let deviceID = snapshot.deviceID else { continue }
+                var byComposite: [String: ProviderUsageSnapshot] = [:]
+                for provider in snapshot.providers where !Self.isGhost(provider) {
+                    byComposite[Self.compositeKey(for: provider)] = provider
+                }
+                guard !byComposite.isEmpty else { continue }
+                self.perProviderByDevice[deviceID] = byComposite
                 self.deviceMetadata[deviceID] = Metadata(
                     deviceName: snapshot.deviceName,
                     appVersion: snapshot.appVersion,
                     mobileVersion: snapshot.mobileVersion,
                     syncTimestamp: snapshot.syncTimestamp,
                     notificationPushEnabled: snapshot.notificationPushEnabled)
+            }
+        }
+
+        if let legacySnapshots {
+            self.legacyByDevice.removeAll(keepingCapacity: true)
+
+            // Populate legacy bucket. If a device only appears here (not in
+            // per-provider bucket) its metadata comes from here instead.
+            for snapshot in legacySnapshots {
+                let deviceID = snapshot.deviceID ?? Self.syntheticDeviceID(from: snapshot)
+                self.legacyByDevice[deviceID] = snapshot
+                if self.deviceMetadata[deviceID] == nil {
+                    self.deviceMetadata[deviceID] = Metadata(
+                        deviceName: snapshot.deviceName,
+                        appVersion: snapshot.appVersion,
+                        mobileVersion: snapshot.mobileVersion,
+                        syncTimestamp: snapshot.syncTimestamp,
+                        notificationPushEnabled: snapshot.notificationPushEnabled)
+                }
             }
         }
     }
