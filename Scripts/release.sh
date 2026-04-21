@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# release.sh — two-phase Sparkle release orchestration.
+#
+# Phase 1 (default): build + sign + notarize + create DRAFT GitHub release
+#                    with uploaded assets, then stop.
+#     Usage: ./Scripts/release.sh
+#
+# Phase 2 (--finalize): publish the existing draft, generate + sign the
+#                       appcast entry, commit + push appcast.xml, verify.
+#     Usage: ./Scripts/release.sh --finalize
+#
+# The draft gate between phases is the human-review checkpoint. Once you
+# finalize, the release is live and Sparkle clients will start seeing it
+# on their next check-for-updates cycle.
+
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 
@@ -18,57 +32,129 @@ FEED_URL="https://raw.githubusercontent.com/o1xhack/CodexBar/${RELEASE_BRANCH}/a
 TAG="v${MARKETING_VERSION}-mobile.${MOBILE_VERSION}"
 RELEASE_TITLE="${APP_NAME} ${MARKETING_VERSION} Mobile ${MOBILE_VERSION}"
 
-err() { echo "ERROR: $*" >&2; exit 1; }
+phase1() {
+  require_clean_worktree
+  ensure_changelog_finalized "$MARKETING_VERSION"
+  ensure_appcast_monotonic "$APPCAST" "$MARKETING_VERSION" "$BUILD_NUMBER"
 
-require_clean_worktree
-ensure_changelog_finalized "$MARKETING_VERSION"
-ensure_appcast_monotonic "$APPCAST" "$MARKETING_VERSION" "$BUILD_NUMBER"
+  "$ROOT/Scripts/lint.sh" lint
+  swift test
 
-"$ROOT/Scripts/lint.sh" lint
-swift test
+  "$ROOT/Scripts/sign-and-notarize.sh"
 
-# Note: run this script in the foreground; do not background it so it waits to completion.
-"$ROOT/Scripts/sign-and-notarize.sh"
+  local KEY_FILE NOTES_FILE
+  KEY_FILE=$(clean_key "$SPARKLE_PRIVATE_KEY_FILE")
+  NOTES_FILE=$(mktemp /tmp/codexbar-notes.XXXXXX.md)
+  trap 'rm -f "$KEY_FILE" "$NOTES_FILE"' EXIT
 
-KEY_FILE=$(clean_key "$SPARKLE_PRIVATE_KEY_FILE")
-trap 'rm -f "$KEY_FILE"' EXIT
+  probe_sparkle_key "$KEY_FILE"
+  extract_notes_from_changelog "$MARKETING_VERSION" "$NOTES_FILE"
 
-probe_sparkle_key "$KEY_FILE"
+  git tag -s -f -m "${RELEASE_TITLE}" "$TAG"
+  git push -f origin "$TAG"
 
-clear_sparkle_caches "$BUNDLE_ID"
+  gh release create "$TAG" \
+    "${RELEASE_ASSET_BASENAME}.zip" "${RELEASE_ASSET_BASENAME}.dSYM.zip" \
+    --draft \
+    --title "${RELEASE_TITLE}" \
+    --notes-file "$NOTES_FILE"
 
-NOTES_FILE=$(mktemp /tmp/codexbar-notes.XXXXXX.md)
-extract_notes_from_changelog "$MARKETING_VERSION" "$NOTES_FILE"
-trap 'rm -f "$KEY_FILE" "$NOTES_FILE"' EXIT
+  local draft_url
+  draft_url=$(gh release view "$TAG" --json url -q .url)
 
-git tag -s -f -m "${RELEASE_TITLE}" "$TAG"
-git push -f origin "$TAG"
+  cat <<EOF
 
-gh release create "$TAG" "${RELEASE_ASSET_BASENAME}.zip" "${RELEASE_ASSET_BASENAME}.dSYM.zip" \
-  --title "${RELEASE_TITLE}" \
-  --notes-file "$NOTES_FILE"
+============================================================
+Phase 1 complete — DRAFT release is staged (not public yet).
 
-SPARKLE_PRIVATE_KEY_FILE="$KEY_FILE" \
-  SPARKLE_RELEASE_VERSION="$MARKETING_VERSION" \
-  SPARKLE_DOWNLOAD_URL_PREFIX="https://github.com/o1xhack/CodexBar/releases/download/${TAG}/" \
-  "$ROOT/Scripts/make_appcast.sh" \
-  "${RELEASE_ASSET_BASENAME}.zip" \
-  "$FEED_URL"
+  Tag:        $TAG
+  Review at:  $draft_url
 
-verify_appcast_entry "$APPCAST" "$MARKETING_VERSION" "$KEY_FILE"
+What to verify in the GitHub UI:
+  - Title and release notes render correctly
+  - ${RELEASE_ASSET_BASENAME}.zip is present (expect ~10-50 MB)
+  - ${RELEASE_ASSET_BASENAME}.dSYM.zip is present
+  - Tag matches: $TAG
 
-git add "$APPCAST"
-git commit -m "docs: update appcast for ${MARKETING_VERSION}"
-git push origin "$RELEASE_BRANCH"
+When ready to publish + push appcast:
+  ./Scripts/release.sh --finalize
 
-if [[ "${RUN_SPARKLE_UPDATE_TEST:-0}" == "1" ]]; then
-  PREV_TAG=$(git tag --sort=-v:refname | sed -n '2p')
-  [[ -z "$PREV_TAG" ]] && err "RUN_SPARKLE_UPDATE_TEST=1 set but no previous tag found"
-  "$ROOT/Scripts/test_live_update.sh" "$PREV_TAG" "v${MARKETING_VERSION}"
-fi
+To abort and clean up:
+  gh release delete $TAG --yes
+  git push origin :$TAG
+============================================================
+EOF
+}
 
-check_assets "$TAG" "$ARTIFACT_PREFIX"
+phase2() {
+  if [[ ! -f "${ROOT}/${RELEASE_ASSET_BASENAME}.zip" ]]; then
+    err "Release zip not found at ${RELEASE_ASSET_BASENAME}.zip. Did phase 1 run?"
+  fi
 
-git push origin --tags
+  local is_draft
+  if ! is_draft=$(gh release view "$TAG" --json isDraft -q .isDraft 2>&1); then
+    err "No release found for tag $TAG. Run phase 1 first (./Scripts/release.sh)."
+  fi
+  if [[ "$is_draft" == "true" ]]; then
+    echo "Publishing draft release $TAG..."
+    gh release edit "$TAG" --draft=false
+  else
+    echo "Release $TAG is already published; proceeding to appcast generation."
+  fi
 
-echo "Release ${MARKETING_VERSION} complete."
+  local KEY_FILE
+  KEY_FILE=$(clean_key "$SPARKLE_PRIVATE_KEY_FILE")
+  trap 'rm -f "$KEY_FILE"' EXIT
+
+  clear_sparkle_caches "$BUNDLE_ID"
+
+  SPARKLE_PRIVATE_KEY_FILE="$KEY_FILE" \
+    SPARKLE_RELEASE_VERSION="$MARKETING_VERSION" \
+    SPARKLE_DOWNLOAD_URL_PREFIX="https://github.com/o1xhack/CodexBar/releases/download/${TAG}/" \
+    "$ROOT/Scripts/make_appcast.sh" \
+    "${RELEASE_ASSET_BASENAME}.zip" \
+    "$FEED_URL"
+
+  verify_appcast_entry "$APPCAST" "$MARKETING_VERSION" "$KEY_FILE"
+
+  git add "$APPCAST"
+  git commit -m "docs: update appcast for ${MARKETING_VERSION}"
+  git push origin "$RELEASE_BRANCH"
+
+  if [[ "${RUN_SPARKLE_UPDATE_TEST:-0}" == "1" ]]; then
+    local PREV_TAG
+    PREV_TAG=$(git tag --sort=-v:refname | sed -n '2p')
+    [[ -z "$PREV_TAG" ]] && err "RUN_SPARKLE_UPDATE_TEST=1 but no previous tag found"
+    "$ROOT/Scripts/test_live_update.sh" "$PREV_TAG" "$TAG"
+  fi
+
+  check_assets "$TAG" "$ARTIFACT_PREFIX"
+  git push origin --tags
+
+  cat <<EOF
+
+============================================================
+Phase 2 complete — Release ${MARKETING_VERSION} is LIVE.
+
+  Release:    https://github.com/o1xhack/CodexBar/releases/tag/$TAG
+  Appcast:    $FEED_URL
+  CFBundle:   ${BUILD_NUMBER}.${MOBILE_VERSION}
+
+Sparkle clients will prompt upgrade on their next check-for-updates
+cycle (raw.githubusercontent.com cache may take a few minutes to
+propagate).
+============================================================
+EOF
+}
+
+case "${1:-phase1}" in
+  phase1|--phase1|"")
+    phase1
+    ;;
+  phase2|--phase2|--finalize)
+    phase2
+    ;;
+  *)
+    err "Usage: $0 [--finalize]"
+    ;;
+esac
