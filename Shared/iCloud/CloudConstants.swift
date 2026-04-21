@@ -13,6 +13,52 @@ public enum CloudSyncConstants {
     /// Custom record zone name for per-device usage snapshots.
     public static let customZoneName = "DeviceSnapshotsZone"
 
+    /// Record type for per-provider snapshot records (P4 — split from the
+    /// monolithic `DeviceSnapshot` payload so each provider can be uploaded and
+    /// downloaded incrementally, and so a single provider's state never has to
+    /// share CloudKit's 1MB-per-record budget with everything else).
+    public static let providerRecordType = "DeviceProviderSnapshot"
+
+    /// Dedicated zone for per-provider snapshot records. New zone (not reused
+    /// from `customZoneName`) so a future server-side prune of legacy
+    /// `DeviceSnapshot` records never disturbs provider-level data, and so
+    /// per-provider `CKRecordZoneSubscription` subs can be set up independently.
+    public static let providerZoneName = "DeviceProvidersZone"
+
+    /// Bumped when the on-wire payload format changes (compression algorithm,
+    /// envelope shape, etc.). Stored in the `encodingVersion` CKRecord field so
+    /// readers can reject records they don't understand instead of silently
+    /// decoding garbage.
+    public static let providerPayloadVersion = 1
+
+    // MARK: - JSON codec factories
+    //
+    // ALL CloudKit / SwiftData blob encode-decode in this codebase MUST go
+    // through these factories. The Build 66 root cause was a `JSONEncoder()`
+    // constructed with default `dateEncodingStrategy = .deferredToDate`
+    // (encoded `Date` as `TimeInterval` Double) while the decoder used
+    // `.iso8601` (expected ISO8601 string), so every payload that round-tripped
+    // through the mismatched pair lost its `Date` fields. Centralising the
+    // construction here prevents future drift.
+
+    /// JSONEncoder configured for CodexBar wire formats. Uses ISO8601 dates so
+    /// Mac↔iOS, CloudKit-payload↔SwiftData-blob, and SwiftData-blob↔SwiftData-blob
+    /// round-trips all agree on `Date` representation.
+    public static func makeJSONEncoder() -> JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        return encoder
+    }
+
+    /// JSONDecoder configured for CodexBar wire formats. Pair with
+    /// `makeJSONEncoder()` — never construct `JSONDecoder()` directly for
+    /// CodexBar types.
+    public static func makeJSONDecoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }
+
     /// Legacy zone used by Build 42–49. Kept only so we can delete the stale
     /// `quota-transition-zone-sub` on upgrade; no new records are written here.
     public static let quotaTransitionsZoneName = "QuotaTransitionsZone"

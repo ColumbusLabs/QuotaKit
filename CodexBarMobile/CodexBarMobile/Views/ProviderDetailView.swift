@@ -96,7 +96,11 @@ struct ProviderDetailView: View {
     // MARK: - Daily Chart
 
     private func dailyChartSection(_ daily: [SyncDailyPoint]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        // Precompute axis values once per section build. `daily` is stable across
+        // `selectedDate` hover changes, so pulling this out of the `.chartYAxis`
+        // closure eliminates redundant axis recomputation on every chart re-render.
+        let yAxisValues = MobileChartAxisFormatter.axisValues(for: daily.map(\.costUSD))
+        return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 4) {
                 Text("Daily Spend")
                     .font(.headline)
@@ -154,7 +158,7 @@ struct ProviderDetailView: View {
                 }
             }
             .chartYAxis {
-                AxisMarks(values: MobileChartAxisFormatter.axisValues(for: daily.map(\.costUSD))) { value in
+                AxisMarks(values: yAxisValues) { value in
                     AxisGridLine()
                     AxisValueLabel {
                         if let v = value.as(Double.self) {

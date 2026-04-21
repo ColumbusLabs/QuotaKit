@@ -9,17 +9,80 @@ struct UtilizationAggregateView: View {
     let providers: [ProviderUsageSnapshot]
 
     @State private var selectedIndex: Int?
+    @State private var cachedKey: String = ""
+    @State private var cachedModel: AggregateModel?
 
     private let barWidth: CGFloat = 8
     private let windowSize = 30  // 30 days to match the cost chart
 
-    private var model: AggregateModel? {
-        Self.buildModel(from: self.providers, windowSize: self.windowSize)
+    /// Identity key for `providers` input. Cheap O(N) over providers — does NOT iterate
+    /// utilization entries. This property is the `.task(id:)` key and is recomputed on
+    /// every render including hover/drag state changes, so the per-frame cost must stay
+    /// bounded by provider count (typically ≤ 25), not entry count (up to 730 × 3 series
+    /// per provider).
+    ///
+    /// Correctness: every upstream change to utilization entries arrives via a fresh
+    /// provider snapshot whose `lastUpdated` is bumped by the Mac-side fetcher; iOS's
+    /// `mergeSnapshots` preserves `max(lastUpdated)` across devices. Therefore
+    /// `max(lastUpdated)` IS a sufficient content-invalidation signal in this app's
+    /// data flow. A content-only mutation without any `lastUpdated` bump would be a
+    /// protocol violation rather than a legitimate state we need to cache-invalidate
+    /// against. A previous attempt to include full entry-level content (per Codex
+    /// review P2) re-paid the O(N) cost on every hover frame, negating the caching
+    /// win — that was a worse trade-off than tolerating a theoretical gap that our
+    /// data flow precludes.
+    static func identityKey(for providers: [ProviderUsageSnapshot], windowSize: Int) -> String {
+        let ids = providers.map(\.providerID).sorted().joined(separator: ",")
+        let latest = providers.map(\.lastUpdated).max()?.timeIntervalSince1970 ?? 0
+        // Count entries via plain for-loops rather than nested reduce-with-closure;
+        // closure variants have caused the swift-testing runner to crash at test
+        // invocation boundaries on the View struct type (same class of issue as the
+        // earlier sorted(by:) attempt).
+        var totalEntries = 0
+        for provider in providers {
+            guard let history = provider.utilizationHistory else { continue }
+            for series in history {
+                totalEntries += series.entries.count
+            }
+        }
+        return "\(ids)|\(latest)|\(windowSize)|n=\(totalEntries)"
+    }
+
+    private var identityKey: String {
+        Self.identityKey(for: self.providers, windowSize: self.windowSize)
     }
 
     var body: some View {
-        if let m = self.model {
-            VStack(alignment: .leading, spacing: 10) {
+        // Synchronous cache resolution:
+        // - Cache hit (identity stable, e.g. hover) → return cached model, ZERO compute
+        // - Cache miss → compute synchronously so the view has data on THIS frame.
+        //   `.onChange(initial: true)` fires just after to persist the result into
+        //   @State so subsequent renders hit the cache.
+        // Previous `.task(id:)` pattern rendered empty on first frame while the async
+        // task populated the cache — user reported the entire Subscription Utilization
+        // section disappearing. Sync fallback fixes that without sacrificing hover
+        // performance (identity is stable during hover, so cache stays warm).
+        let currentKey = self.identityKey
+        let model: AggregateModel? = (self.cachedKey == currentKey)
+            ? self.cachedModel
+            : Self.buildModel(from: self.providers, windowSize: self.windowSize)
+
+        return Group {
+            if let m = model {
+                self.content(m)
+            }
+        }
+        .onChange(of: currentKey, initial: true) { _, newKey in
+            if self.cachedKey != newKey {
+                self.cachedModel = Self.buildModel(from: self.providers, windowSize: self.windowSize)
+                self.cachedKey = newKey
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func content(_ m: AggregateModel) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
                 // Title — matches other Cost-tab section headers (.headline)
                 Text("Subscription Utilization")
                     .font(.headline)
@@ -50,7 +113,6 @@ struct UtilizationAggregateView: View {
                         }
                     }
                 }
-            }
         }
     }
 

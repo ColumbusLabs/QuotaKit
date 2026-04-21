@@ -1,5 +1,7 @@
+import CloudKit
 import CodexBarSync
 import Foundation
+import SwiftData
 
 /// iOS-side reader that fetches usage snapshots from CloudKit (all devices)
 /// and falls back to legacy KVS for older Mac app versions.
@@ -15,6 +17,25 @@ final class CloudSyncReader: @unchecked Sendable {
     /// Fetches snapshots from all devices via CloudKit.
     func fetchAllDeviceSnapshots() async -> MultiDeviceSyncResult {
         await syncManager.fetchAllDeviceSnapshots()
+    }
+
+    // MARK: - Cache-based flow (v2 — Research/011)
+
+    /// Per-provider zone only. Caller owns the priority-merge decision.
+    func fetchPerProviderDeviceSnapshots() async -> MultiDeviceSyncResult {
+        await syncManager.fetchPerProviderDeviceSnapshots()
+    }
+
+    /// Legacy zones only (custom zone + default zone).
+    func fetchLegacyDeviceSnapshots() async -> MultiDeviceSyncResult {
+        await syncManager.fetchLegacyDeviceSnapshots()
+    }
+
+    /// Incremental change-token fetch for the per-provider zone.
+    func fetchPerProviderZoneChanges(
+        since token: CKServerChangeToken?
+    ) async -> CloudSyncManager.PerProviderZoneChanges {
+        await syncManager.fetchPerProviderZoneChanges(since: token)
     }
 
     // MARK: - Legacy KVS (backward compatibility)
@@ -55,6 +76,36 @@ final class CloudSyncReader: @unchecked Sendable {
 
     func stopObserving() {
         syncManager.stopKVSObserving()
+    }
+
+    // MARK: - SwiftData parallel write (P2a)
+
+    /// Mirrors the raw per-device CloudKit snapshots into the SwiftData store.
+    ///
+    /// P2a is additive: the old `@Observable` path continues to drive views.
+    /// This method exists so `SyncedUsageData` can call it right after
+    /// `mergeSnapshots(...)` completes, keeping the two sources in lockstep.
+    ///
+    /// Writes ONLY per-device rows. The merged snapshot is not persisted —
+    /// P2b's @Query-based views will re-derive the merged view on the fly
+    /// from per-device rows, so storing a separate merged row would be
+    /// redundant duplication. Codex review (P2) also flagged that the
+    /// synthetic "legacy:<deviceName>" key for merged snapshots shifts
+    /// whenever the set of contributing devices changes, which would
+    /// orphan prior merged rows. Per-device rows are keyed by stable
+    /// deviceID, so they accumulate cleanly.
+    static func persistToSwiftData(
+        deviceSnapshots: [SyncedUsageSnapshot],
+        merged _: SyncedUsageSnapshot?,
+        context: ModelContext
+    ) {
+        do {
+            try SwiftDataBridge.upsert(deviceSnapshots: deviceSnapshots, into: context)
+        } catch {
+            // P2a is parallel-write; failures here must never break the
+            // legacy path. Log and move on.
+            print("[CodexBar SwiftData] Parallel-write upsert failed: \(error)")
+        }
     }
 
     // MARK: - Multi-device merge
@@ -102,8 +153,12 @@ final class CloudSyncReader: @unchecked Sendable {
         // Use the most recent sync timestamp across all devices
         let latestTimestamp = snapshots.map(\.syncTimestamp).max() ?? Date()
 
-        // Build device name list for display
-        let deviceNames = snapshots.map(\.deviceName)
+        // Build device name list for display. Sort first so the combined string is stable
+        // across fetches regardless of server iteration order — without this, SwiftDataBridge's
+        // deviceID fallback (`"legacy:" + deviceName`) would see "Mac A, Mac B" at one moment
+        // and "Mac B, Mac A" at another, producing duplicate merged-device rows in the local
+        // store. Flagged in Codex review (P2).
+        let deviceNames = snapshots.map(\.deviceName).sorted()
         let combinedDeviceName = deviceNames.count == 1
             ? deviceNames[0]
             : deviceNames.joined(separator: ", ")

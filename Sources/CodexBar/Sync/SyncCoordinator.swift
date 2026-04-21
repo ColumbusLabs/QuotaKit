@@ -24,6 +24,26 @@ final class SyncCoordinator {
     /// Stable device UUID for this Mac, persisted across app launches.
     private let deviceID: String
 
+    /// Per-provider content-hash cache (P4). Keyed by composite
+    /// `providerID|accountEmail`, value is a stable hash of the provider's
+    /// encoded JSON. Used to diff incoming pushes so `pushPerProviderRecords`
+    /// only uploads providers whose data actually changed.
+    ///
+    /// In-memory only — rebuilt on every process launch. The cost of
+    /// rebuilding is one extra full upload on Mac startup, which is fine; the
+    /// alternative (persisting to UserDefaults) risks the cache drifting out of
+    /// sync with what's actually on CloudKit.
+    private var lastProviderHashes: [String: Int] = [:]
+
+    /// Stable encoder used for the per-provider diff. Sorted keys so byte-level
+    /// hashing is insensitive to encoding key order. Built on top of the
+    /// project-wide factory so date strategy stays consistent.
+    private let providerDiffEncoder: JSONEncoder = {
+        let e = CloudSyncConstants.makeJSONEncoder()
+        e.outputFormatting = [.sortedKeys]
+        return e
+    }()
+
     init(store: UsageStore, settings: SettingsStore, syncManager: any SyncPushing = CloudSyncManager.shared) {
         self.store = store
         self.settings = settings
@@ -158,6 +178,113 @@ final class SyncCoordinator {
         self.lastSyncTime = Date()
         self.lastSyncSucceeded = result.succeeded
         self.lastSyncMessage = result.message
+
+        // P4: additive per-provider write to DeviceProvidersZone. Diff against
+        // the in-memory hash cache so unchanged providers are skipped. Failure
+        // here is logged but does NOT override `lastSyncSucceeded` — the
+        // legacy-zone write is still authoritative while iOS readers haven't
+        // migrated yet (see Research/010).
+        let (envelopes, hashUpdates) = self.buildPerProviderDelta(
+            from: providerSnapshots, synced: synced)
+        if !envelopes.isEmpty {
+            let perProviderResult =
+                await self.syncManager.pushPerProviderRecords(envelopes)
+            if perProviderResult.succeeded {
+                for (key, hash) in hashUpdates {
+                    self.lastProviderHashes[key] = hash
+                }
+            } else {
+                print(
+                    "[CodexBar Sync] per-provider write failed: " +
+                        (perProviderResult.message ?? "unknown"))
+            }
+        }
+    }
+
+    /// Produces the envelopes that should be uploaded this cycle plus the
+    /// hash-cache updates to apply on success. Pure function over
+    /// `providerSnapshots` and the in-memory hash state.
+    ///
+    /// Ghost providers (no rate / cost / budget / error / status and no
+    /// accountEmail) are filtered here — Mac may build them during early
+    /// startup before OAuth / cookies have loaded. Writing them to
+    /// `DeviceProvidersZone` would produce a CKRecord keyed by
+    /// `{deviceID}|{providerID}|_` which is NEVER overwritten by the later
+    /// real push (that one goes to `...|user@...` — different recordName),
+    /// leaving stale empty records on the server. iOS 1.3.0 has a defensive
+    /// filter too, but skipping here is the root-cause fix.
+    private func buildPerProviderDelta(
+        from providerSnapshots: [ProviderUsageSnapshot],
+        synced: SyncedUsageSnapshot) -> (envelopes: [ProviderUsageEnvelope], hashUpdates: [String: Int])
+    {
+        var envelopes: [ProviderUsageEnvelope] = []
+        var updates: [String: Int] = [:]
+
+        for provider in providerSnapshots {
+            // Skip "ghost" providers — see doc comment.
+            if Self.isGhostProvider(provider) {
+                continue
+            }
+            let key = Self.perProviderHashKey(
+                providerID: provider.providerID,
+                accountEmail: provider.accountEmail)
+            guard let data = try? providerDiffEncoder.encode(provider) else {
+                // Encode fallback: include anyway so we don't silently drop a
+                // provider just because its JSON encoding briefly failed.
+                envelopes.append(ProviderUsageEnvelope(
+                    deviceID: self.deviceID,
+                    deviceName: synced.deviceName,
+                    appVersion: synced.appVersion,
+                    mobileVersion: synced.mobileVersion,
+                    syncTimestamp: synced.syncTimestamp,
+                    notificationPushEnabled: synced.notificationPushEnabled,
+                    provider: provider))
+                continue
+            }
+            let hash = Self.stableHash(for: data)
+            if self.lastProviderHashes[key] == hash {
+                continue // unchanged — skip
+            }
+            envelopes.append(ProviderUsageEnvelope(
+                deviceID: self.deviceID,
+                deviceName: synced.deviceName,
+                appVersion: synced.appVersion,
+                mobileVersion: synced.mobileVersion,
+                syncTimestamp: synced.syncTimestamp,
+                notificationPushEnabled: synced.notificationPushEnabled,
+                provider: provider))
+            updates[key] = hash
+        }
+        return (envelopes, updates)
+    }
+
+    /// Matches `SnapshotCache.isGhost` on the iOS side: a provider with NO
+    /// usable signal in any field. Mac filter prevents ghost records from
+    /// being created in `DeviceProvidersZone` in the first place.
+    private static func isGhostProvider(_ provider: ProviderUsageSnapshot) -> Bool {
+        provider.primary == nil
+            && provider.secondary == nil
+            && provider.rateWindows.isEmpty
+            && provider.costSummary == nil
+            && provider.budget == nil
+            && !provider.isError
+            && provider.statusMessage == nil
+    }
+
+    private static func perProviderHashKey(providerID: String, accountEmail: String?) -> String {
+        "\(providerID)|\(accountEmail ?? "_")"
+    }
+
+    /// Deterministic hash of a provider's encoded JSON. Uses FNV-1a (64-bit)
+    /// so it's cheap, stable across process launches, and collision-free in
+    /// the range we care about (≤100 providers × app lifetime).
+    private static func stableHash(for data: Data) -> Int {
+        var hash: UInt64 = 0xCBF2_9CE4_8422_2325
+        for byte in data {
+            hash ^= UInt64(byte)
+            hash = hash &* 0x100_0000_01B3
+        }
+        return Int(bitPattern: UInt(truncatingIfNeeded: hash))
     }
 
     func stopObserving() {

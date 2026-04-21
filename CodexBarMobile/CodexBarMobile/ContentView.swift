@@ -253,6 +253,11 @@ private struct CostTab: View {
         return self.usageData.snapshot
     }
 
+    /// Synchronous computed insights. `CostDashboardInsights.init` is O(providers × daily × breakdowns)
+    /// which is fine to recompute per render here — Cost tab has no hover/selection state that would
+    /// trigger frequent re-renders. (Hover-heavy views UtilizationAggregateView / UtilizationHistoryView
+    /// use `@State` + `.task(id:)` caching because hover changes selection state every frame.)
+    /// Synchronous compute ensures first render has data for UI tests and user-perceived responsiveness.
     private var currentInsights: CostDashboardInsights? {
         guard let snapshot = self.displaySnapshot else { return nil }
         let insights = CostDashboardInsights(snapshot: snapshot)
@@ -262,9 +267,8 @@ private struct CostTab: View {
     var body: some View {
         NavigationStack {
             Group {
-                if let snapshot = self.displaySnapshot {
-                    let insights = CostDashboardInsights(snapshot: snapshot)
-                    if insights.hasDisplayData {
+                if self.displaySnapshot != nil {
+                    if let insights = self.currentInsights {
                         CostDashboardView(
                             insights: insights,
                             usageData: self.usageData,
@@ -436,8 +440,21 @@ private struct CostDashboardView: View {
         return Calendar.current.date(byAdding: .day, value: -(chartVisibleDays - 1), to: last.date) ?? last.date
     }
 
+    /// Locale-independent "M/d" formatter (e.g. "4/18"), matching
+    /// UtilizationHistoryView's axis style. Avoids `.dateTime` which rearranges
+    /// to "d/M" on en_GB and similar locales.
+    private static func dailyAxisLabel(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M/d"
+        return formatter.string(from: date)
+    }
+
     private var trendSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        // Precompute axis values once per trendSection build. The input is `insights.dailyPoints`
+        // which is stable across hover (`selectedDay`) changes, so we avoid recomputing
+        // `axisValues(for:)` on every chart re-render triggered by selection.
+        let yAxisValues = MobileChartAxisFormatter.axisValues(for: self.insights.dailyPoints.map(\.costUSD))
+        return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 4) {
                 Text("Daily Spend")
                     .font(.headline)
@@ -490,16 +507,31 @@ private struct CostDashboardView: View {
             }
             .chartXSelection(value: self.$selectedDay)
             .chartScrollableAxes(.horizontal)
+            // No extra right-side padding — axis labels use anchor .topTrailing
+            // below so the label extends LEFT of the tick (slash just left of
+            // the rightmost bar), matching UtilizationHistoryView's style.
+            // The latest data is always on the right, so left-anchored labels
+            // never clip regardless of how close the last bar is to the edge.
             .chartXVisibleDomain(length: Self.chartVisibleDays * 24 * 60 * 60)
             .chartScrollPosition(initialX: Self.chartScrollInitialDate(points: self.insights.dailyPoints))
             .chartXAxis {
-                AxisMarks(values: .stride(by: .day, count: 7)) { _ in
+                AxisMarks(values: .stride(by: .day, count: 7)) { value in
                     AxisGridLine()
-                    AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                    // Hard-coded "M/d" (locale-independent, same as
+                    // UtilizationHistoryView). Anchor `.top` centers the label
+                    // horizontally on the gridline — default axis anchor is
+                    // `.topLeading` which extends the label to the right of the
+                    // tick (what the user saw as 'wrong-side padding').
+                    AxisValueLabel(anchor: .top) {
+                        if let date = value.as(Date.self) {
+                            Text(Self.dailyAxisLabel(for: date))
+                                .font(.caption2)
+                        }
+                    }
                 }
             }
             .chartYAxis {
-                AxisMarks(values: MobileChartAxisFormatter.axisValues(for: self.insights.dailyPoints.map(\.costUSD))) {
+                AxisMarks(values: yAxisValues) {
                     value in
                     AxisGridLine()
                     AxisValueLabel {

@@ -1,0 +1,187 @@
+import CodexBarSync
+import Foundation
+import Testing
+@testable import CodexBarMobile
+
+/// P5 — unit tests for the pure reconstruct + priority-merge helpers that sit
+/// in `CloudSyncManager`. Real CloudKit I/O is covered by real-device smoke
+/// testing (deferred until Production schema is deployed).
+@Suite("Dual-zone reader helpers")
+struct DualZoneReaderTests {
+    private let t1 = Date(timeIntervalSince1970: 1_700_000_000)
+    private let t2 = Date(timeIntervalSince1970: 1_700_100_000)
+    private let t3 = Date(timeIntervalSince1970: 1_700_200_000)
+
+    private func makeProvider(id: String, lastUpdated: Date) -> ProviderUsageSnapshot {
+        ProviderUsageSnapshot(
+            providerID: id,
+            providerName: id.capitalized,
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: lastUpdated)
+    }
+
+    private func makeEnvelope(
+        deviceID: String,
+        deviceName: String,
+        syncTimestamp: Date,
+        providerID: String,
+        providerLastUpdated: Date
+    ) -> ProviderUsageEnvelope {
+        ProviderUsageEnvelope(
+            deviceID: deviceID,
+            deviceName: deviceName,
+            appVersion: "0.20.1",
+            mobileVersion: "1.3.0",
+            syncTimestamp: syncTimestamp,
+            notificationPushEnabled: true,
+            provider: makeProvider(id: providerID, lastUpdated: providerLastUpdated))
+    }
+
+    // MARK: - reconstructSnapshots
+
+    @Test("Envelopes from the same device collapse into one snapshot")
+    func reconstructGroupsByDeviceID() {
+        let envelopesByDeviceID: [String: [ProviderUsageEnvelope]] = [
+            "mac-1": [
+                makeEnvelope(
+                    deviceID: "mac-1", deviceName: "Mac 1",
+                    syncTimestamp: t1, providerID: "codex", providerLastUpdated: t1),
+                makeEnvelope(
+                    deviceID: "mac-1", deviceName: "Mac 1",
+                    syncTimestamp: t2, providerID: "claude", providerLastUpdated: t2),
+            ],
+        ]
+        let snapshots = CloudSyncManager.reconstructSnapshots(
+            envelopesByDeviceID: envelopesByDeviceID)
+
+        #expect(snapshots.count == 1)
+        let snapshot = snapshots[0]
+        #expect(snapshot.deviceID == "mac-1")
+        #expect(snapshot.providers.count == 2)
+        // Device-level timestamp = max of constituent envelopes.
+        #expect(snapshot.syncTimestamp == t2)
+        // Providers sorted by lastUpdated desc.
+        #expect(snapshot.providers.first?.providerID == "claude")
+        #expect(snapshot.providers.last?.providerID == "codex")
+    }
+
+    @Test("Multiple devices produce multiple snapshots, sorted newest-first")
+    func reconstructMultiDevice() {
+        let envelopesByDeviceID: [String: [ProviderUsageEnvelope]] = [
+            "mac-old": [
+                makeEnvelope(
+                    deviceID: "mac-old", deviceName: "Old Mac",
+                    syncTimestamp: t1, providerID: "codex", providerLastUpdated: t1),
+            ],
+            "mac-new": [
+                makeEnvelope(
+                    deviceID: "mac-new", deviceName: "New Mac",
+                    syncTimestamp: t3, providerID: "claude", providerLastUpdated: t3),
+            ],
+        ]
+        let snapshots = CloudSyncManager.reconstructSnapshots(
+            envelopesByDeviceID: envelopesByDeviceID)
+
+        #expect(snapshots.count == 2)
+        #expect(snapshots[0].deviceID == "mac-new")
+        #expect(snapshots[1].deviceID == "mac-old")
+    }
+
+    @Test("Empty input produces empty output")
+    func reconstructEmpty() {
+        let snapshots = CloudSyncManager.reconstructSnapshots(envelopesByDeviceID: [:])
+        #expect(snapshots.isEmpty)
+    }
+
+    // MARK: - prioritiseByDevice
+
+    @Test("Per-provider snapshot wins over legacy for the same device")
+    func priorityPerProviderOverLegacy() {
+        let perProvider = SyncedUsageSnapshot(
+            providers: [makeProvider(id: "codex", lastUpdated: t3)],
+            syncTimestamp: t3,
+            deviceName: "Mac A",
+            deviceID: "mac-a")
+        // Legacy for the same device, but newer timestamp — per-provider still
+        // wins because the rule is priority by tier, not by timestamp.
+        let legacy = SyncedUsageSnapshot(
+            providers: [makeProvider(id: "claude", lastUpdated: t3.addingTimeInterval(1000))],
+            syncTimestamp: t3.addingTimeInterval(1000),
+            deviceName: "Mac A",
+            deviceID: "mac-a")
+
+        let merged = CloudSyncManager.prioritiseByDevice(
+            perProvider: [perProvider], legacy: [legacy])
+
+        #expect(merged.count == 1)
+        #expect(merged[0].providers.first?.providerID == "codex")
+    }
+
+    @Test("Devices only in legacy pass through")
+    func priorityLegacyFallback() {
+        let perProvider = SyncedUsageSnapshot(
+            providers: [makeProvider(id: "codex", lastUpdated: t3)],
+            syncTimestamp: t3, deviceName: "Mac A", deviceID: "mac-a")
+        let legacy = SyncedUsageSnapshot(
+            providers: [makeProvider(id: "claude", lastUpdated: t2)],
+            syncTimestamp: t2, deviceName: "Mac B", deviceID: "mac-b")
+
+        let merged = CloudSyncManager.prioritiseByDevice(
+            perProvider: [perProvider], legacy: [legacy])
+
+        #expect(merged.count == 2)
+        #expect(merged.contains(where: { $0.deviceID == "mac-a" }))
+        #expect(merged.contains(where: { $0.deviceID == "mac-b" }))
+    }
+
+    @Test("Only legacy present — merged result matches legacy")
+    func priorityOnlyLegacy() {
+        let legacy = SyncedUsageSnapshot(
+            providers: [makeProvider(id: "codex", lastUpdated: t1)],
+            syncTimestamp: t1, deviceName: "Old Mac", deviceID: "mac-old")
+
+        let merged = CloudSyncManager.prioritiseByDevice(
+            perProvider: [], legacy: [legacy])
+
+        #expect(merged.count == 1)
+        #expect(merged[0].deviceID == "mac-old")
+    }
+
+    @Test("Only per-provider present — merged result matches per-provider")
+    func priorityOnlyPerProvider() {
+        let perProvider = SyncedUsageSnapshot(
+            providers: [makeProvider(id: "claude", lastUpdated: t3)],
+            syncTimestamp: t3, deviceName: "New Mac", deviceID: "mac-new")
+
+        let merged = CloudSyncManager.prioritiseByDevice(
+            perProvider: [perProvider], legacy: [])
+
+        #expect(merged.count == 1)
+        #expect(merged[0].deviceID == "mac-new")
+    }
+
+    @Test("Legacy snapshots without deviceID dedup by deviceName")
+    func priorityDeviceNameFallback() {
+        // Pre-UUID Mac builds wrote deviceID=nil, so the fallback key is the
+        // deviceName. A per-provider snapshot for a device with a UUID should
+        // NOT collide with a legacy device of the same name unless deviceIDs
+        // match — which here they don't.
+        let perProvider = SyncedUsageSnapshot(
+            providers: [makeProvider(id: "codex", lastUpdated: t3)],
+            syncTimestamp: t3, deviceName: "My Mac", deviceID: "mac-uuid")
+        let legacy = SyncedUsageSnapshot(
+            providers: [makeProvider(id: "claude", lastUpdated: t1)],
+            syncTimestamp: t1, deviceName: "My Mac", deviceID: nil)
+
+        let merged = CloudSyncManager.prioritiseByDevice(
+            perProvider: [perProvider], legacy: [legacy])
+
+        // Different keys — both kept.
+        #expect(merged.count == 2)
+    }
+}

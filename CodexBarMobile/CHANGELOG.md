@@ -2,6 +2,132 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (68)] — 2026-04-21 — dev build · hardening pass (Research/012)
+
+After Codex CLI's 2 P-level findings landed in Build 67, an additional hardening review (Phase 1 Explore agent) surfaced one P1 + several P2/P3. Build 68 fixes them and adds defensive scenario tests so a future regression on the same shape can't slip through silently.
+
+### Fixed
+- **P1 · `compositeKey` format drift** (`SwiftDataSchema.makeCompositeKey`). Was emitting `{deviceID}|{providerID}|` (empty for nil email), while `CloudSyncManager.perProviderRecordName` and `SnapshotCache.compositeKey` were emitting `{deviceID}|{providerID}|_`. Today nothing in the live code actually compares CloudKit recordName against SwiftData compositeKey, so the drift wasn't a runtime bug — but ANY future code that does (e.g. delete-by-recordName from CloudKit applied to SwiftData) would silently miss matching rows. Aligned all three sites on `_` for nil. Pinned by new test `compositeKeyNilEmailFormat`.
+- **P2 · Concurrent silent-push storm could land an older delta on top of newer cache state**. `SyncedUsageData.fetchFromCloudKit` and `refreshIncremental` now both go through a `coalesceRefresh` funnel — if a refresh task is in flight, additional callers await it instead of starting a parallel fetch. Trades a tiny bit of throughput for race-free state mutation under push storms.
+- **P2 · Encoder/decoder strategy drift risk**. New `CloudSyncConstants.makeJSONEncoder()` / `makeJSONDecoder()` factories return JSON codecs with `.iso8601` date strategy on both sides. All production callers (`CloudSyncManager`, `SwiftDataBridge`, `SyncCoordinator.providerDiffEncoder`, the static `decodeEnvelopeStatic`) now use the factories — never construct raw `JSONEncoder()` / `JSONDecoder()`. Build 65/66 root cause cannot recur silently.
+
+### Added (scenario tests, designed around USER-FACING POSSIBILITIES not code paths)
+- `JSONCodecConsistencyTests` (Mac, 9 cases) — pins the encoder/decoder factory contract: every `Sync*` type that carries a `Date` is round-tripped explicitly. Two tests assert that mixing the factory codec with the default `JSONEncoder/Decoder` FAILS, which means a future "let me just use `JSONEncoder()`" change will break a test instead of a user.
+- `SnapshotCacheTests` +4 cases — multi-account same provider, nil-email + emailed coexistence, compositeKey format pin, delta with email doesn't disturb a nil-email entry.
+
+### Reviewed but no change needed
+- Hardcoded `CKModifyRecordsOperation` batch size 200 — within CloudKit's documented limit, deferred.
+- `nonisolated(unsafe)` accumulators in `fetchPerProviderZoneChanges` — verified safe (single-threaded accumulation inside `withCheckedThrowingContinuation`).
+- AppDelegate `iCloudAccountChanged` observer cleanup — singleton, app-lifetime, no leak.
+- `SyncedUsageData` deinit cleanup of NotificationCenter token — `@State`-backed app-lifetime instance + `[weak self]` makes the leak benign; explicit cleanup deferred (would need `@MainActor deinit` workaround).
+
+### Hardening plan
+- Full plan + findings log: `CodexBarMobile/Research/012-refactor-1.3.0-hardening-plan.md`.
+
+## [1.3.0 (67)] — 2026-04-21 — dev build · Codex review fixes (2 correctness issues)
+
+Codex CLI review of `refactor-1.3.0` vs `mobile-dev` surfaced two P-level defects — both now fixed.
+
+### Fixed
+- **P1 · Transient CloudKit failures no longer blank out cached data** (`SyncedUsageData.fetchFromCloudKit`). Previously `replaceFromFullFetch` was called unconditionally even when both zone queries returned `.error`, wiping the in-memory cache and showing the user a blank screen whenever they launched offline or CloudKit was momentarily unreachable. Now each zone's result is classified: `.success` / `.empty` replace that bucket, `.error` preserves it. If BOTH zones error, the cache is left entirely untouched and only the sync status flips to `.error`. `SnapshotCache.replaceFromFullFetch` now takes optional args where `nil` means "leave this bucket alone."
+- **P2 · Partial-encode failures no longer silently skip retries** (`CloudSyncManager.pushPerProviderRecords`). The method used to return `.success(message: "Encoded X / failed Y")` when some envelopes failed to encode; the Mac `SyncCoordinator` then updated `lastProviderHashes` for all submitted providers, including the ones that never reached CloudKit, so they stayed stale until their content changed again. Now partial-encode failures return `.failure` — the coordinator keeps the pre-push hash cache and retries everyone next cycle. Slightly wasteful (re-uploads the ones that did land this cycle) but correct.
+
+### Tests
+- `SnapshotCacheTests` +2 cases: `nilPerProviderArgPreserves`, `nilLegacyArgPreserves`.
+
+## [1.3.0 (66)] — 2026-04-20 — dev build · fix Usage cold-start blank (two root causes)
+
+User reported Usage tab shows blank on cold start while Cost shows data instantly. After two rounds of wrong diagnosis (TabView lazy, then `.thickMaterial` GPU cost), Build 64/65 diagnostic prints exposed the actual root causes.
+
+### Fixed
+- **Date encoding strategy mismatch in `SwiftDataBridge`.** `upsertProvider` used the default `JSONEncoder` which serialises `Date` as a `TimeInterval` double, while `readAllDeviceSnapshots` configured its decoder with `dateDecodingStrategy = .iso8601` and expected an ISO8601 string. Every `SyncRateWindow` / `SyncBudgetSnapshot.resetsAt` silently failed to decode, `try?` swallowed the throw, and `rateWindows` came back as `[]`. Cost tab was unaffected only because `SyncCostSummary` has no `Date` fields and the user's Claude budget happened to have `resetsAt == nil`. Fix: set `encoder.dateEncodingStrategy = .iso8601` in `SwiftDataBridge.upsertProvider` to match the decoder.
+- **Ghost envelopes in `DeviceProvidersZone`.** Mac-side P4 pushed `ProviderUsageSnapshot`s with `accountEmail == nil` during early app startup (before OAuth / cookies loaded), producing CKRecords with recordName `{deviceID}|{providerID}|_`. Once the provider's account email loaded, subsequent pushes went to a DIFFERENT recordName (`{deviceID}|{providerID}|user@example.com`), leaving the empty "ghost" record behind. The iOS side then upserted both into SwiftData and into the merged view, producing a blank third "codex" card overwriting the real data. Fix: `SnapshotCache.isGhost(...)` drops envelopes where `primary`/`secondary`/`rateWindows`/`costSummary`/`budget`/`statusMessage` are all nil/empty and `isError == false`. Applied in `replaceFromFullFetch` / `applyDelta` / `replacePerProviderFromReplay`.
+- Mac-side preventative fix (skip empty-data pushes to begin with) is a separate follow-up; this defense eliminates the symptom without a Mac rebuild.
+
+### Tests
+- `SnapshotCacheTests` +3 cases: ghost dropped from full fetch, ghost dropped from delta, error-only provider NOT considered ghost.
+
+### Removed
+- Diagnostic prints added in Build 62 / 64 / 65 are all cleaned up.
+
+### Also re-verified
+- `recordName` Queryable index on `DeviceProviderSnapshot` in CloudKit Production schema (user deployed earlier); per-provider zone query now returns `.success(1 devices)` instead of `.error(Field 'recordName' is not marked queryable)`.
+
+## [1.3.0 (65)] — 2026-04-20 — dev build · trace SwiftData rateWindows write/read
+
+Build 64 confirmed SwiftData hydrate returns `rateWindows=0` on every cold start despite fresh full fetch. Build 65 adds prints inside `SwiftDataBridge.upsertProvider` (what gets encoded) and `readAllDeviceSnapshots` (what gets decoded) to find which side drops the data.
+
+## [1.3.0 (64)] — 2026-04-20 — dev build · deeper diagnostic for Usage cold-start blank
+
+User confirmed Build 63's material swap did NOT fix the perceived blank. So the problem isn't GPU-first-frame cost — it's a data-layer asymmetry between Cost and Usage tabs. Adds `[CodexBar Diag]` prints that log:
+- Per-device / per-provider hydrate contents from SwiftData (rateWindows count, costSummary presence, etc.)
+- Which branch `UsageTab.body` and `CostTab.body` take (Onboarding vs EmptyState vs content)
+- `fetchFromCloudKit` entry + per-zone results
+Will be removed once the real root cause is identified.
+
+## [1.3.0 (63)] — 2026-04-20 — dev build · fix Usage-tab cold-start "blank" via material swap
+
+### Fixed
+- **Usage tab no longer shows a ~1s blank on cold start.** `ProviderUsageView`'s card background was `.thickMaterial` — the most expensive material in the system (large Gaussian blur radius + heavy tint + independent GPU compositing pass per card). On first render after kill+relaunch, GPU setup for every card's thick material blocked the first frame ~1s. Changed to `.ultraThinMaterial` to match the rest of the app (`CostMetricCard`, `BudgetProgressView`, `ContentView`'s Cost dashboard, `ProviderDetailView`, `UtilizationAggregateView`). Verified via `[CodexBar Timing]` diagnostic prints (Build 62): data was always in memory at body time (`providers=2` within 0.238s of init), the delay was purely GPU first-frame compositing.
+
+### Investigation
+- `git blame` showed the `.thickMaterial` was introduced in commit `408ce6f25` (2026-03-19) with unrelated message "Fix mobile metrics and release notes", replacing the original `.regularMaterial + glassEffect` pair. No design discussion recorded; bundled with 5 other unrelated file changes. Cost-side cards (`CostMetricCard` etc.) were never changed to match — the asymmetry was accidental drift, not a deliberate visual choice.
+
+### Removed
+- The `[CodexBar Timing]` diagnostic prints added in Build 62 (reverted now that the root cause is confirmed and fixed).
+
+### Visual impact
+- On CodexBar's solid `systemGroupedBackground`, `.thickMaterial` and `.ultraThinMaterial` are visually indistinguishable (user inspection confirms). No user-visible change to card appearance.
+
+## [1.3.0 (62)] — 2026-04-20 — dev build · diagnostic timing prints
+
+Non-functional. Adds `[CodexBar Timing]` print lines in `SyncedUsageData.init`, `UsageTab.body`, `ProviderListView.body`, and per-card `onAppear` so I can measure the "Usage tab blank ~1–2s on cold start" observation. To be removed once the root cause is confirmed.
+
+## [1.3.0 (61)] — 2026-04-19 — dev build · P6 + P7 v2 (cache-based, multi-device-safe)
+
+### Re-introduced, re-designed
+- **P6 · Change-token incremental sync (v2)** — `CKFetchRecordZoneChangesOperation` on `DeviceProvidersZone` is back, with a clean separation from SwiftData: the v1 bug (stale SwiftData rows from past full-fetch upserts leaking into the per-provider bucket) is eliminated because the incremental path now writes to an in-memory `SnapshotCache` with explicit `perProviderByDevice` vs `legacyByDevice` slots.
+- **P7 · Silent-push-driven refresh (v2)** — `CKRecordZoneSubscription` on `DeviceProvidersZone` and the `AppDelegate.didReceiveRemoteNotification` routing are both restored, now triggering `SyncedUsageData.refreshIncremental` which applies the change-token delta to the cache. Legacy bucket is never touched by a silent push.
+
+### Design changes vs v1
+- `SnapshotCache` (in `CodexBarMobile/Models/SnapshotCache.swift`) keeps per-zone slots explicitly. Priority merge reads from it and never consults SwiftData.
+- Token persistence via `SwiftDataBridge.loadChangeToken` / `saveChangeToken` kept (tokens are explicitly zone-scoped, no ambiguity). `applyPerProviderDelta` deleted — cache replaces its role.
+- `SyncedUsageData.fetchFromCloudKit` now calls the two zone queries separately and feeds both into `cache.replaceFromFullFetch`. Prior logic that went through `CloudSyncManager.fetchAllDeviceSnapshots`'s internal priority merge is still available but unused by the cache path — kept for completeness.
+
+### Multi-device trace
+Research/011 carries six explicit scenarios (Mac-A-new + Mac-B-old, both new, both legacy, iPhone-old × Mac-new, iPhone-new × Mac-old, 2 iPhones × 2 Macs). The test suite `SnapshotCacheTests` has assertions that mirror three of them directly.
+
+## [1.3.0 (60)] — 2026-04-19 — dev build · rollback P6 + P7
+
+Multi-device data regression reverted. Build 59 shipped P6 (change-token incremental sync) and P7 (silent push → incremental refresh), but the incremental path read per-device state from SwiftData, which also contained historical rows populated by past legacy-zone full-fetch upserts. When Mac A (on the new per-provider zone) triggered a silent push, the incremental path wrote Mac A's fresh delta to SwiftData, then reconstructed the "per-provider zone set" by reading SwiftData — which wrongly included stale Mac B rows from legacy history. The priority merge then let stale Mac B data win over the fresh legacy fetch, producing flicker / missing-data symptoms in multi-Mac setups.
+
+### Reverted
+- **P7 · Silent-push-driven refresh** — subscription setup, AppDelegate `didReceiveRemoteNotification` handler, and the `SyncedUsageData.refreshIncremental` observer are all removed. Silent pushes to `DeviceProvidersZone` no longer trigger any iOS work.
+- **P6 · Change-token incremental sync** — `CKFetchRecordZoneChangesOperation` path, change-token persistence, `SwiftDataBridge.applyPerProviderDelta`, and the `CodexBarMobileTests/Storage/PerProviderDeltaTests` suite are all removed.
+
+### Kept (still correct)
+- **P3 · SwiftData cold-start hydrate** — unchanged, no multi-device issue.
+- **P4 · Mac dual-write** — Mac still writes per-provider records to `DeviceProvidersZone` alongside the monolithic legacy record. Shared types (`ProviderUsageEnvelope`, `PayloadCompression`) retained.
+- **P5 · Dual-zone reader** — the FULL-fetch path (app open / pull-to-refresh) queries both zones fresh from CloudKit every time and priority-merges per device. This path never touched SwiftData for the priority decision, so it didn't have the bug.
+
+### Design debt carried forward
+The incremental + silent-push behavior needs a redesign before it can come back. The lesson: SwiftData is a read-through cache, not a per-zone "what's in this zone" mirror, because full-fetch upserts and delta upserts both write to it indiscriminately. Any future incremental path must either track zone-of-origin on `DeviceRecord`, or stop reading SwiftData for priority decisions and query CloudKit fresh each push.
+
+## [1.3.0 (59)] — 2026-04-19 — dev build (refactor-1.3.0)
+
+Internal-only build. No user-visible feature changes yet; the tap target is the sync pipeline, which reshapes how device data flows from Mac → CloudKit → iPhone.
+
+### Refactored (sync layer, invisible to users on this build)
+- **P3 · SwiftData-hydrated cold start** — `SyncedUsageData.init` now tries the local SwiftData mirror before falling back to KVS, so the Cost tab no longer flashes a stale "$46" before settling on the real total a second later. First launch on a fresh phone still uses KVS (SwiftData empty).
+- **P4 · Mac dual-write** (requires Mac 0.20.1+) — Mac writes each provider into its own CloudKit record in a new `DeviceProvidersZone`, zlib-compressed, in addition to the monolithic `DeviceSnapshot` legacy zone. Older iOS builds keep reading legacy; this build can use either.
+- **P5 · Dual-zone reader with priority merge** — iOS queries both zones; per-device, the new per-provider records win over the legacy monolithic record, with graceful fallback when either side is empty.
+- **P6 · Change-token incremental sync** — `CKFetchRecordZoneChangesOperation` with persisted `CKServerChangeToken` replaces the full-table query for the per-provider zone. Typical sync transfer drops from ~2 MB to a few dozen KB. `changeTokenExpired` triggers a transparent full replay.
+- **P7 · Silent-push-driven refresh** — new `CKRecordZoneSubscription` with `shouldSendContentAvailable = true` on `DeviceProvidersZone`. When Mac writes, iOS wakes silently, runs the change-token fetch, applies to SwiftData, and views refresh — without the user pulling to refresh.
+
+### Notes
+- End-to-end (new zone actually populated) requires a Mac running 0.20.1+ AND the CloudKit Production schema to be deployed for the new record type. Until both land, iOS silently falls back to legacy, zero regression.
+- Build 59 includes Build 58's bug fix for compositeKey format mismatch between SwiftData and CloudKit record names (aligned on `"_"` for nil `accountEmail`).
+
 ## [1.2.0 (58)] — 2026-04-15
 
 ### Reverted (partially) + improved

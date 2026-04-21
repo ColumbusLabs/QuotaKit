@@ -16,6 +16,13 @@ struct UtilizationHistoryView: View {
     @State private var selectedSeriesIndex = 0
     @State private var selectedIndex: Int?
 
+    /// Cache (rawPoints, displayPoints, hasData) keyed on `identityKey`. Invalidated via
+    /// synchronous check in body + `.onChange(initial: true)` — see body for rationale.
+    @State private var cachedKey: String = ""
+    @State private var cachedRawPoints: [DisplayPoint] = []
+    @State private var cachedDisplayPoints: [DisplayPoint] = []
+    @State private var cachedHasData = false
+
     private var activeSeries: SyncUtilizationSeries? {
         let index = min(self.selectedSeriesIndex, self.series.count - 1)
         guard index >= 0, index < self.series.count else { return nil }
@@ -26,6 +33,33 @@ struct UtilizationHistoryView: View {
     private let barWidth: CGFloat = 10
     /// Fixed visible window size — matches Cost chart's ~30 bars per screen
     private let windowSize = 30
+
+    /// Identity key for the active series. Cheap O(1) — fixed number of string
+    /// interpolations regardless of entry count. This property is the `.task(id:)` key
+    /// and gets recomputed on every render, including during chart hover/drag where
+    /// `selectedIndex` state changes every frame. O(entry-count) serialization in this
+    /// hot path would negate the caching win.
+    ///
+    /// Correctness relies on the same data-flow guarantee as
+    /// `UtilizationAggregateView.identityKey` — see that method's comment. Summary:
+    /// upstream always bumps the owning provider's `lastUpdated` when utilization
+    /// changes, and the latest-captured timestamp on the active series also bumps
+    /// when new entries arrive. Together they give sufficient invalidation without
+    /// touching every entry.
+    static func identityKey(series: [SyncUtilizationSeries], selectedSeriesIndex: Int) -> String {
+        let idx = max(0, min(selectedSeriesIndex, series.count - 1))
+        guard idx >= 0, idx < series.count else {
+            return "empty"
+        }
+        let active = series[idx]
+        let latestCaptured = active.entries.last?.capturedAt.timeIntervalSince1970 ?? 0
+        let latestReset = active.entries.last?.resetsAt?.timeIntervalSince1970 ?? -1
+        return "\(idx)|\(active.name)|\(active.windowMinutes)|c=\(active.entries.count)|lc=\(latestCaptured)|lr=\(latestReset)"
+    }
+
+    private var identityKey: String {
+        Self.identityKey(series: self.series, selectedSeriesIndex: self.selectedSeriesIndex)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -44,23 +78,58 @@ struct UtilizationHistoryView: View {
                 }
             }
 
-            if let active = self.activeSeries {
-                let rawPoints = Self.buildPeriodPoints(from: active)
-                if !rawPoints.isEmpty {
-                    let displayPoints = Self.rightAlignPoints(rawPoints, windowSize: self.windowSize)
-                    self.capsuleChart(displayPoints, dataCount: rawPoints.count)
-                        .frame(height: 140)
-                    self.detailLine(displayPoints)
-                        .frame(height: 16)
-                } else {
-                    self.emptyState
-                }
-            } else {
-                self.emptyState
-            }
+            self.resolvedContent()
         }
         .padding(16)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .onChange(of: self.identityKey, initial: true) { _, newKey in
+            guard self.cachedKey != newKey else { return }
+            self.cachedKey = newKey
+            guard let active = self.activeSeries else {
+                self.cachedRawPoints = []
+                self.cachedDisplayPoints = []
+                self.cachedHasData = false
+                return
+            }
+            let raw = Self.buildPeriodPoints(from: active)
+            if raw.isEmpty {
+                self.cachedRawPoints = []
+                self.cachedDisplayPoints = []
+                self.cachedHasData = false
+            } else {
+                self.cachedRawPoints = raw
+                self.cachedDisplayPoints = Self.rightAlignPoints(raw, windowSize: self.windowSize)
+                self.cachedHasData = true
+            }
+        }
+    }
+
+    /// Resolves cached points synchronously on cache miss. Keeps the chart populated on
+    /// the very first frame — fixes the right-edge clip regression that appeared when
+    /// `.task(id:)` left cached arrays empty during first render and `ScrollableIfNeeded`
+    /// locked in the wrong `dataCount`.
+    private func resolvedPoints() -> (raw: [DisplayPoint], display: [DisplayPoint], hasData: Bool) {
+        if self.cachedKey == self.identityKey {
+            return (self.cachedRawPoints, self.cachedDisplayPoints, self.cachedHasData)
+        }
+        guard let active = self.activeSeries else { return ([], [], false) }
+        let computed = Self.buildPeriodPoints(from: active)
+        if computed.isEmpty { return ([], [], false) }
+        let display = Self.rightAlignPoints(computed, windowSize: self.windowSize)
+        return (computed, display, true)
+    }
+
+    @ViewBuilder
+    private func resolvedContent() -> some View {
+        let resolved = self.resolvedPoints()
+        if resolved.hasData {
+            self.capsuleChart(resolved.display, dataCount: resolved.raw.count)
+                .frame(height: 140)
+            self.detailLine(resolved.display)
+                .frame(height: 16)
+        } else {
+            self.emptyState
+        }
     }
 
     private var emptyState: some View {
@@ -213,7 +282,10 @@ struct UtilizationHistoryView: View {
         }
         .chartYScale(domain: 0 ... 100)
         .chartYAxis(.hidden)
-        .chartXScale(domain: 0 ... max(points.count - 1, self.windowSize - 1))
+        // Widen the trailing edge by 1 slot so the rightmost bar + label get
+        // fully painted when the chart is scrolled to the right edge (fixed-width
+        // BarMarks clip at the chartXVisibleDomain boundary otherwise).
+        .chartXScale(domain: 0 ... max(points.count, self.windowSize))
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 4)) { value in
                 AxisGridLine().foregroundStyle(.clear)
