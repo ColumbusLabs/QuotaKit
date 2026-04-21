@@ -31,26 +31,25 @@ struct JSONCodecConsistencyTests {
     }
 
     @Test("Default JSONDecoder cannot read what factory encoder produced — proves factory ISN'T the default")
-    func defaultDecoderRejectsFactoryOutput() {
+    func defaultDecoderRejectsFactoryOutput() throws {
         struct Box: Codable, Equatable { let when: Date }
         let original = Box(when: date1)
-        let encoded = try? CloudSyncConstants.makeJSONEncoder().encode(original)
-        #expect(encoded != nil)
+        let encoded = try CloudSyncConstants.makeJSONEncoder().encode(original)
         // Default JSONDecoder uses `.deferredToDate` → expects Double, will
         // fail to decode an ISO8601 string.
-        let defaultDecoded = try? JSONDecoder().decode(Box.self, from: encoded!)
+        let defaultDecoded = try? JSONDecoder().decode(Box.self, from: encoded)
         #expect(defaultDecoded == nil) // proves the factory is NOT the default
     }
 
     @Test("Default JSONEncoder produces output the factory decoder CANNOT read")
-    func factoryDecoderRejectsDefaultOutput() {
+    func factoryDecoderRejectsDefaultOutput() throws {
         // This is the literal Build 66 bug shape. If this test ever starts
         // succeeding, someone has changed the factory to default — investigate.
         struct Box: Codable, Equatable { let when: Date }
         let original = Box(when: date1)
-        let encoded = try? JSONEncoder().encode(original)
-        #expect(encoded != nil)
-        let factoryDecoded = try? CloudSyncConstants.makeJSONDecoder().decode(Box.self, from: encoded!)
+        let encoded = try JSONEncoder().encode(original)
+        let factoryDecoded = try? CloudSyncConstants.makeJSONDecoder().decode(
+            Box.self, from: encoded)
         #expect(factoryDecoded == nil)
     }
 
@@ -120,7 +119,9 @@ struct JSONCodecConsistencyTests {
         #expect(decoded.lastUpdated == original.lastUpdated)
         #expect(decoded.primary?.resetsAt == original.primary?.resetsAt)
         #expect(decoded.budget?.resetsAt == original.budget?.resetsAt)
-        #expect(decoded.utilizationHistory?.first?.entries.first?.capturedAt == original.utilizationHistory?.first?.entries.first?.capturedAt)
+        let decodedUtil = decoded.utilizationHistory?.first?.entries.first?.capturedAt
+        let originalUtil = original.utilizationHistory?.first?.entries.first?.capturedAt
+        #expect(decodedUtil == originalUtil)
         #expect(decoded.rateWindows.count == original.rateWindows.count)
     }
 
@@ -144,9 +145,11 @@ struct JSONCodecConsistencyTests {
         let provider = ProviderUsageSnapshot(
             providerID: "codex",
             providerName: "Codex",
-            primary: nil, secondary: nil,
+            primary: nil,
+            secondary: nil,
             accountEmail: "u@x.com",
-            loginMethod: nil, statusMessage: nil,
+            loginMethod: nil,
+            statusMessage: nil,
             isError: false,
             lastUpdated: date1)
         let original = ProviderUsageEnvelope(
@@ -168,18 +171,26 @@ struct JSONCodecConsistencyTests {
     @Test("Envelope survives encode → zlib → decompress → decode pipeline (CloudKit-faithful)")
     func envelopeCompressionRoundTrip() throws {
         let provider = ProviderUsageSnapshot(
-            providerID: "codex", providerName: "Codex",
+            providerID: "codex",
+            providerName: "Codex",
             primary: SyncRateWindow(
-                usedPercent: 70, windowMinutes: 300, resetsAt: date1, resetDescription: nil),
+                usedPercent: 70,
+                windowMinutes: 300,
+                resetsAt: date1,
+                resetDescription: nil),
             secondary: nil,
             accountEmail: nil,
-            loginMethod: nil, statusMessage: nil,
+            loginMethod: nil,
+            statusMessage: nil,
             isError: false,
             lastUpdated: date1)
         let envelope = ProviderUsageEnvelope(
-            deviceID: "mac-A", deviceName: "Mac A",
-            appVersion: nil, mobileVersion: nil,
-            syncTimestamp: date1, notificationPushEnabled: nil,
+            deviceID: "mac-A",
+            deviceName: "Mac A",
+            appVersion: nil,
+            mobileVersion: nil,
+            syncTimestamp: date1,
+            notificationPushEnabled: nil,
             provider: provider)
 
         let encoded = try CloudSyncConstants.makeJSONEncoder().encode(envelope)
