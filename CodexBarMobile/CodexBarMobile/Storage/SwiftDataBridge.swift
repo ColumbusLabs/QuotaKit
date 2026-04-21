@@ -151,15 +151,12 @@ enum SwiftDataBridge {
         let descriptor = FetchDescriptor<ProviderSnapshotModel>(
             predicate: #Predicate { $0.compositeKey == compositeKey })
 
-        // Encode opaque blobs once, reuse for both insert and update paths.
-        // `dateEncodingStrategy = .iso8601` MUST match the decoder in
-        // `readAllDeviceSnapshots` — default strategy encodes `Date` as a
-        // `TimeInterval` double, which the `.iso8601` decoder cannot parse,
-        // silently dropping any `SyncRateWindow`/`SyncBudgetSnapshot` that
-        // contains a non-nil `resetsAt`. Build 65 confirmed this was silently
-        // zeroing out rateWindows on every hydrate.
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        // Encode opaque blobs via the project-wide factory so date strategy
+        // stays in lockstep with the decoder in `readAllDeviceSnapshots` and
+        // every other JSON site in the codebase. Build 66 root-cause: hand
+        // rolled `JSONEncoder()` defaulted to `.deferredToDate` and dropped
+        // every Date through the round-trip.
+        let encoder = CloudSyncConstants.makeJSONEncoder()
         let rateWindowsData = (try? encoder.encode(provider.allRateWindows)) ?? Data("[]".utf8)
         let costSummaryData = provider.costSummary.flatMap { try? encoder.encode($0) }
         let budgetData = provider.budget.flatMap { try? encoder.encode($0) }
@@ -276,8 +273,7 @@ enum SwiftDataBridge {
         let devices = try context.fetch(deviceDescriptor)
         guard !devices.isEmpty else { return [] }
 
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = CloudSyncConstants.makeJSONDecoder()
 
         var snapshots: [SyncedUsageSnapshot] = []
         snapshots.reserveCapacity(devices.count)

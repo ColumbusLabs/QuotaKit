@@ -70,6 +70,24 @@ final class SyncedUsageData {
     /// persisted — cold start rehydrates via SwiftData (P3).
     private var cache = SnapshotCache()
 
+    /// Serialization handle for refresh paths. `fetchFromCloudKit` and
+    /// `refreshIncremental` both go through `coalesceRefresh`, which awaits
+    /// any already-in-flight refresh before starting a new one. Without
+    /// this, a silent-push storm can race against a concurrent full fetch
+    /// and an older delta can land on top of newer state. Hardening fix
+    /// from Build 68 review.
+    private var inFlightRefresh: Task<Void, Never>?
+
+    /// NotificationCenter token for the silent-push observer; held so the
+    /// observer can be removed if `stopObserving()` is added later. Today
+    /// `SyncedUsageData` is created once at `@main` via `@State` and lives
+    /// for the app's lifetime, so explicit removal isn't strictly required
+    /// — the `isObservingSilentPush` guard already prevents
+    /// double-registration on accidental re-entry into `startObserving`.
+    /// `[weak self]` in the closure means a hypothetically-deallocated
+    /// instance would no-op rather than crash.
+    private var silentPushObserver: NSObjectProtocol?
+
     // MARK: - Lifecycle
 
     init(reader: CloudSyncReader = CloudSyncReader()) {
@@ -140,10 +158,11 @@ final class SyncedUsageData {
 
         // 2. Subscribe to silent-push-triggered incremental refresh.
         //    AppDelegate posts .codexBarProviderZoneDidChange on every
-        //    DeviceProvidersZone push.
+        //    DeviceProvidersZone push. Token retained on `silentPushObserver`
+        //    so deinit can remove it cleanly.
         if !isObservingSilentPush {
             isObservingSilentPush = true
-            NotificationCenter.default.addObserver(
+            self.silentPushObserver = NotificationCenter.default.addObserver(
                 forName: .codexBarProviderZoneDidChange,
                 object: nil,
                 queue: .main)
@@ -160,12 +179,41 @@ final class SyncedUsageData {
         }
     }
 
+    // MARK: - Refresh coalescer
+
+    /// Funnel for the two refresh entry points (full fetch + incremental).
+    /// If a refresh is already in flight, just await it instead of starting
+    /// a parallel one — prevents an older delta or fetch from landing on
+    /// top of newer cache state under a silent-push storm.
+    private func coalesceRefresh(_ work: @escaping @MainActor () async -> Void) async {
+        if let inFlight = self.inFlightRefresh {
+            await inFlight.value
+            return
+        }
+        let task = Task { @MainActor in
+            await work()
+        }
+        self.inFlightRefresh = task
+        await task.value
+        // Clear ONLY if the task we just awaited is still the registered
+        // one — a new refresh might have started after ours finished.
+        if self.inFlightRefresh == task {
+            self.inFlightRefresh = nil
+        }
+    }
+
     // MARK: - Full fetch (CKQuery on both zones)
 
     /// Runs a full fetch against BOTH zones, rebuilds the cache from the
     /// result, and republishes. Called on app launch, pull-to-refresh, and
     /// as a fallback when the incremental path errors out.
     func fetchFromCloudKit() async {
+        await self.coalesceRefresh {
+            await self.performFullFetch()
+        }
+    }
+
+    private func performFullFetch() async {
         self.syncStatus = .syncing
 
         // Fire both zone queries in parallel (independent network I/O).
@@ -263,6 +311,12 @@ final class SyncedUsageData {
     /// then republish. Fired from the silent-push observer. Legacy bucket
     /// is NEVER touched by this path.
     func refreshIncremental() async {
+        await self.coalesceRefresh {
+            await self.performIncrementalRefresh()
+        }
+    }
+
+    private func performIncrementalRefresh() async {
         let zoneName = CloudSyncConstants.providerZoneName
         let context = ModelContainerFactory.sharedMainContext()
 

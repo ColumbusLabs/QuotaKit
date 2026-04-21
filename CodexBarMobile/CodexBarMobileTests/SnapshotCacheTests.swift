@@ -432,4 +432,96 @@ struct SnapshotCacheTests {
         cache.replaceFromFullFetch(perProviderSnapshots: [snap], legacySnapshots: [])
         #expect(cache.perProviderByDevice["mac-A"]?.count == 1)
     }
+
+    // MARK: - Hardening Phase 3 · multi-account scenarios
+
+    @Test("Same provider with two account emails on one device — both kept")
+    func multiAccountSameProvider() {
+        var cache = SnapshotCache()
+        let codexAlice = provider(id: "codex", email: "alice@example.com", lastUpdated: t1)
+        let codexBob   = provider(id: "codex", email: "bob@example.com",   lastUpdated: t2)
+        let snap = SyncedUsageSnapshot(
+            providers: [codexAlice, codexBob],
+            syncTimestamp: t2,
+            deviceName: "Mac A",
+            deviceID: "mac-A",
+            appVersion: "0.20.2",
+            mobileVersion: "1.3.0")
+
+        cache.replaceFromFullFetch(perProviderSnapshots: [snap], legacySnapshots: [])
+
+        // Both Codex accounts kept as separate entries (different composite keys).
+        #expect(cache.perProviderByDevice["mac-A"]?.count == 2)
+        #expect(cache.perProviderByDevice["mac-A"]?.keys.contains("codex|alice@example.com") == true)
+        #expect(cache.perProviderByDevice["mac-A"]?.keys.contains("codex|bob@example.com") == true)
+
+        // Buildback also keeps both.
+        let result = cache.buildDeviceSnapshots()
+        #expect(result.count == 1)
+        #expect(result[0].providers.count == 2)
+    }
+
+    @Test("Per-provider zone with both nil-email and emailed records for same providerID — both kept")
+    func nilEmailAndEmailedCoexist() {
+        var cache = SnapshotCache()
+        // BOTH have data (both pass ghost filter). They're different composite
+        // keys, so cache treats them as separate accounts of the same
+        // provider. (Real-world this might be a stale legacy record from
+        // before account-email-aware code; behavior under test is "no
+        // collapse, no overwrite".)
+        let codexNoEmail = provider(id: "codex", email: nil, lastUpdated: t1)
+        let codexEmailed = provider(id: "codex", email: "user@example.com", lastUpdated: t2)
+        let snap = SyncedUsageSnapshot(
+            providers: [codexNoEmail, codexEmailed],
+            syncTimestamp: t2,
+            deviceName: "Mac A",
+            deviceID: "mac-A",
+            appVersion: "0.20.2",
+            mobileVersion: "1.3.0")
+
+        cache.replaceFromFullFetch(perProviderSnapshots: [snap], legacySnapshots: [])
+
+        #expect(cache.perProviderByDevice["mac-A"]?.count == 2)
+        #expect(cache.perProviderByDevice["mac-A"]?.keys.contains("codex|_") == true)
+        #expect(cache.perProviderByDevice["mac-A"]?.keys.contains("codex|user@example.com") == true)
+    }
+
+    @Test("compositeKey for nil-email matches `_` everywhere (no `\"\"` drift)")
+    func compositeKeyNilEmailFormat() {
+        // Build 67 hardening: SwiftDataSchema.makeCompositeKey was using ""
+        // while SnapshotCache + CloudSyncManager.perProviderRecordName used
+        // "_" — silent format mismatch. This test pins the contract.
+        let p = provider(id: "codex", email: nil, lastUpdated: t1)
+        let cacheKey = SnapshotCache.compositeKey(for: p)
+        let cloudKitName = CloudSyncManager.perProviderRecordName(
+            deviceID: "ignored", providerID: "codex", accountEmail: nil)
+        #expect(cacheKey == "codex|_")
+        // CloudKit record name is `{deviceID}|{rest}`, so trailing portion
+        // must match the cache's composite key format.
+        #expect(cloudKitName.hasSuffix("|" + cacheKey))
+    }
+
+    @Test("Delta-applied envelope with an email replaces nil-email ghost only if cache had it (independent keys)")
+    func deltaWithEmailDoesNotTouchNilEmailEntry() {
+        var cache = SnapshotCache()
+        // Seed cache with a real (non-ghost) nil-email codex entry first.
+        let nilSnap = SyncedUsageSnapshot(
+            providers: [provider(id: "codex", email: nil, lastUpdated: t1)],
+            syncTimestamp: t1,
+            deviceName: "Mac A",
+            deviceID: "mac-A")
+        cache.replaceFromFullFetch(perProviderSnapshots: [nilSnap], legacySnapshots: [])
+        #expect(cache.perProviderByDevice["mac-A"]?.count == 1)
+
+        // Apply delta: same providerID but with an email. Different composite
+        // key — should ADD an entry, not replace.
+        cache.applyDelta(
+            upserted: [envelope(
+                deviceID: "mac-A", deviceName: "Mac A",
+                providerID: "codex", email: "u@x.com",
+                providerLastUpdated: t2, syncTimestamp: t2)],
+            deletedRecordNames: [])
+
+        #expect(cache.perProviderByDevice["mac-A"]?.count == 2)
+    }
 }

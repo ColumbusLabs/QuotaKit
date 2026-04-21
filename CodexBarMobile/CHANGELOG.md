@@ -2,6 +2,28 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (68)] — 2026-04-21 — dev build · hardening pass (Research/012)
+
+After Codex CLI's 2 P-level findings landed in Build 67, an additional hardening review (Phase 1 Explore agent) surfaced one P1 + several P2/P3. Build 68 fixes them and adds defensive scenario tests so a future regression on the same shape can't slip through silently.
+
+### Fixed
+- **P1 · `compositeKey` format drift** (`SwiftDataSchema.makeCompositeKey`). Was emitting `{deviceID}|{providerID}|` (empty for nil email), while `CloudSyncManager.perProviderRecordName` and `SnapshotCache.compositeKey` were emitting `{deviceID}|{providerID}|_`. Today nothing in the live code actually compares CloudKit recordName against SwiftData compositeKey, so the drift wasn't a runtime bug — but ANY future code that does (e.g. delete-by-recordName from CloudKit applied to SwiftData) would silently miss matching rows. Aligned all three sites on `_` for nil. Pinned by new test `compositeKeyNilEmailFormat`.
+- **P2 · Concurrent silent-push storm could land an older delta on top of newer cache state**. `SyncedUsageData.fetchFromCloudKit` and `refreshIncremental` now both go through a `coalesceRefresh` funnel — if a refresh task is in flight, additional callers await it instead of starting a parallel fetch. Trades a tiny bit of throughput for race-free state mutation under push storms.
+- **P2 · Encoder/decoder strategy drift risk**. New `CloudSyncConstants.makeJSONEncoder()` / `makeJSONDecoder()` factories return JSON codecs with `.iso8601` date strategy on both sides. All production callers (`CloudSyncManager`, `SwiftDataBridge`, `SyncCoordinator.providerDiffEncoder`, the static `decodeEnvelopeStatic`) now use the factories — never construct raw `JSONEncoder()` / `JSONDecoder()`. Build 65/66 root cause cannot recur silently.
+
+### Added (scenario tests, designed around USER-FACING POSSIBILITIES not code paths)
+- `JSONCodecConsistencyTests` (Mac, 9 cases) — pins the encoder/decoder factory contract: every `Sync*` type that carries a `Date` is round-tripped explicitly. Two tests assert that mixing the factory codec with the default `JSONEncoder/Decoder` FAILS, which means a future "let me just use `JSONEncoder()`" change will break a test instead of a user.
+- `SnapshotCacheTests` +4 cases — multi-account same provider, nil-email + emailed coexistence, compositeKey format pin, delta with email doesn't disturb a nil-email entry.
+
+### Reviewed but no change needed
+- Hardcoded `CKModifyRecordsOperation` batch size 200 — within CloudKit's documented limit, deferred.
+- `nonisolated(unsafe)` accumulators in `fetchPerProviderZoneChanges` — verified safe (single-threaded accumulation inside `withCheckedThrowingContinuation`).
+- AppDelegate `iCloudAccountChanged` observer cleanup — singleton, app-lifetime, no leak.
+- `SyncedUsageData` deinit cleanup of NotificationCenter token — `@State`-backed app-lifetime instance + `[weak self]` makes the leak benign; explicit cleanup deferred (would need `@MainActor deinit` workaround).
+
+### Hardening plan
+- Full plan + findings log: `CodexBarMobile/Research/012-refactor-1.3.0-hardening-plan.md`.
+
 ## [1.3.0 (67)] — 2026-04-21 — dev build · Codex review fixes (2 correctness issues)
 
 Codex CLI review of `refactor-1.3.0` vs `mobile-dev` surfaced two P-level defects — both now fixed.

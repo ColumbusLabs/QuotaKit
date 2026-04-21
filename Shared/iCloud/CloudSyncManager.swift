@@ -140,8 +140,11 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     private let _container: CKContainer?
     private let _privateDatabase: CKDatabase?
     private let cloudKitAvailable: Bool
-    private let encoder = JSONEncoder()
-    private let decoder = JSONDecoder()
+    /// Always go through `CloudSyncConstants.makeJSONEncoder/Decoder` so
+    /// `Date` strategy stays consistent across the codebase. Build 66
+    /// regression originated in a hand-rolled `JSONEncoder()` instance.
+    private let encoder = CloudSyncConstants.makeJSONEncoder()
+    private let decoder = CloudSyncConstants.makeJSONDecoder()
 
     /// The custom record zone where all `DeviceSnapshot` records live.
     /// See class doc-comment for why a custom zone is required.
@@ -163,9 +166,6 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     #endif
 
     private init() {
-        encoder.dateEncodingStrategy = .iso8601
-        decoder.dateDecodingStrategy = .iso8601
-
         // Probe for CloudKit entitlement before touching CKContainer.
         var available = false
         #if os(macOS)
@@ -629,9 +629,8 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             return nil
         }
         guard let json = try? PayloadCompression.decompress(payload) else { return nil }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try? decoder.decode(ProviderUsageEnvelope.self, from: json)
+        return try? CloudSyncConstants.makeJSONDecoder().decode(
+            ProviderUsageEnvelope.self, from: json)
     }
 
     // MARK: - CloudKit Quota Transition Write (Mac side, alert push trigger)

@@ -31,6 +31,34 @@ public enum CloudSyncConstants {
     /// decoding garbage.
     public static let providerPayloadVersion = 1
 
+    // MARK: - JSON codec factories
+    //
+    // ALL CloudKit / SwiftData blob encode-decode in this codebase MUST go
+    // through these factories. The Build 66 root cause was a `JSONEncoder()`
+    // constructed with default `dateEncodingStrategy = .deferredToDate`
+    // (encoded `Date` as `TimeInterval` Double) while the decoder used
+    // `.iso8601` (expected ISO8601 string), so every payload that round-tripped
+    // through the mismatched pair lost its `Date` fields. Centralising the
+    // construction here prevents future drift.
+
+    /// JSONEncoder configured for CodexBar wire formats. Uses ISO8601 dates so
+    /// Mac↔iOS, CloudKit-payload↔SwiftData-blob, and SwiftData-blob↔SwiftData-blob
+    /// round-trips all agree on `Date` representation.
+    public static func makeJSONEncoder() -> JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        return encoder
+    }
+
+    /// JSONDecoder configured for CodexBar wire formats. Pair with
+    /// `makeJSONEncoder()` — never construct `JSONDecoder()` directly for
+    /// CodexBar types.
+    public static func makeJSONDecoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }
+
     /// Legacy zone used by Build 42–49. Kept only so we can delete the stale
     /// `quota-transition-zone-sub` on upgrade; no new records are written here.
     public static let quotaTransitionsZoneName = "QuotaTransitionsZone"

@@ -36,10 +36,10 @@ final class SyncCoordinator {
     private var lastProviderHashes: [String: Int] = [:]
 
     /// Stable encoder used for the per-provider diff. Sorted keys so byte-level
-    /// hashing is insensitive to encoding key order.
+    /// hashing is insensitive to encoding key order. Built on top of the
+    /// project-wide factory so date strategy stays consistent.
     private let providerDiffEncoder: JSONEncoder = {
-        let e = JSONEncoder()
-        e.dateEncodingStrategy = .iso8601
+        let e = CloudSyncConstants.makeJSONEncoder()
         e.outputFormatting = [.sortedKeys]
         return e
     }()

@@ -114,14 +114,19 @@ final class ProviderSnapshotModel {
     }
 
     /// Build the composite unique key. Used by the upsert bridge to look up
-    /// existing rows and by the initializer. Keeping this in one place ensures
-    /// readers and writers agree on the format.
+    /// existing rows and by the initializer. **Format must stay byte-identical
+    /// to `CloudSyncManager.perProviderRecordName` and
+    /// `SnapshotCache.compositeKey` — `"_"` for nil `accountEmail`.** Letting
+    /// these drift means a delete-by-recordName from CloudKit silently misses
+    /// the matching SwiftData row, and any cross-layer key comparison breaks.
+    /// (Codex hardening review on Build 67 surfaced the empty-string-vs-`"_"`
+    /// drift here.)
     static func makeCompositeKey(
         deviceID: String,
         providerID: String,
         accountEmail: String?
     ) -> String {
-        "\(deviceID)|\(providerID)|\(accountEmail ?? "")"
+        "\(deviceID)|\(providerID)|\(accountEmail ?? "_")"
     }
 }
 
