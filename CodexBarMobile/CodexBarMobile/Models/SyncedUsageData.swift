@@ -76,11 +76,8 @@ final class SyncedUsageData {
         self.reader = reader
 
         // P3: hydrate from SwiftData so the Cost tab shows something
-        // immediately on cold start. We seed the hydrated devices into the
-        // cache's LEGACY bucket (not per-provider) because SwiftData doesn't
-        // track zone-of-origin — safest assumption is "legacy", and the
-        // next full fetch will overwrite any devices that turn out to be
-        // authoritative via the new zone.
+        // immediately on cold start. We seed into legacyByDevice bucket —
+        // SwiftData doesn't track zone-of-origin.
         let context = ModelContainerFactory.sharedMainContext()
         if let hydrated = Self.hydrateFromSwiftData(context: context) {
             self.cache.seedFromColdStart(hydrated.devices)
@@ -88,7 +85,7 @@ final class SyncedUsageData {
             return
         }
 
-        // No SwiftData history — try KVS single-device fallback.
+        // KVS fallback for legacy Mac apps.
         if let kvsSnapshot = reader.latestKVSSnapshot() {
             self.cache.seedFromColdStart([kvsSnapshot])
             self.republishFromCache()

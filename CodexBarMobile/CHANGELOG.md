@@ -2,6 +2,36 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (66)] — 2026-04-20 — dev build · fix Usage cold-start blank (two root causes)
+
+User reported Usage tab shows blank on cold start while Cost shows data instantly. After two rounds of wrong diagnosis (TabView lazy, then `.thickMaterial` GPU cost), Build 64/65 diagnostic prints exposed the actual root causes.
+
+### Fixed
+- **Date encoding strategy mismatch in `SwiftDataBridge`.** `upsertProvider` used the default `JSONEncoder` which serialises `Date` as a `TimeInterval` double, while `readAllDeviceSnapshots` configured its decoder with `dateDecodingStrategy = .iso8601` and expected an ISO8601 string. Every `SyncRateWindow` / `SyncBudgetSnapshot.resetsAt` silently failed to decode, `try?` swallowed the throw, and `rateWindows` came back as `[]`. Cost tab was unaffected only because `SyncCostSummary` has no `Date` fields and the user's Claude budget happened to have `resetsAt == nil`. Fix: set `encoder.dateEncodingStrategy = .iso8601` in `SwiftDataBridge.upsertProvider` to match the decoder.
+- **Ghost envelopes in `DeviceProvidersZone`.** Mac-side P4 pushed `ProviderUsageSnapshot`s with `accountEmail == nil` during early app startup (before OAuth / cookies loaded), producing CKRecords with recordName `{deviceID}|{providerID}|_`. Once the provider's account email loaded, subsequent pushes went to a DIFFERENT recordName (`{deviceID}|{providerID}|user@example.com`), leaving the empty "ghost" record behind. The iOS side then upserted both into SwiftData and into the merged view, producing a blank third "codex" card overwriting the real data. Fix: `SnapshotCache.isGhost(...)` drops envelopes where `primary`/`secondary`/`rateWindows`/`costSummary`/`budget`/`statusMessage` are all nil/empty and `isError == false`. Applied in `replaceFromFullFetch` / `applyDelta` / `replacePerProviderFromReplay`.
+- Mac-side preventative fix (skip empty-data pushes to begin with) is a separate follow-up; this defense eliminates the symptom without a Mac rebuild.
+
+### Tests
+- `SnapshotCacheTests` +3 cases: ghost dropped from full fetch, ghost dropped from delta, error-only provider NOT considered ghost.
+
+### Removed
+- Diagnostic prints added in Build 62 / 64 / 65 are all cleaned up.
+
+### Also re-verified
+- `recordName` Queryable index on `DeviceProviderSnapshot` in CloudKit Production schema (user deployed earlier); per-provider zone query now returns `.success(1 devices)` instead of `.error(Field 'recordName' is not marked queryable)`.
+
+## [1.3.0 (65)] — 2026-04-20 — dev build · trace SwiftData rateWindows write/read
+
+Build 64 confirmed SwiftData hydrate returns `rateWindows=0` on every cold start despite fresh full fetch. Build 65 adds prints inside `SwiftDataBridge.upsertProvider` (what gets encoded) and `readAllDeviceSnapshots` (what gets decoded) to find which side drops the data.
+
+## [1.3.0 (64)] — 2026-04-20 — dev build · deeper diagnostic for Usage cold-start blank
+
+User confirmed Build 63's material swap did NOT fix the perceived blank. So the problem isn't GPU-first-frame cost — it's a data-layer asymmetry between Cost and Usage tabs. Adds `[CodexBar Diag]` prints that log:
+- Per-device / per-provider hydrate contents from SwiftData (rateWindows count, costSummary presence, etc.)
+- Which branch `UsageTab.body` and `CostTab.body` take (Onboarding vs EmptyState vs content)
+- `fetchFromCloudKit` entry + per-zone results
+Will be removed once the real root cause is identified.
+
 ## [1.3.0 (63)] — 2026-04-20 — dev build · fix Usage-tab cold-start "blank" via material swap
 
 ### Fixed

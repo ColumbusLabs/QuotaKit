@@ -42,6 +42,30 @@ struct SnapshotCache: Sendable {
     /// which zone is currently authoritative for its providers.
     var deviceMetadata: [String: Metadata] = [:]
 
+    // MARK: - Helpers (ghost filter)
+
+    /// A provider envelope is a "ghost" if it carries NO usable signal —
+    /// no rate windows, no cost, no budget, no error, no status message.
+    /// These records leak into CloudKit from Mac-side early pushes that run
+    /// before a provider's OAuth/cookie/etc. has loaded: `accountEmail` ends
+    /// up `nil` and every data field empty. The Mac later pushes a real
+    /// record with `accountEmail="user@..."` — a DIFFERENT CloudKit
+    /// recordName — so the ghost persists indefinitely.
+    ///
+    /// iOS drops ghosts at reconstruction time so they never reach SwiftData
+    /// or the merge layer. Long-term fix belongs on the Mac side (skip push
+    /// when no data is ready), but this defense eliminates the ghost on
+    /// existing installs without a Mac rebuild.
+    private static func isGhost(_ provider: ProviderUsageSnapshot) -> Bool {
+        provider.primary == nil
+            && provider.secondary == nil
+            && provider.rateWindows.isEmpty
+            && provider.costSummary == nil
+            && provider.budget == nil
+            && !provider.isError
+            && provider.statusMessage == nil
+    }
+
     // MARK: - Mutations
 
     /// Replace the cache contents from a full CKQuery round-trip.
@@ -58,12 +82,15 @@ struct SnapshotCache: Sendable {
 
         // Populate per-provider bucket. Each snapshot represents one device's
         // worth of envelopes. Composite key groups providers within the device.
+        // Ghost records (no rate / cost / budget / error / status) are
+        // dropped — see `isGhost` for rationale.
         for snapshot in perProviderSnapshots {
             guard let deviceID = snapshot.deviceID else { continue }
             var byComposite: [String: ProviderUsageSnapshot] = [:]
-            for provider in snapshot.providers {
+            for provider in snapshot.providers where !Self.isGhost(provider) {
                 byComposite[Self.compositeKey(for: provider)] = provider
             }
+            guard !byComposite.isEmpty else { continue }
             self.perProviderByDevice[deviceID] = byComposite
             self.deviceMetadata[deviceID] = Metadata(
                 deviceName: snapshot.deviceName,
@@ -96,7 +123,7 @@ struct SnapshotCache: Sendable {
         upserted: [ProviderUsageEnvelope],
         deletedRecordNames: [String]
     ) {
-        for envelope in upserted {
+        for envelope in upserted where !Self.isGhost(envelope.provider) {
             var byComposite = self.perProviderByDevice[envelope.deviceID] ?? [:]
             byComposite[Self.compositeKey(for: envelope.provider)] = envelope.provider
             self.perProviderByDevice[envelope.deviceID] = byComposite
@@ -134,7 +161,7 @@ struct SnapshotCache: Sendable {
     /// replay's envelopes.
     mutating func replacePerProviderFromReplay(_ envelopes: [ProviderUsageEnvelope]) {
         self.perProviderByDevice.removeAll(keepingCapacity: true)
-        for envelope in envelopes {
+        for envelope in envelopes where !Self.isGhost(envelope.provider) {
             var byComposite = self.perProviderByDevice[envelope.deviceID] ?? [:]
             byComposite[Self.compositeKey(for: envelope.provider)] = envelope.provider
             self.perProviderByDevice[envelope.deviceID] = byComposite

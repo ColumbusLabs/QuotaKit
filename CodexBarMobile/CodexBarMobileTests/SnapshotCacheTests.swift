@@ -18,10 +18,16 @@ struct SnapshotCacheTests {
         email: String? = nil,
         lastUpdated: Date
     ) -> ProviderUsageSnapshot {
+        // Include a non-empty primary rate window so the provider does NOT
+        // trip the ghost filter — test fixtures represent real providers.
         ProviderUsageSnapshot(
             providerID: id,
             providerName: name ?? id.capitalized,
-            primary: nil,
+            primary: SyncRateWindow(
+                usedPercent: 42.0,
+                windowMinutes: 300,
+                resetsAt: nil,
+                resetDescription: nil),
             secondary: nil,
             accountEmail: email,
             loginMethod: nil,
@@ -306,5 +312,77 @@ struct SnapshotCacheTests {
     func splitRecordNameMalformed() {
         #expect(SnapshotCache.splitRecordName("too|few") == nil)
         #expect(SnapshotCache.splitRecordName("way|too|many|pieces|here") == nil)
+    }
+
+    // MARK: - Ghost filter (Build 66 · bug #2 fix)
+
+    @Test("Ghost envelope (all fields empty) is dropped from per-provider bucket")
+    func ghostEnvelopeDroppedFromFullFetch() {
+        var cache = SnapshotCache()
+        // Mac A wrote two codex records in CloudKit with different accountEmail:
+        // one early (ghost: nil email + no data) and one later (real data).
+        let ghost = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: t1,
+            rateWindows: [])
+        let real = provider(id: "codex", email: "user@example.com", lastUpdated: t3)
+        let fake = SyncedUsageSnapshot(
+            providers: [ghost, real],
+            syncTimestamp: t3,
+            deviceName: "Mac A",
+            deviceID: "mac-A")
+
+        cache.replaceFromFullFetch(perProviderSnapshots: [fake], legacySnapshots: [])
+
+        #expect(cache.perProviderByDevice["mac-A"]?.count == 1)
+        #expect(cache.perProviderByDevice["mac-A"]?.keys.contains("codex|user@example.com") == true)
+        #expect(cache.perProviderByDevice["mac-A"]?.keys.contains("codex|_") == false)
+    }
+
+    @Test("Ghost envelope is dropped from delta apply")
+    func ghostEnvelopeDroppedFromDelta() {
+        var cache = SnapshotCache()
+        let ghostEnv = ProviderUsageEnvelope(
+            deviceID: "mac-A", deviceName: "Mac A",
+            appVersion: nil, mobileVersion: nil,
+            syncTimestamp: t1, notificationPushEnabled: nil,
+            provider: ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil, statusMessage: nil,
+                isError: false,
+                lastUpdated: t1,
+                rateWindows: []))
+        cache.applyDelta(upserted: [ghostEnv], deletedRecordNames: [])
+        #expect(cache.perProviderByDevice["mac-A"] == nil)
+    }
+
+    @Test("Provider with just an error message is NOT a ghost (keep)")
+    func errorProviderNotGhost() {
+        var cache = SnapshotCache()
+        let erroring = ProviderUsageSnapshot(
+            providerID: "claude",
+            providerName: "Claude",
+            primary: nil, secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: "Auth failed",
+            isError: true,
+            lastUpdated: t1,
+            rateWindows: [])
+        let snap = SyncedUsageSnapshot(
+            providers: [erroring], syncTimestamp: t1,
+            deviceName: "Mac A", deviceID: "mac-A")
+        cache.replaceFromFullFetch(perProviderSnapshots: [snap], legacySnapshots: [])
+        #expect(cache.perProviderByDevice["mac-A"]?.count == 1)
     }
 }

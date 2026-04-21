@@ -152,7 +152,14 @@ enum SwiftDataBridge {
             predicate: #Predicate { $0.compositeKey == compositeKey })
 
         // Encode opaque blobs once, reuse for both insert and update paths.
+        // `dateEncodingStrategy = .iso8601` MUST match the decoder in
+        // `readAllDeviceSnapshots` — default strategy encodes `Date` as a
+        // `TimeInterval` double, which the `.iso8601` decoder cannot parse,
+        // silently dropping any `SyncRateWindow`/`SyncBudgetSnapshot` that
+        // contains a non-nil `resetsAt`. Build 65 confirmed this was silently
+        // zeroing out rateWindows on every hydrate.
         let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
         let rateWindowsData = (try? encoder.encode(provider.allRateWindows)) ?? Data("[]".utf8)
         let costSummaryData = provider.costSummary.flatMap { try? encoder.encode($0) }
         let budgetData = provider.budget.flatMap { try? encoder.encode($0) }
