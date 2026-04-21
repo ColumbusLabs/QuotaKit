@@ -37,6 +37,7 @@ Provisioning/
 .vscode/
 .codex/environments/
 .swiftpm-cache/
+.claude/
 
 # Debug/analysis docs
 docs/*-analysis.md
