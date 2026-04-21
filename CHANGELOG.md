@@ -1,29 +1,28 @@
 # Changelog
 
-## 0.20.2 — 2026-04-21 — dev build on refactor-1.3.0
+## 0.20.2 — 2026-04-21
 
-### Fixed
-- **`SyncCoordinator` no longer pushes "ghost" provider envelopes to `DeviceProvidersZone`.** Before the fix, providers built during early app startup (no rate windows / cost / budget / error / status, accountEmail still nil) were pushed as a CKRecord keyed `{deviceID}|{providerID}|_`. Once the provider's accountEmail later populated, subsequent pushes went to a *different* recordName (`{deviceID}|{providerID}|user@...`), so the empty record was never overwritten — it leaked into iOS's per-provider read forever, producing a blank duplicate card. iOS 1.3.0 (66+) ships a defensive filter, but this is the root-cause fix.
-- `SyncCoordinator.isGhostProvider` mirrors `SnapshotCache.isGhost` on the iOS side. Tests: `SyncCoordinatorTests.ghostProviderNotPushedToPerProviderZone`.
+First Sparkle release since 0.20.0. Rolls the internal 0.20.1 milestone (CloudKit per-provider writes + zlib compression) together with the 0.20.2 ghost-record fix. Mac-side companion for the still-in-development iOS 1.3.0; iOS 1.2.0 (58) users remain unaffected because the legacy monolithic zone stays authoritative.
 
-### Notes
-- BUILD_NUMBER stays 55. Not a Sparkle release.
-- The legacy monolithic `DeviceSnapshot` zone still includes the ghost provider entry (so old iOS builds at least see the provider's name), since the legacy single-record overwrites cleanly and never accumulates ghosts.
-
-## 0.20.1 — 2026-04-20 — dev build on refactor-1.3.0
-
-Internal dev build to exercise the iOS 1.3.0 CloudKit sync refactor end-to-end. **Not a public release** (BUILD_NUMBER stays 55; no appcast, no Sparkle OTA). Lives on the `refactor-1.3.0` branch.
-
-### Added
+### Added (bundled from 0.20.1 milestone)
 - **Per-provider CloudKit writes (P4)** — each provider becomes its own `DeviceProviderSnapshot` record in a new `DeviceProvidersZone`, alongside the existing monolithic `DeviceSnapshot` in `DeviceSnapshotsZone`. Payload is zlib-compressed JSON (~10× reduction on dense utilization blobs). `SyncCoordinator` keeps an in-memory hash cache per `(providerID, accountEmail)` so each push only uploads providers whose content actually changed.
 - **Dual-write is additive** — the legacy monolithic zone continues to be authoritative. New-zone write failures (e.g. missing Production schema) degrade gracefully without affecting legacy writes.
 
+### Fixed
+- **`SyncCoordinator` no longer pushes "ghost" provider envelopes to `DeviceProvidersZone`.** Before the fix, providers built during early app startup (no rate windows / cost / budget / error / status, `accountEmail` still nil) were pushed as a CKRecord keyed `{deviceID}|{providerID}|_`. Once the provider's `accountEmail` later populated, subsequent pushes went to a *different* recordName (`{deviceID}|{providerID}|user@...`), so the empty record was never overwritten — it leaked into iOS's per-provider read forever, producing a blank duplicate card. iOS 1.3.0 (66+) ships a defensive filter, but this is the root-cause fix.
+- `SyncCoordinator.isGhostProvider` mirrors `SnapshotCache.isGhost` on the iOS side. Test: `SyncCoordinatorTests.ghostProviderNotPushedToPerProviderZone`.
+
 ### Requires
-- CloudKit Production schema for `DeviceProviderSnapshot` deployed (done 2026-04-20 via Development → Deployments → Deploy Schema Changes).
-- iOS companion 1.3.0 (Build 61+) to consume new-zone data. Older iPhones (1.2.0) ignore the new zone and keep reading the legacy record — no regression.
+- CloudKit Production schema for `DeviceProviderSnapshot` deployed (done 2026-04-20 via CloudKit Dashboard → Deployments → Deploy Schema Changes).
+- iOS companion 1.3.0 (Build 61+) to consume new-zone data. Older iPhones running 1.2.0 ignore the new zone and keep reading the legacy record — no regression.
+
+### Notes
+- CFBundleVersion = `55.2.1.2.0`. `BUILD_NUMBER` bumped `55` → `55.2`: a fork-patch slot reserves the `56` anchor for a future upstream-aligned release.
+- The legacy monolithic `DeviceSnapshot` zone still includes any ghost-provider entries that might exist (so old iOS builds at least see the provider's name), since the legacy single-record overwrites cleanly and never accumulates ghosts.
 
 ### Design
-- Full design: `CodexBarMobile/Research/010-mac-per-provider-cloudkit.md`.
+- `CodexBarMobile/Research/010-mac-per-provider-cloudkit.md`
+- `CodexBarMobile/Research/012-refactor-1.3.0-hardening-plan.md`
 
 ## 0.20.0 — 2026-04-16
 
