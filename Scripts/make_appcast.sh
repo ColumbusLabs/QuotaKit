@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 source "$ROOT/Scripts/load-release-secrets.sh"
+source "$ROOT/Scripts/sparkle_helpers.sh"
 ZIP=${1:?
 "Usage: $0 CodexBar-<ver>.zip"}
 RELEASE_BRANCH=${CODEXBAR_RELEASE_BRANCH:-mobile-dev}

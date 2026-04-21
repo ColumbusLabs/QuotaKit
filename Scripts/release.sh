@@ -6,7 +6,7 @@ cd "$ROOT"
 
 source "$ROOT/version.env"
 source "$ROOT/Scripts/load-release-secrets.sh"
-source "$HOME/Projects/agent-scripts/release/sparkle_lib.sh"
+source "$ROOT/Scripts/sparkle_helpers.sh"
 
 APPCAST="$ROOT/appcast.xml"
 APP_NAME="CodexBar"
@@ -24,8 +24,7 @@ require_clean_worktree
 ensure_changelog_finalized "$MARKETING_VERSION"
 ensure_appcast_monotonic "$APPCAST" "$MARKETING_VERSION" "$BUILD_NUMBER"
 
-swiftformat Sources Tests >/dev/null
-swiftlint --strict
+"$ROOT/Scripts/lint.sh" lint
 swift test
 
 # Note: run this script in the foreground; do not background it so it waits to completion.

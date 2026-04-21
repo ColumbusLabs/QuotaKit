@@ -8,6 +8,7 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 source "$ROOT/Scripts/load-release-secrets.sh"
+source "$ROOT/Scripts/sparkle_helpers.sh"
 VERSION=${1:-$(source "$ROOT/version.env" && echo "$MARKETING_VERSION")}
 APPCAST="${ROOT}/appcast.xml"
 

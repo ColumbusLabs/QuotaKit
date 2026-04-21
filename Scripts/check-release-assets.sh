@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-source "$HOME/Projects/agent-scripts/release/sparkle_lib.sh"
+source "$ROOT/Scripts/sparkle_helpers.sh"
 
 TAG=${1:-$(git describe --tags --abbrev=0)}
 ARTIFACT_PREFIX="CodexBar-"
