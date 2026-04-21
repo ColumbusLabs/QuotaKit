@@ -2,6 +2,20 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (63)] — 2026-04-20 — dev build · fix Usage-tab cold-start "blank" via material swap
+
+### Fixed
+- **Usage tab no longer shows a ~1s blank on cold start.** `ProviderUsageView`'s card background was `.thickMaterial` — the most expensive material in the system (large Gaussian blur radius + heavy tint + independent GPU compositing pass per card). On first render after kill+relaunch, GPU setup for every card's thick material blocked the first frame ~1s. Changed to `.ultraThinMaterial` to match the rest of the app (`CostMetricCard`, `BudgetProgressView`, `ContentView`'s Cost dashboard, `ProviderDetailView`, `UtilizationAggregateView`). Verified via `[CodexBar Timing]` diagnostic prints (Build 62): data was always in memory at body time (`providers=2` within 0.238s of init), the delay was purely GPU first-frame compositing.
+
+### Investigation
+- `git blame` showed the `.thickMaterial` was introduced in commit `408ce6f25` (2026-03-19) with unrelated message "Fix mobile metrics and release notes", replacing the original `.regularMaterial + glassEffect` pair. No design discussion recorded; bundled with 5 other unrelated file changes. Cost-side cards (`CostMetricCard` etc.) were never changed to match — the asymmetry was accidental drift, not a deliberate visual choice.
+
+### Removed
+- The `[CodexBar Timing]` diagnostic prints added in Build 62 (reverted now that the root cause is confirmed and fixed).
+
+### Visual impact
+- On CodexBar's solid `systemGroupedBackground`, `.thickMaterial` and `.ultraThinMaterial` are visually indistinguishable (user inspection confirms). No user-visible change to card appearance.
+
 ## [1.3.0 (62)] — 2026-04-20 — dev build · diagnostic timing prints
 
 Non-functional. Adds `[CodexBar Timing]` print lines in `SyncedUsageData.init`, `UsageTab.body`, `ProviderListView.body`, and per-card `onAppear` so I can measure the "Usage tab blank ~1–2s on cold start" observation. To be removed once the root cause is confirmed.

@@ -177,11 +177,22 @@ private enum MobilePersonalInfoRedactor {
     }
 }
 
-/// iOS 26: Liquid Glass card. Older: regular material rounded rect.
+/// Unified with Cost tab's card style — `.ultraThinMaterial` on all iOS versions.
+///
+/// Commit `408ce6f25` (2026-03-19) had drive-by replaced the original
+/// `.regularMaterial + glassEffect` pair with `.thickMaterial`. On a solid
+/// `systemGroupedBackground`, material thickness is visually indistinguishable
+/// (verified by user inspection 2026-04-20), but `.thickMaterial` costs
+/// significantly more on first-frame GPU compositing — large Gaussian blur
+/// radius, heavier tint overlay, independent compositing pass per card.
+///
+/// Matching Cost's `.ultraThinMaterial` (`CostMetricCard.swift:38`,
+/// `ContentView.swift:563,641`, `BudgetProgressView.swift:57`) cuts the
+/// Usage-tab first-render cost users perceived as ~1s blank after cold start.
 private struct ProviderCardBackgroundModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 

@@ -73,7 +73,6 @@ final class SyncedUsageData {
     // MARK: - Lifecycle
 
     init(reader: CloudSyncReader = CloudSyncReader()) {
-        let t0 = CFAbsoluteTimeGetCurrent()
         self.reader = reader
 
         // P3: hydrate from SwiftData so the Cost tab shows something
@@ -83,13 +82,9 @@ final class SyncedUsageData {
         // next full fetch will overwrite any devices that turn out to be
         // authoritative via the new zone.
         let context = ModelContainerFactory.sharedMainContext()
-        let tAfterContext = CFAbsoluteTimeGetCurrent()
-        print("[CodexBar Timing] SyncedUsageData.init ctx ready Δ=\(String(format: "%.3fs", tAfterContext - t0))")
         if let hydrated = Self.hydrateFromSwiftData(context: context) {
             self.cache.seedFromColdStart(hydrated.devices)
             self.republishFromCache()
-            let t1 = CFAbsoluteTimeGetCurrent()
-            print("[CodexBar Timing] SyncedUsageData.init done hydrate=\(hydrated.devices.count) devices providers=\(self.snapshot?.providers.count ?? 0) total=\(String(format: "%.3fs", t1 - t0))")
             return
         }
 
@@ -98,7 +93,6 @@ final class SyncedUsageData {
             self.cache.seedFromColdStart([kvsSnapshot])
             self.republishFromCache()
         }
-        print("[CodexBar Timing] SyncedUsageData.init done (no SwiftData, KVS only) total=\(String(format: "%.3fs", CFAbsoluteTimeGetCurrent() - t0))")
     }
 
     /// Reads SwiftData's per-device rows + the standard merge. Returns nil
