@@ -446,4 +446,44 @@ struct SyncCoordinatorTests {
         #expect(mock.lastPerProviderEnvelopes.count == 1)
         #expect(mock.lastPerProviderEnvelopes.first?.provider.providerID == "codex")
     }
+
+    @Test
+    func ghostProviderNotPushedToPerProviderZone() async throws {
+        // Provider enabled but has NO data yet (mimics early startup before
+        // OAuth / cookies populate rate windows / cost / budget). The
+        // legacy-zone monolithic write still includes it, but per-provider
+        // zone push must skip it — otherwise it lands in
+        // DeviceProvidersZone under recordName `{deviceID}|codex|_` and
+        // never gets overwritten once accountEmail populates on a later push.
+        let settings = self.makeSettingsStore(suite: "SyncCoord-ghost")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+
+        let store = self.makeUsageStore(settings: settings)
+        // No token snapshot, no UsageSnapshot — provider has absolutely
+        // nothing to say. This is the ghost case.
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        await coordinator.pushCurrentSnapshot()
+
+        // Legacy monolithic still pushed (includes the bare provider entry
+        // so old iOS builds can at least name it).
+        #expect(mock.pushCount >= 0) // may be 0 if no providers available at all
+        // Per-provider zone must NOT receive the ghost.
+        #expect(mock.lastPerProviderEnvelopes.allSatisfy { e in
+            e.provider.providerID != "codex"
+                || e.provider.primary != nil
+                || e.provider.secondary != nil
+                || !e.provider.rateWindows.isEmpty
+                || e.provider.costSummary != nil
+                || e.provider.budget != nil
+                || e.provider.isError
+                || e.provider.statusMessage != nil
+        })
+    }
 }

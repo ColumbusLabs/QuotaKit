@@ -204,6 +204,15 @@ final class SyncCoordinator {
     /// Produces the envelopes that should be uploaded this cycle plus the
     /// hash-cache updates to apply on success. Pure function over
     /// `providerSnapshots` and the in-memory hash state.
+    ///
+    /// Ghost providers (no rate / cost / budget / error / status and no
+    /// accountEmail) are filtered here — Mac may build them during early
+    /// startup before OAuth / cookies have loaded. Writing them to
+    /// `DeviceProvidersZone` would produce a CKRecord keyed by
+    /// `{deviceID}|{providerID}|_` which is NEVER overwritten by the later
+    /// real push (that one goes to `...|user@...` — different recordName),
+    /// leaving stale empty records on the server. iOS 1.3.0 has a defensive
+    /// filter too, but skipping here is the root-cause fix.
     private func buildPerProviderDelta(
         from providerSnapshots: [ProviderUsageSnapshot],
         synced: SyncedUsageSnapshot) -> (envelopes: [ProviderUsageEnvelope], hashUpdates: [String: Int])
@@ -212,6 +221,10 @@ final class SyncCoordinator {
         var updates: [String: Int] = [:]
 
         for provider in providerSnapshots {
+            // Skip "ghost" providers — see doc comment.
+            if Self.isGhostProvider(provider) {
+                continue
+            }
             let key = Self.perProviderHashKey(
                 providerID: provider.providerID,
                 accountEmail: provider.accountEmail)
@@ -243,6 +256,19 @@ final class SyncCoordinator {
             updates[key] = hash
         }
         return (envelopes, updates)
+    }
+
+    /// Matches `SnapshotCache.isGhost` on the iOS side: a provider with NO
+    /// usable signal in any field. Mac filter prevents ghost records from
+    /// being created in `DeviceProvidersZone` in the first place.
+    private static func isGhostProvider(_ provider: ProviderUsageSnapshot) -> Bool {
+        provider.primary == nil
+            && provider.secondary == nil
+            && provider.rateWindows.isEmpty
+            && provider.costSummary == nil
+            && provider.budget == nil
+            && !provider.isError
+            && provider.statusMessage == nil
     }
 
     private static func perProviderHashKey(providerID: String, accountEmail: String?) -> String {

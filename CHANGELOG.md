@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.20.2 — 2026-04-21 — dev build on refactor-1.3.0
+
+### Fixed
+- **`SyncCoordinator` no longer pushes "ghost" provider envelopes to `DeviceProvidersZone`.** Before the fix, providers built during early app startup (no rate windows / cost / budget / error / status, accountEmail still nil) were pushed as a CKRecord keyed `{deviceID}|{providerID}|_`. Once the provider's accountEmail later populated, subsequent pushes went to a *different* recordName (`{deviceID}|{providerID}|user@...`), so the empty record was never overwritten — it leaked into iOS's per-provider read forever, producing a blank duplicate card. iOS 1.3.0 (66+) ships a defensive filter, but this is the root-cause fix.
+- `SyncCoordinator.isGhostProvider` mirrors `SnapshotCache.isGhost` on the iOS side. Tests: `SyncCoordinatorTests.ghostProviderNotPushedToPerProviderZone`.
+
+### Notes
+- BUILD_NUMBER stays 55. Not a Sparkle release.
+- The legacy monolithic `DeviceSnapshot` zone still includes the ghost provider entry (so old iOS builds at least see the provider's name), since the legacy single-record overwrites cleanly and never accumulates ghosts.
+
 ## 0.20.1 — 2026-04-20 — dev build on refactor-1.3.0
 
 Internal dev build to exercise the iOS 1.3.0 CloudKit sync refactor end-to-end. **Not a public release** (BUILD_NUMBER stays 55; no appcast, no Sparkle OTA). Lives on the `refactor-1.3.0` branch.
