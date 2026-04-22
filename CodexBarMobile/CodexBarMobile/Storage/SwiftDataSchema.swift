@@ -75,6 +75,11 @@ final class ProviderSnapshotModel {
     var costSummaryData: Data?
     /// JSON-encoded `SyncBudgetSnapshot` — opaque blob, decoded on read.
     var budgetData: Data?
+    /// JSON-encoded `SyncPerplexityCreditSummary` — opaque blob, decoded on
+    /// read. Only populated for `providerID == "perplexity"` when Mac is
+    /// pushing structured credit data (Mac 0.20.3+); nil for every other
+    /// provider and for legacy Mac payloads.
+    var perplexityCreditsData: Data?
 
     @Relationship(deleteRule: .cascade, inverse: \UtilizationEntryModel.provider)
     var utilizationEntries: [UtilizationEntryModel] = []
@@ -93,6 +98,7 @@ final class ProviderSnapshotModel {
         rateWindowsData: Data = Data("[]".utf8),
         costSummaryData: Data? = nil,
         budgetData: Data? = nil,
+        perplexityCreditsData: Data? = nil,
         device: DeviceRecord? = nil
     ) {
         self.compositeKey = Self.makeCompositeKey(
@@ -110,6 +116,7 @@ final class ProviderSnapshotModel {
         self.rateWindowsData = rateWindowsData
         self.costSummaryData = costSummaryData
         self.budgetData = budgetData
+        self.perplexityCreditsData = perplexityCreditsData
         self.device = device
     }
 

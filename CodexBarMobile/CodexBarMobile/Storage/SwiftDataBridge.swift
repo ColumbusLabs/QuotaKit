@@ -160,6 +160,7 @@ enum SwiftDataBridge {
         let rateWindowsData = (try? encoder.encode(provider.allRateWindows)) ?? Data("[]".utf8)
         let costSummaryData = provider.costSummary.flatMap { try? encoder.encode($0) }
         let budgetData = provider.budget.flatMap { try? encoder.encode($0) }
+        let perplexityCreditsData = provider.perplexityCredits.flatMap { try? encoder.encode($0) }
 
         let model: ProviderSnapshotModel
         if let existing = try context.fetch(descriptor).first {
@@ -171,6 +172,7 @@ enum SwiftDataBridge {
             existing.rateWindowsData = rateWindowsData
             existing.costSummaryData = costSummaryData
             existing.budgetData = budgetData
+            existing.perplexityCreditsData = perplexityCreditsData
             existing.device = device
             model = existing
         } else {
@@ -186,6 +188,7 @@ enum SwiftDataBridge {
                 rateWindowsData: rateWindowsData,
                 costSummaryData: costSummaryData,
                 budgetData: budgetData,
+                perplexityCreditsData: perplexityCreditsData,
                 device: device)
             context.insert(created)
             model = created
@@ -290,6 +293,9 @@ enum SwiftDataBridge {
                 let budget = row.budgetData.flatMap {
                     try? decoder.decode(SyncBudgetSnapshot.self, from: $0)
                 }
+                let perplexityCredits = row.perplexityCreditsData.flatMap {
+                    try? decoder.decode(SyncPerplexityCreditSummary.self, from: $0)
+                }
 
                 // Reconstruct utilization history by grouping the flat entry rows
                 // back into series. Sort by series name for stability, and by
@@ -327,7 +333,8 @@ enum SwiftDataBridge {
                     costSummary: costSummary,
                     budget: budget,
                     rateWindows: rateWindows,
-                    utilizationHistory: seriesList.isEmpty ? nil : seriesList))
+                    utilizationHistory: seriesList.isEmpty ? nil : seriesList,
+                    perplexityCredits: perplexityCredits))
             }
 
             // Skip devices that have no provider rows — they're placeholders from

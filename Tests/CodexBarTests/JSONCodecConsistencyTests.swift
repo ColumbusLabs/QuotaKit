@@ -202,4 +202,150 @@ struct JSONCodecConsistencyTests {
         #expect(decoded.provider.lastUpdated == envelope.provider.lastUpdated)
         #expect(decoded.provider.primary?.resetsAt == envelope.provider.primary?.resetsAt)
     }
+
+    // MARK: - Perplexity credits (T3 · iOS 1.3.0)
+
+    @Test("SyncPerplexityCreditSummary round-trips fully populated (both Date fields)")
+    func syncPerplexityCreditSummaryRoundTripFullyPopulated() throws {
+        // Pins the ISO8601 date strategy for the two new Date fields
+        // (`promoExpiresAt`, `renewalAt`) — the Build 66 bug shape. If the
+        // factory codec ever drifts back to `.deferredToDate`, this test
+        // will catch it before it silently drops Perplexity renewal dates
+        // on the wire.
+        let original = SyncPerplexityCreditSummary(
+            recurringTotalCents: 5000,
+            recurringUsedCents: 2500,
+            promoTotalCents: 5000,
+            promoUsedCents: 1000,
+            promoExpiresAt: date1,
+            purchasedTotalCents: 10000,
+            purchasedUsedCents: 0,
+            renewalAt: date2,
+            planName: "Pro",
+            balanceCents: 11500)
+        let encoded = try CloudSyncConstants.makeJSONEncoder().encode(original)
+        let decoded = try CloudSyncConstants.makeJSONDecoder().decode(
+            SyncPerplexityCreditSummary.self, from: encoded)
+        #expect(decoded == original)
+    }
+
+    @Test("SyncPerplexityCreditSummary round-trips with every field nil (free-tier edge case)")
+    func syncPerplexityCreditSummaryRoundTripAllNil() throws {
+        // Free-tier Perplexity account: no recurring, no promo, no purchased,
+        // no renewal, no plan. Decoder must tolerate all-nil without
+        // raising, and encoded output must not produce keys that break the
+        // decoder on round-trip.
+        let original = SyncPerplexityCreditSummary()
+        let encoded = try CloudSyncConstants.makeJSONEncoder().encode(original)
+        let decoded = try CloudSyncConstants.makeJSONDecoder().decode(
+            SyncPerplexityCreditSummary.self, from: encoded)
+        #expect(decoded == original)
+    }
+
+    @Test("ProviderUsageSnapshot round-trips with perplexityCredits populated")
+    func providerUsageSnapshotWithPerplexityCreditsRoundTrip() throws {
+        let credits = SyncPerplexityCreditSummary(
+            recurringTotalCents: 5000,
+            recurringUsedCents: 2500,
+            promoTotalCents: 5000,
+            promoUsedCents: 1000,
+            promoExpiresAt: date1,
+            purchasedTotalCents: nil,
+            purchasedUsedCents: nil,
+            renewalAt: date2,
+            planName: "Pro",
+            balanceCents: 6500)
+        let original = ProviderUsageSnapshot(
+            providerID: "perplexity",
+            providerName: "Perplexity",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "user@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: date1,
+            perplexityCredits: credits)
+        let encoded = try CloudSyncConstants.makeJSONEncoder().encode(original)
+        let decoded = try CloudSyncConstants.makeJSONDecoder().decode(
+            ProviderUsageSnapshot.self, from: encoded)
+        #expect(decoded.perplexityCredits?.renewalAt == original.perplexityCredits?.renewalAt)
+        #expect(decoded.perplexityCredits?.promoExpiresAt == original.perplexityCredits?.promoExpiresAt)
+        #expect(decoded.perplexityCredits?.recurringUsedCents == 2500)
+        #expect(decoded.perplexityCredits?.planName == "Pro")
+    }
+
+    @Test("ProviderUsageSnapshot decodes old Mac payloads (no perplexityCredits key)")
+    func providerUsageSnapshotBackwardCompatDecodesWithoutPerplexityCredits() throws {
+        // Hand-roll the exact JSON shape Mac 0.20.2 produces (pre-T3) —
+        // every known key present, no `perplexityCredits`. iOS 1.3.0
+        // MUST decode this without error and surface `perplexityCredits ==
+        // nil` so the detail view falls back to the generic rate-window
+        // list.
+        let legacyJSON = """
+        {
+          "providerID": "perplexity",
+          "providerName": "Perplexity",
+          "rateWindows": [],
+          "isError": false,
+          "lastUpdated": "2023-11-14T22:13:20Z"
+        }
+        """
+        let data = Data(legacyJSON.utf8)
+        let decoded = try CloudSyncConstants.makeJSONDecoder().decode(
+            ProviderUsageSnapshot.self, from: data)
+        #expect(decoded.providerID == "perplexity")
+        #expect(decoded.perplexityCredits == nil)
+    }
+
+    @Test("Envelope survives encode → zlib → decode with perplexityCredits populated")
+    func envelopeCompressionRoundTripWithPerplexityCredits() throws {
+        // Extends envelopeCompressionRoundTrip to cover the Perplexity
+        // field under the compression path. `perplexityCredits` rides the
+        // same ProviderUsageEnvelope → zlib → CKRecord pipeline as every
+        // other optional — this pins that our new field plays nice with
+        // the existing compression step (not just the JSON step).
+        let credits = SyncPerplexityCreditSummary(
+            recurringTotalCents: 5000,
+            recurringUsedCents: 2500,
+            promoTotalCents: nil,
+            promoUsedCents: nil,
+            promoExpiresAt: nil,
+            purchasedTotalCents: 10000,
+            purchasedUsedCents: 7500,
+            renewalAt: date2,
+            planName: "Max",
+            balanceCents: nil)
+        let provider = ProviderUsageSnapshot(
+            providerID: "perplexity",
+            providerName: "Perplexity",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: date1,
+            perplexityCredits: credits)
+        let envelope = ProviderUsageEnvelope(
+            deviceID: "mac-A",
+            deviceName: "Mac A",
+            appVersion: nil,
+            mobileVersion: nil,
+            syncTimestamp: date1,
+            notificationPushEnabled: nil,
+            provider: provider)
+
+        let encoded = try CloudSyncConstants.makeJSONEncoder().encode(envelope)
+        let compressed = try PayloadCompression.compress(encoded)
+        let decompressed = try PayloadCompression.decompress(compressed)
+        let decoded = try CloudSyncConstants.makeJSONDecoder().decode(
+            ProviderUsageEnvelope.self, from: decompressed)
+
+        #expect(decoded.provider.perplexityCredits?.planName == "Max")
+        #expect(decoded.provider.perplexityCredits?.renewalAt == self.date2)
+        #expect(decoded.provider.perplexityCredits?.purchasedUsedCents == 7500)
+        // Intentionally-nil fields survive as nil (not 0 / not empty string).
+        #expect(decoded.provider.perplexityCredits?.promoTotalCents == nil)
+    }
 }

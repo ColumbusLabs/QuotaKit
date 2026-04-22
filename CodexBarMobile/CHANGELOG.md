@@ -2,6 +2,29 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (71)] — 2026-04-22 — dev build · T3 Perplexity 3-segment credit detail page
+
+Upstream `PerplexityUsageSnapshot` (`Sources/CodexBarCore/Providers/Perplexity/`) exposes three distinct credit pools — monthly recurring, promotional/bonus, on-demand purchased — plus Pro/Max plan inference and a renewal date. Mac's `toUsageSnapshot()` collapses all of that into three generic `UsageSnapshot` rate windows for the legacy pipeline, so iOS sees three flat bars in fallback blue and no pool breakdown. T3 extends the shared sync contract with a structured `SyncPerplexityCreditSummary` field and adds a native stacked-bar detail view.
+
+### Added
+- `Shared/Models/UsageSnapshot.swift`: new `SyncPerplexityCreditSummary` Codable struct (`recurringTotalCents` / `recurringUsedCents` / `promoTotalCents` / `promoUsedCents` / `promoExpiresAt` / `purchasedTotalCents` / `purchasedUsedCents` / `renewalAt` / `planName` / `balanceCents`, all Optional). Amounts in cents to match upstream's raw units; iOS formats for display.
+- `ProviderUsageSnapshot` gains `perplexityCredits: SyncPerplexityCreditSummary?`. All writers default to nil; the custom `init(from:)` uses `decodeIfPresent` so Mac 0.20.2 payloads (no key) continue to decode cleanly with `perplexityCredits == nil`.
+- New `CodexBarMobile/Views/PerplexityCreditsCard.swift`: stacked 3-segment horizontal bar (pool widths proportional to each pool's `*TotalCents`), Pro/Max badge, renewal-date countdown, and a per-pool legend. Rendered only when both `providerID == "perplexity"` and `perplexityCredits != nil`; otherwise falls through to the existing generic rate-window list.
+- `ProviderDetailView.primaryUsageSection` — the switch point that chooses the card vs the legacy list.
+- `ProviderSnapshotModel.perplexityCreditsData: Data?` SwiftData column + `SwiftDataBridge` encode-on-write / decode-on-read passthrough. Keeps the credit breakdown alive across cold starts (matches existing `costSummaryData` / `budgetData` pattern).
+
+### Tests
+- `Tests/CodexBarTests/JSONCodecConsistencyTests.swift` +5 cases:
+  - Fully-populated `SyncPerplexityCreditSummary` round-trip (both Date fields)
+  - All-nil `SyncPerplexityCreditSummary` round-trip (free-tier edge case)
+  - `ProviderUsageSnapshot` with populated `perplexityCredits` round-trip
+  - Backward-compat: hand-rolled legacy JSON (no `perplexityCredits` key) decodes with `perplexityCredits == nil`
+  - `ProviderUsageEnvelope` zlib compression round-trip with `perplexityCredits` populated — covers the full Mac → CloudKit CKRecord → iOS pipeline
+
+### Notes
+- **Mac-side mapping (`SyncCoordinator.swift`) is required for the user-facing feature to light up.** Mac currently discards `PerplexityUsageSnapshot` in `toUsageSnapshot()` before `SyncCoordinator` sees it. A follow-up Mac 0.20.3 Sparkle release needs to add `perplexityUsage: PerplexityUsageSnapshot?` on Mac-local `UsageSnapshot` (mirroring the `zaiUsage` / `minimaxUsage` escape-hatch pattern) and map it into the shared struct. Until then iOS 1.3.0 Perplexity detail page silently falls back to the legacy 3-bar rendering.
+- Research doc: `CodexBarMobile/Research/013-perplexity-detail.md`.
+
 ## [1.3.0 (70)] — 2026-04-22 — dev build · T2 consolidate provider color palette
 
 Provider tint color derivation was duplicated (with subtle drift) across 5 files: `ProviderUsageView.providerColor`, `ProviderDetailView.providerColor`, `UtilizationAggregateView.providerColor(for:)`, `ContentView.providerTint(for:)`, and `CostShareService.providerColor(for:)`. The aggregate view in particular used an exact-match switch with a `.gray` default — every provider not in its explicit 5-case list rendered gray in the utilization charts regardless of what the cards showed. Perplexity + OpenCode Go added in Build 69 would have collapsed into the generic blue fallback in every single site.

@@ -15,8 +15,8 @@ struct ProviderDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // Rate limit cards
-                self.rateLimitSection
+                // Rate limit cards (or Perplexity credit breakdown when available)
+                self.primaryUsageSection
 
                 // Cost summary grid
                 if let cost = self.provider.costSummary,
@@ -46,6 +46,24 @@ struct ProviderDetailView: View {
         }
         .navigationTitle(self.provider.providerName)
         .navigationBarTitleDisplayMode(.large)
+    }
+
+    // MARK: - Primary usage section
+
+    /// Chooses between the Perplexity-specialized credit card and the generic
+    /// rate-window list. Perplexity ships its rich structured breakdown via
+    /// `perplexityCredits` starting Mac 0.20.3 — when that field is present
+    /// we render the stacked 3-segment card; otherwise (every other provider,
+    /// or a pre-0.20.3 Mac client) we fall through to the generic list.
+    @ViewBuilder
+    private var primaryUsageSection: some View {
+        if self.provider.providerID == "perplexity",
+           let credits = self.provider.perplexityCredits
+        {
+            PerplexityCreditsCard(credits: credits, tintColor: self.providerColor)
+        } else {
+            self.rateLimitSection
+        }
     }
 
     // MARK: - Rate Limits
