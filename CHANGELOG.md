@@ -2,25 +2,7 @@
 
 ## 0.20.2 — 2026-04-21
 
-Small patch release for the ongoing **iOS 1.3.0 data-architecture refactor**. All 0.20.0 features (detailed below) are retained unchanged; 0.20.2 adds the Mac-side CloudKit schema changes iOS 1.3.0 needs to ingest, plus a root-cause fix for ghost provider records. No user-visible behavior change on Mac itself.
-
-### Added in 0.20.2 (for iOS 1.3.0 data-architecture refactor)
-- **Per-provider CloudKit writes (P4)** — each provider becomes its own `DeviceProviderSnapshot` record in a new `DeviceProvidersZone`, alongside the existing monolithic `DeviceSnapshot` in `DeviceSnapshotsZone`. Payload is zlib-compressed JSON (~10× reduction on dense utilization blobs). `SyncCoordinator` keeps an in-memory hash cache per `(providerID, accountEmail)` so each push only uploads providers whose content actually changed.
-- **Dual-write is additive** — the legacy monolithic zone continues to be authoritative. New-zone write failures (e.g. missing Production schema) degrade gracefully without affecting legacy writes.
-
-### Fixed in 0.20.2
-- **`SyncCoordinator` no longer pushes "ghost" provider envelopes to `DeviceProvidersZone`.** Before the fix, providers built during early app startup (no rate windows / cost / budget / error / status, `accountEmail` still nil) were pushed as a CKRecord keyed `{deviceID}|{providerID}|_`. Once the provider's `accountEmail` later populated, subsequent pushes went to a *different* recordName (`{deviceID}|{providerID}|user@...`), so the empty record was never overwritten — it leaked into iOS's per-provider read forever, producing a blank duplicate card. iOS 1.3.0 (66+) ships a defensive filter, but this is the root-cause fix.
-
-### Requires
-- CloudKit Production schema for `DeviceProviderSnapshot` deployed.
-- iOS companion 1.3.0 (Build 61+) to consume new-zone data. Older iPhones running 1.2.0 ignore the new zone and keep reading the legacy record — no regression.
-
-### 0.20.2 technical notes
-- CFBundleVersion = `55.2.1.2.0`. `BUILD_NUMBER` bumped `55` → `55.2` via a fork-patch slot that reserves `56` for a future upstream-aligned release.
-
-### Retained from 0.20.0 — upstream Mac features
-
-Everything below is from the 0.20.0 release and is unchanged in 0.20.2.
+Mac-side data-plane support for the ongoing iOS 1.3.0 data-architecture refactor — per-provider CloudKit records, zlib compression, and a ghost-record fix. No user-visible change on Mac; everything below from 0.20.0 still applies.
 
 ### Highlights — upstream 0.20 (Mac)
 - **Codex system account switching** — switch between system accounts/profiles without manually logging out and back in (contribution by @ratulsarna).
@@ -41,7 +23,7 @@ Everything below is from the 0.20.0 release and is unchanged in 0.20.2.
 - Claude: "Avoid Keychain prompts" enabled by default (experimental label removed).
 - Fix alignment of menu chart hover coordinates on macOS.
 
-### Mac — fixes from 0.20.0 (selected)
+### Mac — fixes (selected)
 - Cursor fetch crash path (#663).
 - z.ai 5-hour lane selection.
 - Ollama `__Secure-session` cookie recognition (#707).
@@ -53,25 +35,7 @@ Everything below is from the 0.20.0 release and is unchanged in 0.20.2.
 
 ---
 
-2026-04-21 配合 iOS 1.3.0 数据架构重构的 Mac 端小补丁。0.20.0 的全部功能（下文）保留不变；0.20.2 新增了 iOS 1.3.0 消费所需的 Mac 侧 CloudKit schema 改动，以及一个防止生成幽灵 provider 记录的根因修复。Mac 端用户可见行为没有变化。
-
-### 0.20.2 新增（配合 iOS 1.3.0 数据架构重构）
-- **按 provider 拆分的 CloudKit 写入（P4）** —— 每个 provider 独立成一条 `DeviceProviderSnapshot` 记录，落到新的 `DeviceProvidersZone`，与原来的单条 `DeviceSnapshot`（在 `DeviceSnapshotsZone`）并行。Payload 用 zlib 压缩（密集 utilization 数据约 10× 压缩比）。`SyncCoordinator` 对 `(providerID, accountEmail)` 维护内存 hash 缓存，每次 push 只上传真的变动过的 provider。
-- **双写是增量式的** —— 老的单条 zone 仍是权威数据源。新 zone 写入失败（例如 Production schema 未部署）会静默降级，不影响老流程。
-
-### 0.20.2 修复
-- **`SyncCoordinator` 不再往 `DeviceProvidersZone` 推送「幽灵」provider envelope。** 修复前，App 早期启动阶段构建出的 provider（没有 rate windows / cost / budget / error / status，`accountEmail` 还是 nil）会被推成一条 recordName 为 `{deviceID}|{providerID}|_` 的 CKRecord。之后 `accountEmail` 到位再 push 时 recordName 变成 `{deviceID}|{providerID}|user@...` —— **是另一条 CKRecord**，空记录永远不会被覆盖，在 iOS 的 per-provider 读取路径里一直以一张空重复卡片的形态残留。iOS 1.3.0 (66+) 已经加了防御性过滤，这里是从源头修。
-
-### 依赖
-- `DeviceProviderSnapshot` 在 CloudKit Production schema 已部署。
-- iOS 伴侣 1.3.0 (Build 61+) 才能消费新 zone 的数据。老 iPhone 上 1.2.0 会忽略新 zone、继续读老单条记录 —— 无回归。
-
-### 0.20.2 技术备注
-- CFBundleVersion = `55.2.1.2.0`。`BUILD_NUMBER` 从 `55` → `55.2`：fork-patch 位预留 `56` 给未来对齐上游的发布。
-
-### 保留自 0.20.0 —— 上游 Mac 功能
-
-以下内容全部沿袭自 0.20.0，在 0.20.2 中保持不变。
+2026-04-21 配合 iOS 1.3.0 数据架构重构的 Mac 端数据层补丁 —— 按 provider 拆分的 CloudKit 记录、zlib 压缩，以及一个幽灵记录修复。Mac 端用户可见行为不变；下面 0.20.0 的内容全部继续适用。
 
 ### 亮点 — 上游 0.20（Mac）
 - **Codex 系统账号切换** —— 不用手动登出再登入即可切换系统账号/profile（@ratulsarna 贡献）。
@@ -89,10 +53,10 @@ Everything below is from the 0.20.0 release and is unchanged in 0.20.2.
 
 ### Mac — 菜单 & 设置
 - Codex：切换系统级 Codex 账号、将 managed 账号晋升为 live system 的 UI。
-- Claude：「避免 Keychain 弹窗」改为默认开启（不再是 experimental）。
+- Claude："避免 Keychain 弹窗" 改为默认开启（不再是 experimental）。
 - 修复 macOS 上菜单栏图表 hover 坐标对齐。
 
-### Mac — 来自 0.20.0 的修复（节选）
+### Mac — 修复（节选）
 - Cursor 抓取崩溃路径（#663）。
 - z.ai 5 小时额度通道选择。
 - Ollama `__Secure-session` cookie 识别（#707）。
@@ -101,10 +65,6 @@ Everything below is from the 0.20.0 release and is unchanged in 0.20.2.
 - 电量回归修复（#708、#684）。
 - macOS 26 RenderBox Metal 着色器导致的菜单栏图标不显示（#677）。
 - Claude CLI well-known 路径 fallback 优先级（#675）。
-
-### 设计文档
-- `CodexBarMobile/Research/010-mac-per-provider-cloudkit.md`
-- `CodexBarMobile/Research/012-refactor-1.3.0-hardening-plan.md`
 
 ## 0.20.0 — 2026-04-16
 
