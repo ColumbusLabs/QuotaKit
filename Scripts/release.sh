@@ -61,7 +61,7 @@ phase1() {
 
   local KEY_FILE NOTES_FILE
   KEY_FILE=$(clean_key "$SPARKLE_PRIVATE_KEY_FILE")
-  NOTES_FILE=$(mktemp /tmp/codexbar-notes.XXXXXX.md)
+  NOTES_FILE=$(mktemp /tmp/codexbar-notes.XXXXXX)
   trap 'rm -f "$KEY_FILE" "$NOTES_FILE"' EXIT
 
   probe_sparkle_key "$KEY_FILE"
