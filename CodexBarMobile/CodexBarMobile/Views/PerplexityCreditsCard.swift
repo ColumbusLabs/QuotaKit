@@ -145,9 +145,15 @@ struct PerplexityCreditsCard: View {
         return out
     }
 
-    // MARK: - Formatting helpers (internal for testability)
+    // MARK: - Formatting helpers
+    //
+    // `private` is mandatory here: the `PoolSegment.Kind` parameter is a
+    // private nested type, so any caller with broader visibility would be
+    // referencing a symbol it can't see. Swift's archive compiler rejects
+    // mixed-access signatures even when `swift test`/`swift build` on the
+    // Mac Package target doesn't (Xcode iOS archive surfaces it).
 
-    static func poolLabel(_ kind: PoolSegment.Kind) -> String {
+    private static func poolLabel(_ kind: PoolSegment.Kind) -> String {
         switch kind {
         case .recurring: String(localized: "Monthly credits")
         case .promo: String(localized: "Bonus credits")
@@ -155,7 +161,7 @@ struct PerplexityCreditsCard: View {
         }
     }
 
-    static func legendDotOpacity(for kind: PoolSegment.Kind) -> Double {
+    private static func legendDotOpacity(for kind: PoolSegment.Kind) -> Double {
         switch kind {
         case .recurring: 1.0
         case .promo: 0.78
@@ -166,7 +172,7 @@ struct PerplexityCreditsCard: View {
     /// Cents → human-readable credit count: `"12,345 / 50,000"`. Perplexity's
     /// API uses "cents" as the raw credit count (1 credit == 1 cent
     /// internally) — we display the integer without a currency symbol.
-    static func formatCreditsUsed(_ used: Double, _ total: Double) -> String {
+    private static func formatCreditsUsed(_ used: Double, _ total: Double) -> String {
         let u = Int(used.rounded())
         let t = Int(total.rounded())
         return "\(u.formatted(.number)) / \(t.formatted(.number))"

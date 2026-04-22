@@ -2,6 +2,16 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (75)] — 2026-04-22 — dev build · fix iOS archive: private-type leak in PerplexityCreditsCard
+
+Build 74 archived on Mac CI (`swift test` on Package.swift Mac target) without issue, but `xcodebuild archive` against `CodexBarMobile.xcodeproj` for `iphoneos` failed with two compiler errors — `PerplexityCreditsCard.poolLabel(_:)` and `legendDotOpacity(for:)` were declared `static` (implicit internal) with a `PoolSegment.Kind` parameter whose enclosing struct is `private`. Swift archive compilation rejects the mixed-access signature even when the same code compiles fine under `swift build` on Mac because the Mac package target never touches this iOS-only view.
+
+### Fixed
+- `CodexBarMobile/Views/PerplexityCreditsCard.swift`: `poolLabel` / `legendDotOpacity` / `formatCreditsUsed` now explicitly `private static`. These helpers are implementation details of the card view; no external caller (or test) referenced them.
+
+### Process improvement note
+- CI today only covers `swift test` against the SPM Package target, which is Mac-scoped. iOS-archive-specific errors (private-type leaks, provisioning profile issues, iOS-only API usage) are only caught by `xcodebuild archive` against `CodexBarMobile.xcodeproj`. Worth adding to the CI workflow before next release.
+
 ## [1.3.0 (74)] — 2026-04-22 — dev build · Codex review fix: preserve perplexityCredits through multi-device merge
 
 Codex CLI review (gpt-5.3-codex) on `feature/1.3.0-provider-alignment` vs `mobile-dev` surfaced one P2 regression risk: `ProviderUsageSnapshot.perplexityCredits` was added with a default-nil initializer parameter in Build 71 so that existing constructors would keep compiling. But `CloudSyncReader.mergeProviderEntries` (line 202) never passed the field through — so a user with ≥2 Macs on their iCloud account would see the merged Perplexity snapshot arrive with `perplexityCredits == nil`, making the iOS detail view regress to the legacy 3-bar fallback even when Mac 0.20.3 was sending structured data.
