@@ -2,25 +2,107 @@
 
 ## 0.20.2 — 2026-04-21
 
-First Sparkle release since 0.20.0. Rolls the internal 0.20.1 milestone (CloudKit per-provider writes + zlib compression) together with the 0.20.2 ghost-record fix. Mac-side companion for the still-in-development iOS 1.3.0; iOS 1.2.0 (58) users remain unaffected because the legacy monolithic zone stays authoritative.
+Small patch release for the ongoing **iOS 1.3.0 data-architecture refactor**. All 0.20.0 features (detailed below) are retained unchanged; 0.20.2 adds the Mac-side CloudKit schema changes iOS 1.3.0 needs to ingest, plus a root-cause fix for ghost provider records. No user-visible behavior change on Mac itself.
 
-### Added (bundled from 0.20.1 milestone)
+### Added in 0.20.2 (for iOS 1.3.0 data-architecture refactor)
 - **Per-provider CloudKit writes (P4)** — each provider becomes its own `DeviceProviderSnapshot` record in a new `DeviceProvidersZone`, alongside the existing monolithic `DeviceSnapshot` in `DeviceSnapshotsZone`. Payload is zlib-compressed JSON (~10× reduction on dense utilization blobs). `SyncCoordinator` keeps an in-memory hash cache per `(providerID, accountEmail)` so each push only uploads providers whose content actually changed.
 - **Dual-write is additive** — the legacy monolithic zone continues to be authoritative. New-zone write failures (e.g. missing Production schema) degrade gracefully without affecting legacy writes.
 
-### Fixed
+### Fixed in 0.20.2
 - **`SyncCoordinator` no longer pushes "ghost" provider envelopes to `DeviceProvidersZone`.** Before the fix, providers built during early app startup (no rate windows / cost / budget / error / status, `accountEmail` still nil) were pushed as a CKRecord keyed `{deviceID}|{providerID}|_`. Once the provider's `accountEmail` later populated, subsequent pushes went to a *different* recordName (`{deviceID}|{providerID}|user@...`), so the empty record was never overwritten — it leaked into iOS's per-provider read forever, producing a blank duplicate card. iOS 1.3.0 (66+) ships a defensive filter, but this is the root-cause fix.
-- `SyncCoordinator.isGhostProvider` mirrors `SnapshotCache.isGhost` on the iOS side. Test: `SyncCoordinatorTests.ghostProviderNotPushedToPerProviderZone`.
 
 ### Requires
-- CloudKit Production schema for `DeviceProviderSnapshot` deployed (done 2026-04-20 via CloudKit Dashboard → Deployments → Deploy Schema Changes).
+- CloudKit Production schema for `DeviceProviderSnapshot` deployed.
 - iOS companion 1.3.0 (Build 61+) to consume new-zone data. Older iPhones running 1.2.0 ignore the new zone and keep reading the legacy record — no regression.
 
-### Notes
-- CFBundleVersion = `55.2.1.2.0`. `BUILD_NUMBER` bumped `55` → `55.2`: a fork-patch slot reserves the `56` anchor for a future upstream-aligned release.
-- The legacy monolithic `DeviceSnapshot` zone still includes any ghost-provider entries that might exist (so old iOS builds at least see the provider's name), since the legacy single-record overwrites cleanly and never accumulates ghosts.
+### 0.20.2 technical notes
+- CFBundleVersion = `55.2.1.2.0`. `BUILD_NUMBER` bumped `55` → `55.2` via a fork-patch slot that reserves `56` for a future upstream-aligned release.
 
-### Design
+### Retained from 0.20.0 — upstream Mac features
+
+Everything below is from the 0.20.0 release and is unchanged in 0.20.2.
+
+### Highlights — upstream 0.20 (Mac)
+- **Codex system account switching** — switch between system accounts/profiles without manually logging out and back in (contribution by @ratulsarna).
+- **Perplexity provider** (PR #606) — recurring, bonus, and purchased-credit tracking; Pro/Max plan detection; browser-cookie auto-import with manual-cookie fallback.
+- **OpenCode Go** — separate provider from OpenCode Zen, with 5-hour / weekly / monthly web usage tracking, widget integration, and browser-cookie support.
+- **Claude token/cost accuracy** — fixes cross-file double counting of subagent JSONL logs and streaming chunk deduplication; adds `claude-sonnet-4-6` pricing.
+
+### Mac — providers & usage
+- Codex: workspace attribution for account labels and same-email multi-workspace accounts.
+- Codex: reconcile live-system and managed accounts by canonical identity, preserve per-account usage/history/dashboard state, OAuth CLI fallback, tighter OpenAI web ownership gating.
+- Codex: normalize weekly-only rate limits across OAuth and CLI/RPC; free-plan accounts render as Weekly instead of a fake Session.
+- Codex: end-to-end refactor into clearer components (CodexDashboardAuthority / CodexAccountReconciliation / CodexIdentity / CodexConsumerProjection / ManagedCodexAccountCoordinator).
+- OpenCode: preserve product separation between Zen and Go; harden cookie/domain behavior for authenticated web fetches.
+- Cost history: merge supported pi session usage into Codex/Claude provider history (#653).
+
+### Mac — menu & settings
+- Codex: UI for switching the system-level Codex account and promoting a managed account into the live system slot.
+- Claude: "Avoid Keychain prompts" enabled by default (experimental label removed).
+- Fix alignment of menu chart hover coordinates on macOS.
+
+### Mac — fixes from 0.20.0 (selected)
+- Cursor fetch crash path (#663).
+- z.ai 5-hour lane selection.
+- Ollama `__Secure-session` cookie recognition (#707).
+- Edge browser cookie import for Codex (#694).
+- Antigravity localhost TLS challenges (#693).
+- Battery-drain mitigations: menu bar updates and OpenAI web extras (#708, #684).
+- Menu bar icon regression on macOS 26 RenderBox Metal shader (#677).
+- Claude CLI well-known path fallback precedence (#675).
+
+---
+
+2026-04-21 配合 iOS 1.3.0 数据架构重构的 Mac 端小补丁。0.20.0 的全部功能（下文）保留不变；0.20.2 新增了 iOS 1.3.0 消费所需的 Mac 侧 CloudKit schema 改动，以及一个防止生成幽灵 provider 记录的根因修复。Mac 端用户可见行为没有变化。
+
+### 0.20.2 新增（配合 iOS 1.3.0 数据架构重构）
+- **按 provider 拆分的 CloudKit 写入（P4）** —— 每个 provider 独立成一条 `DeviceProviderSnapshot` 记录，落到新的 `DeviceProvidersZone`，与原来的单条 `DeviceSnapshot`（在 `DeviceSnapshotsZone`）并行。Payload 用 zlib 压缩（密集 utilization 数据约 10× 压缩比）。`SyncCoordinator` 对 `(providerID, accountEmail)` 维护内存 hash 缓存，每次 push 只上传真的变动过的 provider。
+- **双写是增量式的** —— 老的单条 zone 仍是权威数据源。新 zone 写入失败（例如 Production schema 未部署）会静默降级，不影响老流程。
+
+### 0.20.2 修复
+- **`SyncCoordinator` 不再往 `DeviceProvidersZone` 推送「幽灵」provider envelope。** 修复前，App 早期启动阶段构建出的 provider（没有 rate windows / cost / budget / error / status，`accountEmail` 还是 nil）会被推成一条 recordName 为 `{deviceID}|{providerID}|_` 的 CKRecord。之后 `accountEmail` 到位再 push 时 recordName 变成 `{deviceID}|{providerID}|user@...` —— **是另一条 CKRecord**，空记录永远不会被覆盖，在 iOS 的 per-provider 读取路径里一直以一张空重复卡片的形态残留。iOS 1.3.0 (66+) 已经加了防御性过滤，这里是从源头修。
+
+### 依赖
+- `DeviceProviderSnapshot` 在 CloudKit Production schema 已部署。
+- iOS 伴侣 1.3.0 (Build 61+) 才能消费新 zone 的数据。老 iPhone 上 1.2.0 会忽略新 zone、继续读老单条记录 —— 无回归。
+
+### 0.20.2 技术备注
+- CFBundleVersion = `55.2.1.2.0`。`BUILD_NUMBER` 从 `55` → `55.2`：fork-patch 位预留 `56` 给未来对齐上游的发布。
+
+### 保留自 0.20.0 —— 上游 Mac 功能
+
+以下内容全部沿袭自 0.20.0，在 0.20.2 中保持不变。
+
+### 亮点 — 上游 0.20（Mac）
+- **Codex 系统账号切换** —— 不用手动登出再登入即可切换系统账号/profile（@ratulsarna 贡献）。
+- **Perplexity 服务商**（PR #606）—— recurring / 赠送 / 购买三段式 credit 追踪，Pro/Max 套餐识别，浏览器 cookie 自动导入加手动 cookie 兜底。
+- **OpenCode Go** —— 从 OpenCode Zen 分离出独立 provider，支持 5 小时 / 周 / 月 web 用量追踪、widget、浏览器 cookie。
+- **Claude token/费用修正** —— 修复子 agent JSONL 跨文件重复计数和流式分片去重；新增 `claude-sonnet-4-6` 定价。
+
+### Mac — 服务商 & 用量
+- Codex：账号 label 的 workspace 归属，支持同 email 多 workspace。
+- Codex：用 canonical 身份协调实时与 managed 账号，保留每账号独立用量/历史/dashboard；OAuth CLI 兜底；OpenAI web 所有权收紧。
+- Codex：周限额在 OAuth/CLI/RPC 间归一化，免费账号显示为 Weekly 而非虚假 Session。
+- Codex：端到端重构（CodexDashboardAuthority / CodexAccountReconciliation / CodexIdentity / CodexConsumerProjection / ManagedCodexAccountCoordinator 等）。
+- OpenCode：Zen 与 Go 的产品边界保留；web 认证抓取的 cookie/domain 行为强化。
+- 费用历史：支持将 pi session 用量合并到 Codex/Claude 历史（#653）。
+
+### Mac — 菜单 & 设置
+- Codex：切换系统级 Codex 账号、将 managed 账号晋升为 live system 的 UI。
+- Claude：「避免 Keychain 弹窗」改为默认开启（不再是 experimental）。
+- 修复 macOS 上菜单栏图表 hover 坐标对齐。
+
+### Mac — 来自 0.20.0 的修复（节选）
+- Cursor 抓取崩溃路径（#663）。
+- z.ai 5 小时额度通道选择。
+- Ollama `__Secure-session` cookie 识别（#707）。
+- Edge 浏览器 cookie 导入 for Codex（#694）。
+- Antigravity localhost TLS 握手。
+- 电量回归修复（#708、#684）。
+- macOS 26 RenderBox Metal 着色器导致的菜单栏图标不显示（#677）。
+- Claude CLI well-known 路径 fallback 优先级（#675）。
+
+### 设计文档
 - `CodexBarMobile/Research/010-mac-per-provider-cloudkit.md`
 - `CodexBarMobile/Research/012-refactor-1.3.0-hardening-plan.md`
 
