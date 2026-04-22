@@ -51,7 +51,13 @@ phase1() {
     echo "Skipping swift test locally (CI gates it on every push; set RUN_SWIFT_TEST=1 to run)."
   fi
 
-  "$ROOT/Scripts/sign-and-notarize.sh"
+  if [[ -f "${ROOT}/${RELEASE_ASSET_BASENAME}.zip" \
+     && -f "${ROOT}/${RELEASE_ASSET_BASENAME}.dSYM.zip" ]]; then
+    echo "Reusing existing notarized artifacts (delete them to force a fresh build):"
+    ls -lh "${RELEASE_ASSET_BASENAME}.zip" "${RELEASE_ASSET_BASENAME}.dSYM.zip"
+  else
+    "$ROOT/Scripts/sign-and-notarize.sh"
+  fi
 
   local KEY_FILE NOTES_FILE
   KEY_FILE=$(clean_key "$SPARKLE_PRIVATE_KEY_FILE")
@@ -61,7 +67,7 @@ phase1() {
   probe_sparkle_key "$KEY_FILE"
   extract_notes_from_changelog "$MARKETING_VERSION" "$NOTES_FILE"
 
-  git tag -s -f -m "${RELEASE_TITLE}" "$TAG"
+  git tag -a -f -m "${RELEASE_TITLE}" "$TAG"
   git push -f origin "$TAG"
 
   gh release create "$TAG" \
