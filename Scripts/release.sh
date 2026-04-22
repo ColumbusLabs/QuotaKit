@@ -149,7 +149,11 @@ phase2() {
   fi
 
   check_assets "$TAG" "$ARTIFACT_PREFIX"
-  git push origin --tags
+  # Note: the release tag was already pushed in phase 1
+  # (git push -f origin "$TAG"). Running `git push origin --tags` here
+  # tries to push ALL local tags — including the upstream tag namespace
+  # inherited via `remote add upstream` — which hits conflicts on any
+  # old tag origin doesn't have in the same shape. Skip it.
 
   cat <<EOF
 
