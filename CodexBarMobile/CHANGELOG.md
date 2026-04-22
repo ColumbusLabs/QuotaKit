@@ -2,6 +2,31 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (72)] — 2026-04-22 — dev build · T5 Codex multi-account card UI + ForEach identity fix
+
+Build 23 merged per-device Codex snapshots by `providerID|accountEmail` in `CloudSyncReader.mergeSnapshots`, so two Codex accounts (e.g., one on Mac-A, one on Mac-B) correctly produced two `ProviderUsageSnapshot` entries in the merged output. The cards never reached the user because `ContentView.swift:174` identified rows by `\.providerID` — SwiftUI collapsed the two entries into one view instance, and `accessibilityIdentifier("provider-card-codex")` double-registered on the same element. T5 fixes the identity bug and adds a nil-email ordinal fallback so every disambiguating render path has a unique, human-readable subtitle.
+
+### Fixed
+- **SwiftUI ForEach identity collision.** `ContentView.swift` list now identifies each card by a composite `cardIdentityKey` (`"providerID|accountEmail"`) that matches `mergeSnapshots`'s bucket. Two Codex accounts now render as two distinct cards that animate independently, respect their own navigation destinations, and each own a unique `accessibilityIdentifier`.
+- Accessibility identifiers updated to `provider-card-codex|alice@example.com` style — a UI test or accessibility inspector can now resolve the exact card without ambiguity.
+
+### Added
+- `CodexBarMobile/Models/ProviderUsageSnapshot+Identity.swift`: iOS-only extension exposing `cardIdentityKey` (`"\(providerID)|\(accountEmail ?? "")"`). Kept iOS-scoped because the Mac target doesn't render cards; Shared stays untouched so no Mac re-release is needed for T5.
+- `ProviderUsageView.duplicateOrdinal: Int?`: 1-based ordinal among same-`providerID` siblings. `nil` keeps the pre-T5 single-card subtitle behavior so non-Codex providers render identically.
+- Subtitle selection rule: `email (non-empty) > localized "Codex N" ordinal > nil`. Empty-string email treated as nil for defensive parity with the merger's fallback.
+- `Localizable.xcstrings`: new key `"provider-account-ordinal"` (`%@ %lld` format) across en / zh-Hans / zh-Hant / ja. Plus T3's Perplexity strings (`"Credits"`, `"Monthly credits"`, `"Bonus credits"`, `"Purchased credits"`, `"exp."`) batched in the same update.
+
+### Tests
+- New `CodexBarMobile/CodexBarMobileTests/ProviderUsageViewSubtitleTests.swift` (8 cases):
+  - `cardIdentityKey` shape for present / nil email
+  - Two distinct accounts produce distinct `cardIdentityKey`s
+  - Subtitle rule × 4 branches (single+email / single+nil / multi+email / multi+nil)
+  - Empty-string email treated as nil in the multi-card ordinal fallback
+
+### Deferred (tracked as Branch B follow-up)
+- Workspace-name as a subtitle source. Mac's `ManagedCodexAccount` / `ObservedSystemCodexAccount` carry `workspaceLabel` but `SyncCoordinator` strips it before push. Adding `workspaceName` to `ProviderUsageSnapshot` would be a Shared-contract change + Mac SyncCoordinator update — coordinated with a Mac release window. For now, ordinal fallback is sufficient to disambiguate nil-email multi-card scenarios.
+- Research doc: `CodexBarMobile/Research/014-codex-multi-account-ios.md`.
+
 ## [1.3.0 (71)] — 2026-04-22 — dev build · T3 Perplexity 3-segment credit detail page
 
 Upstream `PerplexityUsageSnapshot` (`Sources/CodexBarCore/Providers/Perplexity/`) exposes three distinct credit pools — monthly recurring, promotional/bonus, on-demand purchased — plus Pro/Max plan inference and a renewal date. Mac's `toUsageSnapshot()` collapses all of that into three generic `UsageSnapshot` rate windows for the legacy pipeline, so iOS sees three flat bars in fallback blue and no pool breakdown. T3 extends the shared sync contract with a structured `SyncPerplexityCreditSummary` field and adds a native stacked-bar detail view.

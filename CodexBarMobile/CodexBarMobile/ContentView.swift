@@ -171,14 +171,31 @@ private struct ProviderListView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
-                ForEach(self.snapshot.providers, id: \.providerID) { provider in
+                // Pre-compute the per-providerID siblings-count lookup once.
+                // `mergeSnapshots` on iCloud side already splits multi-account
+                // Codex (or anything else with distinct accountEmails) into
+                // separate `ProviderUsageSnapshot` entries — but previously
+                // we used `\.providerID` as the ForEach identity, which
+                // collapsed duplicates back into one view instance. Switch
+                // to the composite key that matches `mergeSnapshots`'s bucket.
+                let countsByProviderID = Dictionary(
+                    grouping: self.snapshot.providers, by: \.providerID
+                ).mapValues(\.count)
+                ForEach(self.snapshot.providers, id: \.cardIdentityKey) { provider in
+                    let siblingCount = countsByProviderID[provider.providerID] ?? 1
+                    let ordinal: Int? = siblingCount > 1
+                        ? self.snapshot.providers
+                            .filter { $0.providerID == provider.providerID }
+                            .firstIndex(where: { $0.cardIdentityKey == provider.cardIdentityKey })
+                            .map { $0 + 1 }
+                        : nil
                     NavigationLink {
                         ProviderDetailView(provider: provider)
                     } label: {
-                        ProviderUsageView(provider: provider)
+                        ProviderUsageView(provider: provider, duplicateOrdinal: ordinal)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("provider-card-\(provider.providerID)")
+                    .accessibilityIdentifier("provider-card-\(provider.cardIdentityKey)")
                 }
 
                 // Sync status at scroll bottom
