@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.20.3 — 2026-04-22
+
+Mac-side companion for iOS 1.3.0's new Perplexity detail page — propagates the rich per-pool credit breakdown that was previously discarded on Mac before reaching iOS. No user-visible change on Mac; everything below from 0.20.2 / 0.20.0 still applies.
+
+### Added
+- `Sources/CodexBarCore/UsageFetcher.swift`: `UsageSnapshot.perplexityUsage: PerplexityUsageSnapshot?` (mirrors the existing `zaiUsage` / `minimaxUsage` / `openRouterUsage` escape-hatch pattern). Not persisted — fetched fresh each cycle, like the other per-provider rich snapshots.
+- `Sources/CodexBarCore/Providers/Perplexity/PerplexityUsageSnapshot.swift`: `toUsageSnapshot()` now passes `perplexityUsage: self` through so the structured fields (`recurringTotal/Used`, `promoTotal/Used`, `purchasedTotal/Used`, `balanceCents`, `renewalDate`, `promoExpiration`, derived `planName`) survive past the old lossy collapse into 3 generic rate windows.
+- `Sources/CodexBar/Sync/SyncCoordinator.swift`: when pushing a Perplexity provider snapshot, maps `snapshot.perplexityUsage` into the new shared `SyncPerplexityCreditSummary` field on `ProviderUsageSnapshot`. Zero-valued pools map to nil (not zero) so iOS can distinguish "no pool" from "empty pool" and hide the no-pool segment entirely.
+
+### Requires
+- iOS companion 1.3.0 (Build 71+) to render the 3-segment credit card. Older iPhones on 1.2.0 decode the new `perplexityCredits` field as nil (backward-compat `decodeIfPresent`) and continue to render the legacy 3 rate-window bars — no regression.
+
+### Notes
+- CFBundleVersion = `55.3.1.2.0`. `BUILD_NUMBER` bumped `55.2` → `55.3` via the fork-patch slot; reserves `56` for a future upstream-aligned release.
+- Mac user-facing behavior is unchanged — the `toUsageSnapshot()` return value still collapses the same 3 rate windows into the menu bar / preferences pane UI. The new pass-through field only affects the iCloud sync payload.
+
 ## 0.20.2 — 2026-04-21
 
 Mac-side data-plane support for the ongoing iOS 1.3.0 data-architecture refactor — per-provider CloudKit records, zlib compression, and a ghost-record fix. No user-visible change on Mac; everything below from 0.20.0 still applies.

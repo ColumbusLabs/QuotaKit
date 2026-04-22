@@ -145,6 +145,31 @@ final class SyncCoordinator {
                 print("[CodexBar Sync] \(provider.rawValue): no utilization history")
             }
 
+            // Map Perplexity's rich structured credit breakdown (recurring /
+            // promo / purchased pools, Pro/Max plan, renewal date) into
+            // `SyncPerplexityCreditSummary` so iOS 1.3.0 can render the
+            // stacked 3-segment card. Only populated for Perplexity —
+            // stays nil for every other provider. Upstream publishes zero
+            // values for empty pools; we map those to nil so iOS can
+            // distinguish "no pool" from "empty pool" and hide the
+            // no-pool segment entirely.
+            let perplexityCredits: SyncPerplexityCreditSummary? = {
+                guard provider == .perplexity,
+                      let p = snapshot?.perplexityUsage
+                else { return nil }
+                return SyncPerplexityCreditSummary(
+                    recurringTotalCents: p.recurringTotal > 0 ? p.recurringTotal : nil,
+                    recurringUsedCents: p.recurringTotal > 0 ? p.recurringUsed : nil,
+                    promoTotalCents: p.promoTotal > 0 ? p.promoTotal : nil,
+                    promoUsedCents: p.promoTotal > 0 ? p.promoUsed : nil,
+                    promoExpiresAt: p.promoExpiration,
+                    purchasedTotalCents: p.purchasedTotal > 0 ? p.purchasedTotal : nil,
+                    purchasedUsedCents: p.purchasedTotal > 0 ? p.purchasedUsed : nil,
+                    renewalAt: p.renewalDate,
+                    planName: p.planName,
+                    balanceCents: p.balanceCents)
+            }()
+
             let providerSnapshot = ProviderUsageSnapshot(
                 providerID: provider.rawValue,
                 providerName: meta?.displayName ?? provider.rawValue.capitalized,
@@ -158,7 +183,8 @@ final class SyncCoordinator {
                 costSummary: costSummary,
                 budget: budgetSnap,
                 rateWindows: rateWindows,
-                utilizationHistory: utilizationHistory)
+                utilizationHistory: utilizationHistory,
+                perplexityCredits: perplexityCredits)
 
             providerSnapshots.append(providerSnapshot)
         }
