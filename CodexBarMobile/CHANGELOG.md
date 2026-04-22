@@ -2,6 +2,22 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (73)] — 2026-04-22 — dev build · T6 Subscription Utilization compatibility with Perplexity / OpenCode Go
+
+Perplexity and OpenCode Go don't emit `utilizationHistory` (Perplexity surfaces three credit pools instead; OpenCode Go reports flat rate windows). The Cost-tab aggregate chart iterates `provider.utilizationHistory` and was already `compactMap`-gated on non-nil, but there were zero tests proving the guard actually trips for these two providers. T6 pins the behavior so a future refactor can't reintroduce a force-unwrap that crashes the Cost tab on launch for users with Perplexity enabled.
+
+### Tests
+- New `CodexBarMobile/CodexBarMobileTests/SubscriptionUtilizationCompatTests.swift` (5 cases):
+  - Identity key stays stable across repeated calls with Perplexity + no-history in the mix
+  - Identity key diverges when Perplexity is swapped for OpenCode Go (no accidental collision)
+  - `n=<entries>` suffix correctly excludes zero-history providers from the total count
+  - All-no-history provider list still produces a well-formed, non-empty key (no crash path)
+  - Palette tints for Perplexity / OpenCode Go resolve to distinct, non-gray, non-equal colors (post-T2 consolidation)
+
+### Notes
+- No production-code change — `buildModel`'s `compactMap` + `guard let history = ..., !session.entries.isEmpty else` was already correct. This build locks the contract in unit tests so the invariant is CI-visible.
+- iOS project bump 72 → 73 per discipline rule (every install bumps).
+
 ## [1.3.0 (72)] — 2026-04-22 — dev build · T5 Codex multi-account card UI + ForEach identity fix
 
 Build 23 merged per-device Codex snapshots by `providerID|accountEmail` in `CloudSyncReader.mergeSnapshots`, so two Codex accounts (e.g., one on Mac-A, one on Mac-B) correctly produced two `ProviderUsageSnapshot` entries in the merged output. The cards never reached the user because `ContentView.swift:174` identified rows by `\.providerID` — SwiftUI collapsed the two entries into one view instance, and `accessibilityIdentifier("provider-card-codex")` double-registered on the same element. T5 fixes the identity bug and adds a nil-email ordinal fallback so every disambiguating render path has a unique, human-readable subtitle.
