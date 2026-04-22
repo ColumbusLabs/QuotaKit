@@ -2,6 +2,20 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (69)] — 2026-04-22 — dev build · T1 QuotaProviderList append Perplexity + OpenCode Go
+
+Upstream CodexBar 0.20 introduced two new providers on the Mac side — Perplexity and OpenCode Go. `QuotaProviderList` is the single source of truth for the `(provider, state)` matrix that Mac writes `QuotaTransition` records to and iOS creates `CKRecordZoneSubscription`s for. Without updating both sides, iOS never subscribes to Perplexity / OpenCode Go quota zones — so those providers' quota-depleted / -restored pushes never reach the phone.
+
+### Added
+- `Shared/Notifications/QuotaProviderList.swift`: append `Provider(id: "perplexity", displayName: "Perplexity")` and `Provider(id: "opencodego", displayName: "OpenCode Go")`. Display names verified to match `ProviderDescriptor.metadata.displayName` in `Sources/CodexBarCore/Providers/Perplexity/PerplexityProviderDescriptor.swift` and `.../OpenCodeGo/OpenCodeGoProviderDescriptor.swift` so the iOS alert body reads "Perplexity session quota depleted" / "OpenCode Go 的会话额度已耗尽" on the corresponding locale without any extra mapping.
+- Provider count 23 → 25. Subscription count 46 → 50 (25 providers × 2 states).
+
+### Tests
+- New `Tests/CodexBarTests/QuotaProviderListTests.swift`: pins the provider count, requires Perplexity + OpenCode Go entries with the correct `displayName`, asserts OpenCode Zen + Go stay distinct, forbids duplicate / blank IDs, and verifies `quotaZoneName(providerID:state:)` composes to the exact strings Mac + iOS both depend on. Also spot-checks the derived subscription count stays at 50 so the factor-of-2 state assumption is visible to reviewers.
+
+### Notes
+- iOS 1.2.0 users don't get these two new zones (their `QuotaProviderList` is still 23). They'll miss Perplexity / OpenCode Go pushes until they install 1.3.0, but existing 23 provider pushes keep working without interruption.
+
 ## [1.3.0 (68)] — 2026-04-21 — dev build · hardening pass (Research/012)
 
 After Codex CLI's 2 P-level findings landed in Build 67, an additional hardening review (Phase 1 Explore agent) surfaced one P1 + several P2/P3. Build 68 fixes them and adds defensive scenario tests so a future regression on the same shape can't slip through silently.

@@ -28,7 +28,7 @@ public enum QuotaProviderList {
     }
 
     /// Display names track `ProviderDescriptor.metadata.displayName` on Mac as
-    /// of 2026-04-14. If a Mac-side rename lands later, iOS subscriptions
+    /// of 2026-04-22. If a Mac-side rename lands later, iOS subscriptions
     /// still fire — the body just shows the stale name until the iOS app ships
     /// an update.
     public static let providers: [Provider] = [
@@ -39,12 +39,14 @@ public enum QuotaProviderList {
         Provider(id: "claude", displayName: "Claude"),
         Provider(id: "cursor", displayName: "Cursor"),
         Provider(id: "opencode", displayName: "OpenCode"),
+        Provider(id: "opencodego", displayName: "OpenCode Go"),
         Provider(id: "alibaba", displayName: "Alibaba"),
         Provider(id: "factory", displayName: "Droid"),
         Provider(id: "gemini", displayName: "Gemini"),
         Provider(id: "antigravity", displayName: "Antigravity"),
         Provider(id: "copilot", displayName: "Copilot"),
         Provider(id: "zai", displayName: "z.ai"),
+        Provider(id: "perplexity", displayName: "Perplexity"),
         Provider(id: "minimax", displayName: "MiniMax"),
         Provider(id: "kimi", displayName: "Kimi"),
         Provider(id: "kilo", displayName: "Kilo"),
