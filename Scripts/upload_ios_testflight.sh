@@ -32,7 +32,11 @@ fi
 STAMP=$(date +%Y%m%d-%H%M%S)
 ARCHIVE_PATH="/tmp/CodexBarMobile-$STAMP.xcarchive"
 EXPORT_PATH="/tmp/CodexBarMobile-$STAMP-export"
-OPTIONS_PLIST=$(mktemp /tmp/cbm-export-options.XXXXXX.plist)
+# macOS mktemp only substitutes *trailing* X's, so a `.plist` suffix after
+# the X's would make the whole template literal and collide on the second
+# call. Use the `-t` form + rename, or just drop the extension (Xcode
+# doesn't care about the extension on --exportOptionsPlist).
+OPTIONS_PLIST=$(mktemp /tmp/cbm-export-options.XXXXXX)
 
 cat > "$OPTIONS_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
