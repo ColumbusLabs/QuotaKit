@@ -62,7 +62,10 @@ phase1() {
   local KEY_FILE NOTES_FILE
   KEY_FILE=$(clean_key "$SPARKLE_PRIVATE_KEY_FILE")
   NOTES_FILE=$(mktemp /tmp/codexbar-notes.XXXXXX)
-  trap 'rm -f "$KEY_FILE" "$NOTES_FILE"' EXIT
+  # Eager-expand paths into the trap so the cleanup still works after
+  # phase1's local scope is gone (set -u would otherwise fail on unbound
+  # $KEY_FILE / $NOTES_FILE when the EXIT trap fires post-return).
+  trap "rm -f '$KEY_FILE' '$NOTES_FILE'" EXIT
 
   probe_sparkle_key "$KEY_FILE"
   extract_notes_from_changelog "$MARKETING_VERSION" "$NOTES_FILE"
@@ -121,7 +124,7 @@ phase2() {
 
   local KEY_FILE
   KEY_FILE=$(clean_key "$SPARKLE_PRIVATE_KEY_FILE")
-  trap 'rm -f "$KEY_FILE"' EXIT
+  trap "rm -f '$KEY_FILE'" EXIT
 
   clear_sparkle_caches "$BUNDLE_ID"
 
