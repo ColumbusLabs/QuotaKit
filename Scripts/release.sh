@@ -73,6 +73,18 @@ phase1() {
   git tag -a -f -m "${RELEASE_TITLE}" "$TAG"
   git push -f origin "$TAG"
 
+  # gh allows multiple drafts for the same logical tag (the tag doesn't
+  # actually materialize on GitHub until the draft is published), so a
+  # previous failed phase 1 can leave an orphan draft that sits next to
+  # any fresh one we create. Sweep those out before creating the new draft
+  # so the user doesn't see two "CodexBar 0.20.x" entries in the UI.
+  orphan_ids=$(gh api "repos/o1xhack/CodexBar/releases" \
+    --jq ".[] | select(.tag_name == \"$TAG\" and .draft == true) | .id" 2>/dev/null || true)
+  for id in $orphan_ids; do
+    echo "Cleaning up orphan draft id=$id for $TAG (from a previous phase 1 run)."
+    gh api -X DELETE "repos/o1xhack/CodexBar/releases/$id" >/dev/null
+  done
+
   gh release create "$TAG" \
     "${RELEASE_ASSET_BASENAME}.zip" "${RELEASE_ASSET_BASENAME}.dSYM.zip" \
     --draft \
