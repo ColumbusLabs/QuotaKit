@@ -2,7 +2,10 @@ name: CI
 
 on:
   push:
-    branches: ["*"]
+    # `["*"]` only matches single-level branch names; anything with a slash
+    # (e.g. `feature/…`, `release/…`) is silently skipped. `["**"]` matches
+    # arbitrary-depth branches so every push triggers CI.
+    branches: ["**"]
   pull_request:
 
 jobs:

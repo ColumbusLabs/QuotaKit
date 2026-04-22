@@ -55,6 +55,7 @@ public struct UsageSnapshot: Codable, Sendable {
     public let zaiUsage: ZaiUsageSnapshot?
     public let minimaxUsage: MiniMaxUsageSnapshot?
     public let openRouterUsage: OpenRouterUsageSnapshot?
+    public let perplexityUsage: PerplexityUsageSnapshot?
     public let cursorRequests: CursorRequestUsage?
     public let updatedAt: Date
     public let identity: ProviderIdentitySnapshot?
@@ -80,6 +81,7 @@ public struct UsageSnapshot: Codable, Sendable {
         zaiUsage: ZaiUsageSnapshot? = nil,
         minimaxUsage: MiniMaxUsageSnapshot? = nil,
         openRouterUsage: OpenRouterUsageSnapshot? = nil,
+        perplexityUsage: PerplexityUsageSnapshot? = nil,
         cursorRequests: CursorRequestUsage? = nil,
         updatedAt: Date,
         identity: ProviderIdentitySnapshot? = nil)
@@ -91,6 +93,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.zaiUsage = zaiUsage
         self.minimaxUsage = minimaxUsage
         self.openRouterUsage = openRouterUsage
+        self.perplexityUsage = perplexityUsage
         self.cursorRequests = cursorRequests
         self.updatedAt = updatedAt
         self.identity = identity
@@ -105,6 +108,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.zaiUsage = nil // Not persisted, fetched fresh each time
         self.minimaxUsage = nil // Not persisted, fetched fresh each time
         self.openRouterUsage = try container.decodeIfPresent(OpenRouterUsageSnapshot.self, forKey: .openRouterUsage)
+        self.perplexityUsage = nil // Not persisted, fetched fresh each time
         self.cursorRequests = nil // Not persisted, fetched fresh each time
         self.updatedAt = try container.decode(Date.self, forKey: .updatedAt)
         if let identity = try container.decodeIfPresent(ProviderIdentitySnapshot.self, forKey: .identity) {

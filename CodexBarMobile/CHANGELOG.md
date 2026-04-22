@@ -2,6 +2,120 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (74)] — 2026-04-22 — dev build · Codex review fix: preserve perplexityCredits through multi-device merge
+
+Codex CLI review (gpt-5.3-codex) on `feature/1.3.0-provider-alignment` vs `mobile-dev` surfaced one P2 regression risk: `ProviderUsageSnapshot.perplexityCredits` was added with a default-nil initializer parameter in Build 71 so that existing constructors would keep compiling. But `CloudSyncReader.mergeProviderEntries` (line 202) never passed the field through — so a user with ≥2 Macs on their iCloud account would see the merged Perplexity snapshot arrive with `perplexityCredits == nil`, making the iOS detail view regress to the legacy 3-bar fallback even when Mac 0.20.3 was sending structured data.
+
+### Fixed
+- `CodexBarMobile/iCloud/CloudSyncReader.swift` `mergeProviderEntries`: explicitly forward `base.perplexityCredits` into the rebuilt `ProviderUsageSnapshot`. "Take latest device's credits" matches the identity / loginMethod / statusMessage selection rules (all account-level fields; no cross-device sum semantics apply).
+
+### Tests
+- `CodexBarMobileTests/CloudKitMergeTests.swift` +2 cases:
+  - `perplexityCreditsPreservedInMultiDeviceMerge`: Mac A (older, nil credits) + Mac B (newer, populated credits) → merged snapshot must carry Mac B's credits, not drop them.
+  - `perplexityCreditsPreservedSingleDevice`: trivial single-device passthrough still carries credits (guards against a future "shortcut single-device merge" optimization dropping the field).
+
+### Note
+- This is the kind of silent-regression bug that slips through when a required field is added behind a default-nil parameter. CI / type-checker can't catch it; only end-to-end merge-path tests. Worth revisiting every call site the next time we extend `ProviderUsageSnapshot`.
+
+## [1.3.0 (73)] — 2026-04-22 — dev build · T6 Subscription Utilization compatibility with Perplexity / OpenCode Go
+
+Perplexity and OpenCode Go don't emit `utilizationHistory` (Perplexity surfaces three credit pools instead; OpenCode Go reports flat rate windows). The Cost-tab aggregate chart iterates `provider.utilizationHistory` and was already `compactMap`-gated on non-nil, but there were zero tests proving the guard actually trips for these two providers. T6 pins the behavior so a future refactor can't reintroduce a force-unwrap that crashes the Cost tab on launch for users with Perplexity enabled.
+
+### Tests
+- New `CodexBarMobile/CodexBarMobileTests/SubscriptionUtilizationCompatTests.swift` (5 cases):
+  - Identity key stays stable across repeated calls with Perplexity + no-history in the mix
+  - Identity key diverges when Perplexity is swapped for OpenCode Go (no accidental collision)
+  - `n=<entries>` suffix correctly excludes zero-history providers from the total count
+  - All-no-history provider list still produces a well-formed, non-empty key (no crash path)
+  - Palette tints for Perplexity / OpenCode Go resolve to distinct, non-gray, non-equal colors (post-T2 consolidation)
+
+### Notes
+- No production-code change — `buildModel`'s `compactMap` + `guard let history = ..., !session.entries.isEmpty else` was already correct. This build locks the contract in unit tests so the invariant is CI-visible.
+- iOS project bump 72 → 73 per discipline rule (every install bumps).
+
+## [1.3.0 (72)] — 2026-04-22 — dev build · T5 Codex multi-account card UI + ForEach identity fix
+
+Build 23 merged per-device Codex snapshots by `providerID|accountEmail` in `CloudSyncReader.mergeSnapshots`, so two Codex accounts (e.g., one on Mac-A, one on Mac-B) correctly produced two `ProviderUsageSnapshot` entries in the merged output. The cards never reached the user because `ContentView.swift:174` identified rows by `\.providerID` — SwiftUI collapsed the two entries into one view instance, and `accessibilityIdentifier("provider-card-codex")` double-registered on the same element. T5 fixes the identity bug and adds a nil-email ordinal fallback so every disambiguating render path has a unique, human-readable subtitle.
+
+### Fixed
+- **SwiftUI ForEach identity collision.** `ContentView.swift` list now identifies each card by a composite `cardIdentityKey` (`"providerID|accountEmail"`) that matches `mergeSnapshots`'s bucket. Two Codex accounts now render as two distinct cards that animate independently, respect their own navigation destinations, and each own a unique `accessibilityIdentifier`.
+- Accessibility identifiers updated to `provider-card-codex|alice@example.com` style — a UI test or accessibility inspector can now resolve the exact card without ambiguity.
+
+### Added
+- `CodexBarMobile/Models/ProviderUsageSnapshot+Identity.swift`: iOS-only extension exposing `cardIdentityKey` (`"\(providerID)|\(accountEmail ?? "")"`). Kept iOS-scoped because the Mac target doesn't render cards; Shared stays untouched so no Mac re-release is needed for T5.
+- `ProviderUsageView.duplicateOrdinal: Int?`: 1-based ordinal among same-`providerID` siblings. `nil` keeps the pre-T5 single-card subtitle behavior so non-Codex providers render identically.
+- Subtitle selection rule: `email (non-empty) > localized "Codex N" ordinal > nil`. Empty-string email treated as nil for defensive parity with the merger's fallback.
+- `Localizable.xcstrings`: new key `"provider-account-ordinal"` (`%@ %lld` format) across en / zh-Hans / zh-Hant / ja. Plus T3's Perplexity strings (`"Credits"`, `"Monthly credits"`, `"Bonus credits"`, `"Purchased credits"`, `"exp."`) batched in the same update.
+
+### Tests
+- New `CodexBarMobile/CodexBarMobileTests/ProviderUsageViewSubtitleTests.swift` (8 cases):
+  - `cardIdentityKey` shape for present / nil email
+  - Two distinct accounts produce distinct `cardIdentityKey`s
+  - Subtitle rule × 4 branches (single+email / single+nil / multi+email / multi+nil)
+  - Empty-string email treated as nil in the multi-card ordinal fallback
+
+### Deferred (tracked as Branch B follow-up)
+- Workspace-name as a subtitle source. Mac's `ManagedCodexAccount` / `ObservedSystemCodexAccount` carry `workspaceLabel` but `SyncCoordinator` strips it before push. Adding `workspaceName` to `ProviderUsageSnapshot` would be a Shared-contract change + Mac SyncCoordinator update — coordinated with a Mac release window. For now, ordinal fallback is sufficient to disambiguate nil-email multi-card scenarios.
+- Research doc: `CodexBarMobile/Research/014-codex-multi-account-ios.md`.
+
+## [1.3.0 (71)] — 2026-04-22 — dev build · T3 Perplexity 3-segment credit detail page
+
+Upstream `PerplexityUsageSnapshot` (`Sources/CodexBarCore/Providers/Perplexity/`) exposes three distinct credit pools — monthly recurring, promotional/bonus, on-demand purchased — plus Pro/Max plan inference and a renewal date. Mac's `toUsageSnapshot()` collapses all of that into three generic `UsageSnapshot` rate windows for the legacy pipeline, so iOS sees three flat bars in fallback blue and no pool breakdown. T3 extends the shared sync contract with a structured `SyncPerplexityCreditSummary` field and adds a native stacked-bar detail view.
+
+### Added
+- `Shared/Models/UsageSnapshot.swift`: new `SyncPerplexityCreditSummary` Codable struct (`recurringTotalCents` / `recurringUsedCents` / `promoTotalCents` / `promoUsedCents` / `promoExpiresAt` / `purchasedTotalCents` / `purchasedUsedCents` / `renewalAt` / `planName` / `balanceCents`, all Optional). Amounts in cents to match upstream's raw units; iOS formats for display.
+- `ProviderUsageSnapshot` gains `perplexityCredits: SyncPerplexityCreditSummary?`. All writers default to nil; the custom `init(from:)` uses `decodeIfPresent` so Mac 0.20.2 payloads (no key) continue to decode cleanly with `perplexityCredits == nil`.
+- New `CodexBarMobile/Views/PerplexityCreditsCard.swift`: stacked 3-segment horizontal bar (pool widths proportional to each pool's `*TotalCents`), Pro/Max badge, renewal-date countdown, and a per-pool legend. Rendered only when both `providerID == "perplexity"` and `perplexityCredits != nil`; otherwise falls through to the existing generic rate-window list.
+- `ProviderDetailView.primaryUsageSection` — the switch point that chooses the card vs the legacy list.
+- `ProviderSnapshotModel.perplexityCreditsData: Data?` SwiftData column + `SwiftDataBridge` encode-on-write / decode-on-read passthrough. Keeps the credit breakdown alive across cold starts (matches existing `costSummaryData` / `budgetData` pattern).
+
+### Tests
+- `Tests/CodexBarTests/JSONCodecConsistencyTests.swift` +5 cases:
+  - Fully-populated `SyncPerplexityCreditSummary` round-trip (both Date fields)
+  - All-nil `SyncPerplexityCreditSummary` round-trip (free-tier edge case)
+  - `ProviderUsageSnapshot` with populated `perplexityCredits` round-trip
+  - Backward-compat: hand-rolled legacy JSON (no `perplexityCredits` key) decodes with `perplexityCredits == nil`
+  - `ProviderUsageEnvelope` zlib compression round-trip with `perplexityCredits` populated — covers the full Mac → CloudKit CKRecord → iOS pipeline
+
+### Notes
+- **Mac-side mapping (`SyncCoordinator.swift`) is required for the user-facing feature to light up.** Mac currently discards `PerplexityUsageSnapshot` in `toUsageSnapshot()` before `SyncCoordinator` sees it. A follow-up Mac 0.20.3 Sparkle release needs to add `perplexityUsage: PerplexityUsageSnapshot?` on Mac-local `UsageSnapshot` (mirroring the `zaiUsage` / `minimaxUsage` escape-hatch pattern) and map it into the shared struct. Until then iOS 1.3.0 Perplexity detail page silently falls back to the legacy 3-bar rendering.
+- Research doc: `CodexBarMobile/Research/013-perplexity-detail.md`.
+
+## [1.3.0 (70)] — 2026-04-22 — dev build · T2 consolidate provider color palette
+
+Provider tint color derivation was duplicated (with subtle drift) across 5 files: `ProviderUsageView.providerColor`, `ProviderDetailView.providerColor`, `UtilizationAggregateView.providerColor(for:)`, `ContentView.providerTint(for:)`, and `CostShareService.providerColor(for:)`. The aggregate view in particular used an exact-match switch with a `.gray` default — every provider not in its explicit 5-case list rendered gray in the utilization charts regardless of what the cards showed. Perplexity + OpenCode Go added in Build 69 would have collapsed into the generic blue fallback in every single site.
+
+### Added
+- New `CodexBarMobile/Models/ProviderColorPalette.swift` — single source of truth. `ProviderColorPalette.color(for providerIdentifier:)` accepts either `providerID` (`"opencodego"`) or display name (`"OpenCode Go"`) via a lowercased + space-stripped normalization, so callers in both forms get the same color.
+- Perplexity → brand teal `(0.13, 0.50, 0.55)` ≈ #21808D.
+- OpenCode Go → `.mint` so it stays visually separable from OpenCode Zen's blue when both cards are on screen.
+- Specificity ordering: the `opencodego` match is evaluated **before** the broader `opencode` match. Without the ordering `"opencodego".contains("opencode")` would collapse Go back into Zen's blue — pinned by test `opencodeGoDoesNotCollideWithOpencode`.
+
+### Changed
+- `ProviderUsageView.providerColor` / `ProviderDetailView.providerColor` / `ContentView.providerTint(for:)` / `CostShareService.providerColor(for:)` / `UtilizationAggregateView.providerColor(for:)` — all now delegate to `ProviderColorPalette.color(for:)`. Removed 5 copies of the same (drifted) logic.
+- `CostShareService` call site switched from `row.provider.providerName` to `row.provider.providerID` — ID is the stable canonical form.
+- Aggregate view's legacy `.gray` default for unknown providers replaced by the palette's blue fallback. Net visual change in the utilization chart: providers that were previously gray (e.g. OpenCode, Amp, Kimi, …) now render with their proper color.
+
+### Tests
+- New `CodexBarMobile/CodexBarMobileTests/ProviderColorPaletteTests.swift` (10 cases) — brand-color pinning, specificity ordering, ID-vs-displayName equivalence, empty / unknown fallback. Extends `UIColor` with a `isApproximately(_:tolerance:)` helper so two SwiftUI `Color`s round-tripped through `UIColor` don't fail on float drift.
+
+### Notes
+- Total deleted lines (5 call sites minus new palette + new tests): net +~50 LOC but now there's exactly one matrix to update when the next upstream provider lands.
+
+## [1.3.0 (69)] — 2026-04-22 — dev build · T1 QuotaProviderList append Perplexity + OpenCode Go
+
+Upstream CodexBar 0.20 introduced two new providers on the Mac side — Perplexity and OpenCode Go. `QuotaProviderList` is the single source of truth for the `(provider, state)` matrix that Mac writes `QuotaTransition` records to and iOS creates `CKRecordZoneSubscription`s for. Without updating both sides, iOS never subscribes to Perplexity / OpenCode Go quota zones — so those providers' quota-depleted / -restored pushes never reach the phone.
+
+### Added
+- `Shared/Notifications/QuotaProviderList.swift`: append `Provider(id: "perplexity", displayName: "Perplexity")` and `Provider(id: "opencodego", displayName: "OpenCode Go")`. Display names verified to match `ProviderDescriptor.metadata.displayName` in `Sources/CodexBarCore/Providers/Perplexity/PerplexityProviderDescriptor.swift` and `.../OpenCodeGo/OpenCodeGoProviderDescriptor.swift` so the iOS alert body reads "Perplexity session quota depleted" / "OpenCode Go 的会话额度已耗尽" on the corresponding locale without any extra mapping.
+- Provider count 23 → 25. Subscription count 46 → 50 (25 providers × 2 states).
+
+### Tests
+- New `Tests/CodexBarTests/QuotaProviderListTests.swift`: pins the provider count, requires Perplexity + OpenCode Go entries with the correct `displayName`, asserts OpenCode Zen + Go stay distinct, forbids duplicate / blank IDs, and verifies `quotaZoneName(providerID:state:)` composes to the exact strings Mac + iOS both depend on. Also spot-checks the derived subscription count stays at 50 so the factor-of-2 state assumption is visible to reviewers.
+
+### Notes
+- iOS 1.2.0 users don't get these two new zones (their `QuotaProviderList` is still 23). They'll miss Perplexity / OpenCode Go pushes until they install 1.3.0, but existing 23 provider pushes keep working without interruption.
+
 ## [1.3.0 (68)] — 2026-04-21 — dev build · hardening pass (Research/012)
 
 After Codex CLI's 2 P-level findings landed in Build 67, an additional hardening review (Phase 1 Explore agent) surfaced one P1 + several P2/P3. Build 68 fixes them and adds defensive scenario tests so a future regression on the same shape can't slip through silently.

@@ -475,13 +475,6 @@ struct UtilizationAggregateView: View {
     // MARK: - Colors
 
     private static func providerColor(for id: String) -> Color {
-        switch id {
-        case "claude": Color(red: 0.82, green: 0.55, blue: 0.28)
-        case "codex": .purple
-        case "cursor": .blue
-        case "chatgpt": .green
-        case "gemini": .cyan
-        default: .gray
-        }
+        ProviderColorPalette.color(for: id)
     }
 }

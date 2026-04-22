@@ -128,6 +128,12 @@ extension PerplexityUsageSnapshot {
             secondary: secondary,
             tertiary: tertiary,
             providerCost: nil,
+            // Pass the rich structured snapshot through to iOS via the
+            // escape-hatch pattern (mirrors zaiUsage / minimaxUsage /
+            // openRouterUsage). SyncCoordinator maps it to
+            // `SyncPerplexityCreditSummary` on the wire so iOS 1.3.0 can
+            // render the 3-segment credit card (Mac 0.20.3+ / iOS 1.3.0+).
+            perplexityUsage: self,
             updatedAt: self.updatedAt,
             identity: identity)
     }

@@ -15,8 +15,8 @@ struct ProviderDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // Rate limit cards
-                self.rateLimitSection
+                // Rate limit cards (or Perplexity credit breakdown when available)
+                self.primaryUsageSection
 
                 // Cost summary grid
                 if let cost = self.provider.costSummary,
@@ -46,6 +46,24 @@ struct ProviderDetailView: View {
         }
         .navigationTitle(self.provider.providerName)
         .navigationBarTitleDisplayMode(.large)
+    }
+
+    // MARK: - Primary usage section
+
+    /// Chooses between the Perplexity-specialized credit card and the generic
+    /// rate-window list. Perplexity ships its rich structured breakdown via
+    /// `perplexityCredits` starting Mac 0.20.3 — when that field is present
+    /// we render the stacked 3-segment card; otherwise (every other provider,
+    /// or a pre-0.20.3 Mac client) we fall through to the generic list.
+    @ViewBuilder
+    private var primaryUsageSection: some View {
+        if self.provider.providerID == "perplexity",
+           let credits = self.provider.perplexityCredits
+        {
+            PerplexityCreditsCard(credits: credits, tintColor: self.providerColor)
+        } else {
+            self.rateLimitSection
+        }
     }
 
     // MARK: - Rate Limits
@@ -202,18 +220,7 @@ struct ProviderDetailView: View {
     // MARK: - Helpers
 
     private var providerColor: Color {
-        let id = self.provider.providerID.lowercased()
-        if id.contains("claude") || id.contains("anthropic") {
-            return Color(red: 0.82, green: 0.55, blue: 0.28)
-        } else if id.contains("codex") || id.contains("cursor") {
-            return .purple
-        } else if id.contains("openai") || id.contains("chatgpt") {
-            return .green
-        } else if id.contains("openrouter") {
-            return Color(red: 0.42, green: 0.35, blue: 0.83)
-        } else {
-            return .blue
-        }
+        ProviderColorPalette.color(for: self.provider.providerID)
     }
 
     private func defaultLabel(at index: Int) -> String {

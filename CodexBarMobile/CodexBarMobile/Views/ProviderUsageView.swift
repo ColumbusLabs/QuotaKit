@@ -3,6 +3,10 @@ import SwiftUI
 
 struct ProviderUsageView: View {
     let provider: ProviderUsageSnapshot
+    /// 1-based ordinal among cards sharing this same `providerID`. `nil`
+    /// when this is the only card for its providerID — subtitle then stays
+    /// in its pre-T5 single-card form.
+    var duplicateOrdinal: Int?
     @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidePersonalInfo = false
 
     var body: some View {
@@ -78,12 +82,13 @@ struct ProviderUsageView: View {
             }
 
             HStack(spacing: 8) {
-                if let email = self.provider.accountEmail {
+                if let line = self.subtitleLine() {
                     HStack(spacing: 4) {
                         Image(systemName: "person.circle.fill")
                             .font(.caption)
-                        Text(MobilePersonalInfoRedactor.redactEmail(email, isEnabled: self.hidePersonalInfo))
+                        Text(line)
                             .font(.subheadline)
+                            .accessibilityIdentifier("provider-card-subtitle-\(self.provider.providerID)")
                     }
                     .foregroundStyle(.secondary)
                 }
@@ -107,18 +112,28 @@ struct ProviderUsageView: View {
     // MARK: - Helpers
 
     private var providerColor: Color {
-        let id = self.provider.providerID.lowercased()
-        if id.contains("claude") || id.contains("anthropic") {
-            return Color(red: 0.82, green: 0.55, blue: 0.28)
-        } else if id.contains("codex") || id.contains("cursor") {
-            return .purple
-        } else if id.contains("openai") || id.contains("chatgpt") {
-            return .green
-        } else if id.contains("openrouter") {
-            return Color(red: 0.42, green: 0.35, blue: 0.83)
-        } else {
-            return .blue
+        ProviderColorPalette.color(for: self.provider.providerID)
+    }
+
+    /// Selects the subtitle string under the provider name. Prefers the
+    /// account email (honoring the redactor), falls back to a localized
+    /// ordinal (`"Codex 2"`) when email is nil AND this card is one of
+    /// multiple for the same `providerID`, otherwise returns nil so the
+    /// single-card layout stays minimal.
+    ///
+    /// Exposed as `internal` (no `private`) so unit tests can pin the
+    /// selection rule without going through SwiftUI's view hierarchy.
+    func subtitleLine() -> String? {
+        if let email = self.provider.accountEmail, !email.isEmpty {
+            return MobilePersonalInfoRedactor.redactEmail(email, isEnabled: self.hidePersonalInfo)
         }
+        if let ordinal = self.duplicateOrdinal {
+            // Localized format: "%@ %lld" → `"Codex 2"` / `"Codex 2 号账户"`
+            // depending on locale. No-email-but-single-card keeps nil.
+            let template = String(localized: "provider-account-ordinal")
+            return String(format: template, self.provider.providerName, ordinal)
+        }
+        return nil
     }
 
     @ViewBuilder

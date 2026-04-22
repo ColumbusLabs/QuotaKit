@@ -336,4 +336,81 @@ struct CloudKitMergeTests {
         #expect(merged.providers[0].primary?.usedPercent == 60) // Newer wins
         #expect(merged.providers[0].costSummary == nil) // No cost data
     }
+
+    // MARK: - Perplexity credits passthrough (T3 · Build 71 / Mac 0.20.3)
+    //
+    // Regression guard: `mergeProviderEntries` rebuilds
+    // `ProviderUsageSnapshot` for multi-device scenarios. Build 71's new
+    // `perplexityCredits` field was added with a default-nil initializer
+    // parameter, which would compile cleanly even if the merger forgot
+    // to forward it — silently regressing the iOS Perplexity detail page
+    // to the legacy 3-bar fallback whenever the user had >1 Mac signed in.
+    // Codex-reviewer caught this in the initial T3 review; this test pins
+    // the fix.
+
+    private func makePerplexitySnapshot(
+        email: String? = "user@example.com",
+        lastUpdated: Date,
+        credits: SyncPerplexityCreditSummary?
+    ) -> ProviderUsageSnapshot {
+        ProviderUsageSnapshot(
+            providerID: "perplexity",
+            providerName: "Perplexity",
+            primary: nil,
+            secondary: nil,
+            accountEmail: email,
+            loginMethod: credits?.planName,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: lastUpdated,
+            perplexityCredits: credits)
+    }
+
+    @Test("Merged Perplexity snapshot preserves perplexityCredits from latest device")
+    func perplexityCreditsPreservedInMultiDeviceMerge() throws {
+        // Mac A (older) has no structured credits (e.g. still on 0.20.2);
+        // Mac B (newer) has the full 3-pool breakdown. Merger must pick
+        // Mac B's data (lastUpdated wins for identity fields) AND preserve
+        // the credits field, not drop it to nil.
+        let credits = SyncPerplexityCreditSummary(
+            recurringTotalCents: 5000,
+            recurringUsedCents: 2500,
+            promoTotalCents: 1000,
+            promoUsedCents: 500,
+            promoExpiresAt: nil,
+            purchasedTotalCents: nil,
+            purchasedUsedCents: nil,
+            renewalAt: Date(timeIntervalSince1970: 1_700_500_000),
+            planName: "Pro",
+            balanceCents: 3000)
+        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            makePerplexitySnapshot(lastUpdated: olderDate, credits: nil),
+        ])
+        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            makePerplexitySnapshot(lastUpdated: newerDate, credits: credits),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        #expect(merged.providers.count == 1)
+        let perplexity = try #require(merged.providers.first)
+        #expect(perplexity.perplexityCredits?.planName == "Pro")
+        #expect(perplexity.perplexityCredits?.recurringTotalCents == 5000)
+        #expect(perplexity.perplexityCredits?.recurringUsedCents == 2500)
+    }
+
+    @Test("Single-device Perplexity snapshot preserves perplexityCredits through merge no-op")
+    func perplexityCreditsPreservedSingleDevice() throws {
+        // Degenerate single-device path: mergeProviderEntries still runs
+        // (merger doesn't special-case count == 1 at the provider level),
+        // so this verifies the field survives even the trivial passthrough.
+        let credits = SyncPerplexityCreditSummary(
+            recurringTotalCents: 7500, renewalAt: Date(timeIntervalSince1970: 1_700_600_000), planName: "Max")
+        let mac = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            makePerplexitySnapshot(lastUpdated: olderDate, credits: credits),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([mac]))
+        #expect(merged.providers.first?.perplexityCredits?.planName == "Max")
+        #expect(merged.providers.first?.perplexityCredits?.recurringTotalCents == 7500)
+    }
 }

@@ -171,14 +171,31 @@ private struct ProviderListView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
-                ForEach(self.snapshot.providers, id: \.providerID) { provider in
+                // Pre-compute the per-providerID siblings-count lookup once.
+                // `mergeSnapshots` on iCloud side already splits multi-account
+                // Codex (or anything else with distinct accountEmails) into
+                // separate `ProviderUsageSnapshot` entries — but previously
+                // we used `\.providerID` as the ForEach identity, which
+                // collapsed duplicates back into one view instance. Switch
+                // to the composite key that matches `mergeSnapshots`'s bucket.
+                let countsByProviderID = Dictionary(
+                    grouping: self.snapshot.providers, by: \.providerID
+                ).mapValues(\.count)
+                ForEach(self.snapshot.providers, id: \.cardIdentityKey) { provider in
+                    let siblingCount = countsByProviderID[provider.providerID] ?? 1
+                    let ordinal: Int? = siblingCount > 1
+                        ? self.snapshot.providers
+                            .filter { $0.providerID == provider.providerID }
+                            .firstIndex(where: { $0.cardIdentityKey == provider.cardIdentityKey })
+                            .map { $0 + 1 }
+                        : nil
                     NavigationLink {
                         ProviderDetailView(provider: provider)
                     } label: {
-                        ProviderUsageView(provider: provider)
+                        ProviderUsageView(provider: provider, duplicateOrdinal: ordinal)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("provider-card-\(provider.providerID)")
+                    .accessibilityIdentifier("provider-card-\(provider.cardIdentityKey)")
                 }
 
                 // Sync status at scroll bottom
@@ -948,18 +965,7 @@ private enum BreakdownPalette {
 }
 
 private func providerTint(for provider: ProviderUsageSnapshot?) -> Color {
-    let id = provider?.providerID.lowercased() ?? ""
-    if id.contains("claude") || id.contains("anthropic") {
-        return Color(red: 0.82, green: 0.55, blue: 0.28)
-    } else if id.contains("codex") || id.contains("cursor") {
-        return .purple
-    } else if id.contains("openai") || id.contains("chatgpt") {
-        return .green
-    } else if id.contains("openrouter") {
-        return Color(red: 0.42, green: 0.35, blue: 0.83)
-    } else {
-        return .blue
-    }
+    ProviderColorPalette.color(for: provider?.providerID ?? "")
 }
 
 // MARK: - Setting Tab

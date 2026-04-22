@@ -212,7 +212,12 @@ final class CloudSyncReader: @unchecked Sendable {
             costSummary: mergedCost,
             budget: base.budget,
             rateWindows: base.rateWindows,
-            utilizationHistory: mergedUtilization)
+            utilizationHistory: mergedUtilization,
+            // Structured Perplexity credits piggyback on the latest device's
+            // snapshot. Both devices observe the same account-level credit
+            // pool, so "take latest" matches the identity/loginMethod/status
+            // semantics above; no cross-device sum is meaningful here.
+            perplexityCredits: base.perplexityCredits)
     }
 
     /// Sums cost data from multiple devices.

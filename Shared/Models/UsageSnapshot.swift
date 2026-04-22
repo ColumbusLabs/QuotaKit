@@ -153,6 +153,58 @@ public struct SyncUtilizationSeries: Codable, Sendable, Equatable {
     }
 }
 
+/// Perplexity-specific credit breakdown for iOS detail rendering.
+///
+/// Perplexity's backend exposes three distinct credit pools that the generic
+/// `SyncRateWindow` list can't faithfully represent:
+///   - `recurring` — monthly Pro/Max plan entitlement
+///   - `promo`     — bonus / time-limited credits (may expire)
+///   - `purchased` — on-demand top-ups (no expiration)
+///
+/// All fields Optional so a free-tier account (no recurring), an old Mac
+/// payload (pre-0.20.3, key absent entirely), and future pool additions all
+/// degrade silently. Amounts are in **cents** — the raw unit upstream
+/// `PerplexityUsageSnapshot` uses — iOS formats for display.
+public struct SyncPerplexityCreditSummary: Codable, Sendable, Equatable {
+    public let recurringTotalCents: Double?
+    public let recurringUsedCents: Double?
+    public let promoTotalCents: Double?
+    public let promoUsedCents: Double?
+    public let promoExpiresAt: Date?
+    public let purchasedTotalCents: Double?
+    public let purchasedUsedCents: Double?
+    /// Next recurring renewal (nil on free tier or when Mac hasn't parsed it).
+    public let renewalAt: Date?
+    /// `"Pro"` / `"Max"` / `nil` — inferred upstream from recurring quota.
+    public let planName: String?
+    /// Passthrough of `response.balance_cents`; rarely displayed, kept for parity.
+    public let balanceCents: Double?
+
+    public init(
+        recurringTotalCents: Double? = nil,
+        recurringUsedCents: Double? = nil,
+        promoTotalCents: Double? = nil,
+        promoUsedCents: Double? = nil,
+        promoExpiresAt: Date? = nil,
+        purchasedTotalCents: Double? = nil,
+        purchasedUsedCents: Double? = nil,
+        renewalAt: Date? = nil,
+        planName: String? = nil,
+        balanceCents: Double? = nil)
+    {
+        self.recurringTotalCents = recurringTotalCents
+        self.recurringUsedCents = recurringUsedCents
+        self.promoTotalCents = promoTotalCents
+        self.promoUsedCents = promoUsedCents
+        self.promoExpiresAt = promoExpiresAt
+        self.purchasedTotalCents = purchasedTotalCents
+        self.purchasedUsedCents = purchasedUsedCents
+        self.renewalAt = renewalAt
+        self.planName = planName
+        self.balanceCents = balanceCents
+    }
+}
+
 /// A single provider's usage snapshot for iCloud sync.
 public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let providerID: String
@@ -170,6 +222,11 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let budget: SyncBudgetSnapshot?
     /// Subscription utilization history (session/weekly/opus) for chart display.
     public let utilizationHistory: [SyncUtilizationSeries]?
+    /// Perplexity-specific structured credit breakdown. Populated only when
+    /// `providerID == "perplexity"` and Mac ≥ 0.20.3. Nil for all other
+    /// providers and for older Mac clients — iOS falls back to the generic
+    /// `rateWindows` rendering in that case.
+    public let perplexityCredits: SyncPerplexityCreditSummary?
 
     /// All available rate windows. Prefers `rateWindows` if non-empty, otherwise falls back to primary/secondary.
     public var allRateWindows: [SyncRateWindow] {
@@ -190,7 +247,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         costSummary: SyncCostSummary? = nil,
         budget: SyncBudgetSnapshot? = nil,
         rateWindows: [SyncRateWindow] = [],
-        utilizationHistory: [SyncUtilizationSeries]? = nil)
+        utilizationHistory: [SyncUtilizationSeries]? = nil,
+        perplexityCredits: SyncPerplexityCreditSummary? = nil)
     {
         self.providerID = providerID
         self.providerName = providerName
@@ -205,9 +263,10 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.costSummary = costSummary
         self.budget = budget
         self.utilizationHistory = utilizationHistory
+        self.perplexityCredits = perplexityCredits
     }
 
-    /// Backward-compatible decoder: old payloads without `rateWindows`/`costSummary`/`budget` still decode.
+    /// Backward-compatible decoder: old payloads without `rateWindows`/`costSummary`/`budget`/`perplexityCredits` still decode.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.providerID = try container.decode(String.self, forKey: .providerID)
@@ -223,6 +282,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.costSummary = try container.decodeIfPresent(SyncCostSummary.self, forKey: .costSummary)
         self.budget = try container.decodeIfPresent(SyncBudgetSnapshot.self, forKey: .budget)
         self.utilizationHistory = try container.decodeIfPresent([SyncUtilizationSeries].self, forKey: .utilizationHistory)
+        self.perplexityCredits = try container.decodeIfPresent(SyncPerplexityCreditSummary.self, forKey: .perplexityCredits)
     }
 }
 
