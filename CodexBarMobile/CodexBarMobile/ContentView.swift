@@ -948,18 +948,7 @@ private enum BreakdownPalette {
 }
 
 private func providerTint(for provider: ProviderUsageSnapshot?) -> Color {
-    let id = provider?.providerID.lowercased() ?? ""
-    if id.contains("claude") || id.contains("anthropic") {
-        return Color(red: 0.82, green: 0.55, blue: 0.28)
-    } else if id.contains("codex") || id.contains("cursor") {
-        return .purple
-    } else if id.contains("openai") || id.contains("chatgpt") {
-        return .green
-    } else if id.contains("openrouter") {
-        return Color(red: 0.42, green: 0.35, blue: 0.83)
-    } else {
-        return .blue
-    }
+    ProviderColorPalette.color(for: provider?.providerID ?? "")
 }
 
 // MARK: - Setting Tab

@@ -202,18 +202,7 @@ struct ProviderDetailView: View {
     // MARK: - Helpers
 
     private var providerColor: Color {
-        let id = self.provider.providerID.lowercased()
-        if id.contains("claude") || id.contains("anthropic") {
-            return Color(red: 0.82, green: 0.55, blue: 0.28)
-        } else if id.contains("codex") || id.contains("cursor") {
-            return .purple
-        } else if id.contains("openai") || id.contains("chatgpt") {
-            return .green
-        } else if id.contains("openrouter") {
-            return Color(red: 0.42, green: 0.35, blue: 0.83)
-        } else {
-            return .blue
-        }
+        ProviderColorPalette.color(for: self.provider.providerID)
     }
 
     private func defaultLabel(at index: Int) -> String {

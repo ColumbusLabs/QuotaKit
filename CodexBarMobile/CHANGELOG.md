@@ -2,6 +2,27 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (70)] — 2026-04-22 — dev build · T2 consolidate provider color palette
+
+Provider tint color derivation was duplicated (with subtle drift) across 5 files: `ProviderUsageView.providerColor`, `ProviderDetailView.providerColor`, `UtilizationAggregateView.providerColor(for:)`, `ContentView.providerTint(for:)`, and `CostShareService.providerColor(for:)`. The aggregate view in particular used an exact-match switch with a `.gray` default — every provider not in its explicit 5-case list rendered gray in the utilization charts regardless of what the cards showed. Perplexity + OpenCode Go added in Build 69 would have collapsed into the generic blue fallback in every single site.
+
+### Added
+- New `CodexBarMobile/Models/ProviderColorPalette.swift` — single source of truth. `ProviderColorPalette.color(for providerIdentifier:)` accepts either `providerID` (`"opencodego"`) or display name (`"OpenCode Go"`) via a lowercased + space-stripped normalization, so callers in both forms get the same color.
+- Perplexity → brand teal `(0.13, 0.50, 0.55)` ≈ #21808D.
+- OpenCode Go → `.mint` so it stays visually separable from OpenCode Zen's blue when both cards are on screen.
+- Specificity ordering: the `opencodego` match is evaluated **before** the broader `opencode` match. Without the ordering `"opencodego".contains("opencode")` would collapse Go back into Zen's blue — pinned by test `opencodeGoDoesNotCollideWithOpencode`.
+
+### Changed
+- `ProviderUsageView.providerColor` / `ProviderDetailView.providerColor` / `ContentView.providerTint(for:)` / `CostShareService.providerColor(for:)` / `UtilizationAggregateView.providerColor(for:)` — all now delegate to `ProviderColorPalette.color(for:)`. Removed 5 copies of the same (drifted) logic.
+- `CostShareService` call site switched from `row.provider.providerName` to `row.provider.providerID` — ID is the stable canonical form.
+- Aggregate view's legacy `.gray` default for unknown providers replaced by the palette's blue fallback. Net visual change in the utilization chart: providers that were previously gray (e.g. OpenCode, Amp, Kimi, …) now render with their proper color.
+
+### Tests
+- New `CodexBarMobile/CodexBarMobileTests/ProviderColorPaletteTests.swift` (10 cases) — brand-color pinning, specificity ordering, ID-vs-displayName equivalence, empty / unknown fallback. Extends `UIColor` with a `isApproximately(_:tolerance:)` helper so two SwiftUI `Color`s round-tripped through `UIColor` don't fail on float drift.
+
+### Notes
+- Total deleted lines (5 call sites minus new palette + new tests): net +~50 LOC but now there's exactly one matrix to update when the next upstream provider lands.
+
 ## [1.3.0 (69)] — 2026-04-22 — dev build · T1 QuotaProviderList append Perplexity + OpenCode Go
 
 Upstream CodexBar 0.20 introduced two new providers on the Mac side — Perplexity and OpenCode Go. `QuotaProviderList` is the single source of truth for the `(provider, state)` matrix that Mac writes `QuotaTransition` records to and iOS creates `CKRecordZoneSubscription`s for. Without updating both sides, iOS never subscribes to Perplexity / OpenCode Go quota zones — so those providers' quota-depleted / -restored pushes never reach the phone.

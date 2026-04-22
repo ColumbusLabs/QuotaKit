@@ -162,7 +162,7 @@ extension ShareCardData {
                 name: row.provider.providerName,
                 cost: cost,
                 share: 0, // computed below
-                color: Self.providerColor(for: row.provider.providerName)
+                color: Self.providerColor(for: row.provider.providerID)
             )
         }
 
@@ -270,20 +270,8 @@ extension ShareCardData {
 // MARK: - Provider color mapping
 
 extension ShareCardData {
-    static func providerColor(for name: String) -> Color {
-        let lower = name.lowercased()
-        if lower.contains("claude") || lower.contains("anthropic") {
-            return Color(red: 0.82, green: 0.55, blue: 0.28)
-        } else if lower.contains("codex") || lower.contains("cursor") {
-            return .purple
-        } else if lower.contains("openai") || lower.contains("chatgpt") {
-            return .green
-        } else if lower.contains("openrouter") {
-            return Color(red: 0.42, green: 0.35, blue: 0.83)
-        } else if lower.contains("gemini") {
-            return .blue
-        }
-        return .blue
+    static func providerColor(for providerIdentifier: String) -> Color {
+        ProviderColorPalette.color(for: providerIdentifier)
     }
 }
 
