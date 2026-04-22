@@ -2,6 +2,32 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (76)] — 2026-04-22 — dev build · cross-version multi-device merge hardening
+
+**Class-of-bug fix**: every optional account-level field on `ProviderUsageSnapshot` that the merger was taking from `base` (the newest-timestamped device) silently dropped data when two Macs running different CodexBar versions synced to the same iCloud account — and the **older** Mac (without the new field) happened to refresh last. This isn't a transition scenario; it's the steady state for any user whose 2 Macs update on different schedules (could be weeks or months apart). Build 74 fixed the `perplexityCredits` instance after Codex-review flagged it; Build 76 generalizes the fix to every account-level field in the same position.
+
+### Fixed
+- `CodexBarMobile/iCloud/CloudSyncReader.swift` `mergeProviderEntries`:
+  - New `latestNonNil<T>(_:_keyPath:)` helper — walks entries newest-first and returns the first non-nil value of the given keyPath. Returns nil only when every device has nil for the field.
+  - `perplexityCredits`: take-latest → **latestNonNil**
+  - `budget`: take-latest → **latestNonNil** (same bug: account-level API data; one Mac may not have fetched)
+  - `costSummary` for non-local-cost providers (Cursor, Perplexity, OpenCode Go, etc.): take-latest → **latestNonNil** (account-level; summing only applies to local-file-backed providers: claude / codex / vertexai)
+  - `loginMethod`: take-latest → **latestNonNil** (plan strings — same class)
+- Inline docstring on `mergeProviderEntries` now enumerates field-by-field semantics (identity / status / rate / cost / utilization / account-level) so the class of bug is visible at the call site.
+
+### Preserved
+- `statusMessage`, `isError`, `rateWindows`, `primary`, `secondary`, `lastUpdated` stay take-latest — for these "most recent state of this device" is the right semantic (e.g. show the latest error if any Mac is erroring right now).
+- `costSummary` SUM semantics for local-cost providers (claude / codex / vertexai) unchanged — per-Mac CLI files legitimately contain different data.
+- `utilizationHistory` merge-and-dedup semantics unchanged.
+
+### Tests
+- `CodexBarMobileTests/CloudKitMergeTests.swift` +4 cases for the cross-version inversion scenario:
+  - `perplexityCreditsInvertedFreshnessKeepsData`: older Mac has credits + newer has nil → merged keeps credits
+  - `budgetInvertedFreshnessKeepsData`: same pattern on `budget`
+  - `nonLocalCostInvertedFreshnessKeepsData`: same pattern on Cursor `costSummary` (non-local-cost)
+  - `loginMethodInvertedFreshnessKeepsData`: same pattern on Codex plan label
+- Plus `localCostStillSumsAfterRefactor`: guard against accidentally regressing the claude / codex / vertexai SUM semantic when adding the latestNonNil branch for non-local.
+
 ## [1.3.0 (75)] — 2026-04-22 — dev build · fix iOS archive: private-type leak in PerplexityCreditsCard
 
 Build 74 archived on Mac CI (`swift test` on Package.swift Mac target) without issue, but `xcodebuild archive` against `CodexBarMobile.xcodeproj` for `iphoneos` failed with two compiler errors — `PerplexityCreditsCard.poolLabel(_:)` and `legendDotOpacity(for:)` were declared `static` (implicit internal) with a `PoolSegment.Kind` parameter whose enclosing struct is `private`. Swift archive compilation rejects the mixed-access signature even when the same code compiles fine under `swift build` on Mac because the Mac package target never touches this iOS-only view.

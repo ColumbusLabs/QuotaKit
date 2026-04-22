@@ -398,6 +398,198 @@ struct CloudKitMergeTests {
         #expect(perplexity.perplexityCredits?.recurringUsedCents == 2500)
     }
 
+    // MARK: - Cross-version data-loss regression (Build 76)
+    //
+    // The scenario: user has 2 Macs on different CodexBar versions. The
+    // older Mac (e.g. 0.20.2) doesn't know about `perplexityCredits` /
+    // account-level `budget` and pushes nil. The newer Mac (0.20.3) pushes
+    // the real data. Critically: the OLDER Mac may refresh **later** in
+    // wall-clock time (e.g. it's the one the user is actively using today).
+    // Naive take-latest-by-lastUpdated would silently drop the real data
+    // whenever the older Mac happened to push last — the iPhone detail
+    // view would flicker between the new rendering (when newer Mac is
+    // authoritative) and the legacy fallback (when older Mac is). Not a
+    // temporary transition issue; a real steady-state scenario for any
+    // user with mixed Mac versions — which IS the default until they
+    // manually update both (could be months apart).
+    //
+    // These tests pin the `latestNonNil` semantics: if ANY device has the
+    // structured data, the merged snapshot uses it, regardless of which
+    // device was most recently refreshed.
+
+    @Test("perplexityCredits: older Mac with credits + newer Mac with nil → merged has credits")
+    func perplexityCreditsInvertedFreshnessKeepsData() throws {
+        let credits = SyncPerplexityCreditSummary(
+            recurringTotalCents: 5000,
+            recurringUsedCents: 2500,
+            renewalAt: Date(timeIntervalSince1970: 1_700_500_000),
+            planName: "Pro")
+        // Key twist: Mac A (with data) is OLDER; Mac B (without) is NEWER.
+        // Naive take-latest would return Mac B's nil credits.
+        let macAWithCreditsOlder = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            makePerplexitySnapshot(lastUpdated: olderDate, credits: credits),
+        ])
+        let macBNoCreditsNewer = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            makePerplexitySnapshot(lastUpdated: newerDate, credits: nil),
+        ])
+        let merged = try #require(CloudSyncReader.mergeSnapshots(
+            [macAWithCreditsOlder, macBNoCreditsNewer]))
+        let perplexity = try #require(merged.providers.first)
+        #expect(perplexity.perplexityCredits?.planName == "Pro")
+        #expect(perplexity.perplexityCredits?.recurringTotalCents == 5000)
+    }
+
+    @Test("budget: older Mac with budget + newer Mac with nil → merged keeps budget")
+    func budgetInvertedFreshnessKeepsData() throws {
+        // Same class of bug as perplexityCredits but on the `budget` field.
+        // Pre-Build-76 merger took `base.budget` (latest-lastUpdated's value)
+        // which dropped the budget if the newer Mac hadn't fetched it yet.
+        let budget = SyncBudgetSnapshot(
+            usedAmount: 12.34,
+            limitAmount: 100,
+            currencyCode: "USD",
+            period: "monthly",
+            resetsAt: nil)
+        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            ProviderUsageSnapshot(
+                providerID: "claude",
+                providerName: "Claude",
+                primary: nil,
+                secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: olderDate,
+                budget: budget),
+        ])
+        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            ProviderUsageSnapshot(
+                providerID: "claude",
+                providerName: "Claude",
+                primary: nil,
+                secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: newerDate,
+                budget: nil),
+        ])
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let claude = try #require(merged.providers.first)
+        #expect(claude.budget?.usedAmount == 12.34)
+        #expect(claude.budget?.limitAmount == 100)
+    }
+
+    @Test("non-local-cost costSummary: older Mac with data + newer Mac with nil → merged keeps data")
+    func nonLocalCostInvertedFreshnessKeepsData() throws {
+        // Cost for account-level providers (Cursor, Perplexity, OpenCode Go,
+        // etc. — anything NOT in localCostProviders) should follow
+        // latestNonNil semantics, not take-latest. Test with `cursor`
+        // (account-level via API, not per-Mac CLI).
+        let cost = SyncCostSummary(
+            sessionCostUSD: 1.23,
+            last30DaysCostUSD: 45.67,
+            daily: [],
+            sessionTokens: 0,
+            last30DaysTokens: 0)
+        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            ProviderUsageSnapshot(
+                providerID: "cursor",
+                providerName: "Cursor",
+                primary: nil,
+                secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: olderDate,
+                costSummary: cost),
+        ])
+        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            ProviderUsageSnapshot(
+                providerID: "cursor",
+                providerName: "Cursor",
+                primary: nil,
+                secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: newerDate,
+                costSummary: nil),
+        ])
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let cursor = try #require(merged.providers.first)
+        #expect(cursor.costSummary?.sessionCostUSD == 1.23)
+    }
+
+    @Test("local-cost costSummary STILL sums (not overridden by the new latestNonNil path)")
+    func localCostStillSumsAfterRefactor() throws {
+        // Guard against accidentally regressing the claude / codex / vertexai
+        // SUMMING semantic when we added latestNonNil for non-local. Two
+        // Macs both report $10 session cost for claude (a local-cost
+        // provider) — merged should be $20 (sum), not $10 (latest).
+        let costA = SyncCostSummary(
+            sessionCostUSD: 10,
+            last30DaysCostUSD: 100,
+            daily: [],
+            sessionTokens: 0,
+            last30DaysTokens: 0)
+        let costB = SyncCostSummary(
+            sessionCostUSD: 10,
+            last30DaysCostUSD: 100,
+            daily: [],
+            sessionTokens: 0,
+            last30DaysTokens: 0)
+        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            ProviderUsageSnapshot(
+                providerID: "claude", providerName: "Claude",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: olderDate,
+                costSummary: costA),
+        ])
+        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            ProviderUsageSnapshot(
+                providerID: "claude", providerName: "Claude",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil,
+                isError: false, lastUpdated: newerDate,
+                costSummary: costB),
+        ])
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let claude = try #require(merged.providers.first)
+        #expect(claude.costSummary?.sessionCostUSD == 20) // SUMMED, not 10
+    }
+
+    @Test("loginMethod: older Mac with plan + newer Mac with nil → merged keeps plan")
+    func loginMethodInvertedFreshnessKeepsData() throws {
+        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: "Pro",
+                statusMessage: nil, isError: false,
+                lastUpdated: olderDate),
+        ])
+        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: "user@example.com",
+                loginMethod: nil,
+                statusMessage: nil, isError: false,
+                lastUpdated: newerDate),
+        ])
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        #expect(merged.providers.first?.loginMethod == "Pro")
+    }
+
     @Test("Single-device Perplexity snapshot preserves perplexityCredits through merge no-op")
     func perplexityCreditsPreservedSingleDevice() throws {
         // Degenerate single-device path: mergeProviderEntries still runs

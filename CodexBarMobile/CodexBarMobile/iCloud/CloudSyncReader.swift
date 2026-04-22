@@ -178,24 +178,64 @@ final class CloudSyncReader: @unchecked Sendable {
             notificationPushEnabled: pushEnabled)
     }
 
+    /// For an **account-level optional field** (budget, perplexityCredits,
+    /// non-local-cost `costSummary`, etc.) — returns the value from the most
+    /// recent device that actually has it populated. Falls through older
+    /// devices if the newer ones don't (yet) have data for this field.
+    ///
+    /// This is the right semantics when two Macs running different CodexBar
+    /// versions sync to the same iCloud account: the older Mac may never
+    /// populate a newly-added field (e.g. 0.20.2 doesn't know about
+    /// `perplexityCredits`), but the newer Mac does — naive take-latest on
+    /// `lastUpdated` would drop the data to `nil` every time the older Mac
+    /// happened to refresh last. With `latestNonNil`, the iPhone renders
+    /// the richer data as long as ANY synced device has it, regardless of
+    /// refresh timing.
+    ///
+    /// Returns nil only when every entry has nil for the keypath.
+    private static func latestNonNil<T>(
+        _ entries: [ProviderUsageSnapshot],
+        _ keyPath: KeyPath<ProviderUsageSnapshot, T?>
+    ) -> T? {
+        entries
+            .sorted(by: { $0.lastUpdated > $1.lastUpdated })
+            .first(where: { $0[keyPath: keyPath] != nil })?[keyPath: keyPath]
+    }
+
     /// Merges multiple entries of the same provider+account from different devices.
+    ///
+    /// Field-by-field semantics:
+    ///   - Identity (`providerID` / `providerName` / `accountEmail`): same
+    ///     across all entries by construction — take from base.
+    ///   - Status (`statusMessage` / `isError`): take from latest entry;
+    ///     "most recent status" is the meaningful user-facing signal.
+    ///   - Rate windows (`primary` / `secondary` / `rateWindows`): take from
+    ///     latest entry — these are always populated on every provider
+    ///     refresh, so the newer timestamp's data is the current quota state.
+    ///   - Cost (`costSummary`): SUM across devices for local-cost providers
+    ///     (claude / codex / vertexai, which read per-Mac CLI files), take
+    ///     **latestNonNil** otherwise (account-level API data; old-Mac
+    ///     version-drift protection).
+    ///   - Utilization history: MERGE across devices and dedup by hour.
+    ///   - Account-level structured data (`budget` / `perplexityCredits` /
+    ///     `loginMethod`): **latestNonNil** — both Macs observe the same
+    ///     account-level pool, but only Macs running the version that
+    ///     knows the field will populate it. Take any non-nil from newest
+    ///     down so cross-version pairs don't flicker.
     private static func mergeProviderEntries(_ entries: [ProviderUsageSnapshot]) -> ProviderUsageSnapshot {
-        // Take the most recent entry as the base (for rate limits, identity, status)
+        // Take the most recent entry as the base (for rate limits + status)
         let base = entries.max(by: { $0.lastUpdated < $1.lastUpdated })!
 
-        // For local-cost providers, aggregate cost data across devices
+        // Cost: sum for local-cost providers, otherwise latestNonNil (account-level).
         let isLocalCost = localCostProviders.contains(base.providerID)
         let mergedCost: SyncCostSummary?
-
         if isLocalCost {
             mergedCost = mergeCostSummaries(entries.compactMap(\.costSummary))
         } else {
-            mergedCost = base.costSummary
+            mergedCost = Self.latestNonNil(entries, \.costSummary)
         }
 
-        // Merge utilization history from ALL devices and dedup by hour.
-        // Session quota is account-level — both Macs observe the same quota.
-        // More devices = more sampling points of the same metric.
+        // Utilization history: merge across ALL devices, dedup by hour.
         let mergedUtilization = Self.mergeUtilizationHistories(
             entries.compactMap(\.utilizationHistory))
 
@@ -205,19 +245,15 @@ final class CloudSyncReader: @unchecked Sendable {
             primary: base.primary,
             secondary: base.secondary,
             accountEmail: base.accountEmail,
-            loginMethod: base.loginMethod,
+            loginMethod: Self.latestNonNil(entries, \.loginMethod),
             statusMessage: base.statusMessage,
             isError: base.isError,
             lastUpdated: base.lastUpdated,
             costSummary: mergedCost,
-            budget: base.budget,
+            budget: Self.latestNonNil(entries, \.budget),
             rateWindows: base.rateWindows,
             utilizationHistory: mergedUtilization,
-            // Structured Perplexity credits piggyback on the latest device's
-            // snapshot. Both devices observe the same account-level credit
-            // pool, so "take latest" matches the identity/loginMethod/status
-            // semantics above; no cross-device sum is meaningful here.
-            perplexityCredits: base.perplexityCredits)
+            perplexityCredits: Self.latestNonNil(entries, \.perplexityCredits))
     }
 
     /// Sums cost data from multiple devices.
