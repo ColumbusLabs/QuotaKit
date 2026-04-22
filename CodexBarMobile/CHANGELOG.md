@@ -2,6 +2,21 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (74)] — 2026-04-22 — dev build · Codex review fix: preserve perplexityCredits through multi-device merge
+
+Codex CLI review (gpt-5.3-codex) on `feature/1.3.0-provider-alignment` vs `mobile-dev` surfaced one P2 regression risk: `ProviderUsageSnapshot.perplexityCredits` was added with a default-nil initializer parameter in Build 71 so that existing constructors would keep compiling. But `CloudSyncReader.mergeProviderEntries` (line 202) never passed the field through — so a user with ≥2 Macs on their iCloud account would see the merged Perplexity snapshot arrive with `perplexityCredits == nil`, making the iOS detail view regress to the legacy 3-bar fallback even when Mac 0.20.3 was sending structured data.
+
+### Fixed
+- `CodexBarMobile/iCloud/CloudSyncReader.swift` `mergeProviderEntries`: explicitly forward `base.perplexityCredits` into the rebuilt `ProviderUsageSnapshot`. "Take latest device's credits" matches the identity / loginMethod / statusMessage selection rules (all account-level fields; no cross-device sum semantics apply).
+
+### Tests
+- `CodexBarMobileTests/CloudKitMergeTests.swift` +2 cases:
+  - `perplexityCreditsPreservedInMultiDeviceMerge`: Mac A (older, nil credits) + Mac B (newer, populated credits) → merged snapshot must carry Mac B's credits, not drop them.
+  - `perplexityCreditsPreservedSingleDevice`: trivial single-device passthrough still carries credits (guards against a future "shortcut single-device merge" optimization dropping the field).
+
+### Note
+- This is the kind of silent-regression bug that slips through when a required field is added behind a default-nil parameter. CI / type-checker can't catch it; only end-to-end merge-path tests. Worth revisiting every call site the next time we extend `ProviderUsageSnapshot`.
+
 ## [1.3.0 (73)] — 2026-04-22 — dev build · T6 Subscription Utilization compatibility with Perplexity / OpenCode Go
 
 Perplexity and OpenCode Go don't emit `utilizationHistory` (Perplexity surfaces three credit pools instead; OpenCode Go reports flat rate windows). The Cost-tab aggregate chart iterates `provider.utilizationHistory` and was already `compactMap`-gated on non-nil, but there were zero tests proving the guard actually trips for these two providers. T6 pins the behavior so a future refactor can't reintroduce a force-unwrap that crashes the Cost tab on launch for users with Perplexity enabled.
