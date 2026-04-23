@@ -927,4 +927,328 @@ struct CloudKitMergeTests {
         #expect(sessions.count == 1)
         #expect((sessions.first?.entries.count ?? 0) >= 2)
     }
+
+    // MARK: - Realistic-distribution regression fixtures (Build 80 · Fix D)
+    //
+    // Round 3 of the 5-round audit found every pre-Build-78 merge test ran on
+    // "toy" data: `usedPercent: 50.0`, `costUSD: $1.50`, three rate-limit
+    // entries. Real 30-day data is bursty (mostly 0%), interleaved across
+    // devices, and covers reset boundaries. These fixtures re-exercise the
+    // same merge paths the existing tests already cover, but with realistic
+    // distributions — a regression in a dedup / ordering / bucketing branch
+    // that showed no symptom on 3 entries would instantly break these.
+
+    /// Seeds a Codex session series with `daysCount` days of hourly samples,
+    /// placing a single `peakPercent` burst at `peakHour` each day and zeros
+    /// elsewhere. Mimics the real usage pattern that made the user-reported
+    /// Codex-0% bug surface.
+    ///
+    /// Uses a **UTC calendar** deliberately. `Calendar.current` would make
+    /// the generated entry count timezone- and DST-dependent: in Europe/Paris
+    /// around late March, the spring-forward skips an hour inside the 30-day
+    /// window, so one local day produces 23 hourly entries instead of 24 and
+    /// the merged bucket count drops to 719, failing the `== 720` assertion
+    /// even when merge logic is correct. Pinning UTC avoids that class of
+    /// false positive entirely — DST doesn't exist in UTC.
+    private func burstySessionSeries(
+        anchor: Date,
+        daysCount: Int,
+        peakHour: Int,
+        peakPercent: Double,
+        deviceOffsetMinutes: Int = 0
+    ) -> SyncUtilizationSeries {
+        var entries: [SyncUtilizationEntry] = []
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let anchorStartOfDay = calendar.startOfDay(for: anchor)
+        for dayOffset in 0 ..< daysCount {
+            let day = calendar.date(byAdding: .day, value: -dayOffset, to: anchorStartOfDay)!
+            for hour in 0 ..< 24 {
+                let captured = calendar.date(
+                    byAdding: .minute, value: deviceOffsetMinutes,
+                    to: calendar.date(byAdding: .hour, value: hour, to: day)!)!
+                let used = (hour == peakHour) ? peakPercent : 0.0
+                entries.append(SyncUtilizationEntry(
+                    capturedAt: captured, usedPercent: used, resetsAt: nil))
+            }
+        }
+        return SyncUtilizationSeries(
+            name: "session", windowMinutes: 300, entries: entries)
+    }
+
+    @Test("Merged utilization with bursty 30-day Codex: union size, peaks preserved, order monotonic")
+    func mergedUtilizationBurstyDistributionPreservesPeaks() throws {
+        // Two Macs each sample hourly for 30 days. Mac A samples at :00 of
+        // the hour, Mac B at :30 — so every real hour has TWO entries going
+        // in, one from each Mac. `dedupByHour` must average them (0 from one
+        // + 16 from the other at peak hour → 8%). Pre-fix a bursty merge
+        // could silently drop one device's entries on hash collision; this
+        // test would fail if that regressed.
+        let anchor = Date(timeIntervalSince1970: 1_745_500_000)
+        let macA = SyncedUsageSnapshot(
+            providers: [ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil, accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil, isError: false,
+                lastUpdated: anchor,
+                utilizationHistory: [self.burstySessionSeries(
+                    anchor: anchor, daysCount: 30, peakHour: 14,
+                    peakPercent: 16, deviceOffsetMinutes: 0)])],
+            syncTimestamp: anchor, deviceName: "Mac A", deviceID: "uuid-a")
+        let macB = SyncedUsageSnapshot(
+            providers: [ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil, accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil, isError: false,
+                lastUpdated: anchor,
+                utilizationHistory: [self.burstySessionSeries(
+                    anchor: anchor, daysCount: 30, peakHour: 14,
+                    peakPercent: 16, deviceOffsetMinutes: 30)])],
+            syncTimestamp: anchor, deviceName: "Mac B", deviceID: "uuid-b")
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let codex = try #require(merged.providers.first { $0.providerID == "codex" })
+        let session = try #require(codex.utilizationHistory?.first { $0.name == "session" })
+
+        // Both devices' entries land in the same hour buckets; dedup averages
+        // them. We expect ~24 hourly entries * 30 days = 720 buckets.
+        #expect(session.entries.count == 720)
+
+        // Entries are sorted by capturedAt monotonically.
+        let sorted = session.entries.map(\.capturedAt).sorted()
+        #expect(session.entries.map(\.capturedAt) == sorted)
+
+        // Each peak-hour bucket averages Mac A's 16% and Mac B's 0%-at-that-
+        // minute (since Mac B's :30 sample is still at peakHour in the same
+        // calendar hour) → both are 16% → average is 16%. Find the peak
+        // entries and confirm they're 16%, not 0% (that would indicate the
+        // bursty-merge regression).
+        let peakValues = session.entries.filter { $0.usedPercent > 0 }.map(\.usedPercent)
+        #expect(peakValues.count == 30)  // one peak per day
+        #expect(peakValues.allSatisfy { $0 == 16 })
+    }
+
+    @Test("Merged utilization with entries straddling a session reset keeps pre-/post-reset buckets separate")
+    func mergedUtilizationCrossResetBoundarySeparatesBuckets() throws {
+        // Session reset occurs mid-hour (:30). Two entries in the SAME clock
+        // hour — one before reset (usedPercent=90%, resetsAt=T), one after
+        // (usedPercent=5%, resetsAt=T+5h). Pre-fix dedup-by-hour would
+        // collide them into one bucket averaging to 47.5%, which is both
+        // wrong and unrecoverable. Post-fix BucketKey(hourSlot, resetEpoch)
+        // separates them. This fixture catches any regression that drops
+        // the resetEpoch component of the key.
+        //
+        // NOTE: two Macs are used deliberately. `mergeSnapshots` has a
+        // passthrough branch for single-device input (providers.count == 1)
+        // that bypasses `mergeProviderEntries` → `mergeUtilizationHistories`
+        // → `dedupByHour`. A single-Mac version of this test would return
+        // the original entries as-is and assert nothing about dedup. By
+        // feeding two Macs, we force the dedup code path that actually
+        // applies the BucketKey separation under audit.
+        let anchor = Date(timeIntervalSince1970: 1_745_500_000)
+        let resetT = Date(timeIntervalSince1970: 1_745_502_000)          // reset happens at T
+        let resetTPlus5 = Date(timeIntervalSince1970: 1_745_502_000 + 5 * 3600)
+        let preReset = SyncUtilizationEntry(
+            capturedAt: anchor, usedPercent: 90, resetsAt: resetT)
+        let postReset = SyncUtilizationEntry(
+            capturedAt: anchor.addingTimeInterval(600),  // same clock hour, 10 min later
+            usedPercent: 5, resetsAt: resetTPlus5)
+
+        func provider(entries: [SyncUtilizationEntry]) -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil, accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil, isError: false,
+                lastUpdated: anchor,
+                utilizationHistory: [SyncUtilizationSeries(
+                    name: "session", windowMinutes: 300, entries: entries)])
+        }
+
+        // Both Macs independently observed the reset; each carries both
+        // pre- and post-reset entries. The dedup path must preserve the
+        // per-resetEpoch separation across the combined entries.
+        let macA = SyncedUsageSnapshot(
+            providers: [provider(entries: [preReset, postReset])],
+            syncTimestamp: anchor, deviceName: "Mac A", deviceID: "uuid-a")
+        let macB = SyncedUsageSnapshot(
+            providers: [provider(entries: [preReset, postReset])],
+            syncTimestamp: anchor, deviceName: "Mac B", deviceID: "uuid-b")
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let codex = try #require(merged.providers.first { $0.providerID == "codex" })
+        let session = try #require(codex.utilizationHistory?.first { $0.name == "session" })
+
+        // Two distinct buckets survived dedup — one per (hourSlot, resetEpoch).
+        // If the resetEpoch component were dropped from the BucketKey, both
+        // entries from both Macs would collapse into a single hour bucket
+        // averaging 47.5% — the regression we're guarding against.
+        #expect(session.entries.count == 2)
+        #expect(session.entries.contains(where: { $0.usedPercent == 90 }))
+        #expect(session.entries.contains(where: { $0.usedPercent == 5 }))
+    }
+
+    @Test("Merged utilization with disordered input across two Macs produces hour-sorted output")
+    func mergedUtilizationDisorderedInputProducesSortedOutput() throws {
+        // Two Macs, each with their entries deliberately shuffled. `dedupByHour`
+        // (only invoked when providers.count > 1) sorts the bucketed output by
+        // hourSlot. This pins that behavior: the merge path — when actually
+        // exercised — produces monotonic time order from arbitrary input order.
+        //
+        // NOTE: single-device passthrough (providers.count == 1) intentionally
+        // returns the original `ProviderUsageSnapshot` as-is and does NOT dedup
+        // or sort entries — that's fine because downstream consumers
+        // (`UtilizationHistoryView.buildPeriodPoints`) bucket into dictionaries
+        // rather than assuming sorted input. Pinning this test on the
+        // multi-device path, since that's where dedup order matters.
+        let base = Date(timeIntervalSince1970: 1_745_500_000)
+        func disorderedEntries(offsetMinutes: Int) -> [SyncUtilizationEntry] {
+            (0 ..< 10).shuffled().map { i in
+                SyncUtilizationEntry(
+                    capturedAt: base.addingTimeInterval(
+                        Double(i) * 3600 + Double(offsetMinutes * 60)),
+                    usedPercent: Double(i * 8),
+                    resetsAt: nil)
+            }
+        }
+        func provider(entries: [SyncUtilizationEntry]) -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil, accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil, isError: false,
+                lastUpdated: base,
+                utilizationHistory: [SyncUtilizationSeries(
+                    name: "session", windowMinutes: 300, entries: entries)])
+        }
+        let macA = SyncedUsageSnapshot(
+            providers: [provider(entries: disorderedEntries(offsetMinutes: 0))],
+            syncTimestamp: base, deviceName: "Mac A", deviceID: "uuid-a")
+        let macB = SyncedUsageSnapshot(
+            providers: [provider(entries: disorderedEntries(offsetMinutes: 30))],
+            syncTimestamp: base, deviceName: "Mac B", deviceID: "uuid-b")
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let codex = try #require(merged.providers.first { $0.providerID == "codex" })
+        let session = try #require(codex.utilizationHistory?.first { $0.name == "session" })
+
+        // Both devices' entries for each hour merge into one bucket (same
+        // hourSlot), dedup averages them. Output: 10 hour buckets in sorted
+        // order.
+        #expect(session.entries.count == 10)
+        let captures = session.entries.map(\.capturedAt)
+        #expect(captures == captures.sorted())
+    }
+
+    @Test("Merged utilization with long-idle gap keeps both old and new entries")
+    func mergedUtilizationLongIdleGapPreservesHistory() throws {
+        // Mac A has entries from 30 days ago; Mac B comes alive today with
+        // fresh entries. Merged series must contain BOTH — a regression
+        // that filtered "stale" entries at merge time would show up as
+        // missing early data (downstream the aggregate view already filters
+        // for `>= last30Start`; the merger itself must preserve everything).
+        let today = Date()
+        let calendar = Calendar.current
+        let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: today)!
+
+        let oldEntries = (0 ..< 5).map { i in
+            SyncUtilizationEntry(
+                capturedAt: thirtyDaysAgo.addingTimeInterval(Double(i) * 3600),
+                usedPercent: 42, resetsAt: nil)
+        }
+        let newEntries = (0 ..< 5).map { i in
+            SyncUtilizationEntry(
+                capturedAt: today.addingTimeInterval(-Double(i) * 3600),
+                usedPercent: 18, resetsAt: nil)
+        }
+        let macA = SyncedUsageSnapshot(
+            providers: [ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil, accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil, isError: false,
+                lastUpdated: thirtyDaysAgo,
+                utilizationHistory: [SyncUtilizationSeries(
+                    name: "session", windowMinutes: 300, entries: oldEntries)])],
+            syncTimestamp: thirtyDaysAgo, deviceName: "Mac A", deviceID: "uuid-a")
+        let macB = SyncedUsageSnapshot(
+            providers: [ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil, accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil, isError: false,
+                lastUpdated: today,
+                utilizationHistory: [SyncUtilizationSeries(
+                    name: "session", windowMinutes: 300, entries: newEntries)])],
+            syncTimestamp: today, deviceName: "Mac B", deviceID: "uuid-b")
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let codex = try #require(merged.providers.first { $0.providerID == "codex" })
+        let session = try #require(codex.utilizationHistory?.first { $0.name == "session" })
+
+        // Both old and new entries survived.
+        #expect(session.entries.count == 10)
+        #expect(session.entries.contains { $0.usedPercent == 42 })
+        #expect(session.entries.contains { $0.usedPercent == 18 })
+    }
+
+    @Test("Merged utilization with all-zero entries across 30 days is preserved (not dropped)")
+    func mergedUtilizationAllZeroPatternPreserved() throws {
+        // User who has CodexBar running continuously but never uses Codex:
+        // 720 hourly samples all at 0%. These must still make it through
+        // the merger — UtilizationAggregateView uses the count to decide
+        // whether to show the provider at all, and dropping zero-only
+        // providers would hide them from Subscription Utilization.
+        let anchor = Date(timeIntervalSince1970: 1_745_500_000)
+        let entries = (0 ..< 720).map { i in
+            SyncUtilizationEntry(
+                capturedAt: anchor.addingTimeInterval(Double(i) * 3600),
+                usedPercent: 0, resetsAt: nil)
+        }
+        let macA = SyncedUsageSnapshot(
+            providers: [ProviderUsageSnapshot(
+                providerID: "codex", providerName: "Codex",
+                primary: nil, secondary: nil, accountEmail: "user@example.com",
+                loginMethod: nil, statusMessage: nil, isError: false,
+                lastUpdated: anchor,
+                utilizationHistory: [SyncUtilizationSeries(
+                    name: "session", windowMinutes: 300, entries: entries)])],
+            syncTimestamp: anchor, deviceName: "Mac A", deviceID: "uuid-a")
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA]))
+        let codex = try #require(merged.providers.first { $0.providerID == "codex" })
+        let session = try #require(codex.utilizationHistory?.first { $0.name == "session" })
+        #expect(session.entries.count == 720)
+        #expect(session.entries.allSatisfy { $0.usedPercent == 0 })
+    }
+
+    @Test("Cost merge with cross-date daily points keeps dayKey identity intact")
+    func mergedCostCrossDateDayKeysPreserved() throws {
+        // Two Macs push overlapping daily cost points spanning a month end
+        // (2026-01-31 → 2026-02-01). The merger must preserve both day keys
+        // distinctly; a regression that normalized by calendar computation
+        // with a different locale could produce wrong dayKey strings.
+        let dailyA = [
+            SyncDailyPoint(dayKey: "2026-01-30", costUSD: 1.00, totalTokens: 1000),
+            SyncDailyPoint(dayKey: "2026-01-31", costUSD: 2.50, totalTokens: 2500),
+            SyncDailyPoint(dayKey: "2026-02-01", costUSD: 0.75, totalTokens: 750),
+        ]
+        let dailyB = [
+            SyncDailyPoint(dayKey: "2026-01-31", costUSD: 1.50, totalTokens: 1500),
+            SyncDailyPoint(dayKey: "2026-02-02", costUSD: 3.00, totalTokens: 3000),
+        ]
+        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            makeProviderWithCost(id: "claude", name: "Claude", email: "user@a.com",
+                                 lastUpdated: olderDate, sessionCost: 0, daily: dailyA),
+        ])
+        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            makeProviderWithCost(id: "claude", name: "Claude", email: "user@a.com",
+                                 lastUpdated: newerDate, sessionCost: 0, daily: dailyB),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let cost = try #require(merged.providers.first?.costSummary)
+        let keys = Set(cost.daily.map(\.dayKey))
+        #expect(keys == ["2026-01-30", "2026-01-31", "2026-02-01", "2026-02-02"])
+
+        // 2026-01-31 is the overlap day — costs from both Macs sum.
+        let jan31 = try #require(cost.daily.first { $0.dayKey == "2026-01-31" })
+        #expect(jan31.costUSD == 4.00)  // 2.50 + 1.50
+    }
 }

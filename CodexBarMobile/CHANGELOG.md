@@ -2,6 +2,31 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (80)] — 2026-04-23 — dev build · 5-round systematic audit follow-up (commit 3/3)
+
+**Commit 3 of 3** addressing the 5-round audit. Closes out Round 3 (测试数据分布 audit): every pre-Build-78 merge test ran on "toy" data (`usedPercent: 50.0`, `costUSD: $1.50`, three entries). Round 3 found every test file had **zero coverage** for long idle / cross-reset boundary / cross-date / deliberately disordered input / all-zero-but-tracked patterns. This commit adds realistic-distribution fixtures that re-exercise the existing merge paths with data shaped like real 30-day usage.
+
+### Tests (Fix D · realistic-distribution regression fixtures)
+- `CloudKitMergeTests.swift` +6 cases covering distributions the pre-audit suite never touched:
+  - `mergedUtilizationBurstyDistributionPreservesPeaks` — two Macs each with 30 days of hourly Codex samples (peak once per day + 23 zeros, same pattern that surfaced the Build 77 Codex-0% bug). Asserts 720 buckets, monotonic hour order, 30 preserved peak entries at the expected value. Fixture uses a **UTC calendar** so DST transitions in the tester's local timezone (e.g. Europe/Paris spring-forward) can't make the test flaky by producing 719 buckets instead of 720.
+  - `mergedUtilizationCrossResetBoundarySeparatesBuckets` — pre- and post-reset entries in the same clock hour, across **two Macs** to force the dedup path (single-Mac passthrough bypasses `dedupByHour`). Pins the `BucketKey(hourSlot, resetEpoch)` separation that prevents `90% ↔ 5%` from collapsing to `47.5%`.
+  - `mergedUtilizationDisorderedInputProducesSortedOutput` — two Macs each with entries deliberately shuffled. Merged output is hour-sorted. Also documents that single-Mac passthrough (providers.count == 1) intentionally returns the original snapshot as-is without sorting — downstream consumers bucket into dicts so sortedness is only a multi-device merge property.
+  - `mergedUtilizationLongIdleGapPreservesHistory` — Mac A has entries from 30 days ago, Mac B has fresh entries. Merger preserves both; no "stale filter" regression.
+  - `mergedUtilizationAllZeroPatternPreserved` — 720 hourly samples all at 0%. Must survive merge: a "zero-pattern provider" must remain visible in Subscription Utilization, not be silently dropped.
+  - `mergedCostCrossDateDayKeysPreserved` — daily cost points spanning a month end (2026-01-31 → 2026-02-01), overlap day sums correctly, dayKey strings round-trip untouched.
+- Brought test count from 34 → 40 in `CloudKitMergeTests`; full suite 66 → 72.
+
+### Findings from running the realistic tests
+- **No regressions exposed** in current merge code — every assertion passed on the first try after one test-setup fix (single-device passthrough path doesn't dedup, which surfaced an over-specific assertion in one of the new tests that I documented and narrowed to the multi-device path where dedup actually runs).
+- This confirms the merge layer handles realistic distributions correctly. The Build 77 Codex-0% bug lived at the view layer, not the merge layer — which is why CloudKitMergeTests fixtures didn't catch it. Round 1 (cross-view semantic consistency) was the right lens for that class.
+
+### Audit wrap-up (post Build 80)
+- Round 1 (cross-view semantic consistency): ✅ Build 77 (aggregate/detail) + Build 78 Fix A (Cost "Today")
+- Round 2 (multi-device merge fields): ✅ Build 77 (appVersion/mobileVersion) + Build 78 Fix B (notificationPushEnabled). One agent-flagged finding verified as false positive (`providerName` — current `base.providerName` is equivalent to `latestNonNil` because providerName is non-optional).
+- Round 3 (test data distribution): ✅ Build 80 Fix D
+- Round 4 (boundary conditions): Several `⚠️` findings verified and documented as intentional product behavior (email nil vs "" deliberate split, SwiftData stale-record retention for offline Macs, .distantPast sentinel safe behind override branch). No `❌`.
+- Round 5 (Codable resilience): ✅ Build 79 Fix C + Fix E
+
 ## [1.3.0 (79)] — 2026-04-23 — dev build · 5-round systematic audit follow-up (commit 2/3)
 
 **Commit 2 of 3** addressing the 5-round audit's infrastructure findings (the other P1 code-level fixes landed in Build 78 as Commit 1). This commit fixes Round 5 (Codable resilience) and part of Round 3 (encoder/decoder consistency in tests).
