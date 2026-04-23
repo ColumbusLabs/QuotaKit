@@ -297,6 +297,17 @@ final class SyncCoordinator {
             && provider.statusMessage == nil
     }
 
+    /// Key used by the in-memory diff cache — same (providerID, accountEmail)
+    /// composite as `CloudSyncManager.perProviderRecordName`, but local-only
+    /// (never serialized to CloudKit). The `"_"` sentinel for nil
+    /// `accountEmail` **must match 4 peer sites byte-for-byte**:
+    /// `CloudSyncManager.perProviderRecordName` (record name on CloudKit),
+    /// iOS `SnapshotCache.compositeKey`, iOS
+    /// `ProviderSnapshotModel.makeCompositeKey`, and any delete-by-
+    /// recordName parser. Build 67 drift discovery: an earlier build
+    /// used `""` at one of those four sites, silently breaking delete
+    /// cascades. If you change the sentinel, change **all four sites**
+    /// in the same commit.
     private static func perProviderHashKey(providerID: String, accountEmail: String?) -> String {
         "\(providerID)|\(accountEmail ?? "_")"
     }
@@ -304,6 +315,14 @@ final class SyncCoordinator {
     /// Deterministic hash of a provider's encoded JSON. Uses FNV-1a (64-bit)
     /// so it's cheap, stable across process launches, and collision-free in
     /// the range we care about (≤100 providers × app lifetime).
+    ///
+    /// `0xCBF2_9CE4_8422_2325` is the canonical FNV-1a **64-bit offset
+    /// basis**; `0x100_0000_01B3` is the canonical **64-bit FNV prime**.
+    /// These two values are the FNV-1a standard and must not be changed —
+    /// altering them would invalidate every cached provider hash and force
+    /// a full re-upload from every user's Mac on next startup (the diff
+    /// cache would see every provider as "changed" because the new hash
+    /// wouldn't match the cached old one).
     private static func stableHash(for data: Data) -> Int {
         var hash: UInt64 = 0xCBF2_9CE4_8422_2325
         for byte in data {

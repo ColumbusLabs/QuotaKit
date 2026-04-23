@@ -384,9 +384,15 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             return .failure("All per-provider payloads failed to encode")
         }
 
-        // CKModifyRecordsOperation batches in chunks of ≤200. Real users rarely
-        // have >30 providers, but chunk defensively anyway so we don't surprise
-        // ourselves later.
+        // CloudKit API hard limit: `CKModifyRecordsOperation` rejects any
+        // single `save()` call with more than 200 records (see Apple's
+        // CloudKit Reference under "Working with Records"). Real users
+        // rarely have >30 providers, but chunking defensively means we
+        // don't have to re-test this when a user with a genuinely large
+        // fleet shows up — or when we add a new record type that multiplies
+        // the per-push count. Raising this number without verifying the
+        // current limit against CloudKit docs **silently drops records
+        // above 200** with a generic `.limitExceeded` error.
         let batchSize = 200
         for chunkStart in stride(from: 0, to: records.count, by: batchSize) {
             let chunkEnd = min(chunkStart + batchSize, records.count)

@@ -2,6 +2,35 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (89)] — 2026-04-23 — dev build · Mac fork-added sync code hardcode comments (Phase 2)
+
+**Phase 2 of the hardcode-comment audit.** iOS Phase 1 (Builds 85-88) closed 50+ sites. Agent 5 audited Mac-side `Sources/CodexBar/Sync/**` for fork-added files (verified via git log). Most wire-contract constants were already protected with "WIRE CONTRACT" comments from earlier hardening passes (Build 68 / Research 012). The 4 real gaps addressed:
+
+### Added comments
+- **`Sources/CodexBar/Sync/SyncCoordinator.swift`**:
+  - `perProviderHashKey` — documented as the in-memory diff-cache composite key that must match 4 peer sites byte-for-byte (iOS `SnapshotCache.compositeKey`, `ProviderSnapshotModel.makeCompositeKey`, `CloudSyncManager.perProviderRecordName`, delete-by-recordName). Build 67 drift discovery referenced.
+  - `stableHash` FNV-1a constants — explicitly named `0xCBF29CE484222325` as the 64-bit offset basis and `0x100000001B3` as the 64-bit FNV prime; changing them invalidates every cached hash and forces full re-upload from every user's Mac on startup.
+- **`Shared/iCloud/CloudSyncManager.swift`**:
+  - `batchSize = 200` comment beefed up — explicit "CloudKit API hard limit per `CKModifyRecordsOperation.save()`"; raising silently triggers `.limitExceeded` and drops records above 200. Testing requirement documented.
+- **`Sources/CodexBar/Sync/QuotaTransitionWriter.swift`**:
+  - `debounceInterval = 5 * 60` — documented as a UX constant (push-spam prevention for oscillating quota crossings), not an API limit. Trade-off explained; validation path noted.
+
+### Verified already well-documented (no change)
+- `Shared/iCloud/CloudConstants.swift` — all zone/record names got WIRE CONTRACT treatment in Build 85.
+- `CloudSyncManager.perProviderRecordName` + `hourBucket` — already thoroughly doc-commented from earlier builds.
+- `SyncCoordinator.maxEntriesPerSeries = 730` — inline comment from the original commit already covers the 30-day hourly reasoning.
+
+### Scope boundary
+- Agent 5 explicitly verified fork-ownership per file via git log before flagging. Upstream-owned files (vanilla `steipete/CodexBar` code we didn't touch) stayed untouched per CLAUDE.md policy.
+
+### Post-Phase-2 summary
+- **5 commits** (Build 85 Shared/ wire + 86 iOS sync + 87 iOS Models/ContentView + 88 iOS Views + 89 Mac fork-added) across **~65 hardcode sites** across the entire fork-owned codebase.
+- Each commit passes Codex review clean.
+- No runtime behavior changes; pure documentation of load-bearing decisions.
+- User's core lesson from Build 84 (write why-comment at point of introduction) now applied retroactively across every discovered hardcode site.
+
+All 88 tests pass; Mac SPM build green; SwiftLint 0.
+
 ## [1.3.0 (88)] — 2026-04-23 — dev build · iOS Views hardcode comments (commit 4/4)
 
 ### Added comments

@@ -38,6 +38,16 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
     private var lastWriteByKey: [String: Date] = [:]
 
     /// Minimum interval between two writes for the same `(provider, state)`.
+    ///
+    /// 5 minutes is a **user-experience constant**, not an API limit. It
+    /// prevents notification spam when a provider's usage oscillates across
+    /// the "depleted" / "restored" threshold (e.g. 99% → 100% → 99% due to
+    /// retry / eviction churn), which each would otherwise fire a push on
+    /// the iPhone. The trade-off is a 5-minute delay for a legitimate
+    /// oscillation-then-real-change. Shortening spams users; lengthening
+    /// delays alerts past usefulness. If adjusting, validate on a real
+    /// Perplexity / Codex usage burst pattern and check the push-notification
+    /// cadence in Settings → Notifications.
     private let debounceInterval: TimeInterval = 5 * 60
 
     init() {}
