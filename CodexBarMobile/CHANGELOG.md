@@ -2,6 +2,29 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (85)] — 2026-04-23 — dev build · wire-contract comments (Shared/)
+
+**Commit 1/4 of the comprehensive hardcode-comment audit.** User pointed out that Build 81's regression (chart labels) was caused by commit `79f207d2` hardcoding `"M/d" + Locale("en_US")` with no inline explanation of the geometry constraint — making the hardcode look like a smell to any future audit. Prevention is to **comment all load-bearing hardcodes at the point of introduction**. 4 agents audited the whole iOS codebase + 1 will audit the Mac sync additions. This commit covers the most dangerous layer: the Mac↔iOS wire contract.
+
+### Added wire-contract comments
+- **`Shared/iCloud/CloudConstants.swift`**: `containerIdentifier` / `recordType` / `customZoneName` / `providerRecordType` / `providerZoneName` / `quotaDepletedZoneName` / `quotaRestoredZoneName` — each now carries a "WIRE CONTRACT" warning describing what renaming breaks (orphaned records, silenced pushes, irreversible without user-migration).
+- **`Shared/iCloud/CloudSyncManager.swift`**:
+  - Added rationale comment on `@unchecked Sendable` (stateless-factory + single-instance + immutable-stored-properties argument; if a mutable stored property lands later, switch to an actor).
+  - Documented the `perProviderRecordName` composite format `"{deviceID}|{providerID}|{accountEmail ?? "_"}"` — pipe separator rationale, `"_"` sentinel must match 4 other sites (Build 67 drift hardening), field-order change orphans all records.
+- **`Shared/Models/UsageSnapshot.swift`**:
+  - `SyncDailyPoint.init(from:)` `?? []` fallback on `modelBreakdowns` / `serviceBreakdowns` — backward-compat for pre-0.18 Mac payloads; removing crashes decode for legacy users.
+  - `SyncedUsageSnapshot.CodingKeys.syncVersion` — legacy key retained for Mac 0.17.x–0.19.x compatibility; explicit "do not remove until every user past 0.20.x".
+  - `mobileVersion ?? syncVersion` fallback chain — points back to CodingKeys docstring.
+- **`Shared/Notifications/QuotaProviderList.swift`**: `quotaZoneName(providerID:state:)` template now has a WIRE CONTRACT warning — zone name format changes silently break push delivery for every existing user with no migration path.
+
+### Not in this commit (follow-up builds)
+- **Build 86**: iOS sync layer (`CloudSyncReader` + `SnapshotCache` + `SwiftDataSchema` + subscriptions + push extension) — Agent 3 flagged 13 sites.
+- **Build 87**: iOS Models + ContentView — Agent 2 flagged 12 sites (time thresholds, palette HSB, preview fixture curves).
+- **Build 88**: iOS Views — Agent 1 flagged 10 sites (color thresholds, card geometry, arc offsets).
+- **Build 89**: Mac-side sync audit (Phase 2, separate agent).
+
+All 88 tests pass; SwiftLint 0; Codex review pending.
+
 ## [1.3.0 (84)] — 2026-04-23 — dev build · revert Build 81 chart date label locale change
 
 **User flagged a regression introduced in Build 81.** Agent D's audit suggested switching the 30-day chart's day-labels from hardcoded `"M/d" + Locale("en_US")` to `setLocalizedDateFormatFromTemplate("Md") + .current`, framed as an i18n improvement. I applied that blindly.

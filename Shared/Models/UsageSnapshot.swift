@@ -74,6 +74,12 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
         self.dayKey = try container.decode(String.self, forKey: .dayKey)
         self.costUSD = try container.decode(Double.self, forKey: .costUSD)
         self.totalTokens = try container.decode(Int.self, forKey: .totalTokens)
+        // `?? []` backward-compat fallback: Mac builds prior to 0.18 didn't
+        // write `modelBreakdowns` / `serviceBreakdowns`. Those old payloads
+        // must still decode — an iPhone reading them treats the day as "no
+        // breakdown data" (empty arrays) rather than throwing. Removing the
+        // fallback would crash the entire `SyncCostSummary.daily` decode and
+        // lose every pre-0.18 user's history from the iPhone view.
         self.modelBreakdowns =
             try container.decodeIfPresent([SyncCostBreakdown].self, forKey: .modelBreakdowns) ?? []
         self.serviceBreakdowns =
@@ -304,6 +310,15 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         case providers, syncTimestamp, deviceName, deviceID, appVersion
         case mobileVersion, notificationPushEnabled
         /// Legacy key for backward compatibility with older synced data.
+        ///
+        /// **DO NOT REMOVE.** Mac builds 0.17.x–0.19.x wrote this field name
+        /// (`syncVersion`) instead of `mobileVersion`. If an iPhone reads an
+        /// old-payload Mac snapshot with this key stripped from the decoder,
+        /// the mobileVersion field decodes as nil, which downstream
+        /// `latestNonNil` + highest-semver logic in `mergeSnapshots` turns
+        /// into "no mobile version synced from any Mac" — a user-visible
+        /// regression in Settings → About. Retained for at least until every
+        /// live user has upgraded their Mac past 0.20.x.
         case syncVersion
     }
 
@@ -333,6 +348,9 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         self.deviceID = try container.decodeIfPresent(String.self, forKey: .deviceID)
         self.appVersion = try container.decodeIfPresent(String.self, forKey: .appVersion)
         // Read from "mobileVersion" first; fall back to legacy "syncVersion" key.
+        // See `CodingKeys.syncVersion` docstring — retained for decoding
+        // payloads written by Mac 0.17.x–0.19.x. Encoder writes only
+        // `mobileVersion`, so newer payloads skip the fallback entirely.
         self.mobileVersion = try container.decodeIfPresent(String.self, forKey: .mobileVersion)
             ?? container.decodeIfPresent(String.self, forKey: .syncVersion)
         self.notificationPushEnabled = try container.decodeIfPresent(Bool.self, forKey: .notificationPushEnabled)

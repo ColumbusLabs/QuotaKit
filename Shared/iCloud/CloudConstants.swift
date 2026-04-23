@@ -5,24 +5,53 @@ public enum CloudSyncConstants {
     // MARK: - CloudKit
 
     /// The CloudKit container identifier shared by Mac and iOS apps.
+    ///
+    /// **WIRE CONTRACT · IRREVERSIBLE.** This string is burned into every
+    /// CloudKit record, subscription, and zone ever written by any client.
+    /// Renaming it makes every existing user's synced data invisible (the
+    /// records still exist under the old container, just nobody reads them)
+    /// and forces re-pairing across Mac + iOS. Never change without a
+    /// user-migration plan.
     public static let containerIdentifier = "iCloud.com.o1xhack.codexbar"
 
     /// The CloudKit record type for per-device usage snapshots.
+    ///
+    /// **WIRE CONTRACT.** Mac writes records of this type, iOS queries them.
+    /// Renaming orphans every existing `DeviceSnapshot` in `customZoneName` —
+    /// old records stay, new writes go elsewhere, iOS sees a "first-run"
+    /// state for every user. The legacy zone is still used as a fallback for
+    /// users on Mac builds prior to P4 per-provider zone migration.
     public static let recordType = "DeviceSnapshot"
 
     /// Custom record zone name for per-device usage snapshots.
+    ///
+    /// **WIRE CONTRACT.** `CKRecordZoneSubscription` on this zone name is how
+    /// iOS gets silent pushes when Mac writes. If this string changes, all
+    /// existing subscriptions on every iPhone become orphaned — push
+    /// notifications silently stop until users manually re-trigger setup.
     public static let customZoneName = "DeviceSnapshotsZone"
 
     /// Record type for per-provider snapshot records (P4 — split from the
     /// monolithic `DeviceSnapshot` payload so each provider can be uploaded and
     /// downloaded incrementally, and so a single provider's state never has to
     /// share CloudKit's 1MB-per-record budget with everything else).
+    ///
+    /// **WIRE CONTRACT.** Record names follow the format
+    /// `"{deviceID}|{providerID}|{accountEmail ?? "_"}"` (see
+    /// `CloudSyncManager.perProviderRecordName` on Mac + iOS matching parser
+    /// in `SnapshotCache.compositeKey`). Renaming this record type or the
+    /// record-name format orphans every incremental-sync record and breaks
+    /// delete cascades via `CKModifyRecordsOperation.recordIDsToDelete`.
     public static let providerRecordType = "DeviceProviderSnapshot"
 
     /// Dedicated zone for per-provider snapshot records. New zone (not reused
     /// from `customZoneName`) so a future server-side prune of legacy
     /// `DeviceSnapshot` records never disturbs provider-level data, and so
     /// per-provider `CKRecordZoneSubscription` subs can be set up independently.
+    ///
+    /// **WIRE CONTRACT.** Same concern as `customZoneName`: iOS subscriptions
+    /// on this exact zone name are how per-provider incremental pushes reach
+    /// the device. Renaming = silent loss of push delivery.
     public static let providerZoneName = "DeviceProvidersZone"
 
     /// Bumped when the on-wire payload format changes (compression algorithm,
@@ -67,9 +96,16 @@ public enum CloudSyncConstants {
     /// because CKQuerySubscription does not persist on this container (A/B test
     /// confirmed, see `QuotaTransitionSubscriptions.swift`). Splitting by zone lets
     /// each CKRecordZoneSubscription carry its own static localization key.
+    ///
+    /// **WIRE CONTRACT.** Zone-name change silences every "quota depleted"
+    /// push notification in production until users manually reinstall / reset
+    /// CodexBar on Mac — there's no migration path for zone renames.
     public static let quotaDepletedZoneName = "QuotaDepletedZone"
 
     /// Dedicated zone for "quota restored" push events. See `quotaDepletedZoneName`.
+    ///
+    /// **WIRE CONTRACT.** Same concern; silences "quota restored" pushes on
+    /// rename. Users miss recovery notifications.
     public static let quotaRestoredZoneName = "QuotaRestoredZone"
 
     /// CloudKit record type for visible quota change push events (alert push design).

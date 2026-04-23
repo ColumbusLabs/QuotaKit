@@ -131,6 +131,16 @@ public enum SyncResult: Sendable {
 /// on the private database — the default zone of the private database does not deliver
 /// silent push reliably (see `apple/sample-cloudkit-privatedb-sync` and Apple's
 /// "Remote Records" documentation).
+// `@unchecked Sendable` rationale:
+// - `_container` / `_privateDatabase` are set once in init and never mutated;
+//   CloudKit's CKContainer + CKDatabase are documented thread-safe per Apple.
+// - `encoder` / `decoder` are factory-built `let` values whose only instance
+//   methods we call (`encode`/`decode`) don't mutate shared state.
+// - `shared` is a single instance; there is no cross-instance aliasing.
+// We don't cleanly express these constraints in Swift 6's checked `Sendable`
+// (CKContainer isn't annotated), so `@unchecked` is deliberate. If any
+// mutable stored property is added here in the future, switch to an actor
+// rather than relaxing this comment.
 public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     public static let shared = CloudSyncManager()
 
@@ -451,6 +461,20 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
 
     /// Composite record name matching iOS `ProviderSnapshotModel.makeCompositeKey`.
     /// Stable across pushes so repeated saves overwrite in place.
+    ///
+    /// **WIRE CONTRACT.** Format: `"{deviceID}|{providerID}|{accountEmail ?? "_"}"`.
+    /// - The pipe `|` separator was chosen because provider IDs never contain it
+    ///   (they're kebab-case ASCII) and neither do email addresses.
+    /// - The `"_"` sentinel for nil `accountEmail` must exactly match the four
+    ///   other composite-key sites: iOS `SnapshotCache.compositeKey`, iOS
+    ///   `ProviderSnapshotModel.makeCompositeKey`, iOS
+    ///   `CloudSyncReader.mergeSnapshots` grouping, and any future
+    ///   delete-by-recordName code path. Build 67 discovered a drift where
+    ///   one site used `""` and another used `"_"`, silently breaking
+    ///   delete cascades. If you change the sentinel, you MUST change all
+    ///   sites at once.
+    /// - Changing the field order (`deviceID|providerID|accountEmail`) or
+    ///   separator orphans every already-uploaded record.
     public static func perProviderRecordName(
         deviceID: String,
         providerID: String,

@@ -68,6 +68,15 @@ public enum QuotaProviderList {
     ///
     /// `state` is expected to be `"depleted"` or `"restored"`. Other values
     /// produce a zone name that will never match any iOS subscription.
+    ///
+    /// **WIRE CONTRACT.** Format `"Quota-{providerID}-{state}Zone"` is
+    /// literally the CKRecordZone name on the iCloud server. Every user's
+    /// per-provider push subscriptions were registered with these exact
+    /// strings. Any change to the template (separator, casing, suffix)
+    /// silently breaks push delivery for every existing user — there is no
+    /// migration path for zone renames on Apple's side short of having every
+    /// user manually reinstall / re-subscribe. Mac-side writes and iOS-side
+    /// subscriptions must compute the same string byte-for-byte.
     public static func quotaZoneName(providerID: String, state: String) -> String {
         return "Quota-\(providerID)-\(state)Zone"
     }
