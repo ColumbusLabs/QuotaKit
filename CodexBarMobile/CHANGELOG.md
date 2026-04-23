@@ -2,6 +2,34 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (77)] — 2026-04-22 — dev build · Subscription Utilization aggregate + Mac version determinism
+
+**Reported bug**: Cost tab's "Subscription Utilization" card shows Codex at 0% ("0% avg use") while the Codex detail page shows 16% session usage with 84 visible data points and clear bars on recent days. Also reported: with two Macs on different CodexBar versions, the "Mac App" field in Settings flips between versions across refreshes instead of stabilizing on the newer one.
+
+**Root causes** (two independent issues surfaced together by the multi-device setup):
+
+1. **Semantic mismatch — aggregate vs detail.** `UtilizationAggregateView.buildModel` averaged **raw** utilization entries across the window. For session quotas, a typical hour of samples looks like `[0, 0, 0, 20, 10, 5, 0, 0]` — the burst is real but the raw average is near-zero. Detail view (`UtilizationHistoryView.buildPeriodPoints`) groups by reset-period and takes `max`, surfacing the burst. Consequence: bursty-use providers (Codex) read as 0% in the aggregate while the detail chart clearly shows usage.
+2. **Non-deterministic Mac App version.** `mergeSnapshots` used `snapshots.first?.appVersion`, which is whichever snapshot CloudKit iterates first — flips per refresh. Two Macs on 0.19.0 + 0.20.3 would display either version depending on fetch order.
+
+### Fixed
+- `CodexBarMobile/Views/UtilizationAggregateView.swift`:
+  - `buildModel(from:windowSize:)` now collapses each provider's session entries to **daily peaks** (`max(usedPercent)` per calendar day) before aggregating. Summary cards, daily bar heights, and provider-share math all consume the same per-day peak signal.
+  - Hardens against cross-version merge leakage where two "session" series end up in the merged history: aggregate now **unions entries across every session-named series** rather than picking `history.first(where: name == "session")` (which could latch onto the empty/stale one).
+- `CodexBarMobile/iCloud/CloudSyncReader.swift` `mergeSnapshots`:
+  - `appVersion` / `mobileVersion` now take the **highest semver** across devices (new `semverLessThan` helper) instead of `snapshots.first?.appVersion`. Result is stable across refreshes and reflects the most up-to-date client in any multi-Mac setup.
+- `CodexBarMobile/iCloud/CloudSyncReader.swift` `mergeUtilizationHistories`:
+  - Group by series **name** only (was `(name, windowMinutes)`). Cross-version Macs occasionally disagree on `windowMinutes` for what is logically the same account-level series (e.g. a fallback classification on an older build). Pre-fix this split into two entries named `"session"` and left the picker to guess; post-fix the entries union and the freshest device's `windowMinutes` wins.
+
+### Tests
+- `CodexBarMobileTests/SubscriptionUtilizationCompatTests.swift` +3 cases:
+  - `aggregateBurstyProviderShowsPeakNotZero`: single provider with 1 peak/day + 23 zero samples — pre-fix would show 0%, post-fix shows 16%.
+  - `aggregateTwoBurstyProvidersShowCorrectShare`: two providers reflect proportional share (Claude + Codex scenario from the report).
+  - `aggregateUnionsMultipleSessionSeries`: empty-first + real-second session series → aggregate picks real data, not the empty stub.
+- `CodexBarMobileTests/CloudKitMergeTests.swift` +5 cases:
+  - `appVersionTakesHighest`, `appVersionOrderIndependent`, `semverComparison` — Mac App version determinism.
+  - `utilizationMismatchedWindowMinutesUnion`, `utilizationEmptySeriesFromOneDeviceDoesNotMaskOther` — mergeUtilizationHistories regression guards.
+- Also repaired two pre-existing tests in `CloudKitMergeTests.swift` whose `SyncCostSummary(…)` argument order was wrong and had silently never compiled.
+
 ## [1.3.0 (76)] — 2026-04-22 — dev build · cross-version multi-device merge hardening
 
 **Class-of-bug fix**: every optional account-level field on `ProviderUsageSnapshot` that the merger was taking from `base` (the newest-timestamped device) silently dropped data when two Macs running different CodexBar versions synced to the same iCloud account — and the **older** Mac (without the new field) happened to refresh last. This isn't a transition scenario; it's the steady state for any user whose 2 Macs update on different schedules (could be weeks or months apart). Build 74 fixed the `perplexityCredits` instance after Codex-review flagged it; Build 76 generalizes the fix to every account-level field in the same position.

@@ -168,14 +168,42 @@ final class CloudSyncReader: @unchecked Sendable {
             ? false
             : snapshots.first?.notificationPushEnabled
 
+        // Pick the *highest* app/mobile version across devices so the merged
+        // "Mac App" / "Synced Mobile Version" row reflects the most up-to-date
+        // client, regardless of which snapshot CloudKit happened to iterate
+        // first. Prior code used `snapshots.first?.appVersion`, which flipped
+        // non-deterministically for users running two Macs on different
+        // CodexBar versions and showed whichever arrived first.
+        let appVersion = snapshots.compactMap(\.appVersion).max(by: Self.semverLessThan)
+        let mobileVersion = snapshots.compactMap(\.mobileVersion).max(by: Self.semverLessThan)
+
         return SyncedUsageSnapshot(
             providers: mergedProviders,
             syncTimestamp: latestTimestamp,
             deviceName: combinedDeviceName,
             deviceID: nil,
-            appVersion: snapshots.first?.appVersion,
-            mobileVersion: snapshots.first?.mobileVersion,
+            appVersion: appVersion,
+            mobileVersion: mobileVersion,
             notificationPushEnabled: pushEnabled)
+    }
+
+    /// Orders two semver-ish strings like `"0.20.3"` / `"1.2.0"` so `max(by:)`
+    /// returns the highest. Falls back to string comparison for non-numeric
+    /// segments (e.g. `"0.20.0-beta"`). Strictly lower; ties are `false`.
+    static func semverLessThan(_ lhs: String, _ rhs: String) -> Bool {
+        let lhsParts = lhs.split(separator: ".").map(String.init)
+        let rhsParts = rhs.split(separator: ".").map(String.init)
+        let count = max(lhsParts.count, rhsParts.count)
+        for i in 0 ..< count {
+            let l = i < lhsParts.count ? lhsParts[i] : "0"
+            let r = i < rhsParts.count ? rhsParts[i] : "0"
+            if let li = Int(l), let ri = Int(r) {
+                if li != ri { return li < ri }
+            } else if l != r {
+                return l < r
+            }
+        }
+        return false
     }
 
     /// For an **account-level optional field** (budget, perplexityCredits,
@@ -316,37 +344,53 @@ final class CloudSyncReader: @unchecked Sendable {
     /// are observations of the SAME metric at different times.
     ///
     /// Steps:
-    /// 1. Collect entries from all devices per series name
+    /// 1. Collect entries from all devices per series **name** (not per
+    ///    (name, windowMinutes)). Cross-version Macs may report the same
+    ///    logical series with a drifted `windowMinutes` (e.g. a fallback
+    ///    classification on an older build); splitting on that leaves two
+    ///    "session" series in the merged list and makes downstream pickers
+    ///    like `history.first(where: { $0.name == "session" })` hit the
+    ///    stale/empty variant non-deterministically. The entries describe
+    ///    the same account-level pool regardless, so unioning them is safe.
     /// 2. Dedup by hour: group by floor(capturedAt / 1h), take average
-    /// 3. Result: clean hourly data regardless of device count
+    /// 3. Keep the winning series' `windowMinutes` from the entry that
+    ///    captured most recently — that's the newest-Mac reading
+    /// 4. Result: clean hourly data regardless of device count
     private static func mergeUtilizationHistories(
         _ histories: [[SyncUtilizationSeries]]
     ) -> [SyncUtilizationSeries]? {
         let allSeries = histories.flatMap { $0 }
         guard !allSeries.isEmpty else { return nil }
 
-        // Group by (name, windowMinutes) to avoid mixing incompatible time windows
-        struct SeriesKey: Hashable {
-            let name: String
-            let windowMinutes: Int
-        }
-
-        var entriesByKey: [SeriesKey: [SyncUtilizationEntry]] = [:]
+        var entriesByName: [String: [SyncUtilizationEntry]] = [:]
+        // Remember the latest windowMinutes per name so we can pick the
+        // freshest reading when two devices disagree.
+        var freshestWindowByName: [String: (capturedAt: Date, windowMinutes: Int)] = [:]
 
         for series in allSeries {
-            let key = SeriesKey(name: series.name, windowMinutes: series.windowMinutes)
-            entriesByKey[key, default: []].append(contentsOf: series.entries)
+            entriesByName[series.name, default: []].append(contentsOf: series.entries)
+            if let latestCaptured = series.entries.map(\.capturedAt).max() {
+                let current = freshestWindowByName[series.name]
+                if current == nil || latestCaptured > current!.capturedAt {
+                    freshestWindowByName[series.name] = (latestCaptured, series.windowMinutes)
+                }
+            } else if freshestWindowByName[series.name] == nil {
+                // Empty series: record its windowMinutes as a fallback in case
+                // no other device has entries for this name.
+                freshestWindowByName[series.name] = (.distantPast, series.windowMinutes)
+            }
         }
 
         // Dedup each series by hour
         var result: [SyncUtilizationSeries] = []
 
-        for (key, entries) in entriesByKey {
+        for (name, entries) in entriesByName {
             let deduped = Self.dedupByHour(entries)
             guard !deduped.isEmpty else { continue }
+            let windowMinutes = freshestWindowByName[name]?.windowMinutes ?? 0
             result.append(SyncUtilizationSeries(
-                name: key.name,
-                windowMinutes: key.windowMinutes,
+                name: name,
+                windowMinutes: windowMinutes,
                 entries: deduped))
         }
 

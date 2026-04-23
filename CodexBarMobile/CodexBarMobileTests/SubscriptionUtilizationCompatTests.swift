@@ -1,6 +1,8 @@
 import CodexBarSync
 import Foundation
+import SwiftUI
 import Testing
+import UIKit
 
 @testable import CodexBarMobile
 
@@ -129,5 +131,126 @@ struct SubscriptionUtilizationCompatTests {
         #expect(UIColor(perplexityColor) != UIColor(.gray))
         #expect(UIColor(goColor) != UIColor(.gray))
         #expect(UIColor(perplexityColor) != UIColor(goColor))
+    }
+
+    // MARK: - Daily-peak semantics (Build 77)
+    //
+    // Reported bug: iPhone Cost tab showed Codex at 0% in Subscription
+    // Utilization while the Codex detail page rendered clear session bars
+    // and "16% used". The aggregate view used to average RAW entries; for a
+    // bursty session provider (most hourly samples at 0% between activity),
+    // the raw average rounds to 0 even when the user is clearly using it.
+    //
+    // Fix: collapse entries to daily peaks (max per calendar day) before
+    // aggregating — matches the detail view's "best per period" semantics.
+
+    private func bursty30DayProvider(
+        id: String = "codex",
+        name: String = "Codex",
+        peakPercentPerDay: Double,
+        samplesPerDay: Int = 24
+    ) -> ProviderUsageSnapshot {
+        // Simulates a provider sampled hourly for 30 days, with `peakPercentPerDay`
+        // hit for exactly ONE sample per day and 0% for the rest — matches a
+        // user doing short bursts of activity inside a session quota that
+        // otherwise idles at 0%.
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        var entries: [SyncUtilizationEntry] = []
+        for dayOffset in 0 ..< 30 {
+            let day = calendar.date(byAdding: .day, value: -dayOffset, to: today)!
+            for hour in 0 ..< samplesPerDay {
+                let captured = calendar.date(byAdding: .hour, value: hour, to: day)!
+                let percent = (hour == 12) ? peakPercentPerDay : 0.0
+                entries.append(SyncUtilizationEntry(
+                    capturedAt: captured, usedPercent: percent, resetsAt: nil))
+            }
+        }
+        return ProviderUsageSnapshot(
+            providerID: id,
+            providerName: name,
+            primary: nil, secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil, statusMessage: nil,
+            isError: false, lastUpdated: Date(),
+            utilizationHistory: [SyncUtilizationSeries(
+                name: "session", windowMinutes: 300, entries: entries)])
+    }
+
+    @Test("Bursty provider (1 peak/day, 23 zeros) produces non-zero aggregate via daily-peak semantics")
+    func aggregateBurstyProviderShowsPeakNotZero() throws {
+        // Pre-fix: this would have shown ~0.67% (16 / 24) rounding to 0% per
+        // period card. Post-fix: shows 16% — same number the user sees on
+        // the detail page's bar chart.
+        let provider = self.bursty30DayProvider(peakPercentPerDay: 16)
+        let model = try #require(UtilizationAggregateView.buildModel(from: [provider], windowSize: 30))
+
+        // 30-day average of daily peaks should be ~16%, NOT ~0.67% (raw avg).
+        let last30 = try #require(model.last30Avg)
+        #expect(last30 > 15 && last30 < 17)
+
+        // Daily bars should all show the peak value as segment height.
+        let realBars = model.dayBars.filter { !$0.isPadding }
+        #expect(!realBars.isEmpty)
+        for bar in realBars {
+            // Each day has exactly one provider segment with the peak value.
+            #expect(bar.segments.count == 1)
+            #expect(bar.segments.first?.avgPercent == 16)
+        }
+    }
+
+    @Test("Two providers with different burst patterns reflect relative usage (not both 0%)")
+    func aggregateTwoBurstyProvidersShowCorrectShare() throws {
+        // The user's reported scenario: Claude "12% avg use, 100% share" and
+        // Codex "0% avg use, 0% share". Post-fix, both should show their
+        // actual peak averages and share proportionally.
+        let claude = self.bursty30DayProvider(id: "claude", name: "Claude", peakPercentPerDay: 24)
+        let codex = self.bursty30DayProvider(id: "codex", name: "Codex", peakPercentPerDay: 16)
+
+        let model = try #require(UtilizationAggregateView.buildModel(from: [claude, codex], windowSize: 30))
+        #expect(model.providerShares.count == 2)
+
+        let claudeShare = try #require(model.providerShares.first { $0.id == "claude" })
+        let codexShare = try #require(model.providerShares.first { $0.id == "codex" })
+
+        // Raw average of daily peaks
+        #expect(claudeShare.rawAvgPercent > 23 && claudeShare.rawAvgPercent < 25)
+        #expect(codexShare.rawAvgPercent > 15 && codexShare.rawAvgPercent < 17)
+
+        // Proportional share: Claude 24 / (24 + 16) = 60%, Codex 40%
+        #expect(claudeShare.sharePercent > 59 && claudeShare.sharePercent < 61)
+        #expect(codexShare.sharePercent > 39 && codexShare.sharePercent < 41)
+    }
+
+    @Test("Duplicate session series (cross-version Mac merge leakage) do not hide real data")
+    func aggregateUnionsMultipleSessionSeries() throws {
+        // Simulates the state after a pre-Build-77 `mergeUtilizationHistories`
+        // that left two "session" series behind because two Macs disagreed on
+        // windowMinutes. Pre-fix the aggregate picked `first(where: name ==
+        // "session")` and used whichever series landed first — empty/stale
+        // or real, non-deterministically.
+        // Post-fix, aggregate unions entries across ALL series named "session".
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let realEntries = (0 ..< 5).map { dayOffset -> SyncUtilizationEntry in
+            let date = calendar.date(byAdding: .day, value: -dayOffset, to: today)!
+            return SyncUtilizationEntry(capturedAt: date, usedPercent: 42, resetsAt: nil)
+        }
+        // First series (empty) sits in front — pre-fix, aggregate would pick
+        // this one and conclude "no data".
+        let emptyFirst = SyncUtilizationSeries(name: "session", windowMinutes: 300, entries: [])
+        let realSecond = SyncUtilizationSeries(name: "session", windowMinutes: 180, entries: realEntries)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex", providerName: "Codex",
+            primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: nil,
+            statusMessage: nil, isError: false,
+            lastUpdated: Date(),
+            utilizationHistory: [emptyFirst, realSecond])
+
+        let model = try #require(UtilizationAggregateView.buildModel(from: [provider], windowSize: 30))
+        #expect(model.providerShares.count == 1)
+        // Average of daily peaks (each day = 42%) should be 42, not 0.
+        #expect(model.providerShares.first?.rawAvgPercent == 42)
     }
 }

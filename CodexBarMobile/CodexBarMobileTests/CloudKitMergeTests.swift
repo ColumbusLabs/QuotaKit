@@ -490,10 +490,10 @@ struct CloudKitMergeTests {
         // (account-level via API, not per-Mac CLI).
         let cost = SyncCostSummary(
             sessionCostUSD: 1.23,
-            last30DaysCostUSD: 45.67,
-            daily: [],
             sessionTokens: 0,
-            last30DaysTokens: 0)
+            last30DaysCostUSD: 45.67,
+            last30DaysTokens: 0,
+            daily: [])
         let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
             ProviderUsageSnapshot(
                 providerID: "cursor",
@@ -533,16 +533,16 @@ struct CloudKitMergeTests {
         // provider) — merged should be $20 (sum), not $10 (latest).
         let costA = SyncCostSummary(
             sessionCostUSD: 10,
-            last30DaysCostUSD: 100,
-            daily: [],
             sessionTokens: 0,
-            last30DaysTokens: 0)
+            last30DaysCostUSD: 100,
+            last30DaysTokens: 0,
+            daily: [])
         let costB = SyncCostSummary(
             sessionCostUSD: 10,
-            last30DaysCostUSD: 100,
-            daily: [],
             sessionTokens: 0,
-            last30DaysTokens: 0)
+            last30DaysCostUSD: 100,
+            last30DaysTokens: 0,
+            daily: [])
         let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
             ProviderUsageSnapshot(
                 providerID: "claude", providerName: "Claude",
@@ -604,5 +604,163 @@ struct CloudKitMergeTests {
         let merged = try #require(CloudSyncReader.mergeSnapshots([mac]))
         #expect(merged.providers.first?.perplexityCredits?.planName == "Max")
         #expect(merged.providers.first?.perplexityCredits?.recurringTotalCents == 7500)
+    }
+
+    // MARK: - App/mobile version: take highest across devices (Build 77)
+    //
+    // Reported scenario: user has two Macs on different CodexBar versions
+    // (e.g. 0.19.0 and 0.20.3). The "Mac App" field in iOS Settings used
+    // `snapshots.first?.appVersion`, which is whichever snapshot CloudKit
+    // iterated first — flipped non-deterministically run to run. Users saw
+    // the older version "randomly" even though the newer Mac was fully
+    // synced. Fix: take highest semver across devices.
+
+    @Test("Mac App version merged to highest semver across two Macs")
+    func appVersionTakesHighest() throws {
+        let macOld = SyncedUsageSnapshot(
+            providers: [makeProvider(id: "claude", name: "Claude", lastUpdated: olderDate)],
+            syncTimestamp: olderDate,
+            deviceName: "Old Mac", deviceID: "uuid-old",
+            appVersion: "0.19.0", mobileVersion: "1.2.0")
+        let macNew = SyncedUsageSnapshot(
+            providers: [makeProvider(id: "codex", name: "Codex", lastUpdated: newerDate)],
+            syncTimestamp: newerDate,
+            deviceName: "New Mac", deviceID: "uuid-new",
+            appVersion: "0.20.3", mobileVersion: "1.3.0")
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macOld, macNew]))
+        #expect(merged.appVersion == "0.20.3")
+        #expect(merged.mobileVersion == "1.3.0")
+    }
+
+    @Test("Mac App version merge is order-independent")
+    func appVersionOrderIndependent() throws {
+        // Same two snapshots, flipped iteration order — the result must not
+        // change. The pre-fix bug was: `snapshots.first?.appVersion` returned
+        // 0.19.0 here but 0.20.3 in the previous test, purely based on order.
+        let macNew = SyncedUsageSnapshot(
+            providers: [makeProvider(id: "codex", name: "Codex", lastUpdated: newerDate)],
+            syncTimestamp: newerDate,
+            deviceName: "New Mac", deviceID: "uuid-new",
+            appVersion: "0.20.3", mobileVersion: "1.3.0")
+        let macOld = SyncedUsageSnapshot(
+            providers: [makeProvider(id: "claude", name: "Claude", lastUpdated: olderDate)],
+            syncTimestamp: olderDate,
+            deviceName: "Old Mac", deviceID: "uuid-old",
+            appVersion: "0.19.0", mobileVersion: "1.2.0")
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macNew, macOld]))
+        #expect(merged.appVersion == "0.20.3")
+        #expect(merged.mobileVersion == "1.3.0")
+    }
+
+    @Test("Semver comparison handles 2-segment, 3-segment, and non-numeric segments")
+    func semverComparison() {
+        // Numeric-segment ordering
+        #expect(CloudSyncReader.semverLessThan("0.19.0", "0.20.0"))
+        #expect(CloudSyncReader.semverLessThan("0.20.0", "0.20.3"))
+        #expect(!CloudSyncReader.semverLessThan("0.20.3", "0.20.0"))
+        #expect(!CloudSyncReader.semverLessThan("0.20.3", "0.20.3"))
+
+        // Mixed segment counts (treat missing as 0)
+        #expect(CloudSyncReader.semverLessThan("0.20", "0.20.1"))
+        #expect(!CloudSyncReader.semverLessThan("0.20.0", "0.20"))
+
+        // Non-numeric suffix falls back to string comparison
+        #expect(CloudSyncReader.semverLessThan("0.20.0-beta", "0.20.0-rc"))
+    }
+
+    // MARK: - Utilization history: cross-version series merge (Build 77)
+    //
+    // Reported scenario: iPhone Cost tab's "Subscription Utilization"
+    // section showed Codex at 0% even though the Codex detail page rendered
+    // clear session bars and "16% used". Root cause was two-fold:
+    //   (a) aggregate view averaged raw entries instead of daily peaks
+    //       (bursty providers look like zeros in raw avg) — fixed in
+    //       UtilizationAggregateView.buildModel;
+    //   (b) `mergeUtilizationHistories` grouped by (name, windowMinutes),
+    //       so if two Macs disagreed on `windowMinutes` for the same series,
+    //       two "session" entries landed in the merged history and
+    //       downstream pickers hit the stale one non-deterministically.
+    // These tests pin (b): same-name series must union, and the freshest
+    // device's windowMinutes wins.
+
+    private func makeCodexWithSession(
+        email: String = "user@example.com",
+        lastUpdated: Date,
+        windowMinutes: Int = 300,
+        entries: [SyncUtilizationEntry]
+    ) -> ProviderUsageSnapshot {
+        ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil, secondary: nil,
+            accountEmail: email,
+            loginMethod: nil, statusMessage: nil,
+            isError: false, lastUpdated: lastUpdated,
+            utilizationHistory: [SyncUtilizationSeries(
+                name: "session", windowMinutes: windowMinutes, entries: entries)])
+    }
+
+    @Test("Two Macs reporting session with mismatched windowMinutes merge into ONE session series")
+    func utilizationMismatchedWindowMinutesUnion() throws {
+        let hourAgo = Date().addingTimeInterval(-3600)
+        let twoHoursAgo = Date().addingTimeInterval(-7200)
+        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            makeCodexWithSession(
+                lastUpdated: olderDate,
+                windowMinutes: 300,
+                entries: [SyncUtilizationEntry(
+                    capturedAt: twoHoursAgo, usedPercent: 25, resetsAt: nil)]),
+        ])
+        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            makeCodexWithSession(
+                lastUpdated: newerDate,
+                // Different windowMinutes — pre-fix, this created a SECOND
+                // "session" series that downstream code could pick instead.
+                windowMinutes: 180,
+                entries: [SyncUtilizationEntry(
+                    capturedAt: hourAgo, usedPercent: 40, resetsAt: nil)]),
+        ])
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let codex = try #require(merged.providers.first { $0.providerID == "codex" })
+        let sessions = codex.utilizationHistory?.filter { $0.name == "session" } ?? []
+        #expect(sessions.count == 1)  // Unioned, not split
+        // The newer Mac's windowMinutes wins (180), because its entry was
+        // captured more recently.
+        #expect(sessions.first?.windowMinutes == 180)
+        // Both devices' entries survive the union.
+        let entryCount = sessions.first?.entries.count ?? 0
+        #expect(entryCount == 2)
+    }
+
+    @Test("Mac B reports empty session; Mac A's real entries survive the union")
+    func utilizationEmptySeriesFromOneDeviceDoesNotMaskOther() throws {
+        // Degenerate but common: one Mac opens, samples Codex once, then gets
+        // put to sleep. Its "session" series may be empty until the next
+        // refresh. That empty series must not shadow the other Mac's real
+        // data when picking windowMinutes or when downstream views filter
+        // for `!entries.isEmpty`.
+        let now = Date()
+        let macARealData = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            makeCodexWithSession(
+                lastUpdated: newerDate,
+                entries: [
+                    SyncUtilizationEntry(capturedAt: now.addingTimeInterval(-3600),
+                                         usedPercent: 30, resetsAt: nil),
+                    SyncUtilizationEntry(capturedAt: now.addingTimeInterval(-7200),
+                                         usedPercent: 50, resetsAt: nil),
+                ]),
+        ])
+        let macBEmpty = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            makeCodexWithSession(
+                lastUpdated: olderDate,
+                entries: []),
+        ])
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macARealData, macBEmpty]))
+        let codex = try #require(merged.providers.first { $0.providerID == "codex" })
+        let sessions = codex.utilizationHistory?.filter { $0.name == "session" } ?? []
+        #expect(sessions.count == 1)
+        #expect((sessions.first?.entries.count ?? 0) >= 2)
     }
 }

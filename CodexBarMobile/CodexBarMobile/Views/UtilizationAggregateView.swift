@@ -304,32 +304,64 @@ struct UtilizationAggregateView: View {
 
     // MARK: - Build Model
 
-    private static func buildModel(from providers: [ProviderUsageSnapshot], windowSize: Int) -> AggregateModel? {
-        // Collect providers that have session-window utilization history
-        let providerData = providers.compactMap { provider -> (id: String, name: String, color: Color, entries: [SyncUtilizationEntry])? in
-            guard let history = provider.utilizationHistory,
-                  let session = history.first(where: { $0.name == "session" }) ?? history.first,
-                  !session.entries.isEmpty
-            else { return nil }
+    /// Builds the aggregate from per-provider utilization entries, using
+    /// **daily peak** semantics throughout:
+    ///
+    ///   daily peak = max(usedPercent) across all entries captured that day
+    ///
+    /// Why peak instead of raw average: session quotas (5h, reset-based) produce
+    /// many samples at 0% between bursts of activity. Raw-averaging them makes
+    /// bursty providers (e.g. Codex used in short sessions) read as 0% here
+    /// while `UtilizationHistoryView` — which takes `max` per reset period —
+    /// shows meaningful bars on the detail page. That cross-view mismatch is a
+    /// reported user bug. Collapsing to daily peaks aligns the two views: each
+    /// day's bar here represents the same "peak usage" signal the detail chart
+    /// shows one level up.
+    ///
+    /// If a provider has two or more session series after multi-device merge
+    /// (cross-version Macs reporting with different `windowMinutes`), we union
+    /// their entries BEFORE collapsing to daily peaks — one Mac's stale/empty
+    /// "session" can no longer mask the other's real data, because the daily
+    /// max picks the highest observed value regardless of which device captured it.
+    nonisolated static func buildModel(from providers: [ProviderUsageSnapshot], windowSize: Int) -> AggregateModel? {
+        let calendar = Calendar.current
+
+        // Collect providers that have any session-window utilization history.
+        // Union entries across EVERY series named "session" (not just the first);
+        // this shields us from cross-version duplication where `mergeUtilizationHistories`
+        // left two "session" series behind because the devices disagreed on windowMinutes.
+        let providerData = providers.compactMap { provider -> (id: String, name: String, color: Color, dayMaxes: [Date: Double])? in
+            guard let history = provider.utilizationHistory else { return nil }
+            let sessionSeries = history.filter { $0.name == "session" }
+            let chosen = sessionSeries.isEmpty ? Array(history.prefix(1)) : sessionSeries
+            let entries = chosen.flatMap(\.entries)
+            guard !entries.isEmpty else { return nil }
+
+            // Collapse to daily peak.
+            var dayMaxes: [Date: Double] = [:]
+            for entry in entries {
+                let day = calendar.startOfDay(for: entry.capturedAt)
+                dayMaxes[day] = max(dayMaxes[day] ?? 0, entry.usedPercent)
+            }
+            guard !dayMaxes.isEmpty else { return nil }
             return (id: provider.providerID, name: provider.providerName,
                     color: Self.providerColor(for: provider.providerID),
-                    entries: session.entries)
+                    dayMaxes: dayMaxes)
         }
 
         guard !providerData.isEmpty else { return nil }
 
-        let calendar = Calendar.current
         let now = Date()
         let todayStart = calendar.startOfDay(for: now)
         let tomorrowStart = calendar.date(byAdding: .day, value: 1, to: todayStart) ?? now
 
-        // Helper: average raw entries per provider in [start, end), then average across providers.
-        // Returns nil if NO provider has any entry in this window.
+        // Helper: average of per-provider (average-of-daily-peaks-in-window), then
+        // average across providers. Returns nil if NO provider has any day in window.
         func aggregateAvg(from start: Date, to end: Date) -> Double? {
             let providerAvgs: [Double] = providerData.compactMap { pd in
-                let filtered = pd.entries.filter { $0.capturedAt >= start && $0.capturedAt < end }
-                guard !filtered.isEmpty else { return nil }
-                return filtered.reduce(0.0) { $0 + $1.usedPercent } / Double(filtered.count)
+                let vals = pd.dayMaxes.filter { $0.key >= start && $0.key < end }.values
+                guard !vals.isEmpty else { return nil }
+                return vals.reduce(0, +) / Double(vals.count)
             }
             guard !providerAvgs.isEmpty else { return nil }
             return providerAvgs.reduce(0, +) / Double(providerAvgs.count)
@@ -374,28 +406,13 @@ struct UtilizationAggregateView: View {
         let prev30Avg = aggregateAvg(from: prev30Start, to: last30Start)
         let last30Delta = delta(current: last30Avg, previous: prev30Avg)
 
-        // === Daily Bars ===
-
-        // Per-provider daily averages
-        var providerDaily: [(id: String, name: String, color: Color, dayAvgs: [Date: Double])] = []
-
-        for pd in providerData {
-            var dayBuckets: [Date: [Double]] = [:]
-            for entry in pd.entries {
-                let day = calendar.startOfDay(for: entry.capturedAt)
-                dayBuckets[day, default: []].append(entry.usedPercent)
-            }
-            let dayAvgs = dayBuckets.mapValues { vals in vals.reduce(0, +) / Double(vals.count) }
-            providerDaily.append((id: pd.id, name: pd.name, color: pd.color, dayAvgs: dayAvgs))
-        }
+        // === Daily Bars (height = daily peak per provider) ===
 
         // Collect all unique days across providers, keep only the last `windowSize` days
-        let allDaysSorted = Set(providerDaily.flatMap { $0.dayAvgs.keys }).sorted()
-        let cutoff = last30Start
-        let recentDays = allDaysSorted.filter { $0 >= cutoff }
+        let allDaysSorted = Set(providerData.flatMap { $0.dayMaxes.keys }).sorted()
+        let recentDays = allDaysSorted.filter { $0 >= last30Start }
         guard !recentDays.isEmpty else { return nil }
 
-        // Build real bars
         let dayLabelFormatter = DateFormatter()
         dayLabelFormatter.dateFormat = "M/d"
         dayLabelFormatter.locale = Locale(identifier: "en_US")
@@ -403,11 +420,11 @@ struct UtilizationAggregateView: View {
         var realBars: [DayBar] = []
         for day in recentDays {
             var segments: [DaySegment] = []
-            for pd in providerDaily {
-                if let avg = pd.dayAvgs[day] {
+            for pd in providerData {
+                if let peak = pd.dayMaxes[day] {
                     segments.append(DaySegment(
                         providerID: pd.id, providerName: pd.name,
-                        avgPercent: avg, color: pd.color))
+                        avgPercent: peak, color: pd.color))
                 }
             }
             realBars.append(DayBar(
@@ -438,12 +455,12 @@ struct UtilizationAggregateView: View {
             }
         }
 
-        // === Provider Share (based on 30-day raw averages) ===
+        // === Provider Share (30-day avg of daily peaks) ===
 
         let providerThirtyDayRaw: [(id: String, name: String, color: Color, avg: Double)] = providerData.compactMap { pd in
-            let recent = pd.entries.filter { $0.capturedAt >= last30Start }
+            let recent = pd.dayMaxes.filter { $0.key >= last30Start }.values
             guard !recent.isEmpty else { return nil }
-            let avg = recent.reduce(0.0) { $0 + $1.usedPercent } / Double(recent.count)
+            let avg = recent.reduce(0, +) / Double(recent.count)
             return (id: pd.id, name: pd.name, color: pd.color, avg: avg)
         }
 
@@ -474,7 +491,7 @@ struct UtilizationAggregateView: View {
 
     // MARK: - Colors
 
-    private static func providerColor(for id: String) -> Color {
+    nonisolated private static func providerColor(for id: String) -> Color {
         ProviderColorPalette.color(for: id)
     }
 }
