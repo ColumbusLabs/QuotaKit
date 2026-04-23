@@ -734,6 +734,170 @@ struct CloudKitMergeTests {
         #expect(entryCount == 2)
     }
 
+    // MARK: - notificationPushEnabled merge (Build 78)
+    //
+    // Reported class: Build 77 fixed appVersion picking `snapshots.first?` which
+    // flipped non-deterministically with CloudKit iteration order. The same
+    // pattern existed for `notificationPushEnabled`: when one device set the
+    // field explicitly and another hadn't (nil), the merged value depended on
+    // iteration order — the iPhone's push setting appeared to toggle on/off
+    // across refreshes.
+    //
+    // Fixed semantics:
+    //   - ANY explicit false → false (conservative: respect the off-signal)
+    //   - Else ANY explicit true → true
+    //   - Else nil (fresh install / every snapshot predates the field)
+
+    private func pushSnapshot(deviceID: String, value: Bool?) -> SyncedUsageSnapshot {
+        SyncedUsageSnapshot(
+            providers: [makeProvider(id: "claude", name: "Claude", lastUpdated: newerDate)],
+            syncTimestamp: newerDate,
+            deviceName: "Mac \(deviceID)",
+            deviceID: deviceID,
+            notificationPushEnabled: value)
+    }
+
+    @Test("notificationPushEnabled: all true → true")
+    func pushEnabledAllTrue() throws {
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            pushSnapshot(deviceID: "a", value: true),
+            pushSnapshot(deviceID: "b", value: true),
+        ]))
+        #expect(merged.notificationPushEnabled == true)
+    }
+
+    @Test("notificationPushEnabled: any false → false (conservative)")
+    func pushEnabledAnyFalseWins() throws {
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            pushSnapshot(deviceID: "a", value: true),
+            pushSnapshot(deviceID: "b", value: false),
+        ]))
+        #expect(merged.notificationPushEnabled == false)
+    }
+
+    @Test("notificationPushEnabled: true + nil → true (explicit opinion wins over silence)")
+    func pushEnabledTrueWinsOverNil() throws {
+        // Pre-fix: `snapshots.first?.notificationPushEnabled` flipped between
+        // `true` and `nil` depending on which snapshot CloudKit returned first.
+        // Post-fix: explicit true always surfaces.
+        let merged1 = try #require(CloudSyncReader.mergeSnapshots([
+            pushSnapshot(deviceID: "true-mac", value: true),
+            pushSnapshot(deviceID: "nil-mac", value: nil),
+        ]))
+        let merged2 = try #require(CloudSyncReader.mergeSnapshots([
+            pushSnapshot(deviceID: "nil-mac", value: nil),
+            pushSnapshot(deviceID: "true-mac", value: true),
+        ]))
+        #expect(merged1.notificationPushEnabled == true)
+        #expect(merged2.notificationPushEnabled == true)
+    }
+
+    @Test("notificationPushEnabled: false + nil → false (order-independent)")
+    func pushEnabledFalseWinsOverNil() throws {
+        let merged1 = try #require(CloudSyncReader.mergeSnapshots([
+            pushSnapshot(deviceID: "false-mac", value: false),
+            pushSnapshot(deviceID: "nil-mac", value: nil),
+        ]))
+        let merged2 = try #require(CloudSyncReader.mergeSnapshots([
+            pushSnapshot(deviceID: "nil-mac", value: nil),
+            pushSnapshot(deviceID: "false-mac", value: false),
+        ]))
+        #expect(merged1.notificationPushEnabled == false)
+        #expect(merged2.notificationPushEnabled == false)
+    }
+
+    @Test("notificationPushEnabled: all nil → nil (no opinion)")
+    func pushEnabledAllNil() throws {
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            pushSnapshot(deviceID: "a", value: nil),
+            pushSnapshot(deviceID: "b", value: nil),
+        ]))
+        #expect(merged.notificationPushEnabled == nil)
+    }
+
+    // MARK: - SyncCostSummary.todayCostUSD prefers daily[today] over session (Build 78)
+    //
+    // Reported class: same as Subscription Utilization aggregate/detail mismatch
+    // — Cost tab's summary card used `daily[today].costUSD ?? sessionCostUSD`
+    // while `ProviderDetailView`'s "Today" card used `sessionCostUSD` directly.
+    // Mid-day the two numbers diverge (session is stale relative to the
+    // accumulated daily point, or vice versa). Fix: both paths now go through
+    // `SyncCostSummary.todayCostUSD`.
+
+    /// Fixed pin so the tests stay deterministic across wall-clock midnight
+    /// crossings. `todayTotals(now:)` is called with this same date, and the
+    /// fixture's daily point uses the dayKey derived from it.
+    private static let pinnedToday = Date(timeIntervalSince1970: 1_745_500_000)
+    private static let pinnedTodayKey = SyncCostSummary.iso8601DayKeyFormatter
+        .string(from: pinnedToday)
+
+    @Test("todayTotals prefers daily[today] over sessionCostUSD and sessionTokens")
+    func todayTotalsPrefersDailyToday() {
+        let cost = SyncCostSummary(
+            sessionCostUSD: 1.23,
+            sessionTokens: 1000,
+            last30DaysCostUSD: 50,
+            last30DaysTokens: 30000,
+            daily: [
+                SyncDailyPoint(dayKey: Self.pinnedTodayKey,
+                               costUSD: 4.56, totalTokens: 4000),
+            ])
+        let today = cost.todayTotals(now: Self.pinnedToday)
+        #expect(today.costUSD == 4.56)   // daily[today], not session
+        #expect(today.tokens == 4000)
+    }
+
+    @Test("todayTotals falls back to session when no daily entry for today")
+    func todayTotalsFallsBackToSession() {
+        let cost = SyncCostSummary(
+            sessionCostUSD: 1.23,
+            sessionTokens: 1000,
+            last30DaysCostUSD: 50,
+            last30DaysTokens: 30000,
+            daily: [
+                SyncDailyPoint(dayKey: "2020-01-01",  // far from pinnedToday
+                               costUSD: 99, totalTokens: 9999),
+            ])
+        let today = cost.todayTotals(now: Self.pinnedToday)
+        #expect(today.costUSD == 1.23)   // session fallback
+        #expect(today.tokens == 1000)
+    }
+
+    @Test("todayTotals both fields nil when neither daily[today] nor session has data")
+    func todayTotalsNilWhenNoData() {
+        let cost = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 100,
+            last30DaysTokens: 50000,
+            daily: [])
+        let today = cost.todayTotals(now: Self.pinnedToday)
+        #expect(today.costUSD == nil)
+        #expect(today.tokens == nil)
+        #expect(today.hasAnyValue == false)
+    }
+
+    @Test("todayTotals resolves cost and tokens from the SAME day key (no midnight drift)")
+    func todayTotalsDayKeyCoherence() {
+        // Anchor both fixture and lookup to a date just before midnight. If the
+        // implementation called Date() twice with drift potential, this could
+        // mismatch; since the whole resolution uses a single injected `now`,
+        // both fields resolve from the same key and stay coherent.
+        let justBeforeMidnight = Date(timeIntervalSince1970: 1_745_539_199) // 23:59:59 local
+        let key = SyncCostSummary.iso8601DayKeyFormatter.string(from: justBeforeMidnight)
+        let cost = SyncCostSummary(
+            sessionCostUSD: 10.00,
+            sessionTokens: 2000,
+            last30DaysCostUSD: 100,
+            last30DaysTokens: 50000,
+            daily: [
+                SyncDailyPoint(dayKey: key, costUSD: 12.34, totalTokens: 5000),
+            ])
+        let today = cost.todayTotals(now: justBeforeMidnight)
+        #expect(today.costUSD == 12.34)   // both come from the same daily point
+        #expect(today.tokens == 5000)
+    }
+
     @Test("Mac B reports empty session; Mac A's real entries survive the union")
     func utilizationEmptySeriesFromOneDeviceDoesNotMaskOther() throws {
         // Degenerate but common: one Mac opens, samples Codex once, then gets

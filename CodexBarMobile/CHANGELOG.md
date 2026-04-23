@@ -2,6 +2,30 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (78)] — 2026-04-23 — dev build · 5-round systematic audit follow-up (commit 1/3)
+
+**Context**: Build 77 fixed two reported bugs (Subscription Utilization Codex 0%, Mac App version flipping) but the user rightly pointed out that fix is "只是止血" — the same *class* of bug (cross-view semantic mismatch; non-deterministic multi-device field merge) almost certainly repeats elsewhere. I ran a 5-round systematic audit (cross-view semantic consistency · multi-device merge fields · test data distribution · boundary conditions · cross-version Codable compatibility), 3 parallel Explore agents per round, verified agent findings against source. This is commit 1 of 3 addressing the audit's P1 findings.
+
+### Fixed (Cross-view semantic mismatch — same class as Build 77's Codex 0%)
+- **"Today" cost number no longer diverges between Cost tab and provider detail page**. The Cost-tab summary card (via `CostDashboardInsights`) already used `daily.first(where: dayKey == todayKey).costUSD` and fell back to `sessionCostUSD` only when no daily point existed for today — the right preference. `ProviderDetailView.costSummarySection`, however, used `cost.sessionCostUSD` directly. Mid-day the two numbers diverged (session cost is the current session's running total; daily-point cost is the committed day-aggregate). Added `SyncCostSummary.todayTotals(now:)` returning a `TodayTotals` pair as a single source of truth; both call sites now route through it.
+  - New file: `CodexBarMobile/Models/SyncCostSummary+Today.swift`
+  - Updated: `CodexBarMobile/Views/ProviderDetailView.swift` (line ~96)
+  - Codex-reviewer caught a midnight-drift P3 in the first patch (separate `todayCostUSD` / `todayTokens` accessors each called `Date()`, so cost and tokens could resolve from different dayKeys across local midnight). Rewrote as a single `todayTotals(now: Date = Date())` call returning both fields atomically, with injectable `now` so tests stay deterministic.
+
+### Fixed (Multi-device merge non-determinism — same class as Build 77's appVersion)
+- **`SyncedUsageSnapshot.notificationPushEnabled` merge is now deterministic regardless of CloudKit iteration order.** Pre-fix: `snapshots.contains(where: { $0 == false }) ? false : snapshots.first?.value`. When all Macs had `true`, returned `snapshots.first?.value` — `true`, correct by accident. But when some Macs had `true` and others had `nil` (e.g., one Mac is the reporter of the user's preference, the others predate the field), the result flipped between `true` and `nil` based on whichever snapshot CloudKit returned first. Fixed semantics: any explicit `false` → `false` (conservative: respect any off-signal); else any explicit `true` → `true`; else `nil`.
+  - Updated: `CodexBarMobile/iCloud/CloudSyncReader.swift` `mergeSnapshots`
+
+### Tests
+- `CloudKitMergeTests.swift` +8 cases:
+  - `pushEnabledAllTrue / AnyFalseWins / TrueWinsOverNil / FalseWinsOverNil / AllNil` — pin the new `notificationPushEnabled` semantics; `TrueWinsOverNil` and `FalseWinsOverNil` run the same snapshots twice with flipped iteration order to prove order-independence.
+  - `todayTotalsPrefersDailyToday / FallsBackToSession / NilWhenNoData / DayKeyCoherence` — pin the new `SyncCostSummary.todayTotals(now:)` preference order, nil-when-empty behavior, and single-dayKey resolution across both fields. Fixtures pin `now` to a fixed Date so the suite is immune to midnight crossings.
+
+### Not included in this commit (tracked for follow-up commits)
+- Future-field resilience test (decoder meets unknown keys) — Commit 2
+- Test-suite encoder/decoder factory unification (27 call sites still construct `JSONEncoder()` manually) — Commit 2
+- Realistic-distribution fixtures across `CloudKitMergeTests / DualZoneReaderTests / SyncModelTests / SwiftDataBridgeTests` (bursty / long idle / cross-reset / cross-date / disordered timestamps) — Commit 3
+
 ## [1.3.0 (77)] — 2026-04-22 — dev build · Subscription Utilization aggregate + Mac version determinism
 
 **Reported bug**: Cost tab's "Subscription Utilization" card shows Codex at 0% ("0% avg use") while the Codex detail page shows 16% session usage with 84 visible data points and clear bars on recent days. Also reported: with two Macs on different CodexBar versions, the "Mac App" field in Settings flips between versions across refreshes instead of stabilizing on the newer one.

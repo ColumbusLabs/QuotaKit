@@ -93,11 +93,18 @@ struct ProviderDetailView: View {
                 .padding(.top, 4)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                if let todayCost = cost.sessionCostUSD {
+                // Prefer daily[today] over sessionCostUSD so the "Today"
+                // card here matches what the Cost-tab summary card shows
+                // for this provider. See `SyncCostSummary+Today.swift` for
+                // reasoning. Cost + tokens are resolved through one
+                // `todayTotals()` call so they can't straddle midnight with
+                // mismatched day keys.
+                let today = cost.todayTotals()
+                if let todayCost = today.costUSD {
                     CostMetricCard(
                         title: "Today",
                         value: Self.formatUSD(todayCost),
-                        subtitle: cost.sessionTokens.map { Self.formatTokens($0) },
+                        subtitle: today.tokens.map { Self.formatTokens($0) },
                         tintColor: self.providerColor)
                 }
                 if let monthCost = cost.last30DaysCostUSD {

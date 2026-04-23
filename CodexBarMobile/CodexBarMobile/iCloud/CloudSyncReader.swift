@@ -163,10 +163,26 @@ final class CloudSyncReader: @unchecked Sendable {
             ? deviceNames[0]
             : deviceNames.joined(separator: ", ")
 
-        // If ANY device has push disabled, respect that (conservative approach)
-        let pushEnabled: Bool? = snapshots.contains(where: { $0.notificationPushEnabled == false })
-            ? false
-            : snapshots.first?.notificationPushEnabled
+        // notificationPushEnabled merge semantics (deterministic across
+        // CloudKit iteration order):
+        //   1. If ANY device explicitly set it to false → false
+        //      (conservative: respect the off-signal).
+        //   2. Else if ANY device explicitly set it to true → true.
+        //   3. Else nil (no device has an opinion yet — fresh install,
+        //      or every snapshot predates the field).
+        // Prior code (`snapshots.first?.notificationPushEnabled`) fell through
+        // to whichever snapshot CloudKit returned first, which flipped between
+        // `true` and `nil` across refreshes when one Mac had pushed the field
+        // and another hadn't.
+        let pushEnabled: Bool? = {
+            if snapshots.contains(where: { $0.notificationPushEnabled == false }) {
+                return false
+            }
+            if snapshots.contains(where: { $0.notificationPushEnabled == true }) {
+                return true
+            }
+            return nil
+        }()
 
         // Pick the *highest* app/mobile version across devices so the merged
         // "Mac App" / "Synced Mobile Version" row reflects the most up-to-date
