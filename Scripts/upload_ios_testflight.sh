@@ -1,12 +1,29 @@
 #!/usr/bin/env bash
 #
-# Archive the iOS app (CodexBarMobile) and upload to TestFlight via
-# App Store Connect API key.
+# Archive the iOS app (CodexBarMobile) and upload to App Store Connect
+# (which dispatches to TestFlight) via Xcode's cloud-signing flow.
 #
-# Required env (loaded from ~/.codexbar-secrets/codexbar-release.env):
-#   APP_STORE_CONNECT_KEY_ID
-#   APP_STORE_CONNECT_ISSUER_ID
-#   APP_STORE_CONNECT_API_KEY_FILE  (path to .p8)
+# How it works:
+#   - `xcodebuild archive` produces a Development-signed .xcarchive (the
+#     Apple Development cert in our Keychain is sufficient for this stage).
+#   - `xcodebuild -exportArchive` with `destination: upload` in the export
+#     options plist signs + uploads in one step. Cloud signing uses Xcode's
+#     logged-in Apple ID session (Settings → Accounts), NOT a local Apple
+#     Distribution cert. `-allowProvisioningUpdates` lets xcodebuild fetch
+#     the Managed Distribution certificate / provisioning profile as
+#     needed.
+#
+# Prereq: Xcode → Settings → Accounts has the developer Apple ID logged in.
+# That's the one-time setup; Xcode's session persists across runs.
+#
+# Explicitly DO NOT pass `-authenticationKeyPath` / `-authenticationKeyID`
+# to xcodebuild — when present, they override the Xcode session and force
+# the API-key-based cloud signing path, which requires an App Manager or
+# Admin role. Our current ASC API key is Developer role (sufficient for
+# notarization / upload but NOT for cloud-sign authorization), so passing
+# it triggers `Cloud signing permission error`. Without those flags,
+# xcodebuild falls back to Xcode's session credentials (higher privilege)
+# and the upload works.
 #
 # Usage: ./Scripts/upload_ios_testflight.sh
 set -euo pipefail
@@ -14,28 +31,10 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 
-# shellcheck disable=SC1091
-source "$ROOT/Scripts/load-release-secrets.sh"
-
-if [[ -z "${APP_STORE_CONNECT_KEY_ID:-}" \
-   || -z "${APP_STORE_CONNECT_ISSUER_ID:-}" \
-   || -z "${APP_STORE_CONNECT_API_KEY_FILE:-}" ]]; then
-  echo "ERROR: App Store Connect credentials missing" >&2
-  exit 1
-fi
-
-if [[ ! -f "$APP_STORE_CONNECT_API_KEY_FILE" ]]; then
-  echo "ERROR: API key file not found: $APP_STORE_CONNECT_API_KEY_FILE" >&2
-  exit 1
-fi
-
 STAMP=$(date +%Y%m%d-%H%M%S)
 ARCHIVE_PATH="/tmp/CodexBarMobile-$STAMP.xcarchive"
-EXPORT_PATH="/tmp/CodexBarMobile-$STAMP-export"
-# macOS mktemp only substitutes *trailing* X's, so a `.plist` suffix after
-# the X's would make the whole template literal and collide on the second
-# call. Use the `-t` form + rename, or just drop the extension (Xcode
-# doesn't care about the extension on --exportOptionsPlist).
+# `.plist` suffix after the mktemp X's makes the template literal on
+# macOS (BSD mktemp only substitutes trailing X's) — drop the suffix.
 OPTIONS_PLIST=$(mktemp /tmp/cbm-export-options.XXXXXX)
 
 cat > "$OPTIONS_PLIST" <<PLIST
@@ -47,6 +46,8 @@ cat > "$OPTIONS_PLIST" <<PLIST
     <string>app-store-connect</string>
     <key>teamID</key>
     <string>3TUERHN53E</string>
+    <key>destination</key>
+    <string>upload</string>
     <key>uploadSymbols</key>
     <true/>
     <key>stripSwiftSymbols</key>
@@ -55,10 +56,10 @@ cat > "$OPTIONS_PLIST" <<PLIST
 </plist>
 PLIST
 
-# Provisioning profiles are auto-created by -allowProvisioningUpdates, which
-# uses the App Store Connect API key to fetch / generate profiles + register
-# devices. No Keychain-based Apple ID fallback needed.
-echo "==> Archiving CodexBarMobile (Build $(grep CURRENT_PROJECT_VERSION CodexBarMobile/project.yml | head -1 | awk '{print $2}' | tr -d '"'))..."
+trap 'rm -f "$OPTIONS_PLIST"' EXIT
+
+BUILD=$(grep CURRENT_PROJECT_VERSION CodexBarMobile/project.yml | head -1 | awk '{print $2}' | tr -d '"')
+echo "==> Archiving CodexBarMobile (Build $BUILD)..."
 xcodebuild archive \
   -project CodexBarMobile/CodexBarMobile.xcodeproj \
   -scheme CodexBarMobile \
@@ -66,38 +67,17 @@ xcodebuild archive \
   -destination "generic/platform=iOS" \
   -archivePath "$ARCHIVE_PATH" \
   -allowProvisioningUpdates \
-  -authenticationKeyPath "$APP_STORE_CONNECT_API_KEY_FILE" \
-  -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
-  -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
-  | tail -40
+  | tail -30
 
 echo ""
-echo "==> Exporting .ipa from archive..."
+echo "==> Signing + uploading to App Store Connect (cloud signing via Xcode session)..."
 xcodebuild -exportArchive \
   -archivePath "$ARCHIVE_PATH" \
-  -exportPath "$EXPORT_PATH" \
   -exportOptionsPlist "$OPTIONS_PLIST" \
   -allowProvisioningUpdates \
-  -authenticationKeyPath "$APP_STORE_CONNECT_API_KEY_FILE" \
-  -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
-  -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
-  | tail -40
-
-IPA=$(find "$EXPORT_PATH" -name "*.ipa" | head -1)
-if [[ -z "$IPA" ]]; then
-  echo "ERROR: no .ipa produced at $EXPORT_PATH" >&2
-  exit 1
-fi
-echo ""
-echo "==> Uploading $IPA to TestFlight..."
-xcrun altool --upload-app \
-  --type ios \
-  --file "$IPA" \
-  --apiKey "$APP_STORE_CONNECT_KEY_ID" \
-  --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+  | tail -30
 
 echo ""
-echo "==> Upload complete. ASC will now process + email when TestFlight is ready (~5-30 min)."
-echo "Archive: $ARCHIVE_PATH"
-echo "IPA:     $IPA"
-rm -f "$OPTIONS_PLIST"
+echo "==> Upload dispatched. ASC will process in 5-30 min and email when the"
+echo "    build appears in TestFlight. Archive saved at:"
+echo "    $ARCHIVE_PATH"
