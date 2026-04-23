@@ -2,6 +2,46 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (83)] — 2026-04-23 — dev build · 4-agent perfect-pass fixture extension
+
+**Commit 3 of the post-Build-80 perfect-pass.** Agent C's analysis of `SwiftDataBridgeTests / DualZoneReaderTests / SnapshotCacheTests` found each had zero coverage of production-shaped data: long-idle gaps, cross-reset-boundary same-hour entries, all-zero-but-tracked patterns, bursty-active vs stale-idle multi-device combinations. Build 80 fixed this for `CloudKitMergeTests` only. This build extends the same treatment to the other 3 files and shares the fixture helpers.
+
+### Tests (Agent C · realistic-distribution fixtures)
+
+**New `CodexBarMobileTests/Fixtures/TestFixtures.swift`**: shared helpers so the 4 test files don't re-implement the same realistic patterns.
+- `burstySessionSeries(anchor:daysCount:peakHour:peakPercent:deviceOffsetMinutes:)` — moved up from CloudKitMergeTests. UTC calendar deliberately (DST-proof — an earlier `Calendar.current` version would make 720 → 719 on Europe/Paris spring-forward).
+- `allZeroSessionSeries(anchor:daysCount:)` — idle-device pattern; must survive every persistence layer.
+- `crossResetBoundaryEntries(anchor:)` — two entries in same clock hour, different reset windows.
+- `multiAccountProviders(id:emails:lastUpdated:)` — same provider with N distinct accountEmails.
+
+**`SwiftDataBridgeTests` +3 cases**:
+- `realisticAllZeroUtilizationRoundtrip`: 720 zero entries survive upsert → fetch. A "prune zero-only as uninteresting" regression would drop the count below 720.
+- `realisticCrossResetBoundaryPreservedInStorage`: two entries in same clock hour, different `resetsAt` — both survive. A compositeKey collapse to `(series, capturedAt.hour)` would silently drop one.
+- `realisticMultiAccountSameProviderPreserved`: alice + bob on codex → 2 rows, not 1. Regression to providerID-only keying would collapse them.
+
+**`DualZoneReaderTests` +2 cases**:
+- `reconstructLongIdlePlusFreshMixedTimestamps`: same device wrote 30-day-old Codex + 7-day-old Claude. Reconstruct preserves both, sorts newest-first, device syncTimestamp = freshest (not min).
+- `priorityEmptyPerProviderKeepsLegacyIntact`: empty per-provider + populated legacy → legacy survives as-is. Guards the transient-zone-error fallback path.
+
+**`SnapshotCacheTests` +2 cases**:
+- `burstyActiveAndIdleStaleBothPresent`: Mac A fresh (t3) + Mac B stale (t1), same account. Both survive cache; a "drop stale" regression would show 1.
+- `multiAccountDeltaOnlyUpdatesTargetAccount`: seed alice + bob at t1, delta alice to t2, bob untouched at t1. Guards against re-keying by providerID alone.
+
+### Test totals
+- Pre-Build-83: 81 tests
+- Post-Build-83: 88 tests
+- All pass; SwiftLint 0; Codex review: clean.
+
+### Audit progress (post Build 83)
+- Round 1 (cross-view): ✅ complete (Builds 77, 78, 81)
+- Round 2 (multi-device fields): ✅ complete (Builds 77, 78, 81) — `providerName` / `deviceName` ⚠️ documented as rare-edge-case or cosmetic, not patched
+- Round 3 (test data distribution): ✅ complete (Builds 80, 83)
+- Round 4 (boundary conditions): ✅ documented as intentional / safe
+- Round 5 (Codable resilience): ✅ complete (Build 79)
+
+### Deferred to Build 84 (doc-only)
+- `Research/015-mac-symmetry-audit.md` recording Agent A's 5 Mac-side findings (`accounts.first` non-deterministic · `Widget providers.first` · `SyncCoordinator "_"` placeholder · Perplexity multi-account no-email-split · OpenAIDashboard dayKey `TimeZone.current` formalization) for future upstream PR. No code change; just documents what we found for when upstream owners (steipete) review.
+
 ## [1.3.0 (82)] — 2026-04-23 — dev build · 4-agent perfect-pass P1 polish
 
 **Commit 2 of the post-Build-80 perfect-pass.** Agent B flagged 5+ places where `formatUSD` / `formatTokens` were duplicated across views with subtly different signatures (some returned `"N/A"` for nil, some `"—"`, some crashed). Any future locale / precision / unit-label tweak would need coordinated edits — drift risk. Centralized.

@@ -205,4 +205,86 @@ struct SwiftDataBridgeTests {
         #expect(rowsAfterSecond.count == 1)
         #expect(rowsAfterSecond.first?.capturedAt == self.ts2)
     }
+
+    // MARK: - Realistic-distribution fixtures (Build 83 · Agent C)
+    //
+    // Round 3 of the 5-round audit flagged SwiftDataBridge's Storage layer
+    // as under-tested on production-shaped data. These 3 tests exercise
+    // the same upsert / pruning path with (1) 720 hourly zero entries,
+    // (2) two entries straddling a session reset in the same clock hour,
+    // (3) multi-account same provider.
+
+    @Test("Upsert survives all-zero 720-entry utilization roundtrip without dropping entries")
+    func realisticAllZeroUtilizationRoundtrip() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+
+        let series = TestFixtures.allZeroSessionSeries(anchor: self.ts1)
+        let snapshot = self.makeSnapshot(
+            deviceID: "device-zero",
+            providers: [self.makeProvider(
+                lastUpdated: self.ts1,
+                utilization: [series])],
+            timestamp: self.ts1)
+
+        try SwiftDataBridge.upsert(deviceSnapshots: [snapshot], into: context)
+
+        let entries = try context.fetch(FetchDescriptor<UtilizationEntryModel>())
+        #expect(entries.count == 720)
+        // All preserved at 0%; a regression that "prunes" zero entries as
+        // uninteresting would drop the count below 720.
+        #expect(entries.allSatisfy { $0.usedPercent == 0 })
+    }
+
+    @Test("Cross-reset boundary entries in same clock hour don't collide in SwiftData")
+    func realisticCrossResetBoundaryPreservedInStorage() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+
+        // Two entries in the same calendar hour but different reset windows.
+        // SwiftData's composite key must separate them (or the reset epoch
+        // must be part of the key); a regression that keys purely on
+        // (series, capturedAt.hour) would drop one of the two.
+        let entries = TestFixtures.crossResetBoundaryEntries(anchor: self.ts1)
+        let series = SyncUtilizationSeries(
+            name: "session", windowMinutes: 300, entries: entries)
+        let snapshot = self.makeSnapshot(
+            deviceID: "device-reset",
+            providers: [self.makeProvider(
+                lastUpdated: self.ts1,
+                utilization: [series])],
+            timestamp: self.ts1)
+
+        try SwiftDataBridge.upsert(deviceSnapshots: [snapshot], into: context)
+
+        let stored = try context.fetch(FetchDescriptor<UtilizationEntryModel>())
+        #expect(stored.count == 2)
+        let percents = Set(stored.map(\.usedPercent))
+        #expect(percents == [90, 5])
+    }
+
+    @Test("Multi-account same provider persists as two distinct rows")
+    func realisticMultiAccountSameProviderPreserved() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+
+        // `providerID|accountEmail` composite key must keep alice / bob
+        // separate; a regression that collapses to providerID alone would
+        // show 1 row and one account's data lost.
+        let providers = TestFixtures.multiAccountProviders(
+            id: "codex",
+            emails: ["alice@example.com", "bob@example.com"],
+            lastUpdated: self.ts1)
+        let snapshot = self.makeSnapshot(
+            deviceID: "device-multi",
+            providers: providers,
+            timestamp: self.ts1)
+
+        try SwiftDataBridge.upsert(deviceSnapshots: [snapshot], into: context)
+
+        let rows = try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
+        #expect(rows.count == 2)
+        let emails = Set(rows.compactMap(\.accountEmail))
+        #expect(emails == ["alice@example.com", "bob@example.com"])
+    }
 }

@@ -524,4 +524,72 @@ struct SnapshotCacheTests {
 
         #expect(cache.perProviderByDevice["mac-A"]?.count == 2)
     }
+
+    // MARK: - Realistic-distribution regression (Build 83 · Agent C)
+
+    @Test("Bursty active device + idle stale device: cache keeps both, sort order intact")
+    func burstyActiveAndIdleStaleBothPresent() {
+        var cache = SnapshotCache()
+        // Mac A is active: recent timestamp + bursty 30-day Codex history.
+        let mac_a_env = envelope(
+            deviceID: "mac-a", deviceName: "Mac A (active)",
+            providerID: "codex", email: "alice@example.com",
+            providerLastUpdated: t3, syncTimestamp: t3)
+        // Mac B is idle: 20-day-old timestamp, same codex account seen there.
+        let mac_b_env = envelope(
+            deviceID: "mac-b", deviceName: "Mac B (stale)",
+            providerID: "codex", email: "alice@example.com",
+            providerLastUpdated: t1, syncTimestamp: t1)
+
+        cache.applyDelta(upserted: [mac_a_env, mac_b_env], deletedRecordNames: [])
+
+        // Both devices present in the per-provider cache.
+        #expect(cache.perProviderByDevice["mac-a"]?.count == 1)
+        #expect(cache.perProviderByDevice["mac-b"]?.count == 1)
+
+        let snapshots = cache.buildDeviceSnapshots()
+        #expect(snapshots.count == 2)
+        // A regression that dropped the idle device (e.g. "stale filter on
+        // lastUpdated") would show 1 here and Mac B's data would vanish.
+        #expect(Set(snapshots.map(\.deviceID)) == ["mac-a", "mac-b"])
+    }
+
+    @Test("Multi-account delta on pre-existing cache preserves the untouched account")
+    func multiAccountDeltaOnlyUpdatesTargetAccount() {
+        var cache = SnapshotCache()
+
+        // Seed: two Codex accounts on Mac A, both at t1.
+        cache.applyDelta(
+            upserted: [
+                envelope(deviceID: "mac-a", deviceName: "Mac A",
+                         providerID: "codex", email: "alice@example.com",
+                         providerLastUpdated: t1, syncTimestamp: t1),
+                envelope(deviceID: "mac-a", deviceName: "Mac A",
+                         providerID: "codex", email: "bob@example.com",
+                         providerLastUpdated: t1, syncTimestamp: t1),
+            ],
+            deletedRecordNames: [])
+        #expect(cache.perProviderByDevice["mac-a"]?.count == 2)
+
+        // Delta: alice gets fresh data at t2. Bob untouched.
+        cache.applyDelta(
+            upserted: [
+                envelope(deviceID: "mac-a", deviceName: "Mac A",
+                         providerID: "codex", email: "alice@example.com",
+                         providerLastUpdated: t2, syncTimestamp: t2),
+            ],
+            deletedRecordNames: [])
+
+        let aliceCodex = cache.perProviderByDevice["mac-a"]?.values.first(where: {
+            $0.accountEmail == "alice@example.com"
+        })
+        let bobCodex = cache.perProviderByDevice["mac-a"]?.values.first(where: {
+            $0.accountEmail == "bob@example.com"
+        })
+        #expect(aliceCodex?.lastUpdated == t2)
+        #expect(bobCodex?.lastUpdated == t1)
+        // Regression: a cache that re-keys by providerID alone would
+        // overwrite bob's entry with alice's on delta apply.
+        #expect(cache.perProviderByDevice["mac-a"]?.count == 2)
+    }
 }
