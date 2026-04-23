@@ -2,6 +2,25 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (87)] — 2026-04-23 — dev build · iOS Models + ContentView hardcode comments (commit 3/4)
+
+### Added comments
+- **`ContentView.swift`**:
+  - `chartVisibleDays: Int = 30` — ties together monthly mental model, matching UtilizationAggregateView / UtilizationHistoryView windowSize; stride-7 gridlines depend on it being exactly 30.
+  - `.stride(by: .day, count: 7)` on the Cost chart — one label per week anchors the chart to CostShareService's 7-day-bar pattern; changing requires updating both sides.
+  - `BreakdownPalette.color(for:)` — full explanation of why the HSB constants (0.08 model vs 0.52 service hue base, 0.62–0.83 saturation, 0.78–0.93 brightness) are load-bearing for Cost-tab visual clarity. Generic `.random()` or `.palette` API replacement would regress readability on dark mode `.ultraThinMaterial`.
+- **`CostShareService.swift`**: month-chart `dayNum % 7` labeling documented — matches ContentView's stride-7 gridlines; share card + dashboard read as a matching pair.
+- **`MobileChartAxisFormatter.swift`**: Wilkinson-style rounding algorithm fully explained — what `1.5 / 3 / 7` breakpoints do, why they're not the step sizes, why they ensure round-number axis labels.
+  - Default `targetTickCount: Int = 4` rationale (220pt height geometry fit).
+
+### Verified-already-documented
+- `SyncedUsageData.syncAge` thresholds `60 / 3600 / 86400` — seconds-per-minute/hour/day are unambiguous.
+- `CostShareService.displayProviders` prefix(3) + "Others" — comment at line 76 already covers.
+- `PreviewData.recencyBoost pow(…, 1.5)` — inline `// ramps up toward today` sufficient for preview fixture.
+- `ContentView.dayKeyFormatter` — comprehensively commented in Build 84.
+
+All 88 tests pass; SwiftLint 0.
+
 ## [1.3.0 (86)] — 2026-04-23 — dev build · iOS sync-layer hardcode comments (commit 2/4)
 
 ### Added comments

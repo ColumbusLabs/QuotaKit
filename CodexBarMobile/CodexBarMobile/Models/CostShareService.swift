@@ -260,6 +260,13 @@ extension ShareCardData {
         case .month:
             self.dailyBars = filteredDays.enumerated().map { index, point in
                 let dayNum = index + 1
+                // Label every 7th day (= one label per week) plus day 1 and
+                // the final day for visual anchors. On a 30-day window this
+                // yields labels at days 1, 7, 14, 21, 28, 30 — same cadence
+                // as the Cost-tab daily-spend chart's `.stride(by: .day,
+                // count: 7)` gridlines, so the share card and dashboard
+                // chart read as a matching pair. Changing the 7 here will
+                // un-sync the two charts — also update ContentView's stride.
                 let showLabel = dayNum == 1 || dayNum % 7 == 0 || dayNum == filteredDays.count
                 return DailyBar(label: showLabel ? "\(dayNum)" : "", cost: point.costUSD)
             }

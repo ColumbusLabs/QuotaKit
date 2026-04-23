@@ -450,6 +450,12 @@ private struct CostDashboardView: View {
         }
     }
 
+    /// Visible window on the Cost-tab daily-spend chart. 30 days is the user's
+    /// cost-cycle mental model (monthly bills, budget windows) and matches
+    /// `UtilizationAggregateView.windowSize` + `UtilizationHistoryView.windowSize`
+    /// so every chart in the app tells the same 30-day story. The week-grid
+    /// stride-7 axis labels below depend on this being exactly 30 — changing
+    /// it (to 14, 60, etc.) would un-align the gridlines from 7-day buckets.
     private static let chartVisibleDays: Int = 30
 
     private static func chartScrollInitialDate(points: [CostDashboardInsights.DailyPoint]) -> Date {
@@ -532,6 +538,13 @@ private struct CostDashboardView: View {
             .chartXVisibleDomain(length: Self.chartVisibleDays * 24 * 60 * 60)
             .chartScrollPosition(initialX: Self.chartScrollInitialDate(points: self.insights.dailyPoints))
             .chartXAxis {
+                // Stride 7 = one label per week. On a 30-day window this
+                // yields ~5 gridlines (day 0, 7, 14, 21, 28) which is a
+                // comfortable density for the bar width and keeps visual
+                // weight aligned with the share-card's 7-day chart (the
+                // two are meant to read as a matching pair; see
+                // `CostShareService` dailyBars). Changing stride without
+                // also re-tuning `chartVisibleDays` breaks that pairing.
                 AxisMarks(values: .stride(by: .day, count: 7)) { value in
                     AxisGridLine()
                     // Hard-coded "M/d" (locale-independent, same as
@@ -944,6 +957,32 @@ struct CostBudgetRow: Identifiable {
     }
 }
 
+/// Deterministic color palette for model / service breakdown chips on the Cost tab.
+///
+/// The HSB constants below are tuned for two competing requirements:
+/// - Labels (e.g. model names like "claude-3-5-sonnet") must get a stable,
+///   reproducible color — so we seed from `label` hash and look up HSB from a
+///   small constant range rather than choosing randomly.
+/// - Adjacent chips in a breakdown list must stay visually distinct — the
+///   saturation and brightness ranges are narrow on purpose; widening them
+///   introduces grey-ish or washed-out colors that blend into the card
+///   material background.
+///
+/// - `hueBase = 0.08` (model) — warm orange/red family, reserved for model
+///   chips (e.g. "claude-3-5-sonnet-20250219").
+/// - `hueBase = 0.52` (service) — cool cyan/blue family, reserved for
+///   service/deployment chips. The ~0.44 hue gap keeps the two families
+///   easily distinguishable even when a user's list mixes both.
+/// - Hue variation of `±0.21` (seed % 21 / 100) spreads labels across a
+///   slice of the hue wheel without crossing into the other family.
+/// - Saturation: 0.62–0.83 — below 0.62 reads as grey on the Cost tab's
+///   `.ultraThinMaterial`; above ~0.85 looks harsh on iPad's wider gamut.
+/// - Brightness: 0.78–0.93 — ensures WCAG-adjacent contrast on the dark-
+///   mode material background; below 0.78 reads as muddy, above 0.93 blows
+///   out text legibility overlaid on the chip.
+///
+/// Do NOT replace with `.random()` or a generic palette API — these
+/// specific ranges are load-bearing for the Cost tab's visual clarity.
 private enum BreakdownPalette {
     case model
     case service
