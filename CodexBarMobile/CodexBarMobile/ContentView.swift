@@ -902,6 +902,19 @@ struct CostDashboardInsights {
             }
     }
 
+    /// Wire-format `dayKey` formatter used to match records to today's
+    /// calendar day when reading `SyncCostSummary.daily`. The format
+    /// `yyyy-MM-dd` + `en_US_POSIX` + `gregorian` is pinned here to match
+    /// Mac-side `SyncCoordinator.daily[].dayKey` generation; changing any
+    /// of the three values would make the keys stop round-tripping across
+    /// the sync boundary. Do NOT "localize" this — `dayKey` is a machine
+    /// contract, not user-facing text. See `SyncCostSummary+Today.swift`
+    /// for the symmetric helper used outside this view.
+    ///
+    /// Only called from view-body (main-actor) synchronous paths —
+    /// DateFormatter's documented thread-unsafety does not apply here.
+    /// If a future refactor moves the call into a background Task, switch
+    /// to `SyncCostSummary.iso8601DayKey(for:)` (per-call factory).
     private static let dayKeyFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)

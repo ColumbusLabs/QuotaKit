@@ -30,8 +30,14 @@ struct UtilizationHistoryView: View {
     }
 
     private let trackColor = Color.primary.opacity(0.06)
+    /// Bar width in points. Chosen with `windowSize` so the chart's visible
+    /// area fits ~30 bars + inter-bar padding on a 390pt iPhone screen.
+    /// Changing this without `windowSize` re-tuning can make labels overlap
+    /// or leave excessive empty padding.
     private let barWidth: CGFloat = 10
-    /// Fixed visible window size — matches Cost chart's ~30 bars per screen
+    /// Fixed visible window size — matches Cost chart's ~30 bars per screen.
+    /// Also constrains `dateFormat` below to `"M/d"` compact format so labels
+    /// fit beneath narrow bars.
     private let windowSize = 30
 
     /// Identity key for the active series. Cheap O(1) — fixed number of string
@@ -354,6 +360,13 @@ struct UtilizationHistoryView: View {
     }
 
     private static func axisLabel(for date: Date) -> String {
+        // **Intentionally locale-free compact numeric format.**
+        // Bars are 10pt wide; labels need to read as `"4/23"` in every
+        // interface language. `setLocalizedDateFormatFromTemplate("Md")`
+        // yields `"4月23日"` in Simplified Chinese — three CJK glyphs —
+        // which overflows the narrow bar spacing. Do NOT "localize" this
+        // without first solving the layout constraint. See Build 84
+        // revert in CHANGELOG for full context.
         let formatter = DateFormatter()
         formatter.dateFormat = "M/d"
         return formatter.string(from: date)

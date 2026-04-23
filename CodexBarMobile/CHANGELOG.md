@@ -2,6 +2,27 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (84)] — 2026-04-23 — dev build · revert Build 81 chart date label locale change
+
+**User flagged a regression introduced in Build 81.** Agent D's audit suggested switching the 30-day chart's day-labels from hardcoded `"M/d" + Locale("en_US")` to `setLocalizedDateFormatFromTemplate("Md") + .current`, framed as an i18n improvement. I applied that blindly.
+
+**Why it was wrong**: the English-POSIX-style `"M/d"` was a *deliberate* design decision from commit `79f207d2` ("use compact numeric date labels"). The chart renders 30 bars at `barWidth: 8pt` each; labels have to stay narrow as `"4/23"` to fit the geometry. The locale-aware template respects the user's interface language, which in Simplified Chinese produces `"4月23日"` — three CJK glyphs per label, overflowing the bar spacing and breaking the chart.
+
+### Reverted
+- `UtilizationAggregateView.swift:416-418`: back to hardcoded `M/d` + `Locale("en_US")`. Added a multi-line source comment explaining why this is intentional (geometry constraint, not an i18n oversight) so a future audit can't mistake it for a bug.
+
+### Lesson
+- Agent audits are starting points, not instructions. When an agent flags something that conflicts with a *deliberate* design decision visible in git history, I have to `git log` the file first before accepting the fix. Build 81 would have caught this if I'd searched for "M/d" in the commit log — commit `79f207d2` is explicit about the compact-numeric design intent.
+
+### Process improvement (the real prevention)
+- User correctly pointed out the root lesson isn't "git-log before accepting agent fixes" — that's the reactive patch. The real prevention is: **when writing a hardcoded value, leave an inline comment explaining the constraint**. Without the comment, any audit (agent or human) will flag it as a smell. With the comment, the constraint is visible at the call site and nobody has to archaeologize.
+- Added "why-hardcoded" comments to the other chart geometry / wire-format sites that were previously uncommented and could suffer the same class of regression:
+  - `UtilizationHistoryView.axisLabel(for:)` — same `"M/d"` design constraint
+  - `UtilizationHistoryView.barWidth / windowSize` — explains the 10pt / 30-bar tuning
+  - `UtilizationAggregateView.barWidth / windowSize` — explains the 8pt / 30-bar tuning and why labels can't be locale-aware
+  - `ContentView.dayKeyFormatter` — notes it's a machine contract for CloudKit dayKey round-tripping, not user-facing text; plus a note on its thread-safety scope
+- Updated memory accordingly: `feedback_git_log_before_accepting_agent_fixes.md` (which used to say "git-log before accepting") now says "hardcoded magic values must carry an inline 'why' comment at the point of introduction".
+
 ## [1.3.0 (83)] — 2026-04-23 — dev build · 4-agent perfect-pass fixture extension
 
 **Commit 3 of the post-Build-80 perfect-pass.** Agent C's analysis of `SwiftDataBridgeTests / DualZoneReaderTests / SnapshotCacheTests` found each had zero coverage of production-shaped data: long-idle gaps, cross-reset-boundary same-hour entries, all-zero-but-tracked patterns, bursty-active vs stale-idle multi-device combinations. Build 80 fixed this for `CloudKitMergeTests` only. This build extends the same treatment to the other 3 files and shares the fixture helpers.

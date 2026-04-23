@@ -20,8 +20,20 @@ struct UtilizationAggregateView: View {
     @AppStorage(MobileSettingsKeys.showRemainingUsage) private var showRemainingUsage =
         UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode.remaining.rawValue
 
+    /// Bar width in points. Tuned with `windowSize` so 30 bars + their
+    /// inter-bar padding fit within the Cost tab's card width on a 390pt
+    /// iPhone screen. Narrower than `UtilizationHistoryView`'s 10pt because
+    /// this chart shares vertical space with 4 summary cards above it and
+    /// a provider list below it, so the plot area is more constrained.
+    /// Changing this without re-tuning `windowSize` can make labels overlap
+    /// or leave excessive empty padding.
     private let barWidth: CGFloat = 8
-    private let windowSize = 30  // 30 days to match the cost chart
+    /// 30-day window — matches Cost tab's daily-spend chart so the two
+    /// sections read as a coherent 30-day story. Also pins the axis
+    /// `dateFormat` to compact `"M/d"` (see `dayLabelFormatter` below),
+    /// because 8pt-wide bars can't accommodate locale-aware labels like
+    /// Simplified Chinese's `"4月23日"`.
+    private let windowSize = 30
 
     /// Identity key for `providers` input. Cheap O(N) over providers — does NOT iterate
     /// utilization entries. This property is the `.task(id:)` key and is recomputed on
@@ -435,15 +447,23 @@ struct UtilizationAggregateView: View {
         let recentDays = allDaysSorted.filter { $0 >= last30Start }
         guard !recentDays.isEmpty else { return nil }
 
-        // Locale-aware template. Japanese/Chinese users previously saw the
-        // English "M/d" format even when the interface was localized; Codex-
-        // reviewer / Agent-D audit flagged this in the post-Build-80 pass.
-        // Using a template lets the locale pick its own month-day ordering
-        // (e.g. "4/23" in en-US, "4月23日" in ja-JP, "23/4" in en-GB) while
-        // keeping the output compact enough for the 30-bar chart.
+        // **Intentionally hardcoded English compact numeric format.**
+        //
+        // `M/d` + `Locale("en_US")` is a deliberate design choice from commit
+        // 79f207d2 ("use compact numeric date labels"). The 30-day chart
+        // renders 30 bars with `barWidth: 8pt` each; labels need to stay as
+        // short as "4/23" to fit. A naive `setLocalizedDateFormatFromTemplate("Md")`
+        // would respect the user's locale and in Simplified Chinese would
+        // produce "4月23日" — three characters of CJK glyph per label, which
+        // overflows the bar spacing and breaks the chart layout.
+        //
+        // Cross-locale users see the same compact "M/d" format; this is
+        // by design, not an i18n miss. Build 81 briefly replaced it with the
+        // template approach based on an agent audit that didn't check the
+        // chart geometry constraint — reverted in Build 85.
         let dayLabelFormatter = DateFormatter()
-        dayLabelFormatter.locale = .current
-        dayLabelFormatter.setLocalizedDateFormatFromTemplate("Md")
+        dayLabelFormatter.dateFormat = "M/d"
+        dayLabelFormatter.locale = Locale(identifier: "en_US")
 
         var realBars: [DayBar] = []
         for day in recentDays {
