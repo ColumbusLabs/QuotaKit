@@ -1,6 +1,11 @@
 import SwiftUI
 
 private let qrURL = "https://codexbarios.o1xhack.com"
+/// Matches `CostShareCardView` dimensions (3:4 aspect, 390×520pt). Two
+/// theme variants share the same canvas so users can toggle between them
+/// without the resulting image dimensions changing — important for social
+/// previews that cache by aspect ratio. See `CostShareCardView` for the
+/// full rationale on why this size is frozen.
 private let cardWidth: CGFloat = 390
 private let cardHeight: CGFloat = 520
 
@@ -131,6 +136,17 @@ private struct ArcGauge: View {
     let theme: CyberTheme
 
     var body: some View {
+        // Arc gauge geometry:
+        // - `trim(from: 0.15, to: 0.85)` spans 70% of the circle = 252° of arc.
+        //   The remaining 30° gap at the top is where the center-label text
+        //   sits — the gauge reads visually as ~5 o'clock through ~7 o'clock
+        //   "opening" with the value rotating clockwise to fill it.
+        // - The second circle's `to: 0.15 + 0.7 * value` overlays a partial
+        //   fill proportional to `value ∈ [0, 1]` on that same 252° arc.
+        //   When `value == 1`, it matches the track's endpoint at 0.85.
+        // Changing the 0.15/0.85 offsets shifts the gauge's "opening" side
+        // and re-aligns the center label — do NOT adjust without also
+        // retuning the text alignment inside this view.
         ZStack {
             Circle()
                 .trim(from: 0.15, to: 0.85)

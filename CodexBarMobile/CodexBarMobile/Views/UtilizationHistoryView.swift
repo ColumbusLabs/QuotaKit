@@ -293,6 +293,10 @@ struct UtilizationHistoryView: View {
         // BarMarks clip at the chartXVisibleDomain boundary otherwise).
         .chartXScale(domain: 0 ... max(points.count, self.windowSize))
         .chartXAxis {
+            // `desiredCount: 4` → ~4 date labels across 30 bars. Lower
+            // (2-3) feels sparse on a 10pt-bar chart; higher (5+) crowds
+            // the `"M/d"` labels into each other at the narrow card width.
+            // Paired with the compact-format axisLabel below.
             AxisMarks(values: .automatic(desiredCount: 4)) { value in
                 AxisGridLine().foregroundStyle(.clear)
                 AxisTick().foregroundStyle(.clear)

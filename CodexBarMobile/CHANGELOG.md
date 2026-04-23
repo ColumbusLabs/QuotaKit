@@ -2,6 +2,34 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (88)] — 2026-04-23 — dev build · iOS Views hardcode comments (commit 4/4)
+
+### Added comments
+- **`UsageCardView.swift`**:
+  - `scaleEffect(y: 2)` on ProgressView — explains 1pt native → 2pt visual height for touch-target visibility.
+  - `usageColor` 70/90% thresholds — industry-standard quota warning bands (AWS/Azure/GCP + Apple Storage UI); deliberately mirrors BudgetProgressView so every quota-like display flips color at the same percentage.
+- **`BudgetProgressView.swift`**:
+  - `progressColor` 70/90% thresholds documented as symmetric with UsageCardView.
+- **`CostShareCardView.swift`** / **`CyberShareCardView.swift`**:
+  - `cardWidth = 390` / `cardHeight = 520` — social-export 3:4 canvas; UIImage export depends on exact pixel dimensions at 2×/3× scale; resizing would reflow card body templates and re-crop existing user screenshots.
+- **`CyberShareCardView.swift`**:
+  - Arc gauge geometry: `trim(from: 0.15, to: 0.85)` = 252° arc with 30° top gap for center label; `0.15 + 0.7 * value` overlays the proportional fill.
+- **`PerplexityCreditsCard.swift`**:
+  - `legendDotOpacity` ramp (1.0 / 0.78 / 0.55) encodes **consumption-priority signal** — Perplexity depletes recurring > promo > purchased in that order; brightest dot = spent first. Values tuned for material-background legibility.
+- **`UtilizationHistoryView.swift`**:
+  - `AxisMarks(values: .automatic(desiredCount: 4))` — 30-bar × 10pt-wide chart fits ~4 labels; more crowds, fewer feels sparse.
+- **`ProviderDetailView.swift`**:
+  - Daily Spend chart `frame(height: 200)` — empirically tuned for compact iPhone (667pt total height); taller would push utilization history off-screen.
+
+### Post-audit summary (Builds 85–88)
+- **50+ hardcodes across iOS** now carry inline "why" comments preventing the Build 81 regression class.
+- No runtime changes in any of the 4 commits — pure documentation.
+- Each commit passed Codex review clean.
+- Total test count stable at 88; SwiftLint 0 throughout.
+
+### Not in this commit
+- **Build 89** (Phase 2, next): Mac-side audit of the sync code we add on top of upstream (`Sources/CodexBar/Sync/**`). Same agent pattern, shorter scope because Mac is upstream-owned — only the bits our fork touched need a look.
+
 ## [1.3.0 (87)] — 2026-04-23 — dev build · iOS Models + ContentView hardcode comments (commit 3/4)
 
 ### Added comments

@@ -193,6 +193,14 @@ struct ProviderDetailView: View {
                     }
                 }
             }
+            // 200pt chart height — tuned so the Daily Spend chart fits below
+            // the primary-usage / cost-summary / budget sections without
+            // pushing the provider's utilization history off-screen on a
+            // compact iPhone (iPhone SE 3rd gen, 667pt total height). A
+            // taller chart improves readability for outliers but requires
+            // the user to scroll more; 200pt is the empirically-tuned
+            // balance. If increasing this, verify the page still works on
+            // the smallest supported device.
             .frame(height: 200)
             .padding(16)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))

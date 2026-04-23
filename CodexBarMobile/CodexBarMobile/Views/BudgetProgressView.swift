@@ -11,6 +11,12 @@ struct BudgetProgressView: View {
     }
 
     private var progressColor: Color {
+        // 70% (orange) / 90% (red) thresholds deliberately match
+        // `UsageCardView.usageColor` so every quota-like bar in the app
+        // turns the same color at the same percentage. Users learn the
+        // semantic once ("orange = close, red = critical") and it applies
+        // across rate limits, budgets, and any future quota-shaped UI.
+        // If you adjust here, adjust `UsageCardView` in the same commit.
         if progress >= 0.9 { return .red }
         if progress >= 0.7 { return .orange }
         return tintColor

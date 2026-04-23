@@ -161,6 +161,17 @@ struct PerplexityCreditsCard: View {
         }
     }
 
+    /// Legend dot opacity encodes a **consumption-priority signal**:
+    /// Perplexity depletes the three credit pools in order — recurring first
+    /// (use-it-or-lose-it monthly plan), then promo (bonus/time-limited),
+    /// then purchased (pay-as-you-go, no expiration). The opacity ramp makes
+    /// this reading order visually obvious at a glance: the brightest dot
+    /// (1.0) = "spent first", dimmest (0.55) = "saved for last".
+    ///
+    /// The exact values (1.0 / 0.78 / 0.55) are tuned so each step is visibly
+    /// distinct on a `.ultraThinMaterial` card in both light + dark mode
+    /// without any step fading into the card background — narrower ramps
+    /// (e.g. 1.0/0.9/0.8) lose the semantic reading.
     private static func legendDotOpacity(for kind: PoolSegment.Kind) -> Double {
         switch kind {
         case .recurring: 1.0

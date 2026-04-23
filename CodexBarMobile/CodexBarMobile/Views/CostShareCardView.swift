@@ -1,6 +1,13 @@
 import SwiftUI
 
 private let qrURL = "https://codexbarios.o1xhack.com"
+/// Fixed share-card dimensions (3:4 aspect, iPhone 15-ish width). This is the
+/// canvas size the card renders INTO — `UIImage` export + social-network
+/// previews depend on the exact pixel dimensions after 2×/3× scale. Changing
+/// either value would re-crop every existing share-template layout in the
+/// card body, reflow the QR-footer spacing, and (if shipped to users) make
+/// previous screenshots in user chats look inconsistent next to new ones.
+/// If you absolutely need a new size, clone the view and keep this one.
 private let cardWidth: CGFloat = 390
 private let cardHeight: CGFloat = 520
 

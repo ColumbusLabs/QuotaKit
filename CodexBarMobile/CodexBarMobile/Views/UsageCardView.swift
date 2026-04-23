@@ -23,6 +23,11 @@ struct UsageCardView: View {
             }
 
             // Progress bar
+            // `scaleEffect(y: 2)` makes SwiftUI's 1pt-tall native ProgressView
+            // render as ~2pt — large enough to be visible and satisfy a
+            // minimum-touch-target hint on iOS but still compact enough to
+            // fit inside the card's 12pt vertical spacing. Removing this
+            // makes the bar near-invisible on Retina displays.
             ProgressView(value: self.displayMode.progressFraction(for: self.window))
                 .tint(self.usageColor)
                 .scaleEffect(y: 2, anchor: .center)
@@ -79,6 +84,14 @@ struct UsageCardView: View {
     }
 
     private var usageColor: Color {
+        // 70% (orange warning) / 90% (red critical) thresholds chosen to
+        // match the industry-standard quota-warning bands users see on
+        // AWS / Azure / GCP dashboards and Apple's built-in Storage UI.
+        // These are also the same thresholds used by `BudgetProgressView`;
+        // keeping them in sync means every quota-like display across the
+        // app turns the same color at the same percentage, so "orange"
+        // always reads as "getting close" and "red" as "critical".
+        // Changing here requires changing BudgetProgressView symmetrically.
         if self.window.usedPercent >= 90 {
             return .red
         } else if self.window.usedPercent >= 70 {
