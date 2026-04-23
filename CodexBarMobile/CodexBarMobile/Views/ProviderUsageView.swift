@@ -138,8 +138,15 @@ struct ProviderUsageView: View {
 
     @ViewBuilder
     private func costTeaserText(_ cost: SyncCostSummary) -> some View {
+        // Route "Today" through `todayTotals()` so this card's teaser and the
+        // detail page's "Today" summary stay in lockstep (Build 78 fixed the
+        // detail page; this card was still reading `sessionCostUSD` directly,
+        // causing Usage-tab teaser ≠ detail-page "Today" mid-day). Same
+        // class-of-bug as the Subscription Utilization aggregate/detail
+        // mismatch fixed in Build 77.
+        let today = cost.todayTotals()
         let parts: [String] = [
-            cost.sessionCostUSD.map { "\(String(localized: "Today")): \(Self.formatUSD($0))" },
+            today.costUSD.map { "\(String(localized: "Today")): \(Self.formatUSD($0))" },
             cost.last30DaysCostUSD.map { "\(String(localized: "30d")): \(Self.formatUSD($0))" },
         ].compactMap { $0 }
 

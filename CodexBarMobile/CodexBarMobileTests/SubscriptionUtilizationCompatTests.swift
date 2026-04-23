@@ -253,4 +253,28 @@ struct SubscriptionUtilizationCompatTests {
         // Average of daily peaks (each day = 42%) should be 42, not 0.
         #expect(model.providerShares.first?.rawAvgPercent == 42)
     }
+
+    // MARK: - Build 81 · thread safety (Codex-caught P0)
+
+    @Test("iso8601DayKey is safe to call from many concurrent tasks (DateFormatter thread safety)")
+    func dayKeyConcurrentCallsSafe() async {
+        // Pre-Build-81 used a shared `static let DateFormatter` whose
+        // `string(from:)` is documented unsafe under concurrent access on
+        // iOS — could crash. Build 81 replaced with a per-call formatter.
+        // Stress this by calling from many concurrent tasks and asserting
+        // all results match the single-threaded reference.
+        let dates = (0 ..< 30).map { Date(timeIntervalSince1970: TimeInterval(1_745_500_000 + $0 * 86400)) }
+        let expected = dates.map { SyncCostSummary.iso8601DayKey(for: $0) }
+
+        await withTaskGroup(of: [String].self) { group in
+            for _ in 0 ..< 64 {
+                group.addTask {
+                    dates.map { SyncCostSummary.iso8601DayKey(for: $0) }
+                }
+            }
+            for await result in group {
+                #expect(result == expected)
+            }
+        }
+    }
 }

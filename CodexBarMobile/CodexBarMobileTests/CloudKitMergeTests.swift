@@ -828,8 +828,7 @@ struct CloudKitMergeTests {
     /// crossings. `todayTotals(now:)` is called with this same date, and the
     /// fixture's daily point uses the dayKey derived from it.
     private static let pinnedToday = Date(timeIntervalSince1970: 1_745_500_000)
-    private static let pinnedTodayKey = SyncCostSummary.iso8601DayKeyFormatter
-        .string(from: pinnedToday)
+    private static let pinnedTodayKey = SyncCostSummary.iso8601DayKey(for: pinnedToday)
 
     @Test("todayTotals prefers daily[today] over sessionCostUSD and sessionTokens")
     func todayTotalsPrefersDailyToday() {
@@ -874,7 +873,7 @@ struct CloudKitMergeTests {
         let today = cost.todayTotals(now: Self.pinnedToday)
         #expect(today.costUSD == nil)
         #expect(today.tokens == nil)
-        #expect(today.hasAnyValue == false)
+        #expect(today.costUSD == nil && today.tokens == nil)
     }
 
     @Test("todayTotals resolves cost and tokens from the SAME day key (no midnight drift)")
@@ -884,7 +883,7 @@ struct CloudKitMergeTests {
         // mismatch; since the whole resolution uses a single injected `now`,
         // both fields resolve from the same key and stay coherent.
         let justBeforeMidnight = Date(timeIntervalSince1970: 1_745_539_199) // 23:59:59 local
-        let key = SyncCostSummary.iso8601DayKeyFormatter.string(from: justBeforeMidnight)
+        let key = SyncCostSummary.iso8601DayKey(for: justBeforeMidnight)
         let cost = SyncCostSummary(
             sessionCostUSD: 10.00,
             sessionTokens: 2000,

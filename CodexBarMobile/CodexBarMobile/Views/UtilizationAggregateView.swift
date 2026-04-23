@@ -12,6 +12,14 @@ struct UtilizationAggregateView: View {
     @State private var cachedKey: String = ""
     @State private var cachedModel: AggregateModel?
 
+    // Honor the Usage tab's "Show remaining usage" toggle here too — pre-fix
+    // the share row always rendered "86% avg use" even when the user had
+    // flipped the toggle and every other card on the Usage tab was showing
+    // "14% remaining". Matches `UsageCardView`'s own @AppStorage declaration
+    // (including the legacy-key migration default) so we toggle in lockstep.
+    @AppStorage(MobileSettingsKeys.showRemainingUsage) private var showRemainingUsage =
+        UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode.remaining.rawValue
+
     private let barWidth: CGFloat = 8
     private let windowSize = 30  // 30 days to match the cost chart
 
@@ -235,6 +243,20 @@ struct UtilizationAggregateView: View {
 
     // MARK: - Provider Share Row
 
+    /// Subtitle under each provider name on the share rows. Respects the
+    /// "Show remaining usage" setting so every place on the Cost tab agrees
+    /// on which direction the number runs. `rawAvgPercent` is the 30-day
+    /// average of daily peaks (so "% remaining" is `100 - avg`, not inverse
+    /// on a per-day basis — the right interpretation when the underlying
+    /// number is already an average over days).
+    private func averageUsageSubtitle(for rawAvgPercent: Double) -> String {
+        if self.showRemainingUsage {
+            let remaining = max(0, 100 - rawAvgPercent)
+            return String(format: String(localized: "%.0f%% avg remaining"), remaining)
+        }
+        return String(format: String(localized: "%.0f%% avg use"), rawAvgPercent)
+    }
+
     private func providerShareRow(_ row: ProviderShare) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -246,7 +268,7 @@ struct UtilizationAggregateView: View {
                     Text(row.name)
                         .font(.subheadline)
                         .fontWeight(.semibold)
-                    Text(String(format: "%.0f%% avg use", row.rawAvgPercent))
+                    Text(self.averageUsageSubtitle(for: row.rawAvgPercent))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -413,9 +435,15 @@ struct UtilizationAggregateView: View {
         let recentDays = allDaysSorted.filter { $0 >= last30Start }
         guard !recentDays.isEmpty else { return nil }
 
+        // Locale-aware template. Japanese/Chinese users previously saw the
+        // English "M/d" format even when the interface was localized; Codex-
+        // reviewer / Agent-D audit flagged this in the post-Build-80 pass.
+        // Using a template lets the locale pick its own month-day ordering
+        // (e.g. "4/23" in en-US, "4月23日" in ja-JP, "23/4" in en-GB) while
+        // keeping the output compact enough for the 30-bar chart.
         let dayLabelFormatter = DateFormatter()
-        dayLabelFormatter.dateFormat = "M/d"
-        dayLabelFormatter.locale = Locale(identifier: "en_US")
+        dayLabelFormatter.locale = .current
+        dayLabelFormatter.setLocalizedDateFormatFromTemplate("Md")
 
         var realBars: [DayBar] = []
         for day in recentDays {

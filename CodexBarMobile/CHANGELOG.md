@@ -2,6 +2,31 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (81)] — 2026-04-23 — dev build · 4-agent perfect-pass P0 fixes
+
+**Context**: After Build 80 (3-commit systematic audit), I did an honest self-audit and found 14 gaps. User asked for "perfect". Dispatched 4 parallel research agents: Mac-side symmetry / cross-view all-pairs / test-fixture-distribution-3-files / performance-concurrency-a11y. The 4 agents found **4 new ❌ bugs** that the earlier audit missed. This build fixes all 4.
+
+### Fixed — Cross-view consistency (Agent B)
+- **`ProviderUsageView.costTeaserText` still read `sessionCostUSD` directly** — Build 78 fixed the `ProviderDetailView` "Today" card but missed this sibling call site. Usage-tab teaser and detail-page "Today" diverged mid-day. Now routes through `cost.todayTotals()` — same class-of-bug as Build 77's Codex-0% aggregate/detail mismatch, now closed across every known reader.
+- **`UtilizationAggregateView.providerShareRow` ignored the "Show remaining usage" toggle**. Every other card on the Usage tab flips between "86% used" and "14% remaining"; the share row was hardcoded "% avg use". Added `@AppStorage(MobileSettingsKeys.showRemainingUsage)` matching `UsageCardView`'s declaration (legacy-key migration default included), plus a localized `%.0f%% avg remaining` format with zh-Hans / zh-Hant / ja translations.
+
+### Fixed — Thread safety (Agent D, P0)
+- **`SyncCostSummary.iso8601DayKeyFormatter` was a shared `static let DateFormatter`** — documented thread-unsafe on iOS. `todayTotals(now:)` is reachable from both view-body rendering (main actor) and sync-observer paths, so concurrent `string(from:)` calls could crash. Replaced with a per-call factory (`iso8601DayKeyFormatter()`) exposed via a thread-safe `iso8601DayKey(for:)` helper. Also explicitly set `.timeZone = .current` so the contract matches Mac-side `SyncCoordinator.daily[].dayKey` regardless of any future DateFormatter default shifts.
+- Agent A's Mac-symmetry audit flagged Mac `OpenAIDashboardModels.swift:93` uses `TimeZone.current` + POSIX locale + "yyyy-MM-dd" — iOS's behavior (prior build) was equivalent since DateFormatter's default timeZone IS `.current`. Making it explicit on iOS pins the contract.
+
+### Fixed — i18n (Agent D, ⚠️)
+- **`UtilizationAggregateView` chart date labels were hardcoded `Locale(identifier: "en_US")` with `dateFormat = "M/d"`**. Japanese / Chinese users saw English month-day ordering regardless of interface locale. Switched to `setLocalizedDateFormatFromTemplate("Md")` + `.current` locale so the format follows the user's interface language naturally.
+
+### Tests
+- `SubscriptionUtilizationCompatTests` +1: `dayKeyConcurrentCallsSafe` — spawns 64 concurrent `Task`s each computing 30 day keys; asserts all match the single-threaded reference. Would have crashed with `EXC_BAD_ACCESS` pre-fix under the shared DateFormatter.
+- Updated existing `todayTotals*` test to drop the removed `hasAnyValue` accessor (YAGNI — only one test was using it).
+
+### Data-structure polish (part of broader Build 82 plan; one bit landed here)
+- Removed `SyncCostSummary.TodayTotals.hasAnyValue` — only ever used by one test; callers who need it can inline `costUSD != nil || tokens != nil`. Reduces the API surface.
+
+### Agent A / Mac symmetry — deferred to Build 84 as research doc
+- Found 5 Mac-side bugs: accounts.first / providers.first non-deterministic ordering (Widget + Account Switcher) · Perplexity multi-account no accountEmail split · SyncCoordinator `"_"` placeholder for nil email creating ghost CKRecords · dayKey format OK (current policy). These are Mac-only; per project rules (`Sources/` / `Tests/` belong to upstream, read-only for us), they'll land in `Research/015-mac-symmetry-audit.md` for a future upstream PR, not a direct Mac-side patch.
+
 ## [1.3.0 (80)] — 2026-04-23 — dev build · 5-round systematic audit follow-up (commit 3/3)
 
 **Commit 3 of 3** addressing the 5-round audit. Closes out Round 3 (测试数据分布 audit): every pre-Build-78 merge test ran on "toy" data (`usedPercent: 50.0`, `costUSD: $1.50`, three entries). Round 3 found every test file had **zero coverage** for long idle / cross-reset boundary / cross-date / deliberately disordered input / all-zero-but-tracked patterns. This commit adds realistic-distribution fixtures that re-exercise the existing merge paths with data shaped like real 30-day usage.

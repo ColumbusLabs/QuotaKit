@@ -31,7 +31,6 @@ extension SyncCostSummary {
     struct TodayTotals: Equatable, Sendable {
         public let costUSD: Double?
         public let tokens: Int?
-        var hasAnyValue: Bool { self.costUSD != nil || self.tokens != nil }
     }
 
     /// Returns the cost/tokens for today in the user's current timezone,
@@ -43,7 +42,7 @@ extension SyncCostSummary {
     /// `now` is injectable so tests can pin a specific date and stay
     /// deterministic across wall-clock midnight crossings.
     func todayTotals(now: Date = Date()) -> TodayTotals {
-        let todayKey = Self.iso8601DayKeyFormatter.string(from: now)
+        let todayKey = Self.iso8601DayKey(for: now)
         if let todayPoint = self.daily.first(where: { $0.dayKey == todayKey }) {
             return TodayTotals(
                 costUSD: todayPoint.costUSD,
@@ -52,14 +51,35 @@ extension SyncCostSummary {
         return TodayTotals(costUSD: self.sessionCostUSD, tokens: self.sessionTokens)
     }
 
-    /// Same format Mac's `SyncCoordinator` uses for `dayKey`. Pinned to POSIX
-    /// and gregorian so the iPhone's locale can't throw `yyyy-MM-dd` into
-    /// non-matching strings.
-    static let iso8601DayKeyFormatter: DateFormatter = {
+    /// Thread-safe ISO 8601 `yyyy-MM-dd` day key, in the user's current
+    /// timezone (matches Mac-side `SyncCoordinator.daily[].dayKey`
+    /// generation — both sides use `.current` timezone so a user's Mac and
+    /// iPhone agree on "today" as long as they're in the same timezone).
+    ///
+    /// Creates a fresh `DateFormatter` per call rather than sharing a
+    /// `static let` instance. Codex-reviewer flagged the shared formatter as
+    /// P0: `DateFormatter` is documented NOT thread-safe on iOS and can
+    /// crash under concurrent `string(from:)` calls, and `todayTotals(now:)`
+    /// is reachable from both view-body rendering (main actor) and
+    /// CloudSync background observers.
+    ///
+    /// The per-call allocation is cheap (formatter init is ~microseconds)
+    /// and sync costs aren't on the per-frame hot path — callers that need
+    /// to resolve many dates at once should batch through
+    /// `iso8601DayKeyFormatter()` once, not via this helper.
+    static func iso8601DayKey(for date: Date) -> String {
+        Self.iso8601DayKeyFormatter().string(from: date)
+    }
+
+    /// Returns a fresh `DateFormatter` configured for the day-key wire
+    /// format. Use when you need to reuse a formatter for multiple dates
+    /// within a **single call site / thread**; do not store in shared state.
+    static func iso8601DayKeyFormatter() -> DateFormatter {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter
-    }()
+    }
 }
