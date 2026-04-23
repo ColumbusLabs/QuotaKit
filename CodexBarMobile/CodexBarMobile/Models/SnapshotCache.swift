@@ -241,6 +241,22 @@ struct SnapshotCache: Sendable {
 
     // MARK: - Helpers
 
+    /// Composite bucket key for per-provider entries within a single device.
+    ///
+    /// **WIRE CONTRACT · must match 3 peer sites byte-for-byte:**
+    /// - `CloudSyncManager.perProviderRecordName` (CloudKit record-name)
+    /// - `ProviderSnapshotModel.makeCompositeKey` (SwiftData composite)
+    /// - `SnapshotCache.splitRecordName` (the inverse parser below)
+    ///
+    /// The `"_"` sentinel for nil `accountEmail` is the same at every site.
+    /// Build 67 hardening: an earlier version used `""` in one of these,
+    /// causing `deleteByRecordName` to miss SwiftData rows and per-provider
+    /// CloudKit records to diverge silently. If you change the sentinel
+    /// byte, change **all four sites** in the same commit.
+    ///
+    /// (Aside: `CloudSyncReader.mergeSnapshots` uses `""` for its own
+    /// in-function grouping key — that key never leaves the function and
+    /// doesn't participate in this cross-layer contract.)
     static func compositeKey(for provider: ProviderUsageSnapshot) -> String {
         "\(provider.providerID)|\(provider.accountEmail ?? "_")"
     }
@@ -248,6 +264,10 @@ struct SnapshotCache: Sendable {
     /// Parses a CloudKit recordName of the form
     /// `"deviceID|providerID|accountEmail"` back into `(deviceID, composite)`.
     /// Returns nil on malformed input — caller should skip such records.
+    ///
+    /// **Inverse of `CloudSyncManager.perProviderRecordName`.** Both must
+    /// use `|` as separator and expect exactly 3 components. Any layout
+    /// change on one side requires the symmetric change here.
     static func splitRecordName(_ recordName: String) -> (deviceID: String, composite: String)? {
         let parts = recordName.split(separator: "|", omittingEmptySubsequences: false)
         guard parts.count == 3 else { return nil }
@@ -259,6 +279,13 @@ struct SnapshotCache: Sendable {
     /// Fallback deviceID for legacy snapshots that lack one (old KVS path).
     /// Matches `SwiftDataBridge.deviceIDFallback` so SwiftData and the cache
     /// agree on the same synthetic key.
+    ///
+    /// The `"legacy:"` prefix is a deliberate UUID-collision guard — real
+    /// `deviceID`s are UUIDs (e.g. `"F4E7A42B-…"`); no legitimate UUID
+    /// starts with `"legacy:"`. This lets both stores distinguish
+    /// KVS-originated (pre-Build-42) rows from CloudKit-originated rows
+    /// without an extra flag, and the next authoritative full-fetch
+    /// overwrites them with real zone-backed `deviceID`s.
     static func syntheticDeviceID(from snapshot: SyncedUsageSnapshot) -> String {
         "legacy:" + snapshot.deviceName
     }

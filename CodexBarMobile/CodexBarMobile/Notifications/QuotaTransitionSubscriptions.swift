@@ -57,6 +57,16 @@ final class QuotaTransitionSubscriptions {
     }
 
     /// Builds the full `(provider × state)` matrix of desired subscriptions.
+    ///
+    /// **Subscription-ID format WIRE CONTRACT:**
+    /// `"quota-{providerID}-{state}-sub"` (e.g. `"quota-codex-depleted-sub"`).
+    /// This ID is the primary key CloudKit uses to identify the
+    /// subscription; once saved on the server, re-registering with a
+    /// different ID creates a duplicate rather than updating, and
+    /// `reconcileSubscriptions()` below uses the ID for diff detection.
+    /// Changing the format (separator, suffix, casing) on a live user would
+    /// orphan their existing subscriptions — pushes would keep firing
+    /// against the old ID and the new config would silently never activate.
     private func makeConfigs() -> [SubConfig] {
         var configs: [SubConfig] = []
         for provider in QuotaProviderList.providers {

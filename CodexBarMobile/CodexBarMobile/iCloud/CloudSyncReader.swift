@@ -113,6 +113,18 @@ final class CloudSyncReader: @unchecked Sendable {
     /// Providers whose cost data comes from LOCAL files (per-machine CLI history).
     /// Cost data from these providers must be SUMMED across devices, not deduplicated.
     /// All other providers read cost from account-level web APIs → safe to deduplicate.
+    ///
+    /// **Why these three specifically:**
+    /// - `claude` reads `~/.claude/history.jsonl` on each Mac — two Macs each
+    ///   hold their own history; summing gives total spend across machines.
+    /// - `codex` reads Codex CLI's per-Mac JSONL — same reasoning.
+    /// - `vertexai` reads `gcloud` auth cache + request logs — per-Mac.
+    /// All other providers (Cursor, Augment, Perplexity, JetBrains AI, …)
+    /// report cost from an account-level web API — both Macs see the same
+    /// server-authoritative number, so `latestNonNil` is correct and SUM
+    /// would double-count. **Adding a new local-CLI provider here is a
+    /// behavior change.** Test multi-device Cost tab before and after to
+    /// verify the summed value matches user expectation.
     private static let localCostProviders: Set<String> = ["claude", "codex", "vertexai"]
 
     /// Merges snapshots from multiple devices into a single unified snapshot.
@@ -128,6 +140,21 @@ final class CloudSyncReader: @unchecked Sendable {
         guard !snapshots.isEmpty else { return nil }
 
         // Group all providers by key (providerID + accountEmail)
+        //
+        // **Empty-string sentinel caveat:** `accountEmail ?? ""` is the
+        // nil-email fallback *here*. At the `mergeProviderEntries` grouping
+        // in line ~245 (and in `SnapshotCache.compositeKey`, SwiftData's
+        // `ProviderSnapshotModel.makeCompositeKey`, and Mac
+        // `CloudSyncManager.perProviderRecordName`), the sentinel is `"_"`.
+        // **Build 67 drift discovery**: an earlier version used `""` here and
+        // `"_"` elsewhere, silently collapsing nil-email providers into
+        // different buckets across layers and breaking `delete-by-recordName`
+        // cascades. Both formats are acceptable AS LONG AS every call site
+        // that keys by (providerID, accountEmail?) uses **exactly the same
+        // sentinel byte**. These two separators don't need to match each
+        // other (`""` here vs `"_"` in record-name) because this grouping
+        // key never leaves this function — but if you copy either value to
+        // a new site, copy the matching sentinel.
         var providersByKey: [String: [ProviderUsageSnapshot]] = [:]
 
         for snapshot in snapshots {
@@ -137,7 +164,14 @@ final class CloudSyncReader: @unchecked Sendable {
             }
         }
 
-        // Merge each group
+        // Merge each group. Single-device groups bypass `mergeProviderEntries`
+        // as a fast path — that function's dedup / sort logic only matters
+        // for multi-device input. Downstream consumers (`UtilizationHistoryView`,
+        // aggregate chart) tolerate unsorted entries because they bucket
+        // into dictionaries, so skipping dedup here is safe. Build 83
+        // `mergedUtilizationDisorderedInputProducesSortedOutput` test pins
+        // that sortedness is a *multi-device* merge property, not a
+        // single-device invariant.
         var mergedProviders: [ProviderUsageSnapshot] = []
         for (_, providers) in providersByKey {
             if providers.count == 1 {
@@ -271,6 +305,12 @@ final class CloudSyncReader: @unchecked Sendable {
         let base = entries.max(by: { $0.lastUpdated < $1.lastUpdated })!
 
         // Cost: sum for local-cost providers, otherwise latestNonNil (account-level).
+        // `compactMap(\.costSummary)` drops devices whose costSummary is nil
+        // before summing. This is intentional: a Mac that doesn't run a CLI
+        // provider yet (e.g. Claude Code not installed) reports costSummary
+        // as nil — summing over an empty prefix is 0, which is the right
+        // answer. `flatMap` here would trap on nil; `compactMap` is required
+        // for cross-version / partial-install robustness.
         let isLocalCost = localCostProviders.contains(base.providerID)
         let mergedCost: SyncCostSummary?
         if isLocalCost {
@@ -280,6 +320,11 @@ final class CloudSyncReader: @unchecked Sendable {
         }
 
         // Utilization history: merge across ALL devices, dedup by hour.
+        // Same `compactMap` reasoning — a device that doesn't have
+        // utilization tracking yet (pre-1.2.0 iOS, or a Mac with that
+        // provider not yet enabled) has nil `utilizationHistory`, and we
+        // want to fall through to the other device's data rather than lose
+        // everything. See Build 77 cross-version merge fix.
         let mergedUtilization = Self.mergeUtilizationHistories(
             entries.compactMap(\.utilizationHistory))
 
@@ -393,6 +438,17 @@ final class CloudSyncReader: @unchecked Sendable {
             } else if freshestWindowByName[series.name] == nil {
                 // Empty series: record its windowMinutes as a fallback in case
                 // no other device has entries for this name.
+                //
+                // `.distantPast` is an intentional sentinel — any real
+                // `latestCaptured` will compare greater (`> .distantPast`)
+                // in the outer branch, which overrides this value as soon
+                // as a device with entries is processed. Order doesn't
+                // matter: real-data-device-first keeps the real value; empty-
+                // first lets the real value override. The only case where
+                // `.distantPast` sticks is "every device has an empty
+                // series for this name" — at which point downstream
+                // consumers see `(empty entries, some windowMinutes)` and
+                // skip the series at the `guard !deduped.isEmpty` below.
                 freshestWindowByName[series.name] = (.distantPast, series.windowMinutes)
             }
         }
@@ -436,6 +492,17 @@ final class CloudSyncReader: @unchecked Sendable {
 
         for entry in entries {
             let hourSlot = Int(floor(entry.capturedAt.timeIntervalSince1970 / hourInterval))
+            // `-1` is an out-of-band sentinel — every real `resetsAt` is
+            // positive, so `-1` can never collide with a real reset epoch.
+            // This keeps entries with `resetsAt == nil` in their own bucket
+            // (separate from entries that happen to share the same hourSlot
+            // but have a real reset window), which is the **whole reason
+            // `resetEpoch` is part of the key**: Build 77 learned that
+            // mixing pre-reset (e.g. 90% quota used) and post-reset
+            // (e.g. 5% fresh window) samples into one bucket averages them
+            // to 47.5%, a meaningless number. Dropping `resetEpoch` from
+            // BucketKey is the regression guarded against by the
+            // `mergedUtilizationCrossResetBoundarySeparatesBuckets` test.
             let resetEpoch = entry.resetsAt.map { Int(floor($0.timeIntervalSince1970 / hourInterval)) } ?? -1
             let key = BucketKey(hourSlot: hourSlot, resetEpoch: resetEpoch)
 

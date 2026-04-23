@@ -2,6 +2,26 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (86)] — 2026-04-23 — dev build · iOS sync-layer hardcode comments (commit 2/4)
+
+### Added comments
+- **`CloudSyncReader.swift`**:
+  - `localCostProviders` set now explains *why* these three (claude/codex/vertexai) specifically — per-Mac CLI file reads must SUM, all other providers are account-level API reads and `latestNonNil` is correct; adding a new local-CLI provider is a behavior change.
+  - Composite key `""` vs `"_"` sentinel contract documented — `""` in the in-function grouping key is fine because it never leaves the function; `"_"` is required at every layer-crossing site (Build 67 drift hardening, links to 4 peer sites).
+  - Single-device passthrough fast path documented — skips `mergeProviderEntries` dedup/sort because downstream consumers bucket into dicts; Build 83 test `mergedUtilizationDisorderedInputProducesSortedOutput` pins that sortedness is a multi-device property.
+  - `compactMap(\.costSummary)` / `compactMap(\.utilizationHistory)` — why `compactMap` not `flatMap`: cross-version / partial-install Macs may have nil for these fields; compactMap drops them gracefully, flatMap would crash.
+  - `.distantPast` sentinel in `freshestWindowByName` — any real `latestCaptured` overrides on comparison; sentinel only sticks when every device has an empty series for that name (downstream filtered out by `!deduped.isEmpty`).
+  - `resetEpoch ?? -1` — out-of-band sentinel never collides with real epochs; Build 77 learned mixing pre/post-reset samples in same hour averages to meaningless 47.5%; regression guarded by `mergedUtilizationCrossResetBoundarySeparatesBuckets`.
+- **`SnapshotCache.swift`**: `compositeKey`, `splitRecordName`, `syntheticDeviceID` — all 3 now document the WIRE CONTRACT + 4-site sync + `"legacy:"` UUID-collision guard.
+- **`QuotaTransitionSubscriptions.swift`**: `subscriptionID` format `"quota-{providerID}-{state}-sub"` documented as wire contract — changing on a live user orphans their existing subscriptions and silently disables push.
+
+### Verified-already-documented
+- `CloudSyncReader.semverLessThan` (Build 77 comments cover rationale fully)
+- `SwiftDataSchema.makeCompositeKey` (Build 67 comments already document the drift concern)
+- `NotificationService` 30s timeout / `resultsLimit: 1` (already documented at class-level docstring)
+
+All 88 tests pass; SwiftLint 0.
+
 ## [1.3.0 (85)] — 2026-04-23 — dev build · wire-contract comments (Shared/)
 
 **Commit 1/4 of the comprehensive hardcode-comment audit.** User pointed out that Build 81's regression (chart labels) was caused by commit `79f207d2` hardcoding `"M/d" + Locale("en_US")` with no inline explanation of the geometry constraint — making the hardcode look like a smell to any future audit. Prevention is to **comment all load-bearing hardcodes at the point of introduction**. 4 agents audited the whole iOS codebase + 1 will audit the Mac sync additions. This commit covers the most dangerous layer: the Mac↔iOS wire contract.
