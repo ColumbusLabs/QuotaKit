@@ -64,10 +64,11 @@ struct CostShareCardView: View {
 
 // MARK: - Shared Components
 
-private func formatUSD(_ value: Double) -> String {
-    value.formatted(.currency(code: "USD").precision(.fractionLength(2)))
-}
+private func formatUSD(_ value: Double) -> String { CostFormatting.usd(value) }
 
+// Share cards use a visually-compact token glyph (no "tokens" suffix — the
+// suffix is implied by the card layout). Kept separate from
+// `CostFormatting.tokens(_:)` which includes the localized unit label.
 private func formatTokens(_ count: Int) -> String {
     if count >= 1_000_000 {
         return String(format: "%.1fM", Double(count) / 1_000_000)

@@ -53,9 +53,11 @@
 		A8ECDA27E9F213AFA6A13FAB /* CodexBarSync.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A910B3424F6BF1DCE7543E2E /* CodexBarMobileApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC3A52976034BA3F0CA44327 /* CodexBarMobileApp.swift */; };
 		A9305459F82B07AAE8ADC1A2 /* ProviderUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CAFBA243E25814E22BAAA6B /* ProviderUsageView.swift */; };
+		ACA7EB9D06944B5EA0FD9E84 /* CostFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947901EA2B0C4A99FF204533 /* CostFormatting.swift */; };
 		B050FB5BF5817C3844A27F32 /* ProviderDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB05AAA074EEE8CC4379BD42 /* ProviderDetailView.swift */; };
 		B0BD7B9F90964EE0B5859675 /* CloudKitMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC8893A8B73134178D35F274 /* CloudKitMergeTests.swift */; };
 		B7EC6DFB5C971047AC6D544C /* CodexBarMobileUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E53728795F865E33900DA3C3 /* CodexBarMobileUITests.swift */; };
+		BF62F92B51A09BA238F46145 /* CostFormattingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3786C6898A111474E86E69D7 /* CostFormattingTests.swift */; };
 		C05BB8D498AEAD0E75753738 /* SnapshotCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51BEDB997C80D4064449061 /* SnapshotCache.swift */; };
 		C41E99EEEAFD859D56F08AD2 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BBBF160B317AF2B0C136E2B /* NotificationService.swift */; };
 		C88251CF2987E9D135DFA5C0 /* CodexBarSync.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; };
@@ -169,6 +171,7 @@
 		29C5E714FA876A9617524529 /* SnapshotCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotCacheTests.swift; sourceTree = "<group>"; };
 		2C98FA5E42A83275CBD79FDB /* QuotaZoneNotificationParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaZoneNotificationParserTests.swift; sourceTree = "<group>"; };
 		32F236B9E5AABE3378DAF97F /* SyncModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncModelTests.swift; sourceTree = "<group>"; };
+		3786C6898A111474E86E69D7 /* CostFormattingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostFormattingTests.swift; sourceTree = "<group>"; };
 		3CAFBA243E25814E22BAAA6B /* ProviderUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderUsageView.swift; sourceTree = "<group>"; };
 		3E6F79FB9AFFC795399FAFBF /* SwiftDataBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataBridgeTests.swift; sourceTree = "<group>"; };
 		3E96BD45E3A15C7DA40EA93F /* PushSetupDiagnostic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushSetupDiagnostic.swift; sourceTree = "<group>"; };
@@ -195,6 +198,7 @@
 		87DED80F5FABD5A2FBAF5F98 /* UtilizationAggregateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilizationAggregateView.swift; sourceTree = "<group>"; };
 		8D15EF2654204A9652A1F59F /* SubscriptionUtilizationCompatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionUtilizationCompatTests.swift; sourceTree = "<group>"; };
 		91D669E4E22F7C5868623D33 /* PushExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PushExtension.entitlements; sourceTree = "<group>"; };
+		947901EA2B0C4A99FF204533 /* CostFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostFormatting.swift; sourceTree = "<group>"; };
 		9578A435334E38DB06D035CB /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		96F4B4918D5CB25D930D349C /* ProviderUsageViewSubtitleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderUsageViewSubtitleTests.swift; sourceTree = "<group>"; };
 		9B39BE9838341CBABA2ED1F6 /* SwiftDataSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataSchema.swift; sourceTree = "<group>"; };
@@ -276,6 +280,7 @@
 			isa = PBXGroup;
 			children = (
 				BC8893A8B73134178D35F274 /* CloudKitMergeTests.swift */,
+				3786C6898A111474E86E69D7 /* CostFormattingTests.swift */,
 				F06B5BB1489F508FCD20228A /* DualZoneReaderTests.swift */,
 				9CCC87791F1A5C860229EACF /* MobileDisplayFormattingTests.swift */,
 				CC94BA62C1AD26767A4958DC /* ProviderColorPaletteTests.swift */,
@@ -422,6 +427,7 @@
 		E885519810099589A32096E1 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				947901EA2B0C4A99FF204533 /* CostFormatting.swift */,
 				6C72A51985FA627302CDAC57 /* CostShareService.swift */,
 				252CB6CF0CDF983CD183384F /* MobileChartAxisFormatter.swift */,
 				82B8A4D1FFD04AA72E89022F /* MobileDisplayPreferences.swift */,
@@ -628,6 +634,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B0BD7B9F90964EE0B5859675 /* CloudKitMergeTests.swift in Sources */,
+				BF62F92B51A09BA238F46145 /* CostFormattingTests.swift in Sources */,
 				37D05E7A04ABF89129C7D284 /* DualZoneReaderTests.swift in Sources */,
 				8A9A4E2E1CA72E072FCBB851 /* MobileDisplayFormattingTests.swift in Sources */,
 				15E1F684F0EFDD39DB30A2D6 /* ModelContainerFactoryTests.swift in Sources */,
@@ -653,6 +660,7 @@
 				1E05BEE4F76DC16C3AA0C014 /* CloudSyncReader.swift in Sources */,
 				A910B3424F6BF1DCE7543E2E /* CodexBarMobileApp.swift in Sources */,
 				A644FDE234CC676EC59CC891 /* ContentView.swift in Sources */,
+				ACA7EB9D06944B5EA0FD9E84 /* CostFormatting.swift in Sources */,
 				27EE0BCA2997485104A74200 /* CostMetricCard.swift in Sources */,
 				02E554F44482449A6E303DF8 /* CostShareCardView.swift in Sources */,
 				44179B7669F19C60FFA54FCD /* CostShareService.swift in Sources */,
@@ -753,7 +761,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 81;
+				CURRENT_PROJECT_VERSION = 82;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -932,7 +940,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 81;
+				CURRENT_PROJECT_VERSION = 82;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -954,7 +962,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 81;
+				CURRENT_PROJECT_VERSION = 82;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -992,7 +1000,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 81;
+				CURRENT_PROJECT_VERSION = 82;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1028,7 +1036,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 81;
+				CURRENT_PROJECT_VERSION = 82;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1052,7 +1060,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 81;
+				CURRENT_PROJECT_VERSION = 82;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

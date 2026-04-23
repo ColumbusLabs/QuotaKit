@@ -63,9 +63,7 @@ struct CyberShareCardView: View {
 
 // MARK: - Helpers
 
-private func formatUSD(_ value: Double) -> String {
-    value.formatted(.currency(code: "USD").precision(.fractionLength(2)))
-}
+private func formatUSD(_ value: Double) -> String { CostFormatting.usd(value) }
 
 private func formatTokens(_ count: Int) -> String {
     if count >= 1_000_000 { return String(format: "%.1fM", Double(count) / 1_000_000) }

@@ -165,9 +165,7 @@ struct ProviderUsageView: View {
         }
     }
 
-    private static func formatUSD(_ value: Double) -> String {
-        value.formatted(.currency(code: "USD").precision(.fractionLength(2)))
-    }
+    private static func formatUSD(_ value: Double) -> String { CostFormatting.usd(value) }
 }
 
 private enum MobilePersonalInfoRedactor {

@@ -719,25 +719,11 @@ private struct CostDashboardView: View {
         return String(format: "%.0f%%", (value / total) * 100)
     }
 
-    private static func formatUSD(_ value: Double) -> String {
-        value.formatted(.currency(code: "USD").precision(.fractionLength(2)))
-    }
-
-    private static func formatTokens(_ count: Int) -> String {
-        if count >= 1_000_000 {
-            return "\(Self.formatCompactNumber(Double(count) / 1_000_000)) \(String(localized: "M tokens"))"
-        } else if count >= 1000 {
-            return "\(Self.formatCompactNumber(Double(count) / 1000)) \(String(localized: "K tokens"))"
-        }
-        return "\(count.formatted()) \(String(localized: "tokens"))"
-    }
+    private static func formatUSD(_ value: Double) -> String { CostFormatting.usd(value) }
+    private static func formatTokens(_ count: Int) -> String { CostFormatting.tokens(count) }
 
     private static func shortDate(_ value: Date) -> String {
         value.formatted(.dateTime.month(.abbreviated).day())
-    }
-
-    private static func formatCompactNumber(_ value: Double) -> String {
-        value.formatted(.number.precision(.fractionLength(1)))
     }
 }
 
@@ -1518,14 +1504,7 @@ private struct RawDailyPointRow: View {
         }
     }
 
-    private func formatTokens(_ value: Int) -> String {
-        if value >= 1_000_000 {
-            return String(format: "%.1fM tokens", Double(value) / 1_000_000)
-        } else if value >= 1_000 {
-            return String(format: "%.1fK tokens", Double(value) / 1_000)
-        }
-        return "\(value) tokens"
-    }
+    private func formatTokens(_ value: Int) -> String { CostFormatting.tokens(value) }
 }
 
 // MARK: - Developer Tools (container listing all dev tools)

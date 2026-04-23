@@ -2,6 +2,27 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (82)] — 2026-04-23 — dev build · 4-agent perfect-pass P1 polish
+
+**Commit 2 of the post-Build-80 perfect-pass.** Agent B flagged 5+ places where `formatUSD` / `formatTokens` were duplicated across views with subtly different signatures (some returned `"N/A"` for nil, some `"—"`, some crashed). Any future locale / precision / unit-label tweak would need coordinated edits — drift risk. Centralized.
+
+### Fixed — Formatter duplication (Agent B · P1)
+- **New `CodexBarMobile/Models/CostFormatting.swift`**: single source of truth `enum CostFormatting` with `usd(_ value: Double)`, `usd(_ value: Double?)`, `tokens(_ count: Int)`, `tokens(_ count: Int?)`. All four variants use `"—"` for nil uniformly.
+- `ContentView` (Cost tab + RawDailyPointRow) — 3 call sites routed through `CostFormatting`.
+- `ProviderDetailView` — `formatUSD` / `formatTokens` are now 1-line thin wrappers calling `CostFormatting`.
+- `ProviderUsageView` — same thin-wrapper shape.
+- `CostShareCardView` / `CyberShareCardView` — `formatUSD` unified. `formatTokens` kept local because share cards use a visually compact format (no "tokens" label suffix — the label is implied by card layout). Divergence documented in a source comment.
+- Deliberately NOT touched: `RawProviderDetailView.formatCost/Tokens` (developer tool, uses `"N/A"` by design for debug legibility; not user-facing).
+
+### Tests
+- `CodexBarMobileTests/CostFormattingTests.swift`: 9 cases pinning the central contract — USD formatting structural properties (locale-independent), optional → "—" behavior, token K/M threshold transitions. Any regression that rewrites the central formatter without updating K/M boundaries or nil handling fails these.
+
+### Not in this commit (Build 83–84)
+- **Build 83**: SwiftDataBridgeTests / DualZoneReaderTests / SnapshotCacheTests realistic-distribution fixtures (Agent C's 9 proposed fixtures + shared `TestFixtures.swift`). 3 P1 + 6 P2.
+- **Build 84**: `Research/015-mac-symmetry-audit.md` recording Agent A's 5 Mac-side findings for future upstream PR.
+- Agent B's remaining ⚠️: Budget `usedAmount` semantics docs, Preview fixture drift, `deviceName` single-vs-merged marker — deferred; all cosmetic, no user-visible correctness risk.
+- Agent A's Mac-side bugs (`accounts.first`, `providers.first`, `SyncCoordinator` `"_"` placeholder, Perplexity multi-account) — remain Mac-only; we don't patch `Sources/` per project rule.
+
 ## [1.3.0 (81)] — 2026-04-23 — dev build · 4-agent perfect-pass P0 fixes
 
 **Context**: After Build 80 (3-commit systematic audit), I did an honest self-audit and found 14 gaps. User asked for "perfect". Dispatched 4 parallel research agents: Mac-side symmetry / cross-view all-pairs / test-fixture-distribution-3-files / performance-concurrency-a11y. The 4 agents found **4 new ❌ bugs** that the earlier audit missed. This build fixes all 4.

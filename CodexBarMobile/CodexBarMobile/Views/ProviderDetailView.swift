@@ -238,22 +238,8 @@ struct ProviderDetailView: View {
         }
     }
 
-    static func formatUSD(_ value: Double) -> String {
-        value.formatted(.currency(code: "USD").precision(.fractionLength(2)))
-    }
-
-    static func formatTokens(_ count: Int) -> String {
-        if count >= 1_000_000 {
-            return "\(Self.formatCompactNumber(Double(count) / 1_000_000)) \(String(localized: "M tokens"))"
-        } else if count >= 1000 {
-            return "\(Self.formatCompactNumber(Double(count) / 1000)) \(String(localized: "K tokens"))"
-        }
-        return "\(count.formatted()) \(String(localized: "tokens"))"
-    }
-
-    private static func formatCompactNumber(_ value: Double) -> String {
-        value.formatted(.number.precision(.fractionLength(1)))
-    }
+    static func formatUSD(_ value: Double) -> String { CostFormatting.usd(value) }
+    static func formatTokens(_ count: Int) -> String { CostFormatting.tokens(count) }
 }
 
 // MARK: - Previews
