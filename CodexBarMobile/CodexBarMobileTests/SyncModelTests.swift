@@ -26,12 +26,10 @@ struct SyncModelTests {
             isError: false,
             lastUpdated: Date(timeIntervalSince1970: 1_700_000_000))
 
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        let encoder = CloudSyncConstants.makeJSONEncoder()
         let data = try encoder.encode(snapshot)
 
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = CloudSyncConstants.makeJSONDecoder()
         let decoded = try decoder.decode(ProviderUsageSnapshot.self, from: data)
 
         #expect(decoded.providerID == "claude")
@@ -70,12 +68,10 @@ struct SyncModelTests {
             deviceName: "Test Mac",
             deviceID: "test-uuid-123")
 
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        let encoder = CloudSyncConstants.makeJSONEncoder()
         let data = try encoder.encode(synced)
 
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = CloudSyncConstants.makeJSONDecoder()
         let decoded = try decoder.decode(SyncedUsageSnapshot.self, from: data)
 
         #expect(decoded.providers.count == 1)
@@ -95,8 +91,7 @@ struct SyncModelTests {
         }
         """
 
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = CloudSyncConstants.makeJSONDecoder()
         let decoded = try decoder.decode(SyncedUsageSnapshot.self, from: Data(oldJSON.utf8))
 
         #expect(decoded.deviceName == "Old Mac")
@@ -120,13 +115,11 @@ struct SyncModelTests {
             syncTimestamp: Date(timeIntervalSince1970: 1_700_000_000),
             deviceName: "Empty Mac")
 
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        let encoder = CloudSyncConstants.makeJSONEncoder()
         let data = try encoder.encode(synced)
         #expect(data.count < CloudSyncConstants.maxPayloadBytes)
 
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = CloudSyncConstants.makeJSONDecoder()
         let decoded = try decoder.decode(SyncedUsageSnapshot.self, from: data)
         #expect(decoded.providers.isEmpty)
     }
@@ -151,8 +144,7 @@ struct SyncModelTests {
         }
         """
 
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = CloudSyncConstants.makeJSONDecoder()
         let decoded = try decoder.decode(ProviderUsageSnapshot.self, from: Data(oldJSON.utf8))
 
         #expect(decoded.providerID == "claude")
@@ -203,12 +195,10 @@ struct SyncModelTests {
                 period: "Monthly",
                 resetsAt: Date(timeIntervalSince1970: 1_701_000_000)))
 
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        let encoder = CloudSyncConstants.makeJSONEncoder()
         let data = try encoder.encode(snapshot)
 
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = CloudSyncConstants.makeJSONDecoder()
         let decoded = try decoder.decode(ProviderUsageSnapshot.self, from: data)
 
         #expect(decoded.costSummary?.sessionCostUSD == 1.42)
@@ -247,12 +237,10 @@ struct SyncModelTests {
             appVersion: "0.18.0-beta.3",
             mobileVersion: "1.0.0")
 
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        let encoder = CloudSyncConstants.makeJSONEncoder()
         let data = try encoder.encode(synced)
 
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = CloudSyncConstants.makeJSONDecoder()
         let decoded = try decoder.decode(SyncedUsageSnapshot.self, from: data)
 
         #expect(decoded.appVersion == "0.18.0-beta.3")
@@ -271,8 +259,7 @@ struct SyncModelTests {
         }
         """
 
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = CloudSyncConstants.makeJSONDecoder()
         let decoded = try decoder.decode(SyncedUsageSnapshot.self, from: Data(legacyJSON.utf8))
 
         #expect(decoded.mobileVersion == "0.1.0")
@@ -288,8 +275,7 @@ struct SyncModelTests {
         }
         """
 
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = CloudSyncConstants.makeJSONDecoder()
         let decoded = try decoder.decode(SyncedUsageSnapshot.self, from: Data(oldJSON.utf8))
 
         #expect(decoded.deviceName == "Old Mac")
@@ -354,8 +340,7 @@ struct SyncModelTests {
             syncTimestamp: Date(timeIntervalSince1970: 1_700_000_000),
             deviceName: "Test Mac")
 
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        let encoder = CloudSyncConstants.makeJSONEncoder()
         let data = try encoder.encode(synced)
 
         // iCloud KVS limit is 1MB per key
@@ -423,5 +408,145 @@ struct SyncModelTests {
         #expect(insights.total30DayCost == expectedTotal30DayCost)
         #expect(insights.serviceRows.first?.label == "Codex Run")
         #expect(insights.hasDisplayData == true)
+    }
+
+    // MARK: - Future-field resilience (Build 78 · Fix C)
+    //
+    // Scenario: Mac 0.21 (hypothetical future version) adds a new field to
+    // `ProviderUsageSnapshot` or `SyncedUsageSnapshot` that iOS 1.3.0 doesn't
+    // know about. Mac pushes a CKRecord whose JSON payload includes the new
+    // key. iOS 1.3.0's decoder must **silently ignore** the unknown key and
+    // preserve all known fields — any `throws` would cascade through
+    // `CloudSyncManager.decodeEnvelope(from:)` → `return nil`, and that one
+    // Mac's data would vanish from the iPhone view until the user upgraded iOS.
+    //
+    // These tests synthesize the scenario by encoding a real snapshot, injecting
+    // unknown keys at the JSON-dict level, re-encoding, and asserting round-trip.
+    // Swift's synthesized + custom `init(from:)` behavior both SHOULD tolerate
+    // unknown keys (keyed containers don't fail on unknown keys unless you
+    // explicitly enumerate them), but without a pinned test, a future refactor
+    // to a strict decoder would silently break all iOS-reading-newer-Mac paths.
+
+    private static func injectFutureFields(
+        into data: Data,
+        extras: [String: Any]
+    ) throws -> Data {
+        guard var dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw FutureFieldTestError.notATopLevelDictionary
+        }
+        for (key, value) in extras { dict[key] = value }
+        return try JSONSerialization.data(withJSONObject: dict)
+    }
+
+    private enum FutureFieldTestError: Error {
+        case notATopLevelDictionary
+    }
+
+    @Test("ProviderUsageSnapshot tolerates unknown future fields at the JSON top level")
+    func providerSnapshotTolerantOfFutureFields() throws {
+        let original = ProviderUsageSnapshot(
+            providerID: "claude",
+            providerName: "Claude",
+            primary: SyncRateWindow(
+                usedPercent: 42.5, windowMinutes: 300,
+                resetsAt: Date(timeIntervalSince1970: 1_700_000_000),
+                resetDescription: nil),
+            secondary: nil,
+            accountEmail: "user@example.com",
+            loginMethod: "Pro", statusMessage: nil, isError: false,
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000))
+
+        let encoder = CloudSyncConstants.makeJSONEncoder()
+        let baseline = try encoder.encode(original)
+        let augmented = try Self.injectFutureFields(into: baseline, extras: [
+            "futureFieldFromMac021": "hello world",
+            "someInt": 42,
+            "someNested": ["a": 1, "b": 2],
+        ])
+
+        let decoder = CloudSyncConstants.makeJSONDecoder()
+        let decoded = try decoder.decode(ProviderUsageSnapshot.self, from: augmented)
+
+        // All known fields survived; unknown fields were silently dropped.
+        #expect(decoded.providerID == "claude")
+        #expect(decoded.providerName == "Claude")
+        #expect(decoded.primary?.usedPercent == 42.5)
+        #expect(decoded.accountEmail == "user@example.com")
+        #expect(decoded.loginMethod == "Pro")
+    }
+
+    @Test("SyncedUsageSnapshot tolerates unknown future fields at the JSON top level")
+    func syncedUsageSnapshotTolerantOfFutureFields() throws {
+        let original = SyncedUsageSnapshot(
+            providers: [],
+            syncTimestamp: Date(timeIntervalSince1970: 1_700_000_000),
+            deviceName: "Mac A",
+            deviceID: "uuid-a",
+            appVersion: "0.20.3",
+            mobileVersion: "1.3.0",
+            notificationPushEnabled: true)
+
+        let encoder = CloudSyncConstants.makeJSONEncoder()
+        let baseline = try encoder.encode(original)
+        let augmented = try Self.injectFutureFields(into: baseline, extras: [
+            "hypotheticalHardwareBadge": "AppleSilicon",
+            "hypotheticalBatteryLevel": 0.87,
+        ])
+
+        let decoder = CloudSyncConstants.makeJSONDecoder()
+        let decoded = try decoder.decode(SyncedUsageSnapshot.self, from: augmented)
+        #expect(decoded.deviceName == "Mac A")
+        #expect(decoded.deviceID == "uuid-a")
+        #expect(decoded.appVersion == "0.20.3")
+        #expect(decoded.mobileVersion == "1.3.0")
+        #expect(decoded.notificationPushEnabled == true)
+    }
+
+    @Test("SyncCostSummary tolerates unknown future fields at the JSON top level")
+    func syncCostSummaryTolerantOfFutureFields() throws {
+        let original = SyncCostSummary(
+            sessionCostUSD: 1.23,
+            sessionTokens: 1000,
+            last30DaysCostUSD: 100,
+            last30DaysTokens: 50000,
+            daily: [
+                SyncDailyPoint(dayKey: "2026-04-23", costUSD: 4.56, totalTokens: 4000),
+            ])
+
+        let encoder = CloudSyncConstants.makeJSONEncoder()
+        let baseline = try encoder.encode(original)
+        let augmented = try Self.injectFutureFields(into: baseline, extras: [
+            "hypothetical90DayTotal": 789.0,
+            "hypotheticalBucket": "premium",
+        ])
+
+        let decoder = CloudSyncConstants.makeJSONDecoder()
+        let decoded = try decoder.decode(SyncCostSummary.self, from: augmented)
+        #expect(decoded.sessionCostUSD == 1.23)
+        #expect(decoded.last30DaysCostUSD == 100)
+        #expect(decoded.daily.count == 1)
+        #expect(decoded.daily.first?.costUSD == 4.56)
+    }
+
+    @Test("SyncPerplexityCreditSummary tolerates unknown future fields")
+    func syncPerplexityCreditsTolerantOfFutureFields() throws {
+        let original = SyncPerplexityCreditSummary(
+            recurringTotalCents: 5000,
+            recurringUsedCents: 2500,
+            renewalAt: Date(timeIntervalSince1970: 1_700_000_000),
+            planName: "Pro")
+
+        let encoder = CloudSyncConstants.makeJSONEncoder()
+        let baseline = try encoder.encode(original)
+        let augmented = try Self.injectFutureFields(into: baseline, extras: [
+            "hypotheticalReferralCredits": 500,
+            "hypotheticalTeamSharedPool": true,
+        ])
+
+        let decoder = CloudSyncConstants.makeJSONDecoder()
+        let decoded = try decoder.decode(SyncPerplexityCreditSummary.self, from: augmented)
+        #expect(decoded.recurringTotalCents == 5000)
+        #expect(decoded.recurringUsedCents == 2500)
+        #expect(decoded.planName == "Pro")
     }
 }

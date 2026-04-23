@@ -2,6 +2,28 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (79)] — 2026-04-23 — dev build · 5-round systematic audit follow-up (commit 2/3)
+
+**Commit 2 of 3** addressing the 5-round audit's infrastructure findings (the other P1 code-level fixes landed in Build 78 as Commit 1). This commit fixes Round 5 (Codable resilience) and part of Round 3 (encoder/decoder consistency in tests).
+
+### Fixed (Codable cross-version forward resilience — Fix C)
+- **Added regression guard that iOS 1.3.0 tolerates unknown fields sent by future Mac versions.** Scenario: a hypothetical Mac 0.21 adds a new field to `ProviderUsageSnapshot` / `SyncedUsageSnapshot` / `SyncCostSummary` / `SyncPerplexityCreditSummary`. iOS 1.3.0's decoder must silently drop the unknown key and preserve known fields; any throw would cascade up through `CloudSyncManager.decodeEnvelope` → return nil, and that Mac's data would vanish from the iPhone view until the user upgraded iOS. The current synthesized-decoder behavior already tolerates unknown keys (Swift keyed containers never query a key you didn't declare), but there was no test pinning it. A future refactor to a custom strict decoder (e.g. for debug-mode schema validation) could silently break iOS-reading-newer-Mac paths — these tests prevent that.
+- Synthesizes the scenario by encoding a real snapshot, JSON-serializing to `[String: Any]`, injecting unknown keys, re-serializing, and asserting the decoder round-trips successfully.
+
+### Fixed (Test infrastructure — Fix E · encoder/decoder factory unification)
+- **Replaced 15 `JSONEncoder() / JSONDecoder() + .iso8601` call sites in `SyncModelTests.swift` with `CloudSyncConstants.makeJSONEncoder/Decoder()`.** This aligns the iOS test suite with the Mac `JSONCodecConsistencyTests` convention that has existed since Build 68's hardening pass. Tests now exercise the exact same factory contract production code does — Build 66's silent-decode-failure class of bug (iso8601 vs deferredToDate strategy mismatch) can't re-enter the test layer.
+
+### Tests
+- `SyncModelTests.swift` +4 cases:
+  - `providerSnapshotTolerantOfFutureFields`
+  - `syncedUsageSnapshotTolerantOfFutureFields`
+  - `syncCostSummaryTolerantOfFutureFields`
+  - `syncPerplexityCreditsTolerantOfFutureFields`
+- `SyncModelTests.swift` 15 call sites refactored to go through `CloudSyncConstants` factory (no semantic change; contract alignment only).
+
+### Not in this commit (tracked for Commit 3)
+- Realistic-distribution fixtures (bursty / long idle / cross-reset / cross-date / disordered timestamps) across `CloudKitMergeTests / DualZoneReaderTests / SnapshotCacheTests / SwiftDataBridgeTests` — Round 3's primary finding.
+
 ## [1.3.0 (78)] — 2026-04-23 — dev build · 5-round systematic audit follow-up (commit 1/3)
 
 **Context**: Build 77 fixed two reported bugs (Subscription Utilization Codex 0%, Mac App version flipping) but the user rightly pointed out that fix is "只是止血" — the same *class* of bug (cross-view semantic mismatch; non-deterministic multi-device field merge) almost certainly repeats elsewhere. I ran a 5-round systematic audit (cross-view semantic consistency · multi-device merge fields · test data distribution · boundary conditions · cross-version Codable compatibility), 3 parallel Explore agents per round, verified agent findings against source. This is commit 1 of 3 addressing the audit's P1 findings.
