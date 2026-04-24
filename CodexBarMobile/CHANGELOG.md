@@ -2,6 +2,30 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (90)] — 2026-04-23 — dev build · Per-device Mac version display + outdated hint
+
+### Added — Settings → About & Sync
+
+**Top-level "Mac App" row** (already showed highest-semver since Build 81)
+- **New**: When 2+ Macs sync and at least one runs an older `appVersion`, an orange-tinted caption below shows "Some Mac devices are on older versions. Update them for complete sync data." This nudges users to update so all Macs emit new-schema sync fields (`perplexityCredits`, `loginMethod`, `budget`, etc. — all the `latestNonNil` account-level fields that silently degrade when an old Mac refreshes last).
+
+**Per-device row under "Devices" section**
+- **New**: Each device now shows its specific `CodexBar X.Y.Z` version below the sync timestamp + provider count line. Previously you could only see aggregated counts; now each device is identifiable by its version.
+- **New**: Devices running behind the highest-semver peer get an orange `· Update available` chip next to their version. Lets users pinpoint *which* Mac needs updating, not just "one of them".
+
+### Behavior rules
+- Single-device setups never trip the hint — nothing to compare against.
+- Devices that never reported a version (pre-1.1 KVS fallback) are not flagged as outdated; they render without a version line.
+- Uses the same `CloudSyncReader.semverLessThan` comparator as `mergeSnapshots`'s `max(by:)` selection, so the "Mac App at top" device never appears flagged as outdated (that'd be self-contradictory).
+
+### Localization
+- Two new keys added with zh-Hans / zh-Hant / ja / en: "Some Mac devices are on older versions. Update them for complete sync data." and "· Update available"
+
+### Code
+- `ContentView.swift` · `AboutSyncDetailView`: added `hasOutdatedMac` + `isDeviceOutdated(_:)` helpers next to `syncStatusDetail`. Used from both the top-level warning row and per-device rows.
+
+All 88 tests pass; SwiftLint 0.
+
 ## [1.3.0 (89)] — 2026-04-23 — dev build · Mac fork-added sync code hardcode comments (Phase 2)
 
 **Phase 2 of the hardcode-comment audit.** iOS Phase 1 (Builds 85-88) closed 50+ sites. Agent 5 audited Mac-side `Sources/CodexBar/Sync/**` for fork-added files (verified via git log). Most wire-contract constants were already protected with "WIRE CONTRACT" comments from earlier hardening passes (Build 68 / Research 012). The 4 real gaps addressed:

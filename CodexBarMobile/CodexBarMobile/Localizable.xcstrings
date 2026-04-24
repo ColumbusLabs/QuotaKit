@@ -2549,6 +2549,62 @@
         }
       }
     },
+    "Some Mac devices are on older versions. Update them for complete sync data.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Some Mac devices are on older versions. Update them for complete sync data."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一部の Mac デバイスが古いバージョンです。完全な同期データのため更新してください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分 Mac 设备运行较旧版本，建议更新以获得完整同步数据。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分 Mac 裝置執行較舊版本，建議更新以取得完整同步資料。"
+          }
+        }
+      }
+    },
+    "· Update available": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "· Update available"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "· 更新あり"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "· 建议更新"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "· 建議更新"
+          }
+        }
+      }
+    },
     "Not yet synced": {
       "localizations": {
         "en": {

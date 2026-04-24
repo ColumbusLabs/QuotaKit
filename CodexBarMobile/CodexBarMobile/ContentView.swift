@@ -1193,6 +1193,24 @@ private struct AboutSyncDetailView: View {
                 LabeledContent("iPhone App", value: self.appDisplayVersion)
                 if let snapshot = self.usageData.snapshot {
                     LabeledContent("Mac App", value: snapshot.appVersion ?? String(localized: "Unknown"))
+                    // When multiple Macs sync and at least one runs an older
+                    // CodexBar version than the highest, surface a subtle hint
+                    // under the Mac App row. Prompts the user to update the
+                    // older Mac so both sides can emit new-schema sync data
+                    // (perplexityCredits, loginMethod, budget, etc. — all the
+                    // `latestNonNil` fields that silently degrade when an
+                    // old Mac refreshes last). Per-device detail appears in
+                    // the Devices section below.
+                    if self.hasOutdatedMac {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                            Text("Some Mac devices are on older versions. Update them for complete sync data.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                     if let mobileVersion = snapshot.mobileVersion {
                         LabeledContent("Synced Mobile Version", value: mobileVersion)
                     }
@@ -1280,6 +1298,25 @@ private struct AboutSyncDetailView: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
+                                // Per-device Mac version line. Appears only
+                                // when the device reported a version (pre-1.1
+                                // Macs left it nil — KVS fallback path). If
+                                // this device lags the highest-semver Mac in
+                                // the synced set, surface an orange "update
+                                // available" chip so the user can identify
+                                // which specific Mac to update.
+                                if let version = device.appVersion {
+                                    HStack(spacing: 6) {
+                                        Text("CodexBar \(version)")
+                                            .font(.caption2)
+                                            .foregroundStyle(.tertiary)
+                                        if self.isDeviceOutdated(device) {
+                                            Text("· Update available")
+                                                .font(.caption2)
+                                                .foregroundStyle(.orange)
+                                        }
+                                    }
+                                }
                             }
                         }
                         .padding(.vertical, 2)
@@ -1329,6 +1366,33 @@ private struct AboutSyncDetailView: View {
         case .noData: String(localized: "No Data")
         case .incompatibleData: String(localized: "Incompatible Data")
         }
+    }
+
+    /// True when 2+ Macs are synced AND at least one runs an older
+    /// `appVersion` than the highest-semver one. Drives the orange-tinted
+    /// hint under the top-level "Mac App" row. Single-device setups never
+    /// trip this (there's nothing to compare against).
+    private var hasOutdatedMac: Bool {
+        guard self.usageData.deviceSnapshots.count >= 2,
+              let latestVersion = self.usageData.snapshot?.appVersion
+        else { return false }
+        return self.usageData.deviceSnapshots.contains { device in
+            guard let deviceVersion = device.appVersion else { return false }
+            return CloudSyncReader.semverLessThan(deviceVersion, latestVersion)
+        }
+    }
+
+    /// True when this specific device's `appVersion` is strictly less than
+    /// the highest-semver one across all synced devices. Drives the per-row
+    /// "Update available" chip. Uses the same semver comparator as
+    /// `CloudSyncReader.mergeSnapshots`'s `max(by:)` selection so the two
+    /// views stay in lockstep — no device is both "chosen as the Mac App
+    /// version shown at top" AND "flagged as outdated" simultaneously.
+    private func isDeviceOutdated(_ device: SyncedUsageSnapshot) -> Bool {
+        guard let deviceVersion = device.appVersion,
+              let latestVersion = self.usageData.snapshot?.appVersion
+        else { return false }
+        return CloudSyncReader.semverLessThan(deviceVersion, latestVersion)
     }
 
     private var syncStatusDetail: String? {
