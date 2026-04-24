@@ -3,6 +3,101 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.20.3</title>
+            <pubDate>Fri, 24 Apr 2026 13:42:02 -0700</pubDate>
+            <link>https://raw.githubusercontent.com/o1xhack/CodexBar/mobile-dev/appcast.xml</link>
+            <sparkle:version>55.3.1.2.0</sparkle:version>
+            <sparkle:shortVersionString>0.20.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.20.3-Mobile 1.3.0</h2>
+Mobile 1.3.0 release. Mac 0.20.3 (and the preceding 0.20.2) are small user-invisible data-layer patches on top of 0.20.0 that enable the iOS 1.3.0 experience — everything user-facing in this release lives on iPhone.
+<h3>Highlights — Mobile 1.3.0</h3>
+<ul>
+<li><strong>2 new providers on iPhone</strong> — Perplexity (3-segment credit detail + Pro/Max badge + renewal countdown) and OpenCode Go, with dedicated colors and Mac→iPhone push notifications.</li>
+<li><strong>Codex multi-account cards</strong> — when you run multiple Codex accounts / workspaces, each card shows its email / workspace subtitle.</li>
+<li><strong>Faster, leaner sync</strong> — per-provider CloudKit records with zlib compression (typical sync transfer drops from ~2 MB to a few dozen KB); silent-push-driven refresh updates views without pull-to-refresh.</li>
+<li><strong>Cold-start polish</strong> — Usage tab no longer flashes blank on launch; transient CloudKit failures preserve cached data instead of blanking the screen.</li>
+<li><strong>Per-device Mac version in About & Sync</strong> — see which Mac is running which CodexBar version, with an orange "Update available" chip on any Mac that's not on the latest.</li>
+<li><strong>Multi-device + multi-version correctness</strong> — Subscription Utilization numbers stay consistent between the aggregate view and each provider's detail; older Macs can no longer silently drop fields the newer Mac wrote.</li>
+</ul>
+<h3>Mobile 1.3.0 — new providers</h3>
+<ul>
+<li><strong>Perplexity detail page</strong> — 3-segment credit bar (recurring / bonus / purchased), Pro/Max plan badge, renewal and promo-expiration countdowns, dollar balance.</li>
+<li><strong>Perplexity + OpenCode Go push notifications</strong> — both now in the 25-provider × 2-state push set (50 zones), with the provider name baked into the alert body in all 4 languages.</li>
+<li><strong>Unified provider color palette</strong> — consolidated across 5 previously-drifted call sites; OpenCode Go no longer collides with OpenCode Zen.</li>
+<li><strong>Codex cards</strong> with ≥2 accounts show email / workspace subtitles; single-account setups stay minimal.</li>
+</ul>
+<h3>Mobile 1.3.0 — sync & stability</h3>
+<ul>
+<li><strong>Per-provider CloudKit records</strong> in a new <code>DeviceProvidersZone</code>, zlib-compressed. Older iPhones fall back to the legacy monolithic zone with zero regression.</li>
+<li><strong>Silent-push-driven refresh</strong> — iPhone wakes silently when Mac writes, applies the delta, views refresh in the background.</li>
+<li><strong>SwiftData cold-start hydrate</strong> — Cost tab no longer flashes a stale value before settling; Usage tab cold-start blank (two root causes — date-strategy mismatch + ghost records) fixed.</li>
+<li><strong>Transient-failure defense</strong> — if CloudKit is momentarily unreachable, cached data is preserved instead of the screen blanking.</li>
+<li><strong>Multi-device merge correctness</strong> — aggregate and per-provider utilization views share the same daily-peak semantic; cross-version field preservation stops older Macs from dropping fields the newer Mac knows about.</li>
+<li><strong>Forward-compatible wire format</strong> — iPhones on today's build silently tolerate unknown fields from future Mac versions.</li>
+</ul>
+<h3>Mobile 1.3.0 — polish</h3>
+<ul>
+<li><strong>Per-device Mac version</strong> in About & Sync, with a "· Update available" chip on older Macs.</li>
+<li>4-language localization for all new strings (en / zh-Hans / zh-Hant / ja).</li>
+<li>Comprehensive regression-guard test fixtures for realistic multi-device, cross-version data distributions.</li>
+</ul>
+<h3>Mac — 0.20.0 → 0.20.3</h3>
+Two user-invisible Mac-side data-layer patches that power the iOS 1.3.0 experience above — per-provider CloudKit records with zlib compression (0.20.2) and Perplexity credit-pool pass-through (0.20.3). Mac user-facing behavior is unchanged since 0.20.0.
+Mac 0.20.0 (2026-04-17) was the fork's alignment with upstream CodexBar 0.20. Highlights:
+<ul>
+<li><strong>Codex system account switching</strong> — switch between system accounts / profiles without manually logging out and back in (contribution by @ratulsarna).</li>
+<li><strong>Perplexity provider</strong> (PR #606) — recurring, bonus, and purchased-credit tracking; Pro/Max plan detection; browser-cookie auto-import with manual-cookie fallback.</li>
+<li><strong>OpenCode Go</strong> — separate provider from OpenCode Zen, with 5-hour / weekly / monthly web usage tracking, widget integration, and browser-cookie support.</li>
+<li><strong>Claude token/cost accuracy</strong> — fixes cross-file double counting of subagent JSONL logs and streaming chunk deduplication; adds <code>claude-sonnet-4-6</code> pricing.</li>
+</ul>
+<hr/>
+2026-04-23 Mobile 1.3.0 发布。Mac 0.20.3（以及前一个 0.20.2）只是在 0.20.0 之上的两个 Mac 端用户不可见数据层补丁，用来让 iOS 1.3.0 的能力落地 —— 本次所有用户可见变化都在 iPhone 端。
+<h3>亮点 — Mobile 1.3.0</h3>
+<ul>
+<li><strong>iPhone 新增 2 个 Provider</strong> —— Perplexity（三段式 credit 详情页 + Pro/Max 徽章 + 续费倒计时）和 OpenCode Go，带专属配色以及 Mac→iPhone 推送通知。</li>
+<li><strong>Codex 多账号卡片</strong> —— 同时运行多个 Codex 账号 / workspace 时，每张卡片在副标题显示对应的 email / workspace。</li>
+<li><strong>更快更省的同步</strong> —— 按 provider 拆分的 CloudKit 记录 + zlib 压缩（典型同步流量从约 2 MB 降到几十 KB）；静默推送驱动刷新，视图不用下拉即可更新。</li>
+<li><strong>冷启动抛光</strong> —— Usage tab 冷启动不再白屏；CloudKit 临时失败时保留缓存而不是清空界面。</li>
+<li><strong>About & Sync 按设备显示 Mac 版本</strong> —— 清晰看到每台 Mac 运行的 CodexBar 版本，落后版本带橙色"可升级"标识。</li>
+<li><strong>跨 Mac + 跨版本数据正确性</strong> —— 订阅利用率在聚合视图与单 provider 详情之间数字一致；旧 Mac 不再静默丢弃新 Mac 写入的字段。</li>
+</ul>
+<h3>Mobile 1.3.0 — 新 Provider</h3>
+<ul>
+<li><strong>Perplexity 详情页</strong> —— 三段式 credit 柱（recurring / 赠送 / 购买）、Pro/Max 套餐徽章、续费 / 赠送到期倒计时、美元余额。</li>
+<li><strong>Perplexity + OpenCode Go 推送通知</strong> —— 两者均加入 25 Provider × 2 状态的推送集合（50 个 zone），Provider 名称烤进 alertBody，4 语言本地化。</li>
+<li><strong>统一 Provider 配色</strong> —— 收敛之前在 5 个调用点漂移的实现；OpenCode Go 视觉上不再与 OpenCode Zen 混淆。</li>
+<li><strong>Codex 卡片</strong> 在 ≥2 账号时副标题显示 email / workspace；单账号保持极简。</li>
+</ul>
+<h3>Mobile 1.3.0 — 同步 & 稳定性</h3>
+<ul>
+<li><strong>按 provider 拆分的 CloudKit 记录</strong>，新 zone <code>DeviceProvidersZone</code>，zlib 压缩。老版本 iPhone 回落到传统整体 zone，零回退。</li>
+<li><strong>静默推送驱动刷新</strong> —— Mac 写入时 iPhone 静默唤醒，应用 delta，视图在后台刷新。</li>
+<li><strong>SwiftData 冷启动水合</strong> —— Cost tab 不再闪一下旧值；Usage tab 冷启动白屏（两个根因 —— 日期策略不一致 + 幽灵记录）已修复。</li>
+<li><strong>瞬时失败防御</strong> —— CloudKit 临时不可达时保留缓存，而不是清空屏幕。</li>
+<li><strong>多设备合并正确性</strong> —— 聚合视图与单 Provider 利用率视图共用"日峰值"语义；跨版本字段保留，防止旧 Mac 静默丢弃新 Mac 知道的字段。</li>
+<li><strong>前向兼容的 wire 格式</strong> —— 今日构建的 iPhone 静默容忍未来 Mac 版本加入的未知字段。</li>
+</ul>
+<h3>Mobile 1.3.0 — 打磨</h3>
+<ul>
+<li>About & Sync 按设备显示 Mac 版本，落后 Mac 带"· 可升级"标识。</li>
+<li>所有新字符串 4 语言本地化（en / zh-Hans / zh-Hant / ja）。</li>
+<li>针对真实多设备、跨版本数据分布的回归测试 fixture 全面扩展。</li>
+</ul>
+<h3>Mac — 0.20.0 → 0.20.3</h3>
+配合 iOS 1.3.0 落地的两个 Mac 端用户不可见数据层补丁 —— 按 provider 拆分的 CloudKit 记录 + zlib 压缩（0.20.2），以及 Perplexity credit 分段字段透传（0.20.3）。Mac 端用户可见行为自 0.20.0 以来无变化。
+Mac 0.20.0（2026-04-17）是本 fork 对齐上游 CodexBar 0.20 的主版本，亮点：
+<ul>
+<li><strong>Codex 系统账号切换</strong> —— 不用手动登出再登入即可切换系统账号 / profile（@ratulsarna 贡献）。</li>
+<li><strong>Perplexity 服务商</strong>（PR #606）—— recurring / 赠送 / 购买三段式 credit 追踪，Pro/Max 套餐识别，浏览器 cookie 自动导入加手动 cookie 兜底。</li>
+<li><strong>OpenCode Go</strong> —— 从 OpenCode Zen 分离出独立 provider，支持 5 小时 / 周 / 月 web 用量追踪、widget、浏览器 cookie。</li>
+<li><strong>Claude token/费用修正</strong> —— 修复子 agent JSONL 跨文件重复计数和流式分片去重；新增 <code>claude-sonnet-4-6</code> 定价。</li>
+</ul>
+<p><a href="https://github.com/o1xhack/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/o1xhack/CodexBar/releases/download/v0.20.3-mobile.1.3.0/CodexBar-0.20.3-mobile.1.3.0.zip" length="29459926" type="application/octet-stream" sparkle:edSignature="3um1b+r7i2UHxb5ePE0R+au39gIOvNCsFf0y0FfrxaJAdh6eKdYi4piIAZw/cPDHt+JWybcUR+tt721mIZiYCw=="/>
+        </item>
+        <item>
             <title>0.20.2</title>
             <pubDate>Tue, 21 Apr 2026 17:38:26 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar/mobile-dev/appcast.xml</link>
@@ -163,89 +258,6 @@ Mac-side alignment with upstream CodexBar 0.20. Mobile companion stays at 1.2.0.
 <p><a href="https://github.com/o1xhack/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar/releases/download/v0.20.0-mobile.1.2.0/CodexBar-0.20.0-mobile.1.2.0.zip" length="29310007" type="application/octet-stream" sparkle:edSignature="e91OLMoINabRESrVSGWcYWyzSCxMkMGzCxZVbqD5k9Y5pg9dfPn2Rw+hislNKYTyZ3lH11Yi5KW9AimuOt1rAg=="/>
-        </item>
-        <item>
-            <title>0.19.0</title>
-            <pubDate>Wed, 15 Apr 2026 00:10:22 -0700</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar/mobile-dev/appcast.xml</link>
-            <sparkle:version>54.1.2.0</sparkle:version>
-            <sparkle:shortVersionString>0.19.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.19.0-Mobile 1.2.0</h2>
-This release ships the Mac-side changes that support Mobile 1.2.0: a CloudKit push notification writer (with multi-Mac dedup and 5-minute debounce per provider/state), 4 DEV test buttons in Preferences → Mobile, and an About-page locale fix. Upstream CodexBar 0.19.0 features are unchanged since the original release.
-<h3>Highlights — Mobile 1.2.0</h3>
-<ul>
-<li><strong>Subscription Utilization visualization on iPhone</strong> — see each session / weekly / opus quota per provider and across all providers, with a 30-day daily bar chart in the Cost tab and a utilization history chart on every provider detail page.</li>
-<li><strong>Multi-Mac data merge on iPhone</strong> — if you run CodexBar on more than one Mac, iPhone now dedupes data by hour and combines across Macs, so iPhone charts stay consistent regardless of which Mac was last active.</li>
-<li><strong>Mac→iPhone push notifications</strong> — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a localized notification that includes the provider name (e.g. "Codex session quota depleted" / "Codex 的会话额度已耗尽"). Background App Refresh is not required.</li>
-</ul>
-<h3>Mac — Mobile 1.2.0 push infrastructure</h3>
-<ul>
-<li><strong><code>QuotaTransition</code> CloudKit record writer</strong> — every session quota transition writes one record into the matching <code>Quota-{providerID}-{state}Zone</code> (~46 zones for 23 providers × 2 states). iPhone has a pre-baked <code>CKRecordZoneSubscription</code> per zone, with the provider name baked into the localized <code>alertBody</code> at subscription setup.</li>
-<li><strong>5-minute debounce per <code>(provider, state)</code></strong> to prevent oscillation near 0% from spamming.</li>
-<li><strong>Multi-Mac dedup</strong> — <code>recordName = (providerID, hourBucket)</code> collapses concurrent transitions from 2+ Macs in the same hour to one record, so iPhone receives at most one push per <code>(provider, state)</code> per hour.</li>
-<li><strong>DEV test buttons in Preferences → Mobile</strong> (debug builds only) — Codex / Claude × Depleted / Restored, for end-to-end push validation without waiting for a real quota change.</li>
-</ul>
-<h3>Mac — fixes</h3>
-<ul>
-<li>About page build date is now formatted with <code>en_US_POSIX</code> locale, avoiding mixed Chinese + English format on Chinese-system Macs.</li>
-</ul>
-<h3>Highlights — Mobile 1.1.0</h3>
-<ul>
-<li>iCloud sync upgraded from KVS to CloudKit for multi-device sync.</li>
-<li>Session quota push notifications for iOS.</li>
-<li>Composite Sparkle build number for upstream-safe version detection.</li>
-</ul>
-<h3>CodexBar 0.19.0 (Upstream)</h3>
-<ul>
-<li>Alibaba Coding Plan provider with region-aware quota fetching.</li>
-<li>Subscription utilization history chart in menu bar.</li>
-<li>Claude provider end-to-end refactor with expanded tests.</li>
-<li>Cursor dashboard alignment (Total/Auto/API lanes).</li>
-<li>Codex code review reset time display.</li>
-<li>Per-model token counts in cost history.</li>
-<li>GPT-5.4 mini and nano pricing.</li>
-<li>Antigravity model selection fix.</li>
-</ul>
-<hr/>
-本版本带来 Mobile 1.2.0 配套的 Mac 端改动：CloudKit 推送通知写入（支持多 Mac 去重和按 provider/state 的 5 分钟 debounce）、Preferences → Mobile 下的 4 个 DEV 测试按钮，以及 About 页 locale 修复。上游 CodexBar 0.19.0 自原始发布以来无变化。
-<h3>亮点 — Mobile 1.2.0</h3>
-<ul>
-<li><strong>iPhone 订阅利用率可视化</strong> —— 直观看到每个 session / weekly / opus 额度的使用情况，可按 Provider 分开看也可以跨 Provider 看总体。Cost tab 有 30 天日级柱状图，每个 Provider 详情页还有独立的利用率历史图。</li>
-<li><strong>iPhone 多 Mac 数据合并</strong> —— 如果你在多台 Mac 上使用 CodexBar，iPhone 上会按小时去重后把所有 Mac 的数据合并，不管最后活跃的是哪台 Mac，iPhone 图表都一致。</li>
-<li><strong>Mac→iPhone 推送通知</strong> —— 当你任何一台 Mac 上会话额度耗尽或恢复可用时，iPhone 收到一条本地化的通知，内容包含 Provider 名称（如"Codex 的会话额度已耗尽"）。不需要启用 Background App Refresh。</li>
-</ul>
-<h3>Mac — Mobile 1.2.0 推送基础设施</h3>
-<ul>
-<li><strong><code>QuotaTransition</code> CloudKit record 写入</strong> —— 每次会话额度状态变化，Mac 向对应的 <code>Quota-{providerID}-{state}Zone</code>（23 providers × 2 states ≈ 46 个 zone）写一条 record。iPhone 端为每个 zone 预创建 <code>CKRecordZoneSubscription</code>，subscription 创建时就把 Provider 名烤进 <code>alertBody</code>。</li>
-<li><strong>5 分钟 (provider, state) 级 debounce</strong>，防止额度在 0% 附近抖动导致重复推送。</li>
-<li><strong>多 Mac 去重</strong> —— <code>recordName</code> 用 <code>(providerID, hourBucket)</code>，多台 Mac 同一小时内检测到同一状态变化合并为单条 record，iPhone 每小时每种 <code>(provider, state)</code> 最多收到 1 条推送。</li>
-<li><strong>Preferences → Mobile 新增 4 个 DEV 测试按钮</strong>（仅 debug 构建），Codex / Claude × 耗尽 / 恢复，端到端验证推送链路无需等真实额度变化。</li>
-</ul>
-<h3>Mac — 修复</h3>
-<ul>
-<li>About 页 Build 日期强制 <code>en_US_POSIX</code> locale，避免中文系统 Mac 显示中英文混合格式。</li>
-</ul>
-<h3>亮点 — Mobile 1.1.0</h3>
-<ul>
-<li>iCloud 同步从 KVS 升级至 CloudKit，支持多设备同步。</li>
-<li>会话配额推送通知：iOS 后台接收耗尽/恢复提醒。</li>
-<li>Sparkle 复合版本号方案，避免与上游版本号冲突。</li>
-</ul>
-<h3>CodexBar 0.19.0（上游更新）</h3>
-<ul>
-<li>新增阿里巴巴 Coding Plan 服务商，支持区域化配额查询。</li>
-<li>菜单栏新增订阅利用率历史图表。</li>
-<li>Claude 服务商端到端重构，测试覆盖更完整。</li>
-<li>Cursor 用量与仪表盘 Total/Auto/API 对齐。</li>
-<li>Codex 代码审查限制显示重置时间。</li>
-<li>费用历史新增每模型 Token 统计。</li>
-<li>GPT-5.4 mini 和 nano 定价支持。</li>
-<li>Antigravity 模型选择修复。</li>
-</ul>
-<p><a href="https://github.com/o1xhack/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar/releases/download/v0.19.0-mobile.1.2.0/CodexBar-0.19.0-mobile.1.2.0.zip" length="26491561" type="application/octet-stream" sparkle:edSignature="uFpneJdO//rTz3AiZvVRkmqh6u9nJqEnyAFE1OTGr/XTJz6/yOEK+yyB+IgAMryeQ2FnlNxC05KlI+CFVGBiDQ=="/>
         </item>
         <item>
             <title>0.14.0</title>
