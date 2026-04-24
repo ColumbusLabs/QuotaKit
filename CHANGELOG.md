@@ -31,8 +31,14 @@ Mobile 1.3.0 release. Mac 0.20.3 (and the preceding 0.20.2) are small user-invis
 - 4-language localization for all new strings (en / zh-Hans / zh-Hant / ja).
 - Comprehensive regression-guard test fixtures for realistic multi-device, cross-version data distributions.
 
-### Mac — 0.20.2 + 0.20.3
+### Mac — 0.20.0 → 0.20.3
 Two user-invisible Mac-side data-layer patches that power the iOS 1.3.0 experience above — per-provider CloudKit records with zlib compression (0.20.2) and Perplexity credit-pool pass-through (0.20.3). Mac user-facing behavior is unchanged since 0.20.0.
+
+Mac 0.20.0 (2026-04-17) was the fork's alignment with upstream CodexBar 0.20. Highlights:
+- **Codex system account switching** — switch between system accounts / profiles without manually logging out and back in (contribution by @ratulsarna).
+- **Perplexity provider** (PR #606) — recurring, bonus, and purchased-credit tracking; Pro/Max plan detection; browser-cookie auto-import with manual-cookie fallback.
+- **OpenCode Go** — separate provider from OpenCode Zen, with 5-hour / weekly / monthly web usage tracking, widget integration, and browser-cookie support.
+- **Claude token/cost accuracy** — fixes cross-file double counting of subagent JSONL logs and streaming chunk deduplication; adds `claude-sonnet-4-6` pricing.
 
 ---
 
@@ -65,8 +71,14 @@ Two user-invisible Mac-side data-layer patches that power the iOS 1.3.0 experien
 - 所有新字符串 4 语言本地化（en / zh-Hans / zh-Hant / ja）。
 - 针对真实多设备、跨版本数据分布的回归测试 fixture 全面扩展。
 
-### Mac — 0.20.2 + 0.20.3
+### Mac — 0.20.0 → 0.20.3
 配合 iOS 1.3.0 落地的两个 Mac 端用户不可见数据层补丁 —— 按 provider 拆分的 CloudKit 记录 + zlib 压缩（0.20.2），以及 Perplexity credit 分段字段透传（0.20.3）。Mac 端用户可见行为自 0.20.0 以来无变化。
+
+Mac 0.20.0（2026-04-17）是本 fork 对齐上游 CodexBar 0.20 的主版本，亮点：
+- **Codex 系统账号切换** —— 不用手动登出再登入即可切换系统账号 / profile（@ratulsarna 贡献）。
+- **Perplexity 服务商**（PR #606）—— recurring / 赠送 / 购买三段式 credit 追踪，Pro/Max 套餐识别，浏览器 cookie 自动导入加手动 cookie 兜底。
+- **OpenCode Go** —— 从 OpenCode Zen 分离出独立 provider，支持 5 小时 / 周 / 月 web 用量追踪、widget、浏览器 cookie。
+- **Claude token/费用修正** —— 修复子 agent JSONL 跨文件重复计数和流式分片去重；新增 `claude-sonnet-4-6` 定价。
 
 ## 0.20.2 — 2026-04-21
 
