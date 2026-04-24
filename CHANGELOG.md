@@ -1,20 +1,72 @@
 # Changelog
 
-## 0.20.3 — 2026-04-22
+## 0.20.3 — 2026-04-23
 
-Mac-side companion for iOS 1.3.0's new Perplexity detail page — propagates the rich per-pool credit breakdown that was previously discarded on Mac before reaching iOS. No user-visible change on Mac; everything below from 0.20.2 / 0.20.0 still applies.
+Mobile 1.3.0 release. Mac 0.20.3 (and the preceding 0.20.2) are small user-invisible data-layer patches on top of 0.20.0 that enable the iOS 1.3.0 experience — everything user-facing in this release lives on iPhone.
 
-### Added
-- `Sources/CodexBarCore/UsageFetcher.swift`: `UsageSnapshot.perplexityUsage: PerplexityUsageSnapshot?` (mirrors the existing `zaiUsage` / `minimaxUsage` / `openRouterUsage` escape-hatch pattern). Not persisted — fetched fresh each cycle, like the other per-provider rich snapshots.
-- `Sources/CodexBarCore/Providers/Perplexity/PerplexityUsageSnapshot.swift`: `toUsageSnapshot()` now passes `perplexityUsage: self` through so the structured fields (`recurringTotal/Used`, `promoTotal/Used`, `purchasedTotal/Used`, `balanceCents`, `renewalDate`, `promoExpiration`, derived `planName`) survive past the old lossy collapse into 3 generic rate windows.
-- `Sources/CodexBar/Sync/SyncCoordinator.swift`: when pushing a Perplexity provider snapshot, maps `snapshot.perplexityUsage` into the new shared `SyncPerplexityCreditSummary` field on `ProviderUsageSnapshot`. Zero-valued pools map to nil (not zero) so iOS can distinguish "no pool" from "empty pool" and hide the no-pool segment entirely.
+### Highlights — Mobile 1.3.0
+- **2 new providers on iPhone** — Perplexity (3-segment credit detail + Pro/Max badge + renewal countdown) and OpenCode Go, with dedicated colors and Mac→iPhone push notifications.
+- **Codex multi-account cards** — when you run multiple Codex accounts / workspaces, each card shows its email / workspace subtitle.
+- **Faster, leaner sync** — per-provider CloudKit records with zlib compression (typical sync transfer drops from ~2 MB to a few dozen KB); silent-push-driven refresh updates views without pull-to-refresh.
+- **Cold-start polish** — Usage tab no longer flashes blank on launch; transient CloudKit failures preserve cached data instead of blanking the screen.
+- **Per-device Mac version in About & Sync** — see which Mac is running which CodexBar version, with an orange "Update available" chip on any Mac that's not on the latest.
+- **Multi-device + multi-version correctness** — Subscription Utilization numbers stay consistent between the aggregate view and each provider's detail; older Macs can no longer silently drop fields the newer Mac wrote.
 
-### Requires
-- iOS companion 1.3.0 (Build 71+) to render the 3-segment credit card. Older iPhones on 1.2.0 decode the new `perplexityCredits` field as nil (backward-compat `decodeIfPresent`) and continue to render the legacy 3 rate-window bars — no regression.
+### Mobile 1.3.0 — new providers
+- **Perplexity detail page** — 3-segment credit bar (recurring / bonus / purchased), Pro/Max plan badge, renewal and promo-expiration countdowns, dollar balance.
+- **Perplexity + OpenCode Go push notifications** — both now in the 25-provider × 2-state push set (50 zones), with the provider name baked into the alert body in all 4 languages.
+- **Unified provider color palette** — consolidated across 5 previously-drifted call sites; OpenCode Go no longer collides with OpenCode Zen.
+- **Codex cards** with ≥2 accounts show email / workspace subtitles; single-account setups stay minimal.
 
-### Notes
-- CFBundleVersion = `55.3.1.2.0`. `BUILD_NUMBER` bumped `55.2` → `55.3` via the fork-patch slot; reserves `56` for a future upstream-aligned release.
-- Mac user-facing behavior is unchanged — the `toUsageSnapshot()` return value still collapses the same 3 rate windows into the menu bar / preferences pane UI. The new pass-through field only affects the iCloud sync payload.
+### Mobile 1.3.0 — sync & stability
+- **Per-provider CloudKit records** in a new `DeviceProvidersZone`, zlib-compressed. Older iPhones fall back to the legacy monolithic zone with zero regression.
+- **Silent-push-driven refresh** — iPhone wakes silently when Mac writes, applies the delta, views refresh in the background.
+- **SwiftData cold-start hydrate** — Cost tab no longer flashes a stale value before settling; Usage tab cold-start blank (two root causes — date-strategy mismatch + ghost records) fixed.
+- **Transient-failure defense** — if CloudKit is momentarily unreachable, cached data is preserved instead of the screen blanking.
+- **Multi-device merge correctness** — aggregate and per-provider utilization views share the same daily-peak semantic; cross-version field preservation stops older Macs from dropping fields the newer Mac knows about.
+- **Forward-compatible wire format** — iPhones on today's build silently tolerate unknown fields from future Mac versions.
+
+### Mobile 1.3.0 — polish
+- **Per-device Mac version** in About & Sync, with a "· Update available" chip on older Macs.
+- 4-language localization for all new strings (en / zh-Hans / zh-Hant / ja).
+- Comprehensive regression-guard test fixtures for realistic multi-device, cross-version data distributions.
+
+### Mac — 0.20.2 + 0.20.3
+Two user-invisible Mac-side data-layer patches that power the iOS 1.3.0 experience above — per-provider CloudKit records with zlib compression (0.20.2) and Perplexity credit-pool pass-through (0.20.3). Mac user-facing behavior is unchanged since 0.20.0.
+
+---
+
+2026-04-23 Mobile 1.3.0 发布。Mac 0.20.3（以及前一个 0.20.2）只是在 0.20.0 之上的两个 Mac 端用户不可见数据层补丁，用来让 iOS 1.3.0 的能力落地 —— 本次所有用户可见变化都在 iPhone 端。
+
+### 亮点 — Mobile 1.3.0
+- **iPhone 新增 2 个 Provider** —— Perplexity（三段式 credit 详情页 + Pro/Max 徽章 + 续费倒计时）和 OpenCode Go，带专属配色以及 Mac→iPhone 推送通知。
+- **Codex 多账号卡片** —— 同时运行多个 Codex 账号 / workspace 时，每张卡片在副标题显示对应的 email / workspace。
+- **更快更省的同步** —— 按 provider 拆分的 CloudKit 记录 + zlib 压缩（典型同步流量从约 2 MB 降到几十 KB）；静默推送驱动刷新，视图不用下拉即可更新。
+- **冷启动抛光** —— Usage tab 冷启动不再白屏；CloudKit 临时失败时保留缓存而不是清空界面。
+- **About & Sync 按设备显示 Mac 版本** —— 清晰看到每台 Mac 运行的 CodexBar 版本，落后版本带橙色"可升级"标识。
+- **跨 Mac + 跨版本数据正确性** —— 订阅利用率在聚合视图与单 provider 详情之间数字一致；旧 Mac 不再静默丢弃新 Mac 写入的字段。
+
+### Mobile 1.3.0 — 新 Provider
+- **Perplexity 详情页** —— 三段式 credit 柱（recurring / 赠送 / 购买）、Pro/Max 套餐徽章、续费 / 赠送到期倒计时、美元余额。
+- **Perplexity + OpenCode Go 推送通知** —— 两者均加入 25 Provider × 2 状态的推送集合（50 个 zone），Provider 名称烤进 alertBody，4 语言本地化。
+- **统一 Provider 配色** —— 收敛之前在 5 个调用点漂移的实现；OpenCode Go 视觉上不再与 OpenCode Zen 混淆。
+- **Codex 卡片** 在 ≥2 账号时副标题显示 email / workspace；单账号保持极简。
+
+### Mobile 1.3.0 — 同步 & 稳定性
+- **按 provider 拆分的 CloudKit 记录**，新 zone `DeviceProvidersZone`，zlib 压缩。老版本 iPhone 回落到传统整体 zone，零回退。
+- **静默推送驱动刷新** —— Mac 写入时 iPhone 静默唤醒，应用 delta，视图在后台刷新。
+- **SwiftData 冷启动水合** —— Cost tab 不再闪一下旧值；Usage tab 冷启动白屏（两个根因 —— 日期策略不一致 + 幽灵记录）已修复。
+- **瞬时失败防御** —— CloudKit 临时不可达时保留缓存，而不是清空屏幕。
+- **多设备合并正确性** —— 聚合视图与单 Provider 利用率视图共用"日峰值"语义；跨版本字段保留，防止旧 Mac 静默丢弃新 Mac 知道的字段。
+- **前向兼容的 wire 格式** —— 今日构建的 iPhone 静默容忍未来 Mac 版本加入的未知字段。
+
+### Mobile 1.3.0 — 打磨
+- About & Sync 按设备显示 Mac 版本，落后 Mac 带"· 可升级"标识。
+- 所有新字符串 4 语言本地化（en / zh-Hans / zh-Hant / ja）。
+- 针对真实多设备、跨版本数据分布的回归测试 fixture 全面扩展。
+
+### Mac — 0.20.2 + 0.20.3
+配合 iOS 1.3.0 落地的两个 Mac 端用户不可见数据层补丁 —— 按 provider 拆分的 CloudKit 记录 + zlib 压缩（0.20.2），以及 Perplexity credit 分段字段透传（0.20.3）。Mac 端用户可见行为自 0.20.0 以来无变化。
 
 ## 0.20.2 — 2026-04-21
 
