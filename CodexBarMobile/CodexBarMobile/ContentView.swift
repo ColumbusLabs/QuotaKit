@@ -1774,7 +1774,7 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Important"),
                     items: [
-                        String(localized: "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.2.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar/releases."),
+                        String(localized: "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.3.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar/releases."),
                     ]),
                 .init(
                     title: String(localized: "What's New"),

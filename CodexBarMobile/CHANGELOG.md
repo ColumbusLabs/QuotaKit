@@ -2,6 +2,11 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (91)] — 2026-04-25 — dev build · Fix Mac build-number string in in-app release notes
+
+### Fixed
+- **In-app 1.3.0 release notes — Important section** referenced `Mac 0.20.3 (Build 55.3.1.2.0)`, but the Mac 0.20.3 Sparkle release that actually went live (2026-04-24) carries `CFBundleVersion = 55.3.1.3.0` (the `.1.3.0` suffix tracks `MOBILE_VERSION = 1.3.0`, which was bumped from `1.2.0` together with the Sparkle finalize). Updated all four locales (en / zh-Hans / zh-Hant / ja stub) plus the source string literal in `ContentView.swift`, and the `Localizable.xcstrings` lookup key, to read `Build 55.3.1.3.0`. No behavior change — the user-facing gate is still "Mac 0.20.3 or later".
+
 ## [1.3.0 (90)] — 2026-04-23 — dev build · Per-device Mac version display + outdated hint
 
 ### Added — Settings → About & Sync

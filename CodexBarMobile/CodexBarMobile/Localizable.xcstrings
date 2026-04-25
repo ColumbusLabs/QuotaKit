@@ -7039,30 +7039,30 @@
         }
       }
     },
-    "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.2.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar/releases.": {
+    "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.3.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar/releases.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.2.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar/releases."
+            "value": "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.3.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar/releases."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "将 Mac 端 CodexBar 更新到 0.20.3（Build 55.3.1.2.0）或更高版本，才能在 Perplexity 详情页看到结构化的信用额度细分（月度 / 赠送 / 购买三段 + Pro/Max 套餐徽章 + 续期倒计时）。老版本 Mac 仍显示旧的 3 条柱图。下载地址：github.com/o1xhack/CodexBar/releases。"
+            "value": "将 Mac 端 CodexBar 更新到 0.20.3（Build 55.3.1.3.0）或更高版本，才能在 Perplexity 详情页看到结构化的信用额度细分（月度 / 赠送 / 购买三段 + Pro/Max 套餐徽章 + 续期倒计时）。老版本 Mac 仍显示旧的 3 条柱图。下载地址：github.com/o1xhack/CodexBar/releases。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "new",
-            "value": "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.2.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar/releases."
+            "value": "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.3.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar/releases."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "new",
-            "value": "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.2.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar/releases."
+            "value": "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.3.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar/releases."
           }
         }
       }
