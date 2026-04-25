@@ -2,6 +2,19 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (93)] — 2026-04-25 — dev build · CI gate against state="new" xcstrings entries
+
+### Added
+- **`Scripts/lint.sh` — i18n audit** that walks every `*.xcstrings` file and fails the lint run if any locale entry is in `state: "new"`. Same regression class as Build 55 (1.1.0 release notes English-only on zh-Hant / ja iPhones) and Build 92 (1.3.0 catalog same pattern): Xcode auto-creates `state: "new"` entries with English fallback when a developer adds a new `String(localized:)` call, and the build / upload still succeeds. With this gate wired into the `lint` command, those entries can no longer reach `mobile-dev` (CI runs `./Scripts/lint.sh lint` on every push) and can no longer be uploaded to TestFlight (`Scripts/upload_ios_testflight.sh` now runs the same lint as a pre-flight before archive + export).
+- **`Scripts/lint.sh audit-i18n`** as a standalone subcommand for quick local checks without re-running SwiftFormat / SwiftLint.
+
+### Changed
+- `Scripts/upload_ios_testflight.sh` now executes `./Scripts/lint.sh lint` before archiving. ~2 min of archive + upload time saved when the audit catches a missing translation.
+
+### Notes
+- jq required (already a hard dep in past Mac release scripts).
+- 4-locale audit confirmed clean for current state: 261 keys × 4 locales = 0 entries in `state: "new"`.
+
 ## [1.3.0 (92)] — 2026-04-25 — dev build · Traditional Chinese + Japanese translations for 1.3.0 in-app release notes
 
 ### Fixed

@@ -31,6 +31,13 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 
+# Pre-flight: run lint (Swift + i18n xcstrings audit) before spending ~2 min
+# on archive + upload. Catches the regression class where new
+# `String(localized:)` strings ship without zh-Hant / ja translations
+# (Builds 55 and 92 hit this before the audit was wired in).
+echo "==> Pre-flight lint (Swift + i18n)..."
+"$ROOT/Scripts/lint.sh" lint
+
 STAMP=$(date +%Y%m%d-%H%M%S)
 ARCHIVE_PATH="/tmp/CodexBarMobile-$STAMP.xcarchive"
 # `.plist` suffix after the mktemp X's makes the template literal on
