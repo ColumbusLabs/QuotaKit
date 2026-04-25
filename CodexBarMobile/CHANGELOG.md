@@ -2,6 +2,16 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (92)] — 2026-04-25 — dev build · Traditional Chinese + Japanese translations for 1.3.0 in-app release notes
+
+### Fixed
+- **All 11 entries of the 1.3.0 in-app release-notes catalog were displaying English on Traditional-Chinese / Japanese iPhones** because their `Localizable.xcstrings` localizations sat at `state: "new"` with English fallback values. The same regression class as Build 55's "1.1.0 release notes were English-only on non-English iPhones" — fix is the same: provide proper translations for both locales. Affected strings: Latest summary, Important (Mac update gate), 5 What's New bullets (Perplexity credit / OpenCode Go / Codex multi-account / push coverage / unified palette), 3 Under the hood bullets (SwiftData cache / per-provider records / silent push), and the section title "Under the hood".
+- 4-locale audit pass on `Localizable.xcstrings` confirmed: 0 strings remain at `state: "new"` for any of `en / zh-Hans / zh-Hant / ja`.
+
+### Notes
+- Build 90's "Some Mac devices are on older versions…" + "· Update available" already had all 4 languages — those don't regress.
+- Translation tone follows the existing zh-Hans copy; technical terms (`provider`, `CloudKit`, `SwiftData`, `Subscription Utilization`, `fallback`) left untranslated for consistency with the Mac app and earlier locales.
+
 ## [1.3.0 (91)] — 2026-04-25 — dev build · Fix Mac build-number string in in-app release notes
 
 ### Fixed

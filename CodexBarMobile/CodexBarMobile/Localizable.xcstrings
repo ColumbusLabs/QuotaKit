@@ -7027,14 +7027,14 @@
         },
         "zh-Hant": {
           "stringUnit": {
-            "state": "new",
-            "value": "Upstream v0.20 provider alignment — Perplexity + OpenCode Go, Codex multi-account cards, SwiftData-backed local cache. Requires updated Mac app."
+            "state": "translated",
+            "value": "對齊上游 v0.20 —— 新增 Perplexity + OpenCode Go、Codex 多帳號卡片、SwiftData 本機快取。需要更新 Mac 應用程式。"
           }
         },
         "ja": {
           "stringUnit": {
-            "state": "new",
-            "value": "Upstream v0.20 provider alignment — Perplexity + OpenCode Go, Codex multi-account cards, SwiftData-backed local cache. Requires updated Mac app."
+            "state": "translated",
+            "value": "アップストリーム v0.20 へのアラインメント — Perplexity + OpenCode Go の追加、Codex 複数アカウントカード、SwiftData ローカルキャッシュ。Mac アプリの更新が必要です。"
           }
         }
       }
@@ -7055,14 +7055,14 @@
         },
         "zh-Hant": {
           "stringUnit": {
-            "state": "new",
-            "value": "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.3.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar/releases."
+            "state": "translated",
+            "value": "將 Mac 端 CodexBar 更新到 0.20.3（Build 55.3.1.3.0）或更高版本，才能在 Perplexity 詳情頁看到結構化的信用額度細分（月度 / 贈送 / 購買三段 + Pro/Max 套餐徽章 + 續期倒數計時）。舊版 Mac 仍顯示舊的 3 條柱圖。下載地址：github.com/o1xhack/CodexBar/releases。"
           }
         },
         "ja": {
           "stringUnit": {
-            "state": "new",
-            "value": "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.3.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar/releases."
+            "state": "translated",
+            "value": "Perplexity の構造化されたクレジット内訳（月次 / プロモ / 購入の 3 プール + Pro/Max プラン + 更新カウントダウン）を表示するには、Mac の CodexBar を 0.20.3（Build 55.3.1.3.0）以降に更新してください。古い Mac バージョンでは Perplexity 詳細ページは従来の 3 バー表示にフォールバックします。ダウンロード：github.com/o1xhack/CodexBar/releases"
           }
         }
       }
@@ -7083,14 +7083,14 @@
         },
         "zh-Hant": {
           "stringUnit": {
-            "state": "new",
-            "value": "Perplexity credit breakdown — when Mac 0.20.3+ is installed, the Perplexity detail page shows a stacked 3-segment bar for monthly / bonus / purchased credits, a Pro/Max plan badge, and a renewal-date countdown."
+            "state": "translated",
+            "value": "Perplexity 信用額度細分 —— 當 Mac 安裝了 0.20.3+ 之後，Perplexity 詳情頁會以堆疊 3 段式柱顯示月度 / 贈送 / 購買額度，並顯示 Pro/Max 套餐徽章和續期倒數計時。"
           }
         },
         "ja": {
           "stringUnit": {
-            "state": "new",
-            "value": "Perplexity credit breakdown — when Mac 0.20.3+ is installed, the Perplexity detail page shows a stacked 3-segment bar for monthly / bonus / purchased credits, a Pro/Max plan badge, and a renewal-date countdown."
+            "state": "translated",
+            "value": "Perplexity クレジット内訳 — Mac 0.20.3+ をインストールしている場合、Perplexity 詳細ページに月次 / ボーナス / 購入クレジットを示すスタック型 3 セグメントバー、Pro/Max プランバッジ、更新日カウントダウンが表示されます。"
           }
         }
       }
@@ -7111,14 +7111,14 @@
         },
         "zh-Hant": {
           "stringUnit": {
-            "state": "new",
-            "value": "OpenCode Go support — separate provider from OpenCode Zen with its own tint (mint) and push subscriptions; cards are visually distinguishable at a glance even with both products enabled."
+            "state": "translated",
+            "value": "OpenCode Go 支援 —— 與 OpenCode Zen 分離為獨立 provider，使用薄荷綠配色和獨立的推送訂閱；即使同時啟用兩款產品，卡片也能一眼分清。"
           }
         },
         "ja": {
           "stringUnit": {
-            "state": "new",
-            "value": "OpenCode Go support — separate provider from OpenCode Zen with its own tint (mint) and push subscriptions; cards are visually distinguishable at a glance even with both products enabled."
+            "state": "translated",
+            "value": "OpenCode Go サポート — OpenCode Zen から独立した provider として、専用カラー（ミント）とプッシュ通知購読を備え、両方の製品を有効にしてもカードを一目で見分けられます。"
           }
         }
       }
@@ -7139,14 +7139,14 @@
         },
         "zh-Hant": {
           "stringUnit": {
-            "state": "new",
-            "value": "Codex multi-account cards — if you have 2+ Codex accounts (e.g. a personal Pro and a work Business account), each now renders as its own card with the email as the subtitle. Accounts without an email get a localized ordinal fallback (\"Codex 2\", etc.)."
+            "state": "translated",
+            "value": "Codex 多帳號卡片 —— 如果你有兩個以上的 Codex 帳號（例如個人 Pro 和工作 Business），每個帳號現在都會渲染為獨立的卡片，副標題顯示信箱位址。沒有信箱的帳號會 fallback 到本地化的序號（「Codex 2」等）。"
           }
         },
         "ja": {
           "stringUnit": {
-            "state": "new",
-            "value": "Codex multi-account cards — if you have 2+ Codex accounts (e.g. a personal Pro and a work Business account), each now renders as its own card with the email as the subtitle. Accounts without an email get a localized ordinal fallback (\"Codex 2\", etc.)."
+            "state": "translated",
+            "value": "Codex 複数アカウントカード — Codex アカウントを 2 つ以上お持ちの場合（例：個人 Pro と仕事用 Business アカウント）、それぞれが独立したカードとして表示され、サブタイトルにメールアドレスが入ります。メールアドレスがないアカウントには、ローカライズされた連番（「Codex 2」など）が使われます。"
           }
         }
       }
@@ -7167,14 +7167,14 @@
         },
         "zh-Hant": {
           "stringUnit": {
-            "state": "new",
-            "value": "Full push-notification coverage — quota depleted / restored pushes now work for Perplexity and OpenCode Go in addition to the 23 existing providers."
+            "state": "translated",
+            "value": "推送覆蓋完整 —— Perplexity 和 OpenCode Go 的額度耗盡 / 恢復推送現在也可用，加上原有的 23 個 provider 一共 25 個。"
           }
         },
         "ja": {
           "stringUnit": {
-            "state": "new",
-            "value": "Full push-notification coverage — quota depleted / restored pushes now work for Perplexity and OpenCode Go in addition to the 23 existing providers."
+            "state": "translated",
+            "value": "プッシュ通知の完全カバー — クォータ枯渇 / 復帰のプッシュが、既存の 23 個の provider に加えて Perplexity と OpenCode Go でも動作するようになりました。"
           }
         }
       }
@@ -7195,14 +7195,14 @@
         },
         "zh-Hant": {
           "stringUnit": {
-            "state": "new",
-            "value": "Provider color palette consolidated — every tab and card uses the same color for a given provider, so the Subscription Utilization chart, the provider list, the share card, and the detail page all agree."
+            "state": "translated",
+            "value": "Provider 配色統一 —— 每個 provider 在所有標籤頁、卡片中使用同一個顏色，Subscription Utilization 圖表、列表、分享卡、詳情頁配色全部一致。"
           }
         },
         "ja": {
           "stringUnit": {
-            "state": "new",
-            "value": "Provider color palette consolidated — every tab and card uses the same color for a given provider, so the Subscription Utilization chart, the provider list, the share card, and the detail page all agree."
+            "state": "translated",
+            "value": "Provider カラーパレットの統一 — 各 provider はすべてのタブとカードで同じ色を使用するため、Subscription Utilization チャート、provider リスト、シェアカード、詳細ページで配色が一致します。"
           }
         }
       }
@@ -7223,14 +7223,14 @@
         },
         "zh-Hant": {
           "stringUnit": {
-            "state": "new",
-            "value": "Under the hood"
+            "state": "translated",
+            "value": "底層改進"
           }
         },
         "ja": {
           "stringUnit": {
-            "state": "new",
-            "value": "Under the hood"
+            "state": "translated",
+            "value": "内部の改善"
           }
         }
       }
@@ -7251,14 +7251,14 @@
         },
         "zh-Hant": {
           "stringUnit": {
-            "state": "new",
-            "value": "SwiftData-backed local cache — cold start time for Usage / Cost tabs reduced from 2-5 seconds to under 200 ms. Data persists across app relaunches instead of re-fetching from CloudKit every time."
+            "state": "translated",
+            "value": "SwiftData 本機快取 —— Usage / Cost 標籤頁的冷啟動時間從 2-5 秒降到 200 ms 以內。資料在 App 重啟之間持久化，不再每次都去 CloudKit 重新抓取。"
           }
         },
         "ja": {
           "stringUnit": {
-            "state": "new",
-            "value": "SwiftData-backed local cache — cold start time for Usage / Cost tabs reduced from 2-5 seconds to under 200 ms. Data persists across app relaunches instead of re-fetching from CloudKit every time."
+            "state": "translated",
+            "value": "SwiftData バックエンドのローカルキャッシュ — Usage / Cost タブのコールドスタート時間が 2-5 秒から 200 ms 以下に短縮。アプリ再起動間にデータが永続化されるため、毎回 CloudKit から再取得する必要がなくなりました。"
           }
         }
       }
@@ -7279,14 +7279,14 @@
         },
         "zh-Hant": {
           "stringUnit": {
-            "state": "new",
-            "value": "Per-provider CloudKit records with zlib compression — removes the 1 MB-per-record hard cap that long-term users were approaching as their utilization history grew."
+            "state": "translated",
+            "value": "按 provider 拆分的 CloudKit 紀錄 + zlib 壓縮 —— 解除了 CloudKit 單紀錄 1 MB 的硬限制；長期使用者累積的 utilization 歷史不再會觸發這個上限。"
           }
         },
         "ja": {
           "stringUnit": {
-            "state": "new",
-            "value": "Per-provider CloudKit records with zlib compression — removes the 1 MB-per-record hard cap that long-term users were approaching as their utilization history grew."
+            "state": "translated",
+            "value": "provider ごとの CloudKit レコード + zlib 圧縮 — CloudKit のレコードあたり 1 MB のハードキャップを解除。長期ユーザーの utilization 履歴の蓄積が上限に達することはなくなりました。"
           }
         }
       }
@@ -7307,14 +7307,14 @@
         },
         "zh-Hant": {
           "stringUnit": {
-            "state": "new",
-            "value": "Push-driven incremental sync — Mac changes now land on iPhone within ~500 ms via CloudKit silent pushes instead of waiting for the next manual refresh."
+            "state": "translated",
+            "value": "推送驅動的增量同步 —— Mac 端變動透過 CloudKit 靜默推送在 500 ms 內到達 iPhone，不再需要等使用者手動重新整理。"
           }
         },
         "ja": {
           "stringUnit": {
-            "state": "new",
-            "value": "Push-driven incremental sync — Mac changes now land on iPhone within ~500 ms via CloudKit silent pushes instead of waiting for the next manual refresh."
+            "state": "translated",
+            "value": "プッシュ駆動の差分同期 — Mac の変更が CloudKit のサイレントプッシュ経由で約 500 ms 以内に iPhone に到達。次回の手動リフレッシュを待つ必要がありません。"
           }
         }
       }
