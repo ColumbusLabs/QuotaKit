@@ -592,4 +592,238 @@ struct SnapshotCacheTests {
         // overwrite bob's entry with alice's on delta apply.
         #expect(cache.perProviderByDevice["mac-a"]?.count == 2)
     }
+
+    // MARK: - Build 94 hotfix · ghost orphan + stale TTL
+
+    @Test("Orphan-with-nil-email is dropped when sibling with email exists for same providerID")
+    func orphanNilEmailDroppedWhenRealEmailSiblingExists() {
+        // Reproduces user-reported bug: after Mac upgrade, Codex internal
+        // identity logic shifted, leaving a nil-email orphan record alongside
+        // the new account record. Both display as Codex on iOS but with
+        // different ordinal labels ("Hidden" + "Codex 2").
+        var cache = SnapshotCache()
+        cache.applyDelta(
+            upserted: [
+                envelope( // orphan from pre-upgrade Mac, no email
+                    deviceID: "mbp", deviceName: "the mbp 26 m5 pro",
+                    providerID: "codex", email: nil,
+                    providerLastUpdated: t3, syncTimestamp: t3),
+                envelope( // real account from post-upgrade Mac
+                    deviceID: "mbp", deviceName: "the mbp 26 m5 pro",
+                    providerID: "codex", email: "user@example.com",
+                    providerLastUpdated: t3, syncTimestamp: t3),
+            ],
+            deletedRecordNames: [])
+
+        // Cache holds both raw entries (filter applies at read time only).
+        #expect(cache.perProviderByDevice["mbp"]?.count == 2)
+
+        // But buildDeviceSnapshots filters the orphan out.
+        let result = cache.buildDeviceSnapshots()
+        #expect(result.count == 1)
+        let providers = result[0].providers
+        #expect(providers.count == 1)
+        #expect(providers[0].accountEmail == "user@example.com")
+    }
+
+    @Test("Multiple nil-email entries with same providerID stay if no sibling has email")
+    func multipleNilEmailLegitWhenNoRealEmailSibling() {
+        // Legit accountless providers (e.g., Claude with hide-email setting on
+        // both accounts) — both entries have nil email but represent distinct
+        // accounts at the recordName level. Keep both; the dedupe rule only
+        // fires when AT LEAST ONE sibling has a real email.
+        var cache = SnapshotCache()
+        cache.applyDelta(
+            upserted: [
+                ProviderUsageEnvelope(
+                    deviceID: "mac-a", deviceName: "Mac A",
+                    appVersion: "0.20.1", mobileVersion: "1.3.0",
+                    syncTimestamp: t3, notificationPushEnabled: true,
+                    provider: ProviderUsageSnapshot(
+                        providerID: "codex", providerName: "Codex",
+                        primary: SyncRateWindow(
+                            usedPercent: 23.0, windowMinutes: 60,
+                            resetsAt: nil, resetDescription: nil),
+                        secondary: nil, accountEmail: nil, loginMethod: nil,
+                        statusMessage: nil, isError: false, lastUpdated: t3)),
+                ProviderUsageEnvelope(
+                    deviceID: "mac-a", deviceName: "Mac A",
+                    appVersion: "0.20.1", mobileVersion: "1.3.0",
+                    syncTimestamp: t3, notificationPushEnabled: true,
+                    provider: ProviderUsageSnapshot(
+                        providerID: "codex", providerName: "Codex",
+                        primary: SyncRateWindow(
+                            usedPercent: 50.0, windowMinutes: 60,
+                            resetsAt: nil, resetDescription: nil),
+                        secondary: nil, accountEmail: nil, loginMethod: nil,
+                        statusMessage: nil, isError: false, lastUpdated: t3)),
+            ],
+            deletedRecordNames: [])
+
+        // Both entries occupy the same composite key "codex|_" — second
+        // upsert overwrites first in the cache, so we only have 1 actually.
+        // This test demonstrates that the dedupe rule doesn't accidentally
+        // drop the surviving entry. (The "two accountless providers"
+        // scenario can't occur via our composite-key cache anyway, but we
+        // still want the read-side filter to keep what's there.)
+        let result = cache.buildDeviceSnapshots()
+        #expect(result.count == 1)
+        #expect(result[0].providers.count == 1)
+    }
+
+    @Test("Stale-TTL drops provider record lagging >30min behind device freshest")
+    func staleTTLDropsLaggingProvider() {
+        // Reproduces user-reported Perplexity ghost: user enabled then
+        // disabled Perplexity on Mac. Mac stopped refreshing the record but
+        // the CloudKit envelope persists with its last-known timestamp.
+        // After 30 minutes of the device's other providers continuing to
+        // refresh, the stale Perplexity record is filtered at read time.
+        let now = Date()
+        let fresh = now
+        let stale = now.addingTimeInterval(-45 * 60) // 45 min behind
+        var cache = SnapshotCache()
+        cache.applyDelta(
+            upserted: [
+                envelope( // active Codex, just refreshed
+                    deviceID: "mbp", deviceName: "the mbp 26 m5 pro",
+                    providerID: "codex", email: "user@example.com",
+                    providerLastUpdated: fresh, syncTimestamp: fresh),
+                envelope( // disabled Perplexity ghost, never refreshed since
+                    deviceID: "mbp", deviceName: "the mbp 26 m5 pro",
+                    providerID: "perplexity", email: nil,
+                    providerLastUpdated: stale, syncTimestamp: stale),
+            ],
+            deletedRecordNames: [])
+
+        // Cache holds both.
+        #expect(cache.perProviderByDevice["mbp"]?.count == 2)
+
+        // buildDeviceSnapshots drops the stale one.
+        let result = cache.buildDeviceSnapshots()
+        #expect(result.count == 1)
+        let providers = result[0].providers
+        #expect(providers.count == 1)
+        #expect(providers[0].providerID == "codex")
+    }
+
+    @Test("Stale-TTL leaves single-record device alone (offline Mac scenario)")
+    func staleTTLPreservesSingleRecordDevice() {
+        // Mac has been offline; its only provider's lastUpdated is hours old.
+        // deviceFreshest = that single entry's lastUpdated, so TTL window is
+        // [hours-30min, hours] which still contains the entry. Don't drop it.
+        let now = Date()
+        let staleSingle = now.addingTimeInterval(-3 * 60 * 60) // 3 hours ago
+        var cache = SnapshotCache()
+        cache.applyDelta(
+            upserted: [envelope(
+                deviceID: "mac-offline", deviceName: "Offline Mac",
+                providerID: "claude", email: nil,
+                providerLastUpdated: staleSingle, syncTimestamp: staleSingle)],
+            deletedRecordNames: [])
+
+        let result = cache.buildDeviceSnapshots()
+        #expect(result.count == 1)
+        #expect(result[0].providers.count == 1)
+    }
+
+    @Test("Stale-TTL keeps providers refreshed within 30 min of device freshest")
+    func staleTTLKeepsRecentlyRefreshedProviders() {
+        // Mac alternates refresh sequencing — 5 sec between providers in the
+        // same cycle. Both well within 30 min threshold.
+        let now = Date()
+        let codexUpdated = now.addingTimeInterval(-5)
+        let claudeUpdated = now.addingTimeInterval(-10)
+        var cache = SnapshotCache()
+        cache.applyDelta(
+            upserted: [
+                envelope(
+                    deviceID: "mbp", deviceName: "Mac",
+                    providerID: "codex", email: "u@x.com",
+                    providerLastUpdated: codexUpdated, syncTimestamp: now),
+                envelope(
+                    deviceID: "mbp", deviceName: "Mac",
+                    providerID: "claude", email: nil,
+                    providerLastUpdated: claudeUpdated, syncTimestamp: now),
+            ],
+            deletedRecordNames: [])
+
+        let result = cache.buildDeviceSnapshots()
+        #expect(result.count == 1)
+        #expect(result[0].providers.count == 2)
+    }
+
+    @Test("Both rules combined: orphan Codex + stale Perplexity (user's reported scenario)")
+    func combinedOrphanAndStale() {
+        // Reproduces the exact symptom user reported on iOS 1.3.0 Build 93
+        // after upgrading both Macs to 0.20.3:
+        //   - mbp shows 4 provider cards but only Codex + Claude are active
+        //   - "Codex" + "Codex 2" duplicates from upgrade-induced identity drift
+        //   - Perplexity ghost from disable
+        // After Build 94 hotfix, only the 2 active providers remain.
+        let now = Date()
+        let active = now
+        let postUpgradeOrphan = now.addingTimeInterval(-31 * 60) // 31 min ago
+        let perplexityGhost = now.addingTimeInterval(-39 * 60) // 39 min ago
+        var cache = SnapshotCache()
+        cache.applyDelta(
+            upserted: [
+                // Real active Codex with email
+                envelope(
+                    deviceID: "mbp", deviceName: "the mbp 26 m5 pro",
+                    providerID: "codex", email: "user@example.com",
+                    providerLastUpdated: active, syncTimestamp: now),
+                // Real active Claude (accountless)
+                envelope(
+                    deviceID: "mbp", deviceName: "the mbp 26 m5 pro",
+                    providerID: "claude", email: nil,
+                    providerLastUpdated: active, syncTimestamp: now),
+                // Orphan Codex from pre-upgrade (different recordName, nil
+                // email in payload — Build 66 ghost filter doesn't catch it
+                // because it has cost data)
+                ProviderUsageEnvelope(
+                    deviceID: "mbp", deviceName: "the mbp 26 m5 pro",
+                    appVersion: "0.20.3", mobileVersion: "1.3.0",
+                    syncTimestamp: postUpgradeOrphan,
+                    notificationPushEnabled: true,
+                    provider: ProviderUsageSnapshot(
+                        providerID: "codex",
+                        providerName: "Codex",
+                        primary: SyncRateWindow(
+                            usedPercent: 23.0, windowMinutes: 60,
+                            resetsAt: nil, resetDescription: nil),
+                        secondary: nil, accountEmail: nil,
+                        loginMethod: nil,
+                        statusMessage: "Codex returned invalid data: codex app-server closed stdout",
+                        isError: true, lastUpdated: postUpgradeOrphan)),
+                // Perplexity ghost (disabled but record persists)
+                envelope(
+                    deviceID: "mbp", deviceName: "the mbp 26 m5 pro",
+                    providerID: "perplexity", email: nil,
+                    providerLastUpdated: perplexityGhost,
+                    syncTimestamp: perplexityGhost),
+            ],
+            deletedRecordNames: [])
+
+        // Cache holds all 4.
+        // Note: orphan-Codex|_ and the ghost-codex (no email) are different
+        // composites only if their accountEmail differs. Here both are nil
+        // → composite "codex|_" — the orphan upsert REPLACES the existing
+        // codex|_ if any. So with this fixture we have 3 cache entries:
+        //   codex|user@example.com (real)
+        //   codex|_ (orphan with error)
+        //   claude|_ (real)
+        //   perplexity|_ (ghost)
+        #expect(cache.perProviderByDevice["mbp"]?.count == 4)
+
+        // After filter:
+        //   - Rule 1 drops codex|_ (sibling codex|user@example.com has email)
+        //   - Rule 2 drops perplexity|_ (39 min ago > 30 min threshold)
+        //   - Real Codex + Claude remain
+        let result = cache.buildDeviceSnapshots()
+        #expect(result.count == 1)
+        let providerIDs = Set(result[0].providers.map { $0.providerID })
+        #expect(providerIDs == ["codex", "claude"])
+        let codex = result[0].providers.first(where: { $0.providerID == "codex" })
+        #expect(codex?.accountEmail == "user@example.com")
+    }
 }

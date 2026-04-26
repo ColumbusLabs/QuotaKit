@@ -209,15 +209,28 @@ struct SnapshotCache: Sendable {
     /// legacy for any device that has per-provider entries. Pure — the caller
     /// typically feeds this through `CloudSyncReader.mergeSnapshots` for the
     /// final cross-device merge.
+    ///
+    /// Applies `dropOrphansAndStale` to each device's per-provider bucket
+    /// before reconstruction — see that function for the two filter rules.
     func buildDeviceSnapshots() -> [SyncedUsageSnapshot] {
         var result: [SyncedUsageSnapshot] = []
         let allDeviceIDs = Set(self.perProviderByDevice.keys)
             .union(self.legacyByDevice.keys)
 
         for deviceID in allDeviceIDs {
-            if let byComposite = self.perProviderByDevice[deviceID],
-               !byComposite.isEmpty
+            if let rawByComposite = self.perProviderByDevice[deviceID],
+               !rawByComposite.isEmpty
             {
+                let byComposite = Self.dropOrphansAndStale(rawByComposite)
+                if byComposite.isEmpty {
+                    // All per-provider entries filtered as orphan/stale —
+                    // fall back to legacy if available so the device doesn't
+                    // disappear entirely.
+                    if let legacy = self.legacyByDevice[deviceID] {
+                        result.append(legacy)
+                    }
+                    continue
+                }
                 // Per-provider wins. Reconstruct a SyncedUsageSnapshot.
                 let providers = byComposite.values
                     .sorted { $0.lastUpdated > $1.lastUpdated }
@@ -237,6 +250,90 @@ struct SnapshotCache: Sendable {
 
         result.sort { $0.syncTimestamp > $1.syncTimestamp }
         return result
+    }
+
+    /// Drop per-provider entries that are almost certainly orphan / stale
+    /// records left behind by Mac state transitions:
+    ///
+    /// **Rule 1 · nil-email-when-real-email-exists.** If two entries share
+    /// `providerID` but one has `accountEmail == nil` and the other has a
+    /// non-empty email, the nil-email one is dropped. The nil-email record
+    /// originates from Mac's pre-OAuth-load early push, or from an upgrade
+    /// migration where Codex's account-identity-derivation logic changed
+    /// between versions — the new Mac wrote a record under a new composite
+    /// key, the old record persists in CloudKit indefinitely. Build 66's
+    /// `isGhost` filter only catches all-nil-data envelopes; this catches
+    /// records that have data but the wrong identity.
+    ///
+    /// **Rule 2 · stale relative to device freshness, applied only to
+    /// nil-email entries.** Drop entries whose `accountEmail` is nil/empty
+    /// AND whose `lastUpdated` lags more than 30 minutes behind the freshest
+    /// entry on the same device. Mac refreshes a device's providers in a
+    /// coordinated cycle (seconds apart at most); a record stuck >30 min
+    /// behind hasn't been touched by Mac in at least one full refresh cycle.
+    /// This catches records of providers the user disabled — Mac stops
+    /// writing, the CloudKit record persists with its last-known timestamp
+    /// until the 0.23 Mac release adds a delete-on-disable hook.
+    ///
+    /// Real-email entries are always exempt from Rule 2: legit multi-account
+    /// providers (e.g. two Codex accounts on the same Mac) can refresh on
+    /// independent cadences when one account is hot and the other idle, so
+    /// "lagging behind sibling" is normal. Mac always assigns an email to
+    /// such accounts (that's what makes them legit-multi-account), so the
+    /// real-email gate is the right discriminator.
+    ///
+    /// Both rules apply at read time, not write time, so:
+    /// - Incremental delta updates cannot accidentally trim freshly-arrived
+    ///   peer records that briefly look "stale" before the cycle completes.
+    /// - The cache holds the raw zone state; only the displayed view is
+    ///   filtered.
+    /// - Toggling Mac on/off clears stale records as soon as Mac resumes
+    ///   writing (deviceFreshest moves forward, stale cutoff slides up).
+    static func dropOrphansAndStale(
+        _ byComposite: [String: ProviderUsageSnapshot]
+    ) -> [String: ProviderUsageSnapshot] {
+        guard !byComposite.isEmpty else { return [:] }
+
+        // Rule 1: group by providerID; drop nil-email when sibling has email.
+        var byProviderID: [String: [String]] = [:]
+        for (key, provider) in byComposite {
+            byProviderID[provider.providerID, default: []].append(key)
+        }
+        var keptKeys = Set<String>()
+        for (_, keys) in byProviderID {
+            let hasRealEmail = keys.contains { key in
+                guard let email = byComposite[key]?.accountEmail else { return false }
+                return !email.isEmpty
+            }
+            for key in keys {
+                guard let provider = byComposite[key] else { continue }
+                let hasEmail = !(provider.accountEmail ?? "").isEmpty
+                // Keep if either: there's no sibling with email (so this is
+                // a legitimately accountless provider, e.g. Claude/Cursor),
+                // OR this entry itself has the email.
+                if !hasRealEmail || hasEmail {
+                    keptKeys.insert(key)
+                }
+            }
+        }
+        let afterOrphanDrop = byComposite.filter { keptKeys.contains($0.key) }
+
+        // Rule 2: TTL on nil-email entries only, relative to device freshest.
+        guard let deviceFreshest = afterOrphanDrop.values
+            .map({ $0.lastUpdated }).max()
+        else { return afterOrphanDrop }
+        // 30 minutes: a Mac refresh cycle typically completes within seconds
+        // for an active provider, and the slowest known cadence (idle
+        // browser-cookie providers) is well under 30 min. Anything older is
+        // a stuck record. Don't tighten without checking the slowest cadence
+        // a real provider can hit in production.
+        let staleCutoff = deviceFreshest.addingTimeInterval(-30 * 60)
+        return afterOrphanDrop.filter { _, provider in
+            let hasEmail = !(provider.accountEmail ?? "").isEmpty
+            // Real-email entries are immune from TTL — they represent legit
+            // distinct accounts that may refresh on independent cadences.
+            return hasEmail || provider.lastUpdated >= staleCutoff
+        }
     }
 
     // MARK: - Helpers

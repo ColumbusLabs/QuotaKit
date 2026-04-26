@@ -2,6 +2,40 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.0 (94)] — 2026-04-26 — dev build · ghost provider records causing duplicate cards + stale ghosts after Mac upgrade / disable
+
+### Fixed
+
+User-reported regression after upgrading both Macs to 0.20.3: iOS shows duplicate "Codex" + "Codex 2" cards from one Mac, plus a Perplexity card despite the user disabling Perplexity on Mac, plus Cost Provider Share summing to 104% (Claude 80% + Codex 12% + Codex 12%). Three symptoms, one root-cause family — Mac state transitions leave orphan / stale CKRecords in `DeviceProvidersZone` that iOS's existing ghost filter (Build 66) doesn't catch because they carry data, just from the wrong identity or refresh cycle.
+
+**`SnapshotCache.dropOrphansAndStale(_:)`** — new read-time filter applied in `buildDeviceSnapshots`. Two rules:
+
+- **Rule 1 · nil-email-when-real-email-exists**. Per device, per `providerID`: if any sibling entry has a non-empty `accountEmail`, drop entries with `accountEmail == nil`. The nil-email orphans come from Mac's pre-OAuth-load early push, or — the more recent trigger — from a Mac upgrade where Codex's `CodexAccountReconciliation` / `CodexIdentity` refactor (upstream v0.20) changed how the account-identity composite key is derived. The new Mac wrote a record under a new composite key; the old record persists in CloudKit indefinitely with `accountEmail == nil` in payload. Rule 1 fires only when a real-email sibling exists, so it doesn't false-positive on legitimately accountless providers (Claude with hide-email, etc.).
+- **Rule 2 · stale relative to device freshness, applied only to nil-email entries**. Drop entries whose `accountEmail` is nil/empty AND whose `lastUpdated` lags more than 30 min behind the device's freshest entry. Catches records of providers the user disabled — Mac stops writing, the record persists with its last-known timestamp. Real-email entries are exempt: legit multi-account providers (e.g., two Codex accounts on the same Mac with different emails) can refresh on independent cadences when one is hot and the other idle, and Mac always assigns emails to such accounts. 30 min is wider than any real-provider refresh cadence (the slowest browser-cookie providers refresh well under that), so won't false-positive on slow-syncing accountless providers.
+
+Filter applies at **read** time (`buildDeviceSnapshots`), not write time, so:
+- Incremental delta updates can never trim freshly-arrived peer records that briefly look "stale" before the cycle completes.
+- The cache continues to hold raw zone state; only the displayed view is filtered.
+- When Mac resumes writing for a disabled provider, the device's freshness moves forward and the previously-filtered record either gets dropped from CloudKit (when Mac 0.23 ships with the proper delete-on-disable hook) or returns to view if Mac re-enables and refreshes it.
+- Toggling the user's iOS app off/on doesn't change the filter outcome — it's purely data-driven.
+
+If all per-provider entries for a device are filtered out, the read code falls back to the device's legacy zone snapshot (if any) so the device doesn't disappear entirely.
+
+### Tests
+
+`SnapshotCacheTests` +5 cases:
+- `orphanNilEmailDroppedWhenRealEmailSiblingExists` — exact reproduction of user's "Codex + Codex 2" symptom; cache holds both raw entries, but `buildDeviceSnapshots` filters the orphan.
+- `multipleNilEmailLegitWhenNoRealEmailSibling` — guards against false-positives when no sibling has a real email.
+- `staleTTLDropsLaggingProvider` — Perplexity-after-disable: lagging 45 min behind the device's freshest is dropped.
+- `staleTTLPreservesSingleRecordDevice` — offline Mac with hours-old data; single record is its own freshest, kept.
+- `staleTTLKeepsRecentlyRefreshedProviders` — typical refresh sequencing with seconds between providers; both kept.
+- `combinedOrphanAndStale` — exact 4-card mbp scenario the user reported; result has only the 2 active providers (Codex + Claude).
+
+### Notes
+
+- Existing ghost records persist in CloudKit until the Mac 0.23 release lands the proper Mac-side fixes (`SyncCoordinator` delete-on-disable + identity-drift cleanup, planned in Research/016 Phase 1 follow-ups). Build 94 is the **iOS-only mitigation** that filters them at display so users on iOS 1.3.0 + any Mac version see correct state immediately.
+- The cache's existing `isGhost` filter (Build 66, all-nil-data envelopes) is unchanged and stacks with `dropOrphansAndStale`.
+
 ## [1.3.0 (93)] — 2026-04-25 — dev build · CI gate against state="new" xcstrings entries
 
 ### Added
