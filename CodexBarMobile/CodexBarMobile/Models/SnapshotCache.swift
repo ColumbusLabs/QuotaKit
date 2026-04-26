@@ -210,8 +210,19 @@ struct SnapshotCache: Sendable {
     /// typically feeds this through `CloudSyncReader.mergeSnapshots` for the
     /// final cross-device merge.
     ///
-    /// Applies `dropOrphansAndStale` to each device's per-provider bucket
-    /// before reconstruction — see that function for the two filter rules.
+    /// Applies `dropOrphansAndStale` to BOTH the per-provider bucket and
+    /// the legacy bucket before reconstruction. Both code paths apply the
+    /// same filter so:
+    /// 1. Pre-Build-94 SwiftData rows hydrate (which seed `legacyByDevice`
+    ///    and bypass the per-provider path entirely) still get cleaned —
+    ///    fixes the cold-start orphan-flicker on first launch after
+    ///    upgrading from 1.3.0 to 1.3.1.
+    /// 2. Mac's legacy zone snapshot (`Sources/CodexBar/Sync/SyncCoordinator.swift`
+    ///    only writes `enabledProviders()` so it's normally clean), but if
+    ///    a Mac is mid-upgrade or in a weird state and writes an orphan to
+    ///    legacy too, we catch it.
+    ///
+    /// See `dropOrphansAndStale` for the two filter rules.
     func buildDeviceSnapshots() -> [SyncedUsageSnapshot] {
         var result: [SyncedUsageSnapshot] = []
         let allDeviceIDs = Set(self.perProviderByDevice.keys)
@@ -225,9 +236,10 @@ struct SnapshotCache: Sendable {
                 if byComposite.isEmpty {
                     // All per-provider entries filtered as orphan/stale —
                     // fall back to legacy if available so the device doesn't
-                    // disappear entirely.
+                    // disappear entirely. Apply the same filter to legacy
+                    // for consistency.
                     if let legacy = self.legacyByDevice[deviceID] {
-                        result.append(legacy)
+                        result.append(Self.filterSnapshotProviders(legacy))
                     }
                     continue
                 }
@@ -244,12 +256,42 @@ struct SnapshotCache: Sendable {
                     mobileVersion: meta?.mobileVersion,
                     notificationPushEnabled: meta?.notificationPushEnabled))
             } else if let legacy = self.legacyByDevice[deviceID] {
-                result.append(legacy)
+                result.append(Self.filterSnapshotProviders(legacy))
             }
         }
 
         result.sort { $0.syncTimestamp > $1.syncTimestamp }
         return result
+    }
+
+    /// Apply `dropOrphansAndStale` to a `SyncedUsageSnapshot.providers` list
+    /// by round-tripping through the same `[compositeKey: Provider]` shape
+    /// the per-provider path uses. Returns a snapshot identical to the
+    /// input except with orphan / stale providers removed.
+    private static func filterSnapshotProviders(
+        _ snapshot: SyncedUsageSnapshot
+    ) -> SyncedUsageSnapshot {
+        guard !snapshot.providers.isEmpty else { return snapshot }
+        var byComposite: [String: ProviderUsageSnapshot] = [:]
+        for provider in snapshot.providers {
+            byComposite[Self.compositeKey(for: provider)] = provider
+        }
+        let filtered = Self.dropOrphansAndStale(byComposite)
+        guard filtered.count != snapshot.providers.count else {
+            // No filtering needed; return original to avoid reordering /
+            // allocation churn for the common-case clean path.
+            return snapshot
+        }
+        let filteredProviders = filtered.values
+            .sorted { $0.lastUpdated > $1.lastUpdated }
+        return SyncedUsageSnapshot(
+            providers: Array(filteredProviders),
+            syncTimestamp: snapshot.syncTimestamp,
+            deviceName: snapshot.deviceName,
+            deviceID: snapshot.deviceID,
+            appVersion: snapshot.appVersion,
+            mobileVersion: snapshot.mobileVersion,
+            notificationPushEnabled: snapshot.notificationPushEnabled)
     }
 
     /// Drop per-provider entries that are almost certainly orphan / stale

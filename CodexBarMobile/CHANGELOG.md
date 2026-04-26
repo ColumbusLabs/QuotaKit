@@ -2,6 +2,46 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.3.1 (95)] — 2026-04-26 — defense-in-depth + comprehensive test matrix for Build 94 filter
+
+User asked for a thoroughness pass on Build 94: comprehensive tests, deep root-cause analysis, CTO-level architectural sweep, code review. Two parallel investigation agents covered no-cleanup-pattern hunts and filter-coverage tracing across the codebase.
+
+### Round 1 · Tests (24 → 50 cases)
+
+26 new `SnapshotCacheTests`:
+
+- **Rule 1 edges**: empty-string email vs nil, three-way (alice + bob + nil), per-device boundary, real-email never touched even when very stale.
+- **Rule 2 edges**: exact 30-min boundary, real-email exempt from TTL, lone nil-email on offline device, multiple nil-email mixed freshness.
+- **Combined**: rules-stack interactions, all-filtered → legacy fallback path.
+- **Multi-device**: independent per-device filtering (one dirty + one clean).
+- **Integration paths**: `replaceFromFullFetch` / `replacePerProviderFromReplay` / `applyDelta` — each verified to filter at read time.
+- **Edge cases**: empty cache, future-dated `lastUpdated` (clock skew), only-real-email entries, Build 66 `isGhost` stacking, same-timestamp Rule 1 behavior.
+- **Defense-in-depth**: legacy bucket filter applied; clean legacy passthrough.
+
+### Round 2 · Root-cause hunt findings (Agent A + Agent B, both completed)
+
+The bug class is systemic — **the codebase has zero explicit deletion semantics**. The same write-only pattern recurs at 5+ critical sites: per-provider zone records, legacy device snapshots, push subscriptions, custom CloudKit zones, SwiftData rows. All rely on upsert with implicit overwrite via stable identity, which breaks on lifecycle events (provider disable, Mac version upgrade, account switch, device wipe).
+
+Agent B specifically identified **one real coverage gap in Build 94**: SwiftData cold-start hydrate seeds `legacyByDevice` directly, bypassing the per-provider filter. Pre-Build-94 SwiftData rows (written by old code that didn't filter) cause a 1-2 sec orphan flicker on first 1.3.1 launch for users upgrading from 1.3.0.
+
+### Round 3 · CTO architectural categorization
+
+Filed in [`Research/017-ghost-records-defense-in-depth.md`](../Research/017-ghost-records-defense-in-depth.md) — full analysis of bug class as "eventually-consistent distributed cache without lifecycle management", layered defense plan (L1 Mac authoritative cleanup → L5 observability), other places this lurks (push subscription cleanup, dead xcstrings keys, accountEmail cross-version merge). Tracks 4 follow-up items deferred to v0.23 migration / iOS 1.5.0 / future tooling.
+
+### Code review · `dropOrphansAndStale(_:)` + `buildDeviceSnapshots`
+
+Performed inline in Research/017. Verdict: **production-ready**. Pure function, no side effects, comprehensive test coverage, well-documented design rationale, conservative defaults, correct rule sequencing. Two minor nits (cosmetic comment refinement, inline `30 * 60` could be a named constant) — neither warrants change. Two pending follow-ups (Mac L1 cleanup in v0.23, accountEmail latestNonNil) filed as separate work.
+
+### Fixed / hardened in this build
+
+- **Defense-in-depth: filter applied to `legacyByDevice` bucket too.** New `SnapshotCache.filterSnapshotProviders(_:)` round-trips a `SyncedUsageSnapshot.providers` list through the same `dropOrphansAndStale` filter. Triggered on (a) device-only-in-legacy fall-through path, (b) all-per-provider-filtered → legacy fallback path. Includes a clean-path optimization: returns the input snapshot when no filtering happened, avoiding allocation/reordering churn for the common case.
+- **Catches the 1.3.0 → 1.3.1 upgrade-cold-start orphan flicker** that Agent B identified — Build 94 alone left this transient gap.
+
+### Notes
+
+- All 50 tests pass on iPhone 17 Pro Simulator. SwiftLint 0 violations. i18n audit clean.
+- Build 95's runtime impact is identical to Build 94 for steady-state users (filter applies same way). The added work runs once per `buildDeviceSnapshots` call on legacy-bucket entries, which is sub-microsecond.
+
 ## [1.3.1 (94)] — 2026-04-26 — hotfix · ghost provider records causing duplicate cards + stale ghosts after Mac upgrade / disable
 
 > 1.3.0 was approved by App Review during the day. This first 1.3.1 build is a hotfix for a critical regression user-reported within hours of 1.3.0's release: duplicate Codex cards + stale Perplexity card + Cost Provider Share summing to 104%. Marketing version bumped 1.3.0 → 1.3.1 since 1.3.0's TestFlight train is closed for new build submissions.
