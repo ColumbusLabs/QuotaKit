@@ -2,7 +2,9 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [1.3.0 (94)] — 2026-04-26 — dev build · ghost provider records causing duplicate cards + stale ghosts after Mac upgrade / disable
+## [1.3.1 (94)] — 2026-04-26 — hotfix · ghost provider records causing duplicate cards + stale ghosts after Mac upgrade / disable
+
+> 1.3.0 was approved by App Review during the day. This first 1.3.1 build is a hotfix for a critical regression user-reported within hours of 1.3.0's release: duplicate Codex cards + stale Perplexity card + Cost Provider Share summing to 104%. Marketing version bumped 1.3.0 → 1.3.1 since 1.3.0's TestFlight train is closed for new build submissions.
 
 ### Fixed
 
