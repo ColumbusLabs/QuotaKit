@@ -2,6 +2,61 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.0 (98)] — 2026-04-27 — multi-version Mac account merge
+
+Fixes the recurring "two cards for one Codex account when one Mac is on
+0.23 and another on 0.20.3" failure surfaced during the Build 57 / 96
+QA. Replaces the single-key `(providerID, accountEmail)` grouping in
+`CloudSyncReader.mergeSnapshots` with an identifier-set union-find that
+tolerates schema drift across Mac versions. Architecture in
+[Research/019](Research/019-account-identity-multi-version-merge.md).
+
+### Wire format · `Shared/Models/UsageSnapshot.swift`
+
+- New optional `accountIdentities: [String]?` on `ProviderUsageSnapshot`,
+  decoded via `decodeIfPresent`. Mac writes a stable identifier set
+  (e.g. `["codex:account:org-abc", "codex:email:user@example.com"]`);
+  iOS unions across Macs by shared identifier.
+- Old Mac payloads (≤ 0.20.x) decode the field as `nil`. iOS synthesizes
+  `"{providerID}:email:<lowered>"` from `accountEmail` when present, so
+  legacy and modern Macs sharing the same email **automatically merge**.
+
+### iOS · CloudSyncReader.mergeSnapshots refactor
+
+- Effective-identifier synthesis: explicit accountIdentities → email
+  fallback → `"{providerID}:legacy-no-identity"` bucket (preserves the
+  pre-019 behavior where multiple all-legacy Macs collapsed into one
+  card).
+- Union-find via shared identifier strings; connected components reduce
+  through `mergeProviderEntries`.
+- Provider IDs are baked into every identifier string so two providers
+  can never cross-merge even if they share the same email.
+
+### Tests · 15 new XCTest cases
+
+- `AccountIdentityMergeTests` covers the 11-case test matrix from
+  Research/019 §8 (same-version, version-behind, version-ahead,
+  transition period, hard-drop policy followed/violated, transitive
+  merge, cross-provider isolation, legacy bridge, etc.) plus 4
+  effective-identifier synthesis tests.
+- All 221 existing iOS unit tests continue to pass.
+
+### Mac side · `Sources/CodexBarCore/Sync/AccountIdentityComputer.swift`
+
+- New `AccountIdentityComputer.compute(provider:identity:)` returns an
+  identifier set for Codex / Claude / VertexAI (Tier-A); nil for the
+  other 24 providers.
+- Normalization: lowercase + Unicode NFC + trim + URL-percent-encode
+  the value + 256-char cap. Time-bounded values forbidden.
+- 14 Mac-side XCTest cases pin the contract.
+
+### Out of scope (Research/019 §11 deferred items)
+
+L3 user-confirmed `LinkageRecord` is documented but not implemented in
+this build — it's only triggered when L1 (Mac multi-identifier writes)
++ L2 (iOS union-find) fail, which requires a deprecation-policy
+violation we control. Will land if/when that path is exercised.
+
 ## [1.5.0 (97)] — 2026-04-27 — model-name fallback resolver (Mac 0.23 partner build)
 
 Ships the iOS half of a fork-only fallback subsystem in the Mac cost
