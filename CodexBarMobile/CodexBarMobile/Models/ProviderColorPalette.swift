@@ -38,6 +38,23 @@ enum ProviderColorPalette {
             return .mint
         }
 
+        // Specific new providers from upstream v0.21 / v0.23 (iOS 1.5.0).
+        if normalized.contains("abacus") {
+            // Abacus AI — brown/amber (#8B5E3C). Distinct from Claude's
+            // orange-tan (warmer hue) and from any of the existing colors.
+            // Picked to evoke the wooden-bead-counter abacus association
+            // while staying readable in dark mode against neutral cards.
+            return Color(red: 0.55, green: 0.37, blue: 0.24)
+        }
+        if normalized.contains("mistral") {
+            // Mistral — vibrant red (#E63946). Mistral's official brand
+            // color is fire-orange (#FF7A00) but that collides with
+            // Claude's orange-tan; shifting to red preserves the warm-tone
+            // brand intent while staying visually distinct in the card
+            // grid and the 30-day utilization stacked bar chart.
+            return Color(red: 0.90, green: 0.22, blue: 0.27)
+        }
+
         // Existing provider mappings — preserved from pre-1.3.0 behavior.
         if normalized.contains("claude") || normalized.contains("anthropic") {
             return Color(red: 0.82, green: 0.55, blue: 0.28)

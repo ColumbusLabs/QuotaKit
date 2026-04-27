@@ -1767,8 +1767,37 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.3.0",
+            version: "1.5.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "Upstream v0.21–0.23 provider alignment — Abacus AI + Mistral as new providers, Claude Designs / Daily Routines / Web Sonnet bars, Cursor Extra usage, Synthetic 5h-weekly-search lanes. Requires updated Mac app."),
+            sections: [
+                .init(
+                    title: String(localized: "Important"),
+                    items: [
+                        String(localized: "Update CodexBar on Mac to 0.23 (Build 56.1.3.1) or later to see Abacus AI, Mistral, and the new Claude / Cursor / Synthetic usage bars. Older Mac versions still sync the providers you have enabled, just without the new metrics. Download from github.com/o1xhack/CodexBar/releases."),
+                    ]),
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(localized: "Abacus AI support — when you enable Abacus on Mac 0.23+, your iPhone shows the monthly compute-credit usage with billing-cycle countdown. Quota depleted / restored push notifications work like the other 25 providers."),
+                        String(localized: "Mistral support — monthly spend and renewal date sync to your iPhone. Push notifications fire on quota events."),
+                        String(localized: "Claude extras — Designs, Daily Routines, and Web Sonnet usage bars now appear on the Claude detail page when your account exposes those quotas via OAuth or the Web app."),
+                        String(localized: "Cursor Extra usage — on-demand budget gauge from Cursor's menu bar metric is now visible on the Cursor detail page when the budget is enabled."),
+                        String(localized: "Synthetic 3-lane labels — five-hour quota, weekly tokens, and search hourly are labeled correctly on the detail page instead of generic Session / Weekly fallback labels."),
+                        String(localized: "Codex Pro $100 plan badge — the new Pro $100 / prolite plan names from upstream v0.21 sync through and display in the account-info capsule on each Codex card."),
+                        String(localized: "Color palette extended — Abacus uses a warm brown tone, Mistral a vibrant red. Both stay distinct from existing provider colors across cards, charts, and the share image."),
+                    ]),
+                .init(
+                    title: String(localized: "Under the hood"),
+                    items: [
+                        String(localized: "Mac-side ghost-records cleanup — when you disable a provider on Mac or your Codex account identity changes after a Mac upgrade, the old CloudKit record is now actively deleted at the source. Combines with the iOS 1.3.1 display-time filter for double protection against stale cards."),
+                        String(localized: "27 providers / 54 push-subscription zones — the push-notification subscription set automatically expands on first launch to cover Abacus AI and Mistral alongside the existing 25 providers."),
+                        String(localized: "Wire-format unchanged — iOS 1.3.x users on the same iCloud account see the new providers as fallback cards (color-tinted) without crashing or missing data; existing 25 providers stay fully functional. iOS 1.5.0 adds the structured rendering for the new ones."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.3.0",
+            status: "",
             summary: String(localized: "Upstream v0.20 provider alignment — Perplexity + OpenCode Go, Codex multi-account cards, SwiftData-backed local cache. Requires updated Mac app."),
             sections: [
                 .init(

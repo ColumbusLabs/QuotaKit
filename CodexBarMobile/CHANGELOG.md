@@ -2,6 +2,46 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.0 (96)] — 2026-04-27 — upstream v0.21–0.23 alignment (T1–T9)
+
+iOS-side consumption of Mac v0.23. Every user-visible delta from upstream's 0.21 / 0.22 / 0.23 (Abacus AI + Mistral providers, Claude Designs / Daily Routines / Web Sonnet bars, Cursor Extra usage, Synthetic 5h-weekly-search lane labels, Codex Pro $100 plan) flows to iPhone via the existing wire format that Mac v0.23 already populates — no new Codable types added. Skipped 1.4.0 because 1.3.1 was the App Store hotfix train.
+
+### Added · push subscriptions
+
+- **`Shared/Notifications/QuotaProviderList.swift`** — `Provider(id: "abacus", displayName: "Abacus AI")` + `Provider(id: "mistral", displayName: "Mistral")` appended after the 25-provider tail. Subscription set automatically expands to 54 zones (27 providers × 2 states) on first launch via the existing diff-driven `setupIfNeeded()` path.
+
+### Added · provider color palette
+
+- **`ProviderColorPalette.color(for:)`** — Abacus AI gets warm brown `(0.55, 0.37, 0.24)`, Mistral gets vibrant red `(0.90, 0.22, 0.27)`. Both placed BEFORE the broader Claude / Codex rules so substring fallback ordering preserves specificity. Distinctness from Claude pinned via test (Δ > 0.10 perceptual).
+
+### Added · in-app release notes catalog
+
+- **`MobileReleaseNotesCatalog.versions`** — new `1.5.0` entry as `Latest`, demoting `1.3.0` to historical. Three sections (Important / What's New / Under the hood) covering all T1–T9 user-facing items. 12 new strings added to `Localizable.xcstrings` with full 4-language translations (en / zh-Hans / zh-Hant / ja); CI i18n audit clean.
+
+### Tests
+
+- **`ProviderColorPaletteTests`** — 7 new cases covering Abacus + Mistral colors, distinctness from Claude (cause-oriented Δ-pinning), distinctness from each other, normalization (`"Abacus AI"` ↔ `"abacus"`), and fallback unchanged for unknown providers.
+- **`QuotaProviderListTests`** — new file, 9 cases. Outcome: count 27, subscription zones 54, abacus + mistral present with correct displayNames. Cause: providerID format invariant (lowercase, no whitespace), zone name template wire-contract, additive append ordering, no duplicates, catalog cross-coupling.
+- All 221 iOS tests pass (16 suites). SwiftLint 0 violations. i18n audit clean.
+
+### What did NOT need iOS code changes
+
+T3–T8 reduced to "no code change" after re-examining Mac v0.23's actual `toUsageSnapshot()` data shapes:
+
+- **T3 Abacus detail** — single credit pool maps to one `RateWindow`; iOS rate-window section already renders correctly.
+- **T4 Mistral detail** — spend lives in `RateWindow.resetDescription` as `"$X.XXXX this month"`; iOS shows it in subtitle. Cost-style large-number rendering deferred to future polish.
+- **T5 Codex Pro $100 / GPT-5.5** — `loginMethod` capsule already renders the plan name string; raw model IDs in cost breakdown are consistent with existing Claude / GPT-5.4 display style. No beautifier added.
+- **T6 Claude extras** — Mac v0.23 SyncCoordinator passes through `extraRateWindows` to the existing `rateWindows` array (with `NamedRateWindow.title` as label); iOS detail page already iterates the array.
+- **T7 Cursor Extra** — same path as T6.
+- **T8 Synthetic 3-lane labels** — Mac's `SyntheticProviderDescriptor.metadata` already pushes `"Five-hour quota"` / `"Weekly tokens"` / `"Search hourly"` as labels via primary / secondary / tertiary; iOS `defaultLabel` fallback never fires.
+
+iOS-side compat with old Mac (still on 0.20.3): every new field is `decodeIfPresent` optional, Build 79 forward-compat regression test pins the silent-drop-unknown-keys behavior. No regression.
+
+### Notes
+
+- Mac v0.23 still in QA (Sparkle draft pending publish). iOS 1.5.0 ships independently; users running iOS 1.5.0 with Mac 0.20.3 see the existing 25 providers fully and don't see Abacus/Mistral until they update Mac.
+- 1.3.1 stays as the most recent App Store-shipped train; 1.5.0 enters TestFlight first.
+
 ## [1.3.1 (95)] — 2026-04-26 — defense-in-depth + comprehensive test matrix for Build 94 filter
 
 User asked for a thoroughness pass on Build 94: comprehensive tests, deep root-cause analysis, CTO-level architectural sweep, code review. Two parallel investigation agents covered no-cleanup-pattern hunts and filter-coverage tracing across the codebase.

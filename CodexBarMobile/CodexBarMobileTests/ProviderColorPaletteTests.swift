@@ -102,6 +102,100 @@ struct ProviderColorPaletteTests {
             UIColor(ProviderColorPalette.color(for: "openrouter"))
                 .isApproximately(expected))
     }
+
+    // MARK: - iOS 1.5.0 · Abacus + Mistral additions
+
+    @Test("Abacus AI resolves to its warm brown tone")
+    func abacusIsBrown() {
+        let expected = UIColor(red: 0.55, green: 0.37, blue: 0.24, alpha: 1)
+        #expect(UIColor(ProviderColorPalette.color(for: "abacus")).isApproximately(expected))
+    }
+
+    @Test("Mistral resolves to its vibrant red")
+    func mistralIsRed() {
+        let expected = UIColor(red: 0.90, green: 0.22, blue: 0.27, alpha: 1)
+        #expect(UIColor(ProviderColorPalette.color(for: "mistral")).isApproximately(expected))
+    }
+
+    /// Cause-oriented: Abacus's brown is in the same warm-tone family as
+    /// Claude's brand orange-tan. A naive future palette change that
+    /// shifts Abacus closer to Claude would silently regress the visual
+    /// distinguishability that's the whole point of T2. Pin the delta.
+    @Test("Cause: Abacus brown is visually distinct from Claude orange")
+    func abacusDistinctFromClaude() {
+        let abacus = UIColor(ProviderColorPalette.color(for: "abacus"))
+        let claude = UIColor(ProviderColorPalette.color(for: "claude"))
+        // Components in [0,1]; require > 0.10 cumulative L1 delta across RGB
+        // (perceptual distinguishability rule of thumb on neutral cards).
+        var aR: CGFloat = 0; var aG: CGFloat = 0; var aB: CGFloat = 0; var aA: CGFloat = 0
+        var cR: CGFloat = 0; var cG: CGFloat = 0; var cB: CGFloat = 0; var cA: CGFloat = 0
+        _ = abacus.getRed(&aR, green: &aG, blue: &aB, alpha: &aA)
+        _ = claude.getRed(&cR, green: &cG, blue: &cB, alpha: &cA)
+        let delta = abs(aR - cR) + abs(aG - cG) + abs(aB - cB)
+        #expect(delta > 0.10, "Abacus and Claude must stay perceptually distinct (Δ=\(delta))")
+    }
+
+    /// Cause-oriented: Mistral's brand color is fire-orange (#FF7A00) —
+    /// we deliberately shifted to red to avoid clashing with Claude's
+    /// orange-tan. If anyone "restores" the brand orange, this test
+    /// catches the collision before it ships.
+    @Test("Cause: Mistral red is visually distinct from Claude orange")
+    func mistralDistinctFromClaude() {
+        let mistral = UIColor(ProviderColorPalette.color(for: "mistral"))
+        let claude = UIColor(ProviderColorPalette.color(for: "claude"))
+        var mR: CGFloat = 0; var mG: CGFloat = 0; var mB: CGFloat = 0; var mA: CGFloat = 0
+        var cR: CGFloat = 0; var cG: CGFloat = 0; var cB: CGFloat = 0; var cA: CGFloat = 0
+        _ = mistral.getRed(&mR, green: &mG, blue: &mB, alpha: &mA)
+        _ = claude.getRed(&cR, green: &cG, blue: &cB, alpha: &cA)
+        let delta = abs(mR - cR) + abs(mG - cG) + abs(mB - cB)
+        #expect(delta > 0.10, "Mistral and Claude must stay perceptually distinct (Δ=\(delta))")
+    }
+
+    /// Cause-oriented: Abacus and Mistral are both "new" so they could
+    /// have been picked too close to each other. Pin the delta so a
+    /// future palette tuning of one doesn't accidentally walk into the
+    /// other.
+    @Test("Cause: Abacus and Mistral are distinct from each other")
+    func abacusDistinctFromMistral() {
+        let abacus = UIColor(ProviderColorPalette.color(for: "abacus"))
+        let mistral = UIColor(ProviderColorPalette.color(for: "mistral"))
+        var aR: CGFloat = 0; var aG: CGFloat = 0; var aB: CGFloat = 0; var aA: CGFloat = 0
+        var mR: CGFloat = 0; var mG: CGFloat = 0; var mB: CGFloat = 0; var mA: CGFloat = 0
+        _ = abacus.getRed(&aR, green: &aG, blue: &aB, alpha: &aA)
+        _ = mistral.getRed(&mR, green: &mG, blue: &mB, alpha: &mA)
+        let delta = abs(aR - mR) + abs(aG - mG) + abs(aB - mB)
+        #expect(delta > 0.10, "Abacus and Mistral must stay perceptually distinct (Δ=\(delta))")
+    }
+
+    /// Cause-oriented: the palette uses substring `contains` matching.
+    /// Mac's provider IDs are kebab-case ASCII (`abacus`, `mistral`),
+    /// but a display name like `"Abacus AI"` (with space) is normalized
+    /// to `"abacusai"` and must still resolve to brown. Without this
+    /// test, a future provider with substring `aba` could silently
+    /// inherit Abacus's color.
+    @Test("Abacus matches both providerID and displayName (normalization)")
+    func abacusNormalization() {
+        let byID = UIColor(ProviderColorPalette.color(for: "abacus"))
+        let byName = UIColor(ProviderColorPalette.color(for: "Abacus AI"))
+        #expect(byID.isApproximately(byName))
+    }
+
+    @Test("Mistral matches both providerID and displayName (normalization)")
+    func mistralNormalization() {
+        let byID = UIColor(ProviderColorPalette.color(for: "mistral"))
+        let byName = UIColor(ProviderColorPalette.color(for: "Mistral"))
+        #expect(byID.isApproximately(byName))
+    }
+
+    /// Cause-oriented: the existing fallback for unknown providers is
+    /// `.blue`. Adding new specific entries (Abacus, Mistral) must NOT
+    /// shift the unknown fallback. Pin it.
+    @Test("Cause: unknown provider unchanged at .blue after Abacus/Mistral additions")
+    func unknownStillBlueAfter150() {
+        #expect(
+            UIColor(ProviderColorPalette.color(for: "future-llm-provider"))
+                .isApproximately(UIColor(.blue)))
+    }
 }
 
 // MARK: - Test helpers

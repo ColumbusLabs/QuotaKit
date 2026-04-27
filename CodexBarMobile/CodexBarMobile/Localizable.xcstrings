@@ -7318,6 +7318,354 @@
           }
         }
       }
+    },
+    "Upstream v0.21–0.23 provider alignment — Abacus AI + Mistral as new providers, Claude Designs / Daily Routines / Web Sonnet bars, Cursor Extra usage, Synthetic 5h-weekly-search lanes. Requires updated Mac app.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upstream v0.21–0.23 provider alignment — Abacus AI + Mistral as new providers, Claude Designs / Daily Routines / Web Sonnet bars, Cursor Extra usage, Synthetic 5h-weekly-search lanes. Requires updated Mac app."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对齐上游 v0.21–0.23 —— 新增 Abacus AI + Mistral、Claude Designs / Daily Routines / Web Sonnet 三条 bar、Cursor Extra 用量、Synthetic 五小时-周-搜索三 lane 标签。需要更新 Mac 应用。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "對齊上游 v0.21–0.23 —— 新增 Abacus AI + Mistral、Claude Designs / Daily Routines / Web Sonnet 三條 bar、Cursor Extra 用量、Synthetic 五小時-週-搜尋三 lane 標籤。需要更新 Mac 應用程式。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アップストリーム v0.21–0.23 へのアラインメント — Abacus AI + Mistral の追加、Claude Designs / Daily Routines / Web Sonnet バー、Cursor Extra 使用量、Synthetic 5時間-週-検索の3レーン。Mac アプリの更新が必要です。"
+          }
+        }
+      }
+    },
+    "Update CodexBar on Mac to 0.23 (Build 56.1.3.1) or later to see Abacus AI, Mistral, and the new Claude / Cursor / Synthetic usage bars. Older Mac versions still sync the providers you have enabled, just without the new metrics. Download from github.com/o1xhack/CodexBar/releases.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update CodexBar on Mac to 0.23 (Build 56.1.3.1) or later to see Abacus AI, Mistral, and the new Claude / Cursor / Synthetic usage bars. Older Mac versions still sync the providers you have enabled, just without the new metrics. Download from github.com/o1xhack/CodexBar/releases."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将 Mac 端 CodexBar 更新到 0.23（Build 56.1.3.1）或更高版本，才能看到 Abacus AI、Mistral 以及 Claude / Cursor / Synthetic 的新用量 bar。旧 Mac 版本仍同步你启用的现有 provider，只是没有这些新指标。下载地址：github.com/o1xhack/CodexBar/releases。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "將 Mac 端 CodexBar 更新到 0.23（Build 56.1.3.1）或更高版本，才能看到 Abacus AI、Mistral 以及 Claude / Cursor / Synthetic 的新用量 bar。舊 Mac 版本仍同步你啟用的現有 provider，只是沒有這些新指標。下載地址：github.com/o1xhack/CodexBar/releases。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abacus AI、Mistral、および Claude / Cursor / Synthetic の新しい使用量バーを表示するには、Mac の CodexBar を 0.23（Build 56.1.3.1）以降に更新してください。古い Mac バージョンでも有効な provider は引き続き同期されますが、これらの新しいメトリクスは表示されません。ダウンロード：github.com/o1xhack/CodexBar/releases"
+          }
+        }
+      }
+    },
+    "Abacus AI support — when you enable Abacus on Mac 0.23+, your iPhone shows the monthly compute-credit usage with billing-cycle countdown. Quota depleted / restored push notifications work like the other 25 providers.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abacus AI support — when you enable Abacus on Mac 0.23+, your iPhone shows the monthly compute-credit usage with billing-cycle countdown. Quota depleted / restored push notifications work like the other 25 providers."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abacus AI 支持 —— 在 Mac 0.23+ 启用 Abacus 后，iPhone 显示月度计算 credit 用量与计费周期倒计时。额度耗尽 / 恢复推送跟其他 25 个 provider 一致。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abacus AI 支援 —— 在 Mac 0.23+ 啟用 Abacus 後，iPhone 顯示月度計算 credit 用量與計費週期倒數計時。額度耗盡 / 恢復推送跟其他 25 個 provider 一致。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abacus AI サポート — Mac 0.23+ で Abacus を有効にすると、iPhone に月次コンピュートクレジット使用量と請求サイクルのカウントダウンが表示されます。クォータ枯渇 / 復帰のプッシュ通知は他の 25 個の provider と同じように動作します。"
+          }
+        }
+      }
+    },
+    "Mistral support — monthly spend and renewal date sync to your iPhone. Push notifications fire on quota events.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mistral support — monthly spend and renewal date sync to your iPhone. Push notifications fire on quota events."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mistral 支持 —— 月费与续期日期同步到 iPhone。额度事件触发推送通知。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mistral 支援 —— 月費與續期日期同步到 iPhone。額度事件觸發推送通知。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mistral サポート — 月額費用と更新日が iPhone に同期されます。クォータイベントでプッシュ通知が発火します。"
+          }
+        }
+      }
+    },
+    "Claude extras — Designs, Daily Routines, and Web Sonnet usage bars now appear on the Claude detail page when your account exposes those quotas via OAuth or the Web app.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude extras — Designs, Daily Routines, and Web Sonnet usage bars now appear on the Claude detail page when your account exposes those quotas via OAuth or the Web app."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude 额外用量 —— Designs、Daily Routines、Web Sonnet 三条用量 bar 现在在 Claude 详情页出现，前提是你的账号通过 OAuth 或 Web 应用暴露这些额度。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude 額外用量 —— Designs、Daily Routines、Web Sonnet 三條用量 bar 現在在 Claude 詳情頁出現，前提是你的帳號透過 OAuth 或 Web 應用程式暴露這些額度。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude エクストラ — アカウントが OAuth または Web アプリ経由でこれらのクォータを公開している場合、Designs、Daily Routines、Web Sonnet の使用量バーが Claude 詳細ページに表示されます。"
+          }
+        }
+      }
+    },
+    "Cursor Extra usage — on-demand budget gauge from Cursor's menu bar metric is now visible on the Cursor detail page when the budget is enabled.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cursor Extra usage — on-demand budget gauge from Cursor's menu bar metric is now visible on the Cursor detail page when the budget is enabled."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cursor Extra 用量 —— 启用 on-demand budget 时，Cursor 菜单栏的预算指标现在在 Cursor 详情页可见。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cursor Extra 用量 —— 啟用 on-demand budget 時，Cursor 選單列的預算指標現在在 Cursor 詳情頁可見。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cursor Extra 使用量 — オンデマンド予算が有効な場合、Cursor のメニューバーメトリクスが Cursor 詳細ページに表示されます。"
+          }
+        }
+      }
+    },
+    "Synthetic 3-lane labels — five-hour quota, weekly tokens, and search hourly are labeled correctly on the detail page instead of generic Session / Weekly fallback labels.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synthetic 3-lane labels — five-hour quota, weekly tokens, and search hourly are labeled correctly on the detail page instead of generic Session / Weekly fallback labels."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synthetic 三 lane 标签 —— 详情页正确显示「五小时额度 / 周 token / 搜索每小时」，不再用通用的 Session / Weekly 默认标签。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synthetic 三 lane 標籤 —— 詳情頁正確顯示「五小時額度 / 週 token / 搜尋每小時」，不再用通用的 Session / Weekly 預設標籤。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synthetic 3レーンラベル — 5時間クォータ、週次トークン、時間ごと検索が詳細ページで正しくラベル表示され、汎用的な Session / Weekly フォールバックラベルではなくなりました。"
+          }
+        }
+      }
+    },
+    "Codex Pro $100 plan badge — the new Pro $100 / prolite plan names from upstream v0.21 sync through and display in the account-info capsule on each Codex card.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Pro $100 plan badge — the new Pro $100 / prolite plan names from upstream v0.21 sync through and display in the account-info capsule on each Codex card."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Pro $100 套餐徽章 —— 上游 v0.21 引入的 Pro $100 / prolite 套餐名同步到 iPhone，在每张 Codex 卡的账户信息 capsule 中显示。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Pro $100 方案徽章 —— 上游 v0.21 引入的 Pro $100 / prolite 方案名同步到 iPhone，在每張 Codex 卡的帳戶資訊 capsule 中顯示。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Pro $100 プランバッジ — アップストリーム v0.21 の新しい Pro $100 / prolite プラン名が同期され、各 Codex カードのアカウント情報カプセルに表示されます。"
+          }
+        }
+      }
+    },
+    "Color palette extended — Abacus uses a warm brown tone, Mistral a vibrant red. Both stay distinct from existing provider colors across cards, charts, and the share image.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Color palette extended — Abacus uses a warm brown tone, Mistral a vibrant red. Both stay distinct from existing provider colors across cards, charts, and the share image."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配色扩展 —— Abacus 使用温暖的棕色，Mistral 用鲜艳的红色。两者在卡片、图表、分享卡中都与现有 provider 颜色保持区分。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配色擴展 —— Abacus 使用溫暖的棕色，Mistral 用鮮豔的紅色。兩者在卡片、圖表、分享卡中都與現有 provider 顏色保持區分。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カラーパレットを拡張 — Abacus は温かみのあるブラウン、Mistral は鮮やかな赤を使用します。どちらもカード、チャート、シェア画像で既存の provider カラーと区別されます。"
+          }
+        }
+      }
+    },
+    "Mac-side ghost-records cleanup — when you disable a provider on Mac or your Codex account identity changes after a Mac upgrade, the old CloudKit record is now actively deleted at the source. Combines with the iOS 1.3.1 display-time filter for double protection against stale cards.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac-side ghost-records cleanup — when you disable a provider on Mac or your Codex account identity changes after a Mac upgrade, the old CloudKit record is now actively deleted at the source. Combines with the iOS 1.3.1 display-time filter for double protection against stale cards."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 端 ghost 记录清理 —— 当你在 Mac 上禁用某 provider，或 Mac 升级后 Codex 账号 identity 漂移时，旧的 CloudKit 记录现在在源头主动删除。与 iOS 1.3.1 的显示层过滤双保险，杜绝陈旧卡片。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 端 ghost 記錄清理 —— 當你在 Mac 上停用某 provider，或 Mac 升級後 Codex 帳號 identity 漂移時，舊的 CloudKit 記錄現在在源頭主動刪除。與 iOS 1.3.1 的顯示層過濾雙保險，杜絕陳舊卡片。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 側のゴーストレコードクリーンアップ — Mac 上で provider を無効化した場合や、Mac アップグレード後に Codex アカウント ID がドリフトした場合、古い CloudKit レコードがソースで能動的に削除されるようになりました。iOS 1.3.1 の表示時フィルターと組み合わせて、古いカードへの二重防御となります。"
+          }
+        }
+      }
+    },
+    "27 providers / 54 push-subscription zones — the push-notification subscription set automatically expands on first launch to cover Abacus AI and Mistral alongside the existing 25 providers.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "27 providers / 54 push-subscription zones — the push-notification subscription set automatically expands on first launch to cover Abacus AI and Mistral alongside the existing 25 providers."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "27 个 provider / 54 个推送订阅 zone —— 推送通知订阅集合在首次启动时自动扩展，覆盖 Abacus AI 和 Mistral 与已有的 25 个 provider。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "27 個 provider / 54 個推送訂閱 zone —— 推送通知訂閱集合在首次啟動時自動擴展，涵蓋 Abacus AI 和 Mistral 與已有的 25 個 provider。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "27 個の provider / 54 個のプッシュサブスクリプションゾーン — プッシュ通知のサブスクリプションセットが初回起動時に自動的に拡張され、既存の 25 個の provider に加えて Abacus AI と Mistral がカバーされます。"
+          }
+        }
+      }
+    },
+    "Wire-format unchanged — iOS 1.3.x users on the same iCloud account see the new providers as fallback cards (color-tinted) without crashing or missing data; existing 25 providers stay fully functional. iOS 1.5.0 adds the structured rendering for the new ones.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wire-format unchanged — iOS 1.3.x users on the same iCloud account see the new providers as fallback cards (color-tinted) without crashing or missing data; existing 25 providers stay fully functional. iOS 1.5.0 adds the structured rendering for the new ones."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wire 格式未变 —— 同 iCloud 账号的 iOS 1.3.x 用户把新 provider 显示为带配色的兜底卡，不会崩溃或丢数据；现有 25 个 provider 全功能保留。iOS 1.5.0 为新 provider 加入结构化渲染。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wire 格式未變 —— 同 iCloud 帳號的 iOS 1.3.x 使用者把新 provider 顯示為帶配色的兜底卡，不會崩潰或丟資料；現有 25 個 provider 全功能保留。iOS 1.5.0 為新 provider 加入結構化渲染。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ワイヤーフォーマット不変 — 同じ iCloud アカウントの iOS 1.3.x ユーザーには新しい provider が（カラー付きの）フォールバックカードとして表示され、クラッシュやデータ損失なく動作します。既存の 25 個の provider は完全に機能します。iOS 1.5.0 では新しい provider に構造化レンダリングが追加されます。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

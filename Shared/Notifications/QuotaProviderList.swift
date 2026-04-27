@@ -60,6 +60,12 @@ public enum QuotaProviderList {
         Provider(id: "synthetic", displayName: "Synthetic"),
         Provider(id: "warp", displayName: "Warp"),
         Provider(id: "openrouter", displayName: "OpenRouter"),
+        // Added in iOS 1.5.0 alongside Mac v0.23. Display names match
+        // `AbacusProviderDescriptor.metadata.displayName` ("Abacus AI") and
+        // `MistralProviderDescriptor.metadata.displayName` ("Mistral").
+        // Subscription count: 25 → 27 providers × 2 states = 54 zones.
+        Provider(id: "abacus", displayName: "Abacus AI"),
+        Provider(id: "mistral", displayName: "Mistral"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The
