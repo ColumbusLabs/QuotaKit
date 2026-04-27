@@ -428,7 +428,7 @@ struct DebugPane: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(self.unknownModelEntries, id: \.rawModel) { entry in
+                ForEach(self.unknownModelEntries) { entry in
                     VStack(alignment: .leading, spacing: 2) {
                         HStack {
                             Text(entry.rawModel)

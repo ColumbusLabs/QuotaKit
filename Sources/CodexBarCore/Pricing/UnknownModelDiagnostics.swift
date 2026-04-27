@@ -15,14 +15,22 @@ import Foundation
 /// next session naturally clears it from the panel without us needing
 /// invalidation logic.
 public actor UnknownModelDiagnostics {
-    /// Single record kept per unique raw model name observed.
-    public struct Entry: Sendable, Equatable {
+    /// Single record kept per unique `(providerKey, rawModel)` observed.
+    public struct Entry: Sendable, Equatable, Identifiable {
         public let providerKey: String
         public let rawModel: String
         public let fallbackKey: String
         public let strategyName: String
         public let firstSeenAt: Date
         public var occurrenceCount: Int
+
+        /// Stable composite identifier for SwiftUI `ForEach`. The actor's
+        /// dedup key is `(providerKey, rawModel)` — keying just on
+        /// `rawModel` lets a same name under two providers collide and
+        /// drop one row in the diagnostic panel.
+        public var id: String {
+            "\(self.providerKey)|\(self.rawModel)"
+        }
     }
 
     public static let shared = UnknownModelDiagnostics()
