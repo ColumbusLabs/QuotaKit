@@ -50,6 +50,12 @@ public enum LogCategories {
     public static let perplexityAPI = "perplexity-api"
     public static let perplexityCookie = "perplexity-cookie"
     public static let perplexityWeb = "perplexity-web"
+    /// Diagnostic channel for the model-name fallback resolver subsystem
+    /// (see `Research/018-model-fallback-pricing.md`). Emits one warning
+    /// per *first* observation of an unknown model name; subsequent hits
+    /// for the same model are tracked silently in
+    /// `UnknownModelDiagnostics` and surfaced in the Debug pane.
+    public static let pricing = "pricing"
     public static let providerDetection = "provider-detection"
     public static let providers = "providers"
     public static let sessionQuota = "sessionQuota"

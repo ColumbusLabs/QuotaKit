@@ -13,6 +13,7 @@ struct DebugPane: View {
     @State private var logText: String = ""
     @State private var isClearingCostCache = false
     @State private var costCacheStatus: String?
+    @State private var unknownModelEntries: [UnknownModelDiagnostics.Entry] = []
     #if DEBUG
     @State private var currentErrorProvider: UsageProvider = .codex
     @State private var simulatedErrorText: String = """
@@ -391,10 +392,59 @@ struct DebugPane: View {
                         }
                     }
                 }
+
+                self.unknownModelsSection
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
+        }
+        .task {
+            self.unknownModelEntries = await UnknownModelDiagnostics.shared.snapshot()
+        }
+    }
+
+    /// Read-only diagnostic of model names the fallback resolver had to
+    /// substitute. Useful when a user reports "my Claude bill looks
+    /// off" — copy the rows here so we can confirm whether the resolver
+    /// is doing the right thing for new model names.
+    private var unknownModelsSection: some View {
+        SettingsSection(
+            title: "Unknown models seen",
+            caption: "Models the fallback resolver substituted because they aren't in the local pricing table. "
+                + "Session-scoped; clears on app restart.")
+        {
+            Button {
+                Task { @MainActor in
+                    self.unknownModelEntries = await UnknownModelDiagnostics.shared.snapshot()
+                }
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
+            }
+            .controlSize(.small)
+
+            if self.unknownModelEntries.isEmpty {
+                Text("No unknown models recorded this session.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(self.unknownModelEntries, id: \.rawModel) { entry in
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack {
+                            Text(entry.rawModel)
+                                .font(.system(.callout, design: .monospaced))
+                                .textSelection(.enabled)
+                            Spacer()
+                            Text("×\(entry.occurrenceCount)")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        Text("→ \(entry.fallbackKey) · \(entry.strategyName) · \(entry.providerKey)")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
         }
     }
 

@@ -341,6 +341,18 @@ enum CostUsagePricing {
         guard let parsed = resolver.parse(key),
               let fallback = resolver.findFallback(for: parsed, in: self.codex)
         else { return nil }
+        // Fire-and-forget diagnostic record. The actor handles dedup +
+        // log rate-limiting; we don't wait so the per-row cost loop
+        // stays sync.
+        let strategy = fallback.strategy.rawValue
+        let fallbackKey = fallback.key
+        Task { @Sendable in
+            await UnknownModelDiagnostics.shared.record(
+                providerKey: "codex",
+                rawModel: key,
+                fallbackKey: fallbackKey,
+                strategyName: strategy)
+        }
         return fallback.pricing
     }
 
@@ -403,6 +415,18 @@ enum CostUsagePricing {
         guard let parsed = resolver.parse(key),
               let fallback = resolver.findFallback(for: parsed, in: self.claude)
         else { return nil }
+        // Fire-and-forget diagnostic record. The actor handles dedup +
+        // log rate-limiting; we don't wait so the per-row cost loop
+        // stays sync.
+        let strategy = fallback.strategy.rawValue
+        let fallbackKey = fallback.key
+        Task { @Sendable in
+            await UnknownModelDiagnostics.shared.record(
+                providerKey: "claude",
+                rawModel: key,
+                fallbackKey: fallbackKey,
+                strategyName: strategy)
+        }
         return fallback.pricing
     }
 }
