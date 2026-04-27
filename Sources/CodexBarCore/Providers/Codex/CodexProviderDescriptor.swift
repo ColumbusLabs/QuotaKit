@@ -21,7 +21,8 @@ public enum CodexProviderDescriptor {
                 defaultEnabled: true,
                 isPrimaryProvider: true,
                 usesAccountFallback: true,
-                browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
+                browserCookieOrder: ProviderBrowserCookieDefaults.codexCookieImportOrder
+                    ?? ProviderBrowserCookieDefaults.defaultImportOrder,
                 dashboardURL: "https://chatgpt.com/codex/settings/usage",
                 statusPageURL: "https://status.openai.com/"),
             branding: ProviderBranding(
@@ -173,12 +174,19 @@ struct CodexOAuthFetchStrategy: ProviderFetchStrategy {
         sourceMode: ProviderSourceMode) throws -> ProviderFetchResult
     {
         let credits = Self.mapCredits(usageResponse.credits)
-
-        if let reconciled = CodexReconciledState.fromOAuth(
+        let reconciled = CodexReconciledState.fromOAuth(
             response: usageResponse,
             credentials: credentials,
             updatedAt: updatedAt)
+
+        if sourceMode == .auto,
+           usageResponse.rateLimit?.hasWindowDecodeFailure == true,
+           reconciled?.session == nil
         {
+            throw UsageError.noRateLimitsFound
+        }
+
+        if let reconciled {
             return CodexOAuthFetchStrategy().makeResult(
                 usage: reconciled.toUsageSnapshot(),
                 credits: credits,

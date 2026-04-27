@@ -9,6 +9,13 @@ import SwiftUI
 @MainActor
 protocol StatusItemControlling: AnyObject {
     func openMenuFromShortcut()
+    func celebrationOriginPoint(for provider: UsageProvider?) -> CGPoint?
+}
+
+extension StatusItemControlling {
+    func celebrationOriginPoint(for provider: UsageProvider?) -> CGPoint? {
+        nil
+    }
 }
 
 @MainActor
@@ -120,6 +127,9 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var lastSwitcherProviders: [UsageProvider] = []
     /// Tracks which switcher tab state was used for the current merged-menu switcher instance.
     var lastMergedSwitcherSelection: ProviderSwitcherSelection?
+    /// Tracks the visible Codex account switcher contents for merged-menu smart updates.
+    var lastCodexAccountMenuDisplay: CodexAccountMenuDisplay?
+    var lastAppliedMergedIconRenderSignature: String?
     let loginLogger = CodexBarLog.logger(LogCategories.login)
     var selectedMenuProvider: UsageProvider? {
         get { self.settings.selectedMenuProvider }
@@ -182,6 +192,8 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         switch preference {
         case .secondary, .tertiary:
             return second ?? first
+        case .extraUsage:
+            return first
         case .average:
             guard self.settings.menuBarMetricSupportsAverage(for: .codex),
                   let primary = first,
@@ -235,8 +247,8 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         // Status items for individual providers are now created lazily in updateVisibility()
         super.init()
         self.wireBindings()
-        self.updateIcons()
         self.updateVisibility()
+        self.updateIcons()
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(self.handleDebugReplayNotification(_:)),
@@ -279,6 +291,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
 
     private func wireBindings() {
         self.observeStoreChanges()
+        self.observeStoreIconChanges()
         self.observeDebugForceAnimation()
         self.observeSettingsChanges()
         self.observeUpdaterChanges()
@@ -293,8 +306,18 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
                 guard let self else { return }
                 self.observeStoreChanges()
                 self.invalidateMenus()
+            }
+        }
+    }
+
+    private func observeStoreIconChanges() {
+        withObservationTracking {
+            _ = self.store.iconObservationToken
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.observeStoreIconChanges()
                 self.updateIcons()
-                self.updateBlinkingState()
             }
         }
     }
@@ -435,7 +458,13 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         // briefly overwrite the animated frame with the static (phase=nil) icon.
         let phase: Double? = self.needsMenuBarIconAnimation() ? self.animationPhase : nil
         if self.shouldMergeIcons {
-            self.applyIcon(phase: phase)
+            let skippedMergedRender = self.applyIcon(phase: phase)
+            if skippedMergedRender,
+               let mergedMenu = self.mergedMenu,
+               self.statusItem.menu === mergedMenu
+            {
+                return
+            }
             self.attachMenus()
         } else {
             UsageProvider.allCases.forEach { self.applyIcon(for: $0, phase: phase) }

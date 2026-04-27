@@ -15,6 +15,11 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
     var lastPerProviderEnvelopes: [ProviderUsageEnvelope] = []
     var nextPerProviderResult: SyncPushResult = .success
 
+    // L1 ghost-records cleanup — delete tracking
+    var deleteCallCount = 0
+    var deletedRecordNamesAcrossCalls: [[String]] = []
+    var nextDeleteResult: SyncPushResult = .success
+
     @discardableResult
     func pushSnapshot(_ snapshot: SyncedUsageSnapshot) async -> SyncPushResult {
         self.pushCount += 1
@@ -29,6 +34,13 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
         self.perProviderCallCount += 1
         self.lastPerProviderEnvelopes = envelopes
         return self.nextPerProviderResult
+    }
+
+    @discardableResult
+    func deletePerProviderRecords(recordNames: [String]) async -> SyncPushResult {
+        self.deleteCallCount += 1
+        self.deletedRecordNamesAcrossCalls.append(recordNames)
+        return self.nextDeleteResult
     }
 }
 
@@ -445,6 +457,336 @@ struct SyncCoordinatorTests {
         #expect(mock.perProviderCallCount == 2)
         #expect(mock.lastPerProviderEnvelopes.count == 1)
         #expect(mock.lastPerProviderEnvelopes.first?.provider.providerID == "codex")
+    }
+
+    // MARK: - L1 ghost-records cleanup
+
+    @Test("L1: first push after restart does NOT emit deletes (pushHistorySeeded guard)")
+    func l1NoDeleteOnFirstPushAfterRestart() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-l1-firstpush")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 100,
+                sessionCostUSD: 0.1,
+                last30DaysTokens: 1000,
+                last30DaysCostUSD: 1.0,
+                daily: [],
+                updatedAt: Date()),
+            provider: .codex)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        await coordinator.pushCurrentSnapshot()
+
+        // First-push guard: no deletes should fire even though
+        // lastPushedRecordNames was empty pre-call. Otherwise we'd interpret
+        // the empty initial set as "nothing was previously enabled" and
+        // skip cleanup of records from previous Mac sessions.
+        #expect(mock.deleteCallCount == 0)
+    }
+
+    @Test("L1: provider disabled between cycles emits delete for its CKRecord")
+    func l1DeleteFiresWhenProviderDisabled() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-l1-disable")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        try settings.setProviderEnabled(
+            provider: .claude,
+            metadata: #require(ProviderDefaults.metadata[.claude]),
+            enabled: true)
+
+        let store = self.makeUsageStore(settings: settings)
+        let pinned = Date(timeIntervalSince1970: 1_700_000_000)
+        for provider in [UsageProvider.codex, .claude] {
+            store._setTokenSnapshotForTesting(
+                CostUsageTokenSnapshot(
+                    sessionTokens: 100,
+                    sessionCostUSD: 0.1,
+                    last30DaysTokens: 1000,
+                    last30DaysCostUSD: 1.0,
+                    daily: [],
+                    updatedAt: pinned),
+                provider: provider)
+            store._setSnapshotForTesting(
+                UsageSnapshot(primary: nil, secondary: nil, updatedAt: pinned),
+                provider: provider)
+        }
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        // First push — seed lastPushedRecordNames with both composites.
+        await coordinator.pushCurrentSnapshot()
+        #expect(mock.deleteCallCount == 0)
+
+        // Disable Claude before next cycle.
+        try settings.setProviderEnabled(
+            provider: .claude,
+            metadata: #require(ProviderDefaults.metadata[.claude]),
+            enabled: false)
+
+        // Second push — Claude's composite is in lastPushedRecordNames but
+        // not in this cycle's set, so a delete must fire for its recordName.
+        await coordinator.pushCurrentSnapshot()
+        #expect(mock.deleteCallCount == 1)
+        let deleted = mock.deletedRecordNamesAcrossCalls.last ?? []
+        #expect(deleted.count == 1)
+        #expect(deleted.first?.contains("claude") == true)
+    }
+
+    @Test("L1: account-identity drift (composite key change) emits delete for old composite")
+    func l1DeleteFiresOnAccountIdentityDrift() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-l1-drift")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        let pinned = Date(timeIntervalSince1970: 1_700_000_000)
+
+        // First cycle: Codex with nil accountEmail (composite "codex|_").
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 100,
+                sessionCostUSD: 0.1,
+                last30DaysTokens: 1000,
+                last30DaysCostUSD: 1.0,
+                daily: [],
+                updatedAt: pinned),
+            provider: .codex)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                updatedAt: pinned,
+                identity: ProviderIdentitySnapshot(
+                    providerID: .codex,
+                    accountEmail: nil,
+                    accountOrganization: nil,
+                    loginMethod: nil)),
+            provider: .codex)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+        #expect(mock.deleteCallCount == 0) // first push, no delete
+
+        // Second cycle: same provider but accountEmail loaded — composite
+        // shifts from "codex|_" to "codex|user@example.com". The old
+        // composite must be deleted.
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                updatedAt: pinned.addingTimeInterval(60),
+                identity: ProviderIdentitySnapshot(
+                    providerID: .codex,
+                    accountEmail: "user@example.com",
+                    accountOrganization: nil,
+                    loginMethod: nil)),
+            provider: .codex)
+        await coordinator.pushCurrentSnapshot()
+
+        #expect(mock.deleteCallCount == 1)
+        let deleted = mock.deletedRecordNamesAcrossCalls.last ?? []
+        // Deleted composite must end with "|_" (the orphan with nil email).
+        #expect(deleted.count == 1)
+        #expect(deleted.first?.hasSuffix("|codex|_") == true)
+    }
+
+    @Test("L1: no deletes when all providers stay enabled with stable identity")
+    func l1NoDeleteWhenSteadyState() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-l1-steady")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        let pinned = Date(timeIntervalSince1970: 1_700_000_000)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 100,
+                sessionCostUSD: 0.1,
+                last30DaysTokens: 1000,
+                last30DaysCostUSD: 1.0,
+                daily: [],
+                updatedAt: pinned),
+            provider: .codex)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                updatedAt: pinned),
+            provider: .codex)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        // Three cycles, no state change.
+        for _ in 0..<3 {
+            await coordinator.pushCurrentSnapshot()
+        }
+        // pushHistorySeeded after first; subsequent two would only delete
+        // if state changed. Steady state = no deletes.
+        #expect(mock.deleteCallCount == 0)
+    }
+
+    @Test("L1: delete failure does NOT advance lastPushedRecordNames (retries next cycle)")
+    func l1DeleteFailurePreservesRetry() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-l1-retry")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        try settings.setProviderEnabled(
+            provider: .claude,
+            metadata: #require(ProviderDefaults.metadata[.claude]),
+            enabled: true)
+
+        let store = self.makeUsageStore(settings: settings)
+        let pinned = Date(timeIntervalSince1970: 1_700_000_000)
+        for provider in [UsageProvider.codex, .claude] {
+            store._setTokenSnapshotForTesting(
+                CostUsageTokenSnapshot(
+                    sessionTokens: 100,
+                    sessionCostUSD: 0.1,
+                    last30DaysTokens: 1000,
+                    last30DaysCostUSD: 1.0,
+                    daily: [],
+                    updatedAt: pinned),
+                provider: provider)
+            store._setSnapshotForTesting(
+                UsageSnapshot(primary: nil, secondary: nil, updatedAt: pinned),
+                provider: provider)
+        }
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+        try settings.setProviderEnabled(
+            provider: .claude,
+            metadata: #require(ProviderDefaults.metadata[.claude]),
+            enabled: false)
+
+        // First retry cycle: simulate delete failure.
+        mock.nextDeleteResult = .failure("CloudKit unavailable")
+        await coordinator.pushCurrentSnapshot()
+        #expect(mock.deleteCallCount == 1)
+
+        // Second retry cycle: success this time, should re-attempt.
+        mock.nextDeleteResult = .success
+        await coordinator.pushCurrentSnapshot()
+        #expect(mock.deleteCallCount == 2)
+        // Same composite re-deleted (because failure didn't advance state).
+        #expect(mock.deletedRecordNamesAcrossCalls[0] ==
+            mock.deletedRecordNamesAcrossCalls[1])
+    }
+
+    // MARK: - extraRateWindows passthrough (Claude Designs/Routines, Cursor Extra)
+
+    @Test("extraRateWindows: Claude Designs/Daily Routines/Web Sonnet appear in rateWindows")
+    func extraRateWindowsPassThroughForClaude() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-extras-claude")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .claude,
+            metadata: #require(ProviderDefaults.metadata[.claude]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        let pinned = Date(timeIntervalSince1970: 1_700_000_000)
+        let designsWindow = RateWindow(
+            usedPercent: 23.0,
+            windowMinutes: 10080,
+            resetsAt: nil,
+            resetDescription: nil)
+        let routinesWindow = RateWindow(
+            usedPercent: 42.5,
+            windowMinutes: 10080,
+            resetsAt: nil,
+            resetDescription: nil)
+        let webSonnetWindow = RateWindow(
+            usedPercent: 67.8,
+            windowMinutes: 10080,
+            resetsAt: nil,
+            resetDescription: nil)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 12.0,
+                    windowMinutes: 60,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                secondary: RateWindow(
+                    usedPercent: 35.0,
+                    windowMinutes: 10080,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                extraRateWindows: [
+                    NamedRateWindow(id: "claude-design", title: "Designs", window: designsWindow),
+                    NamedRateWindow(id: "claude-routines", title: "Daily Routines", window: routinesWindow),
+                    NamedRateWindow(id: "claude-web-sonnet", title: "Web Sonnet", window: webSonnetWindow),
+                ],
+                updatedAt: pinned),
+            provider: .claude)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let provider = try #require(mock.lastSnapshot?.providers
+            .first(where: { $0.providerID == "claude" }))
+        // Primary + secondary + 3 extras = 5 total in rateWindows.
+        // Note: tertiary path requires supportsOpus + tertiary set — we
+        // don't set tertiary here, so just primary + secondary + 3 extras.
+        #expect(provider.rateWindows.count == 5)
+        let labels = provider.rateWindows.compactMap(\.label)
+        #expect(labels.contains("Designs"))
+        #expect(labels.contains("Daily Routines"))
+        #expect(labels.contains("Web Sonnet"))
+    }
+
+    @Test("extraRateWindows: nil extras don't break legacy primary/secondary mapping")
+    func extraRateWindowsNilDoesNotBreak() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-extras-nil")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .claude,
+            metadata: #require(ProviderDefaults.metadata[.claude]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        let pinned = Date(timeIntervalSince1970: 1_700_000_000)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 12.0,
+                    windowMinutes: 60,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                secondary: nil,
+                extraRateWindows: nil,
+                updatedAt: pinned),
+            provider: .claude)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let provider = try #require(mock.lastSnapshot?.providers
+            .first(where: { $0.providerID == "claude" }))
+        #expect(provider.rateWindows.count == 1) // just primary
     }
 
     @Test

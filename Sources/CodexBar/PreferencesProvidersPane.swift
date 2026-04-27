@@ -66,15 +66,7 @@ struct ProvidersPane: View {
                     isErrorExpanded: self.expandedBinding(for: provider),
                     onCopyError: { text in self.copyToPasteboard(text) },
                     onRefresh: {
-                        Task { @MainActor in
-                            await ProviderInteractionContext.$current.withValue(.userInitiated) {
-                                if provider == .codex {
-                                    await self.store.refreshCodexAccountScopedState(allowDisabled: true)
-                                } else {
-                                    await self.store.refreshProvider(provider, allowDisabled: true)
-                                }
-                            }
-                        }
+                        self.triggerRefresh(for: provider)
                     },
                     showsSupplementarySettingsContent: self.codexAccountsSectionState(for: provider) != nil,
                     supplementarySettingsContent: {
@@ -154,6 +146,18 @@ struct ProvidersPane: View {
             return
         }
         self.selectedProvider = self.providers.first
+    }
+
+    private func triggerRefresh(for provider: UsageProvider) {
+        Task { @MainActor in
+            await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                if provider == .codex {
+                    await self.store.refreshCodexAccountScopedState(allowDisabled: true)
+                } else {
+                    await self.store.refreshProvider(provider, allowDisabled: true)
+                }
+            }
+        }
     }
 
     func binding(for provider: UsageProvider) -> Binding<Bool> {
@@ -440,7 +444,6 @@ struct ProvidersPane: View {
     }
 
     func menuBarMetricPicker(for provider: UsageProvider) -> ProviderSettingsPickerDescriptor? {
-        if provider == .zai { return nil }
         let options: [ProviderSettingsPickerOption]
         if provider == .openrouter {
             options = [
@@ -449,11 +452,20 @@ struct ProvidersPane: View {
                     id: MenuBarMetricPreference.primary.rawValue,
                     title: "Primary (API key limit)"),
             ]
+        } else if provider == .abacus {
+            let metadata = self.store.metadata(for: provider)
+            options = [
+                ProviderSettingsPickerOption(id: MenuBarMetricPreference.automatic.rawValue, title: "Automatic"),
+                ProviderSettingsPickerOption(
+                    id: MenuBarMetricPreference.primary.rawValue,
+                    title: "Primary (\(metadata.sessionLabel))"),
+            ]
         } else {
             let metadata = self.store.metadata(for: provider)
             let snapshot = self.store.snapshot(for: provider)
             let supportsAverage = self.settings.menuBarMetricSupportsAverage(for: provider)
             let supportsTertiary = self.settings.menuBarMetricSupportsTertiary(for: provider, snapshot: snapshot)
+            let supportsExtraUsage = self.settings.menuBarMetricSupportsExtraUsage(for: provider, snapshot: snapshot)
             var metricOptions: [ProviderSettingsPickerOption] = [
                 ProviderSettingsPickerOption(id: MenuBarMetricPreference.automatic.rawValue, title: "Automatic"),
                 ProviderSettingsPickerOption(
@@ -468,6 +480,11 @@ struct ProvidersPane: View {
                 metricOptions.append(ProviderSettingsPickerOption(
                     id: MenuBarMetricPreference.tertiary.rawValue,
                     title: "Tertiary (\(tertiaryTitle))"))
+            }
+            if supportsExtraUsage {
+                metricOptions.append(ProviderSettingsPickerOption(
+                    id: MenuBarMetricPreference.extraUsage.rawValue,
+                    title: MenuBarMetricPreference.extraUsage.label))
             }
             if supportsAverage {
                 metricOptions.append(ProviderSettingsPickerOption(
@@ -532,12 +549,14 @@ struct ProvidersPane: View {
             tokenError = nil
         }
 
+        // Abacus uses primary for monthly credits (no secondary window)
+        let paceWindow = provider == .abacus ? snapshot?.primary : snapshot?.secondary
         let weeklyPace = if let codexProjection,
                             let weekly = codexProjection.rateWindow(for: .weekly)
         {
             self.store.weeklyPace(provider: provider, window: weekly, now: now)
         } else {
-            snapshot?.secondary.flatMap { window in
+            paceWindow.flatMap { window in
                 self.store.weeklyPace(provider: provider, window: window, now: now)
             }
         }

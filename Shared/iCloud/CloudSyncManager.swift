@@ -22,6 +22,18 @@ public protocol SyncPushing: Sendable {
     func pushPerProviderRecords(
         _ envelopes: [ProviderUsageEnvelope]
     ) async -> SyncPushResult
+
+    /// Delete per-provider records by their composite recordName
+    /// (`{deviceID}|{providerID}|{accountEmail-or-_}`). Called when a
+    /// provider transitions from enabled → disabled, or when its account
+    /// identity drifts (composite key changes between Mac versions). Without
+    /// this, stale records accumulate in `DeviceProvidersZone` and surface
+    /// on iOS as ghost cards (user-reported on iOS 1.3.0; Build 94 added a
+    /// display-time filter as L2; this is L1, the root-cause fix).
+    @discardableResult
+    func deletePerProviderRecords(
+        recordNames: [String]
+    ) async -> SyncPushResult
 }
 
 extension SyncPushing {
@@ -29,6 +41,14 @@ extension SyncPushing {
     /// method. CloudSyncManager overrides with the real CloudKit write.
     public func pushPerProviderRecords(
         _: [ProviderUsageEnvelope]
+    ) async -> SyncPushResult {
+        .success
+    }
+
+    /// Default no-op for delete path — test doubles that don't track CKRecord
+    /// state get a successful no-op.
+    public func deletePerProviderRecords(
+        recordNames _: [String]
     ) async -> SyncPushResult {
         .success
     }
@@ -419,6 +439,80 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             return .failure(
                 "Encoded \(records.count), failed to encode \(encodeFailures.count); will retry next cycle")
         }
+        return .success
+    }
+
+    /// Delete per-provider records by composite recordName. Caller passes the
+    /// full `{deviceID}|{providerID}|{accountEmail-or-_}` recordName matching
+    /// `perProviderRecordName(...)`. Empty input is a successful no-op.
+    ///
+    /// L1 ghost-records cleanup: SyncCoordinator computes the set of
+    /// composites it pushed last cycle vs this cycle; the difference
+    /// represents providers the user disabled (or whose account identity
+    /// drifted between Mac versions, leaving an old composite orphan).
+    /// Deleting those records eliminates the source of the iOS-1.3.0
+    /// ghost-card bug at the data layer; iOS 1.3.1's display-time filter
+    /// (Build 94) is the L2 backup.
+    @discardableResult
+    public func deletePerProviderRecords(
+        recordNames: [String]
+    ) async -> SyncPushResult {
+        guard !recordNames.isEmpty else { return .success }
+        guard cloudKitAvailable, _privateDatabase != nil else {
+            return .failure("CloudKit not available")
+        }
+
+        let recordIDs = recordNames.map { name in
+            CKRecord.ID(recordName: name, zoneID: providerZone.zoneID)
+        }
+
+        // Same 200-record batch limit as `pushPerProviderRecords`. Apple's
+        // `CKModifyRecordsOperation` rejects >200 in a single call.
+        let batchSize = 200
+        for chunkStart in stride(from: 0, to: recordIDs.count, by: batchSize) {
+            let chunkEnd = min(chunkStart + batchSize, recordIDs.count)
+            let chunk = Array(recordIDs[chunkStart..<chunkEnd])
+            do {
+                let op = CKModifyRecordsOperation(
+                    recordsToSave: nil, recordIDsToDelete: chunk)
+                op.savePolicy = .changedKeys
+                op.qualityOfService = .utility
+                try await withCheckedThrowingContinuation {
+                    (continuation: CheckedContinuation<Void, Error>) in
+                    op.modifyRecordsResultBlock = { result in
+                        switch result {
+                        case .success:
+                            continuation.resume()
+                        case .failure(let error):
+                            continuation.resume(throwing: error)
+                        }
+                    }
+                    self._privateDatabase!.add(op)
+                }
+            } catch let error as CKError {
+                // .partialFailure with .unknownItem (record already gone) is
+                // benign — treat as success. Other CK errors propagate.
+                if error.code == .partialFailure {
+                    let perItem = error.partialErrorsByItemID ?? [:]
+                    let nonBenign = perItem.values.contains { itemError in
+                        guard let itemError = itemError as? CKError else { return true }
+                        return itemError.code != .unknownItem
+                    }
+                    if !nonBenign { continue }
+                }
+                let syncError = CloudSyncError(from: error)
+                self.logError("Per-provider delete failed: \(syncError.description)")
+                return .failure(syncError.description)
+            } catch {
+                self.logError("Per-provider delete failed: \(error.localizedDescription)")
+                return .failure(error.localizedDescription)
+            }
+        }
+
+        self.logInfo("Deleted per-provider records from CloudKit", metadata: [
+            "count": "\(recordIDs.count)",
+            "zone": providerZone.zoneID.zoneName,
+        ])
         return .success
     }
 

@@ -22,11 +22,13 @@ extension SettingsStore {
         _ = self.costUsageEnabled
         _ = self.hidePersonalInfo
         _ = self.randomBlinkEnabled
+        _ = self.confettiOnWeeklyLimitResetsEnabled
         _ = self.claudeOAuthKeychainPromptMode
         _ = self.claudeOAuthKeychainReadStrategy
         _ = self.claudeWebExtrasEnabled
         _ = self.showOptionalCreditsAndExtraUsage
         _ = self.openAIWebAccessEnabled
+        _ = self.openAIWebBatterySaverEnabled
         _ = self.codexUsageDataSource
         _ = self.codexActiveSource
         _ = self.claudeUsageDataSource

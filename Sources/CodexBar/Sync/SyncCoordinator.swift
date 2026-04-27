@@ -35,6 +35,31 @@ final class SyncCoordinator {
     /// sync with what's actually on CloudKit.
     private var lastProviderHashes: [String: Int] = [:]
 
+    /// Composite recordNames pushed to `DeviceProvidersZone` last cycle.
+    /// Used to detect provider-disable transitions and account-identity
+    /// drift: anything in `lastPushedRecordNames` that is NOT in this
+    /// cycle's set of pushed composites must be deleted from CloudKit so
+    /// stale records don't accumulate.
+    ///
+    /// L1 ghost-records cleanup — closes the user-reported iOS-1.3.0 bug
+    /// at the data layer. iOS 1.3.1's `dropOrphansAndStale` filter (Build
+    /// 94) is the L2 backup that hides any ghost that does slip through.
+    ///
+    /// In-memory only, like `lastProviderHashes`. On Mac process restart,
+    /// this set is empty: the first push cycle re-establishes the
+    /// "current" composites without producing spurious deletes (we don't
+    /// emit deletes on the first cycle because we don't know yet what
+    /// was previously there). Subsequent cycles compare reliably.
+    private var lastPushedRecordNames: Set<String> = []
+
+    /// Tracks whether `lastPushedRecordNames` has been seeded by at least
+    /// one successful push. Until that's true, we don't emit deletes —
+    /// otherwise the first cycle after Mac restart would interpret the
+    /// empty set as "nothing was previously enabled" and skip deletion.
+    /// After the first successful push, real disabled-or-drifted
+    /// composites can be detected.
+    private var pushHistorySeeded: Bool = false
+
     /// Stable encoder used for the per-provider diff. Sorted keys so byte-level
     /// hashing is insensitive to encoding key order. Built on top of the
     /// project-wide factory so date strategy stays consistent.
@@ -116,6 +141,22 @@ final class SyncCoordinator {
                     windowMinutes: t.windowMinutes,
                     resetsAt: t.resetsAt,
                     resetDescription: t.resetDescription))
+            }
+            // Extra (named) rate windows from upstream — Claude exposes
+            // Designs / Daily Routines / Web Sonnet here in v0.23, Cursor
+            // exposes its on-demand "Extra usage" metric. Append after
+            // primary/secondary/tertiary so iOS rendering preserves
+            // semantic ordering. iOS 1.3.x reads `rateWindows: [SyncRateWindow]`
+            // unchanged; clients that haven't been updated to render the
+            // extras still see primary/secondary/tertiary as the first
+            // 3 entries.
+            for extra in snapshot?.extraRateWindows ?? [] {
+                rateWindows.append(SyncRateWindow(
+                    label: extra.title,
+                    usedPercent: extra.window.usedPercent,
+                    windowMinutes: extra.window.windowMinutes,
+                    resetsAt: extra.window.resetsAt,
+                    resetDescription: extra.window.resetDescription))
             }
 
             // Legacy primary/secondary for backward compat with older iOS builds
@@ -225,6 +266,61 @@ final class SyncCoordinator {
                         (perProviderResult.message ?? "unknown"))
             }
         }
+
+        // L1 ghost-records cleanup. Compute the composites we just pushed
+        // (i.e. all currently-enabled, non-ghost providers regardless of
+        // whether their hash changed this cycle) vs the composites we
+        // pushed last cycle. The difference represents:
+        //   (a) providers the user disabled — Mac stopped including them
+        //   (b) accounts whose identity drifted (composite key changed)
+        // We emit deletes for those CKRecords so iOS sees a clean zone.
+        // First-cycle-after-restart guard: don't emit deletes until
+        // `pushHistorySeeded == true`; otherwise we'd interpret the empty
+        // initial set as "nothing was enabled" and miss real disable events
+        // that happened before this Mac session started — but more
+        // importantly we'd issue spurious deletes for anything iOS already
+        // sees from previous Mac sessions, since we don't yet know what
+        // composites are truly current.
+        let currentRecordNames = self.computeCurrentRecordNames(
+            from: providerSnapshots)
+        if self.pushHistorySeeded {
+            let staleRecordNames = self.lastPushedRecordNames
+                .subtracting(currentRecordNames)
+            if !staleRecordNames.isEmpty {
+                let deleteResult = await self.syncManager
+                    .deletePerProviderRecords(recordNames: Array(staleRecordNames))
+                if deleteResult.succeeded {
+                    print(
+                        "[CodexBar Sync] cleaned up \(staleRecordNames.count)" +
+                            " stale per-provider record(s) from CloudKit")
+                } else {
+                    print(
+                        "[CodexBar Sync] per-provider delete failed: " +
+                            (deleteResult.message ?? "unknown"))
+                    // Don't update lastPushedRecordNames if delete failed —
+                    // retry next cycle.
+                    return
+                }
+            }
+        }
+        self.lastPushedRecordNames = currentRecordNames
+        self.pushHistorySeeded = true
+    }
+
+    /// All composite recordNames the current snapshot list will push. Used
+    /// to compute the disabled/identity-drifted set against
+    /// `lastPushedRecordNames`.
+    private func computeCurrentRecordNames(
+        from providerSnapshots: [ProviderUsageSnapshot]) -> Set<String>
+    {
+        var result: Set<String> = []
+        for provider in providerSnapshots where !Self.isGhostProvider(provider) {
+            result.insert(CloudSyncManager.perProviderRecordName(
+                deviceID: self.deviceID,
+                providerID: provider.providerID,
+                accountEmail: provider.accountEmail))
+        }
+        return result
     }
 
     /// Produces the envelopes that should be uploaded this cycle plus the
