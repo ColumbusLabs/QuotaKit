@@ -40,10 +40,17 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
 public struct SyncCostBreakdown: Codable, Sendable, Equatable {
     public let label: String
     public let costUSD: Double
+    /// `true` when the cost was computed from a fallback pricing row
+    /// (model name not in the local pricing table). `nil` for payloads
+    /// from Mac builds before 0.23 — iOS treats nil as `false` (not
+    /// estimated) so old data renders cleanly. See
+    /// `Research/018-model-fallback-pricing.md` §6.
+    public let isEstimated: Bool?
 
-    public init(label: String, costUSD: Double) {
+    public init(label: String, costUSD: Double, isEstimated: Bool? = nil) {
         self.label = label
         self.costUSD = costUSD
+        self.isEstimated = isEstimated
     }
 }
 
@@ -54,19 +61,25 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
     public let totalTokens: Int
     public let modelBreakdowns: [SyncCostBreakdown]
     public let serviceBreakdowns: [SyncCostBreakdown]
+    /// Day-level OR aggregate of `modelBreakdowns[*].isEstimated`. `nil`
+    /// for payloads from Mac builds before 0.23 — iOS treats nil as
+    /// `false` (not estimated). See `Research/018-model-fallback-pricing.md` §6.
+    public let isEstimated: Bool?
 
     public init(
         dayKey: String,
         costUSD: Double,
         totalTokens: Int,
         modelBreakdowns: [SyncCostBreakdown] = [],
-        serviceBreakdowns: [SyncCostBreakdown] = [])
+        serviceBreakdowns: [SyncCostBreakdown] = [],
+        isEstimated: Bool? = nil)
     {
         self.dayKey = dayKey
         self.costUSD = costUSD
         self.totalTokens = totalTokens
         self.modelBreakdowns = modelBreakdowns
         self.serviceBreakdowns = serviceBreakdowns
+        self.isEstimated = isEstimated
     }
 
     public init(from decoder: Decoder) throws {
@@ -84,6 +97,7 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
             try container.decodeIfPresent([SyncCostBreakdown].self, forKey: .modelBreakdowns) ?? []
         self.serviceBreakdowns =
             try container.decodeIfPresent([SyncCostBreakdown].self, forKey: .serviceBreakdowns) ?? []
+        self.isEstimated = try container.decodeIfPresent(Bool.self, forKey: .isEstimated)
     }
 }
 
@@ -94,19 +108,25 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
     public let last30DaysCostUSD: Double?
     public let last30DaysTokens: Int?
     public let daily: [SyncDailyPoint]
+    /// Summary-level OR aggregate of `daily[*].isEstimated`. `nil` for
+    /// payloads from Mac builds before 0.23 — iOS treats nil as `false`
+    /// (not estimated). See `Research/018-model-fallback-pricing.md` §6.
+    public let isEstimated: Bool?
 
     public init(
         sessionCostUSD: Double?,
         sessionTokens: Int?,
         last30DaysCostUSD: Double?,
         last30DaysTokens: Int?,
-        daily: [SyncDailyPoint])
+        daily: [SyncDailyPoint],
+        isEstimated: Bool? = nil)
     {
         self.sessionCostUSD = sessionCostUSD
         self.sessionTokens = sessionTokens
         self.last30DaysCostUSD = last30DaysCostUSD
         self.last30DaysTokens = last30DaysTokens
         self.daily = daily
+        self.isEstimated = isEstimated
     }
 }
 

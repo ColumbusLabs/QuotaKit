@@ -441,9 +441,9 @@ final class SyncCoordinator {
         let tokenEntriesByDay = Dictionary(
             uniqueKeysWithValues: (tokenSnapshot?.daily ?? []).map { ($0.date, $0) })
         let allDayKeys = Set(tokenEntriesByDay.keys).union(serviceBreakdownsByDay.keys).sorted()
-        let daily = allDayKeys.map { dayKey in
+        let daily = allDayKeys.map { dayKey -> SyncDailyPoint in
             let entry = tokenEntriesByDay[dayKey]
-            let modelBreakdowns = self.modelBreakdowns(from: entry)
+            let modelBreakdowns = self.modelBreakdowns(from: entry, provider: provider)
             let serviceBreakdowns = serviceBreakdownsByDay[dayKey] ?? []
 
             let fallbackCost =
@@ -452,30 +452,45 @@ final class SyncCoordinator {
                     ?? self.breakdownTotal(serviceBreakdowns)
                     ?? 0
 
+            // Day is estimated iff any of its model breakdowns is. Service
+            // breakdowns never go through the fallback resolver (they come
+            // from the upstream API directly), so they're excluded from the
+            // OR aggregation.
+            let dayIsEstimated = modelBreakdowns.contains(where: { $0.isEstimated == true })
             return SyncDailyPoint(
                 dayKey: dayKey,
                 costUSD: fallbackCost,
                 totalTokens: entry?.totalTokens ?? 0,
                 modelBreakdowns: modelBreakdowns,
-                serviceBreakdowns: serviceBreakdowns)
+                serviceBreakdowns: serviceBreakdowns,
+                isEstimated: dayIsEstimated ? true : nil)
         }
 
         let totalDailyCost = daily.reduce(0) { $0 + $1.costUSD }
+        let summaryIsEstimated = daily.contains(where: { $0.isEstimated == true })
 
         return SyncCostSummary(
             sessionCostUSD: tokenSnapshot?.sessionCostUSD,
             sessionTokens: tokenSnapshot?.sessionTokens,
             last30DaysCostUSD: tokenSnapshot?.last30DaysCostUSD ?? (daily.isEmpty ? nil : totalDailyCost),
             last30DaysTokens: tokenSnapshot?.last30DaysTokens,
-            daily: daily)
+            daily: daily,
+            isEstimated: summaryIsEstimated ? true : nil)
     }
 
-    private func modelBreakdowns(from entry: CostUsageDailyReport.Entry?) -> [SyncCostBreakdown] {
+    private func modelBreakdowns(
+        from entry: CostUsageDailyReport.Entry?,
+        provider: UsageProvider) -> [SyncCostBreakdown]
+    {
         guard let breakdowns = entry?.modelBreakdowns else { return [] }
         return breakdowns
             .compactMap { breakdown in
                 guard let cost = breakdown.costUSD, cost > 0 else { return nil }
-                return SyncCostBreakdown(label: breakdown.modelName, costUSD: cost)
+                let estimated = Self.isModelEstimated(modelName: breakdown.modelName, provider: provider)
+                return SyncCostBreakdown(
+                    label: breakdown.modelName,
+                    costUSD: cost,
+                    isEstimated: estimated ? true : nil)
             }
             .sorted { lhs, rhs in
                 if lhs.costUSD == rhs.costUSD {
@@ -483,6 +498,26 @@ final class SyncCoordinator {
                 }
                 return lhs.costUSD > rhs.costUSD
             }
+    }
+
+    /// `true` when `modelName` is NOT in the local pricing table for its
+    /// provider — meaning the cost was computed via a fallback resolver
+    /// row. Used to flag `isEstimated` on the outbound `SyncCostBreakdown`
+    /// so iOS can render the estimated badge (P5).
+    private static func isModelEstimated(modelName: String, provider: UsageProvider) -> Bool {
+        switch provider {
+        case .claude, .vertexai:
+            !ModelFallbackPricing.isClaudeModelKnown(modelName)
+        case .codex:
+            !ModelFallbackPricing.isCodexModelKnown(modelName)
+        case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot,
+             .minimax, .kilo, .kiro, .kimi, .kimik2, .augment, .jetbrains, .amp, .ollama, .synthetic,
+             .openrouter, .warp, .perplexity, .abacus, .mistral:
+            // These providers never reach the local pricing table — their
+            // costs come pre-computed from upstream APIs (or don't exist).
+            // No fallback applies, so they are never "estimated".
+            false
+        }
     }
 
     private func dashboardServiceBreakdowns(for provider: UsageProvider) -> [String: [SyncCostBreakdown]] {
