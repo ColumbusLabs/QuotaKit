@@ -31,6 +31,12 @@ extension SyncCostSummary {
     struct TodayTotals: Equatable, Sendable {
         public let costUSD: Double?
         public let tokens: Int?
+        /// `true` when today's cost row was computed via the Mac-side
+        /// fallback resolver (model name not in the local pricing
+        /// table). `nil` for old payloads from Mac < 0.23 and for the
+        /// `sessionCostUSD` fallback path (session totals don't carry
+        /// per-model estimation flags).
+        public let isEstimated: Bool?
     }
 
     /// Returns the cost/tokens for today in the user's current timezone,
@@ -46,9 +52,13 @@ extension SyncCostSummary {
         if let todayPoint = self.daily.first(where: { $0.dayKey == todayKey }) {
             return TodayTotals(
                 costUSD: todayPoint.costUSD,
-                tokens: todayPoint.totalTokens)
+                tokens: todayPoint.totalTokens,
+                isEstimated: todayPoint.isEstimated)
         }
-        return TodayTotals(costUSD: self.sessionCostUSD, tokens: self.sessionTokens)
+        return TodayTotals(
+            costUSD: self.sessionCostUSD,
+            tokens: self.sessionTokens,
+            isEstimated: nil)
     }
 
     /// Thread-safe ISO 8601 `yyyy-MM-dd` day key, in the user's current

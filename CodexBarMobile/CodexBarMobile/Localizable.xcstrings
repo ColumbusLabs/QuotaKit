@@ -57,6 +57,34 @@
         }
       }
     },
+    "* Estimated cost · auto-corrects after Mac upgrades to the latest pricing table": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "* Estimated cost · auto-corrects after Mac upgrades to the latest pricing table"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "* 推定費用 · Mac を最新版にアップデートすると自動修正されます"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "* 估算费用 · Mac 升级到最新版后自动校正"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "* 估算費用 · Mac 升級到最新版後自動校正"
+          }
+        }
+      }
+    },
     "30 Days": {
       "localizations": {
         "en": {
@@ -1453,6 +1481,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "在 Mac 版 CodexBar 中啟用 provider 後，這裡才會顯示使用資料。"
+          }
+        }
+      }
+    },
+    "Estimated": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimated"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "推定値"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "估算"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "估算"
           }
         }
       }

@@ -5,6 +5,11 @@ struct CostMetricCard: View {
     let value: String
     let subtitle: String?
     var tintColor: Color = .secondary
+    /// When true, an `*` is appended to the value to flag that the cost
+    /// was computed via a Mac-side fallback resolver (model name not yet
+    /// in the local pricing table). The footnote in `ProviderDetailView`
+    /// explains the asterisk.
+    var isEstimated: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -13,17 +18,8 @@ struct CostMetricCard: View {
                 .foregroundStyle(.secondary)
 
             ViewThatFits(in: .horizontal) {
-                Text(self.value)
-                    .font(.title2.monospacedDigit())
-                    .fontWeight(.bold)
-                    .foregroundStyle(self.tintColor)
-                    .fixedSize(horizontal: true, vertical: false)
-
-                Text(self.value)
-                    .font(.headline.monospacedDigit())
-                    .fontWeight(.bold)
-                    .foregroundStyle(self.tintColor)
-                    .fixedSize(horizontal: true, vertical: false)
+                self.valueText(font: .title2.monospacedDigit())
+                self.valueText(font: .headline.monospacedDigit())
             }
             .layoutPriority(1)
 
@@ -36,6 +32,16 @@ struct CostMetricCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func valueText(font: Font) -> some View {
+        let display = self.isEstimated ? "\(self.value)*" : self.value
+        return Text(display)
+            .font(font)
+            .fontWeight(.bold)
+            .foregroundStyle(self.tintColor)
+            .fixedSize(horizontal: true, vertical: false)
+            .accessibilityHint(self.isEstimated ? Text("Estimated") : Text(""))
     }
 }
 

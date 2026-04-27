@@ -87,33 +87,41 @@ struct ProviderDetailView: View {
     // MARK: - Cost Summary
 
     private func costSummarySection(_ cost: SyncCostSummary) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        // Prefer daily[today] over sessionCostUSD so the "Today" card here
+        // matches what the Cost-tab summary card shows for this provider.
+        // See `SyncCostSummary+Today.swift` for reasoning. Cost + tokens
+        // are resolved through one `todayTotals()` call so they can't
+        // straddle midnight with mismatched day keys.
+        let today = cost.todayTotals()
+        return VStack(alignment: .leading, spacing: 8) {
             Text("Cost & Usage")
                 .font(.headline)
                 .padding(.top, 4)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                // Prefer daily[today] over sessionCostUSD so the "Today"
-                // card here matches what the Cost-tab summary card shows
-                // for this provider. See `SyncCostSummary+Today.swift` for
-                // reasoning. Cost + tokens are resolved through one
-                // `todayTotals()` call so they can't straddle midnight with
-                // mismatched day keys.
-                let today = cost.todayTotals()
                 if let todayCost = today.costUSD {
                     CostMetricCard(
                         title: "Today",
                         value: Self.formatUSD(todayCost),
                         subtitle: today.tokens.map { Self.formatTokens($0) },
-                        tintColor: self.providerColor)
+                        tintColor: self.providerColor,
+                        isEstimated: today.isEstimated == true)
                 }
                 if let monthCost = cost.last30DaysCostUSD {
                     CostMetricCard(
                         title: "30 Days",
                         value: Self.formatUSD(monthCost),
                         subtitle: cost.last30DaysTokens.map { Self.formatTokens($0) },
-                        tintColor: self.providerColor)
+                        tintColor: self.providerColor,
+                        isEstimated: cost.isEstimated == true)
                 }
+            }
+
+            if today.isEstimated == true || cost.isEstimated == true {
+                Text("* Estimated cost · auto-corrects after Mac upgrades to the latest pricing table")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, 2)
             }
         }
     }
