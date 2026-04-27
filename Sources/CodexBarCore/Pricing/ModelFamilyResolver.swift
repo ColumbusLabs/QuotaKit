@@ -128,11 +128,17 @@ extension ModelFamilyResolver {
 
         // Step 1: same family, same major, closest minor ≤ requested.
         // Treat nil minor as "0" for comparison so `claude-opus-4` (no
-        // minor) participates in the ladder.
+        // minor) participates in the ladder. When two entries share the
+        // same minor (e.g. `claude-haiku-4-5` and `claude-haiku-4-5-20251001`)
+        // the tiebreaker prefers the non-dated canonical form so the
+        // resolver picks deterministically across dictionary iterations.
         let req = parsed.minorVersion ?? 0
         let belowOrEqual = sameMajor.filter { ($0.parsed.minorVersion ?? 0) <= req }
-        if let pick = belowOrEqual.max(by: { lhs, rhs in
-            (lhs.parsed.minorVersion ?? 0) < (rhs.parsed.minorVersion ?? 0)
+        if let pick = belowOrEqual.min(by: { lhs, rhs in
+            let lMinor = lhs.parsed.minorVersion ?? 0
+            let rMinor = rhs.parsed.minorVersion ?? 0
+            if lMinor != rMinor { return lMinor > rMinor }
+            return Self.prefersFirstByTiebreaker(lhs, rhs)
         }) {
             return ModelFallbackResult(
                 key: pick.key,
@@ -143,7 +149,10 @@ extension ModelFamilyResolver {
         // Step 2: same family, same major, closest minor ≥ requested.
         let aboveOrEqual = sameMajor.filter { ($0.parsed.minorVersion ?? 0) >= req }
         if let pick = aboveOrEqual.min(by: { lhs, rhs in
-            (lhs.parsed.minorVersion ?? 0) < (rhs.parsed.minorVersion ?? 0)
+            let lMinor = lhs.parsed.minorVersion ?? 0
+            let rMinor = rhs.parsed.minorVersion ?? 0
+            if lMinor != rMinor { return lMinor < rMinor }
+            return Self.prefersFirstByTiebreaker(lhs, rhs)
         }) {
             return ModelFallbackResult(
                 key: pick.key,
@@ -153,11 +162,14 @@ extension ModelFamilyResolver {
 
         // Step 3: same family, strictly older major; pick highest minor
         // of newest available major.
-        if let pick = lowerMajor.max(by: { lhs, rhs in
+        if let pick = lowerMajor.min(by: { lhs, rhs in
             if lhs.parsed.majorVersion != rhs.parsed.majorVersion {
-                return lhs.parsed.majorVersion < rhs.parsed.majorVersion
+                return lhs.parsed.majorVersion > rhs.parsed.majorVersion
             }
-            return (lhs.parsed.minorVersion ?? 0) < (rhs.parsed.minorVersion ?? 0)
+            let lMinor = lhs.parsed.minorVersion ?? 0
+            let rMinor = rhs.parsed.minorVersion ?? 0
+            if lMinor != rMinor { return lMinor > rMinor }
+            return Self.prefersFirstByTiebreaker(lhs, rhs)
         }) {
             return ModelFallbackResult(
                 key: pick.key,
@@ -182,5 +194,18 @@ extension ModelFamilyResolver {
         }
 
         return nil
+    }
+
+    /// Tiebreaker for two candidates that share (family, major, minor):
+    /// prefer the non-dated canonical key, then alphabetically smaller key.
+    /// Returns true iff `lhs` should sort first (i.e. is preferred).
+    fileprivate static func prefersFirstByTiebreaker(
+        _ lhs: (parsed: ParsedModel, key: String, pricing: Pricing),
+        _ rhs: (parsed: ParsedModel, key: String, pricing: Pricing)) -> Bool
+    {
+        let lHasDate = lhs.parsed.dateSuffix != nil
+        let rHasDate = rhs.parsed.dateSuffix != nil
+        if lHasDate != rHasDate { return !lHasDate }
+        return lhs.key < rhs.key
     }
 }

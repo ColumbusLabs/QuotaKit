@@ -311,14 +311,37 @@ enum CostUsagePricing {
     }
 
     static func codexCostUSD(model: String, inputTokens: Int, cachedInputTokens: Int, outputTokens: Int) -> Double? {
-        let key = self.normalizeCodexModel(model)
-        guard let pricing = self.codex[key] else { return nil }
+        guard let pricing = self.resolveCodexPricing(model: model) else { return nil }
         let cached = min(max(0, cachedInputTokens), max(0, inputTokens))
         let nonCached = max(0, inputTokens - cached)
         let cachedRate = pricing.cacheReadInputCostPerToken ?? pricing.inputCostPerToken
         return Double(nonCached) * pricing.inputCostPerToken
             + Double(cached) * cachedRate
             + Double(max(0, outputTokens)) * pricing.outputCostPerToken
+    }
+
+    /// Returns true iff the given raw Codex model name maps to an exact
+    /// row in the local pricing table (after standard normalization).
+    /// SyncCoordinator uses this in P4 to flag `isEstimated` on outbound
+    /// per-model breakdowns when the cost came from a fallback row.
+    static func isCodexModelKnown(_ raw: String) -> Bool {
+        let key = self.normalizeCodexModel(raw)
+        return self.codex[key] != nil
+    }
+
+    /// Resolve a Codex pricing row, walking the fallback ladder when the
+    /// model name isn't in the local table. Returns nil only when the
+    /// name doesn't even match the `gpt-X.Y` grammar — for any parseable
+    /// Codex name we fall through to `gpt-5` rather than dropping the
+    /// row to $0 (the bug Research/018 exists to fix).
+    private static func resolveCodexPricing(model: String) -> CodexPricing? {
+        let key = self.normalizeCodexModel(model)
+        if let exact = self.codex[key] { return exact }
+        let resolver = CodexFamilyResolver()
+        guard let parsed = resolver.parse(key),
+              let fallback = resolver.findFallback(for: parsed, in: self.codex)
+        else { return nil }
+        return fallback.pricing
     }
 
     static func claudeCostUSD(
@@ -328,8 +351,7 @@ enum CostUsagePricing {
         cacheCreationInputTokens: Int,
         outputTokens: Int) -> Double?
     {
-        let key = self.normalizeClaudeModel(model)
-        guard let pricing = self.claude[key] else { return nil }
+        guard let pricing = self.resolveClaudePricing(model: model) else { return nil }
 
         func tiered(_ tokens: Int, base: Double, above: Double?, threshold: Int?) -> Double {
             guard let threshold, let above else { return Double(tokens) * base }
@@ -358,5 +380,29 @@ enum CostUsagePricing {
                 base: pricing.outputCostPerToken,
                 above: pricing.outputCostPerTokenAboveThreshold,
                 threshold: pricing.thresholdTokens)
+    }
+
+    /// Returns true iff the given raw Claude model name maps to an exact
+    /// row in the local pricing table (after standard normalization).
+    /// Used by SyncCoordinator to mark `isEstimated` on outbound model
+    /// breakdowns when cost came from a fallback row.
+    static func isClaudeModelKnown(_ raw: String) -> Bool {
+        let key = self.normalizeClaudeModel(raw)
+        return self.claude[key] != nil
+    }
+
+    /// Resolve a Claude pricing row, walking the fallback ladder when the
+    /// model name isn't in the local table. Returns nil only when the
+    /// name doesn't match the `claude-{family}-…` grammar — for any
+    /// parseable Claude name we fall through to family flagship rather
+    /// than dropping the row to $0 (the bug Research/018 exists to fix).
+    private static func resolveClaudePricing(model: String) -> ClaudePricing? {
+        let key = self.normalizeClaudeModel(model)
+        if let exact = self.claude[key] { return exact }
+        let resolver = ClaudeFamilyResolver()
+        guard let parsed = resolver.parse(key),
+              let fallback = resolver.findFallback(for: parsed, in: self.claude)
+        else { return nil }
+        return fallback.pricing
     }
 }
