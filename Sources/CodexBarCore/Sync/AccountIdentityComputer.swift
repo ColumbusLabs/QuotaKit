@@ -1,0 +1,130 @@
+import Foundation
+
+/// Computes a stable identifier set for a provider snapshot, used by iOS
+/// `CloudSyncReader.mergeSnapshots` to group snapshots from multiple Macs
+/// into a single logical account card. See
+/// `Research/019-account-identity-multi-version-merge.md` for the full
+/// architecture.
+///
+/// **Discipline (load-bearing):**
+/// - Identifiers are **additive**. Once an identifier scheme is published
+///   for a provider in a release, it MUST keep being written for ≥3 minor
+///   releases before removal. See `Research/019-account-identity-multi-version-merge.md`
+///   §6.
+/// - Identifiers are **opaque to iOS**. Format is `{providerID}:{scheme}:{value}`
+///   but iOS does string-equality only — never parses. New schemes can be
+///   added at any time.
+/// - **Time-bounded values** (JWT exp, session tokens, refresh tokens)
+///   MUST NEVER appear here. Only stable identifiers.
+/// - **Group / shared aliases** (`team@company.com`, etc.) MUST NOT be
+///   written. Only authenticated primary identifiers.
+public enum AccountIdentityComputer {
+    /// Maximum length of any single identifier string. Truncating beyond
+    /// this is silent — the truncated value still groups across Macs that
+    /// hit the same truncation, but warn in logs so we can fix the source.
+    public static let maxIdentifierLength = 256
+
+    /// Compute the identifier set for a provider snapshot.
+    ///
+    /// Returns nil for providers that don't have a stable account model
+    /// (most quota-only providers): iOS will fall back to the legacy
+    /// per-device bucket for those — current behavior, no regression.
+    ///
+    /// Returns `[]` only when this provider DOES participate (Tier-A) but
+    /// no identifier could be derived (e.g. user signed out, fetch failed).
+    /// iOS treats `[]` like nil for grouping purposes.
+    public static func compute(
+        provider: UsageProvider,
+        identity: ProviderIdentitySnapshot?) -> [String]?
+    {
+        switch provider {
+        case .codex:
+            self.codex(identity: identity)
+        case .claude:
+            self.claude(identity: identity)
+        case .vertexai:
+            self.vertexAI(identity: identity)
+        case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot,
+             .minimax, .kilo, .kiro, .kimi, .kimik2, .augment, .jetbrains, .amp, .ollama, .synthetic,
+             .openrouter, .warp, .perplexity, .abacus, .mistral:
+            // Non-Tier-A providers: no stable account model required by
+            // iOS today. Return nil → iOS falls back to per-device legacy
+            // bucket. If a future provider needs cross-Mac merging, add
+            // a case here with its identifier sources.
+            nil
+        }
+    }
+
+    // MARK: - Per-provider identifier extraction
+
+    private static func codex(identity: ProviderIdentitySnapshot?) -> [String]? {
+        guard let identity else { return [] }
+        var ids: [String] = []
+        // Primary: organization ID. Stable across email changes, IdP swaps.
+        if let normalized = Self.normalize(identity.accountOrganization) {
+            ids.append("codex:account:\(normalized)")
+        }
+        // Secondary: email. Less stable but useful for transitional
+        // grouping (Mac without org-id can still merge via email).
+        if let normalized = Self.normalize(identity.accountEmail) {
+            ids.append("codex:email:\(normalized)")
+        }
+        return ids
+    }
+
+    private static func claude(identity: ProviderIdentitySnapshot?) -> [String]? {
+        guard let identity else { return [] }
+        var ids: [String] = []
+        // Primary: organization ID (Anthropic Team / Enterprise org).
+        // For consumer plans this is often nil — falls back to email.
+        if let normalized = Self.normalize(identity.accountOrganization) {
+            ids.append("claude:account:\(normalized)")
+        }
+        // Secondary: email. For consumer Claude OAuth this is the only
+        // stable handle we have today. Future work may add the OAuth
+        // `sub` claim as a third identifier (Research/019 §4.2).
+        if let normalized = Self.normalize(identity.accountEmail) {
+            ids.append("claude:email:\(normalized)")
+        }
+        return ids
+    }
+
+    private static func vertexAI(identity: ProviderIdentitySnapshot?) -> [String]? {
+        guard let identity else { return [] }
+        var ids: [String] = []
+        // Primary: GCP project / org identifier.
+        if let normalized = Self.normalize(identity.accountOrganization) {
+            ids.append("vertexai:project:\(normalized)")
+        }
+        // Secondary: GCP user account email.
+        if let normalized = Self.normalize(identity.accountEmail) {
+            ids.append("vertexai:email:\(normalized)")
+        }
+        return ids
+    }
+
+    // MARK: - Normalization
+
+    /// Apply the normalization rules from Research/019 §4.4:
+    /// - lowercase
+    /// - Unicode NFC
+    /// - trim whitespace
+    /// - URL-percent-encode the value (safe across `:` / `|` / `/` etc.)
+    /// - skip empty / whitespace-only
+    /// - cap at `maxIdentifierLength` bytes
+    static func normalize(_ raw: String?) -> String? {
+        guard let raw else { return nil }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let lowered = trimmed.lowercased()
+        let nfc = lowered.precomposedStringWithCanonicalMapping
+        let allowed = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: ":|/"))
+        guard let encoded = nfc.addingPercentEncoding(withAllowedCharacters: allowed) else {
+            return nil
+        }
+        if encoded.count > Self.maxIdentifierLength {
+            return String(encoded.prefix(Self.maxIdentifierLength))
+        }
+        return encoded
+    }
+}

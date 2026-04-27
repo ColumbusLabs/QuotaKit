@@ -129,55 +129,65 @@ final class CloudSyncReader: @unchecked Sendable {
 
     /// Merges snapshots from multiple devices into a single unified snapshot.
     ///
-    /// Merge strategy:
-    /// - Same `providerID` + same `accountEmail`:
-    ///   - Rate limits, identity, status → take the most recent `lastUpdated`
-    ///   - Cost data for local-cost providers (Claude, Codex, VertexAI) → SUM daily costs across devices
-    ///   - Cost data for account-level providers → take the most recent
-    /// - Same `providerID` + different `accountEmail` → keep both (different accounts)
-    /// - Providers from different devices are combined
+    /// **Merge strategy (Research/019 architecture):**
+    /// 1. Each `ProviderUsageSnapshot` produces an *effective identifier set*:
+    ///    - If `accountIdentities` is non-nil and non-empty → use it directly
+    ///      (this is what Mac ≥ 0.23 with the multi-version-merge work writes).
+    ///    - Else if `accountEmail` is non-empty → synthesize
+    ///      `["{providerID}:email:{normalized}"]`. This bridges
+    ///      old-Mac-with-email and new-Mac-with-explicit-email-identifier
+    ///      automatically (they share the same string).
+    ///    - Else → synthesize `["{providerID}:legacy-no-identity"]`
+    ///      (preserves the prior `(providerID, "")` grouping where nil-email
+    ///      snapshots from multiple devices merged into one card).
+    /// 2. Build the identifier graph: each snapshot is a node; edges connect
+    ///    snapshots that share at least one identifier string.
+    /// 3. Connected components = merge groups. Each component reduces via
+    ///    `mergeProviderEntries` (cost SUMs for local-cost providers, take-newest
+    ///    for everything else).
+    ///
+    /// Identifier strings are `{providerID}:{scheme}:{value}` so two providers
+    /// can never share an identifier (different prefix) — cross-provider
+    /// false merges are structurally impossible.
     static func mergeSnapshots(_ snapshots: [SyncedUsageSnapshot]) -> SyncedUsageSnapshot? {
         guard !snapshots.isEmpty else { return nil }
 
-        // Group all providers by key (providerID + accountEmail)
-        //
-        // **Empty-string sentinel caveat:** `accountEmail ?? ""` is the
-        // nil-email fallback *here*. At the `mergeProviderEntries` grouping
-        // in line ~245 (and in `SnapshotCache.compositeKey`, SwiftData's
-        // `ProviderSnapshotModel.makeCompositeKey`, and Mac
-        // `CloudSyncManager.perProviderRecordName`), the sentinel is `"_"`.
-        // **Build 67 drift discovery**: an earlier version used `""` here and
-        // `"_"` elsewhere, silently collapsing nil-email providers into
-        // different buckets across layers and breaking `delete-by-recordName`
-        // cascades. Both formats are acceptable AS LONG AS every call site
-        // that keys by (providerID, accountEmail?) uses **exactly the same
-        // sentinel byte**. These two separators don't need to match each
-        // other (`""` here vs `"_"` in record-name) because this grouping
-        // key never leaves this function — but if you copy either value to
-        // a new site, copy the matching sentinel.
-        var providersByKey: [String: [ProviderUsageSnapshot]] = [:]
-
+        // 1. Flatten to (entry index → ProviderUsageSnapshot)
+        var allProviders: [ProviderUsageSnapshot] = []
         for snapshot in snapshots {
-            for provider in snapshot.providers {
-                let key = "\(provider.providerID)|\(provider.accountEmail ?? "")"
-                providersByKey[key, default: []].append(provider)
+            allProviders.append(contentsOf: snapshot.providers)
+        }
+
+        // 2. Compute effective identifiers per provider snapshot
+        let effectiveIdentifiers: [[String]] = allProviders.map(Self.effectiveIdentifiers(for:))
+
+        // 3. Union-find across shared identifiers
+        var uf = MergeUnionFind(count: allProviders.count)
+        var firstSeenByIdentifier: [String: Int] = [:]
+        for (idx, ids) in effectiveIdentifiers.enumerated() {
+            for id in ids {
+                if let prior = firstSeenByIdentifier[id] {
+                    uf.union(prior, idx)
+                } else {
+                    firstSeenByIdentifier[id] = idx
+                }
             }
         }
 
-        // Merge each group. Single-device groups bypass `mergeProviderEntries`
-        // as a fast path — that function's dedup / sort logic only matters
-        // for multi-device input. Downstream consumers (`UtilizationHistoryView`,
-        // aggregate chart) tolerate unsorted entries because they bucket
-        // into dictionaries, so skipping dedup here is safe. Build 83
-        // `mergedUtilizationDisorderedInputProducesSortedOutput` test pins
-        // that sortedness is a *multi-device* merge property, not a
-        // single-device invariant.
+        // 4. Group by root, merge each group
+        var groupedIndices: [Int: [Int]] = [:]
+        for idx in 0..<allProviders.count {
+            let root = uf.find(idx)
+            groupedIndices[root, default: []].append(idx)
+        }
+
         var mergedProviders: [ProviderUsageSnapshot] = []
-        for (_, providers) in providersByKey {
-            if providers.count == 1 {
-                mergedProviders.append(providers[0])
+        for (_, indices) in groupedIndices {
+            let group = indices.map { allProviders[$0] }
+            if group.count == 1 {
+                mergedProviders.append(group[0])
             } else {
-                mergedProviders.append(mergeProviderEntries(providers))
+                mergedProviders.append(mergeProviderEntries(group))
             }
         }
 
@@ -235,6 +245,30 @@ final class CloudSyncReader: @unchecked Sendable {
             appVersion: appVersion,
             mobileVersion: mobileVersion,
             notificationPushEnabled: pushEnabled)
+    }
+
+    /// Builds the effective identifier set for a single `ProviderUsageSnapshot`.
+    /// See `mergeSnapshots` doc comment for the synthesis rules. Returned list
+    /// is **never empty** — every snapshot gets at least a legacy bucket key
+    /// so it ends up in some group.
+    static func effectiveIdentifiers(for provider: ProviderUsageSnapshot) -> [String] {
+        if let explicit = provider.accountIdentities, !explicit.isEmpty {
+            return explicit
+        }
+        if let email = provider.accountEmail?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased(),
+            !email.isEmpty
+        {
+            // Synthesize the same scheme Mac ≥ 0.23 writes for email so old
+            // Macs auto-bridge with new Macs that share the email.
+            return ["\(provider.providerID):email:\(email)"]
+        }
+        // Fully legacy: nil identifiers + nil/empty accountEmail. Bucket
+        // all such snapshots for the same provider together (preserves the
+        // pre-019 `(providerID, "")` grouping behavior so users on two
+        // legacy Macs still see one card).
+        return ["\(provider.providerID):legacy-no-identity"]
     }
 
     /// Orders two semver-ish strings like `"0.20.3"` / `"1.2.0"` so `max(by:)`
@@ -534,5 +568,32 @@ final class CloudSyncReader: @unchecked Sendable {
                     usedPercent: min(100, max(0, avg)),
                     resetsAt: bucket.latestReset)
             }
+    }
+}
+
+/// Minimal union-find for merging provider snapshots in `mergeSnapshots`.
+/// Path-compression on `find`; union-by-attach (parent of root A becomes
+/// root B). Sufficient for our scale (typically <100 entries) — no need
+/// for rank-based union.
+struct MergeUnionFind {
+    private var parent: [Int]
+
+    init(count: Int) {
+        self.parent = Array(0..<count)
+    }
+
+    mutating func find(_ x: Int) -> Int {
+        if self.parent[x] != x {
+            self.parent[x] = self.find(self.parent[x])
+        }
+        return self.parent[x]
+    }
+
+    mutating func union(_ a: Int, _ b: Int) {
+        let ra = self.find(a)
+        let rb = self.find(b)
+        if ra != rb {
+            self.parent[ra] = rb
+        }
     }
 }

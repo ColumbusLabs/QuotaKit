@@ -254,6 +254,32 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// `rateWindows` rendering in that case.
     public let perplexityCredits: SyncPerplexityCreditSummary?
 
+    /// Mac-side stable identifiers for the logical account this snapshot
+    /// represents. iOS uses these as grouping evidence: any two snapshots
+    /// that share at least one identifier in this list merge into one card.
+    ///
+    /// Format: `{providerID}:{scheme}:{value}` — e.g.
+    /// `"codex:account:org-abc123"`, `"codex:email:user@example.com"`,
+    /// `"claude:oauth-sub:xyz789"`. The `providerID` prefix prevents
+    /// cross-provider false merges. The `scheme` is informational —
+    /// iOS doesn't parse it, only compares strings.
+    ///
+    /// **Mac rule (additive only):** new schemes are appended to the
+    /// list while legacy schemes stay in place for ≥3 minor releases.
+    /// Removing an identifier scheme requires a documented deprecation
+    /// cycle. See `Research/019-account-identity-multi-version-merge.md`
+    /// §6.
+    ///
+    /// **`nil`** (decode default for old Mac payloads, e.g. ≤ 0.20.3) →
+    /// iOS buckets the snapshot under a per-device legacy key, never
+    /// auto-merging it with other Macs. The user sees a "data not
+    /// aligned" hint on the affected card.
+    ///
+    /// **`[]`** (empty array) → treated identically to nil. Mac wrote
+    /// the field but couldn't compute any identifier (transient signin
+    /// state). Avoids grouping all anonymous snapshots together.
+    public let accountIdentities: [String]?
+
     /// All available rate windows. Prefers `rateWindows` if non-empty, otherwise falls back to primary/secondary.
     public var allRateWindows: [SyncRateWindow] {
         if !self.rateWindows.isEmpty { return self.rateWindows }
@@ -274,7 +300,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         budget: SyncBudgetSnapshot? = nil,
         rateWindows: [SyncRateWindow] = [],
         utilizationHistory: [SyncUtilizationSeries]? = nil,
-        perplexityCredits: SyncPerplexityCreditSummary? = nil)
+        perplexityCredits: SyncPerplexityCreditSummary? = nil,
+        accountIdentities: [String]? = nil)
     {
         self.providerID = providerID
         self.providerName = providerName
@@ -290,9 +317,10 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.budget = budget
         self.utilizationHistory = utilizationHistory
         self.perplexityCredits = perplexityCredits
+        self.accountIdentities = accountIdentities
     }
 
-    /// Backward-compatible decoder: old payloads without `rateWindows`/`costSummary`/`budget`/`perplexityCredits` still decode.
+    /// Backward-compatible decoder: old payloads without `rateWindows`/`costSummary`/`budget`/`perplexityCredits`/`accountIdentities` still decode.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.providerID = try container.decode(String.self, forKey: .providerID)
@@ -309,6 +337,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.budget = try container.decodeIfPresent(SyncBudgetSnapshot.self, forKey: .budget)
         self.utilizationHistory = try container.decodeIfPresent([SyncUtilizationSeries].self, forKey: .utilizationHistory)
         self.perplexityCredits = try container.decodeIfPresent(SyncPerplexityCreditSummary.self, forKey: .perplexityCredits)
+        self.accountIdentities = try container.decodeIfPresent([String].self, forKey: .accountIdentities)
     }
 }
 

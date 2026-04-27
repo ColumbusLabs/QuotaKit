@@ -211,6 +211,16 @@ final class SyncCoordinator {
                     balanceCents: p.balanceCents)
             }()
 
+            // Compute the per-account stable identifier set. iOS uses
+            // these for cross-Mac union-find merging. See
+            // `Research/019-account-identity-multi-version-merge.md` and
+            // `AccountIdentityComputer` for the algorithm and discipline.
+            // Tier-A providers (Codex/Claude/VertexAI) get real identifier
+            // sets; everyone else gets nil → iOS legacy per-device bucket.
+            let accountIdentities = AccountIdentityComputer.compute(
+                provider: provider,
+                identity: snapshot?.identity)
+
             let providerSnapshot = ProviderUsageSnapshot(
                 providerID: provider.rawValue,
                 providerName: meta?.displayName ?? provider.rawValue.capitalized,
@@ -225,7 +235,8 @@ final class SyncCoordinator {
                 budget: budgetSnap,
                 rateWindows: rateWindows,
                 utilizationHistory: utilizationHistory,
-                perplexityCredits: perplexityCredits)
+                perplexityCredits: perplexityCredits,
+                accountIdentities: accountIdentities)
 
             providerSnapshots.append(providerSnapshot)
         }
