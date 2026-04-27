@@ -1,6 +1,6 @@
 # 019 · Account Identity Multi-Version Merge — Research
 
-**Status:** Phase 0 design for Mac 0.23 + iOS 1.5.0 (folded into the same release; no new marketing versions).
+**Status:** `ready` — design locked. Folds into Mac 0.23 + iOS 1.5.0. **No marketing-version changes.** Build numbers move within current marketing tags (technical detail, not user-facing).
 **Author:** Architect role.
 **Date:** 2026-04-27.
 **Triggered by:** Real-world repro on user's machine — single Codex account, two Macs (one on 0.20.3 / one on 0.23), iOS 1.5.0 (Build 96) showed **two** Codex cards because the merge key collapsed when one Mac wrote `accountEmail` and the other didn't.
@@ -77,13 +77,33 @@ extension ProviderDescriptor {
 }
 ```
 
-### 4.1 Tier-A (the three providers we already keep tight loops on)
+### 4.1 Identifier ranking — primary is account UUID, not email
 
-| Provider | Identifier sources today | Identifier set today |
-|---|---|---|
-| **Codex** | OpenAI account email (from CLI token + dashboard fetch) | `["codex:email:<email>"]` |
-| **Claude** | OAuth `sub` claim (when OAuth) **+** primary email when available | `["claude:oauth-sub:<sub>", "claude:email:<email>"]` (both when both known; just one if only one) |
-| **VertexAI** | GCP project ID + account email (from `gcloud auth list`) | `["vertexai:gcp-project:<project>", "vertexai:email:<email>"]` |
+**Critical decision**: email is a *contact handle*, not an *account identifier*. It changes (Apple privaterelay rotation), aliases (multiple addresses for same account), and is shareable (team@company.com). Using it as the only identifier creates false-merge risk and false-split risk simultaneously.
+
+**Primary identifier** for each provider is the upstream account's stable UUID/sub claim. **Secondary** identifiers (email, etc.) are added to the set only when known, but never relied on alone.
+
+### 4.2 Tier-A providers
+
+| Provider | Primary (always) | Secondary (when available) | Resulting identifier set |
+|---|---|---|---|
+| **Codex** | OpenAI organization account ID (from `/v1/organizations` or token claim) | email, Apple Sign-In `sub`, Google `sub` | `["codex:account:<id>", "codex:email:<email>", "codex:apple-sub:<s>", …]` |
+| **Claude** | Anthropic OAuth `sub` claim (JWT) | primary email, Anthropic-side org ID when available | `["claude:oauth-sub:<sub>", "claude:email:<email>", "claude:org:<id>"]` |
+| **VertexAI** | GCP user-id / service-account-id | email, GCP project numeric ID | `["vertexai:user-id:<id>", "vertexai:project-num:<n>", "vertexai:email:<email>"]` |
+
+If the primary identifier can't be obtained (network failure, partial signin), Mac writes whatever secondaries it has + omits primary — better than nil. The legacy bucket is reserved for *no identifiers at all*.
+
+### 4.3 Other 24 providers
+
+Default to nil. Their cost path doesn't go through local pricing, and their accounts are typically single-Mac (no cross-Mac merging needed). If a future non-Tier-A provider needs cross-Mac merging, just add a `currentAccountIdentities()` impl to its descriptor.
+
+### 4.4 Normalization rules (Mac-side, before write)
+
+- All identifier values: lowercase + Unicode NFC normalize + trim whitespace
+- Special characters in `value` (e.g., `:` / `|` / `/`): percent-encode (RFC 3986)
+- Time-bounded values (JWT `exp`, session tokens): NEVER include
+- Empty/whitespace-only values: omit (don't write `"codex:email:"`)
+- Maximum identifier string length: 256 chars (truncate + log if exceeded; provider should fix at source)
 
 ### 4.2 Other 24 providers
 
@@ -212,8 +232,18 @@ User picks "Merge as same account". iOS then:
 
 - **User-driven**: never auto-merge across non-overlapping groups. The risk of false merges is the user's call.
 - **Cross-iPhone**: LinkageRecord lives in CloudKit private DB → all iPhones sharing the iCloud account see it.
-- **Self-correcting**: if the user changes their mind, a future "Unmerge" action writes an inverse record. (Out of scope for first implementation; can be added later.)
+- **Self-correcting**: if the user changes their mind, an **Unmerge** action writes an inverse record (see §7.4).
 - **Bounded**: only fires when union-find can't connect groups on its own. For 99% of upgrade scenarios this UI never appears.
+
+### 7.4 Unmerge action
+
+If a user accidentally merges two genuinely-different accounts via L3:
+
+1. Long-press the merged card → "Unmerge accounts" menu item
+2. iOS writes a `LinkageRecord` with `unmerge: true` flag listing the same `linkedIdentifiers` as the original merge
+3. On next read, iOS applies un-merges *after* applying merges: the affected identifier pair is removed from the union-find graph as a virtual edge
+
+Stored as additive records (never destructively delete the original LinkageRecord). Provides full audit trail via record history and lets cross-iPhone unmerge propagate naturally.
 
 ### 7.3 Why this isn't the primary mechanism
 
@@ -259,18 +289,19 @@ Localized into 4 languages (en / zh-Hans / zh-Hant / ja). Hooks into the existin
 
 ## 10. Folding into Mac 0.23 + iOS 1.5.0
 
-Per user direction: **no new marketing versions**. Build numbers bump within current marketing tags:
+**Marketing versions stay locked** at Mac 0.23 / iOS 1.5.0 — non-negotiable.
 
-| Component | Pre-this-work | After this work |
+Build numbers are a technical artifact for distinguishing builds (TestFlight requires uniqueness; local re-install needs a new bundle version to overwrite cleanly). They move as engineering needs, not as a "release" signal:
+
+| Component | Now | After this work |
 |---|---|---|
-| Mac MARKETING_VERSION | 0.23 | 0.23 (unchanged) |
-| Mac BUILD_NUMBER | 57 (locally installed) | **58** (new local install) |
-| iOS MARKETING_VERSION | 1.5.0 | 1.5.0 (unchanged) |
-| iOS CURRENT_PROJECT_VERSION | 97 (prep, not uploaded) | **98** (replaces 97 prep before upload) |
-| Sparkle CFBundleVersion | 57.1.5.0 | **58.1.5.0** |
-| Mac GH draft URL | `v0.23-mobile.1.3.1` | same tag, replaced asset |
+| Mac MARKETING_VERSION | 0.23 | 0.23 |
+| Mac BUILD_NUMBER | 57 | 58 |
+| iOS MARKETING_VERSION | 1.5.0 | 1.5.0 |
+| iOS CURRENT_PROJECT_VERSION | 97 (prep, never uploaded) | 98 |
+| Mac GH draft tag | `v0.23-mobile.1.3.1` | same tag, replaced asset on respin |
 
-iOS Build 97 was version-bumped in commit `25f17551` but never uploaded to TestFlight. We can either keep 97 (and push the identity-merge code on top) or jump to 98 to mark this as a distinct iteration. **Decision: jump to 98** so the in-flight changes are visually distinct from the original Build 97 prep.
+The iOS Build 97 prep in commit `25f17551` is replaced in place — never uploaded so no TestFlight collision. Reaching 98 as a single hop makes commit history match the artifact lineage.
 
 ---
 
@@ -298,6 +329,38 @@ Estimated: ~400 LOC code + ~250 LOC tests + this 200-line markdown.
 
 ---
 
+## 11.5. Edge cases anticipated beyond the originally-raised 3-Mac scenario
+
+The user raised "3 Macs / 3 versions / new fields added". Below are additional cases the architecture must (and does) handle. Each is annotated with how L1+L2+L3 covers it.
+
+| # | Case | Coverage |
+|---|---|---|
+| A | User changes IdP (Apple → Google) on same provider account | Primary `codex:account:<id>` stays stable across IdPs; secondary IdP-sub identifiers come and go. L2 unions on shared primary. ✓ |
+| B | Apple privaterelay email rotation | Primary `codex:account:<id>` unchanged; only the `email:` secondary changes. Old snapshots have old email, new have new — both share account ID. ✓ |
+| C | Provider-side account merge (Anthropic merges two accounts) | On next refresh, Mac sees new merged account's identifiers. Old snapshots with old account ID stay separate (correctly, until they're cleaned by L1 ghost-records logic on Mac). ✓ |
+| D | Mac offline for weeks (stale snapshot in CloudKit) | iOS unions on whatever identifiers the stale snapshot has. As long as ≥1 still appears in any current snapshot, connected. Stale-by-itself snapshot keeps appearing until that Mac comes online and writes fresh. ✓ |
+| E | OAuth `sub` rotation by IdP | Email + account ID still overlap; sub-rotation just adds a new identifier without removing the old. ✓ |
+| F | Multi-IdP login on different Macs (Apple on Mac A, Google on Mac B, same provider account underneath) | Both Macs write `codex:account:<id>` as primary → merge via primary even when secondary IdP-subs differ. ✓ |
+| G | Provider account change on same Mac (sign out + sign in different account) | New account writes a new snapshot with new identifiers. Old snapshot with old identifiers gets cleaned by Mac-side L1 ghost-records logic (already shipped in P4 of the v0.23 work). ✓ |
+| H | iCloud account switch on iPhone | CloudKit private DB is per-Apple-ID; switching iCloud accounts means a totally fresh DB, no carry-over of identifier state. ✓ |
+| I | CloudKit zone deletion / rebuild | Same as fresh install — Macs re-write on next sync, iOS re-merges. ✓ |
+| J | Privacy / PII | Identifier strings contain emails / OAuth subs (PII). CloudKit private DB is encrypted at rest + in transit. **No regression vs today** — `accountEmail` already was PII in cleartext. ✓ |
+| K | Performance / size | 5 IDs × 27 providers × N Macs ≈ 7KB extra per snapshot. CKRecord limit is ~1MB. Negligible. ✓ |
+| L | Wire encoding errors / corrupt bytes | `decodeIfPresent` fails gracefully → identifiers `nil` → legacy per-device bucket. Conservative degradation. ✓ |
+| M | Concurrent L3 confirmations from two iPhones | Both write LinkageRecords. CloudKit accepts both. iOS reads union of all linkages. Idempotent. ✓ |
+| N | User clicks L3 "merge" by mistake | Add **Unmerge action** in card UI: writes inverse LinkageRecord that nullifies the prior link for the affected identifier pair. ✓ (now in §7.4) |
+| O | Mac in middle of sign-out (auth state half-torn-down) | Mac defers identifier write until auth state is settled OR writes whatever it currently has (partial set is fine). ✓ |
+| P | Group / shared email aliases (`team@company.com` for 5 people) | Don't include shared aliases as identifiers — only stable upstream account UUIDs and the **primary** authenticated email. Group emails would never be the primary identifier returned by `currentAccountIdentities()`. ✓ |
+| Q | Family Sharing | CloudKit private DB is per-Apple-ID, not per-family. Each Apple ID has its own merge. ✓ |
+| R | Test/sandbox builds writing to production CloudKit | Existing entitlement (`com.apple.developer.icloud-container-environment = Production`) keeps dev signing pointed at Production. No leakage from dev/CI runs since they don't ship CloudKit-Production. ✓ |
+| S | iOS reinstall | SwiftData cache wiped → re-derived from CloudKit on next sync. Linkage records persist (CloudKit-side). ✓ |
+| T | Mac OS upgrade (14 → 15) | Keychain access stays. No regression. Verified during macOS 26 RenderBox upgrade earlier. ✓ |
+| U | Provider rate-limited identifier fetch (`/v1/organizations` returns 429) | Mac falls back to writing only the secondary identifiers it cached. Logs the fetch failure. Eventually retries. Identifier set may temporarily lack primary — still functional via secondaries. ✓ |
+| V | Snapshot size near CKRecord limit | Identifier set is bounded (max 5–8 strings of 256 chars = ~2KB). Compression already in place from earlier work. ✓ |
+| W | Provider that legitimately HAS no stable account identifier | Falls back to legacy per-device bucket. User sees per-device cards (matches today's behavior for non-Tier-A). ✓ |
+
+This list is **not exhaustive** — but it covers every category I can name (user lifecycle, network, encoding, concurrency, security, perf, schema). New cases that don't fit existing categories will be added to §11.5 as they're discovered, never silently bolted into the merge logic.
+
 ## 12. Out of scope (recorded so we don't accidentally do them)
 
 - Auto-link by similarity (e.g. "emails are 85% similar"). User-driven only.
@@ -308,15 +371,22 @@ Estimated: ~400 LOC code + ~250 LOC tests + this 200-line markdown.
 
 ---
 
-## 13. Acceptance for Phase 0
+## 13. Acceptance — design locked
 
-- [x] Schema-shape drift, schema-evolution, and hard-removal failure modes mapped (§1)
-- [x] Wire-format addition is purely additive + decodeIfPresent (§3)
-- [x] Mac-side identity computation per Tier-A provider documented (§4)
-- [x] iOS merge as opaque-string union-find (§5)
-- [x] Deprecation policy with 3-minor-version overlap rule (§6)
-- [x] L3 user-confirmed LinkageRecord as fallback (§7)
-- [x] Test matrix covering 3-Mac-3-version + edge cases (§8)
-- [x] iOS upgrade-window UI hint specified (§9)
-- [x] Version-bump plan within Mac 0.23 / iOS 1.5.0 (§10)
-- [ ] User review (you).
+All architecture decisions made; status `ready` for implementation. Locked items:
+
+- [x] Schema-shape drift, schema-evolution, and hard-removal failure modes (§1)
+- [x] Four design principles: iOS as merge authority, identity as set, additive-only writes, opaque-to-iOS (§2)
+- [x] Wire-format addition: `accountIdentities: [String]?` via `decodeIfPresent` (§3)
+- [x] Mac identity ranking: primary is provider account UUID, secondaries are email/IdP-sub (§4.1)
+- [x] Per-Tier-A provider identifier set spec (§4.2)
+- [x] Normalization rules (§4.4): lowercase + NFC + trim + URL-encode + length cap
+- [x] iOS union-find merge with legacy per-device bucket fallback (§5)
+- [x] Deprecation policy: identifier writes additive-only, ≥3 minor releases for any removal (§6)
+- [x] L3 user-confirmed LinkageRecord with Unmerge undo (§7 + §7.4)
+- [x] 11-case test matrix covering 3-Mac-3-version + edges (§8)
+- [x] 23-case anticipated edge case audit (§11.5)
+- [x] iOS upgrade-window UI hint (§9)
+- [x] Build-number plan, marketing versions held at 0.23 / 1.5.0 (§10)
+
+Next: implementation. No further design review needed.
