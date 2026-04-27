@@ -219,6 +219,11 @@ if [[ "$SIGNING_MODE" == "adhoc" ]]; then
   AUTO_CHECKS=false
 fi
 WIDGET_BUNDLE_ID="${BUNDLE_ID}.widget"
+# Our fork's signing team. Upstream uses Y5PE65HELJ (steipete); we override
+# to o1xhack's team ID. APP_TEAM_ID is referenced in CFBundleInfo plist
+# embeds (CodexBarTeamID key) at line ~324 / ~420 — required for app group
+# discovery between the main app and Widget extension.
+APP_TEAM_ID="${APP_TEAM_ID:-3TUERHN53E}"
 APP_GROUP_ID="group.com.o1xhack.codexbar"
 ICLOUD_KVS_ID="${CODEXBAR_ICLOUD_KVS_ID:-3TUERHN53E.com.codexbar.shared}"
 INCLUDE_SHARED_ENTITLEMENTS=1
