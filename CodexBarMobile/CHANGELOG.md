@@ -2,6 +2,48 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.0 (97)] — 2026-04-27 — model-name fallback resolver (Mac 0.23 partner build)
+
+Ships the iOS half of a fork-only fallback subsystem in the Mac cost
+scanner. Closes the recurring "Daily Spend drops to \$0 when a new
+model arrives" failure mode that bit Mac 0.20.3 (when `claude-opus-4-7`
+shipped before our pricing table did). See
+`Research/018-model-fallback-pricing.md` for the design (P0 of P0–P9).
+
+### Wire format additions
+
+- **`SyncCostBreakdown` / `SyncDailyPoint` / `SyncCostSummary`** in
+  `Shared/Models/UsageSnapshot.swift` each gain `isEstimated: Bool?`,
+  decoded via `decodeIfPresent`. Old Mac (≤ 0.20.x) payloads decode the
+  field as `nil` — iOS treats `nil` as "not estimated" so legacy data
+  renders identically. New Mac payloads carry `true` when at least one
+  per-model breakdown's cost was substituted from a fallback row.
+
+### iOS UI
+
+- **`Views/CostMetricCard`** — accepts `isEstimated: Bool` and appends
+  a `*` to the cost value when set. Accessibility hint speaks
+  "Estimated".
+- **`Views/ProviderDetailView`** — Today / 30 Days cards consult the
+  per-day and summary `isEstimated`; a localized footnote appears
+  below the cards when at least one is flagged. (Cost-tab Provider
+  Share / Daily Spend bars / Model Mix surfaces are out-of-scope for
+  1.5.0; the Provider Detail surface is the hottest path where users
+  cross-check Mac vs iOS spend.)
+
+### Localization
+
+- `Estimated` and `* Estimated cost · auto-corrects after Mac upgrades
+  to the latest pricing table` added to `Localizable.xcstrings` with
+  full en / zh-Hans / zh-Hant / ja translations. CI i18n audit clean.
+
+### Tests
+
+- `SyncCostIsEstimatedTests` (10) pin wire-format roundtrip in both
+  directions plus SyncCoordinator OR aggregation (per-breakdown →
+  per-day → summary).
+- All 221 iOS unit tests + 3 UI tests pass. SwiftLint 0 violations.
+
 ## [1.5.0 (96)] — 2026-04-27 — upstream v0.21–0.23 alignment (T1–T9)
 
 iOS-side consumption of Mac v0.23. Every user-visible delta from upstream's 0.21 / 0.22 / 0.23 (Abacus AI + Mistral providers, Claude Designs / Daily Routines / Web Sonnet bars, Cursor Extra usage, Synthetic 5h-weekly-search lane labels, Codex Pro $100 plan) flows to iPhone via the existing wire format that Mac v0.23 already populates — no new Codable types added. Skipped 1.4.0 because 1.3.1 was the App Store hotfix train.
