@@ -28,7 +28,7 @@ visibly low).
 
 ### Notes
 
-- CFBundleVersion = `59.1.3.1`. Sparkle on 0.23 prompts the upgrade.
+- CFBundleVersion = `58.2.1.3.1` (was `58.1.3.1` for 0.23). Sparkle on 0.23 prompts the upgrade.
 - iOS unchanged (1.5.0 Build 96/98). Once Mac re-scans and pushes,
   iOS sees the corrected numbers automatically.
 
