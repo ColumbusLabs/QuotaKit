@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.23.1 — 2026-04-28
+
+Hotfix on top of 0.23. Closes a stale-cache bug exposed during 0.23 QA: the
+0.20.3 → 0.23 upgrade added new pricing (gpt-5.5, claude-opus-4-7) and the
+fallback resolver, but the on-disk cost cache wasn't invalidated. Existing
+users saw token usage attributed to the wrong model bucket (e.g., gpt-5.4
+/ gpt-5.5 traffic stuck under gpt-5 in the cache, making Daily Spend
+visibly low).
+
+### Fix
+
+- **Cost cache auto-invalidates on upgrade.** Bumped on-disk artifact
+  versions: `codex-v4` → `codex-v5`, `claude-v2` / `vertexai-v2` →
+  `claude-v3` / `vertexai-v3`, `pi-sessions-v1` → `pi-sessions-v2`. First
+  launch on 0.23.1 ignores old cache files and runs a fresh full scan
+  (10–60 s depending on JSONL volume).
+- **Future-proofed against the same bug class.** Added
+  `CostUsagePricing.pricingFingerprint` — a deterministic string of
+  parser-logic version + sorted pricing keys. `CostUsageCache` and
+  `PiSessionCostCache` carry this fingerprint at write time; load()
+  rejects any cache whose fingerprint doesn't match the current build.
+  Any future pricing-table edit (new model added, repriced, removed)
+  auto-invalidates every user's cache on next launch — no manual
+  artifact-version bump required.
+- 9 new test cases pin the fingerprint contract.
+
+### Notes
+
+- CFBundleVersion = `59.1.3.1`. Sparkle on 0.23 prompts the upgrade.
+- iOS unchanged (1.5.0 Build 96/98). Once Mac re-scans and pushes,
+  iOS sees the corrected numbers automatically.
+
 ## 0.23 — 2026-04-26
 
 Mac-side rollup of upstream v0.21 / 0.22 / 0.23 (109 commits, 2 new providers, multiple provider enhancements) plus iOS 1.5.0 data-channel scaffolding pre-loaded so future iOS iterations don't need a new Mac release. Mobile companion stays at **1.3.1** — this is a Mac-only release; iOS users on 1.3.1 / 1.3.0 / 1.2.0 see existing 25 providers unchanged plus 2 new providers (Abacus AI, Mistral) as fallback cards.
