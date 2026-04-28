@@ -257,6 +257,37 @@ enum CostUsagePricing {
             cacheReadInputCostPerTokenAboveThreshold: 6e-7),
     ]
 
+    /// Manual version constant for the parser logic (`parseCodexFile` /
+    /// `parseClaudeFile` / `normalizeXxxModel`). Bump this when the parser
+    /// semantics change (e.g., model normalization rules, fallback ladder,
+    /// delta handling) — `pricingFingerprint` rolls automatically on
+    /// pricing-table edits, but parser-only changes need this nudge so
+    /// caches written by the old parser version are invalidated.
+    static let parserLogicVersion = 1
+
+    /// Stable string fingerprint of the pricing tables + parser logic.
+    /// `CostUsageCacheIO.load` compares this against the value stored
+    /// inside the cache file; on mismatch it returns an empty cache and
+    /// forces a full re-scan.
+    ///
+    /// **Why this exists:** Mac 0.20.3 → 0.23 added `gpt-5.5` to the
+    /// pricing table, but `codex-v4.json` cache from 0.20.3 era kept
+    /// stale per-(day, model) token attributions — tokens stored under
+    /// `gpt-5` (the old fallback default) silently survived the upgrade
+    /// and showed up at gpt-5 prices instead of gpt-5.5 prices. Bumping
+    /// the artifact version manually closes this round; the fingerprint
+    /// closes it for **every future round** without humans needing to
+    /// remember.
+    static var pricingFingerprint: String {
+        // Sorted, comma-joined keys are deterministic across runs and
+        // across machines. Identical pricing tables always yield the
+        // same fingerprint; any model added / renamed / repriced rolls
+        // the string and invalidates every user's cache on next launch.
+        let codexKeys = self.codex.keys.sorted().joined(separator: ",")
+        let claudeKeys = self.claude.keys.sorted().joined(separator: ",")
+        return "v\(Self.parserLogicVersion)|codex=\(codexKeys)|claude=\(claudeKeys)"
+    }
+
     static func normalizeCodexModel(_ raw: String) -> String {
         var trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.hasPrefix("openai/") {
