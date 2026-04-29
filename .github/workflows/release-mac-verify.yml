@@ -1,0 +1,124 @@
+name: Mac Release Verify
+
+# Verifies a published Mac release zip is actually launchable.
+#
+# Background: spctl / notarization / stapler can all pass on a bundle
+# that AMFI later rejects at launch time (POSIX 163, "Launchd job spawn
+# failed"). The most common cause is a missing
+# Contents/embedded.provisionprofile (entitlements with
+# com.apple.application-identifier require it). The local
+# Scripts/sign-and-notarize.sh has a launch-test gate that catches this
+# pre-publish, but in case anything ever bypasses that script (manual
+# release, hotfix, future tooling change) this workflow is the second
+# line of defense, running on a clean macOS runner.
+#
+# No secrets required — only github.token (built-in).
+
+on:
+  push:
+    tags:
+      - 'v*-mobile.*'
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to verify (e.g. v0.23.4-mobile.1.5.1)'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: macos-14
+    timeout-minutes: 15
+    steps:
+      - name: Resolve tag from event
+        id: tag
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.event_name }}" == "release" ]]; then
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Parse tag into version components
+        id: ver
+        run: |
+          set -euo pipefail
+          # Tag shape: v<MARKETING>-mobile.<MOBILE>
+          TAG="${{ steps.tag.outputs.tag }}"
+          REST="${TAG#v}"
+          MARKETING="${REST%-mobile.*}"
+          MOBILE="${REST#*-mobile.}"
+          ZIP="CodexBar-${MARKETING}-mobile.${MOBILE}.zip"
+          echo "marketing=$MARKETING" >> "$GITHUB_OUTPUT"
+          echo "mobile=$MOBILE" >> "$GITHUB_OUTPUT"
+          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
+          echo "Will verify: $ZIP"
+
+      - name: Download release zip from GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/release-verify
+          gh release download "${{ steps.tag.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --pattern "${{ steps.ver.outputs.zip }}" \
+            --dir /tmp/release-verify
+          ls -la /tmp/release-verify/
+
+      - name: Extract bundle
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/release-verify/unzipped
+          ditto -x -k "/tmp/release-verify/${{ steps.ver.outputs.zip }}" /tmp/release-verify/unzipped
+          ls -la /tmp/release-verify/unzipped/CodexBar.app/Contents/
+
+      - name: Verify embedded.provisionprofile is present
+        run: |
+          set -euo pipefail
+          PROFILE=/tmp/release-verify/unzipped/CodexBar.app/Contents/embedded.provisionprofile
+          if [[ ! -f "$PROFILE" ]]; then
+            echo "::error::Contents/embedded.provisionprofile MISSING from release zip."
+            echo "::error::AMFI will reject the binary at launch (POSIX 163)."
+            echo "::error::Root cause is usually package_app.sh failing to embed the profile."
+            exit 1
+          fi
+          SIZE=$(wc -c < "$PROFILE")
+          echo "embedded.provisionprofile present, $SIZE bytes"
+
+      - name: spctl assess (Gatekeeper)
+        run: spctl -a -t exec -vv /tmp/release-verify/unzipped/CodexBar.app
+
+      - name: Stapler validate
+        run: xcrun stapler validate /tmp/release-verify/unzipped/CodexBar.app
+
+      - name: Launch test (must stay alive 5s)
+        run: |
+          set -euo pipefail
+          APP=/tmp/release-verify/unzipped/CodexBar.app
+          "$APP/Contents/MacOS/CodexBar" >/dev/null 2>&1 &
+          PID=$!
+          sleep 5
+          if kill -0 "$PID" 2>/dev/null; then
+            kill -TERM "$PID" 2>/dev/null || true
+            sleep 1
+            if kill -0 "$PID" 2>/dev/null; then
+              kill -KILL "$PID" 2>/dev/null || true
+            fi
+            wait "$PID" 2>/dev/null || true
+            echo "Launch test PASSED — process stayed alive 5s"
+          else
+            wait "$PID" 2>/dev/null || true
+            echo "::error::Launch test FAILED — process exited within 5s of launch"
+            echo "::error::AMFI / Launch Services rejected the binary at runtime."
+            echo "::error::This release zip will fail to launch on user machines."
+            echo "::error::Mitigation: draft the release on GitHub immediately."
+            exit 1
+          fi
