@@ -4,13 +4,13 @@
 
 > **iPhone companion app for CodexBar.** Pulls every provider's usage from your Mac over iCloud, renders it as full-quality cards on your phone, and pushes a notification the moment any provider's quota hits zero.
 >
-> **This repository is the iOS app fork.** The Mac app lives in this same repo (forked from upstream) — **please download Mac builds from [our Releases page](https://github.com/o1xhack/CodexBar/releases)**, not from the upstream repo. The iOS app you install from the App Store is wire-locked to the Mac builds we ship here, and a mismatched upstream build will produce subtle data drift on your iPhone.
+> **This repository is the iOS app fork.** The Mac app lives in this same repo (forked from upstream) — **please download Mac builds from [our Releases page](https://github.com/o1xhack/CodexBar-Mobile/releases)**, not from the upstream repo. The iOS app you install from the App Store is wire-locked to the Mac builds we ship here, and a mismatched upstream build will produce subtle data drift on your iPhone.
 
 <p>
   <a href="https://apps.apple.com/app/id6760216772"><img src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83" alt="Download on the App Store" height="56"></a>
 </p>
 
-🌐 [codexbarios.o1xhack.com](https://codexbarios.o1xhack.com) · 💻 [Mac app — GitHub Releases](https://github.com/o1xhack/CodexBar/releases) · 🐦 [@o1xhack](https://x.com/o1xhack)
+🌐 [codexbarios.o1xhack.com](https://codexbarios.o1xhack.com) · 💻 [Mac app — GitHub Releases](https://github.com/o1xhack/CodexBar-Mobile/releases) · 🐦 [@o1xhack](https://x.com/o1xhack)
 
 ## Highlights · 1.5.0
 

@@ -11,7 +11,7 @@ CodexBar is a macOS menu bar app that tracks AI coding tool usage (Claude, Codex
 | Remote | Repo | Role |
 |--------|------|------|
 | `upstream` | steipete/CodexBar | Original open-source repo, read only |
-| `origin` | o1xhack/CodexBar | Our fork |
+| `origin` | o1xhack/CodexBar-Mobile | Our fork |
 | Branch | `mobile-dev` | Main working branch |
 
 ## Workflow
@@ -90,7 +90,7 @@ See `AGENTS.md` for the full process, rules, and checklists.
 ### 操作护栏
 
 - **不修改 Mac 端代码**：`Sources/`、`Tests/` 下的文件属于上游，只读
-- **不推送到 upstream**：只推送到 `origin`（o1xhack/CodexBar）
+- **不推送到 upstream**：只推送到 `origin`（o1xhack/CodexBar-Mobile）
 - **不跳过本地化**：所有用户可见文本必须包含 4 种语言
 - **不跳过版本号**：每次提交必须 bump `CURRENT_PROJECT_VERSION`
 - **不手动编辑 .xcodeproj**：通过 `xcodegen generate` 从 `project.yml` 生成
@@ -141,7 +141,7 @@ See `AGENTS.md` for the full process, rules, and checklists.
 4. 在对应任务下添加 comment，包含：
    - 日期标记：`[YYYY-MM-DD]`
    - 简要描述本次进展
-   - Commit 链接：`https://github.com/o1xhack/CodexBar/commit/<sha>`
+   - Commit 链接：`https://github.com/o1xhack/CodexBar-Mobile/commit/<sha>`
 
 **代码完成时：**
 5. 将任务移到 **Code Complete** 栏目（不直接标记完成）

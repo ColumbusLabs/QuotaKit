@@ -28,7 +28,7 @@ RELEASE_ASSET_BASENAME="${APP_NAME}-${MARKETING_VERSION}-mobile.${MOBILE_VERSION
 ARTIFACT_PREFIX="CodexBar-"
 BUNDLE_ID="com.o1xhack.codexbar"
 RELEASE_BRANCH="${CODEXBAR_RELEASE_BRANCH:-mobile-dev}"
-FEED_URL="https://raw.githubusercontent.com/o1xhack/CodexBar/${RELEASE_BRANCH}/appcast.xml"
+FEED_URL="https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/${RELEASE_BRANCH}/appcast.xml"
 TAG="v${MARKETING_VERSION}-mobile.${MOBILE_VERSION}"
 RELEASE_TITLE="${APP_NAME} ${MARKETING_VERSION} Mobile ${MOBILE_VERSION}"
 
@@ -78,11 +78,11 @@ phase1() {
   # previous failed phase 1 can leave an orphan draft that sits next to
   # any fresh one we create. Sweep those out before creating the new draft
   # so the user doesn't see two "CodexBar 0.20.x" entries in the UI.
-  orphan_ids=$(gh api "repos/o1xhack/CodexBar/releases" \
+  orphan_ids=$(gh api "repos/o1xhack/CodexBar-Mobile/releases" \
     --jq ".[] | select(.tag_name == \"$TAG\" and .draft == true) | .id" 2>/dev/null || true)
   for id in $orphan_ids; do
     echo "Cleaning up orphan draft id=$id for $TAG (from a previous phase 1 run)."
-    gh api -X DELETE "repos/o1xhack/CodexBar/releases/$id" >/dev/null
+    gh api -X DELETE "repos/o1xhack/CodexBar-Mobile/releases/$id" >/dev/null
   done
 
   gh release create "$TAG" \
@@ -142,7 +142,7 @@ phase2() {
 
   SPARKLE_PRIVATE_KEY_FILE="$KEY_FILE" \
     SPARKLE_RELEASE_VERSION="$MARKETING_VERSION" \
-    SPARKLE_DOWNLOAD_URL_PREFIX="https://github.com/o1xhack/CodexBar/releases/download/${TAG}/" \
+    SPARKLE_DOWNLOAD_URL_PREFIX="https://github.com/o1xhack/CodexBar-Mobile/releases/download/${TAG}/" \
     "$ROOT/Scripts/make_appcast.sh" \
     "${RELEASE_ASSET_BASENAME}.zip" \
     "$FEED_URL"
@@ -172,7 +172,7 @@ phase2() {
 ============================================================
 Phase 2 complete — Release ${MARKETING_VERSION} is LIVE.
 
-  Release:    https://github.com/o1xhack/CodexBar/releases/tag/$TAG
+  Release:    https://github.com/o1xhack/CodexBar-Mobile/releases/tag/$TAG
   Appcast:    $FEED_URL
   CFBundle:   ${BUILD_NUMBER}.${MOBILE_VERSION}
 

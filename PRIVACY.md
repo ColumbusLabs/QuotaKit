@@ -25,4 +25,4 @@ All data processing happens locally on your device. We have no servers and no ba
 ## Contact
 
 If you have questions about this privacy policy, please open an issue at:
-https://github.com/o1xhack/CodexBar/issues
+https://github.com/o1xhack/CodexBar-Mobile/issues

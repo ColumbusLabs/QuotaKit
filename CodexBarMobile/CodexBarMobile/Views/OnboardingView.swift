@@ -38,7 +38,7 @@ struct OnboardingView: View {
                         .foregroundStyle(.orange)
                     Text("v1.2.0 — New Mac App Required")
                         .font(.subheadline.weight(.semibold))
-                    Text("Subscription Utilization and Mac→iPhone push notifications need CodexBar Mac 0.19.0 (Build 54.1.2.0) or later. Get it from github.com/o1xhack/CodexBar/releases.")
+                    Text("Subscription Utilization and Mac→iPhone push notifications need CodexBar Mac 0.19.0 (Build 54.1.2.0) or later. Get it from github.com/o1xhack/CodexBar-Mobile/releases.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -78,7 +78,7 @@ struct OnboardingView: View {
 
                 // Actions
                 VStack(spacing: 12) {
-                    Link(destination: URL(string: "https://github.com/o1xhack/CodexBar/releases")!) {
+                    Link(destination: URL(string: "https://github.com/o1xhack/CodexBar-Mobile/releases")!) {
                         Label("Download Mac App", systemImage: "arrow.down.circle.fill")
                             .font(.headline)
                             .frame(maxWidth: .infinity)

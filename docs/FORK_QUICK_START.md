@@ -9,7 +9,7 @@ read_when:
 
 **Fork Maintainer:** Yuxiao Wang ([o1xhack](https://x.com/o1xhack))
 **Original Author:** Peter Steinberger ([steipete](https://twitter.com/steipete))
-**Fork Repository:** https://github.com/o1xhack/CodexBar
+**Fork Repository:** https://github.com/o1xhack/CodexBar-Mobile
 **Branch:** `mobile-dev`
 
 ---
@@ -28,7 +28,7 @@ The primary addition is **CodexBar Mobile** — an iOS app that syncs usage data
 ### Mac Changes (vs Upstream)
 - **Signing:** Developer ID: Yuxiao Wang (3TUERHN53E)
 - **Bundle ID:** com.o1xhack.codexbar
-- **Sparkle feed:** Points to o1xhack/CodexBar mobile-dev branch
+- **Sparkle feed:** Points to o1xhack/CodexBar-Mobile mobile-dev branch
 - **Build number:** Composite `BUILD_NUMBER.MOBILE_VERSION` (e.g. 54.1.1.0)
 - **CloudKit sync:** SyncCoordinator pushes usage data to CloudKit
 - **About page:** Fork links (GitHub, website, Twitter, email)

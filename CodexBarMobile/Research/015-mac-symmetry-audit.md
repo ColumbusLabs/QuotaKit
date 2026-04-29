@@ -110,7 +110,7 @@ Priority:
 
 Per project policy (CLAUDE.md):
 - `Sources/` and `Tests/` are **read-only** for our iOS fork.
-- Mac upstream is `steipete/CodexBar`. Our fork is `o1xhack/CodexBar`, iOS-only.
+- Mac upstream is `steipete/CodexBar`. Our fork is `o1xhack/CodexBar-Mobile`, iOS-only.
 - Merging upstream changes back is part of our release cadence; we don't fork Mac divergence.
 
 These findings wait until we either:

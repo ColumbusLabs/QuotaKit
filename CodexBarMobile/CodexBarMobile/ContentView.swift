@@ -1093,10 +1093,10 @@ private struct SettingsTab: View {
                 }
 
                 Section("Open Source") {
-                    Link(destination: URL(string: "https://github.com/o1xhack/CodexBar")!) {
+                    Link(destination: URL(string: "https://github.com/o1xhack/CodexBar-Mobile")!) {
                         Label {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("o1xhack/CodexBar")
+                                Text("o1xhack/CodexBar-Mobile")
                                     .fontWeight(.medium)
                                 Text("Install the Mac app from this repo")
                                     .font(.caption)
@@ -1234,7 +1234,7 @@ private struct AboutSyncDetailView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    Link(destination: URL(string: "https://github.com/o1xhack/CodexBar/releases")!) {
+                    Link(destination: URL(string: "https://github.com/o1xhack/CodexBar-Mobile/releases")!) {
                         Label("Download Latest Mac Version", systemImage: "arrow.down.circle")
                     }
                 }
@@ -1774,7 +1774,7 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Important"),
                     items: [
-                        String(localized: "Update Mac CodexBar to **0.23.4 (Build 58.4.1.3.1) or later** for the new providers and accurate Cost numbers — earlier 0.23.x has a Codex parser bug. Download: [github.com/o1xhack/CodexBar/releases](https://github.com/o1xhack/CodexBar/releases)."),
+                        String(localized: "Update Mac CodexBar to **0.23.4 (Build 58.4.1.3.1) or later** for the new providers and accurate Cost numbers — earlier 0.23.x has a Codex parser bug. Download: [github.com/o1xhack/CodexBar-Mobile/releases](https://github.com/o1xhack/CodexBar-Mobile/releases)."),
                     ]),
                 .init(
                     title: String(localized: "What's New"),
@@ -1805,7 +1805,7 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Important"),
                     items: [
-                        String(localized: "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.3.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar/releases."),
+                        String(localized: "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.3.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar-Mobile/releases."),
                     ]),
                 .init(
                     title: String(localized: "What's New"),
@@ -1832,7 +1832,7 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Important"),
                     items: [
-                        String(localized: "You must update CodexBar on Mac to 0.19.0 (Build 54.1.2.0) or later to use this release. Subscription Utilization data collection and Mac→iOS push notifications both depend on Mac-side changes in that version. Download from github.com/o1xhack/CodexBar/releases."),
+                        String(localized: "You must update CodexBar on Mac to 0.19.0 (Build 54.1.2.0) or later to use this release. Subscription Utilization data collection and Mac→iOS push notifications both depend on Mac-side changes in that version. Download from github.com/o1xhack/CodexBar-Mobile/releases."),
                     ]),
                 .init(
                     title: String(localized: "What's New"),
@@ -1855,7 +1855,7 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Important"),
                     items: [
-                        String(localized: "Version 1.1.0 requires the latest CodexBar Mac app (0.18.0-mobile-1.1.0 or later) to unlock CloudKit sync. Download it from GitHub: github.com/o1xhack/CodexBar/releases"),
+                        String(localized: "Version 1.1.0 requires the latest CodexBar Mac app (0.18.0-mobile-1.1.0 or later) to unlock CloudKit sync. Download it from GitHub: github.com/o1xhack/CodexBar-Mobile/releases"),
                     ]),
                 .init(
                     title: String(localized: "What's New"),

@@ -166,7 +166,7 @@ Quick summary:
 1. Update `CHANGELOG.md` — Mobile changes first, upstream second
 2. `./Scripts/sign-and-notarize.sh` — builds, signs with `Developer ID Application: Yuxiao Wang (3TUERHN53E)`, notarizes
 3. Generate appcast with `make_appcast.sh` (set `SPARKLE_DOWNLOAD_URL_PREFIX` to full tag URL)
-4. Create GitHub release on `o1xhack/CodexBar` (not upstream)
+4. Create GitHub release on `o1xhack/CodexBar-Mobile` (not upstream)
 5. Push appcast to `mobile-dev`
 
 **Build number:** `BUILD_NUMBER.MOBILE_VERSION` (e.g. `53.1.1.0`). See `docs/sparkle.md` for details.

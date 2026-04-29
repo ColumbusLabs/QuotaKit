@@ -7,7 +7,7 @@ source "$ROOT/Scripts/sparkle_helpers.sh"
 ZIP=${1:?
 "Usage: $0 CodexBar-<ver>.zip"}
 RELEASE_BRANCH=${CODEXBAR_RELEASE_BRANCH:-mobile-dev}
-FEED_URL=${2:-"https://raw.githubusercontent.com/o1xhack/CodexBar/${RELEASE_BRANCH}/appcast.xml"}
+FEED_URL=${2:-"https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/${RELEASE_BRANCH}/appcast.xml"}
 PRIVATE_KEY_FILE=${SPARKLE_PRIVATE_KEY_FILE:-}
 SPARKLE_CHANNEL=${SPARKLE_CHANNEL:-}
 if [[ -z "$PRIVATE_KEY_FILE" ]]; then
@@ -56,7 +56,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-DOWNLOAD_URL_PREFIX=${SPARKLE_DOWNLOAD_URL_PREFIX:-"https://github.com/o1xhack/CodexBar/releases/download/v${VERSION}/"}
+DOWNLOAD_URL_PREFIX=${SPARKLE_DOWNLOAD_URL_PREFIX:-"https://github.com/o1xhack/CodexBar-Mobile/releases/download/v${VERSION}/"}
 
 # Sparkle provides generate_appcast; ensure it's on PATH (via SwiftPM build of Sparkle's bin) or Xcode dmg
 if ! command -v generate_appcast >/dev/null; then

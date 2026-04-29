@@ -7,7 +7,7 @@ read_when:
 
 # Mac Release — Fork Workflow
 
-This is the complete release workflow for the o1xhack/CodexBar fork.
+This is the complete release workflow for the o1xhack/CodexBar-Mobile fork.
 For upstream release docs see `docs/RELEASING.md`.
 
 ## Prerequisites
@@ -109,11 +109,11 @@ source version.env
 TAG="v${MARKETING_VERSION}-mobile.${MOBILE_VERSION}"
 
 PATH="$PWD/.build/artifacts/sparkle/Sparkle/bin:$PATH" \
-  SPARKLE_DOWNLOAD_URL_PREFIX="https://github.com/o1xhack/CodexBar/releases/download/${TAG}/" \
+  SPARKLE_DOWNLOAD_URL_PREFIX="https://github.com/o1xhack/CodexBar-Mobile/releases/download/${TAG}/" \
   SPARKLE_RELEASE_VERSION="$MARKETING_VERSION" \
   ./Scripts/make_appcast.sh \
   "CodexBar-${MARKETING_VERSION}-mobile.${MOBILE_VERSION}.zip" \
-  "https://raw.githubusercontent.com/o1xhack/CodexBar/mobile-dev/appcast.xml"
+  "https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml"
 ```
 
 **Important:** `SPARKLE_DOWNLOAD_URL_PREFIX` must include the full tag (e.g. `v0.19.0-mobile.1.1.0/`), not just the marketing version.
@@ -127,12 +127,12 @@ git push -f origin "$TAG"
 gh release create "$TAG" \
   "CodexBar-${MARKETING_VERSION}-mobile.${MOBILE_VERSION}.zip" \
   "CodexBar-${MARKETING_VERSION}-mobile.${MOBILE_VERSION}.dSYM.zip" \
-  --repo o1xhack/CodexBar \
+  --repo o1xhack/CodexBar-Mobile \
   --title "CodexBar ${MARKETING_VERSION} — Mobile ${MOBILE_VERSION}" \
   --notes-file <(changelog excerpt)
 ```
 
-**Note:** Always use `--repo o1xhack/CodexBar` to avoid accidentally creating on upstream.
+**Note:** Always use `--repo o1xhack/CodexBar-Mobile` to avoid accidentally creating on upstream.
 
 ### 6. Commit and push appcast
 
@@ -146,11 +146,11 @@ git push origin mobile-dev
 
 ```bash
 # Appcast served correctly
-curl -s "https://raw.githubusercontent.com/o1xhack/CodexBar/mobile-dev/appcast.xml" \
+curl -s "https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml" \
   | grep "sparkle:version"
 
 # Download URL works
-curl -sIL "https://github.com/o1xhack/CodexBar/releases/download/${TAG}/CodexBar-${MARKETING_VERSION}-mobile.${MOBILE_VERSION}.zip" \
+curl -sIL "https://github.com/o1xhack/CodexBar-Mobile/releases/download/${TAG}/CodexBar-${MARKETING_VERSION}-mobile.${MOBILE_VERSION}.zip" \
   | grep "^HTTP"
 # Should be: 302 → 200
 ```
@@ -170,7 +170,7 @@ Then open CodexBar on Mac → Settings → About → **Check for Updates** to co
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Sparkle says "up to date" | Build number not higher than installed | Check `CFBundleVersion` in app vs `sparkle:version` in appcast |
-| Download fails (404) | Release is draft or tag mismatch | Verify release is published: `gh api repos/o1xhack/CodexBar/releases/tags/$TAG --jq .draft` |
+| Download fails (404) | Release is draft or tag mismatch | Verify release is published: `gh api repos/o1xhack/CodexBar-Mobile/releases/tags/$TAG --jq .draft` |
 | `generate_appcast` not found | Not in PATH | Prefix with `PATH="$PWD/.build/artifacts/sparkle/Sparkle/bin:$PATH"` |
 | Appcast URL wrong | `SPARKLE_DOWNLOAD_URL_PREFIX` missing | Must set to full tag URL, not just marketing version |
 | CDN stale after push | raw.githubusercontent.com cache | Wait 2-5 minutes, or `curl -H "Cache-Control: no-cache"` to check |

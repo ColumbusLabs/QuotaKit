@@ -3221,30 +3221,30 @@
         }
       }
     },
-    "Version 1.2.0 works best with the latest CodexBar Mac app (0.19.0 or later). Utilization History sync relies on Mac-side fixes shipped in that release. Download from GitHub: github.com/o1xhack/CodexBar/releases": {
+    "Version 1.2.0 works best with the latest CodexBar Mac app (0.19.0 or later). Utilization History sync relies on Mac-side fixes shipped in that release. Download from GitHub: github.com/o1xhack/CodexBar-Mobile/releases": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Version 1.2.0 works best with the latest CodexBar Mac app (0.19.0 or later). Utilization History sync relies on Mac-side fixes shipped in that release. Download from GitHub: github.com/o1xhack/CodexBar/releases"
+            "value": "Version 1.2.0 works best with the latest CodexBar Mac app (0.19.0 or later). Utilization History sync relies on Mac-side fixes shipped in that release. Download from GitHub: github.com/o1xhack/CodexBar-Mobile/releases"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "バージョン 1.2.0 は最新の CodexBar Mac アプリ（0.19.0 以降）で最も良く動作します。利用率履歴の同期はそのリリースで提供される Mac 側の修正に依存します。GitHub からダウンロード: github.com/o1xhack/CodexBar/releases"
+            "value": "バージョン 1.2.0 は最新の CodexBar Mac アプリ（0.19.0 以降）で最も良く動作します。利用率履歴の同期はそのリリースで提供される Mac 側の修正に依存します。GitHub からダウンロード: github.com/o1xhack/CodexBar-Mobile/releases"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "1.2.0 版本建议搭配最新的 CodexBar Mac 应用（0.19.0 或更高版本）使用。利用率历史同步依赖于该版本中的 Mac 端修复。从 GitHub 下载：github.com/o1xhack/CodexBar/releases"
+            "value": "1.2.0 版本建议搭配最新的 CodexBar Mac 应用（0.19.0 或更高版本）使用。利用率历史同步依赖于该版本中的 Mac 端修复。从 GitHub 下载：github.com/o1xhack/CodexBar-Mobile/releases"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "1.2.0 版本建議搭配最新的 CodexBar Mac 應用程式（0.19.0 或更高版本）使用。使用率歷史同步依賴於該版本中的 Mac 端修復。從 GitHub 下載：github.com/o1xhack/CodexBar/releases"
+            "value": "1.2.0 版本建議搭配最新的 CodexBar Mac 應用程式（0.19.0 或更高版本）使用。使用率歷史同步依賴於該版本中的 Mac 端修復。從 GitHub 下載：github.com/o1xhack/CodexBar-Mobile/releases"
           }
         }
       }
@@ -6281,30 +6281,30 @@
         }
       }
     },
-    "You must update CodexBar on Mac to 0.19.0 (Build 54.1.2.0) or later to use this release. Subscription Utilization data collection and Mac→iOS push notifications both depend on Mac-side changes in that version. Download from github.com/o1xhack/CodexBar/releases.": {
+    "You must update CodexBar on Mac to 0.19.0 (Build 54.1.2.0) or later to use this release. Subscription Utilization data collection and Mac→iOS push notifications both depend on Mac-side changes in that version. Download from github.com/o1xhack/CodexBar-Mobile/releases.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "You must update CodexBar on Mac to 0.19.0 (Build 54.1.2.0) or later to use this release. Subscription Utilization data collection and Mac→iOS push notifications both depend on Mac-side changes in that version. Download from github.com/o1xhack/CodexBar/releases."
+            "value": "You must update CodexBar on Mac to 0.19.0 (Build 54.1.2.0) or later to use this release. Subscription Utilization data collection and Mac→iOS push notifications both depend on Mac-side changes in that version. Download from github.com/o1xhack/CodexBar-Mobile/releases."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "このリリースを使用するには、Mac 版 CodexBar を 0.19.0 (Build 54.1.2.0) 以降に更新する必要があります。サブスクリプション利用率のデータ収集と Mac→iOS プッシュ通知は、いずれもこの Mac 版の変更に依存しています。github.com/o1xhack/CodexBar/releases からダウンロードしてください。"
+            "value": "このリリースを使用するには、Mac 版 CodexBar を 0.19.0 (Build 54.1.2.0) 以降に更新する必要があります。サブスクリプション利用率のデータ収集と Mac→iOS プッシュ通知は、いずれもこの Mac 版の変更に依存しています。github.com/o1xhack/CodexBar-Mobile/releases からダウンロードしてください。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "必须将 Mac 版 CodexBar 更新到 0.19.0（Build 54.1.2.0）或更新版本才能使用本次更新。利用率数据采集和 Mac→iPhone 推送通知都依赖该版本的 Mac 端改动。从 github.com/o1xhack/CodexBar/releases 下载。"
+            "value": "必须将 Mac 版 CodexBar 更新到 0.19.0（Build 54.1.2.0）或更新版本才能使用本次更新。利用率数据采集和 Mac→iPhone 推送通知都依赖该版本的 Mac 端改动。从 github.com/o1xhack/CodexBar-Mobile/releases 下载。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "必須將 Mac 版 CodexBar 更新到 0.19.0（Build 54.1.2.0）或更新版本才能使用本次更新。利用率資料採集和 Mac→iPhone 推送通知都依賴該版本的 Mac 端改動。從 github.com/o1xhack/CodexBar/releases 下載。"
+            "value": "必須將 Mac 版 CodexBar 更新到 0.19.0（Build 54.1.2.0）或更新版本才能使用本次更新。利用率資料採集和 Mac→iPhone 推送通知都依賴該版本的 Mac 端改動。從 github.com/o1xhack/CodexBar-Mobile/releases 下載。"
           }
         }
       }
@@ -6449,30 +6449,30 @@
         }
       }
     },
-    "Version 1.1.0 requires the latest CodexBar Mac app (0.18.0-mobile-1.1.0 or later) to unlock CloudKit sync. Download it from GitHub: github.com/o1xhack/CodexBar/releases": {
+    "Version 1.1.0 requires the latest CodexBar Mac app (0.18.0-mobile-1.1.0 or later) to unlock CloudKit sync. Download it from GitHub: github.com/o1xhack/CodexBar-Mobile/releases": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Version 1.1.0 requires the latest CodexBar Mac app (0.18.0-mobile-1.1.0 or later) to unlock CloudKit sync. Download it from GitHub: github.com/o1xhack/CodexBar/releases"
+            "value": "Version 1.1.0 requires the latest CodexBar Mac app (0.18.0-mobile-1.1.0 or later) to unlock CloudKit sync. Download it from GitHub: github.com/o1xhack/CodexBar-Mobile/releases"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "バージョン 1.1.0 では、CloudKit 同期を有効にするため最新の Mac 版 CodexBar (0.18.0-mobile-1.1.0 以降) が必要です。GitHub からダウンロード: github.com/o1xhack/CodexBar/releases"
+            "value": "バージョン 1.1.0 では、CloudKit 同期を有効にするため最新の Mac 版 CodexBar (0.18.0-mobile-1.1.0 以降) が必要です。GitHub からダウンロード: github.com/o1xhack/CodexBar-Mobile/releases"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "版本 1.1.0 需要最新的 Mac 版 CodexBar（0.18.0-mobile-1.1.0 或更新）才能启用 CloudKit 同步。从 GitHub 下载: github.com/o1xhack/CodexBar/releases"
+            "value": "版本 1.1.0 需要最新的 Mac 版 CodexBar（0.18.0-mobile-1.1.0 或更新）才能启用 CloudKit 同步。从 GitHub 下载: github.com/o1xhack/CodexBar-Mobile/releases"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "版本 1.1.0 需要最新的 Mac 版 CodexBar（0.18.0-mobile-1.1.0 或更新）才能啟用 CloudKit 同步。從 GitHub 下載: github.com/o1xhack/CodexBar/releases"
+            "value": "版本 1.1.0 需要最新的 Mac 版 CodexBar（0.18.0-mobile-1.1.0 或更新）才能啟用 CloudKit 同步。從 GitHub 下載: github.com/o1xhack/CodexBar-Mobile/releases"
           }
         }
       }
@@ -6870,31 +6870,31 @@
         }
       }
     },
-    "Subscription Utilization and Mac→iPhone push notifications need CodexBar Mac 0.19.0 (Build 54.1.2.0) or later. Get it from github.com/o1xhack/CodexBar/releases.": {
+    "Subscription Utilization and Mac→iPhone push notifications need CodexBar Mac 0.19.0 (Build 54.1.2.0) or later. Get it from github.com/o1xhack/CodexBar-Mobile/releases.": {
       "comment": "Setup Guide upgrade-notice body. Mirrors the Release Notes Important section.",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Subscription Utilization and Mac→iPhone push notifications need CodexBar Mac 0.19.0 (Build 54.1.2.0) or later. Get it from github.com/o1xhack/CodexBar/releases."
+            "value": "Subscription Utilization and Mac→iPhone push notifications need CodexBar Mac 0.19.0 (Build 54.1.2.0) or later. Get it from github.com/o1xhack/CodexBar-Mobile/releases."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "サブスクリプション利用率と Mac→iPhone プッシュ通知には CodexBar Mac 0.19.0 (Build 54.1.2.0) 以降が必要です。github.com/o1xhack/CodexBar/releases から入手してください。"
+            "value": "サブスクリプション利用率と Mac→iPhone プッシュ通知には CodexBar Mac 0.19.0 (Build 54.1.2.0) 以降が必要です。github.com/o1xhack/CodexBar-Mobile/releases から入手してください。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "订阅利用率和 Mac→iPhone 推送通知需要 Mac 版 CodexBar 升级到 0.19.0 (Build 54.1.2.0) 或更新版本。从 github.com/o1xhack/CodexBar/releases 下载。"
+            "value": "订阅利用率和 Mac→iPhone 推送通知需要 Mac 版 CodexBar 升级到 0.19.0 (Build 54.1.2.0) 或更新版本。从 github.com/o1xhack/CodexBar-Mobile/releases 下载。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "訂閱利用率和 Mac→iPhone 推送通知需要 Mac 版 CodexBar 升級到 0.19.0 (Build 54.1.2.0) 或更新版本。從 github.com/o1xhack/CodexBar/releases 下載。"
+            "value": "訂閱利用率和 Mac→iPhone 推送通知需要 Mac 版 CodexBar 升級到 0.19.0 (Build 54.1.2.0) 或更新版本。從 github.com/o1xhack/CodexBar-Mobile/releases 下載。"
           }
         }
       }
@@ -7095,30 +7095,30 @@
         }
       }
     },
-    "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.3.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar/releases.": {
+    "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.3.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar-Mobile/releases.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.3.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar/releases."
+            "value": "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.3.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar-Mobile/releases."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "将 Mac 端 CodexBar 更新到 0.20.3（Build 55.3.1.3.0）或更高版本，才能在 Perplexity 详情页看到结构化的信用额度细分（月度 / 赠送 / 购买三段 + Pro/Max 套餐徽章 + 续期倒计时）。老版本 Mac 仍显示旧的 3 条柱图。下载地址：github.com/o1xhack/CodexBar/releases。"
+            "value": "将 Mac 端 CodexBar 更新到 0.20.3（Build 55.3.1.3.0）或更高版本，才能在 Perplexity 详情页看到结构化的信用额度细分（月度 / 赠送 / 购买三段 + Pro/Max 套餐徽章 + 续期倒计时）。老版本 Mac 仍显示旧的 3 条柱图。下载地址：github.com/o1xhack/CodexBar-Mobile/releases。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "將 Mac 端 CodexBar 更新到 0.20.3（Build 55.3.1.3.0）或更高版本，才能在 Perplexity 詳情頁看到結構化的信用額度細分（月度 / 贈送 / 購買三段 + Pro/Max 套餐徽章 + 續期倒數計時）。舊版 Mac 仍顯示舊的 3 條柱圖。下載地址：github.com/o1xhack/CodexBar/releases。"
+            "value": "將 Mac 端 CodexBar 更新到 0.20.3（Build 55.3.1.3.0）或更高版本，才能在 Perplexity 詳情頁看到結構化的信用額度細分（月度 / 贈送 / 購買三段 + Pro/Max 套餐徽章 + 續期倒數計時）。舊版 Mac 仍顯示舊的 3 條柱圖。下載地址：github.com/o1xhack/CodexBar-Mobile/releases。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Perplexity の構造化されたクレジット内訳（月次 / プロモ / 購入の 3 プール + Pro/Max プラン + 更新カウントダウン）を表示するには、Mac の CodexBar を 0.20.3（Build 55.3.1.3.0）以降に更新してください。古い Mac バージョンでは Perplexity 詳細ページは従来の 3 バー表示にフォールバックします。ダウンロード：github.com/o1xhack/CodexBar/releases"
+            "value": "Perplexity の構造化されたクレジット内訳（月次 / プロモ / 購入の 3 プール + Pro/Max プラン + 更新カウントダウン）を表示するには、Mac の CodexBar を 0.20.3（Build 55.3.1.3.0）以降に更新してください。古い Mac バージョンでは Perplexity 詳細ページは従来の 3 バー表示にフォールバックします。ダウンロード：github.com/o1xhack/CodexBar-Mobile/releases"
           }
         }
       }
@@ -7752,31 +7752,31 @@
         }
       }
     },
-    "Update Mac CodexBar to **0.23.4 (Build 58.4.1.3.1) or later** for the new providers and accurate Cost numbers — earlier 0.23.x has a Codex parser bug. Download: [github.com/o1xhack/CodexBar/releases](https://github.com/o1xhack/CodexBar/releases).": {
+    "Update Mac CodexBar to **0.23.4 (Build 58.4.1.3.1) or later** for the new providers and accurate Cost numbers — earlier 0.23.x has a Codex parser bug. Download: [github.com/o1xhack/CodexBar-Mobile/releases](https://github.com/o1xhack/CodexBar-Mobile/releases).": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update Mac CodexBar to **0.23.4 (Build 58.4.1.3.1) or later** for the new providers and accurate Cost numbers — earlier 0.23.x has a Codex parser bug. Download: [github.com/o1xhack/CodexBar/releases](https://github.com/o1xhack/CodexBar/releases)."
+            "value": "Update Mac CodexBar to **0.23.4 (Build 58.4.1.3.1) or later** for the new providers and accurate Cost numbers — earlier 0.23.x has a Codex parser bug. Download: [github.com/o1xhack/CodexBar-Mobile/releases](https://github.com/o1xhack/CodexBar-Mobile/releases)."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac 端 CodexBar 升到 **0.23.4（Build 58.4.1.3.1）或更高**，才能看到新增 provider 并保证 Cost 数字准确 —— 更早 0.23.x 有 Codex 解析器 bug。下载：[github.com/o1xhack/CodexBar/releases](https://github.com/o1xhack/CodexBar/releases)。"
+            "value": "Mac 端 CodexBar 升到 **0.23.4（Build 58.4.1.3.1）或更高**，才能看到新增 provider 并保证 Cost 数字准确 —— 更早 0.23.x 有 Codex 解析器 bug。下载：[github.com/o1xhack/CodexBar-Mobile/releases](https://github.com/o1xhack/CodexBar-Mobile/releases)。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac 端 CodexBar 升到 **0.23.4（Build 58.4.1.3.1）或更高**，才能看到新增 provider 並保證 Cost 數字準確 —— 更早 0.23.x 有 Codex 解析器 bug。下載：[github.com/o1xhack/CodexBar/releases](https://github.com/o1xhack/CodexBar/releases)。"
+            "value": "Mac 端 CodexBar 升到 **0.23.4（Build 58.4.1.3.1）或更高**，才能看到新增 provider 並保證 Cost 數字準確 —— 更早 0.23.x 有 Codex 解析器 bug。下載：[github.com/o1xhack/CodexBar-Mobile/releases](https://github.com/o1xhack/CodexBar-Mobile/releases)。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac の CodexBar を **0.23.4（Build 58.4.1.3.1）以降** にアップデートしてください。新しいプロバイダーと正確な Cost 数値のために必要です。以前の 0.23.x には Codex パーサーのバグがありました。ダウンロード：[github.com/o1xhack/CodexBar/releases](https://github.com/o1xhack/CodexBar/releases)。"
+            "value": "Mac の CodexBar を **0.23.4（Build 58.4.1.3.1）以降** にアップデートしてください。新しいプロバイダーと正確な Cost 数値のために必要です。以前の 0.23.x には Codex パーサーのバグがありました。ダウンロード：[github.com/o1xhack/CodexBar-Mobile/releases](https://github.com/o1xhack/CodexBar-Mobile/releases)。"
           }
         }
       }
