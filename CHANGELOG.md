@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.23.3 — 2026-04-28
+## 0.23.4 — 2026-04-28
 
 Hotfix that closes a long-standing Codex JSONL parser bug — pre-existing
 all the way back to when the Codex scanner was first written, only
@@ -10,7 +10,7 @@ misattributed to `gpt-5`, no matter what model the user actually ran.
 
 Every previous version's user (0.18 / 0.19 / 0.20 / 0.20.x / 0.21 /
 0.22 / 0.23 / 0.23.1) is automatically corrected on first launch of
-0.23.3 — the fingerprint mechanism rolls and triggers a fresh full
+0.23.4 — the fingerprint mechanism rolls and triggers a fresh full
 re-scan with the fixed parser.
 
 ### Root cause
@@ -55,7 +55,7 @@ The bug was masked because almost all earlier test fixtures included
 ### Code-review follow-ups (folded in before ship)
 
 A self-review with codex-reviewer caught three P1 issues across the
-0.23 / 0.23.1 / 0.23.3 commit cluster. All three are fixed in this
+0.23 / 0.23.1 / 0.23.4 commit cluster. All three are fixed in this
 release rather than deferred:
 
 - **P1-1 — Lint guard fail-closed.** The new `audit_parser_version`
@@ -100,7 +100,7 @@ users again:
   Wired into the default `lint` command so `./Scripts/lint.sh lint`
   catches it pre-push and CI re-runs the same check on every PR.
   Cosmetic / comment-only edits can opt out via `ALLOW_PARSER_CHANGE=1`.
-  Why: this 0.23.3 fix needed a manual `parserLogicVersion` bump for
+  Why: this 0.23.4 fix needed a manual `parserLogicVersion` bump for
   the cache to actually re-roll on user machines — easy to forget on
   future parser tweaks.
 - **Real-shape regression fixtures in tests.** The new tests
@@ -112,11 +112,11 @@ users again:
 
 ### Notes
 
-- CFBundleVersion = `58.3.1.3.1`. Sparkle on 0.23 prompts the upgrade
+- CFBundleVersion = `58.4.1.3.1`. Sparkle on 0.23 prompts the upgrade
   on next check-for-updates.
 - iOS unchanged (1.5.0 Build 96 / 98). Mac re-scan repushes corrected
   numbers to CloudKit; iOS reads automatically.
-- 0.23.1 GitHub draft superseded — 0.23.3 carries the same cache
+- 0.23.1 GitHub draft superseded — 0.23.4 carries the same cache
   invalidation infrastructure plus this parser fix, so 0.23.1 was
   never finalized.
 
