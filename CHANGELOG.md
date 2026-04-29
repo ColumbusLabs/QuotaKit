@@ -2,6 +2,19 @@
 
 ## 0.23.4 — 2026-04-28
 
+### Highlights — Mobile 1.5.1 — 2026-04-29
+
+- Fork repository renamed from `o1xhack/CodexBar` to `o1xhack/CodexBar-Mobile`
+  to differentiate from the upstream Mac repo. The Mac binary is unchanged
+  from Mobile 1.3.1 — this bump just stamps the new fork URL into the
+  appcast and GitHub release tag. All previous download URLs continue to
+  resolve via GitHub's permanent redirect, so the Sparkle update flow stays
+  uninterrupted for existing installs.
+- Pairs with iOS **1.5.1 (102)** which carries the same rename through
+  every iOS user-visible string and the in-app release notes.
+
+---
+
 Hotfix that closes a long-standing Codex JSONL parser bug — pre-existing
 all the way back to when the Codex scanner was first written, only
 became visible recently because Codex CLI 0.125 changed its

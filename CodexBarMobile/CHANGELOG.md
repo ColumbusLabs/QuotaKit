@@ -2,6 +2,38 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.1 (102)] — 2026-04-29 — GitHub repo renamed to CodexBar-Mobile
+
+Maintenance release on top of 1.5.0 (101). The fork's GitHub repository
+was renamed from `o1xhack/CodexBar` to `o1xhack/CodexBar-Mobile` to
+avoid confusion with the upstream Mac-only repo. All in-app download /
+About / "Update Mac" links now point to the new URL. Existing links
+continue to work via GitHub's permanent redirect.
+
+### Changed
+
+- 15 files / 69 hardcoded references updated across iOS user-facing
+  strings (`ContentView.swift`, `OnboardingView.swift`),
+  `Localizable.xcstrings` keys + 4 language values, in-app release
+  notes, project docs, and release tooling scripts.
+- README adds a second download badge for the Mac app next to the
+  existing App Store badge, both at the same visual size; uses the
+  same SVG that the website (codexbarios.o1xhack.com) ships.
+- In-app 1.5.1 release notes prepend a single `Important` bullet
+  flagging the rename. Rest of the user-visible 1.5.0 release notes
+  content is preserved verbatim.
+
+### Unchanged
+
+- Bundle identifiers (`com.o1xhack.codexbar.mobile`, etc.) — TestFlight
+  and App Store installs are unaffected.
+- iCloud container, push entitlements, CloudKit Production environment.
+- Wire format, CloudKit schema, sync layer, all 27 providers, and every
+  feature surface from 1.5.0.
+- Mac source files (`Sources/CodexBar/About.swift`,
+  `PreferencesAboutPane.swift`) still reference the old URL — deferred
+  per `CLAUDE.md` (Mac code is upstream-maintained).
+
 ## [1.5.0 (101)] — 2026-04-28 — Important callout simplified + tappable download link
 
 Two user-driven polish edits to the in-app 1.5.0 release notes:

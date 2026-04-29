@@ -7752,6 +7752,35 @@
         }
       }
     },
+    "Our GitHub repo was renamed from `o1xhack/CodexBar` to `o1xhack/CodexBar-Mobile` to differentiate from the upstream Mac repo. Existing download links keep working via redirect; nothing in your iCloud sync setup needs to change.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Our GitHub repo was renamed from `o1xhack/CodexBar` to `o1xhack/CodexBar-Mobile` to differentiate from the upstream Mac repo. Existing download links keep working via redirect; nothing in your iCloud sync setup needs to change."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "我们的 GitHub 仓库已从 `o1xhack/CodexBar` 重命名为 `o1xhack/CodexBar-Mobile`，以与上游 Mac 仓库区分。原有下载链接通过重定向继续可用，iCloud 同步配置无需变动。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "我們的 GitHub 倉庫已從 `o1xhack/CodexBar` 更名為 `o1xhack/CodexBar-Mobile`，以與上游 Mac 倉庫區分。原有下載連結透過重定向繼續可用，iCloud 同步設定無需變動。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub リポジトリ名を `o1xhack/CodexBar` から `o1xhack/CodexBar-Mobile` に変更しました（上流の Mac リポジトリと区別するため）。既存のダウンロードリンクはリダイレクトで引き続き動作し、iCloud 同期の設定変更は不要です。"
+          }
+        }
+      }
+    },
     "Update Mac CodexBar to **0.23.4 (Build 58.4.1.3.1) or later** for the new providers and accurate Cost numbers — earlier 0.23.x has a Codex parser bug. Download: [github.com/o1xhack/CodexBar-Mobile/releases](https://github.com/o1xhack/CodexBar-Mobile/releases).": {
       "extractionState": "manual",
       "localizations": {
