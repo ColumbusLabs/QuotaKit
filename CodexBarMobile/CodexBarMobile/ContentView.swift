@@ -1774,8 +1774,7 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Important"),
                     items: [
-                        String(localized: "Update CodexBar on Mac to 0.23 (Build 56.1.3.1) or later to see Abacus AI, Mistral, and the new Claude / Cursor / Synthetic usage bars. Older Mac versions still sync the providers you have enabled, just without the new metrics. Download from github.com/o1xhack/CodexBar/releases."),
-                        String(localized: "For accurate Cost-tab numbers on iPhone, your Mac needs to be on CodexBar 0.23.4 (Build 58.4.1.3.1) or later — earlier 0.23.x versions had a Codex-parser bug that misattributed most token usage to gpt-5. Once Mac is on 0.23.4 and finishes the one-time rescan, iPhone sees the corrected Cost numbers automatically."),
+                        String(localized: "Update Mac CodexBar to **0.23.4 (Build 58.4.1.3.1) or later** for the new providers and accurate Cost numbers — earlier 0.23.x has a Codex parser bug. Download: [github.com/o1xhack/CodexBar/releases](https://github.com/o1xhack/CodexBar/releases)."),
                     ]),
                 .init(
                     title: String(localized: "What's New"),
@@ -1999,9 +1998,15 @@ private struct ReleaseNotesContent: View {
                                     .foregroundStyle(.secondary)
                                     .padding(.top, 7)
 
-                                Text(item)
+                                // Use LocalizedStringKey init so markdown
+                                // (specifically `[label](url)` links) renders
+                                // as tappable, with bold / italic also
+                                // honored. Existing items without markdown
+                                // syntax continue to render as plain text.
+                                Text(.init(item))
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
+                                    .tint(.accentColor)
                             }
                         }
                     }

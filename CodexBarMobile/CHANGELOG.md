@@ -2,6 +2,29 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.0 (101)] — 2026-04-28 — Important callout simplified + tappable download link
+
+Two user-driven polish edits to the in-app 1.5.0 release notes:
+
+- **Important callout merged into one short bullet.** Build 100 had two
+  long Important paragraphs (one for new-provider requirement, one
+  for Cost-tab parser fix); user feedback was "too complex, two-three
+  lines max". Merged into a single sentence noting Mac 0.23.4 is the
+  recommended version both for the new providers and for accurate
+  Cost numbers.
+- **Download URL is now a tappable link.** `ReleaseNotesContent`'s
+  bullet rendering switched from `Text(item)` to `Text(.init(item))`
+  so SwiftUI parses the string as `LocalizedStringKey`, which honors
+  markdown link syntax `[label](url)`. `.tint(.accentColor)` applied
+  so the link picks up the system accent color. Existing items
+  without markdown render unchanged.
+- 1 new merged string × 4 locales (en / zh-Hans / zh-Hant / ja) = 4
+  translation entries. The 2 obsoleted Important strings were removed
+  from `Localizable.xcstrings`. i18n audit clean.
+
+No code-behavior changes from Build 100. Same union-find merge, same
+fallback resolver, same parser-fix wire-format.
+
 ## [1.5.0 (100)] — 2026-04-28 — in-app release notes refresh + Mac 0.23.4 partner build
 
 In-app **What's New** for 1.5.0 now covers everything that landed
