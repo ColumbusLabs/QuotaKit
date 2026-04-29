@@ -255,14 +255,15 @@ final class CloudSyncReader: @unchecked Sendable {
         if let explicit = provider.accountIdentities, !explicit.isEmpty {
             return explicit
         }
-        if let email = provider.accountEmail?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased(),
-            !email.isEmpty
-        {
-            // Synthesize the same scheme Mac ≥ 0.23 writes for email so old
-            // Macs auto-bridge with new Macs that share the email.
-            return ["\(provider.providerID):email:\(email)"]
+        // Synthesize the same scheme Mac ≥ 0.23 writes for email. Critical
+        // to use `AccountIdentityNormalize` (NFC + percent-encode + length
+        // cap) — *not* `lowercased + trim` — so the bytes match what
+        // `AccountIdentityComputer.normalize` produces on the Mac side.
+        // Otherwise non-ASCII emails (e.g. `café@…`) split into two cards
+        // when one Mac is on 0.23+ and another is on 0.20.x. Caught in
+        // 0.23.3 code review as P1-3.
+        if let normalized = AccountIdentityNormalize.normalize(provider.accountEmail) {
+            return ["\(provider.providerID):email:\(normalized)"]
         }
         // Fully legacy: nil identifiers + nil/empty accountEmail. Bucket
         // all such snapshots for the same provider together (preserves the

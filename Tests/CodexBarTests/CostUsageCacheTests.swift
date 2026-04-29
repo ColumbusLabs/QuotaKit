@@ -48,19 +48,42 @@ struct CostUsageCacheTests {
     func `pricingFingerprint includes known pricing keys`() {
         let f = CostUsagePricing.pricingFingerprint
         // Sanity: a few keys that MUST be in the table for this build.
-        // If these checks fail, somebody dropped a row from
-        // CostUsagePricing — fingerprint will roll for users (cache
-        // invalidated, full rescan) which is probably the right behavior,
-        // but flagging here so the change is intentional.
+        // 0.23.3 P1-2: fingerprint now includes price values, so each
+        // key is followed by `:<numbers>` instead of just `,`. We assert
+        // on the leading `<key>:` form so the test rolls naturally if
+        // we ever swap separators.
         #expect(
-            f.contains("gpt-5,") || f.hasSuffix("gpt-5"),
+            f.contains("gpt-5:"),
             "gpt-5 should be in codex pricing table.")
         #expect(
-            f.contains("gpt-5.5"),
+            f.contains("gpt-5.5:"),
             "gpt-5.5 should be in codex pricing table (added in fork 0.23).")
         #expect(
-            f.contains("claude-opus-4-7"),
+            f.contains("claude-opus-4-7:"),
             "claude-opus-4-7 should be in claude pricing table (added in fork 0.23).")
+    }
+
+    @Test
+    func `pricingFingerprint rolls when a price changes (P1-2 contract)`() {
+        // We can't actually mutate the pricing table at runtime, so this
+        // test pins the *contract*: the current fingerprint must contain
+        // numeric price values for each key, not just the key names.
+        // 0.23.3 P1-2 fix: previously the fingerprint was keys-only, so
+        // a same-name reprice (gpt-5 cost changes from $1.25/M → $1.0/M)
+        // didn't roll → stale `costNanos` baked into PiSessionCostCache
+        // survived the upgrade. The format now embeds prices so any
+        // edit rolls.
+        let f = CostUsagePricing.pricingFingerprint
+        // The current gpt-5 price is 1.25e-6 input / 1e-5 output. We
+        // assert the input-price digits show up adjacent to the key.
+        #expect(
+            f.contains("gpt-5:1.25e-06") || f.contains("gpt-5:0.00000125"),
+            "gpt-5 input price (1.25e-6) should be in fingerprint.")
+        // claude-opus-4-7 has input 5e-6, output 2.5e-5; the entry
+        // starts with `claude-opus-4-7:5e-06:2.5e-05:...`
+        #expect(
+            f.contains("claude-opus-4-7:5e-06"),
+            "claude-opus-4-7 input price (5e-6) should be in fingerprint.")
     }
 
     // MARK: - Cache load/save fingerprint validation

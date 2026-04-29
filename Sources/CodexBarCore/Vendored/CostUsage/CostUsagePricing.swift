@@ -294,13 +294,54 @@ enum CostUsagePricing {
     /// closes it for **every future round** without humans needing to
     /// remember.
     static var pricingFingerprint: String {
-        // Sorted, comma-joined keys are deterministic across runs and
-        // across machines. Identical pricing tables always yield the
-        // same fingerprint; any model added / renamed / repriced rolls
-        // the string and invalidates every user's cache on next launch.
-        let codexKeys = self.codex.keys.sorted().joined(separator: ",")
-        let claudeKeys = self.claude.keys.sorted().joined(separator: ",")
-        return "v\(Self.parserLogicVersion)|codex=\(codexKeys)|claude=\(claudeKeys)"
+        /// Sorted (key, encoded-prices) pairs are deterministic across
+        /// runs and machines. Identical pricing tables always yield the
+        /// same fingerprint; ANY edit — adding a model, removing one,
+        /// OR repricing an existing model — rolls the string and
+        /// invalidates every user's cache on next launch.
+        ///
+        /// 0.23.3 P1-2 fix: previously the fingerprint included only
+        /// model NAMES, so a same-name reprice (e.g., dropping gpt-5
+        /// input from $1.25/M to $1.0/M) didn't roll. That left stale
+        /// baked-in `costNanos` in PiSessionCostCache (which stores
+        /// costs at parse time, not on read) for repricing-only updates.
+        ///
+        /// Each Double is rendered with %.12g so 1.25e-6 stringifies
+        /// identically across runs — Swift's default String(Double)
+        /// format is already deterministic, but pinning explicit
+        /// formatting makes it robust to future libc / locale changes.
+        func d(_ value: Double) -> String {
+            String(format: "%.12g", value)
+        }
+        func dOpt(_ value: Double?) -> String {
+            value.map(d) ?? "_"
+        }
+        func iOpt(_ value: Int?) -> String {
+            value.map(String.init) ?? "_"
+        }
+
+        let codexEntries = self.codex.keys.sorted().map { key in
+            let p = self.codex[key]!
+            return "\(key):\(d(p.inputCostPerToken)):\(d(p.outputCostPerToken)):\(dOpt(p.cacheReadInputCostPerToken))"
+        }.joined(separator: ",")
+
+        let claudeEntries = self.claude.keys.sorted().map { key in
+            let p = self.claude[key]!
+            return [
+                key,
+                d(p.inputCostPerToken),
+                d(p.outputCostPerToken),
+                d(p.cacheCreationInputCostPerToken),
+                d(p.cacheReadInputCostPerToken),
+                iOpt(p.thresholdTokens),
+                dOpt(p.inputCostPerTokenAboveThreshold),
+                dOpt(p.outputCostPerTokenAboveThreshold),
+                dOpt(p.cacheCreationInputCostPerTokenAboveThreshold),
+                dOpt(p.cacheReadInputCostPerTokenAboveThreshold),
+            ].joined(separator: ":")
+        }.joined(separator: ",")
+
+        return "v\(Self.parserLogicVersion)|codex=\(codexEntries)|claude=\(claudeEntries)"
     }
 
     static func normalizeCodexModel(_ raw: String) -> String {

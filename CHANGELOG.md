@@ -52,6 +52,42 @@ The bug was masked because almost all earlier test fixtures included
   lands on the right model in both segments. Both tests assert that
   `gpt-5` (the default fallback bucket) stays empty.
 
+### Code-review follow-ups (folded in before ship)
+
+A self-review with codex-reviewer caught three P1 issues across the
+0.23 / 0.23.1 / 0.23.3 commit cluster. All three are fixed in this
+release rather than deferred:
+
+- **P1-1 — Lint guard fail-closed.** The new `audit_parser_version`
+  check silently `return 0`'d when its base ref (`origin/mobile-dev`)
+  was missing. CI shallow-clone checkouts (`actions/checkout` without
+  `fetch-depth: 0`) would never have this ref, so parser changes could
+  ship with no `parserLogicVersion` bump and the audit would still
+  report success. Now it tries to fetch the missing ref first; if
+  fetch fails it errors out instead of skipping. Explicit opt-out via
+  `ALLOW_MISSING_BASE=1` for offline / fresh-fork-clone scenarios.
+- **P1-2 — Fingerprint must include prices, not just keys.** The
+  `pricingFingerprint` introduced in 0.23.1 hashed only model **names**,
+  not their prices. A same-name reprice (existing model gets a new
+  rate) wouldn't roll the fingerprint, leaving stale baked
+  `costNanos` in `PiSessionCostCache` (and similarly in Claude
+  caches that persist computed cost). Fingerprint now embeds the
+  full price tuple per model — input / output / cacheRead /
+  cacheCreation / threshold and above-threshold rates — so any
+  edit invalidates every cache. New `pricingFingerprint rolls when
+  a price changes` test pins the contract.
+- **P1-3 — iOS legacy-email normalization byte-matches Mac.** Mac
+  `AccountIdentityComputer` normalizes (NFC + percent-encode + length
+  cap) before writing identifiers like `codex:email:...`. iOS's
+  legacy-fallback synthesis in `CloudSyncReader.effectiveIdentifiers`
+  used only `trim + lowercased`, so non-ASCII emails (e.g.
+  `café@example.com`) split into separate cards across versions
+  (Mac on 0.23+ writes `caf%C3%A9@…`; iOS synthesized
+  `café@…` from a 0.20.x snapshot). Extracted the normalization
+  to `Shared/iCloud/AccountIdentityNormalize.swift` so both sides use
+  it. Pinned by paired tests on Mac and iOS asserting byte-identical
+  output for the same fixture inputs.
+
 ### Hardening — preventing the next prefixBytes-class bug
 
 Two infrastructure additions so this kind of regression can't reach

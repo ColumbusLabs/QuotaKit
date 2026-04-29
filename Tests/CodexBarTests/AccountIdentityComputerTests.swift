@@ -193,4 +193,34 @@ struct AccountIdentityComputerTests {
     func normalizeNil() {
         #expect(AccountIdentityComputer.normalize(nil) == nil)
     }
+
+    /// Cross-target contract pin (0.23.3 P1-3).
+    ///
+    /// Mac `AccountIdentityComputer.normalize` and iOS Shared
+    /// `AccountIdentityNormalize.normalize` MUST produce byte-identical
+    /// output for every input — otherwise legacy `accountEmail` fallback
+    /// synthesis on iOS produces different identifier strings than what
+    /// the Mac wrote, and accounts split across cards. This test pins
+    /// the Mac side to specific expected outputs; the iOS test
+    /// `AccountIdentityNormalizeContractTests` pins the iOS side to the
+    /// SAME expected outputs. If you change normalize, update both
+    /// sides AND both tests in the same commit.
+    @Test("normalize byte-equals iOS shared contract")
+    func normalizeMatchesSharedContract() {
+        let cases: [(String?, String?)] = [
+            ("ABC", "abc"),
+            ("Café@Example.com", "caf%C3%A9@example.com"),
+            (" trailing  ", "trailing"),
+            ("cafe\u{0301}@example.com", "caf%C3%A9@example.com"),
+            ("a:b|c/d", "a%3Ab%7Cc%2Fd"),
+            ("", nil),
+            ("   ", nil),
+            (nil, nil),
+        ]
+        for (input, expected) in cases {
+            #expect(
+                AccountIdentityComputer.normalize(input) == expected,
+                "normalize(\(input ?? "<nil>")) — expected \(expected ?? "<nil>")")
+        }
+    }
 }

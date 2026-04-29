@@ -22,6 +22,12 @@ public enum AccountIdentityComputer {
     /// Maximum length of any single identifier string. Truncating beyond
     /// this is silent — the truncated value still groups across Macs that
     /// hit the same truncation, but warn in logs so we can fix the source.
+    ///
+    /// **Must equal** `AccountIdentityNormalize.maxAccountIdentifierLength`
+    /// in `Shared/iCloud/AccountIdentityNormalize.swift` so iOS legacy-email
+    /// synthesis truncates at the same point. A unit test
+    /// (`AccountIdentityComputerTests.normalize_matches_iOSSharedNormalize`)
+    /// pins this contract.
     public static let maxIdentifierLength = 256
 
     /// Compute the identifier set for a provider snapshot.
@@ -112,6 +118,11 @@ public enum AccountIdentityComputer {
     /// - URL-percent-encode the value (safe across `:` / `|` / `/` etc.)
     /// - skip empty / whitespace-only
     /// - cap at `maxIdentifierLength` bytes
+    ///
+    /// **Mirrors `AccountIdentityNormalize.normalize`** in Shared/ —
+    /// iOS uses that copy to synthesize the legacy-email fallback so
+    /// it lands on the SAME bytes Mac writes for `codex:email:...` etc.
+    /// If you change this, change Shared/ too. A unit test pins them.
     static func normalize(_ raw: String?) -> String? {
         guard let raw else { return nil }
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)

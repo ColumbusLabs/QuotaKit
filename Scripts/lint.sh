@@ -73,9 +73,32 @@ audit_parser_version() {
   fi
 
   local base="${PARSER_LINT_BASE:-origin/mobile-dev}"
+
+  # If the base ref isn't in the local repo (typical in shallow CI
+  # checkouts), try to fetch it. We MUST NOT silently skip — a missing
+  # base would otherwise let parser changes ship without a fingerprint
+  # bump, defeating the cache-invalidation contract this audit exists
+  # to enforce. Caught in 0.23.3 code review as P1-1.
   if ! git -C "$ROOT_DIR" rev-parse --verify "$base" >/dev/null 2>&1; then
-    echo "parser-version audit: base ref '$base' not found, skipping"
-    return 0
+    if [[ "$base" == */* ]]; then
+      local remote="${base%%/*}"
+      local branch="${base#*/}"
+      git -C "$ROOT_DIR" fetch --quiet --no-tags --depth=50 "$remote" "$branch" 2>/dev/null || true
+    fi
+  fi
+
+  if ! git -C "$ROOT_DIR" rev-parse --verify "$base" >/dev/null 2>&1; then
+    if [[ "${ALLOW_MISSING_BASE:-0}" == "1" ]]; then
+      echo "parser-version audit: ALLOW_MISSING_BASE=1 → skipping (base ref '$base' unavailable)"
+      return 0
+    fi
+    echo "ERROR: parser-version audit can't find base ref '$base'." >&2
+    echo "       In CI, ensure your checkout fetches origin/mobile-dev" >&2
+    echo "       (e.g., actions/checkout@v4 with fetch-depth: 0)." >&2
+    echo "       Locally, run: git fetch origin mobile-dev" >&2
+    echo "       To intentionally skip (e.g., on a fresh fork clone with" >&2
+    echo "       no network), set ALLOW_MISSING_BASE=1." >&2
+    return 1
   fi
 
   # Parser-semantics-bearing files. Editing any of these without bumping
