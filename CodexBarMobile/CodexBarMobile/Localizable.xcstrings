@@ -7722,6 +7722,93 @@
           }
         }
       }
+    },
+    "For accurate Cost-tab numbers on iPhone, your Mac needs to be on CodexBar 0.23.4 (Build 58.4.1.3.1) or later — earlier 0.23.x versions had a Codex-parser bug that misattributed most token usage to gpt-5. Once Mac is on 0.23.4 and finishes the one-time rescan, iPhone sees the corrected Cost numbers automatically.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For accurate Cost-tab numbers on iPhone, your Mac needs to be on CodexBar 0.23.4 (Build 58.4.1.3.1) or later — earlier 0.23.x versions had a Codex-parser bug that misattributed most token usage to gpt-5. Once Mac is on 0.23.4 and finishes the one-time rescan, iPhone sees the corrected Cost numbers automatically."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "想让 iPhone 上的 Cost 数字准确，需要把 Mac 升到 CodexBar 0.23.4（Build 58.4.1.3.1）或更高 —— 更早的 0.23.x 版本里有一个 Codex 解析器 bug，会把大部分 token 用量错误归到 gpt-5。Mac 升级到 0.23.4 并完成一次重扫后，iPhone 自动看到修正过的 Cost 数字。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "想讓 iPhone 上的 Cost 數字準確，需要把 Mac 升到 CodexBar 0.23.4（Build 58.4.1.3.1）或更高 —— 更早的 0.23.x 版本裡有一個 Codex 解析器 bug，會把大部分 token 用量錯誤歸到 gpt-5。Mac 升級到 0.23.4 並完成一次重掃後，iPhone 自動看到修正過的 Cost 數字。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone の Cost タブの数値を正確にするには、Mac を CodexBar 0.23.4（Build 58.4.1.3.1）以降にアップデートしてください。それより前の 0.23.x には、Codex パーサーのバグでほとんどのトークン使用量が gpt-5 に誤って集計される問題がありました。Mac が 0.23.4 に上がって一度の再スキャンが完了すると、iPhone が自動的に修正後の数値を表示します。"
+          }
+        }
+      }
+    },
+    "Estimated cost for newly-released models — when Mac sees a model name that isn't in its pricing table yet, it uses the closest known model's rate as a temporary estimate and marks the value with * on the Provider Detail cost card. Stops Daily Spend from quietly dropping to $0 the day a fresh model name appears.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estimated cost for newly-released models — when Mac sees a model name that isn't in its pricing table yet, it uses the closest known model's rate as a temporary estimate and marks the value with * on the Provider Detail cost card. Stops Daily Spend from quietly dropping to $0 the day a fresh model name appears."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新发布模型的成本预估 —— Mac 遇到定价表里还没收录的模型时，使用最接近的已知模型单价作为临时预估值，并在 Provider Detail 成本卡片上以 * 标记。新模型出现的当天 Daily Spend 不再悄悄归零。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新發布模型的成本預估 —— Mac 遇到定價表裡還沒收錄的模型時，使用最接近的已知模型單價作為臨時預估值，並在 Provider Detail 成本卡片上以 * 標記。新模型出現的當天 Daily Spend 不再悄悄歸零。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しくリリースされたモデルのコスト見積もり —— Mac が価格表にまだ載っていないモデルを見つけたとき、最も近い既知モデルの単価を一時的な見積もりとして使い、Provider Detail のコストカードに * を付けて表示します。新モデルが出た当日に Daily Spend が静かに $0 に落ちることがなくなりました。"
+          }
+        }
+      }
+    },
+    "Two Macs, one card — when your two Macs are on different CodexBar versions during a rolling upgrade, your iPhone now correctly shows a single card per account rather than duplicates. Works for accounts whose email contains non-ASCII characters (café@…) too.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Two Macs, one card — when your two Macs are on different CodexBar versions during a rolling upgrade, your iPhone now correctly shows a single card per account rather than duplicates. Works for accounts whose email contains non-ASCII characters (café@…) too."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "双 Mac、一张卡 —— 两台 Mac 跑不同版本的 CodexBar（升级过渡期）时，iPhone 现在能把同一账号正确合并成一张卡，而不是每个 Mac 版本一张。邮箱含非 ASCII 字符（café@…）的账号也涵盖。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "雙 Mac、一張卡 —— 兩台 Mac 跑不同版本的 CodexBar（升級過渡期）時，iPhone 現在能把同一帳號正確合併成一張卡，而不是每個 Mac 版本一張。郵箱含非 ASCII 字元（café@…）的帳號也涵蓋。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 台の Mac、1 枚のカード —— 2 台の Mac が異なるバージョンの CodexBar を実行中（アップグレード移行期）でも、iPhone は同一アカウントを 1 枚のカードに正しくまとめて表示するようになりました（バージョンごとに別々ではなく）。メールアドレスに非 ASCII 文字（café@…）が含まれるアカウントも対応します。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

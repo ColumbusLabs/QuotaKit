@@ -2,6 +2,38 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.0 (100)] — 2026-04-28 — in-app release notes refresh + Mac 0.23.4 partner build
+
+In-app **What's New** for 1.5.0 now covers everything that landed
+across Build 96–99 — the original upstream v0.21–0.23 provider
+alignment, the model-name fallback resolver / estimated-cost indicator
+that landed in Build 97, and the multi-version Mac account merge
+(plus the non-ASCII email follow-up) from Build 98–99. Pairs with Mac
+**0.23.4** which is now the recommended Mac version for accurate Cost
+numbers.
+
+### In-app release notes (`MobileReleaseNotesCatalog.versions[1.5.0]`)
+
+- New **Important** bullet: requires Mac 0.23.4 for accurate Cost-tab
+  numbers (earlier 0.23.x had the parser truncation bug that misattributed
+  most token usage to gpt-5).
+- New **What's New** bullet: estimated cost for newly-released models
+  (the iOS half of Build 97's fallback resolver — Provider Detail card
+  shows `*` marker when Mac substituted a fallback price).
+- New **What's New** bullet: two Macs, one card — covers Build 98's
+  union-find account merging and Build 99's non-ASCII email
+  normalization fix in a single user-facing summary.
+
+### Localization
+
+- 3 new strings × 4 locales (en / zh-Hans / zh-Hant / ja) = 12
+  translation entries added to `Localizable.xcstrings` ahead of the
+  build so the i18n audit stays clean. No `state="new"` regressions.
+
+No code-behavior changes from Build 99. Same union-find merge, same
+fallback resolver, same parser-fix wire-format. This build just
+refreshes what users see in Settings → Update notes.
+
 ## [1.5.0 (99)] — 2026-04-28 — non-ASCII email merge fix (P1-3 from 0.23.3 review)
 
 Companion to Mac 0.23.3. Fixes a P1 surfaced by codex-reviewer during

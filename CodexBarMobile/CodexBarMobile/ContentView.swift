@@ -1775,6 +1775,7 @@ private enum MobileReleaseNotesCatalog {
                     title: String(localized: "Important"),
                     items: [
                         String(localized: "Update CodexBar on Mac to 0.23 (Build 56.1.3.1) or later to see Abacus AI, Mistral, and the new Claude / Cursor / Synthetic usage bars. Older Mac versions still sync the providers you have enabled, just without the new metrics. Download from github.com/o1xhack/CodexBar/releases."),
+                        String(localized: "For accurate Cost-tab numbers on iPhone, your Mac needs to be on CodexBar 0.23.4 (Build 58.4.1.3.1) or later — earlier 0.23.x versions had a Codex-parser bug that misattributed most token usage to gpt-5. Once Mac is on 0.23.4 and finishes the one-time rescan, iPhone sees the corrected Cost numbers automatically."),
                     ]),
                 .init(
                     title: String(localized: "What's New"),
@@ -1786,6 +1787,8 @@ private enum MobileReleaseNotesCatalog {
                         String(localized: "Synthetic 3-lane labels — five-hour quota, weekly tokens, and search hourly are labeled correctly on the detail page instead of generic Session / Weekly fallback labels."),
                         String(localized: "Codex Pro $100 plan badge — the new Pro $100 / prolite plan names from upstream v0.21 sync through and display in the account-info capsule on each Codex card."),
                         String(localized: "Color palette extended — Abacus uses a warm brown tone, Mistral a vibrant red. Both stay distinct from existing provider colors across cards, charts, and the share image."),
+                        String(localized: "Estimated cost for newly-released models — when Mac sees a model name that isn't in its pricing table yet, it uses the closest known model's rate as a temporary estimate and marks the value with * on the Provider Detail cost card. Stops Daily Spend from quietly dropping to $0 the day a fresh model name appears."),
+                        String(localized: "Two Macs, one card — when your two Macs are on different CodexBar versions during a rolling upgrade, your iPhone now correctly shows a single card per account rather than duplicates. Works for accounts whose email contains non-ASCII characters (café@…) too."),
                     ]),
                 .init(
                     title: String(localized: "Under the hood"),
