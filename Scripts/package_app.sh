@@ -622,9 +622,30 @@ if [[ -d "${APP}/Contents/PlugIns/CodexBarWidget.appex" ]]; then
     "$APP/Contents/PlugIns/CodexBarWidget.appex"
 fi
 
-# Embed provisioning profile if available
+# Embed provisioning profile.
+# REQUIRED for release + real-signed builds: app entitlements include
+# com.apple.application-identifier, which AMFI checks at launch against
+# the embedded profile. A bundle without this file passes codesign /
+# spctl / notarization / stapler but fails to launch with "Launchd job
+# spawn failed" (POSIX 163). Fail loud here instead of shipping a
+# broken bundle that only breaks on the user's Mac.
 PROVISION_PROFILE="$ROOT/Provisioning/CodexBar_Dev.provisionprofile"
-if [[ -f "$PROVISION_PROFILE" ]]; then
+if [[ "${CONF}" == "release" && "${SIGNING_MODE:-}" != "adhoc" ]]; then
+  if [[ ! -f "$PROVISION_PROFILE" ]]; then
+    echo "FATAL: provisioning profile not found at $PROVISION_PROFILE" >&2
+    echo "" >&2
+    echo "  This file is gitignored and local-only. In a worktree or fresh" >&2
+    echo "  checkout, copy it from the main repo:" >&2
+    echo "    cp -R <main-repo>/Provisioning $ROOT/" >&2
+    echo "" >&2
+    echo "  Without it the bundle ships missing Contents/embedded.provisionprofile" >&2
+    echo "  and AMFI rejects the binary at launch (POSIX 163), even though" >&2
+    echo "  codesign / spctl / notarization / stapler all pass." >&2
+    exit 1
+  fi
+  cp "$PROVISION_PROFILE" "$APP/Contents/embedded.provisionprofile"
+elif [[ -f "$PROVISION_PROFILE" ]]; then
+  # Adhoc / debug builds: embed best-effort if available, do not fail.
   cp "$PROVISION_PROFILE" "$APP/Contents/embedded.provisionprofile"
 fi
 
