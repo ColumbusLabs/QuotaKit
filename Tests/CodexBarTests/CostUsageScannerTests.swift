@@ -341,6 +341,185 @@ struct CostUsageScannerTests {
     }
 
     @Test
+    func `codex parses large turn_context line and attributes tokens to its model`() throws {
+        // Regression for 0.23.3 bug: Codex CLI 0.125+ ships turn_context
+        // lines ~38–41KB because user_instructions now bundles project
+        // AGENTS.md / CLAUDE.md. The pre-fix scanner had prefixBytes=32KB
+        // which silently truncated every turn_context, causing
+        // currentModel to never update and ~93% of token_count events to
+        // fall through to the `?? "gpt-5"` default. This test reproduces
+        // the JSONL shape (large turn_context + token_count without
+        // info.model) and verifies attribution lands on the actual model.
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2025, month: 12, day: 20)
+        let iso0 = env.isoString(for: day)
+        let iso1 = env.isoString(for: day.addingTimeInterval(1))
+
+        // Build a 50KB filler string to mimic real-world bundled
+        // user_instructions / AGENTS.md payload size.
+        let bigInstructions = String(repeating: "x", count: 50000)
+
+        let turnContext: [String: Any] = [
+            "type": "turn_context",
+            "timestamp": iso0,
+            "payload": [
+                "model": "gpt-5.5",
+                "user_instructions": bigInstructions,
+            ],
+        ]
+        // Critically: token_count event has NO info.model. The parser
+        // must rely on currentModel set by the (large) turn_context.
+        let tokenCount: [String: Any] = [
+            "type": "event_msg",
+            "timestamp": iso1,
+            "payload": [
+                "type": "token_count",
+                "info": [
+                    "total_token_usage": [
+                        "input_tokens": 1000,
+                        "cached_input_tokens": 200,
+                        "output_tokens": 100,
+                    ],
+                ],
+            ],
+        ]
+
+        let jsonlContent = try env.jsonl([turnContext, tokenCount])
+        // Sanity: the turn_context line really is bigger than the legacy
+        // 32KB cap; otherwise this test wouldn't exercise the bug.
+        let firstLine = jsonlContent.split(separator: "\n").first ?? ""
+        #expect(firstLine.utf8.count > 32 * 1024)
+
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "session.jsonl",
+            contents: jsonlContent)
+
+        let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
+        let parsed = CostUsageScanner.parseCodexFile(fileURL: fileURL, range: range)
+
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+        let dayBuckets = parsed.days[dayKey] ?? [:]
+        // Tokens MUST be attributed to gpt-5.5, not gpt-5 (the default).
+        #expect(dayBuckets["gpt-5.5"] != nil, "Tokens should be attributed to gpt-5.5 from turn_context.")
+        #expect(dayBuckets["gpt-5"] == nil, "Tokens must NOT fall through to the gpt-5 default.")
+        let packed = dayBuckets["gpt-5.5"] ?? []
+        #expect(packed.count >= 3)
+        #expect(packed[0] == 1000)
+        #expect(packed[2] == 100)
+    }
+
+    @Test
+    func `codex mid-session model switch with large turn_contexts attributes correctly`() throws {
+        // Real-world shape: a single Codex CLI session straddles two
+        // models because the user invoked /model mid-conversation.
+        // Both turn_context events are large (>32 KB) because they
+        // bundle user_instructions. Token_count events have NO
+        // info.model — they rely solely on currentModel set by the
+        // most-recent turn_context. Verifies attribution boundary lands
+        // exactly at the second turn_context.
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2025, month: 12, day: 20)
+        let iso0 = env.isoString(for: day)
+        let iso1 = env.isoString(for: day.addingTimeInterval(1))
+        let iso2 = env.isoString(for: day.addingTimeInterval(2))
+        let iso3 = env.isoString(for: day.addingTimeInterval(3))
+        let iso4 = env.isoString(for: day.addingTimeInterval(4))
+
+        let bigInstructions = String(repeating: "y", count: 45000)
+
+        let firstTurnContext: [String: Any] = [
+            "type": "turn_context",
+            "timestamp": iso0,
+            "payload": [
+                "model": "gpt-5.4",
+                "user_instructions": bigInstructions,
+            ],
+        ]
+        let firstTokenCount: [String: Any] = [
+            "type": "event_msg",
+            "timestamp": iso1,
+            "payload": [
+                "type": "token_count",
+                "info": [
+                    "total_token_usage": [
+                        "input_tokens": 500,
+                        "cached_input_tokens": 100,
+                        "output_tokens": 50,
+                    ],
+                ],
+            ],
+        ]
+        let secondTurnContext: [String: Any] = [
+            "type": "turn_context",
+            "timestamp": iso2,
+            "payload": [
+                "model": "gpt-5.5",
+                "user_instructions": bigInstructions,
+            ],
+        ]
+        // Cumulative usage counters keep climbing across the model switch.
+        let secondTokenCount: [String: Any] = [
+            "type": "event_msg",
+            "timestamp": iso3,
+            "payload": [
+                "type": "token_count",
+                "info": [
+                    "total_token_usage": [
+                        "input_tokens": 800,
+                        "cached_input_tokens": 200,
+                        "output_tokens": 80,
+                    ],
+                ],
+            ],
+        ]
+        let thirdTokenCount: [String: Any] = [
+            "type": "event_msg",
+            "timestamp": iso4,
+            "payload": [
+                "type": "token_count",
+                "info": [
+                    "total_token_usage": [
+                        "input_tokens": 1100,
+                        "cached_input_tokens": 300,
+                        "output_tokens": 110,
+                    ],
+                ],
+            ],
+        ]
+
+        let jsonlContent = try env.jsonl([
+            firstTurnContext, firstTokenCount,
+            secondTurnContext, secondTokenCount, thirdTokenCount,
+        ])
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "session.jsonl",
+            contents: jsonlContent)
+
+        let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
+        let parsed = CostUsageScanner.parseCodexFile(fileURL: fileURL, range: range)
+
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+        let dayBuckets = parsed.days[dayKey] ?? [:]
+        // First delta (500 / 100 / 50) → gpt-5.4
+        // Second + third deltas (300+300 / 100+100 / 30+30) → gpt-5.5
+        let gpt54 = dayBuckets["gpt-5.4"] ?? []
+        let gpt55 = dayBuckets["gpt-5.5"] ?? []
+        #expect(gpt54.count >= 3, "gpt-5.4 bucket missing")
+        #expect(gpt55.count >= 3, "gpt-5.5 bucket missing")
+        #expect(gpt54[0] == 500)
+        #expect(gpt54[2] == 50)
+        #expect(gpt55[0] == 600, "Mid-session switch should split deltas: 800-500=300, 1100-800=300, sum=600")
+        #expect(gpt55[2] == 60, "output: 80-50=30, 110-80=30, sum=60")
+        #expect(dayBuckets["gpt-5"] == nil, "Tokens must not fall through to gpt-5 default in any segment.")
+    }
+
+    @Test
     func `claude incremental parsing reads appended lines only`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }

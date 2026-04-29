@@ -52,6 +52,79 @@ audit_xcstrings() {
   return "$rc"
 }
 
+# Guard: any change to the Codex / Claude cost-usage parser must come
+# with a `parserLogicVersion` bump in CostUsagePricing.swift, so the
+# pricingFingerprint rolls and every user's on-disk cache (which carries
+# token attributions baked-in by the previous parser) gets invalidated
+# on next launch.
+#
+# Why this exists: the 0.23.3 hotfix had to ship because a pre-existing
+# parser bug (32 KB prefixBytes truncating Codex CLI 0.125 turn_context
+# events) silently misattributed ~93% of token usage to gpt-5. The cache
+# wouldn't have rolled itself even after the parser fix without the
+# manual parserLogicVersion bump. Easy to forget; this lint catches it.
+#
+# Escape hatch: set ALLOW_PARSER_CHANGE=1 for cosmetic / comment-only
+# edits where invalidating user caches would be wasteful.
+audit_parser_version() {
+  if [[ "${ALLOW_PARSER_CHANGE:-0}" == "1" ]]; then
+    echo "parser-version audit: ALLOW_PARSER_CHANGE=1 → skipping"
+    return 0
+  fi
+
+  local base="${PARSER_LINT_BASE:-origin/mobile-dev}"
+  if ! git -C "$ROOT_DIR" rev-parse --verify "$base" >/dev/null 2>&1; then
+    echo "parser-version audit: base ref '$base' not found, skipping"
+    return 0
+  fi
+
+  # Parser-semantics-bearing files. Editing any of these without bumping
+  # parserLogicVersion risks shipping a fix whose results never reach
+  # users (their caches stay frozen with the old parser's attribution).
+  local guarded_files=(
+    "Sources/CodexBarCore/Vendored/CostUsage/CostUsageScanner.swift"
+    "Sources/CodexBarCore/Vendored/CostUsage/CostUsageScanner+Claude.swift"
+    "Sources/CodexBarCore/Vendored/CostUsage/CostUsageJsonl.swift"
+  )
+  local pricing_file="Sources/CodexBarCore/Vendored/CostUsage/CostUsagePricing.swift"
+
+  local changed_parser=()
+  local f
+  for f in "${guarded_files[@]}"; do
+    if ! git -C "$ROOT_DIR" diff --quiet "$base"...HEAD -- "$f"; then
+      changed_parser+=("$f")
+    fi
+  done
+
+  if [[ ${#changed_parser[@]} -eq 0 ]]; then
+    echo "parser-version audit: no parser code changes since $base"
+    return 0
+  fi
+
+  # Parser code changed. Look for a +/- on the parserLogicVersion line
+  # in CostUsagePricing.swift. Pricing-table key edits don't count —
+  # those roll the fingerprint via sorted keys already; we want a
+  # genuine parserLogicVersion bump.
+  if git -C "$ROOT_DIR" diff "$base"...HEAD -- "$pricing_file" \
+       | grep -E '^[+-][[:space:]]*static[[:space:]]+let[[:space:]]+parserLogicVersion' >/dev/null; then
+    echo "parser-version audit: parser code changed AND parserLogicVersion bumped — OK"
+    return 0
+  fi
+
+  echo "ERROR: parser code changed since $base but parserLogicVersion was not bumped." >&2
+  echo "       Files changed:" >&2
+  printf '         - %s\n' "${changed_parser[@]}" >&2
+  echo "" >&2
+  echo "       Bump 'static let parserLogicVersion = N' in:" >&2
+  echo "         $pricing_file" >&2
+  echo "       so the pricingFingerprint rolls and every user's on-disk" >&2
+  echo "       cache (with old-parser attributions baked in) is invalidated" >&2
+  echo "       and re-scanned with the fixed parser on next launch." >&2
+  echo "" >&2
+  echo "       For comment-only / non-semantic edits set ALLOW_PARSER_CHANGE=1." >&2
+  return 1
+}
+
 cmd="${1:-lint}"
 
 case "$cmd" in
@@ -60,6 +133,7 @@ case "$cmd" in
     "${BIN_DIR}/swiftformat" Sources Tests --lint
     "${BIN_DIR}/swiftlint" --strict
     audit_xcstrings
+    audit_parser_version
     ;;
   format)
     ensure_tools
@@ -68,8 +142,11 @@ case "$cmd" in
   audit-i18n)
     audit_xcstrings
     ;;
+  audit-parser-version)
+    audit_parser_version
+    ;;
   *)
-    printf 'Usage: %s [lint|format|audit-i18n]\n' "$(basename "$0")" >&2
+    printf 'Usage: %s [lint|format|audit-i18n|audit-parser-version]\n' "$(basename "$0")" >&2
     exit 2
     ;;
 esac

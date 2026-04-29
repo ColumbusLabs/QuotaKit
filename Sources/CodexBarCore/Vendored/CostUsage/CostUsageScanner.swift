@@ -666,7 +666,14 @@ enum CostUsageScanner {
         }
 
         let maxLineBytes = 256 * 1024
-        let prefixBytes = 32 * 1024
+        // Bumped from 32KB to maxLineBytes in 0.23.3: Codex CLI 0.125+ emits
+        // turn_context lines ~38–41KB (bundled user_instructions / project
+        // AGENTS.md). The previous 32KB cap silently truncated every
+        // turn_context, so currentModel never updated and ~93%+ of tokens
+        // fell through to the `?? "gpt-5"` default below — masking real
+        // gpt-5.4 / gpt-5.5 attribution. Matching Claude/Pi scanners which
+        // already use maxLineBytes here.
+        let prefixBytes = maxLineBytes
 
         if startOffset == 0,
            let metadata = Self.parseCodexSessionMetadata(fileURL: fileURL)

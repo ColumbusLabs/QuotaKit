@@ -260,10 +260,25 @@ enum CostUsagePricing {
     /// Manual version constant for the parser logic (`parseCodexFile` /
     /// `parseClaudeFile` / `normalizeXxxModel`). Bump this when the parser
     /// semantics change (e.g., model normalization rules, fallback ladder,
-    /// delta handling) — `pricingFingerprint` rolls automatically on
-    /// pricing-table edits, but parser-only changes need this nudge so
-    /// caches written by the old parser version are invalidated.
-    static let parserLogicVersion = 1
+    /// delta handling, line-size caps) — `pricingFingerprint` rolls
+    /// automatically on pricing-table edits, but parser-only changes
+    /// need this nudge so caches written by the old parser version are
+    /// invalidated.
+    ///
+    /// `Scripts/lint.sh audit-parser-version` enforces a bump whenever
+    /// `CostUsageScanner.swift`, `CostUsageScanner+Claude.swift`, or
+    /// `CostUsageJsonl.swift` change vs origin/mobile-dev.
+    ///
+    /// History:
+    /// - `2` (0.23.3): parser scanner `prefixBytes` raised from 32 KB to
+    ///   256 KB. Earlier 32 KB cap silently truncated every Codex CLI
+    ///   0.125+ `turn_context` (~38–41 KB due to bundled AGENTS.md /
+    ///   user_instructions), so `currentModel` never updated and ~93%+
+    ///   of token_count events fell through to the `?? "gpt-5"` default
+    ///   in `parseCodexFile`. Bumping rolls every previous version's
+    ///   cache and re-scans with the fixed parser.
+    /// - `1` (0.23.1): initial fingerprint contract.
+    static let parserLogicVersion = 2
 
     /// Stable string fingerprint of the pricing tables + parser logic.
     /// `CostUsageCacheIO.load` compares this against the value stored

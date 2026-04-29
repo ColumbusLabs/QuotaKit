@@ -1,5 +1,89 @@
 # Changelog
 
+## 0.23.3 — 2026-04-28
+
+Hotfix that closes a long-standing Codex JSONL parser bug — pre-existing
+all the way back to when the Codex scanner was first written, only
+became visible recently because Codex CLI 0.125 changed its
+`turn_context` shape. Caused 90%+ of Codex token usage to be silently
+misattributed to `gpt-5`, no matter what model the user actually ran.
+
+Every previous version's user (0.18 / 0.19 / 0.20 / 0.20.x / 0.21 /
+0.22 / 0.23 / 0.23.1) is automatically corrected on first launch of
+0.23.3 — the fingerprint mechanism rolls and triggers a fresh full
+re-scan with the fixed parser.
+
+### Root cause
+
+`Sources/CodexBarCore/Vendored/CostUsage/CostUsageScanner.swift:669`
+declared `prefixBytes = 32 * 1024` for the Codex JSONL parser. Any line
+larger than that gets `wasTruncated = true` from `CostUsageJsonl.scan`
+and is skipped entirely.
+
+Codex CLI 0.125+ ships `turn_context` events that bundle the project's
+`AGENTS.md` / `CLAUDE.md` / `developer_instructions` into
+`payload.user_instructions`, growing the line to **~38–41 KB** on a
+typical project. Every `turn_context` was therefore truncated → skipped
+→ `currentModel` never updated. All subsequent `event_msg/token_count`
+events fell through the priority chain to `?? "gpt-5"` (line 763) and
+got bucketed under `gpt-5` regardless of the real model.
+
+The bug was masked because almost all earlier test fixtures included
+`info.model` directly inside the token_count event (which bypasses
+`currentModel`). Real Codex CLI 0.125 traffic doesn't.
+
+### Fix
+
+- Bumped `prefixBytes` from 32 KB to `maxLineBytes` (256 KB), matching
+  what `CostUsageScanner+Claude.swift:80` and `PiSessionCostScanner.swift:280`
+  already use. The cap remains in place for runaway-JSONL safety, just
+  at a level that fits modern Codex events.
+- Bumped `CostUsagePricing.parserLogicVersion` from `1` → `2`. The
+  `pricingFingerprint` mechanism (added in 0.23.1) detects the rolled
+  fingerprint on first launch and runs a fresh full scan with the fixed
+  parser. Caches written without a fingerprint at all (every release
+  before 0.23.1) also fail the equality check and get invalidated, so
+  long-time users on older versions are corrected too.
+- Two new regression tests in `CostUsageScannerTests.swift` pin the
+  contract: one writes a single 50 KB turn_context + bare token_count
+  (no `info.model`) and asserts attribution lands on `gpt-5.5`; the
+  other simulates a mid-session model switch (gpt-5.4 → gpt-5.5) with
+  two large turn_contexts and asserts the delta-split attribution
+  lands on the right model in both segments. Both tests assert that
+  `gpt-5` (the default fallback bucket) stays empty.
+
+### Hardening — preventing the next prefixBytes-class bug
+
+Two infrastructure additions so this kind of regression can't reach
+users again:
+
+- **Lint guard.** New `Scripts/lint.sh audit-parser-version` step
+  fails CI when any of `CostUsageScanner.swift`,
+  `CostUsageScanner+Claude.swift`, or `CostUsageJsonl.swift` change
+  without a matching bump to `CostUsagePricing.parserLogicVersion`.
+  Wired into the default `lint` command so `./Scripts/lint.sh lint`
+  catches it pre-push and CI re-runs the same check on every PR.
+  Cosmetic / comment-only edits can opt out via `ALLOW_PARSER_CHANGE=1`.
+  Why: this 0.23.3 fix needed a manual `parserLogicVersion` bump for
+  the cache to actually re-roll on user machines — easy to forget on
+  future parser tweaks.
+- **Real-shape regression fixtures in tests.** The new tests
+  deliberately model real Codex CLI 0.125 output (multi-KB
+  `user_instructions` payloads, no `info.model` on token_count)
+  rather than the cooperative shape earlier tests used. Future
+  scanner changes that re-introduce the truncation class of bugs
+  break these tests immediately.
+
+### Notes
+
+- CFBundleVersion = `58.3.1.3.1`. Sparkle on 0.23 prompts the upgrade
+  on next check-for-updates.
+- iOS unchanged (1.5.0 Build 96 / 98). Mac re-scan repushes corrected
+  numbers to CloudKit; iOS reads automatically.
+- 0.23.1 GitHub draft superseded — 0.23.3 carries the same cache
+  invalidation infrastructure plus this parser fix, so 0.23.1 was
+  never finalized.
+
 ## 0.23.1 — 2026-04-28
 
 Hotfix on top of 0.23. Closes a stale-cache bug exposed during 0.23 QA: the
