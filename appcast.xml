@@ -3,6 +3,142 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.23.4</title>
+            <pubDate>Tue, 28 Apr 2026 20:37:32 -0700</pubDate>
+            <link>https://raw.githubusercontent.com/o1xhack/CodexBar/mobile-dev/appcast.xml</link>
+            <sparkle:version>58.4.1.3.1</sparkle:version>
+            <sparkle:shortVersionString>0.23.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.23.4-Mobile 1.3.1</h2>
+Hotfix that closes a long-standing Codex JSONL parser bug — pre-existing
+all the way back to when the Codex scanner was first written, only
+became visible recently because Codex CLI 0.125 changed its
+<code>turn_context</code> shape. Caused 90%+ of Codex token usage to be silently
+misattributed to <code>gpt-5</code>, no matter what model the user actually ran.
+Every previous version's user (0.18 / 0.19 / 0.20 / 0.20.x / 0.21 /
+0.22 / 0.23 / 0.23.1) is automatically corrected on first launch of
+0.23.4 — the fingerprint mechanism rolls and triggers a fresh full
+re-scan with the fixed parser.
+<h3>Root cause</h3>
+<code>Sources/CodexBarCore/Vendored/CostUsage/CostUsageScanner.swift:669</code>
+declared <code>prefixBytes = 32 * 1024</code> for the Codex JSONL parser. Any line
+larger than that gets <code>wasTruncated = true</code> from <code>CostUsageJsonl.scan</code>
+and is skipped entirely.
+Codex CLI 0.125+ ships <code>turn_context</code> events that bundle the project's
+<code>AGENTS.md</code> / <code>CLAUDE.md</code> / <code>developer_instructions</code> into
+<code>payload.user_instructions</code>, growing the line to <strong>~38–41 KB</strong> on a
+typical project. Every <code>turn_context</code> was therefore truncated → skipped
+→ <code>currentModel</code> never updated. All subsequent <code>event_msg/token_count</code>
+events fell through the priority chain to <code>?? "gpt-5"</code> (line 763) and
+got bucketed under <code>gpt-5</code> regardless of the real model.
+The bug was masked because almost all earlier test fixtures included
+<code>info.model</code> directly inside the token_count event (which bypasses
+<code>currentModel</code>). Real Codex CLI 0.125 traffic doesn't.
+<h3>Fix</h3>
+<ul>
+<li>Bumped <code>prefixBytes</code> from 32 KB to <code>maxLineBytes</code> (256 KB), matching</li>
+</ul>
+  what <code>CostUsageScanner+Claude.swift:80</code> and <code>PiSessionCostScanner.swift:280</code>
+  already use. The cap remains in place for runaway-JSONL safety, just
+  at a level that fits modern Codex events.
+<ul>
+<li>Bumped <code>CostUsagePricing.parserLogicVersion</code> from <code>1</code> → <code>2</code>. The</li>
+</ul>
+  <code>pricingFingerprint</code> mechanism (added in 0.23.1) detects the rolled
+  fingerprint on first launch and runs a fresh full scan with the fixed
+  parser. Caches written without a fingerprint at all (every release
+  before 0.23.1) also fail the equality check and get invalidated, so
+  long-time users on older versions are corrected too.
+<ul>
+<li>Two new regression tests in <code>CostUsageScannerTests.swift</code> pin the</li>
+</ul>
+  contract: one writes a single 50 KB turn_context + bare token_count
+  (no <code>info.model</code>) and asserts attribution lands on <code>gpt-5.5</code>; the
+  other simulates a mid-session model switch (gpt-5.4 → gpt-5.5) with
+  two large turn_contexts and asserts the delta-split attribution
+  lands on the right model in both segments. Both tests assert that
+  <code>gpt-5</code> (the default fallback bucket) stays empty.
+<h3>Code-review follow-ups (folded in before ship)</h3>
+A self-review with codex-reviewer caught three P1 issues across the
+0.23 / 0.23.1 / 0.23.4 commit cluster. All three are fixed in this
+release rather than deferred:
+<ul>
+<li><strong>P1-1 — Lint guard fail-closed.</strong> The new <code>audit_parser_version</code></li>
+</ul>
+  check silently <code>return 0</code>'d when its base ref (<code>origin/mobile-dev</code>)
+  was missing. CI shallow-clone checkouts (<code>actions/checkout</code> without
+  <code>fetch-depth: 0</code>) would never have this ref, so parser changes could
+  ship with no <code>parserLogicVersion</code> bump and the audit would still
+  report success. Now it tries to fetch the missing ref first; if
+  fetch fails it errors out instead of skipping. Explicit opt-out via
+  <code>ALLOW_MISSING_BASE=1</code> for offline / fresh-fork-clone scenarios.
+<ul>
+<li><strong>P1-2 — Fingerprint must include prices, not just keys.</strong> The</li>
+</ul>
+  <code>pricingFingerprint</code> introduced in 0.23.1 hashed only model <strong>names</strong>,
+  not their prices. A same-name reprice (existing model gets a new
+  rate) wouldn't roll the fingerprint, leaving stale baked
+  <code>costNanos</code> in <code>PiSessionCostCache</code> (and similarly in Claude
+  caches that persist computed cost). Fingerprint now embeds the
+  full price tuple per model — input / output / cacheRead /
+  cacheCreation / threshold and above-threshold rates — so any
+  edit invalidates every cache. New `pricingFingerprint rolls when
+  a price changes` test pins the contract.
+<ul>
+<li><strong>P1-3 — iOS legacy-email normalization byte-matches Mac.</strong> Mac</li>
+</ul>
+  <code>AccountIdentityComputer</code> normalizes (NFC + percent-encode + length
+  cap) before writing identifiers like <code>codex:email:...</code>. iOS's
+  legacy-fallback synthesis in <code>CloudSyncReader.effectiveIdentifiers</code>
+  used only <code>trim + lowercased</code>, so non-ASCII emails (e.g.
+  <code>café@example.com</code>) split into separate cards across versions
+  (Mac on 0.23+ writes <code>caf%C3%A9@…</code>; iOS synthesized
+  <code>café@…</code> from a 0.20.x snapshot). Extracted the normalization
+  to <code>Shared/iCloud/AccountIdentityNormalize.swift</code> so both sides use
+  it. Pinned by paired tests on Mac and iOS asserting byte-identical
+  output for the same fixture inputs.
+<h3>Hardening — preventing the next prefixBytes-class bug</h3>
+Two infrastructure additions so this kind of regression can't reach
+users again:
+<ul>
+<li><strong>Lint guard.</strong> New <code>Scripts/lint.sh audit-parser-version</code> step</li>
+</ul>
+  fails CI when any of <code>CostUsageScanner.swift</code>,
+  <code>CostUsageScanner+Claude.swift</code>, or <code>CostUsageJsonl.swift</code> change
+  without a matching bump to <code>CostUsagePricing.parserLogicVersion</code>.
+  Wired into the default <code>lint</code> command so <code>./Scripts/lint.sh lint</code>
+  catches it pre-push and CI re-runs the same check on every PR.
+  Cosmetic / comment-only edits can opt out via <code>ALLOW_PARSER_CHANGE=1</code>.
+  Why: this 0.23.4 fix needed a manual <code>parserLogicVersion</code> bump for
+  the cache to actually re-roll on user machines — easy to forget on
+  future parser tweaks.
+<ul>
+<li><strong>Real-shape regression fixtures in tests.</strong> The new tests</li>
+</ul>
+  deliberately model real Codex CLI 0.125 output (multi-KB
+  <code>user_instructions</code> payloads, no <code>info.model</code> on token_count)
+  rather than the cooperative shape earlier tests used. Future
+  scanner changes that re-introduce the truncation class of bugs
+  break these tests immediately.
+<h3>Notes</h3>
+<ul>
+<li>CFBundleVersion = <code>58.4.1.3.1</code>. Sparkle on 0.23 prompts the upgrade</li>
+</ul>
+  on next check-for-updates.
+<ul>
+<li>iOS unchanged (1.5.0 Build 96 / 98). Mac re-scan repushes corrected</li>
+</ul>
+  numbers to CloudKit; iOS reads automatically.
+<ul>
+<li>0.23.1 GitHub draft superseded — 0.23.4 carries the same cache</li>
+</ul>
+  invalidation infrastructure plus this parser fix, so 0.23.1 was
+  never finalized.
+<p><a href="https://github.com/o1xhack/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/o1xhack/CodexBar/releases/download/v0.23.4-mobile.1.3.1/CodexBar-0.23.4-mobile.1.3.1.zip" length="31592356" type="application/octet-stream" sparkle:edSignature="WL64h47/d+crXiTbuFqc+CUPE2y/KoMnupsC5tWVfFqK8D4Z/b764vMoO+0PNt68AzgML5vAheZEPkK+fd5gCw=="/>
+        </item>
+        <item>
             <title>0.23</title>
             <pubDate>Mon, 27 Apr 2026 18:03:38 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar/mobile-dev/appcast.xml</link>
@@ -141,87 +277,6 @@ Mac 0.20.0（2026-04-17）是本 fork 对齐上游 CodexBar 0.20 的主版本，
 <p><a href="https://github.com/o1xhack/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar/releases/download/v0.20.3-mobile.1.3.0/CodexBar-0.20.3-mobile.1.3.0.zip" length="29459926" type="application/octet-stream" sparkle:edSignature="3um1b+r7i2UHxb5ePE0R+au39gIOvNCsFf0y0FfrxaJAdh6eKdYi4piIAZw/cPDHt+JWybcUR+tt721mIZiYCw=="/>
-        </item>
-        <item>
-            <title>0.20.2</title>
-            <pubDate>Tue, 21 Apr 2026 17:38:26 -0700</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar/mobile-dev/appcast.xml</link>
-            <sparkle:version>55.2.1.2.0</sparkle:version>
-            <sparkle:shortVersionString>0.20.2</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.20.2-Mobile 1.2.0</h2>
-Mac-side data-plane support for the ongoing iOS 1.3.0 data-architecture refactor — per-provider CloudKit records, zlib compression, and a ghost-record fix. No user-visible change on Mac; everything below from 0.20.0 still applies.
-<h3>Highlights — upstream 0.20 (Mac)</h3>
-<ul>
-<li><strong>Codex system account switching</strong> — switch between system accounts/profiles without manually logging out and back in (contribution by @ratulsarna).</li>
-<li><strong>Perplexity provider</strong> (PR #606) — recurring, bonus, and purchased-credit tracking; Pro/Max plan detection; browser-cookie auto-import with manual-cookie fallback.</li>
-<li><strong>OpenCode Go</strong> — separate provider from OpenCode Zen, with 5-hour / weekly / monthly web usage tracking, widget integration, and browser-cookie support.</li>
-<li><strong>Claude token/cost accuracy</strong> — fixes cross-file double counting of subagent JSONL logs and streaming chunk deduplication; adds <code>claude-sonnet-4-6</code> pricing.</li>
-</ul>
-<h3>Mac — providers & usage</h3>
-<ul>
-<li>Codex: workspace attribution for account labels and same-email multi-workspace accounts.</li>
-<li>Codex: reconcile live-system and managed accounts by canonical identity, preserve per-account usage/history/dashboard state, OAuth CLI fallback, tighter OpenAI web ownership gating.</li>
-<li>Codex: normalize weekly-only rate limits across OAuth and CLI/RPC; free-plan accounts render as Weekly instead of a fake Session.</li>
-<li>Codex: end-to-end refactor into clearer components (CodexDashboardAuthority / CodexAccountReconciliation / CodexIdentity / CodexConsumerProjection / ManagedCodexAccountCoordinator).</li>
-<li>OpenCode: preserve product separation between Zen and Go; harden cookie/domain behavior for authenticated web fetches.</li>
-<li>Cost history: merge supported pi session usage into Codex/Claude provider history (#653).</li>
-</ul>
-<h3>Mac — menu & settings</h3>
-<ul>
-<li>Codex: UI for switching the system-level Codex account and promoting a managed account into the live system slot.</li>
-<li>Claude: "Avoid Keychain prompts" enabled by default (experimental label removed).</li>
-<li>Fix alignment of menu chart hover coordinates on macOS.</li>
-</ul>
-<h3>Mac — fixes (selected)</h3>
-<ul>
-<li>Cursor fetch crash path (#663).</li>
-<li>z.ai 5-hour lane selection.</li>
-<li>Ollama <code>__Secure-session</code> cookie recognition (#707).</li>
-<li>Edge browser cookie import for Codex (#694).</li>
-<li>Antigravity localhost TLS challenges (#693).</li>
-<li>Battery-drain mitigations: menu bar updates and OpenAI web extras (#708, #684).</li>
-<li>Menu bar icon regression on macOS 26 RenderBox Metal shader (#677).</li>
-<li>Claude CLI well-known path fallback precedence (#675).</li>
-</ul>
-<hr/>
-2026-04-21 配合 iOS 1.3.0 数据架构重构的 Mac 端数据层补丁 —— 按 provider 拆分的 CloudKit 记录、zlib 压缩，以及一个幽灵记录修复。Mac 端用户可见行为不变；下面 0.20.0 的内容全部继续适用。
-<h3>亮点 — 上游 0.20（Mac）</h3>
-<ul>
-<li><strong>Codex 系统账号切换</strong> —— 不用手动登出再登入即可切换系统账号/profile（@ratulsarna 贡献）。</li>
-<li><strong>Perplexity 服务商</strong>（PR #606）—— recurring / 赠送 / 购买三段式 credit 追踪，Pro/Max 套餐识别，浏览器 cookie 自动导入加手动 cookie 兜底。</li>
-<li><strong>OpenCode Go</strong> —— 从 OpenCode Zen 分离出独立 provider，支持 5 小时 / 周 / 月 web 用量追踪、widget、浏览器 cookie。</li>
-<li><strong>Claude token/费用修正</strong> —— 修复子 agent JSONL 跨文件重复计数和流式分片去重；新增 <code>claude-sonnet-4-6</code> 定价。</li>
-</ul>
-<h3>Mac — 服务商 & 用量</h3>
-<ul>
-<li>Codex：账号 label 的 workspace 归属，支持同 email 多 workspace。</li>
-<li>Codex：用 canonical 身份协调实时与 managed 账号，保留每账号独立用量/历史/dashboard；OAuth CLI 兜底；OpenAI web 所有权收紧。</li>
-<li>Codex：周限额在 OAuth/CLI/RPC 间归一化，免费账号显示为 Weekly 而非虚假 Session。</li>
-<li>Codex：端到端重构（CodexDashboardAuthority / CodexAccountReconciliation / CodexIdentity / CodexConsumerProjection / ManagedCodexAccountCoordinator 等）。</li>
-<li>OpenCode：Zen 与 Go 的产品边界保留；web 认证抓取的 cookie/domain 行为强化。</li>
-<li>费用历史：支持将 pi session 用量合并到 Codex/Claude 历史（#653）。</li>
-</ul>
-<h3>Mac — 菜单 & 设置</h3>
-<ul>
-<li>Codex：切换系统级 Codex 账号、将 managed 账号晋升为 live system 的 UI。</li>
-<li>Claude："避免 Keychain 弹窗" 改为默认开启（不再是 experimental）。</li>
-<li>修复 macOS 上菜单栏图表 hover 坐标对齐。</li>
-</ul>
-<h3>Mac — 修复（节选）</h3>
-<ul>
-<li>Cursor 抓取崩溃路径（#663）。</li>
-<li>z.ai 5 小时额度通道选择。</li>
-<li>Ollama <code>__Secure-session</code> cookie 识别（#707）。</li>
-<li>Edge 浏览器 cookie 导入 for Codex（#694）。</li>
-<li>Antigravity localhost TLS 握手。</li>
-<li>电量回归修复（#708、#684）。</li>
-<li>macOS 26 RenderBox Metal 着色器导致的菜单栏图标不显示（#677）。</li>
-<li>Claude CLI well-known 路径 fallback 优先级（#675）。</li>
-</ul>
-<p><a href="https://github.com/o1xhack/CodexBar/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar/releases/download/v0.20.2-mobile.1.2.0/CodexBar-0.20.2-mobile.1.2.0.zip" length="29392158" type="application/octet-stream" sparkle:edSignature="/oNnxtyYpl/NUMEu8ZZ/DUnAcIfNN9p59cJ5wi1fTVEYrbZORGY4qVJMFl6ejz4u9hhzcWlJCjC6TAMWeM9OCQ=="/>
         </item>
         <item>
             <title>0.14.0</title>
