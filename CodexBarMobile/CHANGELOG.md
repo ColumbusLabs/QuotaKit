@@ -2,6 +2,28 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.0 (99)] — 2026-04-28 — non-ASCII email merge fix (P1-3 from 0.23.3 review)
+
+Companion to Mac 0.23.3. Fixes a P1 surfaced by codex-reviewer during
+the 0.23.3 audit: iOS legacy-email synthesis used `trim + lowercased`,
+but Mac (≥ 0.23) writes identifiers via NFC + percent-encoding + length
+cap. For non-ASCII emails (e.g. `café@example.com`) the two normalizers
+produced different bytes, so a 0.23+ Mac and a 0.20.x Mac for the same
+account split into two cards on iOS.
+
+### Fix
+
+- Extracted shared normalization to `Shared/iCloud/AccountIdentityNormalize.swift`
+  (in CodexBarSync). Both Mac (`AccountIdentityComputer.normalize`)
+  and iOS (`CloudSyncReader.effectiveIdentifiers`) now produce
+  byte-identical strings for the same input.
+- Paired contract tests on Mac (`AccountIdentityComputerTests.normalizeMatchesSharedContract`)
+  and iOS (`AccountIdentityNormalizeContractTests`) pin both sides to
+  the same fixture outputs — drift on either side breaks both tests.
+
+No other behavior changes. All other 1.5.0 functionality unchanged from
+Build 98.
+
 ## [1.5.0 (98)] — 2026-04-27 — multi-version Mac account merge
 
 Fixes the recurring "two cards for one Codex account when one Mac is on
