@@ -14,25 +14,17 @@
 
 ## 核心功能 · 1.5.0
 
-<table>
-  <tr>
-    <td width="33%" valign="top" align="center">
-      <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/01-overview.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/01-overview.png" alt="全量同步" width="260"></a><br>
-      <strong>全量同步</strong><br>
-      <sub>覆盖全部 27 个 provider —— Codex、Claude、Cursor、Gemini、Vertex AI、Mistral、Abacus AI、Perplexity、Synthetic 等 —— 通过 iCloud 静默推送从 Mac 同步到手机，~500 毫秒到达，一屏看全无需手动刷新。</sub>
-    </td>
-    <td width="33%" valign="top" align="center">
-      <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/02-cost-overview.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/02-cost-overview.png" alt="Cost 数据看板" width="260"></a><br>
-      <strong>Cost 数据看板</strong><br>
-      <sub>Daily Spend + 30 天柱图、每个 provider 占比、每个模型分账、计费周期进度。新发布的模型自动启用估算单价，<code>gpt-5.x</code> 出现的当天 Daily Spend 不会悄无声息归零。</sub>
-    </td>
-    <td width="33%" valign="top" align="center">
-      <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/05-share-cards.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/05-share-cards.png" alt="分享卡片" width="260"></a><br>
-      <strong>分享卡片</strong><br>
-      <sub>任意用量 / cost 视图一键生成分享图 —— 深色风格简约设计，附带网站 QR 码，可直接发 X、微信、Slack 或其他平台。</sub>
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/01-overview.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/01-overview.png" alt="主览" width="180"></a>
+  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/02-cost-overview.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/02-cost-overview.png" alt="Cost 总览" width="180"></a>
+  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/03-daily-spend.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/03-daily-spend.png" alt="Daily Spend" width="180"></a>
+  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/04-model-mix.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/04-model-mix.png" alt="模型分账" width="180"></a>
+  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/05-share-cards.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/05-share-cards.png" alt="分享卡片" width="180"></a>
+</p>
+
+- **全量同步** —— 覆盖全部 27 个 provider（Codex、Claude、Cursor、Gemini、Vertex AI、Mistral、Abacus AI、Perplexity、Synthetic 等），通过 iCloud 静默推送从 Mac 同步到手机，~500 毫秒到达，一屏看全无需手动刷新。
+- **Cost 数据看板** —— Daily Spend + 30 天柱图、每个 provider 占比、每个模型分账、计费周期进度。新发布的模型自动启用估算单价，`gpt-5.x` 出现的当天 Daily Spend 不会悄无声息归零。
+- **分享卡片** —— 任意用量 / cost 视图一键生成分享图，深色风格简约设计，附带网站 QR 码，可直接发 X、微信、Slack 或其他平台。
 
 ---
 

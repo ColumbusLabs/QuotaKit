@@ -14,25 +14,17 @@
 
 ## Highlights · 1.5.0
 
-<table>
-  <tr>
-    <td width="33%" valign="top" align="center">
-      <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/01-overview.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/01-overview.png" alt="Full sync overview" width="260"></a><br>
-      <strong>Full sync</strong><br>
-      <sub>All 27 providers — Codex, Claude, Cursor, Gemini, Vertex AI, Mistral, Abacus AI, Perplexity, Synthetic, and the rest — refreshed from your Mac via iCloud silent push within ~500 ms. One screen, no manual reload.</sub>
-    </td>
-    <td width="33%" valign="top" align="center">
-      <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/02-cost-overview.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/02-cost-overview.png" alt="Cost dashboard" width="260"></a><br>
-      <strong>Cost dashboard</strong><br>
-      <sub>Daily Spend with 30-day chart, per-provider share, per-model breakdown, and renewal-cycle progress. Estimated rates kick in for newly-released models so a fresh <code>gpt-5.x</code> never silently drops the day to $0.</sub>
-    </td>
-    <td width="33%" valign="top" align="center">
-      <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/05-share-cards.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/05-share-cards.png" alt="Share cards" width="260"></a><br>
-      <strong>Share cards</strong><br>
-      <sub>One-tap share images for any usage or cost view — clean dark-mode design with a QR back to the website. Ready for X, WeChat, Slack, or anywhere else you brag about token spend.</sub>
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/01-overview.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/01-overview.png" alt="Overview" width="180"></a>
+  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/02-cost-overview.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/02-cost-overview.png" alt="Cost overview" width="180"></a>
+  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/03-daily-spend.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/03-daily-spend.png" alt="Daily Spend" width="180"></a>
+  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/04-model-mix.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/04-model-mix.png" alt="Model Mix" width="180"></a>
+  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/05-share-cards.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/05-share-cards.png" alt="Share cards" width="180"></a>
+</p>
+
+- **Full sync** — all 27 providers (Codex, Claude, Cursor, Gemini, Vertex AI, Mistral, Abacus AI, Perplexity, Synthetic, …) refreshed from your Mac via iCloud silent push within ~500 ms. One screen, no manual reload.
+- **Cost dashboard** — Daily Spend with 30-day chart, per-provider share, per-model breakdown, and renewal-cycle progress. Estimated rates kick in for newly-released models so a fresh `gpt-5.x` never silently drops the day to $0.
+- **Share cards** — one-tap share images for any usage or cost view, clean dark-mode design with a QR back to the website. Ready for X, WeChat, Slack, or anywhere else you brag about token spend.
 
 ---
 
