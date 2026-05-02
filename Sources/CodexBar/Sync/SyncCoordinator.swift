@@ -60,6 +60,29 @@ final class SyncCoordinator {
     /// composites can be detected.
     private var pushHistorySeeded: Bool = false
 
+    /// Per-record consecutive-missing counter for the L1 ghost-records
+    /// cleanup's two-cycle confirmation. Multi-account expansion may
+    /// transiently shrink the emit set (Codex active-account switch race,
+    /// token "Show all" toggle, etc.) and we don't want a single missing
+    /// cycle to trigger a CloudKit delete. A record stays in this dict
+    /// while it's missing from `currentRecordNames`; once its counter
+    /// reaches 2 OR its providerID disappears entirely from the cycle's
+    /// emit set (whole-provider gone, e.g. user disabled the provider),
+    /// the delete fires. Counter is reset to 0 (entry removed) when the
+    /// record reappears.
+    ///
+    /// R3 P1: see `Research/020-multi-account-comprehensive.md` H6.
+    private var consecutiveMissingCount: [String: Int] = [:]
+
+    /// Per-account snapshot cache for multi-account providers. Captures the
+    /// active account's snapshot on every push so previously-active accounts
+    /// remain visible on iOS as the user switches between them. Solves the
+    /// "3 Codex accounts on Mac, only 1 shows on iOS" issue without touching
+    /// upstream's account-scoped refresh machinery. See
+    /// `Research/020-multi-account-comprehensive.md` and
+    /// `SyncMultiAccountSnapshotCache.swift`.
+    private let multiAccountCache = SyncMultiAccountSnapshotCache()
+
     /// Stable encoder used for the per-provider diff. Sorted keys so byte-level
     /// hashing is insensitive to encoding key order. Built on top of the
     /// project-wide factory so date strategy stays consistent.
@@ -90,6 +113,11 @@ final class SyncCoordinator {
             _ = self.store.errors
             _ = self.store.tokenSnapshots
             _ = self.settings.iCloudSyncEnabled
+            // Multi-account: re-push when the active Codex managed account
+            // changes (user switches accounts in menu) so the new active
+            // account's data lands on iOS quickly. The previously-active
+            // account's snapshot is preserved in `multiAccountCache`.
+            _ = self.settings.codexAccountReconciliationSnapshot
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self, self.isObserving else { return }
@@ -116,130 +144,41 @@ final class SyncCoordinator {
             let error = self.store.errors[provider]
             let meta = self.store.providerMetadata[provider]
 
-            // Build dynamic rate windows array with labels from metadata
-            var rateWindows: [SyncRateWindow] = []
-            if let p = snapshot?.primary {
-                rateWindows.append(SyncRateWindow(
-                    label: meta?.sessionLabel,
-                    usedPercent: p.usedPercent,
-                    windowMinutes: p.windowMinutes,
-                    resetsAt: p.resetsAt,
-                    resetDescription: p.resetDescription))
-            }
-            if let s = snapshot?.secondary {
-                rateWindows.append(SyncRateWindow(
-                    label: meta?.weeklyLabel,
-                    usedPercent: s.usedPercent,
-                    windowMinutes: s.windowMinutes,
-                    resetsAt: s.resetsAt,
-                    resetDescription: s.resetDescription))
-            }
-            if let meta, meta.supportsOpus, let t = snapshot?.tertiary {
-                rateWindows.append(SyncRateWindow(
-                    label: meta.opusLabel ?? "Sonnet",
-                    usedPercent: t.usedPercent,
-                    windowMinutes: t.windowMinutes,
-                    resetsAt: t.resetsAt,
-                    resetDescription: t.resetDescription))
-            }
-            // Extra (named) rate windows from upstream — Claude exposes
-            // Designs / Daily Routines / Web Sonnet here in v0.23, Cursor
-            // exposes its on-demand "Extra usage" metric. Append after
-            // primary/secondary/tertiary so iOS rendering preserves
-            // semantic ordering. iOS 1.3.x reads `rateWindows: [SyncRateWindow]`
-            // unchanged; clients that haven't been updated to render the
-            // extras still see primary/secondary/tertiary as the first
-            // 3 entries.
-            for extra in snapshot?.extraRateWindows ?? [] {
-                rateWindows.append(SyncRateWindow(
-                    label: extra.title,
-                    usedPercent: extra.window.usedPercent,
-                    windowMinutes: extra.window.windowMinutes,
-                    resetsAt: extra.window.resetsAt,
-                    resetDescription: extra.window.resetDescription))
-            }
-
-            // Legacy primary/secondary for backward compat with older iOS builds
-            let primaryWindow = rateWindows.first
-            let secondaryWindow = rateWindows.count > 1 ? rateWindows[1] : nil
-
-            // Map token/cost snapshot
-            let costSummary = self.makeCostSummary(for: provider)
-
-            // Map provider budget/spend
-            let providerCost = snapshot?.providerCost
-            let budgetSnap: SyncBudgetSnapshot? = providerCost.map { pc in
-                SyncBudgetSnapshot(
-                    usedAmount: pc.used,
-                    limitAmount: pc.limit,
-                    currencyCode: pc.currencyCode,
-                    period: pc.period,
-                    resetsAt: pc.resetsAt)
-            }
-
-            // Map utilization history
-            let utilizationHistory = self.makeUtilizationHistory(for: provider)
-            if let uh = utilizationHistory {
+            // Per-provider shared data (computed once, reused across all
+            // account snapshots for this provider during multi-account
+            // expansion). Cost JSONL scanner and utilization history are
+            // currently provider-level (not split per account); future
+            // refinement (R5+) may push these per-account when the data
+            // source allows.
+            let sharedCostSummary = self.makeCostSummary(for: provider)
+            let sharedUtilizationHistory = self.makeUtilizationHistory(for: provider)
+            if let uh = sharedUtilizationHistory {
                 let totalEntries = uh.reduce(0) { $0 + $1.entries.count }
                 print("[CodexBar Sync] \(provider.rawValue): \(uh.count) utilization series, \(totalEntries) entries")
             } else {
                 print("[CodexBar Sync] \(provider.rawValue): no utilization history")
             }
 
-            // Map Perplexity's rich structured credit breakdown (recurring /
-            // promo / purchased pools, Pro/Max plan, renewal date) into
-            // `SyncPerplexityCreditSummary` so iOS 1.3.0 can render the
-            // stacked 3-segment card. Only populated for Perplexity —
-            // stays nil for every other provider. Upstream publishes zero
-            // values for empty pools; we map those to nil so iOS can
-            // distinguish "no pool" from "empty pool" and hide the
-            // no-pool segment entirely.
-            let perplexityCredits: SyncPerplexityCreditSummary? = {
-                guard provider == .perplexity,
-                      let p = snapshot?.perplexityUsage
-                else { return nil }
-                return SyncPerplexityCreditSummary(
-                    recurringTotalCents: p.recurringTotal > 0 ? p.recurringTotal : nil,
-                    recurringUsedCents: p.recurringTotal > 0 ? p.recurringUsed : nil,
-                    promoTotalCents: p.promoTotal > 0 ? p.promoTotal : nil,
-                    promoUsedCents: p.promoTotal > 0 ? p.promoUsed : nil,
-                    promoExpiresAt: p.promoExpiration,
-                    purchasedTotalCents: p.purchasedTotal > 0 ? p.purchasedTotal : nil,
-                    purchasedUsedCents: p.purchasedTotal > 0 ? p.purchasedUsed : nil,
-                    renewalAt: p.renewalDate,
-                    planName: p.planName,
-                    balanceCents: p.balanceCents)
-            }()
-
-            // Compute the per-account stable identifier set. iOS uses
-            // these for cross-Mac union-find merging. See
-            // `Research/019-account-identity-multi-version-merge.md` and
-            // `AccountIdentityComputer` for the algorithm and discipline.
-            // Tier-A providers (Codex/Claude/VertexAI) get real identifier
-            // sets; everyone else gets nil → iOS legacy per-device bucket.
-            let accountIdentities = AccountIdentityComputer.compute(
-                provider: provider,
-                identity: snapshot?.identity)
-
-            let providerSnapshot = ProviderUsageSnapshot(
-                providerID: provider.rawValue,
-                providerName: meta?.displayName ?? provider.rawValue.capitalized,
-                primary: primaryWindow,
-                secondary: secondaryWindow,
-                accountEmail: snapshot?.identity?.accountEmail,
-                loginMethod: snapshot?.identity?.loginMethod,
-                statusMessage: error,
-                isError: error != nil,
-                lastUpdated: snapshot?.updatedAt ?? Date(),
-                costSummary: costSummary,
-                budget: budgetSnap,
-                rateWindows: rateWindows,
-                utilizationHistory: utilizationHistory,
-                perplexityCredits: perplexityCredits,
-                accountIdentities: accountIdentities)
+            let providerSnapshot = self.buildProviderUsageSnapshot(
+                for: provider,
+                snapshot: snapshot,
+                error: error,
+                metadata: meta,
+                sharedCostSummary: sharedCostSummary,
+                sharedUtilizationHistory: sharedUtilizationHistory)
 
             providerSnapshots.append(providerSnapshot)
         }
+
+        // Multi-account capture + expand. Records the active account's
+        // freshly-built snapshot into `multiAccountCache`, then appends every
+        // cached non-active snapshot for that provider to `providerSnapshots`
+        // so the push covers all known accounts. iOS merges by
+        // (providerID, accountEmail), so distinct emails produce distinct
+        // cards. See `SyncMultiAccountSnapshotCache.swift` for rationale.
+        let enabledSet = Set(enabledProviders)
+        self.captureAndExpandMultiAccountSnapshots(
+            into: &providerSnapshots, enabledSet: enabledSet)
 
         let deviceName = Host.current().localizedName ?? "Mac"
         let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
@@ -283,8 +222,13 @@ final class SyncCoordinator {
         // whether their hash changed this cycle) vs the composites we
         // pushed last cycle. The difference represents:
         //   (a) providers the user disabled — Mac stopped including them
+        //       (whole-provider gone → 1-cycle delete: matches existing
+        //       L1 contract)
         //   (b) accounts whose identity drifted (composite key changed)
-        // We emit deletes for those CKRecords so iOS sees a clean zone.
+        //   (c) accounts that disappeared from a multi-account provider
+        //       (partial shrink → 2-cycle confirmation: defends against
+        //       transient cache shrinkage during Codex active-account
+        //       switch invalidation race; see Research/020 H6)
         // First-cycle-after-restart guard: don't emit deletes until
         // `pushHistorySeeded == true`; otherwise we'd interpret the empty
         // initial set as "nothing was enabled" and miss real disable events
@@ -295,12 +239,15 @@ final class SyncCoordinator {
         let currentRecordNames = self.computeCurrentRecordNames(
             from: providerSnapshots)
         if self.pushHistorySeeded {
-            let staleRecordNames = self.lastPushedRecordNames
-                .subtracting(currentRecordNames)
+            let staleRecordNames = self.computeStaleRecordNames(
+                currentRecordNames: currentRecordNames)
             if !staleRecordNames.isEmpty {
                 let deleteResult = await self.syncManager
                     .deletePerProviderRecords(recordNames: Array(staleRecordNames))
                 if deleteResult.succeeded {
+                    for record in staleRecordNames {
+                        self.consecutiveMissingCount.removeValue(forKey: record)
+                    }
                     print(
                         "[CodexBar Sync] cleaned up \(staleRecordNames.count)" +
                             " stale per-provider record(s) from CloudKit")
@@ -316,6 +263,401 @@ final class SyncCoordinator {
         }
         self.lastPushedRecordNames = currentRecordNames
         self.pushHistorySeeded = true
+    }
+
+    /// Determine which records must be deleted from CloudKit this cycle.
+    ///
+    /// Three delete paths:
+    /// 1. **Whole-provider gone (1-cycle)** — the record's providerID is
+    ///    no longer present anywhere in `currentRecordNames`. Matches
+    ///    "user disabled provider" contract.
+    /// 2. **Account-identity drift (1-cycle)** — count of composites for
+    ///    this providerID stayed the same OR grew, but a specific record
+    ///    disappeared. That's a 1-1 swap (e.g., email changed when login
+    ///    completed) or a growth (drift + add) — not a real shrink, safe
+    ///    to delete the old composite immediately. Matches the existing
+    ///    L1 drift test.
+    /// 3. **Real shrink (2-cycle)** — count of composites for the
+    ///    providerID actually decreased. Could be a real account
+    ///    removal OR a transient cache shrinkage (Codex active-account
+    ///    switch race, etc.). Require the record to be missing for 2
+    ///    consecutive cycles before deletion (R3 P1, Research/020 H6).
+    ///
+    /// Side effect: maintains `consecutiveMissingCount` — increments for
+    /// records still missing this cycle, removes for records that
+    /// reappeared.
+    private func computeStaleRecordNames(
+        currentRecordNames: Set<String>) -> Set<String>
+    {
+        // Records currently emitted: reset their missing counter.
+        for record in currentRecordNames {
+            self.consecutiveMissingCount.removeValue(forKey: record)
+        }
+
+        // Records that were emitted last cycle OR are still in the
+        // missing-counter dict from earlier cycles, but are missing now.
+        let trackedRecords = self.lastPushedRecordNames
+            .union(self.consecutiveMissingCount.keys)
+        let missingThisCycle = trackedRecords.subtracting(currentRecordNames)
+
+        // Increment missing counter for each.
+        for record in missingThisCycle {
+            self.consecutiveMissingCount[record, default: 0] += 1
+        }
+
+        // Per-providerID composite counts (last vs. current) — drives the
+        // drift-vs-shrink distinction.
+        let lastCountsByProvider = Self.composeCountsByProvider(
+            from: self.lastPushedRecordNames)
+        let currentCountsByProvider = Self.composeCountsByProvider(
+            from: currentRecordNames)
+
+        var stale: Set<String> = []
+        for record in missingThisCycle {
+            guard let providerID = Self.extractProviderID(from: record)
+            else {
+                // Can't parse — conservative: don't delete.
+                continue
+            }
+            let currentCount = currentCountsByProvider[providerID] ?? 0
+            let lastCount = lastCountsByProvider[providerID] ?? 0
+
+            if currentCount == 0 {
+                // Whole-provider gone — 1-cycle delete.
+                stale.insert(record)
+            } else if currentCount >= lastCount {
+                // Drift (composite swapped or new added while old removed)
+                // — 1-cycle delete is safe and matches existing L1 contract.
+                stale.insert(record)
+            } else if (self.consecutiveMissingCount[record] ?? 0) >= 2 {
+                // Real shrink (count decreased) — confirmed missing for
+                // 2 consecutive cycles → delete.
+                stale.insert(record)
+            }
+            // Else: real shrink, only 1 cycle missing — wait for
+            // confirmation next cycle (defends against transient cache
+            // shrinkage from Codex active-account switch race).
+        }
+        return stale
+    }
+
+    /// Builds `[providerID: count]` for the given record names. Records
+    /// with unparseable composite keys contribute to no provider.
+    private static func composeCountsByProvider(
+        from recordNames: Set<String>) -> [String: Int]
+    {
+        var counts: [String: Int] = [:]
+        for record in recordNames {
+            guard let providerID = Self.extractProviderID(from: record)
+            else { continue }
+            counts[providerID, default: 0] += 1
+        }
+        return counts
+    }
+
+    /// Extracts `providerID` from a per-provider record name composite
+    /// `{deviceID}|{providerID}|{accountEmailOrSentinel}`. Returns nil if
+    /// the format is unexpected; callers must treat that as "unknown" and
+    /// not act on the record.
+    private static func extractProviderID(from recordName: String) -> String? {
+        let parts = recordName.split(
+            separator: "|", maxSplits: 2, omittingEmptySubsequences: false)
+        guard parts.count >= 3 else { return nil }
+        return String(parts[1])
+    }
+
+    /// Token-based providers that share `UsageStore.accountSnapshots` for
+    /// multi-account data. When `showAllTokenAccountsInMenu` is on **and**
+    /// the user has 2+ token accounts configured, each provider's
+    /// `accountSnapshots[provider]` array is populated with every account's
+    /// usage; SyncCoordinator emits one CKRecord per entry.
+    ///
+    /// Identical pattern to Codex (R1) but with one important difference:
+    /// for token providers the per-account data is **co-resident in memory**
+    /// once the user enables "Show all" — unlike Codex which only ever
+    /// retains the active account's snapshot. As a result we don't need
+    /// observation-cache cold-start mitigation here; we read the live list
+    /// and emit immediately.
+    private static let tokenBasedMultiAccountProviders: [UsageProvider] = [
+        .claude, .zai, .cursor, .opencode, .opencodego,
+        .factory, .minimax, .augment, .ollama, .abacus, .mistral,
+    ]
+
+    // swiftlint:disable function_parameter_count
+    /// Builds a `ProviderUsageSnapshot` from a `UsageSnapshot` plus shared
+    /// per-provider data (cost / utilization). Pure function over inputs —
+    /// used by both the active-account main loop and the multi-account
+    /// expansion path. Extraction made multi-account expansion possible
+    /// without code duplication; see R2 in
+    /// `Research/020-multi-account-comprehensive.md`.
+    private func buildProviderUsageSnapshot(
+        for provider: UsageProvider,
+        snapshot: UsageSnapshot?,
+        error: String?,
+        metadata: ProviderMetadata?,
+        sharedCostSummary: SyncCostSummary?,
+        sharedUtilizationHistory: [SyncUtilizationSeries]?) -> ProviderUsageSnapshot
+    {
+        // Build dynamic rate windows array with labels from metadata.
+        var rateWindows: [SyncRateWindow] = []
+        if let p = snapshot?.primary {
+            rateWindows.append(SyncRateWindow(
+                label: metadata?.sessionLabel,
+                usedPercent: p.usedPercent,
+                windowMinutes: p.windowMinutes,
+                resetsAt: p.resetsAt,
+                resetDescription: p.resetDescription))
+        }
+        if let s = snapshot?.secondary {
+            rateWindows.append(SyncRateWindow(
+                label: metadata?.weeklyLabel,
+                usedPercent: s.usedPercent,
+                windowMinutes: s.windowMinutes,
+                resetsAt: s.resetsAt,
+                resetDescription: s.resetDescription))
+        }
+        if let metadata, metadata.supportsOpus, let t = snapshot?.tertiary {
+            rateWindows.append(SyncRateWindow(
+                label: metadata.opusLabel ?? "Sonnet",
+                usedPercent: t.usedPercent,
+                windowMinutes: t.windowMinutes,
+                resetsAt: t.resetsAt,
+                resetDescription: t.resetDescription))
+        }
+        // Extra (named) rate windows from upstream — Claude Designs / Daily
+        // Routines / Web Sonnet, Cursor Extra usage, etc.
+        for extra in snapshot?.extraRateWindows ?? [] {
+            rateWindows.append(SyncRateWindow(
+                label: extra.title,
+                usedPercent: extra.window.usedPercent,
+                windowMinutes: extra.window.windowMinutes,
+                resetsAt: extra.window.resetsAt,
+                resetDescription: extra.window.resetDescription))
+        }
+
+        // Legacy primary/secondary for backward compat with older iOS builds.
+        let primaryWindow = rateWindows.first
+        let secondaryWindow = rateWindows.count > 1 ? rateWindows[1] : nil
+
+        // Provider budget / spend (per-account when snapshot.providerCost is
+        // set per-account by upstream; otherwise shared with active).
+        let providerCost = snapshot?.providerCost
+        let budgetSnap: SyncBudgetSnapshot? = providerCost.map { pc in
+            SyncBudgetSnapshot(
+                usedAmount: pc.used,
+                limitAmount: pc.limit,
+                currencyCode: pc.currencyCode,
+                period: pc.period,
+                resetsAt: pc.resetsAt)
+        }
+
+        // Perplexity rich structured credit breakdown (only for Perplexity).
+        let perplexityCredits: SyncPerplexityCreditSummary? = {
+            guard provider == .perplexity,
+                  let p = snapshot?.perplexityUsage
+            else { return nil }
+            return SyncPerplexityCreditSummary(
+                recurringTotalCents: p.recurringTotal > 0 ? p.recurringTotal : nil,
+                recurringUsedCents: p.recurringTotal > 0 ? p.recurringUsed : nil,
+                promoTotalCents: p.promoTotal > 0 ? p.promoTotal : nil,
+                promoUsedCents: p.promoTotal > 0 ? p.promoUsed : nil,
+                promoExpiresAt: p.promoExpiration,
+                purchasedTotalCents: p.purchasedTotal > 0 ? p.purchasedTotal : nil,
+                purchasedUsedCents: p.purchasedTotal > 0 ? p.purchasedUsed : nil,
+                renewalAt: p.renewalDate,
+                planName: p.planName,
+                balanceCents: p.balanceCents)
+        }()
+
+        // Per-account stable identifier set for cross-Mac union-find merging.
+        // See `Research/019-account-identity-multi-version-merge.md`.
+        let accountIdentities = AccountIdentityComputer.compute(
+            provider: provider,
+            identity: snapshot?.identity)
+
+        return ProviderUsageSnapshot(
+            providerID: provider.rawValue,
+            providerName: metadata?.displayName ?? provider.rawValue.capitalized,
+            primary: primaryWindow,
+            secondary: secondaryWindow,
+            accountEmail: snapshot?.identity?.accountEmail,
+            loginMethod: snapshot?.identity?.loginMethod,
+            statusMessage: error,
+            isError: error != nil,
+            lastUpdated: snapshot?.updatedAt ?? Date(),
+            costSummary: sharedCostSummary,
+            budget: budgetSnap,
+            rateWindows: rateWindows,
+            utilizationHistory: sharedUtilizationHistory,
+            perplexityCredits: perplexityCredits,
+            accountIdentities: accountIdentities)
+    }
+
+    // swiftlint:enable function_parameter_count
+
+    /// For multi-account providers (Codex via observation-cache + token-based
+    /// providers via direct read of `accountSnapshots`), records each account's
+    /// snapshot into `multiAccountCache`, then appends cached / live non-active
+    /// snapshots to `providerSnapshots`. Also purges cache entries for accounts
+    /// the user has removed from Mac since the last push.
+    ///
+    /// **Why this works.** Mac's `UsageStore.snapshots[.codex]` only ever
+    /// holds one account's data (whichever is active). On switch, the
+    /// previous account's snapshot is wiped. By capturing each account's
+    /// data the moment it becomes active and stashing it under the
+    /// managed-account UUID, the cache fills up over the session and we
+    /// can emit one CKRecord per known account on each push without
+    /// touching upstream's account-scoped refresh machinery.
+    ///
+    /// **Cold start.** A fresh process knows the active account on first
+    /// push; non-active accounts populate as the user switches between
+    /// them. Until then, iOS sees the active account only — same as
+    /// pre-fix behavior, never worse.
+    private func captureAndExpandMultiAccountSnapshots(
+        into providerSnapshots: inout [ProviderUsageSnapshot],
+        enabledSet: Set<UsageProvider>)
+    {
+        // Codex (R1) — observation-based cache. Self-contained block so its
+        // early-exits don't bypass the token-provider loop below.
+        if enabledSet.contains(.codex) {
+            self.expandCodexMultiAccount(into: &providerSnapshots)
+        } else {
+            // Codex disabled — purge cache to avoid emitting stale
+            // multi-account records if the user later re-enables Codex
+            // (R3 P1: disabled-provider leak guard, see Research/020 H5).
+            self.multiAccountCache.purgeStaleAccounts(
+                providerID: UsageProvider.codex.rawValue,
+                livingAccountIDs: [])
+        }
+
+        // Token-based multi-account providers (R2). These 11 providers share
+        // `UsageStore.accountSnapshots: [UsageProvider: [TokenAccountUsageSnapshot]]`
+        // when the user has enabled "Show all token accounts in menu" AND
+        // configured 2+ accounts. Unlike Codex, the data is co-resident in
+        // memory so we read live and emit per-account immediately. Cache is
+        // populated alongside for future resilience (e.g., if user toggles
+        // "Show all" off later mid-session — though current cache lookup
+        // path doesn't yet read from cache for token providers; that's an
+        // R3 hardening item).
+        for tokenProvider in Self.tokenBasedMultiAccountProviders {
+            guard enabledSet.contains(tokenProvider) else {
+                // Provider disabled — purge any cached entries so a
+                // re-enable starts clean (R3 P1: disabled-provider
+                // leak guard, see Research/020 H5).
+                self.multiAccountCache.purgeStaleAccounts(
+                    providerID: tokenProvider.rawValue,
+                    livingAccountIDs: [])
+                continue
+            }
+            guard let entries = self.store.accountSnapshots[tokenProvider],
+                  entries.count >= 2
+            else { continue }
+
+            let providerID = tokenProvider.rawValue
+            let meta = self.store.providerMetadata[tokenProvider]
+            let sharedCostSummary = self.makeCostSummary(for: tokenProvider)
+            let sharedUtilizationHistory = self.makeUtilizationHistory(
+                for: tokenProvider)
+            let livingIDs = Set(entries.map(\.account.id.uuidString))
+
+            // Remove the active-only entry that the main loop appended for
+            // this provider — we replace it with the full per-account list
+            // built from `accountSnapshots`. The active account is included
+            // via its corresponding entry in `entries`, so we don't lose
+            // any data.
+            providerSnapshots.removeAll { $0.providerID == providerID }
+
+            for entry in entries {
+                let perAccount = self.buildProviderUsageSnapshot(
+                    for: tokenProvider,
+                    snapshot: entry.snapshot,
+                    error: entry.error,
+                    metadata: meta,
+                    sharedCostSummary: sharedCostSummary,
+                    sharedUtilizationHistory: sharedUtilizationHistory)
+                self.multiAccountCache.record(
+                    perAccount,
+                    providerID: providerID,
+                    accountID: entry.account.id.uuidString)
+                providerSnapshots.append(perAccount)
+            }
+
+            // Drop cache entries for accounts the user removed since last push.
+            self.multiAccountCache.purgeStaleAccounts(
+                providerID: providerID,
+                livingAccountIDs: livingIDs)
+        }
+    }
+
+    /// Codex multi-account expansion (R1). Captures the active managed
+    /// account's freshly-built snapshot into `multiAccountCache`, then
+    /// appends every cached non-active snapshot so the push covers all
+    /// known managed accounts. Pure side-effect on the in/out
+    /// `providerSnapshots` and the cache; safe to call even when no Codex
+    /// multi-account configuration exists (early-exits without mutation).
+    private func expandCodexMultiAccount(
+        into providerSnapshots: inout [ProviderUsageSnapshot])
+    {
+        let codexProviderID = UsageProvider.codex.rawValue
+        let reconciliation = self.settings.codexAccountReconciliationSnapshot
+        let storedAccounts = reconciliation.storedAccounts
+        let livingIDs = Set(storedAccounts.map(\.id.uuidString))
+
+        // Always purge stale entries first so a removed account never keeps
+        // shipping after the user deletes it on Mac. (Runs even when count
+        // < 2 to handle the "user removed all but one" case cleanly.)
+        self.multiAccountCache.purgeStaleAccounts(
+            providerID: codexProviderID,
+            livingAccountIDs: livingIDs)
+
+        // Single managed account or none → original single-snapshot path is
+        // sufficient; nothing to expand.
+        guard storedAccounts.count >= 2 else { return }
+
+        // Active managed account ID (only `.managedAccount(id)` participates;
+        // `.liveSystem` is treated as "no managed account active" and
+        // contributes only via the regular single-snapshot path).
+        guard let activeAccount = reconciliation.activeStoredAccount else {
+            return
+        }
+        let activeAccountID = activeAccount.id.uuidString
+
+        // The active Codex snapshot built by the main loop (if codex is
+        // enabled). When codex isn't enabled we have nothing to capture.
+        guard let activeIndex = providerSnapshots.firstIndex(where: {
+            $0.providerID == codexProviderID
+        })
+        else {
+            return
+        }
+
+        // R3 P2 (Research/020 H7): don't pollute the cache with a ghost
+        // (placeholder) snapshot — that's the post-switch invalidation
+        // window where `prepareCodexAccountScopedRefreshIfNeeded` wiped
+        // `snapshots[.codex]` but the new account's data hasn't loaded yet.
+        // Recording the ghost would overwrite the previous (real) value
+        // for `activeAccountID` with garbage. We still append cached
+        // non-active snapshots below so `currentRecordNames` retains the
+        // codex composites and the L1 ghost-cleanup logic doesn't see a
+        // whole-provider disappearance.
+        let activeSnap = providerSnapshots[activeIndex]
+        let isActiveGhost = Self.isGhostProvider(activeSnap)
+        if !isActiveGhost {
+            self.multiAccountCache.record(
+                activeSnap,
+                providerID: codexProviderID,
+                accountID: activeAccountID)
+        }
+
+        // Append every cached non-active Codex snapshot so this push covers
+        // all known accounts in one go. iOS merges by (providerID,
+        // accountEmail) so distinct emails produce distinct cards. Done
+        // even when `isActiveGhost == true` to preserve provider presence
+        // in the L1 cleanup diff during the refresh race window.
+        let cachedNonActive = self.multiAccountCache.cachedSnapshots(
+            providerID: codexProviderID,
+            excludingAccountID: activeAccountID)
+        providerSnapshots.append(contentsOf: cachedNonActive)
     }
 
     /// All composite recordNames the current snapshot list will push. Used
