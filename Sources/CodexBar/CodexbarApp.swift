@@ -60,7 +60,10 @@ struct CodexBarApp: App {
         self.preferencesSelection = preferencesSelection
         _settings = State(wrappedValue: settings)
         _store = State(wrappedValue: store)
-        _syncCoordinator = State(wrappedValue: SyncCoordinator(store: store, settings: settings))
+        _syncCoordinator = State(wrappedValue: SyncCoordinator(
+            store: store,
+            settings: settings,
+            mockInjector: { @MainActor in MockProviderInjector.injectedSnapshots() }))
         _managedCodexAccountCoordinator = State(wrappedValue: managedCodexAccountCoordinator)
         _codexAccountPromotionCoordinator = State(wrappedValue: codexAccountPromotionCoordinator)
         self.account = account

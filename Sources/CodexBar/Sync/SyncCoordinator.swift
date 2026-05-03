@@ -92,10 +92,34 @@ final class SyncCoordinator {
         return e
     }()
 
-    init(store: UsageStore, settings: SettingsStore, syncManager: any SyncPushing = CloudSyncManager.shared) {
+    /// Optional injector for synthetic mock provider data (debug
+    /// feature). Default reads global `MockProviderInjector.isEnabled`
+    /// state (env var or UserDefaults). Tests should pass a closure
+    /// returning a fixed array (or empty) so they don't depend on
+    /// process-global state, which doesn't isolate across parallel
+    /// `@MainActor` test suites.
+    private let mockInjector: @MainActor () -> [ProviderUsageSnapshot]
+
+    /// **Default**: empty closure. The default is intentionally NOT
+    /// `MockProviderInjector.injectedSnapshots()` so test suites that
+    /// don't care about mock injection never accidentally pick it up
+    /// from process-global UserDefaults — preserving cross-suite test
+    /// isolation. Production callers (`CodexbarApp.swift`) pass an
+    /// explicit closure that delegates to `MockProviderInjector` so the
+    /// debug feature still activates via env var or `defaults write` in
+    /// the real app. Tests that exercise mock activation pass
+    /// `{ MockProviderInjector.allMocks() }` to bypass the global
+    /// activation check entirely.
+    init(
+        store: UsageStore,
+        settings: SettingsStore,
+        syncManager: any SyncPushing = CloudSyncManager.shared,
+        mockInjector: @escaping @MainActor () -> [ProviderUsageSnapshot] = { [] })
+    {
         self.store = store
         self.settings = settings
         self.syncManager = syncManager
+        self.mockInjector = mockInjector
         self.deviceID = Self.stableDeviceID()
     }
 
@@ -179,6 +203,17 @@ final class SyncCoordinator {
         let enabledSet = Set(enabledProviders)
         self.captureAndExpandMultiAccountSnapshots(
             into: &providerSnapshots, enabledSet: enabledSet)
+
+        // Mock provider injection (debug-only). Append synthetic
+        // ProviderUsageSnapshot entries when the injector closure
+        // returns non-empty. Default closure reads
+        // `MockProviderInjector.isEnabled` (env var / UserDefaults).
+        // Tests inject a fixed closure to avoid process-global state
+        // leaking across parallel suites.
+        let mockSnapshots = self.mockInjector()
+        if !mockSnapshots.isEmpty {
+            providerSnapshots.append(contentsOf: mockSnapshots)
+        }
 
         let deviceName = Host.current().localizedName ?? "Mac"
         let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String

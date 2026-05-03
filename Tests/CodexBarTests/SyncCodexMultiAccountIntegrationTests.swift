@@ -27,6 +27,10 @@ struct SyncCodexMultiAccountIntegrationTests {
     private func makeSettingsStore(suite: String) -> SettingsStore {
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
+        // Reset mock-provider state — see same comment in
+        // SyncMultiAccountEdgeCasesTests.makeSettingsStore.
+        UserDefaults.standard.removeObject(
+            forKey: MockProviderInjector.userDefaultsKey)
         let configStore = testConfigStore(suiteName: suite)
         return SettingsStore(
             userDefaults: defaults,

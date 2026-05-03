@@ -18,6 +18,13 @@ struct SyncMultiAccountEdgeCasesTests {
     private func makeSettingsStore(suite: String) -> SettingsStore {
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
+        // Ensure mock-provider injection is off — MockProviderInjector
+        // reads UserDefaults.standard (process-wide) so a parallel test
+        // suite that flipped the flag could leak into our SyncCoordinator
+        // cycles. Resetting at the start of every R5 helper guarantees
+        // a clean slate regardless of test execution order.
+        UserDefaults.standard.removeObject(
+            forKey: MockProviderInjector.userDefaultsKey)
         let configStore = testConfigStore(suiteName: suite)
         return SettingsStore(
             userDefaults: defaults,
