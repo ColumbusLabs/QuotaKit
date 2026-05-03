@@ -27,7 +27,7 @@ import Foundation
 /// **Activation** (any one method):
 /// - Environment variable `CODEXBAR_MOCK_PROVIDERS=1` (set on launch)
 /// - UserDefaults flag `CodexBarMockProvidersEnabled` (`defaults write
-///   com.steipete.codexbar CodexBarMockProvidersEnabled -bool true`)
+///   com.o1xhack.codexbar CodexBarMockProvidersEnabled -bool true`)
 ///
 /// **Production safety**:
 /// - Default is OFF; user must explicitly opt in via env var or
