@@ -1,0 +1,366 @@
+// swiftlint:disable multiline_arguments
+import CodexBarSync
+import Foundation
+import Testing
+
+/// Wire-format encode/decode round-trip + cross-version compatibility tests
+/// for `ProviderUsageSnapshot` and `SyncedUsageSnapshot` (R5 §B). Verifies:
+///
+/// 1. Round-trip stability — encode → decode → re-encode produces equivalent
+///    JSON for all field combinations (including multi-account scenarios
+///    introduced in R1+R2).
+/// 2. Backward compatibility — old wire-format payloads (without
+///    `accountIdentities`, `perplexityCredits`, `utilizationHistory`,
+///    `rateWindows`, etc.) decode correctly into the current model with
+///    sensible defaults.
+/// 3. Forward compatibility — payloads with unknown fields decode
+///    cleanly (Codable's strictness behavior verified).
+/// 4. Multi-account specific — distinct `accountEmail` values produce
+///    distinct serialized records.
+///
+/// Without these tests we only know "it works on this build" — these tests
+/// pin the contract Mac and iOS share for any version pair (R1+R2 Mac vs.
+/// 1.5.x iOS, etc.). Critical because we can't manually run a 2-version
+/// matrix on real iCloud.
+///
+/// See `Research/020-multi-account-comprehensive.md` R5 §B.
+@Suite
+struct SyncWireFormatRoundTripTests {
+    private func makeRichSnapshot(
+        providerID: String = "codex",
+        accountEmail: String? = "alice@example.com",
+        accountIdentities: [String]? = ["codex:email:alice%40example.com"])
+        -> ProviderUsageSnapshot
+    {
+        ProviderUsageSnapshot(
+            providerID: providerID,
+            providerName: providerID.capitalized,
+            primary: SyncRateWindow(
+                label: "5h",
+                usedPercent: 25,
+                windowMinutes: 300,
+                resetsAt: Date(timeIntervalSince1970: 1_800_000_000),
+                resetDescription: "in 1 hour"),
+            secondary: SyncRateWindow(
+                label: "weekly",
+                usedPercent: 60,
+                windowMinutes: 10080,
+                resetsAt: Date(timeIntervalSince1970: 1_800_604_800),
+                resetDescription: "in 7 days"),
+            accountEmail: accountEmail,
+            loginMethod: "oauth",
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000),
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 1.23,
+                sessionTokens: 4567,
+                last30DaysCostUSD: 45.67,
+                last30DaysTokens: 89012,
+                daily: [
+                    SyncDailyPoint(
+                        dayKey: "2026-04-01",
+                        costUSD: 1.5, totalTokens: 1000,
+                        modelBreakdowns: [SyncCostBreakdown(label: "gpt-5", costUSD: 1.5)],
+                        serviceBreakdowns: [SyncCostBreakdown(label: "codex", costUSD: 1.5)]),
+                ],
+                isEstimated: false),
+            budget: SyncBudgetSnapshot(
+                usedAmount: 12.34,
+                limitAmount: 100,
+                currencyCode: "USD",
+                period: "monthly",
+                resetsAt: Date(timeIntervalSince1970: 1_800_000_000)),
+            rateWindows: [
+                SyncRateWindow(
+                    label: "5h",
+                    usedPercent: 25,
+                    windowMinutes: 300,
+                    resetsAt: Date(timeIntervalSince1970: 1_800_000_000),
+                    resetDescription: "in 1 hour"),
+                SyncRateWindow(
+                    label: "weekly",
+                    usedPercent: 60,
+                    windowMinutes: 10080,
+                    resetsAt: Date(timeIntervalSince1970: 1_800_604_800),
+                    resetDescription: "in 7 days"),
+            ],
+            utilizationHistory: [
+                SyncUtilizationSeries(
+                    name: "session", windowMinutes: 300,
+                    entries: [
+                        SyncUtilizationEntry(
+                            capturedAt: Date(timeIntervalSince1970: 1_700_000_000),
+                            usedPercent: 0.25,
+                            resetsAt: Date(timeIntervalSince1970: 1_700_018_000)),
+                    ]),
+            ],
+            perplexityCredits: nil,
+            accountIdentities: accountIdentities)
+    }
+
+    private func encoder() -> JSONEncoder {
+        let e = JSONEncoder()
+        e.outputFormatting = [.sortedKeys]
+        e.dateEncodingStrategy = .iso8601
+        return e
+    }
+
+    private func decoder() -> JSONDecoder {
+        let d = JSONDecoder()
+        d.dateDecodingStrategy = .iso8601
+        return d
+    }
+
+    // MARK: - 1. Round-trip stability
+
+    @Test("R5 B1: ProviderUsageSnapshot round-trip is byte-stable for fully-populated snapshot")
+    func fullyPopulatedSnapshotRoundTripsByteStable() throws {
+        let original = self.makeRichSnapshot()
+        let firstPass = try self.encoder().encode(original)
+        let decoded = try self.decoder().decode(
+            ProviderUsageSnapshot.self, from: firstPass)
+        let secondPass = try self.encoder().encode(decoded)
+        #expect(
+            firstPass == secondPass,
+            "encode → decode → re-encode must produce byte-identical output")
+    }
+
+    @Test("R5 B2: minimal-fields snapshot round-trips")
+    func minimalSnapshotRoundTrips() throws {
+        let minimal = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000))
+        let json = try self.encoder().encode(minimal)
+        let decoded = try self.decoder().decode(
+            ProviderUsageSnapshot.self, from: json)
+        #expect(decoded.providerID == "codex")
+        #expect(decoded.accountEmail == nil)
+        #expect(decoded.accountIdentities == nil)
+        #expect(decoded.rateWindows.isEmpty)
+    }
+
+    @Test("R5 B3: SyncedUsageSnapshot with multiple multi-account providers round-trips")
+    func multiAccountFullyPopulatedSyncedSnapshotRoundTrips() throws {
+        let alice = self.makeRichSnapshot(
+            accountEmail: "alice@example.com",
+            accountIdentities: ["codex:email:alice%40example.com"])
+        let bob = self.makeRichSnapshot(
+            accountEmail: "bob@example.com",
+            accountIdentities: ["codex:email:bob%40example.com"])
+        let claude = self.makeRichSnapshot(
+            providerID: "claude",
+            accountEmail: "claude-user@example.com",
+            accountIdentities: ["claude:email:claude-user%40example.com"])
+        let payload = SyncedUsageSnapshot(
+            providers: [alice, bob, claude],
+            syncTimestamp: Date(timeIntervalSince1970: 1_700_001_000),
+            deviceName: "Test Mac",
+            deviceID: "device-uuid-1234",
+            appVersion: "0.23.4",
+            mobileVersion: "1.5.1")
+        let json = try self.encoder().encode(payload)
+        let decoded = try self.decoder().decode(
+            SyncedUsageSnapshot.self, from: json)
+        #expect(decoded.providers.count == 3)
+        let emails = Set(decoded.providers.compactMap(\.accountEmail))
+        #expect(
+            emails == [
+                "alice@example.com",
+                "bob@example.com",
+                "claude-user@example.com",
+            ])
+    }
+
+    // MARK: - 2. Backward compatibility (old payload → current model)
+
+    @Test("R5 B4: pre-1.2.0 payload (no rateWindows / costSummary / budget / accountIdentities) decodes")
+    func legacyPayloadDecodesWithSensibleDefaults() throws {
+        // What a Mac on iOS 1.1.0 era would have written — only
+        // primary/secondary, no extras.
+        let legacyJSON = """
+        {
+            "providerID": "codex",
+            "providerName": "Codex",
+            "isError": false,
+            "lastUpdated": "2024-01-01T00:00:00Z",
+            "primary": {
+                "usedPercent": 25.0,
+                "windowMinutes": 300,
+                "resetsAt": "2024-01-01T01:00:00Z",
+                "resetDescription": "in 1 hour"
+            }
+        }
+        """
+        let data = try #require(legacyJSON.data(using: .utf8))
+        let decoded = try self.decoder().decode(
+            ProviderUsageSnapshot.self, from: data)
+        #expect(decoded.providerID == "codex")
+        #expect(decoded.primary?.usedPercent == 25.0)
+        #expect(decoded.rateWindows.isEmpty, "missing rateWindows defaults to []")
+        #expect(decoded.costSummary == nil)
+        #expect(decoded.budget == nil)
+        #expect(decoded.accountIdentities == nil, "missing accountIdentities defaults to nil")
+        #expect(decoded.perplexityCredits == nil)
+        #expect(decoded.utilizationHistory == nil)
+    }
+
+    @Test("R5 B5: payload from 1.2.x with utilizationHistory but no perplexityCredits decodes")
+    func intermediate12XPayloadDecodesPartial() throws {
+        // 1.2.x added utilizationHistory but predates 1.3.0's
+        // perplexityCredits field.
+        let payload12X = """
+        {
+            "providerID": "claude",
+            "providerName": "Claude",
+            "isError": false,
+            "lastUpdated": "2025-04-01T00:00:00Z",
+            "rateWindows": [
+                {
+                    "label": "session", "usedPercent": 30, "windowMinutes": 300,
+                    "resetsAt": "2025-04-01T01:00:00Z", "resetDescription": "1h"
+                },
+                {
+                    "label": "weekly", "usedPercent": 50, "windowMinutes": 10080,
+                    "resetsAt": "2025-04-08T00:00:00Z", "resetDescription": "7d"
+                }
+            ],
+            "utilizationHistory": [
+                {"name": "session", "windowMinutes": 300, "entries": []}
+            ],
+            "accountEmail": "user@anthropic.com",
+            "loginMethod": "oauth"
+        }
+        """
+        let data = try #require(payload12X.data(using: .utf8))
+        let decoded = try self.decoder().decode(
+            ProviderUsageSnapshot.self, from: data)
+        #expect(decoded.providerID == "claude")
+        #expect(decoded.rateWindows.count == 2)
+        #expect(decoded.utilizationHistory?.count == 1)
+        #expect(decoded.perplexityCredits == nil)
+        #expect(decoded.accountIdentities == nil)
+    }
+
+    @Test("R5 B6: payload from pre-Mac-0.23 lacks accountIdentities (Tier-A providers)")
+    func preR0_23PayloadLacksAccountIdentities() throws {
+        // Mac < 0.23 didn't write accountIdentities. iOS new should
+        // gracefully decode with nil and fall back to per-device legacy
+        // bucket (no cross-Mac merge).
+        let payload = """
+        {
+            "providerID": "codex",
+            "providerName": "Codex",
+            "isError": false,
+            "lastUpdated": "2025-12-01T00:00:00Z",
+            "accountEmail": "alice@example.com",
+            "loginMethod": "oauth",
+            "rateWindows": []
+        }
+        """
+        let data = try #require(payload.data(using: .utf8))
+        let decoded = try self.decoder().decode(
+            ProviderUsageSnapshot.self, from: data)
+        #expect(decoded.accountIdentities == nil)
+    }
+
+    // MARK: - 3. Forward compatibility (payload with future fields → current model)
+
+    @Test("R5 B7: payload with unknown future fields decodes (ignored)")
+    func unknownFieldsAreIgnored() throws {
+        // A future Mac version might add `tier` or `experimentalFeature`.
+        // Current iOS must decode without error, ignoring unknowns.
+        let payloadWithUnknowns = """
+        {
+            "providerID": "codex",
+            "providerName": "Codex",
+            "isError": false,
+            "lastUpdated": "2026-04-01T00:00:00Z",
+            "accountEmail": "alice@example.com",
+            "futureFieldString": "experimental-value",
+            "futureFieldArray": ["a", "b", "c"],
+            "futureFieldNested": {"x": 1, "y": 2}
+        }
+        """
+        let data = try #require(payloadWithUnknowns.data(using: .utf8))
+        // Must not throw.
+        let decoded = try self.decoder().decode(
+            ProviderUsageSnapshot.self, from: data)
+        #expect(decoded.providerID == "codex")
+        #expect(decoded.accountEmail == "alice@example.com")
+    }
+
+    // MARK: - 4. Multi-account scenarios
+
+    @Test("R5 B8: distinct accountEmail produce distinct JSON")
+    func distinctEmailsProduceDistinctJSON() throws {
+        let alice = self.makeRichSnapshot(accountEmail: "alice@x.com")
+        let bob = self.makeRichSnapshot(accountEmail: "bob@x.com")
+        let aliceJSON = try self.encoder().encode(alice)
+        let bobJSON = try self.encoder().encode(bob)
+        #expect(aliceJSON != bobJSON, "distinct accountEmail must distinguish snapshots in wire format")
+    }
+
+    @Test("R5 B9: distinct accountIdentities produce distinct JSON")
+    func distinctAccountIdentitiesProduceDistinctJSON() throws {
+        let withOrgA = self.makeRichSnapshot(
+            accountEmail: nil,
+            accountIdentities: ["codex:account:org-a"])
+        let withOrgB = self.makeRichSnapshot(
+            accountEmail: nil,
+            accountIdentities: ["codex:account:org-b"])
+        let aJSON = try self.encoder().encode(withOrgA)
+        let bJSON = try self.encoder().encode(withOrgB)
+        #expect(aJSON != bJSON)
+    }
+
+    @Test("R5 B10: nil vs empty array accountIdentities are distinct after round-trip")
+    func nilVsEmptyArrayAccountIdentitiesPreserved() throws {
+        let withNil = self.makeRichSnapshot(
+            accountEmail: "user@x.com", accountIdentities: nil)
+        let withEmpty = self.makeRichSnapshot(
+            accountEmail: "user@x.com", accountIdentities: [])
+
+        let nilJSON = try self.encoder().encode(withNil)
+        let emptyJSON = try self.encoder().encode(withEmpty)
+        // Both encode identifiably (nil omits the key, empty includes []).
+        let decodedNil = try self.decoder().decode(
+            ProviderUsageSnapshot.self, from: nilJSON)
+        let decodedEmpty = try self.decoder().decode(
+            ProviderUsageSnapshot.self, from: emptyJSON)
+        #expect(decodedNil.accountIdentities == nil)
+        #expect(decodedEmpty.accountIdentities == [])
+    }
+
+    // MARK: - Edge cases: non-ASCII, whitespace, empty
+
+    @Test("R5 B11: non-ASCII accountEmail (café@example.com) round-trips through UTF-8")
+    func nonASCIIEmailRoundTrips() throws {
+        let cafe = self.makeRichSnapshot(
+            accountEmail: "café@münich.example.com",
+            accountIdentities: ["codex:email:caf%C3%A9%40m%C3%BCnich.example.com"])
+        let json = try self.encoder().encode(cafe)
+        let decoded = try self.decoder().decode(
+            ProviderUsageSnapshot.self, from: json)
+        #expect(decoded.accountEmail == "café@münich.example.com")
+        #expect(decoded.accountIdentities?.first?.contains("caf%C3%A9") == true)
+    }
+
+    @Test("R5 B12: empty-string vs nil accountEmail are distinct")
+    func emptyStringVsNilEmailDistinct() throws {
+        let withNil = self.makeRichSnapshot(accountEmail: nil)
+        let withEmpty = self.makeRichSnapshot(accountEmail: "")
+        let nilJSON = try self.encoder().encode(withNil)
+        let emptyJSON = try self.encoder().encode(withEmpty)
+        #expect(nilJSON != emptyJSON, "nil and empty-string accountEmail must serialize distinguishably")
+    }
+}
+
+// swiftlint:enable multiline_arguments

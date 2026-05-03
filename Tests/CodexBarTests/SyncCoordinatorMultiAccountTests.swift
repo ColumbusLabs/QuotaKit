@@ -15,7 +15,7 @@ import Testing
 /// requires a full ManagedCodexAccount fixture to test end-to-end — that's
 /// covered in R3 with virtual machine integration.
 @MainActor
-@Suite
+@Suite(.serialized)
 struct SyncCoordinatorMultiAccountTests {
     private func makeSettingsStore(suite: String) -> SettingsStore {
         let defaults = UserDefaults(suiteName: suite)!
