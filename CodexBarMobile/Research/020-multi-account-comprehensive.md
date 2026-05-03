@@ -26,7 +26,7 @@
 | **R2** | 11 token-based providers 扩展 | ✅ 完成 (2026-05-02 16:03) | 8 R2 integration tests + 9 R1 cache + 20 regression = 37 tests / 3 suites 全过 |
 | **R3** | 跨版本兼容 + 回退 + 异步更新场景集成测试 | ✅ 完成 (2026-05-02 16:25) | Codex MCP 双轮 review 全过 + 40 tests / 3 suites + lint 0 violations + 跨版本兼容矩阵 review verified |
 | **R4** | iOS 端 27 provider 测试覆盖 + 跨设备虚拟机验证 | ✅ 部分（iOS audit）| 但模拟测试覆盖不足 → **R5 修正** |
-| **R5** | **CRITICAL** — 99% 模拟覆盖（用户只有 1 个 Codex 账号，无法手测多账号；模拟测试是**唯一**质量门）| In Progress | (a) Codex managed-account fixture + end-to-end test; (b) 27-provider snapshot factory; (c) wire format round-trip + 跨版本兼容 fixtures; (d) iOS CloudSyncReader 多 Mac 多账号合并 simulation |
+| **R5** | **CRITICAL** — 99% 模拟覆盖（用户只有 1 个 Codex 账号，无法手测多账号；模拟测试是**唯一**质量门）| ✅ 完成 (2026-05-02) | 43 new tests / 4 files / 全过 + 81 sync tests / 7 suites + iOS 12 new + 0 lint |
 | R6+ | 动态预留 | — | 下方「悬挂事项」流转 |
 
 ### 悬挂事项（pending issues — 解决前不收尾）
