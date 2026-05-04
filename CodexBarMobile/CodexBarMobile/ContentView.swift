@@ -1475,7 +1475,12 @@ private struct RawDeviceSection: View {
             LabeledContent("Sync Time", value: self.device.syncTimestamp.formatted(date: .abbreviated, time: .shortened))
             LabeledContent("Providers", value: "\(self.device.providers.count)")
 
-            ForEach(self.device.providers, id: \.providerID) { provider in
+            // Use cardIdentityKey (providerID|accountEmail) so multi-account
+            // and mock-vs-real entries with the SAME providerID don't get
+            // collapsed by SwiftUI's diffing. Hit on user QA 2026-05-04 —
+            // real `codex|msxiao113@gmail.com` and `codex|alice-mock@codex.test`
+            // were rendering as a single row because both had providerID == "codex".
+            ForEach(self.device.providers, id: \.cardIdentityKey) { provider in
                 RawProviderRow(provider: provider)
             }
         } header: {
