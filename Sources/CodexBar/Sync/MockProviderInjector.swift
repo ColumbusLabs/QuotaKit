@@ -5,49 +5,76 @@ import Foundation
 /// Synthetic provider data for end-to-end iCloud sync testing without
 /// real provider subscriptions.
 ///
-/// Generates 5 mock provider IDs (8 total `ProviderUsageSnapshot` entries
-/// because two of them are multi-account) that exercise the most critical
-/// code paths in the R1–R5 multi-account work:
+/// **Mix design** (Mac 0.23.5+): 6 mocks use real provider IDs (`codex`,
+/// `claude`, `perplexity`) so iOS renders them with first-class provider
+/// styling — exercising the critical multi-account first-class rendering
+/// path that real users hit. The remaining 2 mocks use `_mock_*`
+/// prefixed IDs to also exercise the unknown-provider fallback rendering
+/// path (forward-compat insurance: when a future Mac adds a new provider
+/// the iOS app doesn't yet know about, that fallback path must still
+/// work).
 ///
-/// 1. **`_mock_codex_multi`** (3 accounts: alice/bob/carol) — exercises
-///    Codex multi-account cache + per-account record emission + cross-Mac
-///    `accountIdentities` merge. Most important path because user reported
-///    the original "3 codex on Mac, 1 on iOS" bug here.
-/// 2. **`_mock_claude_multi`** (2 accounts: personal/work) — exercises R2
-///    token-based multi-account expansion via `accountSnapshots` list.
-/// 3. **`_mock_perplexity_credit`** (1 account, rich Perplexity credit
-///    breakdown) — exercises 3-segment recurring/promo/purchased rendering
-///    + plan badge + renewal date.
-/// 4. **`_mock_cursor_error`** (1 account, error state) — exercises iOS
-///    error-state card rendering.
-/// 5. **`_mock_synthetic_3lane`** (1 account, three rate-window lanes +
-///    30-day utilization history) — exercises 5h/weekly/search labels
-///    + utilization chart.
+/// 8 total `ProviderUsageSnapshot` entries across 5 distinct
+/// `providerID` values:
+///
+/// 1. **`codex`** × 3 (Alice / Bob / Carol) — REAL providerID. Exercises
+///    R1 Codex multi-account cache + per-account record emission +
+///    cross-Mac `accountIdentities` merge — and renders with **the real
+///    Codex card UI on iPhone** (icon, color, native multi-account
+///    affordances). This is the critical "3 Codex accounts on Mac, 1 on
+///    iPhone" path the user originally hit.
+/// 2. **`claude`** × 2 (Personal / Work) — REAL providerID. Exercises R2
+///    token-based multi-account expansion + Claude-specific UI (3-lane
+///    Sonnet/Opus rendering when present).
+/// 3. **`perplexity`** × 1 — REAL providerID. Exercises Perplexity's
+///    3-segment credit breakdown card on iPhone (recurring + promo +
+///    purchased + plan badge + renewal countdown).
+/// 4. **`_mock_cursor_unknown`** × 1 — fallback test. Mock providerID
+///    iOS doesn't recognize → renders generic blue fallback card. Carries
+///    `isError = true` + statusMessage so the fallback's error-state
+///    rendering is also exercised.
+/// 5. **`_mock_synthetic_unknown`** × 1 — fallback test. Mock providerID
+///    + 30-day utilization history + 3-lane rate windows + budget. Tests
+///    that fallback rendering doesn't choke on rich data.
+///
+/// All real-providerID mocks include synthetic cost data (session +
+/// 30-day total + daily breakdown for Alice) so iPhone's Cost dashboard
+/// aggregation (Daily Spend, per-provider share, model breakdown,
+/// month-over-month) is end-to-end testable.
+///
+/// **Account email convention**: every mock uses the `*-mock@*.test` TLD
+/// (RFC 6761 reserved for testing) so even though some mocks share
+/// providerID with real providers, the synthetic accounts are
+/// unambiguously distinguishable on iPhone via email subtitle. iOS
+/// 1.5.2+ also uses the `.test` TLD as the trigger for the MOCK badge +
+/// purple-striped card treatment.
 ///
 /// **Activation** (any one method):
 /// - Environment variable `CODEXBAR_MOCK_PROVIDERS=1` (set on launch)
 /// - UserDefaults flag `CodexBarMockProvidersEnabled` (`defaults write
 ///   com.o1xhack.codexbar CodexBarMockProvidersEnabled -bool true`)
+/// - Settings UI: Mac CodexBar → Settings → Mobile → Debug · Mock
+///   Provider Data toggle (Mac 0.23.5+).
 ///
 /// **Production safety**:
-/// - Default is OFF; user must explicitly opt in via env var or
-///   `defaults write`. Normal users (App Store / Sparkle install) will
-///   never accidentally enable.
-/// - All mock providerIDs use the `_mock_` prefix so they're trivially
-///   distinguishable from real providers in iOS, CloudKit dashboard,
-///   logs, and database queries.
-/// - All mock data is hardcoded synthetic — never reads real provider
-///   state or credentials.
+/// - Default is OFF; user must explicitly opt in. Normal users (App
+///   Store / Sparkle install) never accidentally enable.
+/// - Mock account emails always use `.test` TLD (RFC 6761 reserved).
+///   Synthetic providerID branches use `_mock_` prefix.
+/// - Mock CKRecords are stored under composite keys distinct from real
+///   data: `{deviceID}|{providerID}|*-mock@*.test` does NOT collide with
+///   any real `{deviceID}|{providerID}|{realEmail}` because the email
+///   bucket is different.
 /// - When the flag is turned off, the next sync cycle stops emitting
-///   mock records and the L1 ghost-records cleanup (with 2-cycle
-///   confirmation) automatically deletes the orphaned CKRecords from
-///   CloudKit.
+///   mock records and the L1 ghost-records cleanup automatically deletes
+///   the orphaned CKRecords from CloudKit. Real provider data is in
+///   different CKRecords and is never touched.
 ///
-/// **Future extension**: to add a new mock provider, append a static
-/// factory function below and add its return value to the array in
-/// `injectedSnapshots()`. iOS doesn't need any change — the existing
-/// fallback rendering handles unknown provider IDs (per Research/020 R5
-/// audit).
+/// **Cost data + your real numbers**: Daily Spend / per-provider share /
+/// model breakdown on iPhone aggregates ALL providers' cost. While mocks
+/// are active, totals are inflated by ~$48/30day from synthetic data.
+/// Once you toggle off and CloudKit cleanup runs (~1 cycle / ~30s), real
+/// numbers automatically restore. Real CKRecords are never modified.
 @MainActor
 enum MockProviderInjector {
     /// Returns mock `ProviderUsageSnapshot` entries when activation is
@@ -72,9 +99,9 @@ enum MockProviderInjector {
             self.mockCodexCarol(),
             self.mockClaudePersonal(),
             self.mockClaudeWork(),
-            self.mockPerplexityCredit(),
-            self.mockCursorError(),
-            self.mockSyntheticThreeLane(),
+            self.mockPerplexityPro(),
+            self.mockCursorErrorFallback(),
+            self.mockSyntheticThreeLaneFallback(),
         ]
     }
 
@@ -109,6 +136,32 @@ enum MockProviderInjector {
     static let environmentVariableName = "CODEXBAR_MOCK_PROVIDERS"
     static let userDefaultsKey = "CodexBarMockProvidersEnabled"
 
+    /// Real provider IDs that some mocks intentionally borrow so iOS
+    /// renders them with first-class provider UI. Mocks using these IDs
+    /// always pair them with `*-mock@*.test` accountEmails so the
+    /// synthetic account is unambiguously distinct from any real account
+    /// the user has on the same provider.
+    static let realProviderIDsBorrowedByMocks: Set<String> = [
+        "codex", "claude", "perplexity",
+    ]
+
+    /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
+    /// iOS treats these as unknown providers and renders fallback cards.
+    static let syntheticProviderIDs: Set<String> = [
+        "_mock_cursor_unknown", "_mock_synthetic_unknown",
+    ]
+
+    /// All mock providerIDs (real-borrowed ∪ synthetic). Convenience
+    /// for tests that need to gate "is this a mock provider?" without
+    /// caring about which subset.
+    static var allMockProviderIDs: Set<String> {
+        realProviderIDsBorrowedByMocks.union(syntheticProviderIDs)
+    }
+
+    /// Universal mock-account email TLD. iOS 1.5.2+ inspects this to
+    /// gate the MOCK badge + purple-striped card treatment.
+    static let mockEmailTLD = ".test"
+
     // MARK: - Reference timestamp
 
     /// Reference timestamp captured per-call (NOT cached across calls).
@@ -121,15 +174,75 @@ enum MockProviderInjector {
         Date()
     }
 
+    // MARK: - Cost helper
+
+    /// Builds a SyncCostSummary with optional 30-day daily breakdown.
+    /// `dailyTotals.count` should be 30 for a complete history; can be
+    /// fewer if testing partial windows.
+    private static func makeCostSummary(
+        sessionUSD: Double,
+        sessionTokens: Int,
+        thirtyDayUSD: Double,
+        thirtyDayTokens: Int,
+        dailyTotals: [Double] = [],
+        isEstimated: Bool? = false) -> SyncCostSummary
+    {
+        // dayKey format `YYYY-MM-DD` (UTC) matches the real cost
+        // scanner's emission format. Days are ordered oldest→newest.
+        let now = Self.nowReference
+        let oneDay: TimeInterval = 86400
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        let dailyPoints: [SyncDailyPoint] = dailyTotals.enumerated().map { idx, dailyUSD in
+            let captured = now.addingTimeInterval(
+                -Double(dailyTotals.count - 1 - idx) * oneDay)
+            return SyncDailyPoint(
+                dayKey: formatter.string(from: captured),
+                costUSD: dailyUSD,
+                totalTokens: Int(dailyUSD * 50000), // synthetic token ratio
+                modelBreakdowns: [
+                    SyncCostBreakdown(
+                        label: "claude-sonnet-4-6",
+                        costUSD: dailyUSD * 0.7,
+                        isEstimated: false),
+                    SyncCostBreakdown(
+                        label: "claude-opus-4-7",
+                        costUSD: dailyUSD * 0.3,
+                        isEstimated: false),
+                ],
+                serviceBreakdowns: [],
+                isEstimated: false)
+        }
+        return SyncCostSummary(
+            sessionCostUSD: sessionUSD,
+            sessionTokens: sessionTokens,
+            last30DaysCostUSD: thirtyDayUSD,
+            last30DaysTokens: thirtyDayTokens,
+            daily: dailyPoints,
+            isEstimated: isEstimated)
+    }
+
     // MARK: - Codex multi-account (R1) — 3 managed-account-style entries
+
+    // All three use the real `codex` providerID so iOS renders them with
+    // the native Codex multi-account UI.
 
     private static func mockCodexAlice() -> ProviderUsageSnapshot {
         // Alice uses a non-ASCII email (`café-mock@codex.test`) on
         // purpose to exercise UTF-8 + percent-encoding round-trip
         // through the wire format and the AccountIdentityComputer.
-        ProviderUsageSnapshot(
-            providerID: "_mock_codex_multi",
-            providerName: "Mock Codex (Alice)",
+        // She is the ONLY mock with a 30-day daily cost breakdown so
+        // the iOS Cost dashboard's day-by-day chart + model-breakdown
+        // pie path is end-to-end testable.
+        let dailySpend: [Double] = (0..<30).map { day in
+            // Sinusoidal $0.20–$0.80/day pattern.
+            0.5 + 0.3 * sin(Double(day) * 0.4)
+        }
+        let totalUSD = dailySpend.reduce(0, +)
+        return ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex (Alice · Mock)",
             primary: SyncRateWindow(
                 label: "5h",
                 usedPercent: 35,
@@ -147,12 +260,12 @@ enum MockProviderInjector {
             statusMessage: nil,
             isError: false,
             lastUpdated: self.nowReference,
-            costSummary: SyncCostSummary(
-                sessionCostUSD: 0.42,
+            costSummary: Self.makeCostSummary(
+                sessionUSD: 0.42,
                 sessionTokens: 12345,
-                last30DaysCostUSD: 28.50,
-                last30DaysTokens: 1_234_567,
-                daily: []),
+                thirtyDayUSD: totalUSD,
+                thirtyDayTokens: Int(totalUSD * 50000),
+                dailyTotals: dailySpend),
             budget: nil,
             rateWindows: [
                 SyncRateWindow(
@@ -169,7 +282,7 @@ enum MockProviderInjector {
             utilizationHistory: nil,
             perplexityCredits: nil,
             accountIdentities: [
-                "_mock_codex_multi:email:caf%C3%A9-mock%40codex.test",
+                "codex:email:caf%C3%A9-mock%40codex.test",
             ])
     }
 
@@ -177,8 +290,8 @@ enum MockProviderInjector {
         // Bob exercises the 100% boundary (weekly fully consumed) so
         // iOS rendering of "quota depleted" state is testable.
         ProviderUsageSnapshot(
-            providerID: "_mock_codex_multi",
-            providerName: "Mock Codex (Bob)",
+            providerID: "codex",
+            providerName: "Codex (Bob · Mock)",
             primary: SyncRateWindow(
                 label: "5h",
                 usedPercent: 75,
@@ -196,12 +309,11 @@ enum MockProviderInjector {
             statusMessage: nil,
             isError: false,
             lastUpdated: self.nowReference,
-            costSummary: SyncCostSummary(
-                sessionCostUSD: 1.27,
+            costSummary: self.makeCostSummary(
+                sessionUSD: 1.27,
                 sessionTokens: 45678,
-                last30DaysCostUSD: 87.20,
-                last30DaysTokens: 3_456_789,
-                daily: []),
+                thirtyDayUSD: 18.20,
+                thirtyDayTokens: 910_000),
             budget: nil,
             rateWindows: [
                 SyncRateWindow(
@@ -218,7 +330,7 @@ enum MockProviderInjector {
             utilizationHistory: nil,
             perplexityCredits: nil,
             accountIdentities: [
-                "_mock_codex_multi:email:bob-mock%40codex.test",
+                "codex:email:bob-mock%40codex.test",
             ])
     }
 
@@ -226,8 +338,8 @@ enum MockProviderInjector {
         // Carol exercises the 0% boundary (just-reset window) so iOS
         // rendering of "quota empty / fresh" state is testable.
         ProviderUsageSnapshot(
-            providerID: "_mock_codex_multi",
-            providerName: "Mock Codex (Carol)",
+            providerID: "codex",
+            providerName: "Codex (Carol · Mock)",
             primary: SyncRateWindow(
                 label: "5h",
                 usedPercent: 0, // boundary: fresh / just reset
@@ -245,12 +357,11 @@ enum MockProviderInjector {
             statusMessage: nil,
             isError: false,
             lastUpdated: self.nowReference,
-            costSummary: SyncCostSummary(
-                sessionCostUSD: 0.05,
+            costSummary: self.makeCostSummary(
+                sessionUSD: 0.05,
                 sessionTokens: 1234,
-                last30DaysCostUSD: 4.80,
-                last30DaysTokens: 234_567,
-                daily: []),
+                thirtyDayUSD: 1.10,
+                thirtyDayTokens: 55000),
             budget: nil,
             rateWindows: [
                 SyncRateWindow(
@@ -267,16 +378,21 @@ enum MockProviderInjector {
             utilizationHistory: nil,
             perplexityCredits: nil,
             accountIdentities: [
-                "_mock_codex_multi:email:carol-mock%40codex.test",
+                "codex:email:carol-mock%40codex.test",
             ])
     }
 
     // MARK: - Claude multi-account (R2) — 2 token-account-style entries
 
+    // Both use the real `claude` providerID so iOS renders the native
+    // Claude card. Personal carries 3-lane rateWindows (5h + Weekly
+    // Sonnet + Weekly Opus) which exercises the Claude-specific 3-lane
+    // detail view.
+
     private static func mockClaudePersonal() -> ProviderUsageSnapshot {
         ProviderUsageSnapshot(
-            providerID: "_mock_claude_multi",
-            providerName: "Mock Claude (Personal)",
+            providerID: "claude",
+            providerName: "Claude (Personal · Mock)",
             primary: SyncRateWindow(
                 label: "5h",
                 usedPercent: 50,
@@ -294,7 +410,11 @@ enum MockProviderInjector {
             statusMessage: nil,
             isError: false,
             lastUpdated: self.nowReference,
-            costSummary: nil,
+            costSummary: self.makeCostSummary(
+                sessionUSD: 0.08,
+                sessionTokens: 4200,
+                thirtyDayUSD: 3.80,
+                thirtyDayTokens: 190_000),
             budget: nil,
             rateWindows: [
                 SyncRateWindow(
@@ -316,14 +436,14 @@ enum MockProviderInjector {
             utilizationHistory: nil,
             perplexityCredits: nil,
             accountIdentities: [
-                "_mock_claude_multi:email:personal-mock%40claude.test",
+                "claude:email:personal-mock%40claude.test",
             ])
     }
 
     private static func mockClaudeWork() -> ProviderUsageSnapshot {
         ProviderUsageSnapshot(
-            providerID: "_mock_claude_multi",
-            providerName: "Mock Claude (Work)",
+            providerID: "claude",
+            providerName: "Claude (Work · Mock)",
             primary: SyncRateWindow(
                 label: "5h",
                 usedPercent: 22,
@@ -341,7 +461,11 @@ enum MockProviderInjector {
             statusMessage: nil,
             isError: false,
             lastUpdated: self.nowReference,
-            costSummary: nil,
+            costSummary: self.makeCostSummary(
+                sessionUSD: 0.15,
+                sessionTokens: 6800,
+                thirtyDayUSD: 6.20,
+                thirtyDayTokens: 310_000),
             budget: nil,
             rateWindows: [
                 SyncRateWindow(
@@ -358,13 +482,13 @@ enum MockProviderInjector {
             utilizationHistory: nil,
             perplexityCredits: nil,
             accountIdentities: [
-                "_mock_claude_multi:email:work-mock%40claude.test",
+                "claude:email:work-mock%40claude.test",
             ])
     }
 
-    // MARK: - Perplexity rich credit breakdown
+    // MARK: - Perplexity (real ID) — 1 entry with rich credit breakdown
 
-    private static func mockPerplexityCredit() -> ProviderUsageSnapshot {
+    private static func mockPerplexityPro() -> ProviderUsageSnapshot {
         // Perplexity primary metric is "credits remaining" not a rate
         // window, but we synthesize a daily-message rate window so the
         // record isn't filtered as ghost in the per-provider write path
@@ -377,8 +501,8 @@ enum MockProviderInjector {
             resetsAt: Self.nowReference.addingTimeInterval(28800),
             resetDescription: "in 8 hours")
         return ProviderUsageSnapshot(
-            providerID: "_mock_perplexity_credit",
-            providerName: "Mock Perplexity (Pro)",
+            providerID: "perplexity",
+            providerName: "Perplexity (Pro · Mock)",
             primary: primary,
             secondary: nil,
             accountEmail: "pro-mock@perplexity.test",
@@ -386,7 +510,11 @@ enum MockProviderInjector {
             statusMessage: nil,
             isError: false,
             lastUpdated: Self.nowReference,
-            costSummary: nil,
+            costSummary: Self.makeCostSummary(
+                sessionUSD: 0.03,
+                sessionTokens: 1500,
+                thirtyDayUSD: 2.30,
+                thirtyDayTokens: 115_000),
             budget: nil,
             rateWindows: [primary],
             utilizationHistory: nil,
@@ -404,15 +532,20 @@ enum MockProviderInjector {
                 planName: "Pro",
                 balanceCents: 41000),
             accountIdentities: [
-                "_mock_perplexity_credit:email:pro-mock%40perplexity.test",
+                "perplexity:email:pro-mock%40perplexity.test",
             ])
     }
 
-    // MARK: - Cursor in error state
+    // MARK: - Fallback: Cursor in error state (synthetic providerID)
 
-    private static func mockCursorError() -> ProviderUsageSnapshot {
+    // Uses `_mock_cursor_unknown` so iOS treats it as an unknown
+    // provider → renders the generic blue fallback card. Combined with
+    // `isError = true` + statusMessage, this exercises both the
+    // fallback path AND the error-state rendering.
+
+    private static func mockCursorErrorFallback() -> ProviderUsageSnapshot {
         ProviderUsageSnapshot(
-            providerID: "_mock_cursor_error",
+            providerID: "_mock_cursor_unknown",
             providerName: "Mock Cursor (Cookie expired)",
             primary: nil,
             secondary: nil,
@@ -429,9 +562,15 @@ enum MockProviderInjector {
             accountIdentities: nil)
     }
 
-    // MARK: - Synthetic 3-lane + utilization history
+    // MARK: - Fallback: 3-lane + utilization history (synthetic providerID)
 
-    private static func mockSyntheticThreeLane() -> ProviderUsageSnapshot {
+    // Uses `_mock_synthetic_unknown` to verify that the fallback
+    // rendering path can handle rich data (3 rate windows + 30-day
+    // utilization history + budget) without choking. This is forward-
+    // compat insurance: when a future provider gets added that iOS
+    // doesn't yet know about, the fallback must still render its data.
+
+    private static func mockSyntheticThreeLaneFallback() -> ProviderUsageSnapshot {
         // Build 30 days of utilization entries.
         let oneDay: TimeInterval = 86400
         let now = Self.nowReference
@@ -461,8 +600,8 @@ enum MockProviderInjector {
         }
 
         return ProviderUsageSnapshot(
-            providerID: "_mock_synthetic_3lane",
-            providerName: "Mock Synthetic (3-lane)",
+            providerID: "_mock_synthetic_unknown",
+            providerName: "Mock Synthetic (3-lane fallback)",
             primary: SyncRateWindow(
                 label: "5h",
                 usedPercent: 45,
@@ -517,7 +656,7 @@ enum MockProviderInjector {
             ],
             perplexityCredits: nil,
             accountIdentities: [
-                "_mock_synthetic_3lane:email:lanes-mock%40synthetic.test",
+                "_mock_synthetic_unknown:email:lanes-mock%40synthetic.test",
             ])
     }
 }

@@ -1,5 +1,85 @@
 # Changelog
 
+## 0.23.5 — 2026-05-03
+
+Mock-First quality infrastructure groundwork. This release establishes
+the synthetic-mock injection layer that subsequent iOS releases (1.5.2+)
+build on for first-class multi-account testing without requiring real
+provider subscriptions.
+
+### Highlights — internal-only (no Sparkle release)
+
+- **Mock provider injector — mix design.** `MockProviderInjector` now
+  emits 8 synthetic `ProviderUsageSnapshot` entries spanning 5
+  providerIDs:
+  - 6 mocks with REAL provider IDs (`codex` × 3, `claude` × 2,
+    `perplexity` × 1) so iOS renders them with first-class provider UI
+    (icon, color, native multi-account affordances). Exercises the
+    critical "3 Codex on Mac, 1 on iOS" rendering path that real users
+    hit.
+  - 2 mocks with synthetic `_mock_*` IDs (`_mock_cursor_unknown` for
+    error-state fallback, `_mock_synthetic_unknown` for rich-data
+    fallback). Forward-compat insurance: when a future Mac adds a new
+    provider iOS doesn't know yet, that fallback path must still
+    render.
+- **Cost data on every real-borrowed mock.** All 6 first-class mocks
+  carry a synthetic `SyncCostSummary` (session + 30-day total). Codex
+  Alice additionally carries a 30-day daily breakdown with model
+  breakdowns so the iPhone Cost dashboard's Daily Spend / per-day chart
+  / model-breakdown pie are all end-to-end testable from synthetic
+  data. Aggregate ~$48/30day — visible but capped so it doesn't dwarf
+  real users' real numbers.
+- **Universal `*-mock@*.test` email TLD.** Every mock account uses the
+  RFC 6761 reserved `.test` TLD as the universal "is this a mock?"
+  signal. Works regardless of whether the providerID is real-borrowed
+  or synthetic. iOS 1.5.2+ uses this TLD as the trigger for the MOCK
+  badge + purple-striped card treatment.
+- **Settings UI surface.** New "Debug · Mock Provider Data" section in
+  Settings → Mobile, visible to all users (default OFF). Toggle flips
+  `CodexBarMockProvidersEnabled` UserDefaults; the same flag drives
+  `MockProviderInjector.isEnabled`. When ON, displays a reference list
+  of the 8 mocks (display name + email + state) so QA can compare
+  against what shows on iPhone. When toggled off, CloudKit ghost-
+  records cleanup automatically purges the mock CKRecords within ~1
+  cycle.
+- **SyncCoordinator dependency injection for mock injector.**
+  `mockInjector: () -> [ProviderUsageSnapshot]` parameter (default
+  empty closure) decouples production from process-global UserDefaults
+  state, enabling cross-suite parallel test isolation.
+- **55 mock tests** (15 unit + 33 integration + 5 cost dashboard
+  end-to-end) covering: providerID allowlist enforcement, real vs.
+  fallback path coverage, .test TLD invariant, multi-account distinct
+  recordNames, ghost-records cleanup on toggle, env var precedence,
+  cost data sums match aggregates, daily breakdown model labels.
+- **All 82 Sync regression tests still pass** with the redesigned
+  mocks — R1 Codex multi-account, R2 token-based 11 provider expansion,
+  R3-R5 multi-Mac merge + edge cases all unaffected.
+
+### Activation (any one)
+
+```sh
+# Env var (developer)
+CODEXBAR_MOCK_PROVIDERS=1 /Applications/CodexBar.app/Contents/MacOS/CodexBar
+
+# defaults write (CLI / scripted QA)
+defaults write com.o1xhack.codexbar CodexBarMockProvidersEnabled -bool true
+
+# Settings UI (everyone)
+CodexBar → Settings → Mobile → Debug · Mock Provider Data → toggle on
+```
+
+### Production safety
+
+- Default is OFF; user must explicitly opt in. App Store / Sparkle
+  distribution never accidentally activates.
+- Mock CKRecords are stored under composite keys distinct from real
+  data: `{deviceID}|{providerID}|*-mock@*.test`. Real provider records
+  use a different email bucket and are never touched.
+- L1 ghost-records cleanup auto-purges mock records within ~1 cycle
+  after toggle-off. Real numbers restore fully.
+
+---
+
 ## 0.23.4 — 2026-04-28
 
 ### Highlights — Mobile 1.5.1 — 2026-04-29

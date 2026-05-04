@@ -12,6 +12,12 @@ import Testing
 /// This file adds depth: 5+ rounds of testing with different conditions
 /// to ensure the mock injection system is robust against real-world use.
 ///
+/// **Mock detection convention** (Mac 0.23.5+ mix design): mocks use a
+/// mix of real provider IDs (`codex`, `claude`, `perplexity`) and
+/// synthetic IDs (`_mock_*`). The universal "is this a mock account?"
+/// signal is the `*-mock@*.test` email TLD — the synthetic providerID
+/// prefix only matches the 2 fallback mocks.
+///
 /// See `Research/020-multi-account-comprehensive.md` (mock section).
 @MainActor
 @Suite(.serialized)
@@ -49,6 +55,22 @@ struct MockProviderInjectorIntegrationTests {
             settings: settings)
     }
 
+    /// Helper: detect "is this an injected mock?" via the universal
+    /// account-email TLD signal that works regardless of whether the
+    /// mock borrowed a real providerID or used a synthetic `_mock_*`
+    /// providerID.
+    private func isMockSnapshot(_ snap: ProviderUsageSnapshot) -> Bool {
+        (snap.accountEmail ?? "").hasSuffix(MockProviderInjector.mockEmailTLD)
+    }
+
+    /// Helper: detect "is this a mock recordName?" via the `-mock@`
+    /// substring in the composite recordName, which is the universal
+    /// marker (the email portion of the composite always contains
+    /// `-mock@`, regardless of which providerID the mock used).
+    private func isMockRecordName(_ name: String) -> Bool {
+        name.contains("-mock@")
+    }
+
     // MARK: - MR2 Extensibility / determinism
 
     @Test("MR2.1: enabled count is exactly 8 (5 IDs, 3+2+1+1+1 entries)")
@@ -58,26 +80,23 @@ struct MockProviderInjectorIntegrationTests {
         #expect(MockProviderInjector.injectedSnapshots().count == 8)
     }
 
-    @Test("MR2.2: all mock providerIDs are distinct or shared-by-multi-account")
+    @Test("MR2.2: 5 distinct providerIDs (3 real-borrowed + 2 synthetic) match the published allowlists")
     func providerIDsHaveSensibleDistribution() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.injectedSnapshots()
         let providerIDs = snapshots.map(\.providerID)
         let uniqueIDs = Set(providerIDs)
-        // 5 distinct providerIDs total: codex_multi (3 entries),
-        // claude_multi (2 entries), perplexity_credit, cursor_error,
-        // synthetic_3lane.
         #expect(uniqueIDs.count == 5, "should be 5 distinct mock provider IDs")
-        // Verify expected IDs present.
         let expected: Set<String> = [
-            "_mock_codex_multi",
-            "_mock_claude_multi",
-            "_mock_perplexity_credit",
-            "_mock_cursor_error",
-            "_mock_synthetic_3lane",
+            "codex",
+            "claude",
+            "perplexity",
+            "_mock_cursor_unknown",
+            "_mock_synthetic_unknown",
         ]
         #expect(uniqueIDs == expected)
+        #expect(uniqueIDs == MockProviderInjector.allMockProviderIDs)
     }
 
     @Test("MR2.3: re-toggle returns the same providerIDs (deterministic)")
@@ -108,14 +127,15 @@ struct MockProviderInjectorIntegrationTests {
         #expect(pairs1 == pairs2)
     }
 
-    @Test("MR2.5: providerID prefix is exactly `_mock_` (no variations)")
-    func prefixIsExact() {
+    @Test("MR2.5: every mock account email uses `.test` TLD (universal mock signal)")
+    func allMockEmailsUseTestTLD() {
         self.enableMock()
         defer { self.resetActivationState() }
         for snap in MockProviderInjector.injectedSnapshots() {
-            #expect(snap.providerID.hasPrefix("_mock_"))
-            #expect(!snap.providerID.hasPrefix("_mock_mock_"))
-            #expect(snap.providerID != "_mock_")
+            let email = snap.accountEmail ?? ""
+            #expect(
+                email.hasSuffix(".test"),
+                "every mock email must use `.test` TLD; got: \(email) (providerID: \(snap.providerID))")
         }
     }
 
@@ -139,7 +159,7 @@ struct MockProviderInjectorIntegrationTests {
         await coordinator.pushCurrentSnapshot()
 
         let mockProviders = mock.lastSnapshot?.providers
-            .filter { $0.providerID.hasPrefix("_mock_") } ?? []
+            .filter { self.isMockSnapshot($0) } ?? []
         #expect(mockProviders.count == 8)
     }
 
@@ -160,7 +180,7 @@ struct MockProviderInjectorIntegrationTests {
         await coordinator.pushCurrentSnapshot()
 
         let mockProviders = mock.lastSnapshot?.providers
-            .filter { $0.providerID.hasPrefix("_mock_") } ?? []
+            .filter { self.isMockSnapshot($0) } ?? []
         #expect(mockProviders.isEmpty)
     }
 
@@ -182,7 +202,7 @@ struct MockProviderInjectorIntegrationTests {
         await coordinator.pushCurrentSnapshot()
 
         let mockEnvelopes = mock.lastPerProviderEnvelopes
-            .filter { $0.provider.providerID.hasPrefix("_mock_") }
+            .filter { self.isMockSnapshot($0.provider) }
         #expect(mockEnvelopes.count == 8)
     }
 
@@ -195,14 +215,15 @@ struct MockProviderInjectorIntegrationTests {
         }
     }
 
-    @Test("MR3.4: enable → disable → next push has no mock + delete fires immediately (whole-provider-gone)")
+    @Test("MR3.4: enable → disable → next push has no mock + delete fires for all 8 mock recordNames")
     func enableDisableTriggersGhostCleanup() async throws {
-        // Each mock providerID is distinct from any real provider, so
-        // when mock is disabled, every mock provider becomes
-        // "whole-provider gone" (currentProviders no longer contains
-        // them). Per R3 P1.2 logic, whole-provider-gone fires immediate
-        // 1-cycle delete (matching the existing L1 contract for
-        // "user disabled provider").
+        // Each mock account is identified by `*-mock@*.test` email
+        // suffix, regardless of whether the providerID is real-borrowed
+        // or synthetic. When mock is disabled, every mock account
+        // becomes either "whole-provider gone" (synthetic IDs) or
+        // "account-identity drift" (real-borrowed IDs where the only
+        // emitted account is the mock one). Per R3 P1.1 / P1.2 logic,
+        // both fire immediate 1-cycle delete.
         let settings = self.makeSettingsStore(suite: "MR3-4-Cleanup")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -223,27 +244,29 @@ struct MockProviderInjectorIntegrationTests {
 
         // Cycle 1: mock enabled → emit 8 mocks. No deletes (first push).
         await coordinator.pushCurrentSnapshot()
-        #expect(mock.lastSnapshot?.providers.contains { $0.providerID.hasPrefix("_mock_") } == true)
+        #expect(mock.lastSnapshot?.providers.contains { self.isMockSnapshot($0) } == true)
         #expect(mock.deleteCallCount == 0)
 
         // Flip the in-memory switch.
         mockSwitch.enabled = false
 
-        // Cycle 2: no mocks emitted. Whole-provider gone → immediate
-        // 1-cycle delete for all mock recordNames.
+        // Cycle 2: no mocks emitted. All 8 mock recordNames must be
+        // delete-targeted via either whole-provider-gone (synthetic IDs
+        // disappear entirely) or account-identity drift (real-borrowed
+        // IDs where the only emitted account was a mock).
         await coordinator.pushCurrentSnapshot()
         let cycle2Mocks = mock.lastSnapshot?.providers
-            .filter { $0.providerID.hasPrefix("_mock_") } ?? []
+            .filter { self.isMockSnapshot($0) } ?? []
         #expect(cycle2Mocks.isEmpty)
-        #expect(mock.deleteCallCount == 1, "whole-provider-gone fires immediate delete in cycle 2")
+        #expect(mock.deleteCallCount >= 1, "delete fires in cycle 2")
         let lastDeletes = mock.deletedRecordNamesAcrossCalls.last ?? []
-        let mockDeletes = lastDeletes.filter { $0.contains("_mock_") }
+        let mockDeletes = lastDeletes.filter { self.isMockRecordName($0) }
         #expect(
-            mockDeletes.count >= 5,
-            "all 5 mock providerIDs (with their per-account records, total 8) get delete-targeted")
+            mockDeletes.count == 8,
+            "all 8 mock per-account recordNames should be delete-targeted; got \(mockDeletes.count)")
     }
 
-    @Test("MR3.5: mock providers don't disturb real provider sync")
+    @Test("MR3.5: mock providers don't disturb real provider sync (real codex coexists with mock codex)")
     func mockDoesNotDisturbRealProvider() async throws {
         self.enableMock()
         defer { self.resetActivationState() }
@@ -255,7 +278,9 @@ struct MockProviderInjectorIntegrationTests {
             enabled: true)
         let store = self.makeUsageStore(settings: settings)
 
-        // Real Codex active snapshot.
+        // Real Codex active snapshot. Email uses `.example.com` (not
+        // `.test`) so it's distinguishable from the 3 mock codex
+        // accounts that share the same providerID.
         store._setSnapshotForTesting(
             UsageSnapshot(
                 primary: RateWindow(
@@ -277,29 +302,46 @@ struct MockProviderInjectorIntegrationTests {
         await coordinator.pushCurrentSnapshot()
 
         let allProviders = mock.lastSnapshot?.providers ?? []
-        let realCodex = allProviders.filter { $0.providerID == "codex" }
-        let mockProviders = allProviders.filter { $0.providerID.hasPrefix("_mock_") }
+        // Real codex: providerID == "codex" AND email NOT in `.test` TLD.
+        let realCodex = allProviders.filter {
+            $0.providerID == "codex" && !self.isMockSnapshot($0)
+        }
+        // Mock providers: any with `*-mock@*.test` email.
+        let mockProviders = allProviders.filter { self.isMockSnapshot($0) }
         #expect(realCodex.count == 1, "real Codex still emits its 1 record")
         #expect(realCodex.first?.accountEmail == "real@example.com")
         #expect(mockProviders.count == 8, "8 mock providers also emit")
-        // Real and mock must not collide on providerID.
-        let realIDs = Set(realCodex.map(\.providerID))
-        let mockIDs = Set(mockProviders.map(\.providerID))
-        #expect(realIDs.isDisjoint(with: mockIDs))
+        // Real and mock CAN share providerID under mix design, but
+        // they must NEVER share accountEmail.
+        let realEmails = Set(realCodex.compactMap(\.accountEmail))
+        let mockEmails = Set(mockProviders.compactMap(\.accountEmail))
+        #expect(realEmails.isDisjoint(with: mockEmails))
     }
 
     // MARK: - MR4 Mock + real coexistence
 
-    @Test("MR4.1: mock providerIDs are completely disjoint from real UsageProvider.allCases")
-    func mockProvidersAreDisjointFromAllReal() {
+    @Test("MR4.1: every mock providerID is in either real-borrowed or synthetic allowlist")
+    func mockProviderIDsInAllowlist() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.injectedSnapshots()
+        let realBorrowed = MockProviderInjector.realProviderIDsBorrowedByMocks
+        let synthetic = MockProviderInjector.syntheticProviderIDs
+        let allowed = realBorrowed.union(synthetic)
         let mockIDs = Set(snapshots.map(\.providerID))
-        let realIDs = Set(UsageProvider.allCases.map(\.rawValue))
+        let unexpected = mockIDs.subtracting(allowed)
         #expect(
-            mockIDs.isDisjoint(with: realIDs),
-            "no mock providerID may collide with any real UsageProvider rawValue (per-Codex-MCP-review P2)")
+            mockIDs.isSubset(of: allowed),
+            "mock providerIDs must be within real-borrowed ∪ synthetic; unexpected: \(unexpected)")
+        // Real-borrowed IDs MUST also be valid UsageProvider entries —
+        // otherwise we'd "borrow" a real ID that doesn't exist in the
+        // provider catalog and iOS would still fall back to unknown
+        // rendering (defeating the first-class rendering goal).
+        let allRealIDs = Set(UsageProvider.allCases.map(\.rawValue))
+        let missing = realBorrowed.subtracting(allRealIDs)
+        #expect(
+            realBorrowed.isSubset(of: allRealIDs),
+            "real-borrowed mock IDs must exist in UsageProvider.allCases; missing: \(missing)")
     }
 
     @Test("MR4.2: mock per-account records have distinct CK record names")
@@ -318,18 +360,20 @@ struct MockProviderInjectorIntegrationTests {
         #expect(Set(recordNames).count == recordNames.count, "all 8 mock record names must be distinct")
     }
 
-    @Test("MR4.3: mock multi-account uses accountIdentities for cross-Mac merge")
+    @Test("MR4.3: mock multi-account uses accountIdentities with `{providerID}:{scheme}:{value}` schema")
     func mockMultiAccountIdentitiesAlignWithRealSchema() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.injectedSnapshots()
-        let codexMulti = snapshots.filter { $0.providerID == "_mock_codex_multi" }
+        // Codex multi-account uses real `codex` providerID under mix
+        // design, so the schema prefix is `codex:` not `_mock_codex_*:`.
+        let codexMulti = snapshots.filter { $0.providerID == "codex" }
         for snap in codexMulti {
             let ids = snap.accountIdentities ?? []
             #expect(ids.count >= 1)
             #expect(
-                ids.contains { $0.hasPrefix("_mock_codex_multi:email:") },
-                "schema must follow `{providerID}:{scheme}:{value}`")
+                ids.contains { $0.hasPrefix("codex:email:") },
+                "schema must follow `{providerID}:{scheme}:{value}` with real `codex` prefix")
         }
     }
 
@@ -454,7 +498,7 @@ struct MockProviderInjectorIntegrationTests {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.injectedSnapshots()
-        let synth = snapshots.first { $0.providerID == "_mock_synthetic_3lane" }
+        let synth = snapshots.first { $0.providerID == "_mock_synthetic_unknown" }
         let now = Date()
         let thirtyOneDaysAgo = now.addingTimeInterval(-31 * 86400)
         for series in synth?.utilizationHistory ?? [] {
@@ -465,12 +509,12 @@ struct MockProviderInjectorIntegrationTests {
         }
     }
 
-    @Test("MR5.6: error mock has no rate windows or cost (gracefully degraded)")
+    @Test("MR5.6: cursor fallback mock has no rate windows or cost (gracefully degraded)")
     func errorMockHasNoRateWindows() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.injectedSnapshots()
-        let errMock = snapshots.first { $0.providerID == "_mock_cursor_error" }
+        let errMock = snapshots.first { $0.providerID == "_mock_cursor_unknown" }
         #expect(errMock?.primary == nil)
         #expect(errMock?.secondary == nil)
         #expect(errMock?.rateWindows.isEmpty == true)
@@ -483,7 +527,7 @@ struct MockProviderInjectorIntegrationTests {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.injectedSnapshots()
-        let perp = snapshots.first { $0.providerID == "_mock_perplexity_credit" }
+        let perp = snapshots.first { $0.providerID == "perplexity" }
         let credits = perp?.perplexityCredits
         #expect((credits?.recurringTotalCents ?? -1) >= 0)
         #expect((credits?.recurringUsedCents ?? -1) >= 0)
@@ -600,6 +644,80 @@ struct MockProviderInjectorIntegrationTests {
             #expect(decoded.accountIdentities == snap.accountIdentities)
             #expect(decoded.isError == snap.isError)
             #expect(decoded.providerName == snap.providerName)
+        }
+    }
+
+    // MARK: - MR6 Cost dashboard end-to-end (NEW for mix design)
+
+    @Test("MR6.1: 6 of 8 mocks carry cost data so iPhone Cost dashboard is exercisable")
+    func sixMocksCarryCostData() {
+        self.enableMock()
+        defer { self.resetActivationState() }
+        let snapshots = MockProviderInjector.injectedSnapshots()
+        let withCost = snapshots.filter { $0.costSummary != nil }
+        // 3 codex + 2 claude + 1 perplexity = 6.
+        // 1 cursor_unknown (error) + 1 synthetic_unknown (budget-driven) skip cost.
+        #expect(withCost.count == 6, "expected 6 mocks with cost data; got \(withCost.count)")
+    }
+
+    @Test("MR6.2: aggregate 30-day mock cost is in plausible $30-$100 range (no skew explosion)")
+    func aggregate30DayCostIsBounded() {
+        self.enableMock()
+        defer { self.resetActivationState() }
+        let snapshots = MockProviderInjector.injectedSnapshots()
+        let total = snapshots
+            .compactMap(\.costSummary)
+            .compactMap(\.last30DaysCostUSD)
+            .reduce(0, +)
+        #expect(total > 30, "aggregate must be visible enough to test ($30+)")
+        #expect(total < 100, "aggregate must not skew so far it dominates real users' real cost ($<100)")
+    }
+
+    @Test("MR6.3: at least one mock carries 30-day daily breakdown for chart testing")
+    func atLeastOneMockHasDailyBreakdown() {
+        self.enableMock()
+        defer { self.resetActivationState() }
+        let snapshots = MockProviderInjector.injectedSnapshots()
+        let withDaily = snapshots
+            .compactMap(\.costSummary)
+            .filter { $0.daily.count == 30 }
+        #expect(withDaily.count >= 1, "at least one mock must have 30-day daily breakdown for chart")
+    }
+
+    @Test("MR6.4: every daily point in the 30-day breakdown has model breakdowns (for pie chart)")
+    func dailyBreakdownHasModelLabels() {
+        self.enableMock()
+        defer { self.resetActivationState() }
+        let snapshots = MockProviderInjector.injectedSnapshots()
+        let dailyCosts = snapshots
+            .compactMap(\.costSummary)
+            .flatMap(\.daily)
+        for point in dailyCosts {
+            #expect(!point.modelBreakdowns.isEmpty, "daily \(point.dayKey) must have model breakdowns")
+            // Ensure breakdowns sum approximately to the day's total
+            // (within rounding tolerance — small floating-point drift OK).
+            let breakdownSum = point.modelBreakdowns.reduce(0.0) { $0 + $1.costUSD }
+            let drift = abs(breakdownSum - point.costUSD)
+            #expect(
+                drift < 0.01,
+                "model breakdowns sum (\(breakdownSum)) must match dayTotal (\(point.costUSD)) within $0.01")
+        }
+    }
+
+    @Test("MR6.5: cost data sums match top-level last30DaysCostUSD (for any mock that has both)")
+    func costSumMatchesAggregate() {
+        self.enableMock()
+        defer { self.resetActivationState() }
+        let snapshots = MockProviderInjector.injectedSnapshots()
+        for snap in snapshots {
+            guard let cost = snap.costSummary,
+                  let total = cost.last30DaysCostUSD,
+                  cost.daily.count == 30 else { continue }
+            let dailySum = cost.daily.reduce(0.0) { $0 + $1.costUSD }
+            let drift = abs(dailySum - total)
+            // 30-day-sum of synthetic daily values should match the
+            // top-level total exactly (we set them from the same source).
+            #expect(drift < 0.01, "30-day daily sum (\(dailySum)) must match last30DaysCostUSD (\(total))")
         }
     }
 }

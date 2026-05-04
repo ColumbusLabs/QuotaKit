@@ -20,6 +20,14 @@ struct MobilePane: View {
 
     @State private var lastTestResult: String?
 
+    /// Mock provider toggle. Bound to UserDefaults key
+    /// `CodexBarMockProvidersEnabled` so the same flag toggles whether
+    /// `MockProviderInjector` injects 8 synthetic snapshots into every
+    /// sync cycle. Visible in Settings whenever `iCloudSyncEnabled` is
+    /// on so QA can flip the switch and immediately see iPhone behavior.
+    @AppStorage("CodexBarMockProvidersEnabled")
+    private var mockProvidersEnabled: Bool = false
+
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
             VStack(alignment: .leading, spacing: 16) {
@@ -58,12 +66,132 @@ struct MobilePane: View {
                         binding: self.$settings.notificationPushToiOSEnabled)
                 }
 
+                Divider()
+                self.mockProviderSection
+
                 if self.isDevelopmentBuild {
                     Divider()
                     self.devTestSection
                 }
 
                 Spacer(minLength: 0)
+            }
+        }
+    }
+
+    // MARK: - Mock Provider Data (visible to all users; default OFF)
+
+    /// Reference list of all 8 mocks the injector emits when active.
+    /// Hardcoded here so the Settings UI can show side-by-side
+    /// "what should appear on my iPhone" vs. what actually appears.
+    /// Kept in sync with `MockProviderInjector` mocks (see Mac 0.23.5+
+    /// docstring there for the mix design rationale).
+    private struct MockReferenceCard: Identifiable {
+        let id: String
+        let displayName: String
+        let subtitle: String
+        let badge: String
+    }
+
+    private static let mockReference: [MockReferenceCard] = [
+        MockReferenceCard(
+            id: "codex|alice",
+            displayName: "Codex (Alice · Mock)",
+            subtitle: "café-mock@codex.test · 35% / 60%",
+            badge: "first-class"),
+        MockReferenceCard(
+            id: "codex|bob",
+            displayName: "Codex (Bob · Mock)",
+            subtitle: "bob-mock@codex.test · 75% / 100%",
+            badge: "first-class"),
+        MockReferenceCard(
+            id: "codex|carol",
+            displayName: "Codex (Carol · Mock)",
+            subtitle: "carol-mock@codex.test · 0% / 12%",
+            badge: "first-class"),
+        MockReferenceCard(
+            id: "claude|personal",
+            displayName: "Claude (Personal · Mock)",
+            subtitle: "personal-mock@claude.test · 5h+Sonnet+Opus",
+            badge: "first-class"),
+        MockReferenceCard(
+            id: "claude|work",
+            displayName: "Claude (Work · Mock)",
+            subtitle: "work-mock@claude.test · 5h+Sonnet",
+            badge: "first-class"),
+        MockReferenceCard(
+            id: "perplexity|pro",
+            displayName: "Perplexity (Pro · Mock)",
+            subtitle: "pro-mock@perplexity.test · $410 credits",
+            badge: "first-class"),
+        MockReferenceCard(
+            id: "_mock_cursor_unknown",
+            displayName: "Mock Cursor (Cookie expired)",
+            subtitle: "expired-mock@cursor.test · isError=true",
+            badge: "fallback"),
+        MockReferenceCard(
+            id: "_mock_synthetic_unknown",
+            displayName: "Mock Synthetic (3-lane fallback)",
+            subtitle: "lanes-mock@synthetic.test · 30-day history",
+            badge: "fallback"),
+    ]
+
+    private var mockProviderSection: some View {
+        SettingsSection(contentSpacing: 12) {
+            HStack(spacing: 6) {
+                Image(systemName: "testtube.2")
+                    .foregroundStyle(.purple)
+                    .font(.caption)
+                Text("Debug · Mock Provider Data")
+                    .font(.caption)
+                    .foregroundStyle(.purple)
+                    .textCase(.uppercase)
+            }
+
+            PreferenceToggleRow(
+                title: "Inject mock provider data",
+                subtitle: "Pushes 8 synthetic providers (3 Codex + 2 Claude + 1 Perplexity using "
+                    + "real provider IDs for first-class iOS rendering, plus 2 unknown-ID mocks for "
+                    + "fallback rendering) on every sync. All mock emails use the `.test` TLD so "
+                    + "iPhone (1.5.2+) renders them with a MOCK badge. Toggle off and CloudKit "
+                    + "automatically purges them within ~1 cycle. Default OFF.",
+                binding: self.$mockProvidersEnabled)
+
+            if self.mockProvidersEnabled {
+                Divider()
+                Text("Reference — what should appear on iPhone:")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Self.mockReference) { card in
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(card.badge == "first-class" ? "●" : "◌")
+                                .font(.caption2.monospaced())
+                                .foregroundStyle(
+                                    card.badge == "first-class"
+                                        ? Color.green
+                                        : Color.orange)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(card.displayName)
+                                    .font(.caption)
+                                Text(card.subtitle)
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    Image(systemName: "info.circle")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text("Mocks add ~$48 to your 30-day cost dashboard while active. "
+                        + "Toggle off to restore real numbers.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }

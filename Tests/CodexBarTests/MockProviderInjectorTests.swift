@@ -52,32 +52,28 @@ struct MockProviderInjectorTests {
         #expect(MockProviderInjector.injectedSnapshots().isEmpty)
     }
 
-    @Test("All mock providerIDs are prefixed `_mock_` for safe identification")
-    func allMockIDsAreMockPrefixed() {
+    @Test("Mock providerIDs are split: real-borrowed (for first-class iOS UI) + `_mock_*` (for fallback test)")
+    func mockProviderIDsSplitRealAndSynthetic() {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.injectedSnapshots()
         #expect(!snapshots.isEmpty)
+        let realBorrowed = MockProviderInjector.realProviderIDsBorrowedByMocks
+        let synthetic = MockProviderInjector.syntheticProviderIDs
         for snap in snapshots {
-            #expect(
-                snap.providerID.hasPrefix("_mock_"),
-                "all mock providers must use `_mock_` prefix; got: \(snap.providerID)")
+            let id = snap.providerID
+            let isAllowed = realBorrowed.contains(id) || synthetic.contains(id)
+            #expect(isAllowed, "mock providerID must be in real-borrowed or synthetic allowlist; got \(id)")
         }
     }
 
-    @Test("All mock provider names are clearly labeled `Mock`")
-    func allMockNamesAreLabeled() {
-        self.resetActivationState()
-        UserDefaults.standard.set(
-            true, forKey: MockProviderInjector.userDefaultsKey)
-        defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
-        for snap in snapshots {
-            #expect(
-                snap.providerName.contains("Mock"),
-                "provider name must contain `Mock`; got: \(snap.providerName)")
+    @Test("Synthetic providerIDs are exactly `_mock_*` prefixed (mock-only namespace)")
+    func syntheticIDsArePrefixed() {
+        for id in MockProviderInjector.syntheticProviderIDs {
+            #expect(id.hasPrefix("_mock_"), "synthetic mock providerID must use `_mock_` prefix; got \(id)")
+            #expect(id != "_mock_", "synthetic providerID must have non-empty suffix")
         }
     }
 
@@ -92,51 +88,48 @@ struct MockProviderInjectorTests {
         #expect(!accountedEmails.isEmpty)
         for email in accountedEmails {
             #expect(
-                email.hasSuffix(".test"),
+                email.hasSuffix(MockProviderInjector.mockEmailTLD),
                 "mock email must use `.test` TLD (RFC 6761 reserved); got: \(email)")
         }
     }
 
-    @Test("Codex multi-account mock has 3 distinct accounts")
+    @Test("Codex (real ID) mock has 3 distinct accounts on `codex` providerID")
     func codexMockHas3DistinctAccounts() {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.injectedSnapshots()
-        let codexEntries = snapshots.filter {
-            $0.providerID == "_mock_codex_multi"
-        }
-        #expect(codexEntries.count == 3, "Codex mock should have 3 accounts")
+        let codexEntries = snapshots.filter { $0.providerID == "codex" }
+        #expect(codexEntries.count == 3, "3 Codex mocks on real `codex` providerID")
         let emails = Set(codexEntries.compactMap(\.accountEmail))
-        #expect(emails.count == 3, "all 3 Codex accounts must have distinct emails")
+        #expect(emails.count == 3, "all 3 Codex mocks must have distinct emails")
+        for email in emails {
+            #expect(email.hasSuffix(".test"), "all 3 Codex mock emails must use .test TLD; got \(email)")
+        }
     }
 
-    @Test("Claude multi-account mock has 2 distinct accounts")
+    @Test("Claude (real ID) mock has 2 distinct accounts on `claude` providerID")
     func claudeMockHas2DistinctAccounts() {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.injectedSnapshots()
-        let claudeEntries = snapshots.filter {
-            $0.providerID == "_mock_claude_multi"
-        }
+        let claudeEntries = snapshots.filter { $0.providerID == "claude" }
         #expect(claudeEntries.count == 2)
         let emails = Set(claudeEntries.compactMap(\.accountEmail))
         #expect(emails.count == 2)
     }
 
-    @Test("Perplexity mock has structured credit breakdown")
+    @Test("Perplexity (real ID) mock has structured credit breakdown on `perplexity` providerID")
     func perplexityMockHasCreditBreakdown() {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.injectedSnapshots()
-        let perplexity = snapshots.first {
-            $0.providerID == "_mock_perplexity_credit"
-        }
+        let perplexity = snapshots.first { $0.providerID == "perplexity" }
         #expect(perplexity != nil)
         let credits = perplexity?.perplexityCredits
         #expect(credits != nil, "Perplexity mock must populate perplexityCredits")
@@ -146,32 +139,28 @@ struct MockProviderInjectorTests {
         #expect(credits?.planName == "Pro")
     }
 
-    @Test("Cursor error mock has isError + statusMessage")
+    @Test("Cursor fallback mock has isError + statusMessage on `_mock_cursor_unknown` providerID")
     func cursorErrorMockHasErrorState() {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.injectedSnapshots()
-        let cursorError = snapshots.first {
-            $0.providerID == "_mock_cursor_error"
-        }
-        #expect(cursorError != nil)
-        #expect(cursorError?.isError == true)
-        #expect(cursorError?.statusMessage != nil)
-        #expect(cursorError?.statusMessage?.contains("Mock") == true)
+        let errorMock = snapshots.first { $0.providerID == "_mock_cursor_unknown" }
+        #expect(errorMock != nil)
+        #expect(errorMock?.isError == true)
+        #expect(errorMock?.statusMessage != nil)
+        #expect(errorMock?.statusMessage?.contains("Mock") == true)
     }
 
-    @Test("Synthetic 3-lane mock has 3 rate windows + 30-day utilization history")
+    @Test("Synthetic fallback mock has 3 rate windows + 30-day utilization history")
     func syntheticMockHas3LanesAndHistory() {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.injectedSnapshots()
-        let synthetic = snapshots.first {
-            $0.providerID == "_mock_synthetic_3lane"
-        }
+        let synthetic = snapshots.first { $0.providerID == "_mock_synthetic_unknown" }
         #expect(synthetic != nil)
         #expect(synthetic?.rateWindows.count == 3, "3 lanes: 5h, weekly, search")
         #expect(synthetic?.utilizationHistory?.count == 3, "3 utilization series")
@@ -203,26 +192,62 @@ struct MockProviderInjectorTests {
         }
     }
 
-    @Test("All mock snapshots have non-empty accountIdentities (where applicable)")
+    @Test("All mock snapshots have non-empty accountIdentities (except cursor fallback)")
     func mockSnapshotsHaveAccountIdentities() {
         self.resetActivationState()
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.injectedSnapshots()
-        // All mocks except the error-state cursor (which intentionally
+        // All mocks except the cursor error mock (which intentionally
         // sets accountIdentities to nil — exercises the legacy
-        // per-device bucket fallback). Cursor mock still has a non-nil
-        // accountEmail so iOS shows a "Mock Cursor (Cookie expired)"
-        // card; only the cross-Mac merge identifier is intentionally
-        // missing.
+        // per-device bucket fallback). The cursor error mock still has
+        // a non-nil accountEmail so iOS shows it via fallback rendering;
+        // only the cross-Mac merge identifier is intentionally missing.
         let mocksWithIdentities = snapshots.filter {
-            $0.providerID != "_mock_cursor_error"
+            $0.providerID != "_mock_cursor_unknown"
         }
         for snap in mocksWithIdentities {
             #expect(
                 (snap.accountIdentities?.count ?? 0) >= 1,
                 "\(snap.providerID) should have ≥1 accountIdentities entry for cross-Mac merge")
+        }
+    }
+
+    @Test("Real-borrowed mocks include cost data so iPhone Cost dashboard is exercisable")
+    func realBorrowedMocksHaveCostData() {
+        self.resetActivationState()
+        UserDefaults.standard.set(
+            true, forKey: MockProviderInjector.userDefaultsKey)
+        defer { self.resetActivationState() }
+        let snapshots = MockProviderInjector.injectedSnapshots()
+        let realBorrowed = MockProviderInjector.realProviderIDsBorrowedByMocks
+        for snap in snapshots where realBorrowed.contains(snap.providerID) {
+            let id = "\(snap.providerID)/\(snap.accountEmail ?? "?")"
+            #expect(
+                snap.costSummary != nil,
+                "real-borrowed mock \(id) must carry costSummary for Cost dashboard")
+        }
+    }
+
+    @Test("Codex Alice mock has 30-day daily breakdown so per-day chart is exercisable")
+    func codexAliceHasDailyBreakdown() {
+        self.resetActivationState()
+        UserDefaults.standard.set(
+            true, forKey: MockProviderInjector.userDefaultsKey)
+        defer { self.resetActivationState() }
+        let snapshots = MockProviderInjector.injectedSnapshots()
+        let alice = snapshots.first { snap in
+            snap.providerID == "codex"
+                && (snap.accountEmail ?? "").contains("café")
+        }
+        #expect(alice != nil, "Alice mock should exist with non-ASCII café email")
+        let daily = alice?.costSummary?.daily ?? []
+        #expect(daily.count == 30, "Alice carries 30 days of daily cost points")
+        let total = daily.reduce(0.0) { $0 + $1.costUSD }
+        #expect(total > 0, "daily totals must sum to a positive value")
+        for point in daily {
+            #expect(!point.modelBreakdowns.isEmpty, "every daily point should have a model breakdown")
         }
     }
 }
