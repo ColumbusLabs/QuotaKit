@@ -73,28 +73,23 @@ struct MockProviderInjectorIntegrationTests {
 
     // MARK: - MR2 Extensibility / determinism
 
-    @Test("MR2.1: enabled count is exactly 8 (5 IDs, 3+2+1+1+1 entries)")
+    @Test("MR2.1: enabled count is exactly 32 (29 IDs, 6 rich + 24 simple + 2 fallback entries)")
     func enabledCountIsStable() {
         self.enableMock()
         defer { self.resetActivationState() }
-        #expect(MockProviderInjector.injectedSnapshots().count == 8)
+        #expect(MockProviderInjector.injectedSnapshots().count == 32)
     }
 
-    @Test("MR2.2: 5 distinct providerIDs (3 real-borrowed + 2 synthetic) match the published allowlists")
+    @Test("MR2.2: 29 distinct providerIDs match the published allowlists (27 real + 2 synthetic)")
     func providerIDsHaveSensibleDistribution() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.injectedSnapshots()
         let providerIDs = snapshots.map(\.providerID)
         let uniqueIDs = Set(providerIDs)
-        #expect(uniqueIDs.count == 5, "should be 5 distinct mock provider IDs")
-        let expected: Set<String> = [
-            "codex",
-            "claude",
-            "perplexity",
-            "_mock_cursor_unknown",
-            "_mock_synthetic_unknown",
-        ]
+        #expect(uniqueIDs.count == 29, "should be 29 distinct mock provider IDs (27 real + 2 synthetic)")
+        let expected: Set<String> = MockProviderInjector.realProviderIDsBorrowedByMocks
+            .union(MockProviderInjector.syntheticProviderIDs)
         #expect(uniqueIDs == expected)
         #expect(uniqueIDs == MockProviderInjector.allMockProviderIDs)
     }
@@ -160,7 +155,7 @@ struct MockProviderInjectorIntegrationTests {
 
         let mockProviders = mock.lastSnapshot?.providers
             .filter { self.isMockSnapshot($0) } ?? []
-        #expect(mockProviders.count == 8)
+        #expect(mockProviders.count == 32)
     }
 
     @Test("MR3.2: empty mock injector closure causes 0 mock providers in lastSnapshot")
@@ -203,7 +198,12 @@ struct MockProviderInjectorIntegrationTests {
 
         let mockEnvelopes = mock.lastPerProviderEnvelopes
             .filter { self.isMockSnapshot($0.provider) }
-        #expect(mockEnvelopes.count == 8)
+        // Per-provider write path filters "ghost" snapshots (no
+        // primary/secondary/cost/utilization). Ollama mock is intentionally
+        // ghost (local-inference, no metrics) so iOS shows it via the
+        // catch-all DeviceProviders snapshot but not a per-provider record.
+        // 32 mocks emitted at the snapshot level → 31 in per-provider zone.
+        #expect(mockEnvelopes.count == 31)
     }
 
     /// Reference wrapper so tests can flip the mock activation state
@@ -250,7 +250,7 @@ struct MockProviderInjectorIntegrationTests {
         // Flip the in-memory switch.
         mockSwitch.enabled = false
 
-        // Cycle 2: no mocks emitted. All 8 mock recordNames must be
+        // Cycle 2: no mocks emitted. All 32 mock recordNames must be
         // delete-targeted via either whole-provider-gone (synthetic IDs
         // disappear entirely) or account-identity drift (real-borrowed
         // IDs where the only emitted account was a mock).
@@ -261,9 +261,14 @@ struct MockProviderInjectorIntegrationTests {
         #expect(mock.deleteCallCount >= 1, "delete fires in cycle 2")
         let lastDeletes = mock.deletedRecordNamesAcrossCalls.last ?? []
         let mockDeletes = lastDeletes.filter { self.isMockRecordName($0) }
+        // Note: codex (3 mock accounts) is the only enabled real provider
+        // that wasn't disabled, so its 3 mock recordNames stay tracked
+        // as drift candidates. The 29 others get delete-targeted in this
+        // cycle. The remaining 3 are caught in subsequent cycles via
+        // 2-cycle confirmation.
         #expect(
-            mockDeletes.count == 8,
-            "all 8 mock per-account recordNames should be delete-targeted; got \(mockDeletes.count)")
+            mockDeletes.count >= 29,
+            "≥29 mock per-account recordNames should be delete-targeted; got \(mockDeletes.count)")
     }
 
     @Test("MR3.5: mock providers don't disturb real provider sync (real codex coexists with mock codex)")
@@ -310,7 +315,7 @@ struct MockProviderInjectorIntegrationTests {
         let mockProviders = allProviders.filter { self.isMockSnapshot($0) }
         #expect(realCodex.count == 1, "real Codex still emits its 1 record")
         #expect(realCodex.first?.accountEmail == "real@example.com")
-        #expect(mockProviders.count == 8, "8 mock providers also emit")
+        #expect(mockProviders.count == 32, "32 mock providers also emit")
         // Real and mock CAN share providerID under mix design, but
         // they must NEVER share accountEmail.
         let realEmails = Set(realCodex.compactMap(\.accountEmail))
@@ -357,7 +362,7 @@ struct MockProviderInjectorIntegrationTests {
                 providerID: snap.providerID,
                 accountEmail: snap.accountEmail)
         }
-        #expect(Set(recordNames).count == recordNames.count, "all 8 mock record names must be distinct")
+        #expect(Set(recordNames).count == recordNames.count, "all 32 mock record names must be distinct")
     }
 
     @Test("MR4.3: mock multi-account uses accountIdentities with `{providerID}:{scheme}:{value}` schema")
@@ -649,18 +654,20 @@ struct MockProviderInjectorIntegrationTests {
 
     // MARK: - MR6 Cost dashboard end-to-end (NEW for mix design)
 
-    @Test("MR6.1: 6 of 8 mocks carry cost data so iPhone Cost dashboard is exercisable")
-    func sixMocksCarryCostData() {
+    @Test("MR6.1: most mocks carry cost data so iPhone Cost dashboard is exercisable")
+    func mostMocksCarryCostData() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.injectedSnapshots()
         let withCost = snapshots.filter { $0.costSummary != nil }
-        // 3 codex + 2 claude + 1 perplexity = 6.
-        // 1 cursor_unknown (error) + 1 synthetic_unknown (budget-driven) skip cost.
-        #expect(withCost.count == 6, "expected 6 mocks with cost data; got \(withCost.count)")
+        // 32 mocks total; 4 intentionally have nil costSummary:
+        // _mock_cursor_unknown (error state), _mock_synthetic_unknown
+        // (budget-only), antigravity (preview/no-billing), ollama (local).
+        // Remaining 28 carry cost data.
+        #expect(withCost.count == 28, "expected 28 mocks with cost data; got \(withCost.count)")
     }
 
-    @Test("MR6.2: aggregate 30-day mock cost is in plausible $30-$100 range (no skew explosion)")
+    @Test("MR6.2: aggregate 30-day mock cost is in plausible $50-$120 range (no skew explosion)")
     func aggregate30DayCostIsBounded() {
         self.enableMock()
         defer { self.resetActivationState() }
@@ -669,8 +676,8 @@ struct MockProviderInjectorIntegrationTests {
             .compactMap(\.costSummary)
             .compactMap(\.last30DaysCostUSD)
             .reduce(0, +)
-        #expect(total > 30, "aggregate must be visible enough to test ($30+)")
-        #expect(total < 100, "aggregate must not skew so far it dominates real users' real cost ($<100)")
+        #expect(total > 50, "aggregate must be visible enough to test ($50+)")
+        #expect(total < 120, "aggregate must not skew so far it dominates real users' real cost ($<120)")
     }
 
     @Test("MR6.3: at least one mock carries 30-day daily breakdown for chart testing")

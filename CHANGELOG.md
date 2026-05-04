@@ -9,26 +9,36 @@ provider subscriptions.
 
 ### Highlights — internal-only (no Sparkle release)
 
-- **Mock provider injector — mix design.** `MockProviderInjector` now
-  emits 8 synthetic `ProviderUsageSnapshot` entries spanning 5
-  providerIDs:
-  - 6 mocks with REAL provider IDs (`codex` × 3, `claude` × 2,
+- **Mock provider injector — mix design + full provider coverage.**
+  `MockProviderInjector` now emits **32 synthetic
+  `ProviderUsageSnapshot` entries spanning 29 distinct providerIDs**:
+  - 6 rich mocks with REAL provider IDs (`codex` × 3, `claude` × 2,
     `perplexity` × 1) so iOS renders them with first-class provider UI
     (icon, color, native multi-account affordances). Exercises the
     critical "3 Codex on Mac, 1 on iOS" rendering path that real users
     hit.
+  - 24 simple single-account mocks covering every other real provider
+    (cursor, opencode, opencodego, alibaba, factory, gemini,
+    antigravity, copilot, zai, minimax, kimi, kilo, kiro, vertexai,
+    augment, jetbrains, kimik2, amp, ollama, synthetic, warp,
+    openrouter, abacus, mistral). Each emits a 1-account snapshot with
+    a primary rate window + cost data (where applicable) so iPhone's
+    first-class card UI for each provider is exercised.
   - 2 mocks with synthetic `_mock_*` IDs (`_mock_cursor_unknown` for
     error-state fallback, `_mock_synthetic_unknown` for rich-data
     fallback). Forward-compat insurance: when a future Mac adds a new
     provider iOS doesn't know yet, that fallback path must still
     render.
-- **Cost data on every real-borrowed mock.** All 6 first-class mocks
-  carry a synthetic `SyncCostSummary` (session + 30-day total). Codex
-  Alice additionally carries a 30-day daily breakdown with model
-  breakdowns so the iPhone Cost dashboard's Daily Spend / per-day chart
-  / model-breakdown pie are all end-to-end testable from synthetic
-  data. Aggregate ~$48/30day — visible but capped so it doesn't dwarf
-  real users' real numbers.
+- **Cost data on most real-borrowed mocks.** 28 of 32 mocks carry a
+  synthetic `SyncCostSummary` (session + 30-day total). The 4
+  intentionally cost-less mocks: `_mock_cursor_unknown` (error state),
+  `_mock_synthetic_unknown` (budget-driven), `antigravity` (preview /
+  no billing), `ollama` (local inference, no spend). Codex Alice
+  additionally carries a 30-day daily breakdown with model breakdowns
+  so the iPhone Cost dashboard's Daily Spend / per-day chart /
+  model-breakdown pie are all end-to-end testable. Aggregate
+  ~$85/30day across all 28 cost-bearing mocks — visible but capped so
+  it doesn't dwarf real users' real numbers.
 - **Universal `*-mock@*.test` email TLD.** Every mock account uses the
   RFC 6761 reserved `.test` TLD as the universal "is this a mock?"
   signal. Works regardless of whether the providerID is real-borrowed
@@ -46,14 +56,15 @@ provider subscriptions.
   `mockInjector: () -> [ProviderUsageSnapshot]` parameter (default
   empty closure) decouples production from process-global UserDefaults
   state, enabling cross-suite parallel test isolation.
-- **55 mock tests** (15 unit + 33 integration + 5 cost dashboard
+- **55 mock tests** (15 unit + 35 integration + 5 cost dashboard
   end-to-end) covering: providerID allowlist enforcement, real vs.
   fallback path coverage, .test TLD invariant, multi-account distinct
   recordNames, ghost-records cleanup on toggle, env var precedence,
   cost data sums match aggregates, daily breakdown model labels.
 - **All 82 Sync regression tests still pass** with the redesigned
   mocks — R1 Codex multi-account, R2 token-based 11 provider expansion,
-  R3-R5 multi-Mac merge + edge cases all unaffected.
+  R3-R5 multi-Mac merge + edge cases all unaffected. Combined Sync +
+  Mock filter run: 136 tests pass.
 
 ### Activation (any one)
 

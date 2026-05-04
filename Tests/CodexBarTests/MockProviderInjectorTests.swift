@@ -39,8 +39,8 @@ struct MockProviderInjectorTests {
         #expect(MockProviderInjector.isEnabled)
         let snapshots = MockProviderInjector.injectedSnapshots()
         #expect(
-            snapshots.count == 8,
-            "5 mock provider IDs producing 8 ProviderUsageSnapshot entries (3 codex + 2 claude + 3 single-account)")
+            snapshots.count == 32,
+            "29 mock provider IDs producing 32 ProviderUsageSnapshot entries (6 rich + 24 simple + 2 fallback)")
     }
 
     @Test("Disabled flag returns empty even with override")
@@ -214,7 +214,7 @@ struct MockProviderInjectorTests {
         }
     }
 
-    @Test("Real-borrowed mocks include cost data so iPhone Cost dashboard is exercisable")
+    @Test("Most real-borrowed mocks include cost data so iPhone Cost dashboard is exercisable")
     func realBorrowedMocksHaveCostData() {
         self.resetActivationState()
         UserDefaults.standard.set(
@@ -222,12 +222,19 @@ struct MockProviderInjectorTests {
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.injectedSnapshots()
         let realBorrowed = MockProviderInjector.realProviderIDsBorrowedByMocks
-        for snap in snapshots where realBorrowed.contains(snap.providerID) {
-            let id = "\(snap.providerID)/\(snap.accountEmail ?? "?")"
-            #expect(
-                snap.costSummary != nil,
-                "real-borrowed mock \(id) must carry costSummary for Cost dashboard")
-        }
+        let realBorrowedSnapshots = snapshots.filter { realBorrowed.contains($0.providerID) }
+        let withCost = realBorrowedSnapshots.filter { $0.costSummary != nil }
+        // 27 real-borrowed mocks (1 per real provider, except codex/claude
+        // which have multiple accounts → 27 distinct IDs but 30 snapshots).
+        // Two are intentionally cost-less: antigravity (preview/no-billing)
+        // and ollama (local inference, no cost). The rest must carry cost.
+        let costLessIDs = realBorrowedSnapshots
+            .filter { $0.costSummary == nil }
+            .map(\.providerID)
+        #expect(
+            Set(costLessIDs).isSubset(of: ["antigravity", "ollama"]),
+            "only antigravity + ollama may be cost-less; got \(costLessIDs)")
+        #expect(withCost.count >= 25, "≥25 real-borrowed mocks must carry cost data; got \(withCost.count)")
     }
 
     @Test("Codex Alice mock has 30-day daily breakdown so per-day chart is exercisable")

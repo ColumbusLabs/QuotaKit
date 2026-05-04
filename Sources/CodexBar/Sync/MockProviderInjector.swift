@@ -85,15 +85,30 @@ enum MockProviderInjector {
         return self.allMocks()
     }
 
-    /// Returns the 8 mock ProviderUsageSnapshot entries unconditionally,
+    /// Returns ALL mock ProviderUsageSnapshot entries unconditionally,
     /// regardless of global activation state. Tests that want to
     /// exercise the SyncCoordinator hook with predictable mock data
     /// pass `mockInjector: { MockProviderInjector.allMocks() }` to
     /// SyncCoordinator's init — this avoids depending on the global
     /// `isEnabled` state, which doesn't isolate cleanly across
     /// parallel `@MainActor` test suites.
+    ///
+    /// **Composition** (Mac 0.23.6+):
+    /// - 8 rich mocks (codex × 3 multi-account + claude × 2 multi-account
+    ///   + perplexity 3-credit-segment + 2 synthetic `_mock_*` fallback
+    ///   error/rich) — exercise the high-traffic UI paths.
+    /// - 24 simple single-account mocks (cursor, opencode, opencodego,
+    ///   alibaba, factory, gemini, antigravity, copilot, zai, minimax,
+    ///   kimi, kilo, kiro, vertexai, augment, jetbrains, kimik2, amp,
+    ///   ollama, synthetic, warp, openrouter, abacus, mistral) — exercise
+    ///   each provider's first-class card on iPhone, plus 30-day
+    ///   aggregate cost dashboard contribution.
+    ///
+    /// Total: **32 ProviderUsageSnapshot entries across 29 distinct
+    /// providerIDs** (27 real-borrowed + 2 synthetic). Aggregate
+    /// cost ~$70-90/30day.
     static func allMocks() -> [ProviderUsageSnapshot] {
-        [
+        let rich: [ProviderUsageSnapshot] = [
             self.mockCodexAlice(),
             self.mockCodexBob(),
             self.mockCodexCarol(),
@@ -103,6 +118,9 @@ enum MockProviderInjector {
             self.mockCursorErrorFallback(),
             self.mockSyntheticThreeLaneFallback(),
         ]
+        let simple: [ProviderUsageSnapshot] = Self.simpleProviderProfiles
+            .map { Self.makeSimpleProviderMock(profile: $0) }
+        return rich + simple
     }
 
     /// True when mock provider injection is active. Reads env var first
@@ -141,8 +159,19 @@ enum MockProviderInjector {
     /// always pair them with `*-mock@*.test` accountEmails so the
     /// synthetic account is unambiguously distinct from any real account
     /// the user has on the same provider.
+    ///
+    /// Mac 0.23.6+ extended to all 27 real providers in
+    /// `UsageProvider.allCases` (P2: full provider coverage). Three of
+    /// these (`codex`, `claude`, `perplexity`) have rich multi-account
+    /// or credit-breakdown mocks; the other 24 have simpler
+    /// single-account mocks via `simpleProviderProfiles`.
     static let realProviderIDsBorrowedByMocks: Set<String> = [
-        "codex", "claude", "perplexity",
+        "codex", "claude", "cursor", "opencode", "opencodego",
+        "alibaba", "factory", "gemini", "antigravity", "copilot",
+        "zai", "minimax", "kimi", "kilo", "kiro",
+        "vertexai", "augment", "jetbrains", "kimik2", "amp",
+        "ollama", "synthetic", "warp", "openrouter", "perplexity",
+        "abacus", "mistral",
     ]
 
     /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
@@ -657,6 +686,352 @@ enum MockProviderInjector {
             perplexityCredits: nil,
             accountIdentities: [
                 "_mock_synthetic_unknown:email:lanes-mock%40synthetic.test",
+            ])
+    }
+
+    // MARK: - Simple single-account profiles for the remaining 24 providers
+
+    /// Compact data row defining a simple single-account mock for one
+    /// real providerID. Used by `makeSimpleProviderMock(profile:)` to
+    /// generate `ProviderUsageSnapshot` values without 50+ lines of
+    /// boilerplate per provider.
+    ///
+    /// The 3 high-traffic providers (codex, claude, perplexity) have
+    /// hand-tuned rich mocks above; this struct is for the other 24.
+    private struct SimpleProviderProfile {
+        let providerID: String
+        let providerName: String
+        /// Local part of the synthetic email — full email is built as
+        /// `{accountLocal}-mock@{providerID}.test`. Use a short label
+        /// like `"plus"`, `"team"`, `"free"` to evoke the typical plan.
+        let accountLocal: String
+        let loginMethod: String
+        /// Primary rate window usage 0-100. Set to nil to omit primary
+        /// (and skip rate-window rendering entirely — exercises the
+        /// "no metric" fallback path on iPhone).
+        let primaryUsage: Double?
+        let primaryLabel: String
+        let primaryWindowMinutes: Int
+        let primaryResetsInSeconds: TimeInterval
+        let primaryResetDescription: String
+        /// Optional secondary rate window. Most providers have only
+        /// primary; set this when the provider exposes a 2nd metric
+        /// (e.g. weekly + monthly).
+        let secondary: SecondaryWindow?
+        /// 30-day spend in USD; aggregated by iPhone Cost dashboard.
+        /// Nil = provider has no cost reporting (e.g. ollama, local).
+        let thirtyDayCostUSD: Double?
+        /// Session-level spend (today). Nil if no cost.
+        let sessionCostUSD: Double?
+
+        struct SecondaryWindow {
+            let label: String
+            let usedPercent: Double
+            let windowMinutes: Int
+            let resetsInSeconds: TimeInterval
+            let resetDescription: String
+        }
+    }
+
+    /// Profile table for the 24 simple mocks. Each profile yields one
+    /// `ProviderUsageSnapshot`. Aggregate 30-day cost intentionally
+    /// kept under ~$50 across these 24 so combined with the rich
+    /// mocks the total stays under $100 (per MR6.2 invariant).
+    private static let simpleProviderProfiles: [SimpleProviderProfile] = [
+        .init(
+            providerID: "cursor", providerName: "Cursor",
+            accountLocal: "team", loginMethod: "Business $40",
+            primaryUsage: 45, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "in 12 days",
+            secondary: nil,
+            thirtyDayCostUSD: 4.50, sessionCostUSD: 0.20),
+        .init(
+            providerID: "opencode", providerName: "OpenCode Zen",
+            accountLocal: "personal", loginMethod: "Pro",
+            primaryUsage: 30, primaryLabel: "Daily",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 3600 * 16,
+            primaryResetDescription: "in 16 hours",
+            secondary: nil,
+            thirtyDayCostUSD: 1.20, sessionCostUSD: 0.04),
+        .init(
+            providerID: "opencodego", providerName: "OpenCode Go",
+            accountLocal: "go", loginMethod: "Free",
+            primaryUsage: 25, primaryLabel: "Daily",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 3600 * 12,
+            primaryResetDescription: "in 12 hours",
+            secondary: nil,
+            thirtyDayCostUSD: 0.80, sessionCostUSD: 0.02),
+        .init(
+            providerID: "alibaba", providerName: "Qwen / Alibaba",
+            accountLocal: "qwen", loginMethod: "Plus",
+            primaryUsage: 20, primaryLabel: "Daily",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 3600 * 8,
+            primaryResetDescription: "in 8 hours",
+            secondary: nil,
+            thirtyDayCostUSD: 2.10, sessionCostUSD: 0.06),
+        .init(
+            providerID: "factory", providerName: "Factory",
+            accountLocal: "build", loginMethod: "Builder",
+            primaryUsage: 60, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 8 * 86400,
+            primaryResetDescription: "in 8 days",
+            secondary: nil,
+            thirtyDayCostUSD: 4.20, sessionCostUSD: 0.30),
+        .init(
+            providerID: "gemini", providerName: "Gemini",
+            accountLocal: "advanced", loginMethod: "Advanced",
+            primaryUsage: 15, primaryLabel: "Daily",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 3600 * 10,
+            primaryResetDescription: "in 10 hours",
+            secondary: nil,
+            thirtyDayCostUSD: 1.50, sessionCostUSD: 0.05),
+        .init(
+            providerID: "antigravity", providerName: "Antigravity",
+            accountLocal: "pre", loginMethod: "Preview",
+            primaryUsage: 5, primaryLabel: "Daily",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 3600 * 22,
+            primaryResetDescription: "in 22 hours",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "copilot", providerName: "GitHub Copilot",
+            accountLocal: "ent", loginMethod: "Enterprise",
+            primaryUsage: 70, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 6 * 86400,
+            primaryResetDescription: "in 6 days",
+            secondary: nil,
+            thirtyDayCostUSD: 5.80, sessionCostUSD: 0.40),
+        .init(
+            providerID: "zai", providerName: "z.ai",
+            accountLocal: "glm", loginMethod: "GLM Coding",
+            primaryUsage: 40, primaryLabel: "5h",
+            primaryWindowMinutes: 300,
+            primaryResetsInSeconds: 60 * 30,
+            primaryResetDescription: "in 30 min",
+            secondary: .init(
+                label: "Weekly", usedPercent: 65,
+                windowMinutes: 10080,
+                resetsInSeconds: 3 * 86400,
+                resetDescription: "in 3 days"),
+            thirtyDayCostUSD: 0.50, sessionCostUSD: 0.02),
+        .init(
+            providerID: "minimax", providerName: "MiniMax",
+            accountLocal: "agent", loginMethod: "Agent",
+            primaryUsage: 22, primaryLabel: "Daily",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 3600 * 18,
+            primaryResetDescription: "in 18 hours",
+            secondary: nil,
+            thirtyDayCostUSD: 0.30, sessionCostUSD: 0.01),
+        .init(
+            providerID: "kimi", providerName: "Kimi",
+            accountLocal: "k1", loginMethod: "K1",
+            primaryUsage: 18, primaryLabel: "Daily",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 3600 * 14,
+            primaryResetDescription: "in 14 hours",
+            secondary: nil,
+            thirtyDayCostUSD: 0.20, sessionCostUSD: 0.01),
+        .init(
+            providerID: "kilo", providerName: "Kilo Code",
+            accountLocal: "agent", loginMethod: "Agent",
+            primaryUsage: 33, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 15 * 86400,
+            primaryResetDescription: "in 15 days",
+            secondary: nil,
+            thirtyDayCostUSD: 0.45, sessionCostUSD: 0.03),
+        .init(
+            providerID: "kiro", providerName: "Kiro",
+            accountLocal: "spec", loginMethod: "Spec",
+            primaryUsage: 12, primaryLabel: "Daily",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 3600 * 6,
+            primaryResetDescription: "in 6 hours",
+            secondary: nil,
+            thirtyDayCostUSD: 0.10, sessionCostUSD: 0.005),
+        .init(
+            providerID: "vertexai", providerName: "Vertex AI",
+            accountLocal: "gcp", loginMethod: "GCP",
+            primaryUsage: 27, primaryLabel: "Daily",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 3600 * 9,
+            primaryResetDescription: "in 9 hours",
+            secondary: .init(
+                label: "Monthly", usedPercent: 50,
+                windowMinutes: 43200,
+                resetsInSeconds: 18 * 86400,
+                resetDescription: "in 18 days"),
+            thirtyDayCostUSD: 4.20, sessionCostUSD: 0.18),
+        .init(
+            providerID: "augment", providerName: "Augment",
+            accountLocal: "team", loginMethod: "Team",
+            primaryUsage: 55, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 14 * 86400,
+            primaryResetDescription: "in 14 days",
+            secondary: nil,
+            thirtyDayCostUSD: 1.80, sessionCostUSD: 0.07),
+        .init(
+            providerID: "jetbrains", providerName: "JetBrains AI",
+            accountLocal: "pro", loginMethod: "Pro",
+            primaryUsage: 40, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 17 * 86400,
+            primaryResetDescription: "in 17 days",
+            secondary: nil,
+            thirtyDayCostUSD: 2.40, sessionCostUSD: 0.10),
+        .init(
+            providerID: "kimik2", providerName: "Kimi K2",
+            accountLocal: "k2", loginMethod: "K2",
+            primaryUsage: 8, primaryLabel: "Daily",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 3600 * 4,
+            primaryResetDescription: "in 4 hours",
+            secondary: nil,
+            thirtyDayCostUSD: 0.05, sessionCostUSD: 0.002),
+        .init(
+            providerID: "amp", providerName: "Amp",
+            accountLocal: "build", loginMethod: "Builder",
+            primaryUsage: 25, primaryLabel: "Daily",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 3600 * 11,
+            primaryResetDescription: "in 11 hours",
+            secondary: nil,
+            thirtyDayCostUSD: 0.60, sessionCostUSD: 0.03),
+        .init(
+            providerID: "ollama", providerName: "Ollama",
+            accountLocal: "local", loginMethod: "Local",
+            primaryUsage: nil, primaryLabel: "",
+            primaryWindowMinutes: 0,
+            primaryResetsInSeconds: 0,
+            primaryResetDescription: "",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "synthetic", providerName: "Synthetic",
+            accountLocal: "build", loginMethod: "Builder",
+            primaryUsage: 65, primaryLabel: "5h",
+            primaryWindowMinutes: 300,
+            primaryResetsInSeconds: 60 * 50,
+            primaryResetDescription: "in 50 min",
+            secondary: nil,
+            thirtyDayCostUSD: 1.10, sessionCostUSD: 0.05),
+        .init(
+            providerID: "warp", providerName: "Warp",
+            accountLocal: "term", loginMethod: "Pro",
+            primaryUsage: 35, primaryLabel: "5h",
+            primaryWindowMinutes: 300,
+            primaryResetsInSeconds: 60 * 90,
+            primaryResetDescription: "in 1.5 hours",
+            secondary: .init(
+                label: "Weekly", usedPercent: 80,
+                windowMinutes: 10080,
+                resetsInSeconds: 5 * 86400,
+                resetDescription: "in 5 days"),
+            thirtyDayCostUSD: 3.30, sessionCostUSD: 0.13),
+        .init(
+            providerID: "openrouter", providerName: "OpenRouter",
+            accountLocal: "credits", loginMethod: "Credits",
+            primaryUsage: 80, primaryLabel: "Hourly",
+            primaryWindowMinutes: 60,
+            primaryResetsInSeconds: 60 * 20,
+            primaryResetDescription: "in 20 min",
+            secondary: nil,
+            thirtyDayCostUSD: 4.00, sessionCostUSD: 0.22),
+        .init(
+            providerID: "abacus", providerName: "Abacus AI",
+            accountLocal: "ai", loginMethod: "Pro",
+            primaryUsage: 28, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 11 * 86400,
+            primaryResetDescription: "in 11 days",
+            secondary: nil,
+            thirtyDayCostUSD: 2.80, sessionCostUSD: 0.11),
+        .init(
+            providerID: "mistral", providerName: "Mistral",
+            accountLocal: "le", loginMethod: "Le Chat",
+            primaryUsage: 18, primaryLabel: "Daily",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 3600 * 7,
+            primaryResetDescription: "in 7 hours",
+            secondary: nil,
+            thirtyDayCostUSD: 0.85, sessionCostUSD: 0.03),
+    ]
+
+    /// Builds a `ProviderUsageSnapshot` from a `SimpleProviderProfile`.
+    /// Centralizes the boilerplate so the profile table stays compact.
+    /// Email format `{accountLocal}-mock@{providerID}.test` matches the
+    /// universal mock-detection contract (`.test` TLD).
+    private static func makeSimpleProviderMock(
+        profile: SimpleProviderProfile) -> ProviderUsageSnapshot
+    {
+        let now = Self.nowReference
+        let email = "\(profile.accountLocal)-mock@\(profile.providerID).test"
+        let identityValue = email
+            .addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? email
+        let primary: SyncRateWindow?
+        var rateWindows: [SyncRateWindow] = []
+        if let usage = profile.primaryUsage {
+            let window = SyncRateWindow(
+                label: profile.primaryLabel,
+                usedPercent: usage,
+                windowMinutes: profile.primaryWindowMinutes,
+                resetsAt: now.addingTimeInterval(profile.primaryResetsInSeconds),
+                resetDescription: profile.primaryResetDescription)
+            primary = window
+            rateWindows.append(window)
+        } else {
+            primary = nil
+        }
+        var secondary: SyncRateWindow?
+        if let secondaryProfile = profile.secondary {
+            let window = SyncRateWindow(
+                label: secondaryProfile.label,
+                usedPercent: secondaryProfile.usedPercent,
+                windowMinutes: secondaryProfile.windowMinutes,
+                resetsAt: now.addingTimeInterval(secondaryProfile.resetsInSeconds),
+                resetDescription: secondaryProfile.resetDescription)
+            secondary = window
+            rateWindows.append(window)
+        }
+        var costSummary: SyncCostSummary?
+        if let thirtyDayUSD = profile.thirtyDayCostUSD,
+           let sessionUSD = profile.sessionCostUSD
+        {
+            costSummary = SyncCostSummary(
+                sessionCostUSD: sessionUSD,
+                sessionTokens: Int(sessionUSD * 50000),
+                last30DaysCostUSD: thirtyDayUSD,
+                last30DaysTokens: Int(thirtyDayUSD * 50000),
+                daily: [])
+        }
+        return ProviderUsageSnapshot(
+            providerID: profile.providerID,
+            providerName: "\(profile.providerName) (Mock)",
+            primary: primary,
+            secondary: secondary,
+            accountEmail: email,
+            loginMethod: profile.loginMethod,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: costSummary,
+            budget: nil,
+            rateWindows: rateWindows,
+            utilizationHistory: nil,
+            perplexityCredits: nil,
+            accountIdentities: [
+                "\(profile.providerID):email:\(identityValue)",
             ])
     }
 }

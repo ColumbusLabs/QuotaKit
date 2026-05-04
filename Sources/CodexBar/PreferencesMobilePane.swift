@@ -150,16 +150,17 @@ struct MobilePane: View {
 
             PreferenceToggleRow(
                 title: "Inject mock provider data",
-                subtitle: "Pushes 8 synthetic providers (3 Codex + 2 Claude + 1 Perplexity using "
-                    + "real provider IDs for first-class iOS rendering, plus 2 unknown-ID mocks for "
-                    + "fallback rendering) on every sync. All mock emails use the `.test` TLD so "
-                    + "iPhone (1.5.2+) renders them with a MOCK badge. Toggle off and CloudKit "
-                    + "automatically purges them within ~1 cycle. Default OFF.",
+                subtitle: "Pushes 32 synthetic providers across 29 IDs (6 rich mocks for codex/"
+                    + "claude/perplexity multi-account paths, 24 simple mocks covering every other "
+                    + "real provider, 2 unknown-ID mocks for fallback rendering) on every sync. "
+                    + "All mock emails use the `.test` TLD so iPhone (1.5.2+) renders them with a "
+                    + "MOCK badge. Toggle off and CloudKit automatically purges them within ~1 "
+                    + "cycle. Default OFF.",
                 binding: self.$mockProvidersEnabled)
 
             if self.mockProvidersEnabled {
                 Divider()
-                Text("Reference — what should appear on iPhone:")
+                Text("Reference — most-tested 8 mocks (24 simple mocks omitted for brevity):")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: 4) {
@@ -186,7 +187,7 @@ struct MobilePane: View {
                     Image(systemName: "info.circle")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Text("Mocks add ~$48 to your 30-day cost dashboard while active. "
+                    Text("Mocks add ~$85 to your 30-day cost dashboard while active. "
                         + "Toggle off to restore real numbers.")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
