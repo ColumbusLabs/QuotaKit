@@ -45,7 +45,7 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
 }
 
 @MainActor
-@Suite
+@Suite(.serialized)
 struct SyncCoordinatorTests {
     private func makeSettingsStore(suite: String) -> SettingsStore {
         let defaults = UserDefaults(suiteName: suite)!

@@ -64,7 +64,13 @@ struct MistralUsageParserTests {
         #expect(snapshot.startDate != nil)
         #expect(snapshot.endDate != nil)
 
-        let calendar = Calendar.current
+        // Use UTC so the test matches the JSON fixture's start_date
+        // ("2025-11-01T00:00:00Z") regardless of which timezone the test
+        // runner is in. Original test used `Calendar.current` which
+        // converts UTC midnight to local time; on Pacific it lands at
+        // 2025-10-31 17:00 PDT and the month component returns 10.
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
         if let start = snapshot.startDate {
             #expect(calendar.component(.month, from: start) == 11)
             #expect(calendar.component(.year, from: start) == 2025)
