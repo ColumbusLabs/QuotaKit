@@ -7809,6 +7809,230 @@
           }
         }
       }
+    },
+    "Showing mock data": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Showing mock data"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モックデータを表示中"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在显示模拟数据"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在顯示模擬資料"
+          }
+        }
+      }
+    },
+    "%lld synthetic providers from Mac · toggle off in Mac Settings → Mobile → Debug": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld synthetic providers from Mac · toggle off in Mac Settings → Mobile → Debug"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac から %lld 個の合成プロバイダー · Mac の設定 → Mobile → Debug でオフに切り替え"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个模拟 provider 来自 Mac · 在 Mac 设置 → Mobile → Debug 关闭"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個模擬 provider 來自 Mac · 在 Mac 設定 → Mobile → Debug 關閉"
+          }
+        }
+      }
+    },
+    "This is mock data": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This is mock data"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "これはモックデータです"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这是模拟数据"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這是模擬資料"
+          }
+        }
+      }
+    },
+    "Synthetic provider injected by Mac for testing. Real numbers are restored ~30s after Mac toggles mock off.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synthetic provider injected by Mac for testing. Real numbers are restored ~30s after Mac toggles mock off."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "テスト用に Mac から注入された合成プロバイダー。Mac でモックをオフにすると約 30 秒後に実際の数値が復元されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 出于测试目的注入的合成 provider。Mac 关闭模拟后约 30 秒，真实数据自动恢复。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 為測試注入的合成 provider。Mac 關閉模擬後約 30 秒，真實數據自動恢復。"
+          }
+        }
+      }
+    },
+    "Mock Data Active": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mock Data Active"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モックデータが有効"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模拟数据已启用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模擬資料已啟用"
+          }
+        }
+      }
+    },
+    "%lld synthetic providers from Mac. Toggle off in Mac CodexBar → Settings → Mobile → Debug · Mock Provider Data; iPhone updates within ~30s.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld synthetic providers from Mac. Toggle off in Mac CodexBar → Settings → Mobile → Debug · Mock Provider Data; iPhone updates within ~30s."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac から %lld 個の合成プロバイダー。Mac CodexBar → 設定 → Mobile → Debug · Mock Provider Data でオフに切り替えると、iPhone は約 30 秒以内に更新されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个模拟 provider 来自 Mac。在 Mac CodexBar → 设置 → Mobile → Debug · Mock Provider Data 关闭后，iPhone 会在约 30 秒内更新。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個模擬 provider 來自 Mac。在 Mac CodexBar → 設定 → Mobile → Debug · Mock Provider Data 關閉後，iPhone 會在約 30 秒內更新。"
+          }
+        }
+      }
+    },
+    "Mock data badge": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mock data badge"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モックデータバッジ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模拟数据标识"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模擬資料標識"
+          }
+        }
+      }
+    },
+    "Diagnostics": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diagnostics"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "診断"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "诊断"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "診斷"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

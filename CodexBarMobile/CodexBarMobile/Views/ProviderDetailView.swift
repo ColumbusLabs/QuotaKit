@@ -12,9 +12,19 @@ struct ProviderDetailView: View {
         CostChartStyle(rawValue: self.chartStyleRawValue) ?? .bars
     }
 
+    /// True when the displayed provider holds synthetic mock data.
+    /// Drives the MOCK badge in the nav header.
+    private var isMockProvider: Bool {
+        MockProviderDetector.isMock(self.provider)
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
+                if self.isMockProvider {
+                    self.mockBanner
+                }
+
                 // Rate limit cards (or Perplexity credit breakdown when available)
                 self.primaryUsageSection
 
@@ -46,6 +56,46 @@ struct ProviderDetailView: View {
         }
         .navigationTitle(self.provider.providerName)
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            if self.isMockProvider {
+                ToolbarItem(placement: .topBarTrailing) {
+                    MockBadgeView()
+                }
+            }
+        }
+    }
+
+    // MARK: - Mock Detail Banner
+
+    /// Inline banner at the top of the detail page reminding the user
+    /// this provider's data is synthetic. Mirrors the global
+    /// `MockProviderBanner` in spirit (so users hitting the detail page
+    /// directly without seeing the global banner still understand) but
+    /// scoped to this single provider.
+    @ViewBuilder
+    private var mockBanner: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "testtube.2")
+                .font(.subheadline.bold())
+                .foregroundStyle(.purple)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("This is mock data")
+                    .font(.caption.bold())
+                Text("Synthetic provider injected by Mac for testing. Real numbers are restored ~30s after Mac toggles mock off.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.purple.opacity(0.10)))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.purple.opacity(0.30), lineWidth: 1))
     }
 
     // MARK: - Primary usage section

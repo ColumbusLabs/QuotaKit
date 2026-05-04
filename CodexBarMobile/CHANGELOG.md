@@ -2,6 +2,52 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.2 (103)] — 2026-05-03 — Mock provider visual treatment
+
+Pairs with **Mac 0.23.5** which introduced the synthetic mock-provider
+injection layer. iOS 1.5.2 adds the visual treatment that makes mock
+data unmistakable so QA / Beta testers can't mistake it for real
+spend.
+
+### Added
+
+- `MockProviderDetector` (`Models/MockProviderDetector.swift`) — single
+  source of truth for "is this snapshot a mock?". Inspects the universal
+  `*-mock@*.test` email TLD AND the synthetic `_mock_*` providerID
+  prefix; either signal is sufficient. Real users without mock
+  activation never hit either signal.
+- `MockBadgeView` (`Views/MockBadgeView.swift`) — purple "MOCK" pill
+  shown next to provider name in card header + detail-page toolbar.
+  9pt monospaced bold, never localized (industry-standard tag).
+- `MockProviderBanner` (`Views/MockProviderBanner.swift`) — top-of-tab
+  banner shown above Usage tab and Cost tab whenever the snapshot
+  contains synthetic providers. Shows count + instructions for
+  toggling off on Mac.
+- `ProviderUsageView` purple accent border when card holds mock data.
+- `ProviderDetailView` inline mock banner + toolbar MOCK badge.
+- Settings → Diagnostics section, visible only when mock data is
+  active. Shows live count + instructions.
+- 4-language localization for 8 new mock-related user-facing strings
+  (en + ja + zh-Hans + zh-Hant).
+- `MockProviderDetectorTests.swift` — 17 unit tests pinning detection
+  contract: real-borrowed-id+mock-tld is mock, synthetic-prefix is
+  mock, real-id+real-email is NOT mock, .test in middle of email is
+  NOT mock, snapshot-level helpers correct.
+
+### Changed
+
+- `project.yml` — `MARKETING_VERSION` 1.5.1 → 1.5.2,
+  `CURRENT_PROJECT_VERSION` 102 → 103.
+- In-app release notes — 1.5.2 entry added to `MobileReleaseNotesCatalog`.
+
+### Unchanged
+
+- Wire format. Mac 0.23.5's mock injection passes through the
+  existing CKRecord schema. iOS 1.5.1 users still see mock data as
+  ordinary cards (no badge, no banner) — the visual treatment is
+  purely additive on iOS 1.5.2.
+- Sync layer, push subscriptions, all existing 27 provider rendering.
+
 ## [1.5.1 (102)] — 2026-04-29 — GitHub repo renamed to CodexBar-Mobile
 
 Maintenance release on top of 1.5.0 (101). The fork's GitHub repository

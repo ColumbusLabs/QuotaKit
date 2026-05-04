@@ -9,6 +9,13 @@ struct ProviderUsageView: View {
     var duplicateOrdinal: Int?
     @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidePersonalInfo = false
 
+    /// True when this is a synthetic mock provider injected by Mac's
+    /// `MockProviderInjector` (per `MockProviderDetector`). Drives the
+    /// purple accent ring + MOCK badge in the header.
+    private var isMockProvider: Bool {
+        MockProviderDetector.isMock(self.provider)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Provider header
@@ -59,7 +66,7 @@ struct ProviderUsageView: View {
 
             Spacer().frame(height: 20)
         }
-        .modifier(ProviderCardBackgroundModifier())
+        .modifier(ProviderCardBackgroundModifier(isMock: self.isMockProvider))
     }
 
     // MARK: - Provider Header
@@ -71,6 +78,10 @@ struct ProviderUsageView: View {
                 Text(self.provider.providerName)
                     .font(.title3)
                     .fontWeight(.bold)
+
+                if self.isMockProvider {
+                    MockBadgeView()
+                }
 
                 Spacer()
 
@@ -210,9 +221,22 @@ private enum MobilePersonalInfoRedactor {
 /// `ContentView.swift:563,641`, `BudgetProgressView.swift:57`) cuts the
 /// Usage-tab first-render cost users perceived as ~1s blank after cold start.
 private struct ProviderCardBackgroundModifier: ViewModifier {
+    /// True when the card holds synthetic mock data — overlays a purple
+    /// accent border so the user sees the mock signal even without
+    /// reading the MOCK badge or the email subtitle.
+    let isMock: Bool
+
     func body(content: Content) -> some View {
-        content
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        if self.isMock {
+            content
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .strokeBorder(Color.purple.opacity(0.40), lineWidth: 1.5))
+        } else {
+            content
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
     }
 }
 

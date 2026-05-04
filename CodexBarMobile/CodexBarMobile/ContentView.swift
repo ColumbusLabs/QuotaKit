@@ -171,6 +171,7 @@ private struct ProviderListView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
+                MockProviderBanner(snapshot: self.snapshot)
                 // Pre-compute the per-providerID siblings-count lookup once.
                 // `mergeSnapshots` on iCloud side already splits multi-account
                 // Codex (or anything else with distinct accountEmails) into
@@ -347,6 +348,7 @@ private struct CostDashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                MockProviderBanner(snapshot: self.usageData.snapshot)
                 self.summarySection
 
                 if !self.insights.providerRows.isEmpty {
@@ -1092,6 +1094,26 @@ private struct SettingsTab: View {
                     }
                 }
 
+                if MockProviderDetector.hasAnyMock(in: self.usageData.snapshot) {
+                    Section("Diagnostics") {
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: "testtube.2")
+                                .foregroundStyle(.purple)
+                                .frame(width: 24)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Mock Data Active")
+                                    .fontWeight(.medium)
+                                Text(
+                                    "\(MockProviderDetector.mockCount(in: self.usageData.snapshot)) synthetic providers from Mac. Toggle off in Mac CodexBar → Settings → Mobile → Debug · Mock Provider Data; iPhone updates within ~30s.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+
                 Section("Open Source") {
                     Link(destination: URL(string: "https://github.com/o1xhack/CodexBar-Mobile")!) {
                         Label {
@@ -1767,8 +1789,28 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.5.1",
+            version: "1.5.2",
             status: String(localized: "Latest"),
+            summary: String(localized: "Mock provider visual treatment — synthetic data injected by Mac (for QA and Beta testing) now renders with a MOCK badge + purple accent so it's distinguishable from real numbers. Requires Mac 0.23.5+."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(localized: "MOCK badge — when Mac injects synthetic providers (via Settings → Mobile → Debug · Mock Provider Data on Mac 0.23.5+), each card shows a small purple MOCK pill next to the provider name. The card itself gets a thin purple accent border so the signal is unmissable even at a glance."),
+                        String(localized: "Top banner reminding you mock data is showing — visible above the Usage tab and Cost tab whenever the snapshot contains synthetic providers, so the Daily Spend / 30-day numbers can never be silently confused with real spend."),
+                        String(localized: "Settings → Diagnostics row — when mock data is active, Settings shows a Diagnostics section with the live count of synthetic providers and instructions for how to toggle it off on Mac."),
+                        String(localized: "Detail-page banner — the per-provider detail page also calls out mock data with an inline banner and toolbar badge, so users navigating directly into a card still get the signal."),
+                    ]),
+                .init(
+                    title: String(localized: "Under the hood"),
+                    items: [
+                        String(localized: "Mock detection uses two signals — RFC 6761 reserved `.test` email TLD plus the `_mock_*` providerID prefix. Either is sufficient. Real users without mock activation never hit either signal in their data, so existing cards stay visually unchanged."),
+                        String(localized: "Wire-format unchanged — Mac 0.23.5 injection passes through the existing CKRecord schema. iOS 1.5.1 users see mock data as ordinary cards; iOS 1.5.2 adds the visual treatment without requiring any sync-layer changes."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.5.1",
+            status: "",
             summary: String(localized: "Upstream v0.21–0.23 provider alignment — Abacus AI + Mistral as new providers, Claude Designs / Daily Routines / Web Sonnet bars, Cursor Extra usage, Synthetic 5h-weekly-search lanes. Requires updated Mac app."),
             sections: [
                 .init(
