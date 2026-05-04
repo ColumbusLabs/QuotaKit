@@ -128,7 +128,7 @@ private struct UsageTab: View {
         NavigationStack {
             Group {
                 if let snapshot = self.displaySnapshot {
-                    if snapshot.providers.isEmpty {
+                    if MockProviderDetector.filteredProviders(from: snapshot).isEmpty {
                         EmptyStateView(
                             title: "No Providers Enabled",
                             message: "Enable providers in CodexBar on your Mac to see usage data here.",
@@ -169,7 +169,11 @@ private struct ProviderListView: View {
     let isDemoMode: Bool
 
     var body: some View {
-        ScrollView {
+        // Drop extinct mock zombies before any rendering so duplicate
+        // cards (OLD vs NEW mock-injector designs) don't appear on the
+        // Usage list. iOS 1.5.2+: see `MockProviderDetector.extinctMockProviderIDs`.
+        let liveProviders = MockProviderDetector.filteredProviders(from: self.snapshot)
+        return ScrollView {
             LazyVStack(spacing: 16) {
                 MockProviderBanner(snapshot: self.snapshot)
                 // Pre-compute the per-providerID siblings-count lookup once.
@@ -180,12 +184,12 @@ private struct ProviderListView: View {
                 // collapsed duplicates back into one view instance. Switch
                 // to the composite key that matches `mergeSnapshots`'s bucket.
                 let countsByProviderID = Dictionary(
-                    grouping: self.snapshot.providers, by: \.providerID
+                    grouping: liveProviders, by: \.providerID
                 ).mapValues(\.count)
-                ForEach(self.snapshot.providers, id: \.cardIdentityKey) { provider in
+                ForEach(liveProviders, id: \.cardIdentityKey) { provider in
                     let siblingCount = countsByProviderID[provider.providerID] ?? 1
                     let ordinal: Int? = siblingCount > 1
-                        ? self.snapshot.providers
+                        ? liveProviders
                             .filter { $0.providerID == provider.providerID }
                             .firstIndex(where: { $0.cardIdentityKey == provider.cardIdentityKey })
                             .map { $0 + 1 }
@@ -371,7 +375,8 @@ private struct CostDashboardView: View {
 
                 // Subscription Utilization — independent section
                 if let snapshot = self.usageData.snapshot {
-                    UtilizationAggregateView(providers: snapshot.providers)
+                    UtilizationAggregateView(
+                        providers: MockProviderDetector.filteredProviders(from: snapshot))
                         .padding(.top, 4)
                 }
 
@@ -837,7 +842,11 @@ struct CostDashboardInsights {
         var serviceTotals: [String: Double] = [:]
         var budgetRows: [CostBudgetRow] = []
 
-        for provider in snapshot.providers {
+        // Drop extinct mock zombies before aggregation so the Cost
+        // dashboard's totals don't include them. iOS 1.5.2+: see
+        // `MockProviderDetector.extinctMockProviderIDs`.
+        let liveProviders = MockProviderDetector.filteredProviders(from: snapshot)
+        for provider in liveProviders {
             if let budget = provider.budget {
                 budgetRows.append(CostBudgetRow(provider: provider, budget: budget))
             }

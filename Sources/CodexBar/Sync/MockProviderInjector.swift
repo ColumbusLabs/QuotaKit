@@ -575,7 +575,7 @@ enum MockProviderInjector {
     private static func mockCursorErrorFallback() -> ProviderUsageSnapshot {
         ProviderUsageSnapshot(
             providerID: "_mock_cursor_unknown",
-            providerName: "Mock Cursor (Cookie expired)",
+            providerName: "Cursor (Cookie expired · Mock)",
             primary: nil,
             secondary: nil,
             accountEmail: "expired-mock@cursor.test",
@@ -630,7 +630,7 @@ enum MockProviderInjector {
 
         return ProviderUsageSnapshot(
             providerID: "_mock_synthetic_unknown",
-            providerName: "Mock Synthetic (3-lane fallback)",
+            providerName: "Synthetic (3-lane fallback · Mock)",
             primary: SyncRateWindow(
                 label: "5h",
                 usedPercent: 45,
@@ -1024,7 +1024,7 @@ enum MockProviderInjector {
         }
         return ProviderUsageSnapshot(
             providerID: profile.providerID,
-            providerName: "\(profile.providerName) (Mock)",
+            providerName: "\(profile.providerName) (\(profile.accountLocal) · Mock)",
             primary: primary,
             secondary: secondary,
             accountEmail: email,

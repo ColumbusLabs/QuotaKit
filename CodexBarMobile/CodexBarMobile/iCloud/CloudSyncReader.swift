@@ -153,9 +153,13 @@ final class CloudSyncReader: @unchecked Sendable {
         guard !snapshots.isEmpty else { return nil }
 
         // 1. Flatten to (entry index → ProviderUsageSnapshot)
+        // Drop extinct mock zombies (CKRecords from earlier mock-injector
+        // designs that are no longer emitted by current Mac code but
+        // linger in CloudKit). They'd otherwise show as duplicate cards
+        // alongside the current mock design's records.
         var allProviders: [ProviderUsageSnapshot] = []
         for snapshot in snapshots {
-            allProviders.append(contentsOf: snapshot.providers)
+            allProviders.append(contentsOf: MockProviderDetector.filteredProviders(from: snapshot))
         }
 
         // 2. Compute effective identifiers per provider snapshot

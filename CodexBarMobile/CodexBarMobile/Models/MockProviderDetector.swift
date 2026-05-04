@@ -65,4 +65,44 @@ enum MockProviderDetector {
     static func mockCount(in snapshot: SyncedUsageSnapshot?) -> Int {
         Self.mockSnapshots(in: snapshot).count
     }
+
+    /// Extinct mock providerIDs from earlier mock-injector designs that
+    /// are no longer emitted by current Mac code but may linger in
+    /// CloudKit as zombie CKRecords (the L1 ghost-records cleanup
+    /// doesn't catch them across Mac process restarts because
+    /// `lastPushedRecordNames` resets to empty on launch).
+    ///
+    /// These IDs MUST be filtered out by iOS to prevent duplicate cards
+    /// on Cost / Usage pages while the Mac-side cleanup catches up
+    /// (which may take longer if the user toggles mock off but the
+    /// extinct IDs were never in the current cycle's lastPushedRecordNames
+    /// to begin with).
+    ///
+    /// Maintained as code, NOT data — adding/removing extinct IDs
+    /// requires an iOS release. List grows over time as mock-injector
+    /// design evolves; entries can be removed once Mac-side cleanup
+    /// confirms zero records remain in CloudKit for a given ID.
+    static let extinctMockProviderIDs: Set<String> = [
+        // Mac 0.23.5 P0 (initial mock-injector) — replaced by mix-mode
+        // design in P2. These IDs no longer emitted; CloudKit zombies
+        // still surface here without this filter.
+        "_mock_codex_multi",
+        "_mock_claude_multi",
+        "_mock_perplexity_credit",
+        "_mock_cursor_error",
+        "_mock_synthetic_3lane",
+    ]
+
+    /// Returns the providers list with extinct-mock zombies filtered
+    /// out. Use at every iOS reader site that pulls a `SyncedUsageSnapshot`
+    /// before display (Usage list, Cost dashboard aggregator, Provider
+    /// Share, Daily Spend). Real (non-mock) provider entries pass
+    /// through unmodified.
+    static func filteredProviders(
+        from snapshot: SyncedUsageSnapshot) -> [ProviderUsageSnapshot]
+    {
+        snapshot.providers.filter { provider in
+            !Self.extinctMockProviderIDs.contains(provider.providerID)
+        }
+    }
 }

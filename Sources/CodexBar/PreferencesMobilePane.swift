@@ -126,12 +126,12 @@ struct MobilePane: View {
             badge: "first-class"),
         MockReferenceCard(
             id: "_mock_cursor_unknown",
-            displayName: "Mock Cursor (Cookie expired)",
+            displayName: "Cursor (Cookie expired · Mock)",
             subtitle: "expired-mock@cursor.test · isError=true",
             badge: "fallback"),
         MockReferenceCard(
             id: "_mock_synthetic_unknown",
-            displayName: "Mock Synthetic (3-lane fallback)",
+            displayName: "Synthetic (3-lane fallback · Mock)",
             subtitle: "lanes-mock@synthetic.test · 30-day history",
             badge: "fallback"),
     ]
