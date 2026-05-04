@@ -1,15 +1,11 @@
 # Changelog
 
-## 0.23.5 (Build 58.6) — 2026-05-03
+## 0.23.5 — 2026-05-03
 
 Mock-First quality infrastructure groundwork. This release establishes
 the synthetic-mock injection layer that subsequent iOS releases (1.5.2+)
 build on for first-class multi-account testing without requiring real
 provider subscriptions.
-
-Build 58.6 reinstall: bundles all of P0–P4 + R2 (mix-mode mocks, 27
-provider expansion, advanced scenarios, PR template, Codex MCP review
-fixes). Per `Bump build + CHANGELOG on every install` rule.
 
 ### Highlights — internal-only (no Sparkle release)
 
