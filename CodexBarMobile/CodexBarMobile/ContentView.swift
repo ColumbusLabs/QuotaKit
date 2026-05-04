@@ -784,8 +784,11 @@ struct CostDashboardInsights {
         let todayCost: Double
         let thirtyDayTokens: Int
 
+        /// Composite key (providerID|accountEmail) so multi-account rows
+        /// with the same providerID don't collapse in SwiftUI ForEach.
+        /// Hit on user QA 2026-05-04 — see RawSyncDataView fix in same commit.
         var id: String {
-            self.provider.providerID
+            self.provider.cardIdentityKey
         }
     }
 
