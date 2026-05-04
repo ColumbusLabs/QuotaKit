@@ -23,3 +23,4 @@ This directory contains research documents for features being considered for Cod
 | 009 | iOS 1.3.0 Implementation Plan (SwiftData + per-provider CloudKit + change tokens) | `ready` | — | [009-1.3.0-implementation-plan.md](009-1.3.0-implementation-plan.md) | 2026-04-18 |
 | 018 | Generic Model Fallback Pricing (Tier-A resolver design + 27-provider survey) | `ready` | — | [018-model-fallback-pricing.md](018-model-fallback-pricing.md) | 2026-04-27 |
 | 019 | Account Identity Multi-Version Merge (set-based identity + iOS union-find + L3 user-confirmed linkage + 23-case edge audit) | `ready` | — | [019-account-identity-multi-version-merge.md](019-account-identity-multi-version-merge.md) | 2026-04-27 |
+| 021 | Mock-First Quality Infrastructure (32-mock injection + iOS visual + CI gating + PR template) | `done` | — | [021-mock-first-infrastructure.md](021-mock-first-infrastructure.md) | 2026-05-03 |
