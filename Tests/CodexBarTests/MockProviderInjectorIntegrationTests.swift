@@ -198,12 +198,13 @@ struct MockProviderInjectorIntegrationTests {
 
         let mockEnvelopes = mock.lastPerProviderEnvelopes
             .filter { self.isMockSnapshot($0.provider) }
-        // Per-provider write path filters "ghost" snapshots (no
-        // primary/secondary/cost/utilization). Ollama mock is intentionally
-        // ghost (local-inference, no metrics) so iOS shows it via the
-        // catch-all DeviceProviders snapshot but not a per-provider record.
-        // 32 mocks emitted at the snapshot level → 31 in per-provider zone.
-        #expect(mockEnvelopes.count == 31)
+        // All 32 mocks must reach the per-provider write path. Ollama
+        // gets a synthetic 0% "Local inference" rate window (despite
+        // having no real quota in production) specifically to avoid
+        // ghost-filter drop. Per Codex MCP review feedback (R2 audit):
+        // advertising full-provider coverage requires that every mock
+        // actually reaches iOS through both write paths.
+        #expect(mockEnvelopes.count == 32)
     }
 
     /// Reference wrapper so tests can flip the mock activation state

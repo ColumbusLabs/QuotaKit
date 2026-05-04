@@ -908,13 +908,20 @@ enum MockProviderInjector {
             primaryResetDescription: "in 11 hours",
             secondary: nil,
             thirtyDayCostUSD: 0.60, sessionCostUSD: 0.03),
+        // Ollama is local inference (no quota, no spend in real life).
+        // We give the mock a synthetic 0%-usage "Local" rate window
+        // anyway so the per-provider write path doesn't ghost-filter
+        // it (which would silently drop Ollama from iOS even though
+        // the snapshot-level emission still includes it). The 0%
+        // window also exercises iOS's "fresh / nothing used yet"
+        // rendering path on the Ollama card.
         .init(
             providerID: "ollama", providerName: "Ollama",
             accountLocal: "local", loginMethod: "Local",
-            primaryUsage: nil, primaryLabel: "",
-            primaryWindowMinutes: 0,
-            primaryResetsInSeconds: 0,
-            primaryResetDescription: "",
+            primaryUsage: 0, primaryLabel: "Local inference",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 86400,
+            primaryResetDescription: "in 24 hours",
             secondary: nil,
             thirtyDayCostUSD: nil, sessionCostUSD: nil),
         .init(
