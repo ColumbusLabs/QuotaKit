@@ -2,6 +2,19 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.2 (109)] — 2026-05-05 — Localize Raw Sync Data row strings (R3 review)
+
+Codex MCP review of f6958cb8..889555ee flagged 3 hardcoded English
+strings I introduced in `RawProviderRow` while wiring up the diagnostic
+upgrade in 107: `(no email)`, `$%.2f / 30d`, `$%.2f / today`. These
+violated the project's 4-language localization contract — Chinese /
+Japanese users would see English fragments inside the otherwise
+localized Raw Sync Data view.
+
+Wrapped all 3 in `String(localized:)` with `comment:` for translator
+context, and added zh-Hans / zh-Hant / ja translations in xcstrings.
+No other code change.
+
 ## [1.5.2 (108)] — 2026-05-05 — Release notes refresh
 
 In-app release notes catalog updated for the 1.5.2 (107) hotfix per

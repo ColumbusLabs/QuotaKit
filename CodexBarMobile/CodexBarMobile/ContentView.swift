@@ -1514,7 +1514,7 @@ private struct RawProviderRow: View {
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     } else {
-                        Text("(no email)")
+                        Text("(no email)", comment: "Raw Sync Data row subtitle when provider has no account email (e.g. Claude / Ollama / Copilot)")
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
@@ -1526,10 +1526,14 @@ private struct RawProviderRow: View {
                         // aggregates — show it inline so multi-device sync
                         // bugs are visible at a glance instead of needing
                         // a tap into detail.
-                        Text(String(format: "$%.2f / 30d", cost.last30DaysCostUSD ?? 0))
+                        Text(String(
+                            format: String(localized: "$%.2f / 30d", comment: "Raw Sync Data row trailing label — 30-day cost"),
+                            cost.last30DaysCostUSD ?? 0))
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text(String(format: "$%.2f / today", cost.sessionCostUSD ?? 0))
+                        Text(String(
+                            format: String(localized: "$%.2f / today", comment: "Raw Sync Data row trailing label — today's cost"),
+                            cost.sessionCostUSD ?? 0))
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
