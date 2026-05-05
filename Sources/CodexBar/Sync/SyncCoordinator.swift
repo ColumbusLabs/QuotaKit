@@ -128,7 +128,43 @@ final class SyncCoordinator {
     func startObserving() {
         guard !self.isObserving else { return }
         self.isObserving = true
+        // Reconcile lastPushedRecordNames with CloudKit's actual state for
+        // this device, so L1 cleanup can detect records pushed by previous
+        // Mac process incarnations (mock toggle off → restart Mac scenario).
+        // Fire-and-forget — observeLoop runs immediately after; if the
+        // reconcile finishes mid-loop, the very next push cycle picks up
+        // the seeded set and emits deletes for stranded records.
+        Task { @MainActor [weak self] in
+            await self?.reconcileLastPushedRecordNamesWithCloudKit()
+        }
         self.observeLoop()
+    }
+
+    /// One-shot startup reconcile. Replaces the in-memory empty
+    /// `lastPushedRecordNames` with whatever CloudKit reports for this
+    /// device, then flips `pushHistorySeeded = true` so the next push
+    /// cycle's diff is meaningful.
+    ///
+    /// Why this matters: pre-fix, `lastPushedRecordNames` was in-memory
+    /// only, which meant L1 ghost-records cleanup couldn't see records
+    /// pushed by previous Mac process incarnations. The classic failure
+    /// mode is: user toggles mocks off on Mac, restarts Mac (or Mac was
+    /// already restarted between mocks-on and mocks-off), the new Mac
+    /// process never knew about the stranded mock records, and they
+    /// surfaced on iOS forever. Discovered 2026-05-05 user QA.
+    private func reconcileLastPushedRecordNamesWithCloudKit() async {
+        guard self.settings.iCloudSyncEnabled else { return }
+        let recordNames = await self.syncManager
+            .fetchPerProviderRecordNames(forDeviceID: self.deviceID)
+        // If the in-memory set has already been seeded by a push that
+        // ran before the reconcile completed, merge rather than replace —
+        // CloudKit's view of the world plus anything we've already pushed
+        // this session covers all candidates the next L1 diff should see.
+        self.lastPushedRecordNames = self.lastPushedRecordNames.union(recordNames)
+        self.pushHistorySeeded = true
+        print(
+            "[CodexBar Sync] L1 reconcile: seeded lastPushedRecordNames " +
+                "with \(recordNames.count) record(s) from CloudKit")
     }
 
     private func observeLoop() {

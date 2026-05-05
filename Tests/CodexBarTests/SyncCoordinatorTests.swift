@@ -20,6 +20,11 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
     var deletedRecordNamesAcrossCalls: [[String]] = []
     var nextDeleteResult: SyncPushResult = .success
 
+    // L1 reconcile — startup CKQuery for stranded records
+    var fetchRecordNamesCallCount = 0
+    var fetchRecordNamesLastDeviceID: String?
+    var nextFetchRecordNamesResult: [String] = []
+
     @discardableResult
     func pushSnapshot(_ snapshot: SyncedUsageSnapshot) async -> SyncPushResult {
         self.pushCount += 1
@@ -41,6 +46,12 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
         self.deleteCallCount += 1
         self.deletedRecordNamesAcrossCalls.append(recordNames)
         return self.nextDeleteResult
+    }
+
+    func fetchPerProviderRecordNames(forDeviceID deviceID: String) async -> [String] {
+        self.fetchRecordNamesCallCount += 1
+        self.fetchRecordNamesLastDeviceID = deviceID
+        return self.nextFetchRecordNamesResult
     }
 }
 
@@ -693,6 +704,119 @@ struct SyncCoordinatorTests {
         // Same composite re-deleted (because failure didn't advance state).
         #expect(mock.deletedRecordNamesAcrossCalls[0] ==
             mock.deletedRecordNamesAcrossCalls[1])
+    }
+
+    // MARK: - L1 reconcile (startup CKQuery for stranded records)
+
+    @Test("L1 reconcile: startup fetch seeds lastPushedRecordNames so stranded mocks get cleaned next cycle")
+    func l1ReconcileSeedsFromCloudKitOnStartup() async throws {
+        // Reproduces user-reported 2026-05-05 bug: stranded mock CKRecords
+        // from a previous Mac process incarnation persisted on iOS forever.
+        // Cause: lastPushedRecordNames was in-memory only; restart wiped
+        // the history, the first-cycle guard skipped delete, subsequent
+        // cycles diff'd against (current vs current) so no diff fired.
+        // Fix: at startup, fetch CloudKit's current state for this device
+        // and seed the in-memory set, so the next push-cycle diff sees
+        // pre-existing records.
+        let settings = self.makeSettingsStore(suite: "SyncCoord-l1-reconcile")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        let pinned = Date(timeIntervalSince1970: 1_700_000_000)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 100, sessionCostUSD: 0.1,
+                last30DaysTokens: 1000, last30DaysCostUSD: 1.0,
+                daily: [], updatedAt: pinned),
+            provider: .codex)
+        store._setSnapshotForTesting(
+            UsageSnapshot(primary: nil, secondary: nil, updatedAt: pinned),
+            provider: .codex)
+
+        // Pre-existing CloudKit state: this device pushed 2 mock records
+        // in a previous process incarnation (mock toggle was on). After
+        // restart, those records still exist but lastPushedRecordNames
+        // is empty in memory.
+        let mock = MockSyncPusher()
+        let strandedMockA =
+            "test-device-id|claude|personal-mock@claude.test"
+        let strandedMockB =
+            "test-device-id|cursor|expired-mock@cursor.test"
+        mock.nextFetchRecordNamesResult = [strandedMockA, strandedMockB]
+
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        // Reconcile happens fire-and-forget when startObserving is called.
+        // Test environment: trigger reconcile + first push manually so we
+        // can assert behavior without coupling to observer lifecycle.
+        // Instead, simulate the reconcile-then-push flow by triggering
+        // observation, then waiting for both ops to settle.
+        coordinator.startObserving()
+        // Yield so the reconcile Task can run before the push cycle.
+        // Multiple yields because the reconcile Task and the
+        // observeLoop's Task are scheduled separately.
+        for _ in 0..<5 { await Task.yield() }
+
+        // Reconcile fired exactly once at startup.
+        #expect(mock.fetchRecordNamesCallCount == 1)
+        // Push cycle ran (no current snapshot yet because store is empty,
+        // but we explicitly seeded one above so push should fire).
+        await coordinator.pushCurrentSnapshot()
+
+        // The 2 stranded mocks are NOT in current cycle's emit set
+        // (only real codex). Whole-provider gone (claude / cursor not
+        // in any current record) → 1-cycle delete.
+        #expect(mock.deleteCallCount == 1)
+        let deletedNames = Set(mock.deletedRecordNamesAcrossCalls.flatMap(\.self))
+        #expect(deletedNames.contains(strandedMockA))
+        #expect(deletedNames.contains(strandedMockB))
+    }
+
+    @Test("L1 reconcile: empty CloudKit result preserves first-push guard semantics")
+    func l1ReconcileEmptyDoesNotChangeBehavior() async throws {
+        // Fresh device, never pushed before — CloudKit returns empty.
+        // Reconcile should be a no-op; first push behavior unchanged
+        // (no spurious deletes, lastPushedRecordNames seeds normally).
+        let settings = self.makeSettingsStore(suite: "SyncCoord-l1-reconcile-empty")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 100, sessionCostUSD: 0.1,
+                last30DaysTokens: 1000, last30DaysCostUSD: 1.0,
+                daily: [], updatedAt: Date()),
+            provider: .codex)
+
+        let mock = MockSyncPusher()
+        mock.nextFetchRecordNamesResult = []
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        coordinator.startObserving()
+        for _ in 0..<5 { await Task.yield() }
+        await coordinator.pushCurrentSnapshot()
+
+        #expect(mock.fetchRecordNamesCallCount == 1)
+        #expect(mock.deleteCallCount == 0)  // no stranded records to clean
+    }
+
+    @Test("L1 reconcile: skipped when iCloud sync disabled")
+    func l1ReconcileSkippedWhenSyncDisabled() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-l1-reconcile-disabled")
+        settings.iCloudSyncEnabled = false
+        let store = self.makeUsageStore(settings: settings)
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        coordinator.startObserving()
+        for _ in 0..<5 { await Task.yield() }
+        // No CKQuery should fire — pushing is a no-op anyway, no point
+        // querying CloudKit.
+        #expect(mock.fetchRecordNamesCallCount == 0)
     }
 
     // MARK: - extraRateWindows passthrough (Claude Designs/Routines, Cursor Extra)

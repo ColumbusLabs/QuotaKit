@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.23.5 — 2026-05-05 — L1 ghost cleanup survives Mac restart
+
+User QA 2026-05-05: stranded mock CKRecords from a previous Mac process
+incarnation persisted on iOS forever after the user toggled mock injection
+off. Build 95's Research/017 already noted "the codebase has zero explicit
+record or zone deletion semantics" for cross-process scenarios; this hits
+that gap directly — the in-memory `lastPushedRecordNames` was wiped on
+every Mac process restart, so the L1 cleanup never knew about records
+pushed by a previous process.
+
+### Fixed
+
+- `SyncCoordinator.startObserving` now triggers a one-shot
+  `fetchPerProviderRecordNames(forDeviceID:)` against `DeviceProvidersZone`
+  and seeds `lastPushedRecordNames` with the result. The next push cycle's
+  diff sees pre-existing records that this Mac process never knew about,
+  so L1 cleanup deletes them via the existing `deletePerProviderRecords`
+  path. Closes the failure mode where:
+  1. Mac pushes mocks (toggle on) → records land in CloudKit
+  2. Mac process restarts (binary upgrade, normal quit, etc.)
+  3. User toggles mocks off
+  4. New Mac process starts with empty in-memory `lastPushedRecordNames`
+  5. First-cycle guard skips delete → mocks stranded forever
+- Generalises beyond mocks: ANY orphan record from a previous process
+  (e.g. user disabled Codex on Mac before restart) now gets cleaned up
+  on next restart's first push cycle.
+
+### Added
+
+- `SyncPushing.fetchPerProviderRecordNames(forDeviceID:)` protocol
+  method with no-op default. CloudSyncManager implements via
+  `desiredKeys: []` CKQuery (metadata only — no payload download)
+  filtered by `NSPredicate(format: "deviceID == %@", deviceID)`.
+- 3 new SyncCoordinator tests (`l1Reconcile*`): stranded-record
+  cleanup confirmed, empty-CloudKit no-op, sync-disabled skip.
+
 ## 0.23.5 — 2026-05-03
 
 Mock-First quality infrastructure groundwork. This release establishes

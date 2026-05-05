@@ -34,6 +34,21 @@ public protocol SyncPushing: Sendable {
     func deletePerProviderRecords(
         recordNames: [String]
     ) async -> SyncPushResult
+
+    /// Fetches the recordNames of every per-provider record currently in
+    /// `DeviceProvidersZone` whose `deviceID` field matches the caller's
+    /// device. Used by `SyncCoordinator` at startup to seed
+    /// `lastPushedRecordNames` from the actual CloudKit state, so L1
+    /// cleanup can detect and delete records pushed by previous Mac
+    /// process incarnations (e.g. mock entries left stranded after the
+    /// user toggled mock injection off and restarted Mac before any
+    /// cleanup cycle ran). Without this seed, the in-memory
+    /// `lastPushedRecordNames` starts empty on every Mac launch, and
+    /// `pushHistorySeeded`'s first-cycle guard hides any pre-existing
+    /// stranded record from the diff forever.
+    func fetchPerProviderRecordNames(
+        forDeviceID deviceID: String
+    ) async -> [String]
 }
 
 extension SyncPushing {
@@ -51,6 +66,15 @@ extension SyncPushing {
         recordNames _: [String]
     ) async -> SyncPushResult {
         .success
+    }
+
+    /// Default empty result — test doubles that don't simulate CloudKit
+    /// state report no pre-existing records, which makes startup reconcile
+    /// a no-op. Real CloudSyncManager overrides with the live query.
+    public func fetchPerProviderRecordNames(
+        forDeviceID _: String
+    ) async -> [String] {
+        []
     }
 }
 
@@ -514,6 +538,59 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             "zone": providerZone.zoneID.zoneName,
         ])
         return .success
+    }
+
+    /// Fetches all per-provider record names in `DeviceProvidersZone` for
+    /// a specific deviceID. Used by `SyncCoordinator.startObserving` to
+    /// seed `lastPushedRecordNames` from CloudKit's actual state, so L1
+    /// cleanup survives Mac process restarts.
+    ///
+    /// Returns only recordNames (not full records / payloads) — the
+    /// cleanup logic only needs the composite-key set to compute diffs.
+    /// The CKQuery uses `desiredKeys: []` to skip payload download, so
+    /// the network cost is just the result-set metadata regardless of
+    /// how many records exist.
+    public func fetchPerProviderRecordNames(
+        forDeviceID deviceID: String
+    ) async -> [String] {
+        guard cloudKitAvailable, _privateDatabase != nil else { return [] }
+        // Query by deviceID field, filter server-side. The Production
+        // schema indexes `deviceID` as Queryable (verified via Capabilities
+        // in CloudKit Console). Empty deviceID would be invalid here so
+        // skip rather than do a full-zone scan.
+        guard !deviceID.isEmpty else { return [] }
+
+        let predicate = NSPredicate(format: "deviceID == %@", deviceID)
+        let query = CKQuery(
+            recordType: CloudSyncConstants.providerRecordType,
+            predicate: predicate)
+        do {
+            let (results, _) = try await _privateDatabase!.records(
+                matching: query,
+                inZoneWith: providerZone.zoneID,
+                desiredKeys: [],  // metadata only — payload not needed
+                resultsLimit: CKQueryOperation.maximumResults)
+            let recordNames = results.compactMap { (recordID, result) -> String? in
+                guard case .success = result else { return nil }
+                return recordID.recordName
+            }
+            self.logInfo("Reconciled per-provider records from CloudKit", metadata: [
+                "count": "\(recordNames.count)",
+                "deviceID": deviceID,
+            ])
+            return recordNames
+        } catch let error as CKError where error.code == .zoneNotFound {
+            // Zone doesn't exist yet — first push of this Mac's lifetime.
+            return []
+        } catch let error as CKError where error.code == .unknownItem {
+            // Record type not yet deployed in Production schema. Same as zone-missing.
+            return []
+        } catch {
+            self.logError(
+                "Failed to fetch per-provider record names for reconcile: " +
+                    error.localizedDescription)
+            return []
+        }
     }
 
     /// Ensures `DeviceProvidersZone` exists. Same fetch-first self-heal pattern
