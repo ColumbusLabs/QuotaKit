@@ -1833,27 +1833,24 @@ private enum MobileReleaseNotesCatalog {
         ReleaseNotesVersion(
             version: "1.5.2",
             status: String(localized: "Latest"),
-            summary: String(localized: "Pairs with Mac 0.23.5. Adds visual distinction for synthetic mock data injected by Mac (for QA / beta testing), and fixes a regression where mock injection could hide real provider accounts from the dashboard."),
+            summary: String(localized: "Primarily resolves multiple Codex accounts failing to display fully on iPhone. After configuring multiple Codex accounts on Mac, iPhone now shows each account as a separate card; Cost, Usage, and Provider Share all attribute correctly per account."),
             sections: [
                 .init(
-                    title: String(localized: "What's New"),
+                    title: String(localized: "Stability"),
                     items: [
-                        String(localized: "MOCK badge — when Mac injects synthetic providers, each card shows a small purple MOCK pill next to the provider name. The card itself gets a thin purple accent border so the signal is unmissable even at a glance."),
-                        String(localized: "Top banner reminding you mock data is showing — visible above the Usage tab and Cost tab whenever the snapshot contains synthetic providers, so the Daily Spend / 30-day numbers can never be silently confused with real spend."),
-                        String(localized: "Settings → Diagnostics row — when mock data is active, Settings shows a Diagnostics section with the live count of synthetic providers and instructions for how to toggle it off on Mac."),
-                        String(localized: "Detail-page banner — the per-provider detail page also calls out mock data with an inline banner and toolbar badge, so users navigating directly into a card still get the signal."),
+                        String(localized: "Added a real-data regression test suite covering all 27 providers to ensure sync stability across multi-account and multi-device scenarios."),
                     ]),
                 .init(
-                    title: String(localized: "What's fixed"),
+                    title: String(localized: "Other fixes"),
                     items: [
-                        String(localized: "Real provider data with no email (Claude / Ollama / Copilot) was getting hidden whenever Mac mock injection was on. Real and mock cards now coexist correctly."),
-                        String(localized: "Stranded Mock cards from a previous Mac session no longer linger after you toggle mock injection off. Mac auto-cleans them within ~1 minute."),
-                        String(localized: "Raw Sync Data view (Settings → Diagnostics) now shows each provider's email and 30-day cost inline, making multi-device sync issues visible at a glance."),
+                        String(localized: "Some accounts (Claude / Ollama / Copilot etc.) being incorrectly hidden in specific scenarios."),
+                        String(localized: "Stale sync records left behind by previous Mac sessions persisting on iPhone."),
+                        String(localized: "Cards being merged or lost in multi-account scenarios."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.23.5 (latest) for both the new visual treatment and the fixes to take effect."),
+                        String(localized: "Update Mac CodexBar to 0.23.5 for these changes to take effect."),
                     ]),
             ]),
         ReleaseNotesVersion(

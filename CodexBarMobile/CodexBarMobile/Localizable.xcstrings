@@ -8439,6 +8439,238 @@
           }
         }
       }
+    },
+    "Primarily resolves multiple Codex accounts failing to display fully on iPhone. After configuring multiple Codex accounts on Mac, iPhone now shows each account as a separate card; Cost, Usage, and Provider Share all attribute correctly per account.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Primarily resolves multiple Codex accounts failing to display fully on iPhone. After configuring multiple Codex accounts on Mac, iPhone now shows each account as a separate card; Cost, Usage, and Provider Share all attribute correctly per account."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone で複数の Codex アカウントが完全に表示されない問題を主に解決しました。Mac で複数の Codex アカウントを設定した後、iPhone はアカウントごとに独立したカードを表示し、Cost、Usage、Provider Share がアカウント別に正しく振り分けられます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主要解决多个 Codex 账号在 iPhone 上无法完整显示的问题。在 Mac 上添加多个 Codex 账号后，iPhone 端现在会按账号独立展示卡片，Cost、Usage、Provider Share 均按账号分别归类。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主要解決多個 Codex 帳號在 iPhone 上無法完整顯示的問題。在 Mac 上新增多個 Codex 帳號後，iPhone 端現在會按帳號獨立顯示卡片，Cost、Usage、Provider Share 均按帳號分別歸類。"
+          }
+        }
+      }
+    },
+    "Stability": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stability"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安定性"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "稳定性"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "穩定性"
+          }
+        }
+      }
+    },
+    "Added a real-data regression test suite covering all 27 providers to ensure sync stability across multi-account and multi-device scenarios.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Added a real-data regression test suite covering all 27 providers to ensure sync stability across multi-account and multi-device scenarios."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "27 プロバイダー全てに対して実データの回帰テストを追加し、複数アカウント・複数デバイスのシナリオでも同期の安定性を確保しました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "针对全部 27 个 provider 补齐了真实数据回归测试，确保多账号、多设备场景下的同步稳定性。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "針對全部 27 個 provider 補齊了真實資料回歸測試，確保多帳號、多裝置場景下的同步穩定性。"
+          }
+        }
+      }
+    },
+    "Other fixes": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other fixes"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "その他の修正"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其他修复"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其他修復"
+          }
+        }
+      }
+    },
+    "Some accounts (Claude / Ollama / Copilot etc.) being incorrectly hidden in specific scenarios.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Some accounts (Claude / Ollama / Copilot etc.) being incorrectly hidden in specific scenarios."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一部のアカウント（Claude / Ollama / Copilot など）が特定のシナリオで誤って非表示になる問題。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分账号（Claude / Ollama / Copilot 等）在特定场景下被错误隐藏。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分帳號（Claude / Ollama / Copilot 等）在特定場景下被錯誤隱藏。"
+          }
+        }
+      }
+    },
+    "Stale sync records left behind by previous Mac sessions persisting on iPhone.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stale sync records left behind by previous Mac sessions persisting on iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "以前の Mac セッションから残された古い同期記録が iPhone に残り続ける問題。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 重启后过期同步记录残留在 iPhone 上。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 重啟後過期同步記錄殘留在 iPhone 上。"
+          }
+        }
+      }
+    },
+    "Cards being merged or lost in multi-account scenarios.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cards being merged or lost in multi-account scenarios."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複数アカウントのシナリオでカードが結合または消失する問題。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "多账号场景下卡片合并或丢失。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "多帳號場景下卡片合併或遺失。"
+          }
+        }
+      }
+    },
+    "Update Mac CodexBar to 0.23.5 for these changes to take effect.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Mac CodexBar to 0.23.5 for these changes to take effect."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "これらの変更を有効にするには、Mac の CodexBar を 0.23.5 に更新してください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需搭配 Mac CodexBar 0.23.5。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需搭配 Mac CodexBar 0.23.5。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

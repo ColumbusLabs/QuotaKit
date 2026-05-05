@@ -2,6 +2,17 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.2 (111)] — 2026-05-05 — Rewrite 1.5.2 release notes in product-style language
+
+User feedback: previous catalog entry led with developer-facing
+feature names (MOCK badge, top banner, settings diagnostics, etc.)
+that meant nothing to end users. Rewritten to lead with the
+user-facing fix that drove this release — multiple Codex accounts
+not displaying on iPhone — followed by the value-add (27-provider
+real-data regression test suite for sync stability) and the
+remaining minor fixes. Drops first-person "we" and marketing
+fluff. Build 111 is content-only; same code as 110.
+
 ## [1.5.2 (110)] — 2026-05-05 — Merge in-app release notes into a single 1.5.2 entry
 
 In-app `MobileReleaseNotesCatalog` had two separate 1.5.2 entries
