@@ -1831,10 +1831,18 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.5.2 (108)",
+            version: "1.5.2",
             status: String(localized: "Latest"),
-            summary: String(localized: "Pairs with Mac 0.23.5. Fixes mock data coexistence with real accounts and cleans up stranded mock records left behind by previous Mac sessions."),
+            summary: String(localized: "Pairs with Mac 0.23.5. Adds visual distinction for synthetic mock data injected by Mac (for QA / beta testing), and fixes a regression where mock injection could hide real provider accounts from the dashboard."),
             sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(localized: "MOCK badge — when Mac injects synthetic providers, each card shows a small purple MOCK pill next to the provider name. The card itself gets a thin purple accent border so the signal is unmissable even at a glance."),
+                        String(localized: "Top banner reminding you mock data is showing — visible above the Usage tab and Cost tab whenever the snapshot contains synthetic providers, so the Daily Spend / 30-day numbers can never be silently confused with real spend."),
+                        String(localized: "Settings → Diagnostics row — when mock data is active, Settings shows a Diagnostics section with the live count of synthetic providers and instructions for how to toggle it off on Mac."),
+                        String(localized: "Detail-page banner — the per-provider detail page also calls out mock data with an inline banner and toolbar badge, so users navigating directly into a card still get the signal."),
+                    ]),
                 .init(
                     title: String(localized: "What's fixed"),
                     items: [
@@ -1845,27 +1853,7 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.23.5 (latest) for both fixes to take effect."),
-                    ]),
-            ]),
-        ReleaseNotesVersion(
-            version: "1.5.2 (103)",
-            status: "",
-            summary: String(localized: "Mock provider visual treatment — synthetic data injected by Mac (for QA and Beta testing) now renders with a MOCK badge + purple accent so it's distinguishable from real numbers. Requires Mac 0.23.5+."),
-            sections: [
-                .init(
-                    title: String(localized: "What's New"),
-                    items: [
-                        String(localized: "MOCK badge — when Mac injects synthetic providers (via Settings → Mobile → Debug · Mock Provider Data on Mac 0.23.5+), each card shows a small purple MOCK pill next to the provider name. The card itself gets a thin purple accent border so the signal is unmissable even at a glance."),
-                        String(localized: "Top banner reminding you mock data is showing — visible above the Usage tab and Cost tab whenever the snapshot contains synthetic providers, so the Daily Spend / 30-day numbers can never be silently confused with real spend."),
-                        String(localized: "Settings → Diagnostics row — when mock data is active, Settings shows a Diagnostics section with the live count of synthetic providers and instructions for how to toggle it off on Mac."),
-                        String(localized: "Detail-page banner — the per-provider detail page also calls out mock data with an inline banner and toolbar badge, so users navigating directly into a card still get the signal."),
-                    ]),
-                .init(
-                    title: String(localized: "Under the hood"),
-                    items: [
-                        String(localized: "Mock detection uses two signals — RFC 6761 reserved `.test` email TLD plus the `_mock_*` providerID prefix. Either is sufficient. Real users without mock activation never hit either signal in their data, so existing cards stay visually unchanged."),
-                        String(localized: "Wire-format unchanged — Mac 0.23.5 injection passes through the existing CKRecord schema. iOS 1.5.1 users see mock data as ordinary cards; iOS 1.5.2 adds the visual treatment without requiring any sync-layer changes."),
+                        String(localized: "Update Mac CodexBar to 0.23.5 (latest) for both the new visual treatment and the fixes to take effect."),
                     ]),
             ]),
         ReleaseNotesVersion(

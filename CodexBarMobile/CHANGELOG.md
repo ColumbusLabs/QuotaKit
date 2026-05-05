@@ -2,6 +2,16 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.2 (110)] — 2026-05-05 — Merge in-app release notes into a single 1.5.2 entry
+
+In-app `MobileReleaseNotesCatalog` had two separate 1.5.2 entries
+(`1.5.2 (103)` and `1.5.2 (108)`) — build numbers should never appear
+as user-facing catalog entries. Merged into one `1.5.2` entry covering
+the mock-visual-treatment items + the build-107 mock orphan filter
+fixes + the Required Mac version pairing. Build 110 is content-only;
+same code as 109. Updates Localizable.xcstrings with merged-summary
+translations across en / ja / zh-Hans / zh-Hant.
+
 ## [1.5.2 (109)] — 2026-05-05 — Localize Raw Sync Data row strings (R3 review)
 
 Codex MCP review of f6958cb8..889555ee flagged 3 hardcoded English
