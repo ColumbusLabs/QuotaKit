@@ -2,6 +2,17 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.2 (108)] — 2026-05-05 — Release notes refresh
+
+In-app release notes catalog updated for the 1.5.2 (107) hotfix per
+user feedback: shorter, less technical, no `Important` callout, and
+adds an explicit Mac-version-pairing section pointing users to the
+required Mac 0.23.5 build. No code change beyond the catalog text +
+Build 108 bump so the binary embeds the updated copy. Pairs with
+Mac 0.23.5 hotfix (commit `4e633c02`) which adds CloudKit reconcile
+on Mac startup so stranded mock CKRecords from previous Mac sessions
+get cleaned up automatically.
+
 ## [1.5.2 (107)] — 2026-05-04 — Mock injection no longer wipes real accountless providers
 
 User QA hit a critical regression after mock-injector landed in

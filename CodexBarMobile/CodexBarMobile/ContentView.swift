@@ -1827,21 +1827,21 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.5.2 (107)",
+            version: "1.5.2 (108)",
             status: String(localized: "Latest"),
-            summary: String(localized: "Critical fix — real Claude / Ollama / Copilot data was getting wiped from the Cost dashboard whenever Mac mock-injection was on. Real numbers and mock numbers now coexist correctly."),
+            summary: String(localized: "Pairs with Mac 0.23.5. Fixes mock data coexistence with real accounts and cleans up stranded mock records left behind by previous Mac sessions."),
             sections: [
                 .init(
                     title: String(localized: "What's fixed"),
                     items: [
-                        String(localized: "Real provider data with no email (Claude is the most common — Anthropic doesn't expose one via OAuth) was being incorrectly filtered out as a 'pre-OAuth orphan' whenever mock provider entries existed alongside it. After this fix, real and mock cards coexist correctly. Affected providers include Claude, Ollama, Copilot subscription, and any other account-less provider."),
-                        String(localized: "Mock entries' frequent timestamp updates were also pushing real entries past the 30-minute staleness cutoff, even though the real data was still fresh. The TTL is now anchored to real-entry timestamps only."),
-                        String(localized: "Build 94's original orphan-cleanup behavior is fully preserved — the fix only changes behavior in the presence of mocks, not for normal real-vs-real account scenarios."),
+                        String(localized: "Real provider data with no email (Claude / Ollama / Copilot) was getting hidden whenever Mac mock injection was on. Real and mock cards now coexist correctly."),
+                        String(localized: "Stranded Mock cards from a previous Mac session no longer linger after you toggle mock injection off. Mac auto-cleans them within ~1 minute."),
+                        String(localized: "Raw Sync Data view (Settings → Diagnostics) now shows each provider's email and 30-day cost inline, making multi-device sync issues visible at a glance."),
                     ]),
                 .init(
-                    title: String(localized: "Better diagnostics"),
+                    title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Raw Sync Data view (Settings → Diagnostics → Raw Sync Data) now shows each provider's email subtitle and last-30-days cost on every row, so multi-device sync issues become visible without drilling into detail."),
+                        String(localized: "Update Mac CodexBar to 0.23.5 (latest) for both fixes to take effect."),
                     ]),
             ]),
         ReleaseNotesVersion(

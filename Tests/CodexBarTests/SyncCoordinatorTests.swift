@@ -728,9 +728,12 @@ struct SyncCoordinatorTests {
         let pinned = Date(timeIntervalSince1970: 1_700_000_000)
         store._setTokenSnapshotForTesting(
             CostUsageTokenSnapshot(
-                sessionTokens: 100, sessionCostUSD: 0.1,
-                last30DaysTokens: 1000, last30DaysCostUSD: 1.0,
-                daily: [], updatedAt: pinned),
+                sessionTokens: 100,
+                sessionCostUSD: 0.1,
+                last30DaysTokens: 1000,
+                last30DaysCostUSD: 1.0,
+                daily: [],
+                updatedAt: pinned),
             provider: .codex)
         store._setSnapshotForTesting(
             UsageSnapshot(primary: nil, secondary: nil, updatedAt: pinned),
@@ -758,7 +761,9 @@ struct SyncCoordinatorTests {
         // Yield so the reconcile Task can run before the push cycle.
         // Multiple yields because the reconcile Task and the
         // observeLoop's Task are scheduled separately.
-        for _ in 0..<5 { await Task.yield() }
+        for _ in 0..<5 {
+            await Task.yield()
+        }
 
         // Reconcile fired exactly once at startup.
         #expect(mock.fetchRecordNamesCallCount == 1)
@@ -789,31 +794,38 @@ struct SyncCoordinatorTests {
         let store = self.makeUsageStore(settings: settings)
         store._setTokenSnapshotForTesting(
             CostUsageTokenSnapshot(
-                sessionTokens: 100, sessionCostUSD: 0.1,
-                last30DaysTokens: 1000, last30DaysCostUSD: 1.0,
-                daily: [], updatedAt: Date()),
+                sessionTokens: 100,
+                sessionCostUSD: 0.1,
+                last30DaysTokens: 1000,
+                last30DaysCostUSD: 1.0,
+                daily: [],
+                updatedAt: Date()),
             provider: .codex)
 
         let mock = MockSyncPusher()
         mock.nextFetchRecordNamesResult = []
         let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
         coordinator.startObserving()
-        for _ in 0..<5 { await Task.yield() }
+        for _ in 0..<5 {
+            await Task.yield()
+        }
         await coordinator.pushCurrentSnapshot()
 
         #expect(mock.fetchRecordNamesCallCount == 1)
-        #expect(mock.deleteCallCount == 0)  // no stranded records to clean
+        #expect(mock.deleteCallCount == 0) // no stranded records to clean
     }
 
     @Test("L1 reconcile: skipped when iCloud sync disabled")
-    func l1ReconcileSkippedWhenSyncDisabled() async throws {
+    func l1ReconcileSkippedWhenSyncDisabled() async {
         let settings = self.makeSettingsStore(suite: "SyncCoord-l1-reconcile-disabled")
         settings.iCloudSyncEnabled = false
         let store = self.makeUsageStore(settings: settings)
         let mock = MockSyncPusher()
         let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
         coordinator.startObserving()
-        for _ in 0..<5 { await Task.yield() }
+        for _ in 0..<5 {
+            await Task.yield()
+        }
         // No CKQuery should fire — pushing is a no-op anyway, no point
         // querying CloudKit.
         #expect(mock.fetchRecordNamesCallCount == 0)

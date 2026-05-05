@@ -8033,6 +8033,238 @@
           }
         }
       }
+    },
+    "1.5.2 (108)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1.5.2 (108)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1.5.2 (108)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1.5.2 (108)"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1.5.2 (108)"
+          }
+        }
+      }
+    },
+    "Pairs with Mac 0.23.5. Fixes mock data coexistence with real accounts and cleans up stranded mock records left behind by previous Mac sessions.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pairs with Mac 0.23.5. Fixes mock data coexistence with real accounts and cleans up stranded mock records left behind by previous Mac sessions."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 0.23.5 と組み合わせて使用。モックデータと実アカウントの共存問題を修正し、前回の Mac セッションが残したモック記録を自動クリーンアップ。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要搭配 Mac 0.23.5。修复 mock 数据与真实账号共存的问题，并自动清理上一次 Mac 进程残留的 mock 记录。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要搭配 Mac 0.23.5。修復 mock 資料與真實帳號共存的問題，並自動清理上一次 Mac 行程殘留的 mock 記錄。"
+          }
+        }
+      }
+    },
+    "Real provider data with no email (Claude / Ollama / Copilot) was getting hidden whenever Mac mock injection was on. Real and mock cards now coexist correctly.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Real provider data with no email (Claude / Ollama / Copilot) was getting hidden whenever Mac mock injection was on. Real and mock cards now coexist correctly."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac モック注入をオンにすると、メールアドレスを持たない実プロバイダー（Claude / Ollama / Copilot など）が非表示になっていた問題を修正。実データとモックが正しく共存します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 开启 mock 注入时，没有邮箱的真实 provider（Claude / Ollama / Copilot）会被错误隐藏 — 现已修复，真实数据和 mock 卡片可以同时显示。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 開啟 mock 注入時，沒有信箱的真實 provider（Claude / Ollama / Copilot）會被錯誤隱藏 — 現已修復，真實資料和 mock 卡片可以同時顯示。"
+          }
+        }
+      }
+    },
+    "Stranded Mock cards from a previous Mac session no longer linger after you toggle mock injection off. Mac auto-cleans them within ~1 minute.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stranded Mock cards from a previous Mac session no longer linger after you toggle mock injection off. Mac auto-cleans them within ~1 minute."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前回の Mac セッションが残したモックカードは、モック注入をオフにすると約 1 分以内に Mac が自動削除します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "之前 Mac 进程留下的 Mock 卡片，关闭 mock 注入后会在约 1 分钟内由 Mac 自动清理掉，不再永久残留。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "之前 Mac 行程留下的 Mock 卡片，關閉 mock 注入後會在約 1 分鐘內由 Mac 自動清理，不再永久殘留。"
+          }
+        }
+      }
+    },
+    "Raw Sync Data view (Settings → Diagnostics) now shows each provider's email and 30-day cost inline, making multi-device sync issues visible at a glance.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raw Sync Data view (Settings → Diagnostics) now shows each provider's email and 30-day cost inline, making multi-device sync issues visible at a glance."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raw Sync Data 画面（設定 → 診断）で各プロバイダーのメールアドレスと過去 30 日のコストが行内に表示されるようになり、複数デバイス同期の問題が一目で分かります。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raw Sync Data 视图（设置 → 诊断）现在每行显示该 provider 的邮箱和 30 天累计费用，多设备同步异常一眼可见。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raw Sync Data 視圖（設定 → 診斷）現在每行顯示該 provider 的信箱和 30 天累計費用，多裝置同步異常一眼可見。"
+          }
+        }
+      }
+    },
+    "Required Mac version": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Required Mac version"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "必要な Mac バージョン"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要的 Mac 版本"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要的 Mac 版本"
+          }
+        }
+      }
+    },
+    "Update Mac CodexBar to 0.23.5 (latest) for both fixes to take effect.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Mac CodexBar to 0.23.5 (latest) for both fixes to take effect."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac の CodexBar を 0.23.5（最新）に更新すると、両方の修正が有効になります。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把 Mac 端的 CodexBar 升级到 0.23.5（最新版），两项修复都会生效。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把 Mac 端的 CodexBar 升級到 0.23.5（最新版），兩項修復都會生效。"
+          }
+        }
+      }
+    },
+    "What's fixed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What's fixed"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修正内容"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修复内容"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修復內容"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
