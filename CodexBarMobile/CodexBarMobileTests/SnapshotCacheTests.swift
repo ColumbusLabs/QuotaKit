@@ -1042,6 +1042,129 @@ struct SnapshotCacheTests {
         #expect(providerIDs == ["claude", "cursor", "abacus"])
     }
 
+    // ===== Mock-vs-real interaction (1.5.2 hotfix) =====
+    //
+    // Background: Mac 0.23.5 mock injector pushes synthetic provider
+    // snapshots alongside real ones. Mocks always have a `*-mock@*.test`
+    // email (universal MockProviderDetector signal). Real providers like
+    // Claude / Ollama / Copilot can have nil email by design (no OAuth
+    // exposes one). Pre-fix, mocks counted as "real-email siblings" in
+    // Rule 1 and bumped `deviceFreshest` in Rule 2 — both wiped real
+    // accountless providers from the iOS view. Discovered 2026-05-04 when
+    // user's real Claude account ($2029 / 30d) disappeared from iOS Cost
+    // dashboard while mock Claude entries showed.
+
+    @Test("Rule 1: real nil-email survives when only mock siblings have email")
+    func rule1_mockEmailDoesNotOrphanRealNilEmail() {
+        let now = Date()
+        var cache = SnapshotCache()
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [snapshot(
+                deviceID: "mac-B", deviceName: "Mac Studio",
+                providers: [
+                    // Real Claude — nil email, this is the data we MUST keep.
+                    provider(id: "claude", name: "Claude",
+                            email: nil, lastUpdated: now),
+                    // Mock Claude entries — synthetic emails matching
+                    // MockProviderDetector pattern (`*-mock@*.test`).
+                    provider(id: "claude", name: "Claude (Personal · Mock)",
+                            email: "personal-mock@claude.test", lastUpdated: now),
+                    provider(id: "claude", name: "Claude (Work · Mock)",
+                            email: "work-mock@claude.test", lastUpdated: now),
+                ],
+                timestamp: now)],
+            legacySnapshots: [])
+        let result = cache.buildDeviceSnapshots()
+        #expect(result.count == 1)
+        let claudes = result[0].providers.filter { $0.providerID == "claude" }
+        #expect(claudes.count == 3)
+        // Specifically the nil-email real entry must be present.
+        #expect(claudes.contains(where: { $0.accountEmail == nil }))
+    }
+
+    @Test("Rule 2: mock fresher timestamp does not stale-out real nil-email")
+    func rule2_mockTimestampDoesNotStaleRealNilEmail() {
+        // Real Claude refreshed 35 minutes ago. Then user toggles mocks on
+        // and Mac pushes mock entries with `lastUpdated = now`. Pre-fix,
+        // mock's `now` becomes deviceFreshest, the 30-min cutoff jumps to
+        // `now - 30min`, real Claude (35min old) falls behind cutoff,
+        // dropped. With the fix, deviceFreshest is computed from real
+        // entries only, so cutoff is `(now - 35min) - 30min` = 65min ago,
+        // and real Claude (35min) stays.
+        let now = Date()
+        var cache = SnapshotCache()
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [snapshot(
+                deviceID: "mac-B", deviceName: "Mac Studio",
+                providers: [
+                    provider(id: "claude", email: nil,
+                            lastUpdated: now.addingTimeInterval(-35 * 60)),
+                    provider(id: "claude",
+                            email: "personal-mock@claude.test",
+                            lastUpdated: now),
+                    provider(id: "claude",
+                            email: "work-mock@claude.test",
+                            lastUpdated: now),
+                ],
+                timestamp: now)],
+            legacySnapshots: [])
+        let result = cache.buildDeviceSnapshots()
+        let claudes = result[0].providers.filter { $0.providerID == "claude" }
+        // All three present: real (no email) + 2 mocks (with email).
+        #expect(claudes.count == 3)
+        #expect(claudes.contains(where: { $0.accountEmail == nil }))
+    }
+
+    @Test("Mock-only device falls back to anyFreshest in Rule 2")
+    func rule2_allMockDeviceFallsBackToAnyFreshest() {
+        // Edge case: dev/CI scenario where every entry on a device is a
+        // mock. `realFreshest` is nil → fall back to `anyFreshest` so the
+        // TTL logic still has a baseline. All mocks survive because mocks
+        // bypass the TTL filter regardless of timestamp.
+        let now = Date()
+        var cache = SnapshotCache()
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [snapshot(
+                deviceID: "mac-CI", deviceName: "CI Mac",
+                providers: [
+                    provider(id: "codex",
+                            email: "alice-mock@codex.test",
+                            lastUpdated: now),
+                    provider(id: "_mock_synthetic_unknown",
+                            email: "lanes-mock@synthetic.test",
+                            lastUpdated: now.addingTimeInterval(-2 * 3600)),
+                ],
+                timestamp: now)],
+            legacySnapshots: [])
+        let result = cache.buildDeviceSnapshots()
+        #expect(result.count == 1)
+        #expect(result[0].providers.count == 2)
+    }
+
+    @Test("Mock entry with nil email does not orphan-itself when no real sibling")
+    func rule1_mockNilEmailKeptWhenSiblingMockHasEmail() {
+        // Defensive: if a mock has nil email (shouldn't happen in current
+        // design, but guard anyway), it should not be orphan-dropped just
+        // because another mock has email — they're both mocks.
+        let now = Date()
+        var cache = SnapshotCache()
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [snapshot(
+                deviceID: "mac-A", deviceName: "Mac A",
+                providers: [
+                    provider(id: "_mock_codex_unknown",
+                            email: nil,  // nil-email mock (synthetic ID prefix detects)
+                            lastUpdated: now),
+                    provider(id: "_mock_codex_unknown",
+                            email: "expired-mock@codex.test",
+                            lastUpdated: now),
+                ],
+                timestamp: now)],
+            legacySnapshots: [])
+        let result = cache.buildDeviceSnapshots()
+        #expect(result[0].providers.count == 2)
+    }
+
     // ===== Rule combination + legacy fallback =====
 
     @Test("Combined: device with all per-provider entries filtered falls back to legacy")

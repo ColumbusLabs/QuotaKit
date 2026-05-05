@@ -336,7 +336,18 @@ struct SnapshotCache: Sendable {
     ) -> [String: ProviderUsageSnapshot] {
         guard !byComposite.isEmpty else { return [:] }
 
-        // Rule 1: group by providerID; drop nil-email when sibling has email.
+        // Rule 1: group by providerID; drop nil-email when a REAL (non-mock)
+        // sibling has an email.
+        //
+        // Why exclude mocks from "hasRealEmail":
+        // synthetic emails from MockProviderInjector (`*-mock@*.test`) don't
+        // represent OAuth completion of a real account. If a real provider
+        // is structurally accountless (Claude, Ollama, Copilot subscription
+        // without enterprise tenant) it always has nil email — letting mocks
+        // trigger this rule wipes the real account. Discovered 2026-05-04:
+        // real Claude with $2029 was filtered out because mock Claude
+        // entries had emails. Mocks themselves bypass the rule (always kept)
+        // since they have unique synthetic emails by design.
         var byProviderID: [String: [String]] = [:]
         for (key, provider) in byComposite {
             byProviderID[provider.providerID, default: []].append(key)
@@ -344,26 +355,43 @@ struct SnapshotCache: Sendable {
         var keptKeys = Set<String>()
         for (_, keys) in byProviderID {
             let hasRealEmail = keys.contains { key in
-                guard let email = byComposite[key]?.accountEmail else { return false }
+                guard let provider = byComposite[key] else { return false }
+                guard !MockProviderDetector.isMock(provider) else { return false }
+                guard let email = provider.accountEmail else { return false }
                 return !email.isEmpty
             }
             for key in keys {
                 guard let provider = byComposite[key] else { continue }
                 let hasEmail = !(provider.accountEmail ?? "").isEmpty
-                // Keep if either: there's no sibling with email (so this is
-                // a legitimately accountless provider, e.g. Claude/Cursor),
-                // OR this entry itself has the email.
-                if !hasRealEmail || hasEmail {
+                let isMock = MockProviderDetector.isMock(provider)
+                // Keep if any of:
+                //  - no real sibling has email (legit accountless provider),
+                //  - this entry itself has the email,
+                //  - this entry is a mock (mocks bypass orphan filtering).
+                if !hasRealEmail || hasEmail || isMock {
                     keptKeys.insert(key)
                 }
             }
         }
         let afterOrphanDrop = byComposite.filter { keptKeys.contains($0.key) }
 
-        // Rule 2: TTL on nil-email entries only, relative to device freshest.
-        guard let deviceFreshest = afterOrphanDrop.values
-            .map({ $0.lastUpdated }).max()
-        else { return afterOrphanDrop }
+        // Rule 2: TTL on nil-email entries only, relative to REAL device
+        // freshness. Mock `lastUpdated` tracks injection time (refreshes on
+        // every Mac push cycle), not real provider refresh — using mocks to
+        // anchor `deviceFreshest` would force-stale every real entry that
+        // hasn't refreshed since the last mock inject. Mocks themselves
+        // bypass the TTL filter alongside real-email entries.
+        let realFreshest = afterOrphanDrop.values
+            .filter { !MockProviderDetector.isMock($0) }
+            .map(\.lastUpdated).max()
+        let anyFreshest = afterOrphanDrop.values
+            .map(\.lastUpdated).max()
+        // Fall back to "any" only when there are zero real entries (all-mock
+        // device, e.g. dev/CI scenarios) — otherwise mock timestamps would
+        // re-introduce the bug above.
+        guard let deviceFreshest = realFreshest ?? anyFreshest else {
+            return afterOrphanDrop
+        }
         // 30 minutes: a Mac refresh cycle typically completes within seconds
         // for an active provider, and the slowest known cadence (idle
         // browser-cookie providers) is well under 30 min. Anything older is
@@ -372,9 +400,9 @@ struct SnapshotCache: Sendable {
         let staleCutoff = deviceFreshest.addingTimeInterval(-30 * 60)
         return afterOrphanDrop.filter { _, provider in
             let hasEmail = !(provider.accountEmail ?? "").isEmpty
-            // Real-email entries are immune from TTL — they represent legit
-            // distinct accounts that may refresh on independent cadences.
-            return hasEmail || provider.lastUpdated >= staleCutoff
+            let isMock = MockProviderDetector.isMock(provider)
+            // Real-email entries + all mocks are immune from TTL.
+            return hasEmail || isMock || provider.lastUpdated >= staleCutoff
         }
     }
 

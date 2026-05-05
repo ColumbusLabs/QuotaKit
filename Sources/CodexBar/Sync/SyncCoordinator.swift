@@ -214,7 +214,6 @@ final class SyncCoordinator {
         if !mockSnapshots.isEmpty {
             providerSnapshots.append(contentsOf: mockSnapshots)
         }
-
         let deviceName = Host.current().localizedName ?? "Mac"
         let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
         let mobileVersion = Bundle.main.object(forInfoDictionaryKey: "CodexMobileVersion") as? String

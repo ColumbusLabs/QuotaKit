@@ -2,6 +2,56 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.2 (107)] — 2026-05-04 — Mock injection no longer wipes real accountless providers
+
+User QA hit a critical regression after mock-injector landed in
+1.5.2 (103) + Mac 0.23.5: real Claude data ($2029 / 30 days) disappeared
+from the iOS Cost dashboard while mock Claude entries remained visible.
+Root-caused in `SnapshotCache.dropOrphansAndStale` — both filter rules
+(Build 94 ghost-orphan + stale-TTL) treated synthetic mock entries the
+same as real OAuth-completed accounts, which:
+
+1. **Rule 1 false-positive** — when mock Claude entries had emails (by
+   design — `*-mock@*.test` is the universal mock signal) and real
+   Claude has nil email (Anthropic doesn't expose one via OAuth), the
+   real entry got flagged as a "pre-OAuth orphan" and dropped. Affected
+   any provider that's structurally accountless: Claude, Ollama,
+   Copilot subscription without enterprise tenant, etc.
+2. **Rule 2 false-positive** — mock `lastUpdated` tracks injection time
+   (refreshes on every Mac push cycle ≈ 1min) which pushed
+   `deviceFreshest` forward, slid the 30-min TTL cutoff, and force-staled
+   real nil-email entries that hadn't refreshed in the last cycle.
+
+### Fixed
+
+- `SnapshotCache.dropOrphansAndStale`:
+  - Rule 1's `hasRealEmail` check now ignores mock entries — only real
+    OAuth siblings count toward "is there a real email here?".
+  - Rule 2's `deviceFreshest` is computed from real entries only;
+    falls back to all-entries freshest only if every entry is a mock
+    (dev/CI scenario). Mocks themselves bypass both filters and are
+    always kept.
+  - Build 94's original orphan-cleanup intent is fully preserved: a
+    real nil-email orphan alongside a real email-bearing sibling
+    still drops as before. The fix only changes behavior when mocks
+    are present, restoring real accountless providers to the view.
+
+### Added
+
+- 4 new tests in `SnapshotCacheTests.swift` covering the mock-vs-real
+  interaction:
+  - Real nil-email Claude survives when only mock siblings have email
+  - Mock fresher timestamp does not stale-out real nil-email entry
+  - Mock-only device falls back gracefully to anyFreshest in Rule 2
+  - Mock with nil email kept when sibling mock has email (defensive)
+
+### Changed
+
+- `RawSyncDataView` provider rows now show `accountEmail` as a
+  subtitle and `last30DaysCostUSD` (not session) inline, so
+  multi-device sync issues become visible at the row level without
+  needing to drill into detail.
+
 ## [1.5.2 (103)] — 2026-05-03 — Mock provider visual treatment
 
 Pairs with **Mac 0.23.5** which introduced the synthetic mock-provider

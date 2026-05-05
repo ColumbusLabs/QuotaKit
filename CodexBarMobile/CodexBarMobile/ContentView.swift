@@ -1503,14 +1503,35 @@ private struct RawProviderRow: View {
             RawProviderDetailView(provider: self.provider)
         } label: {
             HStack {
-                Text(self.provider.providerName)
-                    .fontWeight(.medium)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(self.provider.providerName)
+                        .fontWeight(.medium)
+                    // Email visible at a glance — distinguishes real vs mock
+                    // and Codex multi-account on the spot. Hit during user QA
+                    // 2026-05-04 (couldn't tell which 'Claude' row was real).
+                    if let email = self.provider.accountEmail, !email.isEmpty {
+                        Text(email)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    } else {
+                        Text("(no email)")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     if let cost = self.provider.costSummary {
-                        Text(String(format: "$%.2f", cost.sessionCostUSD ?? 0))
+                        // 30-day cost is what iPhone Cost dashboard
+                        // aggregates — show it inline so multi-device sync
+                        // bugs are visible at a glance instead of needing
+                        // a tap into detail.
+                        Text(String(format: "$%.2f / 30d", cost.last30DaysCostUSD ?? 0))
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                        Text(String(format: "$%.2f / today", cost.sessionCostUSD ?? 0))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
                     }
                     if let window = self.provider.allRateWindows.first {
                         Text("\(window.label ?? "Usage"): \(Int(window.usedPercent))%")
@@ -1806,8 +1827,26 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.5.2",
+            version: "1.5.2 (107)",
             status: String(localized: "Latest"),
+            summary: String(localized: "Critical fix — real Claude / Ollama / Copilot data was getting wiped from the Cost dashboard whenever Mac mock-injection was on. Real numbers and mock numbers now coexist correctly."),
+            sections: [
+                .init(
+                    title: String(localized: "What's fixed"),
+                    items: [
+                        String(localized: "Real provider data with no email (Claude is the most common — Anthropic doesn't expose one via OAuth) was being incorrectly filtered out as a 'pre-OAuth orphan' whenever mock provider entries existed alongside it. After this fix, real and mock cards coexist correctly. Affected providers include Claude, Ollama, Copilot subscription, and any other account-less provider."),
+                        String(localized: "Mock entries' frequent timestamp updates were also pushing real entries past the 30-minute staleness cutoff, even though the real data was still fresh. The TTL is now anchored to real-entry timestamps only."),
+                        String(localized: "Build 94's original orphan-cleanup behavior is fully preserved — the fix only changes behavior in the presence of mocks, not for normal real-vs-real account scenarios."),
+                    ]),
+                .init(
+                    title: String(localized: "Better diagnostics"),
+                    items: [
+                        String(localized: "Raw Sync Data view (Settings → Diagnostics → Raw Sync Data) now shows each provider's email subtitle and last-30-days cost on every row, so multi-device sync issues become visible without drilling into detail."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.5.2 (103)",
+            status: "",
             summary: String(localized: "Mock provider visual treatment — synthetic data injected by Mac (for QA and Beta testing) now renders with a MOCK badge + purple accent so it's distinguishable from real numbers. Requires Mac 0.23.5+."),
             sections: [
                 .init(
