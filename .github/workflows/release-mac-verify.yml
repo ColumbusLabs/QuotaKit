@@ -61,7 +61,36 @@ jobs:
           echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
           echo "Will verify: $ZIP"
 
+      - name: Skip if release not yet published (push-tag race)
+        # release.sh Phase 1 pushes the tag BEFORE Phase 2 publishes the
+        # GitHub release. The push-tag trigger fires immediately, but
+        # `gh release download` would 404 because the release is still a
+        # draft. The release-published trigger will rerun this workflow
+        # once Phase 2 lands, so just skip cleanly here. Manual tag
+        # pushes or hotfix flows that publish the release at tag-push
+        # time still work — the release exists in those cases.
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.tag.outputs.tag }}"
+          if gh release view "$TAG" --repo "${{ github.repository }}" \
+               --json isDraft -q .isDraft 2>/dev/null | grep -q "true"; then
+            echo "Release $TAG is still a draft — skipping verify."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          elif ! gh release view "$TAG" --repo "${{ github.repository }}" \
+                  >/dev/null 2>&1; then
+            echo "Release $TAG does not exist yet — skipping verify."
+            echo "Will run again on the release:published trigger."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Release $TAG is published — proceeding with verification."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Download release zip from GitHub
+        if: steps.gate.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -74,6 +103,7 @@ jobs:
           ls -la /tmp/release-verify/
 
       - name: Extract bundle
+        if: steps.gate.outputs.skip != 'true'
         run: |
           set -euo pipefail
           mkdir -p /tmp/release-verify/unzipped
@@ -81,6 +111,7 @@ jobs:
           ls -la /tmp/release-verify/unzipped/CodexBar.app/Contents/
 
       - name: Verify embedded.provisionprofile is present
+        if: steps.gate.outputs.skip != 'true'
         run: |
           set -euo pipefail
           PROFILE=/tmp/release-verify/unzipped/CodexBar.app/Contents/embedded.provisionprofile
@@ -94,12 +125,15 @@ jobs:
           echo "embedded.provisionprofile present, $SIZE bytes"
 
       - name: spctl assess (Gatekeeper)
+        if: steps.gate.outputs.skip != 'true'
         run: spctl -a -t exec -vv /tmp/release-verify/unzipped/CodexBar.app
 
       - name: Stapler validate
+        if: steps.gate.outputs.skip != 'true'
         run: xcrun stapler validate /tmp/release-verify/unzipped/CodexBar.app
 
       - name: Launch test (must stay alive 5s)
+        if: steps.gate.outputs.skip != 'true'
         run: |
           set -euo pipefail
           APP=/tmp/release-verify/unzipped/CodexBar.app
