@@ -2,7 +2,7 @@ import CodexBarSync
 import Foundation
 
 /// Single source of truth for "is this synthetic mock data?" detection on
-/// iOS. Mac 0.23.5+ injects synthetic provider snapshots when the user
+/// iOS. Mac 0.23.6+ injects synthetic provider snapshots when the user
 /// opts in (Settings → Mobile → Debug · Mock Provider Data, or env var,
 /// or `defaults write`). Those snapshots are normal `ProviderUsageSnapshot`
 /// values from iOS's perspective — the only signal that distinguishes
@@ -27,11 +27,11 @@ import Foundation
 /// - `MockProviderBanner` — top banner when any mock detected
 /// - Settings → Diagnostics — count of active mocks + Mac version
 enum MockProviderDetector {
-    /// RFC 6761 reserved TLD that Mac 0.23.5+ uses for every mock
+    /// RFC 6761 reserved TLD that Mac 0.23.6+ uses for every mock
     /// account email. Matches `MockProviderInjector.mockEmailTLD`.
     static let mockEmailTLD = ".test"
 
-    /// Synthetic providerID prefix that Mac 0.23.5+ uses for the 2
+    /// Synthetic providerID prefix that Mac 0.23.6+ uses for the 2
     /// fallback-test mocks. Matches `MockProviderInjector.syntheticProviderIDs`.
     static let mockProviderIDPrefix = "_mock_"
 
@@ -83,7 +83,7 @@ enum MockProviderDetector {
     /// design evolves; entries can be removed once Mac-side cleanup
     /// confirms zero records remain in CloudKit for a given ID.
     static let extinctMockProviderIDs: Set<String> = [
-        // Mac 0.23.5 P0 (initial mock-injector) — replaced by mix-mode
+        // Mac 0.23.6 P0 (initial mock-injector) — replaced by mix-mode
         // design in P2. These IDs no longer emitted; CloudKit zombies
         // still surface here without this filter.
         "_mock_codex_multi",

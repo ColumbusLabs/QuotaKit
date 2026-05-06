@@ -5,7 +5,7 @@ import Foundation
 /// Synthetic provider data for end-to-end iCloud sync testing without
 /// real provider subscriptions.
 ///
-/// **Mix design** (Mac 0.23.5+): 6 mocks use real provider IDs (`codex`,
+/// **Mix design** (Mac 0.23.6+): 6 mocks use real provider IDs (`codex`,
 /// `claude`, `perplexity`) so iOS renders them with first-class provider
 /// styling — exercising the critical multi-account first-class rendering
 /// path that real users hit. The remaining 2 mocks use `_mock_*`
@@ -49,16 +49,23 @@ import Foundation
 /// 1.5.2+ also uses the `.test` TLD as the trigger for the MOCK badge +
 /// purple-striped card treatment.
 ///
-/// **Activation** (any one method):
-/// - Environment variable `CODEXBAR_MOCK_PROVIDERS=1` (set on launch)
-/// - UserDefaults flag `CodexBarMockProvidersEnabled` (`defaults write
-///   com.o1xhack.codexbar CodexBarMockProvidersEnabled -bool true`)
-/// - Settings UI: Mac CodexBar → Settings → Mobile → Debug · Mock
-///   Provider Data toggle (Mac 0.23.5+).
+/// **Activation** — requires launching Mac CodexBar with the
+/// environment variable `CODEXBAR_MOCK_PROVIDERS` set:
+///
+/// 1. **Quick test (env var truthy)** — `CODEXBAR_MOCK_PROVIDERS=1
+///    open -a /Applications/CodexBar.app`. Mocks active immediately;
+///    Settings → Mobile → Debug · Mock Provider Data section appears
+///    so you can toggle off without restarting if needed.
+/// 2. **Persistent UI control** — `CODEXBAR_MOCK_PROVIDERS=0
+///    open -a /Applications/CodexBar.app`. Section appears, mocks
+///    initially OFF, UI toggle drives the actual state (persisted in
+///    UserDefaults). Subsequent debug-launches honor the toggle state.
 ///
 /// **Production safety**:
-/// - Default is OFF; user must explicitly opt in. Normal users (App
-///   Store / Sparkle install) never accidentally enable.
+/// - Default is OFF. A user launching CodexBar normally (Finder /
+///   Dock / login item) never has the env var set, so they never see
+///   the Settings section and `isEnabled` always returns false
+///   regardless of any UserDefaults state.
 /// - Mock account emails always use `.test` TLD (RFC 6761 reserved).
 ///   Synthetic providerID branches use `_mock_` prefix.
 /// - Mock CKRecords are stored under composite keys distinct from real
@@ -123,10 +130,13 @@ enum MockProviderInjector {
         return rich + simple
     }
 
-    /// True when mock provider injection is active. Reads env var first
-    /// (`CODEXBAR_MOCK_PROVIDERS`), falls back to UserDefaults. Both
-    /// default off. Accepts truthy values: `1`, `true`, `TRUE`, `yes`,
-    /// `YES` (case-insensitive on the alpha forms).
+    /// True when mock provider injection is active. **Env var
+    /// `CODEXBAR_MOCK_PROVIDERS` MUST be set on launch** — without it
+    /// this always returns false regardless of UserDefaults state.
+    /// Within an env-var-launched process: an env var value of `1`,
+    /// `true`, or `yes` (case-insensitive) activates immediately;
+    /// other values fall through to the UserDefaults toggle so the
+    /// Settings UI can drive the runtime state.
     static var isEnabled: Bool {
         Self.isEnabled(
             environment: ProcessInfo.processInfo.environment,
@@ -141,14 +151,34 @@ enum MockProviderInjector {
         environment: [String: String],
         userDefaults: UserDefaults) -> Bool
     {
-        if let raw = environment[environmentVariableName] {
-            let normalized = raw.lowercased()
-            let truthy: Set<String> = ["1", "true", "yes"]
-            if truthy.contains(normalized) {
-                return true
-            }
+        // Hard gate: env var must be present at launch. Without it,
+        // mock tooling is fully invisible to the process — Settings UI
+        // hides the section, defaults are ignored.
+        guard let raw = environment[environmentVariableName] else {
+            return false
         }
+        let normalized = raw.lowercased()
+        let truthy: Set<String> = ["1", "true", "yes"]
+        if truthy.contains(normalized) {
+            return true
+        }
+        // Env var present but not truthy — UI toggle (defaults) drives.
         return userDefaults.bool(forKey: Self.userDefaultsKey)
+    }
+
+    /// True when this process should expose the Settings → Mobile →
+    /// Debug · Mock Provider Data section. Identical gate as
+    /// `isEnabled` with respect to env-var presence — defaults state
+    /// is irrelevant for visibility, only for the toggle's current
+    /// position within the UI.
+    static var isMockToolingVisible: Bool {
+        Self.isMockToolingVisible(
+            environment: ProcessInfo.processInfo.environment)
+    }
+
+    /// Testable variant of `isMockToolingVisible`.
+    static func isMockToolingVisible(environment: [String: String]) -> Bool {
+        environment[self.environmentVariableName] != nil
     }
 
     static let environmentVariableName = "CODEXBAR_MOCK_PROVIDERS"

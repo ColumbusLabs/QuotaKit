@@ -1,6 +1,15 @@
 # Changelog
 
-## 0.23.5 — 2026-05-05 — L1 ghost cleanup survives Mac restart
+## 0.23.6 — 2026-05-05 — Pairs with iOS 1.5.2
+
+Bump from 0.23.5 → 0.23.6. The 0.23.5 internal cycle bundled mock
+infrastructure groundwork (mix-mode injector + Settings UI gating
+fix + L1 ghost cleanup survives Mac restart). 0.23.5 was never
+published; everything ships as 0.23.6.
+
+### Mac-side changes folded in
+
+- **L1 ghost cleanup survives Mac restart** (commit `4e633c02`)
 
 User QA 2026-05-05: stranded mock CKRecords from a previous Mac process
 incarnation persisted on iOS forever after the user toggled mock injection
@@ -36,7 +45,7 @@ pushed by a previous process.
 - 3 new SyncCoordinator tests (`l1Reconcile*`): stranded-record
   cleanup confirmed, empty-CloudKit no-op, sync-disabled skip.
 
-## 0.23.5 — 2026-05-03
+## 0.23.6 — Mock-First infrastructure groundwork (folded into 0.23.6 release)
 
 Mock-First quality infrastructure groundwork. This release establishes
 the synthetic-mock injection layer that subsequent iOS releases (1.5.2+)

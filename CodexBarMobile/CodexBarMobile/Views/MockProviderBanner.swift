@@ -63,6 +63,6 @@ struct MockProviderBanner: View {
         providers: [PreviewData.claudeProvider],
         syncTimestamp: Date(),
         deviceName: "MacBook Pro",
-        appVersion: "0.23.5",
+        appVersion: "0.23.6",
         mobileVersion: "1.5.2"))
 }

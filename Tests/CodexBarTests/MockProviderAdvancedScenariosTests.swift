@@ -28,7 +28,7 @@ struct MockProviderAdvancedScenariosTests {
     func aliceDailyBreakdownSpans30Days() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let alice = snapshots.first { $0.providerID == "codex"
             && ($0.accountEmail ?? "").contains("café")
         }
@@ -55,7 +55,7 @@ struct MockProviderAdvancedScenariosTests {
     func syntheticHistoryDatesIncrease() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let synth = snapshots.first { $0.providerID == "_mock_synthetic_unknown" }
         for series in synth?.utilizationHistory ?? [] {
             let times = series.entries.map(\.capturedAt)
@@ -69,7 +69,7 @@ struct MockProviderAdvancedScenariosTests {
     func quotaResetTimesInFutureForNonError() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let now = Date()
         for snap in snapshots where !snap.isError {
             for window in snap.rateWindows {
@@ -86,7 +86,7 @@ struct MockProviderAdvancedScenariosTests {
     func perplexityRenewalInFuture() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let perp = snapshots.first { $0.providerID == "perplexity" }
         let renewal = perp?.perplexityCredits?.renewalAt
         #expect(renewal != nil)
@@ -103,7 +103,7 @@ struct MockProviderAdvancedScenariosTests {
     func cursorFallbackHasErrorState() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let err = snapshots.first { $0.providerID == "_mock_cursor_unknown" }
         #expect(err?.isError == true)
         #expect(err?.statusMessage?.contains("Cookie") == true)
@@ -113,7 +113,7 @@ struct MockProviderAdvancedScenariosTests {
     func bobMockRepresentsQuotaDepleted() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let bob = snapshots.first { $0.providerID == "codex"
             && ($0.accountEmail ?? "").contains("bob")
         }
@@ -127,7 +127,7 @@ struct MockProviderAdvancedScenariosTests {
     func carolMockRepresentsFreshQuota() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let carol = snapshots.first { $0.providerID == "codex"
             && ($0.accountEmail ?? "").contains("carol")
         }
@@ -140,7 +140,7 @@ struct MockProviderAdvancedScenariosTests {
     func errorMessagesAreSynthetic() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         for snap in snapshots where snap.statusMessage != nil {
             let msg = snap.statusMessage ?? ""
             #expect(
@@ -230,7 +230,7 @@ struct MockProviderAdvancedScenariosTests {
     func mockProvidersAreSubscribable() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let realCatalog = Set(UsageProvider.allCases.map(\.rawValue))
         let realBorrowedMocks = snapshots.filter {
             realCatalog.contains($0.providerID)

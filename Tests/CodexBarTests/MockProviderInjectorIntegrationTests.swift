@@ -77,14 +77,14 @@ struct MockProviderInjectorIntegrationTests {
     func enabledCountIsStable() {
         self.enableMock()
         defer { self.resetActivationState() }
-        #expect(MockProviderInjector.injectedSnapshots().count == 32)
+        #expect(MockProviderInjector.allMocks().count == 32)
     }
 
     @Test("MR2.2: 29 distinct providerIDs match the published allowlists (27 real + 2 synthetic)")
     func providerIDsHaveSensibleDistribution() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let providerIDs = snapshots.map(\.providerID)
         let uniqueIDs = Set(providerIDs)
         #expect(uniqueIDs.count == 29, "should be 29 distinct mock provider IDs (27 real + 2 synthetic)")
@@ -94,17 +94,16 @@ struct MockProviderInjectorIntegrationTests {
         #expect(uniqueIDs == MockProviderInjector.allMockProviderIDs)
     }
 
-    @Test("MR2.3: re-toggle returns the same providerIDs (deterministic)")
+    @Test("MR2.3: allMocks() is deterministic across calls (same providerID set)")
     func reToggleIsDeterministic() {
-        self.enableMock()
+        // allMocks() is shape-only, doesn't depend on activation
+        // state. Call twice and verify the providerID set is stable
+        // (mocks are defined statically, so this is a regression
+        // test against accidental state-coupled mutation).
         let firstIDs = Set(
-            MockProviderInjector.injectedSnapshots().map(\.providerID))
-        self.disableMock()
-        #expect(MockProviderInjector.injectedSnapshots().isEmpty)
-        self.enableMock()
+            MockProviderInjector.allMocks().map(\.providerID))
         let secondIDs = Set(
-            MockProviderInjector.injectedSnapshots().map(\.providerID))
-        self.resetActivationState()
+            MockProviderInjector.allMocks().map(\.providerID))
         #expect(firstIDs == secondIDs)
     }
 
@@ -112,8 +111,8 @@ struct MockProviderInjectorIntegrationTests {
     func sameCallStableNameEmail() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots1 = MockProviderInjector.injectedSnapshots()
-        let snapshots2 = MockProviderInjector.injectedSnapshots()
+        let snapshots1 = MockProviderInjector.allMocks()
+        let snapshots2 = MockProviderInjector.allMocks()
         // Compare provider name + email pairs (not whole snapshot — timestamps differ)
         let pairs1 = Set(
             snapshots1.map { "\($0.providerName)|\($0.accountEmail ?? "")" })
@@ -126,7 +125,7 @@ struct MockProviderInjectorIntegrationTests {
     func allMockEmailsUseTestTLD() {
         self.enableMock()
         defer { self.resetActivationState() }
-        for snap in MockProviderInjector.injectedSnapshots() {
+        for snap in MockProviderInjector.allMocks() {
             let email = snap.accountEmail ?? ""
             #expect(
                 email.hasSuffix(".test"),
@@ -330,7 +329,7 @@ struct MockProviderInjectorIntegrationTests {
     func mockProviderIDsInAllowlist() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let realBorrowed = MockProviderInjector.realProviderIDsBorrowedByMocks
         let synthetic = MockProviderInjector.syntheticProviderIDs
         let allowed = realBorrowed.union(synthetic)
@@ -354,7 +353,7 @@ struct MockProviderInjectorIntegrationTests {
     func mockMultiAccountRecordNamesDistinct() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         // Build composite record names like CloudSyncManager would.
         let deviceID = "test-device"
         let recordNames = snapshots.map { snap in
@@ -370,7 +369,7 @@ struct MockProviderInjectorIntegrationTests {
     func mockMultiAccountIdentitiesAlignWithRealSchema() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         // Codex multi-account uses real `codex` providerID under mix
         // design, so the schema prefix is `codex:` not `_mock_codex_*:`.
         let codexMulti = snapshots.filter { $0.providerID == "codex" }
@@ -454,19 +453,26 @@ struct MockProviderInjectorIntegrationTests {
             environment: env, userDefaults: defaults))
     }
 
-    @Test("MR5.2g: UserDefaults true activates when env var absent")
-    func userDefaultsActivatesWhenEnvVarAbsent() {
+    @Test("MR5.2g: UserDefaults true alone does NOT activate without env var (env var is hard gate)")
+    func userDefaultsAloneDoesNotActivateWithoutEnvVar() {
+        // Hardened in 0.23.5: env var is a hard gate. Without
+        // CODEXBAR_MOCK_PROVIDERS set on launch, the entire mock
+        // tooling is invisible — UserDefaults state alone cannot
+        // activate mock injection. This keeps the Settings UI clean
+        // for normal users while preserving the toggle for debug-mode
+        // launches.
         let defaults = self.transientDefaults(setEnabled: true)
         let env: [String: String] = [:]
-        #expect(MockProviderInjector.isEnabled(
+        #expect(!MockProviderInjector.isEnabled(
             environment: env, userDefaults: defaults))
     }
 
-    @Test("MR5.2h: env var falsy + UserDefaults true → activates (env var only acts when truthy)")
+    @Test("MR5.2h: env var present + falsy + UserDefaults true → activates (debug mode, UI toggle drives)")
     func envVarFalsyDoesNotOverrideUserDefaultsTrue() {
-        // Design choice: env var only activates when truthy. A falsy
-        // env var doesn't deactivate UserDefaults. This means env var
-        // is "force on" not "force on/off".
+        // Design choice: env var presence opens debug mode. Within
+        // debug mode, env var truthy short-circuits to ON; otherwise
+        // UI toggle (UserDefaults) drives the runtime state. So
+        // env var "0" + defaults true → debug mode + UI says on → on.
         let defaults = self.transientDefaults(setEnabled: true)
         let env = ["CODEXBAR_MOCK_PROVIDERS": "0"]
         #expect(MockProviderInjector.isEnabled(
@@ -478,12 +484,17 @@ struct MockProviderInjectorIntegrationTests {
         #expect(MockProviderInjector.environmentVariableName == "CODEXBAR_MOCK_PROVIDERS")
     }
 
-    @Test("MR5.3: disabled state always returns empty array (not partial)")
+    @Test("MR5.3: disabled gate always returns empty (env var absent)")
     func disabledReturnsCompletelyEmpty() {
-        self.disableMock()
-        defer { self.resetActivationState() }
+        // Verifies the gate via the testable variant — without env
+        // var, the injector reports disabled regardless of defaults
+        // state. (The shape-only `allMocks()` always returns the full
+        // mock set; that's tested separately.)
+        let defaults = self.transientDefaults(setEnabled: true)
+        let env: [String: String] = [:]
         for _ in 1...5 {
-            #expect(MockProviderInjector.injectedSnapshots().isEmpty)
+            #expect(!MockProviderInjector.isEnabled(
+                environment: env, userDefaults: defaults))
         }
     }
 
@@ -491,7 +502,7 @@ struct MockProviderInjectorIntegrationTests {
     func mockTimestampsAreReasonable() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let now = Date()
         for snap in snapshots {
             let delta = abs(snap.lastUpdated.timeIntervalSince(now))
@@ -503,7 +514,7 @@ struct MockProviderInjectorIntegrationTests {
     func syntheticHistoryWithin30Days() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let synth = snapshots.first { $0.providerID == "_mock_synthetic_unknown" }
         let now = Date()
         let thirtyOneDaysAgo = now.addingTimeInterval(-31 * 86400)
@@ -519,7 +530,7 @@ struct MockProviderInjectorIntegrationTests {
     func errorMockHasNoRateWindows() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let errMock = snapshots.first { $0.providerID == "_mock_cursor_unknown" }
         #expect(errMock?.primary == nil)
         #expect(errMock?.secondary == nil)
@@ -532,7 +543,7 @@ struct MockProviderInjectorIntegrationTests {
     func perplexityMockCreditsNonNegative() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let perp = snapshots.first { $0.providerID == "perplexity" }
         let credits = perp?.perplexityCredits
         #expect((credits?.recurringTotalCents ?? -1) >= 0)
@@ -547,7 +558,7 @@ struct MockProviderInjectorIntegrationTests {
     func usedPercentInRange() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         for snap in snapshots {
             for window in snap.rateWindows {
                 #expect(window.usedPercent >= 0)
@@ -568,7 +579,7 @@ struct MockProviderInjectorIntegrationTests {
     func mockSnapshotsAreValidCodable() throws {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         for snap in snapshots {
@@ -581,7 +592,7 @@ struct MockProviderInjectorIntegrationTests {
     func boundaryZeroPercentExists() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let zeroBoundary = snapshots.contains { snap in
             snap.rateWindows.contains { $0.usedPercent == 0 }
                 || snap.primary?.usedPercent == 0
@@ -593,7 +604,7 @@ struct MockProviderInjectorIntegrationTests {
     func boundaryHundredPercentExists() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let hundredBoundary = snapshots.contains { snap in
             snap.rateWindows.contains { $0.usedPercent == 100 }
                 || snap.primary?.usedPercent == 100
@@ -606,7 +617,7 @@ struct MockProviderInjectorIntegrationTests {
     func nonASCIIEmailExists() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let nonASCII = snapshots.contains { snap in
             guard let email = snap.accountEmail else { return false }
             return !email.allSatisfy(\.isASCII)
@@ -620,7 +631,7 @@ struct MockProviderInjectorIntegrationTests {
     func nonASCIIEmailIdentityEncoded() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let cafeMock = snapshots.first { snap in
             (snap.accountEmail ?? "").contains("café")
         }
@@ -636,7 +647,7 @@ struct MockProviderInjectorIntegrationTests {
     func codableRoundTripPreservesIdentities() throws {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         let decoder = JSONDecoder()
@@ -659,7 +670,7 @@ struct MockProviderInjectorIntegrationTests {
     func mostMocksCarryCostData() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let withCost = snapshots.filter { $0.costSummary != nil }
         // 32 mocks total; 4 intentionally have nil costSummary:
         // _mock_cursor_unknown (error state), _mock_synthetic_unknown
@@ -672,7 +683,7 @@ struct MockProviderInjectorIntegrationTests {
     func aggregate30DayCostIsBounded() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let total = snapshots
             .compactMap(\.costSummary)
             .compactMap(\.last30DaysCostUSD)
@@ -685,7 +696,7 @@ struct MockProviderInjectorIntegrationTests {
     func atLeastOneMockHasDailyBreakdown() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let withDaily = snapshots
             .compactMap(\.costSummary)
             .filter { $0.daily.count == 30 }
@@ -696,7 +707,7 @@ struct MockProviderInjectorIntegrationTests {
     func dailyBreakdownHasModelLabels() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let dailyCosts = snapshots
             .compactMap(\.costSummary)
             .flatMap(\.daily)
@@ -716,7 +727,7 @@ struct MockProviderInjectorIntegrationTests {
     func costSumMatchesAggregate() {
         self.enableMock()
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         for snap in snapshots {
             guard let cost = snap.costSummary,
                   let total = cost.last30DaysCostUSD,

@@ -1850,7 +1850,7 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.23.5 for these changes to take effect."),
+                        String(localized: "Update Mac CodexBar to 0.23.6 for these changes to take effect."),
                     ]),
             ]),
         ReleaseNotesVersion(

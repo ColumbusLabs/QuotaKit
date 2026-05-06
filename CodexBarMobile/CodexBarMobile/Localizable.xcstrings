@@ -8063,31 +8063,31 @@
         }
       }
     },
-    "Pairs with Mac 0.23.5. Fixes mock data coexistence with real accounts and cleans up stranded mock records left behind by previous Mac sessions.": {
+    "Pairs with Mac 0.23.6. Fixes mock data coexistence with real accounts and cleans up stranded mock records left behind by previous Mac sessions.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pairs with Mac 0.23.5. Fixes mock data coexistence with real accounts and cleans up stranded mock records left behind by previous Mac sessions."
+            "value": "Pairs with Mac 0.23.6. Fixes mock data coexistence with real accounts and cleans up stranded mock records left behind by previous Mac sessions."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac 0.23.5 と組み合わせて使用。モックデータと実アカウントの共存問題を修正し、前回の Mac セッションが残したモック記録を自動クリーンアップ。"
+            "value": "Mac 0.23.6 と組み合わせて使用。モックデータと実アカウントの共存問題を修正し、前回の Mac セッションが残したモック記録を自動クリーンアップ。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "需要搭配 Mac 0.23.5。修复 mock 数据与真实账号共存的问题，并自动清理上一次 Mac 进程残留的 mock 记录。"
+            "value": "需要搭配 Mac 0.23.6。修复 mock 数据与真实账号共存的问题，并自动清理上一次 Mac 进程残留的 mock 记录。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "需要搭配 Mac 0.23.5。修復 mock 資料與真實帳號共存的問題，並自動清理上一次 Mac 行程殘留的 mock 記錄。"
+            "value": "需要搭配 Mac 0.23.6。修復 mock 資料與真實帳號共存的問題，並自動清理上一次 Mac 行程殘留的 mock 記錄。"
           }
         }
       }
@@ -8208,31 +8208,31 @@
         }
       }
     },
-    "Update Mac CodexBar to 0.23.5 (latest) for both fixes to take effect.": {
+    "Update Mac CodexBar to 0.23.6 (latest) for both fixes to take effect.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update Mac CodexBar to 0.23.5 (latest) for both fixes to take effect."
+            "value": "Update Mac CodexBar to 0.23.6 (latest) for both fixes to take effect."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac の CodexBar を 0.23.5（最新）に更新すると、両方の修正が有効になります。"
+            "value": "Mac の CodexBar を 0.23.6（最新）に更新すると、両方の修正が有効になります。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "把 Mac 端的 CodexBar 升级到 0.23.5（最新版），两项修复都会生效。"
+            "value": "把 Mac 端的 CodexBar 升级到 0.23.6（最新版），两项修复都会生效。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "把 Mac 端的 CodexBar 升級到 0.23.5（最新版），兩項修復都會生效。"
+            "value": "把 Mac 端的 CodexBar 升級到 0.23.6（最新版），兩項修復都會生效。"
           }
         }
       }
@@ -8353,31 +8353,31 @@
         }
       }
     },
-    "Pairs with Mac 0.23.5. Adds visual distinction for synthetic mock data injected by Mac (for QA / beta testing), and fixes a regression where mock injection could hide real provider accounts from the dashboard.": {
+    "Pairs with Mac 0.23.6. Adds visual distinction for synthetic mock data injected by Mac (for QA / beta testing), and fixes a regression where mock injection could hide real provider accounts from the dashboard.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pairs with Mac 0.23.5. Adds visual distinction for synthetic mock data injected by Mac (for QA / beta testing), and fixes a regression where mock injection could hide real provider accounts from the dashboard."
+            "value": "Pairs with Mac 0.23.6. Adds visual distinction for synthetic mock data injected by Mac (for QA / beta testing), and fixes a regression where mock injection could hide real provider accounts from the dashboard."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac 0.23.5 と組み合わせて使用。Mac から注入される合成モックデータ（QA / ベータテスト用）を視覚的に区別する機能を追加し、モック注入が実プロバイダーをダッシュボードから非表示にしてしまう不具合を修正しました。"
+            "value": "Mac 0.23.6 と組み合わせて使用。Mac から注入される合成モックデータ（QA / ベータテスト用）を視覚的に区別する機能を追加し、モック注入が実プロバイダーをダッシュボードから非表示にしてしまう不具合を修正しました。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "需要搭配 Mac 0.23.5。新增对 Mac 注入的合成 mock 数据（用于 QA / Beta 测试）的视觉区分；同时修复 mock 注入会把真实 provider 账号从 dashboard 隐藏的问题。"
+            "value": "需要搭配 Mac 0.23.6。新增对 Mac 注入的合成 mock 数据（用于 QA / Beta 测试）的视觉区分；同时修复 mock 注入会把真实 provider 账号从 dashboard 隐藏的问题。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "需要搭配 Mac 0.23.5。新增對 Mac 注入的合成 mock 資料（用於 QA / Beta 測試）的視覺區分；同時修復 mock 注入會把真實 provider 帳號從 dashboard 隱藏的問題。"
+            "value": "需要搭配 Mac 0.23.6。新增對 Mac 注入的合成 mock 資料（用於 QA / Beta 測試）的視覺區分；同時修復 mock 注入會把真實 provider 帳號從 dashboard 隱藏的問題。"
           }
         }
       }
@@ -8411,31 +8411,31 @@
         }
       }
     },
-    "Update Mac CodexBar to 0.23.5 (latest) for both the new visual treatment and the fixes to take effect.": {
+    "Update Mac CodexBar to 0.23.6 (latest) for both the new visual treatment and the fixes to take effect.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update Mac CodexBar to 0.23.5 (latest) for both the new visual treatment and the fixes to take effect."
+            "value": "Update Mac CodexBar to 0.23.6 (latest) for both the new visual treatment and the fixes to take effect."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac の CodexBar を 0.23.5（最新）に更新すると、新しい視覚処理と修正の両方が有効になります。"
+            "value": "Mac の CodexBar を 0.23.6（最新）に更新すると、新しい視覚処理と修正の両方が有効になります。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "把 Mac 端的 CodexBar 升级到 0.23.5（最新版），新的视觉效果和修复都会生效。"
+            "value": "把 Mac 端的 CodexBar 升级到 0.23.6（最新版），新的视觉效果和修复都会生效。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "把 Mac 端的 CodexBar 升級到 0.23.5（最新版），新的視覺效果和修復都會生效。"
+            "value": "把 Mac 端的 CodexBar 升級到 0.23.6（最新版），新的視覺效果和修復都會生效。"
           }
         }
       }
@@ -8643,31 +8643,31 @@
         }
       }
     },
-    "Update Mac CodexBar to 0.23.5 for these changes to take effect.": {
+    "Update Mac CodexBar to 0.23.6 for these changes to take effect.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update Mac CodexBar to 0.23.5 for these changes to take effect."
+            "value": "Update Mac CodexBar to 0.23.6 for these changes to take effect."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "これらの変更を有効にするには、Mac の CodexBar を 0.23.5 に更新してください。"
+            "value": "これらの変更を有効にするには、Mac の CodexBar を 0.23.6 に更新してください。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "需搭配 Mac CodexBar 0.23.5。"
+            "value": "需搭配 Mac CodexBar 0.23.6。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "需搭配 Mac CodexBar 0.23.5。"
+            "value": "需搭配 Mac CodexBar 0.23.6。"
           }
         }
       }

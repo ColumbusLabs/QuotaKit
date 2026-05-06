@@ -66,8 +66,17 @@ struct MobilePane: View {
                         binding: self.$settings.notificationPushToiOSEnabled)
                 }
 
-                Divider()
-                self.mockProviderSection
+                // Mock Provider Data section is gated behind the
+                // CODEXBAR_MOCK_PROVIDERS env var — normal launches
+                // (Finder / Dock / login item) never see it. Only when
+                // Mac is launched with the env var set does the
+                // section render. This preserves a clean Settings pane
+                // for end users while making the toggle reachable
+                // during debug sessions.
+                if MockProviderInjector.isMockToolingVisible {
+                    Divider()
+                    self.mockProviderSection
+                }
 
                 if self.isDevelopmentBuild {
                     Divider()
@@ -79,12 +88,12 @@ struct MobilePane: View {
         }
     }
 
-    // MARK: - Mock Provider Data (visible to all users; default OFF)
+    // MARK: - Mock Provider Data (env-var gated; invisible to normal users)
 
     /// Reference list of all 8 mocks the injector emits when active.
     /// Hardcoded here so the Settings UI can show side-by-side
     /// "what should appear on my iPhone" vs. what actually appears.
-    /// Kept in sync with `MockProviderInjector` mocks (see Mac 0.23.5+
+    /// Kept in sync with `MockProviderInjector` mocks (see Mac 0.23.6+
     /// docstring there for the mix design rationale).
     private struct MockReferenceCard: Identifiable {
         let id: String

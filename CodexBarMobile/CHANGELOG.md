@@ -2,6 +2,18 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.2 (112)] — 2026-05-05 — Bump Mac pairing version to 0.23.6 + gate Mock UI
+
+Mac version bumped 0.23.5 → 0.23.6 (0.23.5 was internal-only,
+never shipped). All catalog + xcstrings + release-notes draft
+references updated to "Mac 0.23.6". Plus Mac-side gate: the
+Settings → Mobile → Debug · Mock Provider Data section is now
+hidden unless Mac is launched with `CODEXBAR_MOCK_PROVIDERS`
+env var, keeping the Settings pane clean for normal users while
+preserving toggle access during debug sessions. Build 112 is
+content-only on the iOS side; the gate change is in the Mac
+binary (0.23.6 / 58.6).
+
 ## [1.5.2 (111)] — 2026-05-05 — Rewrite 1.5.2 release notes in product-style language
 
 User feedback: previous catalog entry led with developer-facing
@@ -41,16 +53,16 @@ No other code change.
 In-app release notes catalog updated for the 1.5.2 (107) hotfix per
 user feedback: shorter, less technical, no `Important` callout, and
 adds an explicit Mac-version-pairing section pointing users to the
-required Mac 0.23.5 build. No code change beyond the catalog text +
+required Mac 0.23.6 build. No code change beyond the catalog text +
 Build 108 bump so the binary embeds the updated copy. Pairs with
-Mac 0.23.5 hotfix (commit `4e633c02`) which adds CloudKit reconcile
+Mac 0.23.6 hotfix (commit `4e633c02`) which adds CloudKit reconcile
 on Mac startup so stranded mock CKRecords from previous Mac sessions
 get cleaned up automatically.
 
 ## [1.5.2 (107)] — 2026-05-04 — Mock injection no longer wipes real accountless providers
 
 User QA hit a critical regression after mock-injector landed in
-1.5.2 (103) + Mac 0.23.5: real Claude data ($2029 / 30 days) disappeared
+1.5.2 (103) + Mac 0.23.6: real Claude data ($2029 / 30 days) disappeared
 from the iOS Cost dashboard while mock Claude entries remained visible.
 Root-caused in `SnapshotCache.dropOrphansAndStale` — both filter rules
 (Build 94 ghost-orphan + stale-TTL) treated synthetic mock entries the
@@ -99,7 +111,7 @@ same as real OAuth-completed accounts, which:
 
 ## [1.5.2 (103)] — 2026-05-03 — Mock provider visual treatment
 
-Pairs with **Mac 0.23.5** which introduced the synthetic mock-provider
+Pairs with **Mac 0.23.6** which introduced the synthetic mock-provider
 injection layer. iOS 1.5.2 adds the visual treatment that makes mock
 data unmistakable so QA / Beta testers can't mistake it for real
 spend.
@@ -137,7 +149,7 @@ spend.
 
 ### Unchanged
 
-- Wire format. Mac 0.23.5's mock injection passes through the
+- Wire format. Mac 0.23.6's mock injection passes through the
   existing CKRecord schema. iOS 1.5.1 users still see mock data as
   ordinary cards (no badge, no banner) — the visual treatment is
   purely additive on iOS 1.5.2.

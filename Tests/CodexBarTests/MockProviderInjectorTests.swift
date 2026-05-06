@@ -23,33 +23,47 @@ struct MockProviderInjectorTests {
         // exported it before running tests. We assume clean env.
     }
 
-    @Test("Disabled by default — no mock snapshots")
+    @Test("Disabled by default — env var absent")
     func defaultIsDisabled() {
+        // Test process inherits a clean env without
+        // CODEXBAR_MOCK_PROVIDERS, so the real isEnabled gate fires
+        // and reports false. (allMocks() is shape-only and always
+        // returns the full set — that's covered by other tests.)
         self.resetActivationState()
         #expect(!MockProviderInjector.isEnabled)
-        #expect(MockProviderInjector.injectedSnapshots().isEmpty)
     }
 
-    @Test("UserDefaults flag activates injection")
-    func userDefaultsFlagActivates() {
-        self.resetActivationState()
-        UserDefaults.standard.set(
-            true, forKey: MockProviderInjector.userDefaultsKey)
-        defer { self.resetActivationState() }
-        #expect(MockProviderInjector.isEnabled)
-        let snapshots = MockProviderInjector.injectedSnapshots()
+    @Test("Env var truthy + defaults true → activates")
+    func envVarTruthyActivates() {
+        // Hardened in 0.23.5: env var is the gate. Verify via the
+        // testable variant since env vars cannot be mutated from
+        // inside a running process.
+        let defaults = UserDefaults.standard
+        defaults.set(true, forKey: MockProviderInjector.userDefaultsKey)
+        defer {
+            defaults.removeObject(forKey: MockProviderInjector.userDefaultsKey)
+        }
+        let env = ["CODEXBAR_MOCK_PROVIDERS": "1"]
+        #expect(MockProviderInjector.isEnabled(
+            environment: env, userDefaults: defaults))
         #expect(
-            snapshots.count == 32,
+            MockProviderInjector.allMocks().count == 32,
             "29 mock provider IDs producing 32 ProviderUsageSnapshot entries (6 rich + 24 simple + 2 fallback)")
     }
 
-    @Test("Disabled flag returns empty even with override")
-    func disabledFlagReturnsEmpty() {
-        self.resetActivationState()
-        UserDefaults.standard.set(
-            false, forKey: MockProviderInjector.userDefaultsKey)
-        defer { self.resetActivationState() }
-        #expect(MockProviderInjector.injectedSnapshots().isEmpty)
+    @Test("UserDefaults true alone (no env var) → disabled")
+    func userDefaultsAloneDisabled() {
+        // Env var is required. UserDefaults state alone cannot
+        // activate mock injection — keeps the Settings UI clean for
+        // normal users.
+        let defaults = UserDefaults.standard
+        defaults.set(true, forKey: MockProviderInjector.userDefaultsKey)
+        defer {
+            defaults.removeObject(forKey: MockProviderInjector.userDefaultsKey)
+        }
+        let env: [String: String] = [:]
+        #expect(!MockProviderInjector.isEnabled(
+            environment: env, userDefaults: defaults))
     }
 
     @Test("Mock providerIDs are split: real-borrowed (for first-class iOS UI) + `_mock_*` (for fallback test)")
@@ -58,7 +72,7 @@ struct MockProviderInjectorTests {
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         #expect(!snapshots.isEmpty)
         let realBorrowed = MockProviderInjector.realProviderIDsBorrowedByMocks
         let synthetic = MockProviderInjector.syntheticProviderIDs
@@ -83,7 +97,7 @@ struct MockProviderInjectorTests {
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let accountedEmails = snapshots.compactMap(\.accountEmail)
         #expect(!accountedEmails.isEmpty)
         for email in accountedEmails {
@@ -99,7 +113,7 @@ struct MockProviderInjectorTests {
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let codexEntries = snapshots.filter { $0.providerID == "codex" }
         #expect(codexEntries.count == 3, "3 Codex mocks on real `codex` providerID")
         let emails = Set(codexEntries.compactMap(\.accountEmail))
@@ -115,7 +129,7 @@ struct MockProviderInjectorTests {
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let claudeEntries = snapshots.filter { $0.providerID == "claude" }
         #expect(claudeEntries.count == 2)
         let emails = Set(claudeEntries.compactMap(\.accountEmail))
@@ -128,7 +142,7 @@ struct MockProviderInjectorTests {
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let perplexity = snapshots.first { $0.providerID == "perplexity" }
         #expect(perplexity != nil)
         let credits = perplexity?.perplexityCredits
@@ -145,7 +159,7 @@ struct MockProviderInjectorTests {
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let errorMock = snapshots.first { $0.providerID == "_mock_cursor_unknown" }
         #expect(errorMock != nil)
         #expect(errorMock?.isError == true)
@@ -159,7 +173,7 @@ struct MockProviderInjectorTests {
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let synthetic = snapshots.first { $0.providerID == "_mock_synthetic_unknown" }
         #expect(synthetic != nil)
         #expect(synthetic?.rateWindows.count == 3, "3 lanes: 5h, weekly, search")
@@ -177,7 +191,7 @@ struct MockProviderInjectorTests {
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         let decoder = JSONDecoder()
@@ -198,7 +212,7 @@ struct MockProviderInjectorTests {
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         // All mocks except the cursor error mock (which intentionally
         // sets accountIdentities to nil — exercises the legacy
         // per-device bucket fallback). The cursor error mock still has
@@ -220,7 +234,7 @@ struct MockProviderInjectorTests {
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let realBorrowed = MockProviderInjector.realProviderIDsBorrowedByMocks
         let realBorrowedSnapshots = snapshots.filter { realBorrowed.contains($0.providerID) }
         let withCost = realBorrowedSnapshots.filter { $0.costSummary != nil }
@@ -243,7 +257,7 @@ struct MockProviderInjectorTests {
         UserDefaults.standard.set(
             true, forKey: MockProviderInjector.userDefaultsKey)
         defer { self.resetActivationState() }
-        let snapshots = MockProviderInjector.injectedSnapshots()
+        let snapshots = MockProviderInjector.allMocks()
         let alice = snapshots.first { snap in
             snap.providerID == "codex"
                 && (snap.accountEmail ?? "").contains("café")
