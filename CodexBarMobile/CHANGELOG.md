@@ -2,6 +2,37 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.2 (113)] — 2026-05-06 — Fix cold-launch crash (App Store rejection)
+
+App Store Review rejected 1.5.2 (112) with "App crashed after the
+initial launch". Crash captured on a fresh iOS 26.2 simulator
+(`CodexBarMobile-2026-05-06-171237.ips`):
+
+```
+EXC_BREAKPOINT (SIGTRAP) on com.apple.cloudkit.CKProcessScopedStateManager.notificationQueue
+_swift_task_checkIsolatedSwift
+@objc AppDelegate.iCloudAccountChanged() (CodexBarMobileApp.swift:166)
+__CFNOTIFICATIONCENTER_IS_CALLING_OUT_TO_AN_OBSERVER__
+```
+
+Root cause: `AppDelegate` is implicitly `@MainActor`-isolated under
+Swift 6 strict concurrency (because of `UIApplicationDelegate`
+conformance). The `@objc` `iCloudAccountChanged()` method was
+registered as a `NotificationCenter` observer for `.CKAccountChanged`,
+which CloudKit posts on a background notification queue. The
+runtime's executor-isolation check trapped on the very first
+account-state read. Crash fired on every cold launch on a fresh
+device — including Apple's review device.
+
+Fix: marked `iCloudAccountChanged()` as `nonisolated`. The body
+already hops to `@MainActor` via `Task { @MainActor in ... }` for
+the actual subscription setup, so this is purely a thread-safety
+annotation on the entry point.
+
+Verified on a fresh iOS 26.2 simulator with no iCloud account
+signed in — app now stays alive across cold launches. Build 113
+is ready for App Store resubmission.
+
 ## [1.5.2 (112)] — 2026-05-05 — Bump Mac pairing version to 0.23.6 + gate Mock UI
 
 Mac version bumped 0.23.5 → 0.23.6 (0.23.5 was internal-only,

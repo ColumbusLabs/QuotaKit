@@ -163,7 +163,20 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         }
     }
 
-    @objc private func iCloudAccountChanged() {
+    /// MUST be `nonisolated` — `CKAccountChanged` posts on
+    /// `com.apple.cloudkit.CKProcessScopedStateManager.notificationQueue`,
+    /// not the main queue. Without `nonisolated`, the implicit
+    /// `@MainActor` isolation on `AppDelegate` (inherited from
+    /// `UIApplicationDelegate` conformance under Swift 6 strict
+    /// concurrency) causes `_swift_task_checkIsolatedSwift` to trap
+    /// (`EXC_BREAKPOINT`) the moment the notification fires. Crash
+    /// happens on every cold launch as soon as CloudKit's first
+    /// account-state read posts the notification — was the cause of
+    /// the App Store 1.5.2 (112) review rejection ("App crashed after
+    /// initial launch"). The body still hops to `@MainActor` via
+    /// `Task { @MainActor in ... }` so the actual subscription setup
+    /// is properly main-isolated.
+    @objc nonisolated private func iCloudAccountChanged() {
         print("[CodexBar Push v2] iCloud account changed — re-running subscription setup")
         Task { @MainActor in
             await QuotaTransitionSubscriptions.shared.setupIfNeeded()
