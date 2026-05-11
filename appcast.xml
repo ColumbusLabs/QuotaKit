@@ -6,10 +6,10 @@
             <title>0.25.1</title>
             <pubDate>Mon, 11 May 2026 15:30:00 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
-            <sparkle:version>61.1.5.3</sparkle:version>
+            <sparkle:version>61.1.5.2</sparkle:version>
             <sparkle:shortVersionString>0.25.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.25.1-Mobile 1.5.3</h2>
+            <description><![CDATA[<h2>CodexBar 0.25.1-Mobile 1.5.2</h2>
 Folded upstream <code>steipete/CodexBar</code> v0.24, v0.25, and v0.25.1 into the
 mobile fork in a single merge (185 commits, ~21k LOC). Goal: zero
 regression for users on multi-Mac + iPhone setups, even if one Mac

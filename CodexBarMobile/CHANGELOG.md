@@ -2,110 +2,40 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [1.5.3 (114)] — 2026-05-11 — Fold upstream v0.24/v0.25/v0.25.1 into mobile-dev
+## [Unreleased] — Pending future iOS release
 
-Brought Mac side from 0.23.6 to 0.25.1 (185 upstream commits, ~21k LOC
-delta) in a single merge while preserving every multi-device sync
-guarantee. Goal: a user with two Macs and an iPhone can upgrade only
-one Mac and still have CloudKit sync work in all directions.
+Code-level changes accumulated on `mobile-dev` after iOS 1.5.2 (build
+113) shipped. **Not version-bumped** — `project.yml` still pins 1.5.2
+/ 113. When you decide to cut the next iOS release (1.5.3 / 1.6.0 /
+whatever you pick) you'll bump `MARKETING_VERSION` /
+`CURRENT_PROJECT_VERSION` together with composing the user-facing
+release notes; until then this section documents the pending
+delta so the iOS binary's expected provenance stays auditable.
 
-### CloudKit wire compatibility audit (Mac ↔ Mac ↔ iOS)
+### Push subscription provider list (Shared/Notifications)
 
-Upstream did not touch `CodexBarMobile/Shared/` (iOS-only) or
-`Sources/CodexBar/Sync/` (fork-private). So the wire-level
-structures — `ProviderUsageSnapshot`, `SyncedUsageSnapshot`,
-`ProviderUsageEnvelope`, CKRecord types, zone names — are
-**byte-for-byte unchanged**. `providerPayloadVersion` stays at 1.
-`encodingVersion` stays at 1. `containerIdentifier` /
-`customZoneName` / `providerZoneName` / quota zone names — all
-unchanged.
+`QuotaProviderList.providers` grew from 27 → 38 entries to match the
+11 new upstream providers (`openai`, `manus`, `windsurf`, `mimo`,
+`doubao`, `deepseek`, `codebuff`, `crof`, `venice`, `commandcode`,
+`stepfun`). Display names mirror the canonical Mac
+`ProviderDescriptor.metadata.displayName`. iOS currently ships with
+the old 27-entry list, so until a new iOS build is released:
+- Old iOS (1.5.2 / 113) subscribes only to the 54 legacy quota zones
+  (27 providers × 2 states).
+- A new Mac running 0.25.1 may write quota events to the new 22
+  zones; old iOS doesn't subscribe → no push delivered. **Designed
+  behavior** per `QuotaProviderList.swift` top-comment ("when a new
+  provider is added upstream, this list and the iOS app must ship an
+  update together to start receiving pushes for it").
 
-The only wire-observable change is **eleven new `providerID`
-strings** flowing in `ProviderUsageSnapshot.providerID: String`:
-`openai`, `manus`, `windsurf`, `mimo`, `doubao`, `deepseek`,
-`codebuff`, `crof`, `venice`, `commandcode`, `stepfun`. The iOS
-render path treats `providerID` as opaque — every site uses
-`ProviderColorPalette` pattern-match with a `.blue` fallback,
-`providerName` is shown verbatim from the snapshot. No iOS code
-path is gated on a closed enum, so unknown provider strings render
-as generic cards with the upstream display name. Confirmed end-to-end:
+Tests updated: `QuotaProviderListTests` counts 27/54 → 38/76 and
+appended-tail invariant pins all 13 post-baseline IDs in order.
 
-| Mac-A | Mac-B | iPhone | Outcome |
-|-------|-------|--------|---------|
-| 0.23.6 | 0.23.6 | 1.5.2 | Baseline ✓ |
-| 0.25.1 | 0.23.6 | 1.5.2 | Mac-A writes 11 new provider records; iPhone renders them as generic cards; Mac-B is independent ✓ |
-| 0.25.1 | 0.25.1 | 1.5.2 | All Macs new; iPhone shows all (fallback render) ✓ |
-| 0.23.6 | 0.23.6 | 1.6.x (future) | iPhone subscribes to 22 extra quota zones (`openai`…`stepfun` × {depleted, restored}); old Mac never writes there, no push fires; no crash ✓ |
-| 0.25.1 | 0.23.6 | 1.6.x | New Mac drives new provider quota pushes; old Mac unaffected ✓ |
+### Test coverage at this commit
 
-### Push subscription expansion (iOS)
-
-`QuotaProviderList.providers` grew from 27 → 38 entries. iOS
-`QuotaTransitionSubscriptions.setupIfNeeded()` creates one
-`CKRecordZoneSubscription` per (provider, state) pair, so the
-subscription count climbs 54 → 76 on first launch after upgrade.
-Each subscription's static `alertBody` is prefilled with the
-canonical Mac `ProviderDescriptor.metadata.displayName` so push
-text reads correctly on any locale ("Manus / DeepSeek / Xiaomi
-MiMo …"). Older iOS without the expanded list silently doesn't
-subscribe — Mac writes still succeed, just no push delivery for
-those providers until iOS ships.
-
-### Switch exhaustiveness in fork code
-
-Two `switch UsageProvider` statements in our Sync layer became
-non-exhaustive after the merge and now handle the 11 new cases:
-
-- `AccountIdentityComputer.compute(provider:identity:)` — new
-  providers fall into the non-Tier-A `nil` branch (per-device
-  legacy bucket). Promotion to a dedicated identifier-extraction
-  case is deferred until we ship corresponding iOS render support
-  and have a real cross-Mac merge use case.
-- `SyncCoordinator.isModelEstimated(modelName:provider:)` — new
-  providers join the "never estimated" catchall since their costs
-  come from upstream APIs (not the local Codex/Claude pricing
-  tables).
-
-### models.dev pricing pipeline fold-in
-
-`CostUsagePricing.codexCostUSD/claudeCostUSD` now cascade through
-three tiers in order: (1) live models.dev catalog lookup
-(upstream's new `ModelsDevPricingPipeline`), (2) exact local-table
-hit, (3) our `CodexFamilyResolver` / `ClaudeFamilyResolver`
-fallback ladder for unknown `gpt-X.Y` / `claude-{family}-…` names
-(Research/018). The third tier still fires
-`UnknownModelDiagnostics` so any unrecognized model surfaces in
-Debug pane. `PiSessionCostCache` artifact version stays at 2 and
-keeps our `pricingFingerprint` invalidation alongside upstream's
-stale-cache rebuild fix (78e186d4).
-
-### Settings bridge
-
-Upstream 0.25 replaced our `showAllTokenAccountsInMenu: Bool` with
-`multiAccountMenuLayout: {.stacked, .segmented}`. Kept
-`showAllTokenAccountsInMenu` as a computed-property bridge
-(`get { multiAccountMenuLayout == .stacked }`) so our
-`SyncCoordinator` multi-account capture logic and the Mobile
-Preferences pane keep working without ripple-edits. UserDefaults
-migration is one-way: old `showAllTokenAccountsInMenu=true` →
-new `multiAccountMenuLayout=stacked` on first launch.
-
-### Tests
-
-- `swift test` (Mac side): all 38 SyncCoordinator tests passing,
-  including `ghostProviderNotPushedToPerProviderZone`,
-  `extraRateWindows`, cross-version merge cases.
-- `xcodebuild test -only-testing:CodexBarMobileTests` (iOS):
-  272 tests across 20 suites passing. `QuotaProviderListTests`
-  counts updated 27/54 → 38/76 and the appended-tail invariant
-  now pins all 13 post-baseline IDs in fixed order.
-- iOS simulator build (iPhone 17 Pro / iOS 26.4) succeeds.
-
-### Versions
-
-- Mac: `MARKETING_VERSION` 0.23.6 → 0.25.1, `BUILD_NUMBER` 58.6 → 61
-- iOS: `MARKETING_VERSION` 1.5.2 → 1.5.3, `CURRENT_PROJECT_VERSION`
-  113 → 114
+- iOS Simulator build (iPhone 17 Pro / iOS 26.4) succeeds.
+- `xcodebuild test -only-testing:CodexBarMobileTests`: 272 tests
+  across 20 suites passing.
 
 ## [1.5.2 (113)] — 2026-05-06 — Fix cold-launch crash (App Store rejection)
 
