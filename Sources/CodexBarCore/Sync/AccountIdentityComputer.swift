@@ -52,7 +52,14 @@ public enum AccountIdentityComputer {
             self.vertexAI(identity: identity)
         case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot,
              .minimax, .kilo, .kiro, .kimi, .kimik2, .augment, .jetbrains, .amp, .ollama, .synthetic,
-             .openrouter, .warp, .perplexity, .abacus, .mistral:
+             .openrouter, .warp, .perplexity, .abacus, .mistral,
+             // Upstream 0.24–0.25.1 providers. Kept non-Tier-A for now —
+             // iOS falls back to per-device legacy bucket. Promote to a
+             // dedicated case (with stable identifier extraction) only
+             // after we ship corresponding iOS render support and have a
+             // real cross-Mac merge use case for that provider.
+             .openai, .manus, .windsurf, .mimo, .doubao, .deepseek,
+             .codebuff, .crof, .venice, .commandcode, .stepfun:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS falls back to per-device legacy
             // bucket. If a future provider needs cross-Mac merging, add

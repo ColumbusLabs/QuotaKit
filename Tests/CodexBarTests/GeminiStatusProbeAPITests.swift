@@ -305,6 +305,79 @@ struct GeminiStatusProbeAPITests {
     }
 
     @Test
+    func `refreshes expired token with homebrew bundle layout`() async throws {
+        let env = try GeminiTestEnvironment()
+        defer { env.cleanup() }
+        try env.writeCredentials(
+            accessToken: "old-token",
+            refreshToken: "refresh-token",
+            expiry: Date().addingTimeInterval(-3600),
+            idToken: GeminiAPITestHelpers.makeIDToken(email: "user@example.com"))
+
+        let binURL = try env.writeFakeGeminiCLI(layout: .homebrewBundle)
+        let previousGeminiPath = ProcessInfo.processInfo.environment["GEMINI_CLI_PATH"]
+        setenv("GEMINI_CLI_PATH", binURL.path, 1)
+        defer {
+            if let previousGeminiPath {
+                setenv("GEMINI_CLI_PATH", previousGeminiPath, 1)
+            } else {
+                unsetenv("GEMINI_CLI_PATH")
+            }
+        }
+
+        let dataLoader = GeminiAPITestHelpers.dataLoader { request in
+            guard let url = request.url, let host = url.host else {
+                throw URLError(.badURL)
+            }
+
+            switch host {
+            case "oauth2.googleapis.com":
+                let body = request.httpBody.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+                guard body.contains("client_id=test-client-id") else {
+                    return GeminiAPITestHelpers.response(url: url.absoluteString, status: 400, body: Data())
+                }
+                let json = GeminiAPITestHelpers.jsonData([
+                    "access_token": "new-token",
+                    "expires_in": 3600,
+                    "id_token": GeminiAPITestHelpers.makeIDToken(email: "user@example.com"),
+                ])
+                return GeminiAPITestHelpers.response(url: url.absoluteString, status: 200, body: json)
+            case "cloudresourcemanager.googleapis.com":
+                return GeminiAPITestHelpers.response(
+                    url: url.absoluteString,
+                    status: 200,
+                    body: GeminiAPITestHelpers.jsonData(["projects": []]))
+            case "cloudcode-pa.googleapis.com":
+                guard request.value(forHTTPHeaderField: "Authorization") == "Bearer new-token" else {
+                    return GeminiAPITestHelpers.response(url: url.absoluteString, status: 401, body: Data())
+                }
+                if url.path == "/v1internal:loadCodeAssist" {
+                    return GeminiAPITestHelpers.response(
+                        url: url.absoluteString,
+                        status: 200,
+                        body: GeminiAPITestHelpers.loadCodeAssistStandardTierResponse())
+                }
+                if url.path == "/v1internal:retrieveUserQuota" {
+                    return GeminiAPITestHelpers.response(
+                        url: url.absoluteString,
+                        status: 200,
+                        body: GeminiAPITestHelpers.sampleQuotaResponse())
+                }
+                return GeminiAPITestHelpers.response(url: url.absoluteString, status: 404, body: Data())
+            default:
+                return GeminiAPITestHelpers.response(url: url.absoluteString, status: 404, body: Data())
+            }
+        }
+
+        let probe = GeminiStatusProbe(timeout: 2, homeDirectory: env.homeURL.path, dataLoader: dataLoader)
+        let snapshot = try await probe.fetch()
+        #expect(snapshot.accountPlan == "Paid")
+
+        let updated = try env.readCredentials()
+        #expect(updated["access_token"] as? String == "new-token")
+    }
+
+    @Test
     func `uses code assist project for quota`() async throws {
         let env = try GeminiTestEnvironment()
         defer { env.cleanup() }
@@ -371,6 +444,65 @@ struct GeminiStatusProbeAPITests {
         let probe = GeminiStatusProbe(timeout: 1, homeDirectory: env.homeURL.path, dataLoader: dataLoader)
         _ = try await probe.fetch()
         #expect(seenProject.get() == projectId)
+    }
+
+    @Test
+    func `falls back to curl loader when URL session times out`() async throws {
+        let calls = LoaderCalls()
+        let url = try #require(URL(string: "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota"))
+        let request = URLRequest(url: url)
+        let body = Data("{\"ok\":true}".utf8)
+        let loader = GeminiStatusProbe.dataLoaderWithCurlFallback(
+            primary: { _ in
+                calls.incrementPrimary()
+                throw URLError(.timedOut)
+            },
+            fallback: { request in
+                calls.incrementFallback()
+                let (response, data) = GeminiAPITestHelpers.response(
+                    url: request.url!.absoluteString,
+                    status: 200,
+                    body: body)
+                return (data, response)
+            })
+
+        let (loadedBody, loadedResponse) = try await loader(request)
+        let counts = calls.counts()
+        #expect(loadedBody == body)
+        #expect((loadedResponse as? HTTPURLResponse)?.statusCode == 200)
+        #expect(counts.primary == 1)
+        #expect(counts.fallback == 1)
+    }
+
+    @Test
+    func `does not fall back to curl loader for non-timeout errors`() async throws {
+        let calls = LoaderCalls()
+        let url = try #require(URL(string: "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota"))
+        let request = URLRequest(url: url)
+        let loader = GeminiStatusProbe.dataLoaderWithCurlFallback(
+            primary: { _ in
+                calls.incrementPrimary()
+                throw URLError(.cannotFindHost)
+            },
+            fallback: { request in
+                calls.incrementFallback()
+                let (response, data) = GeminiAPITestHelpers.response(
+                    url: request.url!.absoluteString,
+                    status: 200,
+                    body: Data())
+                return (data, response)
+            })
+
+        do {
+            _ = try await loader(request)
+            Issue.record("Expected non-timeout URLSession error")
+        } catch let error as URLError {
+            #expect(error.code == .cannotFindHost)
+        }
+
+        let counts = calls.counts()
+        #expect(counts.primary == 1)
+        #expect(counts.fallback == 0)
     }
 
     @Test
@@ -540,6 +672,30 @@ struct GeminiStatusProbeAPITests {
             #expect(Bool(false))
         } catch {
             #expect(error as? GeminiStatusProbeError == expected)
+        }
+    }
+
+    private final class LoaderCalls: @unchecked Sendable {
+        private let lock = NSLock()
+        private var primaryCount = 0
+        private var fallbackCount = 0
+
+        func incrementPrimary() {
+            self.lock.lock()
+            self.primaryCount += 1
+            self.lock.unlock()
+        }
+
+        func incrementFallback() {
+            self.lock.lock()
+            self.fallbackCount += 1
+            self.lock.unlock()
+        }
+
+        func counts() -> (primary: Int, fallback: Int) {
+            self.lock.lock()
+            defer { self.lock.unlock() }
+            return (self.primaryCount, self.fallbackCount)
         }
     }
 }

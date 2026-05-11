@@ -935,7 +935,12 @@ final class SyncCoordinator {
             !ModelFallbackPricing.isCodexModelKnown(modelName)
         case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot,
              .minimax, .kilo, .kiro, .kimi, .kimik2, .augment, .jetbrains, .amp, .ollama, .synthetic,
-             .openrouter, .warp, .perplexity, .abacus, .mistral:
+             .openrouter, .warp, .perplexity, .abacus, .mistral,
+             // Upstream 0.24–0.25.1 providers — pre-computed costs from
+             // their own APIs, never go through the local Codex/Claude
+             // pricing tables, so never "estimated".
+             .openai, .manus, .windsurf, .mimo, .doubao, .deepseek,
+             .codebuff, .crof, .venice, .commandcode, .stepfun:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

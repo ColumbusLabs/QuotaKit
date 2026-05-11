@@ -25,6 +25,21 @@ struct TokenAccountEnvironmentPrecedenceTests {
     }
 
     @Test
+    func `deepseek token account injects environment in app environment builder`() {
+        let settings = Self.makeSettingsStore(suite: "TokenAccountEnvironmentPrecedenceTests-deepseek-app")
+        settings.addTokenAccount(provider: .deepseek, label: "Account 1", token: "account-token")
+
+        let env = ProviderRegistry.makeEnvironment(
+            base: ["FOO": "bar"],
+            provider: .deepseek,
+            settings: settings,
+            tokenOverride: nil)
+
+        #expect(env["FOO"] == "bar")
+        #expect(env[DeepSeekSettingsReader.apiKeyEnvironmentKey] == "account-token")
+    }
+
+    @Test
     func `token account environment overrides config API key in CLI environment builder`() throws {
         let config = CodexBarConfig(
             providers: [
@@ -43,6 +58,23 @@ struct TokenAccountEnvironmentPrecedenceTests {
 
         #expect(env[ZaiSettingsReader.apiTokenKey] == "account-token")
         #expect(env[ZaiSettingsReader.apiTokenKey] != "config-token")
+    }
+
+    @Test
+    func `deepseek token account injects environment in CLI environment builder`() throws {
+        let config = CodexBarConfig(providers: [])
+        let selection = TokenAccountCLISelection(label: nil, index: nil, allAccounts: false)
+        let tokenContext = try TokenAccountCLIContext(selection: selection, config: config, verbose: false)
+        let account = ProviderTokenAccount(
+            id: UUID(),
+            label: "Account 1",
+            token: "account-token",
+            addedAt: Date().timeIntervalSince1970,
+            lastUsed: nil)
+
+        let env = tokenContext.environment(base: [:], provider: .deepseek, account: account)
+
+        #expect(env[DeepSeekSettingsReader.apiKeyEnvironmentKey] == "account-token")
     }
 
     @Test
@@ -88,6 +120,22 @@ struct TokenAccountEnvironmentPrecedenceTests {
 
         #expect(env["FOO"] == "bar")
         #expect(env[ClaudeOAuthCredentialsStore.environmentTokenKey] == "sk-ant-oat-account-token")
+    }
+
+    @Test
+    func `claude session key selection carries organization id in app settings snapshot`() throws {
+        let settings = Self.makeSettingsStore(suite: "TokenAccountEnvironmentPrecedenceTests-claude-org-app")
+        settings.addTokenAccount(
+            provider: .claude,
+            label: "Team",
+            token: "sk-ant-session-token",
+            organizationID: " org-team ")
+
+        let snapshot = ProviderRegistry.makeSettingsSnapshot(settings: settings, tokenOverride: nil)
+        let claudeSettings = try #require(snapshot.claude)
+
+        #expect(claudeSettings.manualCookieHeader == "sessionKey=sk-ant-session-token")
+        #expect(claudeSettings.organizationID == "org-team")
     }
 
     @Test
@@ -199,6 +247,55 @@ struct TokenAccountEnvironmentPrecedenceTests {
         #expect(claudeSettings.usageDataSource == .auto)
         #expect(claudeSettings.cookieSource == .manual)
         #expect(claudeSettings.manualCookieHeader == "sessionKey=sk-ant-session-token")
+    }
+
+    @Test
+    func `claude session key selection carries organization id in CLI settings snapshot`() throws {
+        let accounts = ProviderTokenAccountData(
+            version: 1,
+            accounts: [
+                ProviderTokenAccount(
+                    id: UUID(),
+                    label: "Team",
+                    token: "sk-ant-session-token",
+                    addedAt: 0,
+                    lastUsed: nil,
+                    organizationID: " org-team "),
+            ],
+            activeIndex: 0)
+        let config = CodexBarConfig(
+            providers: [
+                ProviderConfig(
+                    id: .claude,
+                    tokenAccounts: accounts),
+            ])
+        let selection = TokenAccountCLISelection(label: nil, index: nil, allAccounts: false)
+        let tokenContext = try TokenAccountCLIContext(selection: selection, config: config, verbose: false)
+        let account = try #require(tokenContext.resolvedAccounts(for: .claude).first)
+        let snapshot = try #require(tokenContext.settingsSnapshot(for: .claude, account: account))
+        let claudeSettings = try #require(snapshot.claude)
+
+        #expect(claudeSettings.organizationID == "org-team")
+    }
+
+    @Test
+    func `claude token account organization id uses organizationId JSON key`() throws {
+        let json = """
+        {
+          "id": "00000000-0000-0000-0000-000000000001",
+          "label": "Team",
+          "token": "sk-ant-session-token",
+          "addedAt": 0,
+          "lastUsed": null,
+          "organizationId": "org-team"
+        }
+        """
+        let account = try JSONDecoder().decode(ProviderTokenAccount.self, from: Data(json.utf8))
+        let encoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(account)) as? [String: Any]
+
+        #expect(account.organizationID == "org-team")
+        #expect(encoded?["organizationId"] as? String == "org-team")
+        #expect(encoded?["organizationID"] == nil)
     }
 
     @Test

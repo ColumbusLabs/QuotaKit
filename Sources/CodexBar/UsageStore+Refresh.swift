@@ -21,10 +21,14 @@ extension UsageStore {
             self.refreshingProviders.remove(provider)
             await MainActor.run {
                 self.snapshots.removeValue(forKey: provider)
+                self.lastKnownResetSnapshots.removeValue(forKey: provider)
                 self.errors[provider] = nil
                 self.lastSourceLabels.removeValue(forKey: provider)
                 self.lastFetchAttempts.removeValue(forKey: provider)
                 self.accountSnapshots.removeValue(forKey: provider)
+                if provider == .codex {
+                    self.codexAccountSnapshots = []
+                }
                 self.tokenSnapshots.removeValue(forKey: provider)
                 self.tokenErrors[provider] = nil
                 self.failureGates[provider]?.reset()
@@ -32,6 +36,7 @@ extension UsageStore {
                 self.statuses.removeValue(forKey: provider)
                 self.lastKnownSessionRemaining.removeValue(forKey: provider)
                 self.lastKnownSessionWindowSource.removeValue(forKey: provider)
+                self.quotaWarningState = self.quotaWarningState.filter { $0.key.provider != provider }
                 self.lastTokenFetchAt.removeValue(forKey: provider)
             }
             return
@@ -39,6 +44,13 @@ extension UsageStore {
 
         self.refreshingProviders.insert(provider)
         defer { self.refreshingProviders.remove(provider) }
+
+        if provider == .codex, self.shouldFetchAllCodexVisibleAccounts() {
+            await self.refreshCodexVisibleAccountsForMenu()
+            return
+        } else if provider == .codex {
+            self.codexAccountSnapshots = []
+        }
 
         let tokenAccounts = self.tokenAccounts(for: provider)
         if self.shouldFetchAllTokenAccounts(provider: provider, accounts: tokenAccounts) {
@@ -67,6 +79,7 @@ extension UsageStore {
         {
             await MainActor.run {
                 self.snapshots.removeValue(forKey: .claude)
+                self.lastKnownResetSnapshots.removeValue(forKey: .claude)
                 self.errors[.claude] = nil
                 self.lastSourceLabels.removeValue(forKey: .claude)
                 self.lastFetchAttempts.removeValue(forKey: .claude)
@@ -91,9 +104,12 @@ extension UsageStore {
             {
                 return
             }
-            await MainActor.run {
-                self.handleSessionQuotaTransition(provider: provider, snapshot: scoped)
-                self.snapshots[provider] = scoped
+            let backfilled = await MainActor.run {
+                let backfilled = scoped.backfillingResetTimes(from: self.lastKnownResetSnapshots[provider])
+                self.handleQuotaWarningTransitions(provider: provider, snapshot: backfilled)
+                self.handleSessionQuotaTransition(provider: provider, snapshot: backfilled)
+                self.lastKnownResetSnapshots[provider] = backfilled
+                self.snapshots[provider] = backfilled
                 self.lastSourceLabels[provider] = result.sourceLabel
                 self.errors[provider] = nil
                 self.failureGates[provider]?.recordSuccess()
@@ -101,17 +117,18 @@ extension UsageStore {
                     self.rememberLiveSystemCodexEmailIfNeeded(scoped.accountEmail(for: .codex))
                     self.seedCodexAccountScopedRefreshGuard(accountEmail: scoped.accountEmail(for: .codex))
                 }
+                return backfilled
             }
             await self.recordPlanUtilizationHistorySample(
                 provider: provider,
-                snapshot: scoped)
+                snapshot: backfilled)
             if let runtime = self.providerRuntimes[provider] {
                 let context = ProviderRuntimeContext(
                     provider: provider, settings: self.settings, store: self)
                 runtime.providerDidRefresh(context: context, provider: provider)
             }
             if provider == .codex {
-                self.recordCodexHistoricalSampleIfNeeded(snapshot: scoped)
+                self.recordCodexHistoricalSampleIfNeeded(snapshot: backfilled)
             }
         case let .failure(error):
             if provider == .codex,

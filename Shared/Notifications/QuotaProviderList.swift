@@ -66,6 +66,24 @@ public enum QuotaProviderList {
         // Subscription count: 25 → 27 providers × 2 states = 54 zones.
         Provider(id: "abacus", displayName: "Abacus AI"),
         Provider(id: "mistral", displayName: "Mistral"),
+        // Added in iOS 1.5.3 alongside the Mac v0.24/v0.25/v0.25.1 fold-in.
+        // Display names mirror the corresponding ProviderDescriptor on Mac.
+        // Old Mac builds (<0.24/<0.25) never write to these quota zones, so
+        // the extra subscriptions sit idle until a Mac upgrades. Old iOS
+        // (no entry here) just doesn't subscribe — new Mac's quota writes
+        // are simply not delivered as push, no crash. Subscription count
+        // climbs by 11 providers × 2 states = +22 zones.
+        Provider(id: "openai", displayName: "OpenAI API"),
+        Provider(id: "manus", displayName: "Manus"),
+        Provider(id: "windsurf", displayName: "Windsurf"),
+        Provider(id: "mimo", displayName: "Xiaomi MiMo"),
+        Provider(id: "doubao", displayName: "Doubao"),
+        Provider(id: "deepseek", displayName: "DeepSeek"),
+        Provider(id: "codebuff", displayName: "Codebuff"),
+        Provider(id: "crof", displayName: "Crof"),
+        Provider(id: "venice", displayName: "Venice"),
+        Provider(id: "commandcode", displayName: "Command Code"),
+        Provider(id: "stepfun", displayName: "StepFun"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

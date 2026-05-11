@@ -19,15 +19,16 @@ import Testing
 @Suite("Quota provider list")
 struct QuotaProviderListTests {
 
-    @Test("Total count is 27 (25 base + Abacus + Mistral)")
+    @Test("Total count is 38 (25 base + 2 from iOS 1.5.0 + 11 from upstream v0.24/v0.25)")
     func totalCount() {
-        // Outcome: 25 → 27 in iOS 1.5.0. If this number shifts without
+        // Outcome: 25 → 27 (iOS 1.5.0) → 38 (iOS 1.5.3 alongside the
+        // v0.24/v0.25/v0.25.1 fold-in). If this number shifts without
         // matching upstream updates, the push-subscription set drifts
         // out of sync with Mac's actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 27)
+        #expect(QuotaProviderList.providers.count == 38)
     }
 
-    @Test("Subscription zone count is 54 (27 providers × 2 states)")
+    @Test("Subscription zone count is 76 (38 providers × 2 states)")
     func subscriptionZoneCount() {
         // Cause: iOS creates one CKRecordZoneSubscription per
         // (provider, state) pair. The implementation in
@@ -35,7 +36,7 @@ struct QuotaProviderListTests {
         // providers.count to derive this. Pinning so a future single-
         // state refactor (e.g. consolidate to one zone per provider)
         // can't happen without updating this test.
-        #expect(QuotaProviderList.providers.count * 2 == 54)
+        #expect(QuotaProviderList.providers.count * 2 == 76)
     }
 
     @Test("Abacus AI is present with the upstream-canonical displayName")
@@ -94,14 +95,20 @@ struct QuotaProviderListTests {
     /// subscription-creation sequence on first launch (single-pass
     /// upserts). A reordering that puts a new provider before
     /// previously-existing ones would shift CK subscription IDs and
-    /// re-create them all. Verify abacus + mistral are appended at
-    /// the END (additive), not interleaved.
-    @Test("Cause: new providers (abacus + mistral) are appended at the end")
+    /// re-create them all. Verify the iOS 1.5.0 (abacus + mistral) and
+    /// the iOS 1.5.3 (v0.24/v0.25/v0.25.1) batch are appended at the
+    /// tail in order, never interleaved with the original 25.
+    @Test("Cause: new providers stay appended at the end (additive)")
     func newProvidersAppended() {
         let providers = QuotaProviderList.providers
-        let last = providers.suffix(2).map(\.id)
-        #expect(last == ["abacus", "mistral"],
-            "Abacus + Mistral must stay at the tail (additive append)")
+        let last13 = providers.suffix(13).map(\.id)
+        #expect(
+            last13 == [
+                "abacus", "mistral",
+                "openai", "manus", "windsurf", "mimo", "doubao",
+                "deepseek", "codebuff", "crof", "venice", "commandcode", "stepfun",
+            ],
+            "New providers must stay at the tail in fixed order (additive append)")
     }
 
     /// Cause-oriented: no duplicate IDs would silently double-subscribe.
@@ -111,13 +118,13 @@ struct QuotaProviderListTests {
         #expect(Set(ids).count == ids.count, "Duplicate provider IDs found")
     }
 
-    /// Cause-oriented: iOS 1.5.0's catalog "Important" message references
-    /// "27 providers / 54 push-subscription zones". If those numbers
-    /// drift from this list, the user-facing release notes lie. Doc
-    /// the cross-coupling.
-    @Test("Cause: catalog 27/54 numbers match the actual list")
+    /// Cause-oriented: release notes / CHANGELOG entries for iOS 1.5.3
+    /// describe "38 providers / 76 push-subscription zones". If those
+    /// numbers drift from this list, the user-facing release notes lie.
+    /// Doc the cross-coupling.
+    @Test("Cause: catalog 38/76 numbers match the actual list")
     func catalogNumbersAlignWithList() {
-        #expect(QuotaProviderList.providers.count == 27)
-        #expect(QuotaProviderList.providers.count * 2 == 54)
+        #expect(QuotaProviderList.providers.count == 38)
+        #expect(QuotaProviderList.providers.count * 2 == 76)
     }
 }

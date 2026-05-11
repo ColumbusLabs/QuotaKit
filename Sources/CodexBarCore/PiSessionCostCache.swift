@@ -1,7 +1,8 @@
 import Foundation
 
 enum PiSessionCostCacheIO {
-    /// Bumped 1 → 2 in fork 0.23.1: same root cause as CostUsageCacheIO —
+    /// Artifact version 2 is shared by both upstream's stale-cache rebuild fix
+    /// (78e186d4) and our pricing-fingerprint invalidation (fork 0.23.1):
     /// pi-session cache stores per-(day, provider, model) packed usage with
     /// `costNanos` baked in at parse time. Pre-0.23 entries used pricing
     /// without `gpt-5.5` and without the fallback resolver, so cached
@@ -71,7 +72,7 @@ struct PiSessionCostCache: Codable {
     var daysByProvider: [String: [String: [String: PiPackedUsage]]] = [:]
     var files: [String: PiSessionFileUsage] = [:]
 
-    init(version: Int = 1, pricingFingerprint: String? = nil) {
+    init(version: Int = 2, pricingFingerprint: String? = nil) {
         self.version = version
         self.pricingFingerprint = pricingFingerprint
     }
@@ -98,6 +99,7 @@ struct PiPackedUsage: Codable, Equatable {
     var totalTokens: Int = 0
     var costNanos: Int64 = 0
     var costSampleCount: Int = 0
+    var usageSampleCount: Int?
 
     var isZero: Bool {
         self.inputTokens == 0
@@ -107,5 +109,6 @@ struct PiPackedUsage: Codable, Equatable {
             && self.totalTokens == 0
             && self.costNanos == 0
             && self.costSampleCount == 0
+            && (self.usageSampleCount ?? 0) == 0
     }
 }

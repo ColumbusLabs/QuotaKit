@@ -29,6 +29,8 @@ extension CodexBarCLI {
             print(Self.costHelp(version: version))
         case "config", "validate", "dump":
             print(Self.configHelp(version: version))
+        case "cache", "clear":
+            print(Self.cacheHelp(version: version))
         default:
             print(Self.rootHelp(version: version))
         }
@@ -45,7 +47,10 @@ extension CodexBarCLI {
         guard let executablePath, !executablePath.isEmpty else { return nil }
 
         let executableURL = URL(fileURLWithPath: executablePath).resolvingSymlinksInPath()
-        return Self.containingAppVersion(for: executableURL)
+        if let version = Self.containingAppVersion(for: executableURL) {
+            return version
+        }
+        return Self.adjacentVersionFileVersion(for: executableURL)
     }
 
     static func containingAppVersion(for executableURL: URL) -> String? {
@@ -66,6 +71,21 @@ extension CodexBarCLI {
         }
 
         return nil
+    }
+
+    static func adjacentVersionFileVersion(for executableURL: URL) -> String? {
+        let versionURL = executableURL
+            .deletingLastPathComponent()
+            .appendingPathComponent("VERSION")
+        guard let raw = try? String(contentsOf: versionURL, encoding: .utf8) else {
+            return nil
+        }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if trimmed.hasPrefix("v"), trimmed.dropFirst().first?.isNumber == true {
+            return String(trimmed.dropFirst())
+        }
+        return trimmed
     }
 
     static func platformExit(_ code: Int32) -> Never {
