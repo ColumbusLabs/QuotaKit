@@ -27,7 +27,9 @@
 | **R3** | 跨版本兼容 + 回退 + 异步更新场景集成测试 | ✅ 完成 (2026-05-02 16:25) | Codex MCP 双轮 review 全过 + 40 tests / 3 suites + lint 0 violations + 跨版本兼容矩阵 review verified |
 | **R4** | iOS 端 27 provider 测试覆盖 + 跨设备虚拟机验证 | ✅ 部分（iOS audit）| 但模拟测试覆盖不足 → **R5 修正** |
 | **R5** | **CRITICAL** — 99% 模拟覆盖（用户只有 1 个 Codex 账号，无法手测多账号；模拟测试是**唯一**质量门）| ✅ 完成 (2026-05-02) | 43 new tests / 4 files / 全过 + 81 sync tests / 7 suites + iOS 12 new + 0 lint |
-| R6+ | 动态预留 | — | 下方「悬挂事项」流转 |
+| **R6** | Mac v0.25.1 架构完成度验证（用户阶段性目标：先完成整个 Mac 端架构）| ✅ 完成 (2026-05-12) | build/lint 全过，1 known flake (`6gWrV7r9ch2hxW22` P3), 3 zh-Hans 补 + 1 en 补，fork features intact, Push v0.25 hookup ✅ |
+| **R7** | iOS Stage 2 — 12 deferred provider UI catch-up（占位）| 拟定，待 R6 完成 | ProviderColorPalette / QuotaProviderList 27→39 / Codex switcher iOS 一致性 |
+| **R8** | 多设备兼容性枚举测试矩阵（占位）| 拟定，待 R7 完成 | (老 Mac / 新 Mac) × (老 iOS / 新 iOS) 所有组合；如难以完全兼容则展示冲突提示 UI |
 
 ### 悬挂事项（pending issues — 解决前不收尾）
 
@@ -447,8 +449,103 @@ R4 决策：**不补 mock factory** —— 现有 `SnapshotCacheTests` 已覆盖
 
 ---
 
+## R6 · Mac v0.25.1 架构完成度验证（2026-05-12）
+
+**Status**: ✅ 完成 (2026-05-12)
+
+**Trigger**: 用户重启大型功能合并工作的 /goal，明确"现阶段先完成整个 Mac 端的架构"。
+
+### R6.1 现状盘点
+
+| 项目 | 状态 | 来源 |
+|------|------|------|
+| 最新 released upstream tag | **v0.25.1** (`e5d0970b`) | `git ls-remote --tags upstream` |
+| 我们 Mac MARKETING_VERSION | **0.25.1** / build 61 | `version.env` |
+| 上次合并 commit | `1c95d6e7` (2026-05-11) v0.20→v0.25.1 | git log |
+| upstream/main HEAD | `009420a7` (0.26-dev，**未 release**) | git ls-remote upstream HEAD |
+
+**结论**：Mac 已对齐到最新 released tag v0.25.1。**Stage 1 主体已完成**，无需进一步合并 upstream（按"只合 released" 政策）。R6 只做验证 + 补缺。
+
+### R6.2 v0.25.1 完整性验收项（依用户 (a)–(d) 要求）
+
+#### (a) Mac 软件更新至最新（功能、测试、简体中文）
+- **功能**：v0.25.1 含 11 新 provider、本地化 + in-app 语言选择器、Codex stacked/segmented switcher、models.dev 实时定价、配额警告 / 阈值 / 标记 (#852)、VoiceOver、Pi 缓存修复。1c95d6e7 commit 已 verify 全合入
+- **测试**：本地 `swift test` + `swift build` 待跑（R6.3 验证）
+- **简体中文**：v0.25.1 已加 zh-Hans。审计发现 **3 个 key 缺 zh-Hans**：
+  - `off_peak`
+  - `off_peak_peak_in`
+  - `peak_ends_in`
+  - 均为上游 v0.25 加的 peak-hours 功能字符串。en 有，zh-Hans 缺
+- **另发现 1 个 zh-Hans 反向孤儿**：`not_found`（zh-Hans 有，en 无）— 推测为旧 upstream 字符串被删后 zh-Hans 残留
+
+#### (b) Fork features 保留
+- `Sources/CodexBar/Sync/` — fork-private，上游不动；1c95d6e7 0 冲突
+- PreferencesView Mobile tab — 1c95d6e7 合并时已保留
+- iCloud toggle、Mock UI 门控、o1xhack 归属 — 已保留
+- `AccountIdentityComputer.compute()` 11 个新 provider case — 1c95d6e7 已加
+- `SyncCoordinator.isModelEstimated()` 11 个新 provider case — 1c95d6e7 已加
+- **R6.3 需 verify**: 当前 tree 状态全 intact
+
+#### (c) 功能对齐（上游新功能 + 我们 fork 部分跟进）
+- iOS xcstrings：lint i18n audit 'all locales translated' ✅
+- Mac fork-only 字符串：fork 加的 Mobile tab / iCloud toggle 等字符串如果用 NSLocalizedString 直接走 Localizable.strings，**需要 audit fork 加的 key 是否都有 zh-Hans**（R6.3 待办）
+
+#### (d) iCloud Sync + Push Notification 新功能逻辑匹配
+- **iCloud wire format**：1c95d6e7 confirmed 未变。11 新 provider 走 generic path，iOS fallback 渲染。`encodingVersion = 1`、`providerPayloadVersion = 1` 不变 ✅
+- **Push Mac side**：fork `SessionQuotaNotifier` 是 fork code，上游 v0.25 加了"配额警告通知 + 阈值 + 标记" (#852)。**需 audit**：是否与 fork `SessionQuotaNotifier` 行为冲突或要适配
+- **Push iOS 订阅 (out of R6 scope)**：iOS `QuotaProviderList` 仍 27 个，11 新 provider 不在订阅集 — 是 **R7 范畴**
+
+### R6.3 验证 + 修复任务（结果）
+
+- ✅ `swift build` Mac 全 pass（Build complete in 7.22s）
+- ⚠️ `swift test` Mac：1 个 known flake — `SyncCoordinatorTests.l1DeleteFailurePreservesRetry` 在全套件 >500 tests 跨 suite 污染下 fail；**已在 Todoist `6gWrV7r9ch2hxW22` 跟踪为 P3 (test harness 问题，生产代码正确)**。其它全过
+- ✅ `./Scripts/lint.sh lint` 0 violations across 820 files；i18n audit 'all locales translated'
+- ✅ **3 个 zh-Hans 缺失 key 已补**：
+  - `off_peak` → `"非高峰"`
+  - `off_peak_peak_in` → `"非高峰 · %@ 后进入高峰"`
+  - `peak_ends_in` → `"高峰 %@ 后结束"`
+- ✅ **`not_found` orphan 实为 en 缺失**：`PreferencesDebugPane.swift:540` 在用 `L("not_found")`。补 `en.lproj` `"not_found" = "Not found"`（KiloUsageFetcher 里的 "not_found" 是 API response string 匹配，不是 localization key）
+- ✅ Fork-only Mac 字符串 audit：fork 文件全用既有的 zh-Hans 键，无新缺失
+- ✅ Push Notification audit：`SessionQuotaNotifications.swift` 已含 `QuotaWarningEvent` + `QuotaWarningNotificationLogic`（上游 v0.25 加的）— 1c95d6e7 合并时已整合。Fork notifier 与上游 quota warning system 正确 hooked up
+
+### R6.4 实施（已完成）
+
+- 3 zh-Hans translations 补到 `Sources/CodexBar/Resources/zh-Hans.lproj/Localizable.strings`
+- 1 en string 补到 `Sources/CodexBar/Resources/en.lproj/Localizable.strings`
+- 无 Mac MARKETING_VERSION / BUILD_NUMBER 变更（无 Mac release 触发）
+- 无 iOS 变更
+- Research/020 R6 标记 ✅ 完成
+
+### R6 完成判定
+
+✅ Mac v0.25.1 架构在我们 tree 中验收通过：build / lint clean，测试 1 known flake（pre-existing），zh-Hans 完整，fork features intact，iCloud wire compat，Push 系统 hookup OK。可以进入 R7。
+
+---
+
+## R7 · iOS Stage 2 — 12 deferred provider UI catch-up（占位）
+
+**Status**: 拟定，待 R6 完成后细化
+
+**范围**（来自 1c95d6e7 commit msg 的 deferred items）：
+- `ProviderColorPalette` 12 个新 provider 颜色 + icon（openai / manus / windsurf / mimo / doubao / deepseek / codebuff / crof / venice / commandcode / stepfun + 等 Moonshot upstream release 后 = 12）
+- `QuotaProviderList` 27 → 38（11 新 provider 加入 iOS push subscription 集；Moonshot 待下次 upstream release）
+- Codex stacked/segmented switcher iOS 一致性决策（Mac 给了选项，iOS 是否要同步）
+- 隐藏配额警告标记选项 iOS 镜像（如 upstream 后续 release 包含 #918）
+
+---
+
+## R8 · 多设备兼容性枚举测试矩阵（占位）
+
+**Status**: 拟定，待 R7 完成后细化
+
+**范围**：(老 Mac / 新 Mac) × (老 iOS / 新 iOS) 所有组合，按用户(2)(a)(b)(c)要求枚举测试同步。如某组合难以完全兼容，设计冲突提示 UI（参 Research/019 §9 原型）告知用户"另一台设备版本未升级，升级后数据会一致"。
+
+---
+
 ## 修改记录
 
 | Date | Round | Note |
 |------|-------|------|
 | 2026-05-02 | R1.1-R1.2 | 调研完成、设计稿落地、决策固化 |
+| 2026-05-12 | R6 draft | 用户 /goal 重启 Mac 架构验证。R6/R7/R8 三轮 append。R6 待 user confirm before 实施 |
+| 2026-05-12 | R6 ✅ | 完成度验收通过：build/lint clean、1 known flake P3、zh-Hans 补 3 keys、en 补 not_found、fork features 全 intact、Push 系统已 hooked up 上游 quota warning。R7 (iOS Stage 2) 待用户启动 |

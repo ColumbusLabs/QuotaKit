@@ -382,6 +382,7 @@
 "metric_secondary" = "Secondary (%@)";
 "metric_tertiary" = "Tertiary (%@)";
 "multiple_workspaces_found" = "CodexBar found multiple workspaces for %@. Please choose the workspace to add.";
+"not_found" = "Not found";
 "off_peak" = "Off-peak";
 "off_peak_peak_in" = "Off-peak · peak in %@";
 "ory_session_…=…; csrftoken=…" = "ory_session_…=…; csrftoken=…";
