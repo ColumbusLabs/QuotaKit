@@ -8671,6 +8671,177 @@
           }
         }
       }
+    },
+    "Yes, same account": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yes, same account"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "はい、同じアカウントです"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "是，同一个账号"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "是，同一個帳號"
+          }
+        }
+      }
+    },
+    "Keep separate": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep separate"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "別々にする"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保持独立"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保持獨立"
+          }
+        }
+      }
+    },
+    "Unmerge Accounts": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unmerge Accounts"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウントの統合を解除"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拆分账户"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拆分帳戶"
+          }
+        }
+      }
+    },
+    "linkage-prompt-headline": {
+      "comment": "Inline prompt headline when iOS sees two cards for the same provider that probably represent one account but don't share identifiers. %@ = provider display name (e.g. 'Codex').",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Looks like the same %@ account on another Mac."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "別の Mac の %@ も同じアカウントのように見えます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "另一台 Mac 上的 %@ 看起来是同一个账号。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "另一台 Mac 上的 %@ 看起來是同一個帳號。"
+          }
+        }
+      }
+    },
+    "linkage-prompt-detail-with-version": {
+      "comment": "Inline prompt detail when iOS knows the older Mac's CodexBar version. %@ = CodexBar version string (e.g. '0.23.6').",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The other Mac (CodexBar %@) is on an older version that doesn't share account identifiers, so iOS can't auto-link the cards. Confirm if it's the same login. Updating the other Mac to the latest CodexBar makes this automatic."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "もう一方の Mac (CodexBar %@) は古いバージョンでアカウント識別子を共有していないため、iOS が自動でリンクできません。同じログインの場合は確認してください。もう一方の Mac を最新の CodexBar に更新すると自動的に統合されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "另一台 Mac（CodexBar %@）版本较旧，不会共享账号标识，iOS 无法自动合并。如果是同一个账号请确认。把另一台 Mac 升级到最新版本后会自动识别。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "另一台 Mac（CodexBar %@）版本較舊，不會共享帳號識別碼，iOS 無法自動合併。如果是同一個帳號請確認。把另一台 Mac 升級到最新版本後會自動辨識。"
+          }
+        }
+      }
+    },
+    "linkage-prompt-detail": {
+      "comment": "Inline prompt detail when iOS can't determine the older Mac's CodexBar version.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One of the Macs doesn't share an account identifier for this provider, so iOS can't auto-link the cards. Confirm if it's the same login."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一方の Mac がこのプロバイダーのアカウント識別子を共有していないため、iOS は自動でリンクできません。同じログインの場合は確認してください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其中一台 Mac 没有共享该 provider 的账号标识，iOS 无法自动合并。如果是同一个账号请确认。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其中一台 Mac 沒有共享該 provider 的帳號識別碼，iOS 無法自動合併。如果是同一個帳號請確認。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

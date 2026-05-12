@@ -60,6 +60,22 @@ public enum CloudSyncConstants {
     /// decoding garbage.
     public static let providerPayloadVersion = 1
 
+    /// Record type for user-confirmed account linkages between provider
+    /// snapshots whose union-find identifiers DON'T overlap on their own
+    /// (e.g. one Mac is too old to emit `accountIdentities` and the other
+    /// is current). See Research/019 §7. Records live in the same
+    /// `DeviceProvidersZone` as the per-provider snapshots so the existing
+    /// zone subscription delivers updates incrementally.
+    ///
+    /// **WIRE CONTRACT.** Record name format `"linkage-{recordUUID}"`. The
+    /// `linkedIdentifiers: [String]` field carries the same `cardIdentityKey`
+    /// composite key (`providerID|accountEmail`) iOS already uses for union-find
+    /// — adding a virtual edge between any snapshots whose effective identifiers
+    /// contain at least one of those listed. Renaming the record type or field
+    /// names orphans every existing linkage on every iPhone — there is no
+    /// migration path; treat it as permanent.
+    public static let providerAccountLinkageRecordType = "ProviderAccountLinkage"
+
     // MARK: - JSON codec factories
     //
     // ALL CloudKit / SwiftData blob encode-decode in this codebase MUST go

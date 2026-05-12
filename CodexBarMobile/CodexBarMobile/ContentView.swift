@@ -167,12 +167,44 @@ private struct ProviderListView: View {
     let snapshot: SyncedUsageSnapshot
     let usageData: SyncedUsageData
     let isDemoMode: Bool
+    /// Local per-launch suppression of linkage prompts the user clicked
+    /// "Keep separate" on. Persisted only across the current session —
+    /// next launch re-evaluates so a user who reconsidered can confirm.
+    /// Long-term persistence isn't needed since the candidate goes away
+    /// the moment the legacy Mac upgrades (Research/019 §9 logic).
+    @State private var dismissedCandidateKeys = Set<String>()
 
     var body: some View {
         // Drop extinct mock zombies before any rendering so duplicate
         // cards (OLD vs NEW mock-injector designs) don't appear on the
         // Usage list. iOS 1.5.2+: see `MockProviderDetector.extinctMockProviderIDs`.
         let liveProviders = MockProviderDetector.filteredProviders(from: self.snapshot)
+        // Compute linkage candidates ONCE per render. The detector handles
+        // ambiguity rules (skips multi-account-named scenarios where we
+        // can't tell which named card a legacy entry belongs to).
+        let allCandidates = MultiAccountLinkageDetector.candidates(
+            among: liveProviders,
+            appVersionForProvider: { provider in
+                // Find which device-snapshot this provider came from to
+                // report its CodexBar version in the §9 hint. Falls back
+                // to the merged snapshot's appVersion (the highest across
+                // devices) — that's at least the "ceiling" of what other
+                // Mac versions could be in play.
+                let devices = self.usageData.deviceSnapshots
+                if let device = devices.first(where: { snap in
+                    snap.providers.contains { $0.cardIdentityKey == provider.cardIdentityKey }
+                }) {
+                    return device.appVersion
+                }
+                return nil
+            })
+        let candidatesByLegacyKey = Dictionary(
+            uniqueKeysWithValues: allCandidates.map { ($0.legacy.cardIdentityKey, $0) })
+        // Live linkages — used to expose an Unmerge context menu on cards
+        // that originated from a confirmed merge group.
+        let activeLinkagesByProviderID = Dictionary(
+            grouping: self.usageData.providerLinkages.filter { !$0.unmerge },
+            by: \.providerID)
         return ScrollView {
             LazyVStack(spacing: 16) {
                 MockProviderBanner(snapshot: self.snapshot)
@@ -194,10 +226,43 @@ private struct ProviderListView: View {
                             .firstIndex(where: { $0.cardIdentityKey == provider.cardIdentityKey })
                             .map { $0 + 1 }
                         : nil
+                    // Linkage candidate prompt fires on the LEGACY card
+                    // (the one that lacks identifiers). The named card
+                    // doesn't show the prompt — the user only needs to
+                    // confirm once, and the prompt anchors visually on
+                    // the side that's "missing data".
+                    let candidate: MultiAccountLinkageCandidate? = {
+                        guard let c = candidatesByLegacyKey[provider.cardIdentityKey] else {
+                            return nil
+                        }
+                        return self.dismissedCandidateKeys.contains(c.hashKey) ? nil : c
+                    }()
+                    let activeLinkage = activeLinkagesByProviderID[provider.providerID]?.first
                     NavigationLink {
                         ProviderDetailView(provider: provider)
                     } label: {
-                        ProviderUsageView(provider: provider, duplicateOrdinal: ordinal)
+                        ProviderUsageView(
+                            provider: provider,
+                            duplicateOrdinal: ordinal,
+                            linkageCandidate: candidate,
+                            activeLinkage: activeLinkage,
+                            onConfirmMerge: { c in
+                                Task { @MainActor in
+                                    await self.usageData.confirmLinkage(
+                                        providerID: c.named.providerID,
+                                        linkedIdentifiers: c.linkedIdentifiers)
+                                }
+                            },
+                            onDismissMergeCandidate: { c in
+                                self.dismissedCandidateKeys.insert(c.hashKey)
+                            },
+                            onRevokeLinkage: { linkage in
+                                Task { @MainActor in
+                                    await self.usageData.revokeLinkage(
+                                        providerID: linkage.providerID,
+                                        linkedIdentifiers: linkage.linkedIdentifiers)
+                                }
+                            })
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("provider-card-\(provider.cardIdentityKey)")

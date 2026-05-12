@@ -70,6 +70,12 @@ final class SyncedUsageData {
     /// persisted — cold start rehydrates via SwiftData (P3).
     private var cache = SnapshotCache()
 
+    /// User-confirmed account linkages from CloudKit (Research/019 §7).
+    /// Refreshed on every full fetch alongside the per-zone snapshots.
+    /// Mutations go through `confirmLinkage` / `revokeLinkage` which
+    /// also write to CloudKit so other iPhones see the same union state.
+    private(set) var providerLinkages: [ProviderAccountLinkage] = []
+
     /// Serialization handle for refresh paths. `fetchFromCloudKit` and
     /// `refreshIncremental` both go through `coalesceRefresh`, which awaits
     /// any already-in-flight refresh before starting a new one. Without
@@ -93,6 +99,16 @@ final class SyncedUsageData {
     init(reader: CloudSyncReader = CloudSyncReader()) {
         self.reader = reader
 
+        // Linkages cached in UserDefaults so cold start applies them
+        // BEFORE the first CloudKit fetch returns. Without this the user
+        // sees 2 cards (the unmerged pre-link state) for the 1–2 seconds
+        // it takes the per-provider zone query to round-trip — minor but
+        // user-visible regression vs the "merge feels permanent" UX
+        // promise of Research/019 §7. CloudKit remains the source of
+        // truth; the cache is invalidated + repopulated on every
+        // `performFullFetch`.
+        self.providerLinkages = Self.loadCachedLinkages()
+
         // P3: hydrate from SwiftData so the Cost tab shows something
         // immediately on cold start. We seed into legacyByDevice bucket —
         // SwiftData doesn't track zone-of-origin.
@@ -107,6 +123,28 @@ final class SyncedUsageData {
         if let kvsSnapshot = reader.latestKVSSnapshot() {
             self.cache.seedFromColdStart([kvsSnapshot])
             self.republishFromCache()
+        }
+    }
+
+    // MARK: - Linkage cache (UserDefaults)
+
+    /// UserDefaults key for the local linkage cache. Re-derived from
+    /// CloudKit on every full fetch; the local copy exists only to bridge
+    /// the cold-start gap before that first CloudKit round-trip returns.
+    nonisolated private static let linkageCacheDefaultsKey = "com.codexbar.linkageCache.v1"
+
+    nonisolated static func loadCachedLinkages() -> [ProviderAccountLinkage] {
+        guard let data = UserDefaults.standard.data(forKey: Self.linkageCacheDefaultsKey) else {
+            return []
+        }
+        let decoder = CloudSyncConstants.makeJSONDecoder()
+        return (try? decoder.decode([ProviderAccountLinkage].self, from: data)) ?? []
+    }
+
+    nonisolated static func saveCachedLinkages(_ linkages: [ProviderAccountLinkage]) {
+        let encoder = CloudSyncConstants.makeJSONEncoder()
+        if let data = try? encoder.encode(linkages) {
+            UserDefaults.standard.set(data, forKey: Self.linkageCacheDefaultsKey)
         }
     }
 
@@ -216,12 +254,28 @@ final class SyncedUsageData {
     private func performFullFetch() async {
         self.syncStatus = .syncing
 
-        // Fire both zone queries in parallel (independent network I/O).
+        // Fire zone queries in parallel (independent network I/O).
+        // Linkages share the per-provider zone so they ride the same
+        // CKQuery surface; isolated as a third async let to keep the
+        // existing per/legacy unpacking logic untouched.
         async let perProviderResult = reader.fetchPerProviderDeviceSnapshots()
         async let legacyResult = reader.fetchLegacyDeviceSnapshots()
+        async let linkagesResult = reader.fetchProviderAccountLinkages()
 
         let per = await perProviderResult
         let legacy = await legacyResult
+        // Union CloudKit's list with any local linkages that haven't yet
+        // round-tripped through CloudKit's eventual-consistency window.
+        // Without this, a user who taps "Same account?" right before a
+        // pull-to-refresh fires would see the merged view briefly, then
+        // see the cards split back when the refresh completes BEFORE CK
+        // has indexed their fresh write. Survives until the next refresh
+        // when CK returns the user's own record (then dedupe by recordID).
+        let cloudLinkages = await linkagesResult
+        let cloudRecordIDs = Set(cloudLinkages.map(\.recordID))
+        let localOnly = self.providerLinkages.filter { !cloudRecordIDs.contains($0.recordID) }
+        self.providerLinkages = cloudLinkages + localOnly
+        Self.saveCachedLinkages(self.providerLinkages)
 
         // Unpack results per zone. `.error` means transient failure — DO NOT
         // wipe that bucket, preserve whatever was cached before (Codex
@@ -287,7 +341,9 @@ final class SyncedUsageData {
             return
         }
 
-        if let merged = CloudSyncReader.mergeSnapshots(deviceSnapshots) {
+        if let merged = CloudSyncReader.mergeSnapshots(
+            deviceSnapshots, linkages: self.providerLinkages)
+        {
             self.snapshot = merged
             self.syncStatus = .synced(ago: Date().timeIntervalSince(merged.syncTimestamp))
 
@@ -303,6 +359,49 @@ final class SyncedUsageData {
         } else {
             self.syncStatus = .incompatibleData
         }
+    }
+
+    // MARK: - Provider account linkage (Research/019 §7)
+
+    /// Confirm that two existing provider cards represent the same logical
+    /// account. Writes a `ProviderAccountLinkage` CKRecord and re-merges
+    /// locally so the UI updates immediately, without waiting for the
+    /// CloudKit round-trip + zone change-token push to fire.
+    func confirmLinkage(
+        providerID: String,
+        linkedIdentifiers: [String]
+    ) async {
+        let linkage = ProviderAccountLinkage(
+            providerID: providerID,
+            linkedIdentifiers: linkedIdentifiers,
+            confirmedFromDeviceID: self.reader.currentDeviceID(),
+            unmerge: false)
+        self.providerLinkages.append(linkage)
+        Self.saveCachedLinkages(self.providerLinkages)
+        self.republishFromCache()
+        // CloudKit write happens after local apply — failure logs a
+        // message but doesn't roll back the local union (the user
+        // experienced the merge; we don't want to flicker back). Next
+        // refresh will re-fetch and reconcile.
+        _ = await self.reader.saveProviderAccountLinkage(linkage)
+    }
+
+    /// Revoke a previously-confirmed merge. Writes an inverse linkage with
+    /// `unmerge=true` and re-merges locally. Additive on the CK side
+    /// (never deletes the original) so the audit trail survives.
+    func revokeLinkage(
+        providerID: String,
+        linkedIdentifiers: [String]
+    ) async {
+        let inverse = ProviderAccountLinkage(
+            providerID: providerID,
+            linkedIdentifiers: linkedIdentifiers,
+            confirmedFromDeviceID: self.reader.currentDeviceID(),
+            unmerge: true)
+        self.providerLinkages.append(inverse)
+        Self.saveCachedLinkages(self.providerLinkages)
+        self.republishFromCache()
+        _ = await self.reader.saveProviderAccountLinkage(inverse)
     }
 
     // MARK: - Incremental fetch (silent push → cache update)
@@ -394,7 +493,9 @@ final class SyncedUsageData {
             }
             return
         }
-        if let merged = CloudSyncReader.mergeSnapshots(deviceSnapshots) {
+        if let merged = CloudSyncReader.mergeSnapshots(
+            deviceSnapshots, linkages: self.providerLinkages)
+        {
             self.snapshot = merged
             self.syncStatus = .synced(ago: Date().timeIntervalSince(merged.syncTimestamp))
         } else {

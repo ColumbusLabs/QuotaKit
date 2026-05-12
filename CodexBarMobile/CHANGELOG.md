@@ -2,6 +2,99 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.3 (115)] — 2026-05-11 — Ship Research/019 §7 + §9 (cross-version account-link)
+
+Supersedes build 114. Adds the iOS half of the Research/019
+multi-version account-identity merge that was design-locked but never
+shipped, on top of the build-114 ForEach id collision fix.
+
+### Why we needed this
+
+Build 114 fixed three SwiftUI id collisions so two-Mac users with one
+Mac extracting `accountEmail` and another not would at least render
+both cards correctly. It did NOT merge them. The user (with Mac
+0.23.6 + Mac 0.25.1 on the same Codex account) still saw two cards
+on the Usage tab because the union-find merge keys never overlap
+across legacy-no-identity and email-bucket entries — designed
+behavior per Research/019 §8.7, expected to be bridged by §7 L3
+LinkageRecord which had never been implemented.
+
+### What's now built
+
+**L3 user-confirmed merge** (§7 + §7.4):
+- New CKRecord type `ProviderAccountLinkage` in `DeviceProvidersZone`.
+  Fields: `recordID` (UUID), `providerID`, `linkedIdentifiers`,
+  `confirmedAt`, `confirmedFromDeviceID`, `unmerge` (bool).
+- Saved by `CloudSyncManager.saveProviderAccountLinkage(_:)`, fetched
+  by `fetchProviderAccountLinkages()`. Rides the existing per-provider
+  zone subscription so concurrent iPhone confirmations propagate
+  through the same change-token stream.
+- `CloudSyncReader.mergeSnapshots(_:linkages:)` applies linkages as
+  additional union-find edges AFTER the L1+L2 identifier-based pass.
+- Unmerge: an inverse linkage with `unmerge=true` carries the same
+  `linkedIdentifiers` (set-equality canonical key); on next read,
+  the corresponding merge edge is suppressed. Order-independent.
+
+**Inline UI** (§9):
+- New `MultiAccountLinkageCandidate` model identifies the
+  "one-named + N-legacy" cross-version pattern. Detector skips
+  ambiguous (≥2 named) cases — multi-account-on-named requires a
+  picker UI, deferred.
+- `ProviderUsageView` shows an inline prompt on the LEGACY card with
+  "Yes, same account" / "Keep separate" buttons. The body text
+  mentions the older Mac's CodexBar version (e.g. "0.23.6") when iOS
+  knows it, hinting that upgrading would auto-link.
+- Long-press on a merged card → context menu "Unmerge Accounts"
+  writes the inverse linkage.
+
+**Persistence**:
+- Linkages cached in UserDefaults so cold-start applies them BEFORE
+  the first CloudKit fetch returns. CloudKit remains the source of
+  truth; the cache is repopulated on every full fetch.
+- Local linkage appends survive a concurrent refresh:
+  `performFullFetch` unions cloud results with locally-confirmed
+  records that haven't round-tripped through CK yet, deduping by
+  `recordID`.
+
+**Localization**:
+- 5 new keys in `Localizable.xcstrings` × 4 languages each:
+  `Yes, same account`, `Keep separate`, `Unmerge Accounts`,
+  `linkage-prompt-headline`, `linkage-prompt-detail-with-version`,
+  `linkage-prompt-detail`.
+
+### Tests
+
+- New `LinkageRecordMergeTests` (10 cases): §8.11 override, §7.4
+  unmerge + order-independence, concurrent merge idempotence,
+  wrong-providerID no-op, no-overlap no-op, Codable round-trip,
+  missing-unmerge backward-compat decode, inverseUnmerge helper,
+  UserDefaults cache round-trip, empty cache load.
+- New `MultiAccountLinkageDetectorTests` (8 cases): unambiguous emit,
+  multi-legacy fan-out, two-named-skip, zero-named-skip,
+  single-card-skip, cross-provider isolation, appVersion surfacing,
+  deterministic ordering.
+- Existing `AccountIdentityMergeTests` (§8.1–§8.10) still pass.
+- Full iOS test suite: 300 tests / 23 suites passing.
+- `./Scripts/lint.sh lint`: 0 violations across 820 files.
+- Mac `swift build`: passes.
+
+### Versions
+
+- iOS `MARKETING_VERSION`: 1.5.3 (unchanged from build 114)
+- iOS `CURRENT_PROJECT_VERSION`: 114 → 115 (supersedes prior upload)
+- Mac unchanged (still 0.25.1 / 61)
+
+### Out of scope (deferred)
+
+- Multi-named-card picker UI for the ambiguous (≥2 real accounts on
+  the named side + ≥1 legacy) case. Currently the detector emits no
+  candidate so the cards stay split — user has to upgrade the older
+  Mac for auto-merge. Tracked as `MultiAccountLinkageDetector` rule
+  §7-A future-work in `Research/019.md` §14.5.
+- Research/017 items 2 and 3 (orphan subscription cleanup, latestNonNil
+  accountEmail merge). Item 3 is superseded by L3 LinkageRecord;
+  item 2 is unrelated to the current pain and stays open.
+
 ## [1.5.3 (114)] — 2026-05-11 — Fix multi-account ForEach id collisions
 
 Single-purpose bug-fix release that closes three latent SwiftUI

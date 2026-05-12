@@ -389,4 +389,64 @@ All architecture decisions made; status `ready` for implementation. Locked items
 - [x] iOS upgrade-window UI hint (§9)
 - [x] Build-number plan, marketing versions held at 0.23 / 1.5.0 (§10)
 
+## 14. Implementation status — 2026-05-11 (iOS 1.5.3)
+
+L1 + L2 shipped with Mac 0.23 / iOS 1.5.0 (Build 89). L3 + §9 inline hint
+sat as "design-locked, never-built" through ~6 months. Discovered when the
+user upgraded one of two Macs to 0.25.1 — old Mac on 0.23.6 wrote
+`accountEmail=nil` for Codex while new Mac extracted `msxiao113@gmail.com`
+(upstream `#869` Codex multi-account refactor began emitting accountEmail
+for the same logical account that was previously anonymous). L1+L2's
+legacy-no-identity bucket separated them, no UI to bridge → two Codex
+cards on iOS for one Codex account.
+
+### 14.1 What was built (iOS 1.5.3, commit pending)
+
+| §  | File / type | Status |
+|----|----|----|
+| §3 | `Shared/Models/UsageSnapshot.swift` `ProviderUsageSnapshot.accountIdentities` | unchanged; already shipped |
+| §3 | `Shared/Models/ProviderAccountLinkage.swift` | **new** — Codable record + `inverseUnmerge` helper |
+| §3 | `Shared/iCloud/CloudConstants.swift` `providerAccountLinkageRecordType` | **new** — wire contract for CKRecord type name |
+| §3 | `Shared/iCloud/CloudSyncManager.swift` save/fetch linkage methods | **new** — `saveProviderAccountLinkage` + `fetchProviderAccountLinkages`, stored in existing `DeviceProvidersZone` |
+| §5 | `CodexBarMobile/iCloud/CloudSyncReader.swift` `mergeSnapshots(_:linkages:)` | **new param** — second pass applies LinkageRecord union edges after L1+L2 |
+| §7 | `CodexBarMobile/Models/MultiAccountLinkageCandidate.swift` + detector | **new** — surfaces only the unambiguous (one-named + N-legacy) pairs |
+| §7 / §9 | `CodexBarMobile/Views/ProviderUsageView.swift` linkage prompt section | **new** — inline UI on the legacy card; "Same account?" + "Keep separate" buttons; §9 hint string when legacy Mac's version is known |
+| §7.4 | `ProviderUsageView` contextMenu "Unmerge Accounts" | **new** — long-press on a merged card writes inverse linkage |
+| §7 | `CodexBarMobile/Models/SyncedUsageData.swift` `confirmLinkage` / `revokeLinkage` | **new** — local-apply + CloudKit write |
+| §8 | `CodexBarMobileTests/AccountIdentityMergeTests.swift` §8.1–§8.10 | already shipped |
+| §8 | `CodexBarMobileTests/LinkageRecordMergeTests.swift` §8.11 + §7.4 + §11.5 row M | **new** — 8 cases (override, unmerge, order-independence, concurrent idempotence, cross-providerID isolation, no-overlap no-op, Codable round-trip, backward-compat decode) |
+| §8 | `CodexBarMobileTests/MultiAccountLinkageDetectorTests.swift` | **new** — 8 cases pinning detector rules (unambiguous emit, ambiguous skip, single-card skip, cross-provider isolation, deterministic ordering, app-version surfacing) |
+| §9 | `Localizable.xcstrings` — 5 new keys × 4 langs | **new** — `Yes, same account`, `Keep separate`, `Unmerge Accounts`, `linkage-prompt-headline`, `linkage-prompt-detail`, `linkage-prompt-detail-with-version` |
+
+### 14.2 Design-spec → code map
+
+- §3 wire schema → `ProviderAccountLinkage` + `CloudSyncManager.makeLinkageRecord/decodeLinkage`
+- §5 step 3b LinkageRecord application → `CloudSyncReader.mergeSnapshots` lines applying merge/unmerge after L1+L2
+- §5 step 4 group reduction → unchanged from L1+L2 path (LinkageRecord just adds edges, doesn't change how groups become merged cards)
+- §7.1 UI prompt → `ProviderUsageView.linkagePromptSection`
+- §7.2 properties → all four (user-driven / cross-iPhone / self-correcting / bounded) preserved
+- §7.3 "this isn't the primary mechanism" → still true: detector only emits when (one-named + N-legacy) AND user hasn't dismissed; ambiguous cases stay silent (see §7-A in the detector docstring)
+- §7.4 Unmerge → `MultiAccountLinkageCandidate` unused for inverse; inverse uses `ProviderAccountLinkage.inverseUnmerge(...)` with set-equality key (`linkageKey` in `CloudSyncReader`) so order doesn't matter
+
+### 14.3 Design deltas discovered during build
+
+1. **§5 union-find ordering.** Originally documented as union-find first, LinkageRecord as a virtual edge. Built as: L1+L2 union-find first (step 3), then LinkageRecord edges (step 3b) BEFORE step 4 grouping. The unmerge ordering nuance — "applied AFTER merges" — needed a set-equality canonical key (`linkageKey`) because union-find can't tear apart unions directly. Inverse `unmerge=true` records skip the corresponding merge edge BEFORE step 4 runs, achieving the same net effect.
+2. **§7.1 inline prompt anchor.** Spec says "surface a small inline button on each card". Built: prompt only on the LEGACY card (the side that's missing identifier data). Asymmetric UI is clearer for users — "this card looks like that one" reads better than "these two cards look alike". Named card stays clean.
+3. **§7 ambiguity handling.** Spec lists §7.1 as the trigger when "iOS detects ≥2 cards for the same providerID that share no identifier". Build adds a stricter rule: only emit when there's EXACTLY ONE named card + N legacy cards. Two named cards (multi-account on the named side) is genuine multi-account and we can't guess which named card a legacy belongs to. Result: those cases stay 2+ cards on the UI with no auto-prompt; user has to upgrade the old Mac (the §9 path) rather than confirm via §7. Documented in `MultiAccountLinkageDetector` rule §7-A.
+4. **§7 dismissal persistence.** Spec didn't address "what if user picks 'Keep separate'". Build: in-memory dismissal set on `ProviderListView` (`@State var dismissedCandidateKeys`). Re-evaluated on next launch (no persistence). Reasoning: candidates auto-dismiss once the legacy Mac upgrades. A persisted "no, never ask" would block the user from ever changing their mind.
+5. **§9 wording.** Spec gave one English headline ("⚠️ Another Mac (CodexBar 0.X) reports this provider differently. Update CodexBar there to merge automatically."). Build separates §9 hint (the "0.X" version reference) from §7 merge prompt — both shown together in the same inline panel, with the version reference inline in the body text rather than as a separate row. Translates to all 4 languages.
+6. **CKRecord zone.** Spec didn't pin it. Build: same `DeviceProvidersZone` as snapshot records. Avoids a second zone subscription + separate change-token logic; the existing per-provider zone subscription delivers linkage upserts as part of the same incremental delta stream.
+
+### 14.4 Tests pinned
+
+22 new test cases across two files, all passing:
+- `LinkageRecordMergeTests` (8): §8.11 override, §7.4 unmerge + order-independence, concurrent merge idempotence, wrong-providerID no-op, no-overlap no-op, Codable round-trip, missing-unmerge backward-compat decode, `inverseUnmerge` helper.
+- `MultiAccountLinkageDetectorTests` (8): unambiguous emission, multi-legacy fan-out, two-named-skip, zero-named-skip, single-card-skip, cross-provider isolation, app-version surfacing, deterministic ordering.
+
+Plus the existing 16 `AccountIdentityMergeTests` (§8.1–§8.10 + identifier-synthesis edge cases) still pass.
+
+### 14.5 What's still NOT built (deferred)
+
+- **§7.1 multi-named picker.** When there are ≥2 named cards + ≥1 legacy, iOS could present a sheet to ask "which named card does this legacy belong to?" Deferred because: (a) the detector currently returns 0 candidates in this case so the user sees the cards but no prompt; (b) the case rarely fires in practice — most multi-Mac users have one account per provider; (c) implementing it correctly requires a separate UI surface, not the inline button. Documented as `MultiAccountLinkageDetector` rule §7-A future-work in the file's docstring.
+
 Next: implementation. No further design review needed.

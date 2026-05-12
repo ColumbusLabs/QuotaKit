@@ -927,10 +927,154 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         }
     }
 
-    /// Returns a stable UUID for this Mac, persisted across launches in `UserDefaults`.
-    /// Mirrors the same key used by `SyncCoordinator`'s record name on the Mac side so
-    /// the value is shared across the two writers.
-    private func stableDeviceID() -> String {
+    // MARK: - Provider Account Linkage (Research/019 §7)
+
+    /// Save (or replace) a single `ProviderAccountLinkage` record.
+    ///
+    /// Same-`recordID` writes from two iPhones use CloudKit's last-writer-wins
+    /// semantics (idempotent for merges; "last unmerge sticks" for inverses —
+    /// matches user expectation that the most recent action holds).
+    ///
+    /// Concurrent merge confirmations from two iPhones produce **different**
+    /// `recordID`s (each writes a fresh UUID record). Both records land; the
+    /// reader unions on either. Idempotent in the union-find graph. See
+    /// `Research/019` §11.5 row M.
+    ///
+    /// Lives in `DeviceProvidersZone` so the existing per-provider zone
+    /// subscription delivers linkage upserts via the same change-token
+    /// path snapshot records use.
+    @discardableResult
+    public func saveProviderAccountLinkage(
+        _ linkage: ProviderAccountLinkage
+    ) async -> SyncPushResult {
+        guard self.cloudKitAvailable, self._privateDatabase != nil else {
+            return .failure("CloudKit not available")
+        }
+
+        do {
+            try await self.ensureProviderZoneExists()
+        } catch {
+            let syncError = CloudSyncError(from: error as? CKError ?? CKError(.internalError))
+            return .failure("Failed to create provider zone: \(syncError.description)")
+        }
+
+        let recordID = CKRecord.ID(
+            recordName: ProviderAccountLinkage.recordName(for: linkage.recordID),
+            zoneID: self.providerZone.zoneID)
+        let record = CKRecord(
+            recordType: CloudSyncConstants.providerAccountLinkageRecordType,
+            recordID: recordID)
+        record["recordID"] = linkage.recordID as CKRecordValue
+        record["providerID"] = linkage.providerID as CKRecordValue
+        record["linkedIdentifiers"] = linkage.linkedIdentifiers as CKRecordValue
+        record["confirmedAt"] = linkage.confirmedAt as CKRecordValue
+        record["confirmedFromDeviceID"] = linkage.confirmedFromDeviceID as CKRecordValue
+        record["unmerge"] = (linkage.unmerge ? 1 : 0) as CKRecordValue
+
+        do {
+            _ = try await self._privateDatabase!.save(record)
+            self.logInfo("Linkage record written", metadata: [
+                "providerID": linkage.providerID,
+                "linkedCount": "\(linkage.linkedIdentifiers.count)",
+                "unmerge": "\(linkage.unmerge)",
+            ])
+            return .success
+        } catch let ckError as CKError {
+            let syncError = CloudSyncError(from: ckError)
+            self.logError("Linkage save failed: \(syncError.description)")
+            return .failure("Linkage save failed: \(syncError.description)")
+        } catch {
+            self.logError("Linkage save failed: \(error.localizedDescription)")
+            return .failure("Linkage save failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Fetch all linkage records from `DeviceProvidersZone`. Returns an empty
+    /// array on zone-not-found OR unknown-record-type (= no linkage has ever
+    /// been confirmed on this iCloud account yet; the record type is created
+    /// lazily on first write).
+    ///
+    /// Individual decode failures are logged + skipped — one corrupt record
+    /// never fails the whole fetch (mirrors `fetchPerProviderDeviceSnapshots`).
+    public func fetchProviderAccountLinkages() async -> [ProviderAccountLinkage] {
+        guard self.cloudKitAvailable, self._privateDatabase != nil else {
+            return []
+        }
+
+        let query = CKQuery(
+            recordType: CloudSyncConstants.providerAccountLinkageRecordType,
+            predicate: NSPredicate(value: true))
+
+        let matchResults: [(CKRecord.ID, Result<CKRecord, Error>)]
+        do {
+            let (results, _) = try await self._privateDatabase!.records(
+                matching: query, inZoneWith: self.providerZone.zoneID)
+            matchResults = results
+        } catch let error as CKError where error.code == .zoneNotFound || error.code == .unknownItem {
+            return []
+        } catch {
+            self.logError("Linkage fetch failed: \(error.localizedDescription)")
+            return []
+        }
+
+        var linkages: [ProviderAccountLinkage] = []
+        linkages.reserveCapacity(matchResults.count)
+        for (recordID, result) in matchResults {
+            switch result {
+            case .success(let record):
+                if let linkage = Self.decodeLinkage(from: record) {
+                    linkages.append(linkage)
+                } else {
+                    self.logError(
+                        "Failed to decode linkage record \(recordID.recordName)")
+                }
+            case .failure(let error):
+                self.logError(
+                    "Failed to fetch linkage record \(recordID.recordName): " +
+                        error.localizedDescription)
+            }
+        }
+        return linkages
+    }
+
+    /// Decode a `ProviderAccountLinkage` from a CKRecord. Returns `nil` if
+    /// any required field is missing.
+    static func decodeLinkage(from record: CKRecord) -> ProviderAccountLinkage? {
+        guard let recordID = record["recordID"] as? String,
+              let providerID = record["providerID"] as? String,
+              let linkedIdentifiers = record["linkedIdentifiers"] as? [String],
+              let confirmedAt = record["confirmedAt"] as? Date,
+              let confirmedFromDeviceID = record["confirmedFromDeviceID"] as? String
+        else {
+            return nil
+        }
+        let unmergeValue = record["unmerge"]
+        let unmerge: Bool
+        if let bool = unmergeValue as? Bool {
+            unmerge = bool
+        } else if let int = unmergeValue as? Int {
+            unmerge = int != 0
+        } else if let num = unmergeValue as? NSNumber {
+            unmerge = num.boolValue
+        } else {
+            unmerge = false
+        }
+        return ProviderAccountLinkage(
+            recordID: recordID,
+            providerID: providerID,
+            linkedIdentifiers: linkedIdentifiers,
+            confirmedAt: confirmedAt,
+            confirmedFromDeviceID: confirmedFromDeviceID,
+            unmerge: unmerge)
+    }
+
+    /// Returns a stable UUID for this device, persisted across launches in
+    /// `UserDefaults`. On Mac it matches the SyncCoordinator's record-name
+    /// `deviceID` (same UserDefaults key). On iOS it's a separate value, since
+    /// iOS UserDefaults is per-app and the iPhone doesn't run SyncCoordinator.
+    /// Exposed publicly for the LinkageRecord writer to stamp
+    /// `confirmedFromDeviceID` on user-confirmed merges.
+    public func stableDeviceID() -> String {
         let defaults = UserDefaults.standard
         if let existing = defaults.string(forKey: CloudSyncConstants.deviceIDKey) {
             return existing

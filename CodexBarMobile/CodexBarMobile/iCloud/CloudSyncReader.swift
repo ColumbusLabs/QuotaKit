@@ -38,6 +38,28 @@ final class CloudSyncReader: @unchecked Sendable {
         await syncManager.fetchPerProviderZoneChanges(since: token)
     }
 
+    // MARK: - Account linkage (Research/019 §7)
+
+    /// Fetch all `ProviderAccountLinkage` records from CloudKit. Returns
+    /// empty when the zone or record type doesn't exist yet (= no user
+    /// has confirmed a merge on this iCloud account).
+    func fetchProviderAccountLinkages() async -> [ProviderAccountLinkage] {
+        await syncManager.fetchProviderAccountLinkages()
+    }
+
+    /// Save a user-confirmed merge or unmerge to CloudKit.
+    @discardableResult
+    func saveProviderAccountLinkage(
+        _ linkage: ProviderAccountLinkage
+    ) async -> SyncPushResult {
+        await syncManager.saveProviderAccountLinkage(linkage)
+    }
+
+    /// Stable iPhone UUID for stamping LinkageRecord `confirmedFromDeviceID`.
+    func currentDeviceID() -> String {
+        syncManager.stableDeviceID()
+    }
+
     // MARK: - Legacy KVS (backward compatibility)
 
     /// Returns the most recently synced snapshot from KVS (fallback).
@@ -149,7 +171,10 @@ final class CloudSyncReader: @unchecked Sendable {
     /// Identifier strings are `{providerID}:{scheme}:{value}` so two providers
     /// can never share an identifier (different prefix) — cross-provider
     /// false merges are structurally impossible.
-    static func mergeSnapshots(_ snapshots: [SyncedUsageSnapshot]) -> SyncedUsageSnapshot? {
+    static func mergeSnapshots(
+        _ snapshots: [SyncedUsageSnapshot],
+        linkages: [ProviderAccountLinkage] = []
+    ) -> SyncedUsageSnapshot? {
         guard !snapshots.isEmpty else { return nil }
 
         // 1. Flatten to (entry index → ProviderUsageSnapshot)
@@ -165,7 +190,7 @@ final class CloudSyncReader: @unchecked Sendable {
         // 2. Compute effective identifiers per provider snapshot
         let effectiveIdentifiers: [[String]] = allProviders.map(Self.effectiveIdentifiers(for:))
 
-        // 3. Union-find across shared identifiers
+        // 3. Union-find across shared identifiers (L1+L2)
         var uf = MergeUnionFind(count: allProviders.count)
         var firstSeenByIdentifier: [String: Int] = [:]
         for (idx, ids) in effectiveIdentifiers.enumerated() {
@@ -175,6 +200,56 @@ final class CloudSyncReader: @unchecked Sendable {
                 } else {
                     firstSeenByIdentifier[id] = idx
                 }
+            }
+        }
+
+        // 3b. Apply user-confirmed LinkageRecords (L3, Research/019 §7).
+        // Each non-unmerge linkage adds a virtual edge between any pair of
+        // snapshots whose effective identifiers share at least one of the
+        // listed `linkedIdentifiers` for the same providerID. Order-
+        // independent because edges are symmetric; idempotent because
+        // repeating the same edge in union-find is a no-op.
+        //
+        // Unmerge records (`unmerge=true`) are applied AFTER all merges.
+        // They DON'T tear apart a union directly (you can't "un-union" in
+        // a standard union-find); instead they prevent the edge from
+        // being added at all, by suppressing it from the linkage set
+        // before the merge pass. This matches §7.4 semantics — the
+        // inverse record nullifies the original merge edge.
+        let (mergeLinkages, unmergeLinkages) = Self.partitionLinkages(linkages)
+        let suppressedLinkageEdges = Self.suppressedEdges(unmergeLinkages: unmergeLinkages)
+        for linkage in mergeLinkages {
+            // Skip linkages whose providerID doesn't match any snapshot —
+            // they're either for a provider the user hasn't synced or
+            // they refer to a deleted account. No-op (union-find is empty
+            // for that subset anyway).
+            let candidateIndices = Self.indices(
+                forProviderID: linkage.providerID,
+                in: allProviders)
+            guard !candidateIndices.isEmpty else { continue }
+
+            // Skip if this entire linkage was suppressed by an unmerge.
+            if Self.isLinkageSuppressed(linkage, by: suppressedLinkageEdges) {
+                continue
+            }
+
+            // Add an edge between any pair of candidate snapshots whose
+            // effective identifiers contain at least one of the linked
+            // identifier strings. Pairwise so we union every transitive
+            // pair, but in practice the candidate set is small (usually
+            // 2 snapshots) so this is O(linkedIDs · candidates²) and
+            // negligible.
+            var matching: [Int] = []
+            for candidate in candidateIndices {
+                let ids = effectiveIdentifiers[candidate]
+                if ids.contains(where: { linkage.linkedIdentifiers.contains($0) }) {
+                    matching.append(candidate)
+                }
+            }
+            guard matching.count >= 2 else { continue }
+            let anchor = matching[0]
+            for other in matching.dropFirst() {
+                uf.union(anchor, other)
             }
         }
 
@@ -573,6 +648,71 @@ final class CloudSyncReader: @unchecked Sendable {
                     usedPercent: min(100, max(0, avg)),
                     resetsAt: bucket.latestReset)
             }
+    }
+
+    // MARK: - LinkageRecord application helpers (Research/019 §7)
+
+    /// Splits the linkage list into merge edges and unmerge edges.
+    static func partitionLinkages(
+        _ linkages: [ProviderAccountLinkage]
+    ) -> (merges: [ProviderAccountLinkage], unmerges: [ProviderAccountLinkage]) {
+        var merges: [ProviderAccountLinkage] = []
+        var unmerges: [ProviderAccountLinkage] = []
+        for linkage in linkages {
+            if linkage.unmerge {
+                unmerges.append(linkage)
+            } else {
+                merges.append(linkage)
+            }
+        }
+        return (merges, unmerges)
+    }
+
+    /// Build the set of suppressed merge keys from unmerge records.
+    /// A merge linkage is suppressed if some unmerge record names the same
+    /// `(providerID, linkedIdentifiers-as-Set)` pair. Order of identifiers
+    /// in the merge vs unmerge is normalized via Set comparison so
+    /// "[a,b]" matches "[b,a]".
+    ///
+    /// Returned key shape: `"providerID|sorted-linked-ids-joined"`.
+    static func suppressedEdges(
+        unmergeLinkages: [ProviderAccountLinkage]
+    ) -> Set<String> {
+        var keys = Set<String>()
+        for record in unmergeLinkages {
+            keys.insert(Self.linkageKey(record))
+        }
+        return keys
+    }
+
+    /// True if a merge linkage is suppressed by an unmerge record with the
+    /// same provider + linkedIdentifiers set.
+    static func isLinkageSuppressed(
+        _ linkage: ProviderAccountLinkage,
+        by suppressedKeys: Set<String>
+    ) -> Bool {
+        suppressedKeys.contains(Self.linkageKey(linkage))
+    }
+
+    /// Canonicalize a linkage's content for set-equality comparison
+    /// across merge/unmerge pairs.
+    private static func linkageKey(_ linkage: ProviderAccountLinkage) -> String {
+        let sorted = linkage.linkedIdentifiers.sorted()
+        return "\(linkage.providerID)|\(sorted.joined(separator: ","))"
+    }
+
+    /// Return indices of providers in `allProviders` whose providerID matches.
+    static func indices(
+        forProviderID providerID: String,
+        in allProviders: [ProviderUsageSnapshot]
+    ) -> [Int] {
+        var indices: [Int] = []
+        for (idx, provider) in allProviders.enumerated()
+            where provider.providerID == providerID
+        {
+            indices.append(idx)
+        }
+        return indices
     }
 }
 

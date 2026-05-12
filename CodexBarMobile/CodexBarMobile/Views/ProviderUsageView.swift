@@ -7,6 +7,19 @@ struct ProviderUsageView: View {
     /// when this is the only card for its providerID — subtitle then stays
     /// in its pre-T5 single-card form.
     var duplicateOrdinal: Int?
+    /// Optional linkage candidate when this card is part of a
+    /// cross-version-detected pair (Research/019 §7). When non-nil and
+    /// `onConfirmMerge` is provided, the card renders an inline prompt
+    /// for the user to confirm or dismiss the merge.
+    var linkageCandidate: MultiAccountLinkageCandidate?
+    /// Set when this card represents an already-merged composite that
+    /// the user can revoke. Driven from `SyncedUsageData.providerLinkages`
+    /// — a context menu "Unmerge accounts" item writes the inverse
+    /// LinkageRecord. nil → no unmerge available.
+    var activeLinkage: ProviderAccountLinkage?
+    var onConfirmMerge: ((MultiAccountLinkageCandidate) -> Void)?
+    var onDismissMergeCandidate: ((MultiAccountLinkageCandidate) -> Void)?
+    var onRevokeLinkage: ((ProviderAccountLinkage) -> Void)?
     @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidePersonalInfo = false
 
     /// True when this is a synthetic mock provider injected by Mac's
@@ -64,9 +77,34 @@ struct ProviderUsageView: View {
             .padding(.horizontal, 20)
             .padding(.top, 12)
 
+            // Inline linkage candidate prompt (Research/019 §7 + §9). Shown
+            // ONLY when a `MultiAccountLinkageCandidate` was passed in AND
+            // the dismiss callback is wired. The card's primary content
+            // stays visible above; this is a sub-region the user can
+            // confirm/dismiss.
+            if let candidate = self.linkageCandidate,
+               let onConfirm = self.onConfirmMerge
+            {
+                self.linkagePromptSection(
+                    candidate: candidate,
+                    onConfirm: onConfirm,
+                    onDismiss: self.onDismissMergeCandidate ?? { _ in })
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+            }
+
             Spacer().frame(height: 20)
         }
         .modifier(ProviderCardBackgroundModifier(isMock: self.isMockProvider))
+        .contextMenu {
+            if let active = self.activeLinkage, let onRevoke = self.onRevokeLinkage {
+                Button(role: .destructive) {
+                    onRevoke(active)
+                } label: {
+                    Label(String(localized: "Unmerge Accounts"), systemImage: "arrow.uturn.backward")
+                }
+            }
+        }
     }
 
     // MARK: - Provider Header
@@ -145,6 +183,82 @@ struct ProviderUsageView: View {
             return String(format: template, self.provider.providerName, ordinal)
         }
         return nil
+    }
+
+    // MARK: - Linkage prompt (Research/019 §7 + §9)
+
+    @ViewBuilder
+    private func linkagePromptSection(
+        candidate: MultiAccountLinkageCandidate,
+        onConfirm: @escaping (MultiAccountLinkageCandidate) -> Void,
+        onDismiss: @escaping (MultiAccountLinkageCandidate) -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "questionmark.circle.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 4) {
+                    // Primary line — Research/019 §9 framing: "another Mac
+                    // looks like the same account but is too old/inconsistent
+                    // to auto-merge".
+                    Text(self.linkagePromptHeadline(candidate: candidate))
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text(self.linkagePromptDetail(candidate: candidate))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            HStack(spacing: 12) {
+                Button {
+                    onConfirm(candidate)
+                } label: {
+                    Label(
+                        String(localized: "Yes, same account"),
+                        systemImage: "checkmark.circle.fill")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .tint(self.providerColor)
+
+                Button {
+                    onDismiss(candidate)
+                } label: {
+                    Text(String(localized: "Keep separate"))
+                        .font(.subheadline)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.orange.opacity(0.08)))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.orange.opacity(0.25), lineWidth: 0.5))
+        .accessibilityIdentifier("linkage-prompt-\(candidate.hashKey)")
+    }
+
+    private func linkagePromptHeadline(candidate: MultiAccountLinkageCandidate) -> String {
+        // "Looks like the same Codex account on another Mac."
+        let template = String(localized: "linkage-prompt-headline")
+        return String(format: template, candidate.named.providerName)
+    }
+
+    private func linkagePromptDetail(candidate: MultiAccountLinkageCandidate) -> String {
+        // "The other Mac (CodexBar 0.23.6) reports this provider without an
+        // account email, so iOS can't auto-link them. Confirm if it's the
+        // same login."
+        if let version = candidate.legacyMacVersion {
+            let template = String(localized: "linkage-prompt-detail-with-version")
+            return String(format: template, version)
+        }
+        return String(localized: "linkage-prompt-detail")
     }
 
     @ViewBuilder
