@@ -1931,8 +1931,28 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.5.2",
+            version: "1.5.3",
             status: String(localized: "Latest"),
+            summary: String(localized: "Multi-account display fix on Cost and Subscription Utilization, plus a new cross-version account-link prompt with the related crash fix."),
+            sections: [
+                .init(
+                    title: String(localized: "Recent updates"),
+                    items: [
+                        String(localized: "Abacus AI and Mistral support — monthly usage and renewal countdown sync to your iPhone, with quota push notifications."),
+                        String(localized: "Claude Designs / Daily Routines / Web Sonnet usage bars on the Claude detail page; Cursor Extra budget gauge on the Cursor page."),
+                        String(localized: "Synthetic 5h / weekly tokens / search hourly labels render correctly instead of generic fallbacks."),
+                        String(localized: "Codex Pro $100 plan badge; estimated cost for newly-released models marked with *."),
+                        String(localized: "Two Macs on different CodexBar versions during a rolling upgrade now show a single card per account."),
+                    ]),
+                .init(
+                    title: String(localized: "Required Mac version"),
+                    items: [
+                        String(localized: "Requires CodexBar for Mac 0.23.4 or later for the new providers."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.5.2",
+            status: "",
             summary: String(localized: "Primarily resolves multiple Codex accounts failing to display fully on iPhone. After configuring multiple Codex accounts on Mac, iPhone now shows each account as a separate card; Cost, Usage, and Provider Share all attribute correctly per account."),
             sections: [
                 .init(

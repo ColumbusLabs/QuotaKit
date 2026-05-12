@@ -3,6 +3,8 @@
 This is the complete development workflow for any AI agent working on CodexBar Mobile (iOS).
 
 > **Scope:** We only work on the iOS app (`CodexBarMobile/`). Mac-side code is maintained upstream.
+>
+> **Current upstream alignment:** see `version.env` at repo root — `UPSTREAM_VERSION` and `UPSTREAM_SYNC_DATE` are the authoritative fields. Do NOT consult `plan.md` for this — it's a human-curated planning doc and lags reality.
 
 ---
 

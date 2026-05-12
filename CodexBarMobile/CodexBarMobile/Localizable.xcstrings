@@ -8842,6 +8842,230 @@
           }
         }
       }
+    },
+    "Multi-account display fix on Cost and Subscription Utilization, plus a new cross-version account-link prompt with the related crash fix.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Multi-account display fix on Cost and Subscription Utilization, plus a new cross-version account-link prompt with the related crash fix."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cost / Subscription Utilization タブの複数アカウント表示の不具合を修正し、Mac バージョンが異なる環境向けのアカウント連携プロンプトと関連クラッシュの修正を追加。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修复多账号在 Cost 与 Subscription Utilization 页面的显示问题，并新增跨版本 Mac 的账号合并提示及对应崩溃修复。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修復多帳號在 Cost 與 Subscription Utilization 頁面的顯示問題，並新增跨版本 Mac 的帳號合併提示及對應閃退修復。"
+          }
+        }
+      }
+    },
+    "Recent updates": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent updates"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最近のアップデート"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "近期更新"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "近期更新"
+          }
+        }
+      }
+    },
+    "Abacus AI and Mistral support — monthly usage and renewal countdown sync to your iPhone, with quota push notifications.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abacus AI and Mistral support — monthly usage and renewal countdown sync to your iPhone, with quota push notifications."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abacus AI と Mistral の 2 つの新プロバイダーをサポート：月間使用量と更新日カウントダウンを iPhone に同期、クォータの消費/復旧のプッシュ通知に対応。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新增 Abacus AI 与 Mistral 两个 provider：月度用量、续订倒计时同步到 iPhone，配额耗尽/恢复的推送通知齐备。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新增 Abacus AI 與 Mistral 兩個 provider：月度用量、續訂倒數同步到 iPhone，配額耗盡/恢復的推送通知齊備。"
+          }
+        }
+      }
+    },
+    "Claude Designs / Daily Routines / Web Sonnet usage bars on the Claude detail page; Cursor Extra budget gauge on the Cursor page.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Designs / Daily Routines / Web Sonnet usage bars on the Claude detail page; Cursor Extra budget gauge on the Cursor page."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude の詳細ページに Designs / Daily Routines / Web Sonnet 使用量バーを追加；Cursor の詳細ページに Extra 予算メーターを追加。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude 详情页新增 Designs / Daily Routines / Web Sonnet 用量条；Cursor 详情页新增 Extra 预算指示器。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude 詳情頁新增 Designs / Daily Routines / Web Sonnet 用量條；Cursor 詳情頁新增 Extra 預算指示器。"
+          }
+        }
+      }
+    },
+    "Synthetic 5h / weekly tokens / search hourly labels render correctly instead of generic fallbacks.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synthetic 5h / weekly tokens / search hourly labels render correctly instead of generic fallbacks."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synthetic の 5 時間 / 週次トークン / 1 時間検索の 3 レーンに正しいラベルを表示するようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synthetic 五小时 / 周 token / 每小时搜索三个 lane 显示正确标签，不再回退到通用名称。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synthetic 五小時 / 週 token / 每小時搜尋三個 lane 顯示正確標籤，不再退回到通用名稱。"
+          }
+        }
+      }
+    },
+    "Codex Pro $100 plan badge; estimated cost for newly-released models marked with *.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Pro $100 plan badge; estimated cost for newly-released models marked with *."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Pro $100 プラン バッジ；新リリースモデルのコスト推定値（* 付き）。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Pro $100 套餐徽章；新发布模型的费用估算（标 *）。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Pro $100 方案徽章；新發布模型的費用估算（標 *）。"
+          }
+        }
+      }
+    },
+    "Two Macs on different CodexBar versions during a rolling upgrade now show a single card per account.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Two Macs on different CodexBar versions during a rolling upgrade now show a single card per account."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 台の Mac が異なる CodexBar バージョンで稼働しているローリングアップグレード中も、同じアカウントが 1 枚のカードにまとまります。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "两台 Mac 跑不同 CodexBar 版本时，同一账号合并为一张卡。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "兩台 Mac 跑不同 CodexBar 版本時，同一帳號合併為一張卡片。"
+          }
+        }
+      }
+    },
+    "Requires CodexBar for Mac 0.23.4 or later for the new providers.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requires CodexBar for Mac 0.23.4 or later for the new providers."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新プロバイダーを利用するには macOS 用 CodexBar 0.23.4 以降が必要です。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需 macOS CodexBar 0.23.4 或更新版本以启用新 provider 支持。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需 macOS CodexBar 0.23.4 或更新版本以啟用新 provider 支援。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

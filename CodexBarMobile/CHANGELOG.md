@@ -2,6 +2,44 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.3 (119)] — 2026-05-12 — In-app release notes for 1.5.3 + archive plan.md
+
+Builds 114–118 shipped the 1.5.3 fixes/features but forgot to update
+the in-app `MobileReleaseNotesCatalog` (`ContentView.swift`). Users
+opening Settings → Release Notes after installing 1.5.3 still saw
+1.5.2 as Latest. Build 119 fixes that.
+
+### In-app release notes catalog
+
+- New `1.5.3` entry inserted as `Latest`; 1.5.2 demoted to historical.
+- Content mirrors `AppStoreMetadata/1.5.3/en-US/release_notes.txt`:
+  single-line summary + 5-bullet "Recent updates" section + Mac
+  version requirement.
+- 8 new strings added to `Localizable.xcstrings` (314 → 322 keys),
+  each with English / Simplified Chinese / Traditional Chinese /
+  Japanese translations mirroring the App Store release notes files
+  (`AppStoreMetadata/1.5.3/<locale>/release_notes.txt`).
+
+### plan.md archived
+
+- Moved `plan.md` → `Archive/plan-archived-2026-05-12.md`.
+- Added ARCHIVED header at top of the file pointing to new sources
+  of truth (the prior content was already 4 versions stale and led
+  an automation routine to read v0.19.0 as the current upstream
+  alignment when reality was v0.25.1).
+- `CLAUDE.md` updated to remove both references to `plan.md`.
+- Authoritative current state now lives in:
+  - `version.env` — current version + upstream alignment
+  - `AGENTS.md` — workflow + agent rules
+  - `CodexBarMobile/CHANGELOG.md` — iOS changelog
+  - Todoist project "Dev" — task tracking
+
+### Versions
+
+- iOS CURRENT_PROJECT_VERSION: 118 → 119
+- Marketing version stays 1.5.3
+- Mac unchanged
+
 ## [1.5.3 (118)] — 2026-05-12 — App Store submission build (no source changes from 117)
 
 Build-number bump only. App Store Review and TestFlight are kept on

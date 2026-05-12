@@ -50,7 +50,7 @@ See `AGENTS.md` for the full process, rules, and checklists.
 | `CodexBarMobile/CodexBarMobile/Models/` | Data models and formatters |
 | `CodexBarMobile/CodexBarMobile/Preview Content/PreviewData.swift` | Demo / preview data |
 | `CodexBarMobile/Shared/` | Shared iCloud sync layer |
-| `plan.md` | 项目计划与功能进度跟踪 |
+| `version.env` | 当前 ship 版本 + 上游对齐版本（`UPSTREAM_VERSION` + `UPSTREAM_SYNC_DATE`）— routine/agent 查"对齐到上游哪个版本"必读此文件 |
 
 ---
 
@@ -161,7 +161,7 @@ See `AGENTS.md` for the full process, rules, and checklists.
 #### 职责边界
 - **Todoist**：任务状态流转 + 进度日志（摘要 + commit 链接）
 - **CHANGELOG.md**：面向开发者的变更记录
-- **plan.md**：项目计划与功能进度跟踪
+- **version.env**：当前 ship 版本 + 上游对齐版本
 - Todoist comment 不重复写完整变更内容，指向 CHANGELOG 即可
 
 #### 注意事项
