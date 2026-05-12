@@ -277,6 +277,19 @@ final class SyncedUsageData {
         self.providerLinkages = cloudLinkages + localOnly
         Self.saveCachedLinkages(self.providerLinkages)
 
+        // Retry CloudKit save for any locally-cached linkage that never
+        // made it to the cloud. Common cause: a prior build crashed
+        // mid-save (build 115's `record["recordID"]` ObjC exception),
+        // leaving the linkage applied locally + persisted in
+        // UserDefaults but invisible to other iPhones on the same iCloud
+        // account. Fire-and-forget — failures stay local and re-retry
+        // next launch / refresh.
+        for pending in localOnly {
+            Task { [weak self] in
+                _ = await self?.reader.saveProviderAccountLinkage(pending)
+            }
+        }
+
         // Unpack results per zone. `.error` means transient failure — DO NOT
         // wipe that bucket, preserve whatever was cached before (Codex
         // review P1). `.empty` / `.success` are authoritative and DO replace

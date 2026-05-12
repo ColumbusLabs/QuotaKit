@@ -958,13 +958,18 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             return .failure("Failed to create provider zone: \(syncError.description)")
         }
 
-        let recordID = CKRecord.ID(
+        let ckRecordID = CKRecord.ID(
             recordName: ProviderAccountLinkage.recordName(for: linkage.recordID),
             zoneID: self.providerZone.zoneID)
         let record = CKRecord(
             recordType: CloudSyncConstants.providerAccountLinkageRecordType,
-            recordID: recordID)
-        record["recordID"] = linkage.recordID as CKRecordValue
+            recordID: ckRecordID)
+        // CKRecord reserves the field name `recordID` (it's the built-in
+        // CKRecord.ID property). Setting it via subscript raises an ObjC
+        // exception (crash on build 115). The linkage UUID is already
+        // embedded in the record's name (`"linkage-{UUID}"`) so we don't
+        // need a redundant payload field — `decodeLinkage` reads the UUID
+        // back from `record.recordID.recordName`.
         record["providerID"] = linkage.providerID as CKRecordValue
         record["linkedIdentifiers"] = linkage.linkedIdentifiers as CKRecordValue
         record["confirmedAt"] = linkage.confirmedAt as CKRecordValue
@@ -1038,9 +1043,17 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     }
 
     /// Decode a `ProviderAccountLinkage` from a CKRecord. Returns `nil` if
-    /// any required field is missing.
-    static func decodeLinkage(from record: CKRecord) -> ProviderAccountLinkage? {
-        guard let recordID = record["recordID"] as? String,
+    /// any required field is missing OR the record name lacks the
+    /// `"linkage-"` prefix (= not one of our records — likely a
+    /// different record type that hit our query by mistake). Exposed
+    /// `public` so the iOS test target can exercise the CKRecord
+    /// round-trip without going through the network layer.
+    public static func decodeLinkage(from record: CKRecord) -> ProviderAccountLinkage? {
+        let recordName = record.recordID.recordName
+        let prefix = "linkage-"
+        guard recordName.hasPrefix(prefix) else { return nil }
+        let recordID = String(recordName.dropFirst(prefix.count))
+        guard !recordID.isEmpty,
               let providerID = record["providerID"] as? String,
               let linkedIdentifiers = record["linkedIdentifiers"] as? [String],
               let confirmedAt = record["confirmedAt"] as? Date,

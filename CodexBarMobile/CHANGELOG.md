@@ -2,6 +2,69 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.3 (116)] — 2026-05-11 — Fix LinkageRecord ObjC-exception crash on "Same account?" tap
+
+Hotfix on top of build 115. User QA found the inline "Yes, same
+account" button crashes the app with `SIGABRT` from an ObjC
+`NSException`.
+
+### Root cause
+
+`CloudSyncManager.saveProviderAccountLinkage(_:)` set
+`record["recordID"] = linkage.recordID as CKRecordValue`.
+`recordID` is a **reserved CKRecord field name** — it shadows the
+built-in `CKRecord.recordID: CKRecord.ID` property. CloudKit's
+`-[CKRecordValueStore setObject:forKey:]` raises an `NSException`
+when a reserved key is targeted, which Swift can't catch because
+it's an ObjC exception, so the app `abort()`s.
+
+Crash trace (from user's incident report):
+```
+13 CodexBarSync CloudSyncManager.saveProviderAccountLinkage(_:) + 300 (CloudSyncManager.swift:967)
+12 CloudKit     CKRecord.subscript.setter
+11 CloudKit     -[CKRecord setObject:forKey:]
+10 CloudKit     -[CKRecordValueStore setObject:forKey:]
+ 9 libobjc      objc_exception_throw
+```
+
+### Fix
+
+The linkage UUID is already encoded in the CKRecord's name (the
+`"linkage-{UUID}"` `recordName` prefix). Removing the redundant
+payload field eliminates the collision:
+
+- `saveProviderAccountLinkage` no longer sets `record["recordID"]`.
+- `decodeLinkage` reads the linkage UUID back from
+  `record.recordID.recordName` (strips the `"linkage-"` prefix).
+  Records that lack the prefix return `nil` (defensive: a foreign
+  record type that hit our query is not ours).
+
+### Recovery of build-115 stranded merges
+
+A user who tapped "Yes, same account" on build 115 had their
+linkage applied locally (UserDefaults cache) but it never reached
+CloudKit. Build 116 retries the save on next full fetch: any
+locally-cached linkage NOT present in the CloudKit fetch result
+gets re-saved through `saveProviderAccountLinkage`. Side effect of
+the existing local↔cloud union path in `performFullFetch`. Fires
+quietly in the background; failures stay local and re-retry on the
+next refresh.
+
+### Tests
+
+- New `LinkageRecordMergeTests`: CKRecord round-trip without the
+  reserved-field-name collision + foreign-record-name rejection.
+  Both build an in-memory `CKRecord` (no CloudKit auth needed) and
+  exercise `decodeLinkage` directly.
+- 302 tests total (300 from build 115 + 2 regressions) passing.
+- `./Scripts/lint.sh lint`: 0 violations.
+
+### Versions
+
+- iOS `CURRENT_PROJECT_VERSION`: 115 → 116
+- Marketing version unchanged (still 1.5.3)
+- Mac unchanged (0.25.1 / 61)
+
 ## [1.5.3 (115)] — 2026-05-11 — Ship Research/019 §7 + §9 (cross-version account-link)
 
 Supersedes build 114. Adds the iOS half of the Research/019

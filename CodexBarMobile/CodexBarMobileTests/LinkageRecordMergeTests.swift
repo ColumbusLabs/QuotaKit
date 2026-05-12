@@ -1,3 +1,4 @@
+import CloudKit
 import CodexBarSync
 import Foundation
 import Testing
@@ -241,6 +242,76 @@ struct LinkageRecordMergeTests {
         #expect(inverse.confirmedFromDeviceID == "iPhone-B")
         #expect(inverse.recordID != original.recordID,
                 "Inverse has its own UUID so both records survive in CloudKit.")
+    }
+
+    // MARK: - CKRecord encoding (regression for build 115 ObjC-exception crash)
+
+    @Test("CKRecord encode→decode round-trips without the reserved `recordID` field")
+    func ckRecordRoundTripNoReservedKeyCollision() {
+        // Build 115 set `record["recordID"] = ...` which collides with the
+        // built-in CKRecord.recordID property and raises an ObjC
+        // NSException via `-[CKRecordValueStore setObject:forKey:]` — fatal
+        // because Swift can't catch ObjC exceptions. Build 116 instead
+        // encodes the linkage UUID into the CKRecord's name (the
+        // `"linkage-{UUID}"` recordName prefix) and never sets a field
+        // by that reserved name.
+        let original = ProviderAccountLinkage(
+            recordID: "F84A2B7C-AAAA-BBBB-CCCC-DDDDDDDDDDDD",
+            providerID: "codex",
+            linkedIdentifiers: ["codex:email:a@x.com", "codex:legacy-no-identity"],
+            confirmedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            confirmedFromDeviceID: "iPhone-A",
+            unmerge: false)
+
+        // Mirror the production save path's CKRecord construction.
+        // Constructed without a server (no CloudKit auth needed for
+        // in-memory CKRecord).
+        let zoneID = CKRecordZone.ID(
+            zoneName: CloudSyncConstants.providerZoneName,
+            ownerName: CKCurrentUserDefaultName)
+        let ckRecordID = CKRecord.ID(
+            recordName: ProviderAccountLinkage.recordName(for: original.recordID),
+            zoneID: zoneID)
+        let record = CKRecord(
+            recordType: CloudSyncConstants.providerAccountLinkageRecordType,
+            recordID: ckRecordID)
+        // Populate ONLY the fields the production code sets. `recordID`
+        // intentionally absent — derived from `record.recordID.recordName`.
+        record["providerID"] = original.providerID as CKRecordValue
+        record["linkedIdentifiers"] = original.linkedIdentifiers as CKRecordValue
+        record["confirmedAt"] = original.confirmedAt as CKRecordValue
+        record["confirmedFromDeviceID"] = original.confirmedFromDeviceID as CKRecordValue
+        record["unmerge"] = (original.unmerge ? 1 : 0) as CKRecordValue
+
+        let decoded = try? #require(CloudSyncManager.decodeLinkage(from: record))
+        #expect(decoded?.recordID == original.recordID,
+                "Linkage UUID survived round-trip via the `linkage-{UUID}` recordName.")
+        #expect(decoded?.providerID == original.providerID)
+        #expect(decoded?.linkedIdentifiers == original.linkedIdentifiers)
+        #expect(decoded?.confirmedFromDeviceID == original.confirmedFromDeviceID)
+        #expect(decoded?.unmerge == original.unmerge)
+    }
+
+    @Test("Records lacking the `linkage-` prefix decode as nil (not our records)")
+    func ckRecordWrongNamePrefixRejected() {
+        let zoneID = CKRecordZone.ID(
+            zoneName: CloudSyncConstants.providerZoneName,
+            ownerName: CKCurrentUserDefaultName)
+        let ckRecordID = CKRecord.ID(
+            recordName: "something-else-format",
+            zoneID: zoneID)
+        let record = CKRecord(
+            recordType: CloudSyncConstants.providerAccountLinkageRecordType,
+            recordID: ckRecordID)
+        record["providerID"] = "codex" as CKRecordValue
+        record["linkedIdentifiers"] = ["a"] as CKRecordValue
+        record["confirmedAt"] = Date() as CKRecordValue
+        record["confirmedFromDeviceID"] = "iPhone-A" as CKRecordValue
+        record["unmerge"] = 0 as CKRecordValue
+
+        let decoded = CloudSyncManager.decodeLinkage(from: record)
+        #expect(decoded == nil,
+                "Defensive: records that hit our query but don't follow the linkage-{UUID} naming aren't ours.")
     }
 
     // MARK: - Cold-start cache
