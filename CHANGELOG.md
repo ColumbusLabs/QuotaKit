@@ -1,5 +1,63 @@
 # Changelog
 
+## 0.25.1 — 2026-05-12 — Mobile fork's first 0.25.1 release (folds v0.24 / v0.25 / v0.25.1)
+
+**0.25.1-mobile.1.5.3** folds three upstream releases (v0.24, v0.25, v0.25.1) into one Mac build, plus a small zh-Hans / en translation gap fix our audit caught.
+
+### What's new
+
+- **11 new providers** — Windsurf, Codebuff, DeepSeek, Manus, MiMo, Qwen, Doubao, Command Code, StepFun, Crof, Venice, plus OpenAI API balance tracking.
+- **Simplified Chinese** localization with in-app language selector.
+- **Quota warning notifications** — opt-in alerts at configurable thresholds (e.g. 80%) for session and weekly quota windows.
+- **Codex multi-account switcher** — stacked or segmented layout in the menu bar.
+- **Codex cost attribution fix** — GPT-5.4 / GPT-5.5 sessions no longer bucket under GPT-5.
+- **MiniMax** multi-service quota cards (text / speech / image / video / music).
+- **Copilot multi-account** + Claude peak-hours indicator + Storage usage view.
+- **VoiceOver** labels across the menu bar.
+
+### Fixes
+
+- Settings / About no longer crashes on packaged-app launch (SwiftPM bundle lookup).
+- Codex hung RPC reads time out instead of looping; menu reopen behaves as a true toggle.
+- Cursor Enterprise / Team usage displays correctly (was reporting 100% remaining).
+- macOS 26.4 menu bar icon visible again.
+- Pi session cost cache rebuilds automatically after pricing changes.
+- Simplified Chinese peak-hours strings (`off_peak`, `peak_ends_in`, `off_peak_peak_in`) and English `not_found` fallback translated (fork hotfix).
+
+### iOS compatibility
+
+Wire format unchanged. Compatible with iOS 1.5.0+. iOS clients without native UI for the new providers show them as fallback (blue) cards; a future iOS release will add native rendering. No iOS update required for this Mac build.
+
+---
+
+# 中文
+
+**0.25.1-mobile.1.5.3** 一次性合入上游三个版本（v0.24、v0.25、v0.25.1），并附带一个 zh-Hans / en 翻译补缺。
+
+### 新功能
+
+- **11 个新 provider** —— Windsurf、Codebuff、DeepSeek、Manus、Xiaomi MiMo、Qwen、Doubao、Command Code、StepFun、Crof、Venice，加 OpenAI API balance 跟踪。
+- **简体中文** 本地化 + 应用内语言选择器。
+- **配额警告通知** —— session / 周额度按可配置阈值（例如 80%）提醒，可选开启。
+- **Codex 多账号切换器** —— 菜单栏堆叠 / 分段两种布局。
+- **Codex 成本归因修复** —— GPT-5.4 / GPT-5.5 session 不再被归入 GPT-5。
+- **MiniMax** 多业务额度卡（文本 / 语音 / 图像 / 视频 / 音乐）。
+- **Copilot 多账号** + Claude 高峰时段指示器 + 本地存储用量视图。
+- **VoiceOver** 标签覆盖菜单栏。
+
+### 修复
+
+- Settings / About 在打包 app 启动时不再崩溃（SwiftPM bundle 查找）。
+- Codex 卡死的 RPC 读取会超时退出；菜单重开行为修正为 toggle。
+- Cursor 企业 / 团队用量显示正确（之前误报 100% remaining）。
+- macOS 26.4 菜单栏图标重新可见。
+- Pi session 成本缓存在价格变更后自动重建。
+- 简体中文高峰时段 3 个字符串（`off_peak`、`peak_ends_in`、`off_peak_peak_in`）+ 英文 `not_found` fallback 补译（fork hotfix）。
+
+### iOS 兼容
+
+Wire format 未变，兼容 iOS 1.5.0+。iOS 客户端没有原生支持新 provider 的会显示为 fallback（蓝色）卡片；后续 iOS 版本会上原生 UI。本 Mac 版本不强制 iOS 同步升级。
+
 ## 0.23.6 — 2026-05-05 — Pairs with iOS 1.5.2
 
 Bump from 0.23.5 → 0.23.6. The 0.23.5 internal cycle bundled mock

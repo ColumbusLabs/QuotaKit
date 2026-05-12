@@ -3,64 +3,6 @@
     <channel>
         <title>CodexBar</title>
         <item>
-            <title>0.25.1</title>
-            <pubDate>Mon, 11 May 2026 15:30:00 -0700</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
-            <sparkle:version>61.1.5.3</sparkle:version>
-            <sparkle:shortVersionString>0.25.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.25.1-Mobile 1.5.3</h2>
-Folded upstream <code>steipete/CodexBar</code> v0.24, v0.25, and v0.25.1 into the
-mobile fork in a single merge (185 commits, ~21k LOC). Goal: zero
-regression for users on multi-Mac + iPhone setups, even if one Mac
-upgrades and another stays behind.
-<h3>From upstream</h3>
-<ul>
-<li>11 new providers: OpenAI API balance, Manus, Windsurf, Xiaomi MiMo, Doubao, DeepSeek, Codebuff, Crof, Venice, Command Code, StepFun.</li>
-<li>Simplified Chinese localization + in-app language selector.</li>
-<li>Codex multi-account: stacked/segmented menu layouts.</li>
-<li>models.dev live pricing pipeline (cascades before our local pricing tables; our fork's family-fallback ladder remains as last-resort tier-3).</li>
-<li>Quota warning notifications + thresholds + markers (#852).</li>
-<li>VoiceOver labels for status icons, menu rows, switcher buttons.</li>
-<li>MiniMax multi-service quota cards (#605).</li>
-<li>Antigravity OAuth remote usage (#635).</li>
-<li>Numerous stability fixes for Codex, Claude OAuth, Cursor enterprise, Gemini, Vertex AI, Factory/Droid, OpenRouter, DeepSeek balance display.</li>
-</ul>
-<h3>Multi-device sync guarantees (Mac ↔ Mac ↔ iOS)</h3>
-<p>The wire-level CloudKit schema is unchanged. <code>providerPayloadVersion</code>
-and <code>encodingVersion</code> stay at 1. <code>ProviderUsageSnapshot.providerID</code>
-is a String — iOS render path treats it as opaque and falls back to
-generic blue card rendering for any unknown ID. Verified compatibility
-matrix:</p>
-<ul>
-<li><strong>Mac-A 0.25.1 + Mac-B 0.23.6 + iPhone 1.5.2</strong>: Mac-A writes new-provider records; iPhone renders them with upstream display names + fallback color; Mac-B unaffected (Macs don't read each other's records).</li>
-<li><strong>Both Macs 0.25.1 + iPhone 1.5.2</strong>: iPhone shows everyone's data.</li>
-<li><strong>Mac old + iPhone 1.6.x future</strong>: iPhone subscribes to the 22 extra quota zones (`openai`/`manus`/…/`stepfun` × {depleted, restored}); old Mac never writes there, so no push fires, no crash.</li>
-<li><strong>Mac 0.25.1 + Mac 0.23.6 + iPhone 1.6.x</strong>: New Mac drives quota pushes for the new providers; old Mac unaffected.</li>
-</ul>
-<h3>Fork-specific changes</h3>
-<ul>
-<li><code>AccountIdentityComputer.compute</code> now accepts the 11 new providers (non-Tier-A; per-device legacy bucket).</li>
-<li><code>SyncCoordinator.isModelEstimated</code> marks new providers as "never estimated" (their costs come from upstream APIs).</li>
-<li><code>CostUsagePricing.codexCostUSD/claudeCostUSD</code> three-tier cascade: models.dev → local table → fork family fallback.</li>
-<li><code>PiSessionCostCache</code> artifact version stays at 2; preserves both our <code>pricingFingerprint</code> invalidation and upstream's stale-cache rebuild.</li>
-<li><code>SettingsStore.showAllTokenAccountsInMenu</code> becomes a bridge to <code>multiAccountMenuLayout == .stacked</code> so our Sync code keeps reading the legacy name.</li>
-<li><code>QuotaProviderList</code>: 27 → 38 providers (iOS push subscriptions: 54 → 76 zones).</li>
-</ul>
-<h3>Test coverage</h3>
-<ul>
-<li>Mac <code>swift test</code>: all SyncCoordinator + AccountIdentityComputer tests passing.</li>
-<li>iOS <code>xcodebuild test -only-testing:CodexBarMobileTests</code>: 272 tests across 20 suites passing.</li>
-<li>iOS Simulator build (iPhone 17 Pro / iOS 26.4) succeeds.</li>
-</ul>
-]]></description>
-            <enclosure
-                url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.25.1-mobile.1.5.3/CodexBar.zip"
-                length="0"
-                type="application/octet-stream"
-                sparkle:edSignature="" />
-        </item>
-        <item>
             <title>0.23.6</title>
             <pubDate>Wed, 06 May 2026 14:47:58 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
