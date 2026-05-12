@@ -1,0 +1,10 @@
+1.5.3 — 修復多帳號在 Cost 與 Subscription Utilization 頁面的顯示問題，並新增跨版本 Mac 的帳號合併提示及對應閃退修復。
+
+近期更新
+• 新增 Abacus AI 與 Mistral 兩個 provider：月度用量、續訂倒數同步到 iPhone，配額耗盡/恢復的推送通知齊備。
+• Claude 詳情頁新增 Designs / Daily Routines / Web Sonnet 用量條；Cursor 詳情頁新增 Extra 預算指示器。
+• Synthetic 五小時 / 週 token / 每小時搜尋三個 lane 顯示正確標籤，不再退回到通用名稱。
+• Codex Pro $100 方案徽章；新發布模型的費用估算（標 *）。
+• 兩台 Mac 跑不同 CodexBar 版本時，同一帳號合併為一張卡片。
+
+需 macOS CodexBar 0.23.4 或更新版本以啟用新 provider 支援。

@@ -2,6 +2,27 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.3 (118)] — 2026-05-12 — App Store submission build (no source changes from 117)
+
+Build-number bump only. App Store Review and TestFlight are kept on
+distinct build numbers per our install discipline. Source identical
+to build 117 (same crash fix + audit hardening + Research/019 L3
+LinkageRecord). No code, tests, or assets touched.
+
+### App Store release notes generated
+
+4 localized release_notes.txt files under
+`CodexBarMobile/AppStoreMetadata/1.5.3/{en-US,zh-Hans,zh-Hant,ja}/`.
+Single-line 1.5.3 callout + 5-bullet "Recent updates" condensed
+recap of the 1.5.0 highlights. Plain text, ready to paste into ASC's
+What's New in This Version localized fields.
+
+### Versions
+
+- iOS CURRENT_PROJECT_VERSION: 117 → 118
+- Marketing version stays 1.5.3
+- Mac unchanged
+
 ## [1.5.3 (117)] — 2026-05-11 — Post-review hardening for the 116 hotfix
 
 Same crash fix as 116, plus the formal post-commit code-review pass
