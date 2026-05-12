@@ -360,11 +360,18 @@ private struct CostDashboardView: View {
                         title: "Provider Share",
                         subtitle: "30-day spend contribution across synced providers.",
                         rows: self.insights.providerRows.map {
+                            // `identityOverride: $0.id` carries the
+                            // `providerID|accountEmail` composite key so
+                            // multi-account scenarios (e.g. two Codex
+                            // accounts surfaced by Mac ≥ 0.25 once email
+                            // extraction lands) render as distinct rows
+                            // instead of one row drawn twice.
                             CostBreakdownRow(
                                 label: $0.provider.providerName,
                                 amountUSD: $0.thirtyDayCost,
                                 subtitle: self.providerSubtitle(for: $0),
-                                color: providerTint(for: $0.provider))
+                                color: providerTint(for: $0.provider),
+                                identityOverride: $0.id)
                         },
                         total: self.insights.total30DayCost)
                 }
@@ -956,9 +963,33 @@ struct CostBreakdownRow: Identifiable {
     let amountUSD: Double
     let subtitle: String?
     let color: Color
+    /// Optional override for SwiftUI identity. Defaults to `label` for the
+    /// existing Model Mix / Codex Service Mix sites where labels are
+    /// guaranteed unique (one row per model name, one per service name).
+    /// The Provider Share path on the Cost dashboard supplies a composite
+    /// key because two Macs running the same provider with different
+    /// `accountEmail` values produce two rows with the same `providerName`
+    /// label — ForEach would otherwise collide on the duplicate id, render
+    /// both rows with the first row's data, and the second account's $$
+    /// vanishes from the UI (1.5.3 fix; see Research/021 §1).
+    let identityOverride: String?
+
+    init(
+        label: String,
+        amountUSD: Double,
+        subtitle: String?,
+        color: Color,
+        identityOverride: String? = nil)
+    {
+        self.label = label
+        self.amountUSD = amountUSD
+        self.subtitle = subtitle
+        self.color = color
+        self.identityOverride = identityOverride
+    }
 
     var id: String {
-        self.label
+        self.identityOverride ?? self.label
     }
 }
 
@@ -966,8 +997,12 @@ struct CostBudgetRow: Identifiable {
     let provider: ProviderUsageSnapshot
     let budget: SyncBudgetSnapshot
 
+    /// Use the multi-account-aware composite key, not just `providerID`.
+    /// Two budgets coming from two Macs on the same provider but different
+    /// accounts would otherwise collide and the second budget would render
+    /// with the first's data (1.5.3 fix; see Research/021 §1).
     var id: String {
-        self.provider.providerID
+        self.provider.cardIdentityKey
     }
 }
 

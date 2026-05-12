@@ -2,40 +2,86 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [Unreleased] — Pending future iOS release
+## [1.5.3 (114)] — 2026-05-11 — Fix multi-account ForEach id collisions
 
-Code-level changes accumulated on `mobile-dev` after iOS 1.5.2 (build
-113) shipped. **Not version-bumped** — `project.yml` still pins 1.5.2
-/ 113. When you decide to cut the next iOS release (1.5.3 / 1.6.0 /
-whatever you pick) you'll bump `MARKETING_VERSION` /
-`CURRENT_PROJECT_VERSION` together with composing the user-facing
-release notes; until then this section documents the pending
-delta so the iOS binary's expected provenance stays auditable.
+Single-purpose bug-fix release that closes three latent SwiftUI
+`ForEach` id collisions exposed when a user has the same provider
+authenticated on two Macs but only one of them populates
+`accountEmail`. Shipped ahead of any Mac feature release that
+introduces per-account email extraction (e.g. upstream 0.25's
+Codex multi-account refactor) so users are protected before Mac
+upgrades reach them.
 
-### Push subscription provider list (Shared/Notifications)
+### Bug
 
-`QuotaProviderList.providers` grew from 27 → 38 entries to match the
-11 new upstream providers (`openai`, `manus`, `windsurf`, `mimo`,
-`doubao`, `deepseek`, `codebuff`, `crof`, `venice`, `commandcode`,
-`stepfun`). Display names mirror the canonical Mac
-`ProviderDescriptor.metadata.displayName`. iOS currently ships with
-the old 27-entry list, so until a new iOS build is released:
-- Old iOS (1.5.2 / 113) subscribes only to the 54 legacy quota zones
-  (27 providers × 2 states).
-- A new Mac running 0.25.1 may write quota events to the new 22
-  zones; old iOS doesn't subscribe → no push delivered. **Designed
-  behavior** per `QuotaProviderList.swift` top-comment ("when a new
-  provider is added upstream, this list and the iOS app must ship an
-  update together to start receiving pushes for it").
+User has two Macs running CodexBar. Both write a snapshot for the
+same provider (Codex, in the reproduction case). Mac-A captured
+`accountEmail = "user@…"`, Mac-B captured `accountEmail = nil`.
+After merge, iOS holds two distinct `ProviderUsageSnapshot` rows
+with the same `providerName = "Codex"` but different
+`accountEmail`s — they're correctly two separate cards on the
+Usage tab (which keys on `cardIdentityKey = providerID|accountEmail`).
 
-Tests updated: `QuotaProviderListTests` counts 27/54 → 38/76 and
-appended-tail invariant pins all 13 post-baseline IDs in order.
+On the Cost tab and Subscription Utilization aggregate, however,
+three downstream identity sites still keyed on `providerID` or
+`providerName` alone:
+1. `CostBreakdownRow.id = label` (provider name) — Provider Share
+   list collapsed both Codex rows into one rendering slot, then
+   re-rendered both with the first row's data; the second
+   account's $$$ vanished.
+2. `CostBudgetRow.id = providerID` — same collapse for budget
+   tracking.
+3. `UtilizationAggregateView.ProviderShare.id = providerID` and
+   `DaySegment` ForEach iterating on `\.providerID` — daily-bar
+   stacking and 30-day share list rendered the second account
+   with the first's data.
 
-### Test coverage at this commit
+User-visible symptom: Cost dashboard's Provider Share row for
+Codex shows the same $$$ value twice, the second account's cost
+silently dropped from the total contribution view even though
+the running total at the top includes both (because the running
+total iterates the underlying `providerRows`, not the rendered
+view).
 
-- iOS Simulator build (iPhone 17 Pro / iOS 26.4) succeeds.
-- `xcodebuild test -only-testing:CodexBarMobileTests`: 272 tests
-  across 20 suites passing.
+### Fix
+
+Switch all three id sites to the multi-account-aware composite
+key (`providerID|accountEmail`, already exposed as
+`ProviderUsageSnapshot.cardIdentityKey`):
+
+- `CostBreakdownRow` gains an optional `identityOverride: String?`
+  that the Provider Share construction site fills with
+  `ProviderRow.id` (= `cardIdentityKey`). Existing Model Mix /
+  Codex Service Mix call sites pass `nil` and continue keying on
+  `label`, which is already unique for those breakdowns.
+- `CostBudgetRow.id` switches to `provider.cardIdentityKey`.
+- `UtilizationAggregateView.buildModel` now puts `cardIdentityKey`
+  into `providerData.id` (which feeds both `ProviderShare.id` and
+  the per-day `DaySegment.providerID` ForEach key).
+  `DaySegment.providerID` field name retained for source
+  stability — a docstring marks it as an opaque ForEach id.
+
+Single-Mac / single-account users see zero behavior change: when
+there's only one row per provider, the composite key is just
+`providerID|<email>` and remains unique.
+
+### Test coverage
+
+- `xcodebuild test -only-testing:CodexBarMobileTests` on iPhone 17
+  Pro / iOS 26.4: passes.
+- Manual repro: two Macs with same Codex account, one with email
+  populated, one without — Cost tab now shows two distinct rows
+  with distinct $$$ values.
+
+### Not in this release
+
+- `QuotaProviderList.providers` expansion for upstream's new
+  providers (openai/manus/windsurf/mimo/doubao/deepseek/codebuff/
+  crof/venice/commandcode/stepfun): that's a push-subscription
+  feature addition, not a bug fix. Deferred to a future iOS
+  release that lands alongside specific iOS UI for those
+  providers. Old Mac never wrote to those zones; new Mac writes
+  but no push fires on 1.5.3, by design.
 
 ## [1.5.2 (113)] — 2026-05-06 — Fix cold-launch crash (App Store rejection)
 

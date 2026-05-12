@@ -210,8 +210,12 @@ struct SubscriptionUtilizationCompatTests {
         let model = try #require(UtilizationAggregateView.buildModel(from: [claude, codex], windowSize: 30))
         #expect(model.providerShares.count == 2)
 
-        let claudeShare = try #require(model.providerShares.first { $0.id == "claude" })
-        let codexShare = try #require(model.providerShares.first { $0.id == "codex" })
+        // 1.5.3 fix: ProviderShare.id now carries the multi-account-aware
+        // composite key `providerID|accountEmail`. The bursty test fixture
+        // has `accountEmail = nil`, so the IDs come out as `"claude|"` and
+        // `"codex|"`. Lookups by name are stable across the id-format change.
+        let claudeShare = try #require(model.providerShares.first { $0.name == "Claude" })
+        let codexShare = try #require(model.providerShares.first { $0.name == "Codex" })
 
         // Raw average of daily peaks
         #expect(claudeShare.rawAvgPercent > 23 && claudeShare.rawAvgPercent < 25)

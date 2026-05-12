@@ -301,6 +301,13 @@ struct UtilizationAggregateView: View {
     // MARK: - Data Model
 
     struct DaySegment {
+        /// **Despite the name, this holds the multi-account-aware
+        /// `cardIdentityKey` (providerID|accountEmail)** so the chart's
+        /// `ForEach(bar.segments, id: \.providerID)` iteration stays
+        /// collision-free when two accounts of the same provider both
+        /// contribute segments to the same day (1.5.3 fix). Field name
+        /// kept for source-stability — the chart code reads it as an
+        /// opaque ForEach id, not as a provider lookup key.
         let providerID: String
         let providerName: String
         let avgPercent: Double
@@ -364,6 +371,12 @@ struct UtilizationAggregateView: View {
         // Union entries across EVERY series named "session" (not just the first);
         // this shields us from cross-version duplication where `mergeUtilizationHistories`
         // left two "session" series behind because the devices disagreed on windowMinutes.
+        //
+        // **id**: must be `cardIdentityKey` (providerID|accountEmail), not raw
+        // `providerID`. Two accounts on the same provider (e.g. two Codex
+        // accounts after Mac ≥ 0.25 starts extracting accountEmail) would
+        // otherwise collide on `id` here and propagate the collision into the
+        // chart segment ForEach and the ProviderShare list. 1.5.3 fix.
         let providerData = providers.compactMap { provider -> (id: String, name: String, color: Color, dayMaxes: [Date: Double])? in
             guard let history = provider.utilizationHistory else { return nil }
             let sessionSeries = history.filter { $0.name == "session" }
@@ -378,7 +391,7 @@ struct UtilizationAggregateView: View {
                 dayMaxes[day] = max(dayMaxes[day] ?? 0, entry.usedPercent)
             }
             guard !dayMaxes.isEmpty else { return nil }
-            return (id: provider.providerID, name: provider.providerName,
+            return (id: provider.cardIdentityKey, name: provider.providerName,
                     color: Self.providerColor(for: provider.providerID),
                     dayMaxes: dayMaxes)
         }
