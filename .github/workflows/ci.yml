@@ -15,7 +15,12 @@ concurrency:
 jobs:
   lint-build-test:
     runs-on: macos-15-intel
-    timeout-minutes: 35
+    # Bumped 35 → 70 alongside the v0.24/v0.25/v0.25.1 fold-in: the suite
+    # grew enough that the prior 25-minute `swift test` timeout regularly
+    # tripped on macos-15-intel runners (CI run 25704803274). Mirroring
+    # upstream's ci_swift_test_by_suite.py approach with per-suite timeouts
+    # so a hung individual test fails its shard instead of the whole job.
+    timeout-minutes: 70
     steps:
       - uses: actions/checkout@v6
 
@@ -44,26 +49,15 @@ jobs:
         run: ./Scripts/lint.sh lint
 
       - name: Swift Test
-        timeout-minutes: 25
+        # Per-suite shards via ci_swift_test_by_suite.py — a single hung test
+        # fails its shard (120s wall-clock per suite) rather than the whole
+        # 25-minute Swift Test step. Adopted from upstream main after the
+        # post-0.25.1 commits (4dcabe1e, 086b3986, b0c18a1c) demonstrated
+        # the parallel/skip-list approach was insufficient for the grown
+        # suite size on macos-15-intel.
+        timeout-minutes: 60
         run: |
-          swift test --parallel \
-            --skip ClaudeOAuthCredentialsStoreSecurityCLITests \
-            --skip CLIOpenAIDashboardCacheTests \
-            --skip CodexAccountScopedRefreshDashboardCleanupTests \
-            --skip CodexAccountScopedRefreshTests \
-            --skip CodexBaselineCharacterizationTests \
-            --skip CodexDashboardWorkedExampleParityTests \
-            --skip CodexUsageFetcherFallbackTests \
-            --skip CodexWebDashboardStrategyAuthorityTests \
-            --skip OpenAIDashboardNavigationDelegateTests \
-            --skip StatusMenuCodexSwitcherTests \
-            --skip StatusMenuHostedSubmenuRefreshTests \
-            --skip StatusMenuSwitcherClickTests \
-            --skip StatusMenuTests \
-            --skip StatusMenuTokenAccountSwitcherTests \
-            --skip SubprocessRunnerTests
-          swift test --no-parallel \
-            --filter 'ClaudeOAuthCredentialsStoreSecurityCLITests|CLIOpenAIDashboardCacheTests|CodexAccountScopedRefreshDashboardCleanupTests|CodexAccountScopedRefreshTests|CodexBaselineCharacterizationTests|CodexDashboardWorkedExampleParityTests|CodexUsageFetcherFallbackTests|CodexWebDashboardStrategyAuthorityTests|OpenAIDashboardNavigationDelegateTests|StatusMenuCodexSwitcherTests|StatusMenuHostedSubmenuRefreshTests|StatusMenuSwitcherClickTests|StatusMenuTests|SubprocessRunnerTests'
+          python3 Scripts/ci_swift_test_by_suite.py --group-size 1 --timeout 120
 
   build-linux-cli:
     timeout-minutes: 20
