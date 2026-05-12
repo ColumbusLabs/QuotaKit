@@ -2,6 +2,54 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.5.3 (117)] — 2026-05-11 — Post-review hardening for the 116 hotfix
+
+Same crash fix as 116, plus the formal post-commit code-review pass
+that was skipped before pushing 116:
+
+### Audit test added
+
+New `CKRecordReservedKeyAuditTests` source-scan suite (2 tests):
+1. `reservedNameAssignmentsAbsent` — regex-scans the audited source
+   files for `record["recordID"] = ...` style assignments using any of
+   CloudKit's 7 reserved field names. Failing this test means a new
+   commit reintroduced the build-115 crash class.
+2. `auditCoverageCompletes` — walks the project tree, finds every
+   `.swift` file that writes CKRecord fields (excluding tests), and
+   verifies all of them are listed in `auditedRelativePaths`. Adding a
+   new file that writes CKRecord fields fails this test until the
+   developer updates the audit list.
+
+Why source-scan vs unit test: a unit test that "expects a crash"
+doesn't work for ObjC exceptions because they terminate the test
+runner. Static-source check is the portable equivalent.
+
+### Retry-loop trade-offs documented
+
+The `performFullFetch` retry that re-saves locally-cached linkages
+absent from CloudKit (the build-115 recovery path) was already correct
+but lacked inline notes on the deliberate trade-offs:
+- No exponential backoff (acceptable given typical 1-5 fetches per
+  session and 1-2 pending linkages).
+- No in-flight save deduplication (CKDatabase.save is idempotent on
+  identical recordID; cost is one wasted round-trip).
+- `pending` captured by value, `[weak self]` defensive.
+
+Comment now documents these explicitly so future reviewers don't
+mistake them for missing functionality.
+
+### Versions
+
+- iOS CURRENT_PROJECT_VERSION: 116 → 117
+- Marketing version stays 1.5.3
+- Mac unchanged
+
+### Tests
+
+- 304 tests / 24 suites passing (302 from build 116 + 2 audit).
+- Lint: 0 violations.
+- Mac swift build: passes.
+
 ## [1.5.3 (116)] — 2026-05-11 — Fix LinkageRecord ObjC-exception crash on "Same account?" tap
 
 Hotfix on top of build 115. User QA found the inline "Yes, same

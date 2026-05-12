@@ -284,6 +284,26 @@ final class SyncedUsageData {
         // UserDefaults but invisible to other iPhones on the same iCloud
         // account. Fire-and-forget — failures stay local and re-retry
         // next launch / refresh.
+        //
+        // **Trade-offs (deliberate, NOT bugs):**
+        //
+        // 1. No retry backoff. If CloudKit is persistently unreachable,
+        //    every `performFullFetch` re-dispatches a save Task. Typical
+        //    session has 1–5 fetches with 1–2 pending linkages, so the
+        //    waste is small. Adding per-recordID exponential backoff
+        //    would require persisted retry-count state (UserDefaults
+        //    again) for a corner-case rarely hit in practice.
+        //
+        // 2. No in-flight deduplication. Two overlapping refreshes can
+        //    dispatch two Tasks for the same `recordID`. CKDatabase.save
+        //    is idempotent on identical recordID (last-writer-wins, same
+        //    payload → no observable difference), so the only cost is
+        //    one wasted CK round-trip. Bookkeeping for in-flight save
+        //    set would add complexity to handle the rare case.
+        //
+        // 3. `pending` captured by value (struct) — safe across the
+        //    refresh's actor hop. `[weak self]` defensive; SyncedUsageData
+        //    is app-lifetime so the weak unwrap is effectively non-nil.
         for pending in localOnly {
             Task { [weak self] in
                 _ = await self?.reader.saveProviderAccountLinkage(pending)
