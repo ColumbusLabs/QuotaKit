@@ -280,6 +280,21 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// state). Avoids grouping all anonymous snapshots together.
     public let accountIdentities: [String]?
 
+    /// iOS 1.6.0 / Mac 0.25.2 — per-provider quota warning configuration
+    /// resolved by Mac's settings layer (`SettingsStore.quotaWarningEnabled`
+    /// + `resolvedQuotaWarningThresholds`). iOS reads this to render
+    /// warning marker ticks on the usage bar (UsageCardView).
+    ///
+    /// `nil` when the snapshot came from a Mac pre-0.25.2 (field didn't
+    /// exist) or when the providerID didn't resolve to a known
+    /// `UsageProvider` case on Mac side (mock fallbacks, future
+    /// providers). iOS falls back to `SyncQuotaWarningConfig.macDefaults`
+    /// `[50, 20]` for visual rendering. See Research/020 §R7.4.
+    ///
+    /// Wire-compatible: optional + `decodeIfPresent`. Pre-1.6.0 iOS
+    /// ignores the new field; old Mac doesn't emit it.
+    public let quotaWarnings: SyncQuotaWarningConfig?
+
     /// All available rate windows. Prefers `rateWindows` if non-empty, otherwise falls back to primary/secondary.
     public var allRateWindows: [SyncRateWindow] {
         if !self.rateWindows.isEmpty { return self.rateWindows }
@@ -301,7 +316,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         rateWindows: [SyncRateWindow] = [],
         utilizationHistory: [SyncUtilizationSeries]? = nil,
         perplexityCredits: SyncPerplexityCreditSummary? = nil,
-        accountIdentities: [String]? = nil)
+        accountIdentities: [String]? = nil,
+        quotaWarnings: SyncQuotaWarningConfig? = nil)
     {
         self.providerID = providerID
         self.providerName = providerName
@@ -318,9 +334,34 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.utilizationHistory = utilizationHistory
         self.perplexityCredits = perplexityCredits
         self.accountIdentities = accountIdentities
+        self.quotaWarnings = quotaWarnings
     }
 
-    /// Backward-compatible decoder: old payloads without `rateWindows`/`costSummary`/`budget`/`perplexityCredits`/`accountIdentities` still decode.
+    /// Returns a copy with `quotaWarnings` swapped out. Used by Mac
+    /// SyncCoordinator post-hoc to inject per-provider config (resolved
+    /// from `SettingsStore`) before encoding the wire envelope, without
+    /// requiring each provider fetcher to know about the settings layer.
+    public func with(quotaWarnings: SyncQuotaWarningConfig?) -> ProviderUsageSnapshot {
+        ProviderUsageSnapshot(
+            providerID: self.providerID,
+            providerName: self.providerName,
+            primary: self.primary,
+            secondary: self.secondary,
+            accountEmail: self.accountEmail,
+            loginMethod: self.loginMethod,
+            statusMessage: self.statusMessage,
+            isError: self.isError,
+            lastUpdated: self.lastUpdated,
+            costSummary: self.costSummary,
+            budget: self.budget,
+            rateWindows: self.rateWindows,
+            utilizationHistory: self.utilizationHistory,
+            perplexityCredits: self.perplexityCredits,
+            accountIdentities: self.accountIdentities,
+            quotaWarnings: quotaWarnings)
+    }
+
+    /// Backward-compatible decoder: old payloads without `rateWindows`/`costSummary`/`budget`/`perplexityCredits`/`accountIdentities`/`quotaWarnings` still decode.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.providerID = try container.decode(String.self, forKey: .providerID)
@@ -338,6 +379,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.utilizationHistory = try container.decodeIfPresent([SyncUtilizationSeries].self, forKey: .utilizationHistory)
         self.perplexityCredits = try container.decodeIfPresent(SyncPerplexityCreditSummary.self, forKey: .perplexityCredits)
         self.accountIdentities = try container.decodeIfPresent([String].self, forKey: .accountIdentities)
+        self.quotaWarnings = try container.decodeIfPresent(SyncQuotaWarningConfig.self, forKey: .quotaWarnings)
     }
 }
 

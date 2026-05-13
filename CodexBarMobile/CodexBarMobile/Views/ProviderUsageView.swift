@@ -40,11 +40,14 @@ struct ProviderUsageView: View {
             // Usage metrics — dynamic count per provider
             VStack(spacing: 10) {
                 ForEach(Array(self.provider.allRateWindows.enumerated()), id: \.offset) { index, window in
+                    let warning = self.provider.quotaWarning(forWindowIndex: index)
                     UsageCardView(
                         label: window.label ?? self.defaultLabel(at: index),
                         window: window,
                         tintColor: self.providerColor,
-                        percentageAccessibilityIdentifier: "usage-card-percent-\(self.provider.providerID)-\(index)")
+                        percentageAccessibilityIdentifier: "usage-card-percent-\(self.provider.providerID)-\(index)",
+                        quotaWarningThresholds: warning.thresholds,
+                        quotaWarningsEnabled: warning.enabled)
                 }
             }
             .padding(.horizontal, 16)

@@ -6,6 +6,16 @@ struct UsageCardView: View {
     let window: SyncRateWindow
     var tintColor: Color = .blue
     var percentageAccessibilityIdentifier: String?
+    /// Quota warning thresholds expressed as **remaining percent**, as
+    /// resolved by Mac's `SettingsStore` per (provider, window). `nil`
+    /// → fall back to `SyncQuotaWarningConfig.macDefaults` so a sync
+    /// gap with an old Mac doesn't leave the bar marker-less. `[]`
+    /// → user explicitly cleared all thresholds; render no markers.
+    /// See Research/020 §R7.4 for the 16-cell device matrix proof.
+    var quotaWarningThresholds: [Int]?
+    /// Whether to render warning markers at all. Mirrors Mac's per
+    /// (provider, window) enable flag.
+    var quotaWarningsEnabled: Bool = true
     @AppStorage(MobileSettingsKeys.showRemainingUsage) private var showRemainingUsage =
         UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode.remaining.rawValue
 
@@ -16,13 +26,20 @@ struct UsageCardView: View {
                 Text(self.label)
                     .font(.subheadline)
                     .fontWeight(.semibold)
+                if self.shouldShowWarningIcon {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(self.usageColor)
+                        .accessibilityLabel(Text("Quota warning"))
+                        .accessibilityIdentifier("usage.warning.icon")
+                }
                 Spacer()
                 self.percentageLabel
                     .modifier(PercentageAccessibilityIdentifierModifier(
                         identifier: self.percentageAccessibilityIdentifier))
             }
 
-            // Progress bar
+            // Progress bar with threshold marker overlay
             // `scaleEffect(y: 2)` makes SwiftUI's 1pt-tall native ProgressView
             // render as ~2pt — large enough to be visible and satisfy a
             // minimum-touch-target hint on iOS but still compact enough to
@@ -31,6 +48,21 @@ struct UsageCardView: View {
             ProgressView(value: self.displayMode.progressFraction(for: self.window))
                 .tint(self.usageColor)
                 .scaleEffect(y: 2, anchor: .center)
+                .overlay(alignment: .leading) {
+                    if self.quotaWarningsEnabled, !self.markerUsedPercents.isEmpty {
+                        GeometryReader { geo in
+                            ForEach(self.markerUsedPercents, id: \.self) { usedPercent in
+                                Rectangle()
+                                    .fill(Color.secondary)
+                                    .frame(width: 1.5, height: 8)
+                                    .offset(
+                                        x: geo.size.width * CGFloat(usedPercent) / 100.0 - 0.75,
+                                        y: -3)
+                                    .accessibilityHidden(true)
+                            }
+                        }
+                    }
+                }
 
             // Reset info
             if let resetsAt = self.window.resetsAt {
@@ -83,6 +115,35 @@ struct UsageCardView: View {
         self.showRemainingUsage ? .remaining : .used
     }
 
+    /// Marker x-positions on the bar, in **used percent** units (0…100).
+    /// Mac's `QuotaWarningConfig` stores **remaining percent** (e.g.
+    /// `[50, 20]` = "warn at 50% remaining" + "warn at 20% remaining"),
+    /// which on a used-percent bar maps to positions `100 - threshold`
+    /// (= 50% and 80% used). Defensive clamp + dedupe + sort lets us
+    /// render even if the wire payload contains out-of-range values
+    /// from a future Mac config schema.
+    private var markerUsedPercents: [Int] {
+        let raw: [Int]
+        if let configured = self.quotaWarningThresholds {
+            raw = configured
+        } else {
+            raw = SyncQuotaWarningConfig.macDefaults
+        }
+        let mapped = raw
+            .map { 100 - max(0, min(100, $0)) }
+            .filter { $0 > 0 && $0 < 100 }
+        return Array(Set(mapped)).sorted()
+    }
+
+    /// True once the user crosses the most critical warning threshold —
+    /// matches Mac's notification firing semantics where the lowest
+    /// remaining-percent threshold is the highest used-percent position.
+    private var shouldShowWarningIcon: Bool {
+        guard self.quotaWarningsEnabled else { return false }
+        guard let maxMarker = self.markerUsedPercents.max() else { return false }
+        return Int(self.window.usedPercent.rounded()) >= maxMarker
+    }
+
     private var usageColor: Color {
         // 70% (orange warning) / 90% (red critical) thresholds chosen to
         // match the industry-standard quota-warning bands users see on
@@ -125,7 +186,8 @@ private struct PercentageAccessibilityIdentifierModifier: ViewModifier {
             windowMinutes: 300,
             resetsAt: Date().addingTimeInterval(3600 * 3),
             resetDescription: nil),
-        tintColor: Color(red: 0.82, green: 0.55, blue: 0.28))
+        tintColor: Color(red: 0.82, green: 0.55, blue: 0.28),
+        quotaWarningThresholds: [50, 20])
     .padding()
 }
 
@@ -137,6 +199,20 @@ private struct PercentageAccessibilityIdentifierModifier: ViewModifier {
             windowMinutes: 10_080,
             resetsAt: Date().addingTimeInterval(3600 * 24),
             resetDescription: nil),
-        tintColor: .purple)
+        tintColor: .purple,
+        quotaWarningThresholds: [50, 20])
+    .padding()
+}
+
+#Preview("Custom Thresholds") {
+    UsageCardView(
+        label: "Session (5h)",
+        window: SyncRateWindow(
+            usedPercent: 65,
+            windowMinutes: 300,
+            resetsAt: Date().addingTimeInterval(3600 * 3),
+            resetDescription: nil),
+        tintColor: .indigo,
+        quotaWarningThresholds: [70, 40, 10])
     .padding()
 }

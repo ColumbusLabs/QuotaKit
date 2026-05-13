@@ -159,11 +159,14 @@ struct ProviderDetailView: View {
         if !windows.isEmpty {
             VStack(spacing: 12) {
                 ForEach(Array(windows.enumerated()), id: \.offset) { index, window in
+                    let warning = self.provider.quotaWarning(forWindowIndex: index)
                     UsageCardView(
                         label: window.label ?? self.defaultLabel(at: index),
                         window: window,
                         tintColor: self.providerColor,
-                        percentageAccessibilityIdentifier: "provider-detail-percent-\(self.provider.providerID)-\(index)")
+                        percentageAccessibilityIdentifier: "provider-detail-percent-\(self.provider.providerID)-\(index)",
+                        quotaWarningThresholds: warning.thresholds,
+                        quotaWarningsEnabled: warning.enabled)
                 }
             }
         }

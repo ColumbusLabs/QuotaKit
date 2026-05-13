@@ -774,13 +774,16 @@ final class SyncCoordinator {
                 providerID: provider.providerID,
                 accountEmail: provider.accountEmail)
             // iOS 1.6.0 / Mac 0.25.2 — resolve per-provider quota warning
-            // config so iOS can render the same warning markers Mac shows
-            // in its menu bar. nil when providerID isn't a known
-            // UsageProvider (e.g. mock fallback or future upstream
-            // provider not yet in the enum) — iOS falls back to
-            // SyncQuotaWarningConfig.macDefaults.
+            // config and inject it into the snapshot so iOS renders the
+            // same warning markers Mac shows in its menu bar. nil when
+            // providerID isn't a known UsageProvider (mock fallback or
+            // future upstream provider) — iOS falls back to
+            // SyncQuotaWarningConfig.macDefaults. Hashing the enriched
+            // snapshot means a quota config change re-emits the envelope
+            // even when usage data is unchanged.
             let quotaWarnings = self.resolvedQuotaWarnings(for: provider.providerID)
-            guard let data = try? providerDiffEncoder.encode(provider) else {
+            let enrichedProvider = provider.with(quotaWarnings: quotaWarnings)
+            guard let data = try? providerDiffEncoder.encode(enrichedProvider) else {
                 // Encode fallback: include anyway so we don't silently drop a
                 // provider just because its JSON encoding briefly failed.
                 envelopes.append(ProviderUsageEnvelope(
@@ -790,8 +793,7 @@ final class SyncCoordinator {
                     mobileVersion: synced.mobileVersion,
                     syncTimestamp: synced.syncTimestamp,
                     notificationPushEnabled: synced.notificationPushEnabled,
-                    provider: provider,
-                    quotaWarnings: quotaWarnings))
+                    provider: enrichedProvider))
                 continue
             }
             let hash = Self.stableHash(for: data)
@@ -805,8 +807,7 @@ final class SyncCoordinator {
                 mobileVersion: synced.mobileVersion,
                 syncTimestamp: synced.syncTimestamp,
                 notificationPushEnabled: synced.notificationPushEnabled,
-                provider: provider,
-                quotaWarnings: quotaWarnings))
+                provider: enrichedProvider))
             updates[key] = hash
         }
         return (envelopes, updates)

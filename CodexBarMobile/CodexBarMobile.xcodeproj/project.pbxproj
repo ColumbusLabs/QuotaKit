@@ -15,6 +15,7 @@
 		0708B75CE4F9E291D3AF8879 /* MobileDisplayPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82B8A4D1FFD04AA72E89022F /* MobileDisplayPreferences.swift */; };
 		077031C35540946781793E79 /* ModelContainerFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F2CB0BE3DD9918D7E958219 /* ModelContainerFactory.swift */; };
 		07F02876676ED6B3B7B4A6AD /* CodexBarSync.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; };
+		0C2DDA8E99A73AA0FE1F72FE /* ProviderUsageSnapshot+QuotaWarnings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 476A6254529A7B50A57AB777 /* ProviderUsageSnapshot+QuotaWarnings.swift */; };
 		0C35C0A3E872B4821C3A7D0B /* SwiftDataBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E6F79FB9AFFC795399FAFBF /* SwiftDataBridgeTests.swift */; };
 		134FDBBA3076DE5E1FA986F2 /* ClaudePeakHours.swift in Sources */ = {isa = PBXBuildFile; fileRef = 646750577DC086F6AB6026FD /* ClaudePeakHours.swift */; };
 		15E1F684F0EFDD39DB30A2D6 /* ModelContainerFactoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1DABA431C3A96BC06782271 /* ModelContainerFactoryTests.swift */; };
@@ -41,6 +42,7 @@
 		5DF56542F0C2F51860FE8AD8 /* SyncedUsageData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48D17C7D2668994C4942329B /* SyncedUsageData.swift */; };
 		61BEB22E497DAC7C2FE2AC9C /* CodexBarMobilePushExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 81B87DC9EB24AAEFE036F9F7 /* CodexBarMobilePushExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		6552CAFC19A45A6D83821AC0 /* QuotaZoneNotificationParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA3F7A048F7301BC92A1A2 /* QuotaZoneNotificationParser.swift */; };
+		6723B0E31B950F7C988C433F /* SyncQuotaWarningConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AF7B6A222FD3554CA455D8E /* SyncQuotaWarningConfigTests.swift */; };
 		67C5AF7FC62936A0A28189B3 /* SnapshotIdentityKeyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A393218B2702DC47F1003A5 /* SnapshotIdentityKeyTests.swift */; };
 		6977A50D67FD6F33CE7E9D54 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1C3F51A2F6DE018A276166F7 /* PrivacyInfo.xcprivacy */; };
 		6BDEE365DD4A92F13A88ED72 /* SyncModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32F236B9E5AABE3378DAF97F /* SyncModelTests.swift */; };
@@ -56,6 +58,7 @@
 		8A9A4E2E1CA72E072FCBB851 /* MobileDisplayFormattingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CCC87791F1A5C860229EACF /* MobileDisplayFormattingTests.swift */; };
 		8AE4ED5CB4621D5D8DAE93BB /* SnapshotCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29C5E714FA876A9617524529 /* SnapshotCacheTests.swift */; };
 		8CE323CC2D5E584C35DC3196 /* MockProviderDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C9038A6A037C9329348C876 /* MockProviderDetectorTests.swift */; };
+		904B033A9AC463824D9A910D /* SyncQuotaWarningConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 342E84EEC0EB349DE2BEB11B /* SyncQuotaWarningConfig.swift */; };
 		90D08BDB0023F9AC882235B1 /* ProviderAccountLinkage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AAB8310784E24CC51831768 /* ProviderAccountLinkage.swift */; };
 		95421AE3BAA4C16314A2BF1A /* QuotaTransitionSubscriptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2BA90E690B546A77A86EE29 /* QuotaTransitionSubscriptions.swift */; };
 		979DD3366C02E4457C7D6D0E /* AccountIdentityNormalize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 252E82C4DE92C8734EDD3F33 /* AccountIdentityNormalize.swift */; };
@@ -196,12 +199,14 @@
 		2C98FA5E42A83275CBD79FDB /* QuotaZoneNotificationParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaZoneNotificationParserTests.swift; sourceTree = "<group>"; };
 		2E0C9A4125533AB89F20FFA7 /* CKRecordReservedKeyAuditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CKRecordReservedKeyAuditTests.swift; sourceTree = "<group>"; };
 		32F236B9E5AABE3378DAF97F /* SyncModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncModelTests.swift; sourceTree = "<group>"; };
+		342E84EEC0EB349DE2BEB11B /* SyncQuotaWarningConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncQuotaWarningConfig.swift; sourceTree = "<group>"; };
 		3786C6898A111474E86E69D7 /* CostFormattingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostFormattingTests.swift; sourceTree = "<group>"; };
 		3CAFBA243E25814E22BAAA6B /* ProviderUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderUsageView.swift; sourceTree = "<group>"; };
 		3E6F79FB9AFFC795399FAFBF /* SwiftDataBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataBridgeTests.swift; sourceTree = "<group>"; };
 		3E96BD45E3A15C7DA40EA93F /* PushSetupDiagnostic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushSetupDiagnostic.swift; sourceTree = "<group>"; };
 		44D42B29EEA7ECECF396429B /* ViewCacheIdentityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewCacheIdentityTests.swift; sourceTree = "<group>"; };
 		474666AF420748DBF714EED5 /* TestFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestFixtures.swift; sourceTree = "<group>"; };
+		476A6254529A7B50A57AB777 /* ProviderUsageSnapshot+QuotaWarnings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ProviderUsageSnapshot+QuotaWarnings.swift"; sourceTree = "<group>"; };
 		48D17C7D2668994C4942329B /* SyncedUsageData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncedUsageData.swift; sourceTree = "<group>"; };
 		49BBB0416BFC7E4E74CC4B6C /* UtilizationHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilizationHistoryView.swift; sourceTree = "<group>"; };
 		4A35B8172E4530311B55BE4C /* MultiAccountLinkageDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiAccountLinkageDetectorTests.swift; sourceTree = "<group>"; };
@@ -213,6 +218,7 @@
 		646750577DC086F6AB6026FD /* ClaudePeakHours.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudePeakHours.swift; sourceTree = "<group>"; };
 		6469C96DB80CE222DDD8EC78 /* MockBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockBadgeView.swift; sourceTree = "<group>"; };
 		68E69F28C0538809129FB6D3 /* UsageCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageCardView.swift; sourceTree = "<group>"; };
+		6AF7B6A222FD3554CA455D8E /* SyncQuotaWarningConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncQuotaWarningConfigTests.swift; sourceTree = "<group>"; };
 		6B9D488D2E7E34286B71E8E7 /* UsageSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageSnapshot.swift; sourceTree = "<group>"; };
 		6BBBF160B317AF2B0C136E2B /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		6BD0E1383E24DC8971D852C2 /* SwiftDataBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataBridge.swift; sourceTree = "<group>"; };
@@ -337,6 +343,7 @@
 				8D15EF2654204A9652A1F59F /* SubscriptionUtilizationCompatTests.swift */,
 				18B11DCC99D3362E7225B2D1 /* SyncErrorTests.swift */,
 				32F236B9E5AABE3378DAF97F /* SyncModelTests.swift */,
+				6AF7B6A222FD3554CA455D8E /* SyncQuotaWarningConfigTests.swift */,
 				44D42B29EEA7ECECF396429B /* ViewCacheIdentityTests.swift */,
 				8AC0B6FF92A39F3671C44FE2 /* Fixtures */,
 				44CE71E4FE80F6CA918A36BB /* Storage */,
@@ -468,6 +475,7 @@
 			children = (
 				7AAB8310784E24CC51831768 /* ProviderAccountLinkage.swift */,
 				639A4CD0CDA802F15E954D5B /* ProviderUsageEnvelope.swift */,
+				342E84EEC0EB349DE2BEB11B /* SyncQuotaWarningConfig.swift */,
 				6B9D488D2E7E34286B71E8E7 /* UsageSnapshot.swift */,
 			);
 			path = Models;
@@ -493,6 +501,7 @@
 				5639281ED3BA765C9553C8B9 /* MultiAccountLinkageCandidate.swift */,
 				637E4394D6D0E0F76AFD654A /* ProviderColorPalette.swift */,
 				FA73FB0C58DB34861BD5E35F /* ProviderUsageSnapshot+Identity.swift */,
+				476A6254529A7B50A57AB777 /* ProviderUsageSnapshot+QuotaWarnings.swift */,
 				E51BEDB997C80D4064449061 /* SnapshotCache.swift */,
 				148D664C4F52FEB3A2993FE7 /* SyncCostSummary+Today.swift */,
 				48D17C7D2668994C4942329B /* SyncedUsageData.swift */,
@@ -720,6 +729,7 @@
 				0C35C0A3E872B4821C3A7D0B /* SwiftDataBridgeTests.swift in Sources */,
 				E408D96A71E1052A78D540CC /* SyncErrorTests.swift in Sources */,
 				6BDEE365DD4A92F13A88ED72 /* SyncModelTests.swift in Sources */,
+				6723B0E31B950F7C988C433F /* SyncQuotaWarningConfigTests.swift in Sources */,
 				775BADB70AF2174D2847494B /* TestFixtures.swift in Sources */,
 				26AC46B00EDA26107412B467 /* ViewCacheIdentityTests.swift in Sources */,
 			);
@@ -755,6 +765,7 @@
 				A24E829408C379D88C7715CC /* ProviderColorPalette.swift in Sources */,
 				B050FB5BF5817C3844A27F32 /* ProviderDetailView.swift in Sources */,
 				6DCDD71DAADD02D424FB0660 /* ProviderUsageSnapshot+Identity.swift in Sources */,
+				0C2DDA8E99A73AA0FE1F72FE /* ProviderUsageSnapshot+QuotaWarnings.swift in Sources */,
 				A9305459F82B07AAE8ADC1A2 /* ProviderUsageView.swift in Sources */,
 				F91FAC531225917E4E86A892 /* PushSetupDiagnostic.swift in Sources */,
 				95421AE3BAA4C16314A2BF1A /* QuotaTransitionSubscriptions.swift in Sources */,
@@ -797,6 +808,7 @@
 				3E591C7DE7ED51CB3883D431 /* ProviderUsageEnvelope.swift in Sources */,
 				D049C768680FAF4763B7F5B8 /* QuotaProviderList.swift in Sources */,
 				6552CAFC19A45A6D83821AC0 /* QuotaZoneNotificationParser.swift in Sources */,
+				904B033A9AC463824D9A910D /* SyncQuotaWarningConfig.swift in Sources */,
 				6C6973342A6DB39DA86008A8 /* UsageSnapshot.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
