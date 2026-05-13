@@ -21,7 +21,7 @@ enum PreferencesTab: String, CaseIterable, Hashable {
         case .providers: L("tab_providers")
         case .display: L("tab_display")
         case .advanced: L("tab_advanced")
-        case .mobile: "Mobile"
+        case .mobile: L("tab_mobile")
         case .about: L("tab_about")
         case .debug: L("tab_debug")
         }
@@ -97,7 +97,7 @@ struct PreferencesView: View {
                 .tag(PreferencesTab.advanced)
 
             MobilePane(settings: self.settings, syncCoordinator: self.syncCoordinator)
-                .tabItem { Label("Mobile", systemImage: "iphone") }
+                .tabItem { Label(L("tab_mobile"), systemImage: "iphone") }
                 .tag(PreferencesTab.mobile)
 
             AboutPane(updater: self.updater)

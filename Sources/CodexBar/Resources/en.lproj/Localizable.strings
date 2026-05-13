@@ -419,6 +419,7 @@
 
 /* Tab titles */
 "tab_general" = "General";
+"tab_mobile" = "Mobile";
 "tab_providers" = "Providers";
 "tab_display" = "Display";
 "tab_advanced" = "Advanced";

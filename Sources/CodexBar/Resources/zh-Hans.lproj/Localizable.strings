@@ -428,6 +428,7 @@
 
 /* Tab titles */
 "tab_general" = "通用";
+"tab_mobile" = "移动";
 "tab_providers" = "提供商";
 "tab_display" = "显示";
 "tab_advanced" = "高级";
