@@ -1931,8 +1931,26 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.5.3",
+            version: "1.6.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "11 new provider cards (Windsurf, Codebuff, DeepSeek, Manus, MiMo, Doubao, Command Code, StepFun, Crof, Venice, OpenAI API) plus a Claude peak-hours indicator."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(localized: "11 new providers from Mac CodexBar v0.24/v0.25 — Windsurf, Codebuff, DeepSeek, Manus, Xiaomi MiMo, Doubao, Command Code, StepFun, Crof, Venice, OpenAI API. Each renders in its own brand color across Usage / Cost / Subscription tabs and on the provider detail page."),
+                        String(localized: "Push notifications expanded to cover the 11 new providers — your iPhone now pings on their quota events the same way it does for the existing 27."),
+                        String(localized: "Claude peak-hours indicator on the Claude detail page — quick glance at whether you're inside Anthropic's published 8am-2pm ET peak window or how long until the next one starts."),
+                    ]),
+                .init(
+                    title: String(localized: "Required Mac version"),
+                    items: [
+                        String(localized: "Update Mac CodexBar to 0.25.1 or later for the new providers and push notifications."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.5.3",
+            status: "",
             summary: String(localized: "Multi-account display fix on Cost and Subscription Utilization, plus a new cross-version account-link prompt with the related crash fix."),
             sections: [
                 .init(

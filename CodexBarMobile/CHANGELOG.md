@@ -2,6 +2,75 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.6.0 (120)] — 2026-05-13 — Stage 2 catch-up: 11 new providers + Claude peak-hours
+
+iOS 1.6.0 closes the catch-up gap from Mac 0.25.1: the 11 new providers
+that arrived in upstream v0.24+v0.25 (Windsurf / Codebuff / DeepSeek /
+Manus / Xiaomi MiMo / Doubao / Command Code / StepFun / Crof / Venice /
+OpenAI API) now render natively in iOS — distinct brand colors across
+Usage / Cost / Subscription tabs and a push subscription for each so
+quota events fire notifications. Plus Claude's peak-hours indicator
+from v0.24 finally surfaces on the iOS Claude detail page.
+
+### Added
+
+- **11 new providers native rendering** (S1, commit `0369d816`).
+  ProviderColorPalette extended with 10 brand-aligned colors (openai
+  inherits the existing ChatGPT-green rule). 36 palette tests pin
+  perceptual distinctness against existing colors (Mistral red, Abacus
+  brown, Claude orange-tan, etc.) so a future palette retune can't
+  silently collapse two providers into the same color.
+- **11 new providers push subscriptions** (S2, commit `ab34cdd6`).
+  `QuotaProviderList` 27 → 38, subscription zone count 54 → 76. New
+  IDs appended at the tail so existing 54 CK subscription IDs stay
+  byte-identical across the upgrade (no re-subscribe churn for
+  installed users).
+- **Claude peak-hours iOS indicator** (S5, commit `18b0080b`).
+  iOS port of Mac's `ClaudePeakHours` (v0.24 PR #611) — pure
+  client-side time-of-day computation (8am-2pm America/New_York,
+  weekdays). Shows "Peak · ends in 2h 30m" or "Off-peak · peak in
+  5h" on the Claude detail page. 20 locale-aware tests pin the
+  detection logic.
+- **MockProviderInjector 32 → 43** (S6, commit `98d732ea`). 11 new
+  simple-mock entries for the v0.24+v0.25 providers, with realistic
+  usage / cost values so QA can flip `CODEXBAR_MOCK_PROVIDERS=1` and
+  exercise every new iOS render path without real subscriptions.
+  Mac fork-private change; needs a Mac rebuild to surface (does NOT
+  trigger a Mac MARKETING_VERSION bump per the
+  "match-upstream-tag" policy).
+
+### Changed
+
+- iOS `xcstrings` +3 keys × 4 languages for the peak-hours labels.
+- Mac fork's `realProviderIDsBorrowedByMocks` Set extended with the
+  11 new IDs; comment notes the three-way invariant
+  (`simpleProviderProfiles` ↔ `realProviderIDsBorrowedByMocks` ↔
+  `QuotaProviderList`).
+- User-facing mock subtitle strings updated: "32 synthetic ... 24
+  simple omitted" → "43 synthetic ... 35 simple omitted".
+
+### Deferred to 1.6.1
+
+- **Quota warning markers iOS rendering** (R7.4): Mac's
+  `QuotaWarningConfig` lives in Mac CONFIG (`CodexBarConfig.swift`),
+  not in the wire `ProviderUsageSnapshot`. Rendering threshold lines
+  on iOS bars needs either a wire-format change carrying the
+  threshold field, or an iOS-local threshold setting independent of
+  Mac. Both are meaningful 1.6.x work but neither is gated by 1.6.0.
+- **Codex stacked/segmented switcher iOS mirror** (R7.3): iOS card
+  layout is already inherently "segmented" (one card per account);
+  Mac's stacked mode is a menu-bar compactness trade-off iOS doesn't
+  need. Decision: not mirrored.
+- **pt-BR localization**: in upstream 0.26-dev (unreleased). Per
+  "only track released tags" policy, hold until upstream tags v0.26.
+
+### Versions
+
+- iOS `MARKETING_VERSION`: 1.5.3 → 1.6.0
+- iOS `CURRENT_PROJECT_VERSION`: 119 → 120
+- Mac unchanged (still v0.25.1-mobile.1.5.3 → next Mac release will
+  bump `MOBILE_VERSION` to 1.6.0)
+
 ## [1.5.3 (119)] — 2026-05-12 — In-app release notes for 1.5.3 + archive plan.md
 
 Builds 114–118 shipped the 1.5.3 fixes/features but forgot to update

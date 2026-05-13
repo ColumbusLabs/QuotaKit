@@ -1,0 +1,8 @@
+1.6.0 — Catch-up for 11 new providers from Mac CodexBar v0.24/v0.25, plus a Claude peak-hours indicator.
+
+What's new
+• 11 new providers render natively — Windsurf, Codebuff, DeepSeek, Manus, Xiaomi MiMo, Doubao, Command Code, StepFun, Crof, Venice, OpenAI API. Each has its own brand color across the Usage, Cost, and Subscription tabs.
+• Push notifications expanded to cover the 11 new providers — your iPhone now pings on their quota events the same way it does for the existing 27.
+• Claude peak-hours indicator on the Claude detail page — see at a glance whether you're inside Anthropic's published 8am-2pm ET peak window or how long until the next one starts.
+
+Requires CodexBar for Mac 0.25.1 or later for the new providers and push notifications.

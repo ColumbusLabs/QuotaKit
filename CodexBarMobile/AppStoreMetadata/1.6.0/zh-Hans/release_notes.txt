@@ -1,0 +1,8 @@
+1.6.0 — Mac CodexBar v0.24/v0.25 加入的 11 个 provider 在 iOS 端补齐原生渲染，新增 Claude 高峰时段指示器。
+
+新功能
+• 11 个新 provider 原生渲染 —— Windsurf、Codebuff、DeepSeek、Manus、Xiaomi MiMo、Doubao、Command Code、StepFun、Crof、Venice、OpenAI API。每个都按品牌色显示在 Usage / Cost / Subscription 各 tab 上。
+• 推送通知扩展覆盖这 11 个新 provider —— 与既有 27 个一致，配额事件触发时 iPhone 会收到通知。
+• Claude 详情页加入高峰时段指示器 —— 一眼看到当前是否在 Anthropic 公布的 8am-2pm ET 高峰窗口内，或距下个高峰还有多久。
+
+需 macOS CodexBar 0.25.1 或更新版本以启用新 provider 与推送通知。

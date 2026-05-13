@@ -9150,6 +9150,146 @@
           }
         }
       }
+    },
+    "11 new provider cards (Windsurf, Codebuff, DeepSeek, Manus, MiMo, Doubao, Command Code, StepFun, Crof, Venice, OpenAI API) plus a Claude peak-hours indicator.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "11 new provider cards (Windsurf, Codebuff, DeepSeek, Manus, MiMo, Doubao, Command Code, StepFun, Crof, Venice, OpenAI API) plus a Claude peak-hours indicator."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "11 個の新プロバイダー（Windsurf、Codebuff、DeepSeek、Manus、MiMo、Doubao、Command Code、StepFun、Crof、Venice、OpenAI API）と Claude のピーク時間インジケーターを追加。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "11 个新 provider 卡片（Windsurf、Codebuff、DeepSeek、Manus、MiMo、Doubao、Command Code、StepFun、Crof、Venice、OpenAI API），并新增 Claude 高峰时段指示器。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "11 個新 provider 卡片（Windsurf、Codebuff、DeepSeek、Manus、MiMo、Doubao、Command Code、StepFun、Crof、Venice、OpenAI API），並新增 Claude 高峰時段指示器。"
+          }
+        }
+      }
+    },
+    "11 new providers from Mac CodexBar v0.24/v0.25 — Windsurf, Codebuff, DeepSeek, Manus, Xiaomi MiMo, Doubao, Command Code, StepFun, Crof, Venice, OpenAI API. Each renders in its own brand color across Usage / Cost / Subscription tabs and on the provider detail page.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "11 new providers from Mac CodexBar v0.24/v0.25 — Windsurf, Codebuff, DeepSeek, Manus, Xiaomi MiMo, Doubao, Command Code, StepFun, Crof, Venice, OpenAI API. Each renders in its own brand color across Usage / Cost / Subscription tabs and on the provider detail page."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac CodexBar v0.24/v0.25 で追加された 11 個の新プロバイダー（Windsurf、Codebuff、DeepSeek、Manus、Xiaomi MiMo、Doubao、Command Code、StepFun、Crof、Venice、OpenAI API）。Usage / Cost / Subscription タブとプロバイダー詳細ページで、それぞれのブランドカラーで表示されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac CodexBar v0.24/v0.25 加入的 11 个新 provider —— Windsurf、Codebuff、DeepSeek、Manus、Xiaomi MiMo、Doubao、Command Code、StepFun、Crof、Venice、OpenAI API。iOS 端 Usage / Cost / Subscription 各 tab 和 provider 详情页都按各自品牌色渲染。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac CodexBar v0.24/v0.25 加入的 11 個新 provider —— Windsurf、Codebuff、DeepSeek、Manus、Xiaomi MiMo、Doubao、Command Code、StepFun、Crof、Venice、OpenAI API。iOS 端 Usage / Cost / Subscription 各 tab 與 provider 詳情頁皆按各自品牌色渲染。"
+          }
+        }
+      }
+    },
+    "Push notifications expanded to cover the 11 new providers — your iPhone now pings on their quota events the same way it does for the existing 27.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push notifications expanded to cover the 11 new providers — your iPhone now pings on their quota events the same way it does for the existing 27."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プッシュ通知が 11 個の新プロバイダーをカバー — 既存の 27 プロバイダーと同様、クォータイベント発生時に iPhone へ通知が届きます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "推送通知扩展覆盖这 11 个新 provider —— 与既有 27 个 provider 一致，配额触发事件时 iPhone 会收到通知。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "推送通知擴展覆蓋這 11 個新 provider —— 與既有 27 個 provider 一致，配額觸發事件時 iPhone 會收到通知。"
+          }
+        }
+      }
+    },
+    "Claude peak-hours indicator on the Claude detail page — quick glance at whether you're inside Anthropic's published 8am-2pm ET peak window or how long until the next one starts.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude peak-hours indicator on the Claude detail page — quick glance at whether you're inside Anthropic's published 8am-2pm ET peak window or how long until the next one starts."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude 詳細ページにピーク時間インジケーター追加 — Anthropic が公開する 8am-2pm ET ピーク窓内にいるか、次のピーク開始までどれくらいかを一目で確認できます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude 详情页新增高峰时段指示器 —— 一眼看到当前是否在 Anthropic 公布的 8am-2pm ET 高峰窗口内，或距下个高峰还有多久。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude 詳情頁新增高峰時段指示器 —— 一眼看到當前是否在 Anthropic 公布的 8am-2pm ET 高峰窗口內，或距下個高峰還有多久。"
+          }
+        }
+      }
+    },
+    "Update Mac CodexBar to 0.25.1 or later for the new providers and push notifications.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Mac CodexBar to 0.25.1 or later for the new providers and push notifications."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新プロバイダーとプッシュ通知の利用には macOS 用 CodexBar 0.25.1 以降が必要です。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新 provider 与推送通知需更新 Mac CodexBar 至 0.25.1 或更新版本。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新 provider 與推送通知需更新 Mac CodexBar 至 0.25.1 或更新版本。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
