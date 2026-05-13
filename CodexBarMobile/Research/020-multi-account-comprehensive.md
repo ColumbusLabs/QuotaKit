@@ -522,15 +522,139 @@ R4 决策：**不补 mock factory** —— 现有 `SnapshotCacheTests` 已覆盖
 
 ---
 
-## R7 · iOS Stage 2 — 12 deferred provider UI catch-up（占位）
+## R7 · iOS 1.6.0 catch-up — 11 deferred providers + 多设备完整支持
 
-**Status**: 拟定，待 R6 完成后细化
+**Status**: `ready` — design locked, S1 进入 in-progress (2026-05-13)
+**Target**: iOS 1.6.0 (upgrades from 1.5.3 series)
+**Mac dependency**: 0.25.1-mobile.1.5.3 (released 2026-05-13)
 
-**范围**（来自 1c95d6e7 commit msg 的 deferred items）：
-- `ProviderColorPalette` 12 个新 provider 颜色 + icon（openai / manus / windsurf / mimo / doubao / deepseek / codebuff / crof / venice / commandcode / stepfun + 等 Moonshot upstream release 后 = 12）
-- `QuotaProviderList` 27 → 38（11 新 provider 加入 iOS push subscription 集；Moonshot 待下次 upstream release）
-- Codex stacked/segmented switcher iOS 一致性决策（Mac 给了选项，iOS 是否要同步）
-- 隐藏配额警告标记选项 iOS 镜像（如 upstream 后续 release 包含 #918）
+### R7.0 总览
+
+11 个 deferred iOS native renderings from 1c95d6e7 + 配套多设备公证。
+拆 11 个子任务 S1–S11，详见 Todoist parent `6gf38wMWwVrhPxVR`。
+
+### R7.1 ProviderColorPalette 扩展 (S1)
+
+**入口**：`CodexBarMobile/CodexBarMobile/Models/ProviderColorPalette.swift`
+
+11 个新 provider 颜色分配（避开既有 claude/codex/cursor/openai/gemini/openrouter/perplexity/opencode/opencodego/abacus/mistral 的色域）：
+
+| Provider | Color | Hex | 选色理由 |
+|----------|-------|-----|----------|
+| `windsurf` | navy | #1A3372 | Codeium 旗下产品，与 OpenCode Zen 的 blue 区分（更深） |
+| `codebuff` | olive | #808833 | 区分 Claude orange 与既有所有 green/blue |
+| `deepseek` | royal blue | #4D6BFE | DeepSeek 官方品牌色（#4D6BFE）|
+| `manus` | violet | #8B40BF | Codex purple 之外的紫，亮度区分 |
+| `mimo` | bright orange | #FF8C00 | Xiaomi 品牌橙；亮度高，与 Claude orange-tan（哑光）区分 |
+| `doubao` | hot pink | #FF6699 | 区分 Mistral 红 与 Claude 橙 |
+| `commandcode` | slate gray | #66728A | 中性色，与所有彩色 provider 区分 |
+| `stepfun` | bright violet | #A659F2 | manus 紫的亮版本，避免与 codex/cursor 撞 |
+| `crof` | amber | #D9A61A | 与 abacus 棕色相邻但更黄/明亮 |
+| `venice` | plum | #8C5990 | 偏粉的紫，与 manus violet 区分 |
+| `openai` | (existing green) | — | 上游"OpenAI API balance"复用已有 `openai` provider ID → 继承 existing `.green` 不新增 |
+
+实际增量 = **10 个新颜色规则**（openai 复用）。
+
+**正确性约束**（per existing palette docstring）：
+- 具体匹配在通用前。例如 `commandcode` 在 `code...` 之前，`mimo` 在更短的 substring 之前
+- providerID 是 lowercase canonical String，但 palette 防御性 lowercase + strip space
+
+**测试**: `ProviderColorPaletteTests` 加 10 个 case（每个 provider id assertEquals 期望色）。
+
+### R7.2 QuotaProviderList 27 → 38 (S2)
+
+**入口**：`CodexBarMobile/Shared/Push/QuotaProviderList.swift`
+
+iOS 通过 CKQuerySubscription / CKRecordZoneSubscription 订阅 quota transition 推送。每个 provider 占 2 个 subscription（depleted + restored）。
+
+- 27 → 38（+ 11 个新 provider id）
+- 76 个 subscription（38 × 2）
+- 现有 SyncCoordinator 接收路径不变，只需 list 扩展
+
+**测试**: `QuotaProviderListTests` 期望值 27 → 38；新增 11 个 expected provider 覆盖。
+
+### R7.3 Codex switcher iOS 多账号一致性 (S3, P2)
+
+**调研先行**：iOS 当前对 Codex 多账号是独立 ForEach 卡片（1.5.3 的 `cardIdentityKey` 已保证身份隔离）。Mac 新加的 stacked / segmented 是菜单栏紧凑显示，跟 iOS 卡片化 UI 模式不一致。
+
+**决策建议**：iOS **不**镜像 stacked/segmented 选项；iOS UI 模式天然是分卡片（"独立"模式），Mac 的 stacked 是 menu bar 屏幕宽度受限的压缩方案，iOS 不需要。
+
+**交付**：Research/020 R7.3 决策记录，不写代码。
+
+### R7.4 Quota warning markers + thresholds iOS 渲染 (S4, P2)
+
+**wire 检查**：先 verify Mac 端 `ProviderUsageSnapshot` 是否在 v0.25 加了 warning thresholds 字段。若有，iOS 直接 decode；若没（thresholds 是 Mac 端 menu UI 局部状态），需评估是否也在 iOS 加同样设置。
+
+**渲染**：在 iOS Provider 详情页柱状图上加阈值线（80% 等位置画 dashed line）。
+
+### R7.5 Claude peak-hours iOS indicator (S5, P2)
+
+**wire 检查**：Mac `ClaudeUsageSnapshot` 是否含 peak/off-peak 状态 + timestamp。
+
+**渲染**：Claude 详情页加 peak 状态行（"非高峰 · 2 小时后进入高峰" / "高峰 25 分钟后结束"）。
+
+**i18n**：iOS xcstrings 4 语言（en/zh-Hans/zh-Hant/ja）新增 peak-hours 字符串（en 复用 Mac 端已有，zh-Hans 复用 Mac fork 已译，zh-Hant/ja 新加）。
+
+### R7.6 MockProviderInjector 扩充 (S6)
+
+**入口**：`Sources/CodexBar/Sync/MockProviderInjector.swift`（fork-private Mac code）
+
+现有 mock 集：32 entries × 29 distinct providerIDs。
+
+加 11 个 simple-mock（继承 24 个简单 mock 同模式）：
+- 1 个账号 / 1 个 primary rate window / cost data
+- `.test` TLD email
+- `_mock_simple_<provider>` recordName
+
+11 个新 mocks：openai / manus / windsurf / mimo / doubao / deepseek / codebuff / crof / venice / commandcode / stepfun
+
+新 mock 集：43 entries（32 → 43）。
+
+### R7.7 Mock env-var run 推送实测 (S7)
+
+用户要求："Mac env 环境下 mock data 能推到 CloudKit，iOS 能看到完整面"。
+
+**验收路径**：
+1. Mac: `CODEXBAR_MOCK_PROVIDERS=1 open /Applications/CodexBar.app`
+2. SyncCoordinator 应在 push cycle 把 43 个 mock snapshot 推到 CloudKit
+3. iOS app 下拉刷新 → 43 个 provider 渲染（11 个新的有原生颜色 from S1）
+4. Toggle off → CloudKit 1 cycle 内 ghost cleanup
+
+### R7.8 测试 (S8)
+
+新增覆盖（估计 40-50 tests）：
+- `ProviderColorPaletteTests`: +10 案例
+- `QuotaProviderListTests`: 27 → 38 调整
+- `MockProviderInjectorTests`: 32 → 43 调整
+- `ClaudePeakHoursIndicatorTests`: 新建（S5）
+- `QuotaWarningMarkerTests`: 新建（S4）
+- 多设备场景 scenario test（为 S11 准备）
+
+### R7.9 In-app release notes + xcstrings (S9)
+
+`MobileReleaseNotesCatalog` 加 1.6.0 entry 作 Latest，1.5.3 降为历史。
+内容覆盖 S1+S2+S4+S5 用户面向变化 + Mock 扩充。
+xcstrings 4 语言新增。
+AppStoreMetadata/1.6.0/{en-US,zh-Hans,zh-Hant,ja}/release_notes.txt。
+
+### R7.10 版本号 bump (S10)
+
+- `project.yml` MARKETING_VERSION 1.5.3 → 1.6.0; CURRENT_PROJECT_VERSION 119 → 120
+- `CHANGELOG.md` 加 1.6.0
+- `version.env` MOBILE_VERSION 1.5.3 → 1.6.0
+
+### R7.11 多设备枚举矩阵 (S11，原 Stage 3 子化)
+
+详见 R8。
+
+### R7 决策记录
+
+| 决策 | 选项 | 理由 |
+|------|------|------|
+| Codex switcher iOS 是否镜像 stacked/segmented | **不镜像** | iOS 卡片模式天然分账号；Mac stacked 是 menu bar 紧凑场景 |
+| openai 是否新增颜色 | **复用 .green** | 上游新 OpenAI API 同 providerID 走既有 ChatGPT 颜色 |
+| qwen 是否新增 | **不**（qwen 折入 alibaba 既有） | 上游 #498 加 Qwen API 在 alibaba provider 旗下 |
+| pt-BR 是否加 iOS 第 5 语言 | **不加** | 上游 v0.25.1 release tag 不含 pt-BR（在 0.26-dev 未 release），按"只跟 released" 政策不加 |
 
 ---
 

@@ -55,6 +55,79 @@ enum ProviderColorPalette {
             return Color(red: 0.90, green: 0.22, blue: 0.27)
         }
 
+        // Specific new providers from upstream v0.24 / v0.25 (iOS 1.6.0).
+        // 10 picks; the 11th catch-up provider (`openai`, OpenAI API balance
+        // from v0.25) inherits the existing ChatGPT-green rule below since
+        // both share the `openai` providerID.
+        //
+        // Color choices avoid the existing palette zones (claude orange-tan,
+        // codex/cursor purple, openai/chatgpt green, gemini cyan, openrouter
+        // indigo, perplexity teal, opencodego mint, opencode blue,
+        // abacus brown, mistral red).
+        if normalized.contains("windsurf") {
+            // Windsurf (Codeium) — navy (#1A3372). Distinct from the
+            // opencode `.blue` fallback (deeper, more saturated).
+            return Color(red: 0.10, green: 0.20, blue: 0.45)
+        }
+        if normalized.contains("codebuff") {
+            // Codebuff — olive (#808833). Distinguishes from gemini cyan
+            // and the .green ChatGPT/OpenAI rule below. Substring "code" is
+            // shared with `commandcode` (both have their own `if`); neither
+            // matches the broader `code` substring (there is no such rule).
+            return Color(red: 0.50, green: 0.55, blue: 0.20)
+        }
+        if normalized.contains("deepseek") {
+            // DeepSeek — royal blue (#4D6BFE). DeepSeek's official brand
+            // color. Distinct from the .blue opencode fallback (more
+            // saturated, brighter).
+            return Color(red: 0.30, green: 0.42, blue: 1.0)
+        }
+        if normalized.contains("manus") {
+            // Manus — violet (#8B40BF). Sits between codex purple (which
+            // is .purple, ~ #800080) and a redder magenta; keeps the
+            // "agent-tool" cluster visually grouped while remaining distinct.
+            return Color(red: 0.55, green: 0.25, blue: 0.75)
+        }
+        if normalized.contains("mimo") {
+            // Xiaomi MiMo — bright orange (#FF8C00). Xiaomi's brand orange
+            // is close to Claude orange-tan; shifted brighter / more saturated
+            // so the two are distinguishable in dark mode and stacked charts.
+            return Color(red: 1.0, green: 0.55, blue: 0.0)
+        }
+        if normalized.contains("doubao") {
+            // Doubao (ByteDance/Volcengine) — hot pink (#FF6699). Avoids
+            // the red zone Mistral owns and the warm-orange Claude/MiMo
+            // zone, while staying in the "warm-toned brand" family.
+            return Color(red: 1.0, green: 0.40, blue: 0.60)
+        }
+        if normalized.contains("commandcode") {
+            // Command Code — slate gray (#66728A). Neutral / professional
+            // tone since Command Code is a CLI billing tool; distinct from
+            // every brand-colored provider. Also a hedge: substring "code"
+            // is shared with codebuff (above) and `codex` (below), but the
+            // specificity of `commandcode.contains("commandcode")` matches
+            // here first; `commandcode.contains("codex") == false`.
+            return Color(red: 0.40, green: 0.45, blue: 0.54)
+        }
+        if normalized.contains("stepfun") {
+            // StepFun — bright violet (#A659F2). The brighter cousin of
+            // Manus violet; placed AFTER manus so the brighter shade lights
+            // up for stepfun specifically.
+            return Color(red: 0.65, green: 0.35, blue: 0.95)
+        }
+        if normalized.contains("crof") {
+            // Crof — amber (#D9A61A). Sits between Abacus brown (cooler)
+            // and the yellow zone; deliberately bright so it doesn't read
+            // as "mustard" against neutral cards.
+            return Color(red: 0.85, green: 0.65, blue: 0.10)
+        }
+        if normalized.contains("venice") {
+            // Venice — plum (#8C5990). A pinker / warmer purple than
+            // Codex (.purple) or Manus violet; keeps the multi-provider
+            // purple cluster legible at a glance.
+            return Color(red: 0.55, green: 0.35, blue: 0.55)
+        }
+
         // Existing provider mappings — preserved from pre-1.3.0 behavior.
         if normalized.contains("claude") || normalized.contains("anthropic") {
             return Color(red: 0.82, green: 0.55, blue: 0.28)
