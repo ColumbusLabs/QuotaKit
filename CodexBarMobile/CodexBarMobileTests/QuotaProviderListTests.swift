@@ -19,15 +19,17 @@ import Testing
 @Suite("Quota provider list")
 struct QuotaProviderListTests {
 
-    @Test("Total count is 27 (25 base + Abacus + Mistral)")
+    @Test("Total count is 38 (25 base + Abacus + Mistral + 11 v0.24/v0.25)")
     func totalCount() {
-        // Outcome: 25 → 27 in iOS 1.5.0. If this number shifts without
-        // matching upstream updates, the push-subscription set drifts
-        // out of sync with Mac's actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 27)
+        // Outcome: 25 → 27 in iOS 1.5.0 (Abacus + Mistral) →
+        // 38 in iOS 1.6.0 (11 new from Mac v0.24+v0.25 catch-up).
+        // If this number shifts without matching upstream updates,
+        // the push-subscription set drifts out of sync with Mac's
+        // actual emitting providers.
+        #expect(QuotaProviderList.providers.count == 38)
     }
 
-    @Test("Subscription zone count is 54 (27 providers × 2 states)")
+    @Test("Subscription zone count is 76 (38 providers × 2 states)")
     func subscriptionZoneCount() {
         // Cause: iOS creates one CKRecordZoneSubscription per
         // (provider, state) pair. The implementation in
@@ -35,7 +37,7 @@ struct QuotaProviderListTests {
         // providers.count to derive this. Pinning so a future single-
         // state refactor (e.g. consolidate to one zone per provider)
         // can't happen without updating this test.
-        #expect(QuotaProviderList.providers.count * 2 == 54)
+        #expect(QuotaProviderList.providers.count * 2 == 76)
     }
 
     @Test("Abacus AI is present with the upstream-canonical displayName")
@@ -94,14 +96,106 @@ struct QuotaProviderListTests {
     /// subscription-creation sequence on first launch (single-pass
     /// upserts). A reordering that puts a new provider before
     /// previously-existing ones would shift CK subscription IDs and
-    /// re-create them all. Verify abacus + mistral are appended at
-    /// the END (additive), not interleaved.
-    @Test("Cause: new providers (abacus + mistral) are appended at the end")
+    /// re-create them all. Verify Abacus + Mistral + the 11 v0.24/v0.25
+    /// additions are appended at the END (additive), not interleaved.
+    @Test("Cause: new providers (v0.23 + v0.24/v0.25) are appended at the tail")
     func newProvidersAppended() {
         let providers = QuotaProviderList.providers
-        let last = providers.suffix(2).map(\.id)
-        #expect(last == ["abacus", "mistral"],
-            "Abacus + Mistral must stay at the tail (additive append)")
+        // Abacus + Mistral were positions [25, 26] in iOS 1.5.0.
+        // The 11 v0.24/v0.25 catch-up additions are positions [27..37]
+        // (38 total). Pin the full tail order so a careless edit doesn't
+        // reorder providers and force every existing user's iOS app to
+        // re-create 76 CK subscriptions.
+        let tail = providers.suffix(13).map(\.id)
+        #expect(tail == [
+            "abacus", "mistral",
+            "openai", "manus", "windsurf", "mimo", "doubao",
+            "deepseek", "codebuff", "crof", "venice", "commandcode",
+            "stepfun",
+        ], "All 13 catch-up additions must stay at the tail in this order")
+    }
+
+    // MARK: - iOS 1.6.0 · v0.24+v0.25 catch-up presence
+
+    /// Cause-oriented: each provider must be present with its
+    /// upstream-canonical displayName so the static `alertBody`
+    /// generated at subscription time matches what Mac writes into
+    /// the push body.
+    @Test("OpenAI API balance present (v0.25 #877)")
+    func openaiPresent() {
+        let openai = QuotaProviderList.providers.first(where: { $0.id == "openai" })
+        #expect(openai != nil)
+        #expect(openai?.displayName == "OpenAI API")
+    }
+
+    @Test("Manus present (v0.25 #700)")
+    func manusPresent() {
+        let manus = QuotaProviderList.providers.first(where: { $0.id == "manus" })
+        #expect(manus != nil)
+        #expect(manus?.displayName == "Manus")
+    }
+
+    @Test("Windsurf present (v0.24 #583)")
+    func windsurfPresent() {
+        let windsurf = QuotaProviderList.providers.first(where: { $0.id == "windsurf" })
+        #expect(windsurf != nil)
+        #expect(windsurf?.displayName == "Windsurf")
+    }
+
+    @Test("Xiaomi MiMo present (v0.25 #651)")
+    func mimoPresent() {
+        let mimo = QuotaProviderList.providers.first(where: { $0.id == "mimo" })
+        #expect(mimo != nil)
+        #expect(mimo?.displayName == "Xiaomi MiMo")
+    }
+
+    @Test("Doubao present (v0.25 #498)")
+    func doubaoPresent() {
+        let doubao = QuotaProviderList.providers.first(where: { $0.id == "doubao" })
+        #expect(doubao != nil)
+        #expect(doubao?.displayName == "Doubao")
+    }
+
+    @Test("DeepSeek present (v0.24 #811)")
+    func deepseekPresent() {
+        let deepseek = QuotaProviderList.providers.first(where: { $0.id == "deepseek" })
+        #expect(deepseek != nil)
+        #expect(deepseek?.displayName == "DeepSeek")
+    }
+
+    @Test("Codebuff present (v0.24 #837)")
+    func codebuffPresent() {
+        let codebuff = QuotaProviderList.providers.first(where: { $0.id == "codebuff" })
+        #expect(codebuff != nil)
+        #expect(codebuff?.displayName == "Codebuff")
+    }
+
+    @Test("Crof present (v0.25 #872)")
+    func crofPresent() {
+        let crof = QuotaProviderList.providers.first(where: { $0.id == "crof" })
+        #expect(crof != nil)
+        #expect(crof?.displayName == "Crof")
+    }
+
+    @Test("Venice present (v0.25 #865)")
+    func venicePresent() {
+        let venice = QuotaProviderList.providers.first(where: { $0.id == "venice" })
+        #expect(venice != nil)
+        #expect(venice?.displayName == "Venice")
+    }
+
+    @Test("Command Code present (v0.25 #857)")
+    func commandCodePresent() {
+        let cc = QuotaProviderList.providers.first(where: { $0.id == "commandcode" })
+        #expect(cc != nil)
+        #expect(cc?.displayName == "Command Code")
+    }
+
+    @Test("StepFun present (v0.25 #815)")
+    func stepfunPresent() {
+        let stepfun = QuotaProviderList.providers.first(where: { $0.id == "stepfun" })
+        #expect(stepfun != nil)
+        #expect(stepfun?.displayName == "StepFun")
     }
 
     /// Cause-oriented: no duplicate IDs would silently double-subscribe.
@@ -111,13 +205,13 @@ struct QuotaProviderListTests {
         #expect(Set(ids).count == ids.count, "Duplicate provider IDs found")
     }
 
-    /// Cause-oriented: iOS 1.5.0's catalog "Important" message references
-    /// "27 providers / 54 push-subscription zones". If those numbers
-    /// drift from this list, the user-facing release notes lie. Doc
-    /// the cross-coupling.
-    @Test("Cause: catalog 27/54 numbers match the actual list")
+    /// Cause-oriented: iOS 1.6.0's catalog "Important" message references
+    /// "38 providers / 76 push-subscription zones" (was 27 / 54 in
+    /// iOS 1.5.0). If those numbers drift from this list, the user-facing
+    /// release notes lie. Doc the cross-coupling.
+    @Test("Cause: catalog 38/76 numbers match the actual list")
     func catalogNumbersAlignWithList() {
-        #expect(QuotaProviderList.providers.count == 27)
-        #expect(QuotaProviderList.providers.count * 2 == 54)
+        #expect(QuotaProviderList.providers.count == 38)
+        #expect(QuotaProviderList.providers.count * 2 == 76)
     }
 }
