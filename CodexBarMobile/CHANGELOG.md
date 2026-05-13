@@ -2,6 +2,71 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.6.0 (121)] — 2026-05-13 — Quota warning markers + Mac→iOS push (S4 closing 1.6.0)
+
+Build 121 closes the last Stage 2 deferred item (S4 — quota warning
+markers on the Usage bar) and adds the Mac → iOS push side so the
+iPhone gets a notification when the user crosses a configured
+threshold, not just at full depletion. iOS is a pure receiver: every
+threshold + enable flag lives on Mac (`QuotaWarningConfig` per
+provider × window), Mac packs the resolved config into each
+`ProviderUsageSnapshot` it syncs, and iOS renders the same warning
+ticks Mac shows in its menu bar.
+
+### Added
+
+- **Quota warning markers on the Usage bar** (S4 Phase 1, commit
+  `023ad460`). `UsageCardView` overlays threshold tick marks at the
+  `100 - remainingPercent` positions on the progress bar. When the
+  user crosses the most critical threshold (lowest remaining-percent
+  value, e.g. 20%), an `exclamationmark.triangle.fill` icon appears
+  next to the card title. Default thresholds match Mac: `[50, 20]` =
+  50% remaining and 20% remaining. Per-provider overrides on Mac flow
+  through transparently.
+- **Mac → iOS quota warning push** (S4 Phase 2, commit `9df173f0`).
+  When usage crosses a threshold on Mac, the iPhone receives a push
+  with the specific window + threshold in its own language ("Codex
+  session usage at 50% threshold" / "Codex 会话用量已达 50% 阈值").
+  Subscription matrix expands 76 → 114 zones (38 providers × 3 states:
+  depleted + restored + warning). Per-provider × window debounce so
+  multi-threshold crossings don't suppress each other.
+
+### Changed
+
+- Wire schema: `ProviderUsageSnapshot.quotaWarnings` (new optional
+  `SyncQuotaWarningConfig` field). Optional + `decodeIfPresent` so a
+  pre-1.6.0 iOS reading a new payload (or a new iOS reading a pre-Mac
+  0.25.2 payload) decodes cleanly with `nil`, which iOS then falls
+  back to Mac's documented defaults `[50, 20]` for visual rendering.
+- iOS `Localizable.xcstrings` +5 keys × 4 languages for the warning
+  push body + window labels (session/weekly).
+- `QuotaZoneNotificationParser.isQuotaPushZone` now recognizes
+  per-provider zones (`Quota-{provider}-{state}Zone`). Side-effect:
+  fixes a pre-existing silent bug where the NSE wasn't enriching
+  depleted/restored pushes either since Build 54 introduced
+  per-provider zones (the parser had stayed pinned to the old global
+  zones `QuotaDepletedZone` / `QuotaRestoredZone`).
+
+### Tests
+
+- 18 new tests for `SyncQuotaWarningConfig` (Codable round-trip,
+  backward-compat decoding, threshold sanitize, fallback chain).
+- 10 new tests for `QuotaZoneNotificationParser` covering all three
+  per-provider states + recordName parsing edge cases.
+- 3 new Mac tests for the push fire path (gate on, gate off,
+  multi-threshold crossings).
+- Updated Mac and iOS `QuotaProviderListTests` to 114 zones (38 × 3).
+
+### Versions
+
+- iOS `MARKETING_VERSION`: 1.6.0 (unchanged)
+- iOS `CURRENT_PROJECT_VERSION`: 120 → 121
+- Mac partner release: 0.25.2 with `CloudSyncManager.writeQuotaWarningTransition`
+  + `QuotaTransitionWriter.writeQuotaWarning` + `UsageStore` fire hook.
+  Ships in our fork; upstream sync is independent. If the user is on
+  Mac 0.25.1 the iPhone still renders Mac-default markers via the
+  fallback chain, just no active push until the Mac update lands.
+
 ## [1.6.0 (120)] — 2026-05-13 — Stage 2 catch-up: 11 new providers + Claude peak-hours
 
 iOS 1.6.0 closes the catch-up gap from Mac 0.25.1: the 11 new providers
@@ -51,12 +116,6 @@ from v0.24 finally surfaces on the iOS Claude detail page.
 
 ### Deferred to 1.6.1
 
-- **Quota warning markers iOS rendering** (R7.4): Mac's
-  `QuotaWarningConfig` lives in Mac CONFIG (`CodexBarConfig.swift`),
-  not in the wire `ProviderUsageSnapshot`. Rendering threshold lines
-  on iOS bars needs either a wire-format change carrying the
-  threshold field, or an iOS-local threshold setting independent of
-  Mac. Both are meaningful 1.6.x work but neither is gated by 1.6.0.
 - **Codex stacked/segmented switcher iOS mirror** (R7.3): iOS card
   layout is already inherently "segmented" (one card per account);
   Mac's stacked mode is a menu-bar compactness trade-off iOS doesn't

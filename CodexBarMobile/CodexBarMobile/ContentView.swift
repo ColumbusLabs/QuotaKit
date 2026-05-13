@@ -1933,7 +1933,7 @@ private enum MobileReleaseNotesCatalog {
         ReleaseNotesVersion(
             version: "1.6.0",
             status: String(localized: "Latest"),
-            summary: String(localized: "11 new provider cards (Windsurf, Codebuff, DeepSeek, Manus, MiMo, Doubao, Command Code, StepFun, Crof, Venice, OpenAI API) plus a Claude peak-hours indicator."),
+            summary: String(localized: "11 new provider cards plus a Claude peak-hours indicator and pre-depletion warning markers on every usage bar."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
@@ -1941,11 +1941,13 @@ private enum MobileReleaseNotesCatalog {
                         String(localized: "11 new providers from Mac CodexBar v0.24/v0.25 — Windsurf, Codebuff, DeepSeek, Manus, Xiaomi MiMo, Doubao, Command Code, StepFun, Crof, Venice, OpenAI API. Each renders in its own brand color across Usage / Cost / Subscription tabs and on the provider detail page."),
                         String(localized: "Push notifications expanded to cover the 11 new providers — your iPhone now pings on their quota events the same way it does for the existing 27."),
                         String(localized: "Claude peak-hours indicator on the Claude detail page — quick glance at whether you're inside Anthropic's published 8am-2pm ET peak window or how long until the next one starts."),
+                        String(localized: "Quota warning markers on every usage bar — tick marks at the thresholds you set on Mac (default 50% / 20% remaining) and a warning icon when you cross the most critical one. Per-provider customization on Mac flows through transparently."),
+                        String(localized: "Push notification when you cross a warning threshold (not just at full depletion) — your iPhone now buzzes the moment you hit 50%, 20%, or whatever you've configured."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.25.1 or later for the new providers and push notifications."),
+                        String(localized: "Update Mac CodexBar to 0.25.2 or later for the warning push. New providers work from 0.25.1."),
                     ]),
             ]),
         ReleaseNotesVersion(

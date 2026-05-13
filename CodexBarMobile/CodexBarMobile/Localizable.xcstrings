@@ -9406,6 +9406,118 @@
           }
         }
       }
+    },
+    "11 new provider cards plus a Claude peak-hours indicator and pre-depletion warning markers on every usage bar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "11 new provider cards plus a Claude peak-hours indicator and pre-depletion warning markers on every usage bar."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "11 個の新プロバイダーカードに加え、Claude のピーク時間インジケーターと、すべての使用量バー上の事前警告マーカーを追加。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "11 个新 provider 卡片，新增 Claude 高峰时段指示器，以及每条用量进度条上的预耗警告刻度。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "11 個新 provider 卡片，新增 Claude 高峰時段指示器，以及每條用量進度條上的預耗警告刻度。"
+          }
+        }
+      }
+    },
+    "Quota warning markers on every usage bar — tick marks at the thresholds you set on Mac (default 50% / 20% remaining) and a warning icon when you cross the most critical one. Per-provider customization on Mac flows through transparently.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quota warning markers on every usage bar — tick marks at the thresholds you set on Mac (default 50% / 20% remaining) and a warning icon when you cross the most critical one. Per-provider customization on Mac flows through transparently."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべての使用量バーに警告マーカーを表示 — Mac で設定した閾値（既定では残り 50% と 20%）の位置に刻みを描き、最も深刻な閾値を越えると警告アイコンを表示します。Mac 側のプロバイダー個別設定はそのまま反映されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每条用量条上显示警告刻度 —— 在 Mac 设定的阈值（默认剩余 50% / 20%）位置画刻度，跨过最深阈值时显示警告图标。Mac 端按 provider 单独定制的设置会原样同步过来。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每條用量條上顯示警告刻度 —— 在 Mac 設定的閾值（預設剩餘 50% / 20%）位置畫刻度，跨過最深閾值時顯示警告圖示。Mac 端依 provider 單獨自訂的設定會原樣同步過來。"
+          }
+        }
+      }
+    },
+    "Push notification when you cross a warning threshold (not just at full depletion) — your iPhone now buzzes the moment you hit 50%, 20%, or whatever you've configured.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push notification when you cross a warning threshold (not just at full depletion) — your iPhone now buzzes the moment you hit 50%, 20%, or whatever you've configured."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "警告閾値を越えた瞬間（使い切る前）にプッシュ通知が届きます — 50%、20%、その他お好みで設定した閾値に到達した瞬間に iPhone へ通知。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "跨过任一警告阈值（不只是用完时）就会收到推送通知 —— 命中 50%、20% 或你在 Mac 端配置的任意阈值，iPhone 立即响铃。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "跨過任一警告閾值（不只是用完時）即收到推送通知 —— 命中 50%、20% 或你在 Mac 端配置的任意閾值，iPhone 立即響鈴。"
+          }
+        }
+      }
+    },
+    "Update Mac CodexBar to 0.25.2 or later for the warning push. New providers work from 0.25.1.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Mac CodexBar to 0.25.2 or later for the warning push. New providers work from 0.25.1."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "警告プッシュ通知の利用には macOS 用 CodexBar 0.25.2 以降が必要です。新プロバイダーは 0.25.1 から利用できます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "警告推送需更新 Mac CodexBar 至 0.25.2 或更新版本；新 provider 从 0.25.1 起可用。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "警告推送需更新 Mac CodexBar 至 0.25.2 或更新版本；新 provider 自 0.25.1 起可用。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
