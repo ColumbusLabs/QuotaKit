@@ -48,7 +48,9 @@ struct MockProviderInjectorTests {
             environment: env, userDefaults: defaults))
         #expect(
             MockProviderInjector.allMocks().count == 43,
-            "40 mock provider IDs producing 43 ProviderUsageSnapshot entries (6 rich + 35 simple + 2 fallback). Was 32 in iOS 1.5.0; iOS 1.6.0 adds 11 simple mocks for v0.24+v0.25 providers.")
+            "40 mock provider IDs producing 43 ProviderUsageSnapshot entries "
+                + "(6 rich + 35 simple + 2 fallback). iOS 1.5.0 had 32; "
+                + "iOS 1.6.0 adds 11 simple mocks for v0.24+v0.25 providers.")
     }
 
     @Test("UserDefaults true alone (no env var) → disabled")

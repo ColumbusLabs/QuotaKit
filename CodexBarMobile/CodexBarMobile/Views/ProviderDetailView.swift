@@ -28,6 +28,13 @@ struct ProviderDetailView: View {
                 // Rate limit cards (or Perplexity credit breakdown when available)
                 self.primaryUsageSection
 
+                // Claude peak-hours indicator (Anthropic peak window
+                // 8am-2pm America/New_York, weekdays). Pure time-of-day
+                // logic in `ClaudePeakHours` — no wire field involved.
+                if self.provider.providerID == "claude" {
+                    self.claudePeakHoursSection
+                }
+
                 // Cost summary grid
                 if let cost = self.provider.costSummary,
                    cost.sessionCostUSD != nil || cost.last30DaysCostUSD != nil
@@ -96,6 +103,34 @@ struct ProviderDetailView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(Color.purple.opacity(0.30), lineWidth: 1))
+    }
+
+    // MARK: - Claude Peak Hours
+
+    /// Displays Anthropic's Claude peak window status for the current
+    /// moment. Pure client-side computation in `ClaudePeakHours`
+    /// (mirrors the Mac-side logic byte-for-byte; both sides use the
+    /// same hardcoded window: 8am–2pm America/New_York, weekdays).
+    /// Visible on the Claude provider detail page only; other providers
+    /// don't render this section.
+    @ViewBuilder
+    private var claudePeakHoursSection: some View {
+        let status = ClaudePeakHours.status(at: Date())
+        HStack(spacing: 10) {
+            Image(systemName: status.isPeak ? "sun.max.fill" : "moon.fill")
+                .font(.subheadline)
+                .foregroundStyle(status.isPeak ? .orange : .secondary)
+            Text(status.label)
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.secondary.opacity(0.08))
+        )
     }
 
     // MARK: - Primary usage section

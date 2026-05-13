@@ -16,6 +16,7 @@
 		077031C35540946781793E79 /* ModelContainerFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F2CB0BE3DD9918D7E958219 /* ModelContainerFactory.swift */; };
 		07F02876676ED6B3B7B4A6AD /* CodexBarSync.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; };
 		0C35C0A3E872B4821C3A7D0B /* SwiftDataBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E6F79FB9AFFC795399FAFBF /* SwiftDataBridgeTests.swift */; };
+		134FDBBA3076DE5E1FA986F2 /* ClaudePeakHours.swift in Sources */ = {isa = PBXBuildFile; fileRef = 646750577DC086F6AB6026FD /* ClaudePeakHours.swift */; };
 		15E1F684F0EFDD39DB30A2D6 /* ModelContainerFactoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1DABA431C3A96BC06782271 /* ModelContainerFactoryTests.swift */; };
 		1E05BEE4F76DC16C3AA0C014 /* CloudSyncReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AC8949E5A683B18E778EAC3 /* CloudSyncReader.swift */; };
 		2454FC869F1C8C693320BD25 /* MockBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6469C96DB80CE222DDD8EC78 /* MockBadgeView.swift */; };
@@ -25,6 +26,7 @@
 		297CB7B072F71D5540B234A4 /* MobileChartAxisFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 252CB6CF0CDF983CD183384F /* MobileChartAxisFormatter.swift */; };
 		2B9A62B0ADAF89ADBD8826DA /* MultiAccountForEachIdentityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F8C8BB69CA51A514FF41E14 /* MultiAccountForEachIdentityTests.swift */; };
 		2F25E64EEAF1963781B976C8 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB5B03C39186CBC42C349F8 /* EmptyStateView.swift */; };
+		2F95648D7B6137DC85B62F37 /* ClaudePeakHoursTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 247726F710DF2854B553518D /* ClaudePeakHoursTests.swift */; };
 		37D05E7A04ABF89129C7D284 /* DualZoneReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F06B5BB1489F508FCD20228A /* DualZoneReaderTests.swift */; };
 		383E1D735F75F0B574447EDF /* ShareCardRenderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A260F62AFF50B05ED7E6401 /* ShareCardRenderTests.swift */; };
 		3E591C7DE7ED51CB3883D431 /* ProviderUsageEnvelope.swift in Sources */ = {isa = PBXBuildFile; fileRef = 639A4CD0CDA802F15E954D5B /* ProviderUsageEnvelope.swift */; };
@@ -186,6 +188,7 @@
 		1C9038A6A037C9329348C876 /* MockProviderDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockProviderDetectorTests.swift; sourceTree = "<group>"; };
 		1CECA0608F74E3BA76EE5910 /* QuotaProviderList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaProviderList.swift; sourceTree = "<group>"; };
 		1F8C8BB69CA51A514FF41E14 /* MultiAccountForEachIdentityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiAccountForEachIdentityTests.swift; sourceTree = "<group>"; };
+		247726F710DF2854B553518D /* ClaudePeakHoursTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudePeakHoursTests.swift; sourceTree = "<group>"; };
 		252CB6CF0CDF983CD183384F /* MobileChartAxisFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileChartAxisFormatter.swift; sourceTree = "<group>"; };
 		252E82C4DE92C8734EDD3F33 /* AccountIdentityNormalize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountIdentityNormalize.swift; sourceTree = "<group>"; };
 		273C987230CB40BB514BC840 /* PayloadCompression.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayloadCompression.swift; sourceTree = "<group>"; };
@@ -207,6 +210,7 @@
 		5A393218B2702DC47F1003A5 /* SnapshotIdentityKeyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotIdentityKeyTests.swift; sourceTree = "<group>"; };
 		637E4394D6D0E0F76AFD654A /* ProviderColorPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderColorPalette.swift; sourceTree = "<group>"; };
 		639A4CD0CDA802F15E954D5B /* ProviderUsageEnvelope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderUsageEnvelope.swift; sourceTree = "<group>"; };
+		646750577DC086F6AB6026FD /* ClaudePeakHours.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudePeakHours.swift; sourceTree = "<group>"; };
 		6469C96DB80CE222DDD8EC78 /* MockBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockBadgeView.swift; sourceTree = "<group>"; };
 		68E69F28C0538809129FB6D3 /* UsageCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageCardView.swift; sourceTree = "<group>"; };
 		6B9D488D2E7E34286B71E8E7 /* UsageSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageSnapshot.swift; sourceTree = "<group>"; };
@@ -314,6 +318,7 @@
 				B4E315BCDE160D8764FE14F2 /* AccountIdentityMergeTests.swift */,
 				D2E4EAED2E5EE71721D32253 /* AccountIdentityNormalizeContractTests.swift */,
 				2E0C9A4125533AB89F20FFA7 /* CKRecordReservedKeyAuditTests.swift */,
+				247726F710DF2854B553518D /* ClaudePeakHoursTests.swift */,
 				BC8893A8B73134178D35F274 /* CloudKitMergeTests.swift */,
 				3786C6898A111474E86E69D7 /* CostFormattingTests.swift */,
 				F06B5BB1489F508FCD20228A /* DualZoneReaderTests.swift */,
@@ -479,6 +484,7 @@
 		E885519810099589A32096E1 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				646750577DC086F6AB6026FD /* ClaudePeakHours.swift */,
 				947901EA2B0C4A99FF204533 /* CostFormatting.swift */,
 				6C72A51985FA627302CDAC57 /* CostShareService.swift */,
 				252CB6CF0CDF983CD183384F /* MobileChartAxisFormatter.swift */,
@@ -692,6 +698,7 @@
 				A7A9772DEE62BDA0E16FC91E /* AccountIdentityMergeTests.swift in Sources */,
 				CDE7E605C7EBAA5B0A171477 /* AccountIdentityNormalizeContractTests.swift in Sources */,
 				CD8A9E9C7D9155CCE3338602 /* CKRecordReservedKeyAuditTests.swift in Sources */,
+				2F95648D7B6137DC85B62F37 /* ClaudePeakHoursTests.swift in Sources */,
 				B0BD7B9F90964EE0B5859675 /* CloudKitMergeTests.swift in Sources */,
 				BF62F92B51A09BA238F46145 /* CostFormattingTests.swift in Sources */,
 				37D05E7A04ABF89129C7D284 /* DualZoneReaderTests.swift in Sources */,
@@ -723,6 +730,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4CD1E3131D8E3A04E8B13201 /* BudgetProgressView.swift in Sources */,
+				134FDBBA3076DE5E1FA986F2 /* ClaudePeakHours.swift in Sources */,
 				1E05BEE4F76DC16C3AA0C014 /* CloudSyncReader.swift in Sources */,
 				A910B3424F6BF1DCE7543E2E /* CodexBarMobileApp.swift in Sources */,
 				A644FDE234CC676EC59CC891 /* ContentView.swift in Sources */,
