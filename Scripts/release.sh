@@ -85,14 +85,21 @@ phase1() {
     gh api -X DELETE "repos/o1xhack/CodexBar-Mobile/releases/$id" >/dev/null
   done
 
+  # Pin --repo to our fork explicitly. Without it, gh inspects local
+  # remotes and may pick the upstream remote (steipete/CodexBar) since
+  # both `origin` (o1xhack/CodexBar-Mobile) and `upstream` exist —
+  # which fails with "tag exists locally but has not been pushed to
+  # steipete/CodexBar". Fork tags only live on origin; hard-code the
+  # repo to match the orphan-cleanup gh api call above.
   gh release create "$TAG" \
     "${RELEASE_ASSET_BASENAME}.zip" "${RELEASE_ASSET_BASENAME}.dSYM.zip" \
+    --repo o1xhack/CodexBar-Mobile \
     --draft \
     --title "${RELEASE_TITLE}" \
     --notes-file "$NOTES_FILE"
 
   local draft_url
-  draft_url=$(gh release view "$TAG" --json url -q .url)
+  draft_url=$(gh release view "$TAG" --repo o1xhack/CodexBar-Mobile --json url -q .url)
 
   cat <<EOF
 
@@ -124,12 +131,12 @@ phase2() {
   fi
 
   local is_draft
-  if ! is_draft=$(gh release view "$TAG" --json isDraft -q .isDraft 2>&1); then
+  if ! is_draft=$(gh release view "$TAG" --repo o1xhack/CodexBar-Mobile --json isDraft -q .isDraft 2>&1); then
     err "No release found for tag $TAG. Run phase 1 first (./Scripts/release.sh)."
   fi
   if [[ "$is_draft" == "true" ]]; then
     echo "Publishing draft release $TAG..."
-    gh release edit "$TAG" --draft=false
+    gh release edit "$TAG" --repo o1xhack/CodexBar-Mobile --draft=false
   else
     echo "Release $TAG is already published; proceeding to appcast generation."
   fi
