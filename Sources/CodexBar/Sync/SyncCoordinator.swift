@@ -773,6 +773,13 @@ final class SyncCoordinator {
             let key = Self.perProviderHashKey(
                 providerID: provider.providerID,
                 accountEmail: provider.accountEmail)
+            // iOS 1.6.0 / Mac 0.25.2 — resolve per-provider quota warning
+            // config so iOS can render the same warning markers Mac shows
+            // in its menu bar. nil when providerID isn't a known
+            // UsageProvider (e.g. mock fallback or future upstream
+            // provider not yet in the enum) — iOS falls back to
+            // SyncQuotaWarningConfig.macDefaults.
+            let quotaWarnings = self.resolvedQuotaWarnings(for: provider.providerID)
             guard let data = try? providerDiffEncoder.encode(provider) else {
                 // Encode fallback: include anyway so we don't silently drop a
                 // provider just because its JSON encoding briefly failed.
@@ -783,7 +790,8 @@ final class SyncCoordinator {
                     mobileVersion: synced.mobileVersion,
                     syncTimestamp: synced.syncTimestamp,
                     notificationPushEnabled: synced.notificationPushEnabled,
-                    provider: provider))
+                    provider: provider,
+                    quotaWarnings: quotaWarnings))
                 continue
             }
             let hash = Self.stableHash(for: data)
@@ -797,10 +805,38 @@ final class SyncCoordinator {
                 mobileVersion: synced.mobileVersion,
                 syncTimestamp: synced.syncTimestamp,
                 notificationPushEnabled: synced.notificationPushEnabled,
-                provider: provider))
+                provider: provider,
+                quotaWarnings: quotaWarnings))
             updates[key] = hash
         }
         return (envelopes, updates)
+    }
+
+    /// Resolves Mac's per-provider quota warning config into the wire
+    /// format (`SyncQuotaWarningConfig`). Returns `nil` only when the
+    /// `providerID` string doesn't map to a known `UsageProvider` enum
+    /// case (e.g. mock-fallback IDs like `_mock_*` or a future provider
+    /// added upstream after this Mac release). In that case iOS
+    /// gracefully falls back to `SyncQuotaWarningConfig.macDefaults`.
+    ///
+    /// **Why resolved values (not just overrides)**: iOS as a pure
+    /// receiver shouldn't have to re-implement Mac's threshold
+    /// resolution chain (override → global → defaults). Mac sends the
+    /// effective values that its own notification engine uses, so
+    /// iOS markers and Mac local notifications agree byte-for-byte.
+    private func resolvedQuotaWarnings(for providerID: String) -> SyncQuotaWarningConfig? {
+        guard let usageProvider = UsageProvider(rawValue: providerID) else {
+            return nil
+        }
+        return SyncQuotaWarningConfig(
+            sessionThresholds: self.settings.resolvedQuotaWarningThresholds(
+                provider: usageProvider, window: .session),
+            sessionEnabled: self.settings.quotaWarningEnabled(
+                provider: usageProvider, window: .session),
+            weeklyThresholds: self.settings.resolvedQuotaWarningThresholds(
+                provider: usageProvider, window: .weekly),
+            weeklyEnabled: self.settings.quotaWarningEnabled(
+                provider: usageProvider, window: .weekly))
     }
 
     /// Matches `SnapshotCache.isGhost` on the iOS side: a provider with NO
