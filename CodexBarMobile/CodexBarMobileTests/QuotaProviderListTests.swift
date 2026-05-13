@@ -29,15 +29,27 @@ struct QuotaProviderListTests {
         #expect(QuotaProviderList.providers.count == 38)
     }
 
-    @Test("Subscription zone count is 76 (38 providers × 2 states)")
+    @Test("Subscription zone count is 114 (38 providers × 3 states)")
     func subscriptionZoneCount() {
-        // Cause: iOS creates one CKRecordZoneSubscription per
-        // (provider, state) pair. The implementation in
-        // `QuotaTransitionSubscriptions.setupIfNeeded()` doubles
-        // providers.count to derive this. Pinning so a future single-
-        // state refactor (e.g. consolidate to one zone per provider)
-        // can't happen without updating this test.
-        #expect(QuotaProviderList.providers.count * 2 == 76)
+        // iOS 1.5.0: 38 × 2 (depleted+restored) = 76 zones.
+        // iOS 1.6.0 / Mac 0.25.2 adds a third "warning" state for
+        // pre-depletion threshold pushes → 38 × 3 = 114 zones.
+        // `QuotaTransitionSubscriptions.makeConfigs()` builds one
+        // `SubConfig` per (provider, state) — pinning here so a
+        // future state addition/removal can't drift silently.
+        #expect(QuotaProviderList.providers.count * 3 == 114)
+    }
+
+    @Test("Warning-zone name format matches Mac/iOS contract")
+    func warningZoneNameFormat() {
+        // Mac's `CloudSyncManager.writeQuotaWarningTransition` and
+        // iOS's `QuotaTransitionSubscriptions.makeConfigs()` MUST
+        // agree on this template byte-for-byte. Pinning so a future
+        // rename here would break warning push delivery entirely.
+        #expect(QuotaProviderList.quotaZoneName(
+            providerID: "codex", state: "warning") == "Quota-codex-warningZone")
+        #expect(QuotaProviderList.quotaZoneName(
+            providerID: "claude", state: "warning") == "Quota-claude-warningZone")
     }
 
     @Test("Abacus AI is present with the upstream-canonical displayName")

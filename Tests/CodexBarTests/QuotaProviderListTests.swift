@@ -14,9 +14,12 @@ import Testing
 /// conversation, not a silent production miss.
 @Suite("QuotaProviderList contract")
 struct QuotaProviderListTests {
-    @Test("Provider list has expected count (27 after Abacus + Mistral)")
+    @Test("Provider list has expected count (38 after v0.24/v0.25 catch-up)")
     func providerCount() {
-        #expect(QuotaProviderList.providers.count == 27)
+        // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
+        // (11 new from Mac v0.24+v0.25). Must stay synced with iOS-side
+        // test in CodexBarMobileTests/QuotaProviderListTests.swift.
+        #expect(QuotaProviderList.providers.count == 38)
     }
 
     @Test("Perplexity is registered with the Mac-side displayName")
@@ -79,13 +82,15 @@ struct QuotaProviderListTests {
                 == "Quota-mistral-restoredZone")
     }
 
-    @Test("iOS subscription count is 27 × 2 = 54 (depleted + restored per provider)")
+    @Test("iOS subscription count is 38 × 3 = 114 (depleted + restored + warning)")
     func subscriptionCountDerivation() {
-        // 50 → 54 in iOS 1.5.0 from adding Abacus + Mistral. If this fails,
-        // someone either dropped a provider or forgot to update the
-        // factor-of-2 state assumption.
-        let states = ["depleted", "restored"]
+        // 54 → 76 in iOS 1.5.x → iOS 1.6.0 (38 × 2). iOS 1.6.0 / Mac 0.25.2
+        // adds a third "warning" state for pre-depletion threshold pushes:
+        // 38 × 3 = 114. If this fails, someone either dropped a provider
+        // or changed the state matrix without updating the iOS subscription
+        // setup in `QuotaTransitionSubscriptions.makeConfigs()`.
+        let states = ["depleted", "restored", "warning"]
         let subscriptionCount = QuotaProviderList.providers.count * states.count
-        #expect(subscriptionCount == 54)
+        #expect(subscriptionCount == 114)
     }
 }

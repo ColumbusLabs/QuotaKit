@@ -44,6 +44,12 @@ targets:
       - path: CodexBarMobilePushExtension
         excludes:
           - "**/.DS_Store"
+      # iOS 1.6.0 — NSE looks up Push.QuotaWarning.* strings via
+      # String(localized:), which resolves against the extension's
+      # OWN bundle (not the host app). Include the main app's xcstrings
+      # so the extension ships with the same translations. Same source
+      # of truth — Xcode compiles a copy into each bundle.
+      - path: CodexBarMobile/Localizable.xcstrings
     dependencies:
       - target: CodexBarSync
     settings:

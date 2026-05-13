@@ -927,6 +927,93 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         }
     }
 
+    /// Writes a quota **warning** transition record (iOS 1.6.0 / Mac 0.25.2).
+    ///
+    /// Reuses the existing `QuotaTransition` CKRecord type with **no new
+    /// fields** — the threshold and window are packed into `recordName` so
+    /// no CloudKit Production Dashboard schema deploy is required. `state`
+    /// is set to the literal string `"warning"` so the same NSE that
+    /// handles `depleted`/`restored` zone notifications can dispatch by
+    /// state and read the recordName to construct a richer body
+    /// ("Codex session at 50% warning threshold").
+    ///
+    /// **recordName format**: `"{providerID}-{window}-t{threshold}-{hourBucket}"`
+    /// — e.g. `"codex-session-t50-477312"`. Different thresholds for the
+    /// same (provider, window) produce different recordNames, so a user
+    /// crossing 50% and then 20% within the same hour gets two distinct
+    /// records and two distinct pushes (not collapsed by idempotency).
+    /// Two Macs crossing the same threshold for the same provider+window
+    /// in the same hour DO collapse — that's the intended dedupe.
+    ///
+    /// Zone: `Quota-{providerID}-warningZone` (per `QuotaProviderList`),
+    /// which iOS subscribes to via the same `CKRecordZoneSubscription`
+    /// mechanism used for depleted/restored. Each warning sub has a
+    /// generic locale-resolved alertBody ("Codex usage warning"); the
+    /// NSE replaces title + body with parsed context.
+    ///
+    /// See `Sources/CodexBar/Sync/QuotaTransitionWriter.swift` and
+    /// `Research/020-multi-account-comprehensive.md` §R7.4 Phase 2.
+    public func writeQuotaWarningTransition(
+        providerName: String,
+        providerID: String,
+        window: String,
+        threshold: Int,
+        transitionAt: Date) async -> SyncPushResult
+    {
+        guard cloudKitAvailable, _privateDatabase != nil else {
+            return .failure("CloudKit not available")
+        }
+
+        let zoneName = QuotaProviderList.quotaZoneName(
+            providerID: providerID, state: "warning")
+        let zone = CKRecordZone(zoneName: zoneName)
+
+        do {
+            try await ensureQuotaZoneExists(zone)
+        } catch {
+            let syncError = CloudSyncError(from: error as? CKError ?? CKError(.internalError))
+            return .failure("Failed to create \(zone.zoneID.zoneName): \(syncError.description)")
+        }
+
+        let deviceID = self.stableDeviceID()
+        let hourBucket = Int(transitionAt.timeIntervalSince1970 / 3600)
+        // Pack (window, threshold) into recordName because the Production
+        // schema only allows 5 fields on QuotaTransition. Multi-threshold
+        // crossings within the same hour produce distinct records.
+        let recordName = "\(providerID)-\(window)-t\(threshold)-\(hourBucket)"
+        let recordID = CKRecord.ID(recordName: recordName, zoneID: zone.zoneID)
+
+        let record = CKRecord(
+            recordType: CloudSyncConstants.quotaTransitionRecordType, recordID: recordID)
+        record["providerName"] = providerName as CKRecordValue
+        record["providerID"] = providerID as CKRecordValue
+        record["state"] = "warning" as CKRecordValue
+        record["transitionAt"] = transitionAt as CKRecordValue
+        record["deviceID"] = deviceID as CKRecordValue
+
+        do {
+            try await _privateDatabase!.save(record)
+            self.logInfo("QuotaWarning record written", metadata: [
+                "providerName": providerName,
+                "window": window,
+                "threshold": "\(threshold)",
+                "zone": zone.zoneID.zoneName,
+                "recordName": recordName,
+            ])
+            return .success
+        } catch let error as CKError where error.code == .serverRecordChanged {
+            self.logInfo("QuotaWarning same-hour collision (idempotent overwrite)")
+            return .success
+        } catch let error as CKError {
+            let syncError = CloudSyncError(from: error)
+            self.logError("QuotaWarning save failed: \(syncError.description)")
+            return .failure(syncError.description)
+        } catch {
+            self.logError("QuotaWarning save failed: \(error.localizedDescription)")
+            return .failure(error.localizedDescription)
+        }
+    }
+
     // MARK: - Provider Account Linkage (Research/019 §7)
 
     /// Save (or replace) a single `ProviderAccountLinkage` record.

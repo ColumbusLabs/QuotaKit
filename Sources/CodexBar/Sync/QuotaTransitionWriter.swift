@@ -7,6 +7,15 @@ import Foundation
 @MainActor
 protocol QuotaTransitionWriting: AnyObject {
     func write(transition: SessionQuotaTransition, provider: UsageProvider)
+    /// iOS 1.6.0 / Mac 0.25.2 — fires a `QuotaTransition` record with
+    /// state=`"warning"` to the per-provider warning zone so iOS receives
+    /// a push notification when the user crosses a configured threshold
+    /// (not just at depletion). See `Research/020-multi-account-comprehensive.md`
+    /// §R7.4 Phase 2.
+    func writeQuotaWarning(
+        provider: UsageProvider,
+        window: QuotaWarningWindow,
+        threshold: Int)
 }
 
 /// Writes `QuotaTransition` records to CloudKit so iOS receives a visible alert push
@@ -50,6 +59,22 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
     /// cadence in Settings → Notifications.
     private let debounceInterval: TimeInterval = 5 * 60
 
+    /// Tracks the last successful warning write per (provider, window,
+    /// threshold) so multi-threshold crossings within the same provider
+    /// stay independent — crossing 50% should not suppress a subsequent
+    /// 20% crossing if it happens within the debounce window. Keyed
+    /// distinctly from `lastWriteByKey` (depleted/restored debounce).
+    private var lastWarningWriteByKey: [String: Date] = [:]
+
+    /// Warning debounce is **shorter** than depleted/restored because
+    /// the underlying logic (`QuotaWarningNotificationLogic.crossedThreshold`)
+    /// already filters out repeated firings of the same threshold via
+    /// `firedThresholds`, so the writer mostly sees genuinely new
+    /// crossings. The 60s window catches the narrow case where two Macs
+    /// detect the same crossing within seconds and both call write — we
+    /// only want one push on the iPhone.
+    private let warningDebounceInterval: TimeInterval = 60
+
     init() {}
 
     func write(transition: SessionQuotaTransition, provider: UsageProvider) {
@@ -92,6 +117,44 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
             } else {
                 self.logger.error(
                     "QuotaTransition record write failed: \(result.message ?? "unknown")")
+            }
+        }
+    }
+
+    func writeQuotaWarning(
+        provider: UsageProvider,
+        window: QuotaWarningWindow,
+        threshold: Int)
+    {
+        let providerName = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
+        let windowString = window.rawValue
+        let key = "\(provider.rawValue)|\(windowString)|\(threshold)"
+        let now = Date()
+
+        if let lastWrite = self.lastWarningWriteByKey[key],
+           now.timeIntervalSince(lastWrite) < self.warningDebounceInterval
+        {
+            self.logger.debug(
+                "QuotaWarning write debounced: provider=\(provider.rawValue) " +
+                    "window=\(windowString) threshold=\(threshold)")
+            return
+        }
+
+        Task { [providerName, windowString] in
+            let result = await CloudSyncManager.shared.writeQuotaWarningTransition(
+                providerName: providerName,
+                providerID: provider.rawValue,
+                window: windowString,
+                threshold: threshold,
+                transitionAt: now)
+            if result.succeeded {
+                self.lastWarningWriteByKey[key] = now
+                self.logger.info(
+                    "QuotaWarning record written: provider=\(provider.rawValue) " +
+                        "window=\(windowString) threshold=\(threshold)")
+            } else {
+                self.logger.error(
+                    "QuotaWarning record write failed: \(result.message ?? "unknown")")
             }
         }
     }

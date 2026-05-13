@@ -128,9 +128,25 @@ final class NotificationService: UNNotificationServiceExtension {
         latch: DeliveryLatch) -> Task<Void, Never>
     {
         return Task {
-            let providerName = await Self.fetchLatestProviderName(in: zoneID)
-            if let providerName, !providerName.isEmpty {
-                content.value.title = providerName
+            // iOS 1.6.0 / Mac 0.25.2 — for warning-state zones we fetch
+            // the latest record's recordName (encodes window + threshold)
+            // and rewrite both title AND body. For depleted/restored we
+            // keep the Build 54+ behavior (title rewrite only).
+            let parsed = QuotaZoneNotificationParser.parseQuotaZoneName(zoneID.zoneName)
+            if parsed?.state == .warning {
+                let info = await Self.fetchLatestWarningInfo(in: zoneID)
+                if let info {
+                    content.value.title = info.providerName
+                    content.value.body = Self.formatWarningBody(
+                        providerName: info.providerName,
+                        window: info.window,
+                        threshold: info.threshold)
+                }
+            } else {
+                let providerName = await Self.fetchLatestProviderName(in: zoneID)
+                if let providerName, !providerName.isEmpty {
+                    content.value.title = providerName
+                }
             }
             if latch.tryFire() {
                 handler.call(content.value)
@@ -183,6 +199,70 @@ final class NotificationService: UNNotificationServiceExtension {
             return record["providerName"] as? String
         } catch {
             return nil
+        }
+    }
+
+    /// iOS 1.6.0 / Mac 0.25.2 — fetches the latest warning record and
+    /// parses its `recordName` to extract the crossed threshold and
+    /// affected window so the push body can show specifics.
+    /// `recordName` format documented at
+    /// `CloudSyncManager.writeQuotaWarningTransition`.
+    ///
+    /// Returns `nil` when the fetch fails or the recordName format
+    /// doesn't parse — the caller then falls back to the static
+    /// subscription alertBody (the generic "[Provider] usage warning"),
+    /// which still gives the user an actionable signal. No regression
+    /// vs not having NSE enrichment at all.
+    static func fetchLatestWarningInfo(
+        in zoneID: CKRecordZone.ID
+    ) async -> (providerName: String, window: String, threshold: Int)? {
+        let container = CKContainer(identifier: CloudSyncConstants.containerIdentifier)
+        let query = CKQuery(
+            recordType: CloudSyncConstants.quotaTransitionRecordType,
+            predicate: NSPredicate(value: true))
+        query.sortDescriptors = [
+            NSSortDescriptor(key: "transitionAt", ascending: false),
+        ]
+        do {
+            let (matchResults, _) = try await container.privateCloudDatabase.records(
+                matching: query,
+                inZoneWith: zoneID,
+                desiredKeys: ["providerName"],
+                resultsLimit: 1)
+            guard let first = matchResults.first else { return nil }
+            let record = try first.1.get()
+            guard let providerName = record["providerName"] as? String else { return nil }
+            guard let parsed = QuotaZoneNotificationParser.parseWarningRecordName(
+                record.recordID.recordName)
+            else {
+                // Unparseable recordName — preserve provider title at least.
+                return (providerName, "", 0)
+            }
+            return (providerName, parsed.window, parsed.threshold)
+        } catch {
+            return nil
+        }
+    }
+
+    /// Builds the push body for a warning notification. Localized
+    /// templates handle the 4 supported languages; the threshold and
+    /// window are formatted via `%lld` + `%@`. The window string is
+    /// localized via a small lookup so "session" / "weekly" become
+    /// "Session" / "Weekly" / "会话" / "週間" etc.
+    static func formatWarningBody(
+        providerName: String, window: String, threshold: Int
+    ) -> String {
+        let windowLabel = self.localizedWindowLabel(window)
+        let template = String(localized: "Push.QuotaWarning.detailBody")
+        // %1$@ providerName · %2$@ windowLabel · %3$lld threshold
+        return String(format: template, providerName, windowLabel, threshold)
+    }
+
+    private static func localizedWindowLabel(_ window: String) -> String {
+        switch window {
+        case "session": return String(localized: "Push.QuotaWarning.window.session")
+        case "weekly":  return String(localized: "Push.QuotaWarning.window.weekly")
+        default:        return window
         }
     }
 }

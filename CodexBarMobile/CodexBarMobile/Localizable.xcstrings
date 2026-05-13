@@ -6139,6 +6139,122 @@
         }
       }
     },
+    "Push.QuotaWarning.bodyWithProvider": {
+      "comment": "Static body of iOS push when a provider crosses a usage warning threshold. NSE rewrites this with the specific window+threshold if the fetch succeeds. %@ is the provider name.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ usage warning"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ の使用量警告"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 用量警告"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 用量警告"
+          }
+        }
+      }
+    },
+    "Push.QuotaWarning.detailBody": {
+      "comment": "Rich body shown after NSE enriches the warning push. %1$@ provider, %2$@ window (session/weekly), %3$lld remaining-percent threshold.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$@ usage at %3$lld%% threshold"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ の%2$@使用量が %3$lld%% に到達"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$@用量已达 %3$lld%% 阈值"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$@用量已達 %3$lld%% 閾值"
+          }
+        }
+      }
+    },
+    "Push.QuotaWarning.window.session": {
+      "comment": "Window label shown in the warning push body — corresponds to QuotaWarningWindow.session.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "session"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッション"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工作階段"
+          }
+        }
+      }
+    },
+    "Push.QuotaWarning.window.weekly": {
+      "comment": "Window label shown in the warning push body — corresponds to QuotaWarningWindow.weekly.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "weekly"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "週間"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "周"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "週"
+          }
+        }
+      }
+    },
     "Push notifications from Mac — when a session quota hits 0% or becomes available again on Mac, your iPhone receives a notification in its own language.": {
       "localizations": {
         "en": {

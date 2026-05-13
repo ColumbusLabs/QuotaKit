@@ -86,6 +86,23 @@ final class QuotaTransitionSubscriptions {
                     let template = String(localized: "Push.QuotaRestored.bodyWithProvider")
                     return String(format: template, provider.displayName)
                 }))
+            // iOS 1.6.0 / Mac 0.25.2 — third state per provider for the
+            // pre-depletion warning thresholds. The static alertBody is
+            // generic ("[Provider] usage warning") because the actual
+            // threshold % is encoded in the record's recordName, which
+            // `NotificationService` (NSE) reads to rewrite the body
+            // with the specific window + threshold ("Codex session at
+            // 50%"). Subscription count: 76 → 114 zones. APPENDED at
+            // the tail so existing 76-entry CK subscription IDs stay
+            // stable across the 1.5.x/1.6.0 upgrade.
+            configs.append(SubConfig(
+                zoneName: QuotaProviderList.quotaZoneName(
+                    providerID: provider.id, state: "warning"),
+                subscriptionID: "quota-\(provider.id)-warning-sub",
+                localizedAlertBody: {
+                    let template = String(localized: "Push.QuotaWarning.bodyWithProvider")
+                    return String(format: template, provider.displayName)
+                }))
         }
         return configs
     }

@@ -57,4 +57,95 @@ struct QuotaZoneNotificationParserTests {
         ]
         #expect(QuotaZoneNotificationParser.extractQuotaZoneID(from: userInfo) == nil)
     }
+
+    // MARK: - Per-provider zone recognition (Build 54+)
+
+    @Test("isQuotaPushZone accepts per-provider depleted zone")
+    func acceptsPerProviderDepletedZone() {
+        let zoneID = CKRecordZone.ID(
+            zoneName: "Quota-codex-depletedZone",
+            ownerName: CKCurrentUserDefaultName)
+        #expect(QuotaZoneNotificationParser.isQuotaPushZone(zoneID))
+    }
+
+    @Test("isQuotaPushZone accepts per-provider restored zone")
+    func acceptsPerProviderRestoredZone() {
+        let zoneID = CKRecordZone.ID(
+            zoneName: "Quota-claude-restoredZone",
+            ownerName: CKCurrentUserDefaultName)
+        #expect(QuotaZoneNotificationParser.isQuotaPushZone(zoneID))
+    }
+
+    @Test("isQuotaPushZone accepts per-provider warning zone (iOS 1.6.0)")
+    func acceptsPerProviderWarningZone() {
+        let zoneID = CKRecordZone.ID(
+            zoneName: "Quota-perplexity-warningZone",
+            ownerName: CKCurrentUserDefaultName)
+        #expect(QuotaZoneNotificationParser.isQuotaPushZone(zoneID))
+    }
+
+    @Test("parseQuotaZoneName extracts (providerID, state) for warning")
+    func parseWarningZoneName() {
+        let parsed = QuotaZoneNotificationParser.parseQuotaZoneName(
+            "Quota-codex-warningZone")
+        #expect(parsed?.providerID == "codex")
+        #expect(parsed?.state == .warning)
+    }
+
+    @Test("parseQuotaZoneName extracts (providerID, state) for depleted")
+    func parseDepletedZoneName() {
+        let parsed = QuotaZoneNotificationParser.parseQuotaZoneName(
+            "Quota-claude-depletedZone")
+        #expect(parsed?.providerID == "claude")
+        #expect(parsed?.state == .depleted)
+    }
+
+    @Test("parseQuotaZoneName rejects malformed names")
+    func parseRejectsMalformed() {
+        #expect(QuotaZoneNotificationParser.parseQuotaZoneName("NotAQuotaZone") == nil)
+        #expect(QuotaZoneNotificationParser.parseQuotaZoneName("Quota-no-state-Zone") == nil)
+        #expect(QuotaZoneNotificationParser.parseQuotaZoneName("") == nil)
+    }
+
+    @Test("parseQuotaZoneName rejects legacy global zone names")
+    func parseRejectsGlobalLegacy() {
+        // The legacy QuotaDepletedZone / QuotaRestoredZone names are
+        // matched by `isQuotaPushZone` via the constants, NOT by
+        // `parseQuotaZoneName` which only handles per-provider format.
+        // Pinning this so the NSE branch on `parsed?.state == .warning`
+        // doesn't accidentally fire for legacy depleted zones.
+        #expect(QuotaZoneNotificationParser.parseQuotaZoneName(
+            "QuotaDepletedZone") == nil)
+        #expect(QuotaZoneNotificationParser.parseQuotaZoneName(
+            "QuotaRestoredZone") == nil)
+    }
+
+    // MARK: - Warning recordName parsing
+
+    @Test("parseWarningRecordName extracts window + threshold")
+    func parseWarningRecord() {
+        let parsed = QuotaZoneNotificationParser.parseWarningRecordName(
+            "codex-session-t50-477312")
+        #expect(parsed?.providerID == "codex")
+        #expect(parsed?.window == "session")
+        #expect(parsed?.threshold == 50)
+    }
+
+    @Test("parseWarningRecordName handles weekly window")
+    func parseWeeklyWarningRecord() {
+        let parsed = QuotaZoneNotificationParser.parseWarningRecordName(
+            "claude-weekly-t20-477500")
+        #expect(parsed?.providerID == "claude")
+        #expect(parsed?.window == "weekly")
+        #expect(parsed?.threshold == 20)
+    }
+
+    @Test("parseWarningRecordName rejects malformed names")
+    func parseWarningRecordMalformed() {
+        #expect(QuotaZoneNotificationParser.parseWarningRecordName(
+            "codex-session-477312") == nil) // missing threshold
+        #expect(QuotaZoneNotificationParser.parseWarningRecordName(
+            "codex-session-tABC-477312") == nil) // non-numeric threshold
+        #expect(QuotaZoneNotificationParser.parseWarningRecordName("") == nil)
+    }
 }

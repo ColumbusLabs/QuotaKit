@@ -782,6 +782,19 @@ final class UsageStore {
                     currentRemaining: currentRemaining),
                 provider: provider,
                 soundEnabled: self.settings.quotaWarningSoundEnabled)
+
+            // iOS 1.6.0 / Mac 0.25.2 — also fire a CKRecord so iPhones
+            // subscribed to the warning zone get a visible push. Gated
+            // by the same push-toggle that controls depleted/restored.
+            // The writer debounces independently per (provider, window,
+            // threshold) so it doesn't suppress a 20% push if 50% just
+            // fired seconds earlier.
+            if self.settings.notificationPushToiOSEnabled {
+                self.quotaTransitionWriter.writeQuotaWarning(
+                    provider: provider,
+                    window: window,
+                    threshold: threshold)
+            }
         }
 
         state.lastRemaining = currentRemaining

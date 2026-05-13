@@ -36,6 +36,7 @@
 		47E56DB489686A9CF257EA70 /* CloudSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14429075896F45B38264DC77 /* CloudSyncManager.swift */; };
 		496A54796174489473CE7F52 /* DeviceProviderZoneSubscription.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16DA26E9BEFB5354A725F99 /* DeviceProviderZoneSubscription.swift */; };
 		4CD1E3131D8E3A04E8B13201 /* BudgetProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77C776CEA57C84E7ECA6192C /* BudgetProgressView.swift */; };
+		4E63C52D8C920C2076DD3CD5 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B47F282E1FA9E215551D09F6 /* Localizable.xcstrings */; };
 		5318530147AE0495BD05345D /* CodexBarSync.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		57B19047261C57559CD61968 /* SyncCostSummary+Today.swift in Sources */ = {isa = PBXBuildFile; fileRef = 148D664C4F52FEB3A2993FE7 /* SyncCostSummary+Today.swift */; };
 		5BDC62538006F2EF448F53ED /* MockProviderBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13047F3A04FEB413C5E079B0 /* MockProviderBanner.swift */; };
@@ -564,6 +565,7 @@
 			buildConfigurationList = 86A1FEA2B0FEDAC116B4912F /* Build configuration list for PBXNativeTarget "CodexBarMobilePushExtension" */;
 			buildPhases = (
 				308217704D0781D696794157 /* Sources */,
+				EED129AA72D3C3EE3D7368E8 /* Resources */,
 				4251029BEF52B56E0E090364 /* Frameworks */,
 			);
 			buildRules = (
@@ -694,6 +696,14 @@
 				24899A4840A4D7B044BEC20C /* Assets.xcassets in Resources */,
 				D0624B0227BF503DC77AC09C /* Localizable.xcstrings in Resources */,
 				6977A50D67FD6F33CE7E9D54 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EED129AA72D3C3EE3D7368E8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4E63C52D8C920C2076DD3CD5 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
