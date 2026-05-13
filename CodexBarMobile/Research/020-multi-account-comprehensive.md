@@ -581,11 +581,126 @@ iOS 通过 CKQuerySubscription / CKRecordZoneSubscription 订阅 quota transitio
 
 **交付**：Research/020 R7.3 决策记录，不写代码。
 
-### R7.4 Quota warning markers + thresholds iOS 渲染 (S4, P2)
+### R7.4 Quota warning markers + push (S4 — 1.6.0, Mac 0.25.2)
 
-**wire 检查**：先 verify Mac 端 `ProviderUsageSnapshot` 是否在 v0.25 加了 warning thresholds 字段。若有，iOS 直接 decode；若没（thresholds 是 Mac 端 menu UI 局部状态），需评估是否也在 iOS 加同样设置。
+**Status**: `ready` — 2 phases 整合到 1.6.0 一起出。Mac 0.25.2 partner release。
 
-**渲染**：在 iOS Provider 详情页柱状图上加阈值线（80% 等位置画 dashed line）。
+**架构原则**（per user 2026-05-13）: iOS 是接收端，所有 quota warning config 在 Mac 完成（全局 + per-provider override）。iOS 端 mirror 同步过来的 config，不做 iOS-local override。
+
+#### R7.4.1 当前 Mac 架构总结
+
+```
+Mac CodexBarConfig.quotaWarnings: QuotaWarningConfig?  (全局)
+  └── session: QuotaWarningWindowConfig?  { thresholds: [Int]?, enabled: Bool? }
+  └── weekly: QuotaWarningWindowConfig?
+
+settings.quotaWarningEnabled(provider:, window:)         per-provider override
+settings.quotaWarningThresholds(provider:, window:)      per-provider override
+QuotaWarningThresholds.defaults = [50, 20]               (剩余 % 触发，= 50%/80% used)
+
+触发链:
+UsageStore.refresh() → 检测 usedPercent 越过 threshold
+  → sessionQuotaNotifier.postQuotaWarning(event:, provider:)
+    → UserNotifications 本地 macOS 通知                    ✅ 现有
+    → CKRecord write → iOS                                 ❌ Phase 2 加
+```
+
+#### R7.4.2 Phase 1 — Wire format + iOS 渲染
+
+**新 Shared 类型** (`Shared/Models/SyncQuotaWarningConfig.swift`):
+```swift
+public struct SyncQuotaWarningConfig: Codable, Sendable, Equatable {
+    public let sessionThresholds: [Int]?  // nil = 用 default [50, 20]
+    public let sessionEnabled: Bool?
+    public let weeklyThresholds: [Int]?
+    public let weeklyEnabled: Bool?
+}
+```
+
+**ProviderUsageEnvelope 加字段** (additive optional):
+```swift
+public let quotaWarnings: SyncQuotaWarningConfig?  // decodeIfPresent
+```
+
+**Mac SyncCoordinator emit**: 每次 push provider envelope 时填入该 provider 的 resolved config。
+
+**iOS UsageCardView** 渲染:
+- 读 envelope-level `quotaWarnings`，按 window (session/weekly) 取相应 thresholds
+- thresholds 为剩余 % → bar 上 marker 位置 = `100 - threshold`
+- 多个 threshold = 多个 tick mark
+- usedPercent ≥ (100 - largest threshold) → 显示 warning icon
+
+#### R7.4.3 Phase 2 — Warning push 通知
+
+**新 CKRecord type** (`QuotaWarningTransition`):
+- Fields: providerID, providerName, window (session/weekly), threshold, currentRemaining, transitionAt, deviceID
+- ⚠️ **避保留字段名** (per `feedback_ckrecord_reserved_field_names.md`): NEVER `recordID` / `recordType` / `recordChangeTag` / etc.
+
+**新 CKRecordZone** per provider per state:
+- `Quota-{providerID}-warningZone` × 38 providers = 38 个新 zone
+- ⚠️ **私有 DB 必须 custom zone** (per `feedback_cloudkit_zone_gotcha.md`), default zone push 不 fire
+
+**Mac fire path** (`QuotaTransitionWriter` 扩展):
+- UsageStore 检测 threshold 越过 → 现有 postQuotaWarning(本地) + **新** writeQuotaWarning(CK)
+- 一次 fire 可能多 threshold（[50, 20]）依次或一起写
+
+**iOS subscription** (`QuotaProviderList` 扩展):
+- 38 providers × 3 states (depleted / restored / warning) = 114 subscriptions
+- 复用现有 CKQuerySubscription 框架
+
+**iOS NSE** (Notification Service Extension):
+- 解析 `QuotaWarningTransition` payload → 格式化通知文案 per provider settings
+- ⚠️ **AppDelegate @objc observers 必须 nonisolated** (per `feedback_appdelegate_objc_observer_nonisolated.md`)
+
+#### R7.4.4 多设备 matrix proof (16 cell)
+
+| 场景 | iCloud Sync | Marker 渲染 | Warning Push | Crash |
+|------|------------|------------|-------------|-------|
+| Mac 旧×2 + iOS 旧×2 | ✓ 基线 | 不渲染 | 不发 | 0 |
+| Mac 旧×2 + iOS 新×N | ✓ G1 G5 | 默认 [50,20] (G4) | 不发 (G3) | 0 |
+| Mac 新×2 + iOS 旧×2 | ✓ G5 | 老 iOS 不渲染 | 老 iOS 无订阅 G2 | 0 |
+| Mac 新×2 + iOS 新×N | ✓ | per-provider config | 完整 push | 0 |
+| Mac 新+旧 + iOS 新×N | ✓ | 新 Mac providers 用 config，旧 Mac 默认 | 仅新 Mac fire | 0 |
+
+**核心 invariant**:
+- G1 wire `decodeIfPresent` additive
+- G2 老 iOS 不订阅新 zone → CK 不投递新 record
+- G3 老 Mac 不写新 record → 新 iOS 订阅着但无 fire
+- G4 缺失 config → fallback `[50, 20]` 默认值（视觉一致）
+- G5 `JSONDecoder` 默认忽略未知 key
+- G6 CKRecord 不用保留字段名
+- G7 私有 DB 用 custom zone
+- G8 NSE @objc observers nonisolated
+
+#### R7.4.5 实施 checklist
+
+**Wire (Shared/)**:
+- [ ] `SyncQuotaWarningConfig.swift` 新文件
+- [ ] `ProviderUsageEnvelope.swift` 加字段
+- [ ] `QuotaWarningTransition.swift` 新 CKRecord wire 类型
+
+**Mac**:
+- [ ] `SyncCoordinator` 填 envelope.quotaWarnings
+- [ ] `QuotaTransitionWriter` 扩展 writeQuotaWarning
+- [ ] `UsageStore` 在 postQuotaWarning 旁加 CK fire
+- [ ] Mac 0.25.2 / BUILD_NUMBER 62 / sparkle 62.1.6.0
+- [ ] CHANGELOG 加 0.25.2 entry
+
+**iOS**:
+- [ ] `UsageCardView` 渲染 multi-threshold tick + warning icon (从 envelope 读)
+- [ ] `QuotaProviderList` 加 warning state 维度 → 38×3=114 subscriptions
+- [ ] NSE 解析 QuotaWarningTransition
+- [ ] iOS 1.6.0 build 121
+- [ ] CHANGELOG / in-app release notes 加 S4 内容
+
+**Tests**:
+- [ ] `SyncQuotaWarningConfigTests` Codable round-trip
+- [ ] `ProviderUsageEnvelopeTests` 加 quotaWarnings decode/encode
+- [ ] `QuotaWarningTransitionTests` CKRecord round-trip (避保留字段)
+- [ ] `UsageCardViewQuotaMarkerTests` 渲染逻辑
+- [ ] `QuotaProviderListTests` 114 zone 期望值
+- [ ] Mac side `QuotaWarningEmitterTests` (新)
+- [ ] Mock infra: 给 mock provider 添加 sample quotaWarnings config so S6 mocks 立刻测渲染
 
 ### R7.5 Claude peak-hours iOS indicator (S5, P2)
 
