@@ -73,21 +73,26 @@ struct MockProviderInjectorIntegrationTests {
 
     // MARK: - MR2 Extensibility / determinism
 
-    @Test("MR2.1: enabled count is exactly 32 (29 IDs, 6 rich + 24 simple + 2 fallback entries)")
+    @Test("MR2.1: enabled count is exactly 43 (40 IDs, 6 rich + 35 simple + 2 fallback entries)")
     func enabledCountIsStable() {
         self.enableMock()
         defer { self.resetActivationState() }
-        #expect(MockProviderInjector.allMocks().count == 32)
+        // iOS 1.5.0: 32 mocks (29 IDs). iOS 1.6.0 catch-up: +11 simple
+        // mocks for v0.24+v0.25 providers (openai/manus/windsurf/mimo/
+        // doubao/deepseek/codebuff/crof/venice/commandcode/stepfun).
+        #expect(MockProviderInjector.allMocks().count == 43)
     }
 
-    @Test("MR2.2: 29 distinct providerIDs match the published allowlists (27 real + 2 synthetic)")
+    @Test("MR2.2: 40 distinct providerIDs match the published allowlists (38 real + 2 synthetic)")
     func providerIDsHaveSensibleDistribution() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
         let providerIDs = snapshots.map(\.providerID)
         let uniqueIDs = Set(providerIDs)
-        #expect(uniqueIDs.count == 29, "should be 29 distinct mock provider IDs (27 real + 2 synthetic)")
+        // iOS 1.5.0: 29 (27 real + 2 synthetic). iOS 1.6.0: +11 real
+        // providers (matches QuotaProviderList 27 → 38).
+        #expect(uniqueIDs.count == 40, "should be 40 distinct mock provider IDs (38 real + 2 synthetic)")
         let expected: Set<String> = MockProviderInjector.realProviderIDsBorrowedByMocks
             .union(MockProviderInjector.syntheticProviderIDs)
         #expect(uniqueIDs == expected)
@@ -154,7 +159,7 @@ struct MockProviderInjectorIntegrationTests {
 
         let mockProviders = mock.lastSnapshot?.providers
             .filter { self.isMockSnapshot($0) } ?? []
-        #expect(mockProviders.count == 32)
+        #expect(mockProviders.count == 43)
     }
 
     @Test("MR3.2: empty mock injector closure causes 0 mock providers in lastSnapshot")
@@ -197,13 +202,13 @@ struct MockProviderInjectorIntegrationTests {
 
         let mockEnvelopes = mock.lastPerProviderEnvelopes
             .filter { self.isMockSnapshot($0.provider) }
-        // All 32 mocks must reach the per-provider write path. Ollama
+        // All 43 mocks must reach the per-provider write path. Ollama
         // gets a synthetic 0% "Local inference" rate window (despite
         // having no real quota in production) specifically to avoid
         // ghost-filter drop. Per Codex MCP review feedback (R2 audit):
         // advertising full-provider coverage requires that every mock
         // actually reaches iOS through both write paths.
-        #expect(mockEnvelopes.count == 32)
+        #expect(mockEnvelopes.count == 43)
     }
 
     /// Reference wrapper so tests can flip the mock activation state
@@ -250,7 +255,7 @@ struct MockProviderInjectorIntegrationTests {
         // Flip the in-memory switch.
         mockSwitch.enabled = false
 
-        // Cycle 2: no mocks emitted. All 32 mock recordNames must be
+        // Cycle 2: no mocks emitted. All 43 mock recordNames must be
         // delete-targeted via either whole-provider-gone (synthetic IDs
         // disappear entirely) or account-identity drift (real-borrowed
         // IDs where the only emitted account was a mock).
@@ -315,7 +320,7 @@ struct MockProviderInjectorIntegrationTests {
         let mockProviders = allProviders.filter { self.isMockSnapshot($0) }
         #expect(realCodex.count == 1, "real Codex still emits its 1 record")
         #expect(realCodex.first?.accountEmail == "real@example.com")
-        #expect(mockProviders.count == 32, "32 mock providers also emit")
+        #expect(mockProviders.count == 43, "43 mock providers also emit")
         // Real and mock CAN share providerID under mix design, but
         // they must NEVER share accountEmail.
         let realEmails = Set(realCodex.compactMap(\.accountEmail))
@@ -362,7 +367,7 @@ struct MockProviderInjectorIntegrationTests {
                 providerID: snap.providerID,
                 accountEmail: snap.accountEmail)
         }
-        #expect(Set(recordNames).count == recordNames.count, "all 32 mock record names must be distinct")
+        #expect(Set(recordNames).count == recordNames.count, "all 43 mock record names must be distinct")
     }
 
     @Test("MR4.3: mock multi-account uses accountIdentities with `{providerID}:{scheme}:{value}` schema")
@@ -672,11 +677,12 @@ struct MockProviderInjectorIntegrationTests {
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
         let withCost = snapshots.filter { $0.costSummary != nil }
-        // 32 mocks total; 4 intentionally have nil costSummary:
+        // 43 mocks total; 4 intentionally have nil costSummary:
         // _mock_cursor_unknown (error state), _mock_synthetic_unknown
         // (budget-only), antigravity (preview/no-billing), ollama (local).
-        // Remaining 28 carry cost data.
-        #expect(withCost.count == 28, "expected 28 mocks with cost data; got \(withCost.count)")
+        // Remaining 39 carry cost data (28 in iOS 1.5.0 + 11 simple
+        // mocks added for v0.24+v0.25 providers in iOS 1.6.0).
+        #expect(withCost.count == 39, "expected 39 mocks with cost data; got \(withCost.count)")
     }
 
     @Test("MR6.2: aggregate 30-day mock cost is in plausible $50-$120 range (no skew explosion)")

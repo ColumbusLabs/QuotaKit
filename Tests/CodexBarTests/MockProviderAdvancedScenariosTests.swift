@@ -240,7 +240,7 @@ struct MockProviderAdvancedScenariosTests {
         // a real provider, so iOS's existing CKQuerySubscription set
         // covers them — push notifications fire on quota events without
         // any subscription change.
-        #expect(realBorrowedMocks.count == 30)
+        #expect(realBorrowedMocks.count == 41)
         for snap in realBorrowedMocks {
             #expect(
                 realCatalog.contains(snap.providerID),

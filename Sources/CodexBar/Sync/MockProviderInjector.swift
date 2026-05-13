@@ -1,4 +1,13 @@
-// swiftlint:disable multiline_arguments
+// swiftlint:disable multiline_arguments type_body_length
+//
+// `type_body_length` bumped past the 800-line default in iOS 1.6.0 when
+// 11 simple-mock entries were appended for the v0.24+v0.25 providers
+// (commit bbf9d0a2 / commit 4a8e1b0e era). The whole point of this enum
+// is to be a flat declarative catalog of mock profiles; splitting it
+// into multiple types just to satisfy the line limit would hurt
+// readability without changing the structure. The enum is private to
+// MockProviderInjector and has a clear single responsibility, so the
+// lint suppression is scoped and intentional.
 import CodexBarSync
 import Foundation
 
@@ -104,14 +113,14 @@ enum MockProviderInjector {
     /// - 8 rich mocks (codex × 3 multi-account + claude × 2 multi-account
     ///   + perplexity 3-credit-segment + 2 synthetic `_mock_*` fallback
     ///   error/rich) — exercise the high-traffic UI paths.
-    /// - 24 simple single-account mocks (cursor, opencode, opencodego,
+    /// - 35 simple single-account mocks (cursor, opencode, opencodego,
     ///   alibaba, factory, gemini, antigravity, copilot, zai, minimax,
     ///   kimi, kilo, kiro, vertexai, augment, jetbrains, kimik2, amp,
     ///   ollama, synthetic, warp, openrouter, abacus, mistral) — exercise
     ///   each provider's first-class card on iPhone, plus 30-day
     ///   aggregate cost dashboard contribution.
     ///
-    /// Total: **32 ProviderUsageSnapshot entries across 29 distinct
+    /// Total: **43 ProviderUsageSnapshot entries across 40 distinct
     /// providerIDs** (27 real-borrowed + 2 synthetic). Aggregate
     /// cost ~$70-90/30day.
     static func allMocks() -> [ProviderUsageSnapshot] {
@@ -202,6 +211,11 @@ enum MockProviderInjector {
         "vertexai", "augment", "jetbrains", "kimik2", "amp",
         "ollama", "synthetic", "warp", "openrouter", "perplexity",
         "abacus", "mistral",
+        // iOS 1.6.0 catch-up — must stay in sync with `simpleProviderProfiles`
+        // additions below and with `QuotaProviderList` (Shared/Notifications).
+        "openai", "manus", "windsurf", "mimo", "doubao",
+        "deepseek", "codebuff", "crof", "venice", "commandcode",
+        "stepfun",
     ]
 
     /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
@@ -763,7 +777,7 @@ enum MockProviderInjector {
         }
     }
 
-    /// Profile table for the 24 simple mocks. Each profile yields one
+    /// Profile table for the 35 simple mocks. Each profile yields one
     /// `ProviderUsageSnapshot`. Aggregate 30-day cost intentionally
     /// kept under ~$50 across these 24 so combined with the rich
     /// mocks the total stays under $100 (per MR6.2 invariant).
@@ -1003,6 +1017,113 @@ enum MockProviderInjector {
             primaryResetDescription: "in 7 hours",
             secondary: nil,
             thirtyDayCostUSD: 0.85, sessionCostUSD: 0.03),
+        // iOS 1.6.0 catch-up: 11 simple mocks for the v0.24+v0.25
+        // providers added in 1c95d6e7. providerIDs match Mac's
+        // `UsageProvider` enum raw values (verified against upstream
+        // ProviderDescriptors). Picked usage / cost values are
+        // representative but arbitrary — the goal is exercising every
+        // iOS native-render path (color, icon, card layout) for each
+        // new provider, not modeling real billing.
+        // Simple-mock count: 24 → 35; total mock count: 32 → 43.
+        .init(
+            providerID: "openai", providerName: "OpenAI",
+            accountLocal: "api", loginMethod: "API Credits",
+            primaryUsage: 35, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 18 * 86400,
+            primaryResetDescription: "in 18 days",
+            secondary: nil,
+            thirtyDayCostUSD: 8.50, sessionCostUSD: 0.45),
+        .init(
+            providerID: "manus", providerName: "Manus",
+            accountLocal: "agent", loginMethod: "Pro",
+            primaryUsage: 50, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 14 * 86400,
+            primaryResetDescription: "in 14 days",
+            secondary: nil,
+            thirtyDayCostUSD: 3.20, sessionCostUSD: 0.18),
+        .init(
+            providerID: "windsurf", providerName: "Windsurf",
+            accountLocal: "dev", loginMethod: "Pro",
+            primaryUsage: 42, primaryLabel: "Daily",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 3600 * 15,
+            primaryResetDescription: "in 15 hours",
+            secondary: nil,
+            thirtyDayCostUSD: 2.20, sessionCostUSD: 0.10),
+        .init(
+            providerID: "mimo", providerName: "Xiaomi MiMo",
+            accountLocal: "ai", loginMethod: "Plus",
+            primaryUsage: 15, primaryLabel: "Daily",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 3600 * 13,
+            primaryResetDescription: "in 13 hours",
+            secondary: nil,
+            thirtyDayCostUSD: 0.40, sessionCostUSD: 0.02),
+        .init(
+            providerID: "doubao", providerName: "Doubao",
+            accountLocal: "api", loginMethod: "Pro",
+            primaryUsage: 22, primaryLabel: "Daily",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 3600 * 9,
+            primaryResetDescription: "in 9 hours",
+            secondary: nil,
+            thirtyDayCostUSD: 0.55, sessionCostUSD: 0.02),
+        .init(
+            providerID: "deepseek", providerName: "DeepSeek",
+            accountLocal: "credits", loginMethod: "Funded",
+            primaryUsage: 38, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 21 * 86400,
+            primaryResetDescription: "in 21 days",
+            secondary: nil,
+            thirtyDayCostUSD: 1.50, sessionCostUSD: 0.07),
+        .init(
+            providerID: "codebuff", providerName: "Codebuff",
+            accountLocal: "team", loginMethod: "Pro",
+            primaryUsage: 58, primaryLabel: "Weekly",
+            primaryWindowMinutes: 10080,
+            primaryResetsInSeconds: 3 * 86400,
+            primaryResetDescription: "in 3 days",
+            secondary: nil,
+            thirtyDayCostUSD: 2.90, sessionCostUSD: 0.14),
+        .init(
+            providerID: "crof", providerName: "Crof",
+            accountLocal: "api", loginMethod: "Funded",
+            primaryUsage: 12, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 24 * 86400,
+            primaryResetDescription: "in 24 days",
+            secondary: nil,
+            thirtyDayCostUSD: 0.30, sessionCostUSD: 0.01),
+        .init(
+            providerID: "venice", providerName: "Venice",
+            accountLocal: "diem", loginMethod: "Trial",
+            primaryUsage: 8, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 28 * 86400,
+            primaryResetDescription: "in 28 days",
+            secondary: nil,
+            thirtyDayCostUSD: 0.15, sessionCostUSD: 0.005),
+        .init(
+            providerID: "commandcode", providerName: "Command Code",
+            accountLocal: "build", loginMethod: "Pro",
+            primaryUsage: 65, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 9 * 86400,
+            primaryResetDescription: "in 9 days",
+            secondary: nil,
+            thirtyDayCostUSD: 6.50, sessionCostUSD: 0.32),
+        .init(
+            providerID: "stepfun", providerName: "StepFun",
+            accountLocal: "plan", loginMethod: "Oasis",
+            primaryUsage: 30, primaryLabel: "Daily",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 3600 * 11,
+            primaryResetDescription: "in 11 hours",
+            secondary: nil,
+            thirtyDayCostUSD: 0.95, sessionCostUSD: 0.04),
     ]
 
     /// Builds a `ProviderUsageSnapshot` from a `SimpleProviderProfile`.
@@ -1073,4 +1194,4 @@ enum MockProviderInjector {
     }
 }
 
-// swiftlint:enable multiline_arguments
+// swiftlint:enable multiline_arguments type_body_length
