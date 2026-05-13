@@ -33,14 +33,14 @@ struct MobilePane: View {
             VStack(alignment: .leading, spacing: 16) {
                 // iCloud Sync
                 SettingsSection(contentSpacing: 12) {
-                    Text("iCloud Sync")
+                    Text(L("mobile_section_icloud_sync"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
 
                     PreferenceToggleRow(
-                        title: "Sync usage to iCloud",
-                        subtitle: "Pushes usage data to iCloud so the iOS companion app can display it.",
+                        title: L("mobile_toggle_sync_title"),
+                        subtitle: L("mobile_toggle_sync_subtitle"),
                         binding: self.$settings.iCloudSyncEnabled)
 
                     if self.settings.iCloudSyncEnabled {
@@ -52,17 +52,14 @@ struct MobilePane: View {
 
                 // iOS Push Notifications (independent of Mac local notifications)
                 SettingsSection(contentSpacing: 12) {
-                    Text("iOS Push Notifications")
+                    Text(L("mobile_section_push"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
 
                     PreferenceToggleRow(
-                        title: "Push notifications to iOS",
-                        subtitle: "When a session quota is depleted or restored, send a visible " +
-                            "alert push to the iOS companion app via iCloud. This is independent " +
-                            "of Mac local notifications — you can keep Mac quiet but still get " +
-                            "alerts on your iPhone.",
+                        title: L("mobile_toggle_push_title"),
+                        subtitle: L("mobile_toggle_push_subtitle"),
                         binding: self.$settings.notificationPushToiOSEnabled)
                 }
 
@@ -151,25 +148,20 @@ struct MobilePane: View {
                 Image(systemName: "testtube.2")
                     .foregroundStyle(.purple)
                     .font(.caption)
-                Text("Debug · Mock Provider Data")
+                Text(L("mobile_section_mock_data"))
                     .font(.caption)
                     .foregroundStyle(.purple)
                     .textCase(.uppercase)
             }
 
             PreferenceToggleRow(
-                title: "Inject mock provider data",
-                subtitle: "Pushes 32 synthetic providers across 29 IDs (6 rich mocks for codex/"
-                    + "claude/perplexity multi-account paths, 24 simple mocks covering every other "
-                    + "real provider, 2 unknown-ID mocks for fallback rendering) on every sync. "
-                    + "All mock emails use the `.test` TLD so iPhone (1.5.2+) renders them with a "
-                    + "MOCK badge. Toggle off and CloudKit automatically purges them within ~1 "
-                    + "cycle. Default OFF.",
+                title: L("mobile_toggle_mock_title"),
+                subtitle: L("mobile_toggle_mock_subtitle"),
                 binding: self.$mockProvidersEnabled)
 
             if self.mockProvidersEnabled {
                 Divider()
-                Text("Reference — most-tested 8 mocks (24 simple mocks omitted for brevity):")
+                Text(L("mobile_mock_reference_header"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: 4) {
@@ -196,8 +188,7 @@ struct MobilePane: View {
                     Image(systemName: "info.circle")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Text("Mocks add ~$85 to your 30-day cost dashboard while active. "
-                        + "Toggle off to restore real numbers.")
+                    Text(L("mobile_mock_cost_note"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -214,15 +205,13 @@ struct MobilePane: View {
                 Image(systemName: "hammer.fill")
                     .foregroundStyle(.orange)
                     .font(.caption)
-                Text("DEV — iOS Push Test")
+                Text(L("mobile_section_dev_test"))
                     .font(.caption)
                     .foregroundStyle(.orange)
                     .textCase(.uppercase)
             }
 
-            Text("Writes a real `QuotaTransition` record to CloudKit, which fires the same " +
-                "alert push the iOS app would receive in production. Subject to the toggle " +
-                "above (must be ON).")
+            Text(L("mobile_dev_test_intro"))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
@@ -233,13 +222,13 @@ struct MobilePane: View {
                     Button {
                         self.runTestPush(provider: "Codex", providerID: "codex", state: "depleted")
                     } label: {
-                        Label("Depleted", systemImage: "bell.badge")
+                        Label(L("mobile_dev_depleted"), systemImage: "bell.badge")
                     }
                     .controlSize(.small)
                     Button {
                         self.runTestPush(provider: "Codex", providerID: "codex", state: "restored")
                     } label: {
-                        Label("Restored", systemImage: "bell")
+                        Label(L("mobile_dev_restored"), systemImage: "bell")
                     }
                     .controlSize(.small)
                 }
@@ -253,13 +242,13 @@ struct MobilePane: View {
                     Button {
                         self.runTestPush(provider: "Claude", providerID: "claude", state: "depleted")
                     } label: {
-                        Label("Depleted", systemImage: "bell.badge")
+                        Label(L("mobile_dev_depleted"), systemImage: "bell.badge")
                     }
                     .controlSize(.small)
                     Button {
                         self.runTestPush(provider: "Claude", providerID: "claude", state: "restored")
                     } label: {
-                        Label("Restored", systemImage: "bell")
+                        Label(L("mobile_dev_restored"), systemImage: "bell")
                     }
                     .controlSize(.small)
                 }
@@ -269,7 +258,7 @@ struct MobilePane: View {
             Button {
                 self.verifyPushSetup()
             } label: {
-                Label("Verify Push Setup", systemImage: "checklist")
+                Label(L("mobile_dev_verify_push"), systemImage: "checklist")
             }
             .controlSize(.small)
 
@@ -460,7 +449,7 @@ struct MobilePane: View {
                 if self.syncCoordinator.isSyncing {
                     ProgressView()
                         .controlSize(.small)
-                    Text("Syncing…")
+                    Text(L("mobile_sync_status_syncing"))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 } else if let lastSync = self.syncCoordinator.lastSyncTime {
@@ -472,15 +461,16 @@ struct MobilePane: View {
                             : Color.red)
                         .font(.footnote)
                     Text(
-                        "\(self.syncCoordinator.lastSyncSucceeded ? "Last sync" : "Last attempt"): "
-                            + Self.formatSyncTime(lastSync))
+                        self.syncCoordinator.lastSyncSucceeded
+                            ? L("mobile_sync_status_last_sync_format", Self.formatSyncTime(lastSync))
+                            : L("mobile_sync_status_last_attempt_format", Self.formatSyncTime(lastSync)))
                         .font(.footnote)
                         .foregroundStyle(.tertiary)
                 } else {
                     Image(systemName: "icloud")
                         .foregroundStyle(.secondary)
                         .font(.footnote)
-                    Text("No sync yet")
+                    Text(L("mobile_sync_status_no_sync"))
                         .font(.footnote)
                         .foregroundStyle(.tertiary)
                 }
@@ -493,7 +483,7 @@ struct MobilePane: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Button("Sync Now") {
+            Button(L("mobile_button_sync_now")) {
                 Task {
                     await self.syncCoordinator.pushCurrentSnapshot()
                 }

@@ -599,3 +599,26 @@
 "refresh_5min" = "5 min";
 "refresh_15min" = "15 min";
 "refresh_30min" = "30 min";
+
+// === Fork-only Mac UI strings (Mobile pane) — added 2026-05-12 ===
+"mobile_section_icloud_sync" = "iCloud Sync";
+"mobile_toggle_sync_title" = "Sync usage to iCloud";
+"mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
+"mobile_section_push" = "iOS Push Notifications";
+"mobile_toggle_push_title" = "Push notifications to iOS";
+"mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";
+"mobile_section_mock_data" = "Debug · Mock Provider Data";
+"mobile_toggle_mock_title" = "Inject mock provider data";
+"mobile_toggle_mock_subtitle" = "Pushes 32 synthetic providers across 29 IDs (6 rich mocks for codex/claude/perplexity multi-account paths, 24 simple mocks covering every other real provider, 2 unknown-ID mocks for fallback rendering) on every sync. All mock emails use the `.test` TLD so iPhone (1.5.2+) renders them with a MOCK badge. Toggle off and CloudKit automatically purges them within ~1 cycle. Default OFF.";
+"mobile_mock_reference_header" = "Reference — most-tested 8 mocks (24 simple mocks omitted for brevity):";
+"mobile_mock_cost_note" = "Mocks add ~$85 to your 30-day cost dashboard while active. Toggle off to restore real numbers.";
+"mobile_section_dev_test" = "DEV — iOS Push Test";
+"mobile_dev_test_intro" = "Writes a real `QuotaTransition` record to CloudKit, which fires the same alert push the iOS app would receive in production. Subject to the toggle above (must be ON).";
+"mobile_dev_depleted" = "Depleted";
+"mobile_dev_restored" = "Restored";
+"mobile_dev_verify_push" = "Verify Push Setup";
+"mobile_sync_status_syncing" = "Syncing…";
+"mobile_sync_status_last_sync_format" = "Last sync: %@";
+"mobile_sync_status_last_attempt_format" = "Last attempt: %@";
+"mobile_sync_status_no_sync" = "No sync yet";
+"mobile_button_sync_now" = "Sync Now";
