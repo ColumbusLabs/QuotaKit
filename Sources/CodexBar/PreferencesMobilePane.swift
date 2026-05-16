@@ -437,7 +437,6 @@ struct MobilePane: View {
         }
     }
 
-    @ViewBuilder
     private func warningMenu(provider: String, providerID: String) -> some View {
         Menu {
             ForEach(["session", "weekly"], id: \.self) { window in
