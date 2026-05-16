@@ -1,12 +1,12 @@
 # Changelog
 
-## 0.25.2 — 2026-05-15 — Quota warning push fire path
+## 0.25.2 — 2026-05-15 — Mac quota warnings now push to iPhone
 
-Pairs with iOS 1.6.0. Mac now writes a CloudKit `QuotaTransition` record with `state=warning` whenever a configured warning threshold (e.g. 50% remaining) is crossed for a session or weekly window — your iPhone gets a localized push at the warning, not just at full depletion. Settings → Mobile gains a `Warning ▾` test menu (visible after enabling debug settings) for verifying the push pipeline end-to-end without burning real quota.
+Mac quota warning notifications can now also be pushed to your iPhone (previously, only depletion / restoration triggered a push). Requires iOS 1.6.0+.
 
 # 中文
 
-配合 iOS 1.6.0。Mac 在跨过设定的警告阈值（例如剩余 50%）时，会向 CloudKit 写一条 `state=warning` 的 `QuotaTransition` 记录 —— iPhone 在警告时就能收到本地化推送，不必等到配额完全耗尽。设置 → Mobile 在打开调试设置后新增 `Warning ▾` 测试菜单，可以不消耗真实配额就走完整推送链路。
+Mac 的配额警告通知现在也可以推送到 iPhone 上（之前只有耗尽 / 恢复才会推送）。需配合 iOS 1.6.0+。
 
 ---
 
