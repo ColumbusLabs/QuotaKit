@@ -629,6 +629,7 @@
 "mobile_dev_test_intro" = "向 CloudKit 写入真实的 `QuotaTransition` 记录，触发 iOS app 生产环境下相同的提醒推送。需上方开关打开。";
 "mobile_dev_depleted" = "已耗尽";
 "mobile_dev_restored" = "已恢复";
+"mobile_dev_warning" = "警告";
 "mobile_dev_verify_push" = "验证推送配置";
 "mobile_sync_status_syncing" = "同步中…";
 "mobile_sync_status_last_sync_format" = "上次同步：%@";

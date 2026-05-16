@@ -2,8 +2,9 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [1.6.0 (121)] — 2026-05-13 — Quota warning markers + Mac→iOS push (S4 closing 1.6.0)
+## [1.6.0 (122)] — 2026-05-15 — Quota warning markers + Mac→iOS push (S4 closing 1.6.0)
 
+Build 122 = build 121's feature set + one regression fix (see Fixed).
 Build 121 closes the last Stage 2 deferred item (S4 — quota warning
 markers on the Usage bar) and adds the Mac → iOS push side so the
 iPhone gets a notification when the user crosses a configured
@@ -47,6 +48,23 @@ ticks Mac shows in its menu bar.
   per-provider zones (the parser had stayed pinned to the old global
   zones `QuotaDepletedZone` / `QuotaRestoredZone`).
 
+### Fixed
+
+- **NSE wake-up flag** (build 122). `QuotaTransitionSubscriptions`
+  was creating every `CKSubscription.NotificationInfo` without
+  `shouldSendMutableContent = true`, so APNS delivered only the static
+  fallback alertBody (`"Codex usage warning"`) and the
+  `NotificationService` extension never ran — meaning the rich body
+  rewrite designed in build 121 (`"Codex session usage at 50% threshold"`)
+  was dead on arrival. Side-effect: the silent pre-existing bug where
+  depleted/restored title rewrite also depended on the NSE was masked
+  because those static bodies happened to be acceptable on their own.
+  Both paths now wake the NSE correctly. Drift detection upgraded to
+  re-save subscriptions that are missing the flag, so build 121 →
+  build 122 picks up the fix on first launch without manual cleanup.
+- 4 new `QuotaTransitionSubscriptionsTests` pin the
+  `NotificationInfo` factory contract so this regression can't recur.
+
 ### Tests
 
 - 18 new tests for `SyncQuotaWarningConfig` (Codable round-trip,
@@ -55,12 +73,14 @@ ticks Mac shows in its menu bar.
   per-provider states + recordName parsing edge cases.
 - 3 new Mac tests for the push fire path (gate on, gate off,
   multi-threshold crossings).
+- 4 new `QuotaTransitionSubscriptionsTests` (build 122) for the
+  NSE wake-up flag (see Fixed).
 - Updated Mac and iOS `QuotaProviderListTests` to 114 zones (38 × 3).
 
 ### Versions
 
 - iOS `MARKETING_VERSION`: 1.6.0 (unchanged)
-- iOS `CURRENT_PROJECT_VERSION`: 120 → 121
+- iOS `CURRENT_PROJECT_VERSION`: 120 → 121 (S4 markers + Mac→iOS push) → 122 (NSE flag fix)
 - Mac partner release: 0.25.2 with `CloudSyncManager.writeQuotaWarningTransition`
   + `QuotaTransitionWriter.writeQuotaWarning` + `UsageStore` fire hook.
   Ships in our fork; upstream sync is independent. If the user is on

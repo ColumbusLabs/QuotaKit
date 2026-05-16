@@ -231,6 +231,7 @@ struct MobilePane: View {
                         Label(L("mobile_dev_restored"), systemImage: "bell")
                     }
                     .controlSize(.small)
+                    self.warningMenu(provider: "Codex", providerID: "codex")
                 }
             }
             .disabled(!self.settings.notificationPushToiOSEnabled)
@@ -251,6 +252,7 @@ struct MobilePane: View {
                         Label(L("mobile_dev_restored"), systemImage: "bell")
                     }
                     .controlSize(.small)
+                    self.warningMenu(provider: "Claude", providerID: "claude")
                 }
             }
             .disabled(!self.settings.notificationPushToiOSEnabled)
@@ -431,6 +433,50 @@ struct MobilePane: View {
                     "Check iPhone for push within ~10s."
             } else {
                 self.lastTestResult = "✗ Write failed: \(result.message ?? "unknown")"
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func warningMenu(provider: String, providerID: String) -> some View {
+        Menu {
+            ForEach(["session", "weekly"], id: \.self) { window in
+                Section(window.capitalized) {
+                    ForEach([50, 20, 10], id: \.self) { threshold in
+                        Button("\(threshold)%") {
+                            self.runTestWarningPush(
+                                provider: provider,
+                                providerID: providerID,
+                                window: window,
+                                threshold: threshold)
+                        }
+                    }
+                }
+            }
+        } label: {
+            Label(L("mobile_dev_warning"), systemImage: "exclamationmark.triangle")
+        }
+        .menuStyle(.borderlessButton)
+        .controlSize(.small)
+        .fixedSize()
+    }
+
+    private func runTestWarningPush(
+        provider: String, providerID: String, window: String, threshold: Int)
+    {
+        self.lastTestResult = "Writing \(provider) warning \(window) \(threshold)%…"
+        Task {
+            let result = await CloudSyncManager.shared.writeQuotaWarningTransition(
+                providerName: provider,
+                providerID: providerID,
+                window: window,
+                threshold: threshold,
+                transitionAt: Date())
+            if result.succeeded {
+                self.lastTestResult = "✓ Wrote warning \(window) \(threshold)% at " +
+                    "\(self.shortTime()). Check iPhone for push within ~10s."
+            } else {
+                self.lastTestResult = "✗ Warning write failed: \(result.message ?? "unknown")"
             }
         }
     }

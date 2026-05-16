@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.25.2 — 2026-05-15 — Quota warning push fire path
+
+Pairs with iOS 1.6.0. Mac now writes a CloudKit `QuotaTransition` record with `state=warning` whenever a configured warning threshold (e.g. 50% remaining) is crossed for a session or weekly window — your iPhone gets a localized push at the warning, not just at full depletion. Settings → Mobile gains a `Warning ▾` test menu (visible after enabling debug settings) for verifying the push pipeline end-to-end without burning real quota.
+
+# 中文
+
+配合 iOS 1.6.0。Mac 在跨过设定的警告阈值（例如剩余 50%）时，会向 CloudKit 写一条 `state=warning` 的 `QuotaTransition` 记录 —— iPhone 在警告时就能收到本地化推送，不必等到配额完全耗尽。设置 → Mobile 在打开调试设置后新增 `Warning ▾` 测试菜单，可以不消耗真实配额就走完整推送链路。
+
+---
+
 ## 0.25.1 — 2026-05-12 — Mobile fork's first 0.25.1 release (folds v0.24 / v0.25 / v0.25.1)
 
 **0.25.1-mobile.1.5.3** folds three upstream releases (v0.24, v0.25, v0.25.1) into one Mac build, plus a small zh-Hans / en translation gap fix our audit caught.

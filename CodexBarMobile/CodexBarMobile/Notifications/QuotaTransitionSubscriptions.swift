@@ -3,32 +3,49 @@ import CodexBarSync
 import Foundation
 
 /// Sets up one `CKRecordZoneSubscription` per `(provider, state)` pair so every
-/// incoming CloudKit push already carries the provider's name in its body text.
+/// incoming CloudKit push already carries the provider's name in its body text,
+/// then asks APNS to wake the `NotificationService` extension (NSE) to enrich
+/// the body further with record-specific context (e.g. the crossed warning
+/// threshold).
 ///
-/// ### Why one subscription per provider instead of one per state (Build 54+)
+/// ### Two-layer push copy (iOS 1.6.0 / Mac 0.25.2+)
 ///
-/// Build 53 tried to inject the provider name into the notification via a
-/// `UNNotificationServiceExtension` woken by `shouldSendMutableContent = true`.
-/// On-device verification showed iPhones still displayed the default "CodexBar"
-/// title — the extension didn't wake, most likely because this CloudKit
-/// container silently strips the `shouldSendMutableContent` flag the same way
-/// it strips `titleLocalizationArgs` / `alertLocalizationArgs`.
+/// 1. **Static fallback** baked into the subscription's `alertBody` at
+///    setup time — e.g. `"Codex usage warning"` / `"Codex 用量警告"`. This is
+///    what shows up if the NSE doesn't run (low memory, extension load
+///    failure, etc.) so the push is still informative.
+/// 2. **NSE-enriched body** rewritten by `NotificationService` after the
+///    push lands — e.g. `"Codex session usage at 50% threshold"`. The NSE
+///    parses the record's `recordName` (which encodes window + threshold)
+///    and formats `Push.QuotaWarning.detailBody`. Without this layer the
+///    warning push has no way to surface the threshold % because the
+///    same subscription serves all thresholds for one provider.
 ///
-/// Rather than bet again on a CloudKit feature this container mishandles, we
-/// fall all the way back to the mechanism Build 48 / 52 proved persists
-/// reliably — a plain `CKRecordZoneSubscription` with a static `alertBody` —
-/// and scale it horizontally: one subscription per `(provider, state)` pair,
-/// with the provider's display name baked directly into each subscription's
-/// `alertBody` at setup time using `String(format:)` against a localized
-/// template. The iPhone's locale is resolved at subscription-setup time, so
-/// each iPhone sees its own language without any server-side substitution.
+/// Waking the NSE requires `shouldSendMutableContent = true` on the
+/// subscription's `CKSubscription.NotificationInfo`. Build 53 once
+/// concluded this CloudKit container silently strips the flag — that
+/// turned out to be incorrect (the actual culprit was Build 53's NSE not
+/// being correctly bundled). The flag works on this container; the
+/// drift-detection logic below checks it explicitly so older subs that
+/// were saved without it get re-saved on next launch.
+///
+/// ### Why one subscription per provider instead of one per state
+///
+/// We still use one sub per `(provider, state)` pair so that the static
+/// fallback `alertBody` already carries the provider's display name
+/// without needing the NSE. This way, even if the NSE fails on a given
+/// push, the user still sees `"Codex usage warning"` (not just
+/// `"CodexBar"`). The iPhone's locale is resolved at subscription-setup
+/// time, so each iPhone bakes its own language into the fallback.
 ///
 /// ### What shows up on the iPhone
 ///
-/// - **Title**: iOS default (the app name "CodexBar"). We can't override it
-///   reliably on this container — the extension-based approach failed.
-/// - **Body**: e.g. "Codex 的会话额度已耗尽" on a Chinese iPhone, "Codex session
-///   depleted" on an English iPhone. Baked into the subscription at setup.
+/// - **Title**: iOS default (the app name "CodexBar"). NSE can rewrite
+///   this too via `mutableContent.title` for depleted/restored.
+/// - **Body, NSE OK**: e.g. "Codex session usage at 50% threshold" —
+///   threshold and window parsed from the record's `recordName`.
+/// - **Body, NSE skipped**: e.g. "Codex usage warning" / "Codex 用量警告"
+///   — the static fallback baked into the sub at setup.
 ///
 /// ### Scale
 ///
@@ -174,6 +191,7 @@ final class QuotaTransitionSubscriptions {
                zoneSub.recordType == recordType,
                let info = zoneSub.notificationInfo,
                info.alertBody == expectedBody,
+               info.shouldSendMutableContent,
                (info.titleLocalizationArgs ?? []).isEmpty,
                (info.alertLocalizationArgs ?? []).isEmpty
             {
@@ -182,14 +200,14 @@ final class QuotaTransitionSubscriptions {
             }
 
             // Either missing or drifted — queue for save. CloudKit treats save
-            // with an existing subscriptionID as an overwrite.
+            // with an existing subscriptionID as an overwrite. Note: any sub
+            // saved before iOS 1.6.0 build 122 lacks `shouldSendMutableContent`
+            // and will be re-saved here on first launch of the new build so the
+            // NSE wakes up for subsequent pushes.
             let sub = CKRecordZoneSubscription(
                 zoneID: zoneID, subscriptionID: config.subscriptionID)
             sub.recordType = self.recordType
-            let info = CKSubscription.NotificationInfo()
-            info.alertBody = expectedBody
-            info.soundName = "default"
-            sub.notificationInfo = info
+            sub.notificationInfo = Self.makeNotificationInfo(alertBody: expectedBody)
             subsToSave.append(sub)
         }
 
@@ -248,10 +266,7 @@ final class QuotaTransitionSubscriptions {
             _ = try? await database.deleteSubscription(withID: testID)
             let sub = CKRecordZoneSubscription(zoneID: zoneID, subscriptionID: testID)
             sub.recordType = recordType
-            let info = CKSubscription.NotificationInfo()
-            info.alertBody = "Persistence test"
-            info.soundName = "default"
-            sub.notificationInfo = info
+            sub.notificationInfo = Self.makeNotificationInfo(alertBody: "Persistence test")
             _ = try await database.modifySubscriptions(saving: [sub], deleting: [])
         } catch {
             return "✗ save failed: \(error.localizedDescription)"
@@ -271,6 +286,28 @@ final class QuotaTransitionSubscriptions {
     }
 
     // MARK: - Internals
+
+    /// Builds the `CKSubscription.NotificationInfo` payload used by every quota
+    /// transition subscription this class creates (real + persistence test).
+    ///
+    /// `shouldSendMutableContent = true` is REQUIRED to wake the
+    /// `NotificationService` extension — without it APNS delivers the static
+    /// `alertBody` only and the NSE never gets a chance to rewrite the body
+    /// with record-specific context (e.g. the crossed warning threshold).
+    /// Both `setupIfNeeded()` and `runPersistenceTest()` go through this
+    /// helper so the flag can't drift between paths.
+    ///
+    /// Exposed `internal` for `QuotaTransitionSubscriptionsTests` to assert
+    /// the flag is set; not intended to be called outside this file.
+    /// `nonisolated` because it touches no actor state — keeps the test
+    /// callable from a plain synchronous test context.
+    nonisolated static func makeNotificationInfo(alertBody: String) -> CKSubscription.NotificationInfo {
+        let info = CKSubscription.NotificationInfo()
+        info.alertBody = alertBody
+        info.soundName = "default"
+        info.shouldSendMutableContent = true
+        return info
+    }
 
     private func ensureZoneExists(
         database: CKDatabase, zoneID: CKRecordZone.ID) async throws

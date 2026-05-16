@@ -617,6 +617,7 @@
 "mobile_dev_test_intro" = "Writes a real `QuotaTransition` record to CloudKit, which fires the same alert push the iOS app would receive in production. Subject to the toggle above (must be ON).";
 "mobile_dev_depleted" = "Depleted";
 "mobile_dev_restored" = "Restored";
+"mobile_dev_warning" = "Warning";
 "mobile_dev_verify_push" = "Verify Push Setup";
 "mobile_sync_status_syncing" = "Syncing…";
 "mobile_sync_status_last_sync_format" = "Last sync: %@";
