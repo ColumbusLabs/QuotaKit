@@ -12,5 +12,7 @@
     </array>
     <key>com.apple.developer.icloud-container-environment</key>
     <string>Production</string>
+    <key>com.apple.developer.ubiquity-kvstore-identifier</key>
+    <string>$(TeamIdentifierPrefix)com.codexbar.shared</string>
 </dict>
 </plist>

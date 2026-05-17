@@ -2,35 +2,32 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [1.6.0 (122)] — 2026-05-15 — Quota warning markers + Mac→iOS push (S4 closing 1.6.0)
+## [1.6.0 (126)] — 2026-05-16 — Quota warning markers + Mac→iOS push (S4 closing 1.6.0)
 
-Build 122 = build 121's feature set + one regression fix (see Fixed).
-Build 121 closes the last Stage 2 deferred item (S4 — quota warning
-markers on the Usage bar) and adds the Mac → iOS push side so the
-iPhone gets a notification when the user crosses a configured
-threshold, not just at full depletion. iOS is a pure receiver: every
-threshold + enable flag lives on Mac (`QuotaWarningConfig` per
-provider × window), Mac packs the resolved config into each
-`ProviderUsageSnapshot` it syncs, and iOS renders the same warning
-ticks Mac shows in its menu bar.
+iOS 1.6.0 closes Stage 2 with quota warning markers + the Mac→iOS
+warning push pipeline so the iPhone alerts the user at configured
+thresholds (e.g. 50%, 20% remaining) instead of only at full depletion.
+iOS is a pure receiver: thresholds + enable flags live on Mac per
+provider × window; Mac packs the resolved config into each
+`ProviderUsageSnapshot` and iOS renders matching tick marks on every
+usage bar.
 
 ### Added
 
-- **Quota warning markers on the Usage bar** (S4 Phase 1, commit
-  `023ad460`). `UsageCardView` overlays threshold tick marks at the
-  `100 - remainingPercent` positions on the progress bar. When the
-  user crosses the most critical threshold (lowest remaining-percent
-  value, e.g. 20%), an `exclamationmark.triangle.fill` icon appears
-  next to the card title. Default thresholds match Mac: `[50, 20]` =
-  50% remaining and 20% remaining. Per-provider overrides on Mac flow
-  through transparently.
-- **Mac → iOS quota warning push** (S4 Phase 2, commit `9df173f0`).
-  When usage crosses a threshold on Mac, the iPhone receives a push
-  with the specific window + threshold in its own language ("Codex
-  session usage at 50% threshold" / "Codex 会话用量已达 50% 阈值").
-  Subscription matrix expands 76 → 114 zones (38 providers × 3 states:
-  depleted + restored + warning). Per-provider × window debounce so
-  multi-threshold crossings don't suppress each other.
+- **Quota warning markers on the Usage bar** — `UsageCardView` overlays
+  threshold tick marks at the `100 - remainingPercent` positions on
+  the progress bar. When the user crosses the most critical threshold
+  (lowest remaining-percent value, e.g. 20%), an
+  `exclamationmark.triangle.fill` icon appears next to the card title.
+  Default thresholds match Mac: `[50, 20]` = 50% remaining and 20%
+  remaining. Per-provider overrides on Mac flow through transparently.
+- **Mac → iOS quota warning push** — when usage crosses a threshold on
+  Mac, the iPhone receives a localized push that names the specific
+  window + threshold ("Codex session usage at 50% threshold" /
+  "Codex 会话用量已达 50% 阈值"). Subscription matrix expands 76 → 114
+  zones (38 providers × 3 states: depleted + restored + warning).
+  Per-provider × window debounce so multi-threshold crossings within
+  the same hour don't suppress each other.
 
 ### Changed
 
@@ -50,20 +47,38 @@ ticks Mac shows in its menu bar.
 
 ### Fixed
 
-- **NSE wake-up flag** (build 122). `QuotaTransitionSubscriptions`
-  was creating every `CKSubscription.NotificationInfo` without
-  `shouldSendMutableContent = true`, so APNS delivered only the static
-  fallback alertBody (`"Codex usage warning"`) and the
-  `NotificationService` extension never ran — meaning the rich body
-  rewrite designed in build 121 (`"Codex session usage at 50% threshold"`)
-  was dead on arrival. Side-effect: the silent pre-existing bug where
-  depleted/restored title rewrite also depended on the NSE was masked
-  because those static bodies happened to be acceptable on their own.
-  Both paths now wake the NSE correctly. Drift detection upgraded to
-  re-save subscriptions that are missing the flag, so build 121 →
-  build 122 picks up the fix on first launch without manual cleanup.
-- 4 new `QuotaTransitionSubscriptionsTests` pin the
-  `NotificationInfo` factory contract so this regression can't recur.
+Three bugs caught during pre-release on-device QA, all required for
+the rich push body to actually surface on the iPhone — fold into the
+1.6.0 release notes as one set since none of them ever reached real
+users.
+
+- **NSE wake-up flag.** `QuotaTransitionSubscriptions` was creating
+  every `CKSubscription.NotificationInfo` without
+  `shouldSendMutableContent = true`, so APNS delivered the static
+  fallback alertBody only and the `NotificationService` extension
+  never ran — making the rich body rewrite dead on arrival.
+  Drift detection now re-saves subscriptions missing the flag so an
+  in-place upgrade picks up the fix on first launch without manual
+  cleanup. 4 new `QuotaTransitionSubscriptionsTests` pin the
+  `NotificationInfo` factory so the regression can't recur.
+- **NSE staleness — fetch returned the wrong record.** The NSE
+  originally sorted by `transitionAt desc` server-side and took
+  resultsLimit:1, but CloudKit updates that secondary index
+  **asynchronously after record save** — the push fires BEFORE the
+  index catches up, so the sorted+limited query routinely returned
+  the previous burst's record instead of the one that just fired.
+  On-device repro confirmed `Claude session 20` rewriting a push
+  triggered by `Claude weekly 10`. Replaced with a no-sort fetch
+  (resultsLimit:100) + client-side sort by server-authoritative
+  `record.creationDate`, which doesn't go through a secondary
+  index. 5/5 burst test verified correct body content end-to-end.
+- **CloudKit Production schema deploy.** `transitionAt` was
+  Queryable but not Sortable on the Production schema, so the
+  original sort-based fetch failed with `code=12 Field 'transitionAt'
+  is not marked sortable` and the NSE delivered the static fallback
+  on every push. After the staleness fix above we no longer depend
+  on this index, but Sortable was deployed during diagnosis and is
+  fine to keep.
 
 ### Tests
 
@@ -73,14 +88,13 @@ ticks Mac shows in its menu bar.
   per-provider states + recordName parsing edge cases.
 - 3 new Mac tests for the push fire path (gate on, gate off,
   multi-threshold crossings).
-- 4 new `QuotaTransitionSubscriptionsTests` (build 122) for the
-  NSE wake-up flag (see Fixed).
+- 4 new `QuotaTransitionSubscriptionsTests` for the NSE wake-up flag.
 - Updated Mac and iOS `QuotaProviderListTests` to 114 zones (38 × 3).
 
 ### Versions
 
 - iOS `MARKETING_VERSION`: 1.6.0 (unchanged)
-- iOS `CURRENT_PROJECT_VERSION`: 120 → 121 (S4 markers + Mac→iOS push) → 122 (NSE flag fix)
+- iOS `CURRENT_PROJECT_VERSION`: 120 → 126
 - Mac partner release: 0.25.2 with `CloudSyncManager.writeQuotaWarningTransition`
   + `QuotaTransitionWriter.writeQuotaWarning` + `UsageStore` fire hook.
   Ships in our fork; upstream sync is independent. If the user is on

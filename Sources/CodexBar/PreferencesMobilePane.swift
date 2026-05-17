@@ -258,6 +258,21 @@ struct MobilePane: View {
             .disabled(!self.settings.notificationPushToiOSEnabled)
 
             Button {
+                self.runBurstWarningTest()
+            } label: {
+                Label("Burst Test (5×)", systemImage: "bolt.fill")
+            }
+            .controlSize(.small)
+            .disabled(!self.settings.notificationPushToiOSEnabled)
+
+            Button {
+                self.dumpIOSNSELog()
+            } label: {
+                Label("Dump iOS NSE Log", systemImage: "doc.text")
+            }
+            .controlSize(.small)
+
+            Button {
                 self.verifyPushSetup()
             } label: {
                 Label(L("mobile_dev_verify_push"), systemImage: "checklist")
@@ -296,6 +311,7 @@ struct MobilePane: View {
                         }
                         if let info = sub.notificationInfo {
                             desc += " alert=\(info.alertBody ?? "nil") sound=\(info.soundName ?? "nil")"
+                            desc += " mutableContent=\(info.shouldSendMutableContent)"
                         }
                         lines.append(desc)
                     }
@@ -460,22 +476,127 @@ struct MobilePane: View {
         .fixedSize()
     }
 
+    /// Rolling history of the most recent push-test outcomes so the user
+    /// can read all clicks in one glance, instead of `lastTestResult`
+    /// being overwritten by every press.
+    private func appendTestResult(_ line: String) {
+        let max = 15
+        var lines = (self.lastTestResult ?? "").split(separator: "\n\n", omittingEmptySubsequences: true)
+            .map(String.init)
+        lines.append(line)
+        if lines.count > max {
+            lines.removeFirst(lines.count - max)
+        }
+        self.lastTestResult = lines.joined(separator: "\n\n")
+    }
+
+    private func updateTestResultLast(_ line: String) {
+        // Replace just the last entry instead of appending — used to
+        // upgrade a "writing…" placeholder into a final ✓/✗ outcome.
+        var lines = (self.lastTestResult ?? "").split(separator: "\n\n", omittingEmptySubsequences: true)
+            .map(String.init)
+        if lines.isEmpty {
+            lines.append(line)
+        } else {
+            lines[lines.count - 1] = line
+        }
+        self.lastTestResult = lines.joined(separator: "\n\n")
+    }
+
+    /// Reads the iOS NSE invocation log from the shared `NSUbiquitousKeyValueStore`
+    /// (key `NSEInvocationLog.entries`, written by `CodexBarMobilePushExtension`)
+    /// and dumps every entry as plain text into `lastTestResult` so the user can
+    /// copy from the Mac UI without hopping to the iPhone and screenshotting.
+    ///
+    /// The Mac and iOS app share `com.codexbar.shared` as their
+    /// `ubiquity-kvstore-identifier`, so `NSUbiquitousKeyValueStore.default`
+    /// resolves to the same iCloud-backed KV store on both sides.
+    private func dumpIOSNSELog() {
+        let store = NSUbiquitousKeyValueStore.default
+        store.synchronize()
+        guard let data = store.data(forKey: "NSEInvocationLog.entries") else {
+            self.lastTestResult = "[\(self.shortTime())] iOS NSE log: (empty — no data in iCloud KV)"
+            return
+        }
+        guard let raw = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            self.lastTestResult = "[\(self.shortTime())] iOS NSE log: decode failed " +
+                "(raw bytes=\(data.count))"
+            return
+        }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        var lines = ["[\(self.shortTime())] iOS NSE log — \(raw.count) entries:"]
+        for e in raw {
+            let ts: String
+            if let n = e["timestamp"] as? Double {
+                // JSONEncoder default encodes Date as seconds-since-reference-date
+                // (2001-01-01). Convert to wall time.
+                let d = Date(timeIntervalSinceReferenceDate: n)
+                ts = formatter.string(from: d)
+            } else {
+                ts = "?"
+            }
+            let event = (e["event"] as? String) ?? "?"
+            let zone = (e["zoneName"] as? String) ?? "-"
+            let detail = (e["detail"] as? String) ?? ""
+            lines.append("\(ts) \(event.uppercased()) \(zone) | \(detail)")
+        }
+        self.lastTestResult = lines.joined(separator: "\n")
+    }
+
+    /// Fires 5 distinct warning records spaced 5s apart so we can measure
+    /// push-coalesce behavior end-to-end without relying on the Menu UI
+    /// (SwiftUI Menu can't be reliably driven via AppleScript for QA
+    /// automation). Combinations vary `(provider, window, threshold)` so
+    /// each recordName is unique and CK shouldn't dedupe.
+    private func runBurstWarningTest() {
+        let burst: [(String, String, String, Int)] = [
+            ("Codex", "codex", "session", 50),
+            ("Claude", "claude", "session", 20),
+            ("Codex", "codex", "weekly", 50),
+            ("Claude", "claude", "weekly", 10),
+            ("Codex", "codex", "session", 10),
+        ]
+        self.appendTestResult(
+            "[\(self.shortTime())] === BURST start (5 distinct combos, 5s spacing) ===")
+        Task {
+            for (i, item) in burst.enumerated() {
+                let (provider, providerID, window, threshold) = item
+                self.runTestWarningPush(
+                    provider: provider,
+                    providerID: providerID,
+                    window: window,
+                    threshold: threshold)
+                if i < burst.count - 1 {
+                    try? await Task.sleep(nanoseconds: 5_000_000_000)
+                }
+            }
+            self.appendTestResult("[\(self.shortTime())] === BURST end (5 fired) ===")
+        }
+    }
+
     private func runTestWarningPush(
         provider: String, providerID: String, window: String, threshold: Int)
     {
-        self.lastTestResult = "Writing \(provider) warning \(window) \(threshold)%…"
+        let now = Date()
+        let zone = "Quota-\(providerID)-warningZone"
+        let hourBucket = Int(now.timeIntervalSince1970 / 3600)
+        let recordName = "\(providerID)-\(window)-t\(threshold)-\(hourBucket)"
+        let header = "[\(self.shortTime())] \(provider) warning \(window) \(threshold)%"
+        self.appendTestResult("\(header)\n  record: \(recordName)\n  writing…")
         Task {
             let result = await CloudSyncManager.shared.writeQuotaWarningTransition(
                 providerName: provider,
                 providerID: providerID,
                 window: window,
                 threshold: threshold,
-                transitionAt: Date())
+                transitionAt: now)
             if result.succeeded {
-                self.lastTestResult = "✓ Wrote warning \(window) \(threshold)% at " +
-                    "\(self.shortTime()). Check iPhone for push within ~10s."
+                self.updateTestResultLast(
+                    "\(header)\n  record: \(recordName)\n  ✓ CK write OK")
             } else {
-                self.lastTestResult = "✗ Warning write failed: \(result.message ?? "unknown")"
+                self.updateTestResultLast(
+                    "\(header)\n  record: \(recordName)\n  ✗ CK FAIL: \(result.message ?? "?")")
             }
         }
     }

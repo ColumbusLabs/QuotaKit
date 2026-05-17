@@ -1882,6 +1882,29 @@ private struct PushSetupDiagnosticView: View {
                 }
             }
 
+            #if DEBUG
+            // NSE invocation log was added in build 122 to diagnose the
+            // mutable-content / staleness chain. Useful for developers; not
+            // shown in RELEASE builds (TestFlight + App Store) — the storage
+            // backing (`NSEInvocationLog` → `NSUbiquitousKeyValueStore`) is
+            // still active so a future DEBUG build can read prior entries.
+            Section("Recent NSE Invocations") {
+                NSEInvocationLogSection(entries: self.nseEntries)
+                HStack {
+                    Button("Refresh") {
+                        self.nseEntries = NSEInvocationLog.shared.loadAll()
+                    }
+                    .controlSize(.small)
+                    Button("Clear") {
+                        NSEInvocationLog.shared.clear()
+                        self.nseEntries = []
+                    }
+                    .controlSize(.small)
+                    .tint(.red)
+                }
+            }
+            #endif
+
             if let ts = self.diag.lastUpdated {
                 Section {
                     Text("Last updated: \(ts.formatted(.dateTime))")
@@ -1891,7 +1914,12 @@ private struct PushSetupDiagnosticView: View {
             }
         }
         .navigationTitle("Push Setup")
+        .onAppear {
+            self.nseEntries = NSEInvocationLog.shared.loadAll()
+        }
     }
+
+    @State private var nseEntries: [NSEInvocationEntry] = []
 
     private func row(_ title: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -1907,6 +1935,53 @@ private struct PushSetupDiagnosticView: View {
     }
 }
 
+
+/// Renders the NSE invocation log (newest first) so a developer can verify
+/// end-to-end the warning push pipeline without reading device logs in
+/// Console.app. Empty state hints the user how to populate it.
+private struct NSEInvocationLogSection: View {
+    let entries: [NSEInvocationEntry]
+
+    var body: some View {
+        if entries.isEmpty {
+            Text("No NSE invocations recorded. Trigger a push from the Mac DEV menu, then tap Refresh.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        } else {
+            ForEach(Array(entries.reversed().enumerated()), id: \.offset) { _, entry in
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(entry.event.rawValue.uppercased())
+                            .font(.caption.bold())
+                            .foregroundStyle(self.color(for: entry.event))
+                        Spacer()
+                        Text(entry.timestamp.formatted(.dateTime.hour().minute().second()))
+                            .font(.caption2.monospaced())
+                            .foregroundStyle(.tertiary)
+                    }
+                    if let zone = entry.zoneName {
+                        Text(zone)
+                            .font(.caption2.monospaced())
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(entry.detail)
+                        .font(.caption2)
+                        .textSelection(.enabled)
+                }
+                .padding(.vertical, 2)
+            }
+        }
+    }
+
+    private func color(for event: NSEInvocationEvent) -> Color {
+        switch event {
+        case .ok: .green
+        case .woke: .blue
+        case .zoneNil, .fetchNil: .orange
+        case .fetchError: .red
+        }
+    }
+}
 
 private struct ReleaseNotesVersion: Identifiable {
     struct Section: Identifiable {

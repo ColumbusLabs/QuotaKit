@@ -91,6 +91,16 @@ final class NotificationService: UNNotificationServiceExtension {
             return
         }
 
+        // Build 124: every NSE invocation logs to the shared App Group store
+        // so the iOS app's Push Setup diagnostic UI surfaces the entire NSE
+        // history without polluting the user-visible push body.
+        let started = Date()
+        NSEInvocationLog.shared.recordEntry(
+            timestamp: started,
+            event: .woke,
+            zoneName: nil,
+            detail: "userInfo keys: \(request.content.userInfo.keys.map { "\($0)" }.sorted().joined(separator: ","))")
+
         let handlerBox = ContentHandlerBox(call: contentHandler)
         let latch = DeliveryLatch()
         self.pendingHandler = handlerBox
@@ -101,6 +111,11 @@ final class NotificationService: UNNotificationServiceExtension {
             from: request.content.userInfo)
         else {
             // Not one of our quota zone notifications — deliver unchanged.
+            NSEInvocationLog.shared.recordEntry(
+                timestamp: started,
+                event: .zoneNil,
+                zoneName: nil,
+                detail: "extractQuotaZoneID returned nil")
             if latch.tryFire() {
                 handlerBox.call(best)
             }
@@ -109,6 +124,7 @@ final class NotificationService: UNNotificationServiceExtension {
 
         let contentBox = ContentBox(value: best)
         self.fetchTask = Self.makeFetchTask(
+            startedAt: started,
             zoneID: zoneID,
             handler: handlerBox,
             content: contentBox,
@@ -122,35 +138,135 @@ final class NotificationService: UNNotificationServiceExtension {
     /// `self`'s mutable state, but a free function with Sendable args sidesteps
     /// the issue.
     private static func makeFetchTask(
+        startedAt: Date,
         zoneID: CKRecordZone.ID,
         handler: ContentHandlerBox,
         content: ContentBox,
         latch: DeliveryLatch) -> Task<Void, Never>
     {
         return Task {
-            // iOS 1.6.0 / Mac 0.25.2 — for warning-state zones we fetch
-            // the latest record's recordName (encodes window + threshold)
-            // and rewrite both title AND body. For depleted/restored we
-            // keep the Build 54+ behavior (title rewrite only).
             let parsed = QuotaZoneNotificationParser.parseQuotaZoneName(zoneID.zoneName)
             if parsed?.state == .warning {
-                let info = await Self.fetchLatestWarningInfo(in: zoneID)
-                if let info {
+                let result = await Self.fetchLatestWarningInfoDiagnostic(in: zoneID)
+                switch result {
+                case let .success(info):
                     content.value.title = info.providerName
                     content.value.body = Self.formatWarningBody(
                         providerName: info.providerName,
                         window: info.window,
                         threshold: info.threshold)
+                    NSEInvocationLog.shared.recordEntry(
+                        timestamp: startedAt,
+                        event: .ok,
+                        zoneName: zoneID.zoneName,
+                        detail: "rewrote body: provider=\(info.providerName) window=\(info.window) threshold=\(info.threshold)")
+                case let .empty(reason):
+                    NSEInvocationLog.shared.recordEntry(
+                        timestamp: startedAt,
+                        event: .fetchNil,
+                        zoneName: zoneID.zoneName,
+                        detail: reason)
+                case let .error(message):
+                    NSEInvocationLog.shared.recordEntry(
+                        timestamp: startedAt,
+                        event: .fetchError,
+                        zoneName: zoneID.zoneName,
+                        detail: message)
                 }
             } else {
                 let providerName = await Self.fetchLatestProviderName(in: zoneID)
                 if let providerName, !providerName.isEmpty {
                     content.value.title = providerName
+                    NSEInvocationLog.shared.recordEntry(
+                        timestamp: startedAt,
+                        event: .ok,
+                        zoneName: zoneID.zoneName,
+                        detail: "title rewrite: \(providerName)")
+                } else {
+                    NSEInvocationLog.shared.recordEntry(
+                        timestamp: startedAt,
+                        event: .fetchNil,
+                        zoneName: zoneID.zoneName,
+                        detail: "depleted/restored fetch returned nil")
                 }
             }
             if latch.tryFire() {
                 handler.call(content.value)
             }
+        }
+    }
+
+    /// Diagnostic variant of `fetchLatestWarningInfo` that distinguishes
+    /// between empty-result, error, and success. Build 124 only — once the
+    /// pipeline is verified end-to-end we can collapse back to the optional-
+    /// returning version, but for now we want the NSE log to record the
+    /// exact CloudKit error message when fetch fails.
+    enum WarningFetchResult {
+        case success(providerName: String, window: String, threshold: Int)
+        case empty(reason: String)
+        case error(message: String)
+    }
+
+    static func fetchLatestWarningInfoDiagnostic(
+        in zoneID: CKRecordZone.ID
+    ) async -> WarningFetchResult {
+        let container = CKContainer(identifier: CloudSyncConstants.containerIdentifier)
+        let query = CKQuery(
+            recordType: CloudSyncConstants.quotaTransitionRecordType,
+            predicate: NSPredicate(value: true))
+        // INTENTIONALLY no sortDescriptors. Build 125 used `transitionAt` desc
+        // sort + resultsLimit: 1 — but that depends on CK's secondary index
+        // for `transitionAt`, which Apple's CKContainer infrastructure updates
+        // **asynchronously after record save**. The subscription push fires
+        // BEFORE the index catches up, so a sorted+limited query routinely
+        // returns a stale older record instead of the one that just triggered
+        // the push. Confirmed by NSE log @ 18:13:33 fetching `claude session 20`
+        // when Mac had just written `claude weekly 10` at 18:13:32 — wrong
+        // record returned by server-side sort.
+        //
+        // Build 126 fix: pull up to 100 records unsorted, then pick the record
+        // with the newest `creationDate` (server-authoritative metadata that
+        // doesn't go through a secondary index). With per-hour recordName
+        // bucketing on the writer side, zones rarely accumulate beyond a few
+        // dozen records, so the over-fetch is cheap.
+        do {
+            let (matchResults, _) = try await container.privateCloudDatabase.records(
+                matching: query,
+                inZoneWith: zoneID,
+                desiredKeys: ["providerName"],
+                resultsLimit: 100)
+            var newest: CKRecord?
+            for (_, result) in matchResults {
+                guard case let .success(record) = result else { continue }
+                if let cur = newest {
+                    let curDate = cur.creationDate ?? .distantPast
+                    let newDate = record.creationDate ?? .distantPast
+                    if newDate > curDate {
+                        newest = record
+                    }
+                } else {
+                    newest = record
+                }
+            }
+            guard let record = newest else {
+                return .empty(reason: "matchResults empty in \(zoneID.zoneName)")
+            }
+            guard let providerName = record["providerName"] as? String else {
+                return .empty(reason: "record \(record.recordID.recordName) missing providerName")
+            }
+            guard let parsed = QuotaZoneNotificationParser.parseWarningRecordName(
+                record.recordID.recordName)
+            else {
+                return .success(providerName: providerName, window: "", threshold: 0)
+            }
+            return .success(
+                providerName: providerName,
+                window: parsed.window,
+                threshold: parsed.threshold)
+        } catch {
+            let ckErr = error as? CKError
+            let ckCode = ckErr.map { "code=\($0.code.rawValue)" } ?? "type=\(type(of: error))"
+            return .error(message: "query failed \(ckCode): \(error.localizedDescription)")
         }
     }
 
@@ -170,14 +286,11 @@ final class NotificationService: UNNotificationServiceExtension {
     /// Returns the most recent `QuotaTransition` record's `providerName` in the
     /// given zone, or `nil` if the fetch fails or returns nothing useful.
     ///
-    /// We use a server-side `transitionAt` descending sort + `resultsLimit: 1`,
-    /// so the zone size doesn't affect correctness — even after a year of
-    /// accumulated records the newest one comes back first. `transitionAt` is
-    /// a `Date` field which CloudKit auto-infers as Sortable when records were
-    /// first written (Build 48). If the field is somehow not Sortable in the
-    /// deployed Production schema, the query throws and we return `nil`,
-    /// which makes the extension fall back to delivering the Build 52 body
-    /// without a provider title — no regression.
+    /// Build 126: stopped relying on `transitionAt` server-side sort — the
+    /// secondary index lags record save, so the "latest" record returned by
+    /// CloudKit is routinely the previous burst's record, not the one that
+    /// just fired this NSE. Now we fetch up to 100 records unsorted and pick
+    /// the newest by server-authoritative `creationDate` client-side.
     static func fetchLatestProviderName(
         in zoneID: CKRecordZone.ID) async -> String?
     {
@@ -185,18 +298,24 @@ final class NotificationService: UNNotificationServiceExtension {
         let query = CKQuery(
             recordType: CloudSyncConstants.quotaTransitionRecordType,
             predicate: NSPredicate(value: true))
-        query.sortDescriptors = [
-            NSSortDescriptor(key: "transitionAt", ascending: false),
-        ]
         do {
             let (matchResults, _) = try await container.privateCloudDatabase.records(
                 matching: query,
                 inZoneWith: zoneID,
                 desiredKeys: ["providerName"],
-                resultsLimit: 1)
-            guard let first = matchResults.first else { return nil }
-            let record = try first.1.get()
-            return record["providerName"] as? String
+                resultsLimit: 100)
+            var newest: CKRecord?
+            for (_, result) in matchResults {
+                guard case let .success(record) = result else { continue }
+                if let cur = newest {
+                    if (record.creationDate ?? .distantPast) > (cur.creationDate ?? .distantPast) {
+                        newest = record
+                    }
+                } else {
+                    newest = record
+                }
+            }
+            return newest?["providerName"] as? String
         } catch {
             return nil
         }
