@@ -10,10 +10,30 @@
             <sparkle:shortVersionString>0.25.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<h2>CodexBar 0.25.2-Mobile 1.6.0</h2>
-Mac quota warning notifications can now also be pushed to your iPhone (previously, only depletion / restoration triggered a push). Requires iOS 1.6.0+.
-# 中文
-Mac 的配额警告通知现在也可以推送到 iPhone 上（之前只有耗尽 / 恢复才会推送）。需配合 iOS 1.6.0+。
+<p>Mac quota warning notifications can now also be pushed to your iPhone (previously, only depletion / restoration triggered a push). Requires iOS 1.6.0+.</p>
+<h3>中文</h3>
+<p>Mac 的配额警告通知现在也可以推送到 iPhone 上（之前只有耗尽 / 恢复才会推送）。需配合 iOS 1.6.0+。</p>
 <hr/>
+<h3>Recent updates (if you skipped 0.25.1)</h3>
+<ul>
+<li><strong>11 new providers</strong> — Windsurf, Codebuff, DeepSeek, Manus, MiMo, Qwen, Doubao, Command Code, StepFun, Crof, Venice, plus OpenAI API balance tracking.</li>
+<li><strong>Simplified Chinese</strong> localization with in-app language selector.</li>
+<li><strong>Quota warning notifications</strong> on Mac — opt-in alerts at configurable thresholds for session and weekly quota windows.</li>
+<li><strong>Codex multi-account switcher</strong> — stacked or segmented layout in the menu bar.</li>
+<li><strong>MiniMax</strong> multi-service quota cards (text / speech / image / video / music).</li>
+<li><strong>Copilot multi-account</strong> + Claude peak-hours indicator + Storage usage view.</li>
+<li>Settings / About no longer crashes on packaged-app launch; Cursor Enterprise / Team usage displays correctly; macOS 26.4 menu bar icon visible again.</li>
+</ul>
+<h3>之前的更新（若您是从更早版本升级）</h3>
+<ul>
+<li><strong>11 个新 provider</strong> —— Windsurf、Codebuff、DeepSeek、Manus、Xiaomi MiMo、Qwen、Doubao、Command Code、StepFun、Crof、Venice，加 OpenAI API balance 跟踪。</li>
+<li><strong>简体中文</strong> 本地化 + 应用内语言选择器。</li>
+<li><strong>配额警告通知</strong> Mac 端 —— session / 周额度按可配置阈值提醒，可选开启。</li>
+<li><strong>Codex 多账号切换器</strong> —— 菜单栏堆叠 / 分段两种布局。</li>
+<li><strong>MiniMax</strong> 多业务额度卡（文本 / 语音 / 图像 / 视频 / 音乐）。</li>
+<li><strong>Copilot 多账号</strong> + Claude 高峰时段指示器 + 本地存储用量视图。</li>
+<li>Settings / About 启动崩溃修复；Cursor 企业版用量显示正确；macOS 26.4 菜单栏图标可见。</li>
+</ul>
 <p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.25.2-mobile.1.6.0/CodexBar-0.25.2-mobile.1.6.0.zip" length="37172538" type="application/octet-stream" sparkle:edSignature="lzuRP3jqaS+goOLngWkY0Cz7szFUd7FAbQap8i4slph4UcM7tXu+8yGluypBTdFDgWtVxJfCqxzkcXzJ5xBWBw=="/>
