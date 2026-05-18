@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import CodexBarCore
 
+// swiftlint:disable:next type_body_length
 struct CostUsageScannerTests {
     @Test
     func `vertex daily report filters claude logs`() throws {
