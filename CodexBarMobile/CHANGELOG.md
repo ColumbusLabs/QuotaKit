@@ -2,15 +2,17 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [1.6.0 (129)] — 2026-05-18 — Upstream v0.26.1 fold-in: six new provider cards + settings
+## [1.7.0 (129)] — 2026-05-18 — Upstream v0.26.1 fold-in: six new dedicated provider cards + settings
 
-Marketing version intentionally stays at **1.6.0** (same as the
-previously-released 1.6.0 / 126). This build keeps incrementing the
-build number while adding features against the v0.26.1 Mac sync; the
-marketing bump to 1.7 is held back until QA across the new card UI is
-complete and we decide it's ready to be called a 1.x feature release.
+iOS 1.7.0 is the iOS-side development track that pairs with the
+**fork Mac 0.26.1** release. Mac ships first (matched with the
+currently-installed iOS 1.6.0 on TestFlight); when 1.7.0 is verified
+on TestFlight, a follow-up Mac release will pair against it. The
+intermediate state — Mac 0.26.1 paired with iOS 1.6.0 (126) on users'
+devices — works because every new envelope field is `decodeIfPresent`
+optional, so 1.6.0 ignores the new keys while 1.7.0 renders the cards.
 
-### Added (new UI surfaces, gated on Mac populating the typed envelope)
+### Added
 
 - **OpenAI API Dashboard** — `Views/OpenAIDashboardSection.swift`. On
   the `openai` provider detail page when `openAIAPIDashboard != nil`:
@@ -58,23 +60,17 @@ complete and we decide it's ready to be called a 1.x feature release.
   `nil`, every new card stays hidden. The detail page falls through to
   the existing rate-window / cost-summary / utilization-history /
   daily-chart sections exactly as in 1.6.0 (126).
-- Old iOS (1.6.0 (126) currently on TestFlight) reading a new Mac
-  payload: same — unknown keys ignored, baseline cards render normally.
+- iOS 1.6.0 (126) reading a NEW Mac payload (post-0.26.1): same —
+  unknown keys ignored, baseline cards render normally. This is what
+  lets the Mac 0.26.1 release ship paired with the currently-installed
+  iOS 1.6.0 before iOS 1.7.0 itself reaches users.
 
 ### Required Mac version
 
-- Mac 0.26.1 (fork build 63.2 or later) for the new typed cards.
-  iPhone 1.6.0 (129) is forward-compatible with the previous Mac
-  build (0.25.2 / 61.2) — new cards stay hidden, other functionality
+- Mac 0.26.1 (fork build 63.2 or later) for the new typed cards. iOS
+  1.7.0 (129) is forward-compatible with the previous Mac build
+  (0.25.2 / 61.2) — new cards stay hidden, other functionality
   unchanged.
-
-### Marketing-version policy
-
-This release keeps 1.6.0 deliberately to honor the "don't pre-bump
-ahead of an actual release event" convention. When the next user-facing
-release is published (likely 1.7.0), this build's contents will be in
-that release; the in-app release-notes catalog will get an updated
-1.7.0 entry at that point.
 
 ### Added
 
