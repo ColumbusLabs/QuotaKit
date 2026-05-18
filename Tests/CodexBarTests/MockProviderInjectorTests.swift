@@ -46,9 +46,12 @@ struct MockProviderInjectorTests {
         let env = ["CODEXBAR_MOCK_PROVIDERS": "1"]
         #expect(MockProviderInjector.isEnabled(
             environment: env, userDefaults: defaults))
+        // Phase G adds 7 multi-account second-tab simple mocks
+        // (openai/deepseek/antigravity/manus/copilot/venice/stepfun) so
+        // iOS multi-account tab UI is exercised end-to-end. 45 → 52.
         #expect(
-            MockProviderInjector.allMocks().count == 45,
-            "iOS 1.7.0 adds 2 more simple mocks (moonshot + bedrock) for v0.26.0 new providers (was 43 in 1.6.0).")
+            MockProviderInjector.allMocks().count == 52,
+            "Phase G: 45 → 52 (+7 multi-account second-tab mocks).")
     }
 
     @Test("UserDefaults true alone (no env var) → disabled")

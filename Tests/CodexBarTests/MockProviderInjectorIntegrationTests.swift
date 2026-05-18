@@ -78,13 +78,16 @@ struct MockProviderInjectorIntegrationTests {
         self.enableMock()
         defer { self.resetActivationState() }
         // iOS 1.5.0: 32 mocks (29 IDs). iOS 1.6.0 catch-up: +11 simple
-        // mocks for v0.24+v0.25 providers (openai/manus/windsurf/mimo/
-        // doubao/deepseek/codebuff/crof/venice/commandcode/stepfun).
-        // iOS 1.7.0 catch-up: +2 simple mocks for v0.26 providers
-        // (moonshot/bedrock).
-        #expect(MockProviderInjector.allMocks().count == 45)
+        // mocks for v0.24+v0.25 providers. iOS 1.7.0 catch-up: +2 for
+        // v0.26 (moonshot/bedrock). Phase G: +7 multi-account
+        // second-tab mocks for openai/deepseek/antigravity/manus/
+        // copilot/venice/stepfun.
+        #expect(MockProviderInjector.allMocks().count == 52)
     }
 
+    /// Phase G multi-account additions REUSE existing providerIDs
+    /// (second tabs for openai/deepseek/... that already had a first
+    /// entry), so unique providerID count stays at 42.
     @Test("MR2.2: 42 distinct providerIDs match the published allowlists (40 real + 2 synthetic)")
     func providerIDsHaveSensibleDistribution() {
         self.enableMock()
@@ -95,6 +98,9 @@ struct MockProviderInjectorIntegrationTests {
         // iOS 1.5.0: 29 (27 real + 2 synthetic). iOS 1.6.0: +11 real
         // providers (matches QuotaProviderList 27 → 38). iOS 1.7.0: +2
         // (moonshot, bedrock) → 40 real + 2 synthetic = 42 unique IDs.
+        // Phase G additions REUSE existing providerIDs (second tabs
+        // for openai/deepseek/... that already had a first entry), so
+        // unique ID count stays at 42.
         #expect(uniqueIDs.count == 42, "should be 42 distinct mock provider IDs (40 real + 2 synthetic)")
         let expected: Set<String> = MockProviderInjector.realProviderIDsBorrowedByMocks
             .union(MockProviderInjector.syntheticProviderIDs)
@@ -163,7 +169,8 @@ struct MockProviderInjectorIntegrationTests {
         let mockProviders = mock.lastSnapshot?.providers
             .filter { self.isMockSnapshot($0) } ?? []
         // iOS 1.7.0: 43 → 45 (moonshot + bedrock).
-        #expect(mockProviders.count == 45)
+        // Phase G: 45 → 52 (+7 multi-account second tabs).
+        #expect(mockProviders.count == 52)
     }
 
     @Test("MR3.2: empty mock injector closure causes 0 mock providers in lastSnapshot")
@@ -213,7 +220,7 @@ struct MockProviderInjectorIntegrationTests {
         // advertising full-provider coverage requires that every mock
         // actually reaches iOS through both write paths.
         // iOS 1.7.0: 43 → 45 (moonshot + bedrock).
-        #expect(mockEnvelopes.count == 45)
+        #expect(mockEnvelopes.count == 52, "Phase G: 45 → 52 (+7 multi-account second tabs).")
     }
 
     /// Reference wrapper so tests can flip the mock activation state
@@ -326,7 +333,8 @@ struct MockProviderInjectorIntegrationTests {
         #expect(realCodex.count == 1, "real Codex still emits its 1 record")
         #expect(realCodex.first?.accountEmail == "real@example.com")
         // iOS 1.7.0: 43 → 45 (moonshot + bedrock).
-        #expect(mockProviders.count == 45, "45 mock providers also emit")
+        // Phase G: 45 → 52 (+7 second-tab mocks).
+        #expect(mockProviders.count == 52, "52 mock providers also emit")
         // Real and mock CAN share providerID under mix design, but
         // they must NEVER share accountEmail.
         let realEmails = Set(realCodex.compactMap(\.accountEmail))
@@ -683,16 +691,16 @@ struct MockProviderInjectorIntegrationTests {
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
         let withCost = snapshots.filter { $0.costSummary != nil }
-        // 45 mocks total; 4 intentionally have nil costSummary:
-        // _mock_cursor_unknown (error state), _mock_synthetic_unknown
-        // (budget-only), antigravity (preview/no-billing), ollama (local).
-        // Remaining 41 carry cost data (28 in iOS 1.5.0 + 11 simple
-        // mocks added for v0.24+v0.25 providers in iOS 1.6.0 + 2 simple
-        // mocks for v0.26.0 providers in iOS 1.7.0 (moonshot, bedrock)).
-        #expect(withCost.count == 41, "expected 41 mocks with cost data; got \(withCost.count)")
+        // 52 mocks total; 5 intentionally have nil costSummary:
+        // _mock_cursor_unknown (error), _mock_synthetic_unknown (budget-
+        // only), antigravity-balance (preview), antigravity-team (Phase G,
+        // also preview/no-billing → thirtyDayCostUSD: 0 deliberately;
+        // makeSimpleProviderMock skips cost when 0/0), ollama (local).
+        // Remaining 47 carry cost data.
+        #expect(withCost.count == 47, "expected 47 mocks with cost data; got \(withCost.count)")
     }
 
-    @Test("MR6.2: aggregate 30-day mock cost is in plausible $50-$150 range (no skew explosion)")
+    @Test("MR6.2: aggregate 30-day mock cost is in plausible $50-$180 range (no skew explosion)")
     func aggregate30DayCostIsBounded() {
         self.enableMock()
         defer { self.resetActivationState() }
@@ -702,10 +710,10 @@ struct MockProviderInjectorIntegrationTests {
             .compactMap(\.last30DaysCostUSD)
             .reduce(0, +)
         #expect(total > 50, "aggregate must be visible enough to test ($50+)")
-        // iOS 1.7.0: Bedrock mock adds $19.10/30day → ceiling bumped
-        // 120 → 150 to accommodate the v0.26 expansion without losing
-        // the "don't dominate real cost" intent.
-        #expect(total < 150, "aggregate must not skew so far it dominates real users' real cost ($<150)")
+        // Phase G: 7 multi-account second-tab mocks (~$20/30day total
+        // across them) → ceiling 150 → 180 to fit. Still well under
+        // a level that would dominate real users' real cost.
+        #expect(total < 180, "aggregate must not skew so far it dominates real users' real cost ($<180)")
     }
 
     @Test("MR6.3: at least one mock carries 30-day daily breakdown for chart testing")

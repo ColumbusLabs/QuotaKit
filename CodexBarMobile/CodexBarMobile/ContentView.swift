@@ -205,45 +205,43 @@ private struct ProviderListView: View {
         let activeLinkagesByProviderID = Dictionary(
             grouping: self.usageData.providerLinkages.filter { !$0.unmerge },
             by: \.providerID)
+        // Phase G — group by providerID so multi-account providers
+        // (Codex × 3, OpenAI × 2 admins, Claude × 2 sessions, etc.) show
+        // as ONE row in the Usage list instead of N. Tapping the row
+        // navigates to ProviderDetailView which renders the segmented
+        // account tab bar at the top, matching Mac UX. Cross-Mac
+        // same-account merging already happened in `mergeSnapshots`
+        // upstream of this grouping, so each group's accounts are all
+        // distinct (no duplicates within).
+        let groups = liveProviders.groupedByProvider()
         return ScrollView {
             LazyVStack(spacing: 16) {
                 MockProviderBanner(snapshot: self.snapshot)
-                // Pre-compute the per-providerID siblings-count lookup once.
-                // `mergeSnapshots` on iCloud side already splits multi-account
-                // Codex (or anything else with distinct accountEmails) into
-                // separate `ProviderUsageSnapshot` entries — but previously
-                // we used `\.providerID` as the ForEach identity, which
-                // collapsed duplicates back into one view instance. Switch
-                // to the composite key that matches `mergeSnapshots`'s bucket.
-                let countsByProviderID = Dictionary(
-                    grouping: liveProviders, by: \.providerID
-                ).mapValues(\.count)
-                ForEach(liveProviders, id: \.cardIdentityKey) { provider in
-                    let siblingCount = countsByProviderID[provider.providerID] ?? 1
-                    let ordinal: Int? = siblingCount > 1
-                        ? liveProviders
-                            .filter { $0.providerID == provider.providerID }
-                            .firstIndex(where: { $0.cardIdentityKey == provider.cardIdentityKey })
-                            .map { $0 + 1 }
-                        : nil
-                    // Linkage candidate prompt fires on the LEGACY card
-                    // (the one that lacks identifiers). The named card
-                    // doesn't show the prompt — the user only needs to
-                    // confirm once, and the prompt anchors visually on
-                    // the side that's "missing data".
+                ForEach(groups) { group in
+                    // Within-group linkage candidate: surface on the
+                    // group row if ANY account in the group has one
+                    // (typically the legacy/missing-identity card).
+                    // User confirms once, the underlying union-find
+                    // collapses the candidate pair into one snapshot,
+                    // and on next render the group shrinks by one.
                     let candidate: MultiAccountLinkageCandidate? = {
-                        guard let c = candidatesByLegacyKey[provider.cardIdentityKey] else {
-                            return nil
+                        for account in group.accounts {
+                            if let c = candidatesByLegacyKey[account.cardIdentityKey],
+                               !self.dismissedCandidateKeys.contains(c.hashKey)
+                            {
+                                return c
+                            }
                         }
-                        return self.dismissedCandidateKeys.contains(c.hashKey) ? nil : c
+                        return nil
                     }()
-                    let activeLinkage = activeLinkagesByProviderID[provider.providerID]?.first
+                    let activeLinkage = activeLinkagesByProviderID[group.providerID]?.first
                     NavigationLink {
-                        ProviderDetailView(provider: provider)
+                        ProviderDetailView(group: group)
                     } label: {
                         ProviderUsageView(
-                            provider: provider,
-                            duplicateOrdinal: ordinal,
+                            provider: group.representative,
+                            duplicateOrdinal: nil,
+                            accountCount: group.hasMultipleAccounts ? group.accounts.count : nil,
                             linkageCandidate: candidate,
                             activeLinkage: activeLinkage,
                             onConfirmMerge: { c in
@@ -265,7 +263,7 @@ private struct ProviderListView: View {
                             })
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("provider-card-\(provider.cardIdentityKey)")
+                    .accessibilityIdentifier("provider-group-\(group.providerID)")
                 }
 
                 // Sync status at scroll bottom

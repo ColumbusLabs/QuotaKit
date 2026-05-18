@@ -448,10 +448,24 @@ final class SyncCoordinator {
     /// retains the active account's snapshot. As a result we don't need
     /// observation-cache cold-start mitigation here; we read the live list
     /// and emit immediately.
-    private static let tokenBasedMultiAccountProviders: [UsageProvider] = [
-        .claude, .zai, .cursor, .opencode, .opencodego,
-        .factory, .minimax, .augment, .ollama, .abacus, .mistral,
-    ]
+    ///
+    /// **Source of truth** is `TokenAccountSupportCatalog.allProviders`
+    /// (Phase G fix — previously this list was hardcoded and drifted
+    /// behind upstream catalog updates by 7 providers: openai, deepseek,
+    /// antigravity, manus, copilot, venice, stepfun). Reading the catalog
+    /// directly means any future upstream-added token provider is
+    /// automatically picked up; `TokenAccountSyncCoverageTests` enforces
+    /// the equality so a drift fails the build.
+    private static var tokenBasedMultiAccountProviders: [UsageProvider] {
+        TokenAccountSupportCatalog.allProviders
+    }
+
+    /// Testing-only mirror of `tokenBasedMultiAccountProviders` — same
+    /// value, package-internal access for `TokenAccountSyncCoverageTests`.
+    /// Production code should use the private accessor above.
+    static var tokenBasedMultiAccountProvidersForTesting: [UsageProvider] {
+        tokenBasedMultiAccountProviders
+    }
 
     // swiftlint:disable function_parameter_count
     /// Builds a `ProviderUsageSnapshot` from a `UsageSnapshot` plus shared

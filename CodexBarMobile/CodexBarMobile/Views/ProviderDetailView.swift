@@ -3,10 +3,46 @@ import CodexBarSync
 import SwiftUI
 
 struct ProviderDetailView: View {
-    let provider: ProviderUsageSnapshot
+    /// All accounts for the provider whose row the user tapped. When
+    /// `group.hasMultipleAccounts`, a segmented control at the top of
+    /// the body switches between accounts and the rest of the view
+    /// re-renders against the selected snapshot — mirroring Mac's
+    /// "click into provider menu → tabs" UX.
+    let group: ProviderAccountGroup
+
+    @State private var selectedAccountIndex: Int = 0
 
     @AppStorage(MobileSettingsKeys.usageCostChartStyle) private var chartStyleRawValue = CostChartStyle.bars.rawValue
     @State private var selectedDate: String?
+
+    /// Single-account convenience init — used by call sites that
+    /// haven't been refactored to pass a group yet (e.g., `RawProviderDetailView`
+    /// in `ContentView`, SwiftUI previews). Wraps the snapshot in a
+    /// 1-element group so the body code path is uniform.
+    init(provider: ProviderUsageSnapshot) {
+        self.group = ProviderAccountGroup(
+            providerID: provider.providerID,
+            providerName: provider.providerName,
+            accounts: [provider])
+    }
+
+    /// Multi-account init — preferred path from the post-merge,
+    /// post-grouping Usage list.
+    init(group: ProviderAccountGroup) {
+        self.group = group
+    }
+
+    /// Computed accessor for the currently-selected snapshot. **All
+    /// downstream rendering code references `self.provider`** — this
+    /// computed property is the only thing that changes when the user
+    /// taps a different tab. Keeps the body code identical to the
+    /// pre-refactor single-account version.
+    private var provider: ProviderUsageSnapshot {
+        guard self.group.accounts.indices.contains(self.selectedAccountIndex) else {
+            return self.group.accounts[0]
+        }
+        return self.group.accounts[self.selectedAccountIndex]
+    }
 
     private var chartStyle: CostChartStyle {
         CostChartStyle(rawValue: self.chartStyleRawValue) ?? .bars
@@ -21,6 +57,9 @@ struct ProviderDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
+                if self.group.hasMultipleAccounts {
+                    self.accountTabBar
+                }
                 if self.isMockProvider {
                     self.mockBanner
                 }
@@ -113,6 +152,32 @@ struct ProviderDetailView: View {
     // MARK: - Mock Detail Banner
 
     /// Inline banner at the top of the detail page reminding the user
+    /// Segmented control at the top of the detail view — one tab per
+    /// account in `group`. Mirrors Mac's per-provider account tabs
+    /// (e.g., OpenAI menu card showing `admin-msxiao113 / admin-outlook`).
+    /// Resets `selectedDate` (daily-chart hover state) on tab switch so
+    /// the chart hover from one account doesn't bleed into another.
+    private var accountTabBar: some View {
+        Picker(
+            selection: Binding(
+                get: { self.selectedAccountIndex },
+                set: { newIndex in
+                    self.selectedAccountIndex = newIndex
+                    self.selectedDate = nil
+                }),
+            label: Text(""))
+        {
+            ForEach(self.group.accounts.indices, id: \.self) { index in
+                Text(self.group.tabLabel(forIndex: index))
+                    .tag(index)
+                    .accessibilityIdentifier(
+                        self.group.tabAccessibilityIdentifier(forIndex: index))
+            }
+        }
+        .pickerStyle(.segmented)
+        .accessibilityIdentifier("provider-account-tab-bar-\(self.group.providerID)")
+    }
+
     /// this provider's data is synthetic. Mirrors the global
     /// `MockProviderBanner` in spirit (so users hitting the detail page
     /// directly without seeing the global banner still understand) but

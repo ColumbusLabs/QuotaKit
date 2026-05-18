@@ -35,6 +35,16 @@ public enum TokenAccountSupportCatalog {
         supportByProvider[provider]
     }
 
+    /// Every UsageProvider that has token-account support, in a stable
+    /// order. Used by fork-side SyncCoordinator as the **single source
+    /// of truth** for "which providers fan out to multi-account on
+    /// CloudKit" — no hardcoded list to drift from this catalog.
+    /// See `docs/versioning.md` and Phase G regression test
+    /// `TokenAccountSyncCoverageTests`.
+    public static var allProviders: [UsageProvider] {
+        supportByProvider.keys.sorted { $0.rawValue < $1.rawValue }
+    }
+
     public static func envOverride(for provider: UsageProvider, token: String) -> [String: String]? {
         guard let support = self.support(for: provider) else { return nil }
         switch support.injection {

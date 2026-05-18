@@ -1147,6 +1147,88 @@ enum MockProviderInjector {
             primaryResetDescription: "Budget · $19.10 / $50",
             secondary: nil,
             thirtyDayCostUSD: 19.10, sessionCostUSD: 0.55),
+        // Phase G — multi-account second-tab mocks. Each entry below
+        // produces a SECOND ProviderUsageSnapshot for an already-
+        // present providerID (same provider, different accountLocal
+        // → distinct accountEmail → distinct cardIdentityKey). After
+        // grouping by providerID in CloudSyncReader → ProviderAccountGroup,
+        // iOS Usage list shows ONE row "{Provider} · 2" and the
+        // detail view renders a 2-tab segmented control at the top —
+        // mirroring Mac's per-provider account tabs.
+        //
+        // Why these 7 specifically: they're in the canonical
+        // TokenAccountSupportCatalog.allProviders fan-out (Phase G1)
+        // that was previously absent from the SyncCoordinator multi-
+        // account list. Picking 7 from the catalog covers every
+        // category (env-injected, cookie-header, manual cookie source,
+        // OAuth multi-account) so the iOS tab UI gets exercised
+        // against the realistic shape of each. Total mock count
+        // 45 → 52, simple-mock count 37 → 44.
+        .init(
+            providerID: "openai", providerName: "OpenAI",
+            accountLocal: "outlook", loginMethod: "API Admin",
+            primaryUsage: 12, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 18 * 86400,
+            primaryResetDescription: "in 18 days",
+            secondary: nil,
+            thirtyDayCostUSD: 2.40, sessionCostUSD: 0.09),
+        .init(
+            providerID: "deepseek", providerName: "DeepSeek",
+            accountLocal: "alt", loginMethod: "API Paid",
+            primaryUsage: 8, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 22 * 86400,
+            primaryResetDescription: "in 22 days",
+            secondary: nil,
+            thirtyDayCostUSD: 0.42, sessionCostUSD: 0.02),
+        .init(
+            providerID: "antigravity", providerName: "Antigravity",
+            accountLocal: "team", loginMethod: "OAuth",
+            primaryUsage: 55, primaryLabel: "Weekly",
+            primaryWindowMinutes: 10080,
+            primaryResetsInSeconds: 3 * 86400,
+            primaryResetDescription: "in 3 days",
+            secondary: nil,
+            // Antigravity is preview/no-billing — both account mocks
+            // use nil cost to match the first-account entry's semantics.
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "manus", providerName: "Manus",
+            accountLocal: "team", loginMethod: "Team",
+            primaryUsage: 70, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 14 * 86400,
+            primaryResetDescription: "in 14 days",
+            secondary: nil,
+            thirtyDayCostUSD: 5.10, sessionCostUSD: 0.28),
+        .init(
+            providerID: "copilot", providerName: "GitHub Copilot",
+            accountLocal: "personal", loginMethod: "GitHub",
+            primaryUsage: 22, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 21 * 86400,
+            primaryResetDescription: "in 21 days",
+            secondary: nil,
+            thirtyDayCostUSD: 10.00, sessionCostUSD: 0.50),
+        .init(
+            providerID: "venice", providerName: "Venice",
+            accountLocal: "alt", loginMethod: "Paid",
+            primaryUsage: 18, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 24 * 86400,
+            primaryResetDescription: "in 24 days",
+            secondary: nil,
+            thirtyDayCostUSD: 0.42, sessionCostUSD: 0.015),
+        .init(
+            providerID: "stepfun", providerName: "StepFun",
+            accountLocal: "team", loginMethod: "Step Plan",
+            primaryUsage: 65, primaryLabel: "Weekly",
+            primaryWindowMinutes: 10080,
+            primaryResetsInSeconds: 2 * 86400,
+            primaryResetDescription: "in 2 days",
+            secondary: nil,
+            thirtyDayCostUSD: 1.85, sessionCostUSD: 0.07),
     ]
 
     /// Returns the v0.26 typed-envelope extras for a given providerID,

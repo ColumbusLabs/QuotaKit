@@ -6,7 +6,18 @@ struct ProviderUsageView: View {
     /// 1-based ordinal among cards sharing this same `providerID`. `nil`
     /// when this is the only card for its providerID — subtitle then stays
     /// in its pre-T5 single-card form.
+    ///
+    /// **Note (Phase G):** since the Usage list now groups by providerID
+    /// (one row per `ProviderAccountGroup`), this is always passed `nil`
+    /// from the list. The field is kept for the few legacy call sites
+    /// (RawProviderDetailView previews, tests) that still drive a single
+    /// snapshot through the card.
     var duplicateOrdinal: Int?
+    /// **Phase G:** when the row represents a multi-account group, this
+    /// is the count (≥ 2). The card renders a small "· N" badge after
+    /// the provider name so the user knows "tap → see N tabs". `nil`
+    /// for single-account groups (suppress badge).
+    var accountCount: Int?
     /// Optional linkage candidate when this card is part of a
     /// cross-version-detected pair (Research/019 §7). When non-nil and
     /// `onConfirmMerge` is provided, the card renders an inline prompt
@@ -119,6 +130,18 @@ struct ProviderUsageView: View {
                 Text(self.provider.providerName)
                     .font(.title3)
                     .fontWeight(.bold)
+
+                if let count = self.accountCount, count > 1 {
+                    // Multi-account group indicator. Mirrors Mac's
+                    // implicit "N tabs at top of provider menu" hint.
+                    Text("· \(count)")
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel(Text(String(
+                            format: String(localized: "provider-account-count-label"),
+                            count)))
+                        .accessibilityIdentifier("provider-account-count")
+                }
 
                 if self.isMockProvider {
                     MockBadgeView()
