@@ -32,6 +32,7 @@ struct MenuDescriptor {
         case refresh = "arrow.clockwise"
         case dashboard = "chart.bar"
         case statusPage = "waveform.path.ecg"
+        case changelog = "list.bullet.rectangle"
         case addAccount = "plus"
         case systemAccount = "person.crop.circle"
         case switchAccount = "key"
@@ -55,6 +56,7 @@ struct MenuDescriptor {
         case refreshAugmentSession
         case dashboard
         case statusPage
+        case changelog
         case addCodexAccount
         case requestCodexSystemPromotion(UUID)
         case addProviderAccount(UsageProvider)
@@ -243,6 +245,9 @@ struct MenuDescriptor {
                     entries.append(.text("Quota: \(used) / \(limit)", .primary))
                 }
             }
+            if let openAIAPIUsage = snap.openAIAPIUsage {
+                Self.appendOpenAIAPIUsageSummary(entries: &entries, usage: openAIAPIUsage)
+            }
         } else {
             entries.append(.text("No usage yet", .secondary))
         }
@@ -257,6 +262,31 @@ struct MenuDescriptor {
             .appendUsageMenuEntries(context: usageContext, entries: &entries)
 
         return Section(entries: entries)
+    }
+
+    private static func appendOpenAIAPIUsageSummary(
+        entries: inout [Entry],
+        usage: OpenAIAPIUsageSnapshot)
+    {
+        let today = usage.latestDay
+        let last7 = usage.last7Days
+        let last30 = usage.last30Days
+
+        entries.append(.text(
+            "Today: \(UsageFormatter.usdString(today.costUSD)) · " +
+                "\(UsageFormatter.tokenCountString(today.totalTokens)) tokens",
+            .secondary))
+        entries.append(.text(
+            "7d: \(UsageFormatter.usdString(last7.costUSD)) · " +
+                "\(UsageFormatter.tokenCountString(last7.requests)) requests",
+            .secondary))
+        entries.append(.text(
+            "30d: \(UsageFormatter.usdString(last30.costUSD)) · " +
+                "\(UsageFormatter.tokenCountString(last30.requests)) requests",
+            .secondary))
+        if let topModel = usage.topModels.first?.name {
+            entries.append(.text("Top model: \(topModel)", .secondary))
+        }
     }
 
     private static func accountSection(
@@ -294,7 +324,21 @@ struct MenuDescriptor {
         if let emailText, !emailText.isEmpty {
             entries.append(.text("Account: \(redactedEmail)", .secondary))
         }
-        if provider == .kilo {
+        if provider == .kiro {
+            if let plan = snapshot?.kiroUsage?.displayPlanName,
+               !plan.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            {
+                entries.append(.text("Plan: \(plan)", .secondary))
+            }
+            if let loginMethodText, !loginMethodText.isEmpty {
+                entries.append(.text("Auth: \(loginMethodText)", .secondary))
+            }
+            if let overages = snapshot?.kiroUsage?.overagesStatus,
+               !overages.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            {
+                entries.append(.text("Overages: \(overages)", .secondary))
+            }
+        } else if provider == .kilo {
             let kiloLogin = self.kiloLoginParts(loginMethod: loginMethodText)
             if let pass = kiloLogin.pass {
                 entries.append(.text("Plan: \(AccountFormatter.plan(pass, provider: provider))", .secondary))
@@ -421,6 +465,9 @@ struct MenuDescriptor {
         }
         if metadata?.statusPageURL != nil || metadata?.statusLinkURL != nil {
             entries.append(.action("Status Page", .statusPage))
+        }
+        if store.settings.providerChangelogLinksEnabled, metadata?.changelogURL != nil {
+            entries.append(.action("Changelog", .changelog))
         }
 
         if let statusLine = self.statusLine(for: provider, store: store) {
@@ -550,6 +597,7 @@ extension MenuDescriptor.MenuAction {
         case .refreshAugmentSession: MenuDescriptor.MenuActionSystemImage.refresh.rawValue
         case .dashboard: MenuDescriptor.MenuActionSystemImage.dashboard.rawValue
         case .statusPage: MenuDescriptor.MenuActionSystemImage.statusPage.rawValue
+        case .changelog: MenuDescriptor.MenuActionSystemImage.changelog.rawValue
         case .addCodexAccount, .addProviderAccount: MenuDescriptor.MenuActionSystemImage.addAccount.rawValue
         case .requestCodexSystemPromotion:
             nil

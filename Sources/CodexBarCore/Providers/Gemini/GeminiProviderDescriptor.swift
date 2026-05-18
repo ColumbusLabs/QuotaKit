@@ -22,6 +22,7 @@ public enum GeminiProviderDescriptor {
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 dashboardURL: "https://gemini.google.com",
+                changelogURL: "https://github.com/google-gemini/gemini-cli/releases",
                 statusPageURL: nil,
                 statusLinkURL: "https://www.google.com/appsstatus/dashboard/products/npdyhgECDJ6tB66MxXyo/history",
                 statusWorkspaceProductID: "npdyhgECDJ6tB66MxXyo"),
@@ -42,6 +43,8 @@ public enum GeminiProviderDescriptor {
 }
 
 struct GeminiStatusFetchStrategy: ProviderFetchStrategy {
+    static let sourceLabel = "oauth-api"
+
     let id: String = "gemini.api"
     let kind: ProviderFetchKind = .apiToken
 
@@ -54,7 +57,7 @@ struct GeminiStatusFetchStrategy: ProviderFetchStrategy {
         let snap = try await probe.fetch()
         return self.makeResult(
             usage: snap.toUsageSnapshot(),
-            sourceLabel: "api")
+            sourceLabel: Self.sourceLabel)
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {

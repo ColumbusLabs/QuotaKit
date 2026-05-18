@@ -72,6 +72,7 @@ enum ProviderChoice: String, AppEnum {
         case .jetbrains: return nil // JetBrains not yet supported in widgets
         case .kimi: return nil // Kimi not yet supported in widgets
         case .kimik2: return nil // Kimi K2 not yet supported in widgets
+        case .moonshot: return nil // Moonshot not yet supported in widgets
         case .amp: return nil // Amp not yet supported in widgets
         case .ollama: return nil // Ollama not yet supported in widgets
         case .synthetic: return nil // Synthetic not yet supported in widgets
@@ -89,6 +90,7 @@ enum ProviderChoice: String, AppEnum {
         case .venice: return nil // Venice not yet supported in widgets
         case .commandcode: return nil // CommandCode not yet supported in widgets
         case .stepfun: return nil // StepFun not yet supported in widgets
+        case .bedrock: return nil // Bedrock not yet supported in widgets
         }
     }
 }

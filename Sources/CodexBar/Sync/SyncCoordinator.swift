@@ -977,7 +977,11 @@ final class SyncCoordinator {
              // their own APIs, never go through the local Codex/Claude
              // pricing tables, so never "estimated".
              .openai, .manus, .windsurf, .mimo, .doubao, .deepseek,
-             .codebuff, .crof, .venice, .commandcode, .stepfun:
+             .codebuff, .crof, .venice, .commandcode, .stepfun,
+             // Upstream v0.26.0 new providers. Moonshot/Kimi API balance
+             // and Bedrock Cost Explorer numbers come from their own APIs,
+             // never via the local pricing tables.
+             .moonshot, .bedrock:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

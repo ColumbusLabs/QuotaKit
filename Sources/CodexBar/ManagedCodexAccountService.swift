@@ -310,14 +310,14 @@ final class ManagedCodexAccountService {
         guard let account = snapshot.account(id: id) else { return }
 
         let homeURL = URL(fileURLWithPath: account.managedHomePath, isDirectory: true)
-        try self.homeFactory.validateManagedHomeForDeletion(homeURL)
+        let canDeleteHome = (try? self.homeFactory.validateManagedHomeForDeletion(homeURL)) != nil
 
         let remaining = snapshot.accounts.filter { $0.id != id }
         try self.store.storeAccounts(ManagedCodexAccountSet(
             version: snapshot.version,
             accounts: remaining))
 
-        if self.fileManager.fileExists(atPath: homeURL.path) {
+        if canDeleteHome, self.fileManager.fileExists(atPath: homeURL.path) {
             try? self.fileManager.removeItem(at: homeURL)
         }
     }

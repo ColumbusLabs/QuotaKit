@@ -1,7 +1,7 @@
-import CodexBarCore
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 @MainActor
 struct UsageStoreSessionQuotaTransitionTests {
@@ -120,6 +120,46 @@ struct UsageStoreSessionQuotaTransitionTests {
     }
 
     @Test
+    func `claude spend limit fallback does not emit session or quota warning notifications`() throws {
+        let settings = self.makeSettings(suiteName: "UsageStoreSessionQuotaTransitionTests-claude-spend-limit")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        settings.sessionQuotaNotificationsEnabled = true
+        settings.quotaWarningNotificationsEnabled = true
+        settings.quotaWarningThresholds = [50, 20]
+
+        let notifier = SessionQuotaNotifierSpy()
+        let store = UsageStore(
+            fetcher: UsageFetcher(),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            sessionQuotaNotifier: notifier)
+        let json = """
+        {
+          "extra_usage": {
+            "is_enabled": true,
+            "monthly_limit": 600,
+            "used_credits": 434.43,
+            "utilization": 72,
+            "currency": "USD"
+          }
+        }
+        """
+        let claude = try ClaudeUsageFetcher._mapOAuthUsageForTesting(
+            Data(json.utf8),
+            subscriptionType: "enterprise")
+        let snapshot = ClaudeOAuthFetchStrategy._snapshotForTesting(from: claude)
+
+        store.handleSessionQuotaTransition(provider: .claude, snapshot: snapshot)
+        store.handleQuotaWarningTransitions(provider: .claude, snapshot: snapshot)
+
+        #expect(snapshot.primary == nil)
+        #expect(snapshot.providerCost?.period == "Spend limit")
+        #expect(notifier.posts.isEmpty)
+        #expect(notifier.quotaWarningPosts.isEmpty)
+    }
+
+    @Test
     func `claude five hour primary still emits session quota notifications`() {
         let settings = self.makeSettings(suiteName: "UsageStoreSessionQuotaTransitionTests-claude-session")
         settings.refreshFrequency = .manual
@@ -209,6 +249,41 @@ struct UsageStoreSessionQuotaTransitionTests {
 
         #expect(notifier.quotaWarningPosts.count == 1)
         #expect(notifier.quotaWarningPosts.first?.event.window == .session)
+        #expect(notifier.quotaWarningPosts.first?.event.threshold == 50)
+    }
+
+    @Test
+    func `hidden quota warning markers do not disable warning notifications`() {
+        let settings = self.makeSettings(suiteName: "UsageStoreSessionQuotaTransitionTests-warning-markers-hidden")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        settings.quotaWarningNotificationsEnabled = true
+        settings.quotaWarningMarkersVisible = false
+        settings.quotaWarningThresholds = [50, 20]
+        settings.setQuotaWarningWindowEnabled(.session, enabled: true)
+        settings.setQuotaWarningWindowEnabled(.weekly, enabled: true)
+
+        let notifier = SessionQuotaNotifierSpy()
+        let store = UsageStore(
+            fetcher: UsageFetcher(),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            sessionQuotaNotifier: notifier)
+
+        store.handleQuotaWarningTransitions(
+            provider: .codex,
+            snapshot: UsageSnapshot(
+                primary: RateWindow(usedPercent: 40, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+                secondary: nil,
+                updatedAt: Date()))
+        store.handleQuotaWarningTransitions(
+            provider: .codex,
+            snapshot: UsageSnapshot(
+                primary: RateWindow(usedPercent: 55, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+                secondary: nil,
+                updatedAt: Date()))
+
+        #expect(notifier.quotaWarningPosts.count == 1)
         #expect(notifier.quotaWarningPosts.first?.event.threshold == 50)
     }
 

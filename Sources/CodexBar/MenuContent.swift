@@ -118,6 +118,8 @@ struct MenuContent: View {
             self.actions.openDashboard()
         case .statusPage:
             self.actions.openStatusPage()
+        case .changelog:
+            self.actions.openChangelog()
         case .addCodexAccount:
             self.actions.addCodexAccount()
         case .requestCodexSystemPromotion:
@@ -150,6 +152,7 @@ struct MenuActions {
     let refreshAugmentSession: () -> Void
     let openDashboard: () -> Void
     let openStatusPage: () -> Void
+    let openChangelog: () -> Void
     let addCodexAccount: () -> Void
     let switchAccount: (UsageProvider) -> Void
     let openTerminal: (String) -> Void

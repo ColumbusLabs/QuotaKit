@@ -79,6 +79,14 @@ Linux support via Omarchy: community Waybar module and TUI, driven by the `codex
 - [JetBrains AI](docs/jetbrains.md) — Local XML-based quota from JetBrains IDE configuration; monthly credits tracking.
 - [OpenRouter](docs/openrouter.md) — API token for credit-based usage tracking across multiple AI providers.
 - [Abacus AI](docs/abacus.md) — Browser cookie auth for ChatLLM/RouteLLM compute credit tracking.
+- Mistral — Browser cookies for monthly spend tracking.
+- [DeepSeek](docs/deepseek.md) — API key for credit balance tracking (paid vs. granted breakdown).
+- [Moonshot / Kimi API](docs/moonshot.md) — API key for Moonshot/Kimi API account balance tracking.
+- [Venice](docs/venice.md) — API key for DIEM or USD balance tracking.
+- [Codebuff](docs/codebuff.md) — API token (or `~/.config/manicode/credentials.json`) for credit balance + weekly rate limit.
+- [Crof](docs/crof.md) — API key for dollar credit balance and request quota tracking.
+- [Command Code](docs/command-code.md) — Browser cookies for monthly USD credits from Command Code billing.
+- [StepFun](docs/stepfun.md) — Username + password login for Step Plan rate limits (5‑hour + weekly windows) and subscription plan name.
 - Open to new providers: [provider authoring guide](docs/provider.md).
 
 ## Icon & Screenshot

@@ -718,7 +718,7 @@ struct ManagedCodexAccountServiceTests {
     }
 
     @Test
-    func `remove fails closed for home outside managed root`() async throws {
+    func `remove drops account but leaves unsafe home untouched`() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let outsideRoot = FileManager.default.temporaryDirectory.appendingPathComponent(
             UUID().uuidString,
@@ -746,11 +746,9 @@ struct ManagedCodexAccountServiceTests {
             identityReader: StubManagedCodexIdentityReader.emails([]),
             workspaceResolver: StubManagedCodexWorkspaceResolver())
 
-        await #expect(throws: ManagedCodexAccountServiceError.unsafeManagedHome(account.managedHomePath)) {
-            try await service.removeManagedAccount(id: account.id)
-        }
+        try await service.removeManagedAccount(id: account.id)
 
-        #expect(store.snapshot.accounts.count == 1)
+        #expect(store.snapshot.accounts.isEmpty)
         #expect(FileManager.default.fileExists(atPath: outsideRoot.path))
     }
 }

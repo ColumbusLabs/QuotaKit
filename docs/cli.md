@@ -44,6 +44,11 @@ See `docs/configuration.md` for the schema.
 - `codexbar cost` prints local token cost usage for Claude + Codex without web/CLI access.
   - `--format text|json` (default: text).
   - `--refresh` ignores cached scans.
+- `codexbar serve` starts a foreground localhost-only HTTP server for usage and cost JSON.
+  - `--port <port>` defaults to `8080`.
+  - `--refresh-interval <seconds>` defaults to `60` and controls the in-memory response cache TTL.
+  - v1 binds to `127.0.0.1` only. It does not expose remote bind, auth, CORS, TLS, or daemon mode.
+  - Endpoints: `GET /health`, `GET /usage`, `GET /usage?provider=<id|both|all>`, `GET /cost`, `GET /cost?provider=<id|both|all>`.
 - `codexbar cache clear` clears local CodexBar caches.
   - `--cookies` removes cached browser-cookie headers from the CodexBar Keychain cache.
   - `--cookies --provider <id>` removes browser-cookie cache entries for that provider, including managed Codex account scopes.
@@ -63,7 +68,7 @@ See `docs/configuration.md` for the schema.
     - `web` (macOS only): web-only where that provider exposes an explicit web source; no CLI/API fallback.
     - `cli`: CLI/local-helper source where the provider exposes one (for example Codex RPC/PTy, Claude PTY, Kilo CLI fallback, Kiro CLI, local probes).
     - `oauth`: OAuth-backed source where supported (Codex, Claude, Vertex AI).
-    - `api`: API-key/token flow when the provider supports it (z.ai, Gemini, Alibaba, Copilot, Kilo, Kimi K2, MiniMax, Warp, OpenRouter, Synthetic, DeepSeek, Codebuff).
+    - `api`: API-key/token flow when the provider supports it (z.ai, Gemini, Alibaba, Copilot, Kilo, Kimi K2, MiniMax, Warp, OpenRouter, Synthetic, DeepSeek, Moonshot, Codebuff).
     - Output `source` reflects the strategy actually used (`openai-web`, `web`, `oauth`, `api`, `local`, `cli`, or provider CLI label).
     - Codex web: OpenAI web dashboard (usage limits, credits remaining, code review remaining, usage breakdown).
         - `--web-timeout <seconds>` (default: 60)
@@ -106,6 +111,7 @@ codexbar --format json --pretty   # machine output
 codexbar --format json --provider both
 codexbar cost                     # local cost usage (last 30 days + today)
 codexbar cost --provider claude --format json --pretty
+codexbar serve --port 8080        # localhost HTTP JSON server
 COPILOT_API_TOKEN=... codexbar --provider copilot --format json --pretty
 codexbar --status                 # include status page indicator/description
 codexbar --provider codex --source oauth --format json --pretty
@@ -115,6 +121,7 @@ codexbar --provider claude --all-accounts --format json --pretty
 codexbar --json-only --format json --pretty
 codexbar --provider gemini --source api --format json --pretty
 KILO_API_KEY=... codexbar --provider kilo --source api --format json --pretty
+MOONSHOT_API_KEY=... codexbar --provider moonshot --source api --format json --pretty
 codexbar config validate --format json --pretty
 codexbar config dump --pretty
 codexbar cache clear --cookies

@@ -4,11 +4,10 @@ enum CostUsageCacheIO {
     private static func artifactVersion(for provider: UsageProvider) -> Int {
         switch provider {
         case .codex:
-            // Bumped 4 → 5 in fork 0.23.1 hotfix: the 0.20.3 → 0.23 upgrade
-            // added gpt-5.5 to pricing + introduced the fallback resolver,
-            // but `codex-v4.json` cache from 0.20.3 era kept stale model
-            // attributions (tokens under `gpt-5` instead of `gpt-5.5`).
-            5
+            // Upstream bumped 5 → 6 in v0.26.x for further pricing/parser
+            // changes; supersedes fork's prior 4 → 5 (0.23.1 hotfix for
+            // gpt-5.5 attribution).
+            6
         case .claude, .vertexai:
             // Bumped 2 → 3 alongside the codex bump for consistency: the
             // claude pricing table also gained `claude-opus-4-7` and the
@@ -113,8 +112,10 @@ struct CostUsageFileUsage: Codable {
     var parsedBytes: Int64?
     var lastModel: String?
     var lastTotals: CostUsageCodexTotals?
+    var lastCodexTurnID: String?
     var sessionId: String?
     var forkedFromId: String?
+    var codexRows: [CostUsageScanner.CodexUsageRow]?
     var claudeRows: [CostUsageScanner.ClaudeUsageRow]?
 }
 

@@ -24,7 +24,9 @@ struct CodexProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
-        .codex(context.settings.codexSettingsSnapshot(tokenOverride: context.tokenOverride))
+        .codex(context.settings.codexSettingsSnapshot(
+            tokenOverride: context.tokenOverride,
+            activeSourceOverride: context.codexActiveSourceOverride))
     }
 
     @MainActor
@@ -238,6 +240,9 @@ struct CodexProviderImplementation: ProviderImplementation {
                 action: action,
                 isEnabled: isEnabled,
                 isChecked: isChecked)
+        }
+        guard submenuItems.count > 1 || submenuItems.contains(where: { $0.isEnabled && $0.action != nil }) else {
+            return
         }
 
         entries.append(.submenu(

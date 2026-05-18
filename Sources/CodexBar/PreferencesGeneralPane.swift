@@ -6,6 +6,7 @@ enum AppLanguage: String, CaseIterable, Identifiable {
     case system = ""
     case english = "en"
     case chineseSimplified = "zh-Hans"
+    case portugueseBrazilian = "pt-BR"
 
     var id: String {
         self.rawValue
@@ -16,6 +17,7 @@ enum AppLanguage: String, CaseIterable, Identifiable {
         case .system: L("language_system")
         case .english: L("language_english")
         case .chineseSimplified: L("language_chinese_simplified")
+        case .portugueseBrazilian: L("language_portuguese_brazilian")
         }
     }
 }
@@ -136,8 +138,8 @@ struct GeneralPane: View {
                         subtitle: L("session_quota_notifications_subtitle"),
                         binding: self.$settings.sessionQuotaNotificationsEnabled)
                     PreferenceToggleRow(
-                        title: "Quota warning notifications",
-                        subtitle: "Warns when session or weekly quota remaining crosses configured thresholds.",
+                        title: L("quota_warning_notifications_title"),
+                        subtitle: L("quota_warning_notifications_subtitle"),
                         binding: self.$settings.quotaWarningNotificationsEnabled)
                     if self.settings.quotaWarningNotificationsEnabled {
                         GlobalQuotaWarningSettingsView(settings: self.settings)

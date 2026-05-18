@@ -389,7 +389,7 @@
 "off_peak_peak_in" = "非高峰 · %@ 后进入高峰";
 "ory_session_…=…; csrftoken=…" = "";
 "overview_choose_providers" = "选择最多 %1$@ 个提供商";
-"peak_ends_in" = "高峰 %@ 后结束";
+"peak_ends_in" = "高峰 · %@ 后结束";
 "remove_account_message" = "从 CodexBar 中移除 %@？其托管的 Codex 主目录将被删除。";
 "version_format" = "版本 %@";
 "vertex_ai_login_instructions" = "要使用 Vertex AI 跟踪，您需要通过 Google Cloud 进行认证。
@@ -412,6 +412,7 @@
 "language_system" = "跟随系统";
 "language_english" = "English";
 "language_chinese_simplified" = "简体中文";
+"language_portuguese_brazilian" = "Português (Brasil)";
 "start_at_login_title" = "开机启动";
 "start_at_login_subtitle" = "启动 Mac 时自动打开 CodexBar。";
 "show_cost_summary" = "显示费用摘要";
@@ -424,6 +425,26 @@
 "check_provider_status_subtitle" = "轮询 OpenAI/Claude 状态页面和 Google Workspace 的 Gemini/Antigravity，在图标和菜单中显示故障信息。";
 "session_quota_notifications_title" = "会话配额通知";
 "session_quota_notifications_subtitle" = "当5小时会话配额用完及恢复时发送通知。";
+"quota_warning_notifications_title" = "配额预警通知";
+"quota_warning_notifications_subtitle" = "当会话或每周剩余配额低于设定阈值时提醒。";
+"quota_warnings_title" = "配额预警";
+"quota_warning_session" = "会话";
+"quota_warning_session_capitalized" = "会话";
+"quota_warning_weekly" = "每周";
+"quota_warning_weekly_capitalized" = "每周";
+"quota_warning_warn_at" = "预警阈值";
+"quota_warning_global_threshold_subtitle" = "会话和每周窗口的剩余百分比，除非提供商单独覆盖。";
+"quota_warning_sound" = "播放通知声音";
+"quota_warning_provider_inherits" = "默认使用全局配额预警设置，除非在这里自定义窗口。";
+"quota_warning_customize_thresholds" = "自定义%@阈值";
+"quota_warning_enable_warnings" = "启用%@预警";
+"quota_warning_window_warn_at" = "%@预警阈值";
+"quota_warning_off" = "关闭";
+"quota_warning_inherited" = "继承：%@";
+"quota_warning_depleted_only" = "仅耗尽时";
+"quota_warning_upper" = "上限";
+"quota_warning_lower" = "下限";
+"apply" = "应用";
 "quit_app" = "退出 CodexBar";
 
 /* Tab titles */
@@ -451,6 +472,7 @@
 "menu_bar_metric_title" = "菜单栏指标";
 "menu_bar_metric_subtitle" = "选择哪个窗口驱动菜单栏百分比。";
 "menu_bar_metric_subtitle_deepseek" = "在菜单栏显示 DeepSeek 余额。";
+"menu_bar_metric_subtitle_moonshot" = "在菜单栏显示 Moonshot / Kimi API 余额。";
 "menu_bar_metric_subtitle_mistral" = "在菜单栏显示 Mistral API 本月支出。";
 "menu_bar_metric_subtitle_kimik2" = "在菜单栏显示 Kimi K2 API Key 额度。";
 "automatic" = "自动";
@@ -471,8 +493,12 @@
 "section_menu_content" = "菜单内容";
 "show_usage_as_used_title" = "显示已使用用量";
 "show_usage_as_used_subtitle" = "进度条随用量消耗而填充（而非显示剩余量）。";
+"show_quota_warning_markers_title" = "显示配额警告标记";
+"show_quota_warning_markers_subtitle" = "配置配额警告后，在用量条上绘制阈值刻度标记。";
 "show_reset_time_as_clock_title" = "将重置时间显示为时钟";
 "show_reset_time_as_clock_subtitle" = "将重置时间显示为绝对时钟值而非倒计时。";
+"show_provider_changelog_links_title" = "显示提供商变更日志链接";
+"show_provider_changelog_links_subtitle" = "在菜单中为支持的 CLI 提供商添加发布说明链接。";
 "show_credits_extra_usage_title" = "显示积分 + 额外用量";
 "show_credits_extra_usage_subtitle" = "在菜单中显示 Codex 积分和 Claude 额外用量部分。";
 "show_all_token_accounts_title" = "显示所有令牌账户";
@@ -636,3 +662,7 @@
 "mobile_sync_status_last_attempt_format" = "上次尝试：%@";
 "mobile_sync_status_no_sync" = "尚未同步";
 "mobile_button_sync_now" = "立即同步";
+
+/* Cost estimation */
+"cost_header_estimated" = "费用（估算）";
+"cost_estimate_hint" = "根据本地日志估算 · 可能与账单不同";

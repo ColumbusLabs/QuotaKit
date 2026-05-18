@@ -278,6 +278,7 @@ private struct ProviderSwitchChip: View {
         case .jetbrains: "JetBrains"
         case .kimi: "Kimi"
         case .kimik2: "Kimi K2"
+        case .moonshot: "Moonshot"
         case .amp: "Amp"
         case .ollama: "Ollama"
         case .synthetic: "Synthetic"
@@ -295,6 +296,7 @@ private struct ProviderSwitchChip: View {
         case .venice: "Venice"
         case .commandcode: "Command Code"
         case .stepfun: "StepFun"
+        case .bedrock: "Bedrock"
         }
     }
 }
@@ -646,6 +648,8 @@ enum WidgetColors {
             Color(red: 254 / 255, green: 96 / 255, blue: 60 / 255) // Kimi orange
         case .kimik2:
             Color(red: 76 / 255, green: 0 / 255, blue: 255 / 255) // Kimi K2 purple
+        case .moonshot:
+            Color(red: 32 / 255, green: 93 / 255, blue: 235 / 255)
         case .amp:
             Color(red: 220 / 255, green: 38 / 255, blue: 38 / 255) // Amp red
         case .ollama:
@@ -680,6 +684,8 @@ enum WidgetColors {
             Color(red: 0, green: 0, blue: 0)
         case .stepfun:
             Color(red: 255 / 255, green: 140 / 255, blue: 0 / 255) // StepFun orange
+        case .bedrock:
+            Color(red: 255 / 255, green: 153 / 255, blue: 0 / 255) // AWS orange
         }
     }
 }

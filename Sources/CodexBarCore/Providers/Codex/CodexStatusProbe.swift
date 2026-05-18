@@ -33,6 +33,7 @@ public struct CodexStatusSnapshot: Sendable {
 
 public enum CodexStatusProbeError: LocalizedError, Sendable {
     case codexNotInstalled
+    case launchBlocked(String)
     case parseFailed(String)
     case timedOut
     case updateRequired(String)
@@ -41,6 +42,8 @@ public enum CodexStatusProbeError: LocalizedError, Sendable {
         switch self {
         case .codexNotInstalled:
             "Codex CLI missing. Install via `npm i -g @openai/codex` (or bun install) and restart."
+        case let .launchBlocked(message):
+            message
         case .parseFailed:
             "Could not parse Codex status; will retry shortly."
         case .timedOut:
@@ -81,6 +84,9 @@ public struct CodexStatusProbe {
             ?? self.codexBinary
         guard FileManager.default.isExecutableFile(atPath: resolved) || TTYCommandRunner.which(resolved) != nil else {
             throw CodexStatusProbeError.codexNotInstalled
+        }
+        if let message = CodexCLILaunchGate.shared.backgroundSkipMessage(binary: resolved) {
+            throw CodexStatusProbeError.launchBlocked(message)
         }
         do {
             return try await self.runAndParse(binary: resolved, rows: 60, cols: 200, timeout: self.timeout)
@@ -198,35 +204,53 @@ public struct CodexStatusProbe {
         cols: UInt16,
         timeout: TimeInterval) async throws -> CodexStatusSnapshot
     {
+        let stateHome = try CodexStatusProbeIsolation.supportDirectory(environment: self.environment)
+        let extraArgs = CodexStatusProbeIsolation.codexArguments(stateHome: stateHome)
+        let workingDirectory = CodexStatusProbeIsolation.workingDirectory(environment: self.environment)
         let text: String
         if self.keepCLISessionsAlive {
             do {
                 text = try await CodexCLISession.shared.captureStatus(
                     binary: binary,
-                    timeout: timeout,
-                    rows: rows,
-                    cols: cols,
-                    environment: self.environment)
+                    options: .init(
+                        timeout: timeout,
+                        rows: rows,
+                        cols: cols,
+                        environment: self.environment,
+                        extraArgs: extraArgs,
+                        workingDirectory: workingDirectory))
             } catch CodexCLISession.SessionError.processExited {
                 throw CodexStatusProbeError.timedOut
             } catch CodexCLISession.SessionError.timedOut {
                 throw CodexStatusProbeError.timedOut
-            } catch CodexCLISession.SessionError.launchFailed(_) {
+            } catch let CodexCLISession.SessionError.launchFailed(message) {
+                if let throttled = CodexCLILaunchGate.shared.recordLaunchFailure(binary: binary, message: message) {
+                    throw CodexStatusProbeError.launchBlocked(throttled)
+                }
                 throw CodexStatusProbeError.codexNotInstalled
             }
         } else {
             let runner = TTYCommandRunner()
             let script = "/status"
-            let result = try runner.run(
-                binary: binary,
-                send: script,
-                options: .init(
-                    rows: rows,
-                    cols: cols,
-                    timeout: timeout,
-                    extraArgs: ["-s", "read-only", "-a", "untrusted"],
-                    baseEnvironment: self.environment,
-                    forceCodexStatusMode: true))
+            let result: TTYCommandRunner.Result
+            do {
+                result = try runner.run(
+                    binary: binary,
+                    send: script,
+                    options: .init(
+                        rows: rows,
+                        cols: cols,
+                        timeout: timeout,
+                        workingDirectory: workingDirectory,
+                        extraArgs: extraArgs,
+                        baseEnvironment: self.environment,
+                        forceCodexStatusMode: true))
+            } catch let TTYCommandRunner.Error.launchFailed(message) {
+                if let throttled = CodexCLILaunchGate.shared.recordLaunchFailure(binary: binary, message: message) {
+                    throw CodexStatusProbeError.launchBlocked(throttled)
+                }
+                throw CodexStatusProbeError.codexNotInstalled
+            }
             text = result.text
         }
         return try Self.parse(text: text)

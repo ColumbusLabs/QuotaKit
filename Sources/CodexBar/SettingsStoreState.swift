@@ -13,13 +13,18 @@ struct SettingsDefaultsState {
     var sessionQuotaNotificationsEnabled: Bool
     var quotaWarningNotificationsEnabled: Bool
     var quotaWarningThresholdsRaw: [Int]
+    var quotaWarningSessionThresholdsRaw: [Int]
+    var quotaWarningWeeklyThresholdsRaw: [Int]
     var quotaWarningSessionEnabled: Bool
     var quotaWarningWeeklyEnabled: Bool
     var quotaWarningSoundEnabled: Bool
+    var quotaWarningMarkersVisible: Bool
     var usageBarsShowUsed: Bool
     var resetTimesShowAbsolute: Bool
+    var providerChangelogLinksEnabled: Bool
     var menuBarShowsBrandIconWithPercent: Bool
     var menuBarDisplayModeRaw: String?
+    var kiroMenuBarDisplayModeRaw: String?
     var historicalTrackingEnabled: Bool
     var iCloudSyncEnabled: Bool
     var notificationPushToiOSEnabled: Bool

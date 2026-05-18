@@ -28,8 +28,14 @@ struct StatusMenuSwitcherClickTests {
     func `merged switcher routes runtime clicks after overview round-trip`() throws {
         // Regression test for #867: after Provider → Overview, subsequent runtime clicks on a
         // sub-provider tab dropped through NSButton's tracking and never updated state.
+        let previousMenuCardRendering = StatusItemController.menuCardRenderingEnabled
+        let previousMenuRefresh = StatusItemController.menuRefreshEnabled
         StatusItemController.menuCardRenderingEnabled = false
         StatusItemController.setMenuRefreshEnabledForTesting(false)
+        defer {
+            StatusItemController.menuCardRenderingEnabled = previousMenuCardRendering
+            StatusItemController.setMenuRefreshEnabledForTesting(previousMenuRefresh)
+        }
 
         let settings = self.makeSettings()
         settings.statusChecksEnabled = false
@@ -44,7 +50,6 @@ struct StatusMenuSwitcherClickTests {
             let shouldEnable = provider == .codex || provider == .claude
             settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: shouldEnable)
         }
-
         let fetcher = UsageFetcher()
         let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
         let controller = StatusItemController(
@@ -80,5 +85,100 @@ struct StatusMenuSwitcherClickTests {
         #expect(switcher4._test_simulateRuntimeClick(buttonTag: 1))
         #expect(settings.mergedMenuLastSelectedWasOverview == false)
         #expect(settings.selectedMenuProvider == .codex)
+    }
+
+    @Test
+    func `merged switcher handles left and right arrow keyboard navigation`() async throws {
+        let previousMenuCardRendering = StatusItemController.menuCardRenderingEnabled
+        let previousMenuRefresh = StatusItemController.menuRefreshEnabled
+        StatusItemController.menuCardRenderingEnabled = false
+        StatusItemController.setMenuRefreshEnabledForTesting(false)
+        defer {
+            StatusItemController.menuCardRenderingEnabled = previousMenuCardRendering
+            StatusItemController.setMenuRefreshEnabledForTesting(previousMenuRefresh)
+        }
+
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .codex
+        settings.mergedMenuLastSelectedWasOverview = false
+
+        let registry = ProviderRegistry.shared
+        for provider in UsageProvider.allCases {
+            guard let metadata = registry.metadata[provider] else { continue }
+            let shouldEnable = provider == .codex || provider == .claude
+            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: shouldEnable)
+        }
+        settings.setMergedOverviewProviderSelection(
+            provider: .codex,
+            isSelected: false,
+            activeProviders: [.codex, .claude])
+        settings.setMergedOverviewProviderSelection(
+            provider: .claude,
+            isSelected: false,
+            activeProviders: [.codex, .claude])
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        let menu = try #require(controller.makeMenu() as? StatusItemMenu)
+        controller.menuWillOpen(menu)
+        #expect(menu.items.first?.view is ProviderSwitcherView)
+
+        #expect(try menu.performKeyEquivalent(with: Self.arrowKeyEvent(keyCode: 124)) == true)
+        await Task.yield()
+        #expect(settings.mergedMenuLastSelectedWasOverview == false)
+        #expect(settings.selectedMenuProvider == .claude)
+
+        #expect(try menu.performKeyEquivalent(with: Self.arrowKeyEvent(keyCode: 123)) == true)
+        await Task.yield()
+        #expect(settings.mergedMenuLastSelectedWasOverview == false)
+        #expect(settings.selectedMenuProvider == .codex)
+    }
+
+    @Test
+    func `switcher hover styling keeps layout stable`() {
+        let view = ProviderSwitcherView(
+            providers: [.codex, .claude, .cursor, .factory, .zai, .minimax, .alibaba],
+            selected: .provider(.codex),
+            includesOverview: true,
+            width: 300,
+            showsIcons: true,
+            iconProvider: { _ in NSImage(size: NSSize(width: 16, height: 16)) },
+            weeklyRemainingProvider: { _ in nil },
+            onSelect: { _ in })
+
+        let initialSize = view.intrinsicContentSize
+        let initialFrames = view._test_buttonFrames()
+
+        view._test_setHoveredButtonTag(3)
+        view._test_setHoveredButtonTag(6)
+        view._test_setHoveredButtonTag(nil as Int?)
+
+        #expect(view.intrinsicContentSize == initialSize)
+        #expect(view._test_buttonFrames() == initialFrames)
+    }
+
+    private static func arrowKeyEvent(keyCode: UInt16) throws -> NSEvent {
+        try #require(NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "",
+            charactersIgnoringModifiers: "",
+            isARepeat: false,
+            keyCode: keyCode))
     }
 }

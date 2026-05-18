@@ -227,6 +227,49 @@ struct ZaiUsageParsingTests {
         #expect(snapshot.tokenLimit?.usage == 40_000_000)
         #expect(snapshot.timeLimit?.usageDetails.first?.modelCode == "search-prime")
         #expect(snapshot.tokenLimit?.percentage == 34.0)
+
+        let usage = snapshot.toUsageSnapshot()
+        #expect(usage.secondary?.windowMinutes == nil)
+        #expect(usage.secondary?.resetDescription == "Monthly")
+    }
+
+    @Test
+    func `zai mcp time limit displays monthly instead of one minute window`() throws {
+        let json = """
+        {
+          "code": 200,
+          "msg": "Operation successful",
+          "data": {
+            "limits": [
+              {
+                "type": "TIME_LIMIT",
+                "unit": 5,
+                "number": 1,
+                "usage": 100,
+                "currentValue": 50,
+                "remaining": 50,
+                "percentage": 50,
+                "usageDetails": []
+              },
+              {
+                "type": "TOKENS_LIMIT",
+                "unit": 3,
+                "number": 5,
+                "percentage": 34,
+                "nextResetTime": 1768507567547
+              }
+            ]
+          },
+          "success": true
+        }
+        """
+
+        let snapshot = try ZaiUsageFetcher.parseUsageSnapshot(from: Data(json.utf8))
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(snapshot.timeLimit?.windowDescription == "1 minute")
+        #expect(usage.secondary?.windowMinutes == nil)
+        #expect(usage.secondary?.resetDescription == "Monthly")
     }
 
     @Test
@@ -319,6 +362,94 @@ struct ZaiUsageParsingTests {
         #expect(snapshot.tokenLimit?.usedPercent == 1.0)
         #expect(snapshot.tokenLimit?.windowMinutes == 300)
         #expect(snapshot.timeLimit?.usage == 100)
+    }
+}
+
+struct ZaiHourlyUsageTests {
+    @Test
+    func `model usage parser decodes hourly model payload`() throws {
+        let json = """
+        {
+          "code": 200,
+          "msg": "success",
+          "success": true,
+          "data": {
+            "x_time": ["2026-05-14 08:00", "2026-05-14 09:00"],
+            "modelDataList": [
+              { "modelName": "glm-4.6", "tokensUsage": [100, null] },
+              { "modelName": "glm-4.5", "tokensUsage": [50, 25] }
+            ]
+          }
+        }
+        """
+
+        let usage = try ZaiUsageFetcher.parseModelUsage(from: Data(json.utf8))
+
+        #expect(usage.xTime == ["2026-05-14 08:00", "2026-05-14 09:00"])
+        #expect(usage.modelNames == ["glm-4.6", "glm-4.5"])
+        #expect(usage.modelDataList[0].tokensUsage == [100, nil])
+        #expect(usage.modelDataList[1].tokensUsage == [50, 25])
+    }
+
+    @Test
+    func `today hourly bars filter earlier days and skip empty hours`() {
+        let reference = Self.localDate(year: 2026, month: 5, day: 14, hour: 12)
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: reference) ?? reference
+        let modelData = ZaiModelUsageData(
+            xTime: [
+                Self.hourString(yesterday),
+                "2026-05-14 08:00",
+                "2026-05-14 09:00",
+            ],
+            modelDataList: [
+                ZaiModelDataItem(modelName: "glm-4.6", tokensUsage: [999, 100, 0]),
+                ZaiModelDataItem(modelName: "glm-4.5", tokensUsage: [0, 50, nil]),
+            ])
+
+        let bars = ZaiHourlyBars.from(modelData: modelData, range: .today(referenceDate: reference), now: reference)
+
+        #expect(bars.map(\.label) == ["08"])
+        #expect(bars.first?.totalTokens == 150)
+        #expect(bars.first?.segments.count == 2)
+    }
+
+    @Test
+    func `last 24 hour bars filter data outside trailing window`() {
+        let reference = Self.localDate(year: 2026, month: 5, day: 14, hour: 12)
+        let old = Calendar.current.date(byAdding: .hour, value: -25, to: reference) ?? reference
+        let inWindow = Calendar.current.date(byAdding: .hour, value: -23, to: reference) ?? reference
+        let modelData = ZaiModelUsageData(
+            xTime: [
+                Self.hourString(old),
+                Self.hourString(inWindow),
+                Self.hourString(reference),
+            ],
+            modelDataList: [
+                ZaiModelDataItem(modelName: "glm-4.6", tokensUsage: [10, 20, 30]),
+            ])
+
+        let bars = ZaiHourlyBars.from(modelData: modelData, range: .last24h, now: reference)
+
+        #expect(bars.map(\.label) == [Self.hourLabel(inWindow), Self.hourLabel(reference)])
+        #expect(bars.map(\.totalTokens) == [20, 30])
+    }
+
+    private static func localDate(year: Int, month: Int, day: Int, hour: Int) -> Date {
+        Calendar.current.date(from: DateComponents(year: year, month: month, day: day, hour: hour)) ?? Date()
+    }
+
+    private static func hourString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter.string(from: date)
+    }
+
+    private static func hourLabel(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter.string(from: date)
     }
 }
 

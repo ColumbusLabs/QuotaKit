@@ -15,6 +15,19 @@ struct ProvidersPaneCoverageTests {
     }
 
     @Test
+    func `claude token account descriptor shows organization field`() throws {
+        let settings = Self.makeSettingsStore(suite: "ProvidersPaneCoverageTests-claude-org-field")
+        let store = Self.makeUsageStore(settings: settings)
+        let pane = ProvidersPane(settings: settings, store: store)
+
+        let claudeDescriptor = try #require(pane._test_tokenAccountDescriptor(for: .claude))
+        #expect(claudeDescriptor.showsOrganizationField)
+
+        let copilotDescriptor = try #require(pane._test_tokenAccountDescriptor(for: .copilot))
+        #expect(!copilotDescriptor.showsOrganizationField)
+    }
+
+    @Test
     func `open router menu bar metric picker shows only automatic and primary`() {
         let settings = Self.makeSettingsStore(suite: "ProvidersPaneCoverageTests-openrouter-picker")
         let store = Self.makeUsageStore(settings: settings)
@@ -42,6 +55,19 @@ struct ProvidersPaneCoverageTests {
             MenuBarMetricPreference.automatic.rawValue,
         ])
         #expect(picker?.subtitle == "Shows the DeepSeek balance in the menu bar.")
+    }
+
+    @Test
+    func `moonshot menu bar metric picker shows balance only copy`() {
+        let settings = Self.makeSettingsStore(suite: "ProvidersPaneCoverageTests-moonshot-picker")
+        let store = Self.makeUsageStore(settings: settings)
+        let pane = ProvidersPane(settings: settings, store: store)
+
+        let picker = pane._test_menuBarMetricPicker(for: .moonshot)
+        #expect(picker?.options.map(\.id) == [
+            MenuBarMetricPreference.automatic.rawValue,
+        ])
+        #expect(picker?.subtitle == "Shows the Moonshot / Kimi API balance in the menu bar.")
     }
 
     @Test
@@ -195,6 +221,14 @@ struct ProvidersPaneCoverageTests {
 
         #expect(row?.label == "Balance")
         #expect(row?.value == "$4.61")
+    }
+
+    @Test
+    func `provider detail plan row formats moonshot as balance`() {
+        let row = ProviderDetailView<EmptyView>.planRow(provider: .moonshot, planText: "Balance: $49.58")
+
+        #expect(row?.label == "Balance")
+        #expect(row?.value == "$49.58")
     }
 
     @Test

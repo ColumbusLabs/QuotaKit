@@ -216,6 +216,8 @@ enum MockProviderInjector {
         "openai", "manus", "windsurf", "mimo", "doubao",
         "deepseek", "codebuff", "crof", "venice", "commandcode",
         "stepfun",
+        // iOS 1.7.0 catch-up (upstream v0.26.0 new providers).
+        "moonshot", "bedrock",
     ]
 
     /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
@@ -1124,6 +1126,25 @@ enum MockProviderInjector {
             primaryResetDescription: "in 11 hours",
             secondary: nil,
             thirtyDayCostUSD: 0.95, sessionCostUSD: 0.04),
+        // iOS 1.7.0 — upstream v0.26.0 new providers.
+        .init(
+            providerID: "moonshot", providerName: "Moonshot / Kimi API",
+            accountLocal: "balance", loginMethod: "Funded",
+            primaryUsage: 42, primaryLabel: "Balance",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 18 * 86400,
+            primaryResetDescription: "Top-up · ¥58.40 left",
+            secondary: nil,
+            thirtyDayCostUSD: 1.20, sessionCostUSD: 0.06),
+        .init(
+            providerID: "bedrock", providerName: "AWS Bedrock",
+            accountLocal: "cost", loginMethod: "us-east-1",
+            primaryUsage: 38, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 19 * 86400,
+            primaryResetDescription: "Budget · $19.10 / $50",
+            secondary: nil,
+            thirtyDayCostUSD: 19.10, sessionCostUSD: 0.55),
     ]
 
     /// Builds a `ProviderUsageSnapshot` from a `SimpleProviderProfile`.

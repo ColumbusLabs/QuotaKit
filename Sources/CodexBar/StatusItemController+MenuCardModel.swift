@@ -50,7 +50,7 @@ extension StatusItemController {
                 tokenSnapshot = nil
                 tokenError = nil
             }
-        } else if target == .claude || target == .vertexai, snapshotOverride == nil {
+        } else if target == .claude || target == .vertexai || target == .bedrock, snapshotOverride == nil {
             credits = nil
             creditsError = nil
             dashboard = nil
@@ -117,6 +117,7 @@ extension StatusItemController {
     }
 
     private func quotaWarningMarkerThresholds(provider: UsageProvider, window: QuotaWarningWindow) -> [Int] {
+        guard self.settings.quotaWarningMarkersVisible else { return [] }
         guard self.settings.quotaWarningEnabled(provider: provider, window: window) else { return [] }
         return self.settings.resolvedQuotaWarningThresholds(provider: provider, window: window)
     }

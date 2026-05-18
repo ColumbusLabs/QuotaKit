@@ -24,6 +24,7 @@ public enum ClaudeProviderDescriptor {
                 browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
                 dashboardURL: "https://console.anthropic.com/settings/billing",
                 subscriptionDashboardURL: "https://claude.ai/settings/usage",
+                changelogURL: "https://github.com/anthropics/claude-code/releases",
                 statusPageURL: "https://status.claude.com/"),
             branding: ProviderBranding(
                 iconStyle: .claude,
@@ -301,14 +302,19 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
             accountEmail: usage.accountEmail,
             accountOrganization: usage.accountOrganization,
             loginMethod: usage.loginMethod)
+        let primary = usage.primaryWindowKind == .spendLimit ? nil : usage.primary
         return UsageSnapshot(
-            primary: usage.primary,
+            primary: primary,
             secondary: usage.secondary,
             tertiary: usage.opus,
             extraRateWindows: usage.extraRateWindows.isEmpty ? nil : usage.extraRateWindows,
             providerCost: usage.providerCost,
             updatedAt: usage.updatedAt,
             identity: identity)
+    }
+
+    static func _snapshotForTesting(from usage: ClaudeUsageSnapshot) -> UsageSnapshot {
+        self.snapshot(from: usage)
     }
 }
 

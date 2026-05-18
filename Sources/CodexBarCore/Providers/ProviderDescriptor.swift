@@ -74,6 +74,7 @@ public enum ProviderDescriptorRegistry {
         .augment: AugmentProviderDescriptor.descriptor,
         .jetbrains: JetBrainsProviderDescriptor.descriptor,
         .kimik2: KimiK2ProviderDescriptor.descriptor,
+        .moonshot: MoonshotProviderDescriptor.descriptor,
         .amp: AmpProviderDescriptor.descriptor,
         .ollama: OllamaProviderDescriptor.descriptor,
         .synthetic: SyntheticProviderDescriptor.descriptor,
@@ -91,6 +92,7 @@ public enum ProviderDescriptorRegistry {
         .venice: VeniceProviderDescriptor.descriptor,
         .commandcode: CommandCodeProviderDescriptor.descriptor,
         .stepfun: StepFunProviderDescriptor.descriptor,
+        .bedrock: BedrockProviderDescriptor.descriptor,
     ]
     private static let bootstrap: Void = {
         for provider in UsageProvider.allCases {

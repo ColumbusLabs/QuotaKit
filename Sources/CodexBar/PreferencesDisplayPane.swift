@@ -75,9 +75,17 @@ struct DisplayPane: View {
                         subtitle: L("show_usage_as_used_subtitle"),
                         binding: self.$settings.usageBarsShowUsed)
                     PreferenceToggleRow(
+                        title: L("show_quota_warning_markers_title"),
+                        subtitle: L("show_quota_warning_markers_subtitle"),
+                        binding: self.$settings.quotaWarningMarkersVisible)
+                    PreferenceToggleRow(
                         title: L("show_reset_time_as_clock_title"),
                         subtitle: L("show_reset_time_as_clock_subtitle"),
                         binding: self.$settings.resetTimesShowAbsolute)
+                    PreferenceToggleRow(
+                        title: L("show_provider_changelog_links_title"),
+                        subtitle: L("show_provider_changelog_links_subtitle"),
+                        binding: self.$settings.providerChangelogLinksEnabled)
                     PreferenceToggleRow(
                         title: L("show_credits_extra_usage_title"),
                         subtitle: L("show_credits_extra_usage_subtitle"),

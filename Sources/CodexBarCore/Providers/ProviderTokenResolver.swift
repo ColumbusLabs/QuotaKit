@@ -56,6 +56,10 @@ public enum ProviderTokenResolver {
         self.kimiK2Resolution(environment: environment)?.token
     }
 
+    public static func moonshotToken(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
+        self.moonshotResolution(environment: environment)?.token
+    }
+
     public static func kiloToken(
         environment: [String: String] = ProcessInfo.processInfo.environment,
         authFileURL: URL? = nil) -> String?
@@ -103,6 +107,18 @@ public enum ProviderTokenResolver {
 
     public static func doubaoToken(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
         self.doubaoResolution(environment: environment)?.token
+    }
+
+    public static func bedrockAccessKeyID(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
+    {
+        self.bedrockResolution(environment: environment)?.token
+    }
+
+    public static func bedrockResolution(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
+    {
+        self.resolveEnv(BedrockSettingsReader.accessKeyID(environment: environment))
     }
 
     public static func deepseekResolution(
@@ -207,6 +223,12 @@ public enum ProviderTokenResolver {
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
         self.resolveEnv(KimiK2SettingsReader.apiKey(environment: environment))
+    }
+
+    public static func moonshotResolution(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
+    {
+        self.resolveEnv(MoonshotSettingsReader.apiKey(environment: environment))
     }
 
     public static func kiloResolution(

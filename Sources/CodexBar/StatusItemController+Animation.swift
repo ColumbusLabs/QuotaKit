@@ -562,6 +562,11 @@ extension StatusItemController {
         {
             return balance
         }
+        if provider == .moonshot,
+           let balance = Self.moonshotBalanceDisplayText(snapshot: snapshot)
+        {
+            return balance
+        }
         if provider == .mistral,
            let spend = Self.mistralSpendDisplayText(snapshot: snapshot)
         {
@@ -571,6 +576,12 @@ extension StatusItemController {
            let credits = Self.kimiK2CreditsDisplayText(snapshot: snapshot)
         {
             return credits
+        }
+        if provider == .kiro {
+            return Self.kiroDisplayText(
+                snapshot: snapshot,
+                mode: self.settings.kiroMenuBarDisplayMode,
+                showUsed: self.settings.usageBarsShowUsed)
         }
 
         let percentWindow = self.menuBarPercentWindow(for: provider, snapshot: snapshot)
@@ -627,6 +638,19 @@ extension StatusItemController {
         return balance.map(String.init)
     }
 
+    nonisolated static func moonshotBalanceDisplayText(snapshot: UsageSnapshot?) -> String? {
+        self.displayValue(
+            from: snapshot?.loginMethod(for: .moonshot),
+            prefix: "Balance:",
+            removingSuffix: "")
+            .flatMap { value in
+                value
+                    .split(separator: "·", maxSplits: 1)
+                    .first?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+    }
+
     nonisolated static func mistralSpendDisplayText(snapshot: UsageSnapshot?) -> String? {
         self.displayValue(
             from: snapshot?.identity?.loginMethod,
@@ -639,6 +663,45 @@ extension StatusItemController {
             from: snapshot?.identity?.loginMethod,
             prefix: "Credits:",
             removingSuffix: " left")
+    }
+
+    nonisolated static func kiroDisplayText(
+        snapshot: UsageSnapshot?,
+        mode: KiroMenuBarDisplayMode,
+        showUsed: Bool)
+        -> String?
+    {
+        guard mode != .hidden else { return nil }
+        guard let usage = snapshot?.kiroUsage else {
+            return MenuBarDisplayText.percentText(window: snapshot?.primary, showUsed: showUsed)
+        }
+        let percentText = MenuBarDisplayText.percentText(
+            window: snapshot?.primary,
+            showUsed: showUsed)
+        let creditsLeft = UsageFormatter.kiroCreditNumber(usage.creditsRemaining)
+        let usedTotal = [
+            UsageFormatter.kiroCreditNumber(usage.creditsUsed),
+            UsageFormatter.kiroCreditNumber(usage.creditsTotal),
+        ].joined(separator: " / ")
+
+        switch mode {
+        case .automatic, .creditsLeft:
+            if usage.creditsTotal > 0 {
+                return creditsLeft
+            }
+            return percentText
+        case .hidden:
+            return nil
+        case .percentLeft:
+            return MenuBarDisplayText.percentText(window: snapshot?.primary, showUsed: false)
+        case .creditsAndPercent:
+            guard usage.creditsTotal > 0 else { return percentText }
+            guard let percentText else { return creditsLeft }
+            return "\(creditsLeft) · \(percentText)"
+        case .usedAndTotal:
+            guard usage.creditsTotal > 0 else { return percentText }
+            return usedTotal
+        }
     }
 
     private nonisolated static func displayValue(
@@ -654,7 +717,7 @@ extension StatusItemController {
         }
         let valueStart = rawValue.index(rawValue.startIndex, offsetBy: prefix.count)
         var value = rawValue[valueStart...].trimmingCharacters(in: .whitespacesAndNewlines)
-        if value.hasSuffix(suffix) {
+        if !suffix.isEmpty, value.hasSuffix(suffix) {
             value = String(value.dropLast(suffix.count)).trimmingCharacters(in: .whitespacesAndNewlines)
         }
         return value.isEmpty ? nil : value

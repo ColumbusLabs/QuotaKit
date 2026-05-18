@@ -4,6 +4,9 @@ private func appLanguageDefaults() -> UserDefaults {
     if Bundle.main.bundleIdentifier != nil {
         return .standard
     }
+    if UserDefaults.standard.object(forKey: "appLanguage") != nil {
+        return .standard
+    }
     // Fallback for running outside a .app bundle (swift run / debug builds)
     return UserDefaults(suiteName: "CodexBar") ?? .standard
 }
@@ -35,16 +38,13 @@ private func localizedBundle() -> Bundle {
     let resourceBundle = codexBarLocalizationResourceBundle()
     let language = appLanguageDefaults().string(forKey: "appLanguage") ?? ""
     if !language.isEmpty {
-        if let path = resourceBundle.path(forResource: language, ofType: "lproj"),
-           let bundle = Bundle(path: path)
-        {
+        if let bundle = lprojBundle(named: language, in: resourceBundle) {
             return bundle
         }
     } else {
         // System mode: follow macOS language preferences
         if let preferred = resourceBundle.preferredLocalizations.first,
-           let path = resourceBundle.path(forResource: preferred, ofType: "lproj"),
-           let bundle = Bundle(path: path)
+           let bundle = lprojBundle(named: preferred, in: resourceBundle)
         {
             return bundle
         }
@@ -56,6 +56,18 @@ private func localizedBundle() -> Bundle {
         return bundle
     }
     return resourceBundle
+}
+
+private func lprojBundle(named language: String, in resourceBundle: Bundle) -> Bundle? {
+    let candidates = [language, language.lowercased()]
+    for candidate in candidates where !candidate.isEmpty {
+        if let path = resourceBundle.path(forResource: candidate, ofType: "lproj"),
+           let bundle = Bundle(path: path)
+        {
+            return bundle
+        }
+    }
+    return nil
 }
 
 func L(_ key: String) -> String {

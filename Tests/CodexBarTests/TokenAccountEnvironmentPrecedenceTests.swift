@@ -219,6 +219,112 @@ struct TokenAccountEnvironmentPrecedenceTests {
     }
 
     @Test
+    func `claude OAuth token selection reroutes explicit CLI source to OAuth in CLI`() throws {
+        let account = ProviderTokenAccount(
+            id: UUID(),
+            label: "Primary",
+            token: "Bearer sk-ant-oat-account-token",
+            addedAt: 0,
+            lastUsed: nil)
+        let config = CodexBarConfig(providers: [ProviderConfig(id: .claude)])
+        let tokenContext = try TokenAccountCLIContext(
+            selection: TokenAccountCLISelection(label: nil, index: nil, allAccounts: false),
+            config: config,
+            verbose: false)
+
+        let effectiveSourceMode = tokenContext.effectiveSourceMode(
+            base: .cli,
+            provider: .claude,
+            account: account)
+
+        #expect(effectiveSourceMode == .oauth)
+    }
+
+    @Test
+    func `claude session key selection reroutes explicit CLI source to Web in CLI`() throws {
+        let account = ProviderTokenAccount(
+            id: UUID(),
+            label: "Primary",
+            token: "sk-ant-session-token",
+            addedAt: 0,
+            lastUsed: nil)
+        let config = CodexBarConfig(providers: [ProviderConfig(id: .claude)])
+        let tokenContext = try TokenAccountCLIContext(
+            selection: TokenAccountCLISelection(label: nil, index: nil, allAccounts: false),
+            config: config,
+            verbose: false)
+
+        let effectiveSourceMode = tokenContext.effectiveSourceMode(
+            base: .cli,
+            provider: .claude,
+            account: account)
+
+        #expect(effectiveSourceMode == .web)
+    }
+
+    @Test
+    func `claude all accounts reroutes explicit CLI source per selected credential in CLI`() throws {
+        let accounts = ProviderTokenAccountData(
+            version: 1,
+            accounts: [
+                ProviderTokenAccount(
+                    id: UUID(),
+                    label: "OAuth",
+                    token: "Bearer sk-ant-oat-account-token",
+                    addedAt: 0,
+                    lastUsed: nil),
+                ProviderTokenAccount(
+                    id: UUID(),
+                    label: "Session",
+                    token: "sk-ant-session-token",
+                    addedAt: 0,
+                    lastUsed: nil),
+            ],
+            activeIndex: 0)
+        let config = CodexBarConfig(
+            providers: [
+                ProviderConfig(id: .claude, tokenAccounts: accounts),
+            ])
+        let tokenContext = try TokenAccountCLIContext(
+            selection: TokenAccountCLISelection(label: nil, index: nil, allAccounts: true),
+            config: config,
+            verbose: false)
+
+        let resolved = try tokenContext.resolvedAccounts(for: .claude)
+        #expect(resolved.map(\.label) == ["OAuth", "Session"])
+
+        let oauth = try #require(resolved.first)
+        let oauthSnapshot = try #require(tokenContext.settingsSnapshot(for: .claude, account: oauth)?.claude)
+        #expect(tokenContext.effectiveSourceMode(base: .cli, provider: .claude, account: oauth) == .oauth)
+        #expect(oauthSnapshot.usageDataSource == .oauth)
+        #expect(tokenContext.environment(base: [:], provider: .claude, account: oauth)[
+            ClaudeOAuthCredentialsStore.environmentTokenKey,
+        ] == "sk-ant-oat-account-token")
+
+        let session = try #require(resolved.dropFirst().first)
+        let sessionSnapshot = try #require(tokenContext.settingsSnapshot(for: .claude, account: session)?.claude)
+        #expect(tokenContext.effectiveSourceMode(base: .cli, provider: .claude, account: session) == .web)
+        #expect(sessionSnapshot.cookieSource == .manual)
+        #expect(sessionSnapshot.manualCookieHeader == "sessionKey=sk-ant-session-token")
+    }
+
+    @Test
+    func `claude ambient explicit CLI source remains CLI in CLI`() throws {
+        let config = CodexBarConfig(providers: [ProviderConfig(id: .claude)])
+        let tokenContext = try TokenAccountCLIContext(
+            selection: TokenAccountCLISelection(label: nil, index: nil, allAccounts: false),
+            config: config,
+            verbose: false)
+
+        let effectiveSourceMode = tokenContext.effectiveSourceMode(
+            base: .cli,
+            provider: .claude,
+            account: nil)
+
+        #expect(effectiveSourceMode == .cli)
+    }
+
+    @Test
     func `claude session key selection stays in manual cookie mode in CLI settings snapshot`() throws {
         let accounts = ProviderTokenAccountData(
             version: 1,
@@ -397,8 +503,10 @@ struct TokenAccountEnvironmentPrecedenceTests {
         try Self.withCLIKnownOwnerFixtures(
             ambientHome: ambientHome,
             managedAccounts: [])
-        {
-            let rawCLIOwners = try Self.codexCLIKnownOwners()
+        { managedStoreURL in
+            let rawCLIOwners = try Self.codexCLIKnownOwners(
+                ambientHome: ambientHome,
+                managedStoreURL: managedStoreURL)
             let cliOwners = try #require(rawCLIOwners)
             let appOwners = appStore.codexDashboardKnownOwnerCandidates()
 
@@ -444,8 +552,10 @@ struct TokenAccountEnvironmentPrecedenceTests {
         try Self.withCLIKnownOwnerFixtures(
             ambientHome: ambientHome,
             managedAccounts: [managedAccount])
-        {
-            let rawCLIOwners = try Self.codexCLIKnownOwners()
+        { managedStoreURL in
+            let rawCLIOwners = try Self.codexCLIKnownOwners(
+                ambientHome: ambientHome,
+                managedStoreURL: managedStoreURL)
             let cliOwners = try #require(rawCLIOwners)
             let appOwners = appStore.codexDashboardKnownOwnerCandidates()
 
@@ -492,8 +602,10 @@ struct TokenAccountEnvironmentPrecedenceTests {
         try Self.withCLIKnownOwnerFixtures(
             ambientHome: ambientHome,
             managedAccounts: [managedAccount])
-        {
-            let rawCLIOwners = try Self.codexCLIKnownOwners()
+        { managedStoreURL in
+            let rawCLIOwners = try Self.codexCLIKnownOwners(
+                ambientHome: ambientHome,
+                managedStoreURL: managedStoreURL)
             let cliOwners = try #require(rawCLIOwners)
             let appOwners = appStore.codexDashboardKnownOwnerCandidates()
 
@@ -533,11 +645,16 @@ struct TokenAccountEnvironmentPrecedenceTests {
             settings: settings)
     }
 
-    private static func codexCLIKnownOwners() throws -> [CodexDashboardKnownOwnerCandidate]? {
+    private static func codexCLIKnownOwners(
+        ambientHome: URL,
+        managedStoreURL: URL) throws -> [CodexDashboardKnownOwnerCandidate]?
+    {
         let context = try TokenAccountCLIContext(
             selection: TokenAccountCLISelection(label: nil, index: nil, allAccounts: false),
             config: CodexBarConfig(providers: [ProviderConfig(id: .codex)]),
-            verbose: false)
+            verbose: false,
+            baseEnvironment: ["CODEX_HOME": ambientHome.path],
+            managedCodexAccountStoreURL: managedStoreURL)
         return context.settingsSnapshot(for: .codex, account: nil)?.codex?.dashboardAuthorityKnownOwners
     }
 
@@ -587,38 +704,20 @@ struct TokenAccountEnvironmentPrecedenceTests {
     private static func withCLIKnownOwnerFixtures<T>(
         ambientHome: URL,
         managedAccounts: [ManagedCodexAccount],
-        operation: () throws -> T) throws -> T
+        operation: (URL) throws -> T) throws -> T
     {
-        let managedStoreURL = FileManagedCodexAccountStore.defaultURL()
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("codex-known-owner-store-\(UUID().uuidString)", isDirectory: true)
+        let managedStoreURL = root.appendingPathComponent("managed-codex-accounts.json", isDirectory: false)
         let fileManager = FileManager.default
-        let originalManagedStoreData = try? Data(contentsOf: managedStoreURL)
-        let hadOriginalManagedStore = fileManager.fileExists(atPath: managedStoreURL.path)
-        let originalCodexHome = getenv("CODEX_HOME").map { String(cString: $0) }
+        defer { try? fileManager.removeItem(at: root) }
 
         let managedStore = FileManagedCodexAccountStore(fileURL: managedStoreURL)
         try managedStore.storeAccounts(ManagedCodexAccountSet(
             version: FileManagedCodexAccountStore.currentVersion,
             accounts: managedAccounts))
-        setenv("CODEX_HOME", ambientHome.path, 1)
 
-        defer {
-            if let originalCodexHome {
-                setenv("CODEX_HOME", originalCodexHome, 1)
-            } else {
-                unsetenv("CODEX_HOME")
-            }
-
-            if hadOriginalManagedStore, let originalManagedStoreData {
-                try? fileManager.createDirectory(
-                    at: managedStoreURL.deletingLastPathComponent(),
-                    withIntermediateDirectories: true)
-                try? originalManagedStoreData.write(to: managedStoreURL, options: [.atomic])
-            } else {
-                try? fileManager.removeItem(at: managedStoreURL)
-            }
-        }
-
-        return try operation()
+        return try operation(managedStoreURL)
     }
 
     private static func makeSnapshotWithAllFields(provider: UsageProvider) -> UsageSnapshot {

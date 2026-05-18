@@ -61,8 +61,10 @@ extension UsageStore {
             return
         }
 
-        let originalSource = self.settings.codexActiveSource
         let originalVisibleAccountID = projection.activeVisibleAccountID
+        let originalSelectionSource = originalVisibleAccountID.flatMap {
+            projection.source(forVisibleAccountID: $0)
+        }
         let priorByAccountID = Dictionary(uniqueKeysWithValues: self.codexAccountSnapshots.map { ($0.id, $0) })
         var snapshots: [CodexAccountUsageSnapshot] = []
         var selectedOutcome: ProviderFetchOutcome?
@@ -70,22 +72,11 @@ extension UsageStore {
         var selectedSourceLabel: String?
         var sawAnyNonCancellationOutcome = false
 
-        let restoreOriginalSelection = {
-            var restoredSelection = false
-            if let originalVisibleAccountID,
-               self.settings.selectCodexVisibleAccount(id: originalVisibleAccountID)
-            {
-                restoredSelection = true
-            }
-            if !restoredSelection {
-                self.settings.codexActiveSource = originalSource
-            }
-        }
-        defer { restoreOriginalSelection() }
-
         for account in accounts {
-            guard self.settings.selectCodexVisibleAccount(id: account.id) else { continue }
-            let outcome = await self.fetchOutcome(provider: .codex, override: nil)
+            let outcome = await self.fetchOutcome(
+                provider: .codex,
+                override: nil,
+                codexActiveSourceOverride: account.selectionSource)
             let isCancellation = Self.outcomeIsCancellation(outcome)
             if !isCancellation {
                 sawAnyNonCancellationOutcome = true
@@ -110,13 +101,27 @@ extension UsageStore {
             self.codexAccountSnapshots = snapshots
         }
 
-        restoreOriginalSelection()
-        if let selectedOutcome {
+        let selectionStillMatches = self.codexVisibleSelectionStillMatches(
+            originalVisibleAccountID: originalVisibleAccountID,
+            originalSelectionSource: originalSelectionSource)
+        if let selectedOutcome, selectionStillMatches {
             await self.applySelectedCodexVisibleAccountOutcome(
                 selectedOutcome,
                 snapshot: selectedSnapshot,
                 sourceLabel: selectedSourceLabel)
         }
+    }
+
+    func codexVisibleSelectionStillMatches(
+        originalVisibleAccountID: String?,
+        originalSelectionSource: CodexActiveSource?) -> Bool
+    {
+        let currentProjection = self.settings.codexVisibleAccountProjection
+        let currentSelectionSource = originalVisibleAccountID.flatMap {
+            currentProjection.source(forVisibleAccountID: $0)
+        }
+        return currentProjection.activeVisibleAccountID == originalVisibleAccountID &&
+            currentSelectionSource == originalSelectionSource
     }
 
     func refreshTokenAccounts(provider: UsageProvider, accounts: [ProviderTokenAccount]) async {
@@ -244,24 +249,37 @@ extension UsageStore {
 
     func fetchOutcome(
         provider: UsageProvider,
-        override: TokenAccountOverride?) async -> ProviderFetchOutcome
+        override: TokenAccountOverride?,
+        codexActiveSourceOverride: CodexActiveSource? = nil) async -> ProviderFetchOutcome
     {
         let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
-        let context = self.makeFetchContext(provider: provider, override: override)
+        let context = self.makeFetchContext(
+            provider: provider,
+            override: override,
+            codexActiveSourceOverride: codexActiveSourceOverride)
         return await descriptor.fetchOutcome(context: context)
     }
 
     func makeFetchContext(
         provider: UsageProvider,
-        override: TokenAccountOverride?) -> ProviderFetchContext
+        override: TokenAccountOverride?,
+        codexActiveSourceOverride: CodexActiveSource? = nil) -> ProviderFetchContext
     {
+        let account = ProviderTokenAccountSelection.selectedAccount(
+            provider: provider,
+            settings: self.settings,
+            override: override)
         let sourceMode = self.sourceMode(for: provider)
-        let snapshot = ProviderRegistry.makeSettingsSnapshot(settings: self.settings, tokenOverride: override)
+        let snapshot = ProviderRegistry.makeSettingsSnapshot(
+            settings: self.settings,
+            tokenOverride: override,
+            codexActiveSourceOverride: codexActiveSourceOverride)
         let env = ProviderRegistry.makeEnvironment(
             base: self.environmentBase,
             provider: provider,
             settings: self.settings,
-            tokenOverride: override)
+            tokenOverride: override,
+            codexActiveSourceOverride: codexActiveSourceOverride)
         let fetcher = ProviderRegistry.makeFetcher(base: self.codexFetcher, provider: provider, env: env)
         let verbose = self.settings.isVerboseLoggingEnabled
         return ProviderFetchContext(
@@ -275,7 +293,16 @@ extension UsageStore {
             settings: snapshot,
             fetcher: fetcher,
             claudeFetcher: self.claudeFetcher,
-            browserDetection: self.browserDetection)
+            browserDetection: self.browserDetection,
+            selectedTokenAccountID: account?.id,
+            tokenAccountTokenUpdater: { [weak settings = self.settings] provider, accountID, token in
+                await MainActor.run {
+                    settings?.updateTokenAccount(
+                        provider: provider,
+                        accountID: accountID,
+                        token: token)
+                }
+            })
     }
 
     func sourceMode(for provider: UsageProvider) -> ProviderSourceMode {

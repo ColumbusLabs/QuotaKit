@@ -49,6 +49,7 @@ headers, source selection, provider ordering, and token accounts are stored in `
 | Abacus AI | Browser cookies → compute points + billing API (`web`). |
 | Mistral | Console billing API via Ory Kratos session cookies (`web`). |
 | DeepSeek | API key from env or token accounts → balance endpoint (`api`). |
+| Moonshot | API key from config/env → balance endpoint (`api`). |
 | Codebuff | API token from config/env or `codebuff login` credentials → usage API (`api`). |
 | Crof | API key from config/env → credit balance + requests quota API (`api`). |
 | Venice | API key from config/env → DIEM/USD balance API (`api`). |
@@ -256,6 +257,14 @@ headers, source selection, provider ordering, and token accounts are stored in `
 - Shows total balance with paid vs. granted breakdown; USD preferred when multiple currencies present.
 - Status: `https://status.deepseek.com` (link only, no auto-polling).
 - Details: `docs/deepseek.md`.
+
+## Moonshot / Kimi API
+- API key via `MOONSHOT_API_KEY` / `MOONSHOT_KEY` env var or provider config.
+- Reads `GET /v1/users/me/balance` from the selected Moonshot region.
+- Region: international (`api.moonshot.ai`) or China mainland (`api.moonshot.cn`), configurable in Settings or `MOONSHOT_REGION`.
+- Shows available balance; negative cash balance is surfaced as a deficit.
+- Status: none yet.
+- Details: `docs/moonshot.md`.
 
 ## Venice
 - API key via `VENICE_API_KEY` / `VENICE_KEY` env var or Venice token accounts.

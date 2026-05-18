@@ -11,10 +11,11 @@ struct CostUsageCacheTests {
         let claudeURL = CostUsageCacheIO.cacheFileURL(provider: .claude, cacheRoot: root)
         let vertexURL = CostUsageCacheIO.cacheFileURL(provider: .vertexai, cacheRoot: root)
 
-        // Bumped 4→5 (codex) and 2→3 (claude/vertex) in fork 0.23.1 to
-        // invalidate stale token attributions from 0.20.3 era. If you
-        // bump again, also bump these expectations.
-        #expect(codexURL.lastPathComponent == "codex-v5.json")
+        // Codex: upstream bumped 5 → 6 in v0.26.x (supersedes fork's
+        // prior 4 → 5 hotfix from 0.23.1). Claude/Vertex: fork's 2 → 3
+        // bump (0.23.1 era, gained claude-opus-4-7 + fallback resolver)
+        // retained — upstream still at 2.
+        #expect(codexURL.lastPathComponent == "codex-v6.json")
         #expect(claudeURL.lastPathComponent == "claude-v3.json")
         #expect(vertexURL.lastPathComponent == "vertexai-v3.json")
     }

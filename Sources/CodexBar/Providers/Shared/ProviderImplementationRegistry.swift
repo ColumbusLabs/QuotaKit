@@ -34,6 +34,7 @@ enum ProviderImplementationRegistry {
         case .augment: AugmentProviderImplementation()
         case .jetbrains: JetBrainsProviderImplementation()
         case .kimik2: KimiK2ProviderImplementation()
+        case .moonshot: MoonshotProviderImplementation()
         case .amp: AmpProviderImplementation()
         case .ollama: OllamaProviderImplementation()
         case .synthetic: SyntheticProviderImplementation()
@@ -51,6 +52,7 @@ enum ProviderImplementationRegistry {
         case .venice: VeniceProviderImplementation()
         case .commandcode: CommandCodeProviderImplementation()
         case .stepfun: StepFunProviderImplementation()
+        case .bedrock: BedrockProviderImplementation()
         }
     }
 

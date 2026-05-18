@@ -4,6 +4,7 @@ import Testing
 @testable import CodexBar
 
 @MainActor
+@Suite(.serialized)
 struct PreferencesPaneSmokeTests {
     @Test
     func `builds preference panes with default settings`() {
@@ -53,6 +54,32 @@ struct PreferencesPaneSmokeTests {
 
         #expect(text.contains("3"))
         #expect(!text.contains("%@"))
+    }
+
+    @Test
+    func `language preference updates global localization resolver`() {
+        let previousLanguage = UserDefaults.standard.object(forKey: "appLanguage")
+        let previousAppleLanguages = UserDefaults.standard.object(forKey: "AppleLanguages")
+        defer {
+            if let previousLanguage {
+                UserDefaults.standard.set(previousLanguage, forKey: "appLanguage")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "appLanguage")
+            }
+            if let previousAppleLanguages {
+                UserDefaults.standard.set(previousAppleLanguages, forKey: "AppleLanguages")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+            }
+        }
+
+        let settings = Self.makeSettingsStore(suite: "PreferencesPaneSmokeTests-language")
+
+        settings.appLanguage = "zh-Hans"
+
+        #expect(UserDefaults.standard.string(forKey: "appLanguage") == "zh-Hans")
+        #expect(L("tab_general") == "通用")
+        #expect(L("quota_warning_notifications_title") == "配额预警通知")
     }
 
     private static func makeSettingsStore(suite: String) -> SettingsStore {

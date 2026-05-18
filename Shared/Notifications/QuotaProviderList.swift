@@ -84,6 +84,10 @@ public enum QuotaProviderList {
         Provider(id: "venice", displayName: "Venice"),
         Provider(id: "commandcode", displayName: "Command Code"),
         Provider(id: "stepfun", displayName: "StepFun"),
+        // iOS 1.7.0 catch-up — upstream v0.26.0 new providers.
+        // Mirrors MockProviderInjector.realProviderIDsBorrowedByMocks.
+        Provider(id: "moonshot", displayName: "Moonshot / Kimi API"),
+        Provider(id: "bedrock", displayName: "AWS Bedrock"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

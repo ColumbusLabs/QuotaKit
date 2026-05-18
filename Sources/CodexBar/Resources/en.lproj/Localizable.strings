@@ -79,6 +79,7 @@
 "Codex login failed" = "Codex login failed";
 "Codex login timed out" = "Codex login timed out";
 "CodexBar Lifecycle Keepalive" = "CodexBar Lifecycle Keepalive";
+"CodexBar can't show its menu bar icon" = "CodexBar can't show its menu bar icon";
 "CodexBar could not read managed account storage. " = "CodexBar could not read managed account storage. ";
 "Configure…" = "Configure…";
 "Connected" = "Connected";
@@ -108,6 +109,7 @@
 "Designs" = "Designs";
 "Disable Keychain access" = "Disable Keychain access";
 "Disabled" = "Disabled";
+"Dismiss" = "Dismiss";
 "Disconnected" = "Disconnected";
 "Display" = "Display";
 "Display mode" = "Display mode";
@@ -206,6 +208,7 @@
 "Open Console" = "Open Console";
 "Open Dashboard" = "Open Dashboard";
 "Open Mistral Admin" = "Open Mistral Admin";
+"Open Menu Bar Settings" = "Open Menu Bar Settings";
 "Open Ollama Settings" = "Open Ollama Settings";
 "Open Terminal" = "Open Terminal";
 "Open Usage Page" = "Open Usage Page";
@@ -403,6 +406,7 @@
 "language_system" = "System";
 "language_english" = "English";
 "language_chinese_simplified" = "简体中文";
+"language_portuguese_brazilian" = "Português (Brasil)";
 "start_at_login_title" = "Start at Login";
 "start_at_login_subtitle" = "Automatically opens CodexBar when you start your Mac.";
 "show_cost_summary" = "Show cost summary";
@@ -415,6 +419,26 @@
 "check_provider_status_subtitle" = "Polls OpenAI/Claude status pages and Google Workspace for Gemini/Antigravity, surfacing incidents in the icon and menu.";
 "session_quota_notifications_title" = "Session quota notifications";
 "session_quota_notifications_subtitle" = "Notifies when the 5-hour session quota hits 0% and when it becomes available again.";
+"quota_warning_notifications_title" = "Quota warning notifications";
+"quota_warning_notifications_subtitle" = "Warns when session or weekly quota remaining crosses configured thresholds.";
+"quota_warnings_title" = "Quota warnings";
+"quota_warning_session" = "session";
+"quota_warning_session_capitalized" = "Session";
+"quota_warning_weekly" = "weekly";
+"quota_warning_weekly_capitalized" = "Weekly";
+"quota_warning_warn_at" = "Warn at";
+"quota_warning_global_threshold_subtitle" = "Remaining percentages for session and weekly windows unless a provider overrides them.";
+"quota_warning_sound" = "Play notification sound";
+"quota_warning_provider_inherits" = "Uses the global quota warning settings unless a window is customized here.";
+"quota_warning_customize_thresholds" = "Customize %@ thresholds";
+"quota_warning_enable_warnings" = "Enable %@ warnings";
+"quota_warning_window_warn_at" = "%@ warn at";
+"quota_warning_off" = "Off";
+"quota_warning_inherited" = "Inherited: %@";
+"quota_warning_depleted_only" = "depleted only";
+"quota_warning_upper" = "Upper";
+"quota_warning_lower" = "Lower";
+"apply" = "Apply";
 "quit_app" = "Quit CodexBar";
 
 /* Tab titles */
@@ -442,6 +466,7 @@
 "menu_bar_metric_title" = "Menu bar metric";
 "menu_bar_metric_subtitle" = "Choose which window drives the menu bar percent.";
 "menu_bar_metric_subtitle_deepseek" = "Shows the DeepSeek balance in the menu bar.";
+"menu_bar_metric_subtitle_moonshot" = "Shows the Moonshot / Kimi API balance in the menu bar.";
 "menu_bar_metric_subtitle_mistral" = "Shows current-month Mistral API spend in the menu bar.";
 "menu_bar_metric_subtitle_kimik2" = "Shows Kimi K2 API-key credits in the menu bar.";
 "automatic" = "Automatic";
@@ -462,8 +487,12 @@
 "section_menu_content" = "Menu content";
 "show_usage_as_used_title" = "Show usage as used";
 "show_usage_as_used_subtitle" = "Progress bars fill as you consume quota (instead of showing remaining).";
+"show_quota_warning_markers_title" = "Show quota warning markers";
+"show_quota_warning_markers_subtitle" = "Draw threshold tick marks on usage bars when quota warnings are configured.";
 "show_reset_time_as_clock_title" = "Show reset time as clock";
 "show_reset_time_as_clock_subtitle" = "Display reset times as absolute clock values instead of countdowns.";
+"show_provider_changelog_links_title" = "Show provider changelog links";
+"show_provider_changelog_links_subtitle" = "Adds release-notes links for supported CLI-backed providers to the menu.";
 "show_credits_extra_usage_title" = "Show credits + extra usage";
 "show_credits_extra_usage_subtitle" = "Show Codex Credits and Claude Extra usage sections in the menu.";
 "show_all_token_accounts_title" = "Show all token accounts";
@@ -568,6 +597,7 @@
 "login_shell_path" = "Login shell PATH (startup capture)";
 "cleared" = "Cleared.";
 "no_fetch_attempts" = "No fetch attempts yet.";
+"macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. CodexBar is running, but macOS may be hiding its icon. Open Menu Bar settings and turn CodexBar on." = "macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. CodexBar is running, but macOS may be hiding its icon. Open Menu Bar settings and turn CodexBar on.";
 
 /* Metric preferences */
 "metric_pref_automatic" = "Automatic";
@@ -624,3 +654,7 @@
 "mobile_sync_status_last_attempt_format" = "Last attempt: %@";
 "mobile_sync_status_no_sync" = "No sync yet";
 "mobile_button_sync_now" = "Sync Now";
+
+/* Cost estimation */
+"cost_header_estimated" = "Cost (estimated)";
+"cost_estimate_hint" = "Estimated from local logs · may differ from your bill";

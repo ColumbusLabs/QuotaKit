@@ -12,7 +12,7 @@ struct GlobalQuotaWarningSettingsView: View {
                     get: { self.settings.quotaWarningWindowEnabled(.session) },
                     set: { self.settings.setQuotaWarningWindowEnabled(.session, enabled: $0) }))
                 {
-                    Text("Session")
+                    Text(L("quota_warning_session_capitalized"))
                         .font(.footnote)
                 }
                 .toggleStyle(.checkbox)
@@ -21,29 +21,32 @@ struct GlobalQuotaWarningSettingsView: View {
                     get: { self.settings.quotaWarningWindowEnabled(.weekly) },
                     set: { self.settings.setQuotaWarningWindowEnabled(.weekly, enabled: $0) }))
                 {
-                    Text("Weekly")
+                    Text(L("quota_warning_weekly_capitalized"))
                         .font(.footnote)
                 }
                 .toggleStyle(.checkbox)
             }
 
-            QuotaWarningThresholdField(
-                title: "Warn at",
-                subtitle: "Remaining percentages for session and weekly windows unless a provider overrides them.",
-                thresholds: { self.settings.quotaWarningThresholds },
-                setThresholds: { self.settings.quotaWarningThresholds = $0 })
-                .disabled(!self.settings.quotaWarningWindowEnabled(.session) && !self.settings
-                    .quotaWarningWindowEnabled(.weekly))
-                .opacity(!self.settings.quotaWarningWindowEnabled(.session) && !self.settings
-                    .quotaWarningWindowEnabled(.weekly) ? 0.55 : 1)
+            self.windowThresholdField(.session)
+            self.windowThresholdField(.weekly)
 
             Toggle(isOn: self.$settings.quotaWarningSoundEnabled) {
-                Text("Play notification sound")
+                Text(L("quota_warning_sound"))
                     .font(.footnote)
             }
             .toggleStyle(.checkbox)
         }
         .padding(.leading, 20)
+    }
+
+    private func windowThresholdField(_ window: QuotaWarningWindow) -> some View {
+        QuotaWarningThresholdField(
+            title: String(format: L("quota_warning_window_warn_at"), window.localizedCapitalizedDisplayName),
+            subtitle: L("quota_warning_global_threshold_subtitle"),
+            thresholds: { self.settings.quotaWarningThresholds(window) },
+            setThresholds: { self.settings.setQuotaWarningThresholds(window, thresholds: $0) })
+            .disabled(!self.settings.quotaWarningWindowEnabled(window))
+            .opacity(!self.settings.quotaWarningWindowEnabled(window) ? 0.55 : 1)
     }
 }
 
@@ -53,8 +56,8 @@ struct ProviderQuotaWarningSettingsView: View {
     @Bindable var settings: SettingsStore
 
     var body: some View {
-        ProviderSettingsSection(title: "Quota warnings") {
-            Text("Uses the global quota warning settings unless a window is customized here.")
+        ProviderSettingsSection(title: L("quota_warnings_title")) {
+            Text(L("quota_warning_provider_inherits"))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -73,7 +76,7 @@ struct ProviderQuotaWarningSettingsView: View {
                         self.settings.setQuotaWarningOverride(
                             provider: self.provider,
                             window: window,
-                            thresholds: self.settings.quotaWarningThresholds,
+                            thresholds: self.settings.quotaWarningThresholds(window),
                             enabled: self.settings.quotaWarningWindowEnabled(window))
                     } else {
                         self.settings.setQuotaWarningOverride(
@@ -83,7 +86,7 @@ struct ProviderQuotaWarningSettingsView: View {
                             enabled: nil)
                     }
                 })) {
-                    Text("Customize \(window.displayName) thresholds")
+                    Text(String(format: L("quota_warning_customize_thresholds"), window.localizedDisplayName))
                         .font(.subheadline.weight(.semibold))
                 }
                 .toggleStyle(.checkbox)
@@ -97,7 +100,7 @@ struct ProviderQuotaWarningSettingsView: View {
                             window: window,
                             enabled: $0)
                     })) {
-                        Text("Enable \(window.displayName) warnings")
+                        Text(String(format: L("quota_warning_enable_warnings"), window.localizedDisplayName))
                             .font(.footnote)
                     }
                     .toggleStyle(.checkbox)
@@ -105,7 +108,9 @@ struct ProviderQuotaWarningSettingsView: View {
 
                 if self.settings.quotaWarningEnabled(provider: self.provider, window: window) {
                     QuotaWarningThresholdField(
-                        title: "\(window.displayName.capitalized) warn at",
+                        title: String(
+                            format: L("quota_warning_window_warn_at"),
+                            window.localizedCapitalizedDisplayName),
                         subtitle: "",
                         thresholds: {
                             self.settings.resolvedQuotaWarningThresholds(provider: self.provider, window: window)
@@ -118,15 +123,15 @@ struct ProviderQuotaWarningSettingsView: View {
                         })
                         .padding(.leading, 20)
                 } else {
-                    Text("Off")
+                    Text(L("quota_warning_off"))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .padding(.leading, 20)
                 }
             } else {
-                Text("Inherited: " + Self.thresholdText(
-                    self.settings.quotaWarningThresholds,
-                    enabled: self.settings.quotaWarningWindowEnabled(window)))
+                Text(String(format: L("quota_warning_inherited"), Self.thresholdText(
+                    self.settings.quotaWarningThresholds(window),
+                    enabled: self.settings.quotaWarningWindowEnabled(window))))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .padding(.leading, 20)
@@ -135,9 +140,25 @@ struct ProviderQuotaWarningSettingsView: View {
     }
 
     private static func thresholdText(_ thresholds: [Int], enabled: Bool) -> String {
-        guard enabled else { return "Off" }
+        guard enabled else { return L("quota_warning_off") }
         let text = QuotaWarningThresholds.active(thresholds).map { "\($0)%" }.joined(separator: ", ")
-        return text.isEmpty ? "depleted only" : text
+        return text.isEmpty ? L("quota_warning_depleted_only") : text
+    }
+}
+
+extension QuotaWarningWindow {
+    fileprivate var localizedDisplayName: String {
+        switch self {
+        case .session: L("quota_warning_session")
+        case .weekly: L("quota_warning_weekly")
+        }
+    }
+
+    fileprivate var localizedCapitalizedDisplayName: String {
+        switch self {
+        case .session: L("quota_warning_session_capitalized")
+        case .weekly: L("quota_warning_weekly_capitalized")
+        }
     }
 }
 
@@ -158,7 +179,7 @@ private struct QuotaWarningThresholdField: View {
                     .font(.footnote.weight(.semibold))
                     .frame(width: 110, alignment: .leading)
 
-                Text("Upper")
+                Text(L("quota_warning_upper"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
@@ -171,7 +192,7 @@ private struct QuotaWarningThresholdField: View {
                     }
                     .onSubmit { self.commit() }
 
-                Text("Lower")
+                Text(L("quota_warning_lower"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
@@ -184,7 +205,7 @@ private struct QuotaWarningThresholdField: View {
                     }
                     .onSubmit { self.commit() }
 
-                Button("Apply") { self.commit() }
+                Button(L("apply")) { self.commit() }
                     .controlSize(.small)
             }
 

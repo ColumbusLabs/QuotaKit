@@ -138,6 +138,32 @@ struct SettingsStoreTests {
     }
 
     @Test
+    func `provider changelog links setting defaults off and persists`() throws {
+        let suite = "SettingsStoreTests-provider-changelog-links"
+        let defaultsA = try #require(UserDefaults(suiteName: suite))
+        defaultsA.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let storeA = SettingsStore(
+            userDefaults: defaultsA,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        #expect(storeA.providerChangelogLinksEnabled == false)
+        #expect(defaultsA.bool(forKey: "providerChangelogLinksEnabled") == false)
+        storeA.providerChangelogLinksEnabled = true
+
+        let defaultsB = try #require(UserDefaults(suiteName: suite))
+        let storeB = SettingsStore(
+            userDefaults: defaultsB,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        #expect(storeB.providerChangelogLinksEnabled == true)
+    }
+
+    @Test
     func `persists selected menu provider across instances`() throws {
         let suite = "SettingsStoreTests-selectedMenuProvider"
         let defaultsA = try #require(UserDefaults(suiteName: suite))
@@ -534,10 +560,12 @@ struct SettingsStoreTests {
         #expect(store.quotaWarningWindowEnabled(.session) == true)
         #expect(store.quotaWarningWindowEnabled(.weekly) == true)
         #expect(store.quotaWarningSoundEnabled == true)
+        #expect(store.quotaWarningMarkersVisible == true)
         #expect(defaults.array(forKey: "quotaWarningThresholds") as? [Int] == [50, 20])
         #expect(defaults.object(forKey: "quotaWarningSessionEnabled") as? Bool == true)
         #expect(defaults.object(forKey: "quotaWarningWeeklyEnabled") as? Bool == true)
         #expect(defaults.bool(forKey: "quotaWarningSoundEnabled") == true)
+        #expect(defaults.object(forKey: "quotaWarningMarkersVisible") as? Bool == true)
     }
 
     @Test
@@ -604,6 +632,27 @@ struct SettingsStoreTests {
 
         store.setQuotaWarningThresholds(provider: .codex, window: .session, thresholds: nil)
         #expect(store.resolvedQuotaWarningThresholds(provider: .codex, window: .session) == [50, 20])
+    }
+
+    @Test
+    func `global quota warning thresholds resolve independently by window`() throws {
+        let suite = "SettingsStoreTests-quota-warning-window-thresholds"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        store.setQuotaWarningThresholds(.session, thresholds: [25])
+        store.setQuotaWarningThresholds(.weekly, thresholds: [75, 10])
+
+        #expect(store.quotaWarningThresholds(.session) == [25])
+        #expect(store.quotaWarningThresholds(.weekly) == [75, 10])
+        #expect(store.resolvedQuotaWarningThresholds(provider: .codex, window: .session) == [25])
+        #expect(store.resolvedQuotaWarningThresholds(provider: .codex, window: .weekly) == [75, 10])
     }
 
     @Test
@@ -986,6 +1035,40 @@ struct SettingsStoreTests {
     }
 
     @Test
+    func `menu observation token updates on per-window quota threshold changes`() async throws {
+        let suite = "SettingsStoreTests-observation-quota-threshold-windows"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        func expectObservation(
+            for window: QuotaWarningWindow,
+            thresholds: [Int]) async
+        {
+            let didChange = ObservationFlag()
+            withObservationTracking {
+                _ = store.menuObservationToken
+            } onChange: {
+                didChange.set()
+            }
+
+            store.setQuotaWarningThresholds(window, thresholds: thresholds)
+            try? await Task.sleep(nanoseconds: 50_000_000)
+
+            #expect(didChange.get() == true)
+        }
+
+        await expectObservation(for: .session, thresholds: [70, 30])
+        await expectObservation(for: .weekly, thresholds: [80, 40])
+    }
+
+    @Test
     func `config backed settings trigger observation`() async throws {
         let suite = "SettingsStoreTests-observation-config"
         let defaults = try #require(UserDefaults(suiteName: suite))
@@ -1097,6 +1180,7 @@ struct SettingsStoreTests {
             .augment,
             .jetbrains,
             .kimik2,
+            .moonshot,
             .amp,
             .ollama,
             .synthetic,
@@ -1114,6 +1198,7 @@ struct SettingsStoreTests {
             .venice,
             .commandcode,
             .stepfun,
+            .bedrock,
         ])
 
         // Move one provider; ensure it's persisted across instances.

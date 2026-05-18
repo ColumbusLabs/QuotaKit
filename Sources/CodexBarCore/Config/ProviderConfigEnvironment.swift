@@ -6,6 +6,9 @@ public enum ProviderConfigEnvironment {
         provider: UsageProvider,
         config: ProviderConfig?) -> [String: String]
     {
+        if provider == .bedrock {
+            return self.applyBedrockOverrides(base: base, config: config)
+        }
         guard let apiKey = config?.sanitizedAPIKey, !apiKey.isEmpty else { return base }
         var env = base
         if let key = self.directAPIKeyEnvironmentKey(for: provider) {
@@ -50,7 +53,7 @@ public enum ProviderConfigEnvironment {
     private static func directAPIKeyEnvironmentKey(for provider: UsageProvider) -> String? {
         switch provider {
         case .openai:
-            OpenAIAPISettingsReader.apiKeyEnvironmentKey
+            OpenAIAPISettingsReader.adminAPIKeyEnvironmentKey
         case .zai:
             ZaiSettingsReader.apiTokenKey
         case .minimax:
@@ -63,10 +66,30 @@ public enum ProviderConfigEnvironment {
             SyntheticSettingsReader.apiKeyKey
         case .openrouter:
             OpenRouterSettingsReader.envKey
+        case .moonshot:
+            MoonshotSettingsReader.apiKeyEnvironmentKeys.first
         case .venice:
             VeniceSettingsReader.apiKeyEnvironmentKey
         default:
             nil
         }
+    }
+
+    private static func applyBedrockOverrides(
+        base: [String: String],
+        config: ProviderConfig?) -> [String: String]
+    {
+        guard let config else { return base }
+        var env = base
+        if let accessKeyID = config.sanitizedAPIKey {
+            env[BedrockSettingsReader.accessKeyIDKey] = accessKeyID
+        }
+        if let secretAccessKey = config.sanitizedSecretKey {
+            env[BedrockSettingsReader.secretAccessKeyKey] = secretAccessKey
+        }
+        if let region = config.sanitizedRegion {
+            env[BedrockSettingsReader.regionKeys[0]] = region
+        }
+        return env
     }
 }

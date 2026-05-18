@@ -1,5 +1,105 @@
 # Changelog
 
+## 0.26.2 — 2026-05-17 — Mobile bridge for iOS 1.7.0 (folds upstream v0.26.0 / v0.26.1)
+
+> Fork release that re-bases on upstream v0.26.1 and extends the Shared
+> iCloud envelope so iOS 1.7.0 can surface every v0.26 user-facing
+> feature. See [upstream 0.26.0 / 0.26.1 notes](#upstream-v0260--v0261--2026-05-15) below for the full list of
+> features introduced in this cycle.
+
+### Mac changes folded in
+- Sync upstream v0.26.0 + v0.26.1 (Kiro credits, Antigravity multi-account, OpenRouter spend, AWS Bedrock provider, Moonshot/Kimi API, z.ai hourly chart, OpenAI Admin API Dashboard, Brazilian Portuguese, quota-warning marker toggle, provider changelog links setting).
+- `Sources/CodexBarCore/Sync/AccountIdentityComputer` + `SyncCoordinator.isModelEstimated()` extended for new providers `moonshot` and `bedrock`.
+- `Sources/CodexBar/Sync/MockProviderInjector` extended to emit Moonshot + Bedrock mocks (43 → 45 synthetic providers).
+- Cost cache invalidation: codex `v5 → v6` (adopts upstream's bump; supersedes fork 0.23.1 hotfix); claude/vertex stay at fork's `v3`.
+
+### Mobile bridge — Shared envelope extensions
+- `Shared/Models/UsageSnapshot.swift` adds six optional fields, all `decodeIfPresent` so iOS 1.6.0 clients keep decoding without errors:
+  - `openAIAPIDashboard: SyncOpenAIAPIDashboard?` — Today/7d/30d summaries + daily breakdown + top models / line items.
+  - `zaiHourlyUsage: SyncZaiHourlyUsage?` — per-model hourly token series.
+  - `kiroCredits: SyncKiroCredits?` — plan + credits + bonus + expiry countdown.
+  - `bedrockCost: SyncBedrockCost?` — monthly spend + budget + region.
+  - `moonshotBalance: SyncMoonshotBalance?` — account balance + region + last-updated.
+  - `antigravityAccounts: SyncMultiAccountList?` — OAuth account list + active index.
+- `Shared/iCloud/CloudConstants.providerPayloadVersion` deliberately NOT bumped (additive optional fields).
+- Mac `SyncCoordinator` populates the new fields whenever upstream's per-provider snapshot carries the corresponding data.
+
+### iOS pairing
+- Pairs with **iOS 1.7.0** (build 127+); see `CodexBarMobile/CHANGELOG.md`.
+
+### Notes
+- `version.env`: `MARKETING_VERSION=0.26.2`, `BUILD_NUMBER=63.1`, `UPSTREAM_VERSION=v0.26.1`, `UPSTREAM_SYNC_DATE=2026-05-17`.
+- Tag name: `v0.26.2-mobile.1.7.0`. Release branch: `mobile-dev`.
+
+---
+
+## Upstream v0.26.0 / v0.26.1 — 2026-05-15
+
+Folded into fork 0.26.2 (above). Original upstream release notes:
+
+### Upstream v0.26.1 — 2026-05-15
+
+**Added**
+- OpenAI API: show Admin API usage inline with Today/7d/30d summaries, a 30-day spend graph, and an interactive detail chart for daily spend, tokens, and requests.
+- CLI: add `codexbar serve` for localhost JSON access to usage and cost endpoints (#957). Thanks @ThiagoCAltoe!
+
+**Fixed**
+- Codex: keep background `/status` probes out of Codex Desktop history by using isolated non-persistent CLI storage (#953).
+- Menu: stabilize the Cost submenu by using a native menu item and deferring open-menu rebuilds while tracking (#954). Thanks @getogrand!
+- Localization: add Brazilian Portuguese quota-warning settings strings (#958). Thanks @ThiagoCAltoe!
+
+### Upstream v0.26.0 — 2026-05-15
+
+**Added**
+- Codex: add tiered long-context and Fast/Priority pricing to local cost history using local app-server priority traces (#917). Thanks @iam-brain!
+- Kiro: show account/auth details, plan labels, credit and bonus-credit balances, overage state, and Kiro-specific menu bar display options (#933, fixes #934). Thanks @solnikhil!
+- Antigravity: add Google OAuth token-account switching with selected-account refresh persistence (#937, fixes #936). Thanks @hhh2210!
+- OpenRouter: show daily and weekly API key spend from `/api/v1/key` in the menu (#685). Thanks @ThiagoCAltoe!
+- Display: add a setting to hide quota-warning tick marks on usage bars while keeping quota warning notifications active (#918, fixes #916). Thanks @ThiagoCAltoe!
+- Menu: add left/right arrow keyboard navigation for the merged provider switcher (#266).
+- Menu: add an opt-in setting for provider changelog links, starting with Codex, Claude Code, and Gemini CLI (#929, fixes #660). Thanks @ThiagoCAltoe!
+- AWS Bedrock: add Cost Explorer usage and monthly budget tracking (#897). Thanks @afalk42!
+- Kilo: add organization selection, scoped organization fetches, and stacked Kilo usage cards (#920). Thanks @NoeFabris!
+- Moonshot / Kimi API: add API-key balance tracking, CLI support, docs, and menu bar balance copy (#899). Thanks @giuseppebisemi!
+- z.ai: add an hourly per-model token usage chart in the menu (#913). Thanks @n1majne3!
+- Localization: add Brazilian Portuguese translations (#902). Thanks @ThiagoCAltoe!
+- Localization: add Simplified Chinese translations for Claude peak-hour labels (#921). Thanks @whtis!
+
+**Fixed**
+- Codex: show authenticated plan/account rows as "Limits not available" instead of a red no-rate-limit error when Codex reports profile data but no rate-limit windows yet.
+- Overview: hide provider rows that only contain an error, and avoid showing a one-item Codex System Account submenu.
+- Menu: disable implicit provider-switcher layer animations and reuse the deferred rebuild path so open menus stay stable under pointer movement (#950).
+- Menu: defer account-switcher menu rebuilds so switching Codex or token accounts does not send the open menu into a flicker loop (#946, fixes #944). Thanks @kubahasek!
+- Menu: avoid rebuilding visible menus during background open-menu refreshes so hover submenus stay responsive (#923, fixes #909). Thanks @AmrMohamad!
+- Codex: scope local cost history to the selected managed account's `CODEX_HOME` and label cost cards as local-log estimates (#910).
+- Cost history: label local log totals as API-rate estimates in menu cards, charts, and CLI output (#926). Thanks @yashiels!
+- Cursor: open Add Account in the user's browser and import the resulting browser session instead of trapping login in an embedded web view (#922).
+- Claude: handle Enterprise and organization spend-limit usage across OAuth/web accounts, including null session quota windows, inline spend-limit usage, `extra_usage`-only responses, and token-account Org ID support (#925, #941, fixes #940). Thanks @clintandrewhall!
+- OpenCode Go: let automatic cookie import scan all supported browser sources instead of Chrome only (#665).
+- Copilot: preserve over-quota usage so paid overage can show above 100% instead of clamping to exhausted (#818).
+- Codex: pause background CLI launches after macOS blocks or quarantines `codex`, avoiding repeated "Malware Blocked" prompts (#942).
+- Claude: clarify that local cost/token estimates include cache read/write tokens and may differ from Claude Code `/status` (#781, #787).
+- Updates: make the restart/apply-update menu action use Sparkle's prepared install callback on the first click (#947). Thanks @velvet-shark!
+- Multi-account menus: keep stacked token-account cards capped to current accounts and ignore stale snapshots from removed accounts (#949).
+- Droid: accept pasted Factory `Authorization: Bearer` headers and bearer tokens for manual sessions when cookies alone are insufficient (#914).
+- Menu bar: detect when macOS Tahoe hides CodexBar behind the new Allow in Menu Bar setting and show recovery guidance (#945, fixes #890). Thanks @pdurlej!
+- CLI: route Claude token-account `--source cli` reads through the selected OAuth/session credential so `--all-accounts` no longer relabels ambient CLI usage (#403).
+- Codex: route menu account refreshes through the resolved live-vs-managed account source so matched accounts keep using the stable `CODEX_HOME` (#932, fixes #931). Thanks @ThiagoCAltoe!
+- Gemini: refresh OAuth credentials when the CLI has a refresh token but no cached access token instead of reporting "not logged in" after authentication (#915).
+- Gemini: label OAuth-backed API fetches as `oauth-api` instead of plain `api` (#930). Thanks @ThiagoCAltoe!
+- Codex: keep session and weekly quota-warning marker thresholds independent so usage bars do not duplicate marker lines (#938, fixes #927). Thanks @iam-brain!
+- Codex: coalesce historical pace reset timestamps into 5-minute buckets so dashboard and live reset jitter do not duplicate weekly history windows (#901). Thanks @zhulijin1991!
+- Menu: middle-truncate long account emails in Codex account controls and keep the Codex account switcher visible during merged-menu refreshes with transient account snapshots.
+- Settings: apply the selected app language from packaged SwiftPM resources instead of falling back to English when the `.lproj` directory casing differs (#908).
+- Settings: let stale managed Codex account records be removed even when their stored home path is outside CodexBar's managed-home directory, and keep CLI known-owner tests from writing fixtures into the live app store.
+- ChatGPT credits: restrict purchase links to real HTTPS `chatgpt.com` settings/usage/billing/credits paths and drop query/fragment data (#903). Thanks @ThiagoCAltoe!
+- z.ai: show the MCP quota bucket as monthly instead of a misleading 1-minute window (#904). Thanks @ThiagoCAltoe!
+- Kimi: rebalance provider icon alignment within its viewBox (#912). Thanks @giuseppebisemi!
+- Release: include macOS platform and architecture in notarized app and dSYM asset names (#164).
+- Upstream tooling: resolve remote default branches and tolerate missing upstream remotes in review scripts (#906).
+
+---
+
 ## 0.25.2 — 2026-05-15 — Mac quota warnings now push to iPhone
 
 Mac quota warning notifications can now also be pushed to your iPhone (previously, only depletion / restoration triggered a push). Requires iOS 1.6.0+.

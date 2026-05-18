@@ -110,6 +110,7 @@ struct PreferencesView: View {
                     .tag(PreferencesTab.debug)
             }
         }
+        .id(self.settings.appLanguage)
         .padding(.horizontal, 24)
         .padding(.vertical, 16)
         .frame(width: self.contentWidth, height: self.contentHeight)

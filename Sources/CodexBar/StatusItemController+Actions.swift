@@ -4,15 +4,22 @@ import CodexBarCore
 extension StatusItemController: StatusItemMenuPersistentActionDelegate {
     // MARK: - Actions reachable from menus
 
-    func refreshStore(forceTokenUsage: Bool) {
+    func refreshStore(forceTokenUsage: Bool, refreshOpenMenusWhenComplete: Bool = true) {
         Task {
             await ProviderInteractionContext.$current.withValue(.userInitiated) {
                 await self.store.refresh(forceTokenUsage: forceTokenUsage)
                 self.store.scheduleStorageFootprintRefreshForOverview(force: true)
-                self.invalidateMenus()
-                self.refreshOpenMenusIfNeeded()
+                if refreshOpenMenusWhenComplete {
+                    self.refreshOpenMenusAfterExplicitStoreAction()
+                } else {
+                    self.invalidateMenus()
+                }
             }
         }
+    }
+
+    func refreshOpenMenusAfterExplicitStoreAction() {
+        self.invalidateMenus(refreshOpenMenus: true)
     }
 
     @objc func refreshNow() {
@@ -25,6 +32,12 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
         }
     }
 
+    nonisolated func performProviderNavigation(_ direction: StatusItemMenuProviderNavigationDirection) {
+        Task { @MainActor [weak self] in
+            self?.navigateProviderSwitcher(direction)
+        }
+    }
+
     @objc func refreshAugmentSession() {
         Task {
             await self.store.forceRefreshAugmentSession()
@@ -32,11 +45,12 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
             await ProviderInteractionContext.$current.withValue(.userInitiated) {
                 await self.store.refresh(forceTokenUsage: false)
             }
+            self.refreshOpenMenusAfterExplicitStoreAction()
         }
     }
 
     @objc func installUpdate() {
-        self.updater.checkForUpdates(nil)
+        self.updater.installUpdate()
     }
 
     @objc func openDashboard() {
@@ -90,13 +104,22 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
         self.creditsPurchaseWindow = controller
     }
 
-    private static func sanitizedCreditsPurchaseURL(_ raw: String?) -> String? {
+    static func sanitizedCreditsPurchaseURL(_ raw: String?) -> String? {
         guard let raw, let url = URL(string: raw) else { return nil }
-        guard let host = url.host?.lowercased(), host.contains("chatgpt.com") else { return nil }
-        let path = url.path.lowercased()
+        guard Self.isAllowedChatGPTPurchaseHost(url) else { return nil }
+        let pathComponents = url.pathComponents.map { $0.lowercased() }
         let allowed = ["settings", "usage", "billing", "credits"]
-        guard allowed.contains(where: { path.contains($0) }) else { return nil }
-        return url.absoluteString
+        guard pathComponents.contains(where: { allowed.contains($0) }) else { return nil }
+        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        components?.query = nil
+        components?.fragment = nil
+        return components?.url?.absoluteString ?? url.absoluteString
+    }
+
+    private static func isAllowedChatGPTPurchaseHost(_ url: URL) -> Bool {
+        guard url.scheme?.lowercased() == "https" else { return false }
+        guard let host = url.host?.lowercased() else { return false }
+        return host == "chatgpt.com" || host.hasSuffix(".chatgpt.com")
     }
 
     @objc func openStatusPage() {
@@ -107,6 +130,16 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
         let meta = self.store.metadata(for: provider)
         let urlString = meta.statusPageURL ?? meta.statusLinkURL
         guard let urlString, let url = URL(string: urlString) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    @objc func openChangelog() {
+        let preferred = self.lastMenuProvider
+            ?? (self.store.isEnabled(.codex) ? .codex : self.store.enabledProviders().first)
+
+        let provider = preferred ?? .codex
+        let meta = self.store.metadata(for: provider)
+        guard let urlString = meta.changelogURL, let url = URL(string: urlString) else { return }
         NSWorkspace.shared.open(url)
     }
 

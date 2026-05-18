@@ -5,8 +5,8 @@ extension TokenAccountSupportCatalog {
         .openai: TokenAccountSupport(
             title: "API keys",
             subtitle: "Store multiple OpenAI API keys.",
-            placeholder: "sk-...",
-            injection: .environment(key: OpenAIAPISettingsReader.apiKeyEnvironmentKey),
+            placeholder: "sk-admin-...",
+            injection: .environment(key: OpenAIAPISettingsReader.adminAPIKeyEnvironmentKey),
             requiresManualCookieSource: false,
             cookieName: nil),
         .claude: TokenAccountSupport(
@@ -21,6 +21,13 @@ extension TokenAccountSupportCatalog {
             subtitle: "Store multiple DeepSeek API keys.",
             placeholder: "Paste API key…",
             injection: .environment(key: DeepSeekSettingsReader.apiKeyEnvironmentKey),
+            requiresManualCookieSource: false,
+            cookieName: nil),
+        .antigravity: TokenAccountSupport(
+            title: "Google accounts",
+            subtitle: "Store multiple Antigravity Google OAuth accounts for quick switching.",
+            placeholder: "Antigravity OAuth credentials JSON",
+            injection: .environment(key: AntigravityOAuthCredentialsStore.environmentCredentialsKey),
             requiresManualCookieSource: false,
             cookieName: nil),
         .zai: TokenAccountSupport(
@@ -53,8 +60,8 @@ extension TokenAccountSupportCatalog {
             cookieName: nil),
         .factory: TokenAccountSupport(
             title: "Session tokens",
-            subtitle: "Store multiple Factory Cookie headers.",
-            placeholder: "Cookie: …",
+            subtitle: "Store multiple Factory Cookie or Authorization headers.",
+            placeholder: "Cookie: … or Authorization: Bearer …",
             injection: .cookieHeader,
             requiresManualCookieSource: true,
             cookieName: nil),

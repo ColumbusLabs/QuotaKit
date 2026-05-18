@@ -138,7 +138,7 @@ generate_widget_appintents_metadata() {
   rm -rf "$derived_dir"
   mkdir -p "$derived_dir"
   local xcodebuild_log="$derived_dir/xcodebuild.log"
-  local timeout_seconds="${CODEXBAR_WIDGET_METADATA_TIMEOUT_SECONDS:-60}"
+  local timeout_seconds="${CODEXBAR_WIDGET_METADATA_TIMEOUT_SECONDS:-600}"
   xcodebuild \
     -workspace "$ROOT/.swiftpm/xcode/package.xcworkspace" \
     -scheme CodexBarWidget \
