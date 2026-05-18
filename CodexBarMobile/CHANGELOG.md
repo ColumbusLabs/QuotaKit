@@ -2,13 +2,79 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [1.7.0 (127)] — 2026-05-17 — Upstream v0.26.1 fold-in: six new dedicated provider cards + settings
+## [1.6.0 (129)] — 2026-05-18 — Upstream v0.26.1 fold-in: six new provider cards + settings
 
-iOS 1.7.0 ships against Mac 0.26.2 (upstream v0.26.0 + v0.26.1 fold-in)
-and covers every v0.26 user-visible feature in one release. Six new
-dedicated provider cards dispatch off the typed Shared envelope fields
-added in Mac 0.26.2; two new Settings toggles mirror upstream PRs #918
-and #929.
+Marketing version intentionally stays at **1.6.0** (same as the
+previously-released 1.6.0 / 126). This build keeps incrementing the
+build number while adding features against the v0.26.1 Mac sync; the
+marketing bump to 1.7 is held back until QA across the new card UI is
+complete and we decide it's ready to be called a 1.x feature release.
+
+### Added (new UI surfaces, gated on Mac populating the typed envelope)
+
+- **OpenAI API Dashboard** — `Views/OpenAIDashboardSection.swift`. On
+  the `openai` provider detail page when `openAIAPIDashboard != nil`:
+  3-card Today / 7d / 30d summary, 30-day spend bar chart, top models
+  + top line items lists. Mirrors upstream v0.26.1 menu addition.
+- **Kiro credits card** — `Views/KiroCreditsCard.swift`. Plan tag +
+  primary credit progress + optional bonus pool with localized expiry
+  countdown (1 day / N days / expired). Mirrors upstream PR #933.
+- **AWS Bedrock cost card (NEW provider)** — `Views/BedrockCostCard.swift`.
+  Monthly spend + optional budget gauge with 75% / 90% threshold colors
+  + active AWS region (read from `SettingsStore.bedrockRegion`, not
+  the composite display string). Mirrors PR #897.
+- **Moonshot / Kimi API balance card (NEW provider)** —
+  `Views/MoonshotBalanceCard.swift`. Balance amount + ISO 4217 currency
+  + region. Balance parsed from the upstream `loginMethod` string so
+  iOS shows the real dollar value, not `0.00`. Mirrors PR #911.
+- **z.ai hourly chart** — `Views/ZaiHourlyChart.swift` — stacked
+  per-model hourly token bars over the active 24-hour window with chart
+  legend. Mirrors upstream PR #913.
+- **Antigravity multi-account switcher** —
+  `Views/AntigravityAccountSwitcher.swift`. Read-only linked Google
+  account list with active marker + relative token expiry. Renders
+  when Mac populates antigravityAccounts (Mac side stub for now).
+- **Settings: Hide quota-warning markers** —
+  `MobileSettingsKeys.hideQuotaWarningMarkers` (mirrors upstream PR #918).
+- **Settings: Show provider changelog links** —
+  `MobileSettingsKeys.showProviderChangelogLinks` — wires a new
+  "Provider changelogs" section in Settings → About & Sync with
+  Codex CLI / Claude Code / Gemini CLI links (mirrors upstream PR #929).
+
+### Changed
+
+- Wire schema extension — `ProviderUsageSnapshot` gains six optional
+  `decodeIfPresent` fields (`openAIAPIDashboard`, `zaiHourlyUsage`,
+  `kiroCredits`, `bedrockCost`, `moonshotBalance`, `antigravityAccounts`).
+  `providerPayloadVersion` deliberately NOT bumped — additive optional
+  fields stay wire-compatible with iOS 1.6.0 (126) readers.
+- `ProviderDetailView.primaryUsageSection` now skips the generic
+  rate-window list when a dedicated typed card (Kiro / Bedrock /
+  Moonshot) claims the primary slot — avoids double-rendering.
+
+### Backward compatibility
+
+- Old Mac (pre-0.26.1 fork patch) clients: every new field decodes to
+  `nil`, every new card stays hidden. The detail page falls through to
+  the existing rate-window / cost-summary / utilization-history /
+  daily-chart sections exactly as in 1.6.0 (126).
+- Old iOS (1.6.0 (126) currently on TestFlight) reading a new Mac
+  payload: same — unknown keys ignored, baseline cards render normally.
+
+### Required Mac version
+
+- Mac 0.26.1 (fork build 63.2 or later) for the new typed cards.
+  iPhone 1.6.0 (129) is forward-compatible with the previous Mac
+  build (0.25.2 / 61.2) — new cards stay hidden, other functionality
+  unchanged.
+
+### Marketing-version policy
+
+This release keeps 1.6.0 deliberately to honor the "don't pre-bump
+ahead of an actual release event" convention. When the next user-facing
+release is published (likely 1.7.0), this build's contents will be in
+that release; the in-app release-notes catalog will get an updated
+1.7.0 entry at that point.
 
 ### Added
 

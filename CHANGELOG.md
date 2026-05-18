@@ -1,41 +1,46 @@
 # Changelog
 
-## 0.26.2 — 2026-05-17 — Mobile bridge for iOS 1.7.0 (folds upstream v0.26.0 / v0.26.1)
+## 0.26.1 (Mobile 1.6.0 · build 63.2) — 2026-05-18 — upstream v0.26.0/v0.26.1 fold-in + iOS-bridge groundwork
 
-> Fork release that re-bases on upstream v0.26.1 and extends the Shared
-> iCloud envelope so iOS 1.7.0 can surface every v0.26 user-facing
-> feature. See [upstream 0.26.0 / 0.26.1 notes](#upstream-v0260--v0261--2026-05-15) below for the full list of
-> features introduced in this cycle.
+> Fork release that **tracks upstream v0.26.1 exactly** for the
+> Mac-visible feature set (no Mac UI deltas beyond what upstream
+> shipped). The fork-only work in this release is mobile-bridge
+> plumbing: Shared iCloud envelope extensions + Mac SyncCoordinator
+> mappers so the iOS companion can surface the v0.26 features when
+> iOS 1.7 is eventually released. iOS itself stays at 1.6.0 in this
+> release; the new card UI is staged behind `decodeIfPresent` until
+> iOS 1.7 actually ships.
 
-### Mac changes folded in
-- Sync upstream v0.26.0 + v0.26.1 (Kiro credits, Antigravity multi-account, OpenRouter spend, AWS Bedrock provider, Moonshot/Kimi API, z.ai hourly chart, OpenAI Admin API Dashboard, Brazilian Portuguese, quota-warning marker toggle, provider changelog links setting).
-- `Sources/CodexBarCore/Sync/AccountIdentityComputer` + `SyncCoordinator.isModelEstimated()` extended for new providers `moonshot` and `bedrock`.
+### Mac changes folded in (all from upstream)
+- Sync upstream v0.26.0 + v0.26.1 in full (Kiro credits, Antigravity multi-account, OpenRouter spend, AWS Bedrock provider, Moonshot/Kimi API, z.ai hourly chart, OpenAI Admin API Dashboard, Brazilian Portuguese, quota-warning marker toggle, provider changelog links setting).
+- `Sources/CodexBarCore/Sync/AccountIdentityComputer` + `SyncCoordinator.isModelEstimated()` extended for new providers `moonshot` and `bedrock` (fork-private wiring, no Mac UI change).
 - `Sources/CodexBar/Sync/MockProviderInjector` extended to emit Moonshot + Bedrock mocks (43 → 45 synthetic providers).
 - Cost cache invalidation: codex `v5 → v6` (adopts upstream's bump; supersedes fork 0.23.1 hotfix); claude/vertex stay at fork's `v3`.
 
-### Mobile bridge — Shared envelope extensions
-- `Shared/Models/UsageSnapshot.swift` adds six optional fields, all `decodeIfPresent` so iOS 1.6.0 clients keep decoding without errors:
+### Mobile bridge — Shared envelope extensions (no user-visible Mac change)
+- `Shared/Models/UsageSnapshot.swift` adds six optional `decodeIfPresent` fields so a future iOS 1.7 reader can pick up the data without a wire-format break:
   - `openAIAPIDashboard: SyncOpenAIAPIDashboard?` — Today/7d/30d summaries + daily breakdown + top models / line items.
   - `zaiHourlyUsage: SyncZaiHourlyUsage?` — per-model hourly token series.
   - `kiroCredits: SyncKiroCredits?` — plan + credits + bonus + expiry countdown.
   - `bedrockCost: SyncBedrockCost?` — monthly spend + budget + region.
   - `moonshotBalance: SyncMoonshotBalance?` — account balance + region + last-updated.
-  - `antigravityAccounts: SyncMultiAccountList?` — OAuth account list + active index.
+  - `antigravityAccounts: SyncMultiAccountList?` — OAuth account list + active index (Mac stub for now).
 - `Shared/iCloud/CloudConstants.providerPayloadVersion` deliberately NOT bumped (additive optional fields).
 - Mac `SyncCoordinator` populates the new fields whenever upstream's per-provider snapshot carries the corresponding data.
+- Bedrock region & Moonshot balance flow through dedicated paths (Mac `SettingsStore.bedrockRegion` plumb-through, loginMethod parser) — not the composite display strings — so iOS reads the actual values, not the menu copy.
 
 ### iOS pairing
-- Pairs with **iOS 1.7.0** (build 127+); see `CodexBarMobile/CHANGELOG.md`.
+- Pairs with **iOS 1.6.0** (build 129+); see `CodexBarMobile/CHANGELOG.md`. iOS 1.6.0 ignores the new envelope fields gracefully (`decodeIfPresent`). The dedicated v0.26 provider cards are staged but the iOS marketing version stays at 1.6.0 until they're ready to ship to TestFlight users.
 
 ### Notes
-- `version.env`: `MARKETING_VERSION=0.26.2`, `BUILD_NUMBER=63.1`, `UPSTREAM_VERSION=v0.26.1`, `UPSTREAM_SYNC_DATE=2026-05-17`.
-- Tag name: `v0.26.2-mobile.1.7.0`. Release branch: `mobile-dev`.
+- `version.env`: `MARKETING_VERSION=0.26.1`, `BUILD_NUMBER=63.2`, `UPSTREAM_VERSION=v0.26.1`, `UPSTREAM_SYNC_DATE=2026-05-18`.
+- Tag name: `v0.26.1-mobile.1.6.0`. Release branch: `mobile-dev`.
 
 ---
 
 ## Upstream v0.26.0 / v0.26.1 — 2026-05-15
 
-Folded into fork 0.26.2 (above). Original upstream release notes:
+Folded into fork 0.26.1 (above). Original upstream release notes:
 
 ### Upstream v0.26.1 — 2026-05-15
 
