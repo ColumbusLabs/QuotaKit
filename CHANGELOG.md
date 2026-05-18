@@ -1,15 +1,16 @@
 # Changelog
 
-## 0.26.1 (Mobile 1.6.0 · build 63.2) — 2026-05-18 — upstream v0.26.0/v0.26.1 fold-in + iOS-bridge groundwork
+## 0.26.1 (Mobile 1.7.0 · build 63.2) — 2026-05-18 — upstream v0.26.0/v0.26.1 fold-in + iOS 1.7.0 pairing
 
 > Fork release that **tracks upstream v0.26.1 exactly** for the
 > Mac-visible feature set (no Mac UI deltas beyond what upstream
-> shipped). The fork-only work in this release is mobile-bridge
-> plumbing: Shared iCloud envelope extensions + Mac SyncCoordinator
-> mappers so the iOS companion can surface the v0.26 features when
-> iOS 1.7 is eventually released. iOS itself stays at 1.6.0 in this
-> release; the new card UI is staged behind `decodeIfPresent` until
-> iOS 1.7 actually ships.
+> shipped). Pairs with the freshly-published **iOS 1.7.0** which
+> renders six new dedicated provider cards (Kiro / Bedrock /
+> Moonshot / z.ai hourly chart / OpenAI Admin Dashboard / Antigravity
+> multi-account) plus two new settings toggles via the Shared iCloud
+> envelope extensions in this release. End-to-end verified via mock
+> injection before publish: all 6 new cards render correctly on
+> iPhone with the typed data Mac pushes through CloudKit.
 
 ### Mac changes folded in (all from upstream)
 - Sync upstream v0.26.0 + v0.26.1 in full (Kiro credits, Antigravity multi-account, OpenRouter spend, AWS Bedrock provider, Moonshot/Kimi API, z.ai hourly chart, OpenAI Admin API Dashboard, Brazilian Portuguese, quota-warning marker toggle, provider changelog links setting).
@@ -30,11 +31,12 @@
 - Bedrock region & Moonshot balance flow through dedicated paths (Mac `SettingsStore.bedrockRegion` plumb-through, loginMethod parser) — not the composite display strings — so iOS reads the actual values, not the menu copy.
 
 ### iOS pairing
-- Pairs with **iOS 1.6.0** (build 129+); see `CodexBarMobile/CHANGELOG.md`. iOS 1.6.0 ignores the new envelope fields gracefully (`decodeIfPresent`). The dedicated v0.26 provider cards are staged but the iOS marketing version stays at 1.6.0 until they're ready to ship to TestFlight users.
+- Pairs with **iOS 1.7.0** (build 129); see `CodexBarMobile/CHANGELOG.md`. iOS 1.7.0 renders six new dedicated provider cards driven by the typed envelope fields. iOS 1.6.0 (126) on TestFlight remains forward-compatible — `decodeIfPresent` makes the new keys invisible to it.
 
 ### Notes
-- `version.env`: `MARKETING_VERSION=0.26.1`, `BUILD_NUMBER=63.2`, `UPSTREAM_VERSION=v0.26.1`, `UPSTREAM_SYNC_DATE=2026-05-18`.
-- Tag name: `v0.26.1-mobile.1.6.0`. Release branch: `mobile-dev`.
+- `version.env`: `MARKETING_VERSION=0.26.1`, `BUILD_NUMBER=63.2`, `MOBILE_VERSION=1.7.0`, `UPSTREAM_VERSION=v0.26.1`, `UPSTREAM_SYNC_DATE=2026-05-18`.
+- Tag name: `v0.26.1-mobile.1.7.0`. Release branch: `mobile-dev`.
+- Naming scheme: see `docs/versioning.md`.
 
 ---
 
