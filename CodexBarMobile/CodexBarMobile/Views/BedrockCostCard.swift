@@ -93,6 +93,28 @@ struct BedrockCostCard: View {
     private static func formatUSD(_ value: Double) -> String {
         CostFormatting.usd(value)
     }
+
+    // MARK: - Text helpers (introspectable for C1 regression tests)
+    //
+    // These produce the exact strings the SwiftUI body renders. Tests
+    // pin them so a future format-string drift (or a re-introduction
+    // of the C1 bug where region was the loginMethod composite) shows
+    // up as a failed assertion on the visible string itself.
+
+    /// String the view renders on the "Region: ..." line — or nil if
+    /// the region field is missing/empty (line is omitted entirely).
+    static func regionLineText(for cost: SyncBedrockCost) -> String? {
+        guard let region = cost.region, !region.isEmpty else { return nil }
+        return String(format: String(localized: "bedrock_region_format", defaultValue: "Region: %@"), region)
+    }
+
+    /// String the view renders on the spend row — e.g. "$19.10" or
+    /// "$19.10 / $50.00".
+    static func spendRowText(for cost: SyncBedrockCost) -> String {
+        let spend = Self.formatUSD(cost.monthlySpendUSD)
+        guard let budget = cost.monthlyBudgetUSD else { return spend }
+        return "\(spend) / \(Self.formatUSD(budget))"
+    }
 }
 
 #Preview {
