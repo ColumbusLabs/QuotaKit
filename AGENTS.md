@@ -124,9 +124,15 @@ jj git push --bookmark mobile-dev
 
 ### Version number format
 
-- `MARKETING_VERSION` = user-facing version, e.g. `1.0.0` (feature releases only)
-- `CURRENT_PROJECT_VERSION` = build number, e.g. `13` (increments on every commit)
-- Displayed as: **1.0.0 (13)**
+**iOS (project.yml)** — these are CFBundle fields:
+- `MARKETING_VERSION` = user-facing version, e.g. `1.7.0` (feature releases only)
+- `CURRENT_PROJECT_VERSION` = build number, e.g. `129` (increments on every commit)
+- Displayed as: **1.7.0 (129)**
+
+**Mac (version.env)** — fork-specific scheme with subdecimal patches.
+Full rules + decision tree + sparkle:version explanation:
+→ **[`docs/versioning.md`](docs/versioning.md)** (read this first when bumping
+Mac MARKETING_VERSION / BUILD_NUMBER / MOBILE_VERSION / UPSTREAM_VERSION).
 
 ## Step 7 — Push & Release
 
