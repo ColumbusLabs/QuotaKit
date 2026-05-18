@@ -14,12 +14,13 @@ import Testing
 /// conversation, not a silent production miss.
 @Suite("QuotaProviderList contract")
 struct QuotaProviderListTests {
-    @Test("Provider list has expected count (38 after v0.24/v0.25 catch-up)")
+    @Test("Provider list has expected count (40 after v0.26 catch-up)")
     func providerCount() {
         // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
-        // (11 new from Mac v0.24+v0.25). Must stay synced with iOS-side
-        // test in CodexBarMobileTests/QuotaProviderListTests.swift.
-        #expect(QuotaProviderList.providers.count == 38)
+        // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
+        // AWS Bedrock from upstream v0.26.0). Must stay synced with
+        // iOS-side test in CodexBarMobileTests/QuotaProviderListTests.swift.
+        #expect(QuotaProviderList.providers.count == 40)
     }
 
     @Test("Perplexity is registered with the Mac-side displayName")
@@ -82,15 +83,30 @@ struct QuotaProviderListTests {
                 == "Quota-mistral-restoredZone")
     }
 
-    @Test("iOS subscription count is 38 × 3 = 114 (depleted + restored + warning)")
+    @Test("iOS subscription count is 40 × 3 = 120 (depleted + restored + warning)")
     func subscriptionCountDerivation() {
-        // 54 → 76 in iOS 1.5.x → iOS 1.6.0 (38 × 2). iOS 1.6.0 / Mac 0.25.2
-        // adds a third "warning" state for pre-depletion threshold pushes:
-        // 38 × 3 = 114. If this fails, someone either dropped a provider
-        // or changed the state matrix without updating the iOS subscription
-        // setup in `QuotaTransitionSubscriptions.makeConfigs()`.
+        // 54 → 76 in iOS 1.5.x → 114 in iOS 1.6.0 (38 × 3 after adding
+        // the "warning" state for pre-depletion threshold pushes) →
+        // 120 in iOS 1.7.0 (40 × 3 after the v0.26 catch-up). If this
+        // fails, someone either dropped a provider or changed the
+        // state matrix without updating the iOS subscription setup
+        // in `QuotaTransitionSubscriptions.makeConfigs()`.
         let states = ["depleted", "restored", "warning"]
         let subscriptionCount = QuotaProviderList.providers.count * states.count
-        #expect(subscriptionCount == 114)
+        #expect(subscriptionCount == 120)
+    }
+
+    // MARK: - iOS 1.7.0 / Mac 0.26.2 — v0.26.0 catch-up
+
+    @Test("Moonshot / Kimi API is registered with the Mac-side displayName")
+    func moonshotRegistered() throws {
+        let entry = try #require(QuotaProviderList.providers.first { $0.id == "moonshot" })
+        #expect(entry.displayName == "Moonshot / Kimi API")
+    }
+
+    @Test("AWS Bedrock is registered with the Mac-side displayName")
+    func bedrockRegistered() throws {
+        let entry = try #require(QuotaProviderList.providers.first { $0.id == "bedrock" })
+        #expect(entry.displayName == "AWS Bedrock")
     }
 }
