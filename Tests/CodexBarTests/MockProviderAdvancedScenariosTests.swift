@@ -235,12 +235,13 @@ struct MockProviderAdvancedScenariosTests {
         let realBorrowedMocks = snapshots.filter {
             realCatalog.contains($0.providerID)
         }
-        // 30 snapshots use real provider IDs (3 codex + 2 claude + 1
-        // perplexity + 24 simple). All 30 share their providerID with
-        // a real provider, so iOS's existing CKQuerySubscription set
-        // covers them — push notifications fire on quota events without
-        // any subscription change.
-        #expect(realBorrowedMocks.count == 41)
+        // 43 snapshots use real provider IDs (3 codex + 2 claude + 1
+        // perplexity + 37 simple — 35 v0.25.1-era + 2 v0.26.0 (moonshot,
+        // bedrock)). All 43 share their providerID with a real provider,
+        // so iOS's existing CKQuerySubscription set covers them — push
+        // notifications fire on quota events without any subscription
+        // change. iOS 1.7.0 fold-in: 41 → 43.
+        #expect(realBorrowedMocks.count == 43)
         for snap in realBorrowedMocks {
             #expect(
                 realCatalog.contains(snap.providerID),

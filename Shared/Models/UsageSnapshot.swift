@@ -295,6 +295,49 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// ignores the new field; old Mac doesn't emit it.
     public let quotaWarnings: SyncQuotaWarningConfig?
 
+    // MARK: - iOS 1.7.0 / Mac 0.26.2 — v0.26 envelope extensions
+    //
+    // All six fields are optional + `decodeIfPresent` so pre-1.7.0 iOS
+    // clients (and the inverse — Mac builds that don't have the upstream
+    // data yet) keep decoding payloads without errors. The wire schema
+    // version is intentionally NOT bumped (`providerPayloadVersion`
+    // stays at 1) because additive optional fields don't require a
+    // forced rewrite cycle. See `Research/020-multi-account-comprehensive.md`
+    // §wire-extension protocol and `Shared/iCloud/CloudConstants.swift`.
+
+    /// OpenAI Admin API usage dashboard (Today / 7d / 30d summaries +
+    /// 30-day daily breakdown + top models / line items). Populated
+    /// only on the `openai` provider snapshot when Mac has Admin API
+    /// access. iOS surfaces this as the "OpenAI API Dashboard" section.
+    public let openAIAPIDashboard: SyncOpenAIAPIDashboard?
+
+    /// z.ai per-model hourly token usage. Populated only on the `zai`
+    /// provider snapshot when Mac has at least one model_usage data
+    /// point in the active window. iOS renders this as a stacked
+    /// hourly bar chart.
+    public let zaiHourlyUsage: SyncZaiHourlyUsage?
+
+    /// Kiro plan + credit + bonus balance. Populated only on the
+    /// `kiro` provider snapshot. iOS renders this as a Perplexity-style
+    /// dedicated credits card with plan tag + bonus countdown.
+    public let kiroCredits: SyncKiroCredits?
+
+    /// AWS Bedrock monthly spend + budget. Populated only on the
+    /// `bedrock` provider snapshot (NEW provider in v0.26.0). iOS
+    /// renders this as a cost-forward card with budget progress + region.
+    public let bedrockCost: SyncBedrockCost?
+
+    /// Moonshot / Kimi API account balance. Populated only on the
+    /// `moonshot` provider snapshot (NEW provider in v0.26.0). iOS
+    /// renders this as a simple balance + region card.
+    public let moonshotBalance: SyncMoonshotBalance?
+
+    /// OAuth multi-account list + active index. Populated today only
+    /// on the `antigravity` provider snapshot when more than one Google
+    /// account is wired. iOS renders this as an account switcher
+    /// affordance below the usage card.
+    public let antigravityAccounts: SyncMultiAccountList?
+
     /// All available rate windows. Prefers `rateWindows` if non-empty, otherwise falls back to primary/secondary.
     public var allRateWindows: [SyncRateWindow] {
         if !self.rateWindows.isEmpty { return self.rateWindows }
@@ -317,7 +360,13 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         utilizationHistory: [SyncUtilizationSeries]? = nil,
         perplexityCredits: SyncPerplexityCreditSummary? = nil,
         accountIdentities: [String]? = nil,
-        quotaWarnings: SyncQuotaWarningConfig? = nil)
+        quotaWarnings: SyncQuotaWarningConfig? = nil,
+        openAIAPIDashboard: SyncOpenAIAPIDashboard? = nil,
+        zaiHourlyUsage: SyncZaiHourlyUsage? = nil,
+        kiroCredits: SyncKiroCredits? = nil,
+        bedrockCost: SyncBedrockCost? = nil,
+        moonshotBalance: SyncMoonshotBalance? = nil,
+        antigravityAccounts: SyncMultiAccountList? = nil)
     {
         self.providerID = providerID
         self.providerName = providerName
@@ -335,6 +384,12 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.perplexityCredits = perplexityCredits
         self.accountIdentities = accountIdentities
         self.quotaWarnings = quotaWarnings
+        self.openAIAPIDashboard = openAIAPIDashboard
+        self.zaiHourlyUsage = zaiHourlyUsage
+        self.kiroCredits = kiroCredits
+        self.bedrockCost = bedrockCost
+        self.moonshotBalance = moonshotBalance
+        self.antigravityAccounts = antigravityAccounts
     }
 
     /// Returns a copy with `quotaWarnings` swapped out. Used by Mac
@@ -358,7 +413,13 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
             utilizationHistory: self.utilizationHistory,
             perplexityCredits: self.perplexityCredits,
             accountIdentities: self.accountIdentities,
-            quotaWarnings: quotaWarnings)
+            quotaWarnings: quotaWarnings,
+            openAIAPIDashboard: self.openAIAPIDashboard,
+            zaiHourlyUsage: self.zaiHourlyUsage,
+            kiroCredits: self.kiroCredits,
+            bedrockCost: self.bedrockCost,
+            moonshotBalance: self.moonshotBalance,
+            antigravityAccounts: self.antigravityAccounts)
     }
 
     /// Backward-compatible decoder: old payloads without `rateWindows`/`costSummary`/`budget`/`perplexityCredits`/`accountIdentities`/`quotaWarnings` still decode.
@@ -380,6 +441,15 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.perplexityCredits = try container.decodeIfPresent(SyncPerplexityCreditSummary.self, forKey: .perplexityCredits)
         self.accountIdentities = try container.decodeIfPresent([String].self, forKey: .accountIdentities)
         self.quotaWarnings = try container.decodeIfPresent(SyncQuotaWarningConfig.self, forKey: .quotaWarnings)
+        // iOS 1.7.0 / Mac 0.26.2 — v0.26 envelope extensions. All
+        // `decodeIfPresent` so old Mac payloads (without these keys)
+        // decode cleanly into `nil`.
+        self.openAIAPIDashboard = try container.decodeIfPresent(SyncOpenAIAPIDashboard.self, forKey: .openAIAPIDashboard)
+        self.zaiHourlyUsage = try container.decodeIfPresent(SyncZaiHourlyUsage.self, forKey: .zaiHourlyUsage)
+        self.kiroCredits = try container.decodeIfPresent(SyncKiroCredits.self, forKey: .kiroCredits)
+        self.bedrockCost = try container.decodeIfPresent(SyncBedrockCost.self, forKey: .bedrockCost)
+        self.moonshotBalance = try container.decodeIfPresent(SyncMoonshotBalance.self, forKey: .moonshotBalance)
+        self.antigravityAccounts = try container.decodeIfPresent(SyncMultiAccountList.self, forKey: .antigravityAccounts)
     }
 }
 

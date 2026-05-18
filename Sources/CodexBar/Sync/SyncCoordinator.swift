@@ -545,6 +545,21 @@ final class SyncCoordinator {
             provider: provider,
             identity: snapshot?.identity)
 
+        // iOS 1.7.0 / Mac 0.26.2 — v0.26 envelope extensions. Populated
+        // only for the relevant providerID so iOS can dispatch via
+        // `let dashboard = snapshot.openAIAPIDashboard { ... }`.
+        let openAIAPIDashboard = Self.mapOpenAIAPIDashboard(provider: provider, snapshot: snapshot)
+        let zaiHourlyUsage = Self.mapZaiHourlyUsage(provider: provider, snapshot: snapshot)
+        let kiroCredits = Self.mapKiroCredits(provider: provider, snapshot: snapshot)
+        let bedrockCost = Self.mapBedrockCost(
+            provider: provider,
+            snapshot: snapshot,
+            providerCost: providerCost)
+        let moonshotBalance = Self.mapMoonshotBalance(
+            provider: provider,
+            snapshot: snapshot,
+            primaryWindow: primaryWindow)
+
         return ProviderUsageSnapshot(
             providerID: provider.rawValue,
             providerName: metadata?.displayName ?? provider.rawValue.capitalized,
@@ -560,7 +575,151 @@ final class SyncCoordinator {
             rateWindows: rateWindows,
             utilizationHistory: sharedUtilizationHistory,
             perplexityCredits: perplexityCredits,
-            accountIdentities: accountIdentities)
+            accountIdentities: accountIdentities,
+            openAIAPIDashboard: openAIAPIDashboard,
+            zaiHourlyUsage: zaiHourlyUsage,
+            kiroCredits: kiroCredits,
+            bedrockCost: bedrockCost,
+            moonshotBalance: moonshotBalance,
+            antigravityAccounts: nil)
+    }
+
+    // MARK: - v0.26 envelope mappers (private)
+
+    private static func mapOpenAIAPIDashboard(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncOpenAIAPIDashboard?
+    {
+        guard provider == .openai, let openai = snapshot?.openAIAPIUsage else { return nil }
+
+        func summary(_ s: OpenAIAPIUsageSnapshot.Summary) -> SyncOpenAISummary {
+            SyncOpenAISummary(
+                totalCostUSD: s.costUSD,
+                totalRequests: s.requests,
+                totalTokens: s.totalTokens)
+        }
+
+        let dailyBuckets: [SyncOpenAIDailyBucket] = openai.daily.map { bucket in
+            SyncOpenAIDailyBucket(
+                dayKey: bucket.day,
+                costUSD: bucket.costUSD,
+                requests: bucket.requests,
+                inputTokens: bucket.inputTokens,
+                cachedInputTokens: bucket.cachedInputTokens,
+                outputTokens: bucket.outputTokens,
+                totalTokens: bucket.totalTokens)
+        }
+
+        // Top models — cost is not always exposed per-model by Admin
+        // API; iOS can still rank by request count. Cap at 8 to keep
+        // payload bounded.
+        let topModels: [SyncOpenAIModelBreakdown] = Array(openai.topModels.prefix(8)).map { m in
+            SyncOpenAIModelBreakdown(
+                modelName: m.name,
+                requests: m.requests,
+                totalTokens: m.totalTokens,
+                costUSD: 0)
+        }
+
+        let topLineItems: [SyncOpenAILineItem] = Array(openai.topLineItems.prefix(8)).map { li in
+            SyncOpenAILineItem(name: li.name, costUSD: li.costUSD)
+        }
+
+        return SyncOpenAIAPIDashboard(
+            last30Days: summary(openai.last30Days),
+            last7Days: summary(openai.last7Days),
+            latestDay: openai.daily.isEmpty ? nil : summary(openai.latestDay),
+            dailyBuckets: dailyBuckets,
+            topModels: topModels,
+            topLineItems: topLineItems)
+    }
+
+    private static func mapZaiHourlyUsage(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncZaiHourlyUsage?
+    {
+        guard provider == .zai, let model = snapshot?.zaiUsage?.modelUsage else { return nil }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let fallback = ISO8601DateFormatter()
+        fallback.formatOptions = [.withInternetDateTime]
+        let xTime: [Date] = model.xTime.compactMap { iso in
+            formatter.date(from: iso) ?? fallback.date(from: iso)
+        }
+        // Skip if the time series didn't parse — iOS can't render
+        // anything useful with mismatched x-axis.
+        guard xTime.count == model.xTime.count, !xTime.isEmpty else { return nil }
+        let series: [SyncZaiModelSeries] = model.modelDataList.compactMap { row in
+            guard let name = row.modelName else { return nil }
+            return SyncZaiModelSeries(modelName: name, tokens: row.tokensUsage)
+        }
+        guard !series.isEmpty else { return nil }
+        return SyncZaiHourlyUsage(xTime: xTime, modelSeries: series)
+    }
+
+    private static func mapKiroCredits(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncKiroCredits?
+    {
+        guard provider == .kiro, let k = snapshot?.kiroUsage else { return nil }
+        // Percent: prefer Mac-computed; otherwise derive used / total.
+        let percent: Double? = {
+            if k.creditsTotal > 0 {
+                return (k.creditsUsed / k.creditsTotal) * 100
+            }
+            return nil
+        }()
+        return SyncKiroCredits(
+            planName: k.displayPlanName,
+            creditsUsed: k.creditsUsed,
+            creditsTotal: k.creditsTotal > 0 ? k.creditsTotal : nil,
+            creditsPercent: percent,
+            bonusUsed: k.bonusCreditsUsed,
+            bonusTotal: k.bonusCreditsTotal,
+            bonusExpiryDays: k.bonusExpiryDays,
+            resetsAt: nil)
+    }
+
+    private static func mapBedrockCost(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?,
+        providerCost: ProviderCostSnapshot?) -> SyncBedrockCost?
+    {
+        // Bedrock data arrives via the generic `providerCost` lane —
+        // there is no dedicated `bedrockUsage` snapshot field on
+        // UsageSnapshot. Use the provider-cost + login-method (which
+        // Bedrock fetcher sets to the AWS region) to reconstruct the
+        // typed envelope iOS expects.
+        guard provider == .bedrock, let pc = providerCost else { return nil }
+        let percent: Double? = pc.limit > 0
+            ? min(max((pc.used / pc.limit) * 100, 0), 100)
+            : nil
+        return SyncBedrockCost(
+            monthlySpendUSD: pc.used,
+            monthlyBudgetUSD: pc.limit > 0 ? pc.limit : nil,
+            inputTokens: nil,
+            outputTokens: nil,
+            region: snapshot?.identity?.loginMethod,
+            budgetUsedPercent: percent,
+            updatedAt: snapshot?.updatedAt ?? Date())
+    }
+
+    private static func mapMoonshotBalance(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?,
+        primaryWindow: SyncRateWindow?) -> SyncMoonshotBalance?
+    {
+        // Moonshot fetcher publishes the API account balance through
+        // the `primary` rate window: `usedPercent` carries the consumed
+        // share of the available balance. We surface the raw amount via
+        // `providerCost` when present; otherwise iOS shows the percent.
+        guard provider == .moonshot, snapshot != nil else { return nil }
+        let amount = snapshot?.providerCost?.used ?? primaryWindow?.usedPercent ?? 0
+        return SyncMoonshotBalance(
+            balanceAmount: amount,
+            balanceCurrency: snapshot?.providerCost?.currencyCode,
+            region: snapshot?.identity?.loginMethod,
+            updatedAt: snapshot?.updatedAt ?? Date())
     }
 
     // swiftlint:enable function_parameter_count
