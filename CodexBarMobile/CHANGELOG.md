@@ -2,6 +2,80 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.7.0 (127)] — 2026-05-17 — Upstream v0.26.1 fold-in: six new dedicated provider cards + settings
+
+iOS 1.7.0 ships against Mac 0.26.2 (upstream v0.26.0 + v0.26.1 fold-in)
+and covers every v0.26 user-visible feature in one release. Six new
+dedicated provider cards dispatch off the typed Shared envelope fields
+added in Mac 0.26.2; two new Settings toggles mirror upstream PRs #918
+and #929.
+
+### Added
+
+- **OpenAI API Dashboard** — `Views/OpenAIDashboardSection.swift`. On
+  the `openai` provider detail page when `openAIAPIDashboard != nil`:
+  3-card Today / 7d / 30d summary, 30-day spend bar chart, top models
+  + top line items lists. Mirrors upstream v0.26.1 menu addition.
+- **Kiro credits card** — `Views/KiroCreditsCard.swift`. Plan tag +
+  primary credit progress + optional bonus pool with localized expiry
+  countdown (1 day / N days / expired). Mirrors upstream PR #933.
+- **AWS Bedrock cost card (NEW provider)** — `Views/BedrockCostCard.swift`.
+  Monthly spend, optional budget gauge with 75% / 90% threshold colors,
+  active region. Mirrors upstream PR #897.
+- **Moonshot / Kimi API balance card (NEW provider)** —
+  `Views/MoonshotBalanceCard.swift`. Balance amount + currency + region.
+  Mirrors upstream PR #911.
+- **z.ai hourly chart** — `Views/ZaiHourlyChart.swift`. Stacked per-model
+  hourly token bars over the active 24-hour window, with chart legend.
+  Mirrors upstream PR #913.
+- **Antigravity multi-account switcher** —
+  `Views/AntigravityAccountSwitcher.swift`. Read-only list of linked
+  Google accounts with active marker + relative token expiry. Surfaces
+  when Mac populates `antigravityAccounts` (follow-up plumbing).
+- **Settings: Hide quota-warning markers** —
+  `MobileSettingsKeys.hideQuotaWarningMarkers`. Suppresses the
+  tick-marks on usage bars while leaving the quota-warning notification
+  intact. Mirrors upstream PR #918.
+- **Settings: Show provider changelog links** —
+  `MobileSettingsKeys.showProviderChangelogLinks`. Opt-in toggle for a
+  future "Provider changelogs" section. Mirrors upstream PR #929.
+- **6 new entries in `Preview Content/PreviewData.swift`** — kiroProvider,
+  bedrockProvider, moonshotProvider, zaiProvider, openAIDashboardProvider,
+  antigravityMultiAccountProvider — all wired into `sampleSnapshot`.
+- **Provider color palette additions** — moonshot (indigo), bedrock
+  (AWS orange), kiro (emerald), zai (slate teal), antigravity (magenta).
+  Removes fallback `.blue` for these providers.
+
+### Changed
+
+- Wire schema extension — `ProviderUsageSnapshot` gains six optional
+  `decodeIfPresent` fields (`openAIAPIDashboard`, `zaiHourlyUsage`,
+  `kiroCredits`, `bedrockCost`, `moonshotBalance`, `antigravityAccounts`).
+  `providerPayloadVersion` deliberately NOT bumped — additive optional
+  fields stay wire-compatible with iOS 1.6.0 readers (the older app
+  silently ignores the new keys).
+- `ProviderDetailView.primaryUsageSection` now hides the generic
+  rate-window list when a dedicated typed card (Kiro / Bedrock /
+  Moonshot) claims the primary slot — avoids double-rendering.
+
+### Backward compatibility
+
+- Old Mac (pre-0.26.2) clients: every new field decodes to `nil`,
+  every new card stays hidden. The detail page falls through to the
+  existing rate-window / cost-summary / utilization-history /
+  daily-chart sections exactly as in 1.6.0.
+- Old iOS (1.6.0) clients reading a new Mac payload: same — unknown
+  keys ignored, baseline cards render normally.
+
+### Required Mac version
+
+- Mac 0.26.2 or later for the new typed cards (Kiro / Bedrock /
+  Moonshot / z.ai / OpenAI Dashboard / Antigravity). iPhone is
+  forward-compatible with Mac 0.26.1 — new cards stay hidden, all
+  other functionality still works.
+
+---
+
 ## [1.6.0 (126)] — 2026-05-16 — Quota warning markers + Mac→iOS push (S4 closing 1.6.0)
 
 iOS 1.6.0 closes Stage 2 with quota warning markers + the Mac→iOS

@@ -128,6 +128,37 @@ enum ProviderColorPalette {
             return Color(red: 0.55, green: 0.35, blue: 0.55)
         }
 
+        // iOS 1.7.0 — upstream v0.26.0 new providers.
+        if normalized.contains("moonshot") || normalized.contains("kimi-api") {
+            // Moonshot / Kimi API — deep indigo (#3C4FE0). Distinct
+            // from Kimi (existing) cooler blue and Antigravity.
+            return Color(red: 0.24, green: 0.31, blue: 0.88)
+        }
+        if normalized.contains("bedrock") {
+            // AWS Bedrock — AWS-orange (#FF9900). The most recognizable
+            // AWS brand tint; reads cleanly against the cost-budget
+            // gradient on the dedicated card.
+            return Color(red: 1.00, green: 0.60, blue: 0.00)
+        }
+        // Earlier upstream providers without explicit entries (falls
+        // back to .blue otherwise). Adding distinct tints so the
+        // multi-card grid stays legible.
+        if normalized.contains("kiro") {
+            // Kiro — emerald (#3F9D7C). Stands apart from gemini cyan
+            // and the openrouter purple cluster.
+            return Color(red: 0.25, green: 0.62, blue: 0.49)
+        }
+        if normalized.contains("zai") || normalized.contains("z.ai") {
+            // z.ai — slate teal (#2E7080). Cooler than perplexity teal,
+            // warmer than gemini cyan.
+            return Color(red: 0.18, green: 0.44, blue: 0.50)
+        }
+        if normalized.contains("antigravity") {
+            // Antigravity — saturated magenta (#C8358A). Distinct from
+            // the purple cluster (Codex/Cursor) and from venice plum.
+            return Color(red: 0.78, green: 0.21, blue: 0.54)
+        }
+
         // Existing provider mappings — preserved from pre-1.3.0 behavior.
         if normalized.contains("claude") || normalized.contains("anthropic") {
             return Color(red: 0.82, green: 0.55, blue: 0.28)

@@ -19,25 +19,26 @@ import Testing
 @Suite("Quota provider list")
 struct QuotaProviderListTests {
 
-    @Test("Total count is 38 (25 base + Abacus + Mistral + 11 v0.24/v0.25)")
+    @Test("Total count is 40 (25 base + Abacus + Mistral + 11 v0.24/v0.25 + 2 v0.26)")
     func totalCount() {
         // Outcome: 25 → 27 in iOS 1.5.0 (Abacus + Mistral) →
-        // 38 in iOS 1.6.0 (11 new from Mac v0.24+v0.25 catch-up).
+        // 38 in iOS 1.6.0 (11 new from Mac v0.24+v0.25 catch-up) →
+        // 40 in iOS 1.7.0 (2 new from Mac v0.26.0: moonshot + bedrock).
         // If this number shifts without matching upstream updates,
         // the push-subscription set drifts out of sync with Mac's
         // actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 38)
+        #expect(QuotaProviderList.providers.count == 40)
     }
 
-    @Test("Subscription zone count is 114 (38 providers × 3 states)")
+    @Test("Subscription zone count is 120 (40 providers × 3 states)")
     func subscriptionZoneCount() {
-        // iOS 1.5.0: 38 × 2 (depleted+restored) = 76 zones.
-        // iOS 1.6.0 / Mac 0.25.2 adds a third "warning" state for
-        // pre-depletion threshold pushes → 38 × 3 = 114 zones.
+        // iOS 1.5.0: 27 × 2 = 54 zones.
+        // iOS 1.6.0 / Mac 0.25.2: 38 × 3 (depleted/restored/warning) = 114.
+        // iOS 1.7.0 / Mac 0.26.2: 40 × 3 = 120 zones (+moonshot, +bedrock).
         // `QuotaTransitionSubscriptions.makeConfigs()` builds one
         // `SubConfig` per (provider, state) — pinning here so a
         // future state addition/removal can't drift silently.
-        #expect(QuotaProviderList.providers.count * 3 == 114)
+        #expect(QuotaProviderList.providers.count * 3 == 120)
     }
 
     @Test("Warning-zone name format matches Mac/iOS contract")
@@ -110,21 +111,23 @@ struct QuotaProviderListTests {
     /// previously-existing ones would shift CK subscription IDs and
     /// re-create them all. Verify Abacus + Mistral + the 11 v0.24/v0.25
     /// additions are appended at the END (additive), not interleaved.
-    @Test("Cause: new providers (v0.23 + v0.24/v0.25) are appended at the tail")
+    @Test("Cause: new providers (v0.23 + v0.24/v0.25 + v0.26) are appended at the tail")
     func newProvidersAppended() {
         let providers = QuotaProviderList.providers
         // Abacus + Mistral were positions [25, 26] in iOS 1.5.0.
-        // The 11 v0.24/v0.25 catch-up additions are positions [27..37]
-        // (38 total). Pin the full tail order so a careless edit doesn't
+        // 11 v0.24/v0.25 catch-up additions in iOS 1.6.0 (positions [27..37]).
+        // 2 v0.26.0 catch-up additions in iOS 1.7.0 (positions [38..39]).
+        // 40 total. Pin the full tail order so a careless edit doesn't
         // reorder providers and force every existing user's iOS app to
-        // re-create 76 CK subscriptions.
-        let tail = providers.suffix(13).map(\.id)
+        // re-create 80 CK subscriptions.
+        let tail = providers.suffix(15).map(\.id)
         #expect(tail == [
             "abacus", "mistral",
             "openai", "manus", "windsurf", "mimo", "doubao",
             "deepseek", "codebuff", "crof", "venice", "commandcode",
             "stepfun",
-        ], "All 13 catch-up additions must stay at the tail in this order")
+            "moonshot", "bedrock",
+        ], "All 15 catch-up additions must stay at the tail in this order")
     }
 
     // MARK: - iOS 1.6.0 · v0.24+v0.25 catch-up presence
@@ -217,13 +220,29 @@ struct QuotaProviderListTests {
         #expect(Set(ids).count == ids.count, "Duplicate provider IDs found")
     }
 
-    /// Cause-oriented: iOS 1.6.0's catalog "Important" message references
-    /// "38 providers / 76 push-subscription zones" (was 27 / 54 in
-    /// iOS 1.5.0). If those numbers drift from this list, the user-facing
-    /// release notes lie. Doc the cross-coupling.
-    @Test("Cause: catalog 38/76 numbers match the actual list")
+    /// Cause-oriented: iOS 1.7.0's catalog message references the
+    /// provider count and zone count. If those numbers drift from this
+    /// list, the user-facing release notes lie. Doc the cross-coupling.
+    @Test("Cause: catalog 40/80 numbers match the actual list")
     func catalogNumbersAlignWithList() {
-        #expect(QuotaProviderList.providers.count == 38)
-        #expect(QuotaProviderList.providers.count * 2 == 76)
+        #expect(QuotaProviderList.providers.count == 40)
+        #expect(QuotaProviderList.providers.count * 2 == 80)
+    }
+
+    /// Cause-oriented: iOS 1.7.0 specifically adds Moonshot + Bedrock.
+    /// Pin them by id + displayName so a rename on either side doesn't
+    /// silently break push delivery for the new providers.
+    @Test("Moonshot / Kimi API present (v0.26.0 #911)")
+    func moonshotPresent() {
+        let m = QuotaProviderList.providers.first(where: { $0.id == "moonshot" })
+        #expect(m != nil)
+        #expect(m?.displayName == "Moonshot / Kimi API")
+    }
+
+    @Test("AWS Bedrock present (v0.26.0 #897)")
+    func bedrockPresent() {
+        let b = QuotaProviderList.providers.first(where: { $0.id == "bedrock" })
+        #expect(b != nil)
+        #expect(b?.displayName == "AWS Bedrock")
     }
 }

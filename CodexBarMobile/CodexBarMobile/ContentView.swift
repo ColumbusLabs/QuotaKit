@@ -2006,8 +2006,30 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.6.0",
+            version: "1.7.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "Six new dedicated provider cards (Kiro credits, AWS Bedrock cost, Moonshot / Kimi API balance, z.ai hourly chart, OpenAI API Dashboard, Antigravity multi-account) plus two new settings toggles."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(localized: "OpenAI Admin API Dashboard on the OpenAI provider page — Today / 7 days / 30 days summary cards, a 30-day spend chart, and top models / top line items lists. Requires Mac 0.26.2 with Admin API access."),
+                        String(localized: "Kiro: dedicated credits card with plan tag, primary credit usage progress, and an optional bonus pool with expiry countdown."),
+                        String(localized: "AWS Bedrock (NEW): monthly spend + budget card with the active AWS region. Color-coded as approach 75% / 90% of budget."),
+                        String(localized: "Moonshot / Kimi API (NEW): clean balance + currency + region card so you can see your top-up at a glance."),
+                        String(localized: "z.ai hourly chart: stacked per-model token usage for the last 24 hours, with model legend."),
+                        String(localized: "Antigravity multi-account switcher: when more than one Google account is wired on Mac, the iPhone shows the linked list with active-account marker."),
+                        String(localized: "Two new Settings toggles — Hide quota-warning markers (only the tick-marks; notifications still fire) and Show provider changelog links (companion section in Settings → About)."),
+                    ]),
+                .init(
+                    title: String(localized: "Required Mac version"),
+                    items: [
+                        String(localized: "Update Mac CodexBar to 0.26.2 or later. iPhone 1.7.0 is backward-compatible with Mac 0.26.1 (the new typed cards just stay hidden until Mac is on 0.26.2)."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.6.0",
+            status: "",
             summary: String(localized: "11 new provider cards plus a Claude peak-hours indicator and pre-depletion warning markers on every usage bar."),
             sections: [
                 .init(
@@ -2370,6 +2392,8 @@ private struct UsageSettingsView: View {
     @AppStorage(MobileSettingsKeys.showRemainingUsage) private var showRemainingUsage =
         UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode.remaining.rawValue
     @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidePersonalInfo = false
+    @AppStorage(MobileSettingsKeys.hideQuotaWarningMarkers) private var hideQuotaWarningMarkers = false
+    @AppStorage(MobileSettingsKeys.showProviderChangelogLinks) private var showProviderChangelogLinks = false
 
     var body: some View {
         List {
@@ -2400,6 +2424,29 @@ private struct UsageSettingsView: View {
                 Text("Press and hold on the chart to inspect the exact value for a given day.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Toggle(isOn: self.$hideQuotaWarningMarkers) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("setting_hide_quota_markers_title")
+                        Text("setting_hide_quota_markers_subtitle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .accessibilityIdentifier("hide-quota-warning-markers-toggle")
+                Toggle(isOn: self.$showProviderChangelogLinks) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("setting_show_changelog_links_title")
+                        Text("setting_show_changelog_links_subtitle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .accessibilityIdentifier("show-provider-changelog-links-toggle")
+            } header: {
+                Text("setting_section_warnings_links")
             }
 
             Section {

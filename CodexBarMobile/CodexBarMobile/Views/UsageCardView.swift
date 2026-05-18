@@ -18,6 +18,10 @@ struct UsageCardView: View {
     var quotaWarningsEnabled: Bool = true
     @AppStorage(MobileSettingsKeys.showRemainingUsage) private var showRemainingUsage =
         UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode.remaining.rawValue
+    /// Global "hide warning markers" toggle (iOS 1.7.0, mirrors upstream
+    /// PR #918). The quota-warning notification is unaffected — only the
+    /// tick-mark on the usage bar is hidden when true.
+    @AppStorage(MobileSettingsKeys.hideQuotaWarningMarkers) private var hideQuotaWarningMarkers = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -49,7 +53,7 @@ struct UsageCardView: View {
                 .tint(self.usageColor)
                 .scaleEffect(y: 2, anchor: .center)
                 .overlay(alignment: .leading) {
-                    if self.quotaWarningsEnabled, !self.markerUsedPercents.isEmpty {
+                    if self.quotaWarningsEnabled, !self.hideQuotaWarningMarkers, !self.markerUsedPercents.isEmpty {
                         GeometryReader { geo in
                             ForEach(self.markerUsedPercents, id: \.self) { usedPercent in
                                 Rectangle()

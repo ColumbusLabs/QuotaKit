@@ -28,6 +28,44 @@ struct ProviderDetailView: View {
                 // Rate limit cards (or Perplexity credit breakdown when available)
                 self.primaryUsageSection
 
+                // v0.26 dedicated cards — dispatched by providerID +
+                // typed envelope field. iOS 1.7.0 fold-in. Each card
+                // is only rendered when both the providerID matches
+                // AND the snapshot carries its typed payload; missing
+                // data falls through silently to the generic sections
+                // below.
+                if self.provider.providerID == "kiro",
+                   let kiroCredits = self.provider.kiroCredits
+                {
+                    KiroCreditsCard(credits: kiroCredits, tintColor: self.providerColor)
+                }
+                if self.provider.providerID == "bedrock",
+                   let bedrockCost = self.provider.bedrockCost
+                {
+                    BedrockCostCard(cost: bedrockCost, tintColor: self.providerColor)
+                }
+                if self.provider.providerID == "moonshot",
+                   let moonshotBalance = self.provider.moonshotBalance
+                {
+                    MoonshotBalanceCard(balance: moonshotBalance, tintColor: self.providerColor)
+                }
+                if self.provider.providerID == "zai",
+                   let zaiHourly = self.provider.zaiHourlyUsage
+                {
+                    ZaiHourlyChart(usage: zaiHourly, tintColor: self.providerColor)
+                }
+                if self.provider.providerID == "openai",
+                   let openAIDashboard = self.provider.openAIAPIDashboard
+                {
+                    OpenAIDashboardSection(dashboard: openAIDashboard, tintColor: self.providerColor)
+                }
+                if self.provider.providerID == "antigravity",
+                   let antigravityAccounts = self.provider.antigravityAccounts,
+                   antigravityAccounts.accounts.count > 1
+                {
+                    AntigravityAccountSwitcher(accounts: antigravityAccounts, tintColor: self.providerColor)
+                }
+
                 // Claude peak-hours indicator (Anthropic peak window
                 // 8am-2pm America/New_York, weekdays). Pure time-of-day
                 // logic in `ClaudePeakHours` — no wire field involved.
@@ -135,19 +173,35 @@ struct ProviderDetailView: View {
 
     // MARK: - Primary usage section
 
-    /// Chooses between the Perplexity-specialized credit card and the generic
-    /// rate-window list. Perplexity ships its rich structured breakdown via
-    /// `perplexityCredits` starting Mac 0.20.3 — when that field is present
-    /// we render the stacked 3-segment card; otherwise (every other provider,
-    /// or a pre-0.20.3 Mac client) we fall through to the generic list.
+    /// Chooses between a specialized provider card and the generic
+    /// rate-window list. When a typed envelope card claims the primary
+    /// real estate (Perplexity, Kiro, Bedrock, Moonshot), we skip the
+    /// generic list to avoid double-rendering the same data.
     @ViewBuilder
     private var primaryUsageSection: some View {
         if self.provider.providerID == "perplexity",
            let credits = self.provider.perplexityCredits
         {
             PerplexityCreditsCard(credits: credits, tintColor: self.providerColor)
+        } else if self.providerHasDedicatedPrimaryCard {
+            // The dedicated card is rendered below in the body; skip
+            // the generic rate-window list so the page isn't redundant.
+            EmptyView()
         } else {
             self.rateLimitSection
+        }
+    }
+
+    private var providerHasDedicatedPrimaryCard: Bool {
+        switch self.provider.providerID {
+        case "kiro" where self.provider.kiroCredits != nil:
+            true
+        case "bedrock" where self.provider.bedrockCost != nil:
+            true
+        case "moonshot" where self.provider.moonshotBalance != nil:
+            true
+        default:
+            false
         }
     }
 
