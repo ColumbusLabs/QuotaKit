@@ -69,7 +69,8 @@ public enum QuotaProviderList {
         // Added in iOS 1.6.0 alongside Mac v0.24+v0.25 (commit 1c95d6e7).
         // 11 new providers verified against upstream descriptors
         // (`grep "displayName:" Sources/CodexBarCore/Providers/*/[A-Z]*ProviderDescriptor.swift`).
-        // Subscription count: 27 → 38 providers × 2 states = 76 zones.
+        // Subscription count: 27 → 38 (iOS 1.6.0) → 40 (iOS 1.7.0)
+        // providers × 3 states (depleted+restored+warning) = 120 zones.
         // APPENDED at the tail so existing 27-entry CK subscription IDs
         // stay stable across the 1.5.x → 1.6.0 upgrade (no re-subscribe
         // churn for installed users).

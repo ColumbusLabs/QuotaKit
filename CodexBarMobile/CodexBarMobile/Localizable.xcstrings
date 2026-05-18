@@ -10358,6 +10358,62 @@
           }
         }
       }
+    },
+    "provider_changelogs_section": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider changelogs"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider 更新日志"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider 更新日誌"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロバイダーの更新履歴"
+          }
+        }
+      }
+    },
+    "provider_changelogs_footer": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens upstream release notes in Safari. Useful when an iPhone-visible quota value shifts and you want to check whether the provider's pricing/quotas just changed."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Safari 中打开上游 release notes。当 iPhone 上的额度数值变化时,可以快速确认 provider 的定价/额度是否刚好更新。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Safari 中開啟上游 release notes。當 iPhone 上的額度數值變化時,可以快速確認 provider 的定價/額度是否剛好更新。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Safari で上流の release notes を開きます。iPhone 上のクォータ値が変動したとき、プロバイダー側の価格/クォータが更新されたかをすばやく確認できます。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

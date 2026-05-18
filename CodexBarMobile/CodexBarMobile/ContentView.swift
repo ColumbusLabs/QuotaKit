@@ -1465,9 +1465,34 @@ private struct AboutSyncDetailView: View {
                 }
             }
 
+            // iOS 1.7.0 — gated by `showProviderChangelogLinks`. Mirrors
+            // upstream PR #929; opt-in companion to the Mac menu's
+            // changelog links so users on iPhone can jump to the
+            // upstream release notes for the providers we sync.
+            if self.showProviderChangelogLinks {
+                Section {
+                    Link(destination: URL(string: "https://github.com/openai/codex/releases")!) {
+                        Label("Codex CLI", systemImage: "arrow.up.right.square")
+                    }
+                    Link(destination: URL(string: "https://github.com/anthropics/claude-code/releases")!) {
+                        Label("Claude Code", systemImage: "arrow.up.right.square")
+                    }
+                    Link(destination: URL(string: "https://github.com/google-gemini/gemini-cli/releases")!) {
+                        Label("Gemini CLI", systemImage: "arrow.up.right.square")
+                    }
+                } header: {
+                    Text("provider_changelogs_section")
+                } footer: {
+                    Text("provider_changelogs_footer")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .navigationTitle("About & Sync")
     }
+
+    @AppStorage(MobileSettingsKeys.showProviderChangelogLinks) private var showProviderChangelogLinks = false
 
     private var syncStatusIcon: some View {
         Group {

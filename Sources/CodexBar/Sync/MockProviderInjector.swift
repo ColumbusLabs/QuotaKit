@@ -120,9 +120,11 @@ enum MockProviderInjector {
     ///   each provider's first-class card on iPhone, plus 30-day
     ///   aggregate cost dashboard contribution.
     ///
-    /// Total: **43 ProviderUsageSnapshot entries across 40 distinct
-    /// providerIDs** (27 real-borrowed + 2 synthetic). Aggregate
-    /// cost ~$70-90/30day.
+    /// Total: **45 ProviderUsageSnapshot entries across 42 distinct
+    /// providerIDs** (40 real-borrowed + 2 synthetic). Aggregate
+    /// cost ~$90-120/30day (iOS 1.7.0 adds the v0.26 enrichments
+    /// for kiro/bedrock/moonshot/zai/openai/antigravity via
+    /// `v026ExtrasFor(providerID:)`).
     static func allMocks() -> [ProviderUsageSnapshot] {
         let rich: [ProviderUsageSnapshot] = [
             self.mockCodexAlice(),
@@ -1147,6 +1149,132 @@ enum MockProviderInjector {
             thirtyDayCostUSD: 19.10, sessionCostUSD: 0.55),
     ]
 
+    /// Returns the v0.26 typed-envelope extras for a given providerID,
+    /// or nil. Used by `makeSimpleProviderMock` so the simple-profile
+    /// mocks exercise the new iOS detail cards (Kiro / Bedrock /
+    /// Moonshot / z.ai hourly / OpenAI Dashboard / Antigravity).
+    /// Without this, mock injection mode would silently hide every new
+    /// v0.26 card — a real regression vector.
+    private static func v026ExtrasFor(providerID: String) -> V026MockExtras? {
+        let now = Self.nowReference
+        switch providerID {
+        case "kiro":
+            return V026MockExtras(kiroCredits: SyncKiroCredits(
+                planName: "Pro (Mock)",
+                creditsUsed: 320,
+                creditsTotal: 1000,
+                creditsPercent: 32,
+                bonusUsed: 45,
+                bonusTotal: 200,
+                bonusExpiryDays: 19,
+                resetsAt: now.addingTimeInterval(86400 * 11)))
+        case "bedrock":
+            return V026MockExtras(bedrockCost: SyncBedrockCost(
+                monthlySpendUSD: 19.10,
+                monthlyBudgetUSD: 50.0,
+                inputTokens: 4_200_000,
+                outputTokens: 1_100_000,
+                region: "us-east-1",
+                budgetUsedPercent: 38.2,
+                updatedAt: now))
+        case "moonshot":
+            return V026MockExtras(moonshotBalance: SyncMoonshotBalance(
+                balanceAmount: 58.40,
+                balanceCurrency: "CNY",
+                region: "cn-default",
+                updatedAt: now))
+        case "zai":
+            // Build a 24h hourly series with two models — enough to
+            // exercise the stacked-bar legend + selection logic.
+            var xTime: [Date] = []
+            for offset in 0..<24 {
+                xTime.append(now.addingTimeInterval(TimeInterval(-3600 * (23 - offset))))
+            }
+            let glm: [Int?] = (0..<24).map { i in i % 4 == 0 ? 1500 + (i * 200) : nil }
+            let glmPlus: [Int?] = (0..<24).map { i in i % 3 == 1 ? 800 + (i * 150) : nil }
+            return V026MockExtras(zaiHourlyUsage: SyncZaiHourlyUsage(
+                xTime: xTime,
+                modelSeries: [
+                    SyncZaiModelSeries(modelName: "glm-4.6", tokens: glm),
+                    SyncZaiModelSeries(modelName: "glm-4.6-plus", tokens: glmPlus),
+                ]))
+        case "openai":
+            // 30-day daily bucket + top models / line items so iOS
+            // OpenAIDashboardSection renders end-to-end.
+            let dailyBuckets: [SyncOpenAIDailyBucket] = (1...30).map { day in
+                let cost = 1.0 + Double(day % 7) * 0.8
+                return SyncOpenAIDailyBucket(
+                    dayKey: String(format: "2026-04-%02d", day),
+                    costUSD: cost,
+                    requests: 60 + day * 5,
+                    inputTokens: 12000 + day * 700,
+                    cachedInputTokens: 1500 + day * 100,
+                    outputTokens: 4000 + day * 200,
+                    totalTokens: 16000 + day * 900)
+            }
+            return V026MockExtras(openAIAPIDashboard: SyncOpenAIAPIDashboard(
+                last30Days: SyncOpenAISummary(totalCostUSD: 142.33, totalRequests: 4201, totalTokens: 1_234_567),
+                last7Days: SyncOpenAISummary(totalCostUSD: 38.50, totalRequests: 1103, totalTokens: 312_000),
+                latestDay: SyncOpenAISummary(totalCostUSD: 5.21, totalRequests: 142, totalTokens: 45321),
+                dailyBuckets: dailyBuckets,
+                topModels: [
+                    SyncOpenAIModelBreakdown(modelName: "gpt-5", requests: 2100, totalTokens: 800_000, costUSD: 0),
+                    SyncOpenAIModelBreakdown(modelName: "gpt-5.5", requests: 1400, totalTokens: 380_000, costUSD: 0),
+                    SyncOpenAIModelBreakdown(modelName: "gpt-4o-mini", requests: 540, totalTokens: 110_000, costUSD: 0),
+                ],
+                topLineItems: [
+                    SyncOpenAILineItem(name: "Completions", costUSD: 100.40),
+                    SyncOpenAILineItem(name: "Embeddings", costUSD: 22.10),
+                    SyncOpenAILineItem(name: "Audio", costUSD: 12.83),
+                ]))
+        case "antigravity":
+            return V026MockExtras(antigravityAccounts: SyncMultiAccountList(
+                accounts: [
+                    SyncMultiAccountEntry(
+                        email: "primary-mock@antigravity.test",
+                        isActive: true,
+                        expiresAt: now.addingTimeInterval(3600 * 12)),
+                    SyncMultiAccountEntry(
+                        email: "alt-mock@antigravity.test",
+                        isActive: false,
+                        expiresAt: now.addingTimeInterval(3600 * 36)),
+                ],
+                activeIndex: 0))
+        default:
+            return nil
+        }
+    }
+
+    /// Bundle of v0.26 typed envelope payloads for a single mock. Only
+    /// the one matching the provider's specialty is populated. iOS
+    /// reads via `ProviderUsageSnapshot.{kiroCredits|bedrockCost|...}`
+    /// and dispatches the dedicated detail card per
+    /// `Views/ProviderDetailView.swift`.
+    private struct V026MockExtras {
+        var openAIAPIDashboard: SyncOpenAIAPIDashboard?
+        var zaiHourlyUsage: SyncZaiHourlyUsage?
+        var kiroCredits: SyncKiroCredits?
+        var bedrockCost: SyncBedrockCost?
+        var moonshotBalance: SyncMoonshotBalance?
+        var antigravityAccounts: SyncMultiAccountList?
+
+        init(
+            openAIAPIDashboard: SyncOpenAIAPIDashboard? = nil,
+            zaiHourlyUsage: SyncZaiHourlyUsage? = nil,
+            kiroCredits: SyncKiroCredits? = nil,
+            bedrockCost: SyncBedrockCost? = nil,
+            moonshotBalance: SyncMoonshotBalance? = nil,
+            antigravityAccounts: SyncMultiAccountList? = nil)
+        {
+            self.openAIAPIDashboard = openAIAPIDashboard
+            self.zaiHourlyUsage = zaiHourlyUsage
+            self.kiroCredits = kiroCredits
+            self.bedrockCost = bedrockCost
+            self.moonshotBalance = moonshotBalance
+            self.antigravityAccounts = antigravityAccounts
+        }
+    }
+
     /// Builds a `ProviderUsageSnapshot` from a `SimpleProviderProfile`.
     /// Centralizes the boilerplate so the profile table stays compact.
     /// Email format `{accountLocal}-mock@{providerID}.test` matches the
@@ -1194,6 +1322,7 @@ enum MockProviderInjector {
                 last30DaysTokens: Int(thirtyDayUSD * 50000),
                 daily: [])
         }
+        let extras = Self.v026ExtrasFor(providerID: profile.providerID)
         return ProviderUsageSnapshot(
             providerID: profile.providerID,
             providerName: "\(profile.providerName) (\(profile.accountLocal) · Mock)",
@@ -1211,7 +1340,14 @@ enum MockProviderInjector {
             perplexityCredits: nil,
             accountIdentities: [
                 "\(profile.providerID):email:\(identityValue)",
-            ])
+            ],
+            quotaWarnings: nil,
+            openAIAPIDashboard: extras?.openAIAPIDashboard,
+            zaiHourlyUsage: extras?.zaiHourlyUsage,
+            kiroCredits: extras?.kiroCredits,
+            bedrockCost: extras?.bedrockCost,
+            moonshotBalance: extras?.moonshotBalance,
+            antigravityAccounts: extras?.antigravityAccounts)
     }
 }
 

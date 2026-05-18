@@ -551,10 +551,20 @@ final class SyncCoordinator {
         let openAIAPIDashboard = Self.mapOpenAIAPIDashboard(provider: provider, snapshot: snapshot)
         let zaiHourlyUsage = Self.mapZaiHourlyUsage(provider: provider, snapshot: snapshot)
         let kiroCredits = Self.mapKiroCredits(provider: provider, snapshot: snapshot)
+        // Bedrock region lives in `SettingsStore.bedrockRegion`, NOT in
+        // the upstream `UsageSnapshot` (the BedrockUsageSnapshot.region
+        // field is dropped when toUsageSnapshot() flattens it). Read
+        // settings directly so iOS gets the actual AWS region, not the
+        // composite display string in `loginMethod`.
+        let bedrockRegion: String? = provider == .bedrock ? {
+            let value = self.settings.bedrockRegion
+            return value.isEmpty ? nil : value
+        }() : nil
         let bedrockCost = Self.mapBedrockCost(
             provider: provider,
             snapshot: snapshot,
-            providerCost: providerCost)
+            providerCost: providerCost,
+            region: bedrockRegion)
         let moonshotBalance = Self.mapMoonshotBalance(
             provider: provider,
             snapshot: snapshot,
@@ -581,12 +591,20 @@ final class SyncCoordinator {
             kiroCredits: kiroCredits,
             bedrockCost: bedrockCost,
             moonshotBalance: moonshotBalance,
+            // TODO(antigravity): Mac does not yet thread the Google
+            // OAuth account list into the wire envelope. The plumbing
+            // path is `SettingsStore.tokenAccountsData(for: .antigravity)`
+            // → a new `mapAntigravityAccounts(...)` mapper. Tracked as
+            // a follow-up to iOS 1.7.0. iOS 1.7.0 ships the renderer
+            // (`Views/AntigravityAccountSwitcher.swift`) gated on the
+            // optional field so it light-up automatically once Mac
+            // starts populating it.
             antigravityAccounts: nil)
     }
 
     // MARK: - v0.26 envelope mappers (private)
 
-    private static func mapOpenAIAPIDashboard(
+    static func mapOpenAIAPIDashboard(
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncOpenAIAPIDashboard?
     {
@@ -634,7 +652,7 @@ final class SyncCoordinator {
             topLineItems: topLineItems)
     }
 
-    private static func mapZaiHourlyUsage(
+    static func mapZaiHourlyUsage(
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncZaiHourlyUsage?
     {
@@ -657,7 +675,7 @@ final class SyncCoordinator {
         return SyncZaiHourlyUsage(xTime: xTime, modelSeries: series)
     }
 
-    private static func mapKiroCredits(
+    static func mapKiroCredits(
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncKiroCredits?
     {
@@ -680,16 +698,19 @@ final class SyncCoordinator {
             resetsAt: nil)
     }
 
-    private static func mapBedrockCost(
+    static func mapBedrockCost(
         provider: UsageProvider,
         snapshot: UsageSnapshot?,
-        providerCost: ProviderCostSnapshot?) -> SyncBedrockCost?
+        providerCost: ProviderCostSnapshot?,
+        region: String? = nil) -> SyncBedrockCost?
     {
         // Bedrock data arrives via the generic `providerCost` lane —
         // there is no dedicated `bedrockUsage` snapshot field on
-        // UsageSnapshot. Use the provider-cost + login-method (which
-        // Bedrock fetcher sets to the AWS region) to reconstruct the
-        // typed envelope iOS expects.
+        // `UsageSnapshot`. The upstream `BedrockUsageSnapshot.toUsageSnapshot()`
+        // packs region + spend + tokens into `loginMethod` as a single
+        // composite display string ("Spend: $X - Budget: $Y - Tokens: $Z"),
+        // so we CANNOT read region from there. The caller passes
+        // `region` from `SettingsStore.bedrockRegion` for that.
         guard provider == .bedrock, let pc = providerCost else { return nil }
         let percent: Double? = pc.limit > 0
             ? min(max((pc.used / pc.limit) * 100, 0), 100)
@@ -699,27 +720,73 @@ final class SyncCoordinator {
             monthlyBudgetUSD: pc.limit > 0 ? pc.limit : nil,
             inputTokens: nil,
             outputTokens: nil,
-            region: snapshot?.identity?.loginMethod,
+            region: region,
             budgetUsedPercent: percent,
             updatedAt: snapshot?.updatedAt ?? Date())
     }
 
-    private static func mapMoonshotBalance(
+    static func mapMoonshotBalance(
         provider: UsageProvider,
         snapshot: UsageSnapshot?,
         primaryWindow: SyncRateWindow?) -> SyncMoonshotBalance?
     {
-        // Moonshot fetcher publishes the API account balance through
-        // the `primary` rate window: `usedPercent` carries the consumed
-        // share of the available balance. We surface the raw amount via
-        // `providerCost` when present; otherwise iOS shows the percent.
-        guard provider == .moonshot, snapshot != nil else { return nil }
-        let amount = snapshot?.providerCost?.used ?? primaryWindow?.usedPercent ?? 0
+        // Moonshot's upstream fetcher emits the API balance via
+        // `loginMethod` as a localized string like "Balance: $58.40"
+        // (or "Balance: $58.40 · $5 in deficit"). `providerCost` and
+        // `primary` are BOTH nil in production — see
+        // `MoonshotUsageSummary.toUsageSnapshot()`. We parse the
+        // dollar amount out of loginMethod; fall back to nil when the
+        // format drifts so iOS hides the card rather than show "0.00".
+        guard provider == .moonshot else { return nil }
+        let loginMethod = snapshot?.identity?.loginMethod ?? ""
+        let parsed = Self.parseMoonshotBalance(from: loginMethod)
+        // Fallback: if loginMethod isn't parseable (upstream changed
+        // the format), keep trying providerCost / primaryWindow so a
+        // future Moonshot version that exposes balance via providerCost
+        // can land without a fork update.
+        let amount = parsed?.amount
+            ?? snapshot?.providerCost?.used
+            ?? primaryWindow?.usedPercent
+        guard let amount, amount > 0 else { return nil }
         return SyncMoonshotBalance(
             balanceAmount: amount,
-            balanceCurrency: snapshot?.providerCost?.currencyCode,
-            region: snapshot?.identity?.loginMethod,
+            balanceCurrency: parsed?.currency ?? snapshot?.providerCost?.currencyCode,
+            region: nil,
             updatedAt: snapshot?.updatedAt ?? Date())
+    }
+
+    /// Parses Moonshot's `loginMethod` display string into a structured
+    /// (amount, currency) pair. The upstream string format is:
+    ///
+    ///     "Balance: $58.40"
+    ///     "Balance: $58.40 · $5.00 in deficit"
+    ///
+    /// `UsageFormatter.usdString(58.40)` produces "$58.40" with a
+    /// leading dollar sign. We strip the prefix label and currency
+    /// symbol and parse the number. Returns nil for unrecognized
+    /// formats (future-proof against upstream relabeling).
+    static func parseMoonshotBalance(from loginMethod: String) -> (amount: Double, currency: String)? {
+        // Match the first "Balance: <symbol><digits>.<digits>" token.
+        // Range-bounded so we ignore the deficit suffix.
+        guard let prefixRange = loginMethod.range(of: "Balance: ") else { return nil }
+        let after = loginMethod[prefixRange.upperBound...]
+        // Take up to the first separator (space, middle-dot, comma).
+        let stopChars: Set<Character> = [" ", "·", ",", "\t"]
+        let amountString = String(after.prefix(while: { !stopChars.contains($0) }))
+        // Strip the leading currency symbol if present (USD only today).
+        var currency = "USD"
+        var digits = amountString
+        if let first = digits.first, !first.isNumber, first != "-", first != "+" {
+            switch first {
+            case "$": currency = "USD"
+            case "¥": currency = "CNY"
+            case "€": currency = "EUR"
+            default: break
+            }
+            digits.removeFirst()
+        }
+        guard let amount = Double(digits) else { return nil }
+        return (amount, currency)
     }
 
     // swiftlint:enable function_parameter_count
