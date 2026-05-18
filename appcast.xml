@@ -4,6 +4,53 @@
         <title>CodexBar</title>
         <item>
             <title>0.26.2</title>
+            <pubDate>Sun, 17 May 2026 23:40:47 -0700</pubDate>
+            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
+            <sparkle:version>63.2.1.7.0</sparkle:version>
+            <sparkle:shortVersionString>0.26.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.26.2-Mobile 1.7.0</h2>
+> Fork release that re-bases on upstream v0.26.1 and extends the Shared
+> iCloud envelope so iOS 1.7.0 can surface every v0.26 user-facing
+> feature. See <a href="#upstream-v0260--v0261--2026-05-15">upstream 0.26.0 / 0.26.1 notes</a> below for the full list of
+> features introduced in this cycle.
+<h3>Mac changes folded in</h3>
+<ul>
+<li>Sync upstream v0.26.0 + v0.26.1 (Kiro credits, Antigravity multi-account, OpenRouter spend, AWS Bedrock provider, Moonshot/Kimi API, z.ai hourly chart, OpenAI Admin API Dashboard, Brazilian Portuguese, quota-warning marker toggle, provider changelog links setting).</li>
+<li><code>Sources/CodexBarCore/Sync/AccountIdentityComputer</code> + <code>SyncCoordinator.isModelEstimated()</code> extended for new providers <code>moonshot</code> and <code>bedrock</code>.</li>
+<li><code>Sources/CodexBar/Sync/MockProviderInjector</code> extended to emit Moonshot + Bedrock mocks (43 → 45 synthetic providers).</li>
+<li>Cost cache invalidation: codex <code>v5 → v6</code> (adopts upstream's bump; supersedes fork 0.23.1 hotfix); claude/vertex stay at fork's <code>v3</code>.</li>
+</ul>
+<h3>Mobile bridge — Shared envelope extensions</h3>
+<ul>
+<li><code>Shared/Models/UsageSnapshot.swift</code> adds six optional fields, all <code>decodeIfPresent</code> so iOS 1.6.0 clients keep decoding without errors:</li>
+</ul>
+  - <code>openAIAPIDashboard: SyncOpenAIAPIDashboard?</code> — Today/7d/30d summaries + daily breakdown + top models / line items.
+  - <code>zaiHourlyUsage: SyncZaiHourlyUsage?</code> — per-model hourly token series.
+  - <code>kiroCredits: SyncKiroCredits?</code> — plan + credits + bonus + expiry countdown.
+  - <code>bedrockCost: SyncBedrockCost?</code> — monthly spend + budget + region.
+  - <code>moonshotBalance: SyncMoonshotBalance?</code> — account balance + region + last-updated.
+  - <code>antigravityAccounts: SyncMultiAccountList?</code> — OAuth account list + active index.
+<ul>
+<li><code>Shared/iCloud/CloudConstants.providerPayloadVersion</code> deliberately NOT bumped (additive optional fields).</li>
+<li>Mac <code>SyncCoordinator</code> populates the new fields whenever upstream's per-provider snapshot carries the corresponding data.</li>
+</ul>
+<h3>iOS pairing</h3>
+<ul>
+<li>Pairs with <strong>iOS 1.7.0</strong> (build 127+); see <code>CodexBarMobile/CHANGELOG.md</code>.</li>
+</ul>
+<h3>Notes</h3>
+<ul>
+<li><code>version.env</code>: <code>MARKETING_VERSION=0.26.2</code>, <code>BUILD_NUMBER=63.1</code>, <code>UPSTREAM_VERSION=v0.26.1</code>, <code>UPSTREAM_SYNC_DATE=2026-05-17</code>.</li>
+<li>Tag name: <code>v0.26.2-mobile.1.7.0</code>. Release branch: <code>mobile-dev</code>.</li>
+</ul>
+<hr/>
+<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.26.2-mobile.1.7.0/CodexBar-0.26.2-mobile.1.7.0.zip" length="39497762" type="application/octet-stream" sparkle:edSignature="q+V9lqqZjgJzv9F6mS4ZSXBw6oRqiW1+DfRAf/yeDO73URjIyak42uSUiOGaMdFLbGE7vxVvSmogQpacaz6oDw=="/>
+        </item>
+        <item>
+            <title>0.26.2</title>
             <pubDate>Sun, 17 May 2026 22:28:46 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
             <sparkle:version>63.1.1.7.0</sparkle:version>
@@ -84,66 +131,6 @@
 <p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.25.2-mobile.1.6.0/CodexBar-0.25.2-mobile.1.6.0.zip" length="37172538" type="application/octet-stream" sparkle:edSignature="lzuRP3jqaS+goOLngWkY0Cz7szFUd7FAbQap8i4slph4UcM7tXu+8yGluypBTdFDgWtVxJfCqxzkcXzJ5xBWBw=="/>
-        </item>
-        <item>
-            <title>0.25.1</title>
-            <pubDate>Tue, 12 May 2026 22:03:28 -0700</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
-            <sparkle:version>61.1.5.3</sparkle:version>
-            <sparkle:shortVersionString>0.25.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.25.1-Mobile 1.5.3</h2>
-<strong>0.25.1-mobile.1.5.3</strong> folds three upstream releases (v0.24, v0.25, v0.25.1) into one Mac build, plus a small zh-Hans / en translation gap fix our audit caught.
-<h3>What's new</h3>
-<ul>
-<li><strong>11 new providers</strong> — Windsurf, Codebuff, DeepSeek, Manus, MiMo, Qwen, Doubao, Command Code, StepFun, Crof, Venice, plus OpenAI API balance tracking.</li>
-<li><strong>Simplified Chinese</strong> localization with in-app language selector.</li>
-<li><strong>Quota warning notifications</strong> — opt-in alerts at configurable thresholds (e.g. 80%) for session and weekly quota windows.</li>
-<li><strong>Codex multi-account switcher</strong> — stacked or segmented layout in the menu bar.</li>
-<li><strong>Codex cost attribution fix</strong> — GPT-5.4 / GPT-5.5 sessions no longer bucket under GPT-5.</li>
-<li><strong>MiniMax</strong> multi-service quota cards (text / speech / image / video / music).</li>
-<li><strong>Copilot multi-account</strong> + Claude peak-hours indicator + Storage usage view.</li>
-<li><strong>VoiceOver</strong> labels across the menu bar.</li>
-</ul>
-<h3>Fixes</h3>
-<ul>
-<li>Settings / About no longer crashes on packaged-app launch (SwiftPM bundle lookup).</li>
-<li>Codex hung RPC reads time out instead of looping; menu reopen behaves as a true toggle.</li>
-<li>Cursor Enterprise / Team usage displays correctly (was reporting 100% remaining).</li>
-<li>macOS 26.4 menu bar icon visible again.</li>
-<li>Pi session cost cache rebuilds automatically after pricing changes.</li>
-<li>Simplified Chinese peak-hours strings (<code>off_peak</code>, <code>peak_ends_in</code>, <code>off_peak_peak_in</code>) and English <code>not_found</code> fallback translated (fork hotfix).</li>
-</ul>
-<h3>iOS compatibility</h3>
-Wire format unchanged. Compatible with iOS 1.5.0+. iOS clients without native UI for the new providers show them as fallback (blue) cards; a future iOS release will add native rendering. No iOS update required for this Mac build.
-<hr/>
-# 中文
-<strong>0.25.1-mobile.1.5.3</strong> 一次性合入上游三个版本（v0.24、v0.25、v0.25.1），并附带一个 zh-Hans / en 翻译补缺。
-<h3>新功能</h3>
-<ul>
-<li><strong>11 个新 provider</strong> —— Windsurf、Codebuff、DeepSeek、Manus、Xiaomi MiMo、Qwen、Doubao、Command Code、StepFun、Crof、Venice，加 OpenAI API balance 跟踪。</li>
-<li><strong>简体中文</strong> 本地化 + 应用内语言选择器。</li>
-<li><strong>配额警告通知</strong> —— session / 周额度按可配置阈值（例如 80%）提醒，可选开启。</li>
-<li><strong>Codex 多账号切换器</strong> —— 菜单栏堆叠 / 分段两种布局。</li>
-<li><strong>Codex 成本归因修复</strong> —— GPT-5.4 / GPT-5.5 session 不再被归入 GPT-5。</li>
-<li><strong>MiniMax</strong> 多业务额度卡（文本 / 语音 / 图像 / 视频 / 音乐）。</li>
-<li><strong>Copilot 多账号</strong> + Claude 高峰时段指示器 + 本地存储用量视图。</li>
-<li><strong>VoiceOver</strong> 标签覆盖菜单栏。</li>
-</ul>
-<h3>修复</h3>
-<ul>
-<li>Settings / About 在打包 app 启动时不再崩溃（SwiftPM bundle 查找）。</li>
-<li>Codex 卡死的 RPC 读取会超时退出；菜单重开行为修正为 toggle。</li>
-<li>Cursor 企业 / 团队用量显示正确（之前误报 100% remaining）。</li>
-<li>macOS 26.4 菜单栏图标重新可见。</li>
-<li>Pi session 成本缓存在价格变更后自动重建。</li>
-<li>简体中文高峰时段 3 个字符串（<code>off_peak</code>、<code>peak_ends_in</code>、<code>off_peak_peak_in</code>）+ 英文 <code>not_found</code> fallback 补译（fork hotfix）。</li>
-</ul>
-<h3>iOS 兼容</h3>
-Wire format 未变，兼容 iOS 1.5.0+。iOS 客户端没有原生支持新 provider 的会显示为 fallback（蓝色）卡片；后续 iOS 版本会上原生 UI。本 Mac 版本不强制 iOS 同步升级。
-<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.25.1-mobile.1.5.3/CodexBar-0.25.1-mobile.1.5.3.zip" length="37092506" type="application/octet-stream" sparkle:edSignature="Bp448ZDI+wTxU6y79CdLIccHcNB7bLUHgYNbJsRPeUB6RvY/S7g5gzolrB9P9wkBzIyZaY/VSpWO5usjUKDhAw=="/>
         </item>
         <item>
             <title>0.14.0</title>
