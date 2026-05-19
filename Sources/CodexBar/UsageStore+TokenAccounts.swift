@@ -43,7 +43,28 @@ extension UsageStore {
 
     func shouldFetchAllTokenAccounts(provider: UsageProvider, accounts: [ProviderTokenAccount]) -> Bool {
         guard TokenAccountSupportCatalog.support(for: provider) != nil else { return false }
-        return self.settings.multiAccountMenuLayout == .stacked && accounts.count > 1
+        guard accounts.count > 1 else { return false }
+        // Phase G hotfix — Mac menu layout decides the LOCAL Mac UI
+        // (stacked = 1 card per account; segmented = 1 card with
+        // top tabs showing only active). But that layout choice MUST
+        // NOT gate the CloudKit sync fan-out. If the user has iCloud
+        // sync enabled, every token account snapshot needs to flow
+        // through `accountSnapshots[provider]` → SyncCoordinator →
+        // CloudKit → iPhone — otherwise the user with 2 OpenAI admin
+        // keys sees the Mac segmented switcher locally but only 1
+        // card on iPhone (Phase G regression discovered in dogfood).
+        //
+        // Performance note: iCloud sync users were already paying for
+        // every provider's API calls every refresh cycle. Per-account
+        // fan-out only adds N-1 extra calls per multi-account provider,
+        // bounded by `limitedTokenAccounts` upstream.
+        if self.settings.iCloudSyncEnabled {
+            return true
+        }
+        // Mac-only user (no iCloud sync): preserve upstream's intent
+        // — only fan-out when stacked layout actually renders all
+        // accounts; segmented layout doesn't need extra fetches.
+        return self.settings.multiAccountMenuLayout == .stacked
     }
 
     func shouldFetchAllCodexVisibleAccounts() -> Bool {

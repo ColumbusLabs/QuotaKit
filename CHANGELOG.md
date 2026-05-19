@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.26.2 (Mobile 1.7.0 · build 63.4) — 2026-05-18 — Phase G hotfix: decouple CloudKit sync from Mac menu layout
+
+> Patch on top of 63.3 fixing a user-reported regression where iPhone
+> still showed only 1 OpenAI card despite 63.3 shipping the universal
+> multi-account mechanism. Root cause was orthogonal to Phase G —
+> upstream's `shouldFetchAllTokenAccounts` gated the per-account
+> fan-out on `multiAccountMenuLayout == .stacked`. Users on the
+> default `.segmented` layout had only their *active* token-account
+> fetched, so `accountSnapshots[provider]` ever contained one entry,
+> so SyncCoordinator only ever pushed one snapshot to CloudKit even
+> after the Phase G universalization. iPhone was blameless — Mac
+> wasn't sending the other accounts.
+>
+> Fix: when `iCloudSyncEnabled` is true, ignore the menu-layout gate
+> and fan-out unconditionally (subject to the existing count > 1 and
+> catalog-membership guards). Mac-only users (no iCloud sync) keep
+> upstream's API-frugality behavior: segmented layout fetches just
+> the active account, stacked fetches all. The menu layout choice
+> stays a local Mac UI ergonomics decision; it no longer dictates
+> what reaches iPhone.
+
+### Mac
+
+- `UsageStore.shouldFetchAllTokenAccounts(provider:accounts:)` now
+  short-circuits to `true` when `settings.iCloudSyncEnabled == true`
+  (after the catalog + count > 1 guards). Mac-only users see no
+  behavior change.
+- New `Tests/CodexBarTests/ShouldFetchAllTokenAccountsTests.swift`
+  (9 tests, all green) pins both branches: iCloud-on always fans out
+  for multi-account providers; iCloud-off preserves upstream's
+  layout-gated behavior. Includes a regression case for the exact
+  scenario reported (OpenAI + 2 admin keys + segmented + iCloud-on).
+
+### iOS
+
+- No iOS-side code change. The Phase G UI shipped in 63.3 was
+  correct; it just never received the second snapshot. Hotfix is
+  Mac-only; iOS 1.7.0 build 130 (already on TestFlight) consumes
+  the now-correct snapshot stream automatically.
+
+### CloudKit deploy
+
+No schema deploy needed. Hotfix is consumer-side gating logic only.
+
+### Notes
+- `version.env`: `MARKETING_VERSION=0.26.2`, `BUILD_NUMBER=63.4`, `MOBILE_VERSION=1.7.0`, `UPSTREAM_VERSION=v0.26.1`, `UPSTREAM_SYNC_DATE=2026-05-18`.
+- Tag name: stays `v0.26.2-mobile.1.7.0` (asset replaced; sparkle:version `63.4.1.7.0` distinguishes the auto-update).
+
+---
+
 ## 0.26.2 (Mobile 1.7.0 · build 63.3) — 2026-05-18 — universal multi-account mechanism (Phase G)
 
 > Fork-only patch on top of upstream v0.26.1. **No Mac UI deltas
