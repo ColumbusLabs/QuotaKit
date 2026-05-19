@@ -73,7 +73,7 @@ struct MockProviderInjectorIntegrationTests {
 
     // MARK: - MR2 Extensibility / determinism
 
-    @Test("MR2.1: enabled count is exactly 43 (40 IDs, 6 rich + 35 simple + 2 fallback entries)")
+    @Test("MR2.1: enabled count is exactly 52 (42 IDs, 6 rich + 44 simple + 2 fallback entries)")
     func enabledCountIsStable() {
         self.enableMock()
         defer { self.resetActivationState() }
@@ -149,7 +149,7 @@ struct MockProviderInjectorIntegrationTests {
 
     // MARK: - MR3 SyncCoordinator integration
 
-    @Test("MR3.1: enabled mock causes 8 mock providers in lastSnapshot")
+    @Test("MR3.1: enabled mock causes 52 mock providers in lastSnapshot")
     func enabledMockEmitsViaSyncCoordinator() async throws {
         self.enableMock()
         defer { self.resetActivationState() }

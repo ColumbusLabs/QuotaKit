@@ -146,6 +146,10 @@ All builds (Mac and iOS) **must** use CloudKit **Production** environment:
 
 If this entitlement is missing, Mac defaults to Development environment and TestFlight iOS uses Production — data goes to different databases and sync appears broken.
 
+### CloudKit Schema Deploy — pre-release audit
+
+Before every Mac release: run the audit in **[`docs/cloudkit-deploy-audit.md`](docs/cloudkit-deploy-audit.md)** to decide whether the Production schema needs a Dashboard deploy. Catches the recurring "I added a field but forgot to deploy" trap. Verdict table + grep commands + historical record live in that doc.
+
 ### iOS — Archive & Upload
 
 When the user asks to upload / archive / release:

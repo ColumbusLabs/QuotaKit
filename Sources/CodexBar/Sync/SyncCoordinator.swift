@@ -840,7 +840,10 @@ final class SyncCoordinator {
                 livingAccountIDs: [])
         }
 
-        // Token-based multi-account providers (R2). These 11 providers share
+        // Token-based multi-account providers (R2). Phase G: now reads
+        // `TokenAccountSupportCatalog.allProviders` so every catalog
+        // entry (18 today; auto-grows as upstream adds new token
+        // providers) shares
         // `UsageStore.accountSnapshots: [UsageProvider: [TokenAccountUsageSnapshot]]`
         // when the user has enabled "Show all token accounts in menu" AND
         // configured 2+ accounts. Unlike Codex, the data is co-resident in

@@ -52,6 +52,7 @@ See `AGENTS.md` for the full process, rules, and checklists.
 | `CodexBarMobile/Shared/` | Shared iCloud sync layer |
 | `version.env` | 当前 ship 版本 + 上游对齐版本（`UPSTREAM_VERSION` + `UPSTREAM_SYNC_DATE`）— routine/agent 查"对齐到上游哪个版本"必读此文件 |
 | `docs/versioning.md` | **版本号命名规则** — 4 个版本变量 (`MARKETING_VERSION` / `BUILD_NUMBER` / `MOBILE_VERSION` / `UPSTREAM_VERSION`)、release tag / zip 名、Sparkle `sparkle:version` 5 段格式、什么时候 bump 哪个的决策树。改任何一个版本号前必读 |
+| `docs/cloudkit-deploy-audit.md` | **CloudKit Production deploy 审计** — 每次发版前查表判断是否需要 deploy schema 到 prod；提供 grep 命令清单 + 历史 release 决策存档。Sparkle 老踩坑 |
 
 ---
 
