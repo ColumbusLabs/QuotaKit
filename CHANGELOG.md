@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.26.2 (Mobile 1.7.0 · build 63.4) — 2026-05-18 — Phase G hotfix: decouple CloudKit sync from Mac menu layout
+## 0.26.4 (Mobile 1.7.0 · build 63.4) — 2026-05-18 — Phase G hotfix: decouple CloudKit sync from Mac menu layout
 
 > Patch on top of 63.3 fixing a user-reported regression where iPhone
 > still showed only 1 OpenAI card despite 63.3 shipping the universal
@@ -45,8 +45,8 @@
 No schema deploy needed. Hotfix is consumer-side gating logic only.
 
 ### Notes
-- `version.env`: `MARKETING_VERSION=0.26.2`, `BUILD_NUMBER=63.4`, `MOBILE_VERSION=1.7.0`, `UPSTREAM_VERSION=v0.26.1`, `UPSTREAM_SYNC_DATE=2026-05-18`.
-- Tag name: stays `v0.26.2-mobile.1.7.0` (asset replaced; sparkle:version `63.4.1.7.0` distinguishes the auto-update).
+- `version.env`: `MARKETING_VERSION=0.26.4`, `BUILD_NUMBER=63.4`, `MOBILE_VERSION=1.7.0`, `UPSTREAM_VERSION=v0.26.1`, `UPSTREAM_SYNC_DATE=2026-05-18`.
+- Tag name: `v0.26.4-mobile.1.7.0` (new release). Per [[docs/versioning.md]] rule: BUILD `63.y` ↔ MARKETING `0.26.y`. `0.26.3` is intentionally skipped because BUILD `63.3` was incorrectly shipped as MARKETING `0.26.2`; aligning forward instead of relabeling history.
 
 ---
 

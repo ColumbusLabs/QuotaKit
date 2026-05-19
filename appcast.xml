@@ -7,9 +7,9 @@
             <pubDate>Mon, 18 May 2026 19:22:55 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
             <sparkle:version>63.4.1.7.0</sparkle:version>
-            <sparkle:shortVersionString>0.26.2</sparkle:shortVersionString>
+            <sparkle:shortVersionString>0.26.4</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.26.2-Mobile 1.7.0</h2>
+            <description><![CDATA[<h2>CodexBar 0.26.4-Mobile 1.7.0</h2>
 > Patch on top of 63.3 fixing a user-reported regression where iPhone
 > still showed only 1 OpenAI card despite 63.3 shipping the universal
 > multi-account mechanism. Root cause was orthogonal to Phase G —
@@ -53,13 +53,13 @@
 No schema deploy needed. Hotfix is consumer-side gating logic only.
 <h3>Notes</h3>
 <ul>
-<li><code>version.env</code>: <code>MARKETING_VERSION=0.26.2</code>, <code>BUILD_NUMBER=63.4</code>, <code>MOBILE_VERSION=1.7.0</code>, <code>UPSTREAM_VERSION=v0.26.1</code>, <code>UPSTREAM_SYNC_DATE=2026-05-18</code>.</li>
-<li>Tag name: stays <code>v0.26.2-mobile.1.7.0</code> (asset replaced; sparkle:version <code>63.4.1.7.0</code> distinguishes the auto-update).</li>
+<li><code>version.env</code>: <code>MARKETING_VERSION=0.26.4</code>, <code>BUILD_NUMBER=63.4</code>, <code>MOBILE_VERSION=1.7.0</code>, <code>UPSTREAM_VERSION=v0.26.1</code>, <code>UPSTREAM_SYNC_DATE=2026-05-18</code>.</li>
+<li>Tag name: <code>v0.26.4-mobile.1.7.0</code> (new release). Per [[docs/versioning.md]] rule: BUILD <code>63.y</code> ↔ MARKETING <code>0.26.y</code>. <code>0.26.3</code> is intentionally skipped because BUILD <code>63.3</code> was incorrectly shipped as MARKETING <code>0.26.2</code>; aligning forward instead of relabeling history.</li>
 </ul>
 <hr/>
 <p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.26.2-mobile.1.7.0/CodexBar-0.26.2-mobile.1.7.0-b4.zip" length="39539670" type="application/octet-stream" sparkle:edSignature="gqhGCZsI6Qtun6TTeZDrOBmHg9wOTFwKxBIu0sosNhRhzf8MF7SuhrJ7KY2kM1fG7ZO/QO3Cw4XyUUIThLbiBw=="/>
+            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.26.4-mobile.1.7.0/CodexBar-0.26.4-mobile.1.7.0.zip" length="39539694" type="application/octet-stream" sparkle:edSignature="ml9aMCumtvcRava66ZEhkORbuvF3ihqB+Od6ATRL9hx8BmHjN6OIQB2GportoIQbqMDfH0GxLeRcJE12dZrmDA=="/>
         </item>
         <item>
             <title>0.26.2</title>
