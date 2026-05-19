@@ -1,5 +1,64 @@
 # Changelog
 
+## 0.26.2 (Mobile 1.7.0 · build 63.3) — 2026-05-18 — universal multi-account mechanism (Phase G)
+
+> Fork-only patch on top of upstream v0.26.1. **No Mac UI deltas
+> beyond what v0.26.1 already shipped** — the Mac menu's per-provider
+> account-tab switcher (e.g., OpenAI admin keys) already worked. The
+> change in this release is two-sided plumbing so iPhone finally
+> mirrors that Mac UX: catalog-driven multi-account sync fan-out
+> (Mac → CloudKit) plus a generic account-tab UI inside iOS provider
+> detail pages.
+
+### Mac
+
+- `SyncCoordinator.tokenBasedMultiAccountProviders` is now a computed
+  property reading `TokenAccountSupportCatalog.allProviders` (single
+  source of truth). Fan-out now covers all 18 token-account providers
+  instead of the prior hardcoded 11 — silently fixes 7 providers
+  (openai, deepseek, antigravity, manus, copilot, venice, stepfun)
+  whose extra accounts were never reaching iOS via CloudKit.
+- New `Tests/CodexBarTests/TokenAccountSyncCoverageTests.swift` —
+  pins the catalog⇔sync-list equality so future upstream-added token
+  providers automatically flow through; missing-mirror cases fail
+  the build instead of silently losing multi-account on iPhone.
+- `MockProviderInjector` +7 second-tab simple mocks (one per Phase G
+  provider above) so the iOS multi-account tab UI is exercised
+  end-to-end via the mock-injection toggle. Total mock count 45 → 52.
+- Localized `mobile_toggle_mock_subtitle` updated to reflect the new
+  52/42/44 count.
+
+### iOS (pairs with the same 1.7.0 marketing version, build 130)
+
+- Universal `ProviderAccountGroup` model — groups post-merge snapshots
+  by providerID. Mac multi-account providers now show **one row** in
+  the iOS Usage list (with a `· N` count badge) instead of N separate
+  rows.
+- `ProviderDetailView` segmented account-tab bar at the top when the
+  group has 2+ accounts. Tab labels prefer email local-part →
+  loginMethod → `Account N`. Tapping a tab re-renders all the
+  existing cards (rate windows, cost, OpenAI Dashboard, daily chart,
+  Phase B typed cards) against the selected account's data —
+  mirroring Mac's "click into provider, switch between admin tabs"
+  flow.
+- See `CodexBarMobile/CHANGELOG.md` for the iOS-side detail.
+
+### CloudKit deploy
+
+Per pre-release audit (`docs/cloudkit-deploy-audit.md`): **no schema
+deploy needed**. Phase G is 100% consumer-side — Mac pushes more
+records of the existing `DeviceProviderSnapshot` type; iOS renders
+the post-merge snapshot list with grouping. No new record types, no
+new fields outside the existing zlib-compressed `payload: Data`,
+no new indexes or zones.
+
+### Notes
+- `version.env`: `MARKETING_VERSION=0.26.2`, `BUILD_NUMBER=63.3`, `MOBILE_VERSION=1.7.0`, `UPSTREAM_VERSION=v0.26.1`, `UPSTREAM_SYNC_DATE=2026-05-18`.
+- Tag name: `v0.26.2-mobile.1.7.0`. Release branch: `mobile-dev`.
+- Naming scheme: see `docs/versioning.md`.
+
+---
+
 ## 0.26.1 (Mobile 1.7.0 · build 63.2) — 2026-05-18 — upstream v0.26.0/v0.26.1 fold-in + iOS 1.7.0 pairing
 
 > Fork release that **tracks upstream v0.26.1 exactly** for the

@@ -2,6 +2,80 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.7.0 (130)] — 2026-05-18 — Universal multi-account tab UI (Phase G)
+
+Same marketing version (1.7.0), bumped build (129 → 130). Pairs with
+Mac 0.26.2 (fork build 63.3) which fans out **all 18 token-account
+providers** to multi-account via CloudKit. Before this build, the iOS
+Usage list rendered N separate rows for any provider with N accounts
+on Mac (codex × 3, claude × 2, OpenAI admin × 2, etc.) and offered no
+tab switcher — diverging from Mac's "one menu card with tabs at top"
+UX.
+
+### Added
+
+- **`Models/ProviderAccountGroup.swift`** — generic post-merge
+  grouping primitive (`[ProviderUsageSnapshot].groupedByProvider()`)
+  that collapses snapshots sharing a providerID into one
+  `ProviderAccountGroup` with helpers for tab labeling and stable
+  accessibility IDs.
+- **`Views/ProviderDetailView` segmented account-tab bar** — when
+  `group.hasMultipleAccounts`, renders a SwiftUI Picker at the top
+  with one tab per account. Tab labels prefer email local-part
+  (e.g., "admin-msxiao113"), fall back to loginMethod, then
+  "Account N". Selecting a tab re-renders all downstream cards
+  (rate-window cards, cost summary, daily chart, Phase B typed cards
+  including OpenAI Dashboard / Bedrock / Moonshot / Kiro / z.ai
+  hourly chart) against that account's snapshot. `selectedDate` for
+  the daily chart hover state resets on tab switch.
+- **Multi-account row count badge** — `ProviderUsageView` shows
+  "· N" after the provider name in the Usage list when the row
+  represents a multi-account group. Hidden for single-account groups
+  (no "· 1" leak).
+
+### Changed
+
+- `ContentView.swift` UsageTab iterates over groups
+  (`liveProviders.groupedByProvider()`) instead of raw snapshots.
+  One row per providerID. Linkage-candidate logic surfaces on the
+  group row when any account in the group has an open candidate.
+- `ProviderDetailView` signature: new `init(group:)` is preferred;
+  legacy `init(provider:)` wraps a single snapshot into a
+  1-account group for backwards-compat with `RawProviderDetailView`
+  and SwiftUI previews. No external consumers needed to change.
+
+### Backward compatibility
+
+- Wire format **unchanged** — Phase G is consumer-side. Mac pushes
+  more `ProviderUsageSnapshot` records of the existing schema (one
+  per token account); iOS render layer groups them.
+- iOS 1.6.0 (126) on TestFlight reading payloads from a Phase G Mac:
+  still works — sees more cards under the same providerID, same
+  pre-existing multi-account Codex/Claude code path handles it.
+- Mac 0.25.2 / pre-Phase-G + iOS 1.7.0 (130): graceful degradation —
+  groups have one account each, tab bar hidden, ProviderDetailView
+  body identical to pre-G single-account rendering.
+
+### Tests
+
+- `CodexBarMobileTests/ProviderAccountGroupTests.swift` (11 tests)
+  — grouping correctness, first-appearance order, tab-label fallback
+  chain, accessibility IDs.
+- `CodexBarMobileTests/MultiAccountTabRenderingTests.swift` (6 tests)
+  — ImageRenderer smoke for 1 / 2 / 3-account groups, missing-email
+  fallback, ProviderUsageView count badge.
+
+### Required Mac version
+
+- Mac 0.26.2 (fork build 63.3) or later to actually see tabs for
+  the 7 newly-fanned-out providers (openai/deepseek/antigravity/
+  manus/copilot/venice/stepfun). On older Mac, those providers still
+  show single-account on iPhone.
+- iPhone 1.7.0 (130) is forward-compatible with older Mac builds —
+  graceful degradation.
+
+---
+
 ## [1.7.0 (129)] — 2026-05-18 — Upstream v0.26.1 fold-in: six new dedicated provider cards + settings
 
 iOS 1.7.0 is the iOS-side development track that pairs with the
