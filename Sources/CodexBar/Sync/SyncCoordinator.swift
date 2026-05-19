@@ -709,7 +709,9 @@ final class SyncCoordinator {
             bonusUsed: k.bonusCreditsUsed,
             bonusTotal: k.bonusCreditsTotal,
             bonusExpiryDays: k.bonusExpiryDays,
-            resetsAt: nil)
+            resetsAt: nil,
+            overageCreditsUsed: k.overageCreditsUsed,
+            estimatedOverageCostUSD: k.estimatedOverageCostUSD)
     }
 
     static func mapBedrockCost(

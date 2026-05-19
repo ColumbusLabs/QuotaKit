@@ -128,6 +128,52 @@ enum ProviderColorPalette {
             return Color(red: 0.55, green: 0.35, blue: 0.55)
         }
 
+        // iOS 1.8.0 — upstream v0.27.0 new providers (5 picks).
+        // Color choices avoid the existing palette zones; new entries
+        // sit beside their conceptual cluster (Grok/Groq both "warm"
+        // brand-aligned shades distinct from Mistral red, ElevenLabs
+        // pure-voice teal, Deepgram brand purple, LLM Proxy neutral
+        // slate since it's a meta-provider).
+        if normalized.contains("grok") {
+            // xAI Grok — charcoal black (#1A1A1A). Matches Grok brand
+            // identity (xAI "X" minimalist black on white). Distinct
+            // from any colored brand in the palette; reads as neutral
+            // strong card frame in dark + light mode.
+            return Color(red: 0.10, green: 0.10, blue: 0.12)
+        }
+        if normalized.contains("groq") {
+            // GroqCloud — orange-red (#F55036). GroqCloud official
+            // brand uses orange and red gradients. Distinct from
+            // Mistral red (#E63946 — pure red) and MiMo orange
+            // (#FF8C00 — pure orange) by sitting between them. Note
+            // specificity: `grok` matched above, so reaching this
+            // line requires `groq` (with q).
+            return Color(red: 0.96, green: 0.31, blue: 0.21)
+        }
+        if normalized.contains("elevenlabs") {
+            // ElevenLabs — pure black-and-white brand → use a
+            // soft sage-green (#7AAE82). Distinct from gemini cyan,
+            // codebuff olive, and the OpenAI greens. Evokes "voice
+            // / audio waveform" without colliding with existing
+            // palette zones.
+            return Color(red: 0.48, green: 0.68, blue: 0.51)
+        }
+        if normalized.contains("deepgram") {
+            // Deepgram — brand purple (#7C3AED). Distinct from
+            // codex/cursor `.purple` (~#800080) by being more
+            // saturated and bluer; sits between codex and openrouter
+            // in the purple cluster without collapsing into either.
+            return Color(red: 0.49, green: 0.23, blue: 0.93)
+        }
+        if normalized.contains("llmproxy") || normalized.contains("llm-proxy") {
+            // LLM Proxy — neutral slate-blue (#5C7A99). LLM Proxy is
+            // a meta-provider that aggregates upstream models, so
+            // intentionally neutral / "infrastructure" tone. Distinct
+            // from commandcode slate-gray (#66728A — warmer / more
+            // gray) by being slightly cooler / bluer.
+            return Color(red: 0.36, green: 0.48, blue: 0.60)
+        }
+
         // iOS 1.7.0 — upstream v0.26.0 new providers.
         if normalized.contains("moonshot") || normalized.contains("kimi-api") {
             // Moonshot / Kimi API — deep indigo (#3C4FE0). Distinct

@@ -2085,6 +2085,34 @@
         }
       }
     },
+    "Deepgram — API-key usage with project + speech / agent breakdown. iPhone card uses Deepgram's brand purple, distinct from the Codex / Cursor purple cluster.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deepgram — API-key usage with project + speech / agent breakdown. iPhone card uses Deepgram's brand purple, distinct from the Codex / Cursor purple cluster."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deepgram —— API Key 用量带项目 + 语音 / Agent 细分。iPhone 卡片采用 Deepgram 品牌紫色，与 Codex / Cursor 紫色系区分。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deepgram —— API Key 用量帶項目 + 語音 / Agent 細分。iPhone 卡片採用 Deepgram 品牌紫色，與 Codex / Cursor 紫色系區分。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deepgram — API キー使用量にプロジェクト + 音声 / Agent の内訳を表示します。iPhone のカードは Deepgram のブランド紫を使い、Codex / Cursor の紫系と区別されます。"
+          }
+        }
+      }
+    },
     "Developer": {
       "localizations": {
         "en": {
@@ -2421,6 +2449,34 @@
         }
       }
     },
+    "ElevenLabs — voice / character credits and reset window flow from Mac. iPhone card uses a soft sage-green tint, distinct from Gemini cyan and Codebuff olive.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ElevenLabs — voice / character credits and reset window flow from Mac. iPhone card uses a soft sage-green tint, distinct from Gemini cyan and Codebuff olive."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ElevenLabs —— 语音 / 字符积分及重置周期通过 Mac 同步过来。iPhone 卡片采用柔和的鼠尾草绿色调，与 Gemini 青色和 Codebuff 橄榄色明显区分。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ElevenLabs —— 語音 / 字元積分及重置週期透過 Mac 同步過來。iPhone 卡片採用柔和的鼠尾草綠色調，與 Gemini 青色和 Codebuff 橄欖色明顯區分。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ElevenLabs — 音声 / 文字クレジットとリセット期間が Mac から同期されます。iPhone のカードは柔らかなセージグリーンを使い、Gemini のシアンや Codebuff のオリーブと区別されます。"
+          }
+        }
+      }
+    },
     "Enable cost collection in CodexBar on your Mac to see provider spend, breakdowns, and budgets here.": {
       "localizations": {
         "en": {
@@ -2562,6 +2618,34 @@
         }
       }
     },
+    "Existing Kiro / AWS Bedrock / Moonshot / z.ai / OpenAI API Dashboard / Antigravity multi-account cards from 1.7.0 keep working with no change.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Existing Kiro / AWS Bedrock / Moonshot / z.ai / OpenAI API Dashboard / Antigravity multi-account cards from 1.7.0 keep working with no change."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1.7.0 已有的 Kiro / AWS Bedrock / Moonshot / z.ai / OpenAI API 仪表盘 / Antigravity 多账号卡片全部沿用，行为无变化。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1.7.0 已有的 Kiro / AWS Bedrock / Moonshot / z.ai / OpenAI API 儀表板 / Antigravity 多帳號卡片全部沿用，行為無變化。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1.7.0 で導入された Kiro / AWS Bedrock / Moonshot / z.ai / OpenAI API ダッシュボード / Antigravity マルチアカウントの各カードは挙動を変えずに引き続き動作します。"
+          }
+        }
+      }
+    },
     "Exit Demo": {
       "localizations": {
         "en": {
@@ -2642,6 +2726,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "プッシュ通知の完全カバー — クォータ枯渇 / 復帰のプッシュが、既存の 23 個の provider に加えて Perplexity と OpenCode Go でも動作するようになりました。"
+          }
+        }
+      }
+    },
+    "Grok (xAI) — Mac v0.27.0 syncs Grok CLI billing plus grok.com web-billing fallback; your iPhone now shows the Grok card with its dedicated charcoal brand colour distinct from other providers.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok (xAI) — Mac v0.27.0 syncs Grok CLI billing plus grok.com web-billing fallback; your iPhone now shows the Grok card with its dedicated charcoal brand colour distinct from other providers."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok（xAI）—— Mac v0.27.0 同步 Grok CLI 计费数据，并在需要时回落到 grok.com 网页计费。iPhone 现以专属炭灰色显示 Grok 卡片，与其他厂商区分。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok（xAI）—— Mac v0.27.0 同步 Grok CLI 計費資料，並在需要時回退到 grok.com 網頁計費。iPhone 現以專屬炭灰色顯示 Grok 卡片，與其他廠商區分。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok (xAI) — Mac v0.27.0 が Grok CLI の請求情報を同期し、必要に応じて grok.com のウェブ請求にフォールバックします。iPhone ではチャコール色の専用カードで他のプロバイダと区別して表示します。"
+          }
+        }
+      }
+    },
+    "GroqCloud — Enterprise Prometheus metrics (requests, tokens, cache-hit rates) on Mac surface as a usage card on iPhone with GroqCloud orange-red, distinct from Mistral red and Xiaomi MiMo orange.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GroqCloud — Enterprise Prometheus metrics (requests, tokens, cache-hit rates) on Mac surface as a usage card on iPhone with GroqCloud orange-red, distinct from Mistral red and Xiaomi MiMo orange."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GroqCloud —— Mac 端的企业版 Prometheus 指标（请求数、Token、缓存命中率）以使用卡片在 iPhone 显示，采用 GroqCloud 橙红色，与 Mistral 红和小米 MiMo 橙明显区分。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GroqCloud —— Mac 端的企業版 Prometheus 指標（請求數、Token、快取命中率）以使用卡片在 iPhone 顯示，採用 GroqCloud 橙紅色，與 Mistral 紅和小米 MiMo 橙明顯區分。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GroqCloud — Mac 上の Enterprise Prometheus メトリクス（リクエスト数 / トークン / キャッシュヒット率）が、iPhone では GroqCloud のオレンジレッドの使用カードとして表示され、Mistral の赤や Xiaomi MiMo のオレンジと区別されます。"
           }
         }
       }
@@ -3124,6 +3264,34 @@
         }
       }
     },
+    "Kiro overage — when your monthly plan is exhausted and you're paying for additional credits, the Kiro card now shows the overage credit count and estimated USD cost as an inline orange badge.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kiro overage — when your monthly plan is exhausted and you're paying for additional credits, the Kiro card now shows the overage credit count and estimated USD cost as an inline orange badge."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kiro 超额 —— 当月套餐用尽并开始按额外信用计费时，Kiro 卡片现以橙色徽章显示超额信用数及预估美元成本。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kiro 超額 —— 當月方案用盡並開始按額外信用計費時，Kiro 卡片現以橙色徽章顯示超額信用數及預估美元成本。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kiro 超過分 — 月のプランが上限に達し、追加クレジットの課金が始まると、Kiro カードにオレンジのバッジで超過クレジット数と推定 USD コストが表示されます。"
+          }
+        }
+      }
+    },
     "Kiro: dedicated credits card with plan tag, primary credit usage progress, and an optional bonus pool with expiry countdown.": {
       "localizations": {
         "en": {
@@ -3148,6 +3316,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kiro：プラン表示、主要クレジットの使用進捗、有効期限カウントダウン付きのオプション bonus プールを含む専用クレジットカード。"
+          }
+        }
+      }
+    },
+    "LLM Proxy — aggregate quota stats, key health, spend, provider breakdowns on Mac surface on iPhone with a neutral slate-blue tone to signal the meta-provider role.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LLM Proxy — aggregate quota stats, key health, spend, provider breakdowns on Mac surface on iPhone with a neutral slate-blue tone to signal the meta-provider role."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LLM Proxy —— Mac 上的聚合配额统计、Key 健康度、消费、各上游厂商细分都在 iPhone 显示，采用中性的板岩蓝色调，强调其元厂商角色。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LLM Proxy —— Mac 上的彙總配額統計、Key 健康度、消費、各上游廠商細分都在 iPhone 顯示，採用中性的板岩藍色調，強調其元廠商角色。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LLM Proxy — Mac 上の集計クォータ、キーの健全性、利用額、上流プロバイダごとの内訳が iPhone でも表示されます。メタプロバイダ役を示す中立的なスレートブルーで描画します。"
           }
         }
       }
@@ -6308,6 +6504,34 @@
         }
       }
     },
+    "Recognises five new providers from Mac CodexBar 0.27.0 (Grok, ElevenLabs, Deepgram, GroqCloud, LLM Proxy) with distinct brand colours, and surfaces Kiro overage usage on the Kiro card when your plan is exhausted.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recognises five new providers from Mac CodexBar 0.27.0 (Grok, ElevenLabs, Deepgram, GroqCloud, LLM Proxy) with distinct brand colours, and surfaces Kiro overage usage on the Kiro card when your plan is exhausted."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "识别 Mac CodexBar 0.27.0 的五个新厂商（Grok、ElevenLabs、Deepgram、GroqCloud、LLM Proxy），分别配以独特品牌色；当 Kiro 套餐用尽时，Kiro 卡片显示超额用量。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "識別 Mac CodexBar 0.27.0 的五個新廠商（Grok、ElevenLabs、Deepgram、GroqCloud、LLM Proxy），分別配以獨特品牌色；當 Kiro 方案用盡時，Kiro 卡片顯示超額用量。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac CodexBar 0.27.0 で追加された 5 つの新プロバイダ（Grok、ElevenLabs、Deepgram、GroqCloud、LLM Proxy）をそれぞれのブランドカラーで認識し、Kiro プランが上限に達するとカード上に超過分の使用量を表示します。"
+          }
+        }
+      }
+    },
     "Release Notes": {
       "localizations": {
         "en": {
@@ -8784,6 +9008,34 @@
         }
       }
     },
+    "Update Mac CodexBar to 0.27.0 (fork build 65.1 or later) for the new providers and Kiro overage data. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x — new fields just stay hidden until Mac is on the new build.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Mac CodexBar to 0.27.0 (fork build 65.1 or later) for the new providers and Kiro overage data. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x — new fields just stay hidden until Mac is on the new build."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请将 Mac CodexBar 更新到 0.27.0（fork 构建 65.1 及更新）以启用新厂商及 Kiro 超额数据。iPhone 1.8.0 仍向前兼容 Mac 0.26.x —— 新字段在 Mac 升级前保持隐藏。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請將 Mac CodexBar 更新到 0.27.0（fork 建置 65.1 及更新）以啟用新廠商及 Kiro 超額資料。iPhone 1.8.0 仍向前相容 Mac 0.26.x —— 新欄位在 Mac 升級前保持隱藏。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しいプロバイダと Kiro の超過分データを利用するには、Mac CodexBar を 0.27.0（fork ビルド 65.1 以上）に更新してください。iPhone 1.8.0 は Mac 0.26.x との上方互換性を保ち、Mac が新ビルドになるまで新フィールドは非表示のままです。"
+          }
+        }
+      }
+    },
     "Upstream v0.20 provider alignment — Perplexity + OpenCode Go, Codex multi-account cards, SwiftData-backed local cache. Requires updated Mac app.": {
       "localizations": {
         "en": {
@@ -10071,6 +10323,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kiro クレジット"
+          }
+        }
+      }
+    },
+    "kiro_overage_credits_format": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%@ credits"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%@ 信用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%@ 信用"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%@ クレジット"
+          }
+        }
+      }
+    },
+    "kiro_overage_label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Overage"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "超额用量"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "超額用量"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "超過分"
           }
         }
       }

@@ -161,10 +161,15 @@ public struct SyncZaiHourlyUsage: Codable, Sendable, Equatable {
     }
 }
 
-// MARK: - Kiro credits + bonus (upstream v0.26.0)
+// MARK: - Kiro credits + bonus (upstream v0.26.0; v0.27.0 adds overage)
 
 /// Kiro plan + monthly credit allowance + optional bonus pool.
 /// Populated only on the `kiro` provider snapshot.
+///
+/// v0.27.0 (upstream) added two overage fields — `overageCreditsUsed`
+/// and `estimatedOverageCostUSD` — that Mac surfaces when a plan has
+/// been exhausted. Both are optional + decoded with `decodeIfPresent`
+/// so pre-v0.27.0 payloads (no overage data) still decode cleanly.
 public struct SyncKiroCredits: Codable, Sendable, Equatable {
     public let planName: String?
     public let creditsUsed: Double
@@ -174,6 +179,14 @@ public struct SyncKiroCredits: Codable, Sendable, Equatable {
     public let bonusTotal: Double?
     public let bonusExpiryDays: Int?
     public let resetsAt: Date?
+    /// Credits used **above the plan cap** (i.e. overage usage). Only
+    /// populated when the Kiro CLI reports `overage_credits_used` —
+    /// always nil before v0.27.0.
+    public let overageCreditsUsed: Double?
+    /// Mac-computed `(overageCreditsUsed * priceUSD)` estimate. Always
+    /// USD; nil when no overage data is present or when Kiro has not
+    /// surfaced a price. iOS displays this as a "overage cost" badge.
+    public let estimatedOverageCostUSD: Double?
 
     public init(
         planName: String?,
@@ -183,7 +196,9 @@ public struct SyncKiroCredits: Codable, Sendable, Equatable {
         bonusUsed: Double?,
         bonusTotal: Double?,
         bonusExpiryDays: Int?,
-        resetsAt: Date?)
+        resetsAt: Date?,
+        overageCreditsUsed: Double? = nil,
+        estimatedOverageCostUSD: Double? = nil)
     {
         self.planName = planName
         self.creditsUsed = creditsUsed
@@ -193,6 +208,23 @@ public struct SyncKiroCredits: Codable, Sendable, Equatable {
         self.bonusTotal = bonusTotal
         self.bonusExpiryDays = bonusExpiryDays
         self.resetsAt = resetsAt
+        self.overageCreditsUsed = overageCreditsUsed
+        self.estimatedOverageCostUSD = estimatedOverageCostUSD
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.planName = try c.decodeIfPresent(String.self, forKey: .planName)
+        self.creditsUsed = try c.decode(Double.self, forKey: .creditsUsed)
+        self.creditsTotal = try c.decodeIfPresent(Double.self, forKey: .creditsTotal)
+        self.creditsPercent = try c.decodeIfPresent(Double.self, forKey: .creditsPercent)
+        self.bonusUsed = try c.decodeIfPresent(Double.self, forKey: .bonusUsed)
+        self.bonusTotal = try c.decodeIfPresent(Double.self, forKey: .bonusTotal)
+        self.bonusExpiryDays = try c.decodeIfPresent(Int.self, forKey: .bonusExpiryDays)
+        self.resetsAt = try c.decodeIfPresent(Date.self, forKey: .resetsAt)
+        // v0.27.0 additions — decodeIfPresent so v0.26 payloads decode.
+        self.overageCreditsUsed = try c.decodeIfPresent(Double.self, forKey: .overageCreditsUsed)
+        self.estimatedOverageCostUSD = try c.decodeIfPresent(Double.self, forKey: .estimatedOverageCostUSD)
     }
 }
 

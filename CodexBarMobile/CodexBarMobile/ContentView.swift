@@ -2029,8 +2029,30 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.7.0",
+            version: "1.8.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "Recognises five new providers from Mac CodexBar 0.27.0 (Grok, ElevenLabs, Deepgram, GroqCloud, LLM Proxy) with distinct brand colours, and surfaces Kiro overage usage on the Kiro card when your plan is exhausted."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(localized: "Grok (xAI) — Mac v0.27.0 syncs Grok CLI billing plus grok.com web-billing fallback; your iPhone now shows the Grok card with its dedicated charcoal brand colour distinct from other providers."),
+                        String(localized: "ElevenLabs — voice / character credits and reset window flow from Mac. iPhone card uses a soft sage-green tint, distinct from Gemini cyan and Codebuff olive."),
+                        String(localized: "Deepgram — API-key usage with project + speech / agent breakdown. iPhone card uses Deepgram's brand purple, distinct from the Codex / Cursor purple cluster."),
+                        String(localized: "GroqCloud — Enterprise Prometheus metrics (requests, tokens, cache-hit rates) on Mac surface as a usage card on iPhone with GroqCloud orange-red, distinct from Mistral red and Xiaomi MiMo orange."),
+                        String(localized: "LLM Proxy — aggregate quota stats, key health, spend, provider breakdowns on Mac surface on iPhone with a neutral slate-blue tone to signal the meta-provider role."),
+                        String(localized: "Kiro overage — when your monthly plan is exhausted and you're paying for additional credits, the Kiro card now shows the overage credit count and estimated USD cost as an inline orange badge."),
+                        String(localized: "Existing Kiro / AWS Bedrock / Moonshot / z.ai / OpenAI API Dashboard / Antigravity multi-account cards from 1.7.0 keep working with no change."),
+                    ]),
+                .init(
+                    title: String(localized: "Required Mac version"),
+                    items: [
+                        String(localized: "Update Mac CodexBar to 0.27.0 (fork build 65.1 or later) for the new providers and Kiro overage data. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x — new fields just stay hidden until Mac is on the new build."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.7.0",
+            status: "",
             summary: String(localized: "Six new dedicated provider cards (Kiro credits, AWS Bedrock cost, Moonshot / Kimi API balance, z.ai hourly chart, OpenAI API Dashboard, Antigravity multi-account) plus two new settings toggles."),
             sections: [
                 .init(

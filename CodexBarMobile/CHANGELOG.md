@@ -2,6 +2,59 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.8.0 (132)] — 2026-05-19 — upstream v0.27.0 provider alignment
+
+Pairs with Mac CodexBar 0.27.0 (fork build 65.1). MOBILE_VERSION
+1.7.0 → 1.8.0; CURRENT_PROJECT_VERSION 131 → 132. New MARKETING_VERSION
+because the provider catalog grew by 5 + Kiro card gained a new
+data lane (overage); both are user-visible.
+
+### Added
+
+- **5 new provider brand colours** in `ProviderColorPalette` so cards
+  for the upstream v0.27.0 additions render with brand-aligned tints
+  instead of the generic `.blue` fallback:
+  - Grok (xAI) → charcoal (#1A1A1A)
+  - ElevenLabs → sage-green (#7AAE82)
+  - Deepgram → brand purple (#7C3AED)
+  - GroqCloud → orange-red (#F55036)
+  - LLM Proxy → neutral slate-blue (#5C7A99)
+  All choices avoid existing palette zones — Mistral red, Codex /
+  Cursor purple, Gemini cyan, OpenAI / ChatGPT green, etc. — and
+  remain distinct in dark mode + the stacked-bar utilisation chart.
+- **Kiro overage badge** on `KiroCreditsCard`. When Mac surfaces
+  `overage_credits_used` and / or `estimated_overage_cost_usd` (Kiro
+  plan exhausted, paying per-credit), the card adds a Divider + a
+  third row showing "+N credits" and / or "$N.NN" in orange. Hidden
+  when both are nil / zero so the layout is unchanged for users on
+  unexhausted plans. Mirrors Mac's v0.27.0 overage-credit and
+  overage-cost menu bar display modes.
+- **Localized strings**: `kiro_overage_label`, `kiro_overage_credits_format`
+  in all 4 locales (en / zh-Hans / zh-Hant / ja).
+
+### Shared sync layer
+
+- `SyncKiroCredits` (Shared/Models/V026Snapshots.swift) gained two
+  optional fields — `overageCreditsUsed: Double?` and
+  `estimatedOverageCostUSD: Double?`. Decoded via `decodeIfPresent`
+  so pre-1.8.0 envelopes (no overage data) still decode cleanly.
+- `SyncCoordinator.mapKiroCredits` populates both fields from the
+  upstream `KiroUsageDetails` values when Mac is on v0.27.0+.
+
+### CloudKit deploy
+
+No new fields on CKRecord schema — `SyncKiroCredits` is part of the
+existing `payload` blob field. No Production schema deploy required.
+
+### Required Mac version
+
+Mac CodexBar 0.27.0 (fork build 65.1) or later for the new provider
+data and Kiro overage. Forward-compatible: an iPhone on 1.8.0 paired
+with Mac 0.26.x just keeps the existing 1.7.0 behaviour — new fields
+stay nil and the overage row stays hidden.
+
+---
+
 ## [1.7.0 (131)] — 2026-05-19 — i18n hotfix: 21 missing translations
 
 Same marketing version (1.7.0), bumped build (130 → 131). Translation-only
