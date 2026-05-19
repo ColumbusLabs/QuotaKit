@@ -22,6 +22,7 @@ ensure_tools() {
 # for all 4 locales (en / zh-Hans / zh-Hant / ja) before it can be merged.
 audit_xcstrings() {
   command -v jq >/dev/null 2>&1 || { echo "jq is required for i18n audit; install via brew install jq" >&2; return 2; }
+  command -v python3 >/dev/null 2>&1 || { echo "python3 is required for i18n audit; install via xcode-select --install" >&2; return 2; }
 
   local rc=0
   while IFS= read -r -d '' xcstrings; do
@@ -49,6 +50,24 @@ audit_xcstrings() {
       echo "i18n audit: $xcstrings — all locales translated"
     fi
   done < <(find "$ROOT_DIR" -name '*.xcstrings' -not -path '*/.build/*' -not -path '*/DerivedData/*' -print0)
+
+  # Cross-check: every String(localized:) in Swift source must have a
+  # matching entry in the iOS Localizable.xcstrings. Xcode only auto-extracts
+  # new keys on a full Xcode build — swift test / lint never trigger that
+  # extraction. Build 130 of iOS 1.7.0 shipped 21 untranslated keys (the
+  # entire 1.7.0 in-app release-notes catalog + CloudKit sync status text)
+  # to zh-Hans / ja / zh-Hant users as English fallback. The original
+  # state="new" audit above passed because the catalog had no orphan
+  # entries — but couldn't see that 21 source keys had no catalog entry
+  # at all. This second pass closes that gap.
+  local ios_xcstrings="$ROOT_DIR/CodexBarMobile/CodexBarMobile/Localizable.xcstrings"
+  if [[ -f "$ios_xcstrings" ]]; then
+    if ! python3 "$ROOT_DIR/Scripts/audit_localized_keys.py" "$ios_xcstrings" \
+         "$ROOT_DIR/CodexBarMobile/CodexBarMobile"; then
+      rc=1
+    fi
+  fi
+
   return "$rc"
 }
 

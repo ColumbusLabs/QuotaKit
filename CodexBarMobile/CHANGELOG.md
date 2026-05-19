@@ -2,6 +2,44 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.7.0 (131)] — 2026-05-19 — i18n hotfix: 21 missing translations
+
+Same marketing version (1.7.0), bumped build (130 → 131). Translation-only
+fix — no behavior change, no new features.
+
+### Fixed
+
+- **21 `String(localized:)` keys were missing from `Localizable.xcstrings`**,
+  so zh-Hans / zh-Hant / ja users on build 130 saw English fallback text
+  on: the full 1.7.0 in-app release-notes catalog (Summary + 7 "What's
+  New" bullets + "Required Mac version"), and 12 CloudKit sync status
+  strings ("Syncing…", "Sync Error", "No Mac data found", "Waiting for
+  Mac to push data", "Per-device unmerged data for debugging", etc.).
+  Root cause: Xcode auto-extracts new `String(localized:)` keys only on
+  full Xcode build; our swift-test + lint flow never triggered it, so
+  the keys lived in source but had no catalog entry. Now all 4 locales
+  (en / zh-Hans / zh-Hant / ja) translated for every source key.
+
+### Tooling
+
+- **New `Scripts/audit_localized_keys.py`** + lint integration. The
+  existing `state="new"` xcstrings audit can't detect orphan source
+  keys (keys present in `.swift` files but not in the catalog at all)
+  — that's exactly what shipped in build 130. The new pre-build
+  check fails lint when any `String(localized:)` literal in
+  `CodexBarMobile/` has no matching xcstrings entry. Same enforcement
+  pattern as the existing parser-version audit. Closes the gap that
+  let build 55 (1.1.0), build 92 (1.3.0), and build 130 (1.7.0) all
+  ship English-only screens to non-English users.
+
+### Mac compatibility
+
+Unchanged from build 130 — pairs with Mac 0.26.4 (or 0.26.2 from prior
+release; the hotfix is iOS-side only). All Phase G multi-account UI
+behavior carries over.
+
+---
+
 ## [1.7.0 (130)] — 2026-05-18 — Universal multi-account tab UI (Phase G)
 
 Same marketing version (1.7.0), bumped build (129 → 130). Pairs with
