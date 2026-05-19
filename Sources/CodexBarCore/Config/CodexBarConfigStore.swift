@@ -18,6 +18,8 @@ public enum CodexBarConfigStoreError: LocalizedError {
 }
 
 public struct CodexBarConfigStore: @unchecked Sendable {
+    public static let pathEnvironmentKey = "CODEXBAR_CONFIG"
+
     public let fileURL: URL
     private let fileManager: FileManager
 
@@ -70,8 +72,17 @@ public struct CodexBarConfigStore: @unchecked Sendable {
         try self.fileManager.removeItem(at: self.fileURL)
     }
 
-    public static func defaultURL(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
-        home
+    public static func defaultURL(
+        home: URL = FileManager.default.homeDirectoryForCurrentUser,
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> URL
+    {
+        if let override = environment[pathEnvironmentKey]?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !override.isEmpty
+        {
+            let expanded = (override as NSString).expandingTildeInPath
+            return URL(fileURLWithPath: expanded)
+        }
+        return home
             .appendingPathComponent(".codexbar", isDirectory: true)
             .appendingPathComponent("config.json")
     }

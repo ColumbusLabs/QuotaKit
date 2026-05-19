@@ -32,6 +32,24 @@ struct ProviderStorageFootprintTests {
     }
 
     @Test
+    func `scanner does not follow symlinked candidate roots`() throws {
+        let root = try Self.makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let target = root.appendingPathComponent("target", isDirectory: true)
+        try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
+        try Data(repeating: 1, count: 64).write(to: target.appendingPathComponent("session.jsonl"))
+        let symlinkRoot = root.appendingPathComponent("codex-link", isDirectory: true)
+        try FileManager.default.createSymbolicLink(at: symlinkRoot, withDestinationURL: target)
+
+        let footprint = ProviderStorageScanner().scan(provider: .codex, candidatePaths: [symlinkRoot.path])
+
+        #expect(footprint.paths == [symlinkRoot.path])
+        #expect(footprint.totalBytes == 0)
+        #expect(footprint.components.isEmpty)
+    }
+
+    @Test
     func `scanner records missing paths without failing`() throws {
         let root = try Self.makeTemporaryDirectory()
         let missing = root.appendingPathComponent("missing")
@@ -342,6 +360,45 @@ struct ProviderStorageFootprintTests {
         await store.refreshStorageFootprintsForOverviewNow()
         #expect(store.storageFootprint(for: .codex) == nil)
         #expect(store.providerStorageFootprints.isEmpty)
+    }
+
+    @Test
+    @MainActor
+    func `forced scheduled storage refresh does not restart identical in flight scan`() throws {
+        let home = try Self.makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: home) }
+
+        let codexHome = home.appendingPathComponent(".codex", isDirectory: true)
+        try FileManager.default.createDirectory(at: codexHome, withIntermediateDirectories: true)
+
+        let suite = "ProviderStorageFootprintTests-storage-in-flight-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        let store = UsageStore(
+            fetcher: UsageFetcher(),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            environmentBase: ["CODEX_HOME": codexHome.path])
+        settings.providerStorageFootprintsEnabled = true
+        store.storageRefreshGeneration = 41
+        store.storageRefreshInFlightSignature = "codex=\(codexHome.path)"
+        store.storageRefreshTask = Task.detached {
+            try? await Task.sleep(for: .seconds(30))
+        }
+        defer {
+            store.storageRefreshTask?.cancel()
+            store.storageRefreshTask = nil
+            store.storageRefreshInFlightSignature = nil
+        }
+
+        store.scheduleStorageFootprintRefresh(for: [.codex], force: true)
+
+        #expect(store.storageRefreshGeneration == 41)
     }
 
     private static func makeTemporaryDirectory() throws -> URL {

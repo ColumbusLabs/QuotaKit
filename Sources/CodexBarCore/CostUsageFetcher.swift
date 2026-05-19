@@ -26,7 +26,9 @@ public struct CostUsageFetcher: Sendable {
         now: Date = Date(),
         forceRefresh: Bool = false,
         allowVertexClaudeFallback: Bool = false,
-        codexHomePath: String? = nil) async throws -> CostUsageTokenSnapshot
+        codexHomePath: String? = nil,
+        historyDays: Int = 30,
+        refreshPricingInBackground: Bool = true) async throws -> CostUsageTokenSnapshot
     {
         try await Self.loadTokenSnapshot(
             provider: provider,
@@ -34,7 +36,9 @@ public struct CostUsageFetcher: Sendable {
             now: now,
             forceRefresh: forceRefresh,
             allowVertexClaudeFallback: allowVertexClaudeFallback,
-            codexHomePath: codexHomePath)
+            codexHomePath: codexHomePath,
+            historyDays: historyDays,
+            refreshPricingInBackground: refreshPricingInBackground)
     }
 
     static func loadTokenSnapshot(
@@ -44,6 +48,8 @@ public struct CostUsageFetcher: Sendable {
         forceRefresh: Bool = false,
         allowVertexClaudeFallback: Bool = false,
         codexHomePath: String? = nil,
+        historyDays: Int = 30,
+        refreshPricingInBackground: Bool = true,
         scannerOptions overrideScannerOptions: CostUsageScanner.Options? = nil,
         piScannerOptions overridePiScannerOptions: PiSessionCostScanner
             .Options? = nil) async throws -> CostUsageTokenSnapshot
@@ -53,15 +59,16 @@ public struct CostUsageFetcher: Sendable {
         }
 
         let until = now
-        // Rolling window: last 30 days (inclusive). Use -29 for inclusive boundaries.
-        let since = Calendar.current.date(byAdding: .day, value: -29, to: now) ?? now
+        let clampedHistoryDays = max(1, min(365, historyDays))
+        // Rolling window is inclusive, so a 30-day display starts 29 days before `now`.
+        let since = Calendar.current.date(byAdding: .day, value: -(clampedHistoryDays - 1), to: now) ?? now
 
         if provider == .bedrock {
             let daily = try await Self.loadBedrockDailyReport(
                 environment: environment,
                 since: since,
                 until: until)
-            return Self.tokenSnapshot(from: daily, now: now)
+            return Self.tokenSnapshot(from: daily, now: now, historyDays: clampedHistoryDays)
         }
 
         var options = overrideScannerOptions ?? CostUsageScanner.Options()
@@ -73,7 +80,14 @@ public struct CostUsageFetcher: Sendable {
                 .appendingPathComponent("sessions", isDirectory: true)
         }
         if provider == .codex || provider == .claude {
-            await ModelsDevPricingPipeline.refreshIfNeeded(now: now, cacheRoot: options.cacheRoot)
+            let pricingCacheRoot = options.cacheRoot
+            if refreshPricingInBackground {
+                Task.detached(priority: .utility) {
+                    await ModelsDevPricingPipeline.refreshIfNeeded(now: now, cacheRoot: pricingCacheRoot)
+                }
+            } else {
+                await ModelsDevPricingPipeline.refreshIfNeeded(now: now, cacheRoot: pricingCacheRoot)
+            }
         }
 
         if provider == .vertexai {
@@ -123,7 +137,7 @@ public struct CostUsageFetcher: Sendable {
             daily = CostUsageDailyReport.merged([daily, piReport])
         }
 
-        return Self.tokenSnapshot(from: daily, now: now)
+        return Self.tokenSnapshot(from: daily, now: now, historyDays: clampedHistoryDays)
     }
 
     private static func loadBedrockDailyReport(
@@ -147,7 +161,11 @@ public struct CostUsageFetcher: Sendable {
             environment: environment)
     }
 
-    static func tokenSnapshot(from daily: CostUsageDailyReport, now: Date) -> CostUsageTokenSnapshot {
+    static func tokenSnapshot(
+        from daily: CostUsageDailyReport,
+        now: Date,
+        historyDays: Int = 30) -> CostUsageTokenSnapshot
+    {
         // Pick the most recent day; break ties by cost/tokens to keep a stable "session" row.
         let currentDay = daily.data.max { lhs, rhs in
             let lDate = CostUsageDateParser.parse(lhs.date) ?? .distantPast
@@ -174,6 +192,7 @@ public struct CostUsageFetcher: Sendable {
             sessionCostUSD: currentDay?.costUSD,
             last30DaysTokens: last30DaysTokens,
             last30DaysCostUSD: last30DaysCostUSD,
+            historyDays: historyDays,
             daily: daily.data,
             updatedAt: now)
     }

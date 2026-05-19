@@ -212,6 +212,8 @@ struct SyncCoordinatorV026MapperTests {
             bonusCreditsRemaining: (bonusTotal ?? 0) - (bonusUsed ?? 0),
             bonusExpiryDays: bonusExpiryDays,
             overagesStatus: nil,
+            overageCreditsUsed: nil,
+            estimatedOverageCostUSD: nil,
             manageURL: nil,
             contextUsage: nil)
     }

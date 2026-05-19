@@ -367,7 +367,7 @@
 "cost_status_fetching" = "%1$@：获取中…%2$@";
 "cost_status_last_attempt" = "%1$@：上次尝试 %2$@";
 "cost_status_no_data" = "%@：暂无数据";
-"cost_status_snapshot" = "%1$@：%2$@ · 30天 %3$@";
+"cost_status_snapshot" = "%1$@：%2$@ · %3$@ %4$@";
 "cost_status_unsupported" = "%@：不支持";
 "credits_remaining" = "积分：%@";
 "cursor_on_demand" = "按需计费：%@";
@@ -400,7 +400,7 @@
 4. 设置项目：gcloud config set project PROJECT_ID
 
 是否现在打开终端？";
-"workspaceID is set but only opencode and opencodego support workspaceID." = "";
+"workspaceID is set but only opencode, opencodego, and deepgram support workspaceID." = "";
 "© 2026 Peter Steinberger. MIT License." = "";
 
 /* General Pane */
@@ -416,7 +416,8 @@
 "start_at_login_title" = "开机启动";
 "start_at_login_subtitle" = "启动 Mac 时自动打开 CodexBar。";
 "show_cost_summary" = "显示费用摘要";
-"show_cost_summary_subtitle" = "读取本地使用日志。在菜单中显示今天及最近30天的费用。";
+"show_cost_summary_subtitle" = "读取本地使用日志。在菜单中显示今天及所选历史窗口的费用。";
+"cost_history_days_title" = "历史窗口：%d 天";
 "cost_auto_refresh_info" = "自动刷新：每小时 · 超时：10分钟";
 "refresh_cadence_title" = "刷新频率";
 "refresh_cadence_subtitle" = "CodexBar 在后台轮询提供商的频率。";
@@ -465,7 +466,7 @@
 "remove_codex_account_title" = "移除 Codex 账户？";
 "remove" = "移除";
 "managed_login_already_running" = "托管 Codex 登录已在运行。请等待完成后再添加或重新认证其他账户。";
-"managed_login_failed" = "托管 Codex 登录未完成。请在完成浏览器登录流程后重试。";
+"managed_login_failed" = "托管 Codex 登录未完成。请先在终端确认 `codex --version` 可以运行。如果 macOS 阻止了 `codex` 或将它移到废纸篓，请移除旧的重复安装，运行 `npm install -g --include=optional @openai/codex@latest`，然后重试。";
 "managed_login_missing_email" = "Codex 登录已完成，但无法获取账户邮箱。请在确认账户已完全登录后重试。";
 "workspace_selection_cancelled" = "CodexBar 发现多个工作区，但未选择任何工作区。";
 "unsafe_managed_home" = "CodexBar 拒绝修改意外的托管主目录路径：%@";
@@ -530,6 +531,8 @@
 "weekly_limit_confetti_subtitle" = "当每周用量重置时播放全屏彩纸。";
 "hide_personal_info_title" = "隐藏个人信息";
 "hide_personal_info_subtitle" = "在菜单栏和菜单界面中隐藏电子邮件地址。";
+"show_provider_storage_usage_title" = "显示提供商存储用量";
+"show_provider_storage_usage_subtitle" = "在菜单中显示本地磁盘用量。会在后台扫描已知的提供商自有路径。";
 "section_keychain_access" = "钥匙串访问";
 "keychain_access_caption" = "禁用所有钥匙串读写。浏览器 cookie 导入不可用；在提供商中手动粘贴 Cookie 标头。";
 "disable_keychain_access_title" = "禁用钥匙串访问";

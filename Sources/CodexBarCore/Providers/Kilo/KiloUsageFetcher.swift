@@ -268,27 +268,22 @@ public struct KiloUsageFetcher: Sendable {
         let baseURL = KiloSettingsReader.apiURL(environment: environment)
         let request = try self.makeRequest(baseURL: baseURL, apiKey: apiKey, scope: scope)
 
-        let data: Data
-        let response: URLResponse
+        let response: ProviderHTTPResponse
         do {
-            (data, response) = try await URLSession.shared.data(for: request)
+            response = try await ProviderHTTPClient.shared.response(for: request)
         } catch {
             throw KiloUsageError.networkError(error.localizedDescription)
         }
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw KiloUsageError.networkError("Invalid response")
-        }
-
-        if let mapped = self.statusError(for: httpResponse.statusCode) {
+        if let mapped = self.statusError(for: response.statusCode) {
             throw mapped
         }
 
-        guard httpResponse.statusCode == 200 else {
-            throw KiloUsageError.apiError(httpResponse.statusCode)
+        guard response.statusCode == 200 else {
+            throw KiloUsageError.apiError(response.statusCode)
         }
 
-        return try self.parseSnapshot(data: data)
+        return try self.parseSnapshot(data: response.data)
     }
 
     static func _buildBatchURLForTesting(baseURL: URL) throws -> URL {
@@ -332,17 +327,14 @@ public struct KiloUsageFetcher: Sendable {
         let trpcRequest = try self.makeOrgListTRPCRequest(baseURL: baseURL, apiKey: apiKey)
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: trpcRequest)
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw KiloUsageError.networkError("Invalid response")
-            }
-            if httpResponse.statusCode == 404 {
+            let response = try await ProviderHTTPClient.shared.response(for: trpcRequest)
+            if response.statusCode == 404 {
                 return try await self.fetchOrganizationsRESTFallback(apiKey: apiKey)
             }
-            if let mapped = self.statusError(for: httpResponse.statusCode) {
+            if let mapped = self.statusError(for: response.statusCode) {
                 throw mapped
             }
-            return try self.parseOrganizations(data: data)
+            return try self.parseOrganizations(data: response.data)
         } catch let error as KiloUsageError {
             throw error
         } catch {
@@ -391,17 +383,14 @@ public struct KiloUsageFetcher: Sendable {
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw KiloUsageError.networkError("Invalid response")
-        }
-        if let mapped = self.statusError(for: httpResponse.statusCode) {
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+        if let mapped = self.statusError(for: response.statusCode) {
             throw mapped
         }
-        guard httpResponse.statusCode == 200 else {
-            throw KiloUsageError.apiError(httpResponse.statusCode)
+        guard response.statusCode == 200 else {
+            throw KiloUsageError.apiError(response.statusCode)
         }
-        return try self.parseOrganizations(data: data)
+        return try self.parseOrganizations(data: response.data)
     }
 
     private static func parseOrganizations(data: Data) throws -> [KiloOrganization] {

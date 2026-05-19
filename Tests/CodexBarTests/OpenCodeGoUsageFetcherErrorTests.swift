@@ -1,6 +1,6 @@
-import CodexBarCore
 import Foundation
 import Testing
+@testable import CodexBarCore
 
 @Suite(.serialized)
 struct OpenCodeGoUsageFetcherErrorTests {
@@ -26,6 +26,21 @@ struct OpenCodeGoUsageFetcherErrorTests {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [OpenCodeGoStubURLProtocol.self]
         return URLSession(configuration: config)
+    }
+
+    @Test
+    func `redirect guard allows only same-host https redirects`() {
+        #expect(OpenCodeGoUsageFetcher.allowsRedirect(
+            from: URL(string: "https://opencode.ai/_server"),
+            to: URL(string: "https://opencode.ai/workspace/wrk_TEST123/go")))
+
+        #expect(!OpenCodeGoUsageFetcher.allowsRedirect(
+            from: URL(string: "https://opencode.ai/_server"),
+            to: URL(string: "https://evil.example/steal")))
+
+        #expect(!OpenCodeGoUsageFetcher.allowsRedirect(
+            from: URL(string: "https://opencode.ai/_server"),
+            to: URL(string: "http://opencode.ai/insecure")))
     }
 
     @Test
@@ -110,7 +125,7 @@ struct OpenCodeGoUsageFetcherErrorTests {
         #expect(snapshot.rollingUsagePercent == 22)
         #expect(snapshot.weeklyUsagePercent == 44)
         #expect(snapshot.monthlyUsagePercent == 55)
-        #expect(methods == ["GET", "POST", "GET"])
+        #expect(methods == ["GET", "POST", "GET", "GET"])
     }
 
     @Test
@@ -196,10 +211,10 @@ struct OpenCodeGoUsageFetcherErrorTests {
             OpenCodeGoStubURLProtocol.handler = nil
         }
 
-        var observedPath: String?
+        var observedPaths: [String] = []
         OpenCodeGoStubURLProtocol.handler = { request in
             guard let url = request.url else { throw URLError(.badURL) }
-            observedPath = url.path
+            observedPaths.append(url.path)
             return Self.makeResponse(
                 url: url,
                 body: Self.goUsagePageHTML(
@@ -217,7 +232,214 @@ struct OpenCodeGoUsageFetcherErrorTests {
             workspaceIDOverride: "https://opencode.ai/workspace/wrk_URL123/billing",
             session: self.makeSession())
 
-        #expect(observedPath == "/workspace/wrk_URL123/go")
+        #expect(observedPaths == ["/workspace/wrk_URL123/go", "/workspace/wrk_URL123"])
+    }
+
+    @Test
+    func `fetcher attaches optional zen balance from workspace root`() async throws {
+        defer {
+            OpenCodeGoStubURLProtocol.handler = nil
+        }
+
+        OpenCodeGoStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            if url.path == "/workspace/wrk_TEST123" {
+                return Self.makeResponse(
+                    url: url,
+                    body: #"<html><body><h2>現在の残高 $98.76</h2></body></html>"#,
+                    statusCode: 200,
+                    contentType: "text/html")
+            }
+            return Self.makeResponse(
+                url: url,
+                body: Self.goUsagePageHTML(
+                    workspaceID: "wrk_TEST123",
+                    rolling: UsageWindow(percent: 17, resetInSec: 600),
+                    weekly: UsageWindow(percent: 75, resetInSec: 7200),
+                    monthly: nil),
+                statusCode: 200,
+                contentType: "text/html")
+        }
+
+        let snapshot = try await OpenCodeGoUsageFetcher.fetchUsage(
+            cookieHeader: "auth=test",
+            timeout: 2,
+            workspaceIDOverride: "wrk_TEST123",
+            session: self.makeSession())
+
+        #expect(snapshot.zenBalanceUSD == 98.76)
+        #expect(snapshot.toUsageSnapshot().providerCost?.period == "Zen balance")
+    }
+
+    @Test
+    func `optional zen balance failure does not fail subscription usage`() async throws {
+        defer {
+            OpenCodeGoStubURLProtocol.handler = nil
+        }
+
+        var rootTimeout: TimeInterval?
+        OpenCodeGoStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            if url.path == "/workspace/wrk_TEST123" {
+                rootTimeout = request.timeoutInterval
+                throw URLError(.timedOut)
+            }
+            return Self.makeResponse(
+                url: url,
+                body: Self.goUsagePageHTML(
+                    workspaceID: "wrk_TEST123",
+                    rolling: UsageWindow(percent: 17, resetInSec: 600),
+                    weekly: UsageWindow(percent: 75, resetInSec: 7200),
+                    monthly: nil),
+                statusCode: 200,
+                contentType: "text/html")
+        }
+
+        let snapshot = try await OpenCodeGoUsageFetcher.fetchUsage(
+            cookieHeader: "auth=test",
+            timeout: 60,
+            workspaceIDOverride: "wrk_TEST123",
+            session: self.makeSession())
+
+        #expect(snapshot.rollingUsagePercent == 17)
+        #expect(snapshot.zenBalanceUSD == nil)
+        #expect(rootTimeout == 5)
+    }
+
+    @Test
+    func `optional zen balance does not stall subscription usage`() async throws {
+        defer {
+            OpenCodeGoStubURLProtocol.handler = nil
+        }
+
+        OpenCodeGoStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            if url.path == "/workspace/wrk_TEST123" {
+                Thread.sleep(forTimeInterval: 1)
+                return Self.makeResponse(
+                    url: url,
+                    body: #"<html><body><h2>現在の残高 $98.76</h2></body></html>"#,
+                    statusCode: 200,
+                    contentType: "text/html")
+            }
+            return Self.makeResponse(
+                url: url,
+                body: Self.goUsagePageHTML(
+                    workspaceID: "wrk_TEST123",
+                    rolling: UsageWindow(percent: 17, resetInSec: 600),
+                    weekly: UsageWindow(percent: 75, resetInSec: 7200),
+                    monthly: nil),
+                statusCode: 200,
+                contentType: "text/html")
+        }
+
+        let start = ContinuousClock.now
+        let snapshot = try await OpenCodeGoUsageFetcher.fetchUsage(
+            cookieHeader: "auth=test",
+            timeout: 60,
+            workspaceIDOverride: "wrk_TEST123",
+            session: self.makeSession())
+        let elapsed = start.duration(to: ContinuousClock.now)
+
+        #expect(snapshot.rollingUsagePercent == 17)
+        #expect(snapshot.zenBalanceUSD == nil)
+        #expect(elapsed < .milliseconds(700))
+    }
+
+    @Test
+    func `optional zen balance can be skipped by settings`() async throws {
+        defer {
+            OpenCodeGoStubURLProtocol.handler = nil
+        }
+
+        var observedPaths: [String] = []
+        OpenCodeGoStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            observedPaths.append(url.path)
+            return Self.makeResponse(
+                url: url,
+                body: Self.goUsagePageHTML(
+                    workspaceID: "wrk_TEST123",
+                    rolling: UsageWindow(percent: 17, resetInSec: 600),
+                    weekly: UsageWindow(percent: 75, resetInSec: 7200),
+                    monthly: nil),
+                statusCode: 200,
+                contentType: "text/html")
+        }
+
+        let snapshot = try await OpenCodeGoUsageFetcher.fetchUsage(
+            cookieHeader: "auth=test",
+            timeout: 60,
+            workspaceIDOverride: "wrk_TEST123",
+            includeZenBalance: false,
+            session: self.makeSession())
+
+        #expect(snapshot.rollingUsagePercent == 17)
+        #expect(snapshot.zenBalanceUSD == nil)
+        #expect(observedPaths == ["/workspace/wrk_TEST123/go"])
+    }
+
+    @Test
+    func `optional zen balance cancellation propagates`() async throws {
+        defer {
+            OpenCodeGoStubURLProtocol.handler = nil
+        }
+
+        let rootStarted = AsyncStream<Void>.makeStream(of: Void.self)
+        OpenCodeGoStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            if url.path == "/workspace/wrk_TEST123" {
+                rootStarted.continuation.yield(())
+                Thread.sleep(forTimeInterval: 0.2)
+                return Self.makeResponse(
+                    url: url,
+                    body: #"<html><body><h2>現在の残高 $98.76</h2></body></html>"#,
+                    statusCode: 200,
+                    contentType: "text/html")
+            }
+            return Self.makeResponse(
+                url: url,
+                body: Self.goUsagePageHTML(
+                    workspaceID: "wrk_TEST123",
+                    rolling: UsageWindow(percent: 17, resetInSec: 600),
+                    weekly: UsageWindow(percent: 75, resetInSec: 7200),
+                    monthly: nil),
+                statusCode: 200,
+                contentType: "text/html")
+        }
+
+        let task = Task {
+            try await OpenCodeGoUsageFetcher.fetchUsage(
+                cookieHeader: "auth=test",
+                timeout: 60,
+                workspaceIDOverride: "wrk_TEST123",
+                session: self.makeSession())
+        }
+
+        let started = await withTaskGroup(of: Bool.self) { group in
+            group.addTask {
+                var iterator = rootStarted.stream.makeAsyncIterator()
+                return await iterator.next() != nil
+            }
+            group.addTask {
+                try? await Task.sleep(for: .seconds(2))
+                return false
+            }
+            let result = await group.next() ?? false
+            group.cancelAll()
+            return result
+        }
+        #expect(started)
+        task.cancel()
+
+        do {
+            _ = try await task.value
+            Issue.record("Expected cancellation to propagate.")
+        } catch is CancellationError {
+            // Expected.
+        } catch {
+            Issue.record("Expected CancellationError, got: \(error)")
+        }
     }
 
     @Test

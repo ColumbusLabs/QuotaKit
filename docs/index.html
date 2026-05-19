@@ -6,7 +6,7 @@
     <title>CodexBar — every AI coding limit in your menu bar</title>
     <meta
       name="description"
-      content="A tiny macOS menu bar app that tracks AI coding-provider usage windows, credits, costs, and resets across 29 providers — Codex, Claude, Cursor, Gemini, Copilot, and 24 more."
+      content="A tiny macOS menu bar app that tracks AI coding-provider usage windows, credits, costs, and resets across 40+ providers — Codex, OpenAI, Claude, Cursor, Gemini, Copilot, Grok, and more."
     />
     <meta name="theme-color" content="#0a0a0c" />
     <link rel="canonical" href="https://codexbar.app/" />
@@ -14,7 +14,7 @@
     <meta property="og:title" content="CodexBar" />
     <meta
       property="og:description"
-      content="Track usage windows, credits, and resets across 29 AI coding providers from your macOS menu bar."
+      content="Track usage windows, credits, and resets across 40+ AI coding providers from your macOS menu bar."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://codexbar.app/" />
@@ -26,14 +26,27 @@
 
     <link rel="icon" href="./icon.png" type="image/png" />
     <link rel="apple-touch-icon" href="./icon.png" />
-    <link rel="stylesheet" href="./site.css?v=7" />
+    <script>
+      (function () {
+        try {
+          var queryTheme = new URLSearchParams(location.search).get('theme');
+          var theme = queryTheme === 'light' || queryTheme === 'dark'
+            ? queryTheme
+            : localStorage.getItem('codexbar-theme');
+          if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+        } catch (_) {}
+      })();
+    </script>
+    <link rel="stylesheet" href="./site.css?v=8" />
   </head>
   <body>
-    <div class="aurora" aria-hidden="true">
-      <span class="blob b1"></span>
-      <span class="blob b2"></span>
-      <span class="blob b3"></span>
-      <span class="blob b4"></span>
+    <div class="backdrop" aria-hidden="true">
+      <span class="plane p1"></span>
+      <span class="plane p2"></span>
+      <span class="trace t1"></span>
+      <span class="trace t2"></span>
+      <span class="trace t3"></span>
+      <span class="trace t4"></span>
     </div>
     <header class="masthead">
       <a class="brand" href="./" aria-label="CodexBar">
@@ -41,8 +54,17 @@
         <span class="wordmark">CodexBar</span>
       </a>
       <nav class="nav" aria-label="Primary">
-        <a href="https://github.com/steipete/CodexBar/blob/main/docs/providers.md">Docs</a>
-        <a href="https://github.com/steipete/CodexBar">Source</a>
+        <a class="nav-link" href="https://github.com/steipete/CodexBar/blob/main/docs/providers.md">Docs</a>
+        <a class="nav-link" href="https://github.com/steipete/CodexBar">Source</a>
+        <button class="theme-toggle" type="button" aria-label="Switch color theme" aria-pressed="false" title="Switch color theme">
+          <svg class="sun" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+            <circle cx="8" cy="8" r="2.75" />
+            <path d="M8 1.5v1.25M8 13.25v1.25M1.5 8h1.25M13.25 8h1.25M3.4 3.4l.9.9M11.7 11.7l.9.9M12.6 3.4l-.9.9M4.3 11.7l-.9.9" />
+          </svg>
+          <svg class="moon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M13.2 10.1A5.8 5.8 0 0 1 5.9 2.8a6 6 0 1 0 7.3 7.3Z" />
+          </svg>
+        </button>
         <a class="btn primary" href="https://github.com/steipete/CodexBar/releases/latest">Download</a>
       </nav>
     </header>
@@ -74,96 +96,96 @@
 
       <section class="providers" aria-labelledby="providers-h">
         <header class="section-head">
-          <h2 id="providers-h">29 providers, one menu bar</h2>
-          <p>Each tile becomes a status item with its own usage window, reset countdown, and provider menu.</p>
+          <h2 id="providers-h">40+ providers, one menu bar</h2>
+          <p>Popular providers become status items with their own usage windows, reset countdowns, charts, and provider menus.</p>
         </header>
         <ul class="grid">
         <li><a class="provider" style="--brand:#49A3B0" href="https://github.com/steipete/CodexBar/blob/main/docs/codex.md">
-          <span class="chip">C</span><span class="meta"><span class="name">Codex</span><span class="auth">OAuth</span></span>
+          <img class="chip-logo no-bg" src="./logos/codex.svg" data-dark-src="./logos/codex-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Codex</span><span class="auth">OAuth</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#CC7C5E" href="https://github.com/steipete/CodexBar/blob/main/docs/claude.md">
-          <span class="chip">C</span><span class="meta"><span class="name">Claude</span><span class="auth">OAuth</span></span>
+          <img class="chip-logo" src="./logos/claude.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Claude</span><span class="auth">OAuth</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#1A1A1A" href="https://github.com/steipete/CodexBar/blob/main/docs/cursor.md">
-          <span class="chip">C</span><span class="meta"><span class="name">Cursor</span><span class="auth">Cookies</span></span>
+          <img class="chip-logo" src="./logos/cursor.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Cursor</span><span class="auth">Cookies</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#3B82F6" href="https://github.com/steipete/CodexBar/blob/main/docs/opencode.md">
-          <span class="chip">O</span><span class="meta"><span class="name">OpenCode</span><span class="auth">Cookies</span></span>
-        </a></li>
-        <li><a class="provider" style="--brand:#3B82F6" href="https://github.com/steipete/CodexBar/blob/main/docs/opencode.md">
-          <span class="chip">O</span><span class="meta"><span class="name">OpenCode Go</span><span class="auth">Cookies</span></span>
+          <img class="chip-logo preserve-color" src="./logos/opencode.svg" data-dark-src="./logos/opencode-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">OpenCode</span><span class="auth">Cookies + Go</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#FF6A00" href="https://github.com/steipete/CodexBar/blob/main/docs/alibaba-coding-plan.md">
-          <span class="chip">A</span><span class="meta"><span class="name">Alibaba</span><span class="auth">Cookies</span></span>
+          <img class="chip-logo" src="./logos/alibaba.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Alibaba</span><span class="auth">Cookies</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#AB87EA" href="https://github.com/steipete/CodexBar/blob/main/docs/gemini.md">
-          <span class="chip">G</span><span class="meta"><span class="name">Gemini</span><span class="auth">OAuth</span></span>
+          <img class="chip-logo" src="./logos/gemini.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Gemini</span><span class="auth">OAuth</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#60BA7E" href="https://github.com/steipete/CodexBar/blob/main/docs/antigravity.md">
-          <span class="chip">A</span><span class="meta"><span class="name">Antigravity</span><span class="auth">Local</span></span>
+          <img class="chip-logo" src="./logos/antigravity.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Antigravity</span><span class="auth">Local</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#FF6B35" href="https://github.com/steipete/CodexBar/blob/main/docs/factory.md">
-          <span class="chip">D</span><span class="meta"><span class="name">Droid</span><span class="auth">Cookies</span></span>
+          <img class="chip-logo no-bg" src="./logos/droid.svg" data-dark-src="./logos/droid-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Droid</span><span class="auth">Cookies</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#A855F7" href="https://github.com/steipete/CodexBar/blob/main/docs/copilot.md">
-          <span class="chip">C</span><span class="meta"><span class="name">Copilot</span><span class="auth">Device flow</span></span>
+          <img class="chip-logo" src="./logos/copilot.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Copilot</span><span class="auth">Device flow</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#E85A6A" href="https://github.com/steipete/CodexBar/blob/main/docs/zai.md">
-          <span class="chip">z</span><span class="meta"><span class="name">z.ai</span><span class="auth">API key</span></span>
+          <img class="chip-logo no-bg" src="./logos/zai.svg" data-dark-src="./logos/zai-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">z.ai</span><span class="auth">API key</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#FE6060" href="https://github.com/steipete/CodexBar/blob/main/docs/minimax.md">
-          <span class="chip">M</span><span class="meta"><span class="name">MiniMax</span><span class="auth">API key</span></span>
+          <img class="chip-logo" src="./logos/minimax.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">MiniMax</span><span class="auth">API key</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#FE603C" href="https://github.com/steipete/CodexBar/blob/main/docs/kimi.md">
-          <span class="chip">K</span><span class="meta"><span class="name">Kimi</span><span class="auth">Token</span></span>
+          <img class="chip-logo" src="./logos/kimi.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Kimi</span><span class="auth">Token</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#4C00FF" href="https://github.com/steipete/CodexBar/blob/main/docs/kimi-k2.md">
-          <span class="chip">K</span><span class="meta"><span class="name">Kimi K2</span><span class="auth">API key</span></span>
+          <img class="chip-logo" src="./logos/kimi-k2.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Kimi K2</span><span class="auth">Legacy API</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#F27027" href="https://github.com/steipete/CodexBar/blob/main/docs/kilo.md">
-          <span class="chip">K</span><span class="meta"><span class="name">Kilo</span><span class="auth">API key</span></span>
+        <li><a class="provider" style="--brand:#f8f676" href="https://github.com/steipete/CodexBar/blob/main/docs/kilo.md">
+          <img class="chip-logo no-bg" src="./logos/kilo.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Kilo</span><span class="auth">API key</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#FF9900;--ink:#0a0a0c" href="https://github.com/steipete/CodexBar/blob/main/docs/kiro.md">
-          <span class="chip">K</span><span class="meta"><span class="name">Kiro</span><span class="auth">CLI</span></span>
+          <img class="chip-logo no-bg" src="./logos/kiro.svg" data-dark-src="./logos/kiro-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Kiro</span><span class="auth">CLI</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#4285F4" href="https://github.com/steipete/CodexBar/blob/main/docs/vertexai.md">
-          <span class="chip">V</span><span class="meta"><span class="name">Vertex AI</span><span class="auth">gcloud</span></span>
+          <img class="chip-logo" src="./logos/vertex-ai.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Vertex AI</span><span class="auth">gcloud</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#6366F1" href="https://github.com/steipete/CodexBar/blob/main/docs/augment.md">
-          <span class="chip">A</span><span class="meta"><span class="name">Augment</span><span class="auth">CLI</span></span>
+        <li><a class="provider logo-dark" style="--brand:#6366F1" href="https://github.com/steipete/CodexBar/blob/main/docs/augment.md">
+          <img class="chip-logo" src="./logos/augment.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Augment</span><span class="auth">CLI</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#DC2626" href="https://github.com/steipete/CodexBar/blob/main/docs/amp.md">
-          <span class="chip">A</span><span class="meta"><span class="name">Amp</span><span class="auth">Cookies</span></span>
+          <img class="chip-logo" src="./logos/amp.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Amp</span><span class="auth">Cookies</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#888888" href="https://github.com/steipete/CodexBar/blob/main/docs/ollama.md">
-          <span class="chip">O</span><span class="meta"><span class="name">Ollama</span><span class="auth">Cookies</span></span>
+          <img class="chip-logo" src="./logos/ollama.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Ollama</span><span class="auth">Cookies</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#141414" href="https://github.com/steipete/CodexBar/blob/main/docs/providers.md#fetch-strategies-current">
-          <span class="chip">S</span><span class="meta"><span class="name">Synthetic</span><span class="auth">API key</span></span>
+          <img class="chip-logo" src="./logos/synthetic.svg" data-dark-src="./logos/synthetic-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Synthetic</span><span class="auth">API key</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#FF3399" href="https://github.com/steipete/CodexBar/blob/main/docs/jetbrains.md">
-          <span class="chip">J</span><span class="meta"><span class="name">JetBrains AI</span><span class="auth">Local</span></span>
+          <img class="chip-logo" src="./logos/jetbrains-ai.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">JetBrains AI</span><span class="auth">Local</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#7B68EE" href="https://github.com/steipete/CodexBar/blob/main/docs/warp.md">
-          <span class="chip">W</span><span class="meta"><span class="name">Warp</span><span class="auth">API key</span></span>
+          <img class="chip-logo" src="./logos/warp.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Warp</span><span class="auth">API key</span></span>
+        </a></li>
+        <li><a class="provider" style="--brand:#EAEAE6;--ink:#0a0a0c" href="https://github.com/steipete/CodexBar/blob/main/docs/elevenlabs.md">
+          <img class="chip-logo" src="./logos/elevenlabs.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">ElevenLabs</span><span class="auth">API key</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#6467F2" href="https://github.com/steipete/CodexBar/blob/main/docs/openrouter.md">
-          <span class="chip">O</span><span class="meta"><span class="name">OpenRouter</span><span class="auth">API key</span></span>
+          <img class="chip-logo" src="./logos/openrouter.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">OpenRouter</span><span class="auth">API key</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#20B2AA" href="https://github.com/steipete/CodexBar/blob/main/docs/providers.md#fetch-strategies-current">
-          <span class="chip">P</span><span class="meta"><span class="name">Perplexity</span><span class="auth">Cookies</span></span>
+          <img class="chip-logo" src="./logos/perplexity.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Perplexity</span><span class="auth">Cookies</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#38BDF8" href="https://github.com/steipete/CodexBar/blob/main/docs/abacus.md">
-          <span class="chip">A</span><span class="meta"><span class="name">Abacus AI</span><span class="auth">Cookies</span></span>
+          <img class="chip-logo no-bg" src="./logos/abacus-ai.png" data-dark-src="./logos/abacus-ai-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Abacus AI</span><span class="auth">Cookies</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#FF500F" href="https://github.com/steipete/CodexBar/blob/main/docs/providers.md#fetch-strategies-current">
-          <span class="chip">M</span><span class="meta"><span class="name">Mistral</span><span class="auth">Cookies</span></span>
+          <img class="chip-logo" src="./logos/mistral.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Mistral</span><span class="auth">Cookies</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#527DF0" href="https://github.com/steipete/CodexBar/blob/main/docs/deepseek.md">
-          <span class="chip">D</span><span class="meta"><span class="name">DeepSeek</span><span class="auth">API key</span></span>
+          <img class="chip-logo" src="./logos/deepseek.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">DeepSeek</span><span class="auth">API key</span></span>
         </a></li>
         <li><a class="provider" style="--brand:#44C800;--ink:#0a0a0c" href="https://github.com/steipete/CodexBar/blob/main/docs/codebuff.md">
-          <span class="chip">C</span><span class="meta"><span class="name">Codebuff</span><span class="auth">API key</span></span>
+          <img class="chip-logo no-bg" src="./logos/codebuff.png" data-dark-src="./logos/codebuff-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Codebuff</span><span class="auth">API key</span></span>
         </a></li>
         <li><a class="provider add" href="https://github.com/steipete/CodexBar/blob/main/docs/provider.md">
           <span class="chip">+</span><span class="meta"><span class="name">Your provider</span><span class="auth">Authoring guide</span></span>
@@ -182,7 +204,7 @@
         </article>
         <article>
           <h3>Credits, spend, and cost scans</h3>
-          <p>Credit balances and monthly spend where the provider exposes them, plus a local cost scan over the last 30 days for Codex and Claude.</p>
+          <p>Credit balances and monthly spend where the provider exposes them, plus configurable local cost scans for Codex and Claude.</p>
         </article>
         <article>
           <h3>Status &amp; incidents</h3>
@@ -238,6 +260,55 @@
 
     <script>
       (function () {
+        var root = document.documentElement;
+        var toggle = document.querySelector('.theme-toggle');
+        var metaTheme = document.querySelector('meta[name="theme-color"]');
+        var media = window.matchMedia('(prefers-color-scheme: dark)');
+        function queryTheme() {
+          try {
+            var value = new URLSearchParams(location.search).get('theme');
+            return value === 'light' || value === 'dark' ? value : null;
+          } catch (_) {
+            return null;
+          }
+        }
+        function storedTheme() {
+          try { return localStorage.getItem('codexbar-theme'); } catch (_) { return null; }
+        }
+        function effectiveTheme() {
+          return root.dataset.theme || (media.matches ? 'dark' : 'light');
+        }
+        function updateThemeImages(theme) {
+          document.querySelectorAll('img[data-dark-src]').forEach(function (img) {
+            if (!img.dataset.lightSrc) img.dataset.lightSrc = img.getAttribute('src');
+            img.setAttribute('src', theme === 'dark' ? img.dataset.darkSrc : img.dataset.lightSrc);
+          });
+        }
+        function updateThemeUI() {
+          var theme = effectiveTheme();
+          updateThemeImages(theme);
+          if (toggle) {
+            toggle.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
+            toggle.setAttribute('aria-label', theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
+            toggle.title = theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme';
+          }
+          if (metaTheme) metaTheme.setAttribute('content', theme === 'dark' ? '#0a0a0c' : '#fbfbfc');
+        }
+        if (toggle) {
+          toggle.addEventListener('click', function () {
+            var next = effectiveTheme() === 'dark' ? 'light' : 'dark';
+            root.dataset.theme = next;
+            try { localStorage.setItem('codexbar-theme', next); } catch (_) {}
+            updateThemeUI();
+          });
+        }
+        if (media.addEventListener) {
+          media.addEventListener('change', function () {
+            if (!queryTheme() && !storedTheme()) updateThemeUI();
+          });
+        }
+        updateThemeUI();
+
         var btn = document.querySelector('.brew-copy');
         if (!btn) return;
         btn.addEventListener('click', function () {

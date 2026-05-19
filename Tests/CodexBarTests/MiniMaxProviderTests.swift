@@ -25,6 +25,52 @@ struct MiniMaxAPISettingsReaderTests {
     }
 }
 
+struct MiniMaxProviderStrategyTests {
+    private struct StubClaudeFetcher: ClaudeUsageFetching {
+        func loadLatestUsage(model _: String) async throws -> ClaudeUsageSnapshot {
+            throw ClaudeUsageError.parseFailed("stub")
+        }
+
+        func debugRawProbe(model _: String) async -> String {
+            "stub"
+        }
+
+        func detectVersion() -> String? {
+            nil
+        }
+    }
+
+    @Test
+    func `browser cookie import is user initiated app only`() {
+        let appContext = self.makeContext(runtime: .app)
+        let cliContext = self.makeContext(runtime: .cli)
+
+        #expect(MiniMaxCodingPlanFetchStrategy.allowsBrowserCookieImport(context: appContext) == false)
+        #expect(MiniMaxCodingPlanFetchStrategy.allowsBrowserCookieImport(context: cliContext) == false)
+
+        ProviderInteractionContext.$current.withValue(.userInitiated) {
+            #expect(MiniMaxCodingPlanFetchStrategy.allowsBrowserCookieImport(context: appContext))
+            #expect(MiniMaxCodingPlanFetchStrategy.allowsBrowserCookieImport(context: cliContext) == false)
+        }
+    }
+
+    private func makeContext(runtime: ProviderRuntime) -> ProviderFetchContext {
+        let env: [String: String] = [:]
+        return ProviderFetchContext(
+            runtime: runtime,
+            sourceMode: .web,
+            includeCredits: false,
+            webTimeout: 1,
+            webDebugDumpHTML: false,
+            verbose: false,
+            env: env,
+            settings: nil,
+            fetcher: UsageFetcher(environment: env),
+            claudeFetcher: StubClaudeFetcher(),
+            browserDetection: BrowserDetection(cacheTTL: 0))
+    }
+}
+
 struct MiniMaxCookieHeaderTests {
     @Test
     func `normalizes raw cookie header`() {
@@ -192,7 +238,7 @@ struct MiniMaxUsageParserTests {
           "current_subscribe_title": "Max",
           "model_remains": [
             {
-              "model_name": "MiniMax-M1",
+              "model_name": "M2.7-highspeed",
               "current_interval_total_count": 1000,
               "current_interval_usage_count": 250,
               "start_time": \(start),
@@ -212,6 +258,72 @@ struct MiniMaxUsageParserTests {
         #expect(service.limit == 1000)
         #expect(service.percent == 75)
         #expect(snapshot.toUsageSnapshot().primary?.usedPercent == 75)
+    }
+
+    @Test
+    func `text generation includes weekly window when provided`() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let start = 1_700_000_000_000
+        let end = start + 5 * 60 * 60 * 1000
+        let weekStart = start - 2 * 24 * 60 * 60 * 1000
+        let weekEnd = weekStart + 7 * 24 * 60 * 60 * 1000
+        let json = """
+        {
+          "base_resp": { "status_code": 0 },
+          "model_remains": [
+            {
+              "model_name": "MiniMax-M1",
+              "current_interval_total_count": 1000,
+              "current_interval_usage_count": 250,
+              "start_time": \(start),
+              "end_time": \(end),
+              "current_weekly_total_count": 6000,
+              "current_weekly_usage_count": 5376,
+              "weekly_start_time": \(weekStart),
+              "weekly_end_time": \(weekEnd)
+            }
+          ]
+        }
+        """
+        let snapshot = try MiniMaxUsageParser.parseCodingPlanRemains(data: Data(json.utf8), now: now)
+        let services = try #require(snapshot.services)
+        #expect(services.count == 2)
+        #expect(services[0].serviceType == "Text Generation")
+        #expect(services[0].windowType == "5 hours")
+        #expect(services[1].serviceType == "Text Generation")
+        #expect(services[1].windowType == "Weekly")
+        #expect(services[1].usage == 624)
+        #expect(services[1].limit == 6000)
+        #expect(services[1].timeRange.contains("/"))
+        #expect(services[1].timeRange.contains("UTC+8"))
+        #expect(!services[1].timeRange.hasPrefix("10:00-10:00"))
+    }
+
+    @Test
+    func `legacy plan hides weekly when weekly total is missing or zero`() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let start = 1_700_000_000_000
+        let end = start + 5 * 60 * 60 * 1000
+        let json = """
+        {
+          "base_resp": { "status_code": 0 },
+          "model_remains": [
+            {
+              "model_name": "MiniMax-M1",
+              "current_interval_total_count": 1000,
+              "current_interval_usage_count": 250,
+              "start_time": \(start),
+              "end_time": \(end),
+              "current_weekly_total_count": 0,
+              "current_weekly_usage_count": 0
+            }
+          ]
+        }
+        """
+        let snapshot = try MiniMaxUsageParser.parseCodingPlanRemains(data: Data(json.utf8), now: now)
+        let services = try #require(snapshot.services)
+        #expect(services.count == 1)
+        #expect(services[0].windowType == "5 hours")
     }
 
     @Test
@@ -415,6 +527,313 @@ struct MiniMaxUsageParserTests {
             try MiniMaxUsageParser.parseCodingPlanRemains(data: Data(json.utf8))
         }
     }
+
+    @Test
+    func `billing history aggregates records locally`() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-05-17T12:00:00Z"))
+        let json = """
+        {
+          "base_resp": { "status_code": 0 },
+          "consume_token_sum": 999999,
+          "total_cnt": 4,
+          "charge_records": [
+            {
+              "consume_token": 1000,
+              "consume_cash_after_voucher": 1.25,
+              "ymd": "2026-05-17",
+              "method": "chat",
+              "model": "MiniMax-M1"
+            },
+            {
+              "consume_token": "2000",
+              "consume_cash": "2.50",
+              "ymd": "2026-05-16",
+              "method": "chat",
+              "model": "MiniMax-M2"
+            },
+            {
+              "consume_input_token": 1200,
+              "consume_output_token": 1800,
+              "ymd": "2026-04-18",
+              "method": "audio",
+              "model": "speech-2.8"
+            },
+            {
+              "consume_token": 4000,
+              "ymd": "2026-04-17",
+              "method": "old",
+              "model": "ignored"
+            }
+          ]
+        }
+        """
+
+        let summary = try MiniMaxBillingHistoryParser.parse(
+            data: Data(json.utf8),
+            now: now,
+            calendar: calendar)
+
+        #expect(summary.todayTokens == 1000)
+        #expect(summary.last30DaysTokens == 6000)
+        #expect(summary.todayCash == 1.25)
+        #expect(summary.last30DaysCash == 3.75)
+        #expect(summary.daily.map(\.day) == ["2026-04-18", "2026-05-16", "2026-05-17"])
+        #expect(summary.topMethods.first?.name == "audio")
+        #expect(summary.topModels.first?.name == "speech-2.8")
+    }
+
+    @Test
+    func `billing history preserves date only days in local calendar`() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: -7 * 60 * 60))
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-05-17T12:00:00Z"))
+        let json = """
+        {
+          "base_resp": { "status_code": 0 },
+          "total_cnt": 1,
+          "charge_records": [
+            {
+              "consume_token": 1234,
+              "ymd": "2026-05-17",
+              "method": "chat",
+              "model": "MiniMax-M1"
+            }
+          ]
+        }
+        """
+
+        let summary = try MiniMaxBillingHistoryParser.parse(
+            data: Data(json.utf8),
+            now: now,
+            calendar: calendar)
+
+        #expect(summary.todayTokens == 1234)
+        #expect(summary.daily.map(\.day) == ["2026-05-17"])
+    }
+
+    @Test
+    func `web usage fetch attaches billing history when available`() async throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-05-17T12:00:00Z"))
+        let transport = ProviderHTTPTransportStub { request in
+            let url = try #require(request.url)
+            if url.path.contains("coding-plan") {
+                return Self.httpResponse(
+                    url: url,
+                    body: Self.codingPlanJSON,
+                    contentType: "application/json")
+            }
+            #expect(url.path == "/account/amount")
+            #expect(url.query?.contains("aggregate=false") == true)
+            #expect(request.value(forHTTPHeaderField: "Cookie") == "HERTZ-SESSION=abc")
+            let body = """
+            {
+              "base_resp": { "status_code": 0 },
+              "total_cnt": 1,
+              "charge_records": [
+                {
+                  "consume_token": 1234,
+                  "ymd": "2026-05-17",
+                  "method": "chat",
+                  "model": "MiniMax-M1"
+                }
+              ]
+            }
+            """
+            return Self.httpResponse(url: url, body: body, contentType: "application/json")
+        }
+
+        let snapshot = try await MiniMaxUsageFetcher.fetchUsage(
+            cookieHeader: "HERTZ-SESSION=abc",
+            region: .global,
+            environment: [:],
+            session: transport,
+            now: now)
+
+        #expect(snapshot.currentPrompts == 2)
+        #expect(snapshot.billingSummary?.todayTokens == 1234)
+        #expect(snapshot.billingSummary?.last30DaysTokens == 1234)
+    }
+
+    @Test
+    func `web usage fetch keeps paginating billing history until 30 day cutoff`() async throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-05-17T12:00:00Z"))
+        let transport = ProviderHTTPTransportStub { request in
+            let url = try #require(request.url)
+            if url.path.contains("coding-plan") {
+                return Self.httpResponse(
+                    url: url,
+                    body: Self.codingPlanJSON,
+                    contentType: "application/json")
+            }
+            let page = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?
+                .first { $0.name == "page" }?
+                .value ?? "1"
+            let recordDay = page == "3" ? "2026-04-17" : "2026-05-17"
+            let records = (0..<100)
+                .map { _ in
+                    """
+                    {"consume_token":1,"ymd":"\(recordDay)","method":"chat","model":"MiniMax-M1"}
+                    """
+                }
+                .joined(separator: ",")
+            let body = """
+            {
+              "base_resp": { "status_code": 0 },
+              "total_cnt": 250,
+              "charge_records": [\(records)]
+            }
+            """
+            return Self.httpResponse(url: url, body: body, contentType: "application/json")
+        }
+
+        let snapshot = try await MiniMaxUsageFetcher.fetchUsage(
+            cookieHeader: "HERTZ-SESSION=abc",
+            region: .global,
+            environment: [:],
+            session: transport,
+            now: now)
+
+        let billingRequests = await transport.requests().filter { $0.url?.path == "/account/amount" }
+        #expect(billingRequests.count == 3)
+        #expect(snapshot.billingSummary?.last30DaysTokens == 200)
+    }
+
+    @Test
+    func `web usage fetch skips billing history when optional usage is disabled`() async throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-05-17T12:00:00Z"))
+        let transport = ProviderHTTPTransportStub { request in
+            let url = try #require(request.url)
+            #expect(url.path.contains("coding-plan"))
+            return Self.httpResponse(
+                url: url,
+                body: Self.codingPlanJSON,
+                contentType: "application/json")
+        }
+
+        let snapshot = try await MiniMaxUsageFetcher.fetchUsage(
+            cookieHeader: "HERTZ-SESSION=abc",
+            region: .global,
+            environment: [:],
+            includeBillingHistory: false,
+            session: transport,
+            now: now)
+
+        let requests = await transport.requests()
+        #expect(snapshot.currentPrompts == 2)
+        #expect(snapshot.billingSummary == nil)
+        #expect(requests.count == 1)
+    }
+
+    @Test
+    func `web usage fetch keeps quota when billing history is forbidden`() async throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-05-17T12:00:00Z"))
+        let transport = ProviderHTTPTransportStub { request in
+            let url = try #require(request.url)
+            if url.path.contains("coding-plan") {
+                return Self.httpResponse(
+                    url: url,
+                    body: Self.codingPlanJSON,
+                    contentType: "application/json")
+            }
+            return Self.httpResponse(url: url, body: "{}", statusCode: 403, contentType: "application/json")
+        }
+
+        let snapshot = try await MiniMaxUsageFetcher.fetchUsage(
+            cookieHeader: "HERTZ-SESSION=abc",
+            region: .global,
+            environment: [:],
+            session: transport,
+            now: now)
+
+        #expect(snapshot.currentPrompts == 2)
+        #expect(snapshot.billingSummary == nil)
+    }
+
+    @Test
+    func `web usage fetch preserves stale bearer failure during billing history`() async throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-05-17T12:00:00Z"))
+        let transport = ProviderHTTPTransportStub { request in
+            let url = try #require(request.url)
+            if url.path.contains("coding-plan") {
+                return Self.httpResponse(
+                    url: url,
+                    body: Self.codingPlanJSON,
+                    contentType: "application/json")
+            }
+            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer stale")
+            return Self.httpResponse(url: url, body: "{}", statusCode: 403, contentType: "application/json")
+        }
+
+        await #expect(throws: MiniMaxUsageError.invalidCredentials) {
+            try await MiniMaxUsageFetcher.fetchUsage(
+                cookieHeader: "HERTZ-SESSION=abc",
+                authorizationToken: "stale",
+                region: .global,
+                environment: [:],
+                session: transport,
+                now: now)
+        }
+    }
+
+    @Test
+    func `web usage fetch preserves billing history cancellation`() async throws {
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-05-17T12:00:00Z"))
+        let transport = ProviderHTTPTransportStub { request in
+            let url = try #require(request.url)
+            if url.path.contains("coding-plan") {
+                return Self.httpResponse(
+                    url: url,
+                    body: Self.codingPlanJSON,
+                    contentType: "application/json")
+            }
+            throw CancellationError()
+        }
+
+        await #expect(throws: CancellationError.self) {
+            try await MiniMaxUsageFetcher.fetchUsage(
+                cookieHeader: "HERTZ-SESSION=abc",
+                region: .global,
+                environment: [:],
+                session: transport,
+                now: now)
+        }
+    }
+
+    private static let codingPlanJSON = """
+    {
+      "base_resp": { "status_code": 0 },
+      "data": {
+        "plan_name": "Max",
+        "model_remains": [
+          {
+            "model_name": "MiniMax-M1",
+            "current_interval_total_count": 10,
+            "current_interval_usage_count": 8,
+            "start_time": 1779019200,
+            "end_time": 1779037200,
+            "remains_time": 3600
+          }
+        ]
+      }
+    }
+    """
+
+    private static func httpResponse(
+        url: URL,
+        body: String,
+        statusCode: Int = 200,
+        contentType: String) -> (Data, URLResponse)
+    {
+        let response = HTTPURLResponse(
+            url: url,
+            statusCode: statusCode,
+            httpVersion: "HTTP/1.1",
+            headerFields: ["Content-Type": contentType])!
+        return (Data(body.utf8), response)
+    }
 }
 
 struct MiniMaxAPIRegionTests {
@@ -442,6 +861,16 @@ struct MiniMaxAPIRegionTests {
         let remains = MiniMaxUsageFetcher.resolveRemainsURL(region: .global, environment: env)
         #expect(codingPlan.host == "api.minimaxi.com")
         #expect(remains.host == "api.minimaxi.com")
+    }
+
+    @Test
+    func `billing history url uses account amount endpoint`() {
+        let url = MiniMaxUsageFetcher.resolveBillingHistoryURL(region: .chinaMainland, environment: [:], page: 2)
+        #expect(url.host == "platform.minimaxi.com")
+        #expect(url.path == "/account/amount")
+        #expect(url.query?.contains("page=2") == true)
+        #expect(url.query?.contains("limit=100") == true)
+        #expect(url.query?.contains("aggregate=false") == true)
     }
 
     @Test

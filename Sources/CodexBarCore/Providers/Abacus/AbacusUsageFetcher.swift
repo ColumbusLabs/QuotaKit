@@ -224,19 +224,17 @@ public enum AbacusUsageFetcher {
             request.httpBody = Data("{}".utf8)
         }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+        let data = response.data
+        let statusCode = response.statusCode
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AbacusUsageError.networkError("Invalid response from \(url.lastPathComponent)")
-        }
-
-        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+        if statusCode == 401 || statusCode == 403 {
             throw AbacusUsageError.unauthorized
         }
 
-        guard httpResponse.statusCode == 200 else {
+        guard statusCode == 200 else {
             let body = String(data: data.prefix(200), encoding: .utf8) ?? ""
-            throw AbacusUsageError.networkError("HTTP \(httpResponse.statusCode): \(body)")
+            throw AbacusUsageError.networkError("HTTP \(statusCode): \(body)")
         }
 
         let parsed: Any

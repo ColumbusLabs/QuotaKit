@@ -47,6 +47,196 @@ struct CostUsageScannerPriorityTests {
     }
 
     @Test
+    func `codex daily report keeps cached priority surcharge without live sqlite metadata`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        let iso0 = env.isoString(for: day)
+        let iso1 = env.isoString(for: day.addingTimeInterval(1))
+        let entries: [[String: Any]] = [
+            ["type": "turn_context", "timestamp": iso0, "payload": ["model": "gpt-5.5"]],
+            ["type": "event_msg", "timestamp": iso1, "payload": ["type": "task_started", "turn_id": "priority-turn"]],
+            self.tokenCount(timestamp: iso1, input: 100, cached: 20, output: 10),
+        ]
+        _ = try env.writeCodexSessionFile(day: day, filename: "session.jsonl", contents: env.jsonl(entries))
+
+        let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
+        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+        try self.insertPriorityTrace(dbURL: dbURL, timestamp: iso1)
+
+        var refreshOptions = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: dbURL)
+        refreshOptions.refreshMinIntervalSeconds = 0
+
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day,
+            options: refreshOptions)
+
+        var cachedOptions = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing.sqlite"))
+        cachedOptions.refreshMinIntervalSeconds = 60
+
+        let cached = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day.addingTimeInterval(1),
+            options: cachedOptions)
+        let priorityCost = (80.0 * 1.25e-5) + (20.0 * 1.25e-6) + (10.0 * 7.5e-5)
+
+        #expect(cached.summary?.totalCostUSD == priorityCost)
+    }
+
+    @Test
+    func `codex daily report rescans when priority metadata appears`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        let iso0 = env.isoString(for: day)
+        let iso1 = env.isoString(for: day.addingTimeInterval(1))
+        let entries: [[String: Any]] = [
+            ["type": "turn_context", "timestamp": iso0, "payload": ["model": "gpt-5.5"]],
+            ["type": "event_msg", "timestamp": iso1, "payload": ["type": "task_started", "turn_id": "priority-turn"]],
+            self.tokenCount(timestamp: iso1, input: 100, cached: 20, output: 10),
+        ]
+        _ = try env.writeCodexSessionFile(day: day, filename: "session.jsonl", contents: env.jsonl(entries))
+
+        let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
+        var missingOptions = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: dbURL)
+        missingOptions.refreshMinIntervalSeconds = 0
+
+        let first = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day,
+            options: missingOptions)
+        let baseCost = (80.0 * 5e-6) + (20.0 * 5e-7) + (10.0 * 3e-5)
+        #expect(first.summary?.totalCostUSD == baseCost)
+
+        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+        try self.insertPriorityTrace(dbURL: dbURL, timestamp: iso1)
+
+        var liveOptions = missingOptions
+        liveOptions.refreshMinIntervalSeconds = 60
+        let rescanned = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day.addingTimeInterval(1),
+            options: liveOptions)
+        let priorityCost = (80.0 * 1.25e-5) + (20.0 * 1.25e-6) + (10.0 * 7.5e-5)
+
+        #expect(rescanned.summary?.totalCostUSD == priorityCost)
+    }
+
+    @Test
+    func `codex daily report ignores unrelated priority wal changes`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        let iso0 = env.isoString(for: day)
+        let iso1 = env.isoString(for: day.addingTimeInterval(1))
+        let entries: [[String: Any]] = [
+            ["type": "turn_context", "timestamp": iso0, "payload": ["model": "gpt-5.5"]],
+            ["type": "event_msg", "timestamp": iso1, "payload": ["type": "task_started", "turn_id": "priority-turn"]],
+            self.tokenCount(timestamp: iso1, input: 100, cached: 20, output: 10),
+        ]
+        _ = try env.writeCodexSessionFile(day: day, filename: "session.jsonl", contents: env.jsonl(entries))
+
+        let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
+        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: dbURL)
+        options.refreshMinIntervalSeconds = 0
+
+        let first = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day,
+            options: options)
+        let baseCost = (80.0 * 5e-6) + (20.0 * 5e-7) + (10.0 * 3e-5)
+        #expect(first.summary?.totalCostUSD == baseCost)
+
+        let walURL = URL(fileURLWithPath: dbURL.path + "-wal")
+        try Data("wal-changed".utf8).write(to: walURL)
+
+        options.refreshMinIntervalSeconds = 60
+        let cached = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day.addingTimeInterval(1),
+            options: options)
+
+        #expect(cached.summary?.totalCostUSD == baseCost)
+    }
+
+    @Test
+    func `codex daily report reprices cached file when priority turn appears`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        let iso0 = env.isoString(for: day)
+        let iso1 = env.isoString(for: day.addingTimeInterval(1))
+        let entries: [[String: Any]] = [
+            ["type": "turn_context", "timestamp": iso0, "payload": ["model": "gpt-5.5"]],
+            ["type": "event_msg", "timestamp": iso1, "payload": ["type": "task_started", "turn_id": "priority-turn"]],
+            self.tokenCount(timestamp: iso1, input: 100, cached: 20, output: 10),
+        ]
+        _ = try env.writeCodexSessionFile(day: day, filename: "session.jsonl", contents: env.jsonl(entries))
+
+        let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
+        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: dbURL)
+        options.refreshMinIntervalSeconds = 0
+
+        let first = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day,
+            options: options)
+        let baseCost = (80.0 * 5e-6) + (20.0 * 5e-7) + (10.0 * 3e-5)
+        #expect(first.summary?.totalCostUSD == baseCost)
+
+        try self.insertPriorityTrace(dbURL: dbURL, timestamp: iso1)
+
+        options.refreshMinIntervalSeconds = 60
+        let repriced = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day.addingTimeInterval(61),
+            options: options)
+        let priorityCost = (80.0 * 1.25e-5) + (20.0 * 1.25e-6) + (10.0 * 7.5e-5)
+
+        #expect(repriced.summary?.totalCostUSD == priorityCost)
+    }
+
+    @Test
     func `codex daily report applies gpt54 priority rates`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }

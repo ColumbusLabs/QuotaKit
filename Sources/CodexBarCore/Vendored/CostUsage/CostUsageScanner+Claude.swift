@@ -196,10 +196,10 @@ extension CostUsageScanner {
     }
 
     private static func claudeCanonicalRowKey(_ row: ClaudeUsageRow) -> String? {
-        guard let sessionId = row.sessionId, let messageId = row.messageId, let requestId = row.requestId else {
+        guard let messageId = row.messageId, let requestId = row.requestId else {
             return nil
         }
-        return "\(sessionId):\(messageId):\(requestId)"
+        return "\(messageId):\(requestId)"
     }
 
     private static func mergeClaudeRows(existing: [ClaudeUsageRow], delta: [ClaudeUsageRow]) -> [ClaudeUsageRow] {
@@ -426,6 +426,7 @@ extension CostUsageScanner {
         var touched: Set<String>
         let range: CostUsageDayRange
         let providerFilter: ClaudeLogProviderFilter
+        let forceFullScan: Bool
         let modelsDevCatalog: ModelsDevCatalog?
         let modelsDevCacheRoot: URL?
 
@@ -433,6 +434,7 @@ extension CostUsageScanner {
             cache: CostUsageCache,
             range: CostUsageDayRange,
             providerFilter: ClaudeLogProviderFilter,
+            forceFullScan: Bool,
             modelsDevCatalog: ModelsDevCatalog?,
             modelsDevCacheRoot: URL?)
         {
@@ -440,6 +442,7 @@ extension CostUsageScanner {
             self.touched = []
             self.range = range
             self.providerFilter = providerFilter
+            self.forceFullScan = forceFullScan
             self.modelsDevCatalog = modelsDevCatalog
             self.modelsDevCacheRoot = modelsDevCacheRoot
         }
@@ -456,12 +459,13 @@ extension CostUsageScanner {
 
         if let cached = state.cache.files[path],
            cached.mtimeUnixMs == mtimeMs,
-           cached.size == size
+           cached.size == size,
+           !state.forceFullScan
         {
             return
         }
 
-        if let cached = state.cache.files[path] {
+        if let cached = state.cache.files[path], !state.forceFullScan {
             let startOffset = cached.parsedBytes ?? cached.size
             let canIncremental = size > cached.size && startOffset > 0 && startOffset <= size
                 && cached.claudeRows != nil
@@ -566,7 +570,12 @@ extension CostUsageScanner {
         let nowMs = Int64(now.timeIntervalSince1970 * 1000)
 
         let refreshMs = Int64(max(0, options.refreshMinIntervalSeconds) * 1000)
-        let shouldRefresh = refreshMs == 0 || cache.lastScanUnixMs == 0 || nowMs - cache.lastScanUnixMs > refreshMs
+        let windowExpanded = Self.requestedWindowExpandsCache(range: range, cache: cache)
+        let shouldRefresh = options.forceRescan
+            || windowExpanded
+            || refreshMs == 0
+            || cache.lastScanUnixMs == 0
+            || nowMs - cache.lastScanUnixMs > refreshMs
 
         let roots = self.defaultClaudeProjectsRoots(options: options)
         let providerFilter = options.claudeLogProviderFilter
@@ -582,6 +591,7 @@ extension CostUsageScanner {
                 cache: cache,
                 range: range,
                 providerFilter: providerFilter,
+                forceFullScan: options.forceRescan || windowExpanded,
                 modelsDevCatalog: modelsDevCatalog,
                 modelsDevCacheRoot: options.cacheRoot)
 
@@ -601,6 +611,8 @@ extension CostUsageScanner {
 
             Self.rebuildClaudeDays(cache: &cache)
             Self.pruneDays(cache: &cache, sinceKey: range.scanSinceKey, untilKey: range.scanUntilKey)
+            cache.scanSinceKey = range.scanSinceKey
+            cache.scanUntilKey = range.scanUntilKey
             cache.lastScanUnixMs = nowMs
             CostUsageCacheIO.save(provider: provider, cache: cache, cacheRoot: options.cacheRoot)
         }

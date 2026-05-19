@@ -83,6 +83,9 @@ Usage source picker:
 - App-server errors are terminal for the CLI strategy, except when Codex includes a recoverable `wham/usage` JSON body in the error text.
 - If macOS blocks or quarantines the `codex` executable, CodexBar records the launch failure and skips background CLI
   launches for 30 minutes. Use a manual refresh after reinstalling or unblocking `codex` to retry immediately.
+- If managed Codex account login fails after macOS moved `codex` to Trash, first confirm `codex --version` works in
+  Terminal. Check `which -a codex` for stale duplicate installs, then run
+  `npm install -g --include=optional @openai/codex@latest` before retrying Add Account.
 
 ### Codex CLI PTY diagnostics (`/status`)
 - Manual/debug parser only; automatic background refresh and `CodexBarCLI usage --source cli` do not launch bare Codex TUI.
@@ -121,7 +124,7 @@ Usage source picker:
 - Cache:
   - Native + merged provider cache: `~/Library/Caches/CodexBar/cost-usage/codex-v2.json`
   - pi session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v1.json`
-- Window: last 30 days (rolling), with a 60s minimum refresh interval.
+- Window: configurable 1-365 day rolling history, with a 60s minimum refresh interval.
 
 ## Key files
 - Web: `Sources/CodexBarCore/OpenAIWeb/*`

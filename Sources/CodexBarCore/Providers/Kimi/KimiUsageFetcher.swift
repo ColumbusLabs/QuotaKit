@@ -46,25 +46,22 @@ public struct KimiUsageFetcher: Sendable {
         let requestBody = ["scope": ["FEATURE_CODING"]]
         request.httpBody = try? JSONSerialization.data(withJSONObject: requestBody)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw KimiAPIError.networkError("Invalid response")
-        }
-
-        guard httpResponse.statusCode == 200 else {
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+        let data = response.data
+        guard response.statusCode == 200 else {
             let responseBody = String(data: data, encoding: .utf8) ?? "<binary data>"
-            Self.log.error("Kimi API returned \(httpResponse.statusCode): \(responseBody)")
+            Self.log.error("Kimi API returned \(response.statusCode): \(responseBody)")
 
-            if httpResponse.statusCode == 401 {
+            if response.statusCode == 401 {
                 throw KimiAPIError.invalidToken
             }
-            if httpResponse.statusCode == 403 {
+            if response.statusCode == 403 {
                 throw KimiAPIError.invalidToken
             }
-            if httpResponse.statusCode == 400 {
+            if response.statusCode == 400 {
                 throw KimiAPIError.invalidRequest("Bad request")
             }
-            throw KimiAPIError.apiError("HTTP \(httpResponse.statusCode)")
+            throw KimiAPIError.apiError("HTTP \(response.statusCode)")
         }
 
         let usageResponse = try JSONDecoder().decode(KimiUsageResponse.self, from: data)

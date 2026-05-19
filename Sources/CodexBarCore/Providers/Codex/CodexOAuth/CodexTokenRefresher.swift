@@ -49,13 +49,10 @@ public enum CodexTokenRefresher {
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse else {
-                throw RefreshError.invalidResponse("No HTTP response")
-            }
-
-            guard http.statusCode == 200 else {
-                throw Self.refreshFailureError(statusCode: http.statusCode, data: data)
+            let response = try await ProviderHTTPClient.shared.response(for: request)
+            let data = response.data
+            guard response.statusCode == 200 else {
+                throw Self.refreshFailureError(statusCode: response.statusCode, data: data)
             }
 
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {

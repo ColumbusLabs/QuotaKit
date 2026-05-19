@@ -246,19 +246,14 @@ enum BedrockUsageFetcher {
             region: ceRegion,
             service: "ce")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw BedrockUsageError.networkError("Invalid response")
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+        guard response.statusCode == 200 else {
+            let summary = Self.sanitizedResponseBody(response.data)
+            Self.log.error("AWS Cost Explorer returned \(response.statusCode): \(summary)")
+            throw BedrockUsageError.apiError("HTTP \(response.statusCode)")
         }
 
-        guard httpResponse.statusCode == 200 else {
-            let summary = Self.sanitizedResponseBody(data)
-            Self.log.error("AWS Cost Explorer returned \(httpResponse.statusCode): \(summary)")
-            throw BedrockUsageError.apiError("HTTP \(httpResponse.statusCode)")
-        }
-
-        return data
+        return response.data
     }
 
     private static func nextPageToken(from data: Data) throws -> String? {

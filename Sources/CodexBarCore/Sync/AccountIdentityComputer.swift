@@ -63,7 +63,11 @@ public enum AccountIdentityComputer {
              // Upstream v0.26.0 new providers. Same rationale as above —
              // iOS 1.7 surfaces these via single-account cards; promote
              // to Tier-A only when cross-Mac merging is needed.
-             .moonshot, .bedrock:
+             .moonshot, .bedrock,
+             // Upstream v0.27.0 new providers. iOS 1.8 surfaces these
+             // via single-account cards. Promote to Tier-A only if a
+             // user files a cross-Mac merging request for them.
+             .grok, .groq, .elevenlabs, .deepgram, .llmproxy:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS falls back to per-device legacy
             // bucket. If a future provider needs cross-Mac merging, add

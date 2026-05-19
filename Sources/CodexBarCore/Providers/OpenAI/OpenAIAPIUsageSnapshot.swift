@@ -115,14 +115,24 @@ public struct OpenAIAPIUsageSnapshot: Codable, Equatable, Sendable {
 
     public let daily: [DailyBucket]
     public let updatedAt: Date
+    public let historyDays: Int
 
-    public init(daily: [DailyBucket], updatedAt: Date) {
+    public init(daily: [DailyBucket], updatedAt: Date, historyDays: Int = 30) {
         self.daily = daily.sorted { $0.startTime < $1.startTime }
         self.updatedAt = updatedAt
+        self.historyDays = max(1, min(365, historyDays))
     }
 
     public var last30Days: Summary {
-        self.summary(days: 30)
+        self.summary(days: self.historyDays)
+    }
+
+    public var historyWindowLabel: String {
+        self.historyDays == 1 ? "Today" : "\(self.historyDays)d"
+    }
+
+    public var historyWindowPeriodLabel: String {
+        self.historyDays == 1 ? "Today" : "Last \(self.historyDays) days"
     }
 
     public var last7Days: Summary {
@@ -183,7 +193,7 @@ public struct OpenAIAPIUsageSnapshot: Codable, Equatable, Sendable {
                 used: total.costUSD,
                 limit: 0,
                 currencyCode: "USD",
-                period: "Last 30 days",
+                period: self.historyWindowPeriodLabel,
                 updatedAt: self.updatedAt),
             openAIAPIUsage: self,
             updatedAt: self.updatedAt,

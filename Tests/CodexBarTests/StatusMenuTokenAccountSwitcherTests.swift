@@ -207,6 +207,35 @@ final class StatusMenuTokenAccountSwitcherTests: XCTestCase {
         XCTAssertEqual(self.representedIDs(in: menu).filter { $0.hasPrefix("menuCard") }, ["menuCard-0", "menuCard-1"])
     }
 
+    func test_multiAccountStackedRefreshStartsAccountFetchesConcurrently() async {
+        self.disableMenuCardsForTesting()
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = false
+        settings.multiAccountMenuLayout = .stacked
+        self.enableOnlyClaude(settings)
+        settings.addTokenAccount(provider: .claude, label: "Primary", token: "Bearer sk-ant-oat-primary")
+        settings.addTokenAccount(provider: .claude, label: "Secondary", token: "Bearer sk-ant-oat-secondary")
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let blocker = BlockingTokenAccountFetchStrategy()
+        self.installBlockingClaudeProvider(on: store, blocker: blocker)
+
+        let refreshTask = Task { @MainActor in
+            await store.refreshProvider(.claude)
+        }
+
+        await blocker.waitUntilStarted(count: 2)
+        let startedBeforeResume = await blocker.startedCallCount()
+        XCTAssertEqual(startedBeforeResume, 2)
+
+        await blocker.resumeAll(with: .success(self.snapshot(percent: 17)))
+        await refreshTask.value
+        XCTAssertEqual(store.accountSnapshots[.claude]?.count, 2)
+    }
+
     func test_multiAccountStackedLayoutIgnoresStaleSnapshotsAndKeepsMenuCapped() {
         self.disableMenuCardsForTesting()
         let settings = self.makeSettings()

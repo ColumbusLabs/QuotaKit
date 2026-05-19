@@ -37,9 +37,33 @@ struct LocalizationBundleTests {
         #expect(bundle.path(forResource: "en", ofType: "lproj") != nil)
     }
 
+    @Test
+    func `empty localized values fall back to English`() throws {
+        let fixture = try Self.makeAppBundleFixture(
+            includeLocalizationBundle: true,
+            includeEmptyChineseLocalization: true)
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let resourceBundle = codexBarLocalizationResourceBundle(mainBundle: fixture.appBundle)
+        let zhPath = try #require(resourceBundle.path(forResource: "zh-Hans", ofType: "lproj"))
+        let zhBundle = try #require(Bundle(path: zhPath))
+
+        #expect(codexBarLocalizedString("Settings", bundle: zhBundle, resourceBundle: resourceBundle) == "Settings")
+        #expect(codexBarLocalizedString("Missing", bundle: zhBundle, resourceBundle: resourceBundle) == "Missing")
+    }
+
+    @Test
+    func `managed Codex login failure includes CLI recovery guidance`() {
+        let message = L("managed_login_failed")
+
+        #expect(message.contains("codex --version"))
+        #expect(message.contains("@openai/codex@latest"))
+    }
+
     private static func makeAppBundleFixture(
         includeLocalizationBundle: Bool,
-        includeMainLocalization: Bool = false) throws -> (root: URL, appBundle: Bundle)
+        includeMainLocalization: Bool = false,
+        includeEmptyChineseLocalization: Bool = false) throws -> (root: URL, appBundle: Bundle)
     {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(
             "codexbar-localization-\(UUID().uuidString)",
@@ -71,10 +95,12 @@ struct LocalizationBundleTests {
         }
 
         if includeLocalizationBundle {
-            let lprojURL = resourcesURL
-                .appendingPathComponent("CodexBar_CodexBar.bundle", isDirectory: true)
-                .appendingPathComponent("en.lproj", isDirectory: true)
-            try Self.writeEnglishLocalization(to: lprojURL)
+            let bundleURL = resourcesURL.appendingPathComponent("CodexBar_CodexBar.bundle", isDirectory: true)
+            try Self.writeEnglishLocalization(to: bundleURL.appendingPathComponent("en.lproj", isDirectory: true))
+            if includeEmptyChineseLocalization {
+                try Self.writeEmptyChineseLocalization(
+                    to: bundleURL.appendingPathComponent("zh-Hans.lproj", isDirectory: true))
+            }
         }
 
         let appBundle = try #require(Bundle(url: appURL))
@@ -84,6 +110,14 @@ struct LocalizationBundleTests {
     private static func writeEnglishLocalization(to lprojURL: URL) throws {
         try FileManager.default.createDirectory(at: lprojURL, withIntermediateDirectories: true)
         try "\"Settings\" = \"Settings\";\n".write(
+            to: lprojURL.appendingPathComponent("Localizable.strings"),
+            atomically: true,
+            encoding: .utf8)
+    }
+
+    private static func writeEmptyChineseLocalization(to lprojURL: URL) throws {
+        try FileManager.default.createDirectory(at: lprojURL, withIntermediateDirectories: true)
+        try "\"Settings\" = \"\";\n".write(
             to: lprojURL.appendingPathComponent("Localizable.strings"),
             atomically: true,
             encoding: .utf8)

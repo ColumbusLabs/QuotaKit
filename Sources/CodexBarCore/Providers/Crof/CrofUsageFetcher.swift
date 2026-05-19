@@ -41,7 +41,7 @@ public enum CrofUsageFetcher {
 
     public static func fetchUsage(
         apiKey: String,
-        session: URLSession = .shared) async throws -> CrofUsageSnapshot
+        session transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) async throws -> CrofUsageSnapshot
     {
         let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
@@ -54,22 +54,18 @@ public enum CrofUsageFetcher {
         request.setValue("Bearer \(trimmed)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        let data: Data
-        let response: URLResponse
+        let response: ProviderHTTPResponse
         do {
-            (data, response) = try await session.data(for: request)
+            response = try await transport.response(for: request)
         } catch {
             throw CrofUsageError.networkError(error.localizedDescription)
         }
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw CrofUsageError.networkError("Invalid response")
-        }
-        guard httpResponse.statusCode == 200 else {
-            throw CrofUsageError.apiError(httpResponse.statusCode)
+        guard response.statusCode == 200 else {
+            throw CrofUsageError.apiError(response.statusCode)
         }
 
-        return try self.parseSnapshot(data)
+        return try self.parseSnapshot(response.data)
     }
 
     static func _parseSnapshotForTesting(_ data: Data) throws -> CrofUsageSnapshot {

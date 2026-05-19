@@ -23,6 +23,7 @@ public struct ProviderFetchContext: Sendable {
     public let runtime: ProviderRuntime
     public let sourceMode: ProviderSourceMode
     public let includeCredits: Bool
+    public let includeOptionalUsage: Bool
     public let webTimeout: TimeInterval
     public let webDebugDumpHTML: Bool
     public let verbose: Bool
@@ -33,11 +34,13 @@ public struct ProviderFetchContext: Sendable {
     public let browserDetection: BrowserDetection
     public let selectedTokenAccountID: UUID?
     public let tokenAccountTokenUpdater: TokenAccountTokenUpdater?
+    public let costUsageHistoryDays: Int
 
     public init(
         runtime: ProviderRuntime,
         sourceMode: ProviderSourceMode,
         includeCredits: Bool,
+        includeOptionalUsage: Bool = true,
         webTimeout: TimeInterval,
         webDebugDumpHTML: Bool,
         verbose: Bool,
@@ -47,11 +50,13 @@ public struct ProviderFetchContext: Sendable {
         claudeFetcher: any ClaudeUsageFetching,
         browserDetection: BrowserDetection,
         selectedTokenAccountID: UUID? = nil,
-        tokenAccountTokenUpdater: TokenAccountTokenUpdater? = nil)
+        tokenAccountTokenUpdater: TokenAccountTokenUpdater? = nil,
+        costUsageHistoryDays: Int = 30)
     {
         self.runtime = runtime
         self.sourceMode = sourceMode
         self.includeCredits = includeCredits
+        self.includeOptionalUsage = includeOptionalUsage
         self.webTimeout = webTimeout
         self.webDebugDumpHTML = webDebugDumpHTML
         self.verbose = verbose
@@ -62,6 +67,7 @@ public struct ProviderFetchContext: Sendable {
         self.browserDetection = browserDetection
         self.selectedTokenAccountID = selectedTokenAccountID
         self.tokenAccountTokenUpdater = tokenAccountTokenUpdater
+        self.costUsageHistoryDays = max(1, min(365, costUsageHistoryDays))
     }
 }
 

@@ -4,10 +4,11 @@ enum CostUsageCacheIO {
     private static func artifactVersion(for provider: UsageProvider) -> Int {
         switch provider {
         case .codex:
-            // Upstream bumped 5 → 6 in v0.26.x for further pricing/parser
-            // changes; supersedes fork's prior 4 → 5 (0.23.1 hotfix for
-            // gpt-5.5 attribution).
-            6
+            // Upstream bumped to 8 in v0.27.0 (further pricing/parser
+            // changes: Codex JSONL shape benchmark, per-event token usage
+            // preference, long turn-context attribution). Supersedes
+            // fork's prior 4 → 5 → 6 history.
+            8
         case .claude, .vertexai:
             // Bumped 2 → 3 alongside the codex bump for consistency: the
             // claude pricing table also gained `claude-opus-4-7` and the
@@ -77,7 +78,11 @@ enum CostUsageCacheIO {
         let data = (try? JSONEncoder().encode(stamped)) ?? Data()
         do {
             try data.write(to: tmp, options: [.atomic])
-            _ = try FileManager.default.replaceItemAt(url, withItemAt: tmp)
+            if FileManager.default.fileExists(atPath: url.path) {
+                _ = try FileManager.default.replaceItemAt(url, withItemAt: tmp)
+            } else {
+                try FileManager.default.moveItem(at: tmp, to: url)
+            }
         } catch {
             try? FileManager.default.removeItem(at: tmp)
         }
@@ -87,6 +92,12 @@ enum CostUsageCacheIO {
 struct CostUsageCache: Codable {
     var version: Int = 1
     var lastScanUnixMs: Int64 = 0
+    var scanSinceKey: String?
+    var scanUntilKey: String?
+    var codexPricingKey: String?
+    var codexPriorityMetadataKey: String?
+    var codexPriorityTurnKeys: [String: String]?
+    var codexPriorityTurnIDsByDay: [String: [String]]?
 
     /// Pricing-table + parser fingerprint at the moment this cache was
     /// written. `CostUsageCacheIO.load` invalidates any cache whose
@@ -112,9 +123,15 @@ struct CostUsageFileUsage: Codable {
     var parsedBytes: Int64?
     var lastModel: String?
     var lastTotals: CostUsageCodexTotals?
+    var lastCountedTotals: CostUsageCodexTotals?
+    var lastRawTotalsBaseline: CostUsageCodexTotals?
+    var hasDivergentTotals: Bool?
     var lastCodexTurnID: String?
     var sessionId: String?
     var forkedFromId: String?
+    var codexCostNanos: [String: [String: Int64]]?
+    var codexPrioritySurchargeNanos: [String: [String: Int64]]?
+    var codexTurnIDs: [String]?
     var codexRows: [CostUsageScanner.CodexUsageRow]?
     var claudeRows: [CostUsageScanner.ClaudeUsageRow]?
 }

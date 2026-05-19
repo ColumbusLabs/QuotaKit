@@ -14,6 +14,7 @@ extension UsageMenuCardView.Model {
             self.metrics.isEmpty &&
             self.usageNotes.isEmpty &&
             self.openAIAPIUsage == nil &&
+            self.inlineUsageDashboard == nil &&
             self.creditsRemaining == nil &&
             self.providerCost == nil &&
             self.tokenUsage == nil &&
@@ -24,6 +25,7 @@ extension UsageMenuCardView.Model {
         !self.metrics.isEmpty ||
             !self.usageNotes.isEmpty ||
             self.openAIAPIUsage != nil ||
+            self.inlineUsageDashboard != nil ||
             self.placeholder != nil
     }
 
@@ -44,9 +46,11 @@ extension UsageMenuCardView.Model {
         if self.shouldShowRateLimitsUnavailablePlaceholder(input: input) {
             return "Limits not available"
         }
+
         if input.snapshot == nil, !input.isRefreshing, input.lastError == nil {
             return "No usage yet"
         }
+
         return nil
     }
 

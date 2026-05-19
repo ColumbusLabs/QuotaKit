@@ -42,6 +42,14 @@ enum CodexBarCLI {
                 self.runConfigValidate(invocation.parsedValues)
             case ["config", "dump"]:
                 self.runConfigDump(invocation.parsedValues)
+            case ["config", "providers"]:
+                self.runConfigProviders(invocation.parsedValues)
+            case ["config", "enable"]:
+                self.runConfigSetProviderEnabled(invocation.parsedValues, enabled: true)
+            case ["config", "disable"]:
+                self.runConfigSetProviderEnabled(invocation.parsedValues, enabled: false)
+            case ["config", "set-api-key"]:
+                self.runConfigSetAPIKey(invocation.parsedValues)
             case ["cache", "clear"]:
                 self.runCacheClear(invocation.parsedValues)
             default:
@@ -63,6 +71,8 @@ enum CodexBarCLI {
         let costSignature = CommandSignature.describe(CostOptions())
         let serveSignature = CommandSignature.describe(ServeOptions())
         let configSignature = CommandSignature.describe(ConfigOptions())
+        let configProviderToggleSignature = CommandSignature.describe(ConfigProviderToggleOptions())
+        let configSetAPIKeySignature = CommandSignature.describe(ConfigSetAPIKeyOptions())
         let cacheSignature = CommandSignature.describe(CacheOptions())
 
         return [
@@ -97,6 +107,26 @@ enum CodexBarCLI {
                         abstract: "Print normalized config JSON",
                         discussion: nil,
                         signature: configSignature),
+                    CommandDescriptor(
+                        name: "providers",
+                        abstract: "List provider enablement",
+                        discussion: nil,
+                        signature: configSignature),
+                    CommandDescriptor(
+                        name: "enable",
+                        abstract: "Enable a provider",
+                        discussion: nil,
+                        signature: configProviderToggleSignature),
+                    CommandDescriptor(
+                        name: "disable",
+                        abstract: "Disable a provider",
+                        discussion: nil,
+                        signature: configProviderToggleSignature),
+                    CommandDescriptor(
+                        name: "set-api-key",
+                        abstract: "Store a provider API key",
+                        discussion: nil,
+                        signature: configSetAPIKeySignature),
                 ],
                 defaultSubcommandName: "validate"),
             CommandDescriptor(

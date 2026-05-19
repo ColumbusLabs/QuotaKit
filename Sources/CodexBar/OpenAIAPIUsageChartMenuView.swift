@@ -26,9 +26,15 @@ struct OpenAIAPIUsageChartMenuView: View {
                     alignment: .leading,
                     spacing: 6)
                 {
-                    StatPill(title: "30d spend", value: UsageFormatter.usdString(model.last30.costUSD))
-                    StatPill(title: "30d tokens", value: UsageFormatter.tokenCountString(model.last30.totalTokens))
-                    StatPill(title: "30d requests", value: UsageFormatter.tokenCountString(model.last30.requests))
+                    StatPill(
+                        title: "\(model.historyLabel) spend",
+                        value: UsageFormatter.usdString(model.last30.costUSD))
+                    StatPill(
+                        title: "\(model.historyLabel) tokens",
+                        value: UsageFormatter.tokenCountString(model.last30.totalTokens))
+                    StatPill(
+                        title: "\(model.historyLabel) requests",
+                        value: UsageFormatter.tokenCountString(model.last30.requests))
                 }
 
                 Chart {
@@ -143,6 +149,7 @@ struct OpenAIAPIUsageChartMenuView: View {
         let axisDates: [Date]
         let peakSpendPoint: Point?
         let last30: OpenAIAPIUsageSnapshot.Summary
+        let historyLabel: String
     }
 
     private static let spendColor = Color(red: 0.81, green: 0.56, blue: 0.24)
@@ -178,7 +185,8 @@ struct OpenAIAPIUsageChartMenuView: View {
             dayDates: dayDates,
             axisDates: axisDates,
             peakSpendPoint: (peak?.costUSD ?? 0) > 0 ? peak : nil,
-            last30: snapshot.last30Days)
+            last30: snapshot.last30Days,
+            historyLabel: snapshot.historyWindowLabel)
     }
 
     private func detail(model: Model) -> (primary: String, secondary: String?) {

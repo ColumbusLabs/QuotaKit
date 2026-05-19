@@ -17,7 +17,7 @@ public enum CodebuffUsageFetcher {
         apiKey: String,
         environment: [String: String] = ProcessInfo.processInfo.environment,
         includeSubscription: Bool = true,
-        session: URLSession = .shared) async throws -> CodebuffUsageSnapshot
+        session transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) async throws -> CodebuffUsageSnapshot
     {
         let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
@@ -30,7 +30,7 @@ public enum CodebuffUsageFetcher {
             apiKey: trimmed,
             baseURL: baseURL,
             includeSubscription: includeSubscription,
-            session: session)
+            transport: transport)
 
         return CodebuffUsageSnapshot(
             creditsUsed: usageValues.used,
@@ -52,18 +52,18 @@ public enum CodebuffUsageFetcher {
         apiKey: String,
         baseURL: URL,
         includeSubscription: Bool,
-        session: URLSession) async throws -> (UsagePayload, SubscriptionPayload?)
+        transport: any ProviderHTTPTransport) async throws -> (UsagePayload, SubscriptionPayload?)
     {
         try await withThrowingTaskGroup(of: FetchResult.self) { group in
             group.addTask {
-                try await .usage(self.fetchUsagePayload(apiKey: apiKey, baseURL: baseURL, session: session))
+                try await .usage(self.fetchUsagePayload(apiKey: apiKey, baseURL: baseURL, transport: transport))
             }
             if includeSubscription {
                 group.addTask {
                     await .subscription(try? self.fetchSubscriptionPayload(
                         apiKey: apiKey,
                         baseURL: baseURL,
-                        session: session))
+                        transport: transport))
                 }
             }
 
@@ -223,7 +223,7 @@ public enum CodebuffUsageFetcher {
     private static func fetchUsagePayload(
         apiKey: String,
         baseURL: URL,
-        session: URLSession) async throws -> UsagePayload
+        transport: any ProviderHTTPTransport) async throws -> UsagePayload
     {
         var request = URLRequest(url: self.usageURL(baseURL: baseURL))
         request.httpMethod = "POST"
@@ -233,20 +233,20 @@ public enum CodebuffUsageFetcher {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["fingerprintId": "codexbar-usage"])
 
-        let (data, response) = try await self.send(request: request, session: session)
+        let response = try await self.send(request: request, transport: transport)
         if let err = self.statusError(for: response.statusCode) {
             throw err
         }
         guard response.statusCode == 200 else {
             throw CodebuffUsageError.apiError(response.statusCode)
         }
-        return try self.parseUsagePayload(data)
+        return try self.parseUsagePayload(response.data)
     }
 
     private static func fetchSubscriptionPayload(
         apiKey: String,
         baseURL: URL,
-        session: URLSession) async throws -> SubscriptionPayload
+        transport: any ProviderHTTPTransport) async throws -> SubscriptionPayload
     {
         var request = URLRequest(url: self.subscriptionURL(baseURL: baseURL))
         request.httpMethod = "GET"
@@ -254,28 +254,26 @@ public enum CodebuffUsageFetcher {
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        let (data, response) = try await self.send(request: request, session: session)
+        let response = try await self.send(request: request, transport: transport)
         if let err = self.statusError(for: response.statusCode) {
             throw err
         }
         guard response.statusCode == 200 else {
             throw CodebuffUsageError.apiError(response.statusCode)
         }
-        return try self.parseSubscriptionPayload(data)
+        return try self.parseSubscriptionPayload(response.data)
     }
 
     private static func send(
         request: URLRequest,
-        session: URLSession) async throws -> (Data, HTTPURLResponse)
+        transport: any ProviderHTTPTransport) async throws -> ProviderHTTPResponse
     {
         do {
-            let (data, response) = try await session.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw CodebuffUsageError.networkError("Invalid response")
-            }
-            return (data, httpResponse)
+            return try await transport.response(for: request)
         } catch let error as CodebuffUsageError {
             throw error
+        } catch let error as URLError where error.code == .badServerResponse {
+            throw CodebuffUsageError.networkError("Invalid response")
         } catch {
             throw CodebuffUsageError.networkError(error.localizedDescription)
         }

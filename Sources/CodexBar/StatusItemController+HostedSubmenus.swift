@@ -184,6 +184,7 @@ extension StatusItemController {
             provider: provider,
             daily: tokenSnapshot.daily,
             totalCostUSD: tokenSnapshot.last30DaysCostUSD,
+            historyDays: tokenSnapshot.historyDays,
             width: width)
         let hosting = MenuHostingView(rootView: chartView)
         let controller = NSHostingController(rootView: chartView)

@@ -33,7 +33,7 @@ struct UsageOptions: CommanderParsable {
     @Option(name: .long("account-index"), help: "Token account index (1-based)")
     var accountIndex: Int?
 
-    @Flag(name: .long("all-accounts"), help: "Fetch all token accounts for the provider")
+    @Flag(name: .long("all-accounts"), help: "Fetch all token accounts, or all visible Codex accounts")
     var allAccounts: Bool = false
 
     @Option(name: .long("format"), help: "Output format: text | json")

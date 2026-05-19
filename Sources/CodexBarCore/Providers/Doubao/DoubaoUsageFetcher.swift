@@ -135,20 +135,17 @@ public struct DoubaoUsageFetcher: Sendable {
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw DoubaoUsageError.networkError("Invalid response")
-        }
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+        let data = response.data
 
         // Accept both 200 (success) and 429 (rate limited) – both carry rate limit headers.
-        guard httpResponse.statusCode == 200 || httpResponse.statusCode == 429 else {
-            let summary = Self.apiErrorSummary(statusCode: httpResponse.statusCode, data: data)
-            Self.log.error("Doubao API returned \(httpResponse.statusCode): \(summary)")
-            throw DoubaoUsageError.apiError(httpResponse.statusCode, summary)
+        guard response.statusCode == 200 || response.statusCode == 429 else {
+            let summary = Self.apiErrorSummary(statusCode: response.statusCode, data: data)
+            Self.log.error("Doubao API returned \(response.statusCode): \(summary)")
+            throw DoubaoUsageError.apiError(response.statusCode, summary)
         }
 
-        let headers = httpResponse.allHeaderFields
+        let headers = response.response.allHeaderFields
         let remaining = Self.intHeader(headers, "x-ratelimit-remaining-requests")
         let limit = Self.intHeader(headers, "x-ratelimit-limit-requests")
         let resetString = Self.stringHeader(headers, "x-ratelimit-reset-requests")
@@ -165,7 +162,7 @@ public struct DoubaoUsageFetcher: Sendable {
 
         // 429 means the key is valid but rate-limited; treat it as valid so the UI
         // shows "Active" instead of "No usage data" when headers are absent.
-        let keyValid = httpResponse.statusCode == 200 || httpResponse.statusCode == 429
+        let keyValid = response.statusCode == 200 || response.statusCode == 429
 
         let snapshot = DoubaoUsageSnapshot(
             remainingRequests: remaining ?? 0,

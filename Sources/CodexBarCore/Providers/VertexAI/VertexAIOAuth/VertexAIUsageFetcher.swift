@@ -215,20 +215,15 @@ public enum VertexAIUsageFetcher {
             request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
             request.timeoutInterval = 30
 
-            let data: Data
-            let response: URLResponse
+            let response: ProviderHTTPResponse
 
             do {
-                (data, response) = try await URLSession.shared.data(for: request)
+                response = try await ProviderHTTPClient.shared.response(for: request)
             } catch {
                 throw VertexAIFetchError.networkError(error)
             }
 
-            guard let http = response as? HTTPURLResponse else {
-                throw VertexAIFetchError.invalidResponse("No HTTP response")
-            }
-
-            switch http.statusCode {
+            switch response.statusCode {
             case 401:
                 throw VertexAIFetchError.unauthorized
             case 403:
@@ -236,11 +231,11 @@ public enum VertexAIUsageFetcher {
             case 200:
                 break
             default:
-                let body = String(data: data, encoding: .utf8) ?? ""
-                throw VertexAIFetchError.invalidResponse("HTTP \(http.statusCode): \(body)")
+                let body = String(data: response.data, encoding: .utf8) ?? ""
+                throw VertexAIFetchError.invalidResponse("HTTP \(response.statusCode): \(body)")
             }
 
-            let decoded = try JSONDecoder().decode(MonitoringTimeSeriesResponse.self, from: data)
+            let decoded = try JSONDecoder().decode(MonitoringTimeSeriesResponse.self, from: response.data)
             if let series = decoded.timeSeries {
                 allSeries.append(contentsOf: series)
             }

@@ -58,7 +58,8 @@ struct OpenCodeGoUsageFetchStrategy: ProviderFetchStrategy {
             let snapshot = try await OpenCodeGoUsageFetcher.fetchUsage(
                 cookieHeader: cookieHeader,
                 timeout: context.webTimeout,
-                workspaceIDOverride: workspaceOverride)
+                workspaceIDOverride: workspaceOverride,
+                includeZenBalance: context.includeOptionalUsage)
             return self.makeResult(
                 usage: snapshot.toUsageSnapshot(),
                 sourceLabel: "web")
@@ -69,7 +70,8 @@ struct OpenCodeGoUsageFetchStrategy: ProviderFetchStrategy {
             let snapshot = try await OpenCodeGoUsageFetcher.fetchUsage(
                 cookieHeader: cookieHeader,
                 timeout: context.webTimeout,
-                workspaceIDOverride: workspaceOverride)
+                workspaceIDOverride: workspaceOverride,
+                includeZenBalance: context.includeOptionalUsage)
             return self.makeResult(
                 usage: snapshot.toUsageSnapshot(),
                 sourceLabel: "web")

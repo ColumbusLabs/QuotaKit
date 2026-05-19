@@ -37,6 +37,7 @@ struct UsageMenuCardView: View {
             let pacePercent: Double?
             let paceOnTop: Bool
             let warningMarkerPercents: [Double]
+            let cardStyle: Bool
 
             init(
                 id: String,
@@ -50,7 +51,8 @@ struct UsageMenuCardView: View {
                 detailRightText: String?,
                 pacePercent: Double?,
                 paceOnTop: Bool,
-                warningMarkerPercents: [Double] = [])
+                warningMarkerPercents: [Double] = [],
+                cardStyle: Bool = false)
             {
                 self.id = id
                 self.title = title
@@ -64,6 +66,7 @@ struct UsageMenuCardView: View {
                 self.pacePercent = pacePercent
                 self.paceOnTop = paceOnTop
                 self.warningMarkerPercents = warningMarkerPercents
+                self.cardStyle = cardStyle
             }
 
             var percentLabel: String {
@@ -101,6 +104,7 @@ struct UsageMenuCardView: View {
         let metrics: [Metric]
         let usageNotes: [String]
         let openAIAPIUsage: OpenAIAPIUsageSnapshot?
+        let inlineUsageDashboard: InlineUsageDashboardModel?
         let creditsText: String?
         let creditsRemaining: Double?
         let creditsHintText: String?
@@ -131,8 +135,8 @@ struct UsageMenuCardView: View {
             }
 
             if self.model.metrics.isEmpty {
-                if let usage = self.model.openAIAPIUsage {
-                    OpenAIAPIInlineDashboardContent(snapshot: usage)
+                if let dashboard = self.model.inlineUsageDashboard {
+                    InlineUsageDashboardContent(model: dashboard)
                 } else if !self.model.usageNotes.isEmpty {
                     UsageNotesContent(notes: self.model.usageNotes)
                 } else if let placeholder = self.model.placeholder {
@@ -155,8 +159,8 @@ struct UsageMenuCardView: View {
                                     title: Self.popupMetricTitle(provider: self.model.provider, metric: metric),
                                     progressColor: self.model.progressColor)
                             }
-                            if let usage = self.model.openAIAPIUsage {
-                                OpenAIAPIInlineDashboardContent(snapshot: usage)
+                            if let dashboard = self.model.inlineUsageDashboard {
+                                InlineUsageDashboardContent(model: dashboard)
                             } else if !self.model.usageNotes.isEmpty {
                                 UsageNotesContent(notes: self.model.usageNotes)
                             }
@@ -424,6 +428,9 @@ private struct MetricRow: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(self.metric.cardStyle ? 10 : 0)
+        .background(self.metric.cardStyle ? Color.secondary.opacity(self.isHighlighted ? 0.2 : 0.08) : Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: self.metric.cardStyle ? 10 : 0))
     }
 }
 
@@ -475,8 +482,8 @@ struct UsageMenuCardUsageSectionView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if self.model.metrics.isEmpty {
-                if let usage = self.model.openAIAPIUsage {
-                    OpenAIAPIInlineDashboardContent(snapshot: usage)
+                if let dashboard = self.model.inlineUsageDashboard {
+                    InlineUsageDashboardContent(model: dashboard)
                 } else if !self.model.usageNotes.isEmpty {
                     UsageNotesContent(notes: self.model.usageNotes)
                 } else if let placeholder = self.model.placeholder {
@@ -491,8 +498,8 @@ struct UsageMenuCardUsageSectionView: View {
                         title: UsageMenuCardView.popupMetricTitle(provider: self.model.provider, metric: metric),
                         progressColor: self.model.progressColor)
                 }
-                if let usage = self.model.openAIAPIUsage {
-                    OpenAIAPIInlineDashboardContent(snapshot: usage)
+                if let dashboard = self.model.inlineUsageDashboard {
+                    InlineUsageDashboardContent(model: dashboard)
                 } else if !self.model.usageNotes.isEmpty {
                     UsageNotesContent(notes: self.model.usageNotes)
                 }
@@ -754,6 +761,7 @@ extension UsageMenuCardView.Model {
             metadata: input.metadata)
         let metrics = Self.metrics(input: input)
         let openAIAPIUsage = input.snapshot?.openAIAPIUsage
+        let inlineUsageDashboard = Self.inlineUsageDashboard(input: input)
         let usageNotes = Self.usageNotes(input: input)
         let creditsText: String? = if input.provider == .openrouter {
             nil
@@ -762,7 +770,11 @@ extension UsageMenuCardView.Model {
         } else {
             Self.creditsLine(metadata: input.metadata, credits: input.credits, error: input.creditsError)
         }
-        let hidesOptionalProviderCost = (input.provider == .claude || input.provider == .factory) &&
+        let isClaudeAdminAPI = input.provider == .claude &&
+            input.snapshot?.identity?.loginMethod == "Admin API"
+        let hidesOptionalProviderCost = ((input.provider == .claude && !isClaudeAdminAPI) ||
+            input.provider == .factory ||
+            input.provider == .opencodego) &&
             !input.showOptionalCreditsAndExtraUsage
         let providerCost: ProviderCostSection? = if hidesOptionalProviderCost ||
             (input.provider == .openai && openAIAPIUsage != nil)
@@ -794,6 +806,7 @@ extension UsageMenuCardView.Model {
             metrics: metrics,
             usageNotes: usageNotes,
             openAIAPIUsage: openAIAPIUsage,
+            inlineUsageDashboard: inlineUsageDashboard,
             creditsText: creditsText,
             creditsRemaining: input.credits?.remaining,
             creditsHintText: redacted.creditsHintText,
@@ -835,10 +848,8 @@ extension UsageMenuCardView.Model {
             ]
         }
 
-        if input.provider == .openai,
-           let usage = input.snapshot?.openAIAPIUsage
-        {
-            return self.openAIAPIUsageNotes(usage)
+        if let notes = apiProviderUsageNotes(input: input) {
+            return notes
         }
 
         guard input.provider == .openrouter,
@@ -1410,7 +1421,9 @@ extension UsageMenuCardView.Model {
                 paceDetail = Self.weeklyPaceDetail(
                     window: window,
                     now: input.now,
-                    pace: input.weeklyPace,
+                    pace: input.weeklyPace
+                        ?? UsagePace.weekly(window: window, now: input.now, defaultWindowMinutes: 10080)
+                        .flatMap { $0.expectedUsedPercent >= 3 ? $0 : nil },
                     showUsed: input.usageBarsShowUsed)
             }
 

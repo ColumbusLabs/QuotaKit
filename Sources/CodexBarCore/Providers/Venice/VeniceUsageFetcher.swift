@@ -172,18 +172,13 @@ public struct VeniceUsageFetcher: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.timeoutInterval = Self.timeoutSeconds
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw VeniceUsageError.networkError("Invalid response")
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+        guard response.statusCode == 200 else {
+            Self.log.error("Venice API returned \(response.statusCode)")
+            throw VeniceUsageError.apiError("HTTP \(response.statusCode)")
         }
 
-        guard httpResponse.statusCode == 200 else {
-            Self.log.error("Venice API returned \(httpResponse.statusCode)")
-            throw VeniceUsageError.apiError("HTTP \(httpResponse.statusCode)")
-        }
-
-        return try Self.parseSnapshot(data: data)
+        return try Self.parseSnapshot(data: response.data)
     }
 
     static func _parseSnapshotForTesting(_ data: Data) throws -> VeniceUsageSnapshot {

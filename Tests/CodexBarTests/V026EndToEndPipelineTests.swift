@@ -237,6 +237,8 @@ struct V026EndToEndPipelineTests {
             bonusCreditsRemaining: 155,
             bonusExpiryDays: 19,
             overagesStatus: nil,
+            overageCreditsUsed: nil,
+            estimatedOverageCostUSD: nil,
             manageURL: nil,
             contextUsage: nil)
         let upstreamSnapshot = UsageSnapshot(

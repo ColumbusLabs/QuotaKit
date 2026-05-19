@@ -98,13 +98,13 @@ public struct CopilotDeviceFlow: Sendable {
         ]
         postRequest.httpBody = Self.formURLEncodedBody(body)
 
-        let (data, response) = try await URLSession.shared.data(for: postRequest)
+        let response = try await ProviderHTTPClient.shared.response(for: postRequest)
 
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+        guard response.statusCode == 200 else {
             throw URLError(.badServerResponse)
         }
 
-        return try JSONDecoder().decode(DeviceCodeResponse.self, from: data)
+        return try JSONDecoder().decode(DeviceCodeResponse.self, from: response.data)
     }
 
     public func pollForToken(deviceCode: String, interval: Int) async throws -> String {
@@ -127,10 +127,10 @@ public struct CopilotDeviceFlow: Sendable {
             try await Task.sleep(nanoseconds: UInt64(interval) * 1_000_000_000)
             try Task.checkCancellation()
 
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let response = try await ProviderHTTPClient.shared.response(for: request)
 
             // Check for error in JSON
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            if let json = try? JSONSerialization.jsonObject(with: response.data) as? [String: Any],
                let error = json["error"] as? String
             {
                 if error == "authorization_pending" {
@@ -146,7 +146,7 @@ public struct CopilotDeviceFlow: Sendable {
                 throw URLError(.userAuthenticationRequired) // Generic failure
             }
 
-            if let tokenResponse = try? JSONDecoder().decode(AccessTokenResponse.self, from: data) {
+            if let tokenResponse = try? JSONDecoder().decode(AccessTokenResponse.self, from: response.data) {
                 return tokenResponse.accessToken
             }
         }

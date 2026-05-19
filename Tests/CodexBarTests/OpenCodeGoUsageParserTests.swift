@@ -32,6 +32,51 @@ struct OpenCodeGoUsageParserTests {
     }
 
     @Test
+    func `parses zen balance from workspace page text`() {
+        let text = """
+        <main>
+        <h2>現在の残高 $1,234.56</h2>
+        <p>Claude Opus and GPT-5 models enabled</p>
+        </main>
+        """
+
+        #expect(OpenCodeGoUsageFetcher.parseZenBalance(text: text) == 1234.56)
+    }
+
+    @Test
+    func `parses zen balance from nested JSON`() throws {
+        let payload: [String: Any] = [
+            "data": [
+                "billing": [
+                    "balanceEnabled": true,
+                    "zenBalance": "1,042.75",
+                ],
+            ],
+        ]
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        let text = String(data: data, encoding: .utf8) ?? ""
+
+        #expect(OpenCodeGoUsageFetcher.parseZenBalance(text: text) == 1042.75)
+    }
+
+    @Test
+    func `zen balance parser ignores metadata before amount`() throws {
+        let payload: [String: Any] = [
+            "data": [
+                "billing": [
+                    "balanceUpdatedAt": 1_800_000_000,
+                    "balanceRefreshInterval": 60,
+                    "zenBalance": "42.50",
+                ],
+            ],
+        ]
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        let text = String(data: data, encoding: .utf8) ?? ""
+
+        #expect(OpenCodeGoUsageFetcher.parseZenBalance(text: text) == 42.50)
+    }
+
+    @Test
     func `parses subscription usage from live go page hydration`() throws {
         let rollingResetInSec = 17591
         let weeklyResetInSec = 444_552
@@ -119,6 +164,42 @@ struct OpenCodeGoUsageParserTests {
         #expect(snapshot.monthlyUsagePercent == 0)
         #expect(snapshot.monthlyResetInSec == 0)
         #expect(usage.tertiary == nil)
+    }
+
+    @Test
+    func `snapshot exposes zen balance as provider cost`() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let snapshot = OpenCodeGoUsageSnapshot(
+            hasMonthlyUsage: false,
+            rollingUsagePercent: 10,
+            weeklyUsagePercent: 20,
+            monthlyUsagePercent: 0,
+            rollingResetInSec: 600,
+            weeklyResetInSec: 3600,
+            monthlyResetInSec: 0,
+            zenBalanceUSD: 12.34,
+            updatedAt: now)
+
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(usage.providerCost?.period == "Zen balance")
+        #expect(usage.providerCost?.used == 12.34)
+        #expect(usage.providerCost?.limit == 0)
+        #expect(usage.providerCost?.currencyCode == "USD")
+    }
+
+    @Test
+    func `zen balance parser ignores balance flags without amounts`() throws {
+        let payload: [String: Any] = [
+            "billing": [
+                "balanceEnabled": true,
+                "useBalance": false,
+            ],
+        ]
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        let text = String(data: data, encoding: .utf8) ?? ""
+
+        #expect(OpenCodeGoUsageFetcher.parseZenBalance(text: text) == nil)
     }
 
     @Test

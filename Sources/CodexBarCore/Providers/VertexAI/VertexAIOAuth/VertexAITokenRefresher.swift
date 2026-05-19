@@ -49,12 +49,10 @@ public enum VertexAITokenRefresher {
         request.httpBody = bodyString.data(using: .utf8)
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse else {
-                throw RefreshError.invalidResponse("No HTTP response")
-            }
+            let response = try await ProviderHTTPClient.shared.response(for: request)
+            let data = response.data
 
-            if http.statusCode == 400 || http.statusCode == 401 {
+            if response.statusCode == 400 || response.statusCode == 401 {
                 if let errorCode = Self.extractErrorCode(from: data) {
                     switch errorCode.lowercased() {
                     case "invalid_grant":
@@ -68,8 +66,8 @@ public enum VertexAITokenRefresher {
                 throw RefreshError.expired
             }
 
-            guard http.statusCode == 200 else {
-                throw RefreshError.invalidResponse("Status \(http.statusCode)")
+            guard response.statusCode == 200 else {
+                throw RefreshError.invalidResponse("Status \(response.statusCode)")
             }
 
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {

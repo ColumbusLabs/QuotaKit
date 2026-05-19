@@ -10,6 +10,7 @@ public struct MiniMaxUsageSnapshot: Sendable {
     public let resetsAt: Date?
     public let updatedAt: Date
     public let services: [MiniMaxServiceUsage]?
+    public let billingSummary: MiniMaxBillingSummary?
 
     public var primaryService: MiniMaxServiceUsage? {
         // Priority: "Text Generation" > first service
@@ -53,7 +54,8 @@ public struct MiniMaxUsageSnapshot: Sendable {
         usedPercent: Double?,
         resetsAt: Date?,
         updatedAt: Date,
-        services: [MiniMaxServiceUsage]? = nil)
+        services: [MiniMaxServiceUsage]? = nil,
+        billingSummary: MiniMaxBillingSummary? = nil)
     {
         self.planName = planName
         self.availablePrompts = availablePrompts
@@ -64,6 +66,21 @@ public struct MiniMaxUsageSnapshot: Sendable {
         self.resetsAt = resetsAt
         self.updatedAt = updatedAt
         self.services = services
+        self.billingSummary = billingSummary
+    }
+
+    public func withBillingSummary(_ billingSummary: MiniMaxBillingSummary?) -> MiniMaxUsageSnapshot {
+        MiniMaxUsageSnapshot(
+            planName: self.planName,
+            availablePrompts: self.availablePrompts,
+            currentPrompts: self.currentPrompts,
+            remainingPrompts: self.remainingPrompts,
+            windowMinutes: self.windowMinutes,
+            usedPercent: self.usedPercent,
+            resetsAt: self.resetsAt,
+            updatedAt: self.updatedAt,
+            services: self.services,
+            billingSummary: billingSummary)
     }
 }
 

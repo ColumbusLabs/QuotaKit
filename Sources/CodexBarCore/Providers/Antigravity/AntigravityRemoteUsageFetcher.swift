@@ -61,7 +61,7 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
         homeDirectory: String = NSHomeDirectory(),
         environment: [String: String] = ProcessInfo.processInfo.environment,
         dataLoader: @escaping @Sendable (URLRequest) async throws -> (Data, URLResponse) = { request in
-            try await URLSession.shared.data(for: request)
+            try await ProviderHTTPClient.shared.data(for: request)
         },
         oauthClientResolver: @escaping @Sendable () -> AntigravityOAuthClient? = {
             AntigravityOAuthConfig.resolvedClient()
@@ -329,10 +329,7 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
         request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (data, response) = try await dataLoader(request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AntigravityRemoteFetchError.apiError("Invalid response")
-        }
+        let httpResponse = try await ProviderHTTPTransportHandler(dataLoader).response(for: request)
 
         switch httpResponse.statusCode {
         case 200:
@@ -340,15 +337,16 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
         case 401:
             throw AntigravityRemoteFetchError.notLoggedIn
         case 403:
-            let message = String(data: data, encoding: .utf8)?.trimmedNonEmpty ?? "HTTP 403"
+            let message = String(data: httpResponse.data, encoding: .utf8)?.trimmedNonEmpty ?? "HTTP 403"
             throw AntigravityRemoteFetchError.permissionDenied(message)
         default:
-            let message = String(data: data, encoding: .utf8)?.trimmedNonEmpty ?? "HTTP \(httpResponse.statusCode)"
+            let message = String(data: httpResponse.data, encoding: .utf8)?.trimmedNonEmpty
+                ?? "HTTP \(httpResponse.statusCode)"
             throw AntigravityRemoteFetchError.apiError("HTTP \(httpResponse.statusCode): \(message)")
         }
 
         do {
-            return try JSONDecoder().decode(Response.self, from: data)
+            return try JSONDecoder().decode(Response.self, from: httpResponse.data)
         } catch {
             throw AntigravityRemoteFetchError.parseFailed(error.localizedDescription)
         }
@@ -500,14 +498,11 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
             "grant_type": "refresh_token",
         ])
 
-        let (data, response) = try await context.dataLoader(request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AntigravityRemoteFetchError.apiError("Invalid refresh response")
-        }
+        let httpResponse = try await ProviderHTTPTransportHandler(context.dataLoader).response(for: request)
         guard httpResponse.statusCode == 200 else {
             throw AntigravityRemoteFetchError.notLoggedIn
         }
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+        guard let json = try JSONSerialization.jsonObject(with: httpResponse.data) as? [String: Any],
               let accessToken = json["access_token"] as? String
         else {
             throw AntigravityRemoteFetchError.parseFailed("Could not parse refresh response")

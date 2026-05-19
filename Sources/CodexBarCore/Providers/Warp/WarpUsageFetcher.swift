@@ -206,16 +206,12 @@ public struct WarpUsageFetcher: Sendable {
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw WarpUsageError.networkError("Invalid response")
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            let summary = Self.apiErrorSummary(statusCode: httpResponse.statusCode, data: data)
-            Self.log.error("Warp API returned \(httpResponse.statusCode): \(summary)")
-            throw WarpUsageError.apiError(httpResponse.statusCode, summary)
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+        let data = response.data
+        guard response.statusCode == 200 else {
+            let summary = Self.apiErrorSummary(statusCode: response.statusCode, data: data)
+            Self.log.error("Warp API returned \(response.statusCode): \(summary)")
+            throw WarpUsageError.apiError(response.statusCode, summary)
         }
 
         do {

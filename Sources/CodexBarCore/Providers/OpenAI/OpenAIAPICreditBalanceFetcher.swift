@@ -121,7 +121,7 @@ public enum OpenAIAPICreditBalanceFetcher {
     public static func fetchBalance(
         apiKey: String,
         url: URL = Self.creditGrantsURL,
-        session: URLSession = .shared,
+        session transport: any ProviderHTTPTransport = ProviderHTTPClient.shared,
         now: Date = Date()) async throws -> OpenAIAPICreditBalanceSnapshot
     {
         let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -135,25 +135,21 @@ public enum OpenAIAPICreditBalanceFetcher {
         request.setValue("Bearer \(trimmed)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        let data: Data
-        let response: URLResponse
+        let response: ProviderHTTPResponse
         do {
-            (data, response) = try await session.data(for: request)
+            response = try await transport.response(for: request)
         } catch {
             throw OpenAIAPICreditBalanceError.networkError(error.localizedDescription)
         }
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw OpenAIAPICreditBalanceError.networkError("Invalid response")
-        }
-        guard httpResponse.statusCode != 403 else {
+        guard response.statusCode != 403 else {
             throw OpenAIAPICreditBalanceError.forbidden
         }
-        guard httpResponse.statusCode == 200 else {
-            throw OpenAIAPICreditBalanceError.apiError(httpResponse.statusCode)
+        guard response.statusCode == 200 else {
+            throw OpenAIAPICreditBalanceError.apiError(response.statusCode)
         }
 
-        return try self.parseSnapshot(data, now: now)
+        return try self.parseSnapshot(response.data, now: now)
     }
 
     public static func _parseSnapshotForTesting(

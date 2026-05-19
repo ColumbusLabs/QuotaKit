@@ -71,9 +71,27 @@ private func lprojBundle(named language: String, in resourceBundle: Bundle) -> B
 }
 
 func L(_ key: String) -> String {
-    localizedBundle().localizedString(forKey: key, value: nil, table: nil)
+    let resourceBundle = codexBarLocalizationResourceBundle()
+    return codexBarLocalizedString(key, bundle: localizedBundle(), resourceBundle: resourceBundle)
 }
 
 func L(_ key: String, _ arguments: CVarArg...) -> String {
-    String(format: localizedBundle().localizedString(forKey: key, value: nil, table: nil), arguments: arguments)
+    String(format: L(key), arguments: arguments)
+}
+
+func codexBarLocalizedString(_ key: String, bundle: Bundle, resourceBundle: Bundle) -> String {
+    let value = bundle.localizedString(forKey: key, value: nil, table: nil)
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    if !trimmed.isEmpty, value != key {
+        return value
+    }
+
+    guard bundle.bundleURL.lastPathComponent != "en.lproj",
+          let englishBundle = lprojBundle(named: "en", in: resourceBundle)
+    else {
+        return trimmed.isEmpty ? key : value
+    }
+
+    let fallback = englishBundle.localizedString(forKey: key, value: nil, table: nil)
+    return fallback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? key : fallback
 }

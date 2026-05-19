@@ -8,6 +8,7 @@ public struct OpenCodeGoUsageSnapshot: Sendable {
     public let rollingResetInSec: Int
     public let weeklyResetInSec: Int
     public let monthlyResetInSec: Int
+    public let zenBalanceUSD: Double?
     public let updatedAt: Date
 
     public init(
@@ -18,6 +19,7 @@ public struct OpenCodeGoUsageSnapshot: Sendable {
         rollingResetInSec: Int,
         weeklyResetInSec: Int,
         monthlyResetInSec: Int,
+        zenBalanceUSD: Double? = nil,
         updatedAt: Date)
     {
         self.hasMonthlyUsage = hasMonthlyUsage
@@ -27,6 +29,7 @@ public struct OpenCodeGoUsageSnapshot: Sendable {
         self.rollingResetInSec = rollingResetInSec
         self.weeklyResetInSec = weeklyResetInSec
         self.monthlyResetInSec = monthlyResetInSec
+        self.zenBalanceUSD = zenBalanceUSD
         self.updatedAt = updatedAt
     }
 
@@ -60,7 +63,28 @@ public struct OpenCodeGoUsageSnapshot: Sendable {
             primary: primary,
             secondary: secondary,
             tertiary: tertiary,
+            providerCost: self.zenBalanceUSD.map {
+                ProviderCostSnapshot(
+                    used: $0,
+                    limit: 0,
+                    currencyCode: "USD",
+                    period: "Zen balance",
+                    updatedAt: self.updatedAt)
+            },
             updatedAt: self.updatedAt,
             identity: nil)
+    }
+
+    public func withZenBalanceUSD(_ balance: Double?) -> OpenCodeGoUsageSnapshot {
+        OpenCodeGoUsageSnapshot(
+            hasMonthlyUsage: self.hasMonthlyUsage,
+            rollingUsagePercent: self.rollingUsagePercent,
+            weeklyUsagePercent: self.weeklyUsagePercent,
+            monthlyUsagePercent: self.monthlyUsagePercent,
+            rollingResetInSec: self.rollingResetInSec,
+            weeklyResetInSec: self.weeklyResetInSec,
+            monthlyResetInSec: self.monthlyResetInSec,
+            zenBalanceUSD: balance,
+            updatedAt: self.updatedAt)
     }
 }

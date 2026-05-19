@@ -121,6 +121,9 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
         {
             return true
         }
+        guard Self.allowsBrowserCookieImport(context: context) else {
+            return false
+        }
         return MiniMaxCookieImporter.hasSession(browserDetection: context.browserDetection)
         #else
         return false
@@ -130,7 +133,8 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let fetchContext = FetchContext(
             region: context.settings?.minimax?.apiRegion ?? .global,
-            environment: context.env)
+            environment: context.env,
+            includeBillingHistory: context.includeOptionalUsage)
         if let override = Self.resolveCookieOverride(context: context) {
             Self.log.debug("Using MiniMax cookie header from settings/env")
             let snapshot = try await MiniMaxUsageFetcher.fetchUsage(
@@ -138,7 +142,8 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
                 authorizationToken: override.authorizationToken,
                 groupID: override.groupID,
                 region: fetchContext.region,
-                environment: fetchContext.environment)
+                environment: fetchContext.environment,
+                includeBillingHistory: context.includeOptionalUsage)
             return self.makeResult(
                 usage: snapshot.toUsageSnapshot(),
                 sourceLabel: "web")
@@ -170,6 +175,11 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
                     throw error
                 }
             }
+        }
+
+        guard Self.allowsBrowserCookieImport(context: context) else {
+            if let lastError { throw lastError }
+            throw MiniMaxSettingsError.missingCookie
         }
 
         let sessions = (try? MiniMaxCookieImporter.importSessions(
@@ -217,6 +227,10 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
         false
     }
 
+    static func allowsBrowserCookieImport(context: ProviderFetchContext) -> Bool {
+        context.runtime == .app && ProviderInteractionContext.current == .userInitiated
+    }
+
     private struct TokenContext {
         let tokensByLabel: [String: [String]]
         let groupIDByLabel: [String: String]
@@ -225,6 +239,7 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
     private struct FetchContext {
         let region: MiniMaxAPIRegion
         let environment: [String: String]
+        let includeBillingHistory: Bool
     }
 
     private enum FetchAttemptResult {
@@ -314,7 +329,8 @@ struct MiniMaxCodingPlanFetchStrategy: ProviderFetchStrategy {
                     authorizationToken: token,
                     groupID: groupID,
                     region: fetchContext.region,
-                    environment: fetchContext.environment)
+                    environment: fetchContext.environment,
+                    includeBillingHistory: fetchContext.includeBillingHistory)
                 Self.log.debug("MiniMax \(prefix)cookies valid from \(sourceLabel)")
                 return .success(snapshot)
             } catch {

@@ -84,7 +84,7 @@ public struct OpenCodeUsageFetcher: Sendable {
         timeout: TimeInterval,
         now: Date = Date(),
         workspaceIDOverride: String? = nil,
-        session: URLSession = .shared) async throws -> OpenCodeUsageSnapshot
+        session transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) async throws -> OpenCodeUsageSnapshot
     {
         guard let requestCookieHeader = OpenCodeWebCookieSupport.requestCookieHeader(from: cookieHeader) else {
             throw OpenCodeUsageError.invalidCredentials
@@ -95,20 +95,20 @@ public struct OpenCodeUsageFetcher: Sendable {
             try await self.fetchWorkspaceID(
                 cookieHeader: requestCookieHeader,
                 timeout: timeout,
-                session: session)
+                transport: transport)
         }
         let subscriptionText = try await self.fetchSubscriptionInfo(
             workspaceID: workspaceID,
             cookieHeader: requestCookieHeader,
             timeout: timeout,
-            session: session)
+            transport: transport)
         return try self.parseSubscription(text: subscriptionText, now: now)
     }
 
     private static func fetchWorkspaceID(
         cookieHeader: String,
         timeout: TimeInterval,
-        session: URLSession) async throws -> String
+        transport: any ProviderHTTPTransport) async throws -> String
     {
         let text = try await self.fetchServerText(
             request: ServerRequest(
@@ -118,7 +118,7 @@ public struct OpenCodeUsageFetcher: Sendable {
                 referer: self.baseURL),
             cookieHeader: cookieHeader,
             timeout: timeout,
-            session: session)
+            transport: transport)
         if self.looksSignedOut(text: text) {
             throw OpenCodeUsageError.invalidCredentials
         }
@@ -136,7 +136,7 @@ public struct OpenCodeUsageFetcher: Sendable {
                     referer: self.baseURL),
                 cookieHeader: cookieHeader,
                 timeout: timeout,
-                session: session)
+                transport: transport)
             if self.looksSignedOut(text: fallback) {
                 throw OpenCodeUsageError.invalidCredentials
             }
@@ -157,7 +157,7 @@ public struct OpenCodeUsageFetcher: Sendable {
         workspaceID: String,
         cookieHeader: String,
         timeout: TimeInterval,
-        session: URLSession) async throws -> String
+        transport: any ProviderHTTPTransport) async throws -> String
     {
         let referer = URL(string: "https://opencode.ai/workspace/\(workspaceID)/billing") ?? self.baseURL
         let text = try await self.fetchServerText(
@@ -168,7 +168,7 @@ public struct OpenCodeUsageFetcher: Sendable {
                 referer: referer),
             cookieHeader: cookieHeader,
             timeout: timeout,
-            session: session)
+            transport: transport)
         if self.looksSignedOut(text: text) {
             throw OpenCodeUsageError.invalidCredentials
         }
@@ -190,7 +190,7 @@ public struct OpenCodeUsageFetcher: Sendable {
                     referer: referer),
                 cookieHeader: cookieHeader,
                 timeout: timeout,
-                session: session)
+                transport: transport)
             if self.looksSignedOut(text: fallback) {
                 throw OpenCodeUsageError.invalidCredentials
             }
@@ -249,7 +249,7 @@ public struct OpenCodeUsageFetcher: Sendable {
         request serverRequest: ServerRequest,
         cookieHeader: String,
         timeout: TimeInterval,
-        session: URLSession) async throws -> String
+        transport: any ProviderHTTPTransport) async throws -> String
     {
         let url = self.serverRequestURL(
             serverID: serverRequest.serverID,
@@ -273,28 +273,33 @@ public struct OpenCodeUsageFetcher: Sendable {
             urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
 
-        let (data, response) = try await session.data(for: urlRequest)
-        guard let httpResponse = response as? HTTPURLResponse else {
+        let response: ProviderHTTPResponse
+        do {
+            response = try await transport.response(for: urlRequest)
+        } catch let error as URLError where error.code == .badServerResponse {
             throw OpenCodeUsageError.networkError("Invalid response")
+        } catch {
+            throw error
         }
 
-        guard httpResponse.statusCode == 200 else {
-            let bodyText = String(data: data, encoding: .utf8) ?? ""
-            let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") ?? "unknown"
-            Self.log.error("OpenCode returned \(httpResponse.statusCode) (type=\(contentType) length=\(data.count))")
+        guard response.statusCode == 200 else {
+            let bodyText = String(data: response.data, encoding: .utf8) ?? ""
+            let contentType = response.response.value(forHTTPHeaderField: "Content-Type") ?? "unknown"
+            Self.log
+                .error("OpenCode returned \(response.statusCode) (type=\(contentType) length=\(response.data.count))")
             if self.looksSignedOut(text: bodyText) {
                 throw OpenCodeUsageError.invalidCredentials
             }
-            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+            if response.statusCode == 401 || response.statusCode == 403 {
                 throw OpenCodeUsageError.invalidCredentials
             }
             if let message = self.extractServerErrorMessage(from: bodyText) {
-                throw OpenCodeUsageError.apiError("HTTP \(httpResponse.statusCode): \(message)")
+                throw OpenCodeUsageError.apiError("HTTP \(response.statusCode): \(message)")
             }
-            throw OpenCodeUsageError.apiError("HTTP \(httpResponse.statusCode)")
+            throw OpenCodeUsageError.apiError("HTTP \(response.statusCode)")
         }
 
-        guard let text = String(data: data, encoding: .utf8) else {
+        guard let text = String(data: response.data, encoding: .utf8) else {
             throw OpenCodeUsageError.parseFailed("Response was not UTF-8.")
         }
         return text

@@ -3,7 +3,7 @@ import Testing
 @testable import CodexBarCore
 
 struct OpenAIAPICreditBalanceTests {
-    private func makeContext(apiKey: String = "sk-test") -> ProviderFetchContext {
+    private func makeContext(apiKey: String = "sk-test", historyDays: Int = 30) -> ProviderFetchContext {
         let browserDetection = BrowserDetection(cacheTTL: 0)
         let env = ["OPENAI_API_KEY": apiKey]
         return ProviderFetchContext(
@@ -17,7 +17,8 @@ struct OpenAIAPICreditBalanceTests {
             settings: nil,
             fetcher: UsageFetcher(environment: env),
             claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection),
-            browserDetection: browserDetection)
+            browserDetection: browserDetection,
+            costUsageHistoryDays: historyDays)
     }
 
     @Test
@@ -84,7 +85,7 @@ struct OpenAIAPICreditBalanceTests {
     @Test
     func `falls back to legacy billing when admin usage rejects credentials`() async throws {
         let strategy = OpenAIAPIBalanceFetchStrategy(
-            usageFetcher: { _ in
+            usageFetcher: { _, _ in
                 throw OpenAIAPIUsageError.apiError(endpoint: "costs", statusCode: 403)
             },
             balanceFetcher: { _ in
@@ -106,7 +107,7 @@ struct OpenAIAPICreditBalanceTests {
     func `preserves admin usage error when legacy fallback also fails`() async {
         let usageFailure = OpenAIAPIUsageError.parseFailed(endpoint: "costs", message: "changed")
         let strategy = OpenAIAPIBalanceFetchStrategy(
-            usageFetcher: { _ in throw usageFailure },
+            usageFetcher: { _, _ in throw usageFailure },
             balanceFetcher: { _ in throw OpenAIAPICreditBalanceError.forbidden })
 
         do {
@@ -138,7 +139,7 @@ struct OpenAIAPICreditBalanceTests {
                 },
                 {
                   "object": "organization.costs.result",
-                  "amount": { "value": 2.25, "currency": "usd" },
+                  "amount": { "value": "2.25", "currency": "usd" },
                   "line_item": "Web search tool calls"
                 }
               ]
@@ -209,8 +210,11 @@ struct OpenAIAPICreditBalanceTests {
         let snapshot = try OpenAIAPIUsageFetcher._parseSnapshotForTesting(
             costs: Data(costs.utf8),
             completions: Data(completions.utf8),
-            now: now)
+            now: now,
+            historyDays: 90)
 
+        #expect(snapshot.historyDays == 90)
+        #expect(snapshot.historyWindowLabel == "90d")
         #expect(snapshot.daily.count == 2)
         #expect(snapshot.daily[0].costUSD == 14.75)
         #expect(snapshot.daily[0].requests == 10)
@@ -222,6 +226,42 @@ struct OpenAIAPICreditBalanceTests {
         #expect(snapshot.last30Days.totalTokens == 2300)
         #expect(snapshot.topModels.first?.name == "gpt-5.2")
         #expect(snapshot.topModels.first?.totalTokens == 1800)
+    }
+
+    @Test
+    func `admin usage fetch pages long history within endpoint bucket limit`() async throws {
+        let now = Date(timeIntervalSince1970: 1_700_179_200)
+        let emptyPage = Data(#"{"object":"page","data":[],"has_more":false,"next_page":null}"#.utf8)
+        let transport = ProviderHTTPTransportStub { request in
+            let response = try HTTPURLResponse(
+                url: #require(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil)!
+            return (emptyPage, response)
+        }
+
+        let snapshot = try await OpenAIAPIUsageFetcher.fetchUsage(
+            apiKey: "sk-test",
+            costsURL: #require(URL(string: "https://api.openai.test/v1/organization/costs")),
+            completionsURL: #require(URL(string: "https://api.openai.test/v1/organization/usage/completions")),
+            session: transport,
+            now: now,
+            historyDays: 90)
+
+        let requests = await transport.requests()
+        let limits = requests.compactMap { request -> Int? in
+            guard let url = request.url,
+                  let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                  let raw = components.queryItems?.first(where: { $0.name == "limit" })?.value
+            else { return nil }
+            return Int(raw)
+        }
+
+        #expect(snapshot.historyDays == 90)
+        #expect(requests.count == 6)
+        #expect(limits == [31, 31, 28, 31, 31, 28])
+        #expect(limits.allSatisfy { $0 <= 31 })
     }
 
     @Test
@@ -257,8 +297,9 @@ struct OpenAIAPICreditBalanceTests {
     @Test
     func `falls back to credit balance when admin usage endpoint is unavailable`() async throws {
         let strategy = OpenAIAPIBalanceFetchStrategy(
-            usageFetcher: { apiKey in
+            usageFetcher: { apiKey, historyDays in
                 #expect(apiKey == "sk-test")
+                #expect(historyDays == 90)
                 throw OpenAIAPIUsageError.apiError(endpoint: "costs", statusCode: 500)
             },
             balanceFetcher: { apiKey in
@@ -271,7 +312,7 @@ struct OpenAIAPICreditBalanceTests {
                     updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
             })
 
-        let result = try await strategy.fetch(self.makeContext())
+        let result = try await strategy.fetch(self.makeContext(historyDays: 90))
 
         #expect(result.sourceLabel == "billing-api")
         #expect(result.usage.providerCost?.used == 25)

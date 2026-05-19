@@ -209,12 +209,10 @@ public enum CodexOAuthUsageFetcher {
         }
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse else {
-                throw CodexOAuthFetchError.invalidResponse
-            }
+            let response = try await ProviderHTTPClient.shared.response(for: request)
+            let data = response.data
 
-            switch http.statusCode {
+            switch response.statusCode {
             case 200...299:
                 do {
                     return try JSONDecoder().decode(CodexUsageResponse.self, from: data)
@@ -225,7 +223,7 @@ public enum CodexOAuthUsageFetcher {
                 throw CodexOAuthFetchError.unauthorized
             default:
                 let body = String(data: data, encoding: .utf8)
-                throw CodexOAuthFetchError.serverError(http.statusCode, body)
+                throw CodexOAuthFetchError.serverError(response.statusCode, body)
             }
         } catch let error as CodexOAuthFetchError {
             throw error

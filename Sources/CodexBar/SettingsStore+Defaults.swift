@@ -305,6 +305,15 @@ extension SettingsStore {
         }
     }
 
+    var costUsageHistoryDays: Int {
+        get { self.defaultsState.costUsageHistoryDays }
+        set {
+            let clamped = max(1, min(365, newValue))
+            self.defaultsState.costUsageHistoryDays = clamped
+            self.userDefaults.set(clamped, forKey: "tokenCostUsageHistoryDays")
+        }
+    }
+
     var hidePersonalInfo: Bool {
         get { self.defaultsState.hidePersonalInfo }
         set {

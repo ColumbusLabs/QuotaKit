@@ -9,14 +9,14 @@ public enum OpenAIAPIProviderDescriptor {
             id: .openai,
             metadata: ProviderMetadata(
                 id: .openai,
-                displayName: "OpenAI API",
+                displayName: "OpenAI",
                 sessionLabel: "Spend",
                 weeklyLabel: "Requests",
                 opusLabel: nil,
                 supportsOpus: false,
                 supportsCredits: false,
                 creditsHint: "",
-                toggleTitle: "Show OpenAI API usage",
+                toggleTitle: "Show OpenAI usage",
                 cliName: "openai",
                 defaultEnabled: false,
                 isPrimaryProvider: false,
@@ -29,7 +29,7 @@ public enum OpenAIAPIProviderDescriptor {
                 color: ProviderColor(red: 0.06, green: 0.51, blue: 0.43)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
-                noDataMessage: { "OpenAI API usage needs an Admin API key for organization usage." }),
+                noDataMessage: { "OpenAI usage needs an Admin API key for organization usage." }),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .api],
                 pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [OpenAIAPIBalanceFetchStrategy()] })),
@@ -43,12 +43,12 @@ public enum OpenAIAPIProviderDescriptor {
 struct OpenAIAPIBalanceFetchStrategy: ProviderFetchStrategy {
     let id: String = "openai.api.balance"
     let kind: ProviderFetchKind = .apiToken
-    let usageFetcher: @Sendable (String) async throws -> OpenAIAPIUsageSnapshot
+    let usageFetcher: @Sendable (String, Int) async throws -> OpenAIAPIUsageSnapshot
     let balanceFetcher: @Sendable (String) async throws -> OpenAIAPICreditBalanceSnapshot
 
     init(
-        usageFetcher: @escaping @Sendable (String) async throws -> OpenAIAPIUsageSnapshot = { apiKey in
-            try await OpenAIAPIUsageFetcher.fetchUsage(apiKey: apiKey)
+        usageFetcher: @escaping @Sendable (String, Int) async throws -> OpenAIAPIUsageSnapshot = { apiKey, days in
+            try await OpenAIAPIUsageFetcher.fetchUsage(apiKey: apiKey, historyDays: days)
         },
         balanceFetcher: @escaping @Sendable (String) async throws -> OpenAIAPICreditBalanceSnapshot = { apiKey in
             try await OpenAIAPICreditBalanceFetcher.fetchBalance(apiKey: apiKey)
@@ -68,7 +68,7 @@ struct OpenAIAPIBalanceFetchStrategy: ProviderFetchStrategy {
         }
 
         do {
-            let usage = try await self.usageFetcher(apiKey)
+            let usage = try await self.usageFetcher(apiKey, context.costUsageHistoryDays)
             return self.makeResult(
                 usage: usage.toUsageSnapshot(),
                 sourceLabel: "admin-api")

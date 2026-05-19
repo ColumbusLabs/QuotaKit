@@ -101,7 +101,7 @@ public struct MoonshotUsageFetcher: Sendable {
     public static func fetchUsage(
         apiKey: String,
         region: MoonshotRegion = .international,
-        session: URLSession = .shared) async throws -> MoonshotUsageSnapshot
+        session transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) async throws -> MoonshotUsageSnapshot
     {
         let cleaned = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else {
@@ -114,18 +114,21 @@ public struct MoonshotUsageFetcher: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.timeoutInterval = Self.timeoutSeconds
 
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
+        let response: ProviderHTTPResponse
+        do {
+            response = try await transport.response(for: request)
+        } catch let error as URLError where error.code == .badServerResponse {
             throw MoonshotUsageError.networkError("Invalid response")
+        } catch {
+            throw error
         }
 
-        guard httpResponse.statusCode == 200 else {
-            Self.log.error("Moonshot API returned HTTP \(httpResponse.statusCode)")
-            throw MoonshotUsageError.apiError("HTTP \(httpResponse.statusCode)")
+        guard response.statusCode == 200 else {
+            Self.log.error("Moonshot API returned HTTP \(response.statusCode)")
+            throw MoonshotUsageError.apiError("HTTP \(response.statusCode)")
         }
 
-        let summary = try self.parseSummary(data: data)
+        let summary = try self.parseSummary(data: response.data)
         return MoonshotUsageSnapshot(summary: summary)
     }
 

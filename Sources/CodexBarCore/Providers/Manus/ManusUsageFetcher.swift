@@ -103,19 +103,16 @@ public enum ManusUsageFetcher {
             userAgent,
             forHTTPHeaderField: "User-Agent")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw ManusAPIError.networkError("Invalid response")
-        }
-
-        guard httpResponse.statusCode == 200 else {
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+        let data = response.data
+        guard response.statusCode == 200 else {
             let body = String(data: data, encoding: .utf8) ?? "<binary>"
             let truncated = body.count > 200 ? String(body.prefix(200)) + "…" : body
-            Self.log.error("Manus API returned \(httpResponse.statusCode): \(truncated)")
-            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+            Self.log.error("Manus API returned \(response.statusCode): \(truncated)")
+            if response.statusCode == 401 || response.statusCode == 403 {
                 throw ManusAPIError.invalidToken
             }
-            throw ManusAPIError.apiError("HTTP \(httpResponse.statusCode)")
+            throw ManusAPIError.apiError("HTTP \(response.statusCode)")
         }
 
         do {

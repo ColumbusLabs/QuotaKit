@@ -49,11 +49,12 @@ extension UsageMenuCardView.Model {
         let fallbackTokens = snapshot.daily.compactMap(\.totalTokens).reduce(0, +)
         let monthTokensValue = snapshot.last30DaysTokens ?? (fallbackTokens > 0 ? fallbackTokens : nil)
         let monthTokens = monthTokensValue.map { UsageFormatter.tokenCountString($0) }
+        let windowLabel = Self.costHistoryWindowLabel(days: snapshot.historyDays)
         let monthLine: String = {
             if let monthTokens {
-                return "Last 30 days: \(monthCost) · \(monthTokens) tokens"
+                return "\(windowLabel): \(monthCost) · \(monthTokens) tokens"
             }
-            return "Last 30 days: \(monthCost)"
+            return "\(windowLabel): \(monthCost)"
         }()
         let err = (error?.isEmpty ?? true) ? nil : error
         return TokenUsageSection(
@@ -77,6 +78,10 @@ extension UsageMenuCardView.Model {
         default:
             nil
         }
+    }
+
+    static func costHistoryWindowLabel(days: Int) -> String {
+        days == 1 ? "Today" : "Last \(days) days"
     }
 
     private static func bedrockLatestBillingDayLabel(from snapshot: CostUsageTokenSnapshot) -> String {
@@ -139,7 +144,16 @@ extension UsageMenuCardView.Model {
                 percentLine: nil)
         }
 
-        if provider == .openai, cost.limit <= 0 {
+        if provider == .opencodego, cost.period == "Zen balance" {
+            let balance = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
+            return ProviderCostSection(
+                title: "Zen balance",
+                percentUsed: nil,
+                spendLine: "Balance: \(balance)",
+                percentLine: nil)
+        }
+
+        if provider == .openai || provider == .claude, cost.limit <= 0 {
             let spend = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
             let periodLabel = cost.period ?? "Last 30 days"
             return ProviderCostSection(

@@ -68,6 +68,11 @@ public struct OpenRouterRateLimit: Codable, Sendable {
     public let requests: Int
     /// Interval for the rate limit (e.g., "10s", "1m")
     public let interval: String
+
+    public init(requests: Int, interval: String) {
+        self.requests = requests
+        self.interval = interval
+    }
 }
 
 public enum OpenRouterKeyQuotaStatus: String, Codable, Sendable {
@@ -235,21 +240,17 @@ public struct OpenRouterUsageFetcher: Sendable {
         let title = Self.sanitizedHeaderValue(environment[self.clientTitleEnvKey]) ?? Self.defaultClientTitle
         request.setValue(title, forHTTPHeaderField: "X-Title")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw OpenRouterUsageError.networkError("Invalid response")
-        }
-
-        guard httpResponse.statusCode == 200 else {
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+        let data = response.data
+        guard response.statusCode == 200 else {
             let errorSummary = LogRedactor.redact(Self.sanitizedResponseBodySummary(data))
             if Self.debugFullErrorBodiesEnabled(environment: environment),
                let debugBody = Self.redactedDebugResponseBody(data)
             {
                 Self.log.debug("OpenRouter non-200 body (redacted): \(LogRedactor.redact(debugBody))")
             }
-            Self.log.error("OpenRouter API returned \(httpResponse.statusCode): \(errorSummary)")
-            throw OpenRouterUsageError.apiError("HTTP \(httpResponse.statusCode)")
+            Self.log.error("OpenRouter API returned \(response.statusCode): \(errorSummary)")
+            throw OpenRouterUsageError.apiError("HTTP \(response.statusCode)")
         }
 
         do {
@@ -345,16 +346,13 @@ public struct OpenRouterUsageFetcher: Sendable {
         request.timeoutInterval = timeoutSeconds
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200
-            else {
+            let response = try await ProviderHTTPClient.shared.response(for: request)
+            guard response.statusCode == 200 else {
                 return OpenRouterKeyFetchResult(data: nil, fetched: false)
             }
 
             let decoder = JSONDecoder()
-            let keyResponse = try decoder.decode(OpenRouterKeyResponse.self, from: data)
+            let keyResponse = try decoder.decode(OpenRouterKeyResponse.self, from: response.data)
             return OpenRouterKeyFetchResult(data: keyResponse.data, fetched: true)
         } catch {
             Self.log.debug("Failed to fetch OpenRouter /key enrichment: \(error.localizedDescription)")

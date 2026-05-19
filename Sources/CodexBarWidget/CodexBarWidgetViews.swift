@@ -258,7 +258,7 @@ private struct ProviderSwitchChip: View {
     private var shortLabel: String {
         switch self.provider {
         case .codex: "Codex"
-        case .openai: "OpenAI API"
+        case .openai: "OpenAI"
         case .claude: "Claude"
         case .gemini: "Gemini"
         case .antigravity: "Anti"
@@ -283,6 +283,7 @@ private struct ProviderSwitchChip: View {
         case .ollama: "Ollama"
         case .synthetic: "Synthetic"
         case .openrouter: "OpenRouter"
+        case .elevenlabs: "ElevenLabs"
         case .warp: "Warp"
         case .windsurf: "Windsurf"
         case .perplexity: "Pplx"
@@ -297,6 +298,10 @@ private struct ProviderSwitchChip: View {
         case .commandcode: "Command Code"
         case .stepfun: "StepFun"
         case .bedrock: "Bedrock"
+        case .grok: "Grok"
+        case .groq: "Groq"
+        case .llmproxy: "LLM Proxy"
+        case .deepgram: "Deepgram"
         }
     }
 }
@@ -658,6 +663,8 @@ enum WidgetColors {
             Color(red: 20 / 255, green: 20 / 255, blue: 20 / 255) // Synthetic charcoal
         case .openrouter:
             Color(red: 111 / 255, green: 66 / 255, blue: 193 / 255) // OpenRouter purple
+        case .elevenlabs:
+            Color(red: 235 / 255, green: 235 / 255, blue: 230 / 255)
         case .warp:
             Color(red: 147 / 255, green: 139 / 255, blue: 180 / 255)
         case .windsurf:
@@ -686,6 +693,14 @@ enum WidgetColors {
             Color(red: 255 / 255, green: 140 / 255, blue: 0 / 255) // StepFun orange
         case .bedrock:
             Color(red: 255 / 255, green: 153 / 255, blue: 0 / 255) // AWS orange
+        case .grok:
+            Color(red: 16 / 255, green: 163 / 255, blue: 127 / 255) // Grok teal
+        case .groq:
+            Color(red: 245 / 255, green: 104 / 255, blue: 68 / 255)
+        case .llmproxy:
+            Color(red: 36 / 255, green: 180 / 255, blue: 126 / 255)
+        case .deepgram:
+            Color(red: 10 / 255, green: 18 / 255, blue: 27 / 255)
         }
     }
 }

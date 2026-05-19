@@ -182,13 +182,13 @@ final class CLIEntryTests: XCTestCase {
         }
     }
 
-    func test_providerSelectionDefaultsToCodexWhenEmpty() {
+    func test_providerSelectionHonorsEmptyEnabledSet() {
         let selection = CodexBarCLI.providerSelection(rawOverride: nil, enabled: [])
         switch selection {
-        case let .single(provider):
-            XCTAssertEqual(provider, .codex)
+        case let .custom(providers):
+            XCTAssertEqual(providers, [])
         default:
-            XCTFail("Expected single Codex selection")
+            XCTFail("Expected empty custom selection")
         }
     }
 
@@ -272,6 +272,8 @@ final class CLIEntryTests: XCTestCase {
         XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .kilo))
         XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .codex))
         XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .kilo))
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .grok))
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .grok))
         XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.api, provider: .kilo))
     }
 }

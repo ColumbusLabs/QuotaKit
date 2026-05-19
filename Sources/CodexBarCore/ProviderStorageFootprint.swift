@@ -339,6 +339,12 @@ public enum ProviderStoragePathCatalog {
 }
 
 public struct ProviderStorageScanner: @unchecked Sendable {
+    private struct DirectoryScanResult {
+        var bytes: Int64 = 0
+        var unreadablePaths: [String] = []
+        var componentBytes: [String: Int64] = [:]
+    }
+
     private let fileManager: FileManager
 
     public init(fileManager: FileManager = .default) {
@@ -367,11 +373,25 @@ public struct ProviderStorageScanner: @unchecked Sendable {
 
             existingPaths.append(path)
             let url = URL(fileURLWithPath: path, isDirectory: isDirectory.boolValue)
-            let result = self.sizeOfItem(at: url)
-            if Task.isCancelled { break }
-            totalBytes += result.bytes
-            unreadablePaths.append(contentsOf: result.unreadablePaths)
-            components.append(contentsOf: self.components(for: url, isDirectory: isDirectory.boolValue))
+            if self.isSymbolicLink(at: url) {
+                continue
+            }
+            if isDirectory.boolValue {
+                let result = self.scanDirectory(at: url)
+                if Task.isCancelled { break }
+                totalBytes += result.bytes
+                unreadablePaths.append(contentsOf: result.unreadablePaths)
+                components.append(contentsOf: result.componentBytes.map {
+                    ProviderStorageFootprint.Component(path: $0.key, totalBytes: $0.value)
+                })
+            } else {
+                let result = self.sizeOfFile(at: url)
+                totalBytes += result.bytes
+                unreadablePaths.append(contentsOf: result.unreadablePaths)
+                if result.bytes > 0 {
+                    components.append(.init(path: url.path, totalBytes: result.bytes))
+                }
+            }
         }
 
         return ProviderStorageFootprint(
@@ -389,39 +409,13 @@ public struct ProviderStorageScanner: @unchecked Sendable {
             updatedAt: now)
     }
 
-    private func components(for url: URL, isDirectory: Bool) -> [ProviderStorageFootprint.Component] {
-        if Task.isCancelled { return [] }
-        guard isDirectory else {
-            let result = self.sizeOfItem(at: url)
-            return result.bytes > 0 ? [.init(path: url.path, totalBytes: result.bytes)] : []
-        }
-
-        let keys: [URLResourceKey] = [
-            .isDirectoryKey,
-            .isRegularFileKey,
-            .isSymbolicLinkKey,
-            .fileSizeKey,
-        ]
-        guard let children = try? self.fileManager.contentsOfDirectory(
-            at: url,
-            includingPropertiesForKeys: keys,
-            options: [])
-        else {
-            return []
-        }
-
-        return children.compactMap { childURL in
-            if Task.isCancelled { return nil }
-            let result = self.sizeOfItem(at: childURL)
-            guard result.bytes > 0 else { return nil }
-            return ProviderStorageFootprint.Component(path: childURL.path, totalBytes: result.bytes)
-        }
+    private func isSymbolicLink(at url: URL) -> Bool {
+        (try? url.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true
     }
 
-    private func sizeOfItem(at url: URL) -> (bytes: Int64, unreadablePaths: [String]) {
+    private func sizeOfFile(at url: URL) -> (bytes: Int64, unreadablePaths: [String]) {
         if Task.isCancelled { return (0, []) }
         let keys: Set<URLResourceKey> = [
-            .isDirectoryKey,
             .isRegularFileKey,
             .isSymbolicLinkKey,
             .fileSizeKey,
@@ -439,9 +433,17 @@ public struct ProviderStorageScanner: @unchecked Sendable {
             return (Int64(values.fileSize ?? 0), [])
         }
 
-        guard values.isDirectory == true else {
-            return (0, [])
-        }
+        return (0, [])
+    }
+
+    private func scanDirectory(at url: URL) -> DirectoryScanResult {
+        if Task.isCancelled { return DirectoryScanResult() }
+        let keys: Set<URLResourceKey> = [
+            .isDirectoryKey,
+            .isRegularFileKey,
+            .isSymbolicLinkKey,
+            .fileSizeKey,
+        ]
 
         let unreadableCollector = ProviderStorageUnreadablePathCollector()
         guard let enumerator = self.fileManager.enumerator(
@@ -453,10 +455,11 @@ public struct ProviderStorageScanner: @unchecked Sendable {
                 return true
             })
         else {
-            return (0, [url.path])
+            return DirectoryScanResult(unreadablePaths: [url.path])
         }
 
-        var totalBytes: Int64 = 0
+        var result = DirectoryScanResult()
+        let rootPath = url.standardizedFileURL.path
         for case let itemURL as URL in enumerator {
             if Task.isCancelled {
                 enumerator.skipDescendants()
@@ -473,10 +476,29 @@ public struct ProviderStorageScanner: @unchecked Sendable {
                 continue
             }
             if itemValues.isRegularFile == true {
-                totalBytes += Int64(itemValues.fileSize ?? 0)
+                let bytes = Int64(itemValues.fileSize ?? 0)
+                result.bytes += bytes
+                if bytes > 0, let componentPath = self.topLevelComponentPath(for: itemURL, rootPath: rootPath) {
+                    result.componentBytes[componentPath, default: 0] += bytes
+                }
             }
         }
-        return (totalBytes, unreadableCollector.paths)
+        result.unreadablePaths = unreadableCollector.paths
+        return result
+    }
+
+    private func topLevelComponentPath(for url: URL, rootPath: String) -> String? {
+        let itemPath = url.standardizedFileURL.path
+        let pathPrefix = rootPath.hasSuffix("/") ? rootPath : "\(rootPath)/"
+        guard itemPath.hasPrefix(pathPrefix) else { return nil }
+        let suffix = itemPath.dropFirst(pathPrefix.count)
+        let relative = suffix.drop { $0 == "/" }
+        guard let first = relative.split(separator: "/", maxSplits: 1, omittingEmptySubsequences: true).first else {
+            return nil
+        }
+        return URL(fileURLWithPath: rootPath, isDirectory: true)
+            .appendingPathComponent(String(first))
+            .path
     }
 }
 

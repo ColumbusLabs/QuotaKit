@@ -60,6 +60,7 @@ public enum OllamaCookieImporter {
     private static let cookieClient = BrowserCookieClient()
     private static let cookieDomains = ["ollama.com", "www.ollama.com"]
     static let defaultPreferredBrowsers: [Browser] = [.chrome]
+    static let defaultAllowFallbackBrowsers = true
 
     public struct SessionInfo: Sendable {
         public let cookies: [HTTPCookie]
@@ -369,7 +370,11 @@ public struct OllamaUsageFetcher: Sendable {
             return [CookieCandidate(cookieHeader: manualHeader, sourceLabel: "manual cookie header")]
         }
         #if os(macOS)
-        let sessions = try OllamaCookieImporter.importSessions(browserDetection: self.browserDetection, logger: logger)
+        let sessions = try OllamaCookieImporter.importSessions(
+            browserDetection: self.browserDetection,
+            preferredBrowsers: OllamaCookieImporter.defaultPreferredBrowsers,
+            allowFallbackBrowsers: OllamaCookieImporter.defaultAllowFallbackBrowsers,
+            logger: logger)
         return sessions.map { session in
             CookieCandidate(cookieHeader: session.cookieHeader, sourceLabel: session.sourceLabel)
         }
@@ -451,7 +456,11 @@ public struct OllamaUsageFetcher: Sendable {
             return manualHeader
         }
         #if os(macOS)
-        let session = try OllamaCookieImporter.importSession(browserDetection: self.browserDetection, logger: logger)
+        let session = try OllamaCookieImporter.importSession(
+            browserDetection: self.browserDetection,
+            preferredBrowsers: OllamaCookieImporter.defaultPreferredBrowsers,
+            allowFallbackBrowsers: OllamaCookieImporter.defaultAllowFallbackBrowsers,
+            logger: logger)
         logger?("[ollama] Using cookies from \(session.sourceLabel)")
         return session.cookieHeader
         #else
@@ -509,13 +518,10 @@ public struct OllamaUsageFetcher: Sendable {
         request.setValue(Self.settingsURL.absoluteString, forHTTPHeaderField: "referer")
 
         let session = self.makeURLSession(diagnostics)
-        let (data, response) = try await session.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw OllamaUsageError.networkError("Invalid response")
-        }
+        let httpResponse = try await session.response(for: request)
         let responseInfo = ResponseInfo(
             statusCode: httpResponse.statusCode,
-            url: httpResponse.url?.absoluteString ?? "unknown")
+            url: httpResponse.response.url?.absoluteString ?? "unknown")
 
         guard httpResponse.statusCode == 200 else {
             if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
@@ -524,7 +530,7 @@ public struct OllamaUsageFetcher: Sendable {
             throw OllamaUsageError.networkError("HTTP \(httpResponse.statusCode)")
         }
 
-        let html = String(data: data, encoding: .utf8) ?? ""
+        let html = String(data: httpResponse.data, encoding: .utf8) ?? ""
         return (html, responseInfo)
     }
 

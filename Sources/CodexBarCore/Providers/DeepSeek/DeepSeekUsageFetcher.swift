@@ -135,16 +135,12 @@ public struct DeepSeekUsageFetcher: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.timeoutInterval = Self.timeoutSeconds
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw DeepSeekUsageError.networkError("Invalid response")
-        }
-
-        guard httpResponse.statusCode == 200 else {
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+        let data = response.data
+        guard response.statusCode == 200 else {
             let body = String(data: data, encoding: .utf8) ?? ""
-            Self.log.error("DeepSeek API returned \(httpResponse.statusCode): \(body)")
-            throw DeepSeekUsageError.apiError("HTTP \(httpResponse.statusCode)")
+            Self.log.error("DeepSeek API returned \(response.statusCode): \(body)")
+            throw DeepSeekUsageError.apiError("HTTP \(response.statusCode)")
         }
 
         if let jsonString = String(data: data, encoding: .utf8) {

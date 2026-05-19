@@ -18,11 +18,11 @@ public enum CommandCodeUsageFetcher {
 
     public static func fetchUsage(
         cookieHeader: String,
-        session: URLSession = .shared,
+        session transport: any ProviderHTTPTransport = ProviderHTTPClient.shared,
         now: Date = Date()) async throws -> CommandCodeUsageSnapshot
     {
-        async let creditsResult = self.fetchCredits(cookieHeader: cookieHeader, session: session)
-        async let subscriptionResult = self.fetchSubscription(cookieHeader: cookieHeader, session: session)
+        async let creditsResult = self.fetchCredits(cookieHeader: cookieHeader, transport: transport)
+        async let subscriptionResult = self.fetchSubscription(cookieHeader: cookieHeader, transport: transport)
 
         let credits = try await creditsResult
         let subscription = try await subscriptionResult
@@ -66,26 +66,26 @@ public enum CommandCodeUsageFetcher {
 
     private static func fetchCredits(
         cookieHeader: String,
-        session: URLSession) async throws -> CreditsPayload
+        transport: any ProviderHTTPTransport) async throws -> CreditsPayload
     {
         let url = self.apiBase.appendingPathComponent(self.creditsPath)
-        let data = try await self.send(url: url, cookieHeader: cookieHeader, session: session)
+        let data = try await self.send(url: url, cookieHeader: cookieHeader, transport: transport)
         return try self.parseCredits(data: data)
     }
 
     private static func fetchSubscription(
         cookieHeader: String,
-        session: URLSession) async throws -> SubscriptionPayload?
+        transport: any ProviderHTTPTransport) async throws -> SubscriptionPayload?
     {
         let url = self.apiBase.appendingPathComponent(self.subscriptionsPath)
-        let data = try await self.send(url: url, cookieHeader: cookieHeader, session: session)
+        let data = try await self.send(url: url, cookieHeader: cookieHeader, transport: transport)
         return try self.parseSubscription(data: data)
     }
 
     private static func send(
         url: URL,
         cookieHeader: String,
-        session: URLSession) async throws -> Data
+        transport: any ProviderHTTPTransport) async throws -> Data
     {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -97,25 +97,21 @@ public enum CommandCodeUsageFetcher {
         request.setValue(self.webOrigin, forHTTPHeaderField: "Origin")
         request.setValue("\(self.webOrigin)/", forHTTPHeaderField: "Referer")
 
-        let response: URLResponse
-        let data: Data
+        let response: ProviderHTTPResponse
         do {
-            (data, response) = try await session.data(for: request)
+            response = try await transport.response(for: request)
         } catch {
             throw CommandCodeUsageError.networkError(error.localizedDescription)
         }
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw CommandCodeUsageError.networkError("Invalid response")
-        }
-        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+        if response.statusCode == 401 || response.statusCode == 403 {
             throw CommandCodeUsageError.invalidCredentials
         }
-        guard (200..<300).contains(httpResponse.statusCode) else {
-            let body = String(data: data, encoding: .utf8) ?? ""
-            Self.log.error("CommandCode \(url.path) → \(httpResponse.statusCode): \(body)")
-            throw CommandCodeUsageError.apiError(httpResponse.statusCode)
+        guard (200..<300).contains(response.statusCode) else {
+            let body = String(data: response.data, encoding: .utf8) ?? ""
+            Self.log.error("CommandCode \(url.path) → \(response.statusCode): \(body)")
+            throw CommandCodeUsageError.apiError(response.statusCode)
         }
-        return data
+        return response.data
     }
 
     // MARK: - Parsing

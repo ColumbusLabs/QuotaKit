@@ -8,6 +8,25 @@ import Foundation
 actor ClaudeCLISession {
     static let shared = ClaudeCLISession()
     private static let log = CodexBarLog.logger(LogCategories.claudeCLI)
+    #if DEBUG
+    @TaskLocal private static var sessionOverrideForTesting: ClaudeCLISession?
+
+    static var current: ClaudeCLISession {
+        self.sessionOverrideForTesting ?? self.shared
+    }
+
+    static func withIsolatedSessionForTesting<T>(operation: () async throws -> T) async rethrows -> T {
+        let session = ClaudeCLISession()
+        defer { Task { await session.reset() } }
+        return try await self.$sessionOverrideForTesting.withValue(session) {
+            try await operation()
+        }
+    }
+    #else
+    static var current: ClaudeCLISession {
+        self.shared
+    }
+    #endif
 
     enum SessionError: LocalizedError {
         case launchFailed(String)
@@ -98,6 +117,7 @@ actor ClaudeCLISession {
         timeout: TimeInterval,
         idleTimeout: TimeInterval? = 3.0,
         stopOnSubstrings: [String] = [],
+        stopWhenNormalized: (@Sendable (String) -> Bool)? = nil,
         settleAfterStop: TimeInterval = 0.25,
         sendEnterEvery: TimeInterval? = nil) async throws -> String
     {
@@ -136,6 +156,7 @@ actor ClaudeCLISession {
 
         var buffer = Data()
         var scanTailText = ""
+        var normalizedScan = ""
         var utf8Carry = Data()
         let deadline = Date().addingTimeInterval(timeout)
         var lastOutputAt = Date()
@@ -152,27 +173,26 @@ actor ClaudeCLISession {
                 lastOutputAt = Date()
                 Self.appendScanText(newData: newData, scanTailText: &scanTailText, utf8Carry: &utf8Carry)
                 if scanTailText.count > 8192 { scanTailText = String(scanTailText.suffix(8192)) }
-            }
+                normalizedScan = Self.normalizedNeedle(TextParsing.stripANSICodes(scanTailText))
 
-            let scanData = scanBuffer.append(newData)
-            if !scanData.isEmpty,
-               scanData.range(of: cursorQuery) != nil
-            {
-                try? self.send("\u{1b}[1;1R")
-            }
-
-            let normalizedScan = Self.normalizedNeedle(TextParsing.stripANSICodes(scanTailText))
-
-            for item in sendNeedles where !triggeredSends.contains(item.needle) {
-                if normalizedScan.contains(item.needle) {
-                    try? self.send(item.keys)
-                    triggeredSends.insert(item.needle)
+                let scanData = scanBuffer.append(newData)
+                if scanData.range(of: cursorQuery) != nil {
+                    try? self.send("\u{1b}[1;1R")
                 }
-            }
 
-            if stopNeedles.contains(where: normalizedScan.contains) {
-                stoppedEarly = true
-                break
+                for item in sendNeedles where !triggeredSends.contains(item.needle) {
+                    if normalizedScan.contains(item.needle) {
+                        try? self.send(item.keys)
+                        triggeredSends.insert(item.needle)
+                    }
+                }
+
+                if stopNeedles
+                    .contains(where: normalizedScan.contains) || (stopWhenNormalized?(normalizedScan) == true)
+                {
+                    stoppedEarly = true
+                    break
+                }
             }
 
             if self.shouldStopForIdleTimeout(

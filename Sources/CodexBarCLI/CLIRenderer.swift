@@ -34,6 +34,7 @@ enum CLIRenderer {
             now: now,
             lines: &lines)
         self.appendTertiaryLines(snapshot: snapshot, labels: labels, context: context, now: now, lines: &lines)
+        self.appendDeepgramLines(snapshot: snapshot, useColor: context.useColor, lines: &lines)
         self.appendLimitsUnavailableLine(
             provider: provider,
             snapshot: snapshot,
@@ -123,6 +124,25 @@ enum CLIRenderer {
         lines.append(self.rateLine(title: labels.tertiary, window: opus, useColor: context.useColor))
         if let reset = self.resetLine(for: opus, style: context.resetStyle, now: now) {
             lines.append(self.subtleLine(reset, useColor: context.useColor))
+        }
+    }
+
+    private static func appendDeepgramLines(
+        snapshot: UsageSnapshot,
+        useColor: Bool,
+        lines: inout [String])
+    {
+        guard let usage = snapshot.deepgramUsage else { return }
+        for line in usage.displayLines {
+            let parts = line.split(separator: ":", maxSplits: 1).map(String.init)
+            if parts.count == 2 {
+                lines.append(self.labelValueLine(
+                    parts[0].trimmingCharacters(in: .whitespacesAndNewlines),
+                    value: parts[1].trimmingCharacters(in: .whitespacesAndNewlines),
+                    useColor: useColor))
+            } else {
+                lines.append(self.labelValueLine("Usage", value: line, useColor: useColor))
+            }
         }
     }
 

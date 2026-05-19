@@ -23,7 +23,7 @@
   <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/05-share-cards.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/05-share-cards.png" alt="Share cards" width="180"></a>
 </p>
 
-- **Full sync** — all 27 providers (Codex, Claude, Cursor, Gemini, Vertex AI, Mistral, Abacus AI, Perplexity, Synthetic, …) refreshed from your Mac via iCloud silent push within ~500 ms. One screen, no manual reload.
+- **Full sync** — all 30+ providers (Codex, Claude, Cursor, Gemini, Grok, GroqCloud, ElevenLabs, Deepgram, LLM Proxy, Vertex AI, Mistral, Abacus AI, Perplexity, Synthetic, …) refreshed from your Mac via iCloud silent push within ~500 ms. One screen, no manual reload.
 - **Cost dashboard** — Daily Spend with 30-day chart, per-provider share, per-model breakdown, and renewal-cycle progress. Estimated rates kick in for newly-released models so a fresh `gpt-5.x` never silently drops the day to $0.
 - **Share cards** — one-tap share images for any usage or cost view, clean dark-mode design with a QR back to the website. Ready for X, WeChat, Slack, or anywhere else you brag about token spend.
 
@@ -31,7 +31,7 @@
 
 # CodexBar 🎚️ - May your tokens never run out.
 
-Tiny macOS 14+ menu bar app that keeps your Codex, Claude, Cursor, Gemini, Antigravity, Droid (Factory), Copilot, z.ai, Kiro, Vertex AI, Augment, Amp, JetBrains AI, OpenRouter, Perplexity, and Abacus AI limits visible (session + weekly where available) and shows when each window resets. One status item per provider (or Merge Icons mode with a provider switcher and optional Overview tab); enable what you use from Settings. No Dock icon, minimal UI, dynamic bar icons in the menu bar.
+Tiny macOS 14+ menu bar app that keeps your Codex, Claude, Cursor, Gemini, Grok, GroqCloud, ElevenLabs, Deepgram, Antigravity, Droid (Factory), Copilot, z.ai, MiniMax, Kiro, Vertex AI, Augment, Amp, JetBrains AI, OpenRouter, LLM Proxy, Perplexity, and Abacus AI limits visible (session + weekly where available) and shows when each window resets. One status item per provider (or Merge Icons mode with a provider switcher and optional Overview tab); enable what you use from Settings. No Dock icon, minimal UI, dynamic bar icons in the menu bar.
 
 <img src="codexbar.png" alt="CodexBar menu screenshot" width="520" />
 
@@ -60,10 +60,29 @@ Linux support via Omarchy: community Waybar module and TUI, driven by the `codex
 - Install/sign in to the provider sources you rely on (e.g. `codex`, `claude`, `gemini`, browser cookies, or OAuth; Antigravity requires the Antigravity app running).
 - Optional: Settings → Providers → Codex → OpenAI cookies (Automatic or Manual) to add dashboard extras.
 
+### Set API keys from the CLI
+Provider toggles and API keys live in `~/.codexbar/config.json`. You can script the same provider list that Settings → Providers uses:
+
+```bash
+codexbar config providers
+codexbar config enable --provider grok
+codexbar config disable --provider cursor
+```
+
+For API-key providers, store a key without opening Settings:
+
+```bash
+printf '%s' "$ELEVENLABS_API_KEY" | codexbar config set-api-key --provider elevenlabs --stdin
+```
+
+`set-api-key` trims the piped value, stores it with restrictive config-file permissions, and enables the provider by default. Use `--no-enable` to only save the key, or `--api-key <key>` for one-off local scripts where shell history is not a concern.
+See [CLI configuration](docs/cli-configuration.md) for the full flow.
+
 ## Providers
 
-- [Codex](docs/codex.md) — Local Codex CLI RPC (+ PTY fallback) and optional OpenAI web dashboard extras.
-- [Claude](docs/claude.md) — OAuth API or browser cookies (+ CLI PTY fallback); session + weekly usage.
+- [Codex](docs/codex.md) — OAuth API or local Codex CLI, plus optional OpenAI web dashboard extras.
+- [OpenAI](docs/openai.md) — Admin API key usage/cost graphs with legacy credit-balance fallback.
+- [Claude](docs/claude.md) — OAuth API, browser cookies, or CLI PTY fallback; session and weekly usage where available.
 - [Cursor](docs/cursor.md) — Browser session cookies for plan + usage + billing resets.
 - [Gemini](docs/gemini.md) — OAuth-backed quota API using Gemini CLI credentials (no browser cookies).
 - [Antigravity](docs/antigravity.md) — Local language server probe (experimental); no external auth.
@@ -71,13 +90,20 @@ Linux support via Omarchy: community Waybar module and TUI, driven by the `codex
 - [Copilot](docs/copilot.md) — GitHub device flow + Copilot internal usage API.
 - [z.ai](docs/zai.md) — API token (Keychain) for quota + MCP windows.
 - [Kimi](docs/kimi.md) — Auth token (JWT from `kimi-auth` cookie) for weekly quota + 5‑hour rate limit.
-- [Kimi K2](docs/kimi-k2.md) — API key for credit-based usage totals.
-- [Kiro](docs/kiro.md) — CLI-based usage via `kiro-cli /usage` command; monthly credits + bonus credits.
+- [Kimi K2 (unofficial)](docs/kimi-k2.md) — Legacy API key flow for credit-based usage totals.
+- [Kilo](docs/kilo.md) — API token with CLI-auth fallback for Kilo Pass usage.
+- [Kiro](docs/kiro.md) — CLI-based usage; monthly credits + bonus credits.
 - [Vertex AI](docs/vertexai.md) — Google Cloud gcloud OAuth with token cost tracking from local Claude logs.
 - [Augment](docs/augment.md) — Browser cookie-based authentication with automatic session keepalive; credits tracking and usage monitoring.
 - [Amp](docs/amp.md) — Browser cookie-based authentication with Amp Free usage tracking.
 - [JetBrains AI](docs/jetbrains.md) — Local XML-based quota from JetBrains IDE configuration; monthly credits tracking.
+- [Warp](docs/warp.md) — API token for GraphQL request limits and monthly credits.
+- [ElevenLabs](docs/elevenlabs.md) — API key for character credits and voice slot usage.
 - [OpenRouter](docs/openrouter.md) — API token for credit-based usage tracking across multiple AI providers.
+- [Windsurf](docs/windsurf.md) — Browser localStorage session import or local SQLite cache for plan usage.
+- Perplexity — Account usage credits from Perplexity usage data.
+- [Xiaomi MiMo](docs/mimo.md) — Browser cookies for balance and token-plan usage.
+- [Doubao](docs/doubao.md) — API key for Volcengine Ark request-limit probes.
 - [Abacus AI](docs/abacus.md) — Browser cookie auth for ChatLLM/RouteLLM compute credit tracking.
 - Mistral — Browser cookies for monthly spend tracking.
 - [DeepSeek](docs/deepseek.md) — API key for credit balance tracking (paid vs. granted breakdown).
@@ -87,6 +113,11 @@ Linux support via Omarchy: community Waybar module and TUI, driven by the `codex
 - [Crof](docs/crof.md) — API key for dollar credit balance and request quota tracking.
 - [Command Code](docs/command-code.md) — Browser cookies for monthly USD credits from Command Code billing.
 - [StepFun](docs/stepfun.md) — Username + password login for Step Plan rate limits (5‑hour + weekly windows) and subscription plan name.
+- [AWS Bedrock](docs/bedrock.md) — AWS credentials for Cost Explorer usage and monthly budget tracking.
+- [Grok](docs/grok.md) — Grok CLI billing RPC plus grok.com browser-session fallback.
+- [GroqCloud](docs/groqcloud.md) — API key for Enterprise Prometheus request/token/cache-hit metrics.
+- [LLM Proxy](docs/llm-proxy.md) — API key + base URL for aggregate proxy quota stats and provider breakdowns.
+- [Deepgram](docs/deepgram.md) — API key usage summaries across speech, agent, token, and TTS metrics.
 - Open to new providers: [provider authoring guide](docs/provider.md).
 
 ## Icon & Screenshot
@@ -99,7 +130,8 @@ The menu bar icon is a tiny two-bar meter:
 - Multi-provider menu bar with per-provider toggles (Settings → Providers).
 - Session + weekly meters with reset countdowns.
 - Optional Codex web dashboard enrichments (code review remaining, usage breakdown, credits history).
-- Local cost-usage scan for Codex + Claude (last 30 days).
+- Inline spend and usage charts for API-backed providers such as OpenAI, Claude Admin API, OpenRouter, z.ai, MiniMax, Mistral, and AWS Bedrock.
+- Configurable cost-usage scans for Codex + Claude, plus reused chart UI for supported provider histories.
 - Provider status polling with incident badges in the menu and icon overlay.
 - Merge Icons mode to combine providers into one status item + switcher, with an optional Overview tab for up to three providers.
 - Refresh cadence presets (manual, 1m, 2m, 5m, 15m).
@@ -135,6 +167,9 @@ Wondering if CodexBar scans your disk? It doesn’t crawl your filesystem; it re
 - Issue labeling guide: [docs/ISSUE_LABELING.md](docs/ISSUE_LABELING.md)
 - UI & icon notes: [docs/ui.md](docs/ui.md)
 - CLI reference: [docs/cli.md](docs/cli.md)
+- Configuration: [docs/configuration.md](docs/configuration.md)
+- CLI configuration: [docs/cli-configuration.md](docs/cli-configuration.md)
+- Widgets: [docs/widgets.md](docs/widgets.md)
 - Architecture: [docs/architecture.md](docs/architecture.md)
 - Refresh loop: [docs/refresh-loop.md](docs/refresh-loop.md)
 - Status polling: [docs/status.md](docs/status.md)
@@ -167,6 +202,9 @@ Dev loop:
 
 ## Looking for a Windows version?
 - [Win-CodexBar](https://github.com/Finesssee/Win-CodexBar)
+
+## Linux desktop integration?
+- [codexbar-waybar](https://github.com/Marouan-chak/codexbar-waybar) — Waybar custom module + GTK4 popover for Hyprland / Sway / other Wayland compositors, built on top of the bundled Linux CLI.
 
 ## Credits
 Inspired by [ccusage](https://github.com/ryoppippi/ccusage) (MIT), specifically the cost usage tracking.

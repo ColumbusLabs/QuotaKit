@@ -507,10 +507,15 @@ extension StatusItemController {
         for (index, row) in rows.enumerated() {
             let identifier = "\(Self.overviewRowIdentifierPrefix)\(row.provider.rawValue)"
             let storageText = self.store.storageFootprintText(for: row.provider)
+            let submenu = self.makeOverviewRowSubmenu(
+                provider: row.provider,
+                model: row.model,
+                width: menuWidth)
             let item = self.makeMenuCardItem(
                 OverviewMenuCardRowView(model: row.model, storageText: storageText, width: menuWidth),
                 id: identifier,
                 width: menuWidth,
+                submenu: submenu,
                 onClick: { [weak self, weak menu] in
                     guard let self, let menu else { return }
                     self.selectOverviewProvider(row.provider, menu: menu)
@@ -539,23 +544,7 @@ extension StatusItemController {
 
     private func addMenuCards(to menu: NSMenu, context: MenuCardContext) -> Bool {
         if let codexAccountDisplay = context.codexAccountDisplay, codexAccountDisplay.showAll {
-            let snapshotsByAccountID = Dictionary(uniqueKeysWithValues: codexAccountDisplay.snapshots.map {
-                ($0.account.id, $0)
-            })
-            let cards = codexAccountDisplay.accounts.compactMap { account in
-                if let accountSnapshot = snapshotsByAccountID[account.id] {
-                    return self.menuCardModel(
-                        for: .codex,
-                        snapshotOverride: accountSnapshot.snapshot,
-                        errorOverride: accountSnapshot.error,
-                        accountOverride: self.accountInfo(for: account))
-                }
-                return self.menuCardModel(
-                    for: .codex,
-                    forceOverrideCard: true,
-                    accountOverride: self.accountInfo(for: account))
-            }
-            self.addStackedMenuCards(cards, to: menu, context: context)
+            self.addStackedCodexMenuCards(codexAccountDisplay, to: menu, context: context)
             return false
         }
 
@@ -1269,16 +1258,9 @@ extension StatusItemController {
         let usageBottomPadding = bottomPadding
         let creditsBottomPadding = bottomPadding
 
-        let headerView = UsageMenuCardHeaderSectionView(
-            model: model,
-            showDivider: hasUsageBlock,
-            width: width)
-        menu.addItem(self.makeMenuCardItem(headerView, id: "menuCardHeader", width: width))
-
         if hasUsageBlock {
-            let usageView = UsageMenuCardUsageSectionView(
+            let usageView = UsageMenuCardHeaderAndUsageSectionView(
                 model: model,
-                showBottomDivider: false,
                 bottomPadding: usageBottomPadding,
                 width: width)
             let usageSubmenu = self.makeUsageSubmenu(
@@ -1291,6 +1273,12 @@ extension StatusItemController {
                 id: "menuCardUsage",
                 width: width,
                 submenu: usageSubmenu))
+        } else {
+            let headerView = UsageMenuCardHeaderSectionView(
+                model: model,
+                showDivider: false,
+                width: width)
+            menu.addItem(self.makeMenuCardItem(headerView, id: "menuCardHeader", width: width))
         }
 
         if hasStorage || hasCredits || hasExtraUsage || hasCost {
@@ -1350,7 +1338,7 @@ extension StatusItemController {
     }
 
     @discardableResult
-    private func addStorageMenuCardSection(to menu: NSMenu, provider: UsageProvider, width: CGFloat) -> Bool {
+    func addStorageMenuCardSection(to menu: NSMenu, provider: UsageProvider, width: CGFloat) -> Bool {
         guard let storageText = self.store.storageFootprintText(for: provider) else { return false }
         let storageView = StorageMenuCardSectionView(
             storageText: storageText,
@@ -1463,7 +1451,9 @@ extension StatusItemController {
     private func addCostHistorySubmenu(to menu: NSMenu, provider: UsageProvider) -> Bool {
         guard let submenu = self.makeCostHistorySubmenu(provider: provider, width: self.renderedMenuWidth(for: menu))
         else { return false }
-        let item = NSMenuItem(title: "Usage history (30 days)", action: nil, keyEquivalent: "")
+        let days = self.store.settings.costUsageHistoryDays
+        let title = days == 1 ? "Usage history (today)" : "Usage history (\(days) days)"
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.isEnabled = true
         item.submenu = submenu
         menu.addItem(item)
@@ -1488,7 +1478,7 @@ extension StatusItemController {
         return nil
     }
 
-    private func makeZaiUsageDetailsSubmenu(snapshot: UsageSnapshot?) -> NSMenu? {
+    func makeZaiUsageDetailsSubmenu(snapshot: UsageSnapshot?) -> NSMenu? {
         guard let timeLimit = snapshot?.zaiUsage?.timeLimit else { return nil }
         guard !timeLimit.usageDetails.isEmpty else { return nil }
 
@@ -1545,7 +1535,7 @@ extension StatusItemController {
         return self.makeHostedSubviewPlaceholderMenu(chartID: Self.creditsHistoryChartID)
     }
 
-    private func makeCostHistorySubmenu(provider: UsageProvider, width: CGFloat? = nil) -> NSMenu? {
+    func makeCostHistorySubmenu(provider: UsageProvider, width: CGFloat? = nil) -> NSMenu? {
         guard [.codex, .claude, .vertexai, .bedrock].contains(provider) else { return nil }
         guard self.store.tokenSnapshot(for: provider)?.daily.isEmpty == false else { return nil }
         if let width {
@@ -1557,7 +1547,7 @@ extension StatusItemController {
         return self.makeHostedSubviewPlaceholderMenu(chartID: Self.costHistoryChartID, provider: provider)
     }
 
-    private func makeOpenAIAPIUsageSubmenu(provider: UsageProvider, width: CGFloat? = nil) -> NSMenu? {
+    func makeOpenAIAPIUsageSubmenu(provider: UsageProvider, width: CGFloat? = nil) -> NSMenu? {
         guard self.hasOpenAIAPIUsageSubmenu(provider: provider) else { return nil }
         if let width {
             return self.makeHostedSubviewPlaceholderMenu(
@@ -1572,7 +1562,7 @@ extension StatusItemController {
         provider == .openai && self.store.snapshot(for: provider)?.openAIAPIUsage?.daily.isEmpty == false
     }
 
-    private func makeStorageBreakdownSubmenu(provider: UsageProvider, width: CGFloat? = nil) -> NSMenu? {
+    func makeStorageBreakdownSubmenu(provider: UsageProvider, width: CGFloat? = nil) -> NSMenu? {
         guard self.store.storageFootprint(for: provider)?.components.isEmpty == false else { return nil }
         if let width {
             return self.makeHostedSubviewPlaceholderMenu(

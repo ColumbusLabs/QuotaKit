@@ -1,5 +1,113 @@
 # Changelog
 
+## 0.27.0 (Mobile 1.7.0 · build 65.1) — 2026-05-19 — Sync to upstream v0.27.0
+
+> Fork sync of upstream v0.27.0. Mac picks up 7 new provider tiles
+> (Grok, ElevenLabs, Deepgram, GroqCloud, LLM Proxy, MiniMax web
+> billing history, OpenCode Go Zen balance) plus Claude Anthropic
+> Admin API source, Kiro overage menu modes, and the multi-account
+> menu refactor. iOS bridge for these features ships in 1.8.0; this
+> Mac build is wire-compatible with the existing 1.7.0 iOS app for
+> the providers it already understands.
+>
+> See [[CodexBarMobile/Research/022-v027-upstream-sync-ios-180.md]]
+> for the full sync plan, iOS surface decisions, and the per-conflict
+> resolution notes.
+
+### Mac
+
+- Adopt upstream v0.27.0 baseline (90 commits, 363 files,
+  +23,596 / −2,780 vs v0.26.1).
+- Conflict resolution kept fork patches in:
+  - `.github/workflows/ci.yml` (iOS audit + xcodebuild jobs)
+  - `Scripts/sign-and-notarize.sh`, `package_app.sh`,
+    `compile_and_run.sh` (Developer ID `3TUERHN53E` flow)
+  - `appcast.xml` (mobile Sparkle entries)
+  - `version.env` (subdecimal BUILD scheme +
+    MOBILE_VERSION / UPSTREAM_VERSION fields)
+  - `.gitignore`, `CHANGELOG.md`, `README.md` (fork-private content)
+
+### iOS
+
+- No iOS code change in this fork commit; deferred to 1.8.0
+  (Research/022 Phase F).
+
+### CloudKit deploy
+
+- Schema audit pending (see Research/022 Phase D). New v0.27.0
+  providers do not yet populate iOS envelope — first ship of those
+  fields will trigger the audit.
+
+### Notes
+
+- `version.env`: `MARKETING_VERSION=0.27.0`, `BUILD_NUMBER=65.1`,
+  `MOBILE_VERSION=1.7.0`, `UPSTREAM_VERSION=v0.26.1` (lags until
+  shipped to users), `UPSTREAM_SYNC_DATE=2026-05-19`.
+
+---
+
+## 0.27.0 — 2026-05-18 (upstream)
+
+### Added
+- Usage charts: reuse the OpenAI API inline dashboard for local Codex/Claude/Vertex/Bedrock cost history, OpenRouter day/week/month spend, z.ai hourly tokens, and Mistral daily spend.
+- Usage history: let OpenAI Admin API charts and local cost-history scans use a configurable 1–365 day window instead of a fixed 30 days (#83).
+- Grok: add xAI Grok provider support with local identity detection and billing decoding for the Grok CLI integration (#965). Thanks @taibaran!
+- ElevenLabs: add API-key usage tracking for subscription credits, reset time, and voice-slot limits.
+- Deepgram: add API-key usage tracking with project discovery and speech/agent usage breakdowns (#1003, fixes #994). Thanks @czjzpz!
+- GroqCloud: add API-key usage tracking for Enterprise Prometheus metrics with request, token, and cache-hit rate summaries (#993).
+- LLM Proxy: add API-key quota-stats support for aggregate proxy usage, key health, spend, provider breakdowns, and reset windows (#264).
+- Claude: add an Anthropic Admin API source and allow `sk-ant-admin...` keys in Claude token accounts for API spend/token tracking (#966).
+- MiniMax: add web-session billing-history summaries with 30-day token charts and top model/method breakdowns (#1007).
+- OpenCode Go: show the optional Zen pay-as-you-go balance from the workspace dashboard alongside subscription windows (#1006).
+- Kiro: add overage-credit and overage-cost menu bar display modes for exhausted plans (#972). Thanks @raflyazf!
+- CLI: add `codexbar config set-api-key` for safely storing provider API keys from stdin.
+- CLI: add `codexbar config providers`, `enable`, and `disable` for scripting the same provider toggles used by Settings.
+- CLI: let `--all-accounts` and `codexbar serve` export every visible Codex account instead of only the selected account (#1019).
+- Permissions: notify when a provider probe detects a macOS/browser permission prompt waiting for user action (#456).
+- Quota warnings: include the triggering account in notification copy when personal info is visible (#973). Thanks @raflyazf!
+- Website: replace provider-letter tiles with brand logos, add light/dark landing-page themes, and collapse OpenCode/OpenCode Go into one company entry (#989). Thanks @pasangimhana!
+- Providers: route app-owned provider HTTP calls through a shared transport seam for cleaner proxy and test support (#892). Thanks @serezha93!
+
+### Fixed
+- Codex: make local cost-history scans faster and more stable for large session archives while preserving fork attribution, priority pricing, and cached history windows.
+- Codex: collapse near-duplicate session and weekly plan-utilization history windows so charts no longer show repeated tabs (#1027). Thanks @ngutman!
+- Multi-account menus: fetch stacked Codex/token-account usage concurrently so account switchers stay responsive with many accounts (#1011).
+- Codex: keep local cost history attributed to the correct model when long or oversized `turn_context` rows precede model-less token events (#1014, fixes #1013). Thanks @hhh2210!
+- Codex: prefer per-event token usage over divergent total counters when scanning local cost history, preventing large false cost spikes (#968). Thanks @Ifan24!
+- Claude: de-duplicate copied fork/resume transcript history by provider response identity so local cost estimates do not overcount repeated rows (#1002). Thanks @Neverdie-2!
+- Codex: improve multi-account switching with quota-aware ordering, workspace grouping, persisted per-account snapshots, health labels, and auth fingerprint matching.
+- Codex: improve managed account login recovery guidance when macOS blocks or moves a stale `codex` CLI to Trash (#977).
+- Codex: show weekly pace reserve details in the menu even when the caller did not precompute pace data (#1009). Thanks @zhulijin1991!
+- Overview: expose provider chart and storage detail submenus from overview rows instead of requiring a provider-tab switch first.
+- Claude: reset stuck CLI sessions after usage probe timeouts, give slow probes longer to render, and keep stale data visible across transient timeouts.
+- Claude: keep the last successful usage card visible across transient probe timeouts while still clearing stale data after Claude auth changes.
+- Claude: keep Team and Personal Max plan-utilization history separate when the same email appears on multiple Claude accounts (#213).
+- Claude: label Extra usage denominators as the monthly cap so recharge balances are not confused with the maximum spend limit (#975).
+- Claude: wait for the CLI usage panel to finish rendering after the Current session label so slow Claude Code builds do not produce false "Missing Current session" errors (#959).
+- Claude: label five-hour session pace as "Projected empty" so it is not confused with the reset countdown (#960).
+- Claude: show Enterprise spend-limit usage in automatic menu bar metrics and expose the Extra usage metric picker when spend data is available (#964).
+- Grok: retry transient web billing timeouts once and allow slower billing RPCs to finish before showing an error.
+- Grok: fall back to grok.com's billing endpoint when `grok agent stdio` omits the xAI billing method (#984). Thanks @bcharleson!
+- OpenAI: shorten the provider label to "OpenAI" so the menu tab no longer clips.
+- OpenAI: accept numeric-string Admin API cost amounts so usage does not fail when `/v1/organization/costs` returns `"amount": { "value": "12.50" }` (#999, #1000). Thanks @SergeyLavrentev!
+- Menu: keep provider switcher buttons centered by moving quota indicators out of the button layout.
+- Menu: rebuild the selected provider content after switching tabs while an overview chart submenu is open.
+- Menu: keep the persistent Refresh row at a fixed height while highlighted or pressed so nearby items no longer jump (#1001).
+- Menu bar: avoid re-reading provider credentials, Codex account state, Claude terminal probe text, and storage footprints on hot menu paths, reducing idle CPU while providers are still loading.
+- Menu bar: skip unchanged split-provider icon redraws and avoid an extra animation-state scan during blink ticks.
+- Menu bar: recover visible status items after the display hosting the menu bar item is unplugged (#998, fixes #997). Thanks @Llldmiao!
+- Menu bar: recreate status items on startup when macOS reports them visible but never attaches a menu bar button/window (#988).
+- MiniMax: show Coding Plan model-remains quotas as used/limit cards and include weekly text-generation quota windows (#970). Thanks @Yuxin-Qiao!
+- Ollama: let automatic session import fall back from Chrome to Safari, Comet, and the rest of the browser import order when Chrome has no Ollama session (#962).
+- Kimi K2: label the legacy provider as unofficial and remove links that presented the legacy endpoint as an official Kimi account surface (#967, fixes #473). Thanks @mturac!
+- CLI: use explicit provider HTTP timeouts so blocked network connections fail instead of leaving usage commands stuck for days (#1005, fixes #1004). Thanks @msmolkin!
+- CLI: reject non-loopback `Host` headers in `codexbar serve` before serving local usage and cost metadata (#995). Thanks @rohitjavvadi!
+- Packaging: skip slow widget App Intents metadata during dev restarts and preserve the previous app bundle if required metadata generation times out.
+- Localization: fall back to English when a bundled localized string is blank instead of rendering empty menu/settings text (#952). Thanks @xiaoqianWX!
+- Settings: localize the provider storage usage toggle in the Advanced pane (#985, fixes #971). Thanks @tanish19078!
+
+---
+
 ## 0.26.4 (Mobile 1.7.0 · build 63.4) — 2026-05-18 — Phase G hotfix: decouple CloudKit sync from Mac menu layout
 
 > Patch on top of 63.3 fixing a user-reported regression where iPhone
@@ -160,6 +268,7 @@ Folded into fork 0.26.1 (above). Original upstream release notes:
 - CLI: add `codexbar serve` for localhost JSON access to usage and cost endpoints (#957). Thanks @ThiagoCAltoe!
 
 **Fixed**
+- OpenCode Go: block cross-host redirects when fetching usage so imported cookies cannot follow external redirect targets (#969). Thanks @pavbar!
 - Codex: keep background `/status` probes out of Codex Desktop history by using isolated non-persistent CLI storage (#953).
 - Menu: stabilize the Cost submenu by using a native menu item and deferring open-menu rebuilds while tracking (#954). Thanks @getogrand!
 - Localization: add Brazilian Portuguese quota-warning settings strings (#958). Thanks @ThiagoCAltoe!

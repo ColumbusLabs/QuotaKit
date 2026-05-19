@@ -43,19 +43,17 @@ public struct PerplexityUsageFetcher: Sendable {
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw PerplexityAPIError.networkError("Invalid response")
-        }
-
-        guard httpResponse.statusCode == 200 else {
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+        let data = response.data
+        guard response.statusCode == 200 else {
+            let statusCode = response.statusCode
             let body = String(data: data, encoding: .utf8) ?? "<binary>"
             let truncated = body.count > 200 ? String(body.prefix(200)) + "…" : body
-            Self.log.error("Perplexity API returned \(httpResponse.statusCode): \(truncated)")
-            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+            Self.log.error("Perplexity API returned \(statusCode): \(truncated)")
+            if statusCode == 401 || statusCode == 403 {
                 throw PerplexityAPIError.invalidToken
             }
-            throw PerplexityAPIError.apiError("HTTP \(httpResponse.statusCode)")
+            throw PerplexityAPIError.apiError("HTTP \(statusCode)")
         }
 
         do {

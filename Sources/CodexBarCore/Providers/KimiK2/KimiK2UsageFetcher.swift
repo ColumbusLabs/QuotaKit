@@ -123,15 +123,11 @@ public struct KimiK2UsageFetcher: Sendable {
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw KimiK2UsageError.networkError("Invalid response")
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            let body = String(data: data, encoding: .utf8) ?? "HTTP \(httpResponse.statusCode)"
-            Self.log.error("Kimi K2 API returned \(httpResponse.statusCode): \(body)")
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+        let data = response.data
+        guard response.statusCode == 200 else {
+            let body = String(data: data, encoding: .utf8) ?? "HTTP \(response.statusCode)"
+            Self.log.error("Kimi K2 API returned \(response.statusCode): \(body)")
             throw KimiK2UsageError.apiError(body)
         }
 
@@ -139,7 +135,7 @@ public struct KimiK2UsageFetcher: Sendable {
             Self.log.debug("Kimi K2 API response: \(jsonString)")
         }
 
-        let summary = try Self.parseSummary(data: data, headers: httpResponse.allHeaderFields)
+        let summary = try Self.parseSummary(data: data, headers: response.response.allHeaderFields)
         return KimiK2UsageSnapshot(summary: summary)
     }
 

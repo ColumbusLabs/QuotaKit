@@ -365,6 +365,102 @@ struct CostUsageScannerClaudeRegressionTests {
     }
 
     @Test
+    func `claude forked transcript history dedups globally while new fork rows count`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2025, month: 12, day: 22)
+        let iso0 = env.isoString(for: day)
+        let iso1 = env.isoString(for: day.addingTimeInterval(1))
+        let iso2 = env.isoString(for: day.addingTimeInterval(2))
+        let model = "claude-sonnet-4-20250514"
+
+        let copiedHistoryInOriginal: [String: Any] = [
+            "type": "assistant",
+            "timestamp": iso0,
+            "sessionId": "session-original",
+            "requestId": "req_copied_history",
+            "isSidechain": false,
+            "uuid": "assistant-uuid-copied",
+            "parentUuid": "parent-uuid-copied",
+            "message": [
+                "id": "msg_copied_history",
+                "model": model,
+                "usage": [
+                    "input_tokens": 100,
+                    "cache_creation_input_tokens": 20,
+                    "cache_read_input_tokens": 10,
+                    "output_tokens": 30,
+                ],
+            ],
+        ]
+        var copiedHistoryInFork = copiedHistoryInOriginal
+        copiedHistoryInFork["sessionId"] = "session-fork"
+
+        let originalContinuation: [String: Any] = [
+            "type": "assistant",
+            "timestamp": iso1,
+            "sessionId": "session-original",
+            "requestId": "req_original_new",
+            "isSidechain": false,
+            "message": [
+                "id": "msg_original_new",
+                "model": model,
+                "usage": [
+                    "input_tokens": 40,
+                    "cache_creation_input_tokens": 0,
+                    "cache_read_input_tokens": 0,
+                    "output_tokens": 10,
+                ],
+            ],
+        ]
+        let forkContinuation: [String: Any] = [
+            "type": "assistant",
+            "timestamp": iso2,
+            "sessionId": "session-fork",
+            "requestId": "req_fork_new",
+            "isSidechain": false,
+            "message": [
+                "id": "msg_fork_new",
+                "model": model,
+                "usage": [
+                    "input_tokens": 70,
+                    "cache_creation_input_tokens": 5,
+                    "cache_read_input_tokens": 0,
+                    "output_tokens": 20,
+                ],
+            ],
+        ]
+
+        _ = try env.writeClaudeProjectFile(
+            relativePath: "project-a/session-original.jsonl",
+            contents: env.jsonl([copiedHistoryInOriginal, originalContinuation]))
+        _ = try env.writeClaudeProjectFile(
+            relativePath: "project-a/session-fork.jsonl",
+            contents: env.jsonl([copiedHistoryInFork, forkContinuation]))
+
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: nil,
+            claudeProjectsRoots: [env.claudeProjectsRoot],
+            cacheRoot: env.cacheRoot)
+        options.refreshMinIntervalSeconds = 0
+
+        let report = CostUsageScanner.loadDailyReport(
+            provider: .claude,
+            since: day,
+            until: day,
+            now: day,
+            options: options)
+
+        #expect(report.data.count == 1)
+        #expect(report.data[0].inputTokens == 210)
+        #expect(report.data[0].cacheCreationTokens == 25)
+        #expect(report.data[0].cacheReadTokens == 10)
+        #expect(report.data[0].outputTokens == 60)
+        #expect(report.data[0].totalTokens == 305)
+    }
+
+    @Test
     func `claude cross file dedup uses stable path order for same rank sidechains`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
@@ -438,7 +534,7 @@ struct CostUsageScannerClaudeRegressionTests {
     }
 
     @Test
-    func `claude cross file dedup does not merge rows without session ids`() throws {
+    func `claude cross file dedup uses provider ids when session id is missing`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
 
@@ -503,9 +599,9 @@ struct CostUsageScannerClaudeRegressionTests {
             options: options)
 
         #expect(report.data.count == 1)
-        #expect(report.data[0].inputTokens == 30)
-        #expect(report.data[0].outputTokens == 3)
-        #expect(report.data[0].totalTokens == 33)
+        #expect(report.data[0].inputTokens == 10)
+        #expect(report.data[0].outputTokens == 1)
+        #expect(report.data[0].totalTokens == 11)
     }
 
     @Test

@@ -105,8 +105,8 @@ struct CLIProviderSelectionTests {
     }
 
     @Test
-    func `provider selection defaults to codex when empty`() {
+    func `provider selection honors empty enabled set`() {
         let selection = CodexBarCLI.providerSelection(rawOverride: nil, enabled: [])
-        #expect(selection.asList == [.codex])
+        #expect(selection.asList == [])
     }
 }

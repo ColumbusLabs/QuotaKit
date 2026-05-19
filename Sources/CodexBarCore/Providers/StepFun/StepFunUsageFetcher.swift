@@ -280,11 +280,8 @@ public struct StepFunUsageFetcher: Sendable {
         }
         request.timeoutInterval = self.timeoutSeconds
 
-        let (_, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw StepFunUsageError.networkError("Invalid response fetching platform page")
-        }
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+        let httpResponse = response.response
 
         // Extract INGRESSCOOKIE from Set-Cookie headers
         let setCookieHeaders = httpResponse.allHeaderFields.filter { ($0.key as? String)?.lowercased() == "set-cookie" }
@@ -326,16 +323,12 @@ public struct StepFunUsageFetcher: Sendable {
         request.setValue("INGRESSCOOKIE=\(ingressCookie)", forHTTPHeaderField: "Cookie")
         request.timeoutInterval = self.timeoutSeconds
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw StepFunUsageError.networkError("Invalid response from RegisterDevice")
-        }
-
-        guard httpResponse.statusCode == 200 else {
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+        let data = response.data
+        guard response.statusCode == 200 else {
             let body = String(data: data, encoding: .utf8) ?? ""
-            Self.log.error("StepFun RegisterDevice returned \(httpResponse.statusCode): \(body)")
-            throw StepFunUsageError.deviceRegistrationFailed("HTTP \(httpResponse.statusCode)")
+            Self.log.error("StepFun RegisterDevice returned \(response.statusCode): \(body)")
+            throw StepFunUsageError.deviceRegistrationFailed("HTTP \(response.statusCode)")
         }
 
         let decoded: StepFunRegisterDeviceResponse
@@ -372,16 +365,12 @@ public struct StepFunUsageFetcher: Sendable {
             forHTTPHeaderField: "Cookie")
         request.timeoutInterval = self.timeoutSeconds
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw StepFunUsageError.networkError("Invalid response from SignInByPassword")
-        }
-
-        guard httpResponse.statusCode == 200 else {
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+        let data = response.data
+        guard response.statusCode == 200 else {
             let body = String(data: data, encoding: .utf8) ?? ""
-            Self.log.error("StepFun SignInByPassword returned \(httpResponse.statusCode): \(body)")
-            throw StepFunUsageError.loginFailed("HTTP \(httpResponse.statusCode)")
+            Self.log.error("StepFun SignInByPassword returned \(response.statusCode): \(body)")
+            throw StepFunUsageError.loginFailed("HTTP \(response.statusCode)")
         }
 
         let decoded: StepFunLoginResponse
@@ -411,16 +400,12 @@ public struct StepFunUsageFetcher: Sendable {
         request.setValue("Oasis-Token=\(token); Oasis-Webid=\(self.webID)", forHTTPHeaderField: "Cookie")
         request.timeoutInterval = self.timeoutSeconds
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw StepFunUsageError.networkError("Invalid response")
-        }
-
-        guard httpResponse.statusCode == 200 else {
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+        let data = response.data
+        guard response.statusCode == 200 else {
             let body = String(data: data, encoding: .utf8) ?? ""
-            Self.log.error("StepFun API returned \(httpResponse.statusCode): \(body)")
-            throw StepFunUsageError.apiError("HTTP \(httpResponse.statusCode)")
+            Self.log.error("StepFun API returned \(response.statusCode): \(body)")
+            throw StepFunUsageError.apiError("HTTP \(response.statusCode)")
         }
 
         if let jsonString = String(data: data, encoding: .utf8) {
@@ -456,16 +441,15 @@ public struct StepFunUsageFetcher: Sendable {
         request.setValue("Oasis-Token=\(token); Oasis-Webid=\(self.webID)", forHTTPHeaderField: "Cookie")
         request.timeoutInterval = self.timeoutSeconds
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+        guard response.statusCode == 200 else {
             Self.log.debug("StepFun plan status request failed, skipping plan name")
             return nil
         }
 
         let decoded: StepFunPlanStatusResponse
         do {
-            decoded = try JSONDecoder().decode(StepFunPlanStatusResponse.self, from: data)
+            decoded = try JSONDecoder().decode(StepFunPlanStatusResponse.self, from: response.data)
         } catch {
             Self.log.debug("StepFun plan status parse failed: \(error.localizedDescription)")
             return nil

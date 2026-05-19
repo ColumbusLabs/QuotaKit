@@ -326,16 +326,12 @@ public struct ZaiUsageFetcher: Sendable {
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "authorization")
         request.setValue("application/json", forHTTPHeaderField: "accept")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw ZaiUsageError.networkError("Invalid response")
-        }
-
-        guard httpResponse.statusCode == 200 else {
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+        let data = response.data
+        guard response.statusCode == 200 else {
             let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            Self.log.error("z.ai API returned \(httpResponse.statusCode): \(errorMessage)")
-            throw ZaiUsageError.apiError("HTTP \(httpResponse.statusCode): \(errorMessage)")
+            Self.log.error("z.ai API returned \(response.statusCode): \(errorMessage)")
+            throw ZaiUsageError.apiError("HTTP \(response.statusCode): \(errorMessage)")
         }
 
         // Some upstream issues (wrong endpoint/region/proxy) can yield HTTP 200 with an empty body.
@@ -607,16 +603,12 @@ extension ZaiUsageFetcher {
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw ZaiUsageError.networkError("Invalid response")
-        }
-
-        guard httpResponse.statusCode == 200 else {
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+        let data = response.data
+        guard response.statusCode == 200 else {
             let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            Self.log.error("z.ai model-usage API returned \(httpResponse.statusCode): \(errorMessage)")
-            throw ZaiUsageError.apiError("HTTP \(httpResponse.statusCode): \(errorMessage)")
+            Self.log.error("z.ai model-usage API returned \(response.statusCode): \(errorMessage)")
+            throw ZaiUsageError.apiError("HTTP \(response.statusCode): \(errorMessage)")
         }
 
         guard !data.isEmpty else { return ZaiModelUsageData(xTime: [], modelDataList: []) }

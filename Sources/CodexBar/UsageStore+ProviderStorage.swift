@@ -80,12 +80,12 @@ extension UsageStore {
         }
 
         let now = Date()
+        if self.storageRefreshTask != nil,
+           self.storageRefreshInFlightSignature == request.signature
+        {
+            return
+        }
         if !force {
-            if self.storageRefreshTask != nil,
-               self.storageRefreshInFlightSignature == request.signature
-            {
-                return
-            }
             if self.lastStorageRefreshSignature == request.signature,
                let lastStorageRefreshAt,
                now.timeIntervalSince(lastStorageRefreshAt) < Self.automaticStorageRefreshInterval

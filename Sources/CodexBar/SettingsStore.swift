@@ -69,6 +69,9 @@ enum KiroMenuBarDisplayMode: String, CaseIterable, Identifiable {
     case percentLeft
     case creditsAndPercent
     case usedAndTotal
+    case overageCreditsWhenExhausted
+    case overageCostWhenExhausted
+    case overageCreditsAndCostWhenExhausted
 
     var id: String {
         self.rawValue
@@ -82,6 +85,9 @@ enum KiroMenuBarDisplayMode: String, CaseIterable, Identifiable {
         case .percentLeft: "Percent left"
         case .creditsAndPercent: "Credits + percent"
         case .usedAndTotal: "Used / total"
+        case .overageCreditsWhenExhausted: "Overage credits at zero"
+        case .overageCostWhenExhausted: "Overage cost at zero"
+        case .overageCreditsAndCostWhenExhausted: "Overage credits + cost at zero"
         }
     }
 }
@@ -338,6 +344,8 @@ extension SettingsStore {
         }()
         let resolvedPreferences = Self.loadMenuBarMetricPreferences(userDefaults: userDefaults)
         let costUsageEnabled = userDefaults.object(forKey: "tokenCostUsageEnabled") as? Bool ?? false
+        let rawCostUsageHistoryDays = userDefaults.object(forKey: "tokenCostUsageHistoryDays") as? Int ?? 30
+        let costUsageHistoryDays = max(1, min(365, rawCostUsageHistoryDays))
         let hidePersonalInfo = userDefaults.object(forKey: "hidePersonalInfo") as? Bool ?? false
         let randomBlinkEnabled = userDefaults.object(forKey: "randomBlinkEnabled") as? Bool ?? false
         let confettiOnWeeklyLimitResetsEnabled = userDefaults.object(
@@ -409,6 +417,7 @@ extension SettingsStore {
             multiAccountMenuLayoutRaw: multiAccountMenuLayoutRaw,
             menuBarMetricPreferencesRaw: resolvedPreferences,
             costUsageEnabled: costUsageEnabled,
+            costUsageHistoryDays: costUsageHistoryDays,
             hidePersonalInfo: hidePersonalInfo,
             randomBlinkEnabled: randomBlinkEnabled,
             confettiOnWeeklyLimitResetsEnabled: confettiOnWeeklyLimitResetsEnabled,

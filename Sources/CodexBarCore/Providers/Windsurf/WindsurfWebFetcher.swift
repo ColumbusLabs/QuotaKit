@@ -139,7 +139,7 @@ public enum WindsurfWebFetcher {
         manualSessionInput: String? = nil,
         timeout: TimeInterval = 15,
         logger: ((String) -> Void)? = nil,
-        session: URLSession = .shared) async throws -> UsageSnapshot
+        session transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) async throws -> UsageSnapshot
     {
         let log: (String) -> Void = { msg in logger?("[windsurf-web] \(msg)") }
 
@@ -151,7 +151,7 @@ public enum WindsurfWebFetcher {
             }
             log("Using manual Windsurf session bundle")
             let auth = try self.parseManualSessionInput(manualSessionInput)
-            let response = try await self.fetchPlanStatus(auth: auth, timeout: timeout, session: session)
+            let response = try await self.fetchPlanStatus(auth: auth, timeout: timeout, transport: transport)
             return response.toUsageSnapshot()
         }
 
@@ -176,7 +176,7 @@ public enum WindsurfWebFetcher {
                 sessionInfos: sessionInfos,
                 timeout: timeout,
                 logger: log,
-                session: session)
+                transport: transport)
         } catch {
             guard !preferredSessionInfos.isEmpty, self.isRecoverableImportedSessionError(error) else {
                 throw error
@@ -194,7 +194,7 @@ public enum WindsurfWebFetcher {
             sessionInfos: fallbackSessionInfos,
             timeout: timeout,
             logger: log,
-            session: session)
+            transport: transport)
     }
 
     static func parseManualSessionInput(_ raw: String) throws -> WindsurfDevinSessionAuth {
@@ -257,7 +257,7 @@ public enum WindsurfWebFetcher {
         sessionInfos: [WindsurfDevinSessionImporter.SessionInfo],
         timeout: TimeInterval,
         logger log: (String) -> Void,
-        session: URLSession) async throws -> UsageSnapshot
+        transport: any ProviderHTTPTransport) async throws -> UsageSnapshot
     {
         var lastError: Error?
         for sessionInfo in sessionInfos {
@@ -266,7 +266,7 @@ public enum WindsurfWebFetcher {
                 let response = try await self.fetchPlanStatus(
                     auth: sessionInfo.session,
                     timeout: timeout,
-                    session: session)
+                    transport: transport)
                 return response.toUsageSnapshot()
             } catch {
                 guard self.isRecoverableImportedSessionError(error) else {
@@ -316,7 +316,7 @@ public enum WindsurfWebFetcher {
     private static func fetchPlanStatus(
         auth: WindsurfDevinSessionAuth,
         timeout: TimeInterval,
-        session: URLSession) async throws -> WindsurfGetPlanStatusResponse
+        transport: any ProviderHTTPTransport) async throws -> WindsurfGetPlanStatusResponse
     {
         guard let url = URL(string: self.getPlanStatusURL) else {
             throw WindsurfWebFetcherError.apiCallFailed("Invalid GetPlanStatus URL")
@@ -332,24 +332,28 @@ public enum WindsurfWebFetcher {
             authToken: auth.sessionToken,
             includeTopUpStatus: true)
 
-        let (data, response) = try await session.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
+        let response: ProviderHTTPResponse
+        do {
+            response = try await transport.response(for: request)
+        } catch let error as URLError where error.code == .badServerResponse {
             throw WindsurfWebFetcherError.apiCallFailed("Invalid response")
+        } catch {
+            throw error
         }
 
-        guard httpResponse.statusCode == 200 else {
-            let body = String(data: data, encoding: .utf8)?
+        guard response.statusCode == 200 else {
+            let body = String(data: response.data, encoding: .utf8)?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             let snippet = if let body, !body.isEmpty {
                 ": \(body.prefix(200))"
             } else {
-                ": <binary \(data.count) bytes>"
+                ": <binary \(response.data.count) bytes>"
             }
-            throw WindsurfWebFetcherError.apiCallFailed("HTTP \(httpResponse.statusCode)\(snippet)")
+            throw WindsurfWebFetcherError.apiCallFailed("HTTP \(response.statusCode)\(snippet)")
         }
 
         do {
-            return try WindsurfPlanStatusProtoCodec.decodeResponse(data)
+            return try WindsurfPlanStatusProtoCodec.decodeResponse(response.data)
         } catch {
             throw WindsurfWebFetcherError.apiCallFailed("Parse error: \(error.localizedDescription)")
         }

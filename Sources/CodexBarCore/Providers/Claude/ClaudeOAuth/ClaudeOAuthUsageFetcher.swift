@@ -52,21 +52,19 @@ enum ClaudeOAuthUsageFetcher {
         request.setValue(Self.claudeCodeUserAgent(), forHTTPHeaderField: "User-Agent")
 
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse else {
-                throw ClaudeOAuthFetchError.invalidResponse
-            }
-            switch http.statusCode {
+            let response = try await ProviderHTTPClient.shared.response(for: request)
+            let data = response.data
+            switch response.statusCode {
             case 200:
                 return try Self.decodeUsageResponse(data)
             case 401:
                 throw ClaudeOAuthFetchError.unauthorized
             case 403:
                 let body = String(data: data, encoding: .utf8)
-                throw ClaudeOAuthFetchError.serverError(http.statusCode, body)
+                throw ClaudeOAuthFetchError.serverError(response.statusCode, body)
             default:
                 let body = String(data: data, encoding: .utf8)
-                throw ClaudeOAuthFetchError.serverError(http.statusCode, body)
+                throw ClaudeOAuthFetchError.serverError(response.statusCode, body)
             }
         } catch let error as ClaudeOAuthFetchError {
             throw error

@@ -8,6 +8,7 @@ public struct MiniMaxSettingsReader: Sendable {
     public static let hostKey = "MINIMAX_HOST"
     public static let codingPlanURLKey = "MINIMAX_CODING_PLAN_URL"
     public static let remainsURLKey = "MINIMAX_REMAINS_URL"
+    public static let billingHistoryURLKey = "MINIMAX_BILLING_HISTORY_URL"
 
     public static func cookieHeader(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
@@ -39,6 +40,12 @@ public struct MiniMaxSettingsReader: Sendable {
         environment: [String: String] = ProcessInfo.processInfo.environment) -> URL?
     {
         self.url(from: environment[self.remainsURLKey])
+    }
+
+    public static func billingHistoryURL(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> URL?
+    {
+        self.url(from: environment[self.billingHistoryURLKey])
     }
 
     static func cleaned(_ raw: String?) -> String? {

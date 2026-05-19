@@ -35,19 +35,25 @@ struct TokenAccountSyncCoverageTests {
         #expect(extraInSync.isEmpty, "Extra: \(extraInSync.map(\.rawValue).sorted())")
     }
 
-    @Test("Catalog contains the 18 providers known at Phase G time (regression sentinel)")
+    @Test("Catalog contains the 21 providers known at v0.27.0 (regression sentinel)")
     func catalogContainsExpectedProviders() {
-        // Phase G baseline — 18 providers were in TokenAccountSupportCatalog
-        // when the universal multi-account mechanism landed. If this
-        // count changes (up or down), confirm the catalog change was
-        // intentional. The set is deliberately listed verbatim — if
-        // upstream renames or removes a provider, this test fails
-        // loudly rather than silently shipping a regressed sync.
+        // v0.27.0 baseline — 21 providers in TokenAccountSupportCatalog.
+        //   Phase G (v0.26.x) added the first 18: openai/claude/deepseek/
+        //     antigravity/zai/cursor/opencode/opencodego/factory/minimax/
+        //     manus/augment/ollama/abacus/mistral/copilot/venice/stepfun.
+        //   v0.27.0 added 3 more: elevenlabs, groq, llmproxy (all API-key
+        //     style providers).
+        // If this count changes (up or down), confirm the catalog change
+        // was intentional. The set is deliberately listed verbatim — if
+        // upstream renames or removes a provider, this test fails loudly
+        // rather than silently shipping a regressed sync.
         let expected: Set<String> = [
             "openai", "claude", "deepseek", "antigravity", "zai",
             "cursor", "opencode", "opencodego", "factory", "minimax",
             "manus", "augment", "ollama", "abacus", "mistral",
             "copilot", "venice", "stepfun",
+            // v0.27.0 additions
+            "elevenlabs", "groq", "llmproxy",
         ]
         let actual = Set(TokenAccountSupportCatalog.allProviders.map(\.rawValue))
         let added = actual.subtracting(expected)

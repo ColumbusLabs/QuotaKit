@@ -249,7 +249,7 @@
 "Providers" = "Providers";
 "Quit CodexBar" = "Quit CodexBar";
 "Random (default)" = "Random (default)";
-"Reads local usage logs. Shows today + last 30 days cost in the menu." = "Reads local usage logs. Shows today + last 30 days cost in the menu.";
+"Reads local usage logs. Shows today + last 30 days cost in the menu." = "Reads local usage logs. Shows today + the selected history window in the menu.";
 "Refresh" = "Refresh";
 "Refresh cadence" = "Refresh cadence";
 "Remote" = "Remote";
@@ -327,7 +327,7 @@
 "Updates unavailable in this build." = "Updates unavailable in this build.";
 "Usage" = "Usage";
 "Usage breakdown" = "Usage breakdown";
-"Usage history (30 days)" = "Usage history (30 days)";
+"Usage history (30 days)" = "Usage history";
 "Usage source" = "Usage source";
 "Use BigModel for the China mainland endpoints (open.bigmodel.cn)." = "Use BigModel for the China mainland endpoints (open.bigmodel.cn).";
 "Use a single menu bar icon with a provider switcher." = "Use a single menu bar icon with a provider switcher.";
@@ -367,7 +367,7 @@
 "cost_status_fetching" = "%1$@: fetching… %2$@";
 "cost_status_last_attempt" = "%1$@: last attempt %2$@";
 "cost_status_no_data" = "%@: no data yet";
-"cost_status_snapshot" = "%1$@: %2$@ · 30d %3$@";
+"cost_status_snapshot" = "%1$@: %2$@ · %3$@ %4$@";
 "cost_status_unsupported" = "%@: unsupported";
 "credits_remaining" = "Credits: %@";
 "cursor_on_demand" = "On-demand: %@";
@@ -394,7 +394,7 @@
 "remove_account_message" = "Remove %@ from CodexBar? Its managed Codex home will be deleted.";
 "version_format" = "Version %@";
 "vertex_ai_login_instructions" = "To track Vertex AI usage, authenticate with Google Cloud.\n\n1. Open Terminal\n2. Run: gcloud auth application-default login\n3. Follow the browser prompts to sign in\n4. Set your project: gcloud config set project PROJECT_ID\n\nOpen Terminal now?";
-"workspaceID is set but only opencode and opencodego support workspaceID." = "workspaceID is set but only opencode and opencodego support workspaceID.";
+"workspaceID is set but only opencode, opencodego, and deepgram support workspaceID." = "workspaceID is set but only opencode, opencodego, and deepgram support workspaceID.";
 "© 2026 Peter Steinberger. MIT License." = "© 2026 Peter Steinberger. MIT License.";
 
 /* General Pane */
@@ -410,7 +410,8 @@
 "start_at_login_title" = "Start at Login";
 "start_at_login_subtitle" = "Automatically opens CodexBar when you start your Mac.";
 "show_cost_summary" = "Show cost summary";
-"show_cost_summary_subtitle" = "Reads local usage logs. Shows today + last 30 days cost in the menu.";
+"show_cost_summary_subtitle" = "Reads local usage logs. Shows today + the selected history window in the menu.";
+"cost_history_days_title" = "History window: %d days";
 "cost_auto_refresh_info" = "Auto-refresh: hourly · Timeout: 10m";
 "refresh_cadence_title" = "Refresh cadence";
 "refresh_cadence_subtitle" = "How often CodexBar polls providers in the background.";
@@ -459,7 +460,7 @@
 "remove_codex_account_title" = "Remove Codex account?";
 "remove" = "Remove";
 "managed_login_already_running" = "A managed Codex login is already running. Wait for it to finish before adding or re-authenticating another account.";
-"managed_login_failed" = "Managed Codex login did not complete. Try again after finishing the browser login flow.";
+"managed_login_failed" = "Managed Codex login did not complete. Verify that `codex --version` works in Terminal. If macOS blocked or moved `codex` to Trash, remove stale duplicate installs, run `npm install -g --include=optional @openai/codex@latest`, then try again.";
 "managed_login_missing_email" = "Codex login completed, but no account email was available. Try again after confirming the account is fully signed in.";
 "workspace_selection_cancelled" = "CodexBar found multiple workspaces, but no workspace was selected.";
 "unsafe_managed_home" = "CodexBar refused to modify an unexpected managed home path: %@";
@@ -524,6 +525,8 @@
 "weekly_limit_confetti_subtitle" = "Play full-screen confetti when weekly usage resets.";
 "hide_personal_info_title" = "Hide personal information";
 "hide_personal_info_subtitle" = "Obscure email addresses in the menu bar and menu UI.";
+"show_provider_storage_usage_title" = "Show provider storage usage";
+"show_provider_storage_usage_subtitle" = "Show local disk usage in menus. Scans known provider-owned paths in the background.";
 "section_keychain_access" = "Keychain access";
 "keychain_access_caption" = "Disable all Keychain reads and writes. Browser cookie import is unavailable; paste Cookie headers manually in Providers.";
 "disable_keychain_access_title" = "Disable Keychain access";

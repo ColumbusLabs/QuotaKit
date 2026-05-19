@@ -8,6 +8,9 @@ read_when:
 
 # Providers
 
+CodexBar currently registers 45 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+OpenCode vs OpenCode Go, because the auth source and quota shape differ.
+
 ## Fetch strategies (current)
 Legend: web (browser cookies/WebView), cli (RPC/PTy or provider CLI), oauth (provider OAuth), api token, local probe, web dashboard.
 Source labels (CLI/header): `openai-web`, `web`, `oauth`, `api`, `local`, `cli`, plus provider-specific CLI labels (e.g. `codex-cli`, `claude`).
@@ -19,7 +22,8 @@ headers, source selection, provider ordering, and token accounts are stored in `
 | Provider | Strategies (ordered for auto) |
 | --- | --- |
 | Codex | App Auto: OAuth API (`oauth`) → CLI RPC/PTy (`codex-cli`). CLI Auto: Web dashboard (`openai-web`) → CLI RPC/PTy (`codex-cli`). |
-| Claude | App Auto: OAuth API (`oauth`) → CLI PTY (`claude`) → Web API (`web`). CLI Auto: Web API (`web`) → CLI PTY (`claude`). |
+| OpenAI | Admin API key (`api`) for organization spend/usage; legacy API-key balance fallback. |
+| Claude | Admin API key (`api`) when configured; otherwise App Auto: OAuth API (`oauth`) → CLI PTY (`claude`) → Web API (`web`). CLI Auto: Web API (`web`) → CLI PTY (`claude`). |
 | Gemini | OAuth-backed API via Gemini CLI credentials (`api`). |
 | Antigravity | Local LSP/HTTP probe (`local`). |
 | Cursor | Web API via cookies → stored WebKit session (`web`). |
@@ -33,13 +37,15 @@ headers, source selection, provider ordering, and token accounts are stored in `
 | Kimi | Auth token from `kimi-auth` cookie/manual token/env → usage API (`web`). |
 | Kilo | API token from config/env → usage API (`api`); auto falls back to CLI session auth (`cli`). |
 | Copilot | Device-flow/env/config token → `copilot_internal` API (`api`). |
-| Kimi K2 | API key from config/env → credit endpoint (`api`). |
+| Kimi K2 (unofficial) | API key from config/env → legacy credit endpoint (`api`). |
 | Kiro | CLI command via `kiro-cli chat --no-interactive "/usage"` (`cli`). |
 | Vertex AI | Google ADC OAuth (gcloud) → Cloud Monitoring quota usage (`oauth`). |
 | Augment | `auggie` CLI first, then browser-cookie web fallback (`cli`, `web`). |
 | JetBrains AI | Local XML quota file (`local`). |
 | Amp | Web settings page via browser cookies (`web`). |
 | Warp | API token (config/env) → GraphQL request limits (`api`). |
+| ElevenLabs | API key from config/env → subscription usage API (`api`). |
+| Windsurf | Web session bundle from browser localStorage (`web`) → local SQLite cache (`local`). |
 | Ollama | Web settings page via browser cookies (`web`). |
 | Synthetic | API key from config/env → quota API (`api`). |
 | OpenRouter | API token (config, overrides env) → credits API (`api`). |
@@ -54,6 +60,12 @@ headers, source selection, provider ordering, and token accounts are stored in `
 | Crof | API key from config/env → credit balance + requests quota API (`api`). |
 | Venice | API key from config/env → DIEM/USD balance API (`api`). |
 | Command Code | Web billing API via Command Code session cookies (`web`). |
+| StepFun | Username/password login or manual Oasis token (`web`). |
+| AWS Bedrock | AWS credentials → Cost Explorer usage and budget tracking (`api`). |
+| Grok | `grok agent stdio` JSON-RPC `x.ai/billing` (`cli`) → grok.com billing gRPC-web via Chrome session cookies (`web`); local `~/.grok/sessions` signals as fallback. |
+| GroqCloud | API key → Prometheus metrics API for request/token/cache-hit rates (`api`). |
+| LLM Proxy | API key + base URL → `/v1/quota-stats` aggregate proxy usage (`api`). |
+| Deepgram | API key → project discovery and usage breakdown API (`api`). |
 
 ## Codex
 - App Auto: OAuth API first; falls back to CLI only when OAuth credentials are missing or auth/refresh is invalid.
@@ -61,14 +73,22 @@ headers, source selection, provider ordering, and token accounts are stored in `
 - Battery saver toggle (currently off by default): reduces routine OpenAI web refreshes but still allows explicit manual refreshes.
 - CLI RPC default: `codex ... app-server` JSON-RPC (`account/read`, `account/rateLimits/read`).
 - CLI PTY: manual diagnostics/parser coverage only; automatic refresh does not launch bare Codex TUI.
-- Local cost usage: scans `CODEX_HOME` (or `~/.codex`) `sessions` and sibling `archived_sessions` JSONL files (last 30 days).
+- Local cost usage: scans `CODEX_HOME` (or `~/.codex`) `sessions` and sibling `archived_sessions` JSONL files for the configured history window.
 - Status: Statuspage.io (OpenAI).
 - Details: `docs/codex.md`.
 
+## OpenAI
+- API key from `~/.codexbar/config.json`, `OPENAI_ADMIN_KEY`, or `OPENAI_API_KEY`.
+- Admin API keys are preferred and fetch organization costs plus completion usage for inline Today/7d/configured-window dashboards.
+- Normal API keys fall back to the legacy credit-grants balance endpoint when organization usage is unavailable.
+- Details: `docs/openai.md`.
+
 ## Claude
+- Admin API: `sk-ant-admin...` key in Settings/config, token accounts, or `ANTHROPIC_ADMIN_KEY`.
+- Admin API shows organization spend/messages summaries with the same inline dashboard pattern as OpenAI API.
 - App Auto: OAuth API (`oauth`) → CLI PTY (`claude`) → Web API (`web`).
 - CLI Auto: Web API (`web`) → CLI PTY (`claude`).
-- Local cost usage: scans `CLAUDE_CONFIG_DIR` when set, otherwise `~/.config/claude/projects` and `~/.claude/projects` JSONL files (last 30 days).
+- Local cost usage: scans `CLAUDE_CONFIG_DIR` when set, otherwise `~/.config/claude/projects` and `~/.claude/projects` JSONL files for the configured history window.
 - Status: Statuspage.io (Anthropic).
 - Details: `docs/claude.md`.
 
@@ -87,6 +107,7 @@ headers, source selection, provider ordering, and token accounts are stored in `
 ## MiniMax
 - Coding Plan API token or web session from configured/manual/browser sources.
 - Supports global and China mainland hosts via provider region settings and environment overrides.
+- Web-session billing history can render 30-day token charts plus top model/method breakdowns when MiniMax exposes it.
 - Status: none yet.
 - Details: `docs/minimax.md`.
 
@@ -103,9 +124,10 @@ headers, source selection, provider ordering, and token accounts are stored in `
 - Status: none yet.
 - Details: `docs/kilo.md`.
 
-## Kimi K2
+## Kimi K2 (unofficial)
 - API key via `~/.codexbar/config.json` or `KIMI_K2_API_KEY`/`KIMI_API_KEY` env var.
-- Shows credit usage based on consumed/remaining totals.
+- Shows credit usage from the legacy `kimi-k2.ai` consumed/remaining totals.
+- Use Moonshot / Kimi API for the official Kimi API account and billing surface.
 - Status: none yet.
 - Details: `docs/kimi-k2.md`.
 
@@ -174,6 +196,14 @@ headers, source selection, provider ordering, and token accounts are stored in `
 - Status: none yet.
 - Details: `docs/warp.md`.
 
+## ElevenLabs
+- API key from Settings, token accounts, `ELEVENLABS_API_KEY`, or `XI_API_KEY`.
+- Reads `GET /v1/user/subscription` from `api.elevenlabs.io`.
+- Shows character credit usage, reset timing, and voice slot usage when available.
+- Override the API base URL with `ELEVENLABS_API_URL`.
+- Status: `https://status.elevenlabs.io` (link only, no auto-polling).
+- Details: `docs/elevenlabs.md`.
+
 ## Vertex AI
 - OAuth credentials from `gcloud auth application-default login` (ADC).
 - Quota usage via Cloud Monitoring `consumer_quota` metrics for `aiplatform.googleapis.com`.
@@ -215,6 +245,7 @@ headers, source selection, provider ordering, and token accounts are stored in `
 ## OpenRouter
 - API token from `~/.codexbar/config.json` (`providers[].apiKey`) or `OPENROUTER_API_KEY` env var.
 - Reads credits and key rate-limit info from OpenRouter APIs.
+- Shows daily, weekly, and monthly API-key spend when `/api/v1/key` returns those fields.
 - Override base URL with `OPENROUTER_API_URL` env var.
 - Status: `https://status.openrouter.ai` (link only, no auto-polling yet).
 - Details: `docs/openrouter.md`.
@@ -294,6 +325,28 @@ headers, source selection, provider ordering, and token accounts are stored in `
 - Automatic import looks for better-auth session cookies from `commandcode.ai` / `www.commandcode.ai`.
 - Status: none yet.
 - Details: `docs/command-code.md`.
+
+## Grok
+- `grok agent stdio` (ACP) JSON-RPC `x.ai/billing` method; requires `grok login` (SuperGrok OAuth/OIDC).
+- Reads cached credentials from `~/.grok/auth.json` for identity (email, team).
+- Falls back to grok.com's billing gRPC-web endpoint via Chrome session cookies when the CLI does not expose billing.
+- CLI/test runs do not import browser cookies unless `CODEXBAR_ALLOW_BROWSER_COOKIE_IMPORT=1` is set.
+- Local fallback aggregates `~/.grok/sessions/**/signals.json` token counts when the RPC is unavailable.
+- Status: link only to `https://status.x.ai` (no auto-polling yet).
+- Details: `docs/grok.md`.
+
+## AWS Bedrock
+- AWS credentials from `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and optional `AWS_SESSION_TOKEN`.
+- Region from `AWS_REGION` / `AWS_DEFAULT_REGION`, defaulting to `us-east-1`.
+- Reads AWS Cost Explorer for Bedrock spend and can compare usage against `CODEXBAR_BEDROCK_BUDGET`.
+- Override Cost Explorer base URL with `CODEXBAR_BEDROCK_API_URL` for tests.
+- Details: `docs/bedrock.md`.
+
+## Deepgram
+- API key from config or `DEEPGRAM_API_KEY`.
+- Optional project ID from provider settings or `DEEPGRAM_PROJECT_ID`; otherwise aggregates all visible projects.
+- Reads Deepgram usage breakdowns for audio hours, agent hours, token totals, TTS characters, and requests.
+- Details: `docs/deepgram.md`.
 
 ## StepFun
 - Username/password login or manual Oasis-Token.

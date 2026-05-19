@@ -27,7 +27,7 @@ extension CodexBarCLI {
         }
         if enabled.count >= 3 { return .custom(enabled) }
         if let first = enabled.first { return ProviderSelection(provider: first) }
-        return .single(.codex)
+        return .custom([])
     }
 
     static func decodeFormat(from values: ParsedValues) -> OutputFormat {
@@ -364,6 +364,14 @@ extension CodexBarCLI {
 
     static func _cacheSignatureForTesting() -> CommandSignature {
         CommandSignature.describe(CacheOptions())
+    }
+
+    static func _configSetAPIKeySignatureForTesting() -> CommandSignature {
+        CommandSignature.describe(ConfigSetAPIKeyOptions())
+    }
+
+    static func _configProviderToggleSignatureForTesting() -> CommandSignature {
+        CommandSignature.describe(ConfigProviderToggleOptions())
     }
 
     static func _decodeFormatForTesting(from values: ParsedValues) -> OutputFormat {

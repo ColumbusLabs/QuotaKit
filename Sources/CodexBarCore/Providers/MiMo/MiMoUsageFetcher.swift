@@ -99,12 +99,9 @@ public enum MiMoUsageFetcher {
                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
             forHTTPHeaderField: "User-Agent")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw MiMoUsageError.networkError("Invalid response")
-        }
+        let response = try await ProviderHTTPClient.shared.response(for: request)
 
-        switch httpResponse.statusCode {
+        switch response.statusCode {
         case 200:
             break
         case 401:
@@ -112,10 +109,10 @@ public enum MiMoUsageFetcher {
         case 403:
             throw MiMoUsageError.invalidCredentials
         default:
-            throw MiMoUsageError.networkError("HTTP \(httpResponse.statusCode)")
+            throw MiMoUsageError.networkError("HTTP \(response.statusCode)")
         }
 
-        return data
+        return response.data
     }
 
     static func parseCombinedSnapshot(

@@ -38,6 +38,7 @@ Provisioning/
 .codex/environments/
 .swiftpm-cache/
 .claude/
+.tmp-clang/
 
 # Debug/analysis docs
 docs/*-analysis.md

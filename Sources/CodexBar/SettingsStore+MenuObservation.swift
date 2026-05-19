@@ -30,6 +30,7 @@ extension SettingsStore {
         _ = self.multiAccountMenuLayout
         _ = self.menuBarMetricPreferencesRaw
         _ = self.costUsageEnabled
+        _ = self.costUsageHistoryDays
         _ = self.hidePersonalInfo
         _ = self.randomBlinkEnabled
         _ = self.confettiOnWeeklyLimitResetsEnabled

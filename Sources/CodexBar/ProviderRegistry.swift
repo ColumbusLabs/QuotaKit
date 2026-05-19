@@ -56,6 +56,7 @@ struct ProviderRegistry {
                         runtime: .app,
                         sourceMode: sourceMode,
                         includeCredits: false,
+                        includeOptionalUsage: settings.showOptionalCreditsAndExtraUsage,
                         webTimeout: 60,
                         webDebugDumpHTML: false,
                         verbose: verbose,
@@ -72,7 +73,8 @@ struct ProviderRegistry {
                                     accountID: accountID,
                                     token: token)
                             }
-                        })
+                        },
+                        costUsageHistoryDays: settings.costUsageHistoryDays)
                 })
             specs[provider] = spec
         }
@@ -114,17 +116,23 @@ struct ProviderRegistry {
             provider: provider,
             settings: settings,
             override: tokenOverride)
-        var env = ProviderConfigEnvironment.applyAPIKeyOverride(
+        var env = ProviderConfigEnvironment.applyProviderConfigOverrides(
             base: base,
             provider: provider,
             config: settings.providerConfig(for: provider))
         // If token account is selected, use its token instead of config's apiKey
-        if let account, let override = TokenAccountSupportCatalog.envOverride(
-            for: provider,
-            token: account.token)
-        {
-            for (key, value) in override {
-                env[key] = value
+        if let account {
+            TokenAccountSupportCatalog.scrubEnvironmentForSelectedAccount(
+                &env,
+                provider: provider,
+                token: account.token)
+            if let override = TokenAccountSupportCatalog.envOverride(
+                for: provider,
+                token: account.token)
+            {
+                for (key, value) in override {
+                    env[key] = value
+                }
             }
         }
         // Managed Codex routing only scopes remote account fetches such as identity, plan,
@@ -134,12 +142,13 @@ struct ProviderRegistry {
         // Mac's Codex sessions, not as account-owned remote state. If we later want
         // account-scoped token history in the UI, that needs an explicit product decision and
         // presentation change so the two concepts are not conflated.
-        let codexActiveSource = codexActiveSourceOverride ?? settings.codexResolvedActiveSource
-        if provider == .codex,
-           case .managedAccount = codexActiveSource,
-           let managedHomePath = settings.managedCodexRemoteHomePath(forActiveSource: codexActiveSource)
-        {
-            env = CodexHomeScope.scopedEnvironment(base: env, codexHome: managedHomePath)
+        if provider == .codex {
+            let codexActiveSource = codexActiveSourceOverride ?? settings.codexResolvedActiveSource
+            if case .managedAccount = codexActiveSource,
+               let managedHomePath = settings.managedCodexRemoteHomePath(forActiveSource: codexActiveSource)
+            {
+                env = CodexHomeScope.scopedEnvironment(base: env, codexHome: managedHomePath)
+            }
         }
         return env
     }

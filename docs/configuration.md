@@ -13,6 +13,7 @@ API keys, manual cookie headers, source selection, ordering, and token accounts 
 
 ## Location
 - `~/.codexbar/config.json`
+- Override for scripts/tests: set `CODEXBAR_CONFIG=/path/to/config.json`.
 - The directory is created if missing.
 - Permissions are set to `0600` whenever CodexBar writes the file on macOS and Linux.
 
@@ -28,6 +29,7 @@ API keys, manual cookie headers, source selection, ordering, and token accounts 
       "cookieSource": "auto",
       "cookieHeader": null,
       "apiKey": null,
+      "enterpriseHost": null,
       "region": null,
       "workspaceID": null,
       "tokenAccounts": null
@@ -46,6 +48,7 @@ All provider fields are optional unless noted.
   - `auto` uses provider-specific fallback order (see `docs/providers.md`).
   - `api` uses the provider's API-backed mode; only some providers consume the `apiKey` field.
 - `apiKey`: raw API token for providers that support config-backed direct API usage.
+- `enterpriseHost`: provider-specific API host/base URL override. Today this is used by Copilot and LLM Proxy.
 - `cookieSource`: cookie selection policy.
   - `auto` (browser import), `manual` (use `cookieHeader`), `off` (disable cookies)
 - `cookieHeader`: raw cookie header value (e.g. `key=value; other=...`).
@@ -89,6 +92,31 @@ codexbar config validate
 codexbar usage --provider example-provider --verbose
 ```
 
+CLI shortcuts:
+
+```bash
+codexbar config providers
+codexbar config enable --provider grok
+codexbar config disable --provider cursor
+printf '%s' "$ELEVENLABS_API_KEY" | codexbar config set-api-key --provider elevenlabs --stdin
+printf '%s' "$OPENAI_ADMIN_KEY" | codexbar config set-api-key --provider openai --stdin
+printf '%s' "$GROQ_API_KEY" | codexbar config set-api-key --provider groq --stdin
+printf '%s' "$LLM_PROXY_API_KEY" | codexbar config set-api-key --provider llmproxy --stdin
+```
+
+LLM Proxy also needs a base URL. Set `enterpriseHost` in config or `LLM_PROXY_BASE_URL` in the process environment:
+
+```json
+{
+  "id": "llmproxy",
+  "enabled": true,
+  "apiKey": "<REDACTED>",
+  "enterpriseHost": "https://proxy.example.com"
+}
+```
+
+See [CLI configuration](cli-configuration.md) for scripting examples and output formats.
+
 Manual cookies are secrets. Keep `~/.codexbar/config.json` private, leave its permissions at `0600`, never commit it,
 and never paste real cookie values or readable DevTools screenshots into public issues.
 
@@ -111,7 +139,7 @@ and never paste real cookie values or readable DevTools screenshots into public 
 
 ## Provider IDs
 Current IDs (see `Sources/CodexBarCore/Providers/Providers.swift`):
-`codex`, `claude`, `cursor`, `opencode`, `opencodego`, `alibaba`, `factory`, `gemini`, `antigravity`, `copilot`, `zai`, `minimax`, `kimi`, `kilo`, `kiro`, `vertexai`, `augment`, `jetbrains`, `kimik2`, `amp`, `ollama`, `synthetic`, `warp`, `openrouter`, `windsurf`, `perplexity`, `mimo`, `doubao`, `abacus`, `mistral`, `deepseek`, `codebuff`, `crof`, `venice`, `commandcode`, `stepfun`.
+`codex`, `openai`, `claude`, `cursor`, `opencode`, `opencodego`, `alibaba`, `factory`, `gemini`, `antigravity`, `copilot`, `zai`, `minimax`, `manus`, `kimi`, `kilo`, `kiro`, `vertexai`, `augment`, `jetbrains`, `kimik2`, `moonshot`, `amp`, `ollama`, `synthetic`, `warp`, `openrouter`, `elevenlabs`, `windsurf`, `perplexity`, `mimo`, `doubao`, `abacus`, `mistral`, `deepseek`, `codebuff`, `crof`, `venice`, `commandcode`, `stepfun`, `bedrock`, `grok`, `groq`, `llmproxy`, `deepgram`.
 
 ## Ordering
 The order of `providers` controls display/order in the app and CLI. Reorder the array to change ordering.
