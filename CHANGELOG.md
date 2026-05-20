@@ -1,14 +1,14 @@
 # Changelog
 
-## 0.27.0 (Mobile 1.7.0 · build 65.1) — 2026-05-19 — Sync to upstream v0.27.0
+## 0.27.0 (Mobile 1.8.0 · build 65.1) — 2026-05-19 — Sync to upstream v0.27.0 + iOS 1.8.0
 
-> Fork sync of upstream v0.27.0. Mac picks up 7 new provider tiles
-> (Grok, ElevenLabs, Deepgram, GroqCloud, LLM Proxy, MiniMax web
-> billing history, OpenCode Go Zen balance) plus Claude Anthropic
-> Admin API source, Kiro overage menu modes, and the multi-account
-> menu refactor. iOS bridge for these features ships in 1.8.0; this
-> Mac build is wire-compatible with the existing 1.7.0 iOS app for
-> the providers it already understands.
+> Fork sync of upstream v0.27.0 paired with iOS 1.8.0. Mac picks up
+> 7 new provider tiles (Grok, ElevenLabs, Deepgram, GroqCloud, LLM
+> Proxy, MiniMax web billing history, OpenCode Go Zen balance) plus
+> Claude Anthropic Admin API source, Kiro overage menu modes, and
+> the multi-account menu refactor. iOS 1.8.0 recognises the 5 new
+> provider tiles by brand colour and surfaces Kiro overage data when
+> the plan is exhausted.
 >
 > See [[CodexBarMobile/Research/022-v027-upstream-sync-ios-180.md]]
 > for the full sync plan, iOS surface decisions, and the per-conflict
@@ -18,6 +18,12 @@
 
 - Adopt upstream v0.27.0 baseline (90 commits, 363 files,
   +23,596 / −2,780 vs v0.26.1).
+- `SyncCoordinator.mapKiroCredits` populates `overageCreditsUsed` +
+  `estimatedOverageCostUSD` from upstream `KiroUsageDetails` so
+  iOS can render the overage badge end-to-end.
+- `MockProviderInjector` gains 5 v0.27.0 single-account profiles
+  (grok, groq, elevenlabs, deepgram, llmproxy). Test mode now pushes
+  57 synthetic providers across 47 IDs (was 52 / 42).
 - Conflict resolution kept fork patches in:
   - `.github/workflows/ci.yml` (iOS audit + xcodebuild jobs)
   - `Scripts/sign-and-notarize.sh`, `package_app.sh`,
@@ -29,20 +35,30 @@
 
 ### iOS
 
-- No iOS code change in this fork commit; deferred to 1.8.0
-  (Research/022 Phase F).
+- See `CodexBarMobile/CHANGELOG.md` `[1.8.0 (132+)]` for the full
+  iOS-side description. Highlights:
+  - 5 new brand colours in `ProviderColorPalette`
+  - Kiro overage row on `KiroCreditsCard` (orange badge)
+  - `SyncKiroCredits` envelope gains `overageCreditsUsed` +
+    `estimatedOverageCostUSD` (`decodeIfPresent` backward compat)
+  - 5 new entries in `QuotaProviderList.providers` (40 → 45) so
+    push notifications fire end-to-end on the new providers
 
 ### CloudKit deploy
 
-- Schema audit pending (see Research/022 Phase D). New v0.27.0
-  providers do not yet populate iOS envelope — first ship of those
-  fields will trigger the audit.
+- **No deploy required.** Per `docs/cloudkit-deploy-audit.md`:
+  - `SyncKiroCredits` is part of the existing CKRecord `payload`
+    blob — no schema change.
+  - New `QuotaProviderList` entries register additional zone names
+    server-side automatically when Mac first writes to them.
+  - No new top-level CKRecord types or fields.
 
 ### Notes
 
 - `version.env`: `MARKETING_VERSION=0.27.0`, `BUILD_NUMBER=65.1`,
-  `MOBILE_VERSION=1.7.0`, `UPSTREAM_VERSION=v0.26.1` (lags until
+  `MOBILE_VERSION=1.8.0`, `UPSTREAM_VERSION=v0.26.1` (lags until
   shipped to users), `UPSTREAM_SYNC_DATE=2026-05-19`.
+- Tag: `v0.27.0-mobile.1.8.0`.
 
 ---
 
