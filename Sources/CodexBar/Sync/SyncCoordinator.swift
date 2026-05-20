@@ -1,3 +1,13 @@
+// swiftlint:disable type_body_length
+//
+// `type_body_length` bumped past the 800-line default in iOS 1.8.0
+// build 134 when 5 v0.27 existing-provider mappers were added
+// (claude admin + claude extra + opencodego zen + minimax billing +
+// codex workspace). The class is a single-responsibility envelope
+// assembler — pulling the mappers into a separate type would just
+// split the dispatch logic across files without changing the
+// structure. Scoped suppression matches the same pattern already
+// used in MockProviderInjector.
 import CodexBarCore
 import CodexBarSync
 import Foundation
@@ -1641,3 +1651,5 @@ final class SyncCoordinator {
         return newID
     }
 }
+
+// swiftlint:enable type_body_length

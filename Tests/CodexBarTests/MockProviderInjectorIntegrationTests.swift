@@ -101,7 +101,10 @@ struct MockProviderInjectorIntegrationTests {
         // Phase G additions REUSE existing providerIDs (second tabs
         // for openai/deepseek/... that already had a first entry), so
         // unique ID count stays at 42.
-        #expect(uniqueIDs.count == 47, "should be 47 distinct mock provider IDs (45 real + 2 synthetic; v0.27.0 added grok/groq/elevenlabs/deepgram/llmproxy)")
+        #expect(
+            uniqueIDs.count == 47,
+            // swiftlint:disable:next line_length
+            "should be 47 distinct mock provider IDs (45 real + 2 synthetic; v0.27.0 added grok/groq/elevenlabs/deepgram/llmproxy)")
         let expected: Set<String> = MockProviderInjector.realProviderIDsBorrowedByMocks
             .union(MockProviderInjector.syntheticProviderIDs)
         #expect(uniqueIDs == expected)
@@ -220,7 +223,9 @@ struct MockProviderInjectorIntegrationTests {
         // advertising full-provider coverage requires that every mock
         // actually reaches iOS through both write paths.
         // iOS 1.7.0: 43 → 45 (moonshot + bedrock).
-        #expect(mockEnvelopes.count == 57, "Phase G + iOS 1.8.0: 45 → 52 → 57 (+7 multi-account second tabs, +5 v0.27.0 providers).")
+        #expect(
+            mockEnvelopes.count == 57,
+            "Phase G + iOS 1.8.0: 45 → 52 → 57 (+7 multi-account second tabs, +5 v0.27.0 providers).")
     }
 
     /// Reference wrapper so tests can flip the mock activation state
