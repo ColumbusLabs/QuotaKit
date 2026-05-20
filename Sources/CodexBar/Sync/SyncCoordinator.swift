@@ -1123,11 +1123,14 @@ final class SyncCoordinator {
         //      the same code path for its menu-bar pace caption, so
         //      iOS sees an identical computation.
         //
-        // For multi-account fan-out, only the ACTIVE account's
-        // workspace label propagates — non-active cached snapshots
-        // currently get the active label too, which is wrong for
-        // multi-workspace users with distinct workspaces per
-        // account. Tracked as a follow-up; affects display only.
+        // Multi-account fan-out: this mapper is only called for the
+        // ACTIVE account's freshly-built snapshot. `expandCodexMultiAccount`
+        // caches that ProviderUsageSnapshot under the active account's
+        // UUID and later re-emits the cached value when the user is
+        // looking at a different active account. So each cached
+        // snapshot's `codexWorkspace` reflects whatever was active at
+        // the time of build — correct per-account labelling without
+        // needing to thread account context into the mapper.
         let activeAccount = self.settings.codexAccountReconciliationSnapshot.activeStoredAccount
         let workspaceLabel = activeAccount?.workspaceLabel
         let workspaceID = activeAccount?.workspaceAccountID
