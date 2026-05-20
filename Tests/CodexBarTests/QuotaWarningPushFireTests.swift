@@ -11,19 +11,31 @@ import Testing
 struct QuotaWarningPushFireTests {
     @MainActor
     final class QuotaTransitionWriterSpy: QuotaTransitionWriting {
-        private(set) var transitionWrites: [(transition: SessionQuotaTransition, provider: UsageProvider)] = []
-        private(set) var warningWrites: [(provider: UsageProvider, window: QuotaWarningWindow, threshold: Int)] = []
+        private(set) var transitionWrites: [(
+            transition: SessionQuotaTransition,
+            provider: UsageProvider,
+            accountDisplayName: String?)] = []
+        private(set) var warningWrites: [(
+            provider: UsageProvider,
+            window: QuotaWarningWindow,
+            threshold: Int,
+            accountDisplayName: String?)] = []
 
-        func write(transition: SessionQuotaTransition, provider: UsageProvider) {
-            self.transitionWrites.append((transition, provider))
+        func write(
+            transition: SessionQuotaTransition,
+            provider: UsageProvider,
+            accountDisplayName: String?)
+        {
+            self.transitionWrites.append((transition, provider, accountDisplayName))
         }
 
         func writeQuotaWarning(
             provider: UsageProvider,
             window: QuotaWarningWindow,
-            threshold: Int)
+            threshold: Int,
+            accountDisplayName: String?)
         {
-            self.warningWrites.append((provider, window, threshold))
+            self.warningWrites.append((provider, window, threshold, accountDisplayName))
         }
     }
 

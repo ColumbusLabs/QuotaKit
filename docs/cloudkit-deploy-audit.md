@@ -68,7 +68,8 @@ git diff $LAST_TAG..HEAD -- Shared/Models/UsageSnapshot.swift | grep -E "^\+.*pu
 | v0.25.2-mobile.1.6.0 | ❌ 不需要 | 只加 push warning state，沿用 existing zone naming convention |
 | v0.26.1-mobile.1.7.0 | ❌ 不需要 | Shared envelope 加 6 个 optional decodeIfPresent 字段，在 zlib payload 里 — CloudKit 看不见 |
 | v0.26.2-mobile.1.7.0 (Phase G) | ❌ 不需要 | 100% consumer-side。Mac 推**更多** existing record type 的 records；iOS render 层分组。`CloudConstants.swift` 零改动 |
-| v0.27.0-mobile.1.8.0 (Phase D upcoming) | ❌ 不需要 | Shared envelope 加 10 个 `decodeIfPresent` optional 字段（5 v0.27 NEW provider + 5 existing-provider extension），全在 zlib payload blob 内部 — CloudKit 看不见。`CloudConstants.swift` 零改动、零 CKRecordZone/Subscription 新增。Quota warning account identity（需第 6 个 QuotaTransition 字段）已**显式推迟到 1.8.1**避免 Production schema deploy。 |
+| v0.27.0-mobile.1.8.0 build 65.2 (superseded) | ❌ 不需要 | Shared envelope 加 10 个 `decodeIfPresent` optional 字段（5 v0.27 NEW provider + 5 existing-provider extension），全在 zlib payload blob 内部。 |
+| v0.27.0-mobile.1.8.0 build 65.3 | ✅ **需要** | 给 `QuotaTransition` CKRecord 加了第 6 个字段 `accountEmail`（String，未索引）。CloudKit Production schema 默认不接受未声明字段写入；deploy 步骤：(1) Mac 端切到 Development env 触发一次 quota warning，Dev schema 自动加上字段；(2) Dashboard → Schema → Deploy Schema Changes to Production → 勾选 `accountEmail`；(3) 切回 Production env 测一次 warning，确认写入成功。**先 deploy 再 ship**，否则用户更新到 65.3 后所有 QuotaTransition 写入会被 Prod 拒绝，导致 push notification 完全失效。 |
 
 ## 注意事项
 

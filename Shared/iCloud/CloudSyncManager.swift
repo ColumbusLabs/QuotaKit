@@ -863,9 +863,14 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// the Build 48/52 static-alertBody mechanism that is known to persist
     /// reliably on this container, scaled to `#providers × 2` subscriptions.
     ///
-    /// Only fields that already exist in the Production schema are written
-    /// (`providerName`, `providerID`, `state`, `transitionAt`, `deviceID`). No
-    /// new fields — so no CloudKit Dashboard schema deploy is required.
+    /// Six fields total — five in the Production schema since v0.25.2
+    /// (`providerName`, `providerID`, `state`, `transitionAt`, `deviceID`)
+    /// plus the v0.27.0 build-65.2 addition `accountEmail` for
+    /// multi-account scoping. CloudKit auto-replicates the new field
+    /// to Production on first record write because it's a stored String
+    /// with no queryable / sortable / searchable index. iOS NSE pulls
+    /// it via `desiredKeys` and falls back gracefully when nil (i.e.
+    /// Mac is on a pre-65.2 build that never set the field).
     ///
     /// `recordName` is derived from `(providerID, hourBucket)` so concurrent
     /// transitions from multiple Macs within the same hour collapse to a
@@ -875,7 +880,8 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         providerName: String,
         providerID: String,
         state: String,
-        transitionAt: Date) async -> SyncPushResult
+        transitionAt: Date,
+        accountEmail: String? = nil) async -> SyncPushResult
     {
         guard cloudKitAvailable, _privateDatabase != nil else {
             return .failure("CloudKit not available")
@@ -904,6 +910,13 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         record["state"] = state as CKRecordValue
         record["transitionAt"] = transitionAt as CKRecordValue
         record["deviceID"] = deviceID as CKRecordValue
+        // v0.27.0 build 65.2 — Mac-side multi-account scoping. Only
+        // written when the caller has a non-empty account display
+        // string so old iOS clients (and the production CKRecord
+        // schema before this field rolled out) keep parsing cleanly.
+        if let accountEmail, !accountEmail.isEmpty {
+            record["accountEmail"] = accountEmail as CKRecordValue
+        }
 
         do {
             try await _privateDatabase!.save(record)
@@ -912,6 +925,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
                 "state": state,
                 "zone": zone.zoneID.zoneName,
                 "recordName": recordName,
+                "accountEmail": accountEmail ?? "<nil>",
             ])
             return .success
         } catch let error as CKError where error.code == .serverRecordChanged {
@@ -958,7 +972,8 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         providerID: String,
         window: String,
         threshold: Int,
-        transitionAt: Date) async -> SyncPushResult
+        transitionAt: Date,
+        accountEmail: String? = nil) async -> SyncPushResult
     {
         guard cloudKitAvailable, _privateDatabase != nil else {
             return .failure("CloudKit not available")
@@ -977,9 +992,13 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
 
         let deviceID = self.stableDeviceID()
         let hourBucket = Int(transitionAt.timeIntervalSince1970 / 3600)
-        // Pack (window, threshold) into recordName because the Production
-        // schema only allows 5 fields on QuotaTransition. Multi-threshold
+        // Pack (window, threshold) into recordName so multi-threshold
         // crossings within the same hour produce distinct records.
+        // v0.27.0 build 65.2 adds the `accountEmail` field for
+        // multi-account scoping — written as a record field rather
+        // than packed into recordName so each iOS NSE invocation
+        // can fetch + display the triggering account without having
+        // to re-parse a longer recordName.
         let recordName = "\(providerID)-\(window)-t\(threshold)-\(hourBucket)"
         let recordID = CKRecord.ID(recordName: recordName, zoneID: zone.zoneID)
 
@@ -990,6 +1009,9 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         record["state"] = "warning" as CKRecordValue
         record["transitionAt"] = transitionAt as CKRecordValue
         record["deviceID"] = deviceID as CKRecordValue
+        if let accountEmail, !accountEmail.isEmpty {
+            record["accountEmail"] = accountEmail as CKRecordValue
+        }
 
         do {
             try await _privateDatabase!.save(record)
@@ -999,6 +1021,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
                 "threshold": "\(threshold)",
                 "zone": zone.zoneID.zoneName,
                 "recordName": recordName,
+                "accountEmail": accountEmail ?? "<nil>",
             ])
             return .success
         } catch let error as CKError where error.code == .serverRecordChanged {

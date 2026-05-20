@@ -150,16 +150,19 @@ final class NotificationService: UNNotificationServiceExtension {
                 let result = await Self.fetchLatestWarningInfoDiagnostic(in: zoneID)
                 switch result {
                 case let .success(info):
-                    content.value.title = info.providerName
+                    content.value.title = Self.formatTitle(
+                        providerName: info.providerName,
+                        accountEmail: info.accountEmail)
                     content.value.body = Self.formatWarningBody(
                         providerName: info.providerName,
                         window: info.window,
-                        threshold: info.threshold)
+                        threshold: info.threshold,
+                        accountEmail: info.accountEmail)
                     NSEInvocationLog.shared.recordEntry(
                         timestamp: startedAt,
                         event: .ok,
                         zoneName: zoneID.zoneName,
-                        detail: "rewrote body: provider=\(info.providerName) window=\(info.window) threshold=\(info.threshold)")
+                        detail: "rewrote body: provider=\(info.providerName) window=\(info.window) threshold=\(info.threshold) account=\(info.accountEmail ?? "<nil>")")
                 case let .empty(reason):
                     NSEInvocationLog.shared.recordEntry(
                         timestamp: startedAt,
@@ -174,14 +177,16 @@ final class NotificationService: UNNotificationServiceExtension {
                         detail: message)
                 }
             } else {
-                let providerName = await Self.fetchLatestProviderName(in: zoneID)
-                if let providerName, !providerName.isEmpty {
-                    content.value.title = providerName
+                let info = await Self.fetchLatestProviderInfo(in: zoneID)
+                if let info, !info.providerName.isEmpty {
+                    content.value.title = Self.formatTitle(
+                        providerName: info.providerName,
+                        accountEmail: info.accountEmail)
                     NSEInvocationLog.shared.recordEntry(
                         timestamp: startedAt,
                         event: .ok,
                         zoneName: zoneID.zoneName,
-                        detail: "title rewrite: \(providerName)")
+                        detail: "title rewrite: \(info.providerName) account=\(info.accountEmail ?? "<nil>")")
                 } else {
                     NSEInvocationLog.shared.recordEntry(
                         timestamp: startedAt,
@@ -202,7 +207,7 @@ final class NotificationService: UNNotificationServiceExtension {
     /// returning version, but for now we want the NSE log to record the
     /// exact CloudKit error message when fetch fails.
     enum WarningFetchResult {
-        case success(providerName: String, window: String, threshold: Int)
+        case success(providerName: String, window: String, threshold: Int, accountEmail: String?)
         case empty(reason: String)
         case error(message: String)
     }
@@ -229,11 +234,17 @@ final class NotificationService: UNNotificationServiceExtension {
         // doesn't go through a secondary index). With per-hour recordName
         // bucketing on the writer side, zones rarely accumulate beyond a few
         // dozen records, so the over-fetch is cheap.
+        //
+        // v0.27.0 build 65.2 adds `accountEmail` to `desiredKeys` — Mac
+        // writes it when the triggering provider has a resolvable account
+        // (Codex managed, Claude multi-account, etc.). Pre-65.2 Macs leave
+        // it absent so we treat nil as "no account scope" and fall back to
+        // the existing non-scoped body template.
         do {
             let (matchResults, _) = try await container.privateCloudDatabase.records(
                 matching: query,
                 inZoneWith: zoneID,
-                desiredKeys: ["providerName"],
+                desiredKeys: ["providerName", "accountEmail"],
                 resultsLimit: 100)
             var newest: CKRecord?
             for (_, result) in matchResults {
@@ -254,15 +265,22 @@ final class NotificationService: UNNotificationServiceExtension {
             guard let providerName = record["providerName"] as? String else {
                 return .empty(reason: "record \(record.recordID.recordName) missing providerName")
             }
+            let accountEmail = (record["accountEmail"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let normalizedAccount = (accountEmail?.isEmpty ?? true) ? nil : accountEmail
             guard let parsed = QuotaZoneNotificationParser.parseWarningRecordName(
                 record.recordID.recordName)
             else {
-                return .success(providerName: providerName, window: "", threshold: 0)
+                return .success(
+                    providerName: providerName,
+                    window: "",
+                    threshold: 0,
+                    accountEmail: normalizedAccount)
             }
             return .success(
                 providerName: providerName,
                 window: parsed.window,
-                threshold: parsed.threshold)
+                threshold: parsed.threshold,
+                accountEmail: normalizedAccount)
         } catch {
             let ckErr = error as? CKError
             let ckCode = ckErr.map { "code=\($0.code.rawValue)" } ?? "type=\(type(of: error))"
@@ -294,6 +312,19 @@ final class NotificationService: UNNotificationServiceExtension {
     static func fetchLatestProviderName(
         in zoneID: CKRecordZone.ID) async -> String?
     {
+        await Self.fetchLatestProviderInfo(in: zoneID)?.providerName
+    }
+
+    /// Returns the most recent record's providerName + optional
+    /// accountEmail. v0.27.0 build 65.2 — added the `accountEmail`
+    /// fetch alongside the existing `providerName` so depleted /
+    /// restored pushes can also include the triggering account in the
+    /// rewritten title. Pre-65.2 Macs leave the field absent — caller
+    /// sees `accountEmail == nil` and falls back to the bare provider
+    /// name.
+    static func fetchLatestProviderInfo(
+        in zoneID: CKRecordZone.ID
+    ) async -> (providerName: String, accountEmail: String?)? {
         let container = CKContainer(identifier: CloudSyncConstants.containerIdentifier)
         let query = CKQuery(
             recordType: CloudSyncConstants.quotaTransitionRecordType,
@@ -302,7 +333,7 @@ final class NotificationService: UNNotificationServiceExtension {
             let (matchResults, _) = try await container.privateCloudDatabase.records(
                 matching: query,
                 inZoneWith: zoneID,
-                desiredKeys: ["providerName"],
+                desiredKeys: ["providerName", "accountEmail"],
                 resultsLimit: 100)
             var newest: CKRecord?
             for (_, result) in matchResults {
@@ -315,7 +346,12 @@ final class NotificationService: UNNotificationServiceExtension {
                     newest = record
                 }
             }
-            return newest?["providerName"] as? String
+            guard let record = newest,
+                  let providerName = record["providerName"] as? String
+            else { return nil }
+            let accountEmail = (record["accountEmail"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let normalizedAccount = (accountEmail?.isEmpty ?? true) ? nil : accountEmail
+            return (providerName, normalizedAccount)
         } catch {
             return nil
         }
@@ -368,13 +404,33 @@ final class NotificationService: UNNotificationServiceExtension {
     /// window are formatted via `%lld` + `%@`. The window string is
     /// localized via a small lookup so "session" / "weekly" become
     /// "Session" / "Weekly" / "会话" / "週間" etc.
+    ///
+    /// v0.27.0 build 65.2 — account scoping is reflected in the title
+    /// (`formatTitle`) rather than the body so the body stays uniform
+    /// across single-account and multi-account providers. Accepting
+    /// `accountEmail` here keeps the call sites symmetric for a future
+    /// body-template change without an API churn.
     static func formatWarningBody(
-        providerName: String, window: String, threshold: Int
+        providerName: String,
+        window: String,
+        threshold: Int,
+        accountEmail _: String? = nil
     ) -> String {
         let windowLabel = self.localizedWindowLabel(window)
         let template = String(localized: "Push.QuotaWarning.detailBody")
         // %1$@ providerName · %2$@ windowLabel · %3$lld threshold
         return String(format: template, providerName, windowLabel, threshold)
+    }
+
+    /// Builds the push title (depleted / restored / warning). When Mac
+    /// supplies an `accountEmail`, formats as "Provider · account@…"
+    /// so the user immediately sees which account fired the push on
+    /// the locked screen. Falls back to bare providerName when nil.
+    static func formatTitle(providerName: String, accountEmail: String?) -> String {
+        guard let accountEmail, !accountEmail.isEmpty else { return providerName }
+        let template = String(localized: "Push.Quota.titleWithAccount")
+        // %1$@ providerName · %2$@ accountEmail
+        return String(format: template, providerName, accountEmail)
     }
 
     private static func localizedWindowLabel(_ window: String) -> String {

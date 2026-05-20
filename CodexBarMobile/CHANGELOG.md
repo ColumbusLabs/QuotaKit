@@ -2,6 +2,118 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.8.0 (135)] — 2026-05-20 — v0.27 deferred features close: quota account identity + Codex workspace populator
+
+Same MOBILE_VERSION (1.8.0), build 134 → 135. Pairs with Mac CodexBar
+0.27.0 fork build 65.2 → 65.3. Closes the two remaining items from
+the 1.8.0 research matrix that build 134 explicitly deferred —
+brings the v0.27 surface to full parity in one combined release.
+
+### Added (build 135 — v0.27 deferred features)
+
+- **Quota warning account identity** end-to-end. Multi-account
+  providers (Codex managed accounts, Claude multi-account, OpenAI
+  token accounts, etc.) now include the triggering account in
+  every CloudKit-backed push notification. Title format:
+  "Codex · admin@example.com" instead of bare "Codex". Honours
+  the existing Mac `Preferences → Privacy → Hide personal info`
+  toggle — when set, accountEmail is suppressed and the push
+  title falls back to provider-only.
+- **Codex workspace + weekly pace badge** on the Codex detail
+  page lights up. Mac populates `SyncCodexWorkspaceContext` from
+  the active `ManagedCodexAccount.workspaceLabel` +
+  `workspaceAccountID` plus a fresh `UsagePace.weekly(...)`
+  computation against the snapshot's weekly RateWindow. iOS
+  already shipped the receiver UI in build 134; the badge is
+  now driven by real Mac data.
+
+### Shared envelope
+
+- `Shared/iCloud/CloudSyncManager.swift` —
+  `writeQuotaTransition(..., accountEmail:)` and
+  `writeQuotaWarningTransition(..., accountEmail:)` gain an
+  optional `accountEmail` parameter. Stored as a 6th CKRecord
+  field on `QuotaTransition`. Optional + only written when
+  non-empty, so pre-65.3 iOS NSE doesn't see a missing key.
+  **Requires a CloudKit Production schema deploy** (see
+  `docs/cloudkit-deploy-audit.md`) — the first record write
+  from Mac will fail until the field is in the Prod schema.
+
+### Mac side wiring
+
+- `QuotaTransitionWriting` protocol — both `write(...)` and
+  `writeQuotaWarning(...)` gain `accountDisplayName: String?`.
+- `UsageStore.handleSessionQuotaTransition(...)` extracts the
+  per-snapshot account display name (existing
+  `quotaWarningAccountDisplayName` helper, respects
+  `settings.hidePersonalInfo`) and passes it to the writer for
+  both depleted/restored and warning paths.
+- `SyncCoordinator.mapCodexWorkspace` is now an instance
+  method that reads
+  `settings.codexAccountReconciliationSnapshot.activeStoredAccount`
+  for workspace metadata and runs `UsagePace.weekly(...)` over
+  the snapshot's weekly RateWindow (auto-detected as the
+  largest ≥1-day window across primary/secondary/tertiary).
+
+### iOS NSE wiring
+
+- `CodexBarMobilePushExtension/NotificationService.swift` —
+  `desiredKeys` extended to include `accountEmail`; new
+  `formatTitle(providerName:, accountEmail:)` helper joins
+  provider + account with `·` separator via the new
+  `Push.Quota.titleWithAccount` localized template (4 locales).
+  Pre-65.3 Macs leave the field absent and the helper falls
+  back to bare providerName — title text matches build 134.
+- `fetchLatestProviderInfo(in:)` consolidates the depleted /
+  restored fetch + accountEmail read; the legacy
+  `fetchLatestProviderName(in:)` wraps it for source compat.
+
+### Localized strings
+
+1 new key — `Push.Quota.titleWithAccount` ("%1$@ · %2$@") in
+all 4 locales (en / zh-Hans / zh-Hant / ja). xcstrings audit:
+276 / 276 source keys present.
+
+### Cross-version compatibility matrix
+
+Verified-by-construction for every 2-Mac × 2-iOS new/old combo
+(`Mac_old=63.4` / `Mac_new=65.3`, `iOS_old=1.7.0` /
+`iOS_new=1.8.0 b135`):
+
+- **iOS_old + Mac_old**: untouched, baseline behaviour.
+- **iOS_old + Mac_new**: 1.7 NSE doesn't request accountEmail
+  via `desiredKeys`, CloudKit returns the field but the NSE
+  ignores unknown keys — push title stays as bare providerName.
+  Envelope decoder uses `decodeIfPresent` for the 5 build-134
+  optional fields + the existing build-135 ones — old iOS skips
+  them silently.
+- **iOS_new + Mac_old**: 1.8 b135 NSE requests accountEmail in
+  desiredKeys, record doesn't have the field, fetch returns
+  nil → `formatTitle` falls back to bare providerName. iOS
+  decodes the old envelope (no new fields), all new cards
+  render as "data not available" placeholders / hidden.
+- **iOS_new + Mac_new**: full functionality.
+
+### CloudKit deploy
+
+**Required.** `QuotaTransition` CKRecord gains a 6th field
+(`accountEmail: String`). See `docs/cloudkit-deploy-audit.md`
+for the deploy procedure: write a record from Mac in Dev env
+to populate Dev schema, then Dashboard → Deploy Schema Changes
+to Production. Without the deploy, Production saves with the
+new field will be rejected by CloudKit and push notifications
+will stop firing.
+
+### Required Mac version
+
+Mac CodexBar 0.27.0 (fork build 65.3) or later for the quota
+account identity + Codex workspace badge data. Forward-compat:
+iPhone on 1.8.0 build 135 paired with Mac on 65.2 still
+renders build-134 functionality; the new title format and
+Codex workspace badge stay dormant until Mac is on 65.3.
+
+---
+
 ## [1.8.0 (134)] — 2026-05-19 — v0.27 existing-provider extensions (Anthropic Admin API + spend-limit + OpenAI window picker + OpenCode Zen + MiniMax billing)
 
 Same MOBILE_VERSION (1.8.0), build 133 → 134. Pairs with Mac CodexBar

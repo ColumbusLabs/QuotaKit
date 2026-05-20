@@ -12291,12 +12291,52 @@
         "ja": { "stringUnit": { "state": "translated", "value": "直近 %d 日間の支出" } }
       }
     },
+    "Push.Quota.titleWithAccount": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%1$@ · %2$@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%1$@ · %2$@" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "%1$@ · %2$@" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "%1$@ · %2$@" } }
+      }
+    },
+    "Quota notifications now include the triggering account on multi-account providers — e.g. 'Codex · admin@example.com' instead of bare 'Codex'. Honours the Mac Hide-personal-info toggle.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Quota notifications now include the triggering account on multi-account providers — e.g. 'Codex · admin@example.com' instead of bare 'Codex'. Honours the Mac Hide-personal-info toggle." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "多账号 provider 的额度推送通知现在会带上触发账号 —— 例如 'Codex · admin@example.com' 取代原本的纯 'Codex'。会遵守 Mac 端的「隐藏个人信息」开关。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "多帳號 provider 的額度推送通知現在會帶上觸發帳號 —— 例如 'Codex · admin@example.com' 取代原本的純 'Codex'。會遵守 Mac 端的「隱藏個人資訊」開關。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "マルチアカウントプロバイダの利用量プッシュ通知に、発火元のアカウントが含まれるようになりました ('Codex' ではなく 'Codex · admin@example.com' のような表示)。Mac の「個人情報を隠す」設定を尊重します。" } }
+      }
+    },
+    "Codex workspace badge — when your active Codex account belongs to an OpenAI workspace, the workspace name shows as a caption under the account email plus a weekly pace arrow (up = ahead of pace, down = under pace).": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Codex workspace badge — when your active Codex account belongs to an OpenAI workspace, the workspace name shows as a caption under the account email plus a weekly pace arrow (up = ahead of pace, down = under pace)." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Codex 工作区徽章 —— 当激活的 Codex 账号属于 OpenAI 工作区时，账号邮箱下方会显示工作区名称，并配合周用量节奏箭头（向上 = 超前、向下 = 落后）。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "Codex 工作區徽章 —— 當啟用的 Codex 帳號屬於 OpenAI 工作區時，帳號信箱下方會顯示工作區名稱，並配合週用量節奏箭頭（向上 = 超前、向下 = 落後）。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Codex ワークスペースバッジ — アクティブな Codex アカウントが OpenAI ワークスペースに所属している場合、アカウントメールの下にワークスペース名が表示され、週次ペース矢印 (上向き = ペース超過、下向き = ペース未満) も併せて表示します。" } }
+      }
+    },
     "Five dedicated provider cards (Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy), Kiro overage badge, plus Anthropic Admin API spend, Claude Enterprise spend-limit, OpenAI history-window picker, OpenCode Go Zen balance, and MiniMax 30-day billing.": {
       "localizations": {
         "en": { "stringUnit": { "state": "translated", "value": "Five dedicated provider cards (Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy), Kiro overage badge, plus Anthropic Admin API spend, Claude Enterprise spend-limit, OpenAI history-window picker, OpenCode Go Zen balance, and MiniMax 30-day billing." } },
         "zh-Hans": { "stringUnit": { "state": "translated", "value": "5 个专属 provider 卡片（Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy）+ Kiro 超额徽章，外加 Anthropic Admin API 用量、Claude 企业版花费上限、OpenAI 历史窗口选择器、OpenCode Go Zen 余额，以及 MiniMax 30 天计费。" } },
         "zh-Hant": { "stringUnit": { "state": "translated", "value": "5 個專屬 provider 卡片（Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy）+ Kiro 超額徽章，外加 Anthropic Admin API 用量、Claude 企業版花費上限、OpenAI 歷史視窗選擇器、OpenCode Go Zen 餘額，以及 MiniMax 30 天計費。" } },
         "ja": { "stringUnit": { "state": "translated", "value": "5 つの専用プロバイダカード (Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy) + Kiro 超過バッジに加えて、Anthropic Admin API 使用量、Claude Enterprise の支出上限、OpenAI ヒストリーウィンドウピッカー、OpenCode Go Zen 残高、MiniMax の 30 日間請求も追加。" } }
+      }
+    },
+    "Five dedicated provider cards (Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy), Kiro overage badge, Anthropic Admin API spend, Claude Enterprise spend-limit, OpenAI history-window picker, OpenCode Go Zen balance, MiniMax 30-day billing, plus quota notifications now include the triggering account and Codex shows the active workspace + weekly pace.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Five dedicated provider cards (Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy), Kiro overage badge, Anthropic Admin API spend, Claude Enterprise spend-limit, OpenAI history-window picker, OpenCode Go Zen balance, MiniMax 30-day billing, plus quota notifications now include the triggering account and Codex shows the active workspace + weekly pace." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "5 个专属 provider 卡片（Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy）、Kiro 超额徽章、Anthropic Admin API 用量、Claude 企业版花费上限、OpenAI 历史窗口选择器、OpenCode Go Zen 余额、MiniMax 30 天计费，外加额度推送通知会带上触发账号，Codex 展示激活工作区 + 周用量节奏。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "5 個專屬 provider 卡片（Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy）、Kiro 超額徽章、Anthropic Admin API 用量、Claude 企業版花費上限、OpenAI 歷史視窗選擇器、OpenCode Go Zen 餘額、MiniMax 30 天計費，外加額度推送通知會帶上觸發帳號，Codex 展示啟用工作區 + 週用量節奏。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "5 つの専用プロバイダカード (Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy)、Kiro 超過バッジ、Anthropic Admin API 使用量、Claude Enterprise の支出上限、OpenAI ヒストリーウィンドウピッカー、OpenCode Go Zen 残高、MiniMax の 30 日間請求に加えて、利用量プッシュ通知に発火元アカウントが含まれ、Codex はアクティブなワークスペースと週次ペースを表示します。" } }
+      }
+    },
+    "Update Mac CodexBar to 0.27.0 (fork build 65.3 or later) for the full v0.27 surface including the quota account identity push title and Codex workspace badge. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x and 65.1 / 65.2 — newer tiles just stay hidden / fall back to the older title format until Mac is on 65.3.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Update Mac CodexBar to 0.27.0 (fork build 65.3 or later) for the full v0.27 surface including the quota account identity push title and Codex workspace badge. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x and 65.1 / 65.2 — newer tiles just stay hidden / fall back to the older title format until Mac is on 65.3." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "请将 Mac 端 CodexBar 升级到 0.27.0（fork 构建号 65.3 或更高），以启用完整的 v0.27 功能，包括带账号身份的额度推送标题和 Codex 工作区徽章。iPhone 1.8.0 同时向后兼容 Mac 0.26.x 和 65.1 / 65.2 —— 新增卡片在 Mac 升级到 65.3 之前会自动隐藏 / 回退到旧标题格式。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "請將 Mac 端 CodexBar 升級到 0.27.0（fork 建置號 65.3 或更高），以啟用完整的 v0.27 功能，包括帶帳號身份的額度推送標題和 Codex 工作區徽章。iPhone 1.8.0 同時向後相容 Mac 0.26.x 和 65.1 / 65.2 —— 新增卡片在 Mac 升級到 65.3 之前會自動隱藏 / 回退到舊標題格式。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "完全な v0.27 機能 (アカウント識別子付きの利用量プッシュタイトルや Codex ワークスペースバッジを含む) を有効化するには、Mac CodexBar を 0.27.0 (フォークビルド 65.3 以降) にアップデートしてください。iPhone 1.8.0 は Mac 0.26.x および 65.1 / 65.2 とも引き続き互換性があり、新しいタイルは Mac が 65.3 になるまで自動的に非表示 / 古いタイトル形式にフォールバックします。" } }
       }
     },
     "Anthropic Admin API on the Claude detail page — Today / 7d / 30d cost summary, top models, and top cost items when an Admin API key is configured on Mac.": {

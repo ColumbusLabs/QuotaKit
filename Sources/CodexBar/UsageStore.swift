@@ -707,6 +707,11 @@ final class UsageStore {
     }
 
     func handleSessionQuotaTransition(provider: UsageProvider, snapshot: UsageSnapshot) {
+        // Capture account identity up front so both the depleted/restored
+        // and warning paths can attribute the push to the triggering
+        // account on multi-account providers. Mirrors `handleQuotaWarningTransitions`.
+        let accountDisplayName = self.quotaWarningAccountDisplayName(provider: provider, snapshot: snapshot)
+
         // Session quota notifications are tied to the primary session window. Copilot free plans can
         // expose only chat quota, so allow Copilot to fall back to secondary for transition tracking.
         guard let sessionWindow = self.sessionQuotaWindow(provider: provider, snapshot: snapshot) else {
@@ -783,7 +788,10 @@ final class UsageStore {
         // turns the transition into a CKRecord; CloudKit fires a visible push to all
         // devices subscribed to the user's iCloud account.
         if self.settings.notificationPushToiOSEnabled {
-            self.quotaTransitionWriter.write(transition: transition, provider: provider)
+            self.quotaTransitionWriter.write(
+                transition: transition,
+                provider: provider,
+                accountDisplayName: accountDisplayName)
         }
     }
 
@@ -855,7 +863,8 @@ final class UsageStore {
                 self.quotaTransitionWriter.writeQuotaWarning(
                     provider: provider,
                     window: window,
-                    threshold: threshold)
+                    threshold: threshold,
+                    accountDisplayName: accountDisplayName)
             }
         }
 

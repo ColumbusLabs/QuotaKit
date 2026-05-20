@@ -6,16 +6,24 @@ import Foundation
 /// mocked in unit tests, mirroring the existing `SessionQuotaNotifying` pattern.
 @MainActor
 protocol QuotaTransitionWriting: AnyObject {
-    func write(transition: SessionQuotaTransition, provider: UsageProvider)
+    func write(
+        transition: SessionQuotaTransition,
+        provider: UsageProvider,
+        accountDisplayName: String?)
     /// iOS 1.6.0 / Mac 0.25.2 — fires a `QuotaTransition` record with
     /// state=`"warning"` to the per-provider warning zone so iOS receives
     /// a push notification when the user crosses a configured threshold
     /// (not just at depletion). See `Research/020-multi-account-comprehensive.md`
     /// §R7.4 Phase 2.
+    ///
+    /// v0.27.0 build 65.2 added `accountDisplayName` so multi-account
+    /// pushes can include the triggering account in the body (e.g.
+    /// "Codex (admin@example.com) — Session at 50%").
     func writeQuotaWarning(
         provider: UsageProvider,
         window: QuotaWarningWindow,
-        threshold: Int)
+        threshold: Int,
+        accountDisplayName: String?)
 }
 
 /// Writes `QuotaTransition` records to CloudKit so iOS receives a visible alert push
@@ -77,7 +85,11 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
 
     init() {}
 
-    func write(transition: SessionQuotaTransition, provider: UsageProvider) {
+    func write(
+        transition: SessionQuotaTransition,
+        provider: UsageProvider,
+        accountDisplayName: String?)
+    {
         guard transition != .none else { return }
 
         let stateString = stateString(for: transition)
@@ -102,14 +114,16 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
         // zone (QuotaDepletedZone / QuotaRestoredZone) and iOS subscriptions carry
         // static `Push.QuotaDepleted.*` / `Push.QuotaRestored.*` localization keys
         // with `titleLocalizationArgs = ["providerName"]`, so each iPhone
-        // substitutes the localized text for its own locale.
+        // substitutes the localized text for its own locale. The new
+        // `accountEmail` field flows through for the v0.27.0 NSE rewrite path.
 
-        Task { [providerName, stateString] in
+        Task { [providerName, stateString, accountDisplayName] in
             let result = await CloudSyncManager.shared.writeQuotaTransition(
                 providerName: providerName,
                 providerID: provider.rawValue,
                 state: stateString,
-                transitionAt: now)
+                transitionAt: now,
+                accountEmail: accountDisplayName)
             if result.succeeded {
                 self.lastWriteByKey[key] = now
                 self.logger.info(
@@ -124,7 +138,8 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
     func writeQuotaWarning(
         provider: UsageProvider,
         window: QuotaWarningWindow,
-        threshold: Int)
+        threshold: Int,
+        accountDisplayName: String?)
     {
         let providerName = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
         let windowString = window.rawValue
@@ -140,13 +155,14 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
             return
         }
 
-        Task { [providerName, windowString] in
+        Task { [providerName, windowString, accountDisplayName] in
             let result = await CloudSyncManager.shared.writeQuotaWarningTransition(
                 providerName: providerName,
                 providerID: provider.rawValue,
                 window: windowString,
                 threshold: threshold,
-                transitionAt: now)
+                transitionAt: now,
+                accountEmail: accountDisplayName)
             if result.succeeded {
                 self.lastWarningWriteByKey[key] = now
                 self.logger.info(

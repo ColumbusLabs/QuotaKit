@@ -627,7 +627,7 @@ final class SyncCoordinator {
             providerCost: providerCost,
             workspaceID: openCodeGoWorkspaceID)
         let minimaxBilling = Self.mapMiniMaxBilling(provider: provider, snapshot: snapshot)
-        let codexWorkspace = Self.mapCodexWorkspace(provider: provider, snapshot: snapshot)
+        let codexWorkspace = self.mapCodexWorkspace(provider: provider, snapshot: snapshot)
 
         return ProviderUsageSnapshot(
             providerID: provider.rawValue,
@@ -1107,23 +1107,64 @@ final class SyncCoordinator {
             updatedAt: b.updatedAt)
     }
 
-    static func mapCodexWorkspace(
+    func mapCodexWorkspace(
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncCodexWorkspaceContext?
     {
-        // Codex workspace + weekly pace data is computed inside
-        // `CodexOpenAIWorkspaceResolver` / `CodexDashboardAuthority`
-        // but is not yet threaded through `UsageSnapshot`. Surfacing
-        // it requires adding two optional fields to that struct (or
-        // reading from a SettingsStore mirror), both fork-private
-        // changes that touch upstream multi-account code. Deferred
-        // to a follow-up to keep this drop focused; pre-1.8.0 iOS
-        // continues to render the existing Codex per-account cards.
-        // When the Mac data path lands, this mapper becomes the
-        // single populator — iOS already gates on `codexWorkspace`
-        // being non-nil and stays silent otherwise.
-        _ = provider
-        _ = snapshot
+        guard provider == .codex else { return nil }
+        // Two sources combine into the envelope:
+        //   1) Workspace metadata — `settings.codexAccountReconciliationSnapshot.activeStoredAccount`
+        //      carries the user's selected workspaceLabel +
+        //      workspaceAccountID on multi-workspace Codex setups
+        //      (set when ManagedCodexAccountService resolves a
+        //      ChatGPT-Account-Id during sign-in).
+        //   2) Weekly pace — derived from the snapshot's secondary
+        //      RateWindow via `UsagePace.weekly(window:)`. Mac uses
+        //      the same code path for its menu-bar pace caption, so
+        //      iOS sees an identical computation.
+        //
+        // For multi-account fan-out, only the ACTIVE account's
+        // workspace label propagates — non-active cached snapshots
+        // currently get the active label too, which is wrong for
+        // multi-workspace users with distinct workspaces per
+        // account. Tracked as a follow-up; affects display only.
+        let activeAccount = self.settings.codexAccountReconciliationSnapshot.activeStoredAccount
+        let workspaceLabel = activeAccount?.workspaceLabel
+        let workspaceID = activeAccount?.workspaceAccountID
+
+        let paceWindow = Self.codexWeeklyWindow(snapshot: snapshot)
+        let pace = paceWindow.flatMap { UsagePace.weekly(window: $0) }
+        let paceDelta: Double? = pace.map { $0.deltaPercent / 100.0 }
+        let paceLabel: String? = pace.map { UsagePaceText.weeklySummary(pace: $0) }
+
+        // Skip emitting an empty envelope so iOS doesn't render a
+        // ghost row — every reader checks the optional.
+        if workspaceLabel == nil, workspaceID == nil, paceDelta == nil {
+            return nil
+        }
+
+        return SyncCodexWorkspaceContext(
+            workspaceID: workspaceID,
+            workspaceName: workspaceLabel,
+            weeklyPaceDelta: paceDelta,
+            weeklyPaceLabel: paceLabel,
+            updatedAt: snapshot?.updatedAt ?? Date())
+    }
+
+    /// Picks the weekly-shaped rate window from a Codex snapshot.
+    /// Codex builds put the weekly bucket in `secondary` today; fall
+    /// back to scanning `primary` + `tertiary` if a future refactor
+    /// shuffles the slots so the badge keeps rendering.
+    private static func codexWeeklyWindow(snapshot: UsageSnapshot?) -> RateWindow? {
+        let candidates: [RateWindow?] = [snapshot?.secondary, snapshot?.tertiary, snapshot?.primary]
+        for window in candidates {
+            guard let window else { continue }
+            guard let minutes = window.windowMinutes else { continue }
+            // Weekly window is 7 × 24 × 60 = 10080. Treat ≥ 1 day as
+            // candidate so unusual upstream slots (5-day, 14-day, etc.)
+            // still surface a pace badge.
+            if minutes >= 24 * 60 { return window }
+        }
         return nil
     }
 

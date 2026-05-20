@@ -2031,7 +2031,7 @@ private enum MobileReleaseNotesCatalog {
         ReleaseNotesVersion(
             version: "1.8.0",
             status: String(localized: "Latest"),
-            summary: String(localized: "Five dedicated provider cards (Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy), Kiro overage badge, plus Anthropic Admin API spend, Claude Enterprise spend-limit, OpenAI history-window picker, OpenCode Go Zen balance, and MiniMax 30-day billing."),
+            summary: String(localized: "Five dedicated provider cards (Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy), Kiro overage badge, Anthropic Admin API spend, Claude Enterprise spend-limit, OpenAI history-window picker, OpenCode Go Zen balance, MiniMax 30-day billing, plus quota notifications now include the triggering account and Codex shows the active workspace + weekly pace."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
@@ -2047,12 +2047,14 @@ private enum MobileReleaseNotesCatalog {
                         String(localized: "OpenAI API Dashboard window picker — switch the chart range between 7 / 30 / 90 / 180 / 365 days, clamped to whatever Mac fetched."),
                         String(localized: "OpenCode Go Zen workspace balance — pay-as-you-go USD balance shown below the rolling / weekly / monthly bars."),
                         String(localized: "MiniMax 30-day billing card — Today + 30-day token and USD totals, a 30-day bar chart, and top-3 method / model breakdowns."),
+                        String(localized: "Quota notifications now include the triggering account on multi-account providers — e.g. 'Codex · admin@example.com' instead of bare 'Codex'. Honours the Mac Hide-personal-info toggle."),
+                        String(localized: "Codex workspace badge — when your active Codex account belongs to an OpenAI workspace, the workspace name shows as a caption under the account email plus a weekly pace arrow (up = ahead of pace, down = under pace)."),
                         String(localized: "Existing Kiro / AWS Bedrock / Moonshot / z.ai / OpenAI API Dashboard / Antigravity multi-account cards from 1.7.0 keep working with no change."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.27.0 (fork build 65.2 or later) for the new dedicated cards plus the v0.27 existing-provider extensions. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x and 65.1 — new tiles just stay hidden until Mac is on 65.2."),
+                        String(localized: "Update Mac CodexBar to 0.27.0 (fork build 65.3 or later) for the full v0.27 surface including the quota account identity push title and Codex workspace badge. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x and 65.1 / 65.2 — newer tiles just stay hidden / fall back to the older title format until Mac is on 65.3."),
                     ]),
             ]),
         ReleaseNotesVersion(
