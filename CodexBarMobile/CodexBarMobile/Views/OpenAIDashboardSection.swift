@@ -12,8 +12,62 @@ struct OpenAIDashboardSection: View {
     let dashboard: SyncOpenAIAPIDashboard
     let tintColor: Color
 
+    /// User-selected window from the picker. Defaults to the Mac-side
+    /// `historyDays` so the displayed range matches what Mac fetched.
+    /// Clamped to options actually available in `dashboard.historyDays`
+    /// — picking 90 days when Mac only fetched 30 falls back to 30.
+    @State private var selectedWindow: Int
+
+    init(dashboard: SyncOpenAIAPIDashboard, tintColor: Color) {
+        self.dashboard = dashboard
+        self.tintColor = tintColor
+        let defaultWindow = Self.snapToOption(
+            dashboard.historyDays,
+            availableMax: dashboard.historyDays)
+        self._selectedWindow = State(initialValue: defaultWindow)
+    }
+
+    private static let windowOptions = [7, 30, 90, 180, 365]
+
+    /// Options that fit inside Mac's fetched window — we never offer a
+    /// window larger than what Mac actually has data for, so the
+    /// picker never shows phantom days.
+    private var availableWindowOptions: [Int] {
+        Self.windowOptions.filter { $0 <= dashboard.historyDays }
+    }
+
+    private var effectiveWindow: Int {
+        Self.snapToOption(
+            self.selectedWindow,
+            availableMax: dashboard.historyDays)
+    }
+
+    private static func snapToOption(_ desired: Int, availableMax: Int) -> Int {
+        let allowed = Self.windowOptions.filter { $0 <= availableMax }
+        if allowed.contains(desired) { return desired }
+        return allowed.last ?? availableMax
+    }
+
     private var sortedBuckets: [SyncOpenAIDailyBucket] {
-        dashboard.dailyBuckets.sorted { $0.dayKey < $1.dayKey }
+        let buckets = dashboard.dailyBuckets.sorted { $0.dayKey < $1.dayKey }
+        return Array(buckets.suffix(self.effectiveWindow))
+    }
+
+    /// Cost summary for the selected window, derived from the filtered
+    /// `sortedBuckets`. Falls back to the Mac-side last30/last7
+    /// pre-aggregates when the window matches exactly so the displayed
+    /// totals match Mac's menu bar.
+    private var selectedWindowSummary: SyncOpenAISummary {
+        switch self.effectiveWindow {
+        case 7: return dashboard.last7Days
+        case 30: return dashboard.last30Days
+        default:
+            let buckets = self.sortedBuckets
+            return SyncOpenAISummary(
+                totalCostUSD: buckets.reduce(0) { $0 + $1.costUSD },
+                totalRequests: buckets.reduce(0) { $0 + $1.requests },
+                totalTokens: buckets.reduce(0) { $0 + $1.totalTokens })
+        }
     }
 
     var body: some View {
@@ -41,7 +95,44 @@ struct OpenAIDashboardSection: View {
             Text(String(localized: "openai_dashboard_title", defaultValue: "OpenAI API Dashboard"))
                 .font(.headline)
             Spacer()
+            if self.availableWindowOptions.count >= 2 {
+                Menu {
+                    ForEach(self.availableWindowOptions, id: \.self) { days in
+                        Button {
+                            self.selectedWindow = days
+                        } label: {
+                            HStack {
+                                Text(Self.windowLabel(days: days))
+                                if days == self.effectiveWindow {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(Self.windowLabel(days: self.effectiveWindow))
+                            .font(.caption.bold())
+                            .foregroundStyle(self.tintColor)
+                        Image(systemName: "chevron.down")
+                            .font(.caption2)
+                            .foregroundStyle(self.tintColor)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule().fill(self.tintColor.opacity(0.12)))
+                }
+                .accessibilityIdentifier("openai-dashboard-window-picker")
+            }
         }
+    }
+
+    private static func windowLabel(days: Int) -> String {
+        if days == 1 {
+            return String(localized: "openai_window_today", defaultValue: "Today")
+        }
+        return String(format: String(localized: "openai_window_days_format", defaultValue: "%dd"), days)
     }
 
     private var summaryGrid: some View {
@@ -86,7 +177,7 @@ struct OpenAIDashboardSection: View {
 
     private var dailyChart: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(String(localized: "openai_dashboard_30day_chart", defaultValue: "30-day spend"))
+            Text(String(format: String(localized: "openai_dashboard_window_chart_format", defaultValue: "Last %d days spend"), self.effectiveWindow))
                 .font(.caption.bold())
                 .foregroundStyle(.secondary)
             Chart(self.sortedBuckets, id: \.dayKey) { bucket in

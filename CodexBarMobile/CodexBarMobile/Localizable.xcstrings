@@ -12123,6 +12123,230 @@
         }
       }
     },
+    "claude_admin_title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Anthropic Admin API" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Anthropic Admin API" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "Anthropic Admin API" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Anthropic Admin API" } }
+      }
+    },
+    "claude_admin_today": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Today" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "今天" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "今天" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "今日" } }
+      }
+    },
+    "claude_admin_7days": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "7 Days" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "7 天" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "7 天" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "7日間" } }
+      }
+    },
+    "claude_admin_30days": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "30 Days" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "30 天" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "30 天" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "30日間" } }
+      }
+    },
+    "claude_admin_top_models": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Top models" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "主要模型" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "主要模型" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "上位モデル" } }
+      }
+    },
+    "claude_admin_top_cost_items": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Top cost items" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "主要费用项" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "主要費用項目" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "コスト内訳トップ" } }
+      }
+    },
+    "claude_extra_usage_title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Extra usage" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "额外用量" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "額外用量" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "追加使用量" } }
+      }
+    },
+    "claude_extra_usage_period": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "This month" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "本月" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "本月" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "今月" } }
+      }
+    },
+    "claude_extra_usage_disabled": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Extra usage is disabled on the Anthropic console." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已在 Anthropic 控制台禁用额外用量。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "已在 Anthropic 主控台停用額外用量。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Anthropic コンソールで追加使用量が無効になっています。" } }
+      }
+    },
+    "claude_extra_usage_spend_limit_format": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%@ / %@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%@ / %@" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "%@ / %@" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "%@ / %@" } }
+      }
+    },
+    "opencodego_zen_balance_title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Zen balance" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Zen 余额" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "Zen 餘額" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Zen 残高" } }
+      }
+    },
+    "opencodego_zen_workspace_format": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Workspace · %@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "工作区 · %@" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "工作區 · %@" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ワークスペース · %@" } }
+      }
+    },
+    "minimax_billing_title": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "30-day billing" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "30 天计费" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "30 天計費" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "30日間の課金" } }
+      }
+    },
+    "minimax_billing_today": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Today" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "今天" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "今天" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "今日" } }
+      }
+    },
+    "minimax_billing_30days": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "30 Days" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "30 天" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "30 天" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "30日間" } }
+      }
+    },
+    "minimax_billing_chart_caption": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "30-day tokens" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "30 天 Token" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "30 天 Token" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "30日間トークン" } }
+      }
+    },
+    "minimax_billing_top_methods": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Top methods" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "主要接口" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "主要接口" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "上位メソッド" } }
+      }
+    },
+    "minimax_billing_top_models": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Top models" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "主要模型" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "主要模型" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "上位モデル" } }
+      }
+    },
+    "openai_window_today": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Today" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "今天" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "今天" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "今日" } }
+      }
+    },
+    "openai_window_days_format": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%dd" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%d 天" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "%d 天" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "%d日間" } }
+      }
+    },
+    "openai_dashboard_window_chart_format": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Last %d days spend" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "最近 %d 天花费" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "最近 %d 天花費" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "直近 %d 日間の支出" } }
+      }
+    },
+    "Five dedicated provider cards (Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy), Kiro overage badge, plus Anthropic Admin API spend, Claude Enterprise spend-limit, OpenAI history-window picker, OpenCode Go Zen balance, and MiniMax 30-day billing.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Five dedicated provider cards (Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy), Kiro overage badge, plus Anthropic Admin API spend, Claude Enterprise spend-limit, OpenAI history-window picker, OpenCode Go Zen balance, and MiniMax 30-day billing." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "5 个专属 provider 卡片（Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy）+ Kiro 超额徽章，外加 Anthropic Admin API 用量、Claude 企业版花费上限、OpenAI 历史窗口选择器、OpenCode Go Zen 余额，以及 MiniMax 30 天计费。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "5 個專屬 provider 卡片（Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy）+ Kiro 超額徽章，外加 Anthropic Admin API 用量、Claude 企業版花費上限、OpenAI 歷史視窗選擇器、OpenCode Go Zen 餘額，以及 MiniMax 30 天計費。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "5 つの専用プロバイダカード (Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy) + Kiro 超過バッジに加えて、Anthropic Admin API 使用量、Claude Enterprise の支出上限、OpenAI ヒストリーウィンドウピッカー、OpenCode Go Zen 残高、MiniMax の 30 日間請求も追加。" } }
+      }
+    },
+    "Anthropic Admin API on the Claude detail page — Today / 7d / 30d cost summary, top models, and top cost items when an Admin API key is configured on Mac.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Anthropic Admin API on the Claude detail page — Today / 7d / 30d cost summary, top models, and top cost items when an Admin API key is configured on Mac." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "Claude 详情页新增 Anthropic Admin API 区块 —— 今天 / 7 天 / 30 天花费汇总、主要模型和主要费用项。需在 Mac 端配置 Admin API key。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "Claude 詳情頁新增 Anthropic Admin API 區塊 —— 今天 / 7 天 / 30 天花費彙總、主要模型和主要費用項目。需在 Mac 端配置 Admin API key。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Claude 詳細ページに Anthropic Admin API セクションを追加。Mac で Admin API キーが設定されている場合、今日 / 7 日 / 30 日のコスト概要、上位モデル、上位コスト項目を表示します。" } }
+      }
+    },
+    "Claude Extra usage (spend-limit) card for Enterprise / Team plans — utilization gauge, monthly spend vs limit, and a plan-tier badge.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Claude Extra usage (spend-limit) card for Enterprise / Team plans — utilization gauge, monthly spend vs limit, and a plan-tier badge." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "为企业版 / Team 套餐新增 Claude 额外用量（花费上限）卡片 —— 使用率、月度花费与上限对比、套餐徽章。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "為企業版 / Team 方案新增 Claude 額外用量（花費上限）卡片 —— 使用率、月度花費與上限對比、方案徽章。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Enterprise / Team プラン向けに Claude 追加使用量 (支出上限) カードを追加 —— 使用率、月の支出と上限、プランバッジを表示。" } }
+      }
+    },
+    "OpenAI API Dashboard window picker — switch the chart range between 7 / 30 / 90 / 180 / 365 days, clamped to whatever Mac fetched.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "OpenAI API Dashboard window picker — switch the chart range between 7 / 30 / 90 / 180 / 365 days, clamped to whatever Mac fetched." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "OpenAI API Dashboard 新增窗口选择器 —— 图表范围可在 7 / 30 / 90 / 180 / 365 天间切换，受 Mac 已抓取范围限制。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "OpenAI API Dashboard 新增視窗選擇器 —— 圖表範圍可在 7 / 30 / 90 / 180 / 365 天之間切換，受 Mac 已抓取範圍限制。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "OpenAI API ダッシュボードにウィンドウピッカーを追加 — チャート範囲を 7 / 30 / 90 / 180 / 365 日間で切り替え可能 (Mac が取得した範囲内にクランプ)。" } }
+      }
+    },
+    "OpenCode Go Zen workspace balance — pay-as-you-go USD balance shown below the rolling / weekly / monthly bars.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "OpenCode Go Zen workspace balance — pay-as-you-go USD balance shown below the rolling / weekly / monthly bars." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "OpenCode Go Zen 工作区余额 —— 在滚动 / 周 / 月用量条下方展示按量付费的美元余额。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "OpenCode Go Zen 工作區餘額 —— 在滾動 / 週 / 月用量條下方展示按量付費的美元餘額。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "OpenCode Go Zen ワークスペース残高 — ローリング / 週 / 月のバー下に従量制 USD 残高を表示。" } }
+      }
+    },
+    "MiniMax 30-day billing card — Today + 30-day token and USD totals, a 30-day bar chart, and top-3 method / model breakdowns.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "MiniMax 30-day billing card — Today + 30-day token and USD totals, a 30-day bar chart, and top-3 method / model breakdowns." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "MiniMax 30 天计费卡片 —— 今天 + 30 天 Token 和美元汇总、30 天柱状图、主要接口 / 模型 Top 3。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "MiniMax 30 天計費卡片 —— 今天 + 30 天 Token 和美元彙總、30 天柱狀圖、主要接口 / 模型 Top 3。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "MiniMax の 30 日間請求カード — 今日と 30 日間のトークン / USD 合計、30 日間の棒グラフ、メソッド / モデルの上位 3 件を表示。" } }
+      }
+    },
+    "Update Mac CodexBar to 0.27.0 (fork build 65.2 or later) for the new dedicated cards plus the v0.27 existing-provider extensions. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x and 65.1 — new tiles just stay hidden until Mac is on 65.2.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Update Mac CodexBar to 0.27.0 (fork build 65.2 or later) for the new dedicated cards plus the v0.27 existing-provider extensions. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x and 65.1 — new tiles just stay hidden until Mac is on 65.2." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "请将 Mac 端 CodexBar 升级到 0.27.0（fork 构建号 65.2 或更高），以启用新的专属卡片和 v0.27 现有 provider 扩展。iPhone 1.8.0 同时向后兼容 Mac 0.26.x 和 65.1 —— 新增卡片在 Mac 升级到 65.2 之前会自动隐藏。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "請將 Mac 端 CodexBar 升級到 0.27.0（fork 建置號 65.2 或更高），以啟用新的專屬卡片和 v0.27 現有 provider 擴充。iPhone 1.8.0 同時向後相容 Mac 0.26.x 和 65.1 —— 新增卡片在 Mac 升級到 65.2 之前會自動隱藏。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "新しい専用カードと v0.27 既存プロバイダ拡張を有効にするため、Mac CodexBar を 0.27.0 (フォークビルド 65.2 以降) にアップデートしてください。iPhone 1.8.0 は Mac 0.26.x および 65.1 とも引き続き互換性があり、新しいタイルは Mac が 65.2 になるまで自動的に非表示になります。" } }
+      }
+    },
     "· Update available": {
       "localizations": {
         "en": {

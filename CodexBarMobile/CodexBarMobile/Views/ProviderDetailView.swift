@@ -136,6 +136,36 @@ struct ProviderDetailView: View {
                     LLMProxyStatsCard(stats: llmProxyStats, tintColor: self.providerColor)
                 }
 
+                // iOS 1.8.0 build 134 — v0.27 existing-provider
+                // extensions. Same dispatch pattern: provider ID
+                // match + envelope field present.
+                if self.provider.providerID == "claude",
+                   let claudeAdmin = self.provider.claudeAdminUsage
+                {
+                    ClaudeAdminUsageCard(usage: claudeAdmin, tintColor: self.providerColor)
+                }
+                if self.provider.providerID == "claude",
+                   let claudeExtra = self.provider.claudeExtraUsage
+                {
+                    ClaudeExtraUsageCard(extraUsage: claudeExtra, tintColor: self.providerColor)
+                }
+                if self.provider.providerID == "opencodego",
+                   let zenBalance = self.provider.openCodeGoZenBalance
+                {
+                    OpenCodeGoZenBalanceCard(balance: zenBalance, tintColor: self.providerColor)
+                }
+                if self.provider.providerID == "minimax",
+                   let minimaxBilling = self.provider.minimaxBilling
+                {
+                    MiniMaxBillingCard(billing: minimaxBilling, tintColor: self.providerColor)
+                }
+                if self.provider.providerID == "codex",
+                   let codexWorkspace = self.provider.codexWorkspace,
+                   (codexWorkspace.workspaceName?.isEmpty == false || codexWorkspace.weeklyPaceLabel?.isEmpty == false)
+                {
+                    CodexWorkspaceBadge(context: codexWorkspace, tintColor: self.providerColor)
+                }
+
                 // Claude peak-hours indicator (Anthropic peak window
                 // 8am-2pm America/New_York, weekdays). Pure time-of-day
                 // logic in `ClaudePeakHours` — no wire field involved.

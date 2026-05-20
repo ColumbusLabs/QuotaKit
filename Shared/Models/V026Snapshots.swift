@@ -102,6 +102,11 @@ public struct SyncOpenAIAPIDashboard: Codable, Sendable, Equatable {
     public let dailyBuckets: [SyncOpenAIDailyBucket]
     public let topModels: [SyncOpenAIModelBreakdown]
     public let topLineItems: [SyncOpenAILineItem]
+    /// Window size in days that `dailyBuckets` covers. Mac clamps to
+    /// 1..365 and iOS picker filters down from this. Default 30 so
+    /// payloads written by pre-1.8.0 Macs decode cleanly into a
+    /// 30-day window — matches the historical behaviour.
+    public let historyDays: Int
 
     public init(
         last30Days: SyncOpenAISummary,
@@ -109,7 +114,8 @@ public struct SyncOpenAIAPIDashboard: Codable, Sendable, Equatable {
         latestDay: SyncOpenAISummary?,
         dailyBuckets: [SyncOpenAIDailyBucket] = [],
         topModels: [SyncOpenAIModelBreakdown] = [],
-        topLineItems: [SyncOpenAILineItem] = [])
+        topLineItems: [SyncOpenAILineItem] = [],
+        historyDays: Int = 30)
     {
         self.last30Days = last30Days
         self.last7Days = last7Days
@@ -117,6 +123,7 @@ public struct SyncOpenAIAPIDashboard: Codable, Sendable, Equatable {
         self.dailyBuckets = dailyBuckets
         self.topModels = topModels
         self.topLineItems = topLineItems
+        self.historyDays = max(1, min(365, historyDays))
     }
 
     public init(from decoder: Decoder) throws {
@@ -130,6 +137,8 @@ public struct SyncOpenAIAPIDashboard: Codable, Sendable, Equatable {
             try c.decodeIfPresent([SyncOpenAIModelBreakdown].self, forKey: .topModels) ?? []
         self.topLineItems =
             try c.decodeIfPresent([SyncOpenAILineItem].self, forKey: .topLineItems) ?? []
+        let rawHistoryDays = try c.decodeIfPresent(Int.self, forKey: .historyDays) ?? 30
+        self.historyDays = max(1, min(365, rawHistoryDays))
     }
 }
 

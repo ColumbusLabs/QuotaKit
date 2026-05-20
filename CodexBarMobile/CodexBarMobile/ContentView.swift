@@ -2031,7 +2031,7 @@ private enum MobileReleaseNotesCatalog {
         ReleaseNotesVersion(
             version: "1.8.0",
             status: String(localized: "Latest"),
-            summary: String(localized: "Five dedicated provider cards (Grok billing, ElevenLabs voice slots, Deepgram speech/agent, GroqCloud rate metrics, LLM Proxy aggregate) plus Kiro overage badge when your plan is exhausted."),
+            summary: String(localized: "Five dedicated provider cards (Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy), Kiro overage badge, plus Anthropic Admin API spend, Claude Enterprise spend-limit, OpenAI history-window picker, OpenCode Go Zen balance, and MiniMax 30-day billing."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
@@ -2042,12 +2042,17 @@ private enum MobileReleaseNotesCatalog {
                         String(localized: "GroqCloud — dedicated card with three live-rate columns (requests/min, tokens/min, cache hits/min) plus the cache-hit percentage as a coloured badge."),
                         String(localized: "LLM Proxy — dedicated card showing lowest-remaining-quota headline, credential pool health (active / exhausted keys), aggregate request and token counts, and the top three upstream providers with per-provider request / token / cost breakdown."),
                         String(localized: "Kiro overage — when your monthly plan is exhausted and you're paying for additional credits, the Kiro card now shows the overage credit count and estimated USD cost as an inline orange badge."),
+                        String(localized: "Anthropic Admin API on the Claude detail page — Today / 7d / 30d cost summary, top models, and top cost items when an Admin API key is configured on Mac."),
+                        String(localized: "Claude Extra usage (spend-limit) card for Enterprise / Team plans — utilization gauge, monthly spend vs limit, and a plan-tier badge."),
+                        String(localized: "OpenAI API Dashboard window picker — switch the chart range between 7 / 30 / 90 / 180 / 365 days, clamped to whatever Mac fetched."),
+                        String(localized: "OpenCode Go Zen workspace balance — pay-as-you-go USD balance shown below the rolling / weekly / monthly bars."),
+                        String(localized: "MiniMax 30-day billing card — Today + 30-day token and USD totals, a 30-day bar chart, and top-3 method / model breakdowns."),
                         String(localized: "Existing Kiro / AWS Bedrock / Moonshot / z.ai / OpenAI API Dashboard / Antigravity multi-account cards from 1.7.0 keep working with no change."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.27.0 (fork build 65.1 or later) for the new dedicated cards and Kiro overage data. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x — new cards just stay hidden until Mac is on the new build."),
+                        String(localized: "Update Mac CodexBar to 0.27.0 (fork build 65.2 or later) for the new dedicated cards plus the v0.27 existing-provider extensions. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x and 65.1 — new tiles just stay hidden until Mac is on 65.2."),
                     ]),
             ]),
         ReleaseNotesVersion(

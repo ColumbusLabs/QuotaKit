@@ -593,6 +593,32 @@ final class SyncCoordinator {
         let groqMetrics = Self.mapGroqMetrics(provider: provider, snapshot: snapshot)
         let llmProxyStats = Self.mapLLMProxyStats(provider: provider, snapshot: snapshot)
 
+        // iOS 1.8.0 build 134 — v0.27 existing-provider extensions.
+        // `mapClaudeAdminUsage` covers Anthropic Admin API spend tile.
+        // `mapClaudeExtraUsage` heuristically detects Web spend-limit
+        // accounts; OAuth flows still surface via primary RateWindow.
+        // `mapOpenCodeGoZenBalance` parses Zen workspace balance from
+        // the existing providerCost lane. `mapMiniMaxBilling` ships
+        // the 30-day chart from `MiniMaxUsageSnapshot.billingSummary`.
+        // `mapCodexWorkspace` is currently a stub — Mac doesn't yet
+        // thread workspace/pace data through `UsageSnapshot`.
+        let claudeAdminUsage = Self.mapClaudeAdminUsage(provider: provider, snapshot: snapshot)
+        let claudeExtraUsage = Self.mapClaudeExtraUsage(
+            provider: provider,
+            snapshot: snapshot,
+            providerCost: providerCost)
+        let openCodeGoWorkspaceID: String? = provider == .opencodego ? {
+            let value = self.settings.opencodegoWorkspaceID
+            return value.isEmpty ? nil : value
+        }() : nil
+        let openCodeGoZenBalance = Self.mapOpenCodeGoZenBalance(
+            provider: provider,
+            snapshot: snapshot,
+            providerCost: providerCost,
+            workspaceID: openCodeGoWorkspaceID)
+        let minimaxBilling = Self.mapMiniMaxBilling(provider: provider, snapshot: snapshot)
+        let codexWorkspace = Self.mapCodexWorkspace(provider: provider, snapshot: snapshot)
+
         return ProviderUsageSnapshot(
             providerID: provider.rawValue,
             providerName: metadata?.displayName ?? provider.rawValue.capitalized,
@@ -627,7 +653,12 @@ final class SyncCoordinator {
             elevenLabsCredits: elevenLabsCredits,
             deepgramUsage: deepgramUsage,
             groqMetrics: groqMetrics,
-            llmProxyStats: llmProxyStats)
+            llmProxyStats: llmProxyStats,
+            claudeAdminUsage: claudeAdminUsage,
+            claudeExtraUsage: claudeExtraUsage,
+            openCodeGoZenBalance: openCodeGoZenBalance,
+            minimaxBilling: minimaxBilling,
+            codexWorkspace: codexWorkspace)
     }
 
     // MARK: - v0.26 envelope mappers (private)
@@ -677,7 +708,8 @@ final class SyncCoordinator {
             latestDay: openai.daily.isEmpty ? nil : summary(openai.latestDay),
             dailyBuckets: dailyBuckets,
             topModels: topModels,
-            topLineItems: topLineItems)
+            topLineItems: topLineItems,
+            historyDays: openai.historyDays)
     }
 
     static func mapZaiHourlyUsage(
@@ -927,6 +959,162 @@ final class SyncCoordinator {
             nextResetAt: l.nextResetAt,
             topProviders: Array(topProviders),
             updatedAt: l.updatedAt)
+    }
+
+    // MARK: - v0.27 existing-provider extensions (private)
+
+    static func mapClaudeAdminUsage(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncClaudeAdminUsage?
+    {
+        guard provider == .claude, let a = snapshot?.claudeAdminAPIUsage else { return nil }
+
+        func mapWindow(_ s: ClaudeAdminAPIUsageSnapshot.Summary) -> SyncClaudeAdminWindowSummary {
+            SyncClaudeAdminWindowSummary(
+                costUSD: s.costUSD,
+                totalTokens: s.totalTokens,
+                inputTokens: s.inputTokens,
+                outputTokens: s.outputTokens,
+                cacheCreationInputTokens: s.cacheCreationInputTokens,
+                cacheReadInputTokens: s.cacheReadInputTokens)
+        }
+
+        // Skip when there's literally no usage in the last 30 days —
+        // iOS hides the Admin section in that case so we don't render
+        // an empty card.
+        let last30 = mapWindow(a.last30Days)
+        if last30.totalTokens == 0, last30.costUSD == 0 { return nil }
+
+        let topModels = Array(a.topModels.prefix(8)).map { m in
+            SyncClaudeAdminModelBreakdown(name: m.name, totalTokens: m.totalTokens)
+        }
+        let topCostItems = Array(a.topCostItems.prefix(8)).map { c in
+            SyncClaudeAdminCostItem(name: c.name, costUSD: c.costUSD)
+        }
+        return SyncClaudeAdminUsage(
+            last30Days: last30,
+            last7Days: mapWindow(a.last7Days),
+            latestDay: a.daily.isEmpty ? nil : mapWindow(a.latestDay),
+            topModels: topModels,
+            topCostItems: topCostItems,
+            updatedAt: a.updatedAt)
+    }
+
+    static func mapClaudeExtraUsage(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?,
+        providerCost: ProviderCostSnapshot?) -> SyncClaudeExtraUsage?
+    {
+        guard provider == .claude else { return nil }
+        // Claude extra-usage / spend-limit reaches `UsageSnapshot` via
+        // two paths today and neither is structured:
+        //   - OAuth → a RateWindow with `primaryWindowKind = .spendLimit`
+        //     inside `ClaudeUsageFetcher` that gets flattened to the
+        //     primary RateWindow before it lands on `UsageSnapshot`.
+        //   - Web cookies → a `providerCost` with USD currency and
+        //     `period` like "Last month" / "This month".
+        //
+        // We heuristically synthesise an envelope from `providerCost`
+        // when both used + limit + USD currency are present. The
+        // brittle OAuth path is deferred to a follow-up that adds a
+        // structured field on `UsageSnapshot` to avoid string sniffing.
+        // Until then, OAuth-only Claude accounts continue to surface
+        // the spend-limit metric via the existing primary RateWindow.
+        guard let cost = providerCost,
+              cost.limit > 0,
+              cost.currencyCode == "USD" || cost.currencyCode == nil
+        else { return nil }
+
+        let utilization = min(max((cost.used / cost.limit) * 100, 0), 100)
+        let planTier: String? = {
+            let login = snapshot?.identity?.loginMethod ?? ""
+            if login.localizedCaseInsensitiveContains("enterprise") { return "Enterprise" }
+            if login.localizedCaseInsensitiveContains("team") { return "Team" }
+            if login.localizedCaseInsensitiveContains("max") { return "Max" }
+            if login.localizedCaseInsensitiveContains("pro") { return "Pro" }
+            return nil
+        }()
+        return SyncClaudeExtraUsage(
+            utilization: utilization,
+            monthlySpendUSD: cost.used,
+            monthlyLimitUSD: cost.limit,
+            isEnabled: true,
+            planTier: planTier,
+            updatedAt: snapshot?.updatedAt ?? cost.updatedAt)
+    }
+
+    static func mapOpenCodeGoZenBalance(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?,
+        providerCost: ProviderCostSnapshot?,
+        workspaceID: String?) -> SyncOpenCodeGoZenBalance?
+    {
+        // Mac packs the Zen balance into `providerCost` with
+        // `period = "Zen balance"` and currency USD (see
+        // `OpenCodeGoUsageSnapshot.toUsageSnapshot()`). We detect that
+        // signature rather than reading from a dedicated field so we
+        // don't need to extend `UsageSnapshot` for this drop.
+        guard provider == .opencodego,
+              let cost = providerCost,
+              cost.period == "Zen balance",
+              cost.currencyCode == "USD"
+        else { return nil }
+        return SyncOpenCodeGoZenBalance(
+            balanceUSD: cost.used,
+            workspaceID: workspaceID,
+            updatedAt: snapshot?.updatedAt ?? cost.updatedAt)
+    }
+
+    static func mapMiniMaxBilling(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncMiniMaxBillingHistory?
+    {
+        guard provider == .minimax,
+              let b = snapshot?.minimaxUsage?.billingSummary
+        else { return nil }
+        let daily = b.daily.map { d in
+            SyncMiniMaxBillingDay(day: d.day, tokens: d.tokens, cashUSD: d.cash)
+        }
+        let methods = b.topMethods.prefix(3).map { m in
+            SyncMiniMaxBillingBreakdown(name: m.name, tokens: m.tokens, cashUSD: m.cash)
+        }
+        let models = b.topModels.prefix(3).map { m in
+            SyncMiniMaxBillingBreakdown(name: m.name, tokens: m.tokens, cashUSD: m.cash)
+        }
+        // Skip when there's no signal at all — iOS keeps the existing
+        // generic prompts card and we save wire bytes.
+        if b.last30DaysTokens == 0, (b.last30DaysCash ?? 0) == 0, daily.isEmpty {
+            return nil
+        }
+        return SyncMiniMaxBillingHistory(
+            todayTokens: b.todayTokens,
+            last30DaysTokens: b.last30DaysTokens,
+            todayCashUSD: b.todayCash,
+            last30DaysCashUSD: b.last30DaysCash,
+            daily: daily,
+            topMethods: Array(methods),
+            topModels: Array(models),
+            updatedAt: b.updatedAt)
+    }
+
+    static func mapCodexWorkspace(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncCodexWorkspaceContext?
+    {
+        // Codex workspace + weekly pace data is computed inside
+        // `CodexOpenAIWorkspaceResolver` / `CodexDashboardAuthority`
+        // but is not yet threaded through `UsageSnapshot`. Surfacing
+        // it requires adding two optional fields to that struct (or
+        // reading from a SettingsStore mirror), both fork-private
+        // changes that touch upstream multi-account code. Deferred
+        // to a follow-up to keep this drop focused; pre-1.8.0 iOS
+        // continues to render the existing Codex per-account cards.
+        // When the Mac data path lands, this mapper becomes the
+        // single populator — iOS already gates on `codexWorkspace`
+        // being non-nil and stays silent otherwise.
+        _ = provider
+        _ = snapshot
+        return nil
     }
 
     // swiftlint:enable function_parameter_count

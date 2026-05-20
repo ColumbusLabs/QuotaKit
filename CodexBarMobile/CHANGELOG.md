@@ -2,6 +2,119 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.8.0 (134)] — 2026-05-19 — v0.27 existing-provider extensions (Anthropic Admin API + spend-limit + OpenAI window picker + OpenCode Zen + MiniMax billing)
+
+Same MOBILE_VERSION (1.8.0), build 133 → 134. Pairs with Mac CodexBar
+0.27.0 fork build 65.1 → 65.2. Closes the remaining v0.27.0 surface
+gap for existing providers — Claude Admin API, Claude Enterprise
+spend-limit, OpenAI Admin dashboard window picker, OpenCode Go Zen
+balance, and MiniMax 30-day billing all flow end-to-end now.
+
+### Added (build 134 — v0.27 existing-provider extensions)
+
+- **Claude Anthropic Admin API section** on the Claude detail page.
+  Mirrors the OpenAI Admin Dashboard layout: Today / 7d / 30d cost
+  summary cards (USD + total tokens) plus top-5 models and top-5
+  cost items. Renders only when Mac has an Admin API key
+  (`sk-ant-admin…`) configured in Preferences → Providers → Claude.
+- **Claude Extra usage / spend-limit** dedicated card for
+  Enterprise and Team-with-extra-usage plans. Shows utilization
+  bar, monthly spend / limit gauge ("$38.50 / $100.00"), plan tier
+  badge, and a "disabled" caption when the user hasn't enabled
+  extra-usage billing on the Anthropic console. Detected
+  heuristically from `providerCost` when Web cookies expose the
+  monthly cap; OAuth-only accounts continue to surface the
+  spend-limit via the existing primary rate window.
+- **OpenAI Admin Dashboard window picker** — header pill now lets
+  you switch the 30-day chart range across 7 / 30 / 90 / 180 / 365
+  days, clamped to whatever Mac actually fetched (Mac configures
+  the upper bound in Preferences → Providers → OpenAI API → History
+  window). The Today / 7d / 30d summary cards stay fixed as
+  comparison metrics.
+- **OpenCode Go Zen balance card** below the rolling / weekly /
+  monthly rate windows. Reads the workspace pay-as-you-go USD
+  balance Mac scraped from the OpenCode workspace dashboard and
+  shows the workspace ID as a caption when configured.
+- **MiniMax 30-day billing card** — Today + 30-day token and USD
+  totals, a 30-day bar chart, and top-3 method / model breakdowns.
+  Populated from the upstream `MiniMaxBillingSummary` lane
+  (requires an API-key configured account; Web-cookie accounts
+  continue with the existing prompts card).
+- **Codex workspace + weekly pace badge** scaffolding — UI shell is
+  in place so the badge lights up the moment Mac threads workspace
+  data through `UsageSnapshot`. Mac side currently emits nil for
+  this lane (sketched as a follow-up because it touches the G1–G6
+  multi-account paths and warrants its own focused test sweep);
+  iOS quietly hides the badge until then.
+
+### Shared envelope — Shared/Models/V027Snapshots.swift
+
+Five new Codable structs, all decoded via `decodeIfPresent` for
+backward compatibility with build 133 payloads:
+
+- `SyncClaudeAdminUsage` (+ `Window` / `Model` / `CostItem` helpers)
+- `SyncClaudeExtraUsage`
+- `SyncOpenCodeGoZenBalance`
+- `SyncMiniMaxBillingHistory` (+ `Day` / `Breakdown` helpers)
+- `SyncCodexWorkspaceContext`
+
+### Shared envelope — Shared/Models/V026Snapshots.swift
+
+- `SyncOpenAIAPIDashboard.historyDays` added (default 30, clamped
+  1–365). Pre-1.8.0 build-134 payloads decode the field as 30 so
+  the picker still surfaces a sensible range.
+
+### Mac side wiring
+
+- `SyncCoordinator` gains 5 new mappers
+  (`mapClaudeAdminUsage` / `mapClaudeExtraUsage` /
+  `mapOpenCodeGoZenBalance` / `mapMiniMaxBilling` /
+  `mapCodexWorkspace`). All read directly from existing
+  `UsageSnapshot` fields and the snapshot's `providerCost` lane;
+  no upstream-side changes required.
+- `mapOpenAIAPIDashboard` now propagates the Mac-resolved
+  `historyDays` so iOS can size the picker correctly.
+
+### iOS UI — 5 new view files
+
+`ClaudeAdminUsageCard` / `ClaudeExtraUsageCard` /
+`OpenCodeGoZenBalanceCard` / `MiniMaxBillingCard` /
+`CodexWorkspaceBadge`, plus `OpenAIDashboardSection` extended with
+the window picker. Each new card uses the same dispatch pattern as
+the v0.26 / v0.27 dedicated cards (`if providerID == "X", let
+payload = provider.fieldX`).
+
+### Localized strings
+
+21 new keys added to `Localizable.xcstrings` across the 5 cards
+(en / zh-Hans / zh-Hant / ja, all `state=translated`). xcstrings
+audit: 270 / 270 source keys present.
+
+### CloudKit deploy
+
+No new fields on CKRecord schema — all five extensions live inside
+the existing `payload` blob field. No Production schema deploy
+required.
+
+### Quota warning account identity (deferred)
+
+Upstream v0.27.0 adds "include triggering account in quota
+warnings" — implementing it requires a 6th field on the
+`QuotaTransition` CKRecord type (the schema currently caps at 5
+fields, with `(window, threshold)` packed into the recordName as
+a workaround). A 6th field needs a CloudKit Production deploy,
+which has bitten this project before; deferring to 1.8.1 so the
+schema migration can be batched with a focused test sweep.
+
+### Required Mac version
+
+Mac CodexBar 0.27.0 (fork build 65.2) or later for the new tile
+data. Forward-compatible: an iPhone on 1.8.0 build 134 paired with
+Mac on build 65.1 keeps the build 133 behaviour — new tiles stay
+hidden until Mac is on 65.2.
+
+---
+
 ## [1.8.0 (133)] — 2026-05-19 — upstream v0.27.0 provider alignment + 5 dedicated cards
 
 Pairs with Mac CodexBar 0.27.0 (fork build 65.1). MOBILE_VERSION

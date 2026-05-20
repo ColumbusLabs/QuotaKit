@@ -31,6 +31,7 @@
 		2DBF25B9E86E819649C2BE29 /* GroqMetricsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D0855CD28B09BC6FE3D911E /* GroqMetricsCard.swift */; };
 		2F25E64EEAF1963781B976C8 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB5B03C39186CBC42C349F8 /* EmptyStateView.swift */; };
 		2F95648D7B6137DC85B62F37 /* ClaudePeakHoursTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 247726F710DF2854B553518D /* ClaudePeakHoursTests.swift */; };
+		33F818074F133935C89B4097 /* CodexWorkspaceBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD8478C8A0C9D8732B72F7CB /* CodexWorkspaceBadge.swift */; };
 		3605135099D7D1BAC66F67C3 /* V026Snapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = D03B5D90026D623962989109 /* V026Snapshots.swift */; };
 		36890D62A476E10C3211107E /* ProviderAccountGroupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 621D68074A776C6DDAE3E81D /* ProviderAccountGroupTests.swift */; };
 		36E36EE311B054390CE848F2 /* LLMProxyStatsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B22B4D560AC765604858E821 /* LLMProxyStatsCard.swift */; };
@@ -71,6 +72,7 @@
 		8A9A4E2E1CA72E072FCBB851 /* MobileDisplayFormattingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CCC87791F1A5C860229EACF /* MobileDisplayFormattingTests.swift */; };
 		8AE4ED5CB4621D5D8DAE93BB /* SnapshotCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29C5E714FA876A9617524529 /* SnapshotCacheTests.swift */; };
 		8CE323CC2D5E584C35DC3196 /* MockProviderDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C9038A6A037C9329348C876 /* MockProviderDetectorTests.swift */; };
+		8E7E93B9F90994D0D3124086 /* OpenCodeGoZenBalanceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33F82F1127C024B177B420DE /* OpenCodeGoZenBalanceCard.swift */; };
 		904B033A9AC463824D9A910D /* SyncQuotaWarningConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 342E84EEC0EB349DE2BEB11B /* SyncQuotaWarningConfig.swift */; };
 		90C9167325DF5561725CA16A /* MultiAccountTabRenderingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25CF646B494D13FACA4ED547 /* MultiAccountTabRenderingTests.swift */; };
 		90D08BDB0023F9AC882235B1 /* ProviderAccountLinkage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AAB8310784E24CC51831768 /* ProviderAccountLinkage.swift */; };
@@ -86,6 +88,7 @@
 		A910B3424F6BF1DCE7543E2E /* CodexBarMobileApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC3A52976034BA3F0CA44327 /* CodexBarMobileApp.swift */; };
 		A9305459F82B07AAE8ADC1A2 /* ProviderUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CAFBA243E25814E22BAAA6B /* ProviderUsageView.swift */; };
 		ACA7EB9D06944B5EA0FD9E84 /* CostFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 947901EA2B0C4A99FF204533 /* CostFormatting.swift */; };
+		AF756D8CEBEC328EF8827EA6 /* ClaudeExtraUsageCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36903C779CD4AE98147A83BB /* ClaudeExtraUsageCard.swift */; };
 		B050FB5BF5817C3844A27F32 /* ProviderDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB05AAA074EEE8CC4379BD42 /* ProviderDetailView.swift */; };
 		B0BD7B9F90964EE0B5859675 /* CloudKitMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC8893A8B73134178D35F274 /* CloudKitMergeTests.swift */; };
 		B7EC6DFB5C971047AC6D544C /* CodexBarMobileUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E53728795F865E33900DA3C3 /* CodexBarMobileUITests.swift */; };
@@ -104,6 +107,7 @@
 		D0624B0227BF503DC77AC09C /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B47F282E1FA9E215551D09F6 /* Localizable.xcstrings */; };
 		D4DB3A067B095809B2B2DB42 /* OpenAIDashboardSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A9CF0F889610D5155F92ABB /* OpenAIDashboardSection.swift */; };
 		D5E7E85EEE6528E04FDA9446 /* PreviewData.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92153BD74B2B08AE61B76E2 /* PreviewData.swift */; };
+		DCE0242A2B08E8D23B2CCAC1 /* ClaudeAdminUsageCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF5F72C23944E23883A57CA1 /* ClaudeAdminUsageCard.swift */; };
 		E408D96A71E1052A78D540CC /* SyncErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18B11DCC99D3362E7225B2D1 /* SyncErrorTests.swift */; };
 		E79487590ED842AE33B360D7 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9578A435334E38DB06D035CB /* OnboardingView.swift */; };
 		E7948A0383825AE3E4A49801 /* ProviderUsageViewSubtitleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96F4B4918D5CB25D930D349C /* ProviderUsageViewSubtitleTests.swift */; };
@@ -112,6 +116,7 @@
 		F17B695DE47773A5DF665875 /* ZaiHourlyChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBFBF4B7241CE271554F183C /* ZaiHourlyChart.swift */; };
 		F72DCBEFB2A9EF020F632516 /* UsageCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68E69F28C0538809129FB6D3 /* UsageCardView.swift */; };
 		F78F3508FDA61D1B36D66800 /* ProviderColorPaletteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC94BA62C1AD26767A4958DC /* ProviderColorPaletteTests.swift */; };
+		F81D7EB9E7C4A01541815B3B /* MiniMaxBillingCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A3ED6F54FE9763758974F3 /* MiniMaxBillingCard.swift */; };
 		F869D4469A5649D0357A7FE5 /* PayloadCompression.swift in Sources */ = {isa = PBXBuildFile; fileRef = 273C987230CB40BB514BC840 /* PayloadCompression.swift */; };
 		F91FAC531225917E4E86A892 /* PushSetupDiagnostic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E96BD45E3A15C7DA40EA93F /* PushSetupDiagnostic.swift */; };
 		F97B630E810DB48A4CB150C7 /* LinkageRecordMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCEB2C9879BAEC3DF4AEAB41 /* LinkageRecordMergeTests.swift */; };
@@ -225,7 +230,9 @@
 		2C98FA5E42A83275CBD79FDB /* QuotaZoneNotificationParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaZoneNotificationParserTests.swift; sourceTree = "<group>"; };
 		2E0C9A4125533AB89F20FFA7 /* CKRecordReservedKeyAuditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CKRecordReservedKeyAuditTests.swift; sourceTree = "<group>"; };
 		32F236B9E5AABE3378DAF97F /* SyncModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncModelTests.swift; sourceTree = "<group>"; };
+		33F82F1127C024B177B420DE /* OpenCodeGoZenBalanceCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodeGoZenBalanceCard.swift; sourceTree = "<group>"; };
 		342E84EEC0EB349DE2BEB11B /* SyncQuotaWarningConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncQuotaWarningConfig.swift; sourceTree = "<group>"; };
+		36903C779CD4AE98147A83BB /* ClaudeExtraUsageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeExtraUsageCard.swift; sourceTree = "<group>"; };
 		3786C6898A111474E86E69D7 /* CostFormattingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostFormattingTests.swift; sourceTree = "<group>"; };
 		3CAFBA243E25814E22BAAA6B /* ProviderUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderUsageView.swift; sourceTree = "<group>"; };
 		3E6F79FB9AFFC795399FAFBF /* SwiftDataBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataBridgeTests.swift; sourceTree = "<group>"; };
@@ -280,10 +287,12 @@
 		A9F340DA45364A878F1BB616 /* V027Snapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V027Snapshots.swift; sourceTree = "<group>"; };
 		AA293C8F7A388B3FE79C2856 /* DeepgramUsageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepgramUsageCard.swift; sourceTree = "<group>"; };
 		AEB7FFB253C0CC0CA9876CCB /* CostShareCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostShareCardView.swift; sourceTree = "<group>"; };
+		AF5F72C23944E23883A57CA1 /* ClaudeAdminUsageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAdminUsageCard.swift; sourceTree = "<group>"; };
 		B07946DD625AF9E4DFFFAB41 /* AntigravityAccountSwitcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AntigravityAccountSwitcher.swift; sourceTree = "<group>"; };
 		B22B4D560AC765604858E821 /* LLMProxyStatsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMProxyStatsCard.swift; sourceTree = "<group>"; };
 		B47F282E1FA9E215551D09F6 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		B4E315BCDE160D8764FE14F2 /* AccountIdentityMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountIdentityMergeTests.swift; sourceTree = "<group>"; };
+		B8A3ED6F54FE9763758974F3 /* MiniMaxBillingCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniMaxBillingCard.swift; sourceTree = "<group>"; };
 		BC8893A8B73134178D35F274 /* CloudKitMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitMergeTests.swift; sourceTree = "<group>"; };
 		C1DABA431C3A96BC06782271 /* ModelContainerFactoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelContainerFactoryTests.swift; sourceTree = "<group>"; };
 		C39869539C7AAD1E71CCEDD6 /* V026SettingsTogglesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V026SettingsTogglesTests.swift; sourceTree = "<group>"; };
@@ -311,6 +320,7 @@
 		F2BA90E690B546A77A86EE29 /* QuotaTransitionSubscriptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaTransitionSubscriptions.swift; sourceTree = "<group>"; };
 		F63562F3CAD90EB09C32903E /* V026RenderedTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V026RenderedTextTests.swift; sourceTree = "<group>"; };
 		FA73FB0C58DB34861BD5E35F /* ProviderUsageSnapshot+Identity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ProviderUsageSnapshot+Identity.swift"; sourceTree = "<group>"; };
+		FD8478C8A0C9D8732B72F7CB /* CodexWorkspaceBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexWorkspaceBadge.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -568,6 +578,9 @@
 				B07946DD625AF9E4DFFFAB41 /* AntigravityAccountSwitcher.swift */,
 				9E9B0D8C60F57D4E7DC98890 /* BedrockCostCard.swift */,
 				77C776CEA57C84E7ECA6192C /* BudgetProgressView.swift */,
+				AF5F72C23944E23883A57CA1 /* ClaudeAdminUsageCard.swift */,
+				36903C779CD4AE98147A83BB /* ClaudeExtraUsageCard.swift */,
+				FD8478C8A0C9D8732B72F7CB /* CodexWorkspaceBadge.swift */,
 				74B0A596604D1C8CA137C073 /* CostMetricCard.swift */,
 				AEB7FFB253C0CC0CA9876CCB /* CostShareCardView.swift */,
 				8515047932479670A9749119 /* CostShareSheet.swift */,
@@ -579,11 +592,13 @@
 				8D0855CD28B09BC6FE3D911E /* GroqMetricsCard.swift */,
 				5E75C0925B40108545FE35A3 /* KiroCreditsCard.swift */,
 				B22B4D560AC765604858E821 /* LLMProxyStatsCard.swift */,
+				B8A3ED6F54FE9763758974F3 /* MiniMaxBillingCard.swift */,
 				6469C96DB80CE222DDD8EC78 /* MockBadgeView.swift */,
 				13047F3A04FEB413C5E079B0 /* MockProviderBanner.swift */,
 				0BC3BD9EFBA38613A27A03C6 /* MoonshotBalanceCard.swift */,
 				9578A435334E38DB06D035CB /* OnboardingView.swift */,
 				2A9CF0F889610D5155F92ABB /* OpenAIDashboardSection.swift */,
+				33F82F1127C024B177B420DE /* OpenCodeGoZenBalanceCard.swift */,
 				6DCD19FE389036BE565A572D /* PerplexityCreditsCard.swift */,
 				CB05AAA074EEE8CC4379BD42 /* ProviderDetailView.swift */,
 				3CAFBA243E25814E22BAAA6B /* ProviderUsageView.swift */,
@@ -821,9 +836,12 @@
 				0D7C4FE104FBA31F17F8A591 /* AntigravityAccountSwitcher.swift in Sources */,
 				49D6DB12C6EFA95A8A48BE0C /* BedrockCostCard.swift in Sources */,
 				4CD1E3131D8E3A04E8B13201 /* BudgetProgressView.swift in Sources */,
+				DCE0242A2B08E8D23B2CCAC1 /* ClaudeAdminUsageCard.swift in Sources */,
+				AF756D8CEBEC328EF8827EA6 /* ClaudeExtraUsageCard.swift in Sources */,
 				134FDBBA3076DE5E1FA986F2 /* ClaudePeakHours.swift in Sources */,
 				1E05BEE4F76DC16C3AA0C014 /* CloudSyncReader.swift in Sources */,
 				A910B3424F6BF1DCE7543E2E /* CodexBarMobileApp.swift in Sources */,
+				33F818074F133935C89B4097 /* CodexWorkspaceBadge.swift in Sources */,
 				A644FDE234CC676EC59CC891 /* ContentView.swift in Sources */,
 				ACA7EB9D06944B5EA0FD9E84 /* CostFormatting.swift in Sources */,
 				27EE0BCA2997485104A74200 /* CostMetricCard.swift in Sources */,
@@ -839,6 +857,7 @@
 				2DBF25B9E86E819649C2BE29 /* GroqMetricsCard.swift in Sources */,
 				BE6CE16FDE42EC25FCE2012F /* KiroCreditsCard.swift in Sources */,
 				36E36EE311B054390CE848F2 /* LLMProxyStatsCard.swift in Sources */,
+				F81D7EB9E7C4A01541815B3B /* MiniMaxBillingCard.swift in Sources */,
 				297CB7B072F71D5540B234A4 /* MobileChartAxisFormatter.swift in Sources */,
 				0708B75CE4F9E291D3AF8879 /* MobileDisplayPreferences.swift in Sources */,
 				2454FC869F1C8C693320BD25 /* MockBadgeView.swift in Sources */,
@@ -849,6 +868,7 @@
 				6C830A82BED8F694F753A082 /* MultiAccountLinkageCandidate.swift in Sources */,
 				E79487590ED842AE33B360D7 /* OnboardingView.swift in Sources */,
 				D4DB3A067B095809B2B2DB42 /* OpenAIDashboardSection.swift in Sources */,
+				8E7E93B9F90994D0D3124086 /* OpenCodeGoZenBalanceCard.swift in Sources */,
 				F032E24887BB6718E712FBE9 /* PerplexityCreditsCard.swift in Sources */,
 				D5E7E85EEE6528E04FDA9446 /* PreviewData.swift in Sources */,
 				537F8FAA96052658292926BC /* ProviderAccountGroup.swift in Sources */,
@@ -947,7 +967,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 132;
+				CURRENT_PROJECT_VERSION = 134;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1126,7 +1146,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 132;
+				CURRENT_PROJECT_VERSION = 134;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1148,7 +1168,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 132;
+				CURRENT_PROJECT_VERSION = 134;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1186,7 +1206,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 132;
+				CURRENT_PROJECT_VERSION = 134;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1222,7 +1242,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 132;
+				CURRENT_PROJECT_VERSION = 134;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1246,7 +1266,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 132;
+				CURRENT_PROJECT_VERSION = 134;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

@@ -377,6 +377,43 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// stacked list under the primary "X% used" badge.
     public let llmProxyStats: SyncLLMProxyStats?
 
+    // MARK: - iOS 1.8.0 build 134 / Mac 0.27.0 — existing-provider extensions
+    //
+    // Added after the initial 1.8.0 ship to bring v0.27.0 parity for
+    // Anthropic Admin API, Enterprise spend-limit, MiniMax 30-day
+    // billing, OpenCode Zen balance, and Codex workspace + weekly
+    // pace. Wire schema not bumped — additive optionals only.
+
+    /// Anthropic Admin API per-org usage. Populated only on the
+    /// `claude` provider snapshot when Mac has an Admin API key.
+    /// iOS surfaces this as the "Admin API" section on the Claude
+    /// detail page (mirrors the OpenAI Admin API Dashboard layout).
+    public let claudeAdminUsage: SyncClaudeAdminUsage?
+
+    /// Anthropic OAuth `extra_usage` spend-limit metric (Enterprise
+    /// and Team-with-extra-usage plans). Populated only on the
+    /// `claude` provider snapshot. iOS renders this as a dedicated
+    /// "Extra usage" row beneath the session / weekly bars.
+    public let claudeExtraUsage: SyncClaudeExtraUsage?
+
+    /// OpenCode Go Zen workspace pay-as-you-go balance. Populated
+    /// only on the `opencodego` provider snapshot when the user has a
+    /// Zen-enabled workspace and Mac scraped a balance. iOS shows
+    /// this as a fourth balance row beneath rolling / weekly /
+    /// monthly bars.
+    public let openCodeGoZenBalance: SyncOpenCodeGoZenBalance?
+
+    /// MiniMax 30-day billing history. Populated only on the
+    /// `minimax` provider snapshot when Mac has an API key. iOS
+    /// shows a 30-day token chart plus top-3 method/model breakdowns.
+    public let minimaxBilling: SyncMiniMaxBillingHistory?
+
+    /// Codex workspace context + weekly pace. Populated only on the
+    /// `codex` provider snapshot when the OpenAI dashboard exposed
+    /// workspace data. iOS shows the workspace name as a caption
+    /// and the pace as a directional badge.
+    public let codexWorkspace: SyncCodexWorkspaceContext?
+
     /// All available rate windows. Prefers `rateWindows` if non-empty, otherwise falls back to primary/secondary.
     public var allRateWindows: [SyncRateWindow] {
         if !self.rateWindows.isEmpty { return self.rateWindows }
@@ -410,7 +447,12 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         elevenLabsCredits: SyncElevenLabsCredits? = nil,
         deepgramUsage: SyncDeepgramUsage? = nil,
         groqMetrics: SyncGroqMetrics? = nil,
-        llmProxyStats: SyncLLMProxyStats? = nil)
+        llmProxyStats: SyncLLMProxyStats? = nil,
+        claudeAdminUsage: SyncClaudeAdminUsage? = nil,
+        claudeExtraUsage: SyncClaudeExtraUsage? = nil,
+        openCodeGoZenBalance: SyncOpenCodeGoZenBalance? = nil,
+        minimaxBilling: SyncMiniMaxBillingHistory? = nil,
+        codexWorkspace: SyncCodexWorkspaceContext? = nil)
     {
         self.providerID = providerID
         self.providerName = providerName
@@ -439,6 +481,11 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.deepgramUsage = deepgramUsage
         self.groqMetrics = groqMetrics
         self.llmProxyStats = llmProxyStats
+        self.claudeAdminUsage = claudeAdminUsage
+        self.claudeExtraUsage = claudeExtraUsage
+        self.openCodeGoZenBalance = openCodeGoZenBalance
+        self.minimaxBilling = minimaxBilling
+        self.codexWorkspace = codexWorkspace
     }
 
     /// Returns a copy with `quotaWarnings` swapped out. Used by Mac
@@ -473,7 +520,12 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
             elevenLabsCredits: self.elevenLabsCredits,
             deepgramUsage: self.deepgramUsage,
             groqMetrics: self.groqMetrics,
-            llmProxyStats: self.llmProxyStats)
+            llmProxyStats: self.llmProxyStats,
+            claudeAdminUsage: self.claudeAdminUsage,
+            claudeExtraUsage: self.claudeExtraUsage,
+            openCodeGoZenBalance: self.openCodeGoZenBalance,
+            minimaxBilling: self.minimaxBilling,
+            codexWorkspace: self.codexWorkspace)
     }
 
     /// Backward-compatible decoder: old payloads without `rateWindows`/`costSummary`/`budget`/`perplexityCredits`/`accountIdentities`/`quotaWarnings` still decode.
@@ -510,6 +562,12 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.deepgramUsage = try container.decodeIfPresent(SyncDeepgramUsage.self, forKey: .deepgramUsage)
         self.groqMetrics = try container.decodeIfPresent(SyncGroqMetrics.self, forKey: .groqMetrics)
         self.llmProxyStats = try container.decodeIfPresent(SyncLLMProxyStats.self, forKey: .llmProxyStats)
+        // iOS 1.8.0 build 134 — existing-provider extensions.
+        self.claudeAdminUsage = try container.decodeIfPresent(SyncClaudeAdminUsage.self, forKey: .claudeAdminUsage)
+        self.claudeExtraUsage = try container.decodeIfPresent(SyncClaudeExtraUsage.self, forKey: .claudeExtraUsage)
+        self.openCodeGoZenBalance = try container.decodeIfPresent(SyncOpenCodeGoZenBalance.self, forKey: .openCodeGoZenBalance)
+        self.minimaxBilling = try container.decodeIfPresent(SyncMiniMaxBillingHistory.self, forKey: .minimaxBilling)
+        self.codexWorkspace = try container.decodeIfPresent(SyncCodexWorkspaceContext.self, forKey: .codexWorkspace)
     }
 }
 
