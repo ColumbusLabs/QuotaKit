@@ -220,6 +220,8 @@ enum MockProviderInjector {
         "stepfun",
         // iOS 1.7.0 catch-up (upstream v0.26.0 new providers).
         "moonshot", "bedrock",
+        // iOS 1.8.0 catch-up (upstream v0.27.0 new providers).
+        "grok", "groq", "elevenlabs", "deepgram", "llmproxy",
     ]
 
     /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
@@ -1147,6 +1149,63 @@ enum MockProviderInjector {
             primaryResetDescription: "Budget · $19.10 / $50",
             secondary: nil,
             thirtyDayCostUSD: 19.10, sessionCostUSD: 0.55),
+        // iOS 1.8.0 — upstream v0.27.0 new providers. Each exercises
+        // a different auth + reset shape so the iOS card layout is
+        // covered against real-shape data:
+        //  - Grok: CLI + grok.com fallback → web-billing daily cost
+        //  - GroqCloud: Enterprise Prometheus → request quota window
+        //  - ElevenLabs: API key → monthly credit reset (subscription)
+        //  - Deepgram: API key → project-level usage breakdown
+        //  - LLM Proxy: API key → aggregate quota across providers
+        .init(
+            providerID: "grok", providerName: "Grok",
+            accountLocal: "grok-cli", loginMethod: "API key",
+            primaryUsage: 17, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 22 * 86400,
+            primaryResetDescription: "Billing · $4.20 / $25",
+            secondary: nil,
+            thirtyDayCostUSD: 4.20, sessionCostUSD: 0.11),
+        .init(
+            providerID: "groq", providerName: "GroqCloud",
+            accountLocal: "enterprise", loginMethod: "API key (Prometheus)",
+            primaryUsage: 24, primaryLabel: "Requests",
+            primaryWindowMinutes: 60,
+            primaryResetsInSeconds: 42 * 60,
+            primaryResetDescription: "Hourly · 24% used",
+            secondary: nil,
+            thirtyDayCostUSD: 0.32, sessionCostUSD: 0.01),
+        .init(
+            providerID: "elevenlabs", providerName: "ElevenLabs",
+            accountLocal: "voice", loginMethod: "API key",
+            primaryUsage: 31, primaryLabel: "Characters",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 14 * 86400,
+            primaryResetDescription: "Monthly · 30,500 / 100k chars",
+            secondary: nil,
+            // Subscription-based credit (character allowance), not USD
+            // spend — same pattern as ollama (local) and antigravity-team
+            // (preview): nil cost means "no cost reporting", excluded
+            // from the iOS Cost dashboard.
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "deepgram", providerName: "Deepgram",
+            accountLocal: "speech", loginMethod: "API key",
+            primaryUsage: 11, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 12 * 86400,
+            primaryResetDescription: "Project · $1.10 / $10",
+            secondary: nil,
+            thirtyDayCostUSD: 1.10, sessionCostUSD: 0.02),
+        .init(
+            providerID: "llmproxy", providerName: "LLM Proxy",
+            accountLocal: "proxy", loginMethod: "API key",
+            primaryUsage: 46, primaryLabel: "Daily quota",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 9 * 3600,
+            primaryResetDescription: "Daily · 46% used (4 providers)",
+            secondary: nil,
+            thirtyDayCostUSD: 8.40, sessionCostUSD: 0.18),
         // Phase G — multi-account second-tab mocks. Each entry below
         // produces a SECOND ProviderUsageSnapshot for an already-
         // present providerID (same provider, different accountLocal

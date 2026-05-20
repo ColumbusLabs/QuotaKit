@@ -49,9 +49,11 @@ struct MockProviderInjectorTests {
         // Phase G adds 7 multi-account second-tab simple mocks
         // (openai/deepseek/antigravity/manus/copilot/venice/stepfun) so
         // iOS multi-account tab UI is exercised end-to-end. 45 → 52.
+        // iOS 1.8.0 adds 5 v0.27.0 provider simple mocks
+        // (grok/groq/elevenlabs/deepgram/llmproxy). 52 → 57.
         #expect(
-            MockProviderInjector.allMocks().count == 52,
-            "Phase G: 45 → 52 (+7 multi-account second-tab mocks).")
+            MockProviderInjector.allMocks().count == 57,
+            "iOS 1.8.0: 52 → 57 (+5 v0.27.0 simple mocks: grok, groq, elevenlabs, deepgram, llmproxy).")
     }
 
     @Test("UserDefaults true alone (no env var) → disabled")
@@ -241,16 +243,18 @@ struct MockProviderInjectorTests {
         let realBorrowed = MockProviderInjector.realProviderIDsBorrowedByMocks
         let realBorrowedSnapshots = snapshots.filter { realBorrowed.contains($0.providerID) }
         let withCost = realBorrowedSnapshots.filter { $0.costSummary != nil }
-        // 27 real-borrowed mocks (1 per real provider, except codex/claude
-        // which have multiple accounts → 27 distinct IDs but 30 snapshots).
-        // Two are intentionally cost-less: antigravity (preview/no-billing)
-        // and ollama (local inference, no cost). The rest must carry cost.
+        // Real-borrowed mocks must mostly carry cost data; the
+        // intentionally cost-less mocks are:
+        //   - antigravity (preview / no-billing)
+        //   - ollama (local inference, no cost)
+        //   - elevenlabs (v0.27.0, character-credit subscription —
+        //     usage is character allowance, not USD spend)
         let costLessIDs = realBorrowedSnapshots
             .filter { $0.costSummary == nil }
             .map(\.providerID)
         #expect(
-            Set(costLessIDs).isSubset(of: ["antigravity", "ollama"]),
-            "only antigravity + ollama may be cost-less; got \(costLessIDs)")
+            Set(costLessIDs).isSubset(of: ["antigravity", "ollama", "elevenlabs"]),
+            "only antigravity + ollama + elevenlabs may be cost-less; got \(costLessIDs)")
         #expect(withCost.count >= 25, "≥25 real-borrowed mocks must carry cost data; got \(withCost.count)")
     }
 
