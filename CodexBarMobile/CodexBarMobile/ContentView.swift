@@ -2031,23 +2031,23 @@ private enum MobileReleaseNotesCatalog {
         ReleaseNotesVersion(
             version: "1.8.0",
             status: String(localized: "Latest"),
-            summary: String(localized: "Recognises five new providers from Mac CodexBar 0.27.0 (Grok, ElevenLabs, Deepgram, GroqCloud, LLM Proxy) with distinct brand colours, and surfaces Kiro overage usage on the Kiro card when your plan is exhausted."),
+            summary: String(localized: "Five dedicated provider cards (Grok billing, ElevenLabs voice slots, Deepgram speech/agent, GroqCloud rate metrics, LLM Proxy aggregate) plus Kiro overage badge when your plan is exhausted."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "Grok (xAI) — Mac v0.27.0 syncs Grok CLI billing plus grok.com web-billing fallback; your iPhone now shows the Grok card with its dedicated charcoal brand colour distinct from other providers."),
-                        String(localized: "ElevenLabs — voice / character credits and reset window flow from Mac. iPhone card uses a soft sage-green tint, distinct from Gemini cyan and Codebuff olive."),
-                        String(localized: "Deepgram — API-key usage with project + speech / agent breakdown. iPhone card uses Deepgram's brand purple, distinct from the Codex / Cursor purple cluster."),
-                        String(localized: "GroqCloud — Enterprise Prometheus metrics (requests, tokens, cache-hit rates) on Mac surface as a usage card on iPhone with GroqCloud orange-red, distinct from Mistral red and Xiaomi MiMo orange."),
-                        String(localized: "LLM Proxy — aggregate quota stats, key health, spend, provider breakdowns on Mac surface on iPhone with a neutral slate-blue tone to signal the meta-provider role."),
+                        String(localized: "Grok (xAI) — dedicated card showing monthly USD spend, plan tier badge, percent used, and the renewal date. Uses Grok CLI billing when available, falls back to grok.com web billing."),
+                        String(localized: "ElevenLabs — dedicated card with character credits primary bar, voice slots and professional voice slots rows when present, tier badge, and renewal date."),
+                        String(localized: "Deepgram — dedicated card with speech / agent / total hours breakdown, request count, agent tokens, optional TTS character count, and a project badge with '(of N)' hint when you have multiple projects."),
+                        String(localized: "GroqCloud — dedicated card with three live-rate columns (requests/min, tokens/min, cache hits/min) plus the cache-hit percentage as a coloured badge."),
+                        String(localized: "LLM Proxy — dedicated card showing lowest-remaining-quota headline, credential pool health (active / exhausted keys), aggregate request and token counts, and the top three upstream providers with per-provider request / token / cost breakdown."),
                         String(localized: "Kiro overage — when your monthly plan is exhausted and you're paying for additional credits, the Kiro card now shows the overage credit count and estimated USD cost as an inline orange badge."),
                         String(localized: "Existing Kiro / AWS Bedrock / Moonshot / z.ai / OpenAI API Dashboard / Antigravity multi-account cards from 1.7.0 keep working with no change."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.27.0 (fork build 65.1 or later) for the new providers and Kiro overage data. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x — new fields just stay hidden until Mac is on the new build."),
+                        String(localized: "Update Mac CodexBar to 0.27.0 (fork build 65.1 or later) for the new dedicated cards and Kiro overage data. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x — new cards just stay hidden until Mac is on the new build."),
                     ]),
             ]),
         ReleaseNotesVersion(

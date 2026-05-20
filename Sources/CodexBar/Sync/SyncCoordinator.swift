@@ -584,6 +584,15 @@ final class SyncCoordinator {
             snapshot: snapshot,
             primaryWindow: primaryWindow)
 
+        // iOS 1.8.0 / Mac 0.27.0 — v0.27 envelope extensions. Populated
+        // only for the matching provider so iOS can dispatch via
+        // `if let billing = snapshot.grokBilling { ... }` etc.
+        let grokBilling = Self.mapGrokBilling(provider: provider, snapshot: snapshot)
+        let elevenLabsCredits = Self.mapElevenLabsCredits(provider: provider, snapshot: snapshot)
+        let deepgramUsage = Self.mapDeepgramUsage(provider: provider, snapshot: snapshot)
+        let groqMetrics = Self.mapGroqMetrics(provider: provider, snapshot: snapshot)
+        let llmProxyStats = Self.mapLLMProxyStats(provider: provider, snapshot: snapshot)
+
         return ProviderUsageSnapshot(
             providerID: provider.rawValue,
             providerName: metadata?.displayName ?? provider.rawValue.capitalized,
@@ -613,7 +622,12 @@ final class SyncCoordinator {
             // (`Views/AntigravityAccountSwitcher.swift`) gated on the
             // optional field so it light-up automatically once Mac
             // starts populating it.
-            antigravityAccounts: nil)
+            antigravityAccounts: nil,
+            grokBilling: grokBilling,
+            elevenLabsCredits: elevenLabsCredits,
+            deepgramUsage: deepgramUsage,
+            groqMetrics: groqMetrics,
+            llmProxyStats: llmProxyStats)
     }
 
     // MARK: - v0.26 envelope mappers (private)
@@ -803,6 +817,116 @@ final class SyncCoordinator {
         }
         guard let amount = Double(digits) else { return nil }
         return (amount, currency)
+    }
+
+    // MARK: - v0.27 envelope mappers (private)
+
+    static func mapGrokBilling(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncGrokBilling?
+    {
+        guard provider == .grok, let g = snapshot?.grokUsage else { return nil }
+        // Prefer Grok CLI billing (richer — has cents-precise spend
+        // and exact billing-period boundaries); fall back to grok.com
+        // web billing if Mac took the web fallback path.
+        let cliPercent = g.billing?.monthlyUsedPercent
+        let webPercent = g.webBilling?.usedPercent
+        let percent = cliPercent ?? webPercent
+        // CLI exposes monthly cap + used-so-far as cents; convert to
+        // USD here so iOS doesn't have to know about the cents wire
+        // format. Web billing surfaces only a percentage so this lane
+        // stays nil for web-billing-only Macs.
+        let spend = g.billing?.usage?.totalUsed?.val.map { Double($0) / 100.0 }
+        let limit = g.billing?.monthlyLimit?.val.map { Double($0) / 100.0 }
+        let resetAt = g.billing?.billingPeriodEndDate
+            ?? g.webBilling?.resetsAt
+        // Upstream Grok does not surface a plan-tier string today;
+        // wire field is reserved for a future Mac fetcher addition.
+        let tier: String? = nil
+        // Skip if no useful data — iOS will fall back to the generic
+        // primary rate window.
+        guard percent != nil || spend != nil else { return nil }
+        return SyncGrokBilling(
+            monthlyUsedPercent: percent,
+            monthlySpendUSD: spend,
+            monthlyLimitUSD: limit,
+            billingPeriodEndDate: resetAt,
+            planTier: tier,
+            updatedAt: g.updatedAt)
+    }
+
+    static func mapElevenLabsCredits(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncElevenLabsCredits?
+    {
+        guard provider == .elevenlabs, let e = snapshot?.elevenLabsUsage else { return nil }
+        return SyncElevenLabsCredits(
+            tier: e.tier,
+            characterCount: e.characterCount,
+            characterLimit: e.characterLimit,
+            usedPercent: e.usedPercent,
+            voiceSlotsUsed: e.voiceSlotsUsed,
+            voiceLimit: e.voiceLimit,
+            professionalVoiceSlotsUsed: e.professionalVoiceSlotsUsed,
+            professionalVoiceLimit: e.professionalVoiceLimit,
+            resetsAt: e.resetsAt,
+            updatedAt: e.updatedAt)
+    }
+
+    static func mapDeepgramUsage(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncDeepgramUsage?
+    {
+        guard provider == .deepgram, let d = snapshot?.deepgramUsage else { return nil }
+        return SyncDeepgramUsage(
+            projectName: d.projectName,
+            projectCount: d.projectCount,
+            speechHours: d.hours,
+            totalHours: d.totalHours,
+            agentHours: d.agentHours,
+            requests: d.requests,
+            tokensIn: d.tokensIn,
+            tokensOut: d.tokensOut,
+            ttsCharacters: d.ttsCharacters,
+            updatedAt: d.updatedAt)
+    }
+
+    static func mapGroqMetrics(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncGroqMetrics?
+    {
+        guard provider == .groq, let g = snapshot?.groqUsage else { return nil }
+        return SyncGroqMetrics(
+            requestsPerMinute: g.requestsPerMinute,
+            tokensPerMinute: g.tokensPerMinute,
+            cacheHitsPerMinute: g.cacheHitsPerMinute,
+            updatedAt: g.updatedAt)
+    }
+
+    static func mapLLMProxyStats(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncLLMProxyStats?
+    {
+        guard provider == .llmproxy, let l = snapshot?.llmProxyUsage else { return nil }
+        let topProviders = l.topProviders.prefix(3).map { p in
+            SyncLLMProxyProviderSummary(
+                name: p.name,
+                requests: p.requests,
+                tokens: p.tokens,
+                approximateCostUSD: p.approximateCostUSD)
+        }
+        return SyncLLMProxyStats(
+            providerCount: l.providerCount,
+            credentialCount: l.credentialCount,
+            activeCredentialCount: l.activeCredentialCount,
+            exhaustedCredentialCount: l.exhaustedCredentialCount,
+            totalRequests: l.totalRequests,
+            totalTokens: l.totalTokens,
+            approximateCostUSD: l.approximateCostUSD,
+            minimumRemainingPercent: l.minimumRemainingPercent,
+            nextResetAt: l.nextResetAt,
+            topProviders: Array(topProviders),
+            updatedAt: l.updatedAt)
     }
 
     // swiftlint:enable function_parameter_count

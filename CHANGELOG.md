@@ -35,7 +35,7 @@
 
 ### iOS
 
-- See `CodexBarMobile/CHANGELOG.md` `[1.8.0 (132+)]` for the full
+- See `CodexBarMobile/CHANGELOG.md` `[1.8.0 (133)]` for the full
   iOS-side description. Highlights:
   - 5 new brand colours in `ProviderColorPalette`
   - Kiro overage row on `KiroCreditsCard` (orange badge)
@@ -43,6 +43,17 @@
     `estimatedOverageCostUSD` (`decodeIfPresent` backward compat)
   - 5 new entries in `QuotaProviderList.providers` (40 → 45) so
     push notifications fire end-to-end on the new providers
+  - **5 new dedicated provider cards** for Grok / ElevenLabs /
+    Deepgram / GroqCloud / LLM Proxy. `V027Snapshots.swift` defines
+    5 envelope shapes; `SyncCoordinator` adds 5 mappers that
+    populate them from the rich upstream snapshots.
+  - `UsageSnapshot` (Mac side) gains 4 new fields
+    (`grokUsage / elevenLabsUsage / groqUsage / llmProxyUsage`)
+    populated by each provider's `toUsageSnapshot()` so the rich
+    data survives the `RateWindow` flattening. `GrokUsageSnapshot`
+    is not Codable (carries credentials) so it's "not persisted,
+    fetched fresh" — matches `zaiUsage` / `minimaxUsage` /
+    `perplexityUsage` pattern.
 
 ### CloudKit deploy
 

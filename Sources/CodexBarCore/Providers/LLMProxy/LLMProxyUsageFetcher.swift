@@ -86,6 +86,7 @@ public struct LLMProxyUsageSnapshot: Codable, Sendable, Equatable {
                     resetsAt: self.nextResetAt,
                     updatedAt: self.updatedAt)
             },
+            llmProxyUsage: self,
             updatedAt: self.updatedAt,
             identity: ProviderIdentitySnapshot(
                 providerID: .llmproxy,

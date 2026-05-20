@@ -94,6 +94,15 @@ public struct UsageSnapshot: Codable, Sendable {
     public let claudeAdminAPIUsage: ClaudeAdminAPIUsageSnapshot?
     public let mistralUsage: MistralUsageSnapshot?
     public let deepgramUsage: DeepgramUsageSnapshot?
+    // iOS 1.8.0 / Mac 0.27.0 — upstream v0.27.0 added the four providers
+    // below; rich data is preserved on UsageSnapshot so SyncCoordinator
+    // can thread it into the iOS envelope (V027Snapshots.swift). Each
+    // provider's `toUsageSnapshot()` factory populates the matching
+    // field so the rich snapshot survives the `RateWindow` flattening.
+    public let grokUsage: GrokUsageSnapshot?
+    public let elevenLabsUsage: ElevenLabsUsageSnapshot?
+    public let groqUsage: GroqUsageSnapshot?
+    public let llmProxyUsage: LLMProxyUsageSnapshot?
     public let cursorRequests: CursorRequestUsage?
     public let updatedAt: Date
     public let identity: ProviderIdentitySnapshot?
@@ -110,6 +119,10 @@ public struct UsageSnapshot: Codable, Sendable {
         case claudeAdminAPIUsage
         case mistralUsage
         case deepgramUsage
+        case grokUsage
+        case elevenLabsUsage
+        case groqUsage
+        case llmProxyUsage
         case updatedAt
         case identity
         case accountEmail
@@ -132,6 +145,10 @@ public struct UsageSnapshot: Codable, Sendable {
         claudeAdminAPIUsage: ClaudeAdminAPIUsageSnapshot? = nil,
         mistralUsage: MistralUsageSnapshot? = nil,
         deepgramUsage: DeepgramUsageSnapshot? = nil,
+        grokUsage: GrokUsageSnapshot? = nil,
+        elevenLabsUsage: ElevenLabsUsageSnapshot? = nil,
+        groqUsage: GroqUsageSnapshot? = nil,
+        llmProxyUsage: LLMProxyUsageSnapshot? = nil,
         cursorRequests: CursorRequestUsage? = nil,
         updatedAt: Date,
         identity: ProviderIdentitySnapshot? = nil)
@@ -150,6 +167,10 @@ public struct UsageSnapshot: Codable, Sendable {
         self.claudeAdminAPIUsage = claudeAdminAPIUsage
         self.mistralUsage = mistralUsage
         self.deepgramUsage = deepgramUsage
+        self.grokUsage = grokUsage
+        self.elevenLabsUsage = elevenLabsUsage
+        self.groqUsage = groqUsage
+        self.llmProxyUsage = llmProxyUsage
         self.cursorRequests = cursorRequests
         self.updatedAt = updatedAt
         self.identity = identity
@@ -173,6 +194,15 @@ public struct UsageSnapshot: Codable, Sendable {
             forKey: .claudeAdminAPIUsage)
         self.mistralUsage = try container.decodeIfPresent(MistralUsageSnapshot.self, forKey: .mistralUsage)
         self.deepgramUsage = try container.decodeIfPresent(DeepgramUsageSnapshot.self, forKey: .deepgramUsage)
+        // iOS 1.8.0 / Mac 0.27.0 — v0.27.0 provider snapshots.
+        // `GrokUsageSnapshot` is not Codable (carries auth credentials)
+        // so it's not persisted — fetched fresh on every refresh cycle,
+        // matching the `zaiUsage` / `minimaxUsage` / `perplexityUsage`
+        // pattern. The other three are Codable and persist normally.
+        self.grokUsage = nil
+        self.elevenLabsUsage = try container.decodeIfPresent(ElevenLabsUsageSnapshot.self, forKey: .elevenLabsUsage)
+        self.groqUsage = try container.decodeIfPresent(GroqUsageSnapshot.self, forKey: .groqUsage)
+        self.llmProxyUsage = try container.decodeIfPresent(LLMProxyUsageSnapshot.self, forKey: .llmProxyUsage)
         self.cursorRequests = nil // Not persisted, fetched fresh each time
         self.updatedAt = try container.decode(Date.self, forKey: .updatedAt)
         if let identity = try container.decodeIfPresent(ProviderIdentitySnapshot.self, forKey: .identity) {
@@ -207,6 +237,10 @@ public struct UsageSnapshot: Codable, Sendable {
         try container.encodeIfPresent(self.claudeAdminAPIUsage, forKey: .claudeAdminAPIUsage)
         try container.encodeIfPresent(self.mistralUsage, forKey: .mistralUsage)
         try container.encodeIfPresent(self.deepgramUsage, forKey: .deepgramUsage)
+        // grokUsage skipped — not Codable (see init(from:) for rationale).
+        try container.encodeIfPresent(self.elevenLabsUsage, forKey: .elevenLabsUsage)
+        try container.encodeIfPresent(self.groqUsage, forKey: .groqUsage)
+        try container.encodeIfPresent(self.llmProxyUsage, forKey: .llmProxyUsage)
         try container.encode(self.updatedAt, forKey: .updatedAt)
         try container.encodeIfPresent(self.identity, forKey: .identity)
         try container.encodeIfPresent(self.identity?.accountEmail, forKey: .accountEmail)

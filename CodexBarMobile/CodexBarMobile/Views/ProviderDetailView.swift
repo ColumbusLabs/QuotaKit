@@ -105,6 +105,37 @@ struct ProviderDetailView: View {
                     AntigravityAccountSwitcher(accounts: antigravityAccounts, tintColor: self.providerColor)
                 }
 
+                // iOS 1.8.0 — v0.27 dedicated cards. Same dispatch
+                // pattern as v0.26: provider ID match + envelope field
+                // present. Falls through silently to the generic card
+                // list when Mac is on a pre-0.27.0 build (envelope
+                // fields stay nil).
+                if self.provider.providerID == "grok",
+                   let grokBilling = self.provider.grokBilling
+                {
+                    GrokBillingCard(billing: grokBilling, tintColor: self.providerColor)
+                }
+                if self.provider.providerID == "elevenlabs",
+                   let elevenLabsCredits = self.provider.elevenLabsCredits
+                {
+                    ElevenLabsCreditsCard(credits: elevenLabsCredits, tintColor: self.providerColor)
+                }
+                if self.provider.providerID == "deepgram",
+                   let deepgramUsage = self.provider.deepgramUsage
+                {
+                    DeepgramUsageCard(usage: deepgramUsage, tintColor: self.providerColor)
+                }
+                if self.provider.providerID == "groq",
+                   let groqMetrics = self.provider.groqMetrics
+                {
+                    GroqMetricsCard(metrics: groqMetrics, tintColor: self.providerColor)
+                }
+                if self.provider.providerID == "llmproxy",
+                   let llmProxyStats = self.provider.llmProxyStats
+                {
+                    LLMProxyStatsCard(stats: llmProxyStats, tintColor: self.providerColor)
+                }
+
                 // Claude peak-hours indicator (Anthropic peak window
                 // 8am-2pm America/New_York, weekdays). Pure time-of-day
                 // logic in `ClaudePeakHours` — no wire field involved.

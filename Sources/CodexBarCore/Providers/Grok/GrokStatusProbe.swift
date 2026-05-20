@@ -56,6 +56,7 @@ public struct GrokUsageSnapshot: Sendable {
             primary: primary,
             secondary: nil,
             tertiary: nil,
+            grokUsage: self,
             updatedAt: self.updatedAt,
             identity: identity)
     }

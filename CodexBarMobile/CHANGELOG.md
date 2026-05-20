@@ -2,12 +2,54 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [1.8.0 (132)] — 2026-05-19 — upstream v0.27.0 provider alignment
+## [1.8.0 (133)] — 2026-05-19 — upstream v0.27.0 provider alignment + 5 dedicated cards
 
 Pairs with Mac CodexBar 0.27.0 (fork build 65.1). MOBILE_VERSION
-1.7.0 → 1.8.0; CURRENT_PROJECT_VERSION 131 → 132. New MARKETING_VERSION
+1.7.0 → 1.8.0; CURRENT_PROJECT_VERSION 131 → 133. New MARKETING_VERSION
 because the provider catalog grew by 5 + Kiro card gained a new
-data lane (overage); both are user-visible.
+data lane (overage) + 5 new dedicated provider cards landed; all
+user-visible.
+
+### Added (build 133 — dedicated cards)
+
+- **5 new dedicated provider cards** with rich data instead of the
+  generic rate-window fallback:
+  - `GrokBillingCard` — monthly USD spend + plan tier badge +
+    percent badge + reset date (CLI billing source) or just
+    percent + reset date (web-billing source)
+  - `ElevenLabsCreditsCard` — character credits primary row,
+    voice slots + pro voice slots optional rows, tier badge,
+    renewal date
+  - `DeepgramUsageCard` — speech / agent / total hours,
+    request count, agent tokens (input → output), TTS character
+    count, project badge with "(of N)" hint when multiple
+    projects
+  - `GroqMetricsCard` — three columns of live rates (req/min,
+    tok/min, cache/min) plus cache-hit percentage badge
+  - `LLMProxyStatsCard` — lowest remaining percent headline,
+    credential pool summary, request/token totals with reset
+    date, top-3 upstream providers with per-provider req/tok/cost
+- **Shared envelope** `V027Snapshots.swift` — 5 new structs
+  (`SyncGrokBilling` / `SyncElevenLabsCredits` / `SyncDeepgramUsage`
+  / `SyncGroqMetrics` / `SyncLLMProxyStats`) all
+  `decodeIfPresent`-backwards-compat. iOS 1.7.x clients on the
+  same iCloud zone ignore these fields entirely.
+- **20+ new localized strings** across the 5 cards (en /
+  zh-Hans / zh-Hant / ja, all `state=translated`). xcstrings audit:
+  250 / 250 source keys present.
+- **Mac side wiring**: `UsageSnapshot` gains
+  `grokUsage / elevenLabsUsage / groqUsage / llmProxyUsage`
+  optional fields populated by each provider's `toUsageSnapshot()`
+  factory. `SyncCoordinator` gains 5 mappers
+  (`mapGrokBilling` / `mapElevenLabsCredits` / `mapDeepgramUsage`
+  / `mapGroqMetrics` / `mapLLMProxyStats`) that translate rich
+  upstream snapshots into the iOS-facing `V027Snapshots` shapes.
+- `ProviderDetailView` adds 5 new `if provider.providerID == "X",
+  let payload = provider.fieldX { CardX(...) }` dispatch blocks
+  matching the existing v0.26 pattern (Kiro / Bedrock / Moonshot
+  / z.ai / OpenAI Dashboard / Antigravity).
+
+### Added (build 132 — initial 1.8.0)
 
 ### Added
 

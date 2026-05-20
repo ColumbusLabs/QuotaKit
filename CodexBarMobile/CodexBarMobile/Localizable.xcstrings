@@ -2113,6 +2113,34 @@
         }
       }
     },
+    "Deepgram — dedicated card with speech / agent / total hours breakdown, request count, agent tokens, optional TTS character count, and a project badge with '(of N)' hint when you have multiple projects.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deepgram — dedicated card with speech / agent / total hours breakdown, request count, agent tokens, optional TTS character count, and a project badge with '(of N)' hint when you have multiple projects."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deepgram —— 专属卡片含语音/Agent/合计小时数、请求数、Agent Token、可选的 TTS 字符数，并在多项目时显示 '（共 N 个）' 项目徽章。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deepgram —— 專屬卡片含語音/Agent/合計小時數、請求數、Agent Token、可選的 TTS 字元數，並在多專案時顯示 '（共 N 個）' 專案徽章。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deepgram — 音声 / Agent / 合計時間の内訳、リクエスト数、Agent トークン、オプションで TTS 文字数、複数プロジェクト時に「（全 N 件）」を示すプロジェクトバッジを表示する専用カード。"
+          }
+        }
+      }
+    },
     "Developer": {
       "localizations": {
         "en": {
@@ -2449,6 +2477,34 @@
         }
       }
     },
+    "ElevenLabs — dedicated card with character credits primary bar, voice slots and professional voice slots rows when present, tier badge, and renewal date.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ElevenLabs — dedicated card with character credits primary bar, voice slots and professional voice slots rows when present, tier badge, and renewal date."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ElevenLabs —— 专属卡片，主进度条显示字符积分，存在时显示语音席位与专业语音席位行，附套餐徽章和续费日期。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ElevenLabs —— 專屬卡片，主進度條顯示字元積分，存在時顯示語音席位與專業語音席位行，附方案徽章和續費日期。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ElevenLabs — 文字クレジットのメインバー、存在する場合は音声スロットとプロ音声スロットの行、プランバッジ、更新日を表示する専用カード。"
+          }
+        }
+      }
+    },
     "ElevenLabs — voice / character credits and reset window flow from Mac. iPhone card uses a soft sage-green tint, distinct from Gemini cyan and Codebuff olive.": {
       "localizations": {
         "en": {
@@ -2674,6 +2730,34 @@
         }
       }
     },
+    "Five dedicated provider cards (Grok billing, ElevenLabs voice slots, Deepgram speech/agent, GroqCloud rate metrics, LLM Proxy aggregate) plus Kiro overage badge when your plan is exhausted.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Five dedicated provider cards (Grok billing, ElevenLabs voice slots, Deepgram speech/agent, GroqCloud rate metrics, LLM Proxy aggregate) plus Kiro overage badge when your plan is exhausted."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "五张专属厂商卡片（Grok 计费、ElevenLabs 语音席位、Deepgram 语音/Agent、GroqCloud 速率、LLM Proxy 聚合），以及 Kiro 套餐用尽时的超额徽章。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "五張專屬廠商卡片（Grok 計費、ElevenLabs 語音席位、Deepgram 語音/Agent、GroqCloud 速率、LLM Proxy 彙總），以及 Kiro 方案用盡時的超額徽章。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 つの専用プロバイダカード（Grok 請求、ElevenLabs 音声スロット、Deepgram 音声/Agent、GroqCloud レート、LLM Proxy 集計）と、Kiro プラン上限到達時の超過バッジを追加。"
+          }
+        }
+      }
+    },
     "Fixed iCloud sync on iOS when shared cloud entitlements were missing.": {
       "localizations": {
         "en": {
@@ -2758,6 +2842,34 @@
         }
       }
     },
+    "Grok (xAI) — dedicated card showing monthly USD spend, plan tier badge, percent used, and the renewal date. Uses Grok CLI billing when available, falls back to grok.com web billing.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok (xAI) — dedicated card showing monthly USD spend, plan tier badge, percent used, and the renewal date. Uses Grok CLI billing when available, falls back to grok.com web billing."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok（xAI）—— 专属卡片显示每月美元消费、套餐徽章、使用百分比和续费日期。优先 Grok CLI 计费，必要时回落到 grok.com 网页计费。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok（xAI）—— 專屬卡片顯示每月美元消費、方案徽章、使用百分比和續費日期。優先 Grok CLI 計費，必要時回退到 grok.com 網頁計費。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok (xAI) — 月の USD 支出、プランバッジ、使用率、更新日を表示する専用カード。Grok CLI の請求情報を優先し、必要に応じて grok.com のウェブ請求にフォールバックします。"
+          }
+        }
+      }
+    },
     "GroqCloud — Enterprise Prometheus metrics (requests, tokens, cache-hit rates) on Mac surface as a usage card on iPhone with GroqCloud orange-red, distinct from Mistral red and Xiaomi MiMo orange.": {
       "localizations": {
         "en": {
@@ -2782,6 +2894,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "GroqCloud — Mac 上の Enterprise Prometheus メトリクス（リクエスト数 / トークン / キャッシュヒット率）が、iPhone では GroqCloud のオレンジレッドの使用カードとして表示され、Mistral の赤や Xiaomi MiMo のオレンジと区別されます。"
+          }
+        }
+      }
+    },
+    "GroqCloud — dedicated card with three live-rate columns (requests/min, tokens/min, cache hits/min) plus the cache-hit percentage as a coloured badge.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GroqCloud — dedicated card with three live-rate columns (requests/min, tokens/min, cache hits/min) plus the cache-hit percentage as a coloured badge."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GroqCloud —— 专属卡片，三列实时速率（请求/分钟、Token/分钟、缓存命中/分钟），并以彩色徽章显示缓存命中率。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GroqCloud —— 專屬卡片，三列即時速率（請求/分鐘、Token/分鐘、快取命中/分鐘），並以彩色徽章顯示快取命中率。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GroqCloud — リアルタイムレートを 3 列（リクエスト/分、トークン/分、キャッシュ/分）で表示し、キャッシュヒット率をカラーバッジで示す専用カード。"
           }
         }
       }
@@ -3344,6 +3484,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "LLM Proxy — Mac 上の集計クォータ、キーの健全性、利用額、上流プロバイダごとの内訳が iPhone でも表示されます。メタプロバイダ役を示す中立的なスレートブルーで描画します。"
+          }
+        }
+      }
+    },
+    "LLM Proxy — dedicated card showing lowest-remaining-quota headline, credential pool health (active / exhausted keys), aggregate request and token counts, and the top three upstream providers with per-provider request / token / cost breakdown.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LLM Proxy — dedicated card showing lowest-remaining-quota headline, credential pool health (active / exhausted keys), aggregate request and token counts, and the top three upstream providers with per-provider request / token / cost breakdown."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LLM Proxy —— 专属卡片显示最低剩余配额头条、Key 池健康（活跃 / 用尽）、聚合请求与 Token 数，并列出请求数 Top 3 的上游厂商，每个含请求/Token/费用细分。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LLM Proxy —— 專屬卡片顯示最低剩餘配額頭條、Key 池健康（活躍 / 用盡）、彙總請求與 Token 數，並列出請求數 Top 3 的上游廠商，每個含請求/Token/費用細分。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LLM Proxy — 残量が最も少ないクォータの見出し、認証情報プールの健全性（有効 / 上限到達）、リクエストとトークンの合計、上位 3 つの上流プロバイダごとのリクエスト / トークン / 費用内訳を表示する専用カード。"
           }
         }
       }
@@ -9008,6 +9176,34 @@
         }
       }
     },
+    "Update Mac CodexBar to 0.27.0 (fork build 65.1 or later) for the new dedicated cards and Kiro overage data. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x — new cards just stay hidden until Mac is on the new build.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Mac CodexBar to 0.27.0 (fork build 65.1 or later) for the new dedicated cards and Kiro overage data. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x — new cards just stay hidden until Mac is on the new build."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请将 Mac CodexBar 更新到 0.27.0（fork 构建 65.1 及更新）以启用专属卡片和 Kiro 超额数据。iPhone 1.8.0 仍向前兼容 Mac 0.26.x —— 新卡片在 Mac 升级前保持隐藏。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請將 Mac CodexBar 更新到 0.27.0（fork 建置 65.1 及更新）以啟用專屬卡片和 Kiro 超額資料。iPhone 1.8.0 仍向前相容 Mac 0.26.x —— 新卡片在 Mac 升級前保持隱藏。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しい専用カードと Kiro 超過分データを利用するには、Mac CodexBar を 0.27.0（fork ビルド 65.1 以上）に更新してください。iPhone 1.8.0 は Mac 0.26.x との上方互換性を保ち、Mac が新ビルドになるまで新カードは非表示のままです。"
+          }
+        }
+      }
+    },
     "Update Mac CodexBar to 0.27.0 (fork build 65.1 or later) for the new providers and Kiro overage data. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x — new fields just stay hidden until Mac is on the new build.": {
       "localizations": {
         "en": {
@@ -9991,6 +10187,286 @@
         }
       }
     },
+    "deepgram_agent_tokens_label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent tokens"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent Token"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent Token"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent トークン"
+          }
+        }
+      }
+    },
+    "deepgram_requests_label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requests"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请求数"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請求數"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リクエスト数"
+          }
+        }
+      }
+    },
+    "deepgram_speech_hours_label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speech / Agent / Total"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语音 / Agent / 合计"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "語音 / Agent / 合計"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "音声 / Agent / 合計"
+          }
+        }
+      }
+    },
+    "deepgram_tts_characters_label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TTS characters"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TTS 字符数"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TTS 字元數"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TTS 文字数"
+          }
+        }
+      }
+    },
+    "deepgram_usage_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deepgram usage"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deepgram 用量"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deepgram 用量"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deepgram 使用量"
+          }
+        }
+      }
+    },
+    "elevenlabs_characters_label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "characters"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "字符"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "字元"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文字"
+          }
+        }
+      }
+    },
+    "elevenlabs_credits_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ElevenLabs credits"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ElevenLabs 信用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ElevenLabs 信用"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ElevenLabs クレジット"
+          }
+        }
+      }
+    },
+    "elevenlabs_pro_voice_slots_label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pro voice slots"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "专业语音席位"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "專業語音席位"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロ音声スロット"
+          }
+        }
+      }
+    },
+    "elevenlabs_renews_label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renews"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "续费"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "續費"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新"
+          }
+        }
+      }
+    },
+    "elevenlabs_voice_slots_label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voice slots"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语音席位"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "語音席位"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "音声スロット"
+          }
+        }
+      }
+    },
     "exp.": {
       "localizations": {
         "en": {
@@ -10015,6 +10491,230 @@
           "stringUnit": {
             "state": "translated",
             "value": "期限"
+          }
+        }
+      }
+    },
+    "grok_billing_reset_label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resets"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重設"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リセット"
+          }
+        }
+      }
+    },
+    "grok_billing_spend_label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spend this period"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本周期消费"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本週期消費"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今期の支出"
+          }
+        }
+      }
+    },
+    "grok_billing_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok billing"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok 计费"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok 計費"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grok 請求"
+          }
+        }
+      }
+    },
+    "groq_cache_hit_format": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d%% cache"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存命中 %d%%"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "快取命中 %d%%"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キャッシュ %d%%"
+          }
+        }
+      }
+    },
+    "groq_cache_per_min": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cache/min"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓存/分钟"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "快取/分鐘"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "キャッシュ/分"
+          }
+        }
+      }
+    },
+    "groq_metrics_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GroqCloud rate"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GroqCloud 速率"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GroqCloud 速率"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GroqCloud レート"
+          }
+        }
+      }
+    },
+    "groq_requests_per_min": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Req/min"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请求/分钟"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請求/分鐘"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リクエスト/分"
+          }
+        }
+      }
+    },
+    "groq_tokens_per_min": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tok/min"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token/分钟"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Token/分鐘"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "トークン/分"
           }
         }
       }
@@ -10522,6 +11222,118 @@
           "stringUnit": {
             "state": "translated",
             "value": "另一台 Mac 上的 %@ 看起來是同一個帳號。"
+          }
+        }
+      }
+    },
+    "llmproxy_credentials_active_format": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d / %d keys active"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d / %d 个 Key 活跃"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d / %d 個 Key 活躍"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d / %d 個のキーが有効"
+          }
+        }
+      }
+    },
+    "llmproxy_credentials_with_exhausted_format": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d / %d keys active · %d exhausted"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d / %d 个 Key 活跃 · %d 个用尽"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d / %d 個 Key 活躍 · %d 個用盡"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d / %d 個のキーが有効・%d 個上限到達"
+          }
+        }
+      }
+    },
+    "llmproxy_stats_title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LLM Proxy aggregate"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LLM Proxy 聚合"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LLM Proxy 彙總"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LLM Proxy 集計"
+          }
+        }
+      }
+    },
+    "llmproxy_top_providers_label": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Top providers (by requests)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请求数 Top 厂商"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請求數 Top 廠商"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リクエスト上位プロバイダ"
           }
         }
       }

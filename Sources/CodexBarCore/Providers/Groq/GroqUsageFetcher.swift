@@ -76,6 +76,7 @@ public struct GroqUsageSnapshot: Codable, Sendable, Equatable {
                 windowMinutes: 5,
                 resetsAt: nil,
                 resetDescription: "\(Self.formatDecimal(self.cacheHitsPerMinute)) cache/min") : nil,
+            groqUsage: self,
             updatedAt: self.updatedAt,
             identity: ProviderIdentitySnapshot(
                 providerID: .groq,

@@ -338,6 +338,45 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// affordance below the usage card.
     public let antigravityAccounts: SyncMultiAccountList?
 
+    // MARK: - iOS 1.8.0 / Mac 0.27.0 — v0.27 envelope extensions
+    //
+    // All five fields are optional + `decodeIfPresent` so pre-1.8.0
+    // iOS clients keep decoding payloads without errors. Wire schema
+    // version is intentionally NOT bumped — additive optional fields
+    // do not require a forced rewrite cycle.
+
+    /// Grok (xAI) monthly billing summary. Populated only on the
+    /// `grok` provider snapshot when Mac has Grok CLI billing or
+    /// grok.com web-billing access. iOS renders this as a dedicated
+    /// monthly cost card with planTier badge.
+    public let grokBilling: SyncGrokBilling?
+
+    /// ElevenLabs character credits + voice slot state. Populated
+    /// only on the `elevenlabs` provider snapshot. iOS renders this
+    /// as a character-credits primary row plus optional voice-slot
+    /// secondary rows when slot data is present.
+    public let elevenLabsCredits: SyncElevenLabsCredits?
+
+    /// Deepgram speech / agent / TTS usage breakdown for the active
+    /// project. Populated only on the `deepgram` provider snapshot.
+    /// iOS renders the speech+agent split, request count, and
+    /// optional TTS character count.
+    public let deepgramUsage: SyncDeepgramUsage?
+
+    /// GroqCloud Enterprise Prometheus rate metrics (requests / min,
+    /// tokens / min, cache hit %). Populated only on the `groq`
+    /// provider snapshot when Mac has an Enterprise key. iOS
+    /// renders these as live-rate badges; for non-Enterprise keys
+    /// the field stays nil and iOS falls back to the generic card.
+    public let groqMetrics: SyncGroqMetrics?
+
+    /// LLM Proxy meta-provider aggregate: provider / credential
+    /// counts, lowest remaining quota %, and top-3 upstream
+    /// breakdown. Populated only on the `llmproxy` provider
+    /// snapshot. iOS renders the per-upstream breakdown as a
+    /// stacked list under the primary "X% used" badge.
+    public let llmProxyStats: SyncLLMProxyStats?
+
     /// All available rate windows. Prefers `rateWindows` if non-empty, otherwise falls back to primary/secondary.
     public var allRateWindows: [SyncRateWindow] {
         if !self.rateWindows.isEmpty { return self.rateWindows }
@@ -366,7 +405,12 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         kiroCredits: SyncKiroCredits? = nil,
         bedrockCost: SyncBedrockCost? = nil,
         moonshotBalance: SyncMoonshotBalance? = nil,
-        antigravityAccounts: SyncMultiAccountList? = nil)
+        antigravityAccounts: SyncMultiAccountList? = nil,
+        grokBilling: SyncGrokBilling? = nil,
+        elevenLabsCredits: SyncElevenLabsCredits? = nil,
+        deepgramUsage: SyncDeepgramUsage? = nil,
+        groqMetrics: SyncGroqMetrics? = nil,
+        llmProxyStats: SyncLLMProxyStats? = nil)
     {
         self.providerID = providerID
         self.providerName = providerName
@@ -390,6 +434,11 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.bedrockCost = bedrockCost
         self.moonshotBalance = moonshotBalance
         self.antigravityAccounts = antigravityAccounts
+        self.grokBilling = grokBilling
+        self.elevenLabsCredits = elevenLabsCredits
+        self.deepgramUsage = deepgramUsage
+        self.groqMetrics = groqMetrics
+        self.llmProxyStats = llmProxyStats
     }
 
     /// Returns a copy with `quotaWarnings` swapped out. Used by Mac
@@ -419,7 +468,12 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
             kiroCredits: self.kiroCredits,
             bedrockCost: self.bedrockCost,
             moonshotBalance: self.moonshotBalance,
-            antigravityAccounts: self.antigravityAccounts)
+            antigravityAccounts: self.antigravityAccounts,
+            grokBilling: self.grokBilling,
+            elevenLabsCredits: self.elevenLabsCredits,
+            deepgramUsage: self.deepgramUsage,
+            groqMetrics: self.groqMetrics,
+            llmProxyStats: self.llmProxyStats)
     }
 
     /// Backward-compatible decoder: old payloads without `rateWindows`/`costSummary`/`budget`/`perplexityCredits`/`accountIdentities`/`quotaWarnings` still decode.
@@ -450,6 +504,12 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.bedrockCost = try container.decodeIfPresent(SyncBedrockCost.self, forKey: .bedrockCost)
         self.moonshotBalance = try container.decodeIfPresent(SyncMoonshotBalance.self, forKey: .moonshotBalance)
         self.antigravityAccounts = try container.decodeIfPresent(SyncMultiAccountList.self, forKey: .antigravityAccounts)
+        // iOS 1.8.0 / Mac 0.27.0 — v0.27 envelope extensions.
+        self.grokBilling = try container.decodeIfPresent(SyncGrokBilling.self, forKey: .grokBilling)
+        self.elevenLabsCredits = try container.decodeIfPresent(SyncElevenLabsCredits.self, forKey: .elevenLabsCredits)
+        self.deepgramUsage = try container.decodeIfPresent(SyncDeepgramUsage.self, forKey: .deepgramUsage)
+        self.groqMetrics = try container.decodeIfPresent(SyncGroqMetrics.self, forKey: .groqMetrics)
+        self.llmProxyStats = try container.decodeIfPresent(SyncLLMProxyStats.self, forKey: .llmProxyStats)
     }
 }
 

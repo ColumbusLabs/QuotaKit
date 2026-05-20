@@ -100,6 +100,7 @@ public struct ElevenLabsUsageSnapshot: Codable, Sendable, Equatable {
             secondary: nil,
             tertiary: nil,
             extraRateWindows: extraWindows.isEmpty ? nil : extraWindows,
+            elevenLabsUsage: self,
             updatedAt: self.updatedAt,
             identity: identity)
     }
