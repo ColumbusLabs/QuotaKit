@@ -1032,7 +1032,7 @@ final class SyncCoordinator {
         // the spend-limit metric via the existing primary RateWindow.
         guard let cost = providerCost,
               cost.limit > 0,
-              cost.currencyCode == "USD" || cost.currencyCode == nil
+              cost.currencyCode == "USD"
         else { return nil }
 
         let utilization = min(max((cost.used / cost.limit) * 100, 0), 100)
