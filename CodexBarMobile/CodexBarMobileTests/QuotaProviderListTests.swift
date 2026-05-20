@@ -19,26 +19,30 @@ import Testing
 @Suite("Quota provider list")
 struct QuotaProviderListTests {
 
-    @Test("Total count is 40 (25 base + Abacus + Mistral + 11 v0.24/v0.25 + 2 v0.26)")
+    @Test("Total count is 45 (25 base + Abacus + Mistral + 11 v0.24/v0.25 + 2 v0.26 + 5 v0.27)")
     func totalCount() {
         // Outcome: 25 → 27 in iOS 1.5.0 (Abacus + Mistral) →
         // 38 in iOS 1.6.0 (11 new from Mac v0.24+v0.25 catch-up) →
-        // 40 in iOS 1.7.0 (2 new from Mac v0.26.0: moonshot + bedrock).
+        // 40 in iOS 1.7.0 (2 new from Mac v0.26.0: moonshot + bedrock) →
+        // 45 in iOS 1.8.0 (5 new from Mac v0.27.0: grok, groq,
+        // elevenlabs, deepgram, llmproxy).
         // If this number shifts without matching upstream updates,
         // the push-subscription set drifts out of sync with Mac's
         // actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 40)
+        #expect(QuotaProviderList.providers.count == 45)
     }
 
-    @Test("Subscription zone count is 120 (40 providers × 3 states)")
+    @Test("Subscription zone count is 135 (45 providers × 3 states)")
     func subscriptionZoneCount() {
         // iOS 1.5.0: 27 × 2 = 54 zones.
         // iOS 1.6.0 / Mac 0.25.2: 38 × 3 (depleted/restored/warning) = 114.
         // iOS 1.7.0 / Mac 0.26.2: 40 × 3 = 120 zones (+moonshot, +bedrock).
+        // iOS 1.8.0 / Mac 0.27.0: 45 × 3 = 135 zones (+grok, +groq,
+        // +elevenlabs, +deepgram, +llmproxy).
         // `QuotaTransitionSubscriptions.makeConfigs()` builds one
         // `SubConfig` per (provider, state) — pinning here so a
         // future state addition/removal can't drift silently.
-        #expect(QuotaProviderList.providers.count * 3 == 120)
+        #expect(QuotaProviderList.providers.count * 3 == 135)
     }
 
     @Test("Warning-zone name format matches Mac/iOS contract")
@@ -223,10 +227,10 @@ struct QuotaProviderListTests {
     /// Cause-oriented: iOS 1.7.0's catalog message references the
     /// provider count and zone count. If those numbers drift from this
     /// list, the user-facing release notes lie. Doc the cross-coupling.
-    @Test("Cause: catalog 40/80 numbers match the actual list")
+    @Test("Cause: catalog 45/90 numbers match the actual list")
     func catalogNumbersAlignWithList() {
-        #expect(QuotaProviderList.providers.count == 40)
-        #expect(QuotaProviderList.providers.count * 2 == 80)
+        #expect(QuotaProviderList.providers.count == 45)
+        #expect(QuotaProviderList.providers.count * 2 == 90)
     }
 
     /// Cause-oriented: iOS 1.7.0 specifically adds Moonshot + Bedrock.

@@ -89,6 +89,15 @@ public enum QuotaProviderList {
         // Mirrors MockProviderInjector.realProviderIDsBorrowedByMocks.
         Provider(id: "moonshot", displayName: "Moonshot / Kimi API"),
         Provider(id: "bedrock", displayName: "AWS Bedrock"),
+        // iOS 1.8.0 catch-up — upstream v0.27.0 new providers.
+        // Push subscriptions for these get registered on first iOS
+        // launch after the upgrade so quota-depleted / -restored
+        // notifications work end-to-end.
+        Provider(id: "grok", displayName: "Grok"),
+        Provider(id: "groq", displayName: "GroqCloud"),
+        Provider(id: "elevenlabs", displayName: "ElevenLabs"),
+        Provider(id: "deepgram", displayName: "Deepgram"),
+        Provider(id: "llmproxy", displayName: "LLM Proxy"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The
