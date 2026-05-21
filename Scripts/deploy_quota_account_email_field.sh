@@ -29,6 +29,15 @@ SCHEMA_PATCHED="/tmp/codexbar-ck-prod-schema.patched.ckdb"
 
 echo "==> Probing CloudKit Production schema for QuotaTransition.accountEmail"
 
+# Scope the grep to the QuotaTransition block specifically. The schema
+# already has an `accountEmail` field on `DeviceProviderSnapshot`
+# (envelope record); we want to know whether QuotaTransition itself
+# has the column.
+quotaTransitionHasField() {
+    awk '/RECORD TYPE QuotaTransition \(/,/^[[:space:]]*\)$/' "$1" \
+        | grep -qE "^[[:space:]]+accountEmail[[:space:]]"
+}
+
 if ! xcrun cktool export-schema \
         --team-id "$TEAM_ID" \
         --container-id "$CONTAINER_ID" \
@@ -61,60 +70,86 @@ fi
 
 echo "==> Production schema fetched ($(wc -l < "$SCHEMA_OUT") lines)"
 
-if grep -qE "^[[:space:]]*accountEmail" "$SCHEMA_OUT"; then
-    echo "==> SUCCESS: accountEmail is already in Production schema."
-    grep -E "QuotaTransition|accountEmail" "$SCHEMA_OUT" | head -10
+if quotaTransitionHasField "$SCHEMA_OUT"; then
+    echo "==> SUCCESS: accountEmail is already on QuotaTransition in Production."
+    awk '/RECORD TYPE QuotaTransition \(/,/^[[:space:]]*\)$/' "$SCHEMA_OUT"
     exit 0
 fi
 
-echo "==> accountEmail NOT in Production schema yet. Patching ..."
+echo "==> accountEmail NOT on QuotaTransition in Production. Two-step CloudKit flow:"
+echo "    1) import patched schema to Development (automated below)"
+echo "    2) Deploy Dev → Production via Dashboard (manual — cktool has no deploy-schema)"
 
-# Find the QuotaTransition RECORD TYPE block and add accountEmail
-# field right after the existing deviceID field. The .ckdb format
-# is a textual DSL with `RECORD TYPE` / `field <name> <Type>` lines.
-python3 <<PY > "$SCHEMA_PATCHED"
-import re
-import sys
-
-with open("$SCHEMA_OUT") as f:
-    text = f.read()
-
-# Inside the QuotaTransition record type, insert `accountEmail String`
-# after `deviceID String` if not already present.
-pattern = re.compile(
-    r"(RECORD TYPE QuotaTransition[^}]*?deviceID\s+String[^\n]*\n)",
-    re.DOTALL)
-def insert(match):
-    return match.group(1) + "    accountEmail String\n"
-new_text, n = pattern.subn(insert, text, count=1)
-if n == 0:
-    sys.stderr.write("could not find QuotaTransition.deviceID anchor — manual edit needed\n")
-    sys.exit(3)
-sys.stdout.write(new_text)
-PY
-
-echo "==> Patched schema:"
-diff "$SCHEMA_OUT" "$SCHEMA_PATCHED" | head -20
+# Step 1: import the patched schema into Development. Apple's
+# CloudKit API rejects `import-schema --environment PRODUCTION` with
+# "endpoint not applicable in the environment 'production'" — only
+# Development accepts schema imports. Production picks up the change
+# only via the explicit Dashboard "Deploy Schema Changes to
+# Production" action.
+SCHEMA_DEV="/tmp/codexbar-ck-dev-schema.ckdb"
+SCHEMA_DEV_PATCHED="/tmp/codexbar-ck-dev-schema.patched.ckdb"
 
 echo
-echo "==> Importing patched schema into Production"
-xcrun cktool import-schema \
-    --team-id "$TEAM_ID" \
-    --container-id "$CONTAINER_ID" \
-    --environment PRODUCTION \
-    --file "$SCHEMA_PATCHED"
-
-echo
-echo "==> Verifying accountEmail is now in Production"
+echo "==> Fetching Development schema"
 xcrun cktool export-schema \
     --team-id "$TEAM_ID" \
     --container-id "$CONTAINER_ID" \
-    --environment PRODUCTION \
-    --output-file "$SCHEMA_OUT.final"
-if grep -qE "^[[:space:]]*accountEmail" "$SCHEMA_OUT.final"; then
-    echo "==> DEPLOYED: accountEmail is live in Production. Mac 65.3 writes will succeed."
-    grep -E "QuotaTransition|accountEmail" "$SCHEMA_OUT.final" | head -10
+    --environment DEVELOPMENT \
+    --output-file "$SCHEMA_DEV"
+
+if quotaTransitionHasField "$SCHEMA_DEV"; then
+    echo "==> Development already has accountEmail on QuotaTransition. Skipping patch step."
 else
-    echo "==> WARNING: deploy completed but accountEmail not visible in re-export — please verify manually in Dashboard."
-    exit 4
+    echo "==> Patching Development schema to add accountEmail to QuotaTransition"
+    awk '
+        BEGIN { inQT = 0; inserted = 0 }
+        /RECORD TYPE QuotaTransition[[:space:]]*\(/ { inQT = 1 }
+        inQT && /^[[:space:]]+deviceID[[:space:]]+STRING/ && !inserted {
+            print "        accountEmail    STRING,"
+            inserted = 1
+        }
+        inQT && /^[[:space:]]*\)[[:space:]]*$/ { inQT = 0 }
+        { print }
+        END { if (!inserted) exit 3 }
+    ' "$SCHEMA_DEV" > "$SCHEMA_DEV_PATCHED"
+    if [ $? -ne 0 ]; then
+        echo "could not find QuotaTransition.deviceID anchor — manual edit needed" >&2
+        exit 3
+    fi
+    diff "$SCHEMA_DEV" "$SCHEMA_DEV_PATCHED" | head -10
+
+    echo "==> Importing patched schema into Development"
+    xcrun cktool import-schema \
+        --team-id "$TEAM_ID" \
+        --container-id "$CONTAINER_ID" \
+        --environment DEVELOPMENT \
+        --file "$SCHEMA_DEV_PATCHED"
+
+    echo "==> Verifying Development now has accountEmail on QuotaTransition"
+    xcrun cktool export-schema \
+        --team-id "$TEAM_ID" \
+        --container-id "$CONTAINER_ID" \
+        --environment DEVELOPMENT \
+        --output-file "$SCHEMA_DEV"
+    if ! quotaTransitionHasField "$SCHEMA_DEV"; then
+        echo "==> ERROR: Development import succeeded but re-export does not show accountEmail."
+        exit 5
+    fi
 fi
+
+echo
+echo "==> Step 1 complete. Step 2 (MANUAL):"
+cat <<'EOF'
+
+    Open https://icloud.developer.apple.com
+    → Container iCloud.com.o1xhack.codexbar
+    → Schema
+    → Click "Deploy Schema Changes to Production" (top right)
+    → Verify the dialog shows: QuotaTransition + accountEmail (STRING)
+    → Click "Deploy" to confirm.
+
+    Then re-run this script — it will verify accountEmail is live in
+    Production and exit 0.
+
+EOF
+exit 0
