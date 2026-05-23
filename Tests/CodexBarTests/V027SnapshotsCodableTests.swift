@@ -1,4 +1,10 @@
 // swiftlint:disable multiline_arguments
+//
+// Scoped to this file because the test constructors pack many
+// trailing fixture values onto a single line for readability; the
+// `multiline_arguments` rule prefers one argument per line which
+// makes synthetic Codable payloads triple-height and harder to
+// audit. Re-enabled at EOF.
 import Foundation
 import Testing
 @testable import CodexBarSync
@@ -36,15 +42,15 @@ struct V027SnapshotsCodableTests {
             last30Days: SyncClaudeAdminWindowSummary(
                 costUSD: 100.0, totalTokens: 1_000_000,
                 inputTokens: 500_000, outputTokens: 200_000,
-                cacheCreationInputTokens: 80_000, cacheReadInputTokens: 220_000),
+                cacheCreationInputTokens: 80000, cacheReadInputTokens: 220_000),
             last7Days: SyncClaudeAdminWindowSummary(
                 costUSD: 30.0, totalTokens: 300_000,
-                inputTokens: 150_000, outputTokens: 60_000,
-                cacheCreationInputTokens: 24_000, cacheReadInputTokens: 66_000),
+                inputTokens: 150_000, outputTokens: 60000,
+                cacheCreationInputTokens: 24000, cacheReadInputTokens: 66000),
             latestDay: SyncClaudeAdminWindowSummary(
-                costUSD: 5.0, totalTokens: 50_000,
-                inputTokens: 25_000, outputTokens: 10_000,
-                cacheCreationInputTokens: 4_000, cacheReadInputTokens: 11_000),
+                costUSD: 5.0, totalTokens: 50000,
+                inputTokens: 25000, outputTokens: 10000,
+                cacheCreationInputTokens: 4000, cacheReadInputTokens: 11000),
             topModels: [
                 SyncClaudeAdminModelBreakdown(name: "claude-sonnet-4-6", totalTokens: 800_000),
             ],
@@ -56,7 +62,7 @@ struct V027SnapshotsCodableTests {
         let decoded = try Self.decoder.decode(SyncClaudeAdminUsage.self, from: data)
         #expect(decoded.last30Days.costUSD == 100.0)
         #expect(decoded.last7Days.totalTokens == 300_000)
-        #expect(decoded.latestDay?.outputTokens == 10_000)
+        #expect(decoded.latestDay?.outputTokens == 10000)
         #expect(decoded.topModels.first?.name == "claude-sonnet-4-6")
         #expect(decoded.topCostItems.first?.costUSD == 60.0)
     }
@@ -116,19 +122,19 @@ struct V027SnapshotsCodableTests {
     func miniMaxBillingRoundTrip() throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let source = SyncMiniMaxBillingHistory(
-            todayTokens: 1_000,
-            last30DaysTokens: 30_000,
+            todayTokens: 1000,
+            last30DaysTokens: 30000,
             todayCashUSD: 1.5,
             last30DaysCashUSD: 45.0,
             daily: [
-                SyncMiniMaxBillingDay(day: "2026-05-01", tokens: 1_000, cashUSD: 1.5),
-                SyncMiniMaxBillingDay(day: "2026-05-02", tokens: 2_000, cashUSD: nil),
+                SyncMiniMaxBillingDay(day: "2026-05-01", tokens: 1000, cashUSD: 1.5),
+                SyncMiniMaxBillingDay(day: "2026-05-02", tokens: 2000, cashUSD: nil),
             ],
             topMethods: [
-                SyncMiniMaxBillingBreakdown(name: "chat/completions", tokens: 25_000, cashUSD: 38.0),
+                SyncMiniMaxBillingBreakdown(name: "chat/completions", tokens: 25000, cashUSD: 38.0),
             ],
             topModels: [
-                SyncMiniMaxBillingBreakdown(name: "abab-7", tokens: 20_000, cashUSD: 30.0),
+                SyncMiniMaxBillingBreakdown(name: "abab-7", tokens: 20000, cashUSD: 30.0),
             ],
             updatedAt: now)
         let decoded = try Self.decoder.decode(
@@ -249,7 +255,7 @@ struct V027SnapshotsCodableTests {
     }
 
     @Test("OpenAI dashboard: historyDays clamps out-of-range values to 1..365")
-    func openAIDashboardHistoryDaysClamps() throws {
+    func openAIDashboardHistoryDaysClamps() {
         let dash0 = SyncOpenAIAPIDashboard(
             last30Days: SyncOpenAISummary(totalCostUSD: 0, totalRequests: 0, totalTokens: 0),
             last7Days: SyncOpenAISummary(totalCostUSD: 0, totalRequests: 0, totalTokens: 0),
@@ -261,7 +267,9 @@ struct V027SnapshotsCodableTests {
             last30Days: SyncOpenAISummary(totalCostUSD: 0, totalRequests: 0, totalTokens: 0),
             last7Days: SyncOpenAISummary(totalCostUSD: 0, totalRequests: 0, totalTokens: 0),
             latestDay: nil,
-            historyDays: 10_000)
+            historyDays: 10000)
         #expect(dashHuge.historyDays == 365)
     }
 }
+
+// swiftlint:enable multiline_arguments
