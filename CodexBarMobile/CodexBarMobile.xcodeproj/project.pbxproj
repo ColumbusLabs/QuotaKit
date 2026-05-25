@@ -99,6 +99,7 @@
 		C05BB8D498AEAD0E75753738 /* SnapshotCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51BEDB997C80D4064449061 /* SnapshotCache.swift */; };
 		C32BC6E03F98362AB2AF7957 /* MultiAccountLinkageDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A35B8172E4530311B55BE4C /* MultiAccountLinkageDetectorTests.swift */; };
 		C41E99EEEAFD859D56F08AD2 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BBBF160B317AF2B0C136E2B /* NotificationService.swift */; };
+		C87E63885A58161DEE788B56 /* EmailRedaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB6F8FEDE802C46B955E249A /* EmailRedaction.swift */; };
 		C88251CF2987E9D135DFA5C0 /* CodexBarSync.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; };
 		CD8A9E9C7D9155CCE3338602 /* CKRecordReservedKeyAuditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E0C9A4125533AB89F20FFA7 /* CKRecordReservedKeyAuditTests.swift */; };
 		CDE7E605C7EBAA5B0A171477 /* AccountIdentityNormalizeContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E4EAED2E5EE71721D32253 /* AccountIdentityNormalizeContractTests.swift */; };
@@ -286,6 +287,7 @@
 		A5404A3DBB0C65C3C3C8D8ED /* ProviderAccountGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderAccountGroup.swift; sourceTree = "<group>"; };
 		A9F340DA45364A878F1BB616 /* V027Snapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V027Snapshots.swift; sourceTree = "<group>"; };
 		AA293C8F7A388B3FE79C2856 /* DeepgramUsageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepgramUsageCard.swift; sourceTree = "<group>"; };
+		AB6F8FEDE802C46B955E249A /* EmailRedaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailRedaction.swift; sourceTree = "<group>"; };
 		AEB7FFB253C0CC0CA9876CCB /* CostShareCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostShareCardView.swift; sourceTree = "<group>"; };
 		AF5F72C23944E23883A57CA1 /* ClaudeAdminUsageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAdminUsageCard.swift; sourceTree = "<group>"; };
 		B07946DD625AF9E4DFFFAB41 /* AntigravityAccountSwitcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AntigravityAccountSwitcher.swift; sourceTree = "<group>"; };
@@ -462,6 +464,14 @@
 			path = Storage;
 			sourceTree = "<group>";
 		};
+		5E43DA367E1140E87F94693B /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				AB6F8FEDE802C46B955E249A /* EmailRedaction.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
 		5FEBB76DB8FB667851477450 /* CodexBarMobilePushExtension */ = {
 			isa = PBXGroup;
 			children = (
@@ -514,6 +524,7 @@
 				B81A012795332305519003C2 /* iCloud */,
 				E48ACB00DD8BE4E69213E83A /* Models */,
 				40E8C082323391AE263B8168 /* Notifications */,
+				5E43DA367E1140E87F94693B /* Utilities */,
 			);
 			name = Shared;
 			path = ../../Shared;
@@ -914,6 +925,7 @@
 				979DD3366C02E4457C7D6D0E /* AccountIdentityNormalize.swift in Sources */,
 				3FF73F5DB65C0589C032253A /* CloudConstants.swift in Sources */,
 				47E56DB489686A9CF257EA70 /* CloudSyncManager.swift in Sources */,
+				C87E63885A58161DEE788B56 /* EmailRedaction.swift in Sources */,
 				EBE2A4618178227F342DCDF4 /* NSEInvocationLog.swift in Sources */,
 				F869D4469A5649D0357A7FE5 /* PayloadCompression.swift in Sources */,
 				90D08BDB0023F9AC882235B1 /* ProviderAccountLinkage.swift in Sources */,
@@ -967,7 +979,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 135;
+				CURRENT_PROJECT_VERSION = 136;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1146,7 +1158,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 135;
+				CURRENT_PROJECT_VERSION = 136;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1168,7 +1180,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 135;
+				CURRENT_PROJECT_VERSION = 136;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1206,7 +1218,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 135;
+				CURRENT_PROJECT_VERSION = 136;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1242,7 +1254,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 135;
+				CURRENT_PROJECT_VERSION = 136;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1266,7 +1278,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 135;
+				CURRENT_PROJECT_VERSION = 136;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

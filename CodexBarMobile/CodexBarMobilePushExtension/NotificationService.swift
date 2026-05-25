@@ -162,7 +162,7 @@ final class NotificationService: UNNotificationServiceExtension {
                         timestamp: startedAt,
                         event: .ok,
                         zoneName: zoneID.zoneName,
-                        detail: "rewrote body: provider=\(info.providerName) window=\(info.window) threshold=\(info.threshold) account=\(info.accountEmail ?? "<nil>")")
+                        detail: "rewrote body: provider=\(info.providerName) window=\(info.window) threshold=\(info.threshold) account=\(EmailRedaction.redact(info.accountEmail))")
                 case let .empty(reason):
                     NSEInvocationLog.shared.recordEntry(
                         timestamp: startedAt,
@@ -186,7 +186,7 @@ final class NotificationService: UNNotificationServiceExtension {
                         timestamp: startedAt,
                         event: .ok,
                         zoneName: zoneID.zoneName,
-                        detail: "title rewrite: \(info.providerName) account=\(info.accountEmail ?? "<nil>")")
+                        detail: "title rewrite: \(info.providerName) account=\(EmailRedaction.redact(info.accountEmail))")
                 } else {
                     NSEInvocationLog.shared.recordEntry(
                         timestamp: startedAt,
@@ -426,6 +426,14 @@ final class NotificationService: UNNotificationServiceExtension {
     /// supplies an `accountEmail`, formats as "Provider · account@…"
     /// so the user immediately sees which account fired the push on
     /// the locked screen. Falls back to bare providerName when nil.
+    ///
+    /// **Template note for translators**: `Push.Quota.titleWithAccount`
+    /// is intentionally `"%1$@ · %2$@"` in ALL 4 locales (en / zh-Hans
+    /// / zh-Hant / ja). The mid-dot U+00B7 is universal punctuation,
+    /// and the order (provider then account) is fixed by lock-screen
+    /// UX requirements regardless of locale grammar. Do NOT "localize"
+    /// the separator or argument order — that would break the visual
+    /// scan pattern users on the lock screen rely on.
     static func formatTitle(providerName: String, accountEmail: String?) -> String {
         guard let accountEmail, !accountEmail.isEmpty else { return providerName }
         let template = String(localized: "Push.Quota.titleWithAccount")

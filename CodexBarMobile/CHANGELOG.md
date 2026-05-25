@@ -2,6 +2,82 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.8.0 (136)] — 2026-05-25 — code-review fixes pre-ship: PII redaction + deploy script + integration tests
+
+Same MOBILE_VERSION (1.8.0), build 135 → 136. Pairs with Mac
+CodexBar 0.27.0 fork build 65.3 → 65.4. No new features —
+addresses findings from the Opus 4.7 code review of build 135.
+
+### Fixed (build 136 — code-review pre-ship)
+
+- **OSLog PII redaction** — `CloudSyncManager.writeQuotaTransition` /
+  `writeQuotaWarningTransition` and the iOS NSE invocation log
+  used to render `accountEmail` cleartext in the log metadata.
+  Even though the upstream `UsageStore.quotaWarningAccountDisplayName`
+  helper already gates the field at SOURCE on the
+  `hidePersonalInfo` privacy toggle, Apple's defensive convention
+  is to also redact identity strings at the log layer. New
+  `Shared/Utilities/EmailRedaction.swift` helper renders emails
+  as `a***@example.com` for both Mac OSLog and the iOS NSE
+  invocation diagnostic log.
+- **Deploy script `set -euo pipefail` dead branch** —
+  `Scripts/deploy_quota_account_email_field.sh` had an
+  unreachable `if [ $? -ne 0 ]` after an `awk` invocation. With
+  the strict shell mode, awk's non-zero exit aborts the script
+  before the check can fire. Wrapped the awk in `if ! awk ...`
+  so the friendly error message actually surfaces.
+- **Deploy script race warning** — Added a `RACE WARNING` banner
+  before `cktool import-schema --environment DEVELOPMENT` to
+  remind the operator that the import has full-schema overwrite
+  semantics; if another developer has added a Dev schema field
+  in the ~5-second window since the script fetched the schema,
+  that field will be wiped.
+
+### Added (build 136 — integration test gap)
+
+- `SyncCoordinatorV027MapperTests` — 12 integration tests
+  exercising `mapClaudeAdminUsage` / `mapMiniMaxBilling` /
+  `mapOpenCodeGoZenBalance` with synthetic `UsageSnapshot`
+  fixtures. Verifies wrong-provider early-return, missing-payload
+  early-return, empty-window nil-pruning, and the top-list cap
+  invariants (top-8 models / top-8 cost-items / top-3
+  method+model breakdowns). Closes the integration-test gap
+  flagged by the Opus 4.7 review — only Codable round-trip was
+  previously covered.
+
+### Documentation
+
+- `NotificationService.formatTitle` — translator note added
+  explaining why `Push.Quota.titleWithAccount` is identical
+  (`%1$@ · %2$@`) in all 4 locales: mid-dot is universal and
+  the order is fixed by lock-screen UX requirements regardless
+  of locale grammar.
+
+### Code review verdicts (recorded for posterity)
+
+The Opus 4.7 reviewer also flagged but DID NOT recommend
+fixing:
+- `mapClaudeExtraUsage` false-positive (verified safe — only
+  two Mac code paths populate Claude `providerCost` and both
+  gate on extra_usage being enabled).
+- `codexWeeklyWindow` 1-day-or-more filter (verified safe —
+  `UsagePace.weekly` correctly uses `windowMinutes ?? 10080`).
+- `formatTitle` `%` in email (verified safe — `String(format:
+  "%@", ...)` treats arg as NSString data, not format spec).
+
+Recorded here so future engineers don't re-investigate the
+same questions.
+
+### Required Mac version
+
+Mac CodexBar 0.27.0 (fork build 65.4) or later. iPhone 1.8.0
+build 136 is forward-compatible with Mac 65.3 — the PII
+redaction is purely log-layer, so the wire format is identical
+and the only user-visible change is logs in Console.app /
+sysdiagnose now mask emails.
+
+---
+
 ## [1.8.0 (135)] — 2026-05-20 — v0.27 deferred features close: quota account identity + Codex workspace populator
 
 Same MOBILE_VERSION (1.8.0), build 134 → 135. Pairs with Mac CodexBar

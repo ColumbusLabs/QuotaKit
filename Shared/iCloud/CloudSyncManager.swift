@@ -925,7 +925,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
                 "state": state,
                 "zone": zone.zoneID.zoneName,
                 "recordName": recordName,
-                "accountEmail": accountEmail ?? "<nil>",
+                "accountEmail": EmailRedaction.redact(accountEmail),
             ])
             return .success
         } catch let error as CKError where error.code == .serverRecordChanged {
@@ -1021,7 +1021,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
                 "threshold": "\(threshold)",
                 "zone": zone.zoneID.zoneName,
                 "recordName": recordName,
-                "accountEmail": accountEmail ?? "<nil>",
+                "accountEmail": EmailRedaction.redact(accountEmail),
             ])
             return .success
         } catch let error as CKError where error.code == .serverRecordChanged {

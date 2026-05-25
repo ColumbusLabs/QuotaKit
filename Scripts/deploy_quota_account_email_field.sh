@@ -101,7 +101,10 @@ if quotaTransitionHasField "$SCHEMA_DEV"; then
     echo "==> Development already has accountEmail on QuotaTransition. Skipping patch step."
 else
     echo "==> Patching Development schema to add accountEmail to QuotaTransition"
-    awk '
+    # `set -euo pipefail` is active, so a non-zero awk exit aborts the
+    # whole script. Wrap in `if !` so we can emit our own error
+    # message before exiting.
+    if ! awk '
         BEGIN { inQT = 0; inserted = 0 }
         /RECORD TYPE QuotaTransition[[:space:]]*\(/ { inQT = 1 }
         inQT && /^[[:space:]]+deviceID[[:space:]]+STRING/ && !inserted {
@@ -111,12 +114,23 @@ else
         inQT && /^[[:space:]]*\)[[:space:]]*$/ { inQT = 0 }
         { print }
         END { if (!inserted) exit 3 }
-    ' "$SCHEMA_DEV" > "$SCHEMA_DEV_PATCHED"
-    if [ $? -ne 0 ]; then
-        echo "could not find QuotaTransition.deviceID anchor — manual edit needed" >&2
+    ' "$SCHEMA_DEV" > "$SCHEMA_DEV_PATCHED"; then
+        echo "ERROR: awk could not find QuotaTransition.deviceID anchor in $SCHEMA_DEV — manual edit needed." >&2
         exit 3
     fi
     diff "$SCHEMA_DEV" "$SCHEMA_DEV_PATCHED" | head -10
+
+    cat <<'EOF'
+
+  ⚠️  RACE WARNING ⚠️
+  `cktool import-schema` has FULL-SCHEMA OVERWRITE semantics. If
+  another developer has added a Dev schema field on this container
+  since we fetched the schema 2 lines up, that field will be WIPED
+  by the import below. Window is ~5 seconds in practice.
+
+  Verify Dev schema editor in Dashboard is closed before proceeding.
+
+EOF
 
     echo "==> Importing patched schema into Development"
     xcrun cktool import-schema \
