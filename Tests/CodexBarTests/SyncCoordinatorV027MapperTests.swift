@@ -245,31 +245,48 @@ struct SyncCoordinatorV027MapperTests {
         #expect(result?.weeklyPaceLabel != nil)
     }
 
-    @Test("Codex workspace: prefers secondary window over tertiary/primary for pace anchor")
+    @Test("Codex workspace: anchors pace to secondary when BOTH secondary + primary are ≥ 1-day windows")
     func codexWorkspaceWeeklyWindowSelection() {
-        // Secondary holds the weekly window; primary is a session
-        // (300 min). The mapper should anchor pace to secondary.
-        let session = RateWindow(
+        // Both primary AND secondary pass the `codexWeeklyWindow`
+        // ≥ 1-day filter; the mapper must pick secondary (per the
+        // `[secondary, tertiary, primary]` priority order in
+        // `SyncCoordinator.codexWeeklyWindow`). Construct two
+        // windows with distinct `usedPercent` so the anchored
+        // result is visibly different — the test then proves
+        // selection by checking the resulting pace delta matches
+        // the secondary's actualUsedPercent (40%), not the
+        // primary's (80%).
+        //
+        // Both windows have ~50% elapsed (started 3.5d ago, end in
+        // 3.5d), so expected pace is ~50%. Secondary at 40% used
+        // → delta ≈ -10% (= -0.10 fraction). Primary at 80% used
+        // → delta ≈ +30% (= +0.30 fraction). If the test sees a
+        // delta < 0 we proved the mapper picked the secondary's
+        // 40% over the primary's 80%.
+        let now = Date()
+        let resetIn3Days = now.addingTimeInterval(3.5 * 24 * 3600)
+        let primaryHighUse = RateWindow(
             usedPercent: 80.0,
-            windowMinutes: 300,
-            resetsAt: Date().addingTimeInterval(3 * 3600),
+            windowMinutes: 7 * 24 * 60,
+            resetsAt: resetIn3Days,
             resetDescription: nil)
-        let weekly = RateWindow(
+        let secondaryLowUse = RateWindow(
             usedPercent: 40.0,
             windowMinutes: 7 * 24 * 60,
-            resetsAt: Date().addingTimeInterval(4 * 24 * 3600),
+            resetsAt: resetIn3Days,
             resetDescription: nil)
         let snapshot = UsageSnapshot(
-            primary: session, secondary: weekly, updatedAt: Self.now)
+            primary: primaryHighUse, secondary: secondaryLowUse, updatedAt: Self.now)
         let result = SyncCoordinator.buildCodexWorkspaceContext(
             activeAccount: nil, snapshot: snapshot)
-        // If the mapper anchored to session (300-min), pace would
-        // be massively skewed; weekly anchor yields a sane delta.
+        // Secondary anchor → delta is negative (40% used vs ~50%
+        // expected). Primary anchor would have produced positive
+        // delta (80% used vs ~50% expected).
         #expect(result?.weeklyPaceDelta != nil)
-        // Sanity bounds: weekly pace delta clamped to ~ [-1.0, +1.0]
-        // (delta is fraction, e.g. 0.10 = 10% ahead of pace).
         if let d = result?.weeklyPaceDelta {
-            #expect(abs(d) < 1.0)
+            #expect(
+                d < 0,
+                "expected secondary anchor (40% used → negative delta); got \(d) — primary anchor was picked instead")
         }
     }
 

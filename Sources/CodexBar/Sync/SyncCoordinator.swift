@@ -610,8 +610,9 @@ final class SyncCoordinator {
         // `mapOpenCodeGoZenBalance` parses Zen workspace balance from
         // the existing providerCost lane. `mapMiniMaxBilling` ships
         // the 30-day chart from `MiniMaxUsageSnapshot.billingSummary`.
-        // `mapCodexWorkspace` is currently a stub — Mac doesn't yet
-        // thread workspace/pace data through `UsageSnapshot`.
+        // `mapCodexWorkspace` reads active-account workspace metadata
+        // from `SettingsStore.codexAccountReconciliationSnapshot` and
+        // computes weekly pace via `UsagePace.weekly(window:)`.
         let claudeAdminUsage = Self.mapClaudeAdminUsage(provider: provider, snapshot: snapshot)
         let claudeExtraUsage = Self.mapClaudeExtraUsage(
             provider: provider,

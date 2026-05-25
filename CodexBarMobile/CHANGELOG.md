@@ -50,8 +50,9 @@ so cleaned up before ship.
   Defensible by design — the helper is "PII-safe rendering", not
   "PII suppression". Source gate at `quotaWarningAccountDisplayName`
   already short-circuits to nil when the toggle is set.
-- `ClaudeUsageFetcher.swift:688` + `AugmentStatusProbe.swift:616`
-  also log accountEmail cleartext — these are upstream-owned
+- `ClaudeUsageFetcher.swift:688`, `AugmentStatusProbe.swift:616`,
+  and `OpenAIDashboardBrowserCookieImporter.swift:716` also log
+  accountEmail cleartext — these are upstream-owned
   files. Per `CLAUDE.md` policy "do not modify Mac-only files
   unless explicitly asked", left alone for upstream to handle.
 
