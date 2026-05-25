@@ -1112,26 +1112,40 @@ final class SyncCoordinator {
         snapshot: UsageSnapshot?) -> SyncCodexWorkspaceContext?
     {
         guard provider == .codex else { return nil }
-        // Two sources combine into the envelope:
-        //   1) Workspace metadata — `settings.codexAccountReconciliationSnapshot.activeStoredAccount`
-        //      carries the user's selected workspaceLabel +
-        //      workspaceAccountID on multi-workspace Codex setups
-        //      (set when ManagedCodexAccountService resolves a
-        //      ChatGPT-Account-Id during sign-in).
-        //   2) Weekly pace — derived from the snapshot's secondary
-        //      RateWindow via `UsagePace.weekly(window:)`. Mac uses
-        //      the same code path for its menu-bar pace caption, so
-        //      iOS sees an identical computation.
-        //
-        // Multi-account fan-out: this mapper is only called for the
-        // ACTIVE account's freshly-built snapshot. `expandCodexMultiAccount`
-        // caches that ProviderUsageSnapshot under the active account's
-        // UUID and later re-emits the cached value when the user is
-        // looking at a different active account. So each cached
-        // snapshot's `codexWorkspace` reflects whatever was active at
-        // the time of build — correct per-account labelling without
-        // needing to thread account context into the mapper.
-        let activeAccount = self.settings.codexAccountReconciliationSnapshot.activeStoredAccount
+        // Instance method only because it needs `self.settings`. The
+        // pure-function part lives in `buildCodexWorkspaceContext`
+        // below so unit tests can exercise the envelope-shape logic
+        // (nil-pruning, pace computation, weekly-window selection)
+        // without spinning up a full SyncCoordinator + SettingsStore
+        // fixture.
+        return Self.buildCodexWorkspaceContext(
+            activeAccount: self.settings.codexAccountReconciliationSnapshot.activeStoredAccount,
+            snapshot: snapshot)
+    }
+
+    /// Pure-function envelope builder extracted from `mapCodexWorkspace`
+    /// for testability. Combines:
+    ///   1) Workspace metadata from the active Codex account
+    ///      (`workspaceLabel` + `workspaceAccountID`, set when
+    ///      ManagedCodexAccountService resolves a ChatGPT-Account-Id
+    ///      during sign-in).
+    ///   2) Weekly pace derived from the snapshot's weekly RateWindow
+    ///      via `UsagePace.weekly(window:)`. Mac uses the same code
+    ///      path for its menu-bar pace caption so iOS sees identical
+    ///      computation.
+    ///
+    /// Multi-account fan-out: the mapper is only called for the
+    /// ACTIVE account's freshly-built snapshot. `expandCodexMultiAccount`
+    /// caches that ProviderUsageSnapshot under the active account's
+    /// UUID and later re-emits the cached value when the user looks at
+    /// a different active account. So each cached snapshot's
+    /// `codexWorkspace` reflects whatever was active at the time of
+    /// build — correct per-account labelling without needing to
+    /// thread account context into the mapper.
+    static func buildCodexWorkspaceContext(
+        activeAccount: ManagedCodexAccount?,
+        snapshot: UsageSnapshot?) -> SyncCodexWorkspaceContext?
+    {
         let workspaceLabel = activeAccount?.workspaceLabel
         let workspaceID = activeAccount?.workspaceAccountID
 

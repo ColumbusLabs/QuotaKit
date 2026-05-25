@@ -1,5 +1,6 @@
 import AppKit
 import CodexBarCore
+import CodexBarSync
 import Foundation
 import Observation
 import SweetCookieKit
@@ -1307,7 +1308,7 @@ extension UsageStore {
                 lines.append("")
                 lines.append("Cursor Status Summary:")
                 lines.append("membershipType=\(snapshot.membershipType ?? "nil")")
-                lines.append("accountEmail=\(snapshot.accountEmail ?? "nil")")
+                lines.append("accountEmail=\(EmailRedaction.redact(snapshot.accountEmail))")
                 lines.append("planPercentUsed=\(snapshot.planPercentUsed)%")
                 lines.append("planUsedUSD=$\(snapshot.planUsedUSD)")
                 lines.append("planLimitUSD=$\(snapshot.planLimitUSD)")

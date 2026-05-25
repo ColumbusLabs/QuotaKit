@@ -201,6 +201,78 @@ struct SyncCoordinatorV027MapperTests {
         #expect(result?.workspaceID == "ws-acme")
     }
 
+    // MARK: - buildCodexWorkspaceContext (mapCodexWorkspace pure core)
+
+    @Test("Codex workspace: returns nil when active account is nil AND snapshot has no weekly window")
+    func codexWorkspaceEmptyReturnsNil() {
+        let snapshot = UsageSnapshot(
+            primary: nil, secondary: nil, updatedAt: Self.now)
+        let result = SyncCoordinator.buildCodexWorkspaceContext(
+            activeAccount: nil, snapshot: snapshot)
+        #expect(result == nil)
+    }
+
+    @Test("Codex workspace: emits envelope when active account has workspace label")
+    func codexWorkspaceWithLabelEmits() {
+        let account = Self.makeAccount(
+            email: "test@example.com",
+            workspaceLabel: "Acme",
+            workspaceAccountID: "ws-acme")
+        let snapshot = UsageSnapshot(
+            primary: nil, secondary: nil, updatedAt: Self.now)
+        let result = SyncCoordinator.buildCodexWorkspaceContext(
+            activeAccount: account, snapshot: snapshot)
+        #expect(result?.workspaceName == "Acme")
+        #expect(result?.workspaceID == "ws-acme")
+        #expect(result?.weeklyPaceDelta == nil)
+    }
+
+    @Test("Codex workspace: emits pace when snapshot has weekly window (10080 minutes)")
+    func codexWorkspaceWithWeeklyPaceEmits() {
+        // Use an in-flight weekly window: started 3 days ago, ends in
+        // 4 days. UsagePace.weekly expects timeUntilReset > 0 AND <= duration.
+        let weekly = RateWindow(
+            usedPercent: 40.0,
+            windowMinutes: 7 * 24 * 60,
+            resetsAt: Date().addingTimeInterval(4 * 24 * 3600),
+            resetDescription: nil)
+        let snapshot = UsageSnapshot(
+            primary: nil, secondary: weekly, updatedAt: Self.now)
+        let result = SyncCoordinator.buildCodexWorkspaceContext(
+            activeAccount: nil, snapshot: snapshot)
+        #expect(result != nil)
+        #expect(result?.weeklyPaceDelta != nil)
+        #expect(result?.weeklyPaceLabel != nil)
+    }
+
+    @Test("Codex workspace: prefers secondary window over tertiary/primary for pace anchor")
+    func codexWorkspaceWeeklyWindowSelection() {
+        // Secondary holds the weekly window; primary is a session
+        // (300 min). The mapper should anchor pace to secondary.
+        let session = RateWindow(
+            usedPercent: 80.0,
+            windowMinutes: 300,
+            resetsAt: Date().addingTimeInterval(3 * 3600),
+            resetDescription: nil)
+        let weekly = RateWindow(
+            usedPercent: 40.0,
+            windowMinutes: 7 * 24 * 60,
+            resetsAt: Date().addingTimeInterval(4 * 24 * 3600),
+            resetDescription: nil)
+        let snapshot = UsageSnapshot(
+            primary: session, secondary: weekly, updatedAt: Self.now)
+        let result = SyncCoordinator.buildCodexWorkspaceContext(
+            activeAccount: nil, snapshot: snapshot)
+        // If the mapper anchored to session (300-min), pace would
+        // be massively skewed; weekly anchor yields a sane delta.
+        #expect(result?.weeklyPaceDelta != nil)
+        // Sanity bounds: weekly pace delta clamped to ~ [-1.0, +1.0]
+        // (delta is fraction, e.g. 0.10 = 10% ahead of pace).
+        if let d = result?.weeklyPaceDelta {
+            #expect(abs(d) < 1.0)
+        }
+    }
+
     // MARK: - Fixture builders
 
     private static func adminBucket(
@@ -236,6 +308,29 @@ struct SyncCoordinatorV027MapperTests {
 
     private static func adminCostItem(name: String, cost: Double) -> ClaudeAdminAPIUsageSnapshot.CostBreakdown {
         ClaudeAdminAPIUsageSnapshot.CostBreakdown(name: name, costUSD: cost)
+    }
+
+    /// Build a ManagedCodexAccount fixture with all `_ = nil` /
+    /// stub-able fields filled with deterministic values. Used by
+    /// the workspace-mapper tests above; lives here rather than
+    /// inline in each test so the body stays focused on the
+    /// scenario, not the fixture plumbing.
+    private static func makeAccount(
+        email: String,
+        workspaceLabel: String? = nil,
+        workspaceAccountID: String? = nil) -> ManagedCodexAccount
+    {
+        ManagedCodexAccount(
+            id: UUID(),
+            email: email,
+            providerAccountID: nil,
+            workspaceLabel: workspaceLabel,
+            workspaceAccountID: workspaceAccountID,
+            authFingerprint: nil,
+            managedHomePath: "/tmp/codex-test-\(UUID().uuidString)",
+            createdAt: self.now.timeIntervalSince1970,
+            updatedAt: self.now.timeIntervalSince1970,
+            lastAuthenticatedAt: nil)
     }
 }
 

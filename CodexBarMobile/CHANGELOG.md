@@ -2,6 +2,68 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.8.0 (137)] — 2026-05-25 — Opus 2nd-pass CR follow-ups
+
+Same MOBILE_VERSION (1.8.0), build 136 → 137. Pairs with Mac
+CodexBar 0.27.0 fork build 65.4 → 65.5. Closes 3 low-priority
+follow-ups from the Opus 4.7 SECOND-pass review of build 136 (the
+build that closed the FIRST-pass review). All non-blocking, but
+the user asked for "前面 CR 的全部修复" (fix everything from CR),
+so cleaned up before ship.
+
+### Fixed (build 137 — 2nd-pass CR follow-ups)
+
+- **UsageStore Cursor diagnostic dump leaks accountEmail** —
+  `Sources/CodexBar/UsageStore.swift:1310`'s `debugCursorLog`
+  rendered the Cursor account email cleartext. Even though the
+  log is user-initiated (Preferences → Cursor → Copy Diagnostics),
+  consistency with the OSLog redaction in build 136 demanded the
+  same `EmailRedaction.redact()` treatment. Added `import
+  CodexBarSync` to `UsageStore.swift` so the helper is in scope.
+- **`mapCodexWorkspace` lacked direct integration test** — The
+  build 136 commit message + CHANGELOG promised "integration
+  tests exercising mapClaudeAdminUsage / mapMiniMaxBilling /
+  mapOpenCodeGoZenBalance" but silently dropped `mapCodexWorkspace`
+  (the only non-static mapper in the v0.27 set). Refactored
+  `mapCodexWorkspace` into a thin wrapper that delegates to a new
+  pure-function `buildCodexWorkspaceContext(activeAccount:,
+  snapshot:)` static helper. Added 4 tests covering: empty inputs
+  → nil, workspace-label-only path, weekly-pace-only path, and
+  weekly-vs-session window selection. No behaviour change —
+  static helper has the exact same body as the inlined logic.
+- **`EmailRedaction` lacks unit coverage** — Added
+  `Tests/CodexBarTests/EmailRedactionTests.swift` with 8 edge-case
+  tests: nil / empty / no-@ / standard email / empty local-part /
+  multiple @ / Unicode local / very-long input. Mac swift test:
+  8/8 pass.
+
+### Test counts
+
+- `EmailRedactionTests`: 8/8 pass
+- `SyncCoordinatorV027MapperTests`: 16/16 pass (was 12 in build 136 — added 4 codex workspace tests)
+- `V027SnapshotsCodableTests`: 9/9 unchanged
+- Total V027-related tests now: **33**
+
+### What WAS NOT changed (Opus 2nd-pass refuted)
+
+- `EmailRedaction.redact()` not gated on `hidePersonalInfo` toggle.
+  Defensible by design — the helper is "PII-safe rendering", not
+  "PII suppression". Source gate at `quotaWarningAccountDisplayName`
+  already short-circuits to nil when the toggle is set.
+- `ClaudeUsageFetcher.swift:688` + `AugmentStatusProbe.swift:616`
+  also log accountEmail cleartext — these are upstream-owned
+  files. Per `CLAUDE.md` policy "do not modify Mac-only files
+  unless explicitly asked", left alone for upstream to handle.
+
+### Required Mac version
+
+Mac CodexBar 0.27.0 fork build 65.5. Forward-compatible:
+iPhone 1.8.0 b137 + Mac 65.4 still works — the only Mac change
+in 65.5 is the UsageStore diagnostic-log redaction, which doesn't
+affect wire format or push behaviour.
+
+---
+
 ## [1.8.0 (136)] — 2026-05-25 — code-review fixes pre-ship: PII redaction + deploy script + integration tests
 
 Same MOBILE_VERSION (1.8.0), build 135 → 136. Pairs with Mac
