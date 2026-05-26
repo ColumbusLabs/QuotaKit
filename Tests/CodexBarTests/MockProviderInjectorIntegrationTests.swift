@@ -73,7 +73,7 @@ struct MockProviderInjectorIntegrationTests {
 
     // MARK: - MR2 Extensibility / determinism
 
-    @Test("MR2.1: enabled count is exactly 52 (42 IDs, 6 rich + 44 simple + 2 fallback entries)")
+    @Test("MR2.1: enabled count is exactly 60 (50 IDs, 6 rich + 52 simple + 2 fallback entries)")
     func enabledCountIsStable() {
         self.enableMock()
         defer { self.resetActivationState() }
@@ -89,7 +89,7 @@ struct MockProviderInjectorIntegrationTests {
 
     /// Phase G multi-account additions REUSE existing providerIDs
     /// (second tabs for openai/deepseek/... that already had a first
-    /// entry), so unique providerID count stays at 42.
+    /// entry), so unique providerID count stays at 50.
     @Test("MR2.2: 50 distinct providerIDs match the published allowlists (48 real + 2 synthetic)")
     func providerIDsHaveSensibleDistribution() {
         self.enableMock()
@@ -102,7 +102,7 @@ struct MockProviderInjectorIntegrationTests {
         // (moonshot, bedrock) → 40 real + 2 synthetic = 42 unique IDs.
         // Phase G additions REUSE existing providerIDs (second tabs
         // for openai/deepseek/... that already had a first entry), so
-        // unique ID count stays at 42.
+        // unique ID count stays at 50.
         #expect(
             uniqueIDs.count == 50,
             // swiftlint:disable:next line_length
@@ -699,13 +699,15 @@ struct MockProviderInjectorIntegrationTests {
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
         let withCost = snapshots.filter { $0.costSummary != nil }
-        // 57 mocks total; 6 intentionally have nil costSummary:
+        // 60 mocks total; 9 intentionally have nil costSummary:
         // _mock_cursor_unknown (error), _mock_synthetic_unknown (budget-
         // only), antigravity-balance (preview), antigravity-team (Phase G,
         // also preview/no-billing → thirtyDayCostUSD: 0 deliberately;
         // makeSimpleProviderMock skips cost when 0/0), ollama (local),
         // elevenlabs (v0.27.0, character-credit subscription with
-        // $0/$0 cost — usage is character count, not USD spend).
+        // $0/$0 cost — usage is character count, not USD spend), and the
+        // 3 v0.28+v0.29 providers azureopenai / alibabatokenplan / t3chat
+        // (quota/subscription based, no USD spend).
         // Remaining 51 carry cost data.
         #expect(withCost.count == 51, "expected 51 mocks with cost data; got \(withCost.count)")
     }

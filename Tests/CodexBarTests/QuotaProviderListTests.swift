@@ -14,7 +14,7 @@ import Testing
 /// conversation, not a silent production miss.
 @Suite("QuotaProviderList contract")
 struct QuotaProviderListTests {
-    @Test("Provider list has expected count (45 after v0.27 catch-up)")
+    @Test("Provider list has expected count (48 after v0.29 catch-up)")
     func providerCount() {
         // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
         // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
@@ -86,7 +86,7 @@ struct QuotaProviderListTests {
                 == "Quota-mistral-restoredZone")
     }
 
-    @Test("iOS subscription count is 45 × 3 = 135 (depleted + restored + warning)")
+    @Test("iOS subscription count is 48 × 3 = 144 (depleted + restored + warning)")
     func subscriptionCountDerivation() {
         // 54 → 76 in iOS 1.5.x → 114 in iOS 1.6.0 (38 × 3 after adding
         // the "warning" state for pre-depletion threshold pushes) →
