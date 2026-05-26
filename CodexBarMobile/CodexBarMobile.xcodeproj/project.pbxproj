@@ -55,6 +55,7 @@
 		5DF56542F0C2F51860FE8AD8 /* SyncedUsageData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48D17C7D2668994C4942329B /* SyncedUsageData.swift */; };
 		61BEB22E497DAC7C2FE2AC9C /* CodexBarMobilePushExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 81B87DC9EB24AAEFE036F9F7 /* CodexBarMobilePushExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		6552CAFC19A45A6D83821AC0 /* QuotaZoneNotificationParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA3F7A048F7301BC92A1A2 /* QuotaZoneNotificationParser.swift */; };
+		66A54A05F64B57FC828A2C40 /* AlibabaTokenPlanCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C6897E84FB3CBD02DC3D8C /* AlibabaTokenPlanCard.swift */; };
 		6723B0E31B950F7C988C433F /* SyncQuotaWarningConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AF7B6A222FD3554CA455D8E /* SyncQuotaWarningConfigTests.swift */; };
 		67C5AF7FC62936A0A28189B3 /* SnapshotIdentityKeyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A393218B2702DC47F1003A5 /* SnapshotIdentityKeyTests.swift */; };
 		6977A50D67FD6F33CE7E9D54 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1C3F51A2F6DE018A276166F7 /* PrivacyInfo.xcprivacy */; };
@@ -296,6 +297,7 @@
 		AF5F72C23944E23883A57CA1 /* ClaudeAdminUsageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAdminUsageCard.swift; sourceTree = "<group>"; };
 		B07946DD625AF9E4DFFFAB41 /* AntigravityAccountSwitcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AntigravityAccountSwitcher.swift; sourceTree = "<group>"; };
 		B22B4D560AC765604858E821 /* LLMProxyStatsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMProxyStatsCard.swift; sourceTree = "<group>"; };
+		B2C6897E84FB3CBD02DC3D8C /* AlibabaTokenPlanCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlibabaTokenPlanCard.swift; sourceTree = "<group>"; };
 		B47F282E1FA9E215551D09F6 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		B4E315BCDE160D8764FE14F2 /* AccountIdentityMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountIdentityMergeTests.swift; sourceTree = "<group>"; };
 		B8A3ED6F54FE9763758974F3 /* MiniMaxBillingCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniMaxBillingCard.swift; sourceTree = "<group>"; };
@@ -593,6 +595,7 @@
 		EF6BE6D5AF77B9CC16AAFBA3 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				B2C6897E84FB3CBD02DC3D8C /* AlibabaTokenPlanCard.swift */,
 				B07946DD625AF9E4DFFFAB41 /* AntigravityAccountSwitcher.swift */,
 				CA3103C9F58F4D43F9FD73A2 /* AzureOpenAIInfoCard.swift */,
 				9E9B0D8C60F57D4E7DC98890 /* BedrockCostCard.swift */,
@@ -853,6 +856,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				66A54A05F64B57FC828A2C40 /* AlibabaTokenPlanCard.swift in Sources */,
 				0D7C4FE104FBA31F17F8A591 /* AntigravityAccountSwitcher.swift in Sources */,
 				09BC5F589730BF1FE1C4D68E /* AzureOpenAIInfoCard.swift in Sources */,
 				49D6DB12C6EFA95A8A48BE0C /* BedrockCostCard.swift in Sources */,

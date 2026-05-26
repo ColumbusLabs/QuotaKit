@@ -107,6 +107,8 @@ public struct UsageSnapshot: Codable, Sendable {
     // iOS 1.9.0 / Mac 0.29.0 — gap E. Transient (fetched fresh, not persisted),
     // like zaiUsage / cursorRequests; SyncCoordinator threads it to the envelope.
     public let azureOpenAIUsage: AzureOpenAIUsageSnapshot?
+    /// gap G — transient, like azureOpenAIUsage.
+    public let alibabaTokenPlanUsage: AlibabaTokenPlanUsageSnapshot?
     public let updatedAt: Date
     public let identity: ProviderIdentitySnapshot?
 
@@ -154,6 +156,7 @@ public struct UsageSnapshot: Codable, Sendable {
         llmProxyUsage: LLMProxyUsageSnapshot? = nil,
         cursorRequests: CursorRequestUsage? = nil,
         azureOpenAIUsage: AzureOpenAIUsageSnapshot? = nil,
+        alibabaTokenPlanUsage: AlibabaTokenPlanUsageSnapshot? = nil,
         updatedAt: Date,
         identity: ProviderIdentitySnapshot? = nil)
     {
@@ -177,6 +180,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.llmProxyUsage = llmProxyUsage
         self.cursorRequests = cursorRequests
         self.azureOpenAIUsage = azureOpenAIUsage
+        self.alibabaTokenPlanUsage = alibabaTokenPlanUsage
         self.updatedAt = updatedAt
         self.identity = identity
     }
@@ -210,6 +214,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.llmProxyUsage = try container.decodeIfPresent(LLMProxyUsageSnapshot.self, forKey: .llmProxyUsage)
         self.cursorRequests = nil // Not persisted, fetched fresh each time
         self.azureOpenAIUsage = nil // Not persisted, fetched fresh each time
+        self.alibabaTokenPlanUsage = nil // Not persisted, fetched fresh each time
         self.updatedAt = try container.decode(Date.self, forKey: .updatedAt)
         if let identity = try container.decodeIfPresent(ProviderIdentitySnapshot.self, forKey: .identity) {
             self.identity = identity

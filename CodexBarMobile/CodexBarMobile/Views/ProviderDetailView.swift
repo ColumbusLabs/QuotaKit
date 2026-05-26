@@ -147,6 +147,12 @@ struct ProviderDetailView: View {
                 {
                     AzureOpenAIInfoCard(info: azureInfo, tintColor: self.providerColor)
                 }
+                // iOS 1.9.0 — parity gap G: Alibaba Token Plan (Bailian) credits.
+                if self.provider.providerID == "alibabatokenplan",
+                   let alibabaPlan = self.provider.alibabaTokenPlan
+                {
+                    AlibabaTokenPlanCard(plan: alibabaPlan, tintColor: self.providerColor)
+                }
 
                 // iOS 1.8.0 build 134 — v0.27 existing-provider
                 // extensions. Same dispatch pattern: provider ID

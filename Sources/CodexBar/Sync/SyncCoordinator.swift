@@ -671,7 +671,8 @@ final class SyncCoordinator {
             minimaxBilling: minimaxBilling,
             codexWorkspace: codexWorkspace,
             openRouterStats: Self.mapOpenRouter(provider: provider, snapshot: snapshot),
-            azureOpenAIInfo: Self.mapAzureOpenAIInfo(provider: provider, snapshot: snapshot))
+            azureOpenAIInfo: Self.mapAzureOpenAIInfo(provider: provider, snapshot: snapshot),
+            alibabaTokenPlan: Self.mapAlibabaTokenPlan(provider: provider, snapshot: snapshot))
     }
 
     // MARK: - v0.26 envelope mappers (private)
@@ -1639,6 +1640,23 @@ final class SyncCoordinator {
             deploymentName: a.deploymentName,
             model: a.model,
             apiVersion: a.apiVersion,
+            updatedAt: a.updatedAt)
+    }
+
+    /// Maps Alibaba Token Plan (Bailian) structured credit quota into the wire
+    /// envelope (gap G). The quota % + a "credits used" string already cross via
+    /// the generic RateWindow; this adds the structured numbers for a proper card.
+    static func mapAlibabaTokenPlan(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncAlibabaTokenPlan?
+    {
+        guard provider == .alibabatokenplan, let a = snapshot?.alibabaTokenPlanUsage else { return nil }
+        return SyncAlibabaTokenPlan(
+            planName: a.planName,
+            usedCredits: a.usedQuota,
+            totalCredits: a.totalQuota,
+            remainingCredits: a.remainingQuota,
+            resetsAt: a.resetsAt,
             updatedAt: a.updatedAt)
     }
 

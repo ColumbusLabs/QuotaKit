@@ -54,6 +54,7 @@ extension AlibabaTokenPlanUsageSnapshot {
             secondary: nil,
             tertiary: nil,
             providerCost: nil,
+            alibabaTokenPlanUsage: self,
             updatedAt: self.updatedAt,
             identity: identity)
     }
