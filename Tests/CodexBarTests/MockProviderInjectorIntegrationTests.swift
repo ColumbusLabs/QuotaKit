@@ -228,7 +228,7 @@ struct MockProviderInjectorIntegrationTests {
         // iOS 1.7.0: 43 → 45 (moonshot + bedrock).
         #expect(
             mockEnvelopes.count == 60,
-            "Phase G + iOS 1.8.0 + 1.9.0: 45 → 52 → 57 → 60 (+7 multi-account second tabs, +5 v0.27.0, +3 v0.28+v0.29 providers).")
+            "Phase G + iOS 1.8/1.9: 45→52→57→60 (+7 multi-account, +5 v0.27, +3 v0.28/v0.29).")
     }
 
     /// Reference wrapper so tests can flip the mock activation state

@@ -34,6 +34,16 @@ git commit → git push → Todoist comment (含 commit 链接) → 移到 Code 
 不管改动大小、不管是 bug fix 还是文档、不管用户有没有明确要求。
 只要有 `git commit`，就跑这个 checklist。
 
+### Definition of Done（release / upstream-sync 类任务的验收标准）
+
+**"完成" = 已打包签名公证 + 发布到用户手里**（Mac Sparkle draft→notarize→appcast +
+iOS TestFlight），**不是**"代码 commit / push 了"。凭证在用户 Mac 的
+`~/.codexbar-secrets/`（Sparkle key + App Store Connect key）+ keychain 的
+Developer ID 证书 —— **直接在用户 Mac 上跑发布命令，别只把命令列出来让用户自己跑**。
+完整验收清单（每个新 provider 要改的全部文件、parserLogicVersion bump、多账号/多设备
+枚举验证、CloudKit 审计、Opus CR 闸门、发布步骤）见
+**[`docs/RELEASE-CHECKLIST.md`](docs/RELEASE-CHECKLIST.md)** —— 每次 release 前自己过一遍，不用等用户提醒。
+
 See `AGENTS.md` for the full process, rules, and checklists.
 
 ## Key File Locations
@@ -53,6 +63,7 @@ See `AGENTS.md` for the full process, rules, and checklists.
 | `version.env` | 当前 ship 版本 + 上游对齐版本（`UPSTREAM_VERSION` + `UPSTREAM_SYNC_DATE`）— routine/agent 查"对齐到上游哪个版本"必读此文件 |
 | `docs/versioning.md` | **版本号命名规则** — 4 个版本变量 (`MARKETING_VERSION` / `BUILD_NUMBER` / `MOBILE_VERSION` / `UPSTREAM_VERSION`)、release tag / zip 名、Sparkle `sparkle:version` 5 段格式、什么时候 bump 哪个的决策树。改任何一个版本号前必读 |
 | `docs/cloudkit-deploy-audit.md` | **CloudKit Production deploy 审计** — 每次发版前查表判断是否需要 deploy schema 到 prod；提供 grep 命令清单 + 历史 release 决策存档。Sparkle 老踩坑 |
+| `docs/RELEASE-CHECKLIST.md` | **Definition of Done + 验收清单** — release/upstream-sync 类任务"做完"的定义（= 已签名公证 + TestFlight，不是 commit）+ 每个新 provider 要改的全部文件 + lint/parser/多设备/CloudKit/CR 闸门 + 发布步骤。每次 release 前过一遍 |
 
 ---
 
