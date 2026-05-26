@@ -669,7 +669,8 @@ final class SyncCoordinator {
             claudeExtraUsage: claudeExtraUsage,
             openCodeGoZenBalance: openCodeGoZenBalance,
             minimaxBilling: minimaxBilling,
-            codexWorkspace: codexWorkspace)
+            codexWorkspace: codexWorkspace,
+            openRouterStats: Self.mapOpenRouter(provider: provider, snapshot: snapshot))
     }
 
     // MARK: - v0.26 envelope mappers (private)
@@ -1597,6 +1598,29 @@ final class SyncCoordinator {
             last30DaysTokens: m.totalInputTokens + m.totalOutputTokens + m.totalCachedTokens,
             daily: daily,
             isEstimated: nil)
+    }
+
+    /// Maps OpenRouter's native balance/credits + per-key usage windows into
+    /// the wire envelope (gap D). Before this, all of OpenRouter's
+    /// /api/v1/credits + /api/v1/key data collapsed to a "Balance: $X"
+    /// loginMethod line on iOS.
+    static func mapOpenRouter(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncOpenRouterStats?
+    {
+        guard provider == .openrouter, let o = snapshot?.openRouterUsage else { return nil }
+        return SyncOpenRouterStats(
+            balanceUSD: o.balance,
+            totalCreditsUSD: o.totalCredits,
+            totalUsageUSD: o.totalUsage,
+            usedPercent: o.usedPercent,
+            keyUsageDailyUSD: o.keyUsageDaily,
+            keyUsageWeeklyUSD: o.keyUsageWeekly,
+            keyUsageMonthlyUSD: o.keyUsageMonthly,
+            keyLimitUSD: o.keyLimit,
+            rateLimitRequests: o.rateLimit?.requests,
+            rateLimitInterval: o.rateLimit?.interval,
+            updatedAt: o.updatedAt)
     }
 
     private func modelBreakdowns(

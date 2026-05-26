@@ -135,6 +135,12 @@ struct ProviderDetailView: View {
                 {
                     LLMProxyStatsCard(stats: llmProxyStats, tintColor: self.providerColor)
                 }
+                // iOS 1.9.0 — parity gap D: OpenRouter balance / credits / usage.
+                if self.provider.providerID == "openrouter",
+                   let openRouterStats = self.provider.openRouterStats
+                {
+                    OpenRouterStatsCard(stats: openRouterStats, tintColor: self.providerColor)
+                }
 
                 // iOS 1.8.0 build 134 — v0.27 existing-provider
                 // extensions. Same dispatch pattern: provider ID

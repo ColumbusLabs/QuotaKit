@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00BDE086E0C208CE385602B8 /* V029Snapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCE6CB7DCBC0976E4414C63D /* V029Snapshots.swift */; };
 		00EFDC56DFEEB39444695B53 /* MockProviderDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = C64C2DA34FBFB5523DC71C9B /* MockProviderDetector.swift */; };
 		02E554F44482449A6E303DF8 /* CostShareCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEB7FFB253C0CC0CA9876CCB /* CostShareCardView.swift */; };
 		04CEC012F4FB828C422D6AE0 /* SameMacMultiAccountMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E7C1D372FC60DBC88221B1 /* SameMacMultiAccountMergeTests.swift */; };
@@ -120,6 +121,7 @@
 		F81D7EB9E7C4A01541815B3B /* MiniMaxBillingCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A3ED6F54FE9763758974F3 /* MiniMaxBillingCard.swift */; };
 		F869D4469A5649D0357A7FE5 /* PayloadCompression.swift in Sources */ = {isa = PBXBuildFile; fileRef = 273C987230CB40BB514BC840 /* PayloadCompression.swift */; };
 		F91FAC531225917E4E86A892 /* PushSetupDiagnostic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E96BD45E3A15C7DA40EA93F /* PushSetupDiagnostic.swift */; };
+		F96A94C5A2AB38A1DB68555A /* OpenRouterStatsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF5B28EEE593B46A1604352 /* OpenRouterStatsCard.swift */; };
 		F97B630E810DB48A4CB150C7 /* LinkageRecordMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCEB2C9879BAEC3DF4AEAB41 /* LinkageRecordMergeTests.swift */; };
 		FE0F6EED9F97E88267101B6C /* GrokBillingCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8C6050FE3CCE339F505DF43 /* GrokBillingCard.swift */; };
 /* End PBXBuildFile section */
@@ -235,6 +237,7 @@
 		342E84EEC0EB349DE2BEB11B /* SyncQuotaWarningConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncQuotaWarningConfig.swift; sourceTree = "<group>"; };
 		36903C779CD4AE98147A83BB /* ClaudeExtraUsageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeExtraUsageCard.swift; sourceTree = "<group>"; };
 		3786C6898A111474E86E69D7 /* CostFormattingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostFormattingTests.swift; sourceTree = "<group>"; };
+		3AF5B28EEE593B46A1604352 /* OpenRouterStatsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterStatsCard.swift; sourceTree = "<group>"; };
 		3CAFBA243E25814E22BAAA6B /* ProviderUsageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderUsageView.swift; sourceTree = "<group>"; };
 		3E6F79FB9AFFC795399FAFBF /* SwiftDataBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataBridgeTests.swift; sourceTree = "<group>"; };
 		3E96BD45E3A15C7DA40EA93F /* PushSetupDiagnostic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushSetupDiagnostic.swift; sourceTree = "<group>"; };
@@ -296,6 +299,7 @@
 		B4E315BCDE160D8764FE14F2 /* AccountIdentityMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountIdentityMergeTests.swift; sourceTree = "<group>"; };
 		B8A3ED6F54FE9763758974F3 /* MiniMaxBillingCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniMaxBillingCard.swift; sourceTree = "<group>"; };
 		BC8893A8B73134178D35F274 /* CloudKitMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitMergeTests.swift; sourceTree = "<group>"; };
+		BCE6CB7DCBC0976E4414C63D /* V029Snapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V029Snapshots.swift; sourceTree = "<group>"; };
 		C1DABA431C3A96BC06782271 /* ModelContainerFactoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelContainerFactoryTests.swift; sourceTree = "<group>"; };
 		C39869539C7AAD1E71CCEDD6 /* V026SettingsTogglesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V026SettingsTogglesTests.swift; sourceTree = "<group>"; };
 		C3D273F51CDB63F11D2E772A /* QuotaProviderListTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaProviderListTests.swift; sourceTree = "<group>"; };
@@ -550,6 +554,7 @@
 				6B9D488D2E7E34286B71E8E7 /* UsageSnapshot.swift */,
 				D03B5D90026D623962989109 /* V026Snapshots.swift */,
 				A9F340DA45364A878F1BB616 /* V027Snapshots.swift */,
+				BCE6CB7DCBC0976E4414C63D /* V029Snapshots.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -610,6 +615,7 @@
 				9578A435334E38DB06D035CB /* OnboardingView.swift */,
 				2A9CF0F889610D5155F92ABB /* OpenAIDashboardSection.swift */,
 				33F82F1127C024B177B420DE /* OpenCodeGoZenBalanceCard.swift */,
+				3AF5B28EEE593B46A1604352 /* OpenRouterStatsCard.swift */,
 				6DCD19FE389036BE565A572D /* PerplexityCreditsCard.swift */,
 				CB05AAA074EEE8CC4379BD42 /* ProviderDetailView.swift */,
 				3CAFBA243E25814E22BAAA6B /* ProviderUsageView.swift */,
@@ -880,6 +886,7 @@
 				E79487590ED842AE33B360D7 /* OnboardingView.swift in Sources */,
 				D4DB3A067B095809B2B2DB42 /* OpenAIDashboardSection.swift in Sources */,
 				8E7E93B9F90994D0D3124086 /* OpenCodeGoZenBalanceCard.swift in Sources */,
+				F96A94C5A2AB38A1DB68555A /* OpenRouterStatsCard.swift in Sources */,
 				F032E24887BB6718E712FBE9 /* PerplexityCreditsCard.swift in Sources */,
 				D5E7E85EEE6528E04FDA9446 /* PreviewData.swift in Sources */,
 				537F8FAA96052658292926BC /* ProviderAccountGroup.swift in Sources */,
@@ -936,6 +943,7 @@
 				6C6973342A6DB39DA86008A8 /* UsageSnapshot.swift in Sources */,
 				3605135099D7D1BAC66F67C3 /* V026Snapshots.swift in Sources */,
 				BB98D3ECAFF6D381B6D775FE /* V027Snapshots.swift in Sources */,
+				00BDE086E0C208CE385602B8 /* V029Snapshots.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -439,6 +439,21 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// and the pace as a directional badge.
     public let codexWorkspace: SyncCodexWorkspaceContext?
 
+    // MARK: - iOS 1.9.0 / Mac 0.29.0 — parity-gap envelope extensions
+    // Additive optionals (decodeIfPresent); no wire-schema bump.
+
+    /// OpenRouter balance + credits + per-key usage windows (gap D).
+    /// Populated only on the `openrouter` provider snapshot.
+    public let openRouterStats: SyncOpenRouterStats?
+
+    /// Azure OpenAI deployment identity (gap E). Populated only on the
+    /// `azureopenai` provider snapshot.
+    public let azureOpenAIInfo: SyncAzureOpenAIInfo?
+
+    /// Alibaba Token Plan (Bailian) structured credit quota (gap G).
+    /// Populated only on the `alibabatokenplan` provider snapshot.
+    public let alibabaTokenPlan: SyncAlibabaTokenPlan?
+
     /// All available rate windows. Prefers `rateWindows` if non-empty, otherwise falls back to primary/secondary.
     public var allRateWindows: [SyncRateWindow] {
         if !self.rateWindows.isEmpty { return self.rateWindows }
@@ -477,7 +492,10 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         claudeExtraUsage: SyncClaudeExtraUsage? = nil,
         openCodeGoZenBalance: SyncOpenCodeGoZenBalance? = nil,
         minimaxBilling: SyncMiniMaxBillingHistory? = nil,
-        codexWorkspace: SyncCodexWorkspaceContext? = nil)
+        codexWorkspace: SyncCodexWorkspaceContext? = nil,
+        openRouterStats: SyncOpenRouterStats? = nil,
+        azureOpenAIInfo: SyncAzureOpenAIInfo? = nil,
+        alibabaTokenPlan: SyncAlibabaTokenPlan? = nil)
     {
         self.providerID = providerID
         self.providerName = providerName
@@ -511,6 +529,9 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.openCodeGoZenBalance = openCodeGoZenBalance
         self.minimaxBilling = minimaxBilling
         self.codexWorkspace = codexWorkspace
+        self.openRouterStats = openRouterStats
+        self.azureOpenAIInfo = azureOpenAIInfo
+        self.alibabaTokenPlan = alibabaTokenPlan
     }
 
     /// Returns a copy with `quotaWarnings` swapped out. Used by Mac
@@ -550,7 +571,10 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
             claudeExtraUsage: self.claudeExtraUsage,
             openCodeGoZenBalance: self.openCodeGoZenBalance,
             minimaxBilling: self.minimaxBilling,
-            codexWorkspace: self.codexWorkspace)
+            codexWorkspace: self.codexWorkspace,
+            openRouterStats: self.openRouterStats,
+            azureOpenAIInfo: self.azureOpenAIInfo,
+            alibabaTokenPlan: self.alibabaTokenPlan)
     }
 
     /// Backward-compatible decoder: old payloads without `rateWindows`/`costSummary`/`budget`/`perplexityCredits`/`accountIdentities`/`quotaWarnings` still decode.
@@ -593,6 +617,10 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.openCodeGoZenBalance = try container.decodeIfPresent(SyncOpenCodeGoZenBalance.self, forKey: .openCodeGoZenBalance)
         self.minimaxBilling = try container.decodeIfPresent(SyncMiniMaxBillingHistory.self, forKey: .minimaxBilling)
         self.codexWorkspace = try container.decodeIfPresent(SyncCodexWorkspaceContext.self, forKey: .codexWorkspace)
+        // iOS 1.9.0 / Mac 0.29.0 — parity-gap extensions.
+        self.openRouterStats = try container.decodeIfPresent(SyncOpenRouterStats.self, forKey: .openRouterStats)
+        self.azureOpenAIInfo = try container.decodeIfPresent(SyncAzureOpenAIInfo.self, forKey: .azureOpenAIInfo)
+        self.alibabaTokenPlan = try container.decodeIfPresent(SyncAlibabaTokenPlan.self, forKey: .alibabaTokenPlan)
     }
 }
 
