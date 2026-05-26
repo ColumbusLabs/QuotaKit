@@ -383,7 +383,11 @@ struct ProviderDetailView: View {
                 }
                 if let monthCost = cost.last30DaysCostUSD {
                     CostMetricCard(
-                        title: "30 Days",
+                        // Reflect the Mac's configurable 1–365 day window (gap F)
+                        // instead of a hardcoded "30 Days"; nil/30 → "30 Days".
+                        title: cost.historyDays.flatMap {
+                            $0 == 30 ? nil : LocalizedStringResource("\($0) Days")
+                        } ?? "30 Days",
                         value: Self.formatUSD(monthCost),
                         subtitle: cost.last30DaysTokens.map { Self.formatTokens($0) },
                         tintColor: self.providerColor,

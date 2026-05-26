@@ -137,6 +137,12 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
     /// payloads from Mac builds before 0.23 — iOS treats nil as `false`
     /// (not estimated). See `Research/018-model-fallback-pricing.md` §6.
     public let isEstimated: Bool?
+    /// Number of days the Mac's cost-history window covers (user-configurable
+    /// 1–365, default 30). Drives the iOS cost-summary label so it reads
+    /// "Last N days" instead of a hardcoded "30 Days" when the value may be a
+    /// 7- or 365-day total (gap F). Optional — nil for pre-0.29 payloads; iOS
+    /// treats nil as 30 (the historical default).
+    public let historyDays: Int?
 
     public init(
         sessionCostUSD: Double?,
@@ -144,7 +150,8 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         last30DaysCostUSD: Double?,
         last30DaysTokens: Int?,
         daily: [SyncDailyPoint],
-        isEstimated: Bool? = nil)
+        isEstimated: Bool? = nil,
+        historyDays: Int? = nil)
     {
         self.sessionCostUSD = sessionCostUSD
         self.sessionTokens = sessionTokens
@@ -152,6 +159,7 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         self.last30DaysTokens = last30DaysTokens
         self.daily = daily
         self.isEstimated = isEstimated
+        self.historyDays = historyDays
     }
 }
 

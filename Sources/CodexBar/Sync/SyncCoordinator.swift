@@ -1562,7 +1562,8 @@ final class SyncCoordinator {
             last30DaysCostUSD: tokenSnapshot?.last30DaysCostUSD ?? (daily.isEmpty ? nil : totalDailyCost),
             last30DaysTokens: tokenSnapshot?.last30DaysTokens,
             daily: daily,
-            isEstimated: summaryIsEstimated ? true : nil)
+            isEstimated: summaryIsEstimated ? true : nil,
+            historyDays: tokenSnapshot?.historyDays)
     }
 
     /// Builds a cost summary for Mistral from its native daily usage buckets

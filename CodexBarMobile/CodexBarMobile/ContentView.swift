@@ -500,7 +500,10 @@ private struct CostDashboardView: View {
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 CostMetricCard(
-                    title: "30 Days",
+                    // Reflect the Mac's configurable 1–365 day window (gap F).
+                    title: self.insights.historyDays.flatMap {
+                        $0 == 30 ? nil : LocalizedStringResource("\($0) Days")
+                    } ?? "30 Days",
                     value: Self.formatUSD(self.insights.total30DayCost),
                     subtitle: self.insights.total30DayTokens > 0 ? Self
                         .formatTokens(self.insights.total30DayTokens) : nil,
@@ -889,6 +892,13 @@ struct CostDashboardInsights {
 
     var total30DayTokens: Int {
         self.providerRows.reduce(0) { $0 + $1.thirtyDayTokens }
+    }
+
+    /// The Mac's configurable cost-history window in days (gap F). It's a
+    /// global Mac setting so every provider's costSummary carries the same
+    /// value; nil → caller defaults to 30 (the historical window).
+    var historyDays: Int? {
+        self.providerRows.compactMap { $0.provider.costSummary?.historyDays }.max()
     }
 
     var topProvider: ProviderRow? {
