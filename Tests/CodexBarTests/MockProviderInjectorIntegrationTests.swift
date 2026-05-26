@@ -81,14 +81,16 @@ struct MockProviderInjectorIntegrationTests {
         // mocks for v0.24+v0.25 providers. iOS 1.7.0 catch-up: +2 for
         // v0.26 (moonshot/bedrock). Phase G: +7 multi-account
         // second-tab mocks for openai/deepseek/antigravity/manus/
-        // copilot/venice/stepfun.
-        #expect(MockProviderInjector.allMocks().count == 57)
+        // copilot/venice/stepfun. iOS 1.8.0: +5 v0.27.0 simple mocks.
+        // iOS 1.9.0: +3 v0.28+v0.29 simple mocks (azureopenai,
+        // alibabatokenplan, t3chat) → 60.
+        #expect(MockProviderInjector.allMocks().count == 60)
     }
 
     /// Phase G multi-account additions REUSE existing providerIDs
     /// (second tabs for openai/deepseek/... that already had a first
     /// entry), so unique providerID count stays at 42.
-    @Test("MR2.2: 42 distinct providerIDs match the published allowlists (40 real + 2 synthetic)")
+    @Test("MR2.2: 50 distinct providerIDs match the published allowlists (48 real + 2 synthetic)")
     func providerIDsHaveSensibleDistribution() {
         self.enableMock()
         defer { self.resetActivationState() }
@@ -102,9 +104,9 @@ struct MockProviderInjectorIntegrationTests {
         // for openai/deepseek/... that already had a first entry), so
         // unique ID count stays at 42.
         #expect(
-            uniqueIDs.count == 47,
+            uniqueIDs.count == 50,
             // swiftlint:disable:next line_length
-            "should be 47 distinct mock provider IDs (45 real + 2 synthetic; v0.27.0 added grok/groq/elevenlabs/deepgram/llmproxy)")
+            "should be 50 distinct mock provider IDs (48 real + 2 synthetic; v0.28+v0.29 added azureopenai/alibabatokenplan/t3chat)")
         let expected: Set<String> = MockProviderInjector.realProviderIDsBorrowedByMocks
             .union(MockProviderInjector.syntheticProviderIDs)
         #expect(uniqueIDs == expected)
@@ -173,7 +175,8 @@ struct MockProviderInjectorIntegrationTests {
             .filter { self.isMockSnapshot($0) } ?? []
         // iOS 1.7.0: 43 → 45 (moonshot + bedrock).
         // Phase G: 45 → 52 (+7 multi-account second tabs).
-        #expect(mockProviders.count == 57)
+        // iOS 1.8.0: +5 v0.27.0 → 57. iOS 1.9.0: +3 v0.28+v0.29 → 60.
+        #expect(mockProviders.count == 60)
     }
 
     @Test("MR3.2: empty mock injector closure causes 0 mock providers in lastSnapshot")
@@ -224,8 +227,8 @@ struct MockProviderInjectorIntegrationTests {
         // actually reaches iOS through both write paths.
         // iOS 1.7.0: 43 → 45 (moonshot + bedrock).
         #expect(
-            mockEnvelopes.count == 57,
-            "Phase G + iOS 1.8.0: 45 → 52 → 57 (+7 multi-account second tabs, +5 v0.27.0 providers).")
+            mockEnvelopes.count == 60,
+            "Phase G + iOS 1.8.0 + 1.9.0: 45 → 52 → 57 → 60 (+7 multi-account second tabs, +5 v0.27.0, +3 v0.28+v0.29 providers).")
     }
 
     /// Reference wrapper so tests can flip the mock activation state
@@ -339,7 +342,7 @@ struct MockProviderInjectorIntegrationTests {
         #expect(realCodex.first?.accountEmail == "real@example.com")
         // iOS 1.7.0: 43 → 45 (moonshot + bedrock).
         // Phase G: 45 → 52 (+7 second-tab mocks).
-        #expect(mockProviders.count == 57, "57 mock providers also emit")
+        #expect(mockProviders.count == 60, "60 mock providers also emit")
         // Real and mock CAN share providerID under mix design, but
         // they must NEVER share accountEmail.
         let realEmails = Set(realCodex.compactMap(\.accountEmail))

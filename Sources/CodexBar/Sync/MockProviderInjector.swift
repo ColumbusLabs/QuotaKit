@@ -222,6 +222,9 @@ enum MockProviderInjector {
         "moonshot", "bedrock",
         // iOS 1.8.0 catch-up (upstream v0.27.0 new providers).
         "grok", "groq", "elevenlabs", "deepgram", "llmproxy",
+        // iOS 1.9.0 catch-up (upstream v0.28.0+v0.29.0 new providers).
+        // Must stay in sync with `simpleProviderProfiles` and `QuotaProviderList`.
+        "azureopenai", "alibabatokenplan", "t3chat",
     ]
 
     /// Synthetic providerIDs unique to mocks. Always prefixed `_mock_`.
@@ -1206,6 +1209,45 @@ enum MockProviderInjector {
             primaryResetDescription: "Daily · 46% used (4 providers)",
             secondary: nil,
             thirtyDayCostUSD: 8.40, sessionCostUSD: 0.18),
+        // iOS 1.9.0 — upstream v0.28.0+v0.29.0 new providers. All map to the
+        // GENERIC UsageSnapshot path (primary/secondary RateWindows), so they
+        // exercise the same generic iOS rendering as the simple mocks above:
+        //  - Azure OpenAI: API key + endpoint → deployment-status usage window
+        //  - Alibaba Token Plan (Bailian): cookies → monthly token-plan quota
+        //  - T3 Chat: web session → 4-hour base window + monthly overage window
+        // All three are credit/subscription/quota based (no USD spend), so cost
+        // is nil — same pattern as elevenlabs/ollama (excluded from Cost board).
+        .init(
+            providerID: "azureopenai", providerName: "Azure OpenAI",
+            accountLocal: "deployment", loginMethod: "API key",
+            primaryUsage: 38, primaryLabel: "Deployment",
+            primaryWindowMinutes: 1440,
+            primaryResetsInSeconds: 11 * 3600,
+            primaryResetDescription: "Daily · 38% used",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "alibabatokenplan", providerName: "Alibaba Token Plan",
+            accountLocal: "bailian", loginMethod: "Bailian cookies",
+            primaryUsage: 52, primaryLabel: "Monthly",
+            primaryWindowMinutes: 43200,
+            primaryResetsInSeconds: 15 * 86400,
+            primaryResetDescription: "Monthly · 520k / 1M credits used",
+            secondary: nil,
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
+        .init(
+            providerID: "t3chat", providerName: "T3 Chat",
+            accountLocal: "pro", loginMethod: "Web session",
+            primaryUsage: 27, primaryLabel: "Base",
+            primaryWindowMinutes: 240,
+            primaryResetsInSeconds: 2 * 3600,
+            primaryResetDescription: "Base · resets in 2h",
+            secondary: .init(
+                label: "Overage", usedPercent: 9,
+                windowMinutes: 43200,
+                resetsInSeconds: 18 * 86400,
+                resetDescription: "Overage · 9% used"),
+            thirtyDayCostUSD: nil, sessionCostUSD: nil),
         // Phase G — multi-account second-tab mocks. Each entry below
         // produces a SECOND ProviderUsageSnapshot for an already-
         // present providerID (same provider, different accountLocal

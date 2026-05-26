@@ -51,9 +51,11 @@ struct MockProviderInjectorTests {
         // iOS multi-account tab UI is exercised end-to-end. 45 → 52.
         // iOS 1.8.0 adds 5 v0.27.0 provider simple mocks
         // (grok/groq/elevenlabs/deepgram/llmproxy). 52 → 57.
+        // iOS 1.9.0 adds 3 v0.28+v0.29 provider simple mocks
+        // (azureopenai/alibabatokenplan/t3chat). 57 → 60.
         #expect(
-            MockProviderInjector.allMocks().count == 57,
-            "iOS 1.8.0: 52 → 57 (+5 v0.27.0 simple mocks: grok, groq, elevenlabs, deepgram, llmproxy).")
+            MockProviderInjector.allMocks().count == 60,
+            "iOS 1.9.0: 57 → 60 (+3 v0.28+v0.29 simple mocks: azureopenai, alibabatokenplan, t3chat).")
     }
 
     @Test("UserDefaults true alone (no env var) → disabled")
@@ -249,12 +251,18 @@ struct MockProviderInjectorTests {
         //   - ollama (local inference, no cost)
         //   - elevenlabs (v0.27.0, character-credit subscription —
         //     usage is character allowance, not USD spend)
+        //   - azureopenai (v0.28.0, deployment-status usage, no USD)
+        //   - alibabatokenplan (v0.29.0, token-plan credit quota, no USD)
+        //   - t3chat (v0.28.0, web-session subscription %, no USD)
         let costLessIDs = realBorrowedSnapshots
             .filter { $0.costSummary == nil }
             .map(\.providerID)
         #expect(
-            Set(costLessIDs).isSubset(of: ["antigravity", "ollama", "elevenlabs"]),
-            "only antigravity + ollama + elevenlabs may be cost-less; got \(costLessIDs)")
+            Set(costLessIDs).isSubset(of: [
+                "antigravity", "ollama", "elevenlabs",
+                "azureopenai", "alibabatokenplan", "t3chat",
+            ]),
+            "only the known credit/subscription mocks may be cost-less; got \(costLessIDs)")
         #expect(withCost.count >= 25, "≥25 real-borrowed mocks must carry cost data; got \(withCost.count)")
     }
 

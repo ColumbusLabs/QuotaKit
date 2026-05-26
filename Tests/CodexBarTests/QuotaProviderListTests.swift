@@ -20,9 +20,10 @@ struct QuotaProviderListTests {
         // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
         // AWS Bedrock from upstream v0.26.0) → 45 in iOS 1.8.0 (Grok,
         // GroqCloud, ElevenLabs, Deepgram, LLM Proxy from upstream
-        // v0.27.0). Must stay synced with iOS-side test in
-        // CodexBarMobileTests/QuotaProviderListTests.swift.
-        #expect(QuotaProviderList.providers.count == 45)
+        // v0.27.0) → 48 in iOS 1.9.0 (Azure OpenAI, Alibaba Token Plan,
+        // T3 Chat from upstream v0.28.0+v0.29.0). Must stay synced with
+        // iOS-side test in CodexBarMobileTests/QuotaProviderListTests.swift.
+        #expect(QuotaProviderList.providers.count == 48)
     }
 
     @Test("Perplexity is registered with the Mac-side displayName")
@@ -91,13 +92,15 @@ struct QuotaProviderListTests {
         // the "warning" state for pre-depletion threshold pushes) →
         // 120 in iOS 1.7.0 (40 × 3 after the v0.26 catch-up) →
         // 135 in iOS 1.8.0 (45 × 3 after the v0.27 catch-up: +grok,
-        // +groq, +elevenlabs, +deepgram, +llmproxy). If this fails,
+        // +groq, +elevenlabs, +deepgram, +llmproxy) →
+        // 144 in iOS 1.9.0 (48 × 3 after the v0.28+v0.29 catch-up:
+        // +azureopenai, +alibabatokenplan, +t3chat). If this fails,
         // someone either dropped a provider or changed the state
         // matrix without updating the iOS subscription setup in
         // `QuotaTransitionSubscriptions.makeConfigs()`.
         let states = ["depleted", "restored", "warning"]
         let subscriptionCount = QuotaProviderList.providers.count * states.count
-        #expect(subscriptionCount == 135)
+        #expect(subscriptionCount == 144)
     }
 
     // MARK: - iOS 1.7.0 / Mac 0.26.2 — v0.26.0 catch-up

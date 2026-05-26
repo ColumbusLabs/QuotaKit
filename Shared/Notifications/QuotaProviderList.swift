@@ -98,6 +98,14 @@ public enum QuotaProviderList {
         Provider(id: "elevenlabs", displayName: "ElevenLabs"),
         Provider(id: "deepgram", displayName: "Deepgram"),
         Provider(id: "llmproxy", displayName: "LLM Proxy"),
+        // iOS 1.9.0 catch-up — upstream v0.28.0+v0.29.0 new providers.
+        // IDs match UsageProvider raw values; display names match each
+        // ProviderDescriptor.metadata.displayName. APPENDED at the tail so
+        // existing per-provider CK subscription IDs stay stable across the
+        // 1.8.0 → 1.9.0 upgrade. 45 → 48 providers × 3 states = 144 zones.
+        Provider(id: "azureopenai", displayName: "Azure OpenAI"),
+        Provider(id: "alibabatokenplan", displayName: "Alibaba Token Plan"),
+        Provider(id: "t3chat", displayName: "T3 Chat"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The
