@@ -116,6 +116,100 @@ struct SyncCostIsEstimatedTests {
         #expect(decoded.isEstimated == true)
     }
 
+    // MARK: - SyncCostBreakdown standard/fast split (#1070)
+
+    @Test("SyncCostBreakdown decodes old payload (no split keys) as nil split")
+    func breakdownDecodesOldPayloadAsNilSplit() throws {
+        let json = Data("""
+        { "label": "gpt-5.5", "costUSD": 1.0 }
+        """.utf8)
+        let decoded = try JSONDecoder().decode(SyncCostBreakdown.self, from: json)
+        #expect(decoded.standardCostUSD == nil)
+        #expect(decoded.priorityCostUSD == nil)
+        #expect(decoded.standardTokens == nil)
+        #expect(decoded.priorityTokens == nil)
+    }
+
+    @Test("SyncCostBreakdown roundtrips the Codex standard/fast split")
+    func breakdownRoundtripsSplit() throws {
+        let original = SyncCostBreakdown(
+            label: "gpt-5.5",
+            costUSD: 1.0,
+            isEstimated: nil,
+            standardCostUSD: 0.8,
+            priorityCostUSD: 0.2,
+            standardTokens: 800,
+            priorityTokens: 200)
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(SyncCostBreakdown.self, from: data)
+        #expect(decoded == original)
+        #expect(decoded.standardCostUSD == 0.8)
+        #expect(decoded.priorityCostUSD == 0.2)
+        #expect(decoded.standardTokens == 800)
+        #expect(decoded.priorityTokens == 200)
+    }
+
+    @Test("SyncCoordinator carries the Codex standard/fast split into the envelope (#1070)")
+    func coordinatorCarriesCodexSplit() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-codex-split")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+
+        let store = self.makeUsageStore(settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 10, windowMinutes: 60, resetsAt: nil, resetDescription: nil),
+                secondary: nil,
+                updatedAt: Date()),
+            provider: .codex)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 1000,
+                sessionCostUSD: 0.5,
+                last30DaysTokens: 10000,
+                last30DaysCostUSD: 5.0,
+                daily: [
+                    CostUsageDailyReport.Entry(
+                        date: "2026-05-26",
+                        inputTokens: 700,
+                        outputTokens: 300,
+                        cacheReadTokens: 0,
+                        cacheCreationTokens: 0,
+                        totalTokens: 1000,
+                        costUSD: 5.0,
+                        modelsUsed: ["gpt-5.5"],
+                        modelBreakdowns: [
+                            .init(
+                                modelName: "gpt-5.5",
+                                costUSD: 5.0,
+                                standardCostUSD: 4.0,
+                                priorityCostUSD: 1.0,
+                                standardTokens: 800,
+                                priorityTokens: 200),
+                        ]),
+                ],
+                updatedAt: Date()),
+            provider: .codex)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let provider = try #require(mock.lastSnapshot?.providers
+            .first(where: { $0.providerID == "codex" }))
+        let summary = try #require(provider.costSummary)
+        let day = try #require(summary.daily.first(where: { $0.dayKey == "2026-05-26" }))
+        let breakdown = try #require(day.modelBreakdowns.first(where: { $0.label == "gpt-5.5" }))
+        #expect(breakdown.standardCostUSD == 4.0)
+        #expect(breakdown.priorityCostUSD == 1.0)
+        #expect(breakdown.standardTokens == 800)
+        #expect(breakdown.priorityTokens == 200)
+    }
+
     // MARK: - SyncCoordinator aggregation
 
     @Test("SyncCoordinator: unknown Claude model bubbles isEstimated up to summary")

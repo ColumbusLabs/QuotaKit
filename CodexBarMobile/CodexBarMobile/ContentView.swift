@@ -1796,7 +1796,14 @@ private struct RawDailyPointRow: View {
     private var breakdownContent: some View {
         if !self.day.modelBreakdowns.isEmpty {
             ForEach(self.day.modelBreakdowns, id: \.label) { item in
-                LabeledContent(item.label, value: String(format: "$%.2f", item.costUSD))
+                VStack(alignment: .leading, spacing: 1) {
+                    LabeledContent(item.label, value: String(format: "$%.2f", item.costUSD))
+                    if let split = Self.codexSplitText(item) {
+                        Text(split)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
         }
         if !self.day.serviceBreakdowns.isEmpty {
@@ -1805,6 +1812,20 @@ private struct RawDailyPointRow: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    /// Codex standard-vs-fast (priority) cost split sub-line (upstream #1070).
+    /// Returns nil for providers/days without the split, so non-Codex rows are
+    /// unchanged. Mirrors the Mac cost-history "Std / Fast" hover detail.
+    private static func codexSplitText(_ item: SyncCostBreakdown) -> String? {
+        guard item.standardCostUSD != nil || item.priorityCostUSD != nil else { return nil }
+        let std = item.standardCostUSD ?? 0
+        let fast = item.priorityCostUSD ?? 0
+        guard std > 0 || fast > 0 else { return nil }
+        return String(
+            format: String(localized: "Std %1$@ · Fast %2$@"),
+            String(format: "$%.2f", std),
+            String(format: "$%.2f", fast))
     }
 
     private func formatTokens(_ value: Int) -> String { CostFormatting.tokens(value) }

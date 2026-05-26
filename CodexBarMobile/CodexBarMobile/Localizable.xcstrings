@@ -13242,6 +13242,34 @@
           }
         }
       }
+    },
+    "Std %1$@ · Fast %2$@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Std %1$@ · Fast %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标准 %1$@ · 快速 %2$@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "標準 %1$@ · 快速 %2$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "標準 %1$@ · 高速 %2$@"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

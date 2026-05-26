@@ -1576,7 +1576,13 @@ final class SyncCoordinator {
                 return SyncCostBreakdown(
                     label: breakdown.modelName,
                     costUSD: cost,
-                    isEstimated: estimated ? true : nil)
+                    isEstimated: estimated ? true : nil,
+                    // Carry the Codex standard/fast (priority) split through to
+                    // iOS (#1070). nil for providers/builds without the split.
+                    standardCostUSD: breakdown.standardCostUSD,
+                    priorityCostUSD: breakdown.priorityCostUSD,
+                    standardTokens: breakdown.standardTokens,
+                    priorityTokens: breakdown.priorityTokens)
             }
             .sorted { lhs, rhs in
                 if lhs.costUSD == rhs.costUSD {

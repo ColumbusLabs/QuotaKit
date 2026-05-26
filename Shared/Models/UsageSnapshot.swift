@@ -46,11 +46,36 @@ public struct SyncCostBreakdown: Codable, Sendable, Equatable {
     /// estimated) so old data renders cleanly. See
     /// `Research/018-model-fallback-pricing.md` §6.
     public let isEstimated: Bool?
+    /// Codex standard (non-priority) spend within this model/day, split out
+    /// from `costUSD` (upstream v0.29.0 #1070). Optional — `nil` for
+    /// non-Codex providers and for Mac builds before 0.29.0 that didn't
+    /// split standard vs fast. Synthesized `Codable` decodes a missing key
+    /// as `nil`, so old payloads stay wire-compatible. iOS renders the
+    /// "Std / Fast" sub-line only when at least one split field is present.
+    public let standardCostUSD: Double?
+    /// Codex fast / priority-tier spend within this model/day.
+    public let priorityCostUSD: Double?
+    /// Codex standard-tier tokens for this model/day.
+    public let standardTokens: Int?
+    /// Codex fast / priority-tier tokens for this model/day.
+    public let priorityTokens: Int?
 
-    public init(label: String, costUSD: Double, isEstimated: Bool? = nil) {
+    public init(
+        label: String,
+        costUSD: Double,
+        isEstimated: Bool? = nil,
+        standardCostUSD: Double? = nil,
+        priorityCostUSD: Double? = nil,
+        standardTokens: Int? = nil,
+        priorityTokens: Int? = nil)
+    {
         self.label = label
         self.costUSD = costUSD
         self.isEstimated = isEstimated
+        self.standardCostUSD = standardCostUSD
+        self.priorityCostUSD = priorityCostUSD
+        self.standardTokens = standardTokens
+        self.priorityTokens = priorityTokens
     }
 }
 
