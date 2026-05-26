@@ -167,6 +167,18 @@ audit_parser_version() {
   return 1
 }
 
+# Guard: the committed Sources/CodexBarCore/Generated/CodexParserHash.generated.swift
+# must match a fresh hash of the Codex cost-usage parser source. That hash feeds the
+# cache `producerKey` invalidation axis that the v0.29.0 upstream merge combined into
+# CostUsageCache.swift (alongside the fork's pricingFingerprint axis). A stale hash
+# silently freezes producerKey so a later parser-source change would not roll it.
+# This complements audit_parser_version (which guards the parserLogicVersion
+# fingerprint axis). Regenerate via:
+#   bash Scripts/regenerate-codex-parser-hash.sh
+check_codex_parser_hash() {
+  "${ROOT_DIR}/Scripts/regenerate-codex-parser-hash.sh" --check
+}
+
 cmd="${1:-lint}"
 
 case "$cmd" in
@@ -176,6 +188,7 @@ case "$cmd" in
     "${BIN_DIR}/swiftlint" --strict
     audit_xcstrings
     audit_parser_version
+    check_codex_parser_hash
     ;;
   format)
     ensure_tools
@@ -187,8 +200,11 @@ case "$cmd" in
   audit-parser-version)
     audit_parser_version
     ;;
+  audit-parser-hash)
+    check_codex_parser_hash
+    ;;
   *)
-    printf 'Usage: %s [lint|format|audit-i18n|audit-parser-version]\n' "$(basename "$0")" >&2
+    printf 'Usage: %s [lint|format|audit-i18n|audit-parser-version|audit-parser-hash]\n' "$(basename "$0")" >&2
     exit 2
     ;;
 esac
