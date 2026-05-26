@@ -38,6 +38,44 @@ Syncs the Mac app to upstream CodexBar v0.27.0 and ships the paired iOS 1.8.0 co
 - iPhone companion: iOS 1.8.0 (build 137), via TestFlight / App Store.
 - This Mac build: 0.27.0 (fork build 65.5). Update both for the full feature set.
 
+### 中文说明
+
+同步 Mac 端到上游 CodexBar v0.27.0，并配套发布 iOS 1.8.0。本次一口气带来 5 个全新 provider、5 个现有 provider 的详情升级、带账号的额度推送通知，以及 Codex 工作区 + 周用量节奏徽章。
+
+### 新增 provider
+
+- **Grok (xAI)** —— 每月美元消费、套餐徽章、使用百分比、续费日期。
+- **ElevenLabs** —— 字符额度，外加标准语音槽和专业语音槽数量。
+- **Deepgram** —— 语音 / 智能体 / 总时长、请求数、智能体 token、TTS 字符数。
+- **GroqCloud** —— 企业版 key 的实时每分钟请求 / token / 缓存命中速率。
+- **LLM Proxy** —— 跨所有上游 provider 的聚合用量，含每个凭证的池健康度。
+
+### 现有 provider 详情升级
+
+- **Claude Admin API** —— 配置 `sk-ant-admin…` key 后显示今天 / 7 天 / 30 天花费、主要模型、主要费用项。
+- **Claude 额外用量** —— 企业版 / Team 套餐的花费上限使用率仪表。
+- **OpenAI API** —— 可配置 1–365 天的费用历史窗口，iPhone 仪表盘带范围选择器。
+- **OpenCode Go** —— Zen 工作区按量付费美元余额。
+- **MiniMax** —— 30 天计费历史，含 token 柱状图和主要接口 / 模型分解。
+- **Kiro** —— 月度套餐耗尽后显示超额信用数和预估费用。
+
+### 额度通知现在带上账号
+
+- 多账号 provider 的推送通知会带上触发的账号 —— 例如「Codex · admin@example.com」而非单纯的「Codex」。遵守「隐藏个人信息」隐私开关。
+
+### Codex 工作区 + 周节奏
+
+- 当激活的 Codex 账号属于某个 OpenAI 工作区时，Codex 详情页会显示工作区名称，并配一个周用量节奏箭头（超前 / 正常 / 落后）。
+
+### 兼容性
+
+- 在你的 Mac 和 iPhone 间混用新旧版本是安全的 —— 旧 iPhone 会忽略新字段，旧 Mac 干脆不发送。任意新 / 旧设备组合都不会崩溃或丢数据。
+
+### 所需版本
+
+- iPhone 配套：iOS 1.8.0（build 137），经 TestFlight / App Store。
+- 本 Mac 版本：0.27.0（fork build 65.5）。两边都更新才能用全套功能。
+
 ---
 
 ## 0.27.0 — 2026-05-18 (upstream)
