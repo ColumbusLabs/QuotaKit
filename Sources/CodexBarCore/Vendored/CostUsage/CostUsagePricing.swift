@@ -353,6 +353,12 @@ enum CostUsagePricing {
     /// `CostUsageJsonl.swift` change vs origin/mobile-dev.
     ///
     /// History:
+    /// - `3` (0.29.0): merged upstream v0.28.0+v0.29.0 Codex cost-scanner
+    ///   changes — standard vs fast spend/token splits in model breakdowns
+    ///   (#1070) and no-recount of repeated local token snapshots when total
+    ///   usage is unchanged (#1062). These change Codex token attribution, so
+    ///   roll the fingerprint to invalidate caches written by the v0.27
+    ///   scanner and re-scan with the merged parser.
     /// - `2` (0.23.3): parser scanner `prefixBytes` raised from 32 KB to
     ///   256 KB. Earlier 32 KB cap silently truncated every Codex CLI
     ///   0.125+ `turn_context` (~38–41 KB due to bundled AGENTS.md /
@@ -361,7 +367,7 @@ enum CostUsagePricing {
     ///   in `parseCodexFile`. Bumping rolls every previous version's
     ///   cache and re-scans with the fixed parser.
     /// - `1` (0.23.1): initial fingerprint contract.
-    static let parserLogicVersion = 2
+    static let parserLogicVersion = 3
 
     /// Stable string fingerprint of the pricing tables + parser logic.
     /// `CostUsageCacheIO.load` compares this against the value stored
