@@ -465,6 +465,93 @@ struct CostUsageScannerBreakdownTests {
     }
 
     @Test
+    func `codex split cache migration does not double count existing cost maps`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 18)
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+        let iso0 = env.isoString(for: day)
+        let iso1 = env.isoString(for: day.addingTimeInterval(1))
+        let model = "gpt-5.4"
+        let normalizedModel = CostUsagePricing.normalizeCodexModel(model)
+        _ = try env.writeCodexSessionFile(
+            day: day,
+            filename: "session.jsonl",
+            contents: env.jsonl([
+                [
+                    "type": "session_meta",
+                    "timestamp": iso0,
+                    "payload": ["session_id": "split-cache-session"],
+                ],
+                self.codexTurnContext(timestamp: iso0, model: model),
+                self.codexTokenCount(
+                    timestamp: iso1,
+                    model: model,
+                    total: (input: 10, cached: 0, output: 0)),
+            ]))
+
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            claudeProjectsRoots: nil,
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing-traces.sqlite"))
+        options.refreshMinIntervalSeconds = 0
+
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day,
+            options: options)
+
+        var cache = CostUsageCacheIO.load(provider: .codex, cacheRoot: env.cacheRoot)
+        let path = try #require(cache.files.keys.first)
+        var cachedUsage = try #require(cache.files[path])
+        let originalCostNanos = try #require(cachedUsage.codexCostNanos?[dayKey]?[normalizedModel])
+        let addedModel = CostUsagePricing.normalizeCodexModel("gpt-5.5")
+        cachedUsage.codexRows = [
+            CostUsageScanner.CodexUsageRow(
+                day: dayKey,
+                model: normalizedModel,
+                turnID: nil,
+                input: 10,
+                cached: 0,
+                output: 0),
+            CostUsageScanner.CodexUsageRow(
+                day: dayKey,
+                model: addedModel,
+                turnID: nil,
+                input: 10,
+                cached: 0,
+                output: 0),
+        ]
+        cachedUsage.codexStandardCostNanos = nil
+        cachedUsage.codexPriorityCostNanos = nil
+        cachedUsage.codexStandardTokens = nil
+        cachedUsage.codexPriorityTokens = nil
+        cache.files[path] = cachedUsage
+        CostUsageCacheIO.save(provider: .codex, cache: cache, cacheRoot: env.cacheRoot)
+
+        options.refreshMinIntervalSeconds = 60
+        let report = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day.addingTimeInterval(1),
+            options: options)
+
+        let expectedCost = 10.0 * 2.5e-6
+        #expect(abs((report.summary?.totalCostUSD ?? 0) - expectedCost) < 0.000_000_001)
+        let migratedUsage = try #require(CostUsageCacheIO.load(provider: .codex, cacheRoot: env.cacheRoot).files[path])
+        #expect(migratedUsage.codexRows == nil)
+        #expect(migratedUsage.codexCostNanos?[dayKey]?[normalizedModel] == originalCostNanos)
+        #expect(migratedUsage.codexCostNanos?[dayKey]?[addedModel] == Int64((10.0 * 5e-6 * 1_000_000_000).rounded()))
+        #expect(migratedUsage.codexStandardTokens?[dayKey]?[normalizedModel] == 10)
+        #expect(migratedUsage.codexStandardTokens?[dayKey]?[addedModel] == 10)
+    }
+
+    @Test
     func `codex narrow full rescan preserves cached days outside scan window`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
@@ -894,6 +981,47 @@ struct CostUsageScannerBreakdownTests {
         #expect(report.data[0].outputTokens == 31)
         #expect(report.data[0].totalTokens == 281)
         #expect(abs((report.data[0].costUSD ?? 0) - (expectedCost ?? 0)) < 0.000001)
+    }
+
+    @Test
+    func `codex repeated total token snapshots do not recount last usage`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 20)
+        let model = "openai/gpt-5.5"
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "repeated-total-snapshot.jsonl",
+            contents: env.jsonl([
+                self.codexTurnContext(timestamp: env.isoString(for: day), model: model),
+                self.codexTokenCount(
+                    timestamp: env.isoString(for: day.addingTimeInterval(1)),
+                    model: model,
+                    total: (input: 100, cached: 20, output: 10),
+                    last: (input: 100, cached: 20, output: 10)),
+                self.codexTokenCount(
+                    timestamp: env.isoString(for: day.addingTimeInterval(2)),
+                    model: model,
+                    total: (input: 100, cached: 20, output: 10),
+                    last: (input: 100, cached: 20, output: 10)),
+                self.codexTokenCount(
+                    timestamp: env.isoString(for: day.addingTimeInterval(3)),
+                    model: model,
+                    total: (input: 130, cached: 20, output: 12),
+                    last: (input: 100, cached: 20, output: 10)),
+            ]))
+
+        let parsed = CostUsageScanner.parseCodexFile(
+            fileURL: fileURL,
+            range: CostUsageScanner.CostUsageDayRange(since: day, until: day))
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+        let packed = parsed.days[dayKey]?["gpt-5.5"] ?? []
+
+        #expect(packed[safe: 0] == 130)
+        #expect(packed[safe: 1] == 20)
+        #expect(packed[safe: 2] == 12)
+        #expect(parsed.rows.count == 2)
     }
 
     @Test

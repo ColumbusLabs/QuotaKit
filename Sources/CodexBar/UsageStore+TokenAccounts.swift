@@ -384,7 +384,8 @@ extension UsageStore {
     func makeFetchContext(
         provider: UsageProvider,
         override: TokenAccountOverride?,
-        codexActiveSourceOverride: CodexActiveSource? = nil) -> ProviderFetchContext
+        codexActiveSourceOverride: CodexActiveSource? = nil,
+        includeCredits: Bool = false) -> ProviderFetchContext
     {
         let account = ProviderTokenAccountSelection.selectedAccount(
             provider: provider,
@@ -406,7 +407,7 @@ extension UsageStore {
         return ProviderFetchContext(
             runtime: .app,
             sourceMode: sourceMode,
-            includeCredits: false,
+            includeCredits: includeCredits,
             includeOptionalUsage: self.settings.showOptionalCreditsAndExtraUsage,
             webTimeout: 60,
             webDebugDumpHTML: false,
@@ -540,13 +541,44 @@ extension UsageStore {
                 }
                 return ResolvedCodexAccountOutcome(snapshot: nil, usage: nil, sourceLabel: nil)
             }
+            let errorMessage = self.tokenAccountSnapshotErrorMessage(error)
+            if Self.shouldPreserveCodexAccountSnapshotOnFailure(errorMessage),
+               let priorSnapshot,
+               let priorUsage = priorSnapshot.snapshot
+            {
+                let snapshot = CodexAccountUsageSnapshot(
+                    account: account,
+                    snapshot: priorUsage,
+                    error: errorMessage,
+                    sourceLabel: priorSnapshot.sourceLabel)
+                return ResolvedCodexAccountOutcome(
+                    snapshot: snapshot,
+                    usage: priorUsage,
+                    sourceLabel: priorSnapshot.sourceLabel)
+            }
             let snapshot = CodexAccountUsageSnapshot(
                 account: account,
                 snapshot: nil,
-                error: self.tokenAccountSnapshotErrorMessage(error),
+                error: errorMessage,
                 sourceLabel: nil)
             return ResolvedCodexAccountOutcome(snapshot: snapshot, usage: nil, sourceLabel: nil)
         }
+    }
+
+    private static func shouldPreserveCodexAccountSnapshotOnFailure(_ message: String) -> Bool {
+        guard CodexAccountHealth.status(forError: message) == .unavailable else { return false }
+        let normalized = message.lowercased()
+        return normalized.contains("network") ||
+            normalized.contains("internet connection") ||
+            normalized.contains("offline") ||
+            normalized.contains("timed out") ||
+            normalized.contains("timeout") ||
+            normalized.contains("connection was lost") ||
+            normalized.contains("could not connect") ||
+            normalized.contains("not connected") ||
+            normalized.contains("hostname") ||
+            normalized.contains("dns") ||
+            normalized.contains("temporarily unavailable")
     }
 
     func applySelectedCodexVisibleAccountOutcome(

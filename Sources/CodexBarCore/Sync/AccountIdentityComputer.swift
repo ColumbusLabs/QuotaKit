@@ -67,7 +67,11 @@ public enum AccountIdentityComputer {
              // Upstream v0.27.0 new providers. iOS 1.8 surfaces these
              // via single-account cards. Promote to Tier-A only if a
              // user files a cross-Mac merging request for them.
-             .grok, .groq, .elevenlabs, .deepgram, .llmproxy:
+             .grok, .groq, .elevenlabs, .deepgram, .llmproxy,
+             // Upstream v0.28.0–v0.29.0 new providers. iOS 1.9 surfaces
+             // these via single-account cards. Promote to Tier-A only if a
+             // user files a cross-Mac merging request for them.
+             .azureopenai, .alibabatokenplan, .t3chat:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS falls back to per-device legacy
             // bucket. If a future provider needs cross-Mac merging, add
