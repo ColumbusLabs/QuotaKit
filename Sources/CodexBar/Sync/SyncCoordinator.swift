@@ -484,6 +484,28 @@ final class SyncCoordinator {
     /// expansion path. Extraction made multi-account expansion possible
     /// without code duplication; see R2 in
     /// `Research/020-multi-account-comprehensive.md`.
+    /// Threads the Antigravity Google-OAuth account list into the wire envelope
+    /// (gap B). iOS already ships the `AntigravityAccountSwitcher` renderer
+    /// (gated on > 1 account); this populates the field the construction-site
+    /// TODO left as nil since iOS 1.7.0. Built from the configured token
+    /// accounts — `label` is the display email, and `ProviderTokenAccount`
+    /// carries no token-expiry so `expiresAt` is nil. Emitted only for > 1
+    /// account, matching the iOS switcher's display condition.
+    private func mapAntigravityAccounts(provider: UsageProvider) -> SyncMultiAccountList? {
+        guard provider == .antigravity,
+              let data = self.settings.tokenAccountsData(for: .antigravity),
+              data.accounts.count > 1
+        else { return nil }
+        let activeIndex = data.clampedActiveIndex()
+        let entries = data.accounts.enumerated().map { index, account in
+            SyncMultiAccountEntry(
+                email: account.label,
+                isActive: index == activeIndex,
+                expiresAt: nil)
+        }
+        return SyncMultiAccountList(accounts: entries, activeIndex: activeIndex)
+    }
+
     private func buildProviderUsageSnapshot(
         for provider: UsageProvider,
         snapshot: UsageSnapshot?,
@@ -651,15 +673,10 @@ final class SyncCoordinator {
             kiroCredits: kiroCredits,
             bedrockCost: bedrockCost,
             moonshotBalance: moonshotBalance,
-            // TODO(antigravity): Mac does not yet thread the Google
-            // OAuth account list into the wire envelope. The plumbing
-            // path is `SettingsStore.tokenAccountsData(for: .antigravity)`
-            // → a new `mapAntigravityAccounts(...)` mapper. Tracked as
-            // a follow-up to iOS 1.7.0. iOS 1.7.0 ships the renderer
-            // (`Views/AntigravityAccountSwitcher.swift`) gated on the
-            // optional field so it light-up automatically once Mac
-            // starts populating it.
-            antigravityAccounts: nil,
+            // gap B: thread the Antigravity Google-OAuth account list so the
+            // iOS AntigravityAccountSwitcher (shipped since 1.7.0) lights up.
+            // Resolves the long-standing nil TODO. See mapAntigravityAccounts.
+            antigravityAccounts: self.mapAntigravityAccounts(provider: provider),
             grokBilling: grokBilling,
             elevenLabsCredits: elevenLabsCredits,
             deepgramUsage: deepgramUsage,
