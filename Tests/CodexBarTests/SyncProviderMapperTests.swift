@@ -62,13 +62,13 @@ struct SyncProviderMapperTests {
     @Test("mapMistralCostSummary: nil for a non-mistral provider")
     func mistralWrongProvider() {
         #expect(SyncCoordinator.mapMistralCostSummary(
-            provider: .codex, snapshot: snapshot(mistral: mistralFixture())) == nil)
+            provider: .codex, snapshot: self.snapshot(mistral: self.mistralFixture())) == nil)
     }
 
     @Test("mapMistralCostSummary: nil when mistral usage is absent")
     func mistralNoUsage() {
         #expect(SyncCoordinator.mapMistralCostSummary(
-            provider: .mistral, snapshot: snapshot()) == nil)
+            provider: .mistral, snapshot: self.snapshot()) == nil)
     }
 
     @Test("mapMistralCostSummary: nil when daily history is empty")
@@ -78,13 +78,13 @@ struct SyncProviderMapperTests {
             totalInputTokens: 0, totalOutputTokens: 0, totalCachedTokens: 0,
             modelCount: 0, daily: [], startDate: nil, endDate: nil, updatedAt: Self.now)
         #expect(SyncCoordinator.mapMistralCostSummary(
-            provider: .mistral, snapshot: snapshot(mistral: empty)) == nil)
+            provider: .mistral, snapshot: self.snapshot(mistral: empty)) == nil)
     }
 
     @Test("mapMistralCostSummary: maps totals, daily points, and filters/sorts model breakdowns")
     func mistralMapsFields() throws {
         let summary = try #require(SyncCoordinator.mapMistralCostSummary(
-            provider: .mistral, snapshot: snapshot(mistral: mistralFixture())))
+            provider: .mistral, snapshot: self.snapshot(mistral: self.mistralFixture())))
         #expect(summary.last30DaysCostUSD == 4.2)
         #expect(summary.last30DaysTokens == 1700) // 1000 + 500 + 200
         #expect(summary.daily.count == 2)
@@ -112,19 +112,19 @@ struct SyncProviderMapperTests {
     @Test("mapOpenRouter: nil for a non-openrouter provider")
     func openRouterWrongProvider() {
         #expect(SyncCoordinator.mapOpenRouter(
-            provider: .codex, snapshot: snapshot(openRouter: openRouterFixture())) == nil)
+            provider: .codex, snapshot: self.snapshot(openRouter: self.openRouterFixture())) == nil)
     }
 
     @Test("mapOpenRouter: nil when openrouter usage is absent")
     func openRouterNoUsage() {
         #expect(SyncCoordinator.mapOpenRouter(
-            provider: .openrouter, snapshot: snapshot()) == nil)
+            provider: .openrouter, snapshot: self.snapshot()) == nil)
     }
 
     @Test("mapOpenRouter: maps balance, credits, key windows, and rate limit")
     func openRouterMapsFields() throws {
         let stats = try #require(SyncCoordinator.mapOpenRouter(
-            provider: .openrouter, snapshot: snapshot(openRouter: openRouterFixture())))
+            provider: .openrouter, snapshot: self.snapshot(openRouter: self.openRouterFixture())))
         #expect(stats.balanceUSD == 7.5)
         #expect(stats.totalCreditsUSD == 50)
         #expect(stats.totalUsageUSD == 42.5)
@@ -148,19 +148,19 @@ struct SyncProviderMapperTests {
     @Test("mapAzureOpenAIInfo: nil for a non-azure provider")
     func azureWrongProvider() {
         #expect(SyncCoordinator.mapAzureOpenAIInfo(
-            provider: .codex, snapshot: snapshot(azure: azureFixture())) == nil)
+            provider: .codex, snapshot: self.snapshot(azure: self.azureFixture())) == nil)
     }
 
     @Test("mapAzureOpenAIInfo: nil when azure usage is absent")
     func azureNoUsage() {
         #expect(SyncCoordinator.mapAzureOpenAIInfo(
-            provider: .azureopenai, snapshot: snapshot()) == nil)
+            provider: .azureopenai, snapshot: self.snapshot()) == nil)
     }
 
     @Test("mapAzureOpenAIInfo: maps endpoint, deployment, model, api version")
     func azureMapsFields() throws {
         let info = try #require(SyncCoordinator.mapAzureOpenAIInfo(
-            provider: .azureopenai, snapshot: snapshot(azure: azureFixture())))
+            provider: .azureopenai, snapshot: self.snapshot(azure: self.azureFixture())))
         #expect(info.endpointHost == "r.openai.azure.com")
         #expect(info.deploymentName == "gpt-4o-prod")
         #expect(info.model == "gpt-4o")
@@ -178,19 +178,19 @@ struct SyncProviderMapperTests {
     @Test("mapAlibabaTokenPlan: nil for a non-alibaba provider")
     func alibabaWrongProvider() {
         #expect(SyncCoordinator.mapAlibabaTokenPlan(
-            provider: .codex, snapshot: snapshot(alibaba: alibabaFixture())) == nil)
+            provider: .codex, snapshot: self.snapshot(alibaba: self.alibabaFixture())) == nil)
     }
 
     @Test("mapAlibabaTokenPlan: nil when alibaba usage is absent")
     func alibabaNoUsage() {
         #expect(SyncCoordinator.mapAlibabaTokenPlan(
-            provider: .alibabatokenplan, snapshot: snapshot()) == nil)
+            provider: .alibabatokenplan, snapshot: self.snapshot()) == nil)
     }
 
     @Test("mapAlibabaTokenPlan: maps plan name and quota → credits")
     func alibabaMapsFields() throws {
         let plan = try #require(SyncCoordinator.mapAlibabaTokenPlan(
-            provider: .alibabatokenplan, snapshot: snapshot(alibaba: alibabaFixture())))
+            provider: .alibabatokenplan, snapshot: self.snapshot(alibaba: self.alibabaFixture())))
         #expect(plan.planName == "Bailian Pro")
         #expect(plan.usedCredits == 300)
         #expect(plan.totalCredits == 1000)

@@ -104,8 +104,8 @@ public struct UsageSnapshot: Codable, Sendable {
     public let groqUsage: GroqUsageSnapshot?
     public let llmProxyUsage: LLMProxyUsageSnapshot?
     public let cursorRequests: CursorRequestUsage?
-    // iOS 1.9.0 / Mac 0.29.0 — gap E. Transient (fetched fresh, not persisted),
-    // like zaiUsage / cursorRequests; SyncCoordinator threads it to the envelope.
+    /// iOS 1.9.0 / Mac 0.29.0 — gap E. Transient (fetched fresh, not persisted),
+    /// like zaiUsage / cursorRequests; SyncCoordinator threads it to the envelope.
     public let azureOpenAIUsage: AzureOpenAIUsageSnapshot?
     /// gap G — transient, like azureOpenAIUsage.
     public let alibabaTokenPlanUsage: AlibabaTokenPlanUsageSnapshot?
