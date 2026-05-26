@@ -34,6 +34,7 @@ public struct AzureOpenAIUsageSnapshot: Codable, Sendable, Equatable {
                 resetDescription: detail),
             secondary: nil,
             tertiary: nil,
+            azureOpenAIUsage: self,
             updatedAt: self.updatedAt,
             identity: ProviderIdentitySnapshot(
                 providerID: .azureopenai,

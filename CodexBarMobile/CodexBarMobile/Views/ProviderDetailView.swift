@@ -141,6 +141,12 @@ struct ProviderDetailView: View {
                 {
                     OpenRouterStatsCard(stats: openRouterStats, tintColor: self.providerColor)
                 }
+                // iOS 1.9.0 — parity gap E: Azure OpenAI deployment info.
+                if self.provider.providerID == "azureopenai",
+                   let azureInfo = self.provider.azureOpenAIInfo
+                {
+                    AzureOpenAIInfoCard(info: azureInfo, tintColor: self.providerColor)
+                }
 
                 // iOS 1.8.0 build 134 — v0.27 existing-provider
                 // extensions. Same dispatch pattern: provider ID

@@ -670,7 +670,8 @@ final class SyncCoordinator {
             openCodeGoZenBalance: openCodeGoZenBalance,
             minimaxBilling: minimaxBilling,
             codexWorkspace: codexWorkspace,
-            openRouterStats: Self.mapOpenRouter(provider: provider, snapshot: snapshot))
+            openRouterStats: Self.mapOpenRouter(provider: provider, snapshot: snapshot),
+            azureOpenAIInfo: Self.mapAzureOpenAIInfo(provider: provider, snapshot: snapshot))
     }
 
     // MARK: - v0.26 envelope mappers (private)
@@ -1622,6 +1623,23 @@ final class SyncCoordinator {
             rateLimitRequests: o.rateLimit?.requests,
             rateLimitInterval: o.rateLimit?.interval,
             updatedAt: o.updatedAt)
+    }
+
+    /// Maps Azure OpenAI deployment identity into the wire envelope (gap E).
+    /// Azure is a deployment-validation provider; before this the endpoint host
+    /// was dropped (envelope has no accountOrganization) and the deployment
+    /// only reached iOS as a loginMethod string.
+    static func mapAzureOpenAIInfo(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncAzureOpenAIInfo?
+    {
+        guard provider == .azureopenai, let a = snapshot?.azureOpenAIUsage else { return nil }
+        return SyncAzureOpenAIInfo(
+            endpointHost: a.endpointHost,
+            deploymentName: a.deploymentName,
+            model: a.model,
+            apiVersion: a.apiVersion,
+            updatedAt: a.updatedAt)
     }
 
     private func modelBreakdowns(

@@ -17,6 +17,7 @@
 		077031C35540946781793E79 /* ModelContainerFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F2CB0BE3DD9918D7E958219 /* ModelContainerFactory.swift */; };
 		07F02876676ED6B3B7B4A6AD /* CodexBarSync.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; };
 		08DAFDFF22C66A2F782B89A9 /* V026RenderedTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F63562F3CAD90EB09C32903E /* V026RenderedTextTests.swift */; };
+		09BC5F589730BF1FE1C4D68E /* AzureOpenAIInfoCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA3103C9F58F4D43F9FD73A2 /* AzureOpenAIInfoCard.swift */; };
 		0C2DDA8E99A73AA0FE1F72FE /* ProviderUsageSnapshot+QuotaWarnings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 476A6254529A7B50A57AB777 /* ProviderUsageSnapshot+QuotaWarnings.swift */; };
 		0C35C0A3E872B4821C3A7D0B /* SwiftDataBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E6F79FB9AFFC795399FAFBF /* SwiftDataBridgeTests.swift */; };
 		0D7C4FE104FBA31F17F8A591 /* AntigravityAccountSwitcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B07946DD625AF9E4DFFFAB41 /* AntigravityAccountSwitcher.swift */; };
@@ -305,6 +306,7 @@
 		C3D273F51CDB63F11D2E772A /* QuotaProviderListTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaProviderListTests.swift; sourceTree = "<group>"; };
 		C64C2DA34FBFB5523DC71C9B /* MockProviderDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockProviderDetector.swift; sourceTree = "<group>"; };
 		C92153BD74B2B08AE61B76E2 /* PreviewData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewData.swift; sourceTree = "<group>"; };
+		CA3103C9F58F4D43F9FD73A2 /* AzureOpenAIInfoCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AzureOpenAIInfoCard.swift; sourceTree = "<group>"; };
 		CB05AAA074EEE8CC4379BD42 /* ProviderDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderDetailView.swift; sourceTree = "<group>"; };
 		CC94BA62C1AD26767A4958DC /* ProviderColorPaletteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderColorPaletteTests.swift; sourceTree = "<group>"; };
 		CCB5B03C39186CBC42C349F8 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
@@ -592,6 +594,7 @@
 			isa = PBXGroup;
 			children = (
 				B07946DD625AF9E4DFFFAB41 /* AntigravityAccountSwitcher.swift */,
+				CA3103C9F58F4D43F9FD73A2 /* AzureOpenAIInfoCard.swift */,
 				9E9B0D8C60F57D4E7DC98890 /* BedrockCostCard.swift */,
 				77C776CEA57C84E7ECA6192C /* BudgetProgressView.swift */,
 				AF5F72C23944E23883A57CA1 /* ClaudeAdminUsageCard.swift */,
@@ -851,6 +854,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0D7C4FE104FBA31F17F8A591 /* AntigravityAccountSwitcher.swift in Sources */,
+				09BC5F589730BF1FE1C4D68E /* AzureOpenAIInfoCard.swift in Sources */,
 				49D6DB12C6EFA95A8A48BE0C /* BedrockCostCard.swift in Sources */,
 				4CD1E3131D8E3A04E8B13201 /* BudgetProgressView.swift in Sources */,
 				DCE0242A2B08E8D23B2CCAC1 /* ClaudeAdminUsageCard.swift in Sources */,
