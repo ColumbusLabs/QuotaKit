@@ -174,6 +174,30 @@ enum ProviderColorPalette {
             return Color(red: 0.36, green: 0.48, blue: 0.60)
         }
 
+        // iOS 1.9.0 — upstream v0.28.0+v0.29.0 new providers (3 picks).
+        // Checked BEFORE the generic `openai`/`opencode` rules below:
+        // `"azureopenai".contains("openai")` is true, so Azure OpenAI must
+        // match here first or it would collapse into the ChatGPT-green rule.
+        if normalized.contains("azureopenai") {
+            // Azure OpenAI — Microsoft Azure blue (#0078D4). Distinct from
+            // the opencode `.blue` fallback and deepseek royal blue by being
+            // a cleaner mid cyan-blue tied to the Azure brand.
+            return Color(red: 0.0, green: 0.47, blue: 0.83)
+        }
+        if normalized.contains("alibabatokenplan") {
+            // Alibaba Token Plan (Bailian) — Alibaba orange (#F26A0D).
+            // Sits in the warm-orange family (MiMo/Bedrock) but redder so the
+            // Bailian quota card reads distinctly. The base `alibaba` (Qwen)
+            // provider keeps the .blue fallback — it is a different product.
+            return Color(red: 0.95, green: 0.42, blue: 0.05)
+        }
+        if normalized.contains("t3chat") {
+            // T3 Chat — rose-pink (#E84A99). T3's brand accent is a pink /
+            // magenta; placed apart from doubao hot-pink and antigravity
+            // magenta by being a brighter rose.
+            return Color(red: 0.91, green: 0.29, blue: 0.60)
+        }
+
         // iOS 1.7.0 — upstream v0.26.0 new providers.
         if normalized.contains("moonshot") || normalized.contains("kimi-api") {
             // Moonshot / Kimi API — deep indigo (#3C4FE0). Distinct

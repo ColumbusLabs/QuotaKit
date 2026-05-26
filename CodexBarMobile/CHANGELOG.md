@@ -2,6 +2,51 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.9.0 (138)] — 2026-05-25 — upstream v0.29.0 sync
+
+MOBILE_VERSION 1.8.0 → 1.9.0, build 137 → 138. Pairs with Mac CodexBar
+0.29.0 (fork build 68.1). Surfaces the three new providers from the upstream
+v0.28.0 + v0.29.0 sync. All three map to the GENERIC `UsageSnapshot` path
+(primary/secondary `RateWindow`s), so they flow through the existing
+Mac→iOS bridge and render with the same usage-bar layout as other quota
+providers — no dedicated card views needed (unlike the v0.27 batch).
+
+### Added
+
+- **Azure OpenAI** (`azureopenai`) — deployment-status usage card (primary
+  RateWindow). Registered in `QuotaProviderList` (push-eligible) +
+  `ProviderColorPalette` (Azure blue) + `MockProviderInjector`.
+- **Alibaba Token Plan / Bailian** (`alibabatokenplan`) — monthly token-plan
+  quota card (used/total credits + reset date).
+- **T3 Chat** (`t3chat`) — web-session usage card with a 4-hour base window
+  plus a monthly overage window (primary + secondary).
+- `MobileReleaseNotesCatalog` 1.9.0 entry, localized in all 4 languages
+  (en / zh-Hans / zh-Hant / ja).
+
+### Changed
+
+- `QuotaProviderList`: 45 → 48 providers (144 push zones at ×3 states).
+  Appended at the tail so existing CK subscription IDs stay stable.
+- `MockProviderInjector`: 57 → 60 mocks across 50 IDs (+3 v0.28/v0.29 simple
+  profiles). Debug "Mock Provider Data" subtitle updated (en/zh-Hans).
+
+### Fixed
+
+- iOS `QuotaProviderListTests`: corrected two PRE-EXISTING stale assertions
+  the v0.27 sync left behind — the tail-order check still pinned `bedrock`
+  (it never picked up the 5 v0.27 providers), and the catalog zone-count test
+  used a 2-state `×2` formula instead of the current `×3`.
+
+### Notes
+
+- Scope is upstream **v0.28.0 + v0.29.0** only. The v0.29.1 fixes (Claude
+  OAuth extra-usage currency fix #1114, Grok reset-window labels #1148, Groq
+  icon #1112, workday markers #1102, zh-Hant Mac strings) are **deferred** to
+  a future sync.
+- Codex standard/fast spend splits (#1070) stay as a combined total on iOS for
+  1.9.0; OpenCode workspace renewal dates (#1099) ride the existing
+  `renewalAt` envelope field. No new CloudKit schema fields.
+
 ## [1.8.0 (137)] — 2026-05-25 — Opus 2nd-pass CR follow-ups
 
 Same MOBILE_VERSION (1.8.0), build 136 → 137. Pairs with Mac

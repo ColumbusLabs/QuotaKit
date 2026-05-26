@@ -2029,8 +2029,27 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.8.0",
+            version: "1.9.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "Three new provider cards — Azure OpenAI, Alibaba Token Plan (Bailian), and T3 Chat — from the upstream CodexBar 0.29.0 sync. Each appears automatically once enabled on your Mac."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(localized: "Azure OpenAI — usage card validating deployment status from your API key, endpoint, and deployment name."),
+                        String(localized: "Alibaba Token Plan (Bailian) — monthly token-plan quota card showing used and total credits with the reset date, imported from browser or manual cookies."),
+                        String(localized: "T3 Chat — web-session usage card with a 4-hour base window plus a monthly overage window."),
+                        String(localized: "All three use the same usage-bar layout as the other quota providers and appear automatically once enabled on Mac — no iPhone setup needed."),
+                    ]),
+                .init(
+                    title: String(localized: "Required Mac version"),
+                    items: [
+                        String(localized: "Update Mac CodexBar to 0.29.0 (fork build 68.1 or later) to see the three new providers. iPhone 1.9.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is on 0.29.0."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.8.0",
+            status: "",
             summary: String(localized: "Five dedicated provider cards (Grok / ElevenLabs / Deepgram / GroqCloud / LLM Proxy), Kiro overage badge, Anthropic Admin API spend, Claude Enterprise spend-limit, OpenAI history-window picker, OpenCode Go Zen balance, MiniMax 30-day billing, plus quota notifications now include the triggering account and Codex shows the active workspace + weekly pace."),
             sections: [
                 .init(

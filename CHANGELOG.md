@@ -1,5 +1,59 @@
 # Changelog
 
+## 0.29.0 (Mobile 1.9.0 · build 68.1) — 2026-05-25 — upstream v0.29.0 + iOS 1.9.0
+
+Syncs the Mac app to upstream CodexBar v0.29.0 and ships the paired iOS 1.9.0 companion. Three new providers — Azure OpenAI, Alibaba Token Plan (Bailian), and T3 Chat — plus the upstream v0.28.0 + v0.29.0 fixes.
+
+### New providers
+
+- **Azure OpenAI** — validate a deployment via API key, endpoint, and deployment name.
+- **Alibaba Token Plan (Bailian)** — monthly token-plan quota via browser or manual cookies.
+- **T3 Chat** — web-session usage with a 4-hour base window and a monthly overage window; paste a full browser cURL if a cookie-only refresh hits a 429 challenge.
+
+### Also from upstream
+
+- Codex cost history now splits standard vs fast spend/token usage in model breakdowns.
+- OpenCode / OpenCode Go show workspace renewal dates.
+- Ollama can authenticate with an API key as an alternative to browser cookies.
+- Plus the upstream v0.28/v0.29 menu-bar, Codex, Antigravity, and localization fixes.
+
+### Compatibility
+
+- Mixing app versions across Macs and iPhones is safe — older iPhones ignore the new providers and older Macs simply don't send them. No crashes or data loss across any new/old device combination.
+
+### Required versions
+
+- iPhone companion: iOS 1.9.0 (build 138), via TestFlight / App Store.
+- This Mac build: 0.29.0 (fork build 68.1). Update both for the full feature set.
+
+### 中文说明
+
+同步 Mac 端到上游 CodexBar v0.29.0，并配套发布 iOS 1.9.0。本次新增三个 provider —— Azure OpenAI、Alibaba Token Plan（百炼）和 T3 Chat —— 外加上游 v0.28.0 + v0.29.0 的修复。
+
+### 新增 provider
+
+- **Azure OpenAI** —— 通过 API key、endpoint 和部署名称校验部署。
+- **Alibaba Token Plan（百炼）** —— 通过浏览器或手动 cookie 跟踪每月 token 套餐额度。
+- **T3 Chat** —— web session 用量，含 4 小时基础窗口和每月超额窗口；若 cookie 刷新遇到 429 挑战，可粘贴完整的浏览器 cURL。
+
+### 同样来自上游
+
+- Codex 费用历史现在区分标准 / 快速的消费和 token 用量。
+- OpenCode / OpenCode Go 显示工作区续费日期。
+- Ollama 可用 API key 作为浏览器 cookie 之外的认证方式。
+- 以及上游 v0.28/v0.29 的菜单栏、Codex、Antigravity 和本地化修复。
+
+### 兼容性
+
+- 在 Mac 和 iPhone 间混用新旧版本是安全的 —— 旧 iPhone 会忽略新 provider，旧 Mac 干脆不发送。任意新 / 旧设备组合都不会崩溃或丢数据。
+
+### 所需版本
+
+- iPhone 配套：iOS 1.9.0（build 138），经 TestFlight / App Store。
+- 本 Mac 版本：0.29.0（fork build 68.1）。两边都更新才能用全套功能。
+
+---
+
 ## 0.29.0 — 2026-05-22
 
 ### Added
