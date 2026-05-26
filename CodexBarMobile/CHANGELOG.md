@@ -2,16 +2,34 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
-## [1.9.0 (138)] — 2026-05-25 — upstream v0.29.0 sync
+## [1.9.0 (139)] — 2026-05-26 — upstream v0.29.0 sync + Mac↔iOS parity gap-fills
 
-MOBILE_VERSION 1.8.0 → 1.9.0, build 137 → 138. Pairs with Mac CodexBar
-0.29.0 (fork build 68.1). Surfaces the three new providers from the upstream
-v0.28.0 + v0.29.0 sync. All three map to the GENERIC `UsageSnapshot` path
-(primary/secondary `RateWindow`s), so they flow through the existing
-Mac→iOS bridge and render with the same usage-bar layout as other quota
-providers — no dedicated card views needed (unlike the v0.27 batch).
+MOBILE_VERSION 1.8.0 → 1.9.0, build 137 → 139. Pairs with Mac CodexBar 0.29.0
+(fork build 68.1). Surfaces the three new upstream v0.28/v0.29 providers AND
+closes a set of pre-existing Mac↔iOS display-parity gaps found in a full audit
+(2026-05-26) — data the Mac rendered that iOS dropped.
 
-### Added
+### Parity gap-fills (Mac↔iOS audit)
+
+- **A — Codex standard/fast cost split** (#1070): the std vs fast (priority)
+  spend/token split was computed + shown on Mac but dropped at the bridge.
+  Added to `SyncCostBreakdown`; iOS shows a "Std $X · Fast $Y" sub-line per model.
+- **C — Mistral daily cost**: was a one-line "$X" on iOS; now feeds the existing
+  Cost dashboard (30-day chart + model mix) via a mapped `SyncCostSummary`.
+- **D — OpenRouter**: balance / lifetime credits / rolling day-week-month key
+  usage / rate limit → new `OpenRouterStatsCard` (was a one-line balance).
+- **E — Azure OpenAI**: endpoint / deployment / model / API version →
+  `AzureOpenAIInfoCard` (the endpoint host was dropped entirely before).
+- **F — Cost-history window**: per-provider + Cost-tab cards now label the real
+  1–365 day window (`historyDays`) instead of a hardcoded "30 Days".
+- **G — Alibaba Token Plan (Bailian)**: structured plan + used/total/remaining
+  credits → `AlibabaTokenPlanCard`. (T3 Chat is already adequately surfaced via
+  the generic 2-window card; its remaining fields are Mac-debug-only.)
+- **B — Antigravity multi-account**: Mac now threads the Google-OAuth account
+  list (`mapAntigravityAccounts`) so the iOS AntigravityAccountSwitcher — shipped
+  since 1.7.0 but never fed — lights up for > 1 account.
+
+### Added (initial 1.9.0 — provider registration)
 
 - **Azure OpenAI** (`azureopenai`) — deployment-status usage card (primary
   RateWindow). Registered in `QuotaProviderList` (push-eligible) +

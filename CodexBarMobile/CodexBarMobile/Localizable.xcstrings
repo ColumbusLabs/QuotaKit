@@ -13075,34 +13075,6 @@
         }
       }
     },
-    "Three new provider cards — Azure OpenAI, Alibaba Token Plan (Bailian), and T3 Chat — from the upstream CodexBar 0.29.0 sync. Each appears automatically once enabled on your Mac.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Three new provider cards — Azure OpenAI, Alibaba Token Plan (Bailian), and T3 Chat — from the upstream CodexBar 0.29.0 sync. Each appears automatically once enabled on your Mac."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "アップストリーム CodexBar 0.29.0 同期による 3 つの新しいプロバイダーカード（Azure OpenAI、Alibaba Token Plan（百錬）、T3 Chat）。Mac で有効にすると自動的に表示されます。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "三个全新 provider 卡片 —— Azure OpenAI、Alibaba Token Plan（百炼）和 T3 Chat —— 来自上游 CodexBar 0.29.0 同步。在 Mac 上启用后会自动出现。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "三個全新 provider 卡片 —— Azure OpenAI、Alibaba Token Plan（百煉）和 T3 Chat —— 來自上游 CodexBar 0.29.0 同步。在 Mac 上啟用後會自動出現。"
-          }
-        }
-      }
-    },
     "Azure OpenAI — usage card validating deployment status from your API key, endpoint, and deployment name.": {
       "localizations": {
         "en": {
@@ -13183,34 +13155,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "T3 Chat —— web session 用量卡片，含 4 小時基礎視窗和每月超額視窗。"
-          }
-        }
-      }
-    },
-    "All three use the same usage-bar layout as the other quota providers and appear automatically once enabled on Mac — no iPhone setup needed.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "All three use the same usage-bar layout as the other quota providers and appear automatically once enabled on Mac — no iPhone setup needed."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "3 つとも他のクォータプロバイダーと同じ使用状況バーのレイアウトを使い、Mac で有効にすると自動的に表示されます。iPhone 側の設定は不要です。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "三者都采用与其他额度 provider 相同的用量条布局，在 Mac 上启用后自动出现 —— iPhone 端无需任何设置。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "三者都採用與其他額度 provider 相同的用量條版面，在 Mac 上啟用後自動出現 —— iPhone 端無需任何設定。"
           }
         }
       }
@@ -13659,6 +13603,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "残り %@ クレジット"
+          }
+        }
+      }
+    },
+    "Three new providers (Azure OpenAI, Alibaba Token Plan, T3 Chat) from the CodexBar 0.29.0 sync — plus richer detail across many providers: the iPhone now surfaces more of what your Mac already tracks.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Three new providers (Azure OpenAI, Alibaba Token Plan, T3 Chat) from the CodexBar 0.29.0 sync — plus richer detail across many providers: the iPhone now surfaces more of what your Mac already tracks."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "来自 CodexBar 0.29.0 同步的三个新 provider（Azure OpenAI、Alibaba Token Plan、T3 Chat）—— 外加多个 provider 的更丰富详情：iPhone 现在能展示更多 Mac 已经在追踪的数据。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "來自 CodexBar 0.29.0 同步的三個新 provider（Azure OpenAI、Alibaba Token Plan、T3 Chat）—— 外加多個 provider 的更豐富詳情：iPhone 現在能展示更多 Mac 已經在追蹤的資料。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CodexBar 0.29.0 同期による 3 つの新しいプロバイダー（Azure OpenAI、Alibaba Token Plan、T3 Chat）に加え、多くのプロバイダーでより詳しい情報を表示します。iPhone が Mac で追跡中のデータをより多く表示するようになりました。"
+          }
+        }
+      }
+    },
+    "Richer detail elsewhere too — Codex standard/fast spend split per model, an OpenRouter balance & credits card, Mistral daily cost in the Cost dashboard, the Antigravity multi-account switcher, and cost summaries that show the real history window (not always 30 days).": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Richer detail elsewhere too — Codex standard/fast spend split per model, an OpenRouter balance & credits card, Mistral daily cost in the Cost dashboard, the Antigravity multi-account switcher, and cost summaries that show the real history window (not always 30 days)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其他地方也更详细 —— Codex 每个模型的标准/快速消费拆分、OpenRouter 余额与信用额度卡、Cost 面板里的 Mistral 每日费用、Antigravity 多账号切换器，以及显示真实历史窗口（不再总是 30 天）的成本摘要。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其他地方也更詳細 —— Codex 每個模型的標準/快速消費拆分、OpenRouter 餘額與信用額度卡、Cost 面板裡的 Mistral 每日費用、Antigravity 多帳號切換器，以及顯示真實歷史視窗（不再總是 30 天）的成本摘要。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "他の箇所もより詳しく —— モデルごとの Codex 標準/高速消費の内訳、OpenRouter の残高とクレジットのカード、Cost ダッシュボードの Mistral 日次費用、Antigravity マルチアカウント切り替え、そして実際の履歴期間を表示する費用サマリー（常に 30 日ではありません）。"
           }
         }
       }

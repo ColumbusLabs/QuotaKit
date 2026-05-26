@@ -2062,7 +2062,7 @@ private enum MobileReleaseNotesCatalog {
         ReleaseNotesVersion(
             version: "1.9.0",
             status: String(localized: "Latest"),
-            summary: String(localized: "Three new provider cards — Azure OpenAI, Alibaba Token Plan (Bailian), and T3 Chat — from the upstream CodexBar 0.29.0 sync. Each appears automatically once enabled on your Mac."),
+            summary: String(localized: "Three new providers (Azure OpenAI, Alibaba Token Plan, T3 Chat) from the CodexBar 0.29.0 sync — plus richer detail across many providers: the iPhone now surfaces more of what your Mac already tracks."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
@@ -2070,7 +2070,7 @@ private enum MobileReleaseNotesCatalog {
                         String(localized: "Azure OpenAI — usage card validating deployment status from your API key, endpoint, and deployment name."),
                         String(localized: "Alibaba Token Plan (Bailian) — monthly token-plan quota card showing used and total credits with the reset date, imported from browser or manual cookies."),
                         String(localized: "T3 Chat — web-session usage card with a 4-hour base window plus a monthly overage window."),
-                        String(localized: "All three use the same usage-bar layout as the other quota providers and appear automatically once enabled on Mac — no iPhone setup needed."),
+                        String(localized: "Richer detail elsewhere too — Codex standard/fast spend split per model, an OpenRouter balance & credits card, Mistral daily cost in the Cost dashboard, the Antigravity multi-account switcher, and cost summaries that show the real history window (not always 30 days)."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
