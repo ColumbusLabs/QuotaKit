@@ -640,7 +640,7 @@ final class SyncCoordinator {
             statusMessage: error,
             isError: error != nil,
             lastUpdated: snapshot?.updatedAt ?? Date(),
-            costSummary: sharedCostSummary,
+            costSummary: sharedCostSummary ?? Self.mapMistralCostSummary(provider: provider, snapshot: snapshot),
             budget: budgetSnap,
             rateWindows: rateWindows,
             utilizationHistory: sharedUtilizationHistory,
@@ -1562,6 +1562,41 @@ final class SyncCoordinator {
             last30DaysTokens: tokenSnapshot?.last30DaysTokens,
             daily: daily,
             isEstimated: summaryIsEstimated ? true : nil)
+    }
+
+    /// Builds a cost summary for Mistral from its native daily usage buckets
+    /// (gap C). Mistral spend is API-billing based (no local token DB), so the
+    /// generic token-DB `makeCostSummary` returns nil for it — without this,
+    /// iOS only ever saw the one-line "API spend: $X" loginMethod. Feeding a
+    /// SyncCostSummary lets iOS reuse the existing Cost dashboard (30-day chart
+    /// + Model Mix) for Mistral, exactly like Codex/Claude. No envelope or iOS
+    /// change needed — pure bridge plumbing.
+    static func mapMistralCostSummary(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncCostSummary?
+    {
+        guard provider == .mistral, let m = snapshot?.mistralUsage, !m.daily.isEmpty else {
+            return nil
+        }
+        let daily: [SyncDailyPoint] = m.daily.map { bucket in
+            SyncDailyPoint(
+                dayKey: bucket.day,
+                costUSD: bucket.cost,
+                totalTokens: bucket.totalTokens,
+                modelBreakdowns: bucket.models
+                    .filter { $0.cost > 0 }
+                    .map { SyncCostBreakdown(label: $0.name, costUSD: $0.cost) }
+                    .sorted { $0.costUSD > $1.costUSD },
+                serviceBreakdowns: [],
+                isEstimated: nil)
+        }
+        return SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: m.totalCost,
+            last30DaysTokens: m.totalInputTokens + m.totalOutputTokens + m.totalCachedTokens,
+            daily: daily,
+            isEstimated: nil)
     }
 
     private func modelBreakdowns(
