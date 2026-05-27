@@ -5,23 +5,36 @@
 ## 4 个版本变量，全在 `version.env`
 
 ```
-MARKETING_VERSION=0.26.1     # Mac fork 版本，对外可见
-BUILD_NUMBER=63.2            # Mac CFBundleVersion，单调递增
-MOBILE_VERSION=1.7.0         # 配套的 iOS 版本，独立轨道
-UPSTREAM_VERSION=v0.26.1     # 最后一次同步的上游 tag
+MARKETING_VERSION=0.29.0.1   # Mac 对外版本 = {上游}.{fork 补丁}（4 段）
+BUILD_NUMBER=68.1            # Mac CFBundleVersion，单调递增
+MOBILE_VERSION=1.9.0         # 配套的 iOS 版本，独立轨道（保持 3 段）
+UPSTREAM_VERSION=v0.29.0     # 最后一次同步的上游 tag
 ```
 
 ## 每个怎么定
 
-### `MARKETING_VERSION` —— 跟着上游走
+### `MARKETING_VERSION` —— `{上游版本}.{fork 补丁}`（4 段）
+
+格式 = 上游的 3 段 tag + 第 4 段 fork 补丁计数器。上游段照抄上游 tag，fork 段从
+`.1` 开始，fork 每在**同一个上游版本**上再发一版就 +1，上游一动就重置回 `.1`。
 
 | 情况 | 版本号 |
 |------|--------|
-| Fork 同步到 upstream v0.26.1，没有 fork 端用户可感知的额外功能 | `0.26.1` |
-| 同步到 upstream v0.26.1，**但 fork 在它上面又改了 Mac UI（用户能看到的）** | `0.26.2` |
-| 同步到 upstream v0.26.1，**fork 又在 0.26.2 上面继续改 Mac UI** | `0.26.3` |
+| 刚同步到 upstream v0.29.0，fork 第 1 次发版 | `0.29.0.1` |
+| 还在 0.29.0 上，fork 再发一版（fix / 新卡片 / bridge / 任何改动） | `0.29.0.2` |
+| 上游出了 v0.29.1，fork 同步后第 1 次发版 | `0.29.1.1` |
+| 上游出了 v0.30.0，fork 同步后第 1 次发版 | `0.30.0.1` |
 
-**核心规则**：fork-private 的"iOS bridge / 内部 plumbing / 测试"**不算** Mac UI 改动，**不 bump** MARKETING_VERSION。只有 Mac 菜单/Settings/Provider 卡片这些用户能看到的地方真的变了，才 +.1。
+**核心规则**：前 3 段 = 上游 tag（只读照抄）；第 4 段 = fork 补丁，每发一版 +1，
+上游一动就重置 `.1`。和 `BUILD_NUMBER` 的 fork 计数器一起走（`0.29.0.1` ↔ `68.1`，
+`0.29.0.2` ↔ `68.2`）。这样**上游段与 fork 段彻底分开，永不和上游撞号**。
+
+**只 Mac 用 4 段**：iOS 的 `MOBILE_VERSION` 必须保持 3 段（App Store 只认 3 段整数，
+4 段会被拒）。Mac 走 Sparkle / Developer ID 分发，4 段显示版本没问题（Sparkle 用
+`BUILD_NUMBER` 比较，不校验显示版本；Mac 不上架 App Store）。
+
+**旧规则已作废**：之前"fork 改 Mac UI 才 bump 第 3 段（0.26.1 → 0.26.2）"会和上游
+自己的 patch 撞号（上游也会出 0.26.2），自 0.29.0.1 起改用上面的 4 段方案。
 
 ### `BUILD_NUMBER` —— subdecimal patch level
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.29.0 (Mobile 1.9.0 · build 68.1) — 2026-05-25 — upstream v0.29.0 + iOS 1.9.0
+## 0.29.0.1 (Mobile 1.9.0 · build 68.1) — 2026-05-27 — upstream v0.29.0 + iOS 1.9.0
 
 Syncs the Mac app to upstream CodexBar v0.29.0 and ships the paired iOS 1.9.0 companion. Three new providers — Azure OpenAI, Alibaba Token Plan (Bailian), and T3 Chat — plus the upstream v0.28.0 + v0.29.0 fixes.
 
@@ -24,7 +24,7 @@ Syncs the Mac app to upstream CodexBar v0.29.0 and ships the paired iOS 1.9.0 co
 ### Required versions
 
 - iPhone companion: iOS 1.9.0 (build 139), via TestFlight / App Store.
-- This Mac build: 0.29.0 (fork build 68.1). Update both for the full feature set.
+- This Mac build: 0.29.0.1 (fork build 68.1). Update both for the full feature set.
 
 ### 中文说明
 
@@ -50,7 +50,7 @@ Syncs the Mac app to upstream CodexBar v0.29.0 and ships the paired iOS 1.9.0 co
 ### 所需版本
 
 - iPhone 配套：iOS 1.9.0（build 139），经 TestFlight / App Store。
-- 本 Mac 版本：0.29.0（fork build 68.1）。两边都更新才能用全套功能。
+- 本 Mac 版本：0.29.0.1（fork build 68.1）。两边都更新才能用全套功能。
 
 ---
 
