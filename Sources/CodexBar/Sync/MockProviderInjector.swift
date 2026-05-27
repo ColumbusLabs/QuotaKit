@@ -267,7 +267,15 @@ enum MockProviderInjector {
         thirtyDayUSD: Double,
         thirtyDayTokens: Int,
         dailyTotals: [Double] = [],
-        isEstimated: Bool? = false) -> SyncCostSummary
+        isEstimated: Bool? = false,
+        // iOS 1.9.0 / Mac 0.29.0 gap F — non-nil drives the iOS "N Days"
+        // cost-window label (nil/30 → "30 Days").
+        historyDays: Int? = nil,
+        // iOS 1.9.0 / Mac 0.29.0 gap A — populate the Codex standard/fast
+        // (priority) cost split on each model breakdown so iOS renders the
+        // "Std $X · Fast $Y" sub-line. Only pass true for Codex mocks (the
+        // split is a Codex concept; iOS shows it wherever the fields exist).
+        includeStandardFastSplit: Bool = false) -> SyncCostSummary
     {
         // dayKey format `YYYY-MM-DD` (UTC) matches the real cost
         // scanner's emission format. Days are ordered oldest→newest.
@@ -276,6 +284,17 @@ enum MockProviderInjector {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         formatter.timeZone = TimeZone(identifier: "UTC")
+        /// 60/40 standard/priority split — synthetic but representative.
+        func breakdown(_ label: String, _ cost: Double) -> SyncCostBreakdown {
+            SyncCostBreakdown(
+                label: label,
+                costUSD: cost,
+                isEstimated: false,
+                standardCostUSD: includeStandardFastSplit ? cost * 0.6 : nil,
+                priorityCostUSD: includeStandardFastSplit ? cost * 0.4 : nil,
+                standardTokens: includeStandardFastSplit ? Int(cost * 0.6 * 50000) : nil,
+                priorityTokens: includeStandardFastSplit ? Int(cost * 0.4 * 50000) : nil)
+        }
         let dailyPoints: [SyncDailyPoint] = dailyTotals.enumerated().map { idx, dailyUSD in
             let captured = now.addingTimeInterval(
                 -Double(dailyTotals.count - 1 - idx) * oneDay)
@@ -284,14 +303,8 @@ enum MockProviderInjector {
                 costUSD: dailyUSD,
                 totalTokens: Int(dailyUSD * 50000), // synthetic token ratio
                 modelBreakdowns: [
-                    SyncCostBreakdown(
-                        label: "claude-sonnet-4-6",
-                        costUSD: dailyUSD * 0.7,
-                        isEstimated: false),
-                    SyncCostBreakdown(
-                        label: "claude-opus-4-7",
-                        costUSD: dailyUSD * 0.3,
-                        isEstimated: false),
+                    breakdown("claude-sonnet-4-6", dailyUSD * 0.7),
+                    breakdown("claude-opus-4-7", dailyUSD * 0.3),
                 ],
                 serviceBreakdowns: [],
                 isEstimated: false)
@@ -302,7 +315,8 @@ enum MockProviderInjector {
             last30DaysCostUSD: thirtyDayUSD,
             last30DaysTokens: thirtyDayTokens,
             daily: dailyPoints,
-            isEstimated: isEstimated)
+            isEstimated: isEstimated,
+            historyDays: historyDays)
     }
 
     // MARK: - Codex multi-account (R1) — 3 managed-account-style entries
@@ -347,7 +361,11 @@ enum MockProviderInjector {
                 sessionTokens: 12345,
                 thirtyDayUSD: totalUSD,
                 thirtyDayTokens: Int(totalUSD * 50000),
-                dailyTotals: dailySpend),
+                dailyTotals: dailySpend,
+                // gap F: 90-day window → iOS shows "90 Days" (vs "30 Days").
+                historyDays: 90,
+                // gap A: emit the Codex standard/fast split sub-line.
+                includeStandardFastSplit: true),
             budget: nil,
             rateWindows: [
                 SyncRateWindow(
@@ -1423,6 +1441,37 @@ enum MockProviderInjector {
                         expiresAt: now.addingTimeInterval(3600 * 36)),
                 ],
                 activeIndex: 0))
+        // iOS 1.9.0 / Mac 0.29.0 parity gap-fills (D / E / G). Each attaches
+        // the typed envelope block so the simple mock renders the new iOS
+        // detail card instead of only a generic rate window.
+        case "openrouter":
+            return V026MockExtras(openRouterStats: SyncOpenRouterStats(
+                balanceUSD: 7.50,
+                totalCreditsUSD: 50.0,
+                totalUsageUSD: 42.50,
+                usedPercent: 85.0,
+                keyUsageDailyUSD: 1.25,
+                keyUsageWeeklyUSD: 8.10,
+                keyUsageMonthlyUSD: 30.40,
+                keyLimitUSD: 100.0,
+                rateLimitRequests: 20,
+                rateLimitInterval: "10s",
+                updatedAt: now))
+        case "azureopenai":
+            return V026MockExtras(azureOpenAIInfo: SyncAzureOpenAIInfo(
+                endpointHost: "my-resource.openai.azure.com",
+                deploymentName: "gpt-4o-prod",
+                model: "gpt-4o",
+                apiVersion: "2024-10-21",
+                updatedAt: now))
+        case "alibabatokenplan":
+            return V026MockExtras(alibabaTokenPlan: SyncAlibabaTokenPlan(
+                planName: "Bailian Pro (Mock)",
+                usedCredits: 520_000,
+                totalCredits: 1_000_000,
+                remainingCredits: 480_000,
+                resetsAt: now.addingTimeInterval(15 * 86400),
+                updatedAt: now))
         default:
             return nil
         }
@@ -1440,6 +1489,10 @@ enum MockProviderInjector {
         var bedrockCost: SyncBedrockCost?
         var moonshotBalance: SyncMoonshotBalance?
         var antigravityAccounts: SyncMultiAccountList?
+        // iOS 1.9.0 / Mac 0.29.0 parity gap-fills (D / E / G).
+        var openRouterStats: SyncOpenRouterStats?
+        var azureOpenAIInfo: SyncAzureOpenAIInfo?
+        var alibabaTokenPlan: SyncAlibabaTokenPlan?
 
         init(
             openAIAPIDashboard: SyncOpenAIAPIDashboard? = nil,
@@ -1447,7 +1500,10 @@ enum MockProviderInjector {
             kiroCredits: SyncKiroCredits? = nil,
             bedrockCost: SyncBedrockCost? = nil,
             moonshotBalance: SyncMoonshotBalance? = nil,
-            antigravityAccounts: SyncMultiAccountList? = nil)
+            antigravityAccounts: SyncMultiAccountList? = nil,
+            openRouterStats: SyncOpenRouterStats? = nil,
+            azureOpenAIInfo: SyncAzureOpenAIInfo? = nil,
+            alibabaTokenPlan: SyncAlibabaTokenPlan? = nil)
         {
             self.openAIAPIDashboard = openAIAPIDashboard
             self.zaiHourlyUsage = zaiHourlyUsage
@@ -1455,6 +1511,9 @@ enum MockProviderInjector {
             self.bedrockCost = bedrockCost
             self.moonshotBalance = moonshotBalance
             self.antigravityAccounts = antigravityAccounts
+            self.openRouterStats = openRouterStats
+            self.azureOpenAIInfo = azureOpenAIInfo
+            self.alibabaTokenPlan = alibabaTokenPlan
         }
     }
 
@@ -1530,7 +1589,10 @@ enum MockProviderInjector {
             kiroCredits: extras?.kiroCredits,
             bedrockCost: extras?.bedrockCost,
             moonshotBalance: extras?.moonshotBalance,
-            antigravityAccounts: extras?.antigravityAccounts)
+            antigravityAccounts: extras?.antigravityAccounts,
+            openRouterStats: extras?.openRouterStats,
+            azureOpenAIInfo: extras?.azureOpenAIInfo,
+            alibabaTokenPlan: extras?.alibabaTokenPlan)
     }
 }
 
