@@ -13662,6 +13662,35 @@
           }
         }
       }
+    },
+    "+%lld more": {
+      "comment": "Subtitle on the Others row of a capped contribution list, showing how many entries are folded under it. iOS 1.9.0+ (build 140).",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%lld more"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%lld 件"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%lld 项"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%lld 項"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

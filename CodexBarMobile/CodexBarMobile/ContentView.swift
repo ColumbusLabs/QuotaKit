@@ -693,7 +693,23 @@ private struct CostDashboardView: View {
         rows: [CostBreakdownRow],
         total: Double) -> some View
     {
-        VStack(alignment: .leading, spacing: 10) {
+        // iOS 1.9.0+: cap to top 5 + an "Others" row whenever there are 6 or
+        // more entries; otherwise show all (a section with 3 real rows just
+        // shows 3 — no Others fold below the 6-item threshold). The Others
+        // row is wrapped in a NavigationLink that drills into a full list
+        // with the same row style. Same cap automatically covers Provider
+        // Share, Model Mix, and Codex Service Mix since all three call into
+        // this function. Replaces the prior `prefix(6) without Others` which
+        // silently dropped low-cost providers (e.g. Mistral at $0.85 in mock
+        // would vanish behind 6 higher spenders even though it contributed
+        // to the headline 30-day total).
+        let cap = 5
+        let usesOthers = rows.count >= cap + 1
+        let visible: [CostBreakdownRow] = usesOthers ? Array(rows.prefix(cap)) : rows
+        let tail: [CostBreakdownRow] = usesOthers ? Array(rows.dropFirst(cap)) : []
+        let tailAmount = tail.reduce(0) { $0 + $1.amountUSD }
+
+        return VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.headline)
                 .padding(.top, 4)
@@ -703,43 +719,40 @@ private struct CostDashboardView: View {
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 12) {
-                ForEach(Array(rows.prefix(6))) { row in
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            Circle()
-                                .fill(row.color)
-                                .frame(width: 10, height: 10)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(row.label)
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                if let subtitle = row.subtitle {
-                                    Text(subtitle)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                            CostBreakdownMetricColumn(
-                                amountText: Self.formatUSD(row.amountUSD),
-                                shareText: Self.formatShare(row.amountUSD, total: total))
-                        }
-
-                        ProgressView(value: Self.safeRatio(row.amountUSD, total: total))
-                            .tint(row.color)
-                            .scaleEffect(y: 1.8, anchor: .center)
+                ForEach(visible) { row in
+                    CostBreakdownRowView(row: row, total: total)
+                }
+                if usesOthers {
+                    NavigationLink {
+                        FullBreakdownListView(
+                            title: title,
+                            rows: rows,
+                            total: total)
+                    } label: {
+                        OthersBreakdownRowView(
+                            count: tail.count,
+                            amountUSD: tailAmount,
+                            total: total)
                     }
-                    .padding(14)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .buttonStyle(.plain)
                 }
             }
         }
     }
 
     private var budgetSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        // iOS 1.9.0+: cap to top 5 + Others when 6 or more budgets exist;
+        // otherwise show all. Same rule as the contribution lists. The Others
+        // row has no aggregate metric (summing budgets with different limits /
+        // currencies isn't meaningful) — just the count + a chevron, tappable
+        // → drills into a FullBudgetListView showing every budget.
+        let cap = 5
+        let rows = self.insights.budgetRows
+        let usesOthers = rows.count >= cap + 1
+        let visible: [CostBudgetRow] = usesOthers ? Array(rows.prefix(cap)) : rows
+        let tailCount = usesOthers ? rows.count - cap : 0
+
+        return VStack(alignment: .leading, spacing: 10) {
             Text("Budgets")
                 .font(.headline)
                 .padding(.top, 4)
@@ -749,24 +762,16 @@ private struct CostDashboardView: View {
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 12) {
-                ForEach(self.insights.budgetRows) { row in
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text(row.provider.providerName)
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                            Spacer()
-                            if let method = row.provider.loginMethod {
-                                Text(method)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-
-                        BudgetProgressView(
-                            budget: row.budget,
-                            tintColor: providerTint(for: row.provider))
+                ForEach(visible) { row in
+                    BudgetRowView(row: row)
+                }
+                if usesOthers {
+                    NavigationLink {
+                        FullBudgetListView(rows: rows)
+                    } label: {
+                        OthersBudgetRowView(count: tailCount)
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -1029,6 +1034,199 @@ struct CostDashboardInsights {
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter
     }()
+}
+
+/// Renders one row of the Cost dashboard's contribution lists (Provider Share /
+/// Model Mix / Codex Service Mix). Extracted in iOS 1.9.0 so the same row
+/// design is shared between the capped section preview (top 5) and the
+/// drill-down full-list view that opens when the user taps "Others".
+private struct CostBreakdownRowView: View {
+    let row: CostBreakdownRow
+    let total: Double
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Circle()
+                    .fill(row.color)
+                    .frame(width: 10, height: 10)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(row.label)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    if let subtitle = row.subtitle {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                CostBreakdownMetricColumn(
+                    amountText: CostFormatting.usd(row.amountUSD),
+                    shareText: Self.shareText(row.amountUSD, total: total))
+            }
+
+            ProgressView(value: Self.ratio(row.amountUSD, total: total))
+                .tint(row.color)
+                .scaleEffect(y: 1.8, anchor: .center)
+        }
+        .padding(14)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    fileprivate static func ratio(_ value: Double, total: Double) -> Double {
+        guard total > 0 else { return 0 }
+        return min(max(value / total, 0), 1)
+    }
+
+    fileprivate static func shareText(_ value: Double, total: Double) -> String {
+        guard total > 0 else { return "0%" }
+        return String(format: "%.0f%%", value / total * 100)
+    }
+}
+
+/// Bottom row of a capped contribution list, summarising everything beyond
+/// the top 5. Wrapped in a NavigationLink by the caller → drills into the
+/// full list. Visually mirrors `CostBreakdownRowView` with a muted grey dot
+/// and a trailing chevron to suggest tappability.
+private struct OthersBreakdownRowView: View {
+    let count: Int
+    let amountUSD: Double
+    let total: Double
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Circle()
+                    .fill(Color.secondary.opacity(0.5))
+                    .frame(width: 10, height: 10)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Others")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text("+\(count) more")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                CostBreakdownMetricColumn(
+                    amountText: CostFormatting.usd(amountUSD),
+                    shareText: CostBreakdownRowView.shareText(amountUSD, total: total))
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+
+            ProgressView(value: CostBreakdownRowView.ratio(amountUSD, total: total))
+                .tint(Color.secondary.opacity(0.5))
+                .scaleEffect(y: 1.8, anchor: .center)
+        }
+        .padding(14)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+}
+
+/// Drill-down view shown when the user taps an Others row on the Cost
+/// dashboard. Lists every entry in the section (same `CostBreakdownRowView`
+/// style) inside the Cost tab's existing NavigationStack.
+private struct FullBreakdownListView: View {
+    let title: LocalizedStringResource
+    let rows: [CostBreakdownRow]
+    let total: Double
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 12) {
+                ForEach(rows) { row in
+                    CostBreakdownRowView(row: row, total: total)
+                }
+            }
+            .padding()
+        }
+        .navigationTitle(Text(title))
+        #if !os(macOS)
+            .navigationBarTitleDisplayMode(.inline)
+        #endif
+        .background(Color(.systemGroupedBackground))
+    }
+}
+
+/// Renders one row of the Budgets section. Extracted in iOS 1.9.0 so the
+/// same row design is used by the capped preview (top 5) and the drill-down
+/// full list (see `FullBudgetListView`).
+private struct BudgetRowView: View {
+    let row: CostBudgetRow
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(row.provider.providerName)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                Spacer()
+                if let method = row.provider.loginMethod {
+                    Text(method)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            BudgetProgressView(
+                budget: row.budget,
+                tintColor: providerTint(for: row.provider))
+        }
+    }
+}
+
+/// Bottom Others row of the capped Budgets section. No aggregate metric —
+/// summing budgets across different limits / currencies / cycles isn't
+/// meaningful — just the count and a chevron. Tappable via the parent
+/// NavigationLink → FullBudgetListView.
+private struct OthersBudgetRowView: View {
+    let count: Int
+
+    var body: some View {
+        HStack {
+            Text("Others")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+            Spacer()
+            Text("+\(count) more")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 6)
+    }
+}
+
+/// Drill-down view for the Budgets section. Shows every budget in the same
+/// row design as the capped preview.
+private struct FullBudgetListView: View {
+    let rows: [CostBudgetRow]
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 12) {
+                ForEach(rows) { row in
+                    BudgetRowView(row: row)
+                }
+            }
+            .padding()
+        }
+        .navigationTitle(Text("Budgets"))
+        #if !os(macOS)
+            .navigationBarTitleDisplayMode(.inline)
+        #endif
+        .background(Color(.systemGroupedBackground))
+    }
 }
 
 struct CostBreakdownRow: Identifiable {

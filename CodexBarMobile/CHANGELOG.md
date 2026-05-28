@@ -2,6 +2,42 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.9.0 (140)] — 2026-05-28 — Cost dashboard: top-5 + Others cap + drill-down
+
+Consistency pass across every list-style section in the iOS Cost tab. Sections
+with **≥ 6 entries** now show **top 5 + a tappable "Others" row** that
+aggregates the tail; tap drills into a full list (same row design) in the
+existing NavigationStack. Sections with ≤ 5 entries still show all (no Others
+bucket). Closes the silent-drop behavior where small spenders ranked outside
+the top 6 vanished from the Provider Share list even though they counted
+toward the headline 30-day total (e.g. Mistral at $0.85 in mock).
+
+### Changed
+
+- **`contributionSection`** (Provider Share / Model Mix / Codex Service Mix
+  — all three call into this one helper) — was `prefix(6)` with no Others,
+  now top 5 + Others → drill-down to `FullBreakdownListView`.
+- **Budgets** (`budgetSection`) — was uncapped; same cap rule. The Others
+  row has no aggregate metric (summing budgets across different limits /
+  currencies isn't meaningful) — just the count and a chevron. Drill-down:
+  `FullBudgetListView`.
+- **Subscription Utilization** (`UtilizationAggregateView.providerShares`)
+  — was uncapped; same cap rule. The tail's `sharePercent` is additive
+  across providers, so the "Others X%" is meaningful. Drill-down:
+  `FullProviderUtilizationListView` (nested struct).
+- **Cost Share card** (`CostShareService.displayProviders` / `topModels`)
+  — top 3 → top 5 + Others, for consistency.
+- **`CyberShareCardView`** — intentionally left at `prefix(3)`: its 3-column
+  ArcGauge / cost-row layout is built around exactly 3 columns and would
+  overflow if widened to 5.
+
+### Localization
+
+- New key `"+%lld more"` (en / ja / zh-Hans / zh-Hant). The existing
+  `Others` key is reused across all four new section caps.
+
+---
+
 ## [1.9.0 (139)] — 2026-05-26 — upstream v0.29.0 sync + Mac↔iOS parity gap-fills
 
 MOBILE_VERSION 1.8.0 → 1.9.0, build 137 → 139. Pairs with Mac CodexBar 0.29.0

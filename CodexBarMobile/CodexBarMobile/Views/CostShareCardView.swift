@@ -254,7 +254,8 @@ private struct TodayCard: View {
                     Text(String(localized: "Top Models"))
                         .font(.caption.bold())
                         .foregroundStyle(theme.secondary)
-                    ForEach(Array(data.topModels.prefix(3).enumerated()), id: \.offset) { _, model in
+                    // iOS 1.9.0+: top 5 (was 3) to match the rest of the cap rule.
+                    ForEach(Array(data.topModels.prefix(5).enumerated()), id: \.offset) { _, model in
                         HStack {
                             Text(model.label)
                                 .font(.caption)

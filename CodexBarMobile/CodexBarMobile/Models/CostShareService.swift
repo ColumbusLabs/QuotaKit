@@ -73,19 +73,22 @@ struct ShareCardData {
         let cost: Double
     }
 
-    /// Top 3 providers + "Others" if more than 3 exist
+    /// Top 5 providers + "Others" if 6 or more exist (iOS 1.9.0+: bumped from
+    /// top 3 → top 5 for consistency with the Cost dashboard's top-5+Others
+    /// cap. Threshold is `count >= 6` — a list of exactly 5 just shows 5, no
+    /// Others bucket).
     var displayProviders: [ProviderRow] {
-        guard providers.count > 3 else { return providers }
-        let top3 = Array(providers.prefix(3))
-        let othersShare = providers.dropFirst(3).reduce(0.0) { $0 + $1.share }
-        let othersCost = providers.dropFirst(3).reduce(0.0) { $0 + $1.cost }
+        guard providers.count > 5 else { return providers }
+        let top5 = Array(providers.prefix(5))
+        let othersShare = providers.dropFirst(5).reduce(0.0) { $0 + $1.share }
+        let othersCost = providers.dropFirst(5).reduce(0.0) { $0 + $1.cost }
         let others = ProviderRow(
             name: String(localized: "Others"),
             cost: othersCost,
             share: othersShare,
             color: .gray
         )
-        return top3 + [others]
+        return top5 + [others]
     }
 }
 
@@ -236,8 +239,8 @@ extension ShareCardData {
         self.avgDailyCost = activeDays > 0 ? periodCost / Double(activeDays) : 0
         self.providers = adjustedProviders.filter { $0.cost > 0 }
 
-        // Top models (top 3)
-        self.topModels = insights.modelRows.prefix(3).map { row in
+        // Top models (top 5 — bumped from 3 in iOS 1.9.0 for cap consistency).
+        self.topModels = insights.modelRows.prefix(5).map { row in
             let totalModel = insights.modelRows.reduce(0.0) { $0 + $1.amountUSD }
             return BreakdownRow(
                 label: row.label,

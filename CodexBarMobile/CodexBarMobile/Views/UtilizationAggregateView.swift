@@ -125,11 +125,38 @@ struct UtilizationAggregateView: View {
                     }
                 }
 
-                // Provider cards — merged directly into this section (no sub-header)
+                // Provider cards — merged directly into this section (no sub-header).
+                // iOS 1.9.0+: cap to top 5 + Others when 6 or more providers
+                // contributed; otherwise show all. The Others row aggregates the
+                // tail's sharePercent (additive across providers, so the sum is
+                // meaningful) and is wrapped in a NavigationLink that drills
+                // into FullProviderUtilizationListView listing every provider
+                // in the same row style.
                 if !m.providerShares.isEmpty {
+                    let cap = 5
+                    let usesOthers = m.providerShares.count >= cap + 1
+                    let visibleShares = usesOthers
+                        ? Array(m.providerShares.prefix(cap))
+                        : m.providerShares
+                    let tailShares = usesOthers
+                        ? Array(m.providerShares.dropFirst(cap))
+                        : []
+                    let tailShareSum = tailShares.reduce(0.0) { $0 + $1.sharePercent }
+
                     VStack(spacing: 12) {
-                        ForEach(m.providerShares) { row in
+                        ForEach(visibleShares) { row in
                             self.providerShareRow(row)
+                        }
+                        if usesOthers {
+                            NavigationLink {
+                                FullProviderUtilizationListView(
+                                    shares: m.providerShares)
+                            } label: {
+                                self.othersUtilizationRow(
+                                    count: tailShares.count,
+                                    sharePercent: tailShareSum)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -296,6 +323,106 @@ struct UtilizationAggregateView: View {
         }
         .padding(14)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    /// "Others" row at the bottom of the capped Subscription Utilization
+    /// section. iOS 1.9.0+ — aggregates the tail's `sharePercent` (additive
+    /// across providers, so the sum is meaningful — unlike averaging
+    /// individual `rawAvgPercent` averages) and shows a trailing chevron to
+    /// suggest tappability. Caller wraps in a NavigationLink to
+    /// FullProviderUtilizationListView.
+    private func othersUtilizationRow(
+        count: Int,
+        sharePercent: Double) -> some View
+    {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Circle()
+                    .fill(Color.secondary.opacity(0.5))
+                    .frame(width: 10, height: 10)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Others")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text("+\(count) more")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text(String(format: "%.0f%%", sharePercent))
+                    .font(.title3.monospacedDigit().bold())
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+
+            ProgressView(value: sharePercent / 100)
+                .tint(Color.secondary.opacity(0.5))
+                .scaleEffect(y: 1.8, anchor: .center)
+        }
+        .padding(14)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    /// Drill-down view shown when the user taps the Others row of the
+    /// Subscription Utilization section. Lists every provider in the same row
+    /// design as the capped section preview. Uses the static
+    /// `"%.0f%% avg use"` subtitle — deliberately does NOT honor the
+    /// `SubscriptionDisplayMode` "inverted / remaining" toggle, since the
+    /// inverted view is still accessible from the section preview and
+    /// duplicating the @AppStorage logic here would risk drift.
+    private struct FullProviderUtilizationListView: View {
+        let shares: [ProviderShare]
+
+        var body: some View {
+            ScrollView {
+                VStack(spacing: 12) {
+                    ForEach(shares) { row in
+                        Self.shareRow(row)
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle(Text("Subscription Utilization"))
+            #if !os(macOS)
+                .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .background(Color(.systemGroupedBackground))
+        }
+
+        private static func shareRow(_ row: ProviderShare) -> some View {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Circle()
+                        .fill(row.color)
+                        .frame(width: 10, height: 10)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(row.name)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        Text(String(
+                            format: String(localized: "%.0f%% avg use"),
+                            row.rawAvgPercent))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Text(String(format: "%.0f%%", row.sharePercent))
+                        .font(.title3.monospacedDigit().bold())
+                }
+
+                ProgressView(value: row.sharePercent / 100)
+                    .tint(row.color)
+                    .scaleEffect(y: 1.8, anchor: .center)
+            }
+            .padding(14)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
     }
 
     // MARK: - Data Model
