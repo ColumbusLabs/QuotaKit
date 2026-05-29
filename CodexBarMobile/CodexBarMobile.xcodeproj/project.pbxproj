@@ -41,6 +41,7 @@
 		36E36EE311B054390CE848F2 /* LLMProxyStatsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B22B4D560AC765604858E821 /* LLMProxyStatsCard.swift */; };
 		37D05E7A04ABF89129C7D284 /* DualZoneReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F06B5BB1489F508FCD20228A /* DualZoneReaderTests.swift */; };
 		383E1D735F75F0B574447EDF /* ShareCardRenderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A260F62AFF50B05ED7E6401 /* ShareCardRenderTests.swift */; };
+		3A61359B6A439F7C8C342C49 /* CWLPerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDF19DFB181532F757F35E7C /* CWLPerformanceTests.swift */; };
 		3E591C7DE7ED51CB3883D431 /* ProviderUsageEnvelope.swift in Sources */ = {isa = PBXBuildFile; fileRef = 639A4CD0CDA802F15E954D5B /* ProviderUsageEnvelope.swift */; };
 		3FF73F5DB65C0589C032253A /* CloudConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFFC39F091B19A1DE9F2E7C7 /* CloudConstants.swift */; };
 		4012D7EC2F2083F196B70B84 /* MoonshotBalanceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BC3BD9EFBA38613A27A03C6 /* MoonshotBalanceCard.swift */; };
@@ -337,6 +338,7 @@
 		DBFBF4B7241CE271554F183C /* ZaiHourlyChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZaiHourlyChart.swift; sourceTree = "<group>"; };
 		DC3A52976034BA3F0CA44327 /* CodexBarMobileApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexBarMobileApp.swift; sourceTree = "<group>"; };
 		DCEB2C9879BAEC3DF4AEAB41 /* LinkageRecordMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkageRecordMergeTests.swift; sourceTree = "<group>"; };
+		DDF19DFB181532F757F35E7C /* CWLPerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CWLPerformanceTests.swift; sourceTree = "<group>"; };
 		E16DA26E9BEFB5354A725F99 /* DeviceProviderZoneSubscription.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceProviderZoneSubscription.swift; sourceTree = "<group>"; };
 		E51BEDB997C80D4064449061 /* SnapshotCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotCache.swift; sourceTree = "<group>"; };
 		E53728795F865E33900DA3C3 /* CodexBarMobileUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexBarMobileUITests.swift; sourceTree = "<group>"; };
@@ -474,6 +476,7 @@
 				7AABCE82169AC4EF72708082 /* CWLAggregateTests.swift */,
 				79B9DE156699CE9E8DF9A818 /* CWLEquivalenceTests.swift */,
 				BC74955D108073474BBBAB91 /* CWLMigrationTests.swift */,
+				DDF19DFB181532F757F35E7C /* CWLPerformanceTests.swift */,
 				57D94028CBE4AB12A131F439 /* CWLSchemaTests.swift */,
 				0A73B8C46F2108FB61B56B64 /* CWLSeedTests.swift */,
 				D0629321562B420C752FB0A8 /* CWLWriterTests.swift */,
@@ -845,6 +848,7 @@
 				638B0DA8806E1E1637E13E7A /* CWLAggregateTests.swift in Sources */,
 				49148E58B3AF1030559597F2 /* CWLEquivalenceTests.swift in Sources */,
 				3181B2D5BBB7820CABFD2601 /* CWLMigrationTests.swift in Sources */,
+				3A61359B6A439F7C8C342C49 /* CWLPerformanceTests.swift in Sources */,
 				5276BDE7FB232DBFA63A2D92 /* CWLSchemaTests.swift in Sources */,
 				2E8C1EB06CD3DA4A1895AB87 /* CWLSeedTests.swift in Sources */,
 				9C00DB027AB6C29845327154 /* CWLWriterTests.swift in Sources */,
@@ -1027,7 +1031,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 140;
+				CURRENT_PROJECT_VERSION = 141;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1206,7 +1210,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 140;
+				CURRENT_PROJECT_VERSION = 141;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1228,7 +1232,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 140;
+				CURRENT_PROJECT_VERSION = 141;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1266,7 +1270,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 140;
+				CURRENT_PROJECT_VERSION = 141;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1302,7 +1306,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 140;
+				CURRENT_PROJECT_VERSION = 141;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1326,7 +1330,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 140;
+				CURRENT_PROJECT_VERSION = 141;
 				DEVELOPMENT_TEAM = 3TUERHN53E;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

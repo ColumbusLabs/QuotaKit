@@ -2,6 +2,38 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.9.0 (141)] — 2026-05-29 — Cost Window Ledger (beta, opt-in)
+
+Adds an opt-in on-device cost ledger so the Cost tab can show a longer cost
+history than the Mac's current window — independent of the Mac's `historyDays`
+setting. **Default OFF**: untouched users keep exactly the build-140 behavior
+(the existing iCloud blob path). Research doc 024.
+
+### Added
+
+- **Settings → Cost Setting → Cost History**: a "Local cost history" toggle
+  + a window picker (7 / 30 / 90 / 365 days), a local-ledger diagnostics
+  panel (days collected / providers / devices / since), and a "Clear local
+  cost history" action (confirmation dialog).
+- **`DailyCostPoint` SwiftData entity**: per-device, per-provider,
+  per-account, per-day ledger. Each iCloud sync appends/dedupes its daily
+  points (keyed by `(deviceID, providerID, accountEmail, dayKey)`, newest
+  `lastUpdated` wins) instead of replacing the whole blob — so history
+  accumulates beyond the Mac window.
+- **Enable = seed**: turning the toggle on imports the current blob history
+  into the ledger so the dashboard is populated immediately (no wait for the
+  next Mac sync). Seed failure reverts the toggle.
+
+### Notes
+
+- iOS-only: no Mac change, no CloudKit envelope change. The ledger reads the
+  same `SyncCostSummary.daily` data the Mac already pushes; it just keeps it.
+- When ON, the Cost dashboard's totals / Provider Share / Model Mix re-window
+  from the ledger; Subscription Utilization + the daily-spend chart are
+  unchanged. Multi-account providers stay split per account.
+
+---
+
 ## [1.9.0 (140)] — 2026-05-28 — Cost dashboard: top-5 + Others cap + drill-down
 
 Consistency pass across every list-style section in the iOS Cost tab. Sections

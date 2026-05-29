@@ -34,7 +34,7 @@
 | **T14** | **build 140 cap+Others 回归**:CWL ON 下 Provider Share / Model Mix / Budgets / Utilization 仍 top 5 + Others + drill-down 行为正确 | 现有 `MockProviderV029ExtrasTests.swift` + 新断言 | P4 + P7 |
 | **T15** | 多设备 fixture:2 设备各 30 天(部分 dayKey 重叠) → 聚合后跨设备唯一 dayKey 全在,重叠 dayKey latest 赢 | `CWLMultiDeviceTests.swift`(新) | P5 |
 | **T16** | 已有 SwiftData store 在新 schema 下打开(lightweight migration):旧 model 数据(`DeviceRecord` / `ProviderSnapshotModel`)在 reopen 后**完整 readable**,`DailyCostPoint` 表自动加入并可 fetch(空)。模拟"老用户升级"场景。 | `CWLMigrationTests.swift`(新) | P1 + P6 |
-| **T17** | **性能验收**:365 天 × 40 providers 全 ledger → `aggregate(365)` ≤ **50 ms p95**(100 trials) | `CWLPerformanceTests.swift`(新) | P7 |
+| **T17** | **规模正确性 + 性能护栏**:365 天 × 40 providers(≈14.6k 行)→ `aggregate(365)` 总额/天数/rollup 数正确 + 单次 < **2s**(宽松 CI 上限,抓 O(n²) 回归)。精确 **≤ 50ms p95** 是真机 manual(M-perf)—— CI 时序会 flake,不做紧断言。 | `CWLPerformanceTests.swift`(新) | P7 |
 
 ## 每 Phase 验收
 

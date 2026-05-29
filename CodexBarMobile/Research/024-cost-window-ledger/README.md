@@ -12,7 +12,8 @@
 
 ## 当前状态
 
-- **Round 7(2026-05-29)— P6 seed(本提交)**:`CostLedgerService.seedFromExistingBlobs(in:)` —— 读所有 `ProviderSnapshotModel`,解码 `costSummaryData`,逐 day upsert 进 ledger(带 deviceID/providerID/accountEmail)。接到 `CostSettingsView` 的 `.onChange(cwlEnabled)`:首次开 CWL 即导入现有 blob → dashboard 立刻有数据(闭合 R6 缺口);seed throw → 自动回退关 CWL。幂等(re-seed = no-op via dedup),损坏/nil blob 跳过不崩。T10(导入 + 幂等)+ T11(损坏/nil 跳过)4 用例。45 tests / 8 suites 全绿。
+- **Round 8(2026-05-29)— P7 工程收尾(本提交)**:T17 规模测试(365×40 ≈14.6k 行 aggregate 总额/天数/rollup 正确 + <2s);build 140→141;iOS CHANGELOG 141(CWL beta);TESTING T17 改成"规模正确性 + 宽松护栏,精确 50ms 是真机 manual"。46 tests / 9 suites 全绿,lint 0。**引擎 + UI + 迁移 + 测试全部完成。** 剩:① TestFlight 上传(本提交后台跑)② 真机 M1–M8 人工验证(需要你)③ QA 通过后正式 ship(需要你)。
+- **Round 7(2026-05-29)— P6 seed**:`CostLedgerService.seedFromExistingBlobs(in:)` —— 读所有 `ProviderSnapshotModel`,解码 `costSummaryData`,逐 day upsert 进 ledger(带 deviceID/providerID/accountEmail)。接到 `CostSettingsView` 的 `.onChange(cwlEnabled)`:首次开 CWL 即导入现有 blob → dashboard 立刻有数据(闭合 R6 缺口);seed throw → 自动回退关 CWL。幂等(re-seed = no-op via dedup),损坏/nil blob 跳过不崩。T10(导入 + 幂等)+ T11(损坏/nil 跳过)4 用例。45 tests / 8 suites 全绿。
 - **Round 6(2026-05-29)— P4b UI**:`CostTab.currentInsights` 按 `cwlEnabled` 分派(`@Environment(modelContext)` + `aggregate(cwlWindowDays)` → `fromLedger`,demo 模式不走 CWL,`try?` 失败回退 blob);`CostSettingsView` 加 CWL section(Toggle + 窗口 Picker 7/30/90/365 + 清空确认 + 诊断面板);`CostLedgerService.clearAll`;`MobileSettingsKeys.cwlWindowDays`;14 个新字符串 4 语。T12 clearAll ✓,41 tests / 7 suites 全绿。**已知缺口**:首次开 CWL 时 ledger 空,dashboard 暂空到下次 Mac 同步 —— Round 7 / P6 seed(导入现有 blob)修复,并把 seed 接到 toggle-on。**MANUAL 待验**:M1(OFF == 140)/ M2(Picker 切窗口)/ M3(清空)需真机。
 - **Round 5(2026-05-29)— P4a 数据源集成**:`CostDashboardInsights.fromLedger(aggregation:snapshot:)` 工厂 + memberwise init;`CostLedgerAggregation` 加 `serviceMix`。cost 字段来自 ledger(按窗口聚合),provider 元数据(name/color/budget)来自 live snapshot,按 `(providerID, accountEmail)` 元组匹配(避开 `"_"` vs `""` nil 约定冲突)。**T7 等价回归**:同数据 blob 路径 vs ledger 路径,总额/per-provider/daily/model mix 数值一致(< 0.001),含多账号场景。40 tests / 7 suites 全绿。**currentInsights 实际分派 + window picker 归 Round 6/P4b**(避开 @Environment(modelContext) 依赖,和 Settings UI 一起做)。
 - **Round 4(2026-05-29)— account-aware key 修复**:P4a 集成时**发现根本问题** —— `DailyCostPoint` key 不含 `accountEmail`,会让同 provider 的多账号成本 collide 丢失(回退项目多账号能力)。修:key 改 `{deviceID}|{providerID}|{accountEmail ?? "_"}|{dayKey}`(对齐 blob 路径 cardIdentityKey),writer 传 `provider.accountEmail`,reader dedup/rollup 按 cardIdentityKey。加多账号"不 collide"测试(writer + aggregate 各一)。38 tests / 6 suites 全绿。**P4a 数据源集成顺延到 Round 5**(先修地基)。
@@ -40,7 +41,9 @@
 - [x] **Round 5 / P4a**:数据源集成 —— `CostDashboardInsights.fromLedger` 工厂 + memberwise init + `serviceMix`。**T7 等价回归 ✓**(含多账号)。currentInsights 实际分派移到 R6(和 UI 一起)。
 - [x] **Round 6 / P4b**:UI —— `CostTab.currentInsights` 分派 + Settings CWL section(Toggle + Picker + 清空确认 + 诊断)+ `clearAll` + `cwlWindowDays` + 14 字符串 4 语。T12 ✓。currentInsights 分派由 T7 fromLedger 覆盖;Picker/Toggle/清空 真机为 M1–M3(MANUAL)。
 - [x] **Round 7 / P6**:Migration —— `seedFromExistingBlobs` + `.onChange(cwlEnabled)` toggle-on 导入 + 失败回退关 CWL。幂等 + 损坏/nil 跳过。T10/T11 4 用例 ✓。R6 首次开空缺口已闭合。
-- [ ] **Round 8 / P7**:性能 T17 + build bump 140→141 + iOS CHANGELOG + TestFlight 上传 → 然后真机 M1–M8 由用户验。
+- [x] **Round 8 / P7(工程)**:T17 规模测试 ✓ + build 141 + iOS CHANGELOG 141 + TestFlight 上传。
+- [ ] **真机 M1–M8**:需要你在 TestFlight build 141 真机上验(开关/Picker/清空/CWL ON-OFF/多设备/老用户升级 seed/性能体感/build 140 回归)。
+- [ ] **正式 ship**:M1–M8 通过后由你确认。
 
 > 注:原 P5 多设备 merge 已被 P3 reader + Round 4 account-key 覆盖(跨设备按 `(providerID, accountEmail, dayKey)` group 取 latest lastUpdated),不再单列;端到端多设备验证并入 Round 5 的 T7。
 
