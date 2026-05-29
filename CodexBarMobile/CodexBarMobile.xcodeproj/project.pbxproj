@@ -31,6 +31,7 @@
 		297CB7B072F71D5540B234A4 /* MobileChartAxisFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 252CB6CF0CDF983CD183384F /* MobileChartAxisFormatter.swift */; };
 		2B9A62B0ADAF89ADBD8826DA /* MultiAccountForEachIdentityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F8C8BB69CA51A514FF41E14 /* MultiAccountForEachIdentityTests.swift */; };
 		2DBF25B9E86E819649C2BE29 /* GroqMetricsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D0855CD28B09BC6FE3D911E /* GroqMetricsCard.swift */; };
+		2E8C1EB06CD3DA4A1895AB87 /* CWLSeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A73B8C46F2108FB61B56B64 /* CWLSeedTests.swift */; };
 		2F25E64EEAF1963781B976C8 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB5B03C39186CBC42C349F8 /* EmptyStateView.swift */; };
 		2F95648D7B6137DC85B62F37 /* ClaudePeakHoursTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 247726F710DF2854B553518D /* ClaudePeakHoursTests.swift */; };
 		3181B2D5BBB7820CABFD2601 /* CWLMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC74955D108073474BBBAB91 /* CWLMigrationTests.swift */; };
@@ -219,6 +220,7 @@
 /* Begin PBXFileReference section */
 		01AA3F7A048F7301BC92A1A2 /* QuotaZoneNotificationParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaZoneNotificationParser.swift; sourceTree = "<group>"; };
 		04473E13F793B1EDF3EF4280 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		0A73B8C46F2108FB61B56B64 /* CWLSeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CWLSeedTests.swift; sourceTree = "<group>"; };
 		0AC8949E5A683B18E778EAC3 /* CloudSyncReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncReader.swift; sourceTree = "<group>"; };
 		0BC3BD9EFBA38613A27A03C6 /* MoonshotBalanceCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoonshotBalanceCard.swift; sourceTree = "<group>"; };
 		11E7C1D372FC60DBC88221B1 /* SameMacMultiAccountMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SameMacMultiAccountMergeTests.swift; sourceTree = "<group>"; };
@@ -473,6 +475,7 @@
 				79B9DE156699CE9E8DF9A818 /* CWLEquivalenceTests.swift */,
 				BC74955D108073474BBBAB91 /* CWLMigrationTests.swift */,
 				57D94028CBE4AB12A131F439 /* CWLSchemaTests.swift */,
+				0A73B8C46F2108FB61B56B64 /* CWLSeedTests.swift */,
 				D0629321562B420C752FB0A8 /* CWLWriterTests.swift */,
 				C1DABA431C3A96BC06782271 /* ModelContainerFactoryTests.swift */,
 				5A393218B2702DC47F1003A5 /* SnapshotIdentityKeyTests.swift */,
@@ -843,6 +846,7 @@
 				49148E58B3AF1030559597F2 /* CWLEquivalenceTests.swift in Sources */,
 				3181B2D5BBB7820CABFD2601 /* CWLMigrationTests.swift in Sources */,
 				5276BDE7FB232DBFA63A2D92 /* CWLSchemaTests.swift in Sources */,
+				2E8C1EB06CD3DA4A1895AB87 /* CWLSeedTests.swift in Sources */,
 				9C00DB027AB6C29845327154 /* CWLWriterTests.swift in Sources */,
 				2F95648D7B6137DC85B62F37 /* ClaudePeakHoursTests.swift in Sources */,
 				B0BD7B9F90964EE0B5859675 /* CloudKitMergeTests.swift in Sources */,

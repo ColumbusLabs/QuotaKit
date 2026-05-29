@@ -389,6 +389,47 @@ enum CostLedgerService {
         try context.save()
     }
 
+    // MARK: - Seed from existing blobs (migration · Round 7 / P6)
+
+    /// One-shot import of the existing blob-path data into the ledger. Run on
+    /// the user's first CWL enable so the dashboard has history immediately
+    /// (instead of waiting for the next Mac sync to rebuild it). Reads every
+    /// `ProviderSnapshotModel` row, decodes its `costSummaryData`, and upserts
+    /// each daily point keyed by the row's (deviceID, providerID, accountEmail).
+    ///
+    /// Idempotent: re-running seeds the same `(deviceID, providerID,
+    /// accountEmail, dayKey)` keys with the same `lastUpdated`, so the dedup
+    /// rule (`existing.lastUpdated >= incoming → skip`) makes a second run a
+    /// no-op. A corrupt / undecodable blob is skipped (that provider just has
+    /// no seeded history); other rows still seed. Throws only on the final
+    /// `save()` — the caller (toggle-on) turns CWL back off on throw.
+    static func seedFromExistingBlobs(in context: ModelContext) throws {
+        let providers = try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
+        let decoder = CloudSyncConstants.makeJSONDecoder()
+        let encoder = CloudSyncConstants.makeJSONEncoder()
+        for row in providers {
+            guard let blob = row.costSummaryData,
+                  let summary = try? decoder.decode(SyncCostSummary.self, from: blob)
+            else { continue }
+            for point in summary.daily {
+                try Self.upsertDayPoint(
+                    deviceID: row.deviceID,
+                    providerID: row.providerID,
+                    accountEmail: row.accountEmail,
+                    dayKey: point.dayKey,
+                    costUSD: point.costUSD,
+                    totalTokens: point.totalTokens,
+                    isEstimated: point.isEstimated,
+                    modelBreakdowns: point.modelBreakdowns,
+                    serviceBreakdowns: point.serviceBreakdowns,
+                    lastUpdated: row.lastUpdated,
+                    encoder: encoder,
+                    in: context)
+            }
+        }
+        try context.save()
+    }
+
     // MARK: - Helpers
 
     /// `[asOf - (windowDays - 1) days, asOf]` lower bound as a `YYYY-MM-DD`

@@ -2980,6 +2980,18 @@ private struct CostSettingsView: View {
             }
         }
         .navigationTitle("Cost Setting")
+        .onChange(of: self.cwlEnabled) { _, isOn in
+            // First enable: import the existing blob history into the ledger so
+            // the dashboard has data immediately instead of waiting for the next
+            // Mac sync. On failure, revert the toggle (CWL stays off, blob path
+            // keeps working). Idempotent — re-enabling is a cheap no-op.
+            guard isOn else { return }
+            do {
+                try CostLedgerService.seedFromExistingBlobs(in: self.modelContext)
+            } catch {
+                self.cwlEnabled = false
+            }
+        }
     }
 
     /// Read-on-render ledger diagnostics for the Settings panel. O(rows);
