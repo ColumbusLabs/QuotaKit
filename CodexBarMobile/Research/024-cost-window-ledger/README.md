@@ -12,10 +12,11 @@
 
 ## 当前状态
 
-- **Round 1(2026-05-28)— P1 SwiftData schema(本提交)**:新增 `DailyCostPoint @Model`,注册到 `CodexBarSwiftDataSchema.models`。SwiftData lightweight migration 处理"新增 entity",无需 versioned schema。T1 + T16 全过(6 tests / 2 suites)。
+- **Round 2(2026-05-28)— P2 Writer(本提交)**:`CostLedgerService.{isEnabled, upsertFromSnapshot, upsertDayPoint}` 新增,`SwiftDataBridge.upsertProvider` 末尾 gate 上接 ledger,`MobileSettingsKeys.cwlEnabled` 新增(默认 false)。Dedup 规则:同 (deviceID, providerID, dayKey) 第二次写时 `existing.lastUpdated >= incoming.lastUpdated` → 跳过。T2 + T3 + gate + wrapper 共 9 tests 全过;P1 / 现有 SwiftData 测试也都过(27 tests / 5 suites 总绿,build 140 path 不破坏)。
+- Round 1(2026-05-28)— P1 SwiftData schema:`DailyCostPoint @Model` 新增,注册到 `CodexBarSwiftDataSchema.models`。SwiftData lightweight migration。T1 + T16 全过。
 - Round 0(2026-05-28)— Bootstrap docs:创建本目录 5 份文档。
-- 下一步:Round 2 / P2 Writer(`SwiftDataBridge.upsertProvider` 末尾接 ledger upsert,仅 CWL ON,blob 路径不动)。
-- 上一轮交付:build 140 — Cost dashboard top-5 + Others + drill-down。**CWL 不许回退这一批**。
+- 下一步:Round 3 / P3 Reader(`CostLedgerService.aggregate(windowDays:)` + provider rollup + 诊断)。
+- 上一轮交付:build 140 — Cost dashboard top-5 + Others + drill-down。**CWL 不许回退这一批**(CWL 默认 OFF,P2 没人开,行为 == 140)。
 
 ## 硬约束(每轮 CR 必须核对)
 
@@ -28,7 +29,7 @@
 ## TODO(分 phase,见 [DEVELOPMENT.md](DEVELOPMENT.md))
 
 - [x] **Round 1 / P1**:SwiftData schema —— 新增 `@Model DailyCostPoint`,注册到 `CodexBarSwiftDataSchema.models`(lightweight migration,无 versioned schema)。T1 + T16 ✓。
-- [ ] **Round 2 / P2**:Writer —— `SwiftDataBridge.upsertProvider` 末尾加 ledger upsert(仅 CWL ON),blob 路径不动。
+- [x] **Round 2 / P2**:Writer —— `CostLedgerService.upsertFromSnapshot` + `SwiftDataBridge.upsertProvider` 末尾 gate hook + `MobileSettingsKeys.cwlEnabled`(默认 false)。T2 + T3 + gate + wrapper 9 tests ✓,blob 路径无变化。
 - [ ] **Round 3 / P3**:Reader —— `CostLedgerService.aggregate(windowDays:)`。
 - [ ] **Round 4 / P4**:UI —— Settings 开关 + Picker(7/30/90/365)+ 清空 + 诊断;`CostDashboardInsights` 接 ledger 后端。
 - [ ] **Round 5 / P5**:多设备 merge ledger-of-ledgers。
@@ -44,7 +45,8 @@
 
 ## Round 历史
 
-- **Round 1(2026-05-28)— P1 SwiftData schema**:`DailyCostPoint @Model` 新增 + 注册。校正 3 份文档(ARCHITECTURE / DEVELOPMENT / TESTING):**测试位置改为 `CodexBarMobileTests/Storage/`**(iOS test target,非 Mac SPM);**lightweight migration 替代"VersionedSchema + MigrationPlan"**(过度设计;现 `ModelContainerFactory` 还无 migration 基础设施)。T1 + T16 共 6 tests / 2 suites 全过。下一步 Round 2 = P2 Writer。
+- **Round 2(2026-05-28)— P2 Writer**:`CostLedgerService.swift` 新增(`isEnabled` / `upsertFromSnapshot` / `upsertDayPoint`);`SwiftDataBridge.upsertProvider` 末尾 6 行 gate hook(blob 路径完全不变);`MobileSettingsKeys.cwlEnabled` 新增,默认 false。Dedup 规则:`existing.lastUpdated >= incoming.lastUpdated` → 跳过(同 Mac 同 cycle 同 dayKey 第二次冗余写直接 skip)。`CWLWriterTests.swift` 9 用例:T2 dedup by composite key(2 个) + T3 newer/older/equal lastUpdated(3 个) + Gate(2 个) + upsertFromSnapshot wrapper(2 个)。所有 CWL 测试 + 防回归(SwiftDataBridge / ModelContainerFactory)共 27 tests / 5 suites 全绿。下一步 Round 3 = P3 Reader。
+- **Round 1(2026-05-28)— P1 SwiftData schema**:`DailyCostPoint @Model` 新增 + 注册。校正 3 份文档(ARCHITECTURE / DEVELOPMENT / TESTING):**测试位置改为 `CodexBarMobileTests/Storage/`**(iOS test target,非 Mac SPM);**lightweight migration 替代"VersionedSchema + MigrationPlan"**(过度设计;现 `ModelContainerFactory` 还无 migration 基础设施)。T1 + T16 共 6 tests / 2 suites 全过。
 - **Round 0(2026-05-28)— Bootstrap docs**:本目录 5 份文档创建。
 
 ## 关键文件(本目录)

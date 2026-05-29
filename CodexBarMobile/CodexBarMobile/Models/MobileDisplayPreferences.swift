@@ -18,6 +18,16 @@ enum MobileSettingsKeys {
     /// changelogs" section linking to upstream provider release notes
     /// (Codex CLI, Claude Code, Gemini CLI). Mirrors upstream PR #929.
     static let showProviderChangelogLinks = "showProviderChangelogLinks"
+
+    // iOS 1.9.0 + Round 2 (research doc 024) — Cost Window Ledger.
+    /// When `true`, `SwiftDataBridge.upsertProvider` also writes each
+    /// per-day cost point into the `DailyCostPoint` ledger (via
+    /// `CostLedgerService.upsertFromSnapshot`). When `false` (default), the
+    /// ledger is untouched — every existing user keeps exactly build-140
+    /// behavior. UI to flip this lands in Round 4 / P4. Reader (Round 3 /
+    /// P3) honors the same key when deciding whether to read from the
+    /// ledger vs. the existing blob path.
+    static let cwlEnabled = "cwlEnabled"
 }
 
 enum UsagePercentDisplayMode: String, CaseIterable, Identifiable {
