@@ -996,6 +996,94 @@ struct CostDashboardInsights {
         }
     }
 
+    /// Memberwise init used by `fromLedger` (CWL path) and any future
+    /// alternate data source. Callers pass already-sorted arrays — the
+    /// blob-backed `init(snapshot:)` above does its own inline sorting.
+    init(
+        providerRows: [ProviderRow],
+        dailyPoints: [DailyPoint],
+        modelRows: [CostBreakdownRow],
+        serviceRows: [CostBreakdownRow],
+        budgetRows: [CostBudgetRow])
+    {
+        self.providerRows = providerRows
+        self.dailyPoints = dailyPoints
+        self.modelRows = modelRows
+        self.serviceRows = serviceRows
+        self.budgetRows = budgetRows
+    }
+
+    /// Build insights from the Cost Window Ledger aggregation (CWL ON path,
+    /// research doc 024 Round 5 / P4a). Cost fields (provider totals, daily
+    /// series, model / service mix) come from the ledger — re-aggregated over
+    /// the user's chosen window, which can exceed Mac's historyDays. Provider
+    /// metadata (name, color, budget, loginMethod) still comes from the live
+    /// snapshot since the ledger stores only IDs + numbers. Providers in the
+    /// snapshot but absent from the ledger get no row (no cost yet); ledger
+    /// rollups with no matching live provider are dropped (stale / removed
+    /// provider — no metadata to render).
+    static func fromLedger(
+        aggregation: CostLedgerAggregation,
+        snapshot: SyncedUsageSnapshot) -> CostDashboardInsights
+    {
+        let todayKey = Self.dayKeyFormatter.string(from: Date())
+        let liveProviders = MockProviderDetector.filteredProviders(from: snapshot)
+
+        var providerRows: [ProviderRow] = []
+        for rollup in aggregation.providerRollups.values {
+            // Match on the actual (providerID, accountEmail) tuple — avoids the
+            // "_"-vs-"" nil-sentinel mismatch between the ledger composite key
+            // and `cardIdentityKey`.
+            guard let provider = liveProviders.first(where: {
+                $0.providerID == rollup.providerID
+                    && $0.accountEmail == rollup.accountEmail
+            }) else { continue }
+            let todayCost = rollup.dailyPoints
+                .first(where: { $0.dayKey == todayKey })?.costUSD ?? 0
+            providerRows.append(ProviderRow(
+                provider: provider,
+                thirtyDayCost: rollup.totalCostUSD,
+                todayCost: todayCost,
+                thirtyDayTokens: rollup.totalTokens))
+        }
+
+        var budgetRows: [CostBudgetRow] = []
+        for provider in liveProviders {
+            if let budget = provider.budget {
+                budgetRows.append(CostBudgetRow(provider: provider, budget: budget))
+            }
+        }
+
+        let dailyPoints: [DailyPoint] = aggregation.dailyPoints.compactMap { point in
+            guard let date = Self.dayKeyFormatter.date(from: point.dayKey) else { return nil }
+            return DailyPoint(
+                dayKey: point.dayKey, date: date,
+                costUSD: point.costUSD, totalTokens: point.totalTokens)
+        }
+
+        let modelTotals = Dictionary(
+            uniqueKeysWithValues: aggregation.modelMix.map { ($0.label, $0.costUSD) })
+        let serviceTotals = Dictionary(
+            uniqueKeysWithValues: aggregation.serviceMix.map { ($0.label, $0.costUSD) })
+
+        return CostDashboardInsights(
+            providerRows: providerRows.sorted { lhs, rhs in
+                if lhs.thirtyDayCost == rhs.thirtyDayCost {
+                    return lhs.provider.providerName
+                        .localizedCaseInsensitiveCompare(rhs.provider.providerName) == .orderedAscending
+                }
+                return lhs.thirtyDayCost > rhs.thirtyDayCost
+            },
+            dailyPoints: dailyPoints.sorted { $0.date < $1.date },
+            modelRows: Self.breakdownRows(from: modelTotals, palette: .model),
+            serviceRows: Self.breakdownRows(from: serviceTotals, palette: .service),
+            budgetRows: budgetRows.sorted { lhs, rhs in
+                let lhsRatio = lhs.budget.limitAmount > 0 ? lhs.budget.usedAmount / lhs.budget.limitAmount : 0
+                let rhsRatio = rhs.budget.limitAmount > 0 ? rhs.budget.usedAmount / rhs.budget.limitAmount : 0
+                return lhsRatio > rhsRatio
+            })
+    }
+
     private static func breakdownRows(from totals: [String: Double], palette: BreakdownPalette) -> [CostBreakdownRow] {
         totals
             .filter { $0.value > 0 }

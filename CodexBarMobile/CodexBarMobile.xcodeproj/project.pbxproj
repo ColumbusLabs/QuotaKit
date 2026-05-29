@@ -45,6 +45,7 @@
 		4012D7EC2F2083F196B70B84 /* MoonshotBalanceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BC3BD9EFBA38613A27A03C6 /* MoonshotBalanceCard.swift */; };
 		44179B7669F19C60FFA54FCD /* CostShareService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C72A51985FA627302CDAC57 /* CostShareService.swift */; };
 		47E56DB489686A9CF257EA70 /* CloudSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14429075896F45B38264DC77 /* CloudSyncManager.swift */; };
+		49148E58B3AF1030559597F2 /* CWLEquivalenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79B9DE156699CE9E8DF9A818 /* CWLEquivalenceTests.swift */; };
 		496A54796174489473CE7F52 /* DeviceProviderZoneSubscription.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16DA26E9BEFB5354A725F99 /* DeviceProviderZoneSubscription.swift */; };
 		49D6DB12C6EFA95A8A48BE0C /* BedrockCostCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E9B0D8C60F57D4E7DC98890 /* BedrockCostCard.swift */; };
 		4CD1E3131D8E3A04E8B13201 /* BudgetProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77C776CEA57C84E7ECA6192C /* BudgetProgressView.swift */; };
@@ -280,6 +281,7 @@
 		74B0A596604D1C8CA137C073 /* CostMetricCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostMetricCard.swift; sourceTree = "<group>"; };
 		777FFCFF0443DD9AC52685CD /* ElevenLabsCreditsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElevenLabsCreditsCard.swift; sourceTree = "<group>"; };
 		77C776CEA57C84E7ECA6192C /* BudgetProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetProgressView.swift; sourceTree = "<group>"; };
+		79B9DE156699CE9E8DF9A818 /* CWLEquivalenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CWLEquivalenceTests.swift; sourceTree = "<group>"; };
 		7A260F62AFF50B05ED7E6401 /* ShareCardRenderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCardRenderTests.swift; sourceTree = "<group>"; };
 		7AAB8310784E24CC51831768 /* ProviderAccountLinkage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderAccountLinkage.swift; sourceTree = "<group>"; };
 		7AABCE82169AC4EF72708082 /* CWLAggregateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CWLAggregateTests.swift; sourceTree = "<group>"; };
@@ -468,6 +470,7 @@
 			isa = PBXGroup;
 			children = (
 				7AABCE82169AC4EF72708082 /* CWLAggregateTests.swift */,
+				79B9DE156699CE9E8DF9A818 /* CWLEquivalenceTests.swift */,
 				BC74955D108073474BBBAB91 /* CWLMigrationTests.swift */,
 				57D94028CBE4AB12A131F439 /* CWLSchemaTests.swift */,
 				D0629321562B420C752FB0A8 /* CWLWriterTests.swift */,
@@ -837,6 +840,7 @@
 				CDE7E605C7EBAA5B0A171477 /* AccountIdentityNormalizeContractTests.swift in Sources */,
 				CD8A9E9C7D9155CCE3338602 /* CKRecordReservedKeyAuditTests.swift in Sources */,
 				638B0DA8806E1E1637E13E7A /* CWLAggregateTests.swift in Sources */,
+				49148E58B3AF1030559597F2 /* CWLEquivalenceTests.swift in Sources */,
 				3181B2D5BBB7820CABFD2601 /* CWLMigrationTests.swift in Sources */,
 				5276BDE7FB232DBFA63A2D92 /* CWLSchemaTests.swift in Sources */,
 				9C00DB027AB6C29845327154 /* CWLWriterTests.swift in Sources */,

@@ -49,6 +49,9 @@ struct CostLedgerAggregation: Equatable {
     /// Re-aggregated model mix across all providers and days. Sorted by
     /// `costUSD` descending.
     let modelMix: [SyncCostBreakdown]
+    /// Re-aggregated service mix (e.g. Codex Cloud services) across all
+    /// providers and days. Sorted by `costUSD` descending.
+    let serviceMix: [SyncCostBreakdown]
 
     var sortedProviderRollups: [CostLedgerProviderRollup] {
         self.providerRollups.values.sorted { $0.providerID < $1.providerID }
@@ -259,6 +262,7 @@ enum CostLedgerService {
         // intentionally collapse account distinction — they're cross-cutting).
         var perDay: [String: DayAccumulator] = [:]
         var perModel: [String: Double] = [:]
+        var perService: [String: Double] = [:]
 
         for survivor in survivors.values {
             let rollupKey = "\(survivor.providerID)|\(survivor.accountEmail ?? "_")"
@@ -274,6 +278,13 @@ enum CostLedgerService {
             {
                 for breakdown in decoded where breakdown.costUSD > 0 {
                     perModel[breakdown.label, default: 0] += breakdown.costUSD
+                }
+            }
+            if let data = survivor.serviceBreakdownsData,
+               let decoded = try? decoder.decode([SyncCostBreakdown].self, from: data)
+            {
+                for breakdown in decoded where breakdown.costUSD > 0 {
+                    perService[breakdown.label, default: 0] += breakdown.costUSD
                 }
             }
         }
@@ -299,6 +310,10 @@ enum CostLedgerService {
             .map { SyncCostBreakdown(label: $0.key, costUSD: $0.value) }
             .sorted { $0.costUSD > $1.costUSD }
 
+        let serviceMix = perService
+            .map { SyncCostBreakdown(label: $0.key, costUSD: $0.value) }
+            .sorted { $0.costUSD > $1.costUSD }
+
         let totalCostUSD = perDay.values.reduce(0) { $0 + $1.costUSD }
         let totalTokens = perDay.values.reduce(0) { $0 + $1.totalTokens }
         let activeDayCount = perDay.values.count(where: { $0.costUSD > 0 })
@@ -310,7 +325,8 @@ enum CostLedgerService {
             activeDayCount: activeDayCount,
             providerRollups: providerRollupsKeyed,
             dailyPoints: dailyPoints,
-            modelMix: modelMix)
+            modelMix: modelMix,
+            serviceMix: serviceMix)
     }
 
     /// Same as `aggregate(...)` but filtered to one provider. Used by
