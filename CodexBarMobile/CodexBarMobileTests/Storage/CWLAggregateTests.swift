@@ -351,4 +351,30 @@ struct CWLAggregateTests {
         #expect(d.latestWriteAt == t1)
         #expect(d.estimatedBytes == 600)
     }
+
+    // MARK: - clearAll (T12)
+
+    @Test("T12: clearAll empties the ledger and leaves other entities untouched")
+    func testClearAll() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+        try self.insert(context, device: "dev-A", provider: "codex",
+            daysAgo: 0, cost: 1.0, tokens: 100, lastUpdated: t)
+        try self.insert(context, device: "dev-A", provider: "claude",
+            daysAgo: 1, cost: 2.0, tokens: 200, lastUpdated: t)
+        // A different entity that clearAll must NOT touch.
+        context.insert(DeviceRecord(
+            deviceID: "dev-A", deviceName: "Test", lastSyncAt: t))
+        try context.save()
+        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).count == 2)
+
+        try CostLedgerService.clearAll(in: context)
+
+        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty,
+            "ledger must be empty after clearAll")
+        #expect(try context.fetch(FetchDescriptor<DeviceRecord>()).count == 1,
+            "clearAll must only delete DailyCostPoint, not other entities")
+    }
 }

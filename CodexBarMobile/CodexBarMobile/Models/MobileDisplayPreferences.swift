@@ -28,6 +28,10 @@ enum MobileSettingsKeys {
     /// P3) honors the same key when deciding whether to read from the
     /// ledger vs. the existing blob path.
     static let cwlEnabled = "cwlEnabled"
+    /// CWL cost window in days (Round 6 / P4b). The Cost dashboard, when CWL
+    /// is on, aggregates the ledger over this trailing window. Picker offers
+    /// 7 / 30 / 90 / 365; default 30 (matches the historical blob window).
+    static let cwlWindowDays = "cwlWindowDays"
 }
 
 enum UsagePercentDisplayMode: String, CaseIterable, Identifiable {

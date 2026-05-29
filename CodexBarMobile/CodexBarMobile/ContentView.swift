@@ -1,5 +1,6 @@
 import Charts
 import CodexBarSync
+import SwiftData
 import SwiftUI
 import UIKit
 
@@ -331,6 +332,14 @@ private struct CostTab: View {
     @Binding var isDemoMode: Bool
     @State private var showShareSheet = false
 
+    // Round 6 / P4b — Cost Window Ledger dispatch. When `cwlEnabled` and not
+    // in demo mode, the dashboard reads the ledger (re-windowed by
+    // `cwlWindowDays`) instead of the blob path. Both default to the historical
+    // behavior (OFF / 30d) so untouched users are unaffected.
+    @Environment(\.modelContext) private var modelContext
+    @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = false
+    @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = 30
+
     private var displaySnapshot: SyncedUsageSnapshot? {
         if self.isDemoMode {
             return PreviewData.sampleSnapshot
@@ -345,7 +354,19 @@ private struct CostTab: View {
     /// Synchronous compute ensures first render has data for UI tests and user-perceived responsiveness.
     private var currentInsights: CostDashboardInsights? {
         guard let snapshot = self.displaySnapshot else { return nil }
-        let insights = CostDashboardInsights(snapshot: snapshot)
+        let insights: CostDashboardInsights
+        // CWL path only outside demo mode (demo uses a synthetic snapshot with
+        // no ledger). `try?` falls back to the blob path on any ledger error.
+        if self.cwlEnabled,
+           !self.isDemoMode,
+           let aggregation = try? CostLedgerService.aggregate(
+               windowDays: self.cwlWindowDays, in: self.modelContext)
+        {
+            insights = CostDashboardInsights.fromLedger(
+                aggregation: aggregation, snapshot: snapshot)
+        } else {
+            insights = CostDashboardInsights(snapshot: snapshot)
+        }
         return insights.hasDisplayData ? insights : nil
     }
 
@@ -2866,8 +2887,72 @@ private struct CostSettingsView: View {
         CostChartStyle.line.rawValue
     @AppStorage(MobileSettingsKeys.openCostByDefault) private var openCostByDefault = false
 
+    // Round 6 / P4b — Cost Window Ledger controls.
+    @Environment(\.modelContext) private var modelContext
+    @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = false
+    @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = 30
+    @State private var showClearLedgerConfirm = false
+
     var body: some View {
         List {
+            Section {
+                Toggle(isOn: self.$cwlEnabled) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Local cost history")
+                        Text("Keep a longer cost history on this iPhone, independent of the Mac's window. Builds up as the Mac keeps syncing.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if self.cwlEnabled {
+                    Picker("History window", selection: self.$cwlWindowDays) {
+                        Text("7 Days").tag(7)
+                        Text("30 Days").tag(30)
+                        Text("90 Days").tag(90)
+                        Text("365 Days").tag(365)
+                    }
+                    .pickerStyle(.menu)
+                }
+            } header: {
+                Text("Cost History")
+            }
+
+            if self.cwlEnabled {
+                if let diagnostics = self.ledgerDiagnostics, diagnostics.rowCount > 0 {
+                    Section("Local Ledger") {
+                        LabeledContent("Days collected", value: "\(diagnostics.dayCount)")
+                        LabeledContent("Providers", value: "\(diagnostics.providerCount)")
+                        if diagnostics.deviceCount > 1 {
+                            LabeledContent("Devices", value: "\(diagnostics.deviceCount)")
+                        }
+                        if let earliest = diagnostics.earliestDayKey {
+                            LabeledContent("Since", value: earliest)
+                        }
+                    }
+                }
+
+                Section {
+                    Button(role: .destructive) {
+                        self.showClearLedgerConfirm = true
+                    } label: {
+                        Text("Clear local cost history")
+                    }
+                    .confirmationDialog(
+                        Text("Clear local cost history?"),
+                        isPresented: self.$showClearLedgerConfirm,
+                        titleVisibility: .visible)
+                    {
+                        Button("Clear", role: .destructive) {
+                            try? CostLedgerService.clearAll(in: self.modelContext)
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("Deletes the on-device cost ledger only. Synced data is unaffected; history rebuilds as the Mac keeps syncing.")
+                    }
+                }
+            }
+
             Section("Charts") {
                 Picker("Chart Style", selection: self.dashboardChartStyle) {
                     ForEach(CostChartStyle.allCases) { style in
@@ -2895,6 +2980,12 @@ private struct CostSettingsView: View {
             }
         }
         .navigationTitle("Cost Setting")
+    }
+
+    /// Read-on-render ledger diagnostics for the Settings panel. O(rows);
+    /// fine for a settings screen. `try?` → nil on any read error (panel hides).
+    private var ledgerDiagnostics: CostLedgerDiagnostics? {
+        try? CostLedgerService.diagnostics(in: self.modelContext)
     }
 
     private var dashboardChartStyle: Binding<CostChartStyle> {

@@ -377,6 +377,18 @@ enum CostLedgerService {
             estimatedBytes: estimatedBytes)
     }
 
+    // MARK: - Clear (explicit user action · Round 6 / P4b)
+
+    /// Delete every `DailyCostPoint` row. Wired to the Settings "clear ledger"
+    /// button (with a confirmation dialog). Touches ONLY the ledger — the blob
+    /// path (`ProviderSnapshotModel.costSummaryData`) and all other SwiftData
+    /// entities are untouched, so toggling CWL off + clearing leaves the
+    /// build-140 dashboard fully intact.
+    static func clearAll(in context: ModelContext) throws {
+        try context.delete(model: DailyCostPoint.self)
+        try context.save()
+    }
+
     // MARK: - Helpers
 
     /// `[asOf - (windowDays - 1) days, asOf]` lower bound as a `YYYY-MM-DD`
