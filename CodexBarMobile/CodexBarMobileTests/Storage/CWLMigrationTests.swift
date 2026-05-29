@@ -104,6 +104,7 @@ struct CWLMigrationTests {
             context.insert(DailyCostPoint(
                 deviceID: "dev-X",
                 providerID: "claude",
+                accountEmail: nil,
                 dayKey: "2026-05-28",
                 costUSD: 2.34,
                 totalTokens: 8901,
@@ -124,7 +125,7 @@ struct CWLMigrationTests {
             #expect(row.costUSD == 2.34)
             #expect(row.totalTokens == 8901)
             #expect(row.lastUpdated == when)
-            #expect(row.compositeKey == "dev-X|claude|2026-05-28")
+            #expect(row.compositeKey == "dev-X|claude|_|2026-05-28")
         }
     }
 }

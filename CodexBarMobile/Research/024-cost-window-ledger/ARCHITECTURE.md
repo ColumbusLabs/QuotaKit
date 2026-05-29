@@ -8,8 +8,12 @@
 @Model
 final class DailyCostPoint {
     // Composite uniqueness 由 upsert 逻辑保证(SwiftData 当前无 native composite UNIQUE)。
+    // key = {deviceID}|{providerID}|{accountEmail ?? "_"}|{dayKey}(Round 4 加
+    // accountEmail,和 blob 路径 ProviderSnapshotModel.cardIdentityKey 对齐,
+    // 否则多账号 collide;见 DESIGN.md 决策 8)。
     var deviceID: String
     var providerID: String
+    var accountEmail: String?  // nil → "_" sentinel
     var dayKey: String        // "YYYY-MM-DD" UTC
 
     var costUSD: Double
@@ -87,7 +91,7 @@ final class DailyCostPoint {
 struct CostLedgerService {
     let modelContext: ModelContext
 
-    /// 聚合一段窗口。跨设备 merge:同 (providerID, dayKey) 取 max lastUpdated。
+    /// 聚合一段窗口。跨设备 merge:同 (providerID, accountEmail, dayKey) 取 max lastUpdated。
     /// 不阻塞主线程 —— 大量记录时走 background Task + ModelActor。
     func aggregate(windowDays: Int) async -> CostLedgerAggregation
 
@@ -123,6 +127,7 @@ struct CostLedgerAggregation {
 
 struct CostLedgerProviderRollup {
     let providerID: String
+    let accountEmail: String?   // 与 providerID 一起 = cardIdentityKey
     let totalCostUSD: Double
     let totalTokens: Int
     let dailyPoints: [SyncDailyPoint]
@@ -141,12 +146,12 @@ struct CostLedgerDiagnostics {
 
 ## 多设备 merge(CWL ON 路径)
 
-**写入端**(per-device,简单):每条 `DailyCostPoint` 带 `deviceID`,同 `(deviceID, providerID, dayKey)` 视为同一条;不同 device 即使同 dayKey 各自一条。
+**写入端**(per-device,简单):每条 `DailyCostPoint` 带 `deviceID`,同 `(deviceID, providerID, accountEmail, dayKey)` 视为同一条;不同 device 即使同 dayKey 各自一条。
 
 **读取端**(aggregate 内):
-1. 按 `(providerID, dayKey)` group 所有 ledger 行。
+1. 按 `(providerID, accountEmail, dayKey)` group 所有 ledger 行。
 2. 同组里取 `lastUpdated` 最大那条 —— 即"最新设备 / 最新更新"赢。
-3. 这条作为该 (providerID, dayKey) 的真相,加进汇总。
+3. 这条作为该 (providerID, accountEmail, dayKey) 的真相,加进汇总。
 
 这跟现有 `CloudSyncReader.mergeSnapshots` 的"内存 merge"等价,只是从"每次都重算 / 全 blob 比较"变成"在 ledger 表上 SQL aggregate"。
 

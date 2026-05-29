@@ -32,6 +32,13 @@ final class DailyCostPoint {
 
     var deviceID: String
     var providerID: String
+    /// Account email (`nil` for single-account providers). Part of the
+    /// composite key so multi-account providers (two Codex accounts on one
+    /// Mac, etc.) keep separate per-day rows — matching the blob path's
+    /// `ProviderSnapshotModel` per-(providerID, accountEmail) granularity.
+    /// Without this, the two accounts collide on `(deviceID, providerID,
+    /// dayKey)` and one silently overwrites the other.
+    var accountEmail: String?
     /// `YYYY-MM-DD` UTC, matches `SyncDailyPoint.dayKey` on the wire.
     var dayKey: String
 
@@ -59,6 +66,7 @@ final class DailyCostPoint {
     init(
         deviceID: String,
         providerID: String,
+        accountEmail: String?,
         dayKey: String,
         costUSD: Double,
         totalTokens: Int,
@@ -70,9 +78,11 @@ final class DailyCostPoint {
         self.compositeKey = Self.makeCompositeKey(
             deviceID: deviceID,
             providerID: providerID,
+            accountEmail: accountEmail,
             dayKey: dayKey)
         self.deviceID = deviceID
         self.providerID = providerID
+        self.accountEmail = accountEmail
         self.dayKey = dayKey
         self.costUSD = costUSD
         self.totalTokens = totalTokens
@@ -82,15 +92,17 @@ final class DailyCostPoint {
         self.lastUpdated = lastUpdated
     }
 
-    /// Compose the composite unique key. Format pinned: `{deviceID}|{providerID}|{dayKey}`.
-    /// Writer + reader + tests must all build it via this helper so any
-    /// future format change (e.g. percent-encoding for `|` in IDs) propagates
-    /// uniformly.
+    /// Compose the composite unique key. Format pinned:
+    /// `{deviceID}|{providerID}|{accountEmail ?? "_"}|{dayKey}`. The `"_"`
+    /// for nil `accountEmail` matches `ProviderSnapshotModel.makeCompositeKey`
+    /// byte-for-byte. Writer + reader + tests must all build it via this
+    /// helper so any future format change propagates uniformly.
     static func makeCompositeKey(
         deviceID: String,
         providerID: String,
+        accountEmail: String?,
         dayKey: String) -> String
     {
-        "\(deviceID)|\(providerID)|\(dayKey)"
+        "\(deviceID)|\(providerID)|\(accountEmail ?? "_")|\(dayKey)"
     }
 }

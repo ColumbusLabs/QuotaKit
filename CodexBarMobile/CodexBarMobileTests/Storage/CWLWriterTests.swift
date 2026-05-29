@@ -58,7 +58,7 @@ struct CWLWriterTests {
         let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
         #expect(rows.count == 1, "Same composite key must dedupe to one row")
         let row = try #require(rows.first)
-        #expect(row.compositeKey == "dev-A|codex|2026-05-28")
+        #expect(row.compositeKey == "dev-A|codex|_|2026-05-28")
         #expect(row.costUSD == 2.5)
         #expect(row.totalTokens == 250)
         #expect(row.isEstimated == true)
@@ -97,6 +97,32 @@ struct CWLWriterTests {
 
         let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
         #expect(rows.count == 4, "4 distinct composite keys must yield 4 rows")
+    }
+
+    @Test("T2 (multi-account): two accounts, same providerID + dayKey → separate rows (no collide)")
+    func testMultiAccountDoesNotCollide() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let container = ModelContainerFactory.makeContainer(at: url)
+        let context = ModelContext(container)
+
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+        // Two Codex accounts, same device, same day — must NOT collide.
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "dev-A", providerID: "codex", accountEmail: "alice@codex.test",
+            dayKey: "2026-05-28", costUSD: 1.0, totalTokens: 100, isEstimated: nil,
+            modelBreakdowns: [], serviceBreakdowns: [], lastUpdated: t, in: context)
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "dev-A", providerID: "codex", accountEmail: "bob@codex.test",
+            dayKey: "2026-05-28", costUSD: 2.0, totalTokens: 200, isEstimated: nil,
+            modelBreakdowns: [], serviceBreakdowns: [], lastUpdated: t, in: context)
+        try context.save()
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        #expect(rows.count == 2, "Two accounts of the same provider must stay distinct")
+        let byEmail = Dictionary(grouping: rows, by: { $0.accountEmail ?? "_" })
+        #expect(byEmail["alice@codex.test"]?.first?.costUSD == 1.0)
+        #expect(byEmail["bob@codex.test"]?.first?.costUSD == 2.0)
     }
 
     // MARK: - T3

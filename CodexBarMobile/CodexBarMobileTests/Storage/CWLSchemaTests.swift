@@ -62,6 +62,7 @@ struct CWLSchemaTests {
         let point = DailyCostPoint(
             deviceID: "dev-A",
             providerID: "codex",
+            accountEmail: "alice@codex.test",
             dayKey: "2026-05-28",
             costUSD: 1.23,
             totalTokens: 4567,
@@ -75,9 +76,10 @@ struct CWLSchemaTests {
         let fetched = try context.fetch(FetchDescriptor<DailyCostPoint>())
         #expect(fetched.count == 1)
         let row = try #require(fetched.first)
-        #expect(row.compositeKey == "dev-A|codex|2026-05-28")
+        #expect(row.compositeKey == "dev-A|codex|alice@codex.test|2026-05-28")
         #expect(row.deviceID == "dev-A")
         #expect(row.providerID == "codex")
+        #expect(row.accountEmail == "alice@codex.test")
         #expect(row.dayKey == "2026-05-28")
         #expect(row.costUSD == 1.23)
         #expect(row.totalTokens == 4567)
@@ -87,12 +89,21 @@ struct CWLSchemaTests {
         #expect(row.lastUpdated == lastUpdated)
     }
 
-    @Test("makeCompositeKey format pinned to deviceID|providerID|dayKey")
+    @Test("makeCompositeKey format pinned to deviceID|providerID|accountEmail|dayKey")
     func testCompositeKeyFormat() {
-        let key = DailyCostPoint.makeCompositeKey(
+        let withEmail = DailyCostPoint.makeCompositeKey(
             deviceID: "dev-A",
             providerID: "codex",
+            accountEmail: "alice@codex.test",
             dayKey: "2026-05-28")
-        #expect(key == "dev-A|codex|2026-05-28")
+        #expect(withEmail == "dev-A|codex|alice@codex.test|2026-05-28")
+
+        // nil accountEmail → "_" sentinel, matching ProviderSnapshotModel.
+        let nilEmail = DailyCostPoint.makeCompositeKey(
+            deviceID: "dev-A",
+            providerID: "codex",
+            accountEmail: nil,
+            dayKey: "2026-05-28")
+        #expect(nilEmail == "dev-A|codex|_|2026-05-28")
     }
 }

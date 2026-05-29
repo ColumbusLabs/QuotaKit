@@ -57,6 +57,9 @@ struct CostLedgerAggregation: Equatable {
 
 struct CostLedgerProviderRollup: Equatable {
     let providerID: String
+    /// Account email (nil for single-account). Together with `providerID`
+    /// forms the `cardIdentityKey` the Cost dashboard renders rows by.
+    let accountEmail: String?
     let totalCostUSD: Double
     let totalTokens: Int
     /// Daily points just for this provider, sorted oldest → newest.
@@ -127,6 +130,7 @@ enum CostLedgerService {
             try Self.upsertDayPoint(
                 deviceID: deviceID,
                 providerID: provider.providerID,
+                accountEmail: provider.accountEmail,
                 dayKey: point.dayKey,
                 costUSD: point.costUSD,
                 totalTokens: point.totalTokens,
@@ -144,8 +148,14 @@ enum CostLedgerService {
     /// without constructing a full `ProviderUsageSnapshot`. Also reusable
     /// by future rounds (e.g. `seedFromExistingBlobs` in P6).
     static func upsertDayPoint(
+        // `accountEmail` defaults to nil for the single-account convenience
+        // case (tests, future single-account seed). The real production
+        // entry `upsertFromSnapshot` always passes `provider.accountEmail`
+        // explicitly — the multi-account-collision bug this key fix closes
+        // lived there, not here.
         deviceID: String,
         providerID: String,
+        accountEmail: String? = nil,
         dayKey: String,
         costUSD: Double,
         totalTokens: Int,
@@ -159,6 +169,7 @@ enum CostLedgerService {
         let key = DailyCostPoint.makeCompositeKey(
             deviceID: deviceID,
             providerID: providerID,
+            accountEmail: accountEmail,
             dayKey: dayKey)
         let descriptor = FetchDescriptor<DailyCostPoint>(
             predicate: #Predicate { $0.compositeKey == key })
@@ -188,6 +199,7 @@ enum CostLedgerService {
             let point = DailyCostPoint(
                 deviceID: deviceID,
                 providerID: providerID,
+                accountEmail: accountEmail,
                 dayKey: dayKey,
                 costUSD: costUSD,
                 totalTokens: totalTokens,
@@ -224,10 +236,12 @@ enum CostLedgerService {
             predicate: #Predicate { $0.dayKey >= cutoffKey })
         let rows = try context.fetch(descriptor)
 
-        // Cross-device merge: group by (providerID, dayKey), keep latest lastUpdated.
-        var survivors: [String: DailyCostPoint] = [:]  // key: providerID|dayKey
+        // Cross-device merge: group by (providerID, accountEmail, dayKey), keep
+        // latest lastUpdated. accountEmail is part of the key so multi-account
+        // providers stay distinct (matching the blob path's cardIdentityKey).
+        var survivors: [String: DailyCostPoint] = [:]
         for row in rows {
-            let key = "\(row.providerID)|\(row.dayKey)"
+            let key = "\(row.providerID)|\(row.accountEmail ?? "_")|\(row.dayKey)"
             if let existing = survivors[key] {
                 if row.lastUpdated > existing.lastUpdated {
                     survivors[key] = row
@@ -237,17 +251,23 @@ enum CostLedgerService {
             }
         }
 
-        // Per-provider accumulators.
         let decoder = CloudSyncConstants.makeJSONDecoder()
+        // Per-account-provider accumulators, keyed by cardIdentityKey
+        // (providerID|accountEmail) so the dashboard can match rows per account.
         var perProvider: [String: ProviderAccumulator] = [:]
-        // Per-day across providers.
+        // Per-day + per-model aggregate ACROSS all providers/accounts (these
+        // intentionally collapse account distinction — they're cross-cutting).
         var perDay: [String: DayAccumulator] = [:]
-        // Per-model across providers + days.
         var perModel: [String: Double] = [:]
 
         for survivor in survivors.values {
-            perProvider[survivor.providerID, default: .init()]
-                .ingest(survivor, decoder: decoder)
+            let rollupKey = "\(survivor.providerID)|\(survivor.accountEmail ?? "_")"
+            var acc = perProvider[rollupKey] ?? ProviderAccumulator(
+                providerID: survivor.providerID,
+                accountEmail: survivor.accountEmail)
+            acc.ingest(survivor, decoder: decoder)
+            perProvider[rollupKey] = acc
+
             perDay[survivor.dayKey, default: .init()].ingest(survivor)
             if let data = survivor.modelBreakdownsData,
                let decoded = try? decoder.decode([SyncCostBreakdown].self, from: data)
@@ -259,8 +279,8 @@ enum CostLedgerService {
         }
 
         let providerRollupsKeyed = Dictionary(
-            uniqueKeysWithValues: perProvider.map { providerID, acc in
-                (providerID, acc.toRollup(providerID: providerID))
+            uniqueKeysWithValues: perProvider.map { rollupKey, acc in
+                (rollupKey, acc.toRollup())
             })
 
         let dailyPoints = perDay
@@ -298,14 +318,17 @@ enum CostLedgerService {
     /// aggregate just to display a single provider's per-day cost section.
     static func aggregateProvider(
         providerID: String,
+        accountEmail: String?,
         windowDays: Int,
         in context: ModelContext,
         asOf: Date = Date()) throws -> CostLedgerProviderRollup
     {
         let full = try Self.aggregate(
             windowDays: windowDays, in: context, asOf: asOf)
-        return full.providerRollups[providerID] ?? CostLedgerProviderRollup(
+        let rollupKey = "\(providerID)|\(accountEmail ?? "_")"
+        return full.providerRollups[rollupKey] ?? CostLedgerProviderRollup(
             providerID: providerID,
+            accountEmail: accountEmail,
             totalCostUSD: 0,
             totalTokens: 0,
             dailyPoints: [],
@@ -365,10 +388,17 @@ enum CostLedgerService {
     }
 
     private struct ProviderAccumulator {
+        let providerID: String
+        let accountEmail: String?
         var costUSD: Double = 0
         var totalTokens: Int = 0
         var perDay: [String: (cost: Double, tokens: Int)] = [:]
         var perModel: [String: Double] = [:]
+
+        init(providerID: String, accountEmail: String?) {
+            self.providerID = providerID
+            self.accountEmail = accountEmail
+        }
 
         mutating func ingest(_ row: DailyCostPoint, decoder: JSONDecoder) {
             self.costUSD += row.costUSD
@@ -384,9 +414,10 @@ enum CostLedgerService {
             }
         }
 
-        func toRollup(providerID: String) -> CostLedgerProviderRollup {
+        func toRollup() -> CostLedgerProviderRollup {
             CostLedgerProviderRollup(
-                providerID: providerID,
+                providerID: self.providerID,
+                accountEmail: self.accountEmail,
                 totalCostUSD: self.costUSD,
                 totalTokens: self.totalTokens,
                 dailyPoints: self.perDay

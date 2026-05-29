@@ -12,11 +12,12 @@
 
 ## 当前状态
 
-- **Round 3(2026-05-28)— P3 Reader(本提交)**:`CostLedgerService.{aggregate, aggregateProvider, diagnostics}` + `CostLedgerAggregation` / `CostLedgerProviderRollup` / `CostLedgerDiagnostics` 类型。聚合算法:窗口过滤(`asOf - (N-1) days`,UTC dayKey 字典序对比)→ 跨设备 dedup(`(providerID, dayKey)` group 取 max lastUpdated)→ 按 providerID / day / model 三向累积。T4 + T5 + T6 + aggregateProvider + diagnostics 共 9 tests 全过,总 36 tests / 6 suites 全绿。**T7(等价对比 blob 路径)推迟到 Round 4** —— 必须有 dashboard 集成才能跑。
+- **Round 4(2026-05-29)— account-aware key 修复(本提交)**:P4a 集成时**发现根本问题** —— `DailyCostPoint` key 不含 `accountEmail`,会让同 provider 的多账号成本 collide 丢失(回退项目多账号能力)。修:key 改 `{deviceID}|{providerID}|{accountEmail ?? "_"}|{dayKey}`(对齐 blob 路径 cardIdentityKey),writer 传 `provider.accountEmail`,reader dedup/rollup 按 cardIdentityKey。加多账号"不 collide"测试(writer + aggregate 各一)。38 tests / 6 suites 全绿。**P4a 数据源集成顺延到 Round 5**(先修地基)。
+- Round 3(2026-05-28)— P3 Reader:`CostLedgerService.{aggregate, aggregateProvider, diagnostics}` + 3 个数据类型。窗口过滤 + 跨设备 dedup + 三向累积。T4/T5/T6 9 tests(详见 Round 历史)。
 - Round 2(2026-05-28)— P2 Writer:`CostLedgerService.{isEnabled, upsertFromSnapshot, upsertDayPoint}` + `SwiftDataBridge.upsertProvider` 末尾 gate hook + `MobileSettingsKeys.cwlEnabled`(默认 false)。T2 + T3 + gate + wrapper 9 tests ✓。
 - Round 1(2026-05-28)— P1 SwiftData schema:`DailyCostPoint @Model` + 注册 + lightweight migration。T1 + T16 ✓。
 - Round 0(2026-05-28)— Bootstrap docs:创建本目录 5 份文档。
-- 下一步:Round 4 / P4 UI(Settings 加 CWL 开关 + 窗口 Picker 7/30/90/365 + 清空 + 诊断;`CostDashboardInsights` 接 ledger 后端 + T7 等价回归)。
+- 下一步:Round 5 / P4a 数据源集成(`CostDashboardInsights` 接 ledger + `cwlEnabled` 分派 + T7 等价回归)。
 - 上一轮交付:build 140 — Cost dashboard top-5 + Others + drill-down。**CWL 不许回退这一批**(CWL 默认 OFF,P2 没人开,行为 == 140)。
 
 ## 硬约束(每轮 CR 必须核对)
@@ -32,10 +33,13 @@
 - [x] **Round 1 / P1**:SwiftData schema —— 新增 `@Model DailyCostPoint`,注册到 `CodexBarSwiftDataSchema.models`(lightweight migration,无 versioned schema)。T1 + T16 ✓。
 - [x] **Round 2 / P2**:Writer —— `CostLedgerService.upsertFromSnapshot` + `SwiftDataBridge.upsertProvider` 末尾 gate hook + `MobileSettingsKeys.cwlEnabled`(默认 false)。T2 + T3 + gate + wrapper 9 tests ✓,blob 路径无变化。
 - [x] **Round 3 / P3**:Reader —— `CostLedgerService.aggregate(windowDays:asOf:)` + `aggregateProvider` + `diagnostics`,数据类型 `CostLedgerAggregation` / `CostLedgerProviderRollup` / `CostLedgerDiagnostics`。窗口过滤 + 跨设备 dedup(latest lastUpdated 赢)+ per-provider / per-day / per-model 三向累积。T4 + T5 + T6 + 子项 9 tests ✓。T7(等价于 blob 路径)推迟到 Round 4。
-- [ ] **Round 4 / P4**:UI —— Settings 开关 + Picker(7/30/90/365)+ 清空 + 诊断;`CostDashboardInsights` 接 ledger 后端。
-- [ ] **Round 5 / P5**:多设备 merge ledger-of-ledgers。
-- [ ] **Round 6 / P6**:Migration —— `seedFromExistingBlobs` + 失败回退。
-- [ ] **Round 7 / P7**:性能(T17)+ 回归(build 140)+ lint + TestFlight 人工。
+- [x] **Round 4 / account-aware key 修复**:`DailyCostPoint` key 加 `accountEmail`(`{deviceID}|{providerID}|{accountEmail ?? "_"}|{dayKey}`),writer/reader/rollup 全线 account-aware。P4a 集成前置阻塞,先修。多账号不 collide 测试 ✓。
+- [ ] **Round 5 / P4a**:数据源集成 —— `CostDashboardInsights` 接 ledger 后端(`windowDays:` + `cwlEnabled` 分派)+ **T7 等价回归**(同数据双路径 < 0.001)。
+- [ ] **Round 6 / P4b**:UI —— Settings CWL 开关 + Picker(7/30/90/365)+ 清空 + 诊断面板 + `Localizable.xcstrings` 4 语 + T8/T9/T12/T13。
+- [ ] **Round 7 / P6**:Migration —— `seedFromExistingBlobs` + 失败回退(T10/T11)。
+- [ ] **Round 8 / P7**:性能 T17 + 真机 M1–M8 + build bump + TestFlight。
+
+> 注:原 P5 多设备 merge 已被 P3 reader + Round 4 account-key 覆盖(跨设备按 `(providerID, accountEmail, dayKey)` group 取 latest lastUpdated),不再单列;端到端多设备验证并入 Round 5 的 T7。
 
 ## 未决问题(发现新的请追加)
 
@@ -46,6 +50,7 @@
 
 ## Round 历史
 
+- **Round 4(2026-05-29)— account-aware key 修复**:Round 5(P4a 数据源集成)时**发现根本阻塞** —— `DailyCostPoint` 的 composite key 是 `(deviceID, providerID, dayKey)`,缺 `accountEmail`。但 blob 路径的 Cost dashboard `providerRows` 是 per-`cardIdentityKey`(providerID|accountEmail),同 providerID 的多账号是两行。ledger 不带 account → 两账号 collide 互相覆盖,CWL ON 时多账号成本被合并丢失,回退项目多账号能力(doc 019 / 1.5.3 fix)。修:① `DailyCostPoint` 加 `accountEmail`,key 改 `{deviceID}|{providerID}|{accountEmail ?? "_"}|{dayKey}`(`"_"` 与 `ProviderSnapshotModel` 一致);② writer `upsertFromSnapshot` 传 `provider.accountEmail`(`upsertDayPoint` 给 `accountEmail = nil` 默认,便于单账号 test/seed);③ reader dedup group + `providerRollups` key 改 cardIdentityKey(`providerID|accountEmail`),`CostLedgerProviderRollup` + `aggregateProvider` 带 accountEmail。新增多账号"不 collide"测试(writer + aggregate 各 1),修正 Round 1-3 受影响 test(init/makeCompositeKey/compositeKey 断言/rollup key 查找)。文档同步:DESIGN 决策 8、ARCHITECTURE schema + group key。38 tests / 6 suites 全绿,lint 0。**P4a 顺延 Round 5**。
 - **Round 3(2026-05-28)— P3 Reader**:`CostLedgerService.{aggregate, aggregateProvider, diagnostics}` + 数据类型 `CostLedgerAggregation` / `CostLedgerProviderRollup` / `CostLedgerDiagnostics`。算法:cutoffDayKey = asOf - (N-1) days(UTC),字典序对比 `DailyCostPoint.dayKey >= cutoffKey` 走窗口过滤;再按 `(providerID, dayKey)` group + 取 max lastUpdated 做跨设备 dedup;再三向累积(per-provider / per-day / per-model)。`asOf` 参数注入"今天"使测试确定。窗口 clamp 到 [1, 365]。`CWLAggregateTests.swift` 9 用例:T4 单设备聚合 / T5 跨设备 latest 赢(× 2)/ T6 7-30-90-100 窗口边界(× 2)+ cutoffDayKey 字符串(× 1)/ aggregateProvider(× 2)/ diagnostics(× 1)。全 CWL 36 tests / 6 suites 全绿。**bug 修了一处:test fixture 的 `asOf` magic number(1_780_272_000)算成了 2026-06-01,改成显式 `DateComponents` 构造 2026-05-28**。下一步 Round 4 = P4 UI。
 - **Round 2(2026-05-28)— P2 Writer**:`CostLedgerService.swift` 新增(`isEnabled` / `upsertFromSnapshot` / `upsertDayPoint`);`SwiftDataBridge.upsertProvider` 末尾 6 行 gate hook(blob 路径完全不变);`MobileSettingsKeys.cwlEnabled` 新增,默认 false。Dedup 规则:`existing.lastUpdated >= incoming.lastUpdated` → 跳过(同 Mac 同 cycle 同 dayKey 第二次冗余写直接 skip)。`CWLWriterTests.swift` 9 用例:T2 dedup by composite key(2 个) + T3 newer/older/equal lastUpdated(3 个) + Gate(2 个) + upsertFromSnapshot wrapper(2 个)。所有 CWL 测试 + 防回归(SwiftDataBridge / ModelContainerFactory)共 27 tests / 5 suites 全绿。下一步 Round 3 = P3 Reader。
 - **Round 1(2026-05-28)— P1 SwiftData schema**:`DailyCostPoint @Model` 新增 + 注册。校正 3 份文档(ARCHITECTURE / DEVELOPMENT / TESTING):**测试位置改为 `CodexBarMobileTests/Storage/`**(iOS test target,非 Mac SPM);**lightweight migration 替代"VersionedSchema + MigrationPlan"**(过度设计;现 `ModelContainerFactory` 还无 migration 基础设施)。T1 + T16 共 6 tests / 2 suites 全过。

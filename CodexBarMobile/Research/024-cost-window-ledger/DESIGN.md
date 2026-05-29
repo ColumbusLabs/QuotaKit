@@ -65,6 +65,8 @@ DailyCostPoint(
 
 7. **`isEstimated` / 标快拆分**:从老 blob seed 时 **保留**(可能影响 UI 渲染的 estimated badge / Codex Std·Fast 子行)。
 
+8. **per-account key(Round 4 发现并修)**:`DailyCostPoint` 的 composite key **必须含 `accountEmail`** —— `{deviceID}|{providerID}|{accountEmail ?? "_"}|{dayKey}`,和 blob 路径的 `ProviderSnapshotModel.makeCompositeKey`(`{deviceID}|{providerID}|{accountEmail ?? "_"}`)对齐(`"_"` 表示 nil,字节级一致)。**原因**:Cost dashboard 的 `providerRows` 按 `cardIdentityKey = providerID|accountEmail` 渲染,同 providerID 的多账号是两行。如果 ledger key 不含 account,两个账号的 daily 会 collide 互相覆盖,CWL ON 时多账号用户的成本被合并/丢失 —— 这是对项目多账号能力(doc 019、cardIdentityKey、1.5.3 account-collision fix)的回退。Round 3 reader 的 dedup group key、`CostLedgerProviderRollup` 也相应带 accountEmail。
+
 ## 权衡(Trade-offs)
 
 | 场景 | 行为 | 注释 |

@@ -58,6 +58,7 @@ struct CWLAggregateTests {
         _ context: ModelContext,
         device: String,
         provider: String,
+        account: String? = nil,
         daysAgo: Int,
         cost: Double,
         tokens: Int,
@@ -66,6 +67,7 @@ struct CWLAggregateTests {
         try CostLedgerService.upsertDayPoint(
             deviceID: device,
             providerID: provider,
+            accountEmail: account,
             dayKey: self.dayKey(daysAgo: daysAgo),
             costUSD: cost,
             totalTokens: tokens,
@@ -109,12 +111,12 @@ struct CWLAggregateTests {
 
         // Per-provider rollups.
         #expect(agg.providerRollups.count == 2)
-        let codex = try #require(agg.providerRollups["codex"])
+        let codex = try #require(agg.providerRollups["codex|_"])
         #expect(codex.totalCostUSD == 6.0)
         #expect(codex.totalTokens == 600)
         #expect(codex.dailyPoints.count == 3)
 
-        let claude = try #require(agg.providerRollups["claude"])
+        let claude = try #require(agg.providerRollups["claude|_"])
         #expect(claude.totalCostUSD == 0.5)
         #expect(claude.totalTokens == 50)
         #expect(claude.dailyPoints.count == 2)
@@ -149,7 +151,7 @@ struct CWLAggregateTests {
         #expect(agg.totalCostUSD == 9.0)
         #expect(agg.totalTokens == 900)
         #expect(agg.activeDayCount == 1)
-        let codex = try #require(agg.providerRollups["codex"])
+        let codex = try #require(agg.providerRollups["codex|_"])
         #expect(codex.totalCostUSD == 9.0)
     }
 
@@ -256,7 +258,8 @@ struct CWLAggregateTests {
         try context.save()
 
         let codex = try CostLedgerService.aggregateProvider(
-            providerID: "codex", windowDays: 7, in: context, asOf: Self.asOf)
+            providerID: "codex", accountEmail: nil, windowDays: 7,
+            in: context, asOf: Self.asOf)
         #expect(codex.providerID == "codex")
         #expect(codex.totalCostUSD == 1.0)
     }
@@ -267,11 +270,49 @@ struct CWLAggregateTests {
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
         let rollup = try CostLedgerService.aggregateProvider(
-            providerID: "nonexistent", windowDays: 7,
+            providerID: "nonexistent", accountEmail: nil, windowDays: 7,
             in: context, asOf: Self.asOf)
         #expect(rollup.providerID == "nonexistent")
         #expect(rollup.totalCostUSD == 0)
         #expect(rollup.dailyPoints.isEmpty)
+    }
+
+    // MARK: - Multi-account (Round 4 — account-aware key)
+
+    @Test("Multi-account: two accounts of same provider → separate rollups, summed totals")
+    func testMultiAccountSeparateRollups() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+        // Two Codex accounts, same device + same day.
+        try self.insert(context, device: "dev-A", provider: "codex",
+            account: "alice@codex.test", daysAgo: 0, cost: 1.0, tokens: 100, lastUpdated: t)
+        try self.insert(context, device: "dev-A", provider: "codex",
+            account: "bob@codex.test", daysAgo: 0, cost: 2.0, tokens: 200, lastUpdated: t)
+        try context.save()
+
+        let agg = try CostLedgerService.aggregate(
+            windowDays: 7, in: context, asOf: Self.asOf)
+
+        // Two distinct per-account rollups (NOT merged into one codex rollup).
+        #expect(agg.providerRollups.count == 2)
+        let alice = try #require(agg.providerRollups["codex|alice@codex.test"])
+        let bob = try #require(agg.providerRollups["codex|bob@codex.test"])
+        #expect(alice.totalCostUSD == 1.0)
+        #expect(alice.accountEmail == "alice@codex.test")
+        #expect(bob.totalCostUSD == 2.0)
+        #expect(bob.accountEmail == "bob@codex.test")
+
+        // Cross-cutting totals still sum both accounts on the shared day.
+        #expect(agg.totalCostUSD == 3.0)
+        #expect(agg.activeDayCount == 1)
+
+        // aggregateProvider can fetch a single account's rollup.
+        let aliceOnly = try CostLedgerService.aggregateProvider(
+            providerID: "codex", accountEmail: "alice@codex.test",
+            windowDays: 7, in: context, asOf: Self.asOf)
+        #expect(aliceOnly.totalCostUSD == 1.0)
     }
 
     // MARK: - Diagnostics
