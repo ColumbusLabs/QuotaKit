@@ -3,15 +3,22 @@
 ## 测试框架
 
 - **Swift Testing**(`@Test` / `@Suite`),**不**用 XCTest。
-- 测试文件放 `Tests/CodexBarTests/CWL*.swift`(Mac swift test 跑,可访问 SwiftData 单测路径)。
-- 必须 `--no-parallel`(项目已知 `SyncCoordinatorTests` 并行 flake)。
-- 跑命令:`swift test --no-parallel --filter CWL`(本功能所有 suite)/ `swift test --no-parallel`(全量)。
+- 测试位置 = **`CodexBarMobile/CodexBarMobileTests/Storage/CWL*.swift`**(iOS Xcode test target,不是 Mac SPM `Tests/CodexBarTests/`)。SwiftData `@Model` 是 iOS-only,必须用 iOS test target。现有 `SwiftDataBridgeTests.swift` / `ModelContainerFactoryTests.swift` 就是这个模式,直接 mirror。
+- 跑命令(iOS CWL 测试):
+  ```bash
+  cd CodexBarMobile
+  xcodebuild test -project CodexBarMobile.xcodeproj \
+      -scheme CodexBarMobile \
+      -destination 'platform=iOS Simulator,name=iPhone 16' \
+      -only-testing:CodexBarMobileTests/<CWL suite>
+  ```
+- Mac 端回归(build 140 cap+Others 等)在 Mac SPM 测试集 → `swift test --no-parallel`,**必须 `--no-parallel`**(已知 `SyncCoordinatorTests` 并行 flake)。
 
 ## 自动化测试矩阵
 
 | 编号 | 测试 | 文件 | Phase |
 |---|---|---|---|
-| **T1** | `SchemaV2` 编译 + 空表加载 + 与 `SchemaV1` 共存 | `CWLSchemaTests.swift`(新) | P1 |
+| **T1** | 新 `@Model DailyCostPoint` 编译 + `ModelContainerFactory` 加载成功 + 空表 fetch 不 throw + 与现有 4 个 model(`DeviceRecord` / `ProviderSnapshotModel` / `UtilizationEntryModel` / `SyncStateRecord`)共存 | `CWLSchemaTests.swift`(新) | P1 |
 | **T2** | `DailyCostPoint` upsert dedupe by `(deviceID, providerID, dayKey)`:同 key 第二次写,不重复存条 | `CWLUpsertTests.swift`(新) | P2 |
 | **T3** | 同 key 第二次写:`lastUpdated` 更新 → 覆盖;`lastUpdated` 倒退 → 不动(保护已有更新数据) | `CWLUpsertTests.swift` | P2 |
 | **T4** | `CostLedgerService.aggregate(windowDays:)` 单设备聚合:总额 / 总 tokens / activeDayCount 正确 | `CWLAggregateTests.swift`(新) | P3 |
@@ -26,7 +33,7 @@
 | **T13** | `diagnostics()` 返回的 deviceCount / providerCount / dayCount / earliest / latest 与已写入对应 | `CWLDiagnosticsTests.swift`(新) | P4 |
 | **T14** | **build 140 cap+Others 回归**:CWL ON 下 Provider Share / Model Mix / Budgets / Utilization 仍 top 5 + Others + drill-down 行为正确 | 现有 `MockProviderV029ExtrasTests.swift` + 新断言 | P4 + P7 |
 | **T15** | 多设备 fixture:2 设备各 30 天(部分 dayKey 重叠) → 聚合后跨设备唯一 dayKey 全在,重叠 dayKey latest 赢 | `CWLMultiDeviceTests.swift`(新) | P5 |
-| **T16** | Schema migration v1→v2 在已有 user data 下:旧 `ProviderSnapshotRecord` 表保留 + 新 `DailyCostPoint` 表加入 | `CWLMigrationTests.swift`(新) | P1 + P6 |
+| **T16** | 已有 SwiftData store 在新 schema 下打开(lightweight migration):旧 model 数据(`DeviceRecord` / `ProviderSnapshotModel`)在 reopen 后**完整 readable**,`DailyCostPoint` 表自动加入并可 fetch(空)。模拟"老用户升级"场景。 | `CWLMigrationTests.swift`(新) | P1 + P6 |
 | **T17** | **性能验收**:365 天 × 40 providers 全 ledger → `aggregate(365)` ≤ **50 ms p95**(100 trials) | `CWLPerformanceTests.swift`(新) | P7 |
 
 ## 每 Phase 验收

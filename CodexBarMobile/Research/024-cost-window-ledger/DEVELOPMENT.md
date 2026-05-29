@@ -4,7 +4,7 @@
 
 | Phase | 内容 | 影响文件 | 验证 |
 |---|---|---|---|
-| **P1** | SwiftData schema —— 新增 `DailyCostPoint` + Migration v1→v2 | `Storage/CostLedgerModels.swift`(新), `Storage/SwiftDataSchema.swift` | T1 / T16,`swift build` |
+| **P1** | SwiftData schema —— 新增 `@Model DailyCostPoint`;追加到 `CodexBarSwiftDataSchema.models` 数组(无 versioned schema —— 现状没引入,加 entity 走 SwiftData lightweight 自动迁移) | `Storage/CostLedgerModels.swift`(新), `Storage/SwiftDataSchema.swift` | T1 / T16,iOS `xcodebuild test` |
 | **P2** | Writer —— `SwiftDataBridge.upsertProvider` 末尾加 ledger upsert(**仅 CWL ON**)。blob 路径不动 | `Storage/SwiftDataBridge.swift`, `Storage/CostLedgerService.swift`(新,先写 upsert), `Models/MobileDisplayPreferences.swift` | T2 / T3,手工验证 |
 | **P3** | Reader —— `CostLedgerService.aggregate(...)` + provider rollup + 诊断 | `Storage/CostLedgerService.swift`(补 aggregate / diagnostics) | T4 / T5 / T6 / T7 |
 | **P4** | UI —— Settings 加 CWL 开关 + 窗口 Picker(7/30/90/365)+ 清空 + 诊断面板。`CostDashboardInsights` 接 ledger 后端 | `ContentView.swift`(`CostDashboardView` + `CostDashboardInsights` + `CostSettingsView`), `Models/CostShareService.swift`, `Views/ProviderDetailView.swift`, `Localizable.xcstrings` | T8 / T9 / T12 / T13 / T14,M1–M3 |
@@ -30,15 +30,26 @@ echo "EXIT=$?"; grep -E 'BUILD (SUCCEEDED|FAILED)|error:' /tmp/cb_build.log | ta
 ```
 
 ### Test(权威 gate)
-```bash
-# 针对本 phase
-swift test --no-parallel --filter <suite name> 2>&1 | tail -10
 
-# 全量(必须 --no-parallel,见下面 flake 说明)
+**SwiftData `@Model` 是 iOS-only,测试走 iOS test target**(`CodexBarMobile/CodexBarMobileTests/`),**不是** Mac SPM `Tests/CodexBarTests/`。两个 target 区别:
+- `swift test --no-parallel`(Mac SPM)—— 跑 Mac/Shared module(`Tests/CodexBarTests/`)。
+- `xcodebuild test`(iOS Xcode)—— 跑 iOS-only module + SwiftData(`CodexBarMobile/CodexBarMobileTests/`)。
+
+```bash
+# 针对本 phase 的 CWL iOS 测试(Swift Testing 通过 Xcode test target)
+cd CodexBarMobile
+xcodebuild test -project CodexBarMobile.xcodeproj \
+    -scheme CodexBarMobile \
+    -destination 'platform=iOS Simulator,name=iPhone 16' \
+    -only-testing:CodexBarMobileTests/CWLSchemaTests \
+    -only-testing:CodexBarMobileTests/CWLMigrationTests \
+    2>&1 | grep -E 'Test Suite|passed|failed|error:'
+
+# Mac 端回归(build 140 cap+Others 等还在 Mac SPM 测试集里)
 swift test --no-parallel 2>&1 | tail -3
 ```
 
-**注意**:项目有已知 `SyncCoordinatorTests` 在并行 swift-testing 下 Index-out-of-range flake(`project_swift_test_parallel_flake` 记录)。**必须 `--no-parallel`**。
+**注意**:Mac SPM 测试有已知 `SyncCoordinatorTests` 在并行 swift-testing 下 Index-out-of-range flake(`project_swift_test_parallel_flake` 记录)。**Mac 端测试必须 `--no-parallel`**。iOS xcodebuild test 不受此影响。
 
 ### Lint(release 闸门)
 ```bash

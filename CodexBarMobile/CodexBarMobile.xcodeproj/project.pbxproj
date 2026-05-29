@@ -33,6 +33,7 @@
 		2DBF25B9E86E819649C2BE29 /* GroqMetricsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D0855CD28B09BC6FE3D911E /* GroqMetricsCard.swift */; };
 		2F25E64EEAF1963781B976C8 /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB5B03C39186CBC42C349F8 /* EmptyStateView.swift */; };
 		2F95648D7B6137DC85B62F37 /* ClaudePeakHoursTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 247726F710DF2854B553518D /* ClaudePeakHoursTests.swift */; };
+		3181B2D5BBB7820CABFD2601 /* CWLMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC74955D108073474BBBAB91 /* CWLMigrationTests.swift */; };
 		33F818074F133935C89B4097 /* CodexWorkspaceBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD8478C8A0C9D8732B72F7CB /* CodexWorkspaceBadge.swift */; };
 		3605135099D7D1BAC66F67C3 /* V026Snapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = D03B5D90026D623962989109 /* V026Snapshots.swift */; };
 		36890D62A476E10C3211107E /* ProviderAccountGroupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 621D68074A776C6DDAE3E81D /* ProviderAccountGroupTests.swift */; };
@@ -48,6 +49,7 @@
 		49D6DB12C6EFA95A8A48BE0C /* BedrockCostCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E9B0D8C60F57D4E7DC98890 /* BedrockCostCard.swift */; };
 		4CD1E3131D8E3A04E8B13201 /* BudgetProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77C776CEA57C84E7ECA6192C /* BudgetProgressView.swift */; };
 		4E63C52D8C920C2076DD3CD5 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B47F282E1FA9E215551D09F6 /* Localizable.xcstrings */; };
+		5276BDE7FB232DBFA63A2D92 /* CWLSchemaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D94028CBE4AB12A131F439 /* CWLSchemaTests.swift */; };
 		5318530147AE0495BD05345D /* CodexBarSync.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		537F8FAA96052658292926BC /* ProviderAccountGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5404A3DBB0C65C3C3C8D8ED /* ProviderAccountGroup.swift */; };
 		57B19047261C57559CD61968 /* SyncCostSummary+Today.swift in Sources */ = {isa = PBXBuildFile; fileRef = 148D664C4F52FEB3A2993FE7 /* SyncCostSummary+Today.swift */; };
@@ -71,6 +73,7 @@
 		77CF9F560A2873DDC19B0A3D /* QuotaTransitionSubscriptionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DDEAEEF583AFDE3D29A18C3 /* QuotaTransitionSubscriptionsTests.swift */; };
 		78A8D4ECC85D519DB04C6B07 /* DeepgramUsageCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA293C8F7A388B3FE79C2856 /* DeepgramUsageCard.swift */; };
 		7921A012D44F975F8AFC63DE /* CostShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8515047932479670A9749119 /* CostShareSheet.swift */; };
+		82D12B778494DEEFDCB40A06 /* CostLedgerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20CA4E5C7B1091C018B038D4 /* CostLedgerModels.swift */; };
 		86AF1C1CE9402E616E87F26C /* SwiftDataBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BD0E1383E24DC8971D852C2 /* SwiftDataBridge.swift */; };
 		8A9A4E2E1CA72E072FCBB851 /* MobileDisplayFormattingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CCC87791F1A5C860229EACF /* MobileDisplayFormattingTests.swift */; };
 		8AE4ED5CB4621D5D8DAE93BB /* SnapshotCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29C5E714FA876A9617524529 /* SnapshotCacheTests.swift */; };
@@ -225,6 +228,7 @@
 		1C9038A6A037C9329348C876 /* MockProviderDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockProviderDetectorTests.swift; sourceTree = "<group>"; };
 		1CECA0608F74E3BA76EE5910 /* QuotaProviderList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaProviderList.swift; sourceTree = "<group>"; };
 		1F8C8BB69CA51A514FF41E14 /* MultiAccountForEachIdentityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiAccountForEachIdentityTests.swift; sourceTree = "<group>"; };
+		20CA4E5C7B1091C018B038D4 /* CostLedgerModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostLedgerModels.swift; sourceTree = "<group>"; };
 		247726F710DF2854B553518D /* ClaudePeakHoursTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudePeakHoursTests.swift; sourceTree = "<group>"; };
 		252CB6CF0CDF983CD183384F /* MobileChartAxisFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileChartAxisFormatter.swift; sourceTree = "<group>"; };
 		252E82C4DE92C8734EDD3F33 /* AccountIdentityNormalize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountIdentityNormalize.swift; sourceTree = "<group>"; };
@@ -252,6 +256,7 @@
 		4DDEAEEF583AFDE3D29A18C3 /* QuotaTransitionSubscriptionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaTransitionSubscriptionsTests.swift; sourceTree = "<group>"; };
 		523FB93D267EE1CADF39FE8F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		5639281ED3BA765C9553C8B9 /* MultiAccountLinkageCandidate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiAccountLinkageCandidate.swift; sourceTree = "<group>"; };
+		57D94028CBE4AB12A131F439 /* CWLSchemaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CWLSchemaTests.swift; sourceTree = "<group>"; };
 		5A393218B2702DC47F1003A5 /* SnapshotIdentityKeyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotIdentityKeyTests.swift; sourceTree = "<group>"; };
 		5E75C0925B40108545FE35A3 /* KiroCreditsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiroCreditsCard.swift; sourceTree = "<group>"; };
 		621D68074A776C6DDAE3E81D /* ProviderAccountGroupTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderAccountGroupTests.swift; sourceTree = "<group>"; };
@@ -301,6 +306,7 @@
 		B47F282E1FA9E215551D09F6 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		B4E315BCDE160D8764FE14F2 /* AccountIdentityMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountIdentityMergeTests.swift; sourceTree = "<group>"; };
 		B8A3ED6F54FE9763758974F3 /* MiniMaxBillingCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniMaxBillingCard.swift; sourceTree = "<group>"; };
+		BC74955D108073474BBBAB91 /* CWLMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CWLMigrationTests.swift; sourceTree = "<group>"; };
 		BC8893A8B73134178D35F274 /* CloudKitMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitMergeTests.swift; sourceTree = "<group>"; };
 		BCE6CB7DCBC0976E4414C63D /* V029Snapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V029Snapshots.swift; sourceTree = "<group>"; };
 		C1DABA431C3A96BC06782271 /* ModelContainerFactoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelContainerFactoryTests.swift; sourceTree = "<group>"; };
@@ -455,6 +461,8 @@
 		44CE71E4FE80F6CA918A36BB /* Storage */ = {
 			isa = PBXGroup;
 			children = (
+				BC74955D108073474BBBAB91 /* CWLMigrationTests.swift */,
+				57D94028CBE4AB12A131F439 /* CWLSchemaTests.swift */,
 				C1DABA431C3A96BC06782271 /* ModelContainerFactoryTests.swift */,
 				5A393218B2702DC47F1003A5 /* SnapshotIdentityKeyTests.swift */,
 				3E6F79FB9AFFC795399FAFBF /* SwiftDataBridgeTests.swift */,
@@ -465,6 +473,7 @@
 		566A10A064D398A8177F2520 /* Storage */ = {
 			isa = PBXGroup;
 			children = (
+				20CA4E5C7B1091C018B038D4 /* CostLedgerModels.swift */,
 				9F2CB0BE3DD9918D7E958219 /* ModelContainerFactory.swift */,
 				6BD0E1383E24DC8971D852C2 /* SwiftDataBridge.swift */,
 				9B39BE9838341CBABA2ED1F6 /* SwiftDataSchema.swift */,
@@ -818,6 +827,8 @@
 				A7A9772DEE62BDA0E16FC91E /* AccountIdentityMergeTests.swift in Sources */,
 				CDE7E605C7EBAA5B0A171477 /* AccountIdentityNormalizeContractTests.swift in Sources */,
 				CD8A9E9C7D9155CCE3338602 /* CKRecordReservedKeyAuditTests.swift in Sources */,
+				3181B2D5BBB7820CABFD2601 /* CWLMigrationTests.swift in Sources */,
+				5276BDE7FB232DBFA63A2D92 /* CWLSchemaTests.swift in Sources */,
 				2F95648D7B6137DC85B62F37 /* ClaudePeakHoursTests.swift in Sources */,
 				B0BD7B9F90964EE0B5859675 /* CloudKitMergeTests.swift in Sources */,
 				BF62F92B51A09BA238F46145 /* CostFormattingTests.swift in Sources */,
@@ -869,6 +880,7 @@
 				33F818074F133935C89B4097 /* CodexWorkspaceBadge.swift in Sources */,
 				A644FDE234CC676EC59CC891 /* ContentView.swift in Sources */,
 				ACA7EB9D06944B5EA0FD9E84 /* CostFormatting.swift in Sources */,
+				82D12B778494DEEFDCB40A06 /* CostLedgerModels.swift in Sources */,
 				27EE0BCA2997485104A74200 /* CostMetricCard.swift in Sources */,
 				02E554F44482449A6E303DF8 /* CostShareCardView.swift in Sources */,
 				44179B7669F19C60FFA54FCD /* CostShareService.swift in Sources */,

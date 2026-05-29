@@ -32,8 +32,8 @@ final class DailyCostPoint {
 }
 ```
 
-- Schema 版本:`SchemaV2`(新增 `DailyCostPoint`,现有 `ProviderSnapshotRecord` 等不动)。
-- 迁移:`MigrationPlan` 加 `MigrateV1toV2`(向后兼容,无破坏)。
+- 注册方式:追加到 `CodexBarSwiftDataSchema.models`(`CodexBarMobile/CodexBarMobile/Storage/SwiftDataSchema.swift` 末尾)。当前 schema **未引入 `VersionedSchema` / `SchemaMigrationPlan`** —— `ModelContainerFactory` 的注释明确说 "Future phases must revisit this once real migrations exist",且现策略是 init 失败 → 删了重建(数据是 CloudKit 缓存,可重新拉)。
+- 迁移类型:**lightweight(SwiftData 自动)**。同 schema 内新增 entity 不需要 `MigrationPlan`,SwiftData 会在打开旧 store 时自动 add 新表。Round 1 / P1 验证这一点(T16)。如未来需要"改字段"或"重命名"才引入正式 versioned schema —— 那是另一项工作。
 
 ## 数据流
 
@@ -189,7 +189,7 @@ struct CostLedgerDiagnostics {
 | 文件 | 改动 | Phase |
 |---|---|---|
 | `Storage/CostLedgerModels.swift` | **新增**:`@Model DailyCostPoint` | P1 |
-| `Storage/SwiftDataSchema.swift` | 加 `SchemaV2` + `MigrationPlan` | P1 |
+| `Storage/SwiftDataSchema.swift` | 追加 `DailyCostPoint.self` 到 `CodexBarSwiftDataSchema.models` 数组(无 versioned schema,lightweight migration) | P1 |
 | `Storage/CostLedgerService.swift` | **新增**:聚合 + seed + 清空 + 诊断 + writer 入口 | P2 / P3 / P6 |
 | `Storage/SwiftDataBridge.swift` | `upsertProvider` 末尾,if CWL ON → `CostLedgerService.upsertFromSnapshot` | P2 |
 | `iCloud/CloudSyncReader.swift` | CWL ON 时 reader 走 ledger;OFF 路径(`mergeSnapshots`)不动 | P5 |

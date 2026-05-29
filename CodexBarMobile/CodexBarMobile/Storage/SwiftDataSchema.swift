@@ -191,11 +191,17 @@ final class SyncStateRecord {
 enum CodexBarSwiftDataSchema {
     /// Registered @Model types. Keep this array in sync with the declarations
     /// above. `ModelContainerFactory` feeds it to `ModelContainer(for:)`.
+    ///
+    /// `DailyCostPoint` (declared in `CostLedgerModels.swift`) is the Cost
+    /// Window Ledger entity introduced in Round 1 / P1 of research doc 024.
+    /// Added here so SwiftData lightweight-migrates existing stores to
+    /// include the new table on first open.
     static let models: [any PersistentModel.Type] = [
         DeviceRecord.self,
         ProviderSnapshotModel.self,
         UtilizationEntryModel.self,
         SyncStateRecord.self,
+        DailyCostPoint.self,
     ]
 }
 
