@@ -57,6 +57,7 @@
 		5BDC62538006F2EF448F53ED /* MockProviderBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13047F3A04FEB413C5E079B0 /* MockProviderBanner.swift */; };
 		5DF56542F0C2F51860FE8AD8 /* SyncedUsageData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48D17C7D2668994C4942329B /* SyncedUsageData.swift */; };
 		61BEB22E497DAC7C2FE2AC9C /* CodexBarMobilePushExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 81B87DC9EB24AAEFE036F9F7 /* CodexBarMobilePushExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		638B0DA8806E1E1637E13E7A /* CWLAggregateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AABCE82169AC4EF72708082 /* CWLAggregateTests.swift */; };
 		6552CAFC19A45A6D83821AC0 /* QuotaZoneNotificationParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA3F7A048F7301BC92A1A2 /* QuotaZoneNotificationParser.swift */; };
 		66A54A05F64B57FC828A2C40 /* AlibabaTokenPlanCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C6897E84FB3CBD02DC3D8C /* AlibabaTokenPlanCard.swift */; };
 		6723B0E31B950F7C988C433F /* SyncQuotaWarningConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AF7B6A222FD3554CA455D8E /* SyncQuotaWarningConfigTests.swift */; };
@@ -281,6 +282,7 @@
 		77C776CEA57C84E7ECA6192C /* BudgetProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetProgressView.swift; sourceTree = "<group>"; };
 		7A260F62AFF50B05ED7E6401 /* ShareCardRenderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCardRenderTests.swift; sourceTree = "<group>"; };
 		7AAB8310784E24CC51831768 /* ProviderAccountLinkage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderAccountLinkage.swift; sourceTree = "<group>"; };
+		7AABCE82169AC4EF72708082 /* CWLAggregateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CWLAggregateTests.swift; sourceTree = "<group>"; };
 		81B87DC9EB24AAEFE036F9F7 /* CodexBarMobilePushExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = CodexBarMobilePushExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		82B8A4D1FFD04AA72E89022F /* MobileDisplayPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileDisplayPreferences.swift; sourceTree = "<group>"; };
 		8515047932479670A9749119 /* CostShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostShareSheet.swift; sourceTree = "<group>"; };
@@ -465,6 +467,7 @@
 		44CE71E4FE80F6CA918A36BB /* Storage */ = {
 			isa = PBXGroup;
 			children = (
+				7AABCE82169AC4EF72708082 /* CWLAggregateTests.swift */,
 				BC74955D108073474BBBAB91 /* CWLMigrationTests.swift */,
 				57D94028CBE4AB12A131F439 /* CWLSchemaTests.swift */,
 				D0629321562B420C752FB0A8 /* CWLWriterTests.swift */,
@@ -833,6 +836,7 @@
 				A7A9772DEE62BDA0E16FC91E /* AccountIdentityMergeTests.swift in Sources */,
 				CDE7E605C7EBAA5B0A171477 /* AccountIdentityNormalizeContractTests.swift in Sources */,
 				CD8A9E9C7D9155CCE3338602 /* CKRecordReservedKeyAuditTests.swift in Sources */,
+				638B0DA8806E1E1637E13E7A /* CWLAggregateTests.swift in Sources */,
 				3181B2D5BBB7820CABFD2601 /* CWLMigrationTests.swift in Sources */,
 				5276BDE7FB232DBFA63A2D92 /* CWLSchemaTests.swift in Sources */,
 				9C00DB027AB6C29845327154 /* CWLWriterTests.swift in Sources */,

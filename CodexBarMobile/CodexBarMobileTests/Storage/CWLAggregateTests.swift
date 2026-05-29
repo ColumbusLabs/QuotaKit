@@ -1,0 +1,313 @@
+import CodexBarSync
+import Foundation
+import SwiftData
+import Testing
+@testable import CodexBarMobile
+
+/// Round 3 / P3 of research doc 024 — reader. Exercises the aggregate
+/// primitive `CostLedgerService.aggregate(...)` plus `aggregateProvider`
+/// and `diagnostics`:
+///
+/// - **T4**: single-device aggregation correctness — totals, activeDayCount,
+///   per-provider rollups, daily series order.
+/// - **T5**: cross-device merge — same `(providerID, dayKey)` from two
+///   devices with different `lastUpdated` → max wins (NOT sum); other
+///   `(providerID, dayKey)` combos coexist.
+/// - **T6**: window filtering — 7d / 30d / 90d / 365d return exactly the
+///   days inside the window; boundary day inclusive.
+/// - Diagnostics smoke: counts, earliest dayKey, latestWriteAt.
+///
+/// T7 (equivalence against the blob-derived `CostDashboardInsights`) is
+/// deliberately deferred to P4 — it needs the blob path and the ledger
+/// path consumed via the same renderer.
+@Suite("CWL Aggregate — single + cross-device merge + window filter (T4 + T5 + T6) + diagnostics")
+@MainActor
+struct CWLAggregateTests {
+    private func makeTempStoreURL() -> URL {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent(
+                "CodexBarTests-CWLAggregate-\(UUID().uuidString)",
+                isDirectory: true)
+        try? FileManager.default.createDirectory(
+            at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("Store.sqlite")
+    }
+
+    private func makeContext() -> (URL, ModelContext) {
+        let url = self.makeTempStoreURL()
+        let container = ModelContainerFactory.makeContainer(at: url)
+        return (url, ModelContext(container))
+    }
+
+    /// Fixed "today" so window math is deterministic regardless of when
+    /// the test runs. Built from explicit components instead of a magic
+    /// timestamp — easier to verify by eye.
+    private static let asOf: Date = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar.date(
+            from: DateComponents(year: 2026, month: 5, day: 28))!
+    }()
+
+    private func dayKey(daysAgo: Int) -> String {
+        let d = Self.asOf.addingTimeInterval(-TimeInterval(daysAgo * 86400))
+        return CostLedgerService.utcDayKeyFormatter.string(from: d)
+    }
+
+    private func insert(
+        _ context: ModelContext,
+        device: String,
+        provider: String,
+        daysAgo: Int,
+        cost: Double,
+        tokens: Int,
+        lastUpdated: Date) throws
+    {
+        try CostLedgerService.upsertDayPoint(
+            deviceID: device,
+            providerID: provider,
+            dayKey: self.dayKey(daysAgo: daysAgo),
+            costUSD: cost,
+            totalTokens: tokens,
+            isEstimated: nil,
+            modelBreakdowns: [],
+            serviceBreakdowns: [],
+            lastUpdated: lastUpdated,
+            in: context)
+    }
+
+    // MARK: - T4
+
+    @Test("T4: single-device aggregate — totals, activeDayCount, providerRollups")
+    func testSingleDeviceAggregate() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        // 3 days × 2 providers, all from one device.
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+        try self.insert(context, device: "dev-A", provider: "codex",
+            daysAgo: 0, cost: 1.0, tokens: 100, lastUpdated: t)
+        try self.insert(context, device: "dev-A", provider: "codex",
+            daysAgo: 1, cost: 2.0, tokens: 200, lastUpdated: t)
+        try self.insert(context, device: "dev-A", provider: "codex",
+            daysAgo: 2, cost: 3.0, tokens: 300, lastUpdated: t)
+        try self.insert(context, device: "dev-A", provider: "claude",
+            daysAgo: 0, cost: 0.5, tokens: 50, lastUpdated: t)
+        try self.insert(context, device: "dev-A", provider: "claude",
+            daysAgo: 1, cost: 0.0, tokens: 0, lastUpdated: t)
+        try context.save()
+
+        let agg = try CostLedgerService.aggregate(
+            windowDays: 30, in: context, asOf: Self.asOf)
+
+        // Totals across both providers, all 3 days.
+        #expect(agg.totalCostUSD == 6.5)
+        #expect(agg.totalTokens == 650)
+        // Days with cost > 0: today, yesterday, day before. (claude day-1 = $0
+        // contributes nothing on its own — but codex day-1 = $2 makes day-1 active.)
+        #expect(agg.activeDayCount == 3)
+
+        // Per-provider rollups.
+        #expect(agg.providerRollups.count == 2)
+        let codex = try #require(agg.providerRollups["codex"])
+        #expect(codex.totalCostUSD == 6.0)
+        #expect(codex.totalTokens == 600)
+        #expect(codex.dailyPoints.count == 3)
+
+        let claude = try #require(agg.providerRollups["claude"])
+        #expect(claude.totalCostUSD == 0.5)
+        #expect(claude.totalTokens == 50)
+        #expect(claude.dailyPoints.count == 2)
+
+        // Daily series re-aggregated across providers, sorted oldest → newest.
+        #expect(agg.dailyPoints.count == 3)
+        let sorted = agg.dailyPoints.map(\.dayKey)
+        #expect(sorted == sorted.sorted())
+    }
+
+    // MARK: - T5
+
+    @Test("T5: cross-device same (providerID, dayKey) → max lastUpdated wins (not sum)")
+    func testCrossDeviceLatestWins() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let t0 = Date(timeIntervalSince1970: 1_700_000_000)
+        let t1 = t0.addingTimeInterval(3600) // 1 hour later
+
+        // Same (providerID, dayKey), two devices, different lastUpdated + values.
+        try self.insert(context, device: "dev-A", provider: "codex",
+            daysAgo: 0, cost: 1.0, tokens: 100, lastUpdated: t0)
+        try self.insert(context, device: "dev-B", provider: "codex",
+            daysAgo: 0, cost: 9.0, tokens: 900, lastUpdated: t1)
+        try context.save()
+
+        let agg = try CostLedgerService.aggregate(
+            windowDays: 7, in: context, asOf: Self.asOf)
+
+        // Latest (dev-B, 9.0) wins. Sum (10.0) would be the WRONG answer.
+        #expect(agg.totalCostUSD == 9.0)
+        #expect(agg.totalTokens == 900)
+        #expect(agg.activeDayCount == 1)
+        let codex = try #require(agg.providerRollups["codex"])
+        #expect(codex.totalCostUSD == 9.0)
+    }
+
+    @Test("T5: cross-device different (providerID, dayKey) → both kept (no merge)")
+    func testCrossDeviceDistinctKeysCoexist() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+
+        // 2 devices, different providers + days — nothing to merge.
+        try self.insert(context, device: "dev-A", provider: "codex",
+            daysAgo: 0, cost: 1.0, tokens: 100, lastUpdated: t)
+        try self.insert(context, device: "dev-B", provider: "claude",
+            daysAgo: 1, cost: 2.0, tokens: 200, lastUpdated: t)
+        try context.save()
+
+        let agg = try CostLedgerService.aggregate(
+            windowDays: 7, in: context, asOf: Self.asOf)
+        #expect(agg.totalCostUSD == 3.0)
+        #expect(agg.totalTokens == 300)
+        #expect(agg.activeDayCount == 2)
+        #expect(agg.providerRollups.count == 2)
+    }
+
+    // MARK: - T6
+
+    @Test("T6: window filter — 7d returns only days within last 7, 30d within 30, 90d within 90")
+    func testWindowFilter() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+
+        // Insert 100 days of data, $1 each.
+        for daysAgo in 0..<100 {
+            try self.insert(context, device: "dev-A", provider: "codex",
+                daysAgo: daysAgo, cost: 1.0, tokens: 100, lastUpdated: t)
+        }
+        try context.save()
+
+        let agg7 = try CostLedgerService.aggregate(
+            windowDays: 7, in: context, asOf: Self.asOf)
+        #expect(agg7.dailyPoints.count == 7)
+        #expect(agg7.totalCostUSD == 7.0)
+        #expect(agg7.windowDays == 7)
+
+        let agg30 = try CostLedgerService.aggregate(
+            windowDays: 30, in: context, asOf: Self.asOf)
+        #expect(agg30.dailyPoints.count == 30)
+        #expect(agg30.totalCostUSD == 30.0)
+
+        let agg90 = try CostLedgerService.aggregate(
+            windowDays: 90, in: context, asOf: Self.asOf)
+        #expect(agg90.dailyPoints.count == 90)
+        #expect(agg90.totalCostUSD == 90.0)
+
+        let agg100 = try CostLedgerService.aggregate(
+            windowDays: 100, in: context, asOf: Self.asOf)
+        #expect(agg100.dailyPoints.count == 100)
+        #expect(agg100.totalCostUSD == 100.0)
+    }
+
+    @Test("T6: window clamps to [1, 365] — too-small input clamped to 1, too-large to 365")
+    func testWindowClamp() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+        try self.insert(context, device: "dev-A", provider: "codex",
+            daysAgo: 0, cost: 1.0, tokens: 100, lastUpdated: t)
+        try context.save()
+
+        let aggZero = try CostLedgerService.aggregate(
+            windowDays: 0, in: context, asOf: Self.asOf)
+        #expect(aggZero.windowDays == 1)
+
+        let aggHuge = try CostLedgerService.aggregate(
+            windowDays: 10_000, in: context, asOf: Self.asOf)
+        #expect(aggHuge.windowDays == 365)
+    }
+
+    @Test("T6: cutoffDayKey — windowDays=1 → today; windowDays=7 → today-6")
+    func testCutoffDayKey() {
+        // 2026-05-28 UTC
+        let asOf = Self.asOf
+        #expect(CostLedgerService.cutoffDayKey(windowDays: 1, asOf: asOf) == "2026-05-28")
+        #expect(CostLedgerService.cutoffDayKey(windowDays: 7, asOf: asOf) == "2026-05-22")
+        #expect(CostLedgerService.cutoffDayKey(windowDays: 30, asOf: asOf) == "2026-04-29")
+    }
+
+    // MARK: - aggregateProvider
+
+    @Test("aggregateProvider: returns rollup for the requested provider only")
+    func testAggregateProviderFilters() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+        try self.insert(context, device: "dev-A", provider: "codex",
+            daysAgo: 0, cost: 1.0, tokens: 100, lastUpdated: t)
+        try self.insert(context, device: "dev-A", provider: "claude",
+            daysAgo: 0, cost: 2.0, tokens: 200, lastUpdated: t)
+        try context.save()
+
+        let codex = try CostLedgerService.aggregateProvider(
+            providerID: "codex", windowDays: 7, in: context, asOf: Self.asOf)
+        #expect(codex.providerID == "codex")
+        #expect(codex.totalCostUSD == 1.0)
+    }
+
+    @Test("aggregateProvider: missing provider returns empty rollup (not nil)")
+    func testAggregateProviderMissing() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let rollup = try CostLedgerService.aggregateProvider(
+            providerID: "nonexistent", windowDays: 7,
+            in: context, asOf: Self.asOf)
+        #expect(rollup.providerID == "nonexistent")
+        #expect(rollup.totalCostUSD == 0)
+        #expect(rollup.dailyPoints.isEmpty)
+    }
+
+    // MARK: - Diagnostics
+
+    @Test("diagnostics: counts + earliest day + latestWriteAt reflect inserted rows")
+    func testDiagnostics() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        // Empty ledger.
+        let empty = try CostLedgerService.diagnostics(in: context)
+        #expect(empty.rowCount == 0)
+        #expect(empty.deviceCount == 0)
+        #expect(empty.providerCount == 0)
+        #expect(empty.dayCount == 0)
+        #expect(empty.earliestDayKey == nil)
+        #expect(empty.latestWriteAt == nil)
+        #expect(empty.estimatedBytes == 0)
+
+        let t0 = Date(timeIntervalSince1970: 1_700_000_000)
+        let t1 = t0.addingTimeInterval(3600)
+        try self.insert(context, device: "dev-A", provider: "codex",
+            daysAgo: 5, cost: 1.0, tokens: 100, lastUpdated: t0)
+        try self.insert(context, device: "dev-A", provider: "claude",
+            daysAgo: 0, cost: 2.0, tokens: 200, lastUpdated: t1)
+        try self.insert(context, device: "dev-B", provider: "codex",
+            daysAgo: 2, cost: 3.0, tokens: 300, lastUpdated: t1)
+        try context.save()
+
+        let d = try CostLedgerService.diagnostics(in: context)
+        #expect(d.rowCount == 3)
+        #expect(d.deviceCount == 2)
+        #expect(d.providerCount == 2)
+        #expect(d.dayCount == 3)
+        #expect(d.earliestDayKey == self.dayKey(daysAgo: 5))
+        #expect(d.latestWriteAt == t1)
+        #expect(d.estimatedBytes == 600)
+    }
+}
