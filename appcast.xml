@@ -3,6 +3,66 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.29.0.1</title>
+            <pubDate>Sat, 30 May 2026 11:24:45 -0700</pubDate>
+            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
+            <sparkle:version>68.1.1.9.0</sparkle:version>
+            <sparkle:shortVersionString>0.29.0.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.29.0.1-Mobile 1.9.0</h2>
+Syncs the Mac app to upstream CodexBar v0.29.0 and ships the paired iOS 1.9.0 companion. Three new providers — Azure OpenAI, Alibaba Token Plan (Bailian), and T3 Chat — plus the upstream v0.28.0 + v0.29.0 fixes.
+<h3>New providers</h3>
+<ul>
+<li><strong>Azure OpenAI</strong> — validate a deployment via API key, endpoint, and deployment name.</li>
+<li><strong>Alibaba Token Plan (Bailian)</strong> — monthly token-plan quota via browser or manual cookies.</li>
+<li><strong>T3 Chat</strong> — web-session usage with a 4-hour base window and a monthly overage window; paste a full browser cURL if a cookie-only refresh hits a 429 challenge.</li>
+</ul>
+<h3>Also from upstream</h3>
+<ul>
+<li>Codex cost history now splits standard vs fast spend/token usage in model breakdowns.</li>
+<li>OpenCode / OpenCode Go show workspace renewal dates.</li>
+<li>Ollama can authenticate with an API key as an alternative to browser cookies.</li>
+<li>Plus the upstream v0.28/v0.29 menu-bar, Codex, Antigravity, and localization fixes.</li>
+</ul>
+<h3>Compatibility</h3>
+<ul>
+<li>Mixing app versions across Macs and iPhones is safe — older iPhones ignore the new providers and older Macs simply don't send them. No crashes or data loss across any new/old device combination.</li>
+</ul>
+<h3>Required versions</h3>
+<ul>
+<li>iPhone companion: iOS 1.9.0 (build 139), via TestFlight / App Store.</li>
+<li>This Mac build: 0.29.0.1 (fork build 68.1). Update both for the full feature set.</li>
+</ul>
+<h3>中文说明</h3>
+同步 Mac 端到上游 CodexBar v0.29.0，并配套发布 iOS 1.9.0。本次新增三个 provider —— Azure OpenAI、Alibaba Token Plan（百炼）和 T3 Chat —— 外加上游 v0.28.0 + v0.29.0 的修复。
+<h3>新增 provider</h3>
+<ul>
+<li><strong>Azure OpenAI</strong> —— 通过 API key、endpoint 和部署名称校验部署。</li>
+<li><strong>Alibaba Token Plan（百炼）</strong> —— 通过浏览器或手动 cookie 跟踪每月 token 套餐额度。</li>
+<li><strong>T3 Chat</strong> —— web session 用量，含 4 小时基础窗口和每月超额窗口；若 cookie 刷新遇到 429 挑战，可粘贴完整的浏览器 cURL。</li>
+</ul>
+<h3>同样来自上游</h3>
+<ul>
+<li>Codex 费用历史现在区分标准 / 快速的消费和 token 用量。</li>
+<li>OpenCode / OpenCode Go 显示工作区续费日期。</li>
+<li>Ollama 可用 API key 作为浏览器 cookie 之外的认证方式。</li>
+<li>以及上游 v0.28/v0.29 的菜单栏、Codex、Antigravity 和本地化修复。</li>
+</ul>
+<h3>兼容性</h3>
+<ul>
+<li>在 Mac 和 iPhone 间混用新旧版本是安全的 —— 旧 iPhone 会忽略新 provider，旧 Mac 干脆不发送。任意新 / 旧设备组合都不会崩溃或丢数据。</li>
+</ul>
+<h3>所需版本</h3>
+<ul>
+<li>iPhone 配套：iOS 1.9.0（build 139），经 TestFlight / App Store。</li>
+<li>本 Mac 版本：0.29.0.1（fork build 68.1）。两边都更新才能用全套功能。</li>
+</ul>
+<hr/>
+<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.29.0.1-mobile.1.9.0/CodexBar-0.29.0.1-mobile.1.9.0.zip" length="45575165" type="application/octet-stream" sparkle:edSignature="dWvIZdiTu7GC3zS4JRttYmxjUWVZLKwQjbQC9ItmztI5j8CzzwWJXN4DvNfFtucPcT7gPKLr9j1Lr+IZVrltAw=="/>
+        </item>
+        <item>
             <title>0.27.0</title>
             <pubDate>Mon, 25 May 2026 17:59:33 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
@@ -144,82 +204,6 @@ No schema deploy needed. Hotfix is consumer-side gating logic only.
 <p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.26.4-mobile.1.7.0/CodexBar-0.26.4-mobile.1.7.0.zip" length="39539694" type="application/octet-stream" sparkle:edSignature="ml9aMCumtvcRava66ZEhkORbuvF3ihqB+Od6ATRL9hx8BmHjN6OIQB2GportoIQbqMDfH0GxLeRcJE12dZrmDA=="/>
-        </item>
-        <item>
-            <title>0.26.2</title>
-            <pubDate>Mon, 18 May 2026 17:32:36 -0700</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
-            <sparkle:version>63.3.1.7.0</sparkle:version>
-            <sparkle:shortVersionString>0.26.2</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.26.2-Mobile 1.7.0</h2>
-> Fork-only patch on top of upstream v0.26.1. **No Mac UI deltas
-> beyond what v0.26.1 already shipped** — the Mac menu's per-provider
-> account-tab switcher (e.g., OpenAI admin keys) already worked. The
-> change in this release is two-sided plumbing so iPhone finally
-> mirrors that Mac UX: catalog-driven multi-account sync fan-out
-> (Mac → CloudKit) plus a generic account-tab UI inside iOS provider
-> detail pages.
-<h3>Mac</h3>
-<ul>
-<li><code>SyncCoordinator.tokenBasedMultiAccountProviders</code> is now a computed</li>
-</ul>
-  property reading <code>TokenAccountSupportCatalog.allProviders</code> (single
-  source of truth). Fan-out now covers all 18 token-account providers
-  instead of the prior hardcoded 11 — silently fixes 7 providers
-  (openai, deepseek, antigravity, manus, copilot, venice, stepfun)
-  whose extra accounts were never reaching iOS via CloudKit.
-<ul>
-<li>New <code>Tests/CodexBarTests/TokenAccountSyncCoverageTests.swift</code> —</li>
-</ul>
-  pins the catalog⇔sync-list equality so future upstream-added token
-  providers automatically flow through; missing-mirror cases fail
-  the build instead of silently losing multi-account on iPhone.
-<ul>
-<li><code>MockProviderInjector</code> +7 second-tab simple mocks (one per Phase G</li>
-</ul>
-  provider above) so the iOS multi-account tab UI is exercised
-  end-to-end via the mock-injection toggle. Total mock count 45 → 52.
-<ul>
-<li>Localized <code>mobile_toggle_mock_subtitle</code> updated to reflect the new</li>
-</ul>
-  52/42/44 count.
-<h3>iOS (pairs with the same 1.7.0 marketing version, build 130)</h3>
-<ul>
-<li>Universal <code>ProviderAccountGroup</code> model — groups post-merge snapshots</li>
-</ul>
-  by providerID. Mac multi-account providers now show <strong>one row</strong> in
-  the iOS Usage list (with a <code>· N</code> count badge) instead of N separate
-  rows.
-<ul>
-<li><code>ProviderDetailView</code> segmented account-tab bar at the top when the</li>
-</ul>
-  group has 2+ accounts. Tab labels prefer email local-part →
-  loginMethod → <code>Account N</code>. Tapping a tab re-renders all the
-  existing cards (rate windows, cost, OpenAI Dashboard, daily chart,
-  Phase B typed cards) against the selected account's data —
-  mirroring Mac's "click into provider, switch between admin tabs"
-  flow.
-<ul>
-<li>See <code>CodexBarMobile/CHANGELOG.md</code> for the iOS-side detail.</li>
-</ul>
-<h3>CloudKit deploy</h3>
-Per pre-release audit (<code>docs/cloudkit-deploy-audit.md</code>): **no schema
-deploy needed**. Phase G is 100% consumer-side — Mac pushes more
-records of the existing <code>DeviceProviderSnapshot</code> type; iOS renders
-the post-merge snapshot list with grouping. No new record types, no
-new fields outside the existing zlib-compressed <code>payload: Data</code>,
-no new indexes or zones.
-<h3>Notes</h3>
-<ul>
-<li><code>version.env</code>: <code>MARKETING_VERSION=0.26.2</code>, <code>BUILD_NUMBER=63.3</code>, <code>MOBILE_VERSION=1.7.0</code>, <code>UPSTREAM_VERSION=v0.26.1</code>, <code>UPSTREAM_SYNC_DATE=2026-05-18</code>.</li>
-<li>Tag name: <code>v0.26.2-mobile.1.7.0</code>. Release branch: <code>mobile-dev</code>.</li>
-<li>Naming scheme: see <code>docs/versioning.md</code>.</li>
-</ul>
-<hr/>
-<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.26.2-mobile.1.7.0/CodexBar-0.26.2-mobile.1.7.0.zip" length="39539492" type="application/octet-stream" sparkle:edSignature="kKILZHFfwFUzfN6twoYSUbDPA67B6veziYNfHtWzRLHFgVXXVmLh3DpAdy3XxOM4q6FB9nq+aJqkeWJVqvSmAQ=="/>
         </item>
         <item>
             <title>0.14.0</title>
