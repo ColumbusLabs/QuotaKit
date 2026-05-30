@@ -261,7 +261,10 @@ enum CostLedgerService {
         // Per-day + per-model aggregate ACROSS all providers/accounts (these
         // intentionally collapse account distinction — they're cross-cutting).
         var perDay: [String: DayAccumulator] = [:]
-        var perModel: [String: Double] = [:]
+        // Per-model cost + Codex standard/fast split (upstream #1070), summed
+        // across the window so the rebuilt modelMix carries the split through
+        // to the dashboard's Model Mix rows — at parity with the blob path.
+        var perModel: [String: (cost: Double, std: Double, fast: Double, hasSplit: Bool)] = [:]
         var perService: [String: Double] = [:]
 
         for survivor in survivors.values {
@@ -277,7 +280,14 @@ enum CostLedgerService {
                let decoded = try? decoder.decode([SyncCostBreakdown].self, from: data)
             {
                 for breakdown in decoded where breakdown.costUSD > 0 {
-                    perModel[breakdown.label, default: 0] += breakdown.costUSD
+                    var entry = perModel[breakdown.label] ?? (0, 0, 0, false)
+                    entry.cost += breakdown.costUSD
+                    if breakdown.standardCostUSD != nil || breakdown.priorityCostUSD != nil {
+                        entry.hasSplit = true
+                        entry.std += breakdown.standardCostUSD ?? 0
+                        entry.fast += breakdown.priorityCostUSD ?? 0
+                    }
+                    perModel[breakdown.label] = entry
                 }
             }
             if let data = survivor.serviceBreakdownsData,
@@ -307,7 +317,13 @@ enum CostLedgerService {
             }
 
         let modelMix = perModel
-            .map { SyncCostBreakdown(label: $0.key, costUSD: $0.value) }
+            .map { label, entry in
+                SyncCostBreakdown(
+                    label: label,
+                    costUSD: entry.cost,
+                    standardCostUSD: entry.hasSplit ? entry.std : nil,
+                    priorityCostUSD: entry.hasSplit ? entry.fast : nil)
+            }
             .sorted { $0.costUSD > $1.costUSD }
 
         let serviceMix = perService

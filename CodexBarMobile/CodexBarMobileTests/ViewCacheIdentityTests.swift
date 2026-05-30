@@ -168,8 +168,25 @@ struct ViewCacheIdentityTests {
         #expect(first.map(\.cost) == second.map(\.cost))
     }
 
-    @Test("ShareCardData.displayProviders collapses tail to 'Others' when > 3 providers")
+    @Test("ShareCardData.displayProviders collapses tail to 'Others' when 6 or more providers")
     func displayProviders_collapsesTail() {
+        // iOS 1.9.0 cap: top 5 + an aggregated "Others" row, only when count >= 6.
+        let rows: [ShareCardData.ProviderRow] = (0 ..< 6).map {
+            ShareCardData.ProviderRow(name: "P\($0)", cost: Double(6 - $0), share: 0.1, color: .gray)
+        }
+        let data = ShareCardData(
+            totalCost: 21, todayCost: 0, totalTokens: 0, activeDays: 0, avgDailyCost: 0,
+            providers: rows, topModels: [], dailyBars: [])
+        let display = data.displayProviders
+        #expect(display.count == 6)
+        #expect(display.prefix(5).map(\.name) == ["P0", "P1", "P2", "P3", "P4"])
+        #expect(display.last?.name == String(localized: "Others"))
+        // The Others bucket aggregates only the tail beyond the top 5 (P5, cost 1).
+        #expect(display.last?.cost == 1)
+    }
+
+    @Test("ShareCardData.displayProviders shows all when 5 or fewer providers (no 'Others')")
+    func displayProviders_noCollapseAtFive() {
         let rows: [ShareCardData.ProviderRow] = (0 ..< 5).map {
             ShareCardData.ProviderRow(name: "P\($0)", cost: Double(5 - $0), share: 0.2, color: .gray)
         }
@@ -177,8 +194,8 @@ struct ViewCacheIdentityTests {
             totalCost: 15, todayCost: 0, totalTokens: 0, activeDays: 0, avgDailyCost: 0,
             providers: rows, topModels: [], dailyBars: [])
         let display = data.displayProviders
-        #expect(display.count == 4)
-        #expect(display.last?.name == String(localized: "Others"))
+        #expect(display.count == 5)
+        #expect(display.last?.name == "P4")
     }
 
     // Note: Hotspot 5 (CostTab) reverted to synchronous compute — no cache identity needed.

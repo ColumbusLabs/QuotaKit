@@ -504,17 +504,27 @@ struct ProviderDetailView: View {
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
             if let selectedDate, let point = daily.first(where: { $0.dayKey == selectedDate }) {
-                HStack {
-                    Text(point.dayKey)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(Self.formatUSD(point.costUSD))
-                        .font(.caption.monospacedDigit())
-                        .fontWeight(.medium)
-                    Text("· \(Self.formatTokens(point.totalTokens))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Text(point.dayKey)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text(Self.formatUSD(point.costUSD))
+                            .font(.caption.monospacedDigit())
+                            .fontWeight(.medium)
+                        Text("· \(Self.formatTokens(point.totalTokens))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    // Codex standard/fast spend split for the selected day — the
+                    // iOS mirror of the Mac cost-history "Std / Fast" hover detail
+                    // (upstream #1070). Nil for non-Codex / pre-0.29 days.
+                    if let split = CodexCostSplit.subtitle(summing: point.modelBreakdowns) {
+                        Text(split)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .padding(.horizontal, 4)
             }

@@ -948,6 +948,9 @@ struct CostDashboardInsights {
         var providerRows: [ProviderRow] = []
         var dailyTotals: [String: (costUSD: Double, totalTokens: Int)] = [:]
         var modelTotals: [String: Double] = [:]
+        // Codex standard/fast split summed per model across the window, so the
+        // Model Mix rows can show a "Std / Fast" sub-line (upstream #1070).
+        var modelSplits: [String: (std: Double, fast: Double)] = [:]
         var serviceTotals: [String: Double] = [:]
         var budgetRows: [CostBudgetRow] = []
 
@@ -985,6 +988,10 @@ struct CostDashboardInsights {
 
                 for breakdown in point.modelBreakdowns where breakdown.costUSD > 0 {
                     modelTotals[breakdown.label, default: 0] += breakdown.costUSD
+                    if breakdown.standardCostUSD != nil || breakdown.priorityCostUSD != nil {
+                        modelSplits[breakdown.label, default: (0, 0)].std += breakdown.standardCostUSD ?? 0
+                        modelSplits[breakdown.label, default: (0, 0)].fast += breakdown.priorityCostUSD ?? 0
+                    }
                 }
 
                 for breakdown in point.serviceBreakdowns where breakdown.costUSD > 0 {
@@ -1008,7 +1015,7 @@ struct CostDashboardInsights {
         }
         .sorted { $0.date < $1.date }
 
-        self.modelRows = Self.breakdownRows(from: modelTotals, palette: .model)
+        self.modelRows = Self.breakdownRows(from: modelTotals, palette: .model, splits: modelSplits)
         self.serviceRows = Self.breakdownRows(from: serviceTotals, palette: .service)
         self.budgetRows = budgetRows.sorted { lhs, rhs in
             let lhsRatio = lhs.budget.limitAmount > 0 ? lhs.budget.usedAmount / lhs.budget.limitAmount : 0
@@ -1084,6 +1091,12 @@ struct CostDashboardInsights {
 
         let modelTotals = Dictionary(
             uniqueKeysWithValues: aggregation.modelMix.map { ($0.label, $0.costUSD) })
+        let modelSplits = Dictionary(
+            uniqueKeysWithValues: aggregation.modelMix.compactMap {
+                bd -> (String, (std: Double, fast: Double))? in
+                guard bd.standardCostUSD != nil || bd.priorityCostUSD != nil else { return nil }
+                return (bd.label, (bd.standardCostUSD ?? 0, bd.priorityCostUSD ?? 0))
+            })
         let serviceTotals = Dictionary(
             uniqueKeysWithValues: aggregation.serviceMix.map { ($0.label, $0.costUSD) })
 
@@ -1096,7 +1109,7 @@ struct CostDashboardInsights {
                 return lhs.thirtyDayCost > rhs.thirtyDayCost
             },
             dailyPoints: dailyPoints.sorted { $0.date < $1.date },
-            modelRows: Self.breakdownRows(from: modelTotals, palette: .model),
+            modelRows: Self.breakdownRows(from: modelTotals, palette: .model, splits: modelSplits),
             serviceRows: Self.breakdownRows(from: serviceTotals, palette: .service),
             budgetRows: budgetRows.sorted { lhs, rhs in
                 let lhsRatio = lhs.budget.limitAmount > 0 ? lhs.budget.usedAmount / lhs.budget.limitAmount : 0
@@ -1105,14 +1118,20 @@ struct CostDashboardInsights {
             })
     }
 
-    private static func breakdownRows(from totals: [String: Double], palette: BreakdownPalette) -> [CostBreakdownRow] {
+    private static func breakdownRows(
+        from totals: [String: Double],
+        palette: BreakdownPalette,
+        splits: [String: (std: Double, fast: Double)] = [:]) -> [CostBreakdownRow]
+    {
         totals
             .filter { $0.value > 0 }
             .map { label, amount in
                 CostBreakdownRow(
                     label: label,
                     amountUSD: amount,
-                    subtitle: nil,
+                    subtitle: splits[label].flatMap {
+                        CodexCostSplit.subtitle(standardCostUSD: $0.std, priorityCostUSD: $0.fast)
+                    },
                     color: palette.color(for: label))
             }
             .sorted { lhs, rhs in
@@ -2115,7 +2134,10 @@ private struct RawDailyPointRow: View {
             ForEach(self.day.modelBreakdowns, id: \.label) { item in
                 VStack(alignment: .leading, spacing: 1) {
                     LabeledContent(item.label, value: String(format: "$%.2f", item.costUSD))
-                    if let split = Self.codexSplitText(item) {
+                    if let split = CodexCostSplit.subtitle(
+                        standardCostUSD: item.standardCostUSD,
+                        priorityCostUSD: item.priorityCostUSD)
+                    {
                         Text(split)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
@@ -2129,20 +2151,6 @@ private struct RawDailyPointRow: View {
                     .foregroundStyle(.secondary)
             }
         }
-    }
-
-    /// Codex standard-vs-fast (priority) cost split sub-line (upstream #1070).
-    /// Returns nil for providers/days without the split, so non-Codex rows are
-    /// unchanged. Mirrors the Mac cost-history "Std / Fast" hover detail.
-    private static func codexSplitText(_ item: SyncCostBreakdown) -> String? {
-        guard item.standardCostUSD != nil || item.priorityCostUSD != nil else { return nil }
-        let std = item.standardCostUSD ?? 0
-        let fast = item.priorityCostUSD ?? 0
-        guard std > 0 || fast > 0 else { return nil }
-        return String(
-            format: String(localized: "Std %1$@ · Fast %2$@"),
-            String(format: "$%.2f", std),
-            String(format: "$%.2f", fast))
     }
 
     private func formatTokens(_ value: Int) -> String { CostFormatting.tokens(value) }

@@ -2,6 +2,36 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.9.0 (142)] — 2026-05-29 — Codex Std/Fast split now shown in the Cost UI
+
+The Codex standard-vs-fast (priority) spend split (upstream #1070) was only
+rendered in Developer Tools → Raw Sync Data. It now appears in the normal,
+user-facing Cost UI — at parity with the Mac's cost-history "Std / Fast"
+detail. (Non-Codex providers and pre-0.29 Mac payloads are unaffected.)
+
+### Changed
+
+- **Cost dashboard → Model Mix**: each Codex model row now shows a
+  "Std $X · Fast $Y" sub-line (summed over the window), for models that carry
+  the split. Both aggregation paths carry it — the iCloud-blob path
+  (`CostDashboardInsights.init(snapshot:)`) and the Cost Window Ledger path
+  (`CostLedgerService.aggregate` → `fromLedger`) — so the value is identical
+  whether the ledger is on or off.
+- **Codex provider detail → Daily Spend**: selecting a day in the chart now
+  shows that day's "Std $X · Fast $Y" beneath the cost/tokens line — the iOS
+  mirror of the Mac cost-history hover.
+
+### Internal
+
+- New `CodexCostSplit` formatter is the single source of truth for the
+  sub-line (reuses the existing 4-language `Std %@ · Fast %@` string, no new
+  catalog key) — replaces the inline `codexSplitText` in the Raw Sync Data
+  inspector.
+- Fixed a stale `ShareCardData.displayProviders` test that still asserted the
+  pre-1.9.0 top-3 cap; added a 5-vs-6 boundary test for the top-5 + Others rule.
+
+---
+
 ## [1.9.0 (141)] — 2026-05-29 — Cost Window Ledger (beta, opt-in)
 
 Adds an opt-in on-device cost ledger so the Cost tab can show a longer cost

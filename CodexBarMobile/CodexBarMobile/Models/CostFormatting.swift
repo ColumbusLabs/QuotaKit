@@ -1,3 +1,4 @@
+import CodexBarSync
 import Foundation
 
 /// Single source of truth for cost + token number formatting across the iOS app.
@@ -45,5 +46,40 @@ enum CostFormatting {
 
     private static func compactNumber(_ value: Double) -> String {
         value.formatted(.number.precision(.fractionLength(1)))
+    }
+}
+
+/// Formats the Codex standard-vs-fast (priority) spend split sub-line
+/// ("Std $X · Fast $Y", upstream v0.29.0 #1070) shown beneath a Codex
+/// model/day's total cost — the iOS mirror of the Mac cost-history "Std /
+/// Fast" detail. Returns nil when neither tier is present (non-Codex rows,
+/// pre-0.29 Mac payloads) or both are zero, so other rows render unchanged.
+/// Single source of truth shared by the Cost dashboard's Model Mix, the
+/// Codex provider detail's daily-spend hover, and the Raw Sync Data inspector.
+enum CodexCostSplit {
+    static func subtitle(standardCostUSD: Double?, priorityCostUSD: Double?) -> String? {
+        guard standardCostUSD != nil || priorityCostUSD != nil else { return nil }
+        let std = standardCostUSD ?? 0
+        let fast = priorityCostUSD ?? 0
+        guard std > 0 || fast > 0 else { return nil }
+        return String(
+            format: String(localized: "Std %1$@ · Fast %2$@"),
+            CostFormatting.usd(std),
+            CostFormatting.usd(fast))
+    }
+
+    /// Window/day total split summed across a set of model breakdowns.
+    /// Returns nil unless at least one breakdown carried a split field.
+    static func subtitle(summing breakdowns: [SyncCostBreakdown]) -> String? {
+        var std = 0.0
+        var fast = 0.0
+        var hasSplit = false
+        for breakdown in breakdowns where breakdown.standardCostUSD != nil || breakdown.priorityCostUSD != nil {
+            hasSplit = true
+            std += breakdown.standardCostUSD ?? 0
+            fast += breakdown.priorityCostUSD ?? 0
+        }
+        guard hasSplit else { return nil }
+        return self.subtitle(standardCostUSD: std, priorityCostUSD: fast)
     }
 }
