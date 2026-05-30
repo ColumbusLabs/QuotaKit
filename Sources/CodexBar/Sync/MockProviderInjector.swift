@@ -121,10 +121,10 @@ enum MockProviderInjector {
     ///   aggregate cost dashboard contribution.
     ///
     /// Total: **45 ProviderUsageSnapshot entries across 42 distinct
-    /// providerIDs** (40 real-borrowed + 2 synthetic). Aggregate
-    /// cost ~$90-120/30day (iOS 1.7.0 adds the v0.26 enrichments
-    /// for kiro/bedrock/moonshot/zai/openai/antigravity via
-    /// `v026ExtrasFor(providerID:)`).
+    /// providerIDs** (40 real-borrowed + 2 synthetic). iOS 1.9.0 bumps a few
+    /// headline providers to realistic heavy spend + synthesizes ~55-day daily
+    /// histories so the CWL ledger / Cost dashboard are testable at scale; the
+    /// aggregate 30-day cost is now several thousand USD, not ~$100.
     static func allMocks() -> [ProviderUsageSnapshot] {
         let rich: [ProviderUsageSnapshot] = [
             self.mockCodexAlice(),
@@ -258,6 +258,23 @@ enum MockProviderInjector {
 
     // MARK: - Cost helper
 
+    /// Deterministically synthesizes a `days`-long daily-spend array centered
+    /// on `avgPerDay`, with a per-provider phase offset so different mocks
+    /// don't wobble in lockstep. Oldest→newest, rounded to cents. Gives the
+    /// simple single-account mocks a real per-day cost history so they land in
+    /// the CWL ledger and the daily-spend chart — not just the Codex mock.
+    private static func synthDailyTotals(
+        days: Int, avgPerDay: Double, seed: String) -> [Double]
+    {
+        guard days > 0, avgPerDay > 0 else { return [] }
+        let phase = Double(seed.unicodeScalars.reduce(0) { $0 + Int($1.value) } % 100)
+            / 100.0 * .pi * 2
+        return (0..<days).map { day in
+            let wobble = 1.0 + 0.35 * sin(Double(day) * 0.35 + phase)
+            return ((avgPerDay * wobble) * 100).rounded() / 100
+        }
+    }
+
     /// Builds a SyncCostSummary with optional 30-day daily breakdown.
     /// `dailyTotals.count` should be 30 for a complete history; can be
     /// fewer if testing partial windows.
@@ -328,14 +345,17 @@ enum MockProviderInjector {
         // Alice uses a non-ASCII email (`café-mock@codex.test`) on
         // purpose to exercise UTF-8 + percent-encoding round-trip
         // through the wire format and the AccountIdentityComputer.
-        // She is the ONLY mock with a 30-day daily cost breakdown so
-        // the iOS Cost dashboard's day-by-day chart + model-breakdown
-        // pie path is end-to-end testable.
-        let dailySpend: [Double] = (0..<30).map { day in
-            // Sinusoidal $0.20–$0.80/day pattern.
-            0.5 + 0.3 * sin(Double(day) * 0.4)
+        // A heavy Codex account (~$45/day) with a 55-day daily history so the
+        // CWL ledger, the 90-day window, and the day-by-day chart + Std/Fast
+        // split are all testable against realistic numbers. (Simple mocks also
+        // synthesize daily now — see makeSimpleProviderMock.)
+        let dailySpend: [Double] = (0..<55).map { day in
+            // ~$30–$60/day sinusoidal pattern (≈$1,350 trailing-30-day).
+            45.0 + 15.0 * sin(Double(day) * 0.4)
         }
-        let totalUSD = dailySpend.reduce(0, +)
+        // Anchor the headline "30-day" cost to the trailing 30 days (not all
+        // 55) so it reads like a real 30-day window.
+        let trailing30 = dailySpend.suffix(30).reduce(0, +)
         return ProviderUsageSnapshot(
             providerID: "codex",
             providerName: "Codex (Alice · Mock)",
@@ -359,8 +379,8 @@ enum MockProviderInjector {
             costSummary: Self.makeCostSummary(
                 sessionUSD: 0.42,
                 sessionTokens: 12345,
-                thirtyDayUSD: totalUSD,
-                thirtyDayTokens: Int(totalUSD * 50000),
+                thirtyDayUSD: trailing30,
+                thirtyDayTokens: Int(trailing30 * 50000),
                 dailyTotals: dailySpend,
                 // gap F: 90-day window → iOS shows "90 Days" (vs "30 Days").
                 historyDays: 90,
@@ -805,9 +825,12 @@ enum MockProviderInjector {
     }
 
     /// Profile table for the 35 simple mocks. Each profile yields one
-    /// `ProviderUsageSnapshot`. Aggregate 30-day cost intentionally
-    /// kept under ~$50 across these 24 so combined with the rich
-    /// mocks the total stays under $100 (per MR6.2 invariant).
+    /// `ProviderUsageSnapshot`. iOS 1.9.0: each cost-bearing profile now
+    /// synthesizes a ~55-day daily history (`makeSimpleProviderMock`) so it
+    /// populates the CWL ledger, and a few headline providers (cursor /
+    /// factory / gemini) carry realistic heavy 30-day totals to exercise the
+    /// dashboard's big-number + top-5/Others paths. The old "<$100 aggregate"
+    /// invariant is intentionally lifted for that reason.
     private static let simpleProviderProfiles: [SimpleProviderProfile] = [
         .init(
             providerID: "cursor", providerName: "Cursor",
@@ -817,7 +840,7 @@ enum MockProviderInjector {
             primaryResetsInSeconds: 12 * 86400,
             primaryResetDescription: "in 12 days",
             secondary: nil,
-            thirtyDayCostUSD: 4.50, sessionCostUSD: 0.20),
+            thirtyDayCostUSD: 1450.00, sessionCostUSD: 52.00),
         .init(
             providerID: "opencode", providerName: "OpenCode Zen",
             accountLocal: "personal", loginMethod: "Pro",
@@ -853,7 +876,7 @@ enum MockProviderInjector {
             primaryResetsInSeconds: 8 * 86400,
             primaryResetDescription: "in 8 days",
             secondary: nil,
-            thirtyDayCostUSD: 4.20, sessionCostUSD: 0.30),
+            thirtyDayCostUSD: 620.00, sessionCostUSD: 22.00),
         .init(
             providerID: "gemini", providerName: "Gemini",
             accountLocal: "advanced", loginMethod: "Advanced",
@@ -862,7 +885,7 @@ enum MockProviderInjector {
             primaryResetsInSeconds: 3600 * 10,
             primaryResetDescription: "in 10 hours",
             secondary: nil,
-            thirtyDayCostUSD: 1.50, sessionCostUSD: 0.05),
+            thirtyDayCostUSD: 2400.00, sessionCostUSD: 86.00),
         .init(
             providerID: "antigravity", providerName: "Antigravity",
             accountLocal: "pre", loginMethod: "Preview",
@@ -1557,12 +1580,26 @@ enum MockProviderInjector {
         if let thirtyDayUSD = profile.thirtyDayCostUSD,
            let sessionUSD = profile.sessionCostUSD
         {
-            costSummary = SyncCostSummary(
-                sessionCostUSD: sessionUSD,
+            // Synthesize ~55 days of daily history so the CWL ledger + the
+            // daily-spend chart have real per-day data (previously only the one
+            // Codex mock did, so CWL looked nearly empty). The headline stays
+            // anchored to the trailing 30 days — `last30DaysCostUSD` is the
+            // 30-day total and `historyDays` is left at the 30-day default, so
+            // the provider-detail "N Days" label AND the Cost dashboard's
+            // 30-day figure agree. The daily array is intentionally longer than
+            // the billing window: it's the history CWL accumulates + the chart
+            // renders, not a claim that the window is 55 days.
+            let daily = Self.synthDailyTotals(
+                days: 55,
+                avgPerDay: thirtyDayUSD / 30.0,
+                seed: profile.providerID)
+            let trailing30 = daily.suffix(30).reduce(0, +)
+            costSummary = Self.makeCostSummary(
+                sessionUSD: sessionUSD,
                 sessionTokens: Int(sessionUSD * 50000),
-                last30DaysCostUSD: thirtyDayUSD,
-                last30DaysTokens: Int(thirtyDayUSD * 50000),
-                daily: [])
+                thirtyDayUSD: trailing30,
+                thirtyDayTokens: Int(trailing30 * 50000),
+                dailyTotals: daily)
         }
         let extras = Self.v026ExtrasFor(providerID: profile.providerID)
         return ProviderUsageSnapshot(

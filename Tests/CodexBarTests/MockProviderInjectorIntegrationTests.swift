@@ -712,7 +712,7 @@ struct MockProviderInjectorIntegrationTests {
         #expect(withCost.count == 51, "expected 51 mocks with cost data; got \(withCost.count)")
     }
 
-    @Test("MR6.2: aggregate 30-day mock cost is in plausible $50-$180 range (no skew explosion)")
+    @Test("MR6.2: aggregate 30-day mock cost is realistic-heavy but bounded (no skew explosion)")
     func aggregate30DayCostIsBounded() {
         self.enableMock()
         defer { self.resetActivationState() }
@@ -721,22 +721,24 @@ struct MockProviderInjectorIntegrationTests {
             .compactMap(\.costSummary)
             .compactMap(\.last30DaysCostUSD)
             .reduce(0, +)
-        #expect(total > 50, "aggregate must be visible enough to test ($50+)")
-        // Phase G: 7 multi-account second-tab mocks (~$20/30day total
-        // across them) → ceiling 150 → 180 to fit. Still well under
-        // a level that would dominate real users' real cost.
-        #expect(total < 180, "aggregate must not skew so far it dominates real users' real cost ($<180)")
+        // iOS 1.9.0: a few headline providers (cursor / gemini / factory) +
+        // Codex Alice now carry realistic heavy spend so the CWL ledger + Cost
+        // dashboard are testable at scale; the old <$180 invariant is lifted.
+        #expect(total > 1000, "aggregate must be visible enough to test the dashboard at scale")
+        #expect(total < 15000, "aggregate must stay bounded (no runaway skew)")
     }
 
-    @Test("MR6.3: at least one mock carries 30-day daily breakdown for chart testing")
+    @Test("MR6.3: mocks carry a multi-week daily breakdown for chart + CWL testing")
     func atLeastOneMockHasDailyBreakdown() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
         let withDaily = snapshots
             .compactMap(\.costSummary)
-            .filter { $0.daily.count == 30 }
-        #expect(withDaily.count >= 1, "at least one mock must have 30-day daily breakdown for chart")
+            .filter { $0.daily.count >= 30 }
+        // iOS 1.9.0: every cost-bearing mock now synthesizes ~55 days of daily
+        // data (not just Codex Alice), so the CWL ledger is populated broadly.
+        #expect(withDaily.count >= 10, "many mocks must carry a daily breakdown for chart + CWL")
     }
 
     @Test("MR6.4: every daily point in the 30-day breakdown has model breakdowns (for pie chart)")
@@ -767,12 +769,12 @@ struct MockProviderInjectorIntegrationTests {
         for snap in snapshots {
             guard let cost = snap.costSummary,
                   let total = cost.last30DaysCostUSD,
-                  cost.daily.count == 30 else { continue }
-            let dailySum = cost.daily.reduce(0.0) { $0 + $1.costUSD }
+                  cost.daily.count >= 30 else { continue }
+            // last30DaysCostUSD is anchored to the trailing 30 days of the
+            // (now ~55-day) synthetic history, so compare against that slice.
+            let dailySum = cost.daily.suffix(30).reduce(0.0) { $0 + $1.costUSD }
             let drift = abs(dailySum - total)
-            // 30-day-sum of synthetic daily values should match the
-            // top-level total exactly (we set them from the same source).
-            #expect(drift < 0.01, "30-day daily sum (\(dailySum)) must match last30DaysCostUSD (\(total))")
+            #expect(drift < 0.01, "trailing-30 daily sum (\(dailySum)) must match last30DaysCostUSD (\(total))")
         }
     }
 }

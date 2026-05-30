@@ -554,14 +554,45 @@ private struct CostDashboardView: View {
     /// Visible window on the Cost-tab daily-spend chart. 30 days is the user's
     /// cost-cycle mental model (monthly bills, budget windows) and matches
     /// `UtilizationAggregateView.windowSize` + `UtilizationHistoryView.windowSize`
-    /// so every chart in the app tells the same 30-day story. The week-grid
-    /// stride-7 axis labels below depend on this being exactly 30 — changing
-    /// it (to 14, 60, etc.) would un-align the gridlines from 7-day buckets.
+    /// so every chart in the app tells the same 30-day story. iOS 1.9.0: this
+    /// is now the *minimum* visible width — `visibleDayCount` widens the chart
+    /// to the data span when a longer CWL window is active, and `axisStrideDays`
+    /// keeps the label density readable.
     private static let chartVisibleDays: Int = 30
 
-    private static func chartScrollInitialDate(points: [CostDashboardInsights.DailyPoint]) -> Date {
-        guard let last = points.last else { return Date() }
-        return Calendar.current.date(byAdding: .day, value: -(chartVisibleDays - 1), to: last.date) ?? last.date
+    /// Leading edge of the initial visible window, placed so the newest point
+    /// sits at the right edge for whatever `visibleDayCount` is active. Must
+    /// use `visibleDayCount`, not the static 30 — on a wider CWL window a
+    /// 30-day anchor would scroll the viewport past the data into empty future
+    /// space and hide the older days until the user scrolls back manually.
+    private var chartScrollInitialDate: Date {
+        guard let last = self.insights.dailyPoints.last?.date else { return Date() }
+        return Calendar.current.date(
+            byAdding: .day, value: -(self.visibleDayCount - 1), to: last) ?? last
+    }
+
+    /// Visible width of the daily-spend chart, in days. Follows the actual data
+    /// span so a wider CWL window (7 / 30 / 90 / 365) genuinely widens the
+    /// chart instead of staying pinned to a 30-day viewport. Floors at
+    /// `chartVisibleDays` so the CWL-off / short-history case is unchanged.
+    private var visibleDayCount: Int {
+        let points = self.insights.dailyPoints
+        guard let first = points.first?.date, let last = points.last?.date else {
+            return Self.chartVisibleDays
+        }
+        let span = Calendar.current.dateComponents([.day], from: first, to: last).day ?? 0
+        return max(Self.chartVisibleDays, span + 1)
+    }
+
+    /// Axis label stride in days — weekly for short windows, coarser for long
+    /// ones so a 90- or 365-day chart doesn't cram a label every 7 days.
+    private var axisStrideDays: Int {
+        switch self.visibleDayCount {
+        case ...35: 7
+        case ...100: 14
+        case ...200: 30
+        default: 60
+        }
     }
 
     /// Locale-independent "M/d" formatter (e.g. "4/18"), matching
@@ -636,17 +667,15 @@ private struct CostDashboardView: View {
             // the rightmost bar), matching UtilizationHistoryView's style.
             // The latest data is always on the right, so left-anchored labels
             // never clip regardless of how close the last bar is to the edge.
-            .chartXVisibleDomain(length: Self.chartVisibleDays * 24 * 60 * 60)
-            .chartScrollPosition(initialX: Self.chartScrollInitialDate(points: self.insights.dailyPoints))
+            .chartXVisibleDomain(length: self.visibleDayCount * 24 * 60 * 60)
+            .chartScrollPosition(initialX: self.chartScrollInitialDate)
             .chartXAxis {
-                // Stride 7 = one label per week. On a 30-day window this
-                // yields ~5 gridlines (day 0, 7, 14, 21, 28) which is a
-                // comfortable density for the bar width and keeps visual
-                // weight aligned with the share-card's 7-day chart (the
-                // two are meant to read as a matching pair; see
-                // `CostShareService` dailyBars). Changing stride without
-                // also re-tuning `chartVisibleDays` breaks that pairing.
-                AxisMarks(values: .stride(by: .day, count: 7)) { value in
+                // Adaptive weekly→monthly stride (see `axisStrideDays`): a
+                // 30-day window keeps the 7-day cadence that matches the
+                // share-card's 7-day chart, while 90/365-day windows widen the
+                // stride so labels don't crowd. Density scales with the CWL
+                // window the user picked.
+                AxisMarks(values: .stride(by: .day, count: self.axisStrideDays)) { value in
                     AxisGridLine()
                     // Hard-coded "M/d" (locale-independent, same as
                     // UtilizationHistoryView). Anchor `.top` centers the label

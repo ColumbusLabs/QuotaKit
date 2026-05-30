@@ -279,7 +279,7 @@ struct MockProviderInjectorTests {
         }
         #expect(alice != nil, "Alice mock should exist with non-ASCII café email")
         let daily = alice?.costSummary?.daily ?? []
-        #expect(daily.count == 30, "Alice carries 30 days of daily cost points")
+        #expect(daily.count == 55, "Alice carries 55 days of daily cost points")
         let total = daily.reduce(0.0) { $0 + $1.costUSD }
         #expect(total > 0, "daily totals must sum to a positive value")
         for point in daily {

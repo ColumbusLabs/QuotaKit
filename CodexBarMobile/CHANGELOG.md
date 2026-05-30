@@ -2,6 +2,27 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.9.0 (143)] — 2026-05-29 — Cost daily-spend chart follows the selected window
+
+### Changed
+
+- **Cost dashboard → Daily Spend chart**: the visible window now follows the
+  data span instead of a fixed 30-day viewport, so picking a longer Cost
+  History (CWL) window — 30 / 90 / 365 — actually widens the chart to show that
+  much history (floored at 30 days; the axis-label stride widens with the
+  window, and the initial scroll anchors so the newest day sits at the right
+  edge). Previously a 90-day window still showed ~30 days unless you scrolled.
+
+### Testing (Mac mock injector — not user-facing)
+
+- Simple single-account mocks now synthesize ~55 days of daily cost so they
+  populate the Cost Window Ledger (previously only the Codex mock had per-day
+  data, so CWL looked nearly empty); Codex Alice extended 30 → 55 days; a few
+  headline providers (Cursor / Factory / Gemini) carry realistic heavy spend so
+  the dashboard's big-number + top-5/Others paths are exercisable.
+
+---
+
 ## [1.9.0 (142)] — 2026-05-29 — Codex Std/Fast split now shown in the Cost UI
 
 The Codex standard-vs-fast (priority) spend split (upstream #1070) was only

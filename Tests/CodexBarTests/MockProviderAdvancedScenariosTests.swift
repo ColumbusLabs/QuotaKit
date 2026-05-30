@@ -24,8 +24,8 @@ struct MockProviderAdvancedScenariosTests {
 
     // MARK: - P3.1 Time travel: dated mock data
 
-    @Test("Codex Alice 30-day daily breakdown spans exactly 30 days back from now")
-    func aliceDailyBreakdownSpans30Days() {
+    @Test("Codex Alice 55-day daily breakdown spans exactly 55 days back from now")
+    func aliceDailyBreakdownSpans55Days() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -33,21 +33,21 @@ struct MockProviderAdvancedScenariosTests {
             && ($0.accountEmail ?? "").contains("café")
         }
         let daily = alice?.costSummary?.daily ?? []
-        #expect(daily.count == 30)
-        // Day keys should be UTC-formatted YYYY-MM-DD; first ≤ 30 days
+        #expect(daily.count == 55)
+        // Day keys should be UTC-formatted YYYY-MM-DD; first ≤ 55 days
         // ago, last ≤ today.
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         formatter.timeZone = TimeZone(identifier: "UTC")
         let dateValues = daily.compactMap { formatter.date(from: $0.dayKey) }
-        #expect(dateValues.count == 30, "all 30 dayKeys must parse as valid UTC dates")
+        #expect(dateValues.count == 55, "all 55 dayKeys must parse as valid UTC dates")
         let oldest = dateValues.min() ?? Date()
         let newest = dateValues.max() ?? Date()
         let now = Date()
         let span = newest.timeIntervalSince(oldest)
-        // 29 days from oldest to newest (30 entries inclusive).
-        #expect(span > 28 * 86400 - 60, "oldest entry should be ~29 days before newest")
-        #expect(span < 30 * 86400 + 60, "no more than 30 days span")
+        // 54 days from oldest to newest (55 entries inclusive).
+        #expect(span > 53 * 86400 - 60, "oldest entry should be ~54 days before newest")
+        #expect(span < 55 * 86400 + 60, "no more than 55 days span")
         #expect(newest <= now.addingTimeInterval(86400), "newest entry should not be future")
     }
 
