@@ -2,6 +2,18 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.9.0 (144)] — 2026-05-29 — Cost Overview headline follows the CWL window
+
+### Fixed
+
+- **Cost dashboard → Overview headline**: when the Cost Window Ledger is ON, the
+  "N Days" card now reflects the window you selected (7 / 30 / 90 / 365) instead
+  of the largest `historyDays` across providers. Previously a provider with a
+  90-day Mac window made the headline read "90 Days" even when you'd picked a
+  30-day CWL window. CWL OFF is unchanged (still the max provider window).
+
+---
+
 ## [1.9.0 (143)] — 2026-05-29 — Cost daily-spend chart follows the selected window
 
 ### Changed

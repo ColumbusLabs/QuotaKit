@@ -151,6 +151,35 @@ struct CWLEquivalenceTests {
         }
     }
 
+    @Test("CWL ON: Overview window follows the selected window, not max provider historyDays")
+    func testLedgerHistoryDaysFollowsSelectedWindow() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let codex = self.provider(
+            id: "codex", name: "Codex", modelLabel: "gpt-5",
+            dailyCosts: [(0, 1.0, 100), (1, 2.0, 200)],
+            lastUpdated: now)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [codex], syncTimestamp: now,
+            deviceName: "Test Mac", deviceID: "test-device")
+        try CostLedgerService.upsertFromSnapshot(codex, deviceID: "test-device", in: context)
+        try context.save()
+
+        // Each selected CWL window must drive the Overview "N Days" headline.
+        for window in [7, 30, 90, 365] {
+            let agg = try CostLedgerService.aggregate(windowDays: window, in: context)
+            let insights = CostDashboardInsights.fromLedger(aggregation: agg, snapshot: snapshot)
+            #expect(insights.cwlWindowDays == window)
+            #expect(insights.historyDays == window, "CWL window \(window) must drive the headline")
+        }
+
+        // Blob path carries no override → headline falls back to provider historyDays.
+        #expect(CostDashboardInsights(snapshot: snapshot).cwlWindowDays == nil)
+    }
+
     @Test("Equivalence holds with multi-account providers (two Codex accounts)")
     func testEquivalenceMultiAccount() throws {
         let url = self.makeTempStoreURL()

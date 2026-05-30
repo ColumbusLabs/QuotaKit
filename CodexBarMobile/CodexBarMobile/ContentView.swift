@@ -936,6 +936,11 @@ struct CostDashboardInsights {
     let modelRows: [CostBreakdownRow]
     let serviceRows: [CostBreakdownRow]
     let budgetRows: [CostBudgetRow]
+    /// When CWL is ON, the user-selected window (7/30/90/365) the ledger was
+    /// re-aggregated to. nil on the blob path. Drives `historyDays` so the
+    /// Overview "N Days" headline reflects the chosen CWL window instead of the
+    /// max Mac `historyDays` across providers (e.g. a 90-day mock provider).
+    let cwlWindowDays: Int?
 
     var total30DayCost: Double {
         self.providerRows.reduce(0) { $0 + $1.thirtyDayCost }
@@ -949,11 +954,13 @@ struct CostDashboardInsights {
         self.providerRows.reduce(0) { $0 + $1.thirtyDayTokens }
     }
 
-    /// The Mac's configurable cost-history window in days (gap F). It's a
-    /// global Mac setting so every provider's costSummary carries the same
-    /// value; nil → caller defaults to 30 (the historical window).
+    /// Cost-history window in days shown in the Overview headline. When CWL is
+    /// ON this is the user's selected window (the dashboard re-windows the
+    /// ledger to it); when OFF it's the Mac's max configured `historyDays`
+    /// (gap F) across providers. nil → caller defaults to 30.
     var historyDays: Int? {
-        self.providerRows.compactMap { $0.provider.costSummary?.historyDays }.max()
+        if let cwlWindowDays = self.cwlWindowDays { return cwlWindowDays }
+        return self.providerRows.compactMap { $0.provider.costSummary?.historyDays }.max()
     }
 
     var topProvider: ProviderRow? {
@@ -1051,6 +1058,7 @@ struct CostDashboardInsights {
             let rhsRatio = rhs.budget.limitAmount > 0 ? rhs.budget.usedAmount / rhs.budget.limitAmount : 0
             return lhsRatio > rhsRatio
         }
+        self.cwlWindowDays = nil
     }
 
     /// Memberwise init used by `fromLedger` (CWL path) and any future
@@ -1061,13 +1069,15 @@ struct CostDashboardInsights {
         dailyPoints: [DailyPoint],
         modelRows: [CostBreakdownRow],
         serviceRows: [CostBreakdownRow],
-        budgetRows: [CostBudgetRow])
+        budgetRows: [CostBudgetRow],
+        cwlWindowDays: Int? = nil)
     {
         self.providerRows = providerRows
         self.dailyPoints = dailyPoints
         self.modelRows = modelRows
         self.serviceRows = serviceRows
         self.budgetRows = budgetRows
+        self.cwlWindowDays = cwlWindowDays
     }
 
     /// Build insights from the Cost Window Ledger aggregation (CWL ON path,
@@ -1144,7 +1154,8 @@ struct CostDashboardInsights {
                 let lhsRatio = lhs.budget.limitAmount > 0 ? lhs.budget.usedAmount / lhs.budget.limitAmount : 0
                 let rhsRatio = rhs.budget.limitAmount > 0 ? rhs.budget.usedAmount / rhs.budget.limitAmount : 0
                 return lhsRatio > rhsRatio
-            })
+            },
+            cwlWindowDays: aggregation.windowDays)
     }
 
     private static func breakdownRows(
