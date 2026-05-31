@@ -32,7 +32,7 @@
 - [x] **G4 · 数值修复验证**：上游 #1114/#1148/#1136/#1142/#1168 + Spark #1195 + Design 移除 #1197 均确认在合并树，经现有 synced 字段自动透传（grep 验证，R5）
 - [x] **G5 · iOS 前端**：`DeepSeekUsageCard` + `ProviderDetailView` 派发 + 4 语 xcstrings；`xcodebuild -sdk iphonesimulator` 编译通过
 - [x] **G6 · 测试**：V030 wire 兼容（S1–S3）5 测全绿；全量 `swift test` 仅 `SyncCoordinatorTests` 并行 flake（已知，串行 **23/23** 过）→ 无回归（R6）。剩：真机/sim 可视化 = 用户 QA
-- [x] **G7 · Code Review**：codex-reviewer（独立 gpt-5.3-codex）评审 fork 改动 `f8644d4c..HEAD` —— 无可执行回归/findings，"internally consistent and non-breaking"（R7）
+- [x] **G7 · Code Review**：codex-reviewer（独立 gpt-5.3-codex）评审 fork 改动 —— DeepSeek 部分零 findings（R7）；item 10 请求数+币种 CR **抓到并修复 2 个币种一致性 P2**，复评 "wiring is consistent through sync/model/UI"（R8）
 - [x] **G8 · 版本号 stamp**：`version.env`（R1）+ `project.yml` MARKETING 1.10.0 / BUILD 145；`xcodegen` 已重生成 .xcodeproj
 - [x] **G9 · CloudKit 审计**：合并后零 CKRecord 字段/zone 变更（`CloudConstants` 未改），新字段全在压缩 blob 内（`providerPayloadVersion`=1）→ **无需 Prod schema deploy**（R5）
 - [ ] **G10 · 发布（Definition of Done）**：签名公证 + iOS TestFlight + Sparkle appcast，发到用户手里
@@ -140,7 +140,7 @@
 | 7 | **Ollama** 配速投影 | 0.30.0 | B 自动（windowMinutes 透传） | 无；验证 iOS 配速渲染 |
 | 8 | **Alibaba** Bailian 端点 | 0.30.0 | B 自动（现有 `alibabaTokenPlan`） | 无；验证数值 |
 | 9 | **OpenAI** project 限定 loginMethod | 0.30.0 | B 自动（现有 `loginMethod`） | 无；可选补 `accountOrganization` |
-| 10 | **OpenAI/Mistral** 成本卡请求数 | 0.30.0 | **C 可选 additive** | 可选：给 `SyncCostSummary`/`SyncCostBreakdown` 加 `requestCount?`（符合"多同步一点"宗旨） |
+| 10 | **OpenAI/Mistral** 成本卡请求数 + 币种 | 0.30.0 | **C additive（已做，R8）** | `SyncCostSummary` 加 `sessionRequests`/`last30DaysRequests`/`currencyCode`；bridge 透传；iOS 30 天卡显 "N req" + 按币种格式化（CR 修 2 个 P2） |
 
 **结论：本次同步 fork 侧极轻。** 真正的新管道只有 DeepSeek 一个 envelope（+ 一个可选的请求数富化）；其余 8 项要么经动态 `rateWindows[]` 自动透传、要么经现有字段在合并后自动纠正。绝大部分工作是 **合并上游 + 加 mock + 跨版本兼容验证 + 版本/本地化/发布**。
 
@@ -243,3 +243,11 @@
 - **G7 ✓**：`codex-reviewer`（独立 gpt-5.3-codex）评审 `f8644d4c..HEAD` 的 fork 改动（DeepSeek envelope + bridge + iOS 卡 + mock + 测试）—— **无可执行回归/findings**，"internally consistent and non-breaking"。
 - **自治循环到此 8/10，剩余两项属用户环节**：G3 的 iOS 实机"正确显示"（DeepSeek 卡 + Spark/Antigravity lane）需真机/sim 实跑；03 §S1–S5 的 2 Mac×2 iOS 多设备同步需真实 iCloud；G10 签名公证 + TestFlight + appcast 在用户 Mac 上。
 - **持有项待用户**：① 首次 `git push` origin（本地 7 commits）+ Todoist 同步；② F2 Mac widget 打包发布前复核（上游 #1095 重构）。
+
+### Round 8 — item 10 请求数+币种（关闭 D2）+ CR 修 2 个 P2（2026-05-30）
+- **补做 item 10**（之前 D2 延后违背"尽可能多同步"宗旨，用户指出后补齐）：`SyncCostSummary` 加 `sessionRequests`/`last30DaysRequests`/`currencyCode`（additive optional）；`makeCostSummary` 从 `CostUsageTokenSnapshot` 透传，`mapMistralCostSummary` 带 `currency`；iOS 30 天卡 subtitle 显示 "N req"（本地化 `cost_requests_inline` ×4 语）。新增 2 个 wire 测试（往返 + 旧 payload→nil）。
+- **CR 闭环抓到 2 个真实 P2 并修复**：
+  - P2-1（`f6c21acc`）：同步了 `currencyCode` 却没用——成本卡仍 `formatUSD`，Mistral EUR 会错显 "$"。→ 加 `CostFormatting.cost(_:currencyCode:)`，Today/30 天/日图点全改用同步币种（nil→USD，对既有 USD provider 零变化）。
+  - P2-2（`9f65e036`）：日图值改币种后，"Daily Spend (USD)" 头仍硬编码 USD → 不一致。→ 头跟随 `currencyCode`。
+  - 复评：**无 findings，"wiring is consistent through sync/model/UI layers"**。
+- `swift build` + `swift test`（V030 7 测）+ `xcodebuild iphonesimulator` 全绿。**至此特性清单 00 §5 的 10 项全部落地。**（item 9 OpenAI project 限定经现有 `loginMethod` 自动透传；`accountOrganization` 未同步属可选微跟进。）
