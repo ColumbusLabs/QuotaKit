@@ -216,7 +216,7 @@ struct ProviderDetailView: View {
 
                 // Daily chart
                 if let cost = self.provider.costSummary, !cost.daily.isEmpty {
-                    self.dailyChartSection(cost.daily)
+                    self.dailyChartSection(cost.daily, currencyCode: cost.currencyCode)
                 }
             }
             .padding(.horizontal, 20)
@@ -394,7 +394,7 @@ struct ProviderDetailView: View {
                 if let todayCost = today.costUSD {
                     CostMetricCard(
                         title: "Today",
-                        value: Self.formatUSD(todayCost),
+                        value: CostFormatting.cost(todayCost, currencyCode: cost.currencyCode),
                         subtitle: today.tokens.map { Self.formatTokens($0) },
                         tintColor: self.providerColor,
                         isEstimated: today.isEstimated == true)
@@ -406,7 +406,7 @@ struct ProviderDetailView: View {
                         title: cost.historyDays.flatMap {
                             $0 == 30 ? nil : LocalizedStringResource("\($0) Days")
                         } ?? "30 Days",
-                        value: Self.formatUSD(monthCost),
+                        value: CostFormatting.cost(monthCost, currencyCode: cost.currencyCode),
                         subtitle: Self.costSubtitle(
                             tokens: cost.last30DaysTokens,
                             requests: cost.last30DaysRequests),
@@ -426,7 +426,7 @@ struct ProviderDetailView: View {
 
     // MARK: - Daily Chart
 
-    private func dailyChartSection(_ daily: [SyncDailyPoint]) -> some View {
+    private func dailyChartSection(_ daily: [SyncDailyPoint], currencyCode: String?) -> some View {
         // Precompute axis values once per section build. `daily` is stable across
         // `selectedDate` hover changes, so pulling this out of the `.chartYAxis`
         // closure eliminates redundant axis recomputation on every chart re-render.
@@ -518,7 +518,7 @@ struct ProviderDetailView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Text(Self.formatUSD(point.costUSD))
+                        Text(CostFormatting.cost(point.costUSD, currencyCode: currencyCode))
                             .font(.caption.monospacedDigit())
                             .fontWeight(.medium)
                         Text("· \(Self.formatTokens(point.totalTokens))")

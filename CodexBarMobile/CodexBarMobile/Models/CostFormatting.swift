@@ -25,6 +25,14 @@ enum CostFormatting {
         value.map { Self.usd($0) } ?? "—"
     }
 
+    /// Currency-aware cost formatter (upstream #1163). Uses the synced
+    /// `currencyCode` so non-USD providers (Mistral EUR, DeepSeek CNY) render
+    /// the correct symbol; falls back to USD when nil/empty.
+    static func cost(_ value: Double, currencyCode: String?) -> String {
+        let code = (currencyCode?.isEmpty == false) ? currencyCode! : "USD"
+        return value.formatted(.currency(code: code).precision(.fractionLength(2)))
+    }
+
     /// Format a raw token count into a compact labeled string:
     /// `1,234 tokens` · `45.6K tokens` · `12.3M tokens`.
     /// Labels pass through the app's localized `tokens` / `K tokens` / `M tokens`
