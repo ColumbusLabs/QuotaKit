@@ -689,7 +689,8 @@ final class SyncCoordinator {
             codexWorkspace: codexWorkspace,
             openRouterStats: Self.mapOpenRouter(provider: provider, snapshot: snapshot),
             azureOpenAIInfo: Self.mapAzureOpenAIInfo(provider: provider, snapshot: snapshot),
-            alibabaTokenPlan: Self.mapAlibabaTokenPlan(provider: provider, snapshot: snapshot))
+            alibabaTokenPlan: Self.mapAlibabaTokenPlan(provider: provider, snapshot: snapshot),
+            deepSeekUsage: Self.mapDeepSeekUsage(provider: provider, snapshot: snapshot))
     }
 
     // MARK: - v0.26 envelope mappers (private)
@@ -1675,6 +1676,37 @@ final class SyncCoordinator {
             remainingCredits: a.remainingQuota,
             resetsAt: a.resetsAt,
             updatedAt: a.updatedAt)
+    }
+
+    /// Maps DeepSeek web-session usage + cost summary into the wire envelope
+    /// (upstream v0.30.0 #1166). Balance stays on the generic primary
+    /// RateWindow (a formatted string built in `toUsageSnapshot()`), so only
+    /// the new usage/cost numbers cross here.
+    static func mapDeepSeekUsage(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncDeepSeekUsage?
+    {
+        guard provider == .deepseek, let ds = snapshot?.deepseekUsage else { return nil }
+        return SyncDeepSeekUsage(
+            todayTokens: ds.todayTokens,
+            monthTokens: ds.currentMonthTokens,
+            todayCost: ds.todayCost,
+            monthCost: ds.currentMonthCost,
+            todayRequests: ds.requestCount,
+            monthRequests: ds.currentMonthRequestCount,
+            topModel: ds.topModel,
+            currency: ds.currency,
+            totalBalanceUSD: nil,
+            grantedBalanceUSD: nil,
+            toppedUpBalanceUSD: nil,
+            daily: ds.daily.map {
+                SyncDeepSeekDaily(
+                    dayKey: $0.date,
+                    totalTokens: $0.totalTokens,
+                    cost: $0.cost,
+                    requestCount: $0.requestCount)
+            },
+            updatedAt: ds.updatedAt)
     }
 
     private func modelBreakdowns(

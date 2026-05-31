@@ -462,6 +462,14 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// Populated only on the `alibabatokenplan` provider snapshot.
     public let alibabaTokenPlan: SyncAlibabaTokenPlan?
 
+    // MARK: - iOS 1.10.0 / Mac 0.31.0 — v0.30/v0.31 sync (025)
+    // Additive optional (decodeIfPresent); no wire-schema bump.
+
+    /// DeepSeek web-session usage + cost summary + balance (upstream v0.30.0
+    /// #1166). Populated only on the `deepseek` provider snapshot. iOS renders
+    /// the dedicated DeepSeekUsageCard; nil → falls back to generic rendering.
+    public let deepSeekUsage: SyncDeepSeekUsage?
+
     /// All available rate windows. Prefers `rateWindows` if non-empty, otherwise falls back to primary/secondary.
     public var allRateWindows: [SyncRateWindow] {
         if !self.rateWindows.isEmpty { return self.rateWindows }
@@ -503,7 +511,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         codexWorkspace: SyncCodexWorkspaceContext? = nil,
         openRouterStats: SyncOpenRouterStats? = nil,
         azureOpenAIInfo: SyncAzureOpenAIInfo? = nil,
-        alibabaTokenPlan: SyncAlibabaTokenPlan? = nil)
+        alibabaTokenPlan: SyncAlibabaTokenPlan? = nil,
+        deepSeekUsage: SyncDeepSeekUsage? = nil)
     {
         self.providerID = providerID
         self.providerName = providerName
@@ -540,6 +549,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.openRouterStats = openRouterStats
         self.azureOpenAIInfo = azureOpenAIInfo
         self.alibabaTokenPlan = alibabaTokenPlan
+        self.deepSeekUsage = deepSeekUsage
     }
 
     /// Returns a copy with `quotaWarnings` swapped out. Used by Mac
@@ -582,7 +592,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
             codexWorkspace: self.codexWorkspace,
             openRouterStats: self.openRouterStats,
             azureOpenAIInfo: self.azureOpenAIInfo,
-            alibabaTokenPlan: self.alibabaTokenPlan)
+            alibabaTokenPlan: self.alibabaTokenPlan,
+            deepSeekUsage: self.deepSeekUsage)
     }
 
     /// Backward-compatible decoder: old payloads without `rateWindows`/`costSummary`/`budget`/`perplexityCredits`/`accountIdentities`/`quotaWarnings` still decode.
@@ -629,6 +640,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.openRouterStats = try container.decodeIfPresent(SyncOpenRouterStats.self, forKey: .openRouterStats)
         self.azureOpenAIInfo = try container.decodeIfPresent(SyncAzureOpenAIInfo.self, forKey: .azureOpenAIInfo)
         self.alibabaTokenPlan = try container.decodeIfPresent(SyncAlibabaTokenPlan.self, forKey: .alibabaTokenPlan)
+        self.deepSeekUsage = try container.decodeIfPresent(SyncDeepSeekUsage.self, forKey: .deepSeekUsage)
     }
 }
 
