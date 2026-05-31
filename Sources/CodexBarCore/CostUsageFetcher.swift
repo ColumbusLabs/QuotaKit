@@ -98,12 +98,18 @@ public struct CostUsageFetcher: Sendable {
         if forceRefresh {
             options.refreshMinIntervalSeconds = 0
         }
-        var daily = CostUsageScanner.loadDailyReport(
+        let checkCancellation: CostUsageScanner.CancellationCheck = {
+            try Task.checkCancellation()
+        }
+        try Task.checkCancellation()
+        var daily = try CostUsageScanner.loadDailyReportCancellable(
             provider: provider,
             since: since,
             until: until,
             now: now,
-            options: options)
+            options: options,
+            checkCancellation: checkCancellation)
+        try Task.checkCancellation()
 
         if provider == .vertexai,
            !allowVertexClaudeFallback,
@@ -112,12 +118,14 @@ public struct CostUsageFetcher: Sendable {
         {
             var fallback = options
             fallback.claudeLogProviderFilter = .all
-            daily = CostUsageScanner.loadDailyReport(
+            daily = try CostUsageScanner.loadDailyReportCancellable(
                 provider: provider,
                 since: since,
                 until: until,
                 now: now,
-                options: fallback)
+                options: fallback,
+                checkCancellation: checkCancellation)
+            try Task.checkCancellation()
         }
 
         if provider == .codex || provider == .claude {
@@ -128,12 +136,14 @@ public struct CostUsageFetcher: Sendable {
             if forceRefresh {
                 piOptions.refreshMinIntervalSeconds = 0
             }
-            let piReport = PiSessionCostScanner.loadDailyReport(
+            let piReport = try PiSessionCostScanner.loadDailyReportCancellable(
                 provider: provider,
                 since: since,
                 until: until,
                 now: now,
-                options: piOptions)
+                options: piOptions,
+                checkCancellation: checkCancellation)
+            try Task.checkCancellation()
             daily = CostUsageDailyReport.merged([daily, piReport])
         }
 
@@ -145,17 +155,9 @@ public struct CostUsageFetcher: Sendable {
         since: Date,
         until: Date) async throws -> CostUsageDailyReport
     {
-        guard let accessKeyID = BedrockSettingsReader.accessKeyID(environment: environment),
-              let secretAccessKey = BedrockSettingsReader.secretAccessKey(environment: environment)
-        else {
-            throw BedrockUsageError.missingCredentials
-        }
-        let credentials = BedrockAWSSigner.Credentials(
-            accessKeyID: accessKeyID,
-            secretAccessKey: secretAccessKey,
-            sessionToken: BedrockSettingsReader.sessionToken(environment: environment))
+        let resolved = try await BedrockCredentialResolver.resolve(environment: environment)
         return try await BedrockUsageFetcher.fetchDailyReport(
-            credentials: credentials,
+            credentials: resolved.credentials,
             since: since,
             until: until,
             environment: environment)

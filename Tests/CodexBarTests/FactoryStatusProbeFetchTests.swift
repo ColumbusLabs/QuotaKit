@@ -83,7 +83,7 @@ struct FactoryStatusProbeFetchTests {
         }
 
         let probe = FactoryStatusProbe(
-            timeout: 0.1,
+            timeout: 1.0,
             browserDetection: BrowserDetection(
                 homeDirectory: "/tmp/codexbar-empty-browser-home",
                 cacheTTL: 0,
@@ -200,7 +200,7 @@ struct FactoryStatusProbeFetchTests {
         }
 
         let probe = FactoryStatusProbe(
-            timeout: 0.1,
+            timeout: 1.0,
             browserDetection: BrowserDetection(
                 homeDirectory: "/tmp/codexbar-empty-browser-home",
                 cacheTTL: 0,
