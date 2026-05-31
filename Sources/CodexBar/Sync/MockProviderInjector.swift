@@ -1495,6 +1495,21 @@ enum MockProviderInjector {
                 remainingCredits: 480_000,
                 resetsAt: now.addingTimeInterval(15 * 86400),
                 updatedAt: now))
+        case "deepseek":
+            return V026MockExtras(deepSeekUsage: SyncDeepSeekUsage(
+                todayTokens: 1_250_000,
+                monthTokens: 28_400_000,
+                todayCost: 0.42,
+                monthCost: 9.85,
+                todayRequests: 312,
+                monthRequests: 7_240,
+                topModel: "deepseek-chat",
+                currency: "USD",
+                totalBalanceUSD: nil,
+                grantedBalanceUSD: nil,
+                toppedUpBalanceUSD: nil,
+                daily: [],
+                updatedAt: now))
         default:
             return nil
         }
@@ -1516,6 +1531,8 @@ enum MockProviderInjector {
         var openRouterStats: SyncOpenRouterStats?
         var azureOpenAIInfo: SyncAzureOpenAIInfo?
         var alibabaTokenPlan: SyncAlibabaTokenPlan?
+        // iOS 1.10.0 / Mac 0.31.0 sync 025.
+        var deepSeekUsage: SyncDeepSeekUsage?
 
         init(
             openAIAPIDashboard: SyncOpenAIAPIDashboard? = nil,
@@ -1526,7 +1543,8 @@ enum MockProviderInjector {
             antigravityAccounts: SyncMultiAccountList? = nil,
             openRouterStats: SyncOpenRouterStats? = nil,
             azureOpenAIInfo: SyncAzureOpenAIInfo? = nil,
-            alibabaTokenPlan: SyncAlibabaTokenPlan? = nil)
+            alibabaTokenPlan: SyncAlibabaTokenPlan? = nil,
+            deepSeekUsage: SyncDeepSeekUsage? = nil)
         {
             self.openAIAPIDashboard = openAIAPIDashboard
             self.zaiHourlyUsage = zaiHourlyUsage
@@ -1537,6 +1555,7 @@ enum MockProviderInjector {
             self.openRouterStats = openRouterStats
             self.azureOpenAIInfo = azureOpenAIInfo
             self.alibabaTokenPlan = alibabaTokenPlan
+            self.deepSeekUsage = deepSeekUsage
         }
     }
 
@@ -1629,7 +1648,8 @@ enum MockProviderInjector {
             antigravityAccounts: extras?.antigravityAccounts,
             openRouterStats: extras?.openRouterStats,
             azureOpenAIInfo: extras?.azureOpenAIInfo,
-            alibabaTokenPlan: extras?.alibabaTokenPlan)
+            alibabaTokenPlan: extras?.alibabaTokenPlan,
+            deepSeekUsage: extras?.deepSeekUsage)
     }
 }
 

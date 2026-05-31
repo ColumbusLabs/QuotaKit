@@ -37,7 +37,7 @@
 - [ ] **G9 · CloudKit 审计**：deploy 判定已记录（本次预判：**无需** Prod schema deploy）
 - [ ] **G10 · 发布（Definition of Done）**：签名公证 + iOS TestFlight + Sparkle appcast，发到用户手里
 
-**当前进度：2 / 10 —— G2 DeepSeek 数据管道完成。下一步：G3 mock（Codex Spark / Antigravity）+ G5 iOS 卡片。**
+**当前进度：2 / 10（G3/G6 wire 层已完成，待 iOS 可视化）—— 下一步：G5 iOS `DeepSeekUsageCard`。**
 
 > ⚠️ 任一项未达成即视为未完成；不得以 "commit/push 了" 充当 G10。进度计数随开发推进在本块实时更新。
 
@@ -218,3 +218,9 @@
 - 新建 `Shared/Models/V030Snapshots.swift`（`SyncDeepSeekUsage` + `SyncDeepSeekDaily`，optional + 自定义 decoder，前后兼容）；`ProviderUsageSnapshot` 加 `deepSeekUsage` 字段（member/init/decoder/`with` 四处同步）；`SyncCoordinator.mapDeepSeekUsage` 从 `snapshot.deepseekUsage`（`DeepSeekUsageSummary`）映射 today/month tokens·cost·requests + topModel + daily。**`swift build` 绿（7s）**。**G2 ✓（2/10）**。
 - **决策 D1（余额不重复传）**：上游 `DeepSeekUsageFetcher.toUsageSnapshot()` 把余额拍平成 primary `RateWindow` 的字符串（"$X (Paid/Granted)"），iOS 已通过通用 window 渲染。故 `SyncDeepSeekUsage` 的 `*BalanceUSD` 保持 nil，iOS 卡片只承载**新的**用量/成本/请求数；余额走 window。→ G5 实现卡片时据此微调 [01 §4]。
 - **延后项 D2**：OpenAI/Mistral 请求数 additive（01 §2.6）属可选，延后为 fast-follow，不阻塞主线。
+
+### Round 3 — G3 mock + G6 wire 兼容测试（2026-05-30）
+- `MockProviderInjector`：`V026MockExtras` 加 `deepSeekUsage` + `case "deepseek"`（today/month tokens·cost·requests + topModel），iOS 可无凭证可视化 DeepSeek 卡。
+- 新建 `Tests/CodexBarTests/V030SnapshotsCodableTests.swift`（**5 测试全绿**）：S1 全往返 + free-tier 缺字段降级（currency 默认 USD、daily []）+ **S3 旧 payload 无 `deepSeekUsage` → nil** + **S2 含未知 future key 不崩**。`swift test` 全测试目标编译通过（45s，顺带确认 Mistral `toCostUsageTokenSnapshot` 等只是 SourceKit 索引假警、无回归）。
+- **Codex Spark / Antigravity 分模型透传**：结构性保证（bridge `extraRateWindows` 无条件循环 line 545 + iOS `ProviderUsageView.ForEach(allRateWindows)`）；iOS 可视化验证并入 G5 卡片完成后一起做。
+- G3/G6 **wire 层完成**；G3 的 iOS 可视化显示 + G5 卡片 = 下一步。

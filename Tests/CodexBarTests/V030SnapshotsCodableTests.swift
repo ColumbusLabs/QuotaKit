@@ -1,0 +1,128 @@
+// swiftlint:disable multiline_arguments
+//
+// Scoped to this file: synthetic Codable fixtures pack trailing values
+// onto single lines for readability. Re-enabled at EOF.
+import Foundation
+import Testing
+@testable import CodexBarSync
+
+/// Codable round-trip + cross-version compat for the v0.30/v0.31 sync (025)
+/// `SyncDeepSeekUsage` envelope. Pins the four device-mix scenarios from
+/// Research/025 §03 at the wire level:
+///   - S1 full round-trip without loss.
+///   - S3 (old Mac → new iOS): a payload WITHOUT `deepSeekUsage` decodes →
+///     the field lands as nil, generic fallback.
+///   - S2 (new Mac → old iOS): a payload WITH `deepSeekUsage` + an unknown
+///     future key decodes on a reader that ignores them — no throw.
+///   - free-tier: missing optional balance/daily keys degrade silently.
+@Suite("v0.30 DeepSeek envelope — Codable round-trip + cross-version compat")
+struct V030SnapshotsCodableTests {
+    private static let encoder: JSONEncoder = {
+        let e = JSONEncoder()
+        e.dateEncodingStrategy = .iso8601
+        e.outputFormatting = [.sortedKeys]
+        return e
+    }()
+
+    private static let decoder: JSONDecoder = {
+        let d = JSONDecoder()
+        d.dateDecodingStrategy = .iso8601
+        return d
+    }()
+
+    private static let now = Date(timeIntervalSince1970: 1_700_000_000)
+
+    private static func sampleUsage() -> SyncDeepSeekUsage {
+        SyncDeepSeekUsage(
+            todayTokens: 1_250_000, monthTokens: 28_400_000,
+            todayCost: 0.42, monthCost: 9.85,
+            todayRequests: 312, monthRequests: 7_240,
+            topModel: "deepseek-chat", currency: "USD",
+            totalBalanceUSD: 12.5, grantedBalanceUSD: 5.0, toppedUpBalanceUSD: 7.5,
+            daily: [
+                SyncDeepSeekDaily(dayKey: "2025-11-01", totalTokens: 1_400_000, cost: 0.30, requestCount: 240),
+                SyncDeepSeekDaily(dayKey: "2025-11-02", totalTokens: 1_490_000, cost: 0.33, requestCount: 252),
+            ],
+            updatedAt: now)
+    }
+
+    // MARK: - S1 — full round-trip
+
+    @Test("SyncDeepSeekUsage round-trips with all fields")
+    func deepSeekRoundTrip() throws {
+        let source = Self.sampleUsage()
+        let data = try Self.encoder.encode(source)
+        let decoded = try Self.decoder.decode(SyncDeepSeekUsage.self, from: data)
+        #expect(decoded == source)
+        #expect(decoded.todayTokens == 1_250_000)
+        #expect(decoded.monthCost == 9.85)
+        #expect(decoded.todayRequests == 312)
+        #expect(decoded.topModel == "deepseek-chat")
+        #expect(decoded.daily.count == 2)
+        #expect(decoded.daily.first?.dayKey == "2025-11-01")
+    }
+
+    // MARK: - free-tier — missing optional keys degrade silently
+
+    @Test("SyncDeepSeekUsage decodes with optional balance/daily/cost omitted")
+    func deepSeekFreeTierDecode() throws {
+        // Only the always-present counters + updatedAt; no costs, no balances,
+        // no daily, no currency.
+        let json = """
+        {"todayTokens": 10, "monthTokens": 200, "todayRequests": 3,
+         "monthRequests": 40, "updatedAt": "2023-11-14T22:13:20Z"}
+        """
+        let decoded = try Self.decoder.decode(SyncDeepSeekUsage.self, from: Data(json.utf8))
+        #expect(decoded.todayTokens == 10)
+        #expect(decoded.todayCost == nil)
+        #expect(decoded.totalBalanceUSD == nil)
+        #expect(decoded.daily.isEmpty)
+        #expect(decoded.currency == "USD") // decoder default
+    }
+
+    // MARK: - S1 — envelope carries the field through ProviderUsageSnapshot
+
+    @Test("ProviderUsageSnapshot carries deepSeekUsage through round-trip")
+    func providerSnapshotCarriesDeepSeek() throws {
+        let snap = ProviderUsageSnapshot(
+            providerID: "deepseek", providerName: "DeepSeek",
+            primary: nil, secondary: nil,
+            accountEmail: nil, loginMethod: nil, statusMessage: nil,
+            isError: false, lastUpdated: Self.now,
+            deepSeekUsage: Self.sampleUsage())
+        let data = try Self.encoder.encode(snap)
+        let decoded = try Self.decoder.decode(ProviderUsageSnapshot.self, from: data)
+        #expect(decoded.deepSeekUsage?.monthRequests == 7_240)
+        #expect(decoded.deepSeekUsage?.daily.count == 2)
+    }
+
+    // MARK: - S3 — old Mac payload (no deepSeekUsage) → new reader = nil
+
+    @Test("Old payload without deepSeekUsage decodes to nil (backward compat)")
+    func oldPayloadDecodesDeepSeekNil() throws {
+        let json = """
+        {"providerID": "deepseek", "providerName": "DeepSeek",
+         "isError": false, "lastUpdated": "2023-11-14T22:13:20Z"}
+        """
+        let decoded = try Self.decoder.decode(ProviderUsageSnapshot.self, from: Data(json.utf8))
+        #expect(decoded.deepSeekUsage == nil)
+        #expect(decoded.providerID == "deepseek")
+        #expect(decoded.rateWindows.isEmpty)
+    }
+
+    // MARK: - S2 dual — payload with an unknown future key does not throw
+
+    @Test("Payload with deepSeekUsage + unknown future key decodes (forward compat)")
+    func unknownFutureKeyTolerated() throws {
+        let json = """
+        {"providerID": "deepseek", "providerName": "DeepSeek",
+         "isError": false, "lastUpdated": "2023-11-14T22:13:20Z",
+         "deepSeekUsage": {"todayTokens": 1, "monthTokens": 2, "todayRequests": 3,
+           "monthRequests": 4, "currency": "USD", "updatedAt": "2023-11-14T22:13:20Z"},
+         "someFutureField_v999": {"nested": [1, 2, 3]}}
+        """
+        let decoded = try Self.decoder.decode(ProviderUsageSnapshot.self, from: Data(json.utf8))
+        #expect(decoded.deepSeekUsage?.todayTokens == 1)
+    }
+}
+// swiftlint:enable multiline_arguments
