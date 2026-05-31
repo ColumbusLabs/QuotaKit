@@ -153,6 +153,12 @@ struct ProviderDetailView: View {
                 {
                     AlibabaTokenPlanCard(plan: alibabaPlan, tintColor: self.providerColor)
                 }
+                // iOS 1.10.0 — DeepSeek web-session usage + cost (v0.30.0 #1166).
+                if self.provider.providerID == "deepseek",
+                   let deepSeekUsage = self.provider.deepSeekUsage
+                {
+                    DeepSeekUsageCard(usage: deepSeekUsage, tintColor: self.providerColor)
+                }
 
                 // iOS 1.8.0 build 134 — v0.27 existing-provider
                 // extensions. Same dispatch pattern: provider ID

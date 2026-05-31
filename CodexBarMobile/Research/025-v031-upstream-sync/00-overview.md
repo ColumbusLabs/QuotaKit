@@ -30,14 +30,14 @@
 - [x] **G2 · 后台/数据结构**：`SyncDeepSeekUsage` envelope 落地（`V030Snapshots.swift` + `ProviderUsageSnapshot.deepSeekUsage` + `SyncCoordinator.mapDeepSeekUsage`）；`swift build` 绿。请求数 additive 延后（fast-follow，D2）
 - [ ] **G3 · 自动透传验证**：Codex Spark / Antigravity 分模型 lane 在 iOS 正确显示
 - [ ] **G4 · 数值修复验证**：Claude 100× / Grok / Ollama / Alibaba / OpenAI 数值与标签正确
-- [ ] **G5 · iOS 前端**：`DeepSeekUsageCard` + `ProviderDetailView` 派发 + 本地化 4 语齐
+- [x] **G5 · iOS 前端**：`DeepSeekUsageCard` + `ProviderDetailView` 派发 + 4 语 xcstrings；`xcodebuild -sdk iphonesimulator` 编译通过
 - [ ] **G6 · 测试**：4 种兼容性场景 + S5 全过；单测绿；回归无退化
 - [ ] **G7 · Code Review**：关键阶段（合并 A / bridge C / iOS F）Opus CR loop 清干净
-- [ ] **G8 · 版本号 stamp**：`version.env` + `project.yml` bump 到上表最终值
+- [x] **G8 · 版本号 stamp**：`version.env`（R1）+ `project.yml` MARKETING 1.10.0 / BUILD 145；`xcodegen` 已重生成 .xcodeproj
 - [ ] **G9 · CloudKit 审计**：deploy 判定已记录（本次预判：**无需** Prod schema deploy）
 - [ ] **G10 · 发布（Definition of Done）**：签名公证 + iOS TestFlight + Sparkle appcast，发到用户手里
 
-**当前进度：2 / 10（G3/G6 wire 层已完成，待 iOS 可视化）—— 下一步：G5 iOS `DeepSeekUsageCard`。**
+**当前进度：4 / 10（G1/G2/G5/G8 ✓；G3/G6 wire 层完成待 sim 可视化）—— 下一步：G3 sim 可视化 + G4 数值验证 + G6 回归 + G9 审计 + G7 CR。**
 
 > ⚠️ 任一项未达成即视为未完成；不得以 "commit/push 了" 充当 G10。进度计数随开发推进在本块实时更新。
 
@@ -224,3 +224,9 @@
 - 新建 `Tests/CodexBarTests/V030SnapshotsCodableTests.swift`（**5 测试全绿**）：S1 全往返 + free-tier 缺字段降级（currency 默认 USD、daily []）+ **S3 旧 payload 无 `deepSeekUsage` → nil** + **S2 含未知 future key 不崩**。`swift test` 全测试目标编译通过（45s，顺带确认 Mistral `toCostUsageTokenSnapshot` 等只是 SourceKit 索引假警、无回归）。
 - **Codex Spark / Antigravity 分模型透传**：结构性保证（bridge `extraRateWindows` 无条件循环 line 545 + iOS `ProviderUsageView.ForEach(allRateWindows)`）；iOS 可视化验证并入 G5 卡片完成后一起做。
 - G3/G6 **wire 层完成**；G3 的 iOS 可视化显示 + G5 卡片 = 下一步。
+
+### Round 4 — G5 iOS 卡片 + G8 版本 bump（2026-05-30）
+- 新建 `Views/DeepSeekUsageCard.swift`（仿 `DeepgramUsageCard`：标题 + topModel 徽标 + 今日/本月 `tokens·cost·requests` 行 + 可选余额行 + daily 迷你条；余额 nil 则隐藏，与 D1 一致）；`ProviderDetailView` 加 `deepseek` 派发块（providerID 匹配 + `deepSeekUsage` 非 nil）。
+- `Localizable.xcstrings` 加 4 个 key × 4 语（`deepseek_usage_title` / `_today_label` / `_month_label` / `_balance_label`），全 `state:"translated"`，无 `state:"new"`。
+- `project.yml` → MARKETING `1.10.0` / BUILD `145`（3 处）；`xcodegen generate` 重生成 `.xcodeproj`（已纳管）。
+- **`xcodebuild -sdk iphonesimulator build CODE_SIGNING_ALLOWED=NO` 成功**（iOS app 全量编译通过，含新卡 + 派发 + 本地化）。**G5 ✓ / G8 ✓（4/10）**。
