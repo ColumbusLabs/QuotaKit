@@ -407,7 +407,9 @@ struct ProviderDetailView: View {
                             $0 == 30 ? nil : LocalizedStringResource("\($0) Days")
                         } ?? "30 Days",
                         value: Self.formatUSD(monthCost),
-                        subtitle: cost.last30DaysTokens.map { Self.formatTokens($0) },
+                        subtitle: Self.costSubtitle(
+                            tokens: cost.last30DaysTokens,
+                            requests: cost.last30DaysRequests),
                         tintColor: self.providerColor,
                         isEstimated: cost.isEstimated == true)
                 }
@@ -562,6 +564,21 @@ struct ProviderDetailView: View {
 
     static func formatUSD(_ value: Double) -> String { CostFormatting.usd(value) }
     static func formatTokens(_ count: Int) -> String { CostFormatting.tokens(count) }
+
+    /// Cost-card subtitle combining the token count with an optional request
+    /// count (upstream #1163; nil for providers/Mac builds without it).
+    static func costSubtitle(tokens: Int?, requests: Int?) -> String? {
+        var parts: [String] = []
+        if let tokens { parts.append(Self.formatTokens(tokens)) }
+        if let requests, requests > 0 {
+            let f = NumberFormatter()
+            f.numberStyle = .decimal
+            f.usesGroupingSeparator = true
+            let n = f.string(from: NSNumber(value: requests)) ?? "\(requests)"
+            parts.append(String(format: String(localized: "cost_requests_inline", defaultValue: "%@ req"), n))
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
 }
 
 // MARK: - Previews

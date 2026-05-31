@@ -143,6 +143,12 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
     /// 7- or 365-day total (gap F). Optional — nil for pre-0.29 payloads; iOS
     /// treats nil as 30 (the historical default).
     public let historyDays: Int?
+    /// iOS 1.10.0 / Mac 0.31.0 (025) — upstream #1163: request counts +
+    /// currency for the shared cost cards. Optional; nil for pre-0.31
+    /// payloads. iOS shows "N requests" + the right currency symbol.
+    public let sessionRequests: Int?
+    public let last30DaysRequests: Int?
+    public let currencyCode: String?
 
     public init(
         sessionCostUSD: Double?,
@@ -151,7 +157,10 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         last30DaysTokens: Int?,
         daily: [SyncDailyPoint],
         isEstimated: Bool? = nil,
-        historyDays: Int? = nil)
+        historyDays: Int? = nil,
+        sessionRequests: Int? = nil,
+        last30DaysRequests: Int? = nil,
+        currencyCode: String? = nil)
     {
         self.sessionCostUSD = sessionCostUSD
         self.sessionTokens = sessionTokens
@@ -160,6 +169,9 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         self.daily = daily
         self.isEstimated = isEstimated
         self.historyDays = historyDays
+        self.sessionRequests = sessionRequests
+        self.last30DaysRequests = last30DaysRequests
+        self.currencyCode = currencyCode
     }
 }
 

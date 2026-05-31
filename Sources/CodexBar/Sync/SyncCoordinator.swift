@@ -1583,7 +1583,10 @@ final class SyncCoordinator {
             last30DaysTokens: tokenSnapshot?.last30DaysTokens,
             daily: daily,
             isEstimated: summaryIsEstimated ? true : nil,
-            historyDays: tokenSnapshot?.historyDays)
+            historyDays: tokenSnapshot?.historyDays,
+            sessionRequests: tokenSnapshot?.sessionRequests,
+            last30DaysRequests: tokenSnapshot?.last30DaysRequests,
+            currencyCode: tokenSnapshot?.currencyCode)
     }
 
     /// Builds a cost summary for Mistral from its native daily usage buckets
@@ -1618,7 +1621,8 @@ final class SyncCoordinator {
             last30DaysCostUSD: m.totalCost,
             last30DaysTokens: m.totalInputTokens + m.totalOutputTokens + m.totalCachedTokens,
             daily: daily,
-            isEstimated: nil)
+            isEstimated: nil,
+            currencyCode: m.currency)
     }
 
     /// Maps OpenRouter's native balance/credits + per-key usage windows into

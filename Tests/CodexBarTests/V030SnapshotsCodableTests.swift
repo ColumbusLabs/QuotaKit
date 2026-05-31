@@ -124,5 +124,33 @@ struct V030SnapshotsCodableTests {
         let decoded = try Self.decoder.decode(ProviderUsageSnapshot.self, from: Data(json.utf8))
         #expect(decoded.deepSeekUsage?.todayTokens == 1)
     }
+
+    // MARK: - #1163 request counts + currency on SyncCostSummary
+
+    @Test("SyncCostSummary round-trips with request counts + currency")
+    func costSummaryRequestsRoundTrip() throws {
+        let source = SyncCostSummary(
+            sessionCostUSD: 1.0, sessionTokens: 1000,
+            last30DaysCostUSD: 28.9, last30DaysTokens: 1_200_000,
+            daily: [],
+            sessionRequests: 42, last30DaysRequests: 7_240, currencyCode: "EUR")
+        let data = try Self.encoder.encode(source)
+        let decoded = try Self.decoder.decode(SyncCostSummary.self, from: data)
+        #expect(decoded.sessionRequests == 42)
+        #expect(decoded.last30DaysRequests == 7_240)
+        #expect(decoded.currencyCode == "EUR")
+    }
+
+    @Test("Old SyncCostSummary payload without request counts decodes to nil")
+    func costSummaryRequestsBackwardCompat() throws {
+        let json = """
+        {"sessionCostUSD": 1.0, "sessionTokens": 1000, "last30DaysCostUSD": 28.9,
+         "last30DaysTokens": 1200000, "daily": []}
+        """
+        let decoded = try Self.decoder.decode(SyncCostSummary.self, from: Data(json.utf8))
+        #expect(decoded.last30DaysRequests == nil)
+        #expect(decoded.currencyCode == nil)
+        #expect(decoded.last30DaysCostUSD == 28.9)
+    }
 }
 // swiftlint:enable multiline_arguments
