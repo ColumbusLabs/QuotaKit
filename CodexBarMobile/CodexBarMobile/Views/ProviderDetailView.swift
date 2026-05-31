@@ -435,7 +435,7 @@ struct ProviderDetailView: View {
             HStack(spacing: 4) {
                 Text("Daily Spend")
                     .font(.headline)
-                Text("(USD)")
+                Text("(\(currencyCode ?? "USD"))")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
