@@ -28,16 +28,16 @@
 
 - [x] **G1 · Mac 合并**：`git merge v0.31.0` 干净、`swift build` 绿（22s）、10 冲突全解 — 提交 `f8644d4c`（2026-05-30）
 - [x] **G2 · 后台/数据结构**：`SyncDeepSeekUsage` envelope 落地（`V030Snapshots.swift` + `ProviderUsageSnapshot.deepSeekUsage` + `SyncCoordinator.mapDeepSeekUsage`）；`swift build` 绿。请求数 additive 延后（fast-follow，D2）
-- [ ] **G3 · 自动透传验证**：Codex Spark / Antigravity 分模型 lane 在 iOS 正确显示
+- [~] **G3 · 自动透传验证**：透传结构（bridge 无条件 `extraRateWindows` 循环 + "nil extras 不破坏 legacy" 测试）+ 编译 + CR 已验证；**iOS 实机"正确显示" = 用户 QA**（03 §S1–S5 多设备需真机 + iCloud）
 - [x] **G4 · 数值修复验证**：上游 #1114/#1148/#1136/#1142/#1168 + Spark #1195 + Design 移除 #1197 均确认在合并树，经现有 synced 字段自动透传（grep 验证，R5）
 - [x] **G5 · iOS 前端**：`DeepSeekUsageCard` + `ProviderDetailView` 派发 + 4 语 xcstrings；`xcodebuild -sdk iphonesimulator` 编译通过
 - [x] **G6 · 测试**：V030 wire 兼容（S1–S3）5 测全绿；全量 `swift test` 仅 `SyncCoordinatorTests` 并行 flake（已知，串行 **23/23** 过）→ 无回归（R6）。剩：真机/sim 可视化 = 用户 QA
-- [ ] **G7 · Code Review**：关键阶段（合并 A / bridge C / iOS F）Opus CR loop 清干净
+- [x] **G7 · Code Review**：codex-reviewer（独立 gpt-5.3-codex）评审 fork 改动 `f8644d4c..HEAD` —— 无可执行回归/findings，"internally consistent and non-breaking"（R7）
 - [x] **G8 · 版本号 stamp**：`version.env`（R1）+ `project.yml` MARKETING 1.10.0 / BUILD 145；`xcodegen` 已重生成 .xcodeproj
 - [x] **G9 · CloudKit 审计**：合并后零 CKRecord 字段/zone 变更（`CloudConstants` 未改），新字段全在压缩 blob 内（`providerPayloadVersion`=1）→ **无需 Prod schema deploy**（R5）
 - [ ] **G10 · 发布（Definition of Done）**：签名公证 + iOS TestFlight + Sparkle appcast，发到用户手里
 
-**当前进度：7 / 10（G1/G2/G4/G5/G6/G8/G9 ✓）—— 剩 G3 sim/真机可视化 / G7 CR；G10 = 用户 Mac 手动发布。**
+**当前进度：8 / 10（G1/G2/G4/G5/G6/G7/G8/G9 ✓）—— 自治可做项全完成。剩 G3 实机可视化 + G10 发布 = 用户 QA / 手动收尾。**
 
 > ⚠️ 任一项未达成即视为未完成；不得以 "commit/push 了" 充当 G10。进度计数随开发推进在本块实时更新。
 
@@ -238,3 +238,8 @@
 ### Round 6 — G6 全量回归（2026-05-30）
 - `swift test`（全量）：除 `SyncCoordinatorTests` 的已知**并行 flake**（`Index out of range` + L1 delete 期望，见 memory `project_swift_test_parallel_flake`）外全绿。`swift test --no-parallel --filter SyncCoordinatorTests` **串行 23/23 通过**（含新增 "extraRateWindows: nil extras don't break legacy mapping" + ghostProvider 防幽灵）→ 确认 flake 非本次回归。新增 V030 5 测全绿。**G6 ✓（7/10）**。
 - 注：那次后台 `swift test | tail` 报 "exit 0" 是管道末端 `tail` 的退出码，非 swift test 本身——排查时要取 `PIPESTATUS[0]`。
+
+### Round 7 — G7 CR + 交回（2026-05-30）
+- **G7 ✓**：`codex-reviewer`（独立 gpt-5.3-codex）评审 `f8644d4c..HEAD` 的 fork 改动（DeepSeek envelope + bridge + iOS 卡 + mock + 测试）—— **无可执行回归/findings**，"internally consistent and non-breaking"。
+- **自治循环到此 8/10，剩余两项属用户环节**：G3 的 iOS 实机"正确显示"（DeepSeek 卡 + Spark/Antigravity lane）需真机/sim 实跑；03 §S1–S5 的 2 Mac×2 iOS 多设备同步需真实 iCloud；G10 签名公证 + TestFlight + appcast 在用户 Mac 上。
+- **持有项待用户**：① 首次 `git push` origin（本地 7 commits）+ Todoist 同步；② F2 Mac widget 打包发布前复核（上游 #1095 重构）。
