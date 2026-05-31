@@ -35,9 +35,9 @@
 - [x] **G7 · Code Review**：codex-reviewer（独立 gpt-5.3-codex）评审 fork 改动 —— DeepSeek 部分零 findings（R7）；item 10 请求数+币种 CR **抓到并修复 2 个币种一致性 P2**，复评 "wiring is consistent through sync/model/UI"（R8）
 - [x] **G8 · 版本号 stamp**：`version.env`（R1）+ `project.yml` MARKETING 1.10.0 / BUILD 145；`xcodegen` 已重生成 .xcodeproj
 - [x] **G9 · CloudKit 审计**：合并后零 CKRecord 字段/zone 变更（`CloudConstants` 未改），新字段全在压缩 blob 内（`providerPayloadVersion`=1）→ **无需 Prod schema deploy**（R5）
-- [ ] **G10 · 发布（Definition of Done）**：签名公证 + iOS TestFlight + Sparkle appcast，发到用户手里
+- [~] **G10 · 发布**：Mac **已签名公证 + draft release + 装到用户 Mac**（`0.31.0.1`/`73.1.1.10.0`，Developer ID，CloudKit Production，notarized+stapled；R9）。剩：publish draft + 推 appcast + iOS 1.10.0 TestFlight + 合并到 mobile-dev
 
-**当前进度：8 / 10（G1/G2/G4/G5/G6/G7/G8/G9 ✓）—— 自治可做项全完成。剩 G3 实机可视化 + G10 发布 = 用户 QA / 手动收尾。**
+**当前进度：9 / 10（G1–G9 ✓ + G10 Mac 部分：签名公证 + draft release + 装机完成）—— 剩 G3 实机可视化 + G10 发布收尾（publish / appcast / iOS TestFlight）。**
 
 > ⚠️ 任一项未达成即视为未完成；不得以 "commit/push 了" 充当 G10。进度计数随开发推进在本块实时更新。
 
@@ -251,3 +251,11 @@
   - P2-2（`9f65e036`）：日图值改币种后，"Daily Spend (USD)" 头仍硬编码 USD → 不一致。→ 头跟随 `currencyCode`。
   - 复评：**无 findings，"wiring is consistent through sync/model/UI layers"**。
 - `swift build` + `swift test`（V030 7 测）+ `xcodebuild iphonesimulator` 全绿。**至此特性清单 00 §5 的 10 项全部落地。**（item 9 OpenAI project 限定经现有 `loginMethod` 自动透传；`accountOrganization` 未同步属可选微跟进。）
+
+### Round 9 — Mac draft release + 装机（G10 Mac 部分，2026-05-30）
+- **F2 打包时果然触发并修复**：fork 手写 widget 块调用了上游 #1095 删掉的 `generate_widget_appintents_metadata` → `package_app.sh:441` "command not found" → 第一次 `sign-and-notarize` 失败、无 zip。改正：手写块换成上游 `install_widget_extension`（`WidgetExtension/` 真 Xcode app-extension target；xcodebuild 注入 `MARKETING_VERSION` + `CURRENT_PROJECT_VERSION=$BUILD_NUMBER`）。提交 `9ca70d15`。一并解决了"SPM widget 在 macOS 26.5 加载不了"隐患（用的就是 #1095 正解）。**教训：fork 元/脚本文件解冲突取 ours 前，要确认 ours 没依赖上游已删的函数。**
+- 第二次 `sign-and-notarize.sh`：双架构 release 构建 + widget xcodebuild + Developer ID 签名 + **Apple 公证 Accepted + staple** → `CodexBar-0.31.0.1-mobile.1.10.0.zip`（44MB）+ dSYM。
+- 验证：CFBundleVersion `73.1.1.10.0` · ShortVersion `0.31.0.1` · 签名 `Developer ID Application: Yuxiao Wang (3TUERHN53E)` · **CloudKit entitlement = Production** · widget appex 已含并签名（`com.o1xhack.codexbar.widget`）。
+- 装到 `/Applications/CodexBar.app` 并启动（运行中）。push 分支 + tag `v0.31.0.1-mobile.1.10.0`；`gh release create --draft` 建 draft（zip + dSYM 已挂）。
+- **CloudKit：再次确认无需 Production schema deploy**（entitlement=Production、无新 CKRecord 字段）。
+- 收尾（用户定时机）：publish draft + `make_appcast.sh` 推 appcast（draft 阶段先不推，免得指向 404）+ iOS 1.10.0 TestFlight + 合并分支到 `mobile-dev`。
