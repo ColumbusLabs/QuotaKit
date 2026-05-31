@@ -412,34 +412,7 @@ fi
 if [[ -n "$(resolve_binary_path "CodexBarClaudeWatchdog" "${ARCH_LIST[0]}")" ]]; then
   install_binary "CodexBarClaudeWatchdog" "$APP/Contents/Helpers/CodexBarClaudeWatchdog"
 fi
-if [[ -n "$(resolve_binary_path "CodexBarWidget" "${ARCH_LIST[0]}")" ]]; then
-  WIDGET_APP="$APP/Contents/PlugIns/CodexBarWidget.appex"
-  mkdir -p "$WIDGET_APP/Contents/MacOS" "$WIDGET_APP/Contents/Resources"
-  cat > "$WIDGET_APP/Contents/Info.plist" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleName</key><string>CodexBarWidget</string>
-    <key>CFBundleDisplayName</key><string>CodexBar</string>
-    <key>CFBundleIdentifier</key><string>${WIDGET_BUNDLE_ID}</string>
-    <key>CFBundleExecutable</key><string>CodexBarWidget</string>
-    <key>CFBundlePackageType</key><string>XPC!</string>
-    <key>CFBundleShortVersionString</key><string>${MARKETING_VERSION}</string>
-    <key>CFBundleVersion</key><string>${BUILD_NUMBER}.${MOBILE_VERSION}</string>
-    <key>LSMinimumSystemVersion</key><string>14.0</string>
-    <key>CodexBarTeamID</key><string>${APP_TEAM_ID}</string>
-    <key>NSExtension</key>
-    <dict>
-        <key>NSExtensionPointIdentifier</key><string>com.apple.widgetkit-extension</string>
-        <key>NSExtensionPrincipalClass</key><string>CodexBarWidget.CodexBarWidgetBundle</string>
-    </dict>
-</dict>
-</plist>
-PLIST
-  install_binary "CodexBarWidget" "$WIDGET_APP/Contents/MacOS/CodexBarWidget"
-  generate_widget_appintents_metadata "$WIDGET_APP/Contents/Resources"
-fi
+install_widget_extension
 # Embed Sparkle.framework
 if [[ -d ".build/$CONF/Sparkle.framework" ]]; then
   COPYFILE_DISABLE=1 cp -R ".build/$CONF/Sparkle.framework" "$APP/Contents/Frameworks/"

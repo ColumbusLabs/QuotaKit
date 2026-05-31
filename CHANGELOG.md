@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.31.0.1 (Mobile 1.10.0 · build 73.1) — 2026-05-30 — upstream v0.31.0 + iOS 1.10.0
+
+Syncs the Mac app to upstream CodexBar **v0.31.0** (spanning 0.29.1–0.31.0) and ships the paired iOS **1.10.0** companion.
+
+### Highlights — Mobile 1.10.0
+
+- **DeepSeek** now shows web-session usage + cost on iOS — today / this-month tokens, spend, and request counts beside the balance.
+- **Codex Spark** (5-hour + weekly) and **Antigravity** per-model quota lanes now sync through to iOS.
+- **Cost cards** display request counts and the correct currency (EUR / CNY), not just USD.
+- Upstream fixes flow through automatically: Claude Enterprise extra-usage amount (no longer 100× too high), Grok / Ollama window labels + pace projection, and the Claude "Design" lane folded into the main Claude limit.
+
+### Compatibility
+
+- Mixing app versions across Macs and iPhones is safe — older iPhones ignore the new fields and older Macs simply don't send them. No crashes or data loss across any new/old device combination.
+
+### CodexBar v0.29.1–v0.31.0 (Upstream)
+
+- Codex Spark model usage, Antigravity per-model quotas, DeepSeek usage summaries, OpenAI project-scoped Admin API, Ollama pace projection, Bedrock AWS-profile auth, Swedish + Brazilian-Portuguese localization, plus numerous menu-bar and stability fixes for macOS 26.5.
+
+### 中文说明
+
+同步 Mac 端到上游 CodexBar **v0.31.0**（覆盖 0.29.1–0.31.0），并配套发布 iOS **1.10.0**。iOS 新增 DeepSeek 用量+成本卡；Codex Spark 与 Antigravity 分模型配额条同步到手机；成本卡显示请求数与正确币种；上游的 Claude 企业版金额、Grok/Ollama 窗口与配速、Claude Design 合并等修复自动透传。任意新旧设备混用同步均安全。
+
+---
+
 ## 0.29.0.1 (Mobile 1.9.0 · build 68.1) — 2026-05-27 — upstream v0.29.0 + iOS 1.9.0
 
 Syncs the Mac app to upstream CodexBar v0.29.0 and ships the paired iOS 1.9.0 companion. Three new providers — Azure OpenAI, Alibaba Token Plan (Bailian), and T3 Chat — plus the upstream v0.28.0 + v0.29.0 fixes.
