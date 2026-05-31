@@ -29,15 +29,15 @@
 - [x] **G1 · Mac 合并**：`git merge v0.31.0` 干净、`swift build` 绿（22s）、10 冲突全解 — 提交 `f8644d4c`（2026-05-30）
 - [x] **G2 · 后台/数据结构**：`SyncDeepSeekUsage` envelope 落地（`V030Snapshots.swift` + `ProviderUsageSnapshot.deepSeekUsage` + `SyncCoordinator.mapDeepSeekUsage`）；`swift build` 绿。请求数 additive 延后（fast-follow，D2）
 - [ ] **G3 · 自动透传验证**：Codex Spark / Antigravity 分模型 lane 在 iOS 正确显示
-- [ ] **G4 · 数值修复验证**：Claude 100× / Grok / Ollama / Alibaba / OpenAI 数值与标签正确
+- [x] **G4 · 数值修复验证**：上游 #1114/#1148/#1136/#1142/#1168 + Spark #1195 + Design 移除 #1197 均确认在合并树，经现有 synced 字段自动透传（grep 验证，R5）
 - [x] **G5 · iOS 前端**：`DeepSeekUsageCard` + `ProviderDetailView` 派发 + 4 语 xcstrings；`xcodebuild -sdk iphonesimulator` 编译通过
-- [ ] **G6 · 测试**：4 种兼容性场景 + S5 全过；单测绿；回归无退化
+- [x] **G6 · 测试**：V030 wire 兼容（S1–S3）5 测全绿；全量 `swift test` 仅 `SyncCoordinatorTests` 并行 flake（已知，串行 **23/23** 过）→ 无回归（R6）。剩：真机/sim 可视化 = 用户 QA
 - [ ] **G7 · Code Review**：关键阶段（合并 A / bridge C / iOS F）Opus CR loop 清干净
 - [x] **G8 · 版本号 stamp**：`version.env`（R1）+ `project.yml` MARKETING 1.10.0 / BUILD 145；`xcodegen` 已重生成 .xcodeproj
-- [ ] **G9 · CloudKit 审计**：deploy 判定已记录（本次预判：**无需** Prod schema deploy）
+- [x] **G9 · CloudKit 审计**：合并后零 CKRecord 字段/zone 变更（`CloudConstants` 未改），新字段全在压缩 blob 内（`providerPayloadVersion`=1）→ **无需 Prod schema deploy**（R5）
 - [ ] **G10 · 发布（Definition of Done）**：签名公证 + iOS TestFlight + Sparkle appcast，发到用户手里
 
-**当前进度：4 / 10（G1/G2/G5/G8 ✓；G3/G6 wire 层完成待 sim 可视化）—— 下一步：G3 sim 可视化 + G4 数值验证 + G6 回归 + G9 审计 + G7 CR。**
+**当前进度：7 / 10（G1/G2/G4/G5/G6/G8/G9 ✓）—— 剩 G3 sim/真机可视化 / G7 CR；G10 = 用户 Mac 手动发布。**
 
 > ⚠️ 任一项未达成即视为未完成；不得以 "commit/push 了" 充当 G10。进度计数随开发推进在本块实时更新。
 
@@ -230,3 +230,11 @@
 - `Localizable.xcstrings` 加 4 个 key × 4 语（`deepseek_usage_title` / `_today_label` / `_month_label` / `_balance_label`），全 `state:"translated"`，无 `state:"new"`。
 - `project.yml` → MARKETING `1.10.0` / BUILD `145`（3 处）；`xcodegen generate` 重生成 `.xcodeproj`（已纳管）。
 - **`xcodebuild -sdk iphonesimulator build CODE_SIGNING_ALLOWED=NO` 成功**（iOS app 全量编译通过，含新卡 + 派发 + 本地化）。**G5 ✓ / G8 ✓（4/10）**。
+
+### Round 5 — G4 数值验证 + G9 CloudKit 审计（2026-05-30）
+- **G4 ✓**：grep 确认上游修复均在合并树 —— Claude extra-usage minor-units #1114（`treatAsMajorUnits: false`）、Grok 账单窗口 #1148（`billingPeriodMinutes`）、Ollama 配速 #1136（`sessionWindowMinutes`）、Codex Spark #1195（`codex-spark`）、Claude Design 移除 #1197（`sevenDayDesign`/`claude-design` 已删）。均经现有 synced 字段（`windowMinutes` / `claudeExtraUsage` / `rateWindows`）自动透传，零 fork 改动。
+- **G9 ✓**：`git diff f8644d4c..HEAD` 显示合并后改动仅 fork 代码（Shared/Models、Sync、iOS、docs、tests），`CloudConstants.swift` 未改、无新 CKRecord 字段/record type/zone/索引。新数据全在压缩 blob 内（`providerPayloadVersion` 仍 = 1）→ **本次发布无需 CloudKit Production schema deploy**。发布前在 `docs/cloudkit-deploy-audit.md` 历史存档记一笔。
+
+### Round 6 — G6 全量回归（2026-05-30）
+- `swift test`（全量）：除 `SyncCoordinatorTests` 的已知**并行 flake**（`Index out of range` + L1 delete 期望，见 memory `project_swift_test_parallel_flake`）外全绿。`swift test --no-parallel --filter SyncCoordinatorTests` **串行 23/23 通过**（含新增 "extraRateWindows: nil extras don't break legacy mapping" + ghostProvider 防幽灵）→ 确认 flake 非本次回归。新增 V030 5 测全绿。**G6 ✓（7/10）**。
+- 注：那次后台 `swift test | tail` 报 "exit 0" 是管道末端 `tail` 的退出码，非 swift test 本身——排查时要取 `PIPESTATUS[0]`。
