@@ -3,37 +3,6 @@
     <channel>
         <title>CodexBar</title>
         <item>
-            <title>0.31.0.1</title>
-            <pubDate>Tue, 02 Jun 2026 16:05:41 -0700</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
-            <sparkle:version>73.1.1.10.0</sparkle:version>
-            <sparkle:shortVersionString>0.31.0.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.31.0.1-Mobile 1.10.0</h2>
-Syncs the Mac app to upstream CodexBar <strong>v0.31.0</strong> (spanning 0.29.1–0.31.0) and ships the paired iOS <strong>1.10.0</strong> companion.
-<h3>Highlights — Mobile 1.10.0</h3>
-<ul>
-<li><strong>DeepSeek</strong> now shows web-session usage + cost on iOS — today / this-month tokens, spend, and request counts beside the balance.</li>
-<li><strong>Codex Spark</strong> (5-hour + weekly) and <strong>Antigravity</strong> per-model quota lanes now sync through to iOS.</li>
-<li><strong>Cost cards</strong> display request counts and the correct currency (EUR / CNY), not just USD.</li>
-<li>Upstream fixes flow through automatically: Claude Enterprise extra-usage amount (no longer 100× too high), Grok / Ollama window labels + pace projection, and the Claude "Design" lane folded into the main Claude limit.</li>
-</ul>
-<h3>Compatibility</h3>
-<ul>
-<li>Mixing app versions across Macs and iPhones is safe — older iPhones ignore the new fields and older Macs simply don't send them. No crashes or data loss across any new/old device combination.</li>
-</ul>
-<h3>CodexBar v0.29.1–v0.31.0 (Upstream)</h3>
-<ul>
-<li>Codex Spark model usage, Antigravity per-model quotas, DeepSeek usage summaries, OpenAI project-scoped Admin API, Ollama pace projection, Bedrock AWS-profile auth, Swedish + Brazilian-Portuguese localization, plus numerous menu-bar and stability fixes for macOS 26.5.</li>
-</ul>
-<h3>中文说明</h3>
-同步 Mac 端到上游 CodexBar <strong>v0.31.0</strong>（覆盖 0.29.1–0.31.0），并配套发布 iOS <strong>1.10.0</strong>。iOS 新增 DeepSeek 用量+成本卡；Codex Spark 与 Antigravity 分模型配额条同步到手机；成本卡显示请求数与正确币种；上游的 Claude 企业版金额、Grok/Ollama 窗口与配速、Claude Design 合并等修复自动透传。任意新旧设备混用同步均安全。
-<hr/>
-<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.31.0.1-mobile.1.10.0/CodexBar-0.31.0.1-mobile.1.10.0.zip" length="46824426" type="application/octet-stream" sparkle:edSignature="uzoZs/a8zmkOxzxkDjLgYijldumfudD1wH658XZYOoVbtT9UoH6WC2yJ8ynW48t6OOxzNYmn7riznIQH7fhDDA=="/>
-        </item>
-        <item>
             <title>0.29.0.1</title>
             <pubDate>Sat, 30 May 2026 11:24:45 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
@@ -176,6 +145,65 @@ Syncs the Mac app to upstream CodexBar v0.27.0 and ships the paired iOS 1.8.0 co
 <p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.27.0-mobile.1.8.0/CodexBar-0.27.0-mobile.1.8.0.zip" length="44133824" type="application/octet-stream" sparkle:edSignature="UkrzMvh3QwU3lWfPrpajShPOk0iohHflS/9ikS+vGdH9VteJeHaWflIOHvcrct4PIRYjqDdjOdkI/FbBYkuMCQ=="/>
+        </item>
+        <item>
+            <title>0.26.2</title>
+            <pubDate>Mon, 18 May 2026 19:22:55 -0700</pubDate>
+            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
+            <sparkle:version>63.4.1.7.0</sparkle:version>
+            <sparkle:shortVersionString>0.26.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.26.4-Mobile 1.7.0</h2>
+> Patch on top of 63.3 fixing a user-reported regression where iPhone
+> still showed only 1 OpenAI card despite 63.3 shipping the universal
+> multi-account mechanism. Root cause was orthogonal to Phase G —
+> upstream's <code>shouldFetchAllTokenAccounts</code> gated the per-account
+> fan-out on <code>multiAccountMenuLayout == .stacked</code>. Users on the
+> default <code>.segmented</code> layout had only their *active* token-account
+> fetched, so <code>accountSnapshots[provider]</code> ever contained one entry,
+> so SyncCoordinator only ever pushed one snapshot to CloudKit even
+> after the Phase G universalization. iPhone was blameless — Mac
+> wasn't sending the other accounts.
+>
+> Fix: when <code>iCloudSyncEnabled</code> is true, ignore the menu-layout gate
+> and fan-out unconditionally (subject to the existing count > 1 and
+> catalog-membership guards). Mac-only users (no iCloud sync) keep
+> upstream's API-frugality behavior: segmented layout fetches just
+> the active account, stacked fetches all. The menu layout choice
+> stays a local Mac UI ergonomics decision; it no longer dictates
+> what reaches iPhone.
+<h3>Mac</h3>
+<ul>
+<li><code>UsageStore.shouldFetchAllTokenAccounts(provider:accounts:)</code> now</li>
+</ul>
+  short-circuits to <code>true</code> when <code>settings.iCloudSyncEnabled == true</code>
+  (after the catalog + count > 1 guards). Mac-only users see no
+  behavior change.
+<ul>
+<li>New <code>Tests/CodexBarTests/ShouldFetchAllTokenAccountsTests.swift</code></li>
+</ul>
+  (9 tests, all green) pins both branches: iCloud-on always fans out
+  for multi-account providers; iCloud-off preserves upstream's
+  layout-gated behavior. Includes a regression case for the exact
+  scenario reported (OpenAI + 2 admin keys + segmented + iCloud-on).
+<h3>iOS</h3>
+<ul>
+<li>No iOS-side code change. The Phase G UI shipped in 63.3 was</li>
+</ul>
+  correct; it just never received the second snapshot. Hotfix is
+  Mac-only; iOS 1.7.0 build 130 (already on TestFlight) consumes
+  the now-correct snapshot stream automatically.
+<h3>CloudKit deploy</h3>
+No schema deploy needed. Hotfix is consumer-side gating logic only.
+<h3>Notes</h3>
+<ul>
+<li><code>version.env</code>: <code>MARKETING_VERSION=0.26.4</code>, <code>BUILD_NUMBER=63.4</code>, <code>MOBILE_VERSION=1.7.0</code>, <code>UPSTREAM_VERSION=v0.26.1</code>, <code>UPSTREAM_SYNC_DATE=2026-05-18</code>.</li>
+<li>Tag name: <code>v0.26.4-mobile.1.7.0</code> (new release). Per [[docs/versioning.md]] rule: BUILD <code>63.y</code> ↔ MARKETING <code>0.26.y</code>. <code>0.26.3</code> is intentionally skipped because BUILD <code>63.3</code> was incorrectly shipped as MARKETING <code>0.26.2</code>; aligning forward instead of relabeling history.</li>
+</ul>
+<hr/>
+<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.26.4-mobile.1.7.0/CodexBar-0.26.4-mobile.1.7.0.zip" length="39539694" type="application/octet-stream" sparkle:edSignature="ml9aMCumtvcRava66ZEhkORbuvF3ihqB+Od6ATRL9hx8BmHjN6OIQB2GportoIQbqMDfH0GxLeRcJE12dZrmDA=="/>
         </item>
         <item>
             <title>0.14.0</title>

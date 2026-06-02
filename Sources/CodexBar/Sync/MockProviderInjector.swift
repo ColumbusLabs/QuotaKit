@@ -1502,7 +1502,7 @@ enum MockProviderInjector {
                 todayCost: 0.42,
                 monthCost: 9.85,
                 todayRequests: 312,
-                monthRequests: 7_240,
+                monthRequests: 7240,
                 topModel: "deepseek-chat",
                 currency: "USD",
                 totalBalanceUSD: nil,
@@ -1531,7 +1531,7 @@ enum MockProviderInjector {
         var openRouterStats: SyncOpenRouterStats?
         var azureOpenAIInfo: SyncAzureOpenAIInfo?
         var alibabaTokenPlan: SyncAlibabaTokenPlan?
-        // iOS 1.10.0 / Mac 0.31.0 sync 025.
+        /// iOS 1.10.0 / Mac 0.31.0 sync 025.
         var deepSeekUsage: SyncDeepSeekUsage?
 
         init(

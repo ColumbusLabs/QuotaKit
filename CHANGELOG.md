@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.31.0.2 (Mobile 1.10.0 · build 73.2) — 2026-06-02 — cost-cache invalidation hotfix
+
+Hotfix on top of 0.31.0.1: forces the Codex and Claude cost-usage caches to re-scan after the v0.31.0 parser update, so cost cards show the new parser's numbers instead of stale cached attributions.
+
+### Fixed
+
+- **Cost caches now re-scan after the v0.31.0 parser update** — the upstream merge rewrote the Codex and Claude cost-usage scanner, but neither cache-invalidation axis was rolled, so upgrading users kept the old parser's cached cost attributions. Bumped `parserLogicVersion` and regenerated the parser-source hash so every Codex and Claude cost cache is invalidated and re-scanned on next launch. Codex was already covered by the scanner-hash axis (its value changed across the upgrade); this closes the Claude gap — Claude has no producer-key axis and relies solely on the pricing fingerprint.
+
+### Compatibility
+
+- No wire-format, schema, or CloudKit change. iOS app code is identical to build 145; iPhone build 146 is a version bump to pair with this Mac hotfix. Mixing app versions across Macs and iPhones stays safe.
+
+### 中文说明
+
+0.31.0.1 的热修复：v0.31.0 合并重写了 Codex 与 Claude 的成本扫描器，但两条缓存失效轴都没滚动，导致升级用户的成本卡仍显示旧 parser 的缓存归因。本次 bump `parserLogicVersion` 并重生成 parser 源码 hash，强制所有 Codex 与 Claude 成本缓存在下次启动时失效并重扫。Codex 原本已被 scanner-hash 轴覆盖（其值在升级间已变化）；本次补齐 Claude —— Claude 没有 producer-key 轴，只依赖定价 fingerprint。无 wire / schema / CloudKit 变更，iOS app 代码与 build 145 完全一致，手机端 build 146 仅为配套 Mac 热修复的版本号 bump。
+
+---
+
 ## 0.31.0.1 (Mobile 1.10.0 · build 73.1) — 2026-05-30 — upstream v0.31.0 + iOS 1.10.0
 
 Syncs the Mac app to upstream CodexBar **v0.31.0** (spanning 0.29.1–0.31.0) and ships the paired iOS **1.10.0** companion.

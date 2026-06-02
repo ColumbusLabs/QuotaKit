@@ -36,14 +36,14 @@ struct V030SnapshotsCodableTests {
         SyncDeepSeekUsage(
             todayTokens: 1_250_000, monthTokens: 28_400_000,
             todayCost: 0.42, monthCost: 9.85,
-            todayRequests: 312, monthRequests: 7_240,
+            todayRequests: 312, monthRequests: 7240,
             topModel: "deepseek-chat", currency: "USD",
             totalBalanceUSD: 12.5, grantedBalanceUSD: 5.0, toppedUpBalanceUSD: 7.5,
             daily: [
                 SyncDeepSeekDaily(dayKey: "2025-11-01", totalTokens: 1_400_000, cost: 0.30, requestCount: 240),
                 SyncDeepSeekDaily(dayKey: "2025-11-02", totalTokens: 1_490_000, cost: 0.33, requestCount: 252),
             ],
-            updatedAt: now)
+            updatedAt: self.now)
     }
 
     // MARK: - S1 — full round-trip
@@ -92,7 +92,7 @@ struct V030SnapshotsCodableTests {
             deepSeekUsage: Self.sampleUsage())
         let data = try Self.encoder.encode(snap)
         let decoded = try Self.decoder.decode(ProviderUsageSnapshot.self, from: data)
-        #expect(decoded.deepSeekUsage?.monthRequests == 7_240)
+        #expect(decoded.deepSeekUsage?.monthRequests == 7240)
         #expect(decoded.deepSeekUsage?.daily.count == 2)
     }
 
@@ -133,11 +133,11 @@ struct V030SnapshotsCodableTests {
             sessionCostUSD: 1.0, sessionTokens: 1000,
             last30DaysCostUSD: 28.9, last30DaysTokens: 1_200_000,
             daily: [],
-            sessionRequests: 42, last30DaysRequests: 7_240, currencyCode: "EUR")
+            sessionRequests: 42, last30DaysRequests: 7240, currencyCode: "EUR")
         let data = try Self.encoder.encode(source)
         let decoded = try Self.decoder.decode(SyncCostSummary.self, from: data)
         #expect(decoded.sessionRequests == 42)
-        #expect(decoded.last30DaysRequests == 7_240)
+        #expect(decoded.last30DaysRequests == 7240)
         #expect(decoded.currencyCode == "EUR")
     }
 
@@ -153,4 +153,5 @@ struct V030SnapshotsCodableTests {
         #expect(decoded.last30DaysCostUSD == 28.9)
     }
 }
+
 // swiftlint:enable multiline_arguments

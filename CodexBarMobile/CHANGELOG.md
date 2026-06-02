@@ -2,6 +2,36 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.10.0 (146)] — 2026-06-02 — Mac cost-cache invalidation hotfix (no iOS code change)
+
+### Changed
+
+- Version bump to pair with Mac **0.31.0.2 / build 73.2**, which bumps `parserLogicVersion`
+  and regenerates the Codex parser-source hash so the Codex / Claude cost-usage caches
+  re-scan after the v0.31.0 parser update. No iOS app code change from build 145 — the
+  corrected cost numbers reach iOS through the existing Mac → iCloud sync.
+
+---
+
+## [1.10.0 (145)] — 2026-05-30 — v0.31.0 upstream sync (DeepSeek, Codex Spark, cost requests)
+
+### Added
+
+- **DeepSeek usage card** — web-session usage + cost: today / this-month tokens, spend, and
+  request counts beside the balance, dispatched in `ProviderDetailView` (4-language).
+- **Codex Spark** (5-hour + weekly) and **Antigravity** per-model quota lanes now render on
+  iOS via the generic `rateWindows` pass-through.
+- **Cost cards** show request counts ("N req") and format amounts in the synced currency
+  (EUR / CNY) instead of hardcoded USD.
+
+### Notes
+
+- Wire format is additive (`SyncDeepSeekUsage` plus optional cost request/currency fields);
+  older iOS ignores them and older Macs simply don't send them. No crashes across any
+  new/old device combination.
+
+---
+
 ## [1.9.0 (144)] — 2026-05-29 — Cost Overview headline follows the CWL window
 
 ### Fixed
