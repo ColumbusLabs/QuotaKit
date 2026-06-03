@@ -363,6 +363,12 @@ enum CostUsagePricing {
     /// `CostUsageJsonl.swift` change vs origin/mobile-dev.
     ///
     /// History:
+    /// - `5` (0.32.4.1): merged upstream v0.32.0→v0.32.4 Codex cost-scanner
+    ///   rewrite (new `CostUsageScanner+CodexFastJSON.swift`, reworked truncated-prefix
+    ///   handling, scan-perf changes). The regenerated parser hash rolls the Codex
+    ///   producerKey axis; this parserLogicVersion bump rolls the pricingFingerprint so
+    ///   the Claude axis (no producerKey) also invalidates caches written by the v0.31
+    ///   parser and re-scans with the merged scanner.
     /// - `4` (0.31.0.2): merged upstream v0.29.1→v0.31.0 cost-scanner
     ///   changes — Codex `CostUsageScanner` rewrite (Spark model lane #1195,
     ///   reworked token attribution) and `CostUsageScanner+Claude` now threads
@@ -386,7 +392,7 @@ enum CostUsagePricing {
     ///   in `parseCodexFile`. Bumping rolls every previous version's
     ///   cache and re-scans with the fixed parser.
     /// - `1` (0.23.1): initial fingerprint contract.
-    static let parserLogicVersion = 4
+    static let parserLogicVersion = 5
 
     /// Stable string fingerprint of the pricing tables + parser logic.
     /// `CostUsageCacheIO.load` compares this against the value stored
