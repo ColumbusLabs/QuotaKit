@@ -2415,8 +2415,28 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.9.0",
+            version: "1.10.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "DeepSeek web-session usage and cost on your iPhone, Codex Spark and Antigravity per-model quota lanes synced through, and cost cards that show request counts in the right currency — from the CodexBar 0.31.0 sync."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(localized: "DeepSeek — usage card with web-session today / this-month tokens, spend, and request counts shown alongside your balance."),
+                        String(localized: "Codex Spark — 5-hour and weekly Spark model quota lanes now sync to your iPhone."),
+                        String(localized: "Antigravity — full per-model quota lanes now flow through, not just the three-family summary."),
+                        String(localized: "Cost cards — now show request counts and format amounts in the synced currency (e.g. EUR / CNY), not just USD."),
+                        String(localized: "Upstream fixes flow through automatically — the corrected Claude Enterprise extra-usage amount (no longer 100x too high), Grok / Ollama window labels and pace projection, and the Claude Design lane folded into the main Claude limit."),
+                    ]),
+                .init(
+                    title: String(localized: "Required Mac version"),
+                    items: [
+                        String(localized: "Update Mac CodexBar to 0.31.0 (fork build 73.2 or later) to surface the DeepSeek card and the Codex Spark / Antigravity lanes. iPhone 1.10.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is updated."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.9.0",
+            status: "",
             summary: String(localized: "Three new providers (Azure OpenAI, Alibaba Token Plan, T3 Chat) from the CodexBar 0.29.0 sync — plus richer detail across many providers: the iPhone now surfaces more of what your Mac already tracks."),
             sections: [
                 .init(

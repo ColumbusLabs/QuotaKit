@@ -2,6 +2,18 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.10.0 (147)] — 2026-06-03 — In-app 1.10.0 release notes
+
+### Fixed
+
+- **In-app "What's New" was missing the 1.10.0 entry** — `MobileReleaseNotesCatalog`
+  still showed 1.9.0 as the latest. Added the 1.10.0 release-notes entry (DeepSeek card,
+  Codex Spark / Antigravity lanes, cost request counts + synced currency, upstream
+  value fixes) in all 4 languages and removed the stale "Latest" badge from 1.9.0. No
+  functional change; build 146 → 147 carries it to TestFlight / the App Store submission.
+
+---
+
 ## [1.10.0 (146)] — 2026-06-02 — Mac cost-cache invalidation hotfix (no iOS code change)
 
 ### Changed

@@ -14223,6 +14223,202 @@
           }
         }
       }
+    },
+    "DeepSeek web-session usage and cost on your iPhone, Codex Spark and Antigravity per-model quota lanes synced through, and cost cards that show request counts in the right currency — from the CodexBar 0.31.0 sync.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DeepSeek web-session usage and cost on your iPhone, Codex Spark and Antigravity per-model quota lanes synced through, and cost cards that show request counts in the right currency — from the CodexBar 0.31.0 sync."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DeepSeek の Web セッション使用状況とコストを iPhone で確認。Codex Spark と Antigravity のモデル別クォータが同期され、コストカードはリクエスト数を正しい通貨で表示します — CodexBar 0.31.0 の同期による更新です。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DeepSeek 网页会话的用量与成本现可在 iPhone 上查看，Codex Spark 与 Antigravity 的分模型配额通道同步透传，成本卡按正确币种显示请求数 —— 来自 CodexBar 0.31.0 同步。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DeepSeek 網頁工作階段的用量與成本現可在 iPhone 上檢視，Codex Spark 與 Antigravity 的分模型配額通道同步透傳，成本卡按正確幣別顯示請求數 —— 來自 CodexBar 0.31.0 同步。"
+          }
+        }
+      }
+    },
+    "DeepSeek — usage card with web-session today / this-month tokens, spend, and request counts shown alongside your balance.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DeepSeek — usage card with web-session today / this-month tokens, spend, and request counts shown alongside your balance."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DeepSeek — Web セッションの本日・今月のトークン数、利用額、リクエスト数を残高とあわせて表示する使用状況カード。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DeepSeek —— 用量卡片，显示网页会话的今日 / 本月 token、花费和请求数，并与账户余额并列展示。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DeepSeek —— 用量卡片，顯示網頁工作階段的今日 / 本月 token、花費和請求數，並與帳戶餘額並列顯示。"
+          }
+        }
+      }
+    },
+    "Codex Spark — 5-hour and weekly Spark model quota lanes now sync to your iPhone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Spark — 5-hour and weekly Spark model quota lanes now sync to your iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Spark — 5時間および週次の Spark モデルクォータが iPhone に同期されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Spark —— 5 小时和每周的 Spark 模型配额通道现已同步到 iPhone。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex Spark —— 5 小時和每週的 Spark 模型配額通道現已同步到 iPhone。"
+          }
+        }
+      }
+    },
+    "Antigravity — full per-model quota lanes now flow through, not just the three-family summary.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity — full per-model quota lanes now flow through, not just the three-family summary."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity — 3系統のまとめだけでなく、モデル別クォータの全レーンが反映されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity —— 现在透传完整的分模型配额通道，而不再只是三大族的汇总。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity —— 現在透傳完整的分模型配額通道，而不再只是三大族的彙總。"
+          }
+        }
+      }
+    },
+    "Cost cards — now show request counts and format amounts in the synced currency (e.g. EUR / CNY), not just USD.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cost cards — now show request counts and format amounts in the synced currency (e.g. EUR / CNY), not just USD."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コストカード — リクエスト数を表示し、USD だけでなく同期された通貨（EUR／CNY など）で金額を表示します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "成本卡 —— 现在显示请求数，并按同步的币种（如 EUR / CNY）格式化金额，而不只是美元。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "成本卡 —— 現在顯示請求數，並按同步的幣別（如 EUR / CNY）格式化金額，而不只是美元。"
+          }
+        }
+      }
+    },
+    "Upstream fixes flow through automatically — the corrected Claude Enterprise extra-usage amount (no longer 100x too high), Grok / Ollama window labels and pace projection, and the Claude Design lane folded into the main Claude limit.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upstream fixes flow through automatically — the corrected Claude Enterprise extra-usage amount (no longer 100x too high), Grok / Ollama window labels and pace projection, and the Claude Design lane folded into the main Claude limit."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アップストリームの修正を自動反映 — Claude Enterprise の extra-usage 金額の修正（100倍に表示される問題を解消）、Grok／Ollama のウィンドウ表示とペース予測、Claude の Design 枠をメインの Claude 上限に統合。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上游修复自动透传 —— 修正 Claude 企业版 extra-usage 金额（不再高出 100 倍）、Grok / Ollama 的窗口标签与配速预测，以及将 Claude Design 通道并入主 Claude 限额。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上游修復自動透傳 —— 修正 Claude 企業版 extra-usage 金額（不再高出 100 倍）、Grok / Ollama 的視窗標籤與配速預測，以及將 Claude Design 通道併入主 Claude 限額。"
+          }
+        }
+      }
+    },
+    "Update Mac CodexBar to 0.31.0 (fork build 73.2 or later) to surface the DeepSeek card and the Codex Spark / Antigravity lanes. iPhone 1.10.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is updated.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Mac CodexBar to 0.31.0 (fork build 73.2 or later) to surface the DeepSeek card and the Codex Spark / Antigravity lanes. iPhone 1.10.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is updated."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DeepSeek カードと Codex Spark／Antigravity レーンを表示するには、Mac 版 CodexBar を 0.31.0（fork build 73.2 以降）に更新してください。iPhone 1.10.0 は古い Mac ビルドとも前方互換で、新しいカードは Mac を更新するまで非表示のままです。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将 Mac 版 CodexBar 更新到 0.31.0（fork build 73.2 或更高）即可显示 DeepSeek 卡片以及 Codex Spark / Antigravity 通道。iPhone 1.10.0 仍向前兼容旧版 Mac —— 新卡片会先隐藏，待 Mac 更新后自动出现。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "將 Mac 版 CodexBar 更新到 0.31.0（fork build 73.2 或更高）即可顯示 DeepSeek 卡片以及 Codex Spark / Antigravity 通道。iPhone 1.10.0 仍向前相容舊版 Mac —— 新卡片會先隱藏，待 Mac 更新後自動出現。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
