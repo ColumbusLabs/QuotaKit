@@ -73,30 +73,34 @@ enum CostUsageJsonl {
 
         while true {
             try checkCancellation?()
-            let chunk = try handle.read(upToCount: 256 * 1024) ?? Data()
-            if chunk.isEmpty {
-                flushLine()
-                break
-            }
+            let reachedEOF = try autoreleasepool {
+                let chunk = try handle.read(upToCount: 256 * 1024) ?? Data()
+                if chunk.isEmpty {
+                    flushLine()
+                    return true
+                }
 
-            try checkCancellation?()
-            bytesRead += Int64(chunk.count)
-            chunk.withUnsafeBytes { rawBuffer in
-                guard let base = rawBuffer.bindMemory(to: UInt8.self).baseAddress else { return }
-                var segmentStart = 0
-                var index = 0
-                while index < rawBuffer.count {
-                    if base[index] == 0x0A {
-                        appendSegment(base.advanced(by: segmentStart), count: index - segmentStart)
-                        flushLine()
-                        segmentStart = index + 1
+                try checkCancellation?()
+                bytesRead += Int64(chunk.count)
+                chunk.withUnsafeBytes { rawBuffer in
+                    guard let base = rawBuffer.bindMemory(to: UInt8.self).baseAddress else { return }
+                    var segmentStart = 0
+                    var index = 0
+                    while index < rawBuffer.count {
+                        if base[index] == 0x0A {
+                            appendSegment(base.advanced(by: segmentStart), count: index - segmentStart)
+                            flushLine()
+                            segmentStart = index + 1
+                        }
+                        index += 1
                     }
-                    index += 1
+                    if segmentStart < rawBuffer.count {
+                        appendSegment(base.advanced(by: segmentStart), count: rawBuffer.count - segmentStart)
+                    }
                 }
-                if segmentStart < rawBuffer.count {
-                    appendSegment(base.advanced(by: segmentStart), count: rawBuffer.count - segmentStart)
-                }
+                return false
             }
+            if reachedEOF { break }
             try checkCancellation?()
         }
 

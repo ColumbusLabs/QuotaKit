@@ -1,6 +1,8 @@
 import AppKit
+import CodexBarCore
 import Foundation
 import Testing
+@testable import CodexBar
 
 @MainActor
 struct ProviderIconResourcesTests {
@@ -51,6 +53,19 @@ struct ProviderIconResourcesTests {
         let grok = try String(contentsOf: resources.appending(path: "ProviderIcon-grok.svg"), encoding: .utf8)
 
         #expect(groq != grok)
+    }
+
+    @Test
+    func `provider brand icons are cached after first load`() throws {
+        ProviderBrandIcon.resetCacheForTesting()
+        defer { ProviderBrandIcon.resetCacheForTesting() }
+
+        let first = try #require(ProviderBrandIcon.image(for: .codex))
+        let second = try #require(ProviderBrandIcon.image(for: .codex))
+
+        #expect(first === second)
+        #expect(first.size == NSSize(width: 16, height: 16))
+        #expect(first.isTemplate)
     }
 
     private static func repoRoot() throws -> URL {

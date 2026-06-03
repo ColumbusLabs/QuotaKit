@@ -685,6 +685,32 @@ struct CostUsageScannerTests {
     }
 
     @Test
+    func `codex fast parser does not trap on overflowing token integers`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        let iso = env.isoString(for: day)
+        let hugeInteger = String(repeating: "9", count: 100)
+        let line = """
+        {"type":"event_msg","timestamp":"\(
+            iso)","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":\(
+            hugeInteger),"cached_input_tokens":0,"output_tokens":5},"model":"openai/gpt-5.5"}}}
+        """
+        let fileURL = try env.writeCodexSessionFile(day: day, filename: "overflow.jsonl", contents: line + "\n")
+        let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
+
+        let parsed = CostUsageScanner.parseCodexFile(fileURL: fileURL, range: range)
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+        let packed = parsed.days[dayKey]?["gpt-5.5"] ?? []
+
+        #expect(packed.count >= 3)
+        #expect(packed[0] == 0)
+        #expect(packed[1] == 0)
+        #expect(packed[2] == 5)
+    }
+
+    @Test
     func `claude incremental parsing reads appended lines only`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }

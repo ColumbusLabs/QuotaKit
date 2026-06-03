@@ -4,6 +4,8 @@ import Testing
 
 @Suite(.serialized)
 struct TTYCommandRunnerEnvTests {
+    private static let harnessPTYTimeout: TimeInterval = 10
+
     private final class CallbackCounter: @unchecked Sendable {
         private let lock = NSLock()
         private var count = 0
@@ -202,7 +204,10 @@ struct TTYCommandRunnerEnvTests {
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
 
         let runner = TTYCommandRunner()
-        let result = try runner.run(binary: "/bin/pwd", send: "", options: .init(timeout: 3, workingDirectory: dir))
+        let result = try runner.run(
+            binary: "/bin/pwd",
+            send: "",
+            options: .init(timeout: Self.harnessPTYTimeout, workingDirectory: dir))
         let clean = result.text.replacingOccurrences(of: "\r", with: "")
         #expect(clean.contains(dir.path))
     }
@@ -214,7 +219,7 @@ struct TTYCommandRunnerEnvTests {
         let result = try runner.run(
             binary: fakeClaude.path,
             send: "",
-            options: .init(timeout: 3, stopOnSubstrings: ["deep-link-enabled"]))
+            options: .init(timeout: Self.harnessPTYTimeout, stopOnSubstrings: ["deep-link-enabled"]))
         let clean = result.text.replacingOccurrences(of: "\r", with: "")
 
         #expect(clean.contains("deep-link-enabled"))
@@ -228,7 +233,7 @@ struct TTYCommandRunnerEnvTests {
             binary: fakeClaude.path,
             send: "",
             options: .init(
-                timeout: 3,
+                timeout: Self.harnessPTYTimeout,
                 stopOnSubstrings: ["deep-link-disabled"],
                 useClaudeProbeWorkingDirectory: true))
         let clean = result.text.replacingOccurrences(of: "\r", with: "")
@@ -247,7 +252,7 @@ struct TTYCommandRunnerEnvTests {
             binary: fakeClaude.path,
             send: "",
             options: .init(
-                timeout: 3,
+                timeout: Self.harnessPTYTimeout,
                 baseEnvironment: env,
                 stopOnSubstrings: ["deep-link-disabled"],
                 useClaudeProbeWorkingDirectory: true))

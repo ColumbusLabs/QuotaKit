@@ -43,7 +43,7 @@ struct OverviewMenuCardRowView: View {
                         .lineLimit(1)
                     Spacer()
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, UsageMenuCardLayout.horizontalPadding)
                 .padding(.top, self.hasUsageBlock ? 0 : 8)
                 .padding(.bottom, 6)
                 .frame(width: self.width, alignment: .leading)

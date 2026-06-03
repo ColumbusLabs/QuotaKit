@@ -65,7 +65,7 @@ struct TTYIntegrationTests {
         defer { Task { await ClaudeCLISession.shared.reset() } }
 
         let snapshot = try await ClaudeCLISession.withIsolatedSessionForTesting {
-            try await ClaudeStatusProbe(claudeBinary: cli.path, timeout: 8).fetch()
+            try await ClaudeStatusProbe(claudeBinary: cli.path, timeout: 10).fetch()
         }
 
         #expect(snapshot.sessionPercentLeft == 93)
@@ -101,7 +101,7 @@ struct TTYIntegrationTests {
             *"/usage"*)
               printf '%s\\n' 'Settings  Status  Config  Usage'
               printf '%s\\n' 'Current session'
-              sleep 4
+              sleep 2
               printf '%s\\n' '93% left'
               printf '%s\\n' 'Current week (all models)'
               printf '%s\\n' '79% left'

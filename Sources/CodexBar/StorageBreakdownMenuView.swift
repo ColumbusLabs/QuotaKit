@@ -16,7 +16,7 @@ struct StorageMenuCardSectionView: View {
             Text(self.storageText)
                 .font(.caption)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, UsageMenuCardLayout.horizontalPadding)
         .padding(.top, self.topPadding)
         .padding(.bottom, self.bottomPadding)
         .frame(width: self.width, alignment: .leading)

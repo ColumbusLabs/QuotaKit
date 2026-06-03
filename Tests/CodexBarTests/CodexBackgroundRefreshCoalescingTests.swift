@@ -117,11 +117,14 @@ struct CodexBackgroundRefreshCoalescingTests {
             try await blocker.awaitResult()
         }
         defer { store._test_codexCreditsLoaderOverride = nil }
+        let regularCompletion = RefreshCompletionProbe()
 
         let regularRefreshTask = Task {
             await store.refresh(forceTokenUsage: false)
+            await regularCompletion.markCompleted()
         }
         await blocker.waitUntilStarted(count: 1)
+        #expect(await regularCompletion.waitUntilCompleted() == true)
 
         let forceRefreshTask = Task {
             await store.refresh(forceTokenUsage: true)
@@ -158,7 +161,9 @@ struct CodexBackgroundRefreshCoalescingTests {
             CreditsSnapshot(remaining: 25, events: [], updatedAt: Date())
         }
         defer { store._test_codexCreditsLoaderOverride = nil }
-        store._test_openAIDashboardLoaderOverride = { _, _, _ in
+        await store.refresh(forceTokenUsage: false)
+
+        store._test_openAIDashboardLoaderOverride = { _, _, _, _ in
             try await blocker.awaitResult()
         }
         defer { store._test_openAIDashboardLoaderOverride = nil }

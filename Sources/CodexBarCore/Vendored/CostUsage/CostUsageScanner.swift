@@ -572,6 +572,10 @@ enum CostUsageScanner {
         return out
     }
 
+    static func codexRootsFingerprint(options: Options) -> [String: Int64] {
+        self.codexRootsFingerprint(self.codexSessionsRoots(options: options))
+    }
+
     private static func codexPricingKey(modelsDevArtifact: ModelsDevCacheArtifact?) -> String {
         guard let modelsDevArtifact else {
             let fingerprint = CostUsagePricing.codexBuiltInPricingFingerprint()
@@ -932,6 +936,43 @@ enum CostUsageScanner {
         let forkTimestamp: String?
     }
 
+    private struct CodexTokenCountRecord {
+        let timestamp: String
+        let model: String?
+        let turnID: String?
+        let last: CostUsageCodexTotals?
+        let total: CostUsageCodexTotals?
+    }
+
+    private enum CodexFastLine {
+        case sessionMeta(CodexSessionMetadata)
+        case turnContext(model: String?)
+        case taskStarted(turnID: String?)
+        case tokenCount(CodexTokenCountRecord)
+    }
+
+    private static let codexJSONFieldCachedInputTokens = Array("cached_input_tokens".utf8)
+    private static let codexJSONFieldCacheReadInputTokens = Array("cache_read_input_tokens".utf8)
+    private static let codexJSONFieldForkedFromId = Array("forked_from_id".utf8)
+    private static let codexJSONFieldForkedFromIdCamel = Array("forkedFromId".utf8)
+    private static let codexJSONFieldId = Array("id".utf8)
+    private static let codexJSONFieldInfo = Array("info".utf8)
+    private static let codexJSONFieldInputTokens = Array("input_tokens".utf8)
+    private static let codexJSONFieldLastTokenUsage = Array("last_token_usage".utf8)
+    private static let codexJSONFieldModel = Array("model".utf8)
+    private static let codexJSONFieldModelName = Array("model_name".utf8)
+    private static let codexJSONFieldOutputTokens = Array("output_tokens".utf8)
+    private static let codexJSONFieldParentSessionId = Array("parent_session_id".utf8)
+    private static let codexJSONFieldParentSessionIdCamel = Array("parentSessionId".utf8)
+    private static let codexJSONFieldPayload = Array("payload".utf8)
+    private static let codexJSONFieldSessionId = Array("session_id".utf8)
+    private static let codexJSONFieldSessionIdCamel = Array("sessionId".utf8)
+    private static let codexJSONFieldTimestamp = Array("timestamp".utf8)
+    private static let codexJSONFieldTotalTokenUsage = Array("total_token_usage".utf8)
+    private static let codexJSONFieldTurnId = Array("turn_id".utf8)
+    private static let codexJSONFieldTurnIdCamel = Array("turnId".utf8)
+    private static let codexJSONFieldType = Array("type".utf8)
+
     private static func codexForkParentId(from payload: [String: Any]?) -> String? {
         guard let payload else { return nil }
         for key in ["forked_from_id", "forkedFromId", "parent_session_id", "parentSessionId"] {
@@ -942,6 +983,236 @@ enum CostUsageScanner {
             }
         }
         return nil
+    }
+
+    private static func codexForkParentId(
+        from bytes: UnsafeBufferPointer<UInt8>,
+        in payloadRange: Range<Int>) -> String?
+    {
+        for key in [
+            self.codexJSONFieldForkedFromId,
+            self.codexJSONFieldForkedFromIdCamel,
+            self.codexJSONFieldParentSessionId,
+            self.codexJSONFieldParentSessionIdCamel,
+        ] {
+            guard let value = extractJSONByteStringField(key, from: bytes, in: payloadRange, atDepth: 1)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+                !value.isEmpty
+            else { continue }
+            return value
+        }
+        return nil
+    }
+
+    private static func codexTurnID(from bytes: UnsafeBufferPointer<UInt8>, in payloadRange: Range<Int>) -> String? {
+        for key in [self.codexJSONFieldTurnId, self.codexJSONFieldTurnIdCamel, self.codexJSONFieldId] {
+            if let value = extractJSONByteStringField(key, from: bytes, in: payloadRange, atDepth: 1), !value.isEmpty {
+                return value
+            }
+        }
+        if let infoRange = extractJSONByteObjectField(codexJSONFieldInfo, from: bytes, in: payloadRange, atDepth: 1) {
+            for key in [self.codexJSONFieldTurnId, self.codexJSONFieldTurnIdCamel, self.codexJSONFieldId] {
+                if let value = extractJSONByteStringField(key, from: bytes, in: infoRange, atDepth: 1), !value.isEmpty {
+                    return value
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func codexSessionId(
+        from bytes: UnsafeBufferPointer<UInt8>,
+        in rootRange: Range<Int>,
+        payloadRange: Range<Int>?) -> String?
+    {
+        if let payloadRange {
+            for key in [self.codexJSONFieldSessionId, self.codexJSONFieldSessionIdCamel, self.codexJSONFieldId] {
+                if let value = extractJSONByteStringField(key, from: bytes, in: payloadRange, atDepth: 1),
+                   !value.isEmpty
+                {
+                    return value
+                }
+            }
+        }
+        for key in [Self.codexJSONFieldSessionId, Self.codexJSONFieldSessionIdCamel, Self.codexJSONFieldId] {
+            if let value = Self.extractJSONByteStringField(key, from: bytes, in: rootRange, atDepth: 1),
+               !value.isEmpty
+            {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private static func codexTotals(
+        from bytes: UnsafeBufferPointer<UInt8>,
+        in objectRange: Range<Int>?) -> CostUsageCodexTotals?
+    {
+        guard let objectRange else { return nil }
+        let input = max(
+            0,
+            Self.extractJSONByteIntField(Self.codexJSONFieldInputTokens, from: bytes, in: objectRange, atDepth: 1) ?? 0)
+        let cached = max(
+            0,
+            Self.extractJSONByteIntField(Self.codexJSONFieldCachedInputTokens, from: bytes, in: objectRange, atDepth: 1)
+                ?? Self.extractJSONByteIntField(
+                    Self.codexJSONFieldCacheReadInputTokens,
+                    from: bytes,
+                    in: objectRange,
+                    atDepth: 1)
+                ?? 0)
+        let output = max(
+            0,
+            Self
+                .extractJSONByteIntField(Self.codexJSONFieldOutputTokens, from: bytes, in: objectRange, atDepth: 1) ??
+                0)
+        return CostUsageCodexTotals(input: input, cached: cached, output: output)
+    }
+
+    private static func parseCodexFastLine(_ bytes: Data) -> CodexFastLine? {
+        bytes.withUnsafeBytes { rawBytes in
+            let rawBuffer = rawBytes.bindMemory(to: UInt8.self)
+            guard !rawBuffer.isEmpty else { return nil }
+            let objectRange = 0..<rawBuffer.count
+            guard let type = Self.extractJSONByteStringField(
+                Self.codexJSONFieldType,
+                from: rawBuffer,
+                in: objectRange,
+                atDepth: 1)
+            else { return nil }
+
+            switch type {
+            case "session_meta":
+                let payloadRange = Self.extractJSONByteObjectField(
+                    Self.codexJSONFieldPayload,
+                    from: rawBuffer,
+                    in: objectRange,
+                    atDepth: 1)
+                return .sessionMeta(CodexSessionMetadata(
+                    sessionId: Self.codexSessionId(from: rawBuffer, in: objectRange, payloadRange: payloadRange),
+                    forkedFromId: payloadRange.flatMap { Self.codexForkParentId(from: rawBuffer, in: $0) },
+                    forkTimestamp: payloadRange.flatMap {
+                        Self.extractJSONByteStringField(
+                            Self.codexJSONFieldTimestamp,
+                            from: rawBuffer,
+                            in: $0,
+                            atDepth: 1)
+                    } ?? Self.extractJSONByteStringField(
+                        Self.codexJSONFieldTimestamp,
+                        from: rawBuffer,
+                        in: objectRange,
+                        atDepth: 1)))
+
+            case "turn_context":
+                guard let payloadRange = Self.extractJSONByteObjectField(
+                    Self.codexJSONFieldPayload,
+                    from: rawBuffer,
+                    in: objectRange,
+                    atDepth: 1)
+                else { return .turnContext(model: nil) }
+                let model = Self.extractJSONByteStringField(
+                    Self.codexJSONFieldModel,
+                    from: rawBuffer,
+                    in: payloadRange,
+                    atDepth: 1)
+                    ?? Self.extractJSONByteStringField(
+                        Self.codexJSONFieldModelName,
+                        from: rawBuffer,
+                        in: payloadRange,
+                        atDepth: 1)
+                    ?? Self.extractJSONByteObjectField(
+                        Self.codexJSONFieldInfo,
+                        from: rawBuffer,
+                        in: payloadRange,
+                        atDepth: 1).flatMap {
+                        Self.extractJSONByteStringField(
+                            Self.codexJSONFieldModel,
+                            from: rawBuffer,
+                            in: $0,
+                            atDepth: 1)
+                            ?? Self.extractJSONByteStringField(
+                                Self.codexJSONFieldModelName,
+                                from: rawBuffer,
+                                in: $0,
+                                atDepth: 1)
+                    }
+                return .turnContext(model: model)
+
+            case "event_msg":
+                guard let payloadRange = Self.extractJSONByteObjectField(
+                    Self.codexJSONFieldPayload,
+                    from: rawBuffer,
+                    in: objectRange,
+                    atDepth: 1),
+                    let payloadType = Self.extractJSONByteStringField(
+                        Self.codexJSONFieldType,
+                        from: rawBuffer,
+                        in: payloadRange,
+                        atDepth: 1)
+                else { return nil }
+
+                if payloadType == "task_started" {
+                    return .taskStarted(turnID: Self.codexTurnID(from: rawBuffer, in: payloadRange))
+                }
+
+                guard payloadType == "token_count",
+                      let timestamp = Self.extractJSONByteStringField(
+                          Self.codexJSONFieldTimestamp,
+                          from: rawBuffer,
+                          in: objectRange,
+                          atDepth: 1),
+                      let infoRange = Self.extractJSONByteObjectField(
+                          Self.codexJSONFieldInfo,
+                          from: rawBuffer,
+                          in: payloadRange,
+                          atDepth: 1)
+                else { return nil }
+
+                let model = Self.extractJSONByteStringField(
+                    Self.codexJSONFieldModel,
+                    from: rawBuffer,
+                    in: infoRange,
+                    atDepth: 1)
+                    ?? Self.extractJSONByteStringField(
+                        Self.codexJSONFieldModelName,
+                        from: rawBuffer,
+                        in: infoRange,
+                        atDepth: 1)
+                    ?? Self.extractJSONByteStringField(
+                        Self.codexJSONFieldModel,
+                        from: rawBuffer,
+                        in: payloadRange,
+                        atDepth: 1)
+                    ?? Self.extractJSONByteStringField(
+                        Self.codexJSONFieldModel,
+                        from: rawBuffer,
+                        in: objectRange,
+                        atDepth: 1)
+                let total = Self.codexTotals(
+                    from: rawBuffer,
+                    in: Self.extractJSONByteObjectField(
+                        Self.codexJSONFieldTotalTokenUsage,
+                        from: rawBuffer,
+                        in: infoRange,
+                        atDepth: 1))
+                let last = Self.codexTotals(
+                    from: rawBuffer,
+                    in: Self.extractJSONByteObjectField(
+                        Self.codexJSONFieldLastTokenUsage,
+                        from: rawBuffer,
+                        in: infoRange,
+                        atDepth: 1))
+                return .tokenCount(CodexTokenCountRecord(
+                    timestamp: timestamp,
+                    model: model,
+                    turnID: Self.codexTurnID(from: rawBuffer, in: payloadRange),
+                    last: last,
+                    total: total))
+
+            default:
+                return nil
+            }
+        }
     }
 
     private static func parseCodexSessionIdentifier(
@@ -971,6 +1242,9 @@ enum CostUsageScanner {
 
         func parseSessionMetadata(from lineData: Data) -> CodexSessionMetadata? {
             guard !lineData.isEmpty else { return nil }
+            if case let .sessionMeta(metadata) = Self.parseCodexFastLine(lineData) {
+                return metadata
+            }
             return autoreleasepool {
                 guard let obj = (try? JSONSerialization.jsonObject(with: lineData)) as? [String: Any]
                 else { return nil }
@@ -1041,6 +1315,62 @@ enum CostUsageScanner {
             return date
         }
 
+        func appendSnapshot(timestamp: String, last: CostUsageCodexTotals?, total: CostUsageCodexTotals?) {
+            if let last {
+                let rawDelta = last
+                let base = previousTotals ?? .init(input: 0, cached: 0, output: 0)
+                var countedDelta = rawDelta
+
+                if let total {
+                    let rawTotals = total
+                    let totalDelta = Self.codexTotalDelta(from: rawTotalsBaseline, to: rawTotals)
+                    if Self.codexShouldPreferTotalDelta(
+                        rawBaseline: rawTotalsBaseline,
+                        currentTotal: rawTotals,
+                        totalDelta: totalDelta,
+                        lastDelta: rawDelta,
+                        sawDivergentTotals: sawDivergentTotals)
+                    {
+                        countedDelta = totalDelta
+                    }
+                    let next = Self.codexAddTotals(base, countedDelta)
+                    previousTotals = next
+                    rawTotalsBaseline = rawTotals
+                    if !Self.codexTotalsEqual(rawTotals, next) {
+                        sawDivergentTotals = true
+                    }
+                } else {
+                    let next = Self.codexAddTotals(base, countedDelta)
+                    previousTotals = next
+                    rawTotalsBaseline = next
+                }
+
+                snapshots.append(CodexTimestampedTotals(
+                    timestamp: timestamp,
+                    date: parsedSnapshotDate(timestamp: timestamp),
+                    totals: previousTotals ?? base))
+            } else if let total {
+                let next = total
+                let delta = sawDivergentTotals
+                    ? Self.codexDivergentTotalDelta(
+                        rawBaseline: rawTotalsBaseline,
+                        countedBaseline: previousTotals,
+                        current: next)
+                    : Self.codexTotalDelta(from: rawTotalsBaseline, to: next)
+                let base = previousTotals ?? .init(input: 0, cached: 0, output: 0)
+                let countedTotals = Self.codexAddTotals(base, delta)
+                previousTotals = countedTotals
+                rawTotalsBaseline = next
+                if !Self.codexTotalsEqual(next, countedTotals) {
+                    sawDivergentTotals = true
+                }
+                snapshots.append(CodexTimestampedTotals(
+                    timestamp: timestamp,
+                    date: parsedSnapshotDate(timestamp: timestamp),
+                    totals: countedTotals))
+            }
+        }
+
         do {
             _ = try CostUsageJsonl.scan(
                 fileURL: fileURL,
@@ -1049,6 +1379,20 @@ enum CostUsageScanner {
                 checkCancellation: checkCancellation,
                 onLine: { line in
                     guard !line.bytes.isEmpty, !line.wasTruncated else { return }
+                    if let fastLine = Self.parseCodexFastLine(line.bytes) {
+                        switch fastLine {
+                        case let .sessionMeta(metadata):
+                            if sessionId == nil {
+                                sessionId = metadata.sessionId
+                            }
+                        case let .tokenCount(record):
+                            appendSnapshot(timestamp: record.timestamp, last: record.last, total: record.total)
+                        case .turnContext, .taskStarted:
+                            break
+                        }
+                        return
+                    }
+
                     autoreleasepool {
                         guard let obj = (try? JSONSerialization.jsonObject(with: line.bytes)) as? [String: Any]
                         else { return }
@@ -1077,71 +1421,19 @@ enum CostUsageScanner {
                             return 0
                         }
 
-                        let total = info["total_token_usage"] as? [String: Any]
-                        let last = info["last_token_usage"] as? [String: Any]
-
-                        if let last {
-                            let rawDelta = CostUsageCodexTotals(
-                                input: max(0, toInt(last["input_tokens"])),
-                                cached: max(0, toInt(last["cached_input_tokens"] ?? last["cache_read_input_tokens"])),
-                                output: max(0, toInt(last["output_tokens"])))
-                            let base = previousTotals ?? .init(input: 0, cached: 0, output: 0)
-                            var countedDelta = rawDelta
-
-                            if let total {
-                                let rawTotals = CostUsageCodexTotals(
-                                    input: toInt(total["input_tokens"]),
-                                    cached: toInt(total["cached_input_tokens"] ?? total["cache_read_input_tokens"]),
-                                    output: toInt(total["output_tokens"]))
-                                let totalDelta = Self.codexTotalDelta(from: rawTotalsBaseline, to: rawTotals)
-                                if Self.codexShouldPreferTotalDelta(
-                                    rawBaseline: rawTotalsBaseline,
-                                    currentTotal: rawTotals,
-                                    totalDelta: totalDelta,
-                                    lastDelta: rawDelta,
-                                    sawDivergentTotals: sawDivergentTotals)
-                                {
-                                    countedDelta = totalDelta
-                                }
-                                let next = Self.codexAddTotals(base, countedDelta)
-                                previousTotals = next
-                                rawTotalsBaseline = rawTotals
-                                if !Self.codexTotalsEqual(rawTotals, next) {
-                                    sawDivergentTotals = true
-                                }
-                            } else {
-                                let next = Self.codexAddTotals(base, countedDelta)
-                                previousTotals = next
-                                rawTotalsBaseline = next
-                            }
-
-                            snapshots.append(CodexTimestampedTotals(
-                                timestamp: timestamp,
-                                date: parsedSnapshotDate(timestamp: timestamp),
-                                totals: previousTotals ?? base))
-                        } else if let total {
-                            let next = CostUsageCodexTotals(
-                                input: toInt(total["input_tokens"]),
-                                cached: toInt(total["cached_input_tokens"] ?? total["cache_read_input_tokens"]),
-                                output: toInt(total["output_tokens"]))
-                            let delta = sawDivergentTotals
-                                ? Self.codexDivergentTotalDelta(
-                                    rawBaseline: rawTotalsBaseline,
-                                    countedBaseline: previousTotals,
-                                    current: next)
-                                : Self.codexTotalDelta(from: rawTotalsBaseline, to: next)
-                            let base = previousTotals ?? .init(input: 0, cached: 0, output: 0)
-                            let countedTotals = Self.codexAddTotals(base, delta)
-                            previousTotals = countedTotals
-                            rawTotalsBaseline = next
-                            if !Self.codexTotalsEqual(next, countedTotals) {
-                                sawDivergentTotals = true
-                            }
-                            snapshots.append(CodexTimestampedTotals(
-                                timestamp: timestamp,
-                                date: parsedSnapshotDate(timestamp: timestamp),
-                                totals: countedTotals))
+                        let total = (info["total_token_usage"] as? [String: Any]).map {
+                            CostUsageCodexTotals(
+                                input: toInt($0["input_tokens"]),
+                                cached: toInt($0["cached_input_tokens"] ?? $0["cache_read_input_tokens"]),
+                                output: toInt($0["output_tokens"]))
                         }
+                        let last = (info["last_token_usage"] as? [String: Any]).map {
+                            CostUsageCodexTotals(
+                                input: max(0, toInt($0["input_tokens"])),
+                                cached: max(0, toInt($0["cached_input_tokens"] ?? $0["cache_read_input_tokens"])),
+                                output: max(0, toInt($0["output_tokens"])))
+                        }
+                        appendSnapshot(timestamp: timestamp, last: last, total: total)
                     }
                 })
         } catch is CancellationError {
@@ -1253,6 +1545,222 @@ enum CostUsageScanner {
             }
         }
 
+        func handleSessionMetadata(_ metadata: CodexSessionMetadata) throws {
+            if sessionId == nil {
+                sessionId = metadata.sessionId
+            }
+            if forkedFromId == nil {
+                forkedFromId = metadata.forkedFromId
+            }
+            if let forkedFromId {
+                try resolveForkBaseline(parentSessionId: forkedFromId, forkedAt: metadata.forkTimestamp ?? "")
+            }
+        }
+
+        // swiftlint:disable:next function_body_length
+        func handleTokenCount(_ record: CodexTokenCountRecord) throws {
+            guard let dayKey = Self.dayKeyFromTimestamp(record.timestamp) ?? Self.dayKeyFromParsedISO(record.timestamp)
+            else { return }
+
+            let model = currentModel ?? record.model ?? "gpt-5"
+            let total = record.total
+            let last = record.last
+
+            var deltaInput = 0
+            var deltaCached = 0
+            var deltaOutput = 0
+
+            func adjustedLastDelta(_ rawDelta: CostUsageCodexTotals) -> CostUsageCodexTotals {
+                guard var remaining = remainingInheritedTotals else { return rawDelta }
+
+                let adjusted = CostUsageCodexTotals(
+                    input: max(0, rawDelta.input - remaining.input),
+                    cached: max(0, rawDelta.cached - remaining.cached),
+                    output: max(0, rawDelta.output - remaining.output))
+
+                remaining.input = max(0, remaining.input - rawDelta.input)
+                remaining.cached = max(0, remaining.cached - rawDelta.cached)
+                remaining.output = max(0, remaining.output - rawDelta.output)
+                remainingInheritedTotals = if remaining.input == 0, remaining.cached == 0,
+                                              remaining.output == 0
+                {
+                    nil
+                } else {
+                    remaining
+                }
+
+                return adjusted
+            }
+
+            let handledUnresolvedForkTotal = hasUnresolvedForkBaseline && total != nil
+            if hasUnresolvedForkBaseline, let total {
+                let currentRawTotals = total
+                defer {
+                    unresolvedForkTotalWatermark = currentRawTotals
+                }
+                guard let last,
+                      let watermark = unresolvedForkTotalWatermark
+                else {
+                    return
+                }
+
+                let rawLastDelta = last
+                let rawTotalDelta = Self.codexTotalDelta(from: watermark, to: currentRawTotals)
+                let adjustedDelta = Self.codexMinTotals(rawLastDelta, rawTotalDelta)
+                deltaInput = adjustedDelta.input
+                deltaCached = adjustedDelta.cached
+                deltaOutput = adjustedDelta.output
+                let prev = previousTotals ?? .init(input: 0, cached: 0, output: 0)
+                previousTotals = Self.codexAddTotals(prev, adjustedDelta)
+                rawTotalsBaseline = previousTotals
+            }
+
+            if !handledUnresolvedForkTotal,
+               let total,
+               forkedFromId != nil,
+               !hasUnresolvedForkBaseline
+            {
+                let rawTotals = total
+                let currentTotals: CostUsageCodexTotals = if let inheritedTotals {
+                    CostUsageCodexTotals(
+                        input: max(0, rawTotals.input - inheritedTotals.input),
+                        cached: max(0, rawTotals.cached - inheritedTotals.cached),
+                        output: max(0, rawTotals.output - inheritedTotals.output))
+                } else {
+                    rawTotals
+                }
+                let delta = sawDivergentTotals
+                    ? Self.codexDivergentTotalDelta(
+                        rawBaseline: rawTotalsBaseline,
+                        countedBaseline: previousTotals,
+                        current: currentTotals)
+                    : Self.codexTotalDelta(from: rawTotalsBaseline, to: currentTotals)
+                deltaInput = delta.input
+                deltaCached = delta.cached
+                deltaOutput = delta.output
+                let prev = previousTotals ?? .init(input: 0, cached: 0, output: 0)
+                previousTotals = Self.codexAddTotals(prev, delta)
+                rawTotalsBaseline = currentTotals
+                if !Self.codexTotalsEqual(rawTotalsBaseline, previousTotals) {
+                    sawDivergentTotals = true
+                }
+                remainingInheritedTotals = nil
+            } else if !handledUnresolvedForkTotal, let last {
+                let rawDelta = last
+                let hadRemainingInheritedTotals = remainingInheritedTotals != nil
+                var adjustedDelta = adjustedLastDelta(rawDelta)
+                deltaInput = adjustedDelta.input
+                deltaCached = adjustedDelta.cached
+                deltaOutput = adjustedDelta.output
+                let prev = previousTotals ?? .init(input: 0, cached: 0, output: 0)
+
+                if let total, !hasUnresolvedForkBaseline {
+                    let rawTotals = total
+                    let currentTotals: CostUsageCodexTotals = if let inheritedTotals {
+                        CostUsageCodexTotals(
+                            input: max(0, rawTotals.input - inheritedTotals.input),
+                            cached: max(0, rawTotals.cached - inheritedTotals.cached),
+                            output: max(0, rawTotals.output - inheritedTotals.output))
+                    } else {
+                        rawTotals
+                    }
+                    let totalDelta = Self.codexTotalDelta(from: rawTotalsBaseline, to: currentTotals)
+                    if !hadRemainingInheritedTotals,
+                       Self.codexShouldPreferTotalDelta(
+                           rawBaseline: rawTotalsBaseline,
+                           currentTotal: currentTotals,
+                           totalDelta: totalDelta,
+                           lastDelta: rawDelta,
+                           sawDivergentTotals: sawDivergentTotals)
+                    {
+                        adjustedDelta = totalDelta
+                        deltaInput = adjustedDelta.input
+                        deltaCached = adjustedDelta.cached
+                        deltaOutput = adjustedDelta.output
+                        remainingInheritedTotals = nil
+                    }
+                    let countedTotals = Self.codexAddTotals(prev, adjustedDelta)
+                    previousTotals = countedTotals
+                    rawTotalsBaseline = currentTotals
+                    if !Self.codexTotalsEqual(currentTotals, countedTotals) {
+                        sawDivergentTotals = true
+                    }
+                } else {
+                    let countedTotals = Self.codexAddTotals(prev, adjustedDelta)
+                    previousTotals = countedTotals
+                    rawTotalsBaseline = countedTotals
+                }
+            } else if !handledUnresolvedForkTotal, let total {
+                let rawTotals = total
+
+                let currentTotals: CostUsageCodexTotals = if let inheritedTotals {
+                    CostUsageCodexTotals(
+                        input: max(0, rawTotals.input - inheritedTotals.input),
+                        cached: max(0, rawTotals.cached - inheritedTotals.cached),
+                        output: max(0, rawTotals.output - inheritedTotals.output))
+                } else {
+                    rawTotals
+                }
+
+                let delta = sawDivergentTotals
+                    ? Self.codexDivergentTotalDelta(
+                        rawBaseline: rawTotalsBaseline,
+                        countedBaseline: previousTotals,
+                        current: currentTotals)
+                    : Self.codexTotalDelta(from: rawTotalsBaseline, to: currentTotals)
+                deltaInput = delta.input
+                deltaCached = delta.cached
+                deltaOutput = delta.output
+                let prev = previousTotals ?? .init(input: 0, cached: 0, output: 0)
+                previousTotals = Self.codexAddTotals(prev, delta)
+                rawTotalsBaseline = currentTotals
+                if !Self.codexTotalsEqual(rawTotalsBaseline, previousTotals) {
+                    sawDivergentTotals = true
+                }
+                remainingInheritedTotals = nil
+            } else if !handledUnresolvedForkTotal {
+                return
+            }
+
+            if deltaInput == 0, deltaCached == 0, deltaOutput == 0 { return }
+            let cachedClamp = min(deltaCached, deltaInput)
+            let normModel = CostUsagePricing.normalizeCodexModel(model)
+            add(
+                dayKey: dayKey,
+                model: normModel,
+                input: deltaInput,
+                cached: cachedClamp,
+                output: deltaOutput)
+            if CostUsageDayRange.isInRange(
+                dayKey: dayKey,
+                since: range.scanSinceKey,
+                until: range.scanUntilKey)
+            {
+                rows.append(CodexUsageRow(
+                    day: dayKey,
+                    model: normModel,
+                    turnID: record.turnID ?? currentTurnID,
+                    input: deltaInput,
+                    cached: cachedClamp,
+                    output: deltaOutput))
+            }
+        }
+
+        func handleFastLine(_ fastLine: CodexFastLine) throws {
+            switch fastLine {
+            case let .sessionMeta(metadata):
+                try handleSessionMetadata(metadata)
+            case let .turnContext(model):
+                if let model {
+                    currentModel = model
+                }
+            case let .taskStarted(turnID):
+                currentTurnID = turnID
+            case let .tokenCount(record):
+                try handleTokenCount(record)
+            }
+        }
+
         let maxLineBytes = 256 * 1024
         // Bumped from 32KB to maxLineBytes in 0.23.3: Codex CLI 0.125+ emits
         // turn_context lines ~38–41KB (bundled user_instructions / project
@@ -1307,6 +1815,15 @@ enum CostUsageScanner {
                        !line.bytes.containsAscii(#""token_count""#),
                        !line.bytes.containsAscii(#""task_started""#)
                     {
+                        return
+                    }
+
+                    if let fastLine = Self.parseCodexFastLine(line.bytes) {
+                        do {
+                            try handleFastLine(fastLine)
+                        } catch {
+                            deferredError = error
+                        }
                         return
                     }
 
@@ -1789,7 +2306,6 @@ enum CostUsageScanner {
             }
 
             let filePathsInScan = Set(files.map(\.path))
-
             var scanState = CodexScanState()
             let fileIndex = CodexSessionFileIndex(
                 files: files,

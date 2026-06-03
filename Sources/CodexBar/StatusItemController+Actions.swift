@@ -12,16 +12,31 @@ enum LoginNotificationLogic {
 extension StatusItemController: StatusItemMenuPersistentActionDelegate {
     // MARK: - Actions reachable from menus
 
-    func refreshStore(forceTokenUsage: Bool, refreshOpenMenusWhenComplete: Bool = true) {
+    func refreshStore(
+        forceTokenUsage: Bool,
+        refreshOpenMenusWhenComplete: Bool = true,
+        interaction: ProviderInteraction = .userInitiated)
+    {
         Task {
-            await ProviderInteractionContext.$current.withValue(.userInitiated) {
-                await self.store.refresh(forceTokenUsage: forceTokenUsage)
-                self.store.scheduleStorageFootprintRefreshForOverview(force: true)
-                if refreshOpenMenusWhenComplete {
-                    self.refreshOpenMenusAfterExplicitStoreAction()
-                } else {
-                    self.invalidateMenus()
-                }
+            await self.performStoreRefresh(
+                forceTokenUsage: forceTokenUsage,
+                refreshOpenMenusWhenComplete: refreshOpenMenusWhenComplete,
+                interaction: interaction)
+        }
+    }
+
+    func performStoreRefresh(
+        forceTokenUsage: Bool,
+        refreshOpenMenusWhenComplete: Bool,
+        interaction: ProviderInteraction) async
+    {
+        await ProviderInteractionContext.$current.withValue(interaction) {
+            await self.store.refresh(forceTokenUsage: forceTokenUsage)
+            self.store.scheduleStorageFootprintRefreshForOverview(force: true)
+            if refreshOpenMenusWhenComplete {
+                self.refreshOpenMenusAfterExplicitStoreAction()
+            } else {
+                self.invalidateMenus()
             }
         }
     }
