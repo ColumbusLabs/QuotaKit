@@ -3,6 +3,30 @@
     <channel>
         <title>CodexBar</title>
         <item>
+            <title>0.31.0.2</title>
+            <pubDate>Tue, 02 Jun 2026 17:01:08 -0700</pubDate>
+            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
+            <sparkle:version>73.2.1.10.0</sparkle:version>
+            <sparkle:shortVersionString>0.31.0.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>CodexBar 0.31.0.2-Mobile 1.10.0</h2>
+Hotfix on top of 0.31.0.1: forces the Codex and Claude cost-usage caches to re-scan after the v0.31.0 parser update, so cost cards show the new parser's numbers instead of stale cached attributions.
+<h3>Fixed</h3>
+<ul>
+<li><strong>Cost caches now re-scan after the v0.31.0 parser update</strong> — the upstream merge rewrote the Codex and Claude cost-usage scanner, but neither cache-invalidation axis was rolled, so upgrading users kept the old parser's cached cost attributions. Bumped <code>parserLogicVersion</code> and regenerated the parser-source hash so every Codex and Claude cost cache is invalidated and re-scanned on next launch. Codex was already covered by the scanner-hash axis (its value changed across the upgrade); this closes the Claude gap — Claude has no producer-key axis and relies solely on the pricing fingerprint.</li>
+</ul>
+<h3>Compatibility</h3>
+<ul>
+<li>No wire-format, schema, or CloudKit change. iOS app code is identical to build 145; iPhone build 146 is a version bump to pair with this Mac hotfix. Mixing app versions across Macs and iPhones stays safe.</li>
+</ul>
+<h3>中文说明</h3>
+0.31.0.1 的热修复：v0.31.0 合并重写了 Codex 与 Claude 的成本扫描器，但两条缓存失效轴都没滚动，导致升级用户的成本卡仍显示旧 parser 的缓存归因。本次 bump <code>parserLogicVersion</code> 并重生成 parser 源码 hash，强制所有 Codex 与 Claude 成本缓存在下次启动时失效并重扫。Codex 原本已被 scanner-hash 轴覆盖（其值在升级间已变化）；本次补齐 Claude —— Claude 没有 producer-key 轴，只依赖定价 fingerprint。无 wire / schema / CloudKit 变更，iOS app 代码与 build 145 完全一致，手机端 build 146 仅为配套 Mac 热修复的版本号 bump。
+<hr/>
+<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.31.0.2-mobile.1.10.0/CodexBar-0.31.0.2-mobile.1.10.0.zip" length="46826244" type="application/octet-stream" sparkle:edSignature="QrwMbJiQaOefZ9i/MTJjlhre38JJVSg69CwbFxrvrrDuhWCgIJQ96BEueyR3BwYcGekHtMZmSY2Ji5pp2RoIDA=="/>
+        </item>
+        <item>
             <title>0.29.0.1</title>
             <pubDate>Sat, 30 May 2026 11:24:45 -0700</pubDate>
             <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
@@ -145,65 +169,6 @@ Syncs the Mac app to upstream CodexBar v0.27.0 and ships the paired iOS 1.8.0 co
 <p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.27.0-mobile.1.8.0/CodexBar-0.27.0-mobile.1.8.0.zip" length="44133824" type="application/octet-stream" sparkle:edSignature="UkrzMvh3QwU3lWfPrpajShPOk0iohHflS/9ikS+vGdH9VteJeHaWflIOHvcrct4PIRYjqDdjOdkI/FbBYkuMCQ=="/>
-        </item>
-        <item>
-            <title>0.26.2</title>
-            <pubDate>Mon, 18 May 2026 19:22:55 -0700</pubDate>
-            <link>https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/mobile-dev/appcast.xml</link>
-            <sparkle:version>63.4.1.7.0</sparkle:version>
-            <sparkle:shortVersionString>0.26.4</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>CodexBar 0.26.4-Mobile 1.7.0</h2>
-> Patch on top of 63.3 fixing a user-reported regression where iPhone
-> still showed only 1 OpenAI card despite 63.3 shipping the universal
-> multi-account mechanism. Root cause was orthogonal to Phase G —
-> upstream's <code>shouldFetchAllTokenAccounts</code> gated the per-account
-> fan-out on <code>multiAccountMenuLayout == .stacked</code>. Users on the
-> default <code>.segmented</code> layout had only their *active* token-account
-> fetched, so <code>accountSnapshots[provider]</code> ever contained one entry,
-> so SyncCoordinator only ever pushed one snapshot to CloudKit even
-> after the Phase G universalization. iPhone was blameless — Mac
-> wasn't sending the other accounts.
->
-> Fix: when <code>iCloudSyncEnabled</code> is true, ignore the menu-layout gate
-> and fan-out unconditionally (subject to the existing count > 1 and
-> catalog-membership guards). Mac-only users (no iCloud sync) keep
-> upstream's API-frugality behavior: segmented layout fetches just
-> the active account, stacked fetches all. The menu layout choice
-> stays a local Mac UI ergonomics decision; it no longer dictates
-> what reaches iPhone.
-<h3>Mac</h3>
-<ul>
-<li><code>UsageStore.shouldFetchAllTokenAccounts(provider:accounts:)</code> now</li>
-</ul>
-  short-circuits to <code>true</code> when <code>settings.iCloudSyncEnabled == true</code>
-  (after the catalog + count > 1 guards). Mac-only users see no
-  behavior change.
-<ul>
-<li>New <code>Tests/CodexBarTests/ShouldFetchAllTokenAccountsTests.swift</code></li>
-</ul>
-  (9 tests, all green) pins both branches: iCloud-on always fans out
-  for multi-account providers; iCloud-off preserves upstream's
-  layout-gated behavior. Includes a regression case for the exact
-  scenario reported (OpenAI + 2 admin keys + segmented + iCloud-on).
-<h3>iOS</h3>
-<ul>
-<li>No iOS-side code change. The Phase G UI shipped in 63.3 was</li>
-</ul>
-  correct; it just never received the second snapshot. Hotfix is
-  Mac-only; iOS 1.7.0 build 130 (already on TestFlight) consumes
-  the now-correct snapshot stream automatically.
-<h3>CloudKit deploy</h3>
-No schema deploy needed. Hotfix is consumer-side gating logic only.
-<h3>Notes</h3>
-<ul>
-<li><code>version.env</code>: <code>MARKETING_VERSION=0.26.4</code>, <code>BUILD_NUMBER=63.4</code>, <code>MOBILE_VERSION=1.7.0</code>, <code>UPSTREAM_VERSION=v0.26.1</code>, <code>UPSTREAM_SYNC_DATE=2026-05-18</code>.</li>
-<li>Tag name: <code>v0.26.4-mobile.1.7.0</code> (new release). Per [[docs/versioning.md]] rule: BUILD <code>63.y</code> ↔ MARKETING <code>0.26.y</code>. <code>0.26.3</code> is intentionally skipped because BUILD <code>63.3</code> was incorrectly shipped as MARKETING <code>0.26.2</code>; aligning forward instead of relabeling history.</li>
-</ul>
-<hr/>
-<p><a href="https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/o1xhack/CodexBar-Mobile/releases/download/v0.26.4-mobile.1.7.0/CodexBar-0.26.4-mobile.1.7.0.zip" length="39539694" type="application/octet-stream" sparkle:edSignature="ml9aMCumtvcRava66ZEhkORbuvF3ihqB+Od6ATRL9hx8BmHjN6OIQB2GportoIQbqMDfH0GxLeRcJE12dZrmDA=="/>
         </item>
         <item>
             <title>0.14.0</title>
