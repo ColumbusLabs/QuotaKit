@@ -14419,6 +14419,202 @@
           }
         }
       }
+    },
+    "Quieter, more accurate provider data synced from your Mac — Antigravity quota rows without the noise, correct Copilot usage on zero-entitlement plans, fixed Augment parsing, and steadier Claude readings — from the CodexBar 0.32.4 sync.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quieter, more accurate provider data synced from your Mac — Antigravity quota rows without the noise, correct Copilot usage on zero-entitlement plans, fixed Augment parsing, and steadier Claude readings — from the CodexBar 0.32.4 sync."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac から同期される provider データがより静かで正確に — Antigravity のクォータ行からノイズを除去、zero-entitlement プランでの Copilot 使用率を修正、Augment の解析を修正、Claude の表示も安定。CodexBar 0.32.4 の同期による更新です。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从 Mac 同步来的 provider 数据更干净、更准确 —— Antigravity 配额行去除噪声、修正 zero-entitlement 套餐的 Copilot 用量、修复 Augment 解析、Claude 读数更稳。来自 CodexBar 0.32.4 同步。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "從 Mac 同步來的 provider 資料更乾淨、更準確 —— Antigravity 配額行去除雜訊、修正 zero-entitlement 方案的 Copilot 用量、修復 Augment 解析、Claude 讀數更穩。來自 CodexBar 0.32.4 同步。"
+          }
+        }
+      }
+    },
+    "Antigravity — quota rows are cleaner: image / lite / autocomplete / internal noise rows no longer skew the summary bar.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity — quota rows are cleaner: image / lite / autocomplete / internal noise rows no longer skew the summary bar."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity — クォータ行がすっきり：image／lite／autocomplete／internal のノイズ行が集計バーを歪めなくなりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity —— 配额行更干净：image / lite / autocomplete / internal 噪声行不再干扰汇总进度条。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antigravity —— 配額行更乾淨：image / lite / autocomplete / internal 雜訊行不再干擾彙總進度條。"
+          }
+        }
+      }
+    },
+    "Copilot — zero-entitlement business tokens no longer show a misleading usage percentage.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copilot — zero-entitlement business tokens no longer show a misleading usage percentage."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copilot — zero-entitlement のビジネストークンで誤解を招く使用率が表示されなくなりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copilot —— zero-entitlement 的商业 token 不再显示误导性的用量百分比。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copilot —— zero-entitlement 的商業 token 不再顯示誤導性的用量百分比。"
+          }
+        }
+      }
+    },
+    "Augment — usage parses correctly again after the upstream status-format change.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Augment — usage parses correctly again after the upstream status-format change."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Augment — アップストリームのステータス形式変更後も使用状況が正しく解析されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Augment —— 上游状态格式变更后，用量重新可以正确解析。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Augment —— 上游狀態格式變更後，用量重新可以正確解析。"
+          }
+        }
+      }
+    },
+    "Claude — a brief sign-in hiccup no longer blanks your usage; the last good reading is kept.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude — a brief sign-in hiccup no longer blanks your usage; the last good reading is kept."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude — 一時的なサインインの不調で使用状況が空白にならず、直近の有効な値を保持します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude —— 短暂登录波动不再清空用量，会保留最近一次有效读数。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude —— 短暫登入波動不再清空用量，會保留最近一次有效讀數。"
+          }
+        }
+      }
+    },
+    "Codex / Claude cost — refreshed by the v0.32 cost-scanner update; your cost cards re-scan to the corrected numbers.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex / Claude cost — refreshed by the v0.32 cost-scanner update; your cost cards re-scan to the corrected numbers."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex／Claude コスト — v0.32 のコストスキャナー更新により再計算され、コストカードが修正後の数値で再スキャンされます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex / Claude 成本 —— 经 v0.32 成本扫描器更新刷新，成本卡会重扫到修正后的数值。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex / Claude 成本 —— 經 v0.32 成本掃描器更新重新整理，成本卡會重掃到修正後的數值。"
+          }
+        }
+      }
+    },
+    "Update Mac CodexBar to 0.32.4 (fork build 79.1 or later). iPhone 1.11.0 stays forward-compatible with older Mac builds — these refinements simply arrive once Mac is updated.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Mac CodexBar to 0.32.4 (fork build 79.1 or later). iPhone 1.11.0 stays forward-compatible with older Mac builds — these refinements simply arrive once Mac is updated."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 版 CodexBar を 0.32.4（fork build 79.1 以降）に更新してください。iPhone 1.11.0 は古い Mac ビルドとも前方互換で、これらの改善は Mac を更新すると反映されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将 Mac 版 CodexBar 更新到 0.32.4（fork build 79.1 或更高）。iPhone 1.11.0 仍向前兼容旧版 Mac —— 这些改进会在 Mac 更新后到达。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "將 Mac 版 CodexBar 更新到 0.32.4（fork build 79.1 或更高）。iPhone 1.11.0 仍向前相容舊版 Mac —— 這些改進會在 Mac 更新後到達。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

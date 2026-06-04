@@ -2415,8 +2415,28 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.10.0",
+            version: "1.11.0",
             status: String(localized: "Latest"),
+            summary: String(localized: "Quieter, more accurate provider data synced from your Mac — Antigravity quota rows without the noise, correct Copilot usage on zero-entitlement plans, fixed Augment parsing, and steadier Claude readings — from the CodexBar 0.32.4 sync."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(localized: "Antigravity — quota rows are cleaner: image / lite / autocomplete / internal noise rows no longer skew the summary bar."),
+                        String(localized: "Copilot — zero-entitlement business tokens no longer show a misleading usage percentage."),
+                        String(localized: "Augment — usage parses correctly again after the upstream status-format change."),
+                        String(localized: "Claude — a brief sign-in hiccup no longer blanks your usage; the last good reading is kept."),
+                        String(localized: "Codex / Claude cost — refreshed by the v0.32 cost-scanner update; your cost cards re-scan to the corrected numbers."),
+                    ]),
+                .init(
+                    title: String(localized: "Required Mac version"),
+                    items: [
+                        String(localized: "Update Mac CodexBar to 0.32.4 (fork build 79.1 or later). iPhone 1.11.0 stays forward-compatible with older Mac builds — these refinements simply arrive once Mac is updated."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.10.0",
+            status: "",
             summary: String(localized: "DeepSeek web-session usage and cost on your iPhone, Codex Spark and Antigravity per-model quota lanes synced through, and cost cards that show request counts in the right currency — from the CodexBar 0.31.0 sync."),
             sections: [
                 .init(

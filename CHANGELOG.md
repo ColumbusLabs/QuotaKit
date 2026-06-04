@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.32.4.1 (Mobile 1.11.0 · build 79.1) — 2026-06-03 — upstream v0.32.4 sync
+
+Syncs the Mac app to upstream CodexBar **v0.32.4** (spanning 0.32.0–0.32.4) and ships the paired iOS **1.11.0** companion. A refinement + reliability batch — no new providers; the visible wins are quieter, more accurate provider data that flows through to iPhone automatically.
+
+### Fixed / Improved
+
+- **Antigravity** quota rows are cleaner — image / lite / autocomplete / internal noise rows no longer skew the summary bar (#1209).
+- **Copilot** zero-entitlement business tokens no longer show a misleading usage percentage (#1258).
+- **Augment** usage parses correctly again after the upstream `auggie` status-format change, with a browser-cookie fallback (#1224).
+- **Claude** keeps the last good web-usage snapshot through a brief Unauthorized refresh instead of blanking, and delegates the CLI OAuth refresh token so CodexBar stops forcing re-logins (#1220, #1239).
+- **Codex cost** scanner rewrite (faster scans, new fast-JSON path) — the on-disk cost cache is invalidated and re-scanned so Codex and Claude cost cards reflect the new parser.
+- Plus upstream menu-bar, OpenAI Web, and notarization-path hardening for macOS 26.
+
+### Compatibility
+
+- No wire-format, schema, or CloudKit change. Mixing app versions across Macs and iPhones stays safe — the refinements arrive once Mac is on 0.32.4.
+
+### 中文说明
+
+同步 Mac 端到上游 CodexBar **v0.32.4**（覆盖 0.32.0–0.32.4），并配套发布 iOS **1.11.0**。本批以精修 + 可靠性为主，无新增 provider；可见收益是更干净、更准确的 provider 数据，并自动同步到 iPhone。
+
+### 修复 / 改进
+
+- **Antigravity** 配额行更干净 —— image / lite / autocomplete / internal 噪声行不再干扰汇总进度条（#1209）。
+- **Copilot** zero-entitlement 商业 token 不再显示误导性用量百分比（#1258）。
+- **Augment** 在上游 `auggie` 状态格式变更后用量重新正确解析，并增加浏览器 cookie fallback（#1224）。
+- **Claude** 短暂 Unauthorized 刷新期间保留最后有效的 web 用量快照而不清空，并把 CLI 的 OAuth refresh token 委托出去，避免强制重登（#1220、#1239）。
+- **Codex 成本** 扫描器重写（更快、新增 fast-JSON 路径）—— 失效并重扫磁盘成本缓存，使 Codex 与 Claude 成本卡反映新 parser。
+- 以及上游菜单栏、OpenAI Web、公证路径加固（macOS 26）。
+
+### 兼容性
+
+- 无 wire / schema / CloudKit 变更。Mac 与 iPhone 间混用版本安全 —— 待 Mac 升级到 0.32.4 后这些精修即到达。
+
+---
+
 ## 0.31.0.2 (Mobile 1.10.0 · build 73.2) — 2026-06-02 — cost-cache invalidation hotfix
 
 Hotfix on top of 0.31.0.1: forces the Codex and Claude cost-usage caches to re-scan after the v0.31.0 parser update, so cost cards show the new parser's numbers instead of stale cached attributions.

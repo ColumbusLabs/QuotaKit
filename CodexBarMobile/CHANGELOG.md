@@ -2,6 +2,30 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.11.0 (148)] — 2026-06-03 — v0.32.4 upstream sync (refinements, no new iOS code)
+
+### Changed
+
+- Paired with Mac **0.32.4.1 / build 79.1** (upstream v0.32.0–v0.32.4 sync). No
+  functional iOS code change — the improvements reach iPhone through the existing
+  Mac → iCloud sync. Added the in-app 1.11.0 "What's New" entry (4 languages).
+
+### Improved (Mac-side, delivered to iOS via synced data)
+
+- **Antigravity** quota rows are cleaner (image / lite / autocomplete / internal noise
+  rows filtered, #1209).
+- **Copilot** zero-entitlement usage % is no longer misleading (#1258).
+- **Augment** parsing fixed for the new upstream `auggie` status format (#1224).
+- **Claude** keeps the last good usage snapshot through brief auth hiccups (#1220).
+- **Codex / Claude cost** re-scanned by the v0.32 cost-scanner update (cache invalidated
+  via parserLogicVersion 4→5 + parser-hash regen).
+
+### Notes
+
+- No wire-format / schema change; older iOS and older Macs interoperate safely.
+
+---
+
 ## [1.10.0 (147)] — 2026-06-03 — In-app 1.10.0 release notes
 
 ### Fixed
