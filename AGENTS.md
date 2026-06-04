@@ -73,6 +73,7 @@ Full status definitions and index are in `CodexBarMobile/Research/README.md`.
 - Build with `xcodebuild` to verify compilation
 - Run unit tests if applicable
 - Verify on simulator or real device as needed
+- Never run tests/checks or ad-hoc validation that can display macOS Keychain prompts. Live provider probes, browser-cookie imports, `codexbar usage` against real accounts, and real SecItem reads must be explicitly requested; otherwise use parser tests, stubs, test stores, or `KeychainNoUIQuery`.
 
 ## Step 5 — Documentation
 
