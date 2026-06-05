@@ -12,6 +12,7 @@ Syncs the Mac app to upstream CodexBar **v0.32.4** (spanning 0.32.0–0.32.4) an
 - **Claude** keeps the last good web-usage snapshot through a brief Unauthorized refresh instead of blanking, and delegates the CLI OAuth refresh token so CodexBar stops forcing re-logins (#1220, #1239).
 - **Codex cost** scanner rewrite (faster scans, new fast-JSON path) — the on-disk cost cache is invalidated and re-scanned so Codex and Claude cost cards reflect the new parser.
 - Plus upstream menu-bar, OpenAI Web, and notarization-path hardening for macOS 26.
+- **iOS** — new provider search at the top of the Usage list (filter by name) for easier navigation of a long synced provider list.
 
 ### Compatibility
 
@@ -29,6 +30,7 @@ Syncs the Mac app to upstream CodexBar **v0.32.4** (spanning 0.32.0–0.32.4) an
 - **Claude** 短暂 Unauthorized 刷新期间保留最后有效的 web 用量快照而不清空，并把 CLI 的 OAuth refresh token 委托出去，避免强制重登（#1220、#1239）。
 - **Codex 成本** 扫描器重写（更快、新增 fast-JSON 路径）—— 失效并重扫磁盘成本缓存，使 Codex 与 Claude 成本卡反映新 parser。
 - 以及上游菜单栏、OpenAI Web、公证路径加固（macOS 26）。
+- **iOS** —— Usage 列表顶部新增 provider 搜索（按名称过滤），同步的 provider 多时更好找。
 
 ### 兼容性
 

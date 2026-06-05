@@ -14615,6 +14615,118 @@
           }
         }
       }
+    },
+    "Search providers": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search providers"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロバイダーを検索"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索 provider"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜尋 provider"
+          }
+        }
+      }
+    },
+    "No matching providers": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matching providers"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一致するプロバイダーがありません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有匹配的 provider"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有符合的 provider"
+          }
+        }
+      }
+    },
+    "No provider matches your search. Try a different name.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No provider matches your search. Try a different name."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検索に一致するプロバイダーがありません。別の名前で試してください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有 provider 匹配你的搜索。换个名称试试。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有 provider 符合你的搜尋。換個名稱試試。"
+          }
+        }
+      }
+    },
+    "Search — filter the Usage list by provider name; handy when many providers are synced.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search — filter the Usage list by provider name; handy when many providers are synced."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検索 — Usage リストをプロバイダー名で絞り込み。多数のプロバイダーが同期されているときに便利。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索 —— 按 provider 名称过滤 Usage 列表；同步的 provider 很多时很方便。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜尋 —— 按 provider 名稱過濾 Usage 列表；同步的 provider 很多時很方便。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

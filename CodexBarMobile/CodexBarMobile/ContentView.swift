@@ -174,6 +174,9 @@ private struct ProviderListView: View {
     /// Long-term persistence isn't needed since the candidate goes away
     /// the moment the legacy Mac upgrades (Research/019 §9 logic).
     @State private var dismissedCandidateKeys = Set<String>()
+    /// Filters the Usage provider list by name / ID. Helps when many
+    /// providers are synced (20+) and scrolling to find one is tedious.
+    @State private var searchText = ""
 
     var body: some View {
         // Drop extinct mock zombies before any rendering so duplicate
@@ -215,10 +218,15 @@ private struct ProviderListView: View {
         // upstream of this grouping, so each group's accounts are all
         // distinct (no duplicates within).
         let groups = liveProviders.groupedByProvider()
+        let query = self.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let filteredGroups = query.isEmpty ? groups : groups.filter { group in
+            group.representative.providerName.localizedCaseInsensitiveContains(query)
+                || group.providerID.localizedCaseInsensitiveContains(query)
+        }
         return ScrollView {
             LazyVStack(spacing: 16) {
                 MockProviderBanner(snapshot: self.snapshot)
-                ForEach(groups) { group in
+                ForEach(filteredGroups) { group in
                     // Within-group linkage candidate: surface on the
                     // group row if ANY account in the group has one
                     // (typically the legacy/missing-identity card).
@@ -267,6 +275,14 @@ private struct ProviderListView: View {
                     .accessibilityIdentifier("provider-group-\(group.providerID)")
                 }
 
+                if filteredGroups.isEmpty {
+                    EmptyStateView(
+                        title: "No matching providers",
+                        message: "No provider matches your search. Try a different name.",
+                        systemImage: "magnifyingglass")
+                        .padding(.vertical, 32)
+                }
+
                 // Sync status at scroll bottom
                 if self.isDemoMode {
                     Label("Showing demo data", systemImage: "sparkles")
@@ -286,6 +302,10 @@ private struct ProviderListView: View {
             await self.usageData.refresh()
         }
         .modifier(SoftScrollEdgeModifier())
+        .searchable(
+            text: self.$searchText,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: Text("Search providers"))
     }
 }
 
@@ -2422,6 +2442,7 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "What's New"),
                     items: [
+                        String(localized: "Search — filter the Usage list by provider name; handy when many providers are synced."),
                         String(localized: "Antigravity — quota rows are cleaner: image / lite / autocomplete / internal noise rows no longer skew the summary bar."),
                         String(localized: "Copilot — zero-entitlement business tokens no longer show a misleading usage percentage."),
                         String(localized: "Augment — usage parses correctly again after the upstream status-format change."),

@@ -2,6 +2,17 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.11.0 (149)] — 2026-06-04 — Usage provider search
+
+### Added
+
+- **Provider search on the Usage tab** — a search bar pinned at the top of the Usage
+  list filters provider cards by name / ID. Helps when many providers are synced (20+)
+  and scrolling to find one is tedious; shows a "no matching providers" state on no hits.
+  4-language localized.
+
+---
+
 ## [1.11.0 (148)] — 2026-06-03 — v0.32.4 upstream sync (refinements, no new iOS code)
 
 ### Changed
