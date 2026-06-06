@@ -23,6 +23,14 @@ jobs:
     timeout-minutes: 70
     steps:
       - uses: actions/checkout@v6
+        # Full history so `lint.sh audit_parser_version` can compute the
+        # `origin/mobile-dev...HEAD` merge-base. A shallow (depth-1) checkout
+        # makes the parser-version audit false-fail on any PR that touches the
+        # cost-usage parser (it can't see the parserLogicVersion bump in the
+        # diff). See Scripts/lint.sh: "In CI, ensure your checkout fetches
+        # origin/mobile-dev (e.g. fetch-depth: 0)."
+        with:
+          fetch-depth: 0
 
       - name: Select Xcode 26.1.1 (if present) or fallback to default
         run: |
