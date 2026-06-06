@@ -1,11 +1,12 @@
 name: CI
 
 on:
+  # CI runs on PRs (the merge gate) and on pushes to the long-lived branches
+  # only — NOT on every feature-branch commit. A feature branch gets its CI
+  # through the PR it opens (pull_request: opened/synchronize), so intermediate
+  # work-in-progress commits no longer each spawn a (often red) CI run.
   push:
-    # `["*"]` only matches single-level branch names; anything with a slash
-    # (e.g. `feature/…`, `release/…`) is silently skipped. `["**"]` matches
-    # arbitrary-depth branches so every push triggers CI.
-    branches: ["**"]
+    branches: [mobile-dev, main]
   pull_request:
 
 concurrency:
