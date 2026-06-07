@@ -2,6 +2,21 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.11.1 (151)] — 2026-06-06 — Daily Spend chart scroll fix
+
+### Fixed
+
+- **Daily Spend chart (Cost tab)** — no longer crams the entire accumulated window
+  (50 / 90 / 365 days) into one non-scrollable screen with overlapping marks. It now
+  shows a ≤30-day viewport and scrolls horizontally through the full history, with the
+  newest day pinned to the right edge. `visibleDayCount` caps the on-screen window at
+  30 (`min(30, span + 1)`); `.chartScrollableAxes(.horizontal)` + `.chartXVisibleDomain`
+  reveal older days by scrolling — no day-count cap. Supersedes the unreleased build 150
+  (same fix); re-versioned as **1.11.1** because 1.11.0 (build 149) is already in App
+  Store review.
+
+---
+
 ## [1.11.0 (149)] — 2026-06-04 — Usage provider search
 
 ### Added

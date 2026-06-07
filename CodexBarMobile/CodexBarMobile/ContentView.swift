@@ -2438,8 +2438,19 @@ private struct ReleaseNotesVersion: Identifiable {
 private enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.11.0",
+            version: "1.11.1",
             status: String(localized: "Latest"),
+            summary: String(localized: "The Daily Spend chart on the Cost tab now scrolls through your full accumulated history instead of cramming every day into one screen."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(localized: "Daily Spend chart — shows a clean ~30-day window and scrolls left to reveal your full cost history (30 / 90 / 365-day windows); the latest day stays pinned to the right edge."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.11.0",
+            status: "",
             summary: String(localized: "Quieter, more accurate provider data synced from your Mac — Antigravity quota rows without the noise, correct Copilot usage on zero-entitlement plans, fixed Augment parsing, and steadier Claude readings — from the CodexBar 0.32.4 sync."),
             sections: [
                 .init(

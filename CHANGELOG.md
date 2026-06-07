@@ -1,5 +1,13 @@
 # Changelog
 
+## iOS 1.11.1 (build 151) — 2026-06-06 — Daily Spend chart scroll fix (iOS-only; Mac unchanged at 0.32.4.1)
+
+iOS-only patch on top of 1.11.0. The Cost tab's **Daily Spend** chart now shows a ~30-day viewport and scrolls horizontally through the full accumulated history (50 / 90 / 365-day windows) instead of cramming every day into one non-scrollable screen. No Mac change — Mac stays at 0.32.4.1. Re-versioned from the unreleased build 150 because iOS 1.11.0 (build 149) is already in App Store review.
+
+### 中文说明
+
+仅 iOS 的补丁，叠加在 1.11.0 之上。「费用」标签的「每日支出」图表现在显示约 30 天的视口，并可横向滚动浏览完整的已积累历史（50 / 90 / 365 天窗口），不再把所有天数挤在一屏里无法滚动。Mac 端无变化，仍为 0.32.4.1。因 iOS 1.11.0（build 149）已在 App Store 审核中，故从未发布的 build 150 重新定版为 1.11.1。
+
 ## 0.32.4.1 (Mobile 1.11.0 · build 79.1) — 2026-06-03 — upstream v0.32.4 sync
 
 Syncs the Mac app to upstream CodexBar **v0.32.4** (spanning 0.32.0–0.32.4) and ships the paired iOS **1.11.0** companion. A refinement + reliability batch — no new providers; the visible wins are quieter, more accurate provider data that flows through to iPhone automatically.

@@ -14727,6 +14727,62 @@
           }
         }
       }
+    },
+    "The Daily Spend chart on the Cost tab now scrolls through your full accumulated history instead of cramming every day into one screen.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Daily Spend chart on the Cost tab now scrolls through your full accumulated history instead of cramming every day into one screen."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「费用」标签里的「每日支出」图表现在可以横向滚动浏览完整的历史记录，不再把所有天数挤在一屏里。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「費用」標籤裡的「每日支出」圖表現在可以橫向滾動瀏覽完整的歷史記錄，不再把所有天數擠在一屏裡。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「コスト」タブの「日次支出」チャートが、すべての日付を1画面に詰め込むのではなく、蓄積された全履歴を横スクロールで閲覧できるようになりました。"
+          }
+        }
+      }
+    },
+    "Daily Spend chart — shows a clean ~30-day window and scrolls left to reveal your full cost history (30 / 90 / 365-day windows); the latest day stays pinned to the right edge.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily Spend chart — shows a clean ~30-day window and scrolls left to reveal your full cost history (30 / 90 / 365-day windows); the latest day stays pinned to the right edge."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每日支出图表 —— 显示约 30 天的清爽窗口，向左滑动即可查看完整的费用历史（支持 30 / 90 / 365 天窗口），最新一天始终固定在右侧。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每日支出圖表 —— 顯示約 30 天的清爽視窗，向左滑動即可查看完整的費用歷史（支援 30 / 90 / 365 天視窗），最新一天始終固定在右側。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日次支出チャート — 約30日間のすっきりした表示で、左にスクロールするとコスト履歴全体を確認できます（30 / 90 / 365日のウィンドウに対応）。最新の日は常に右端に固定されます。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
