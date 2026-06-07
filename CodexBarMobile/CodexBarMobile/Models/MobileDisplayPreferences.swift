@@ -8,6 +8,10 @@ enum MobileSettingsKeys {
     static let openCostByDefault = "openCostByDefault"
     static let usagePercentDisplayMode = "usagePercentDisplayMode"
     static let showRemainingUsage = "showRemainingUsage"
+    /// Provider group selected for Free real-data mode. Stores a providerID,
+    /// not a per-account/card identity, because Free mode unlocks one provider
+    /// group including its account tabs.
+    static let freeSelectedProviderID = "freeSelectedProviderID"
     // iOS 1.7.0 — mirrors upstream v0.26.0 / v0.26.1 settings.
     /// When `true`, the warning tick-marks on each usage bar are
     /// suppressed (the quota warning notification still fires — only

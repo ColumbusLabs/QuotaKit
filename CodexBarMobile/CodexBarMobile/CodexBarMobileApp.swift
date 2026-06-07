@@ -23,6 +23,7 @@ struct CodexBarMobileApp: App {
             defaults.removeObject(forKey: MobileSettingsKeys.openCostByDefault)
             defaults.removeObject(forKey: MobileSettingsKeys.usagePercentDisplayMode)
             defaults.removeObject(forKey: MobileSettingsKeys.showRemainingUsage)
+            defaults.removeObject(forKey: MobileSettingsKeys.freeSelectedProviderID)
             defaults.removeObject(forKey: ProEntitlementCacheStore.key)
             defaults.removeObject(forKey: "onboardingSeenVersion")
         }

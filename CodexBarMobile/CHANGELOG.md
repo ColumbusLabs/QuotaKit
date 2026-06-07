@@ -2,6 +2,22 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.11.1 (152)] — 2026-06-07 — QuotaKit Pro provider gate
+
+### Added
+
+- **Free provider gate on iOS** — real synced data in Free mode now shows one selected
+  provider group; Pro and demo mode continue to show the full provider list. Multi-account
+  providers still count as one provider group, and hidden providers are summarized with a
+  local StoreKit buy / restore path. This only gates iOS display; it does not change Mac
+  collection, CloudKit sync payloads, or credential handling.
+- **QuotaKit Pro UI polish** — the Settings Pro section now uses a dedicated SwiftUI view,
+  shows the full v1 Pro feature list, and keeps the launch copy focused on a $4.99 lifetime
+  unlock with no subscription language. New Pro and Free-provider copy is 4-language
+  localized.
+
+---
+
 ## [1.11.1 (151)] — 2026-06-06 — Daily Spend chart scroll fix
 
 ### Fixed

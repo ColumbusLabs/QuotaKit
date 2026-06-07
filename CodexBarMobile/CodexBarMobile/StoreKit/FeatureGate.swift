@@ -17,15 +17,15 @@ enum FeatureGate: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .unlimitedProviders: "Unlimited provider cards"
-        case .homeScreenWidgets: "Home Screen widgets"
-        case .lockScreenWidgets: "Lock Screen widgets"
-        case .notifications: "Quota notifications"
-        case .fullCostDashboard: "Full cost dashboard"
-        case .usageHistory: "Usage history charts"
-        case .shareCards: "Share cards"
-        case .advancedMergeViews: "Advanced merge views"
-        case .exports: "Export features"
+        case .unlimitedProviders: String(localized: "Unlimited provider cards")
+        case .homeScreenWidgets: String(localized: "Home Screen widgets")
+        case .lockScreenWidgets: String(localized: "Lock Screen widgets")
+        case .notifications: String(localized: "Quota notifications")
+        case .fullCostDashboard: String(localized: "Full cost dashboard")
+        case .usageHistory: String(localized: "Usage history charts")
+        case .shareCards: String(localized: "Share cards")
+        case .advancedMergeViews: String(localized: "Advanced merge views")
+        case .exports: String(localized: "Export features")
         }
     }
 }

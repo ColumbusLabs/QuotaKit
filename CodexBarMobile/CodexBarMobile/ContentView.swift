@@ -164,10 +164,12 @@ private struct UsageTab: View {
 
 // MARK: - Provider List
 
-private struct ProviderListView: View {
+struct ProviderListView: View {
     let snapshot: SyncedUsageSnapshot
     let usageData: SyncedUsageData
     let isDemoMode: Bool
+    @Environment(ProEntitlementStore.self) private var proEntitlementStore
+    @AppStorage(MobileSettingsKeys.freeSelectedProviderID) private var freeSelectedProviderID = ""
     /// Local per-launch suppression of linkage prompts the user clicked
     /// "Keep separate" on. Persisted only across the current session —
     /// next launch re-evaluates so a user who reconsidered can confirm.
@@ -218,13 +220,25 @@ private struct ProviderListView: View {
         // upstream of this grouping, so each group's accounts are all
         // distinct (no duplicates within).
         let groups = liveProviders.groupedByProvider()
+        let access = ProviderAccessGate.resolve(
+            groups: groups,
+            isDemoMode: self.isDemoMode,
+            isProUnlocked: self.proEntitlementStore.isProUnlocked,
+            selectedProviderID: self.freeSelectedProviderID.isEmpty ? nil : self.freeSelectedProviderID)
         let query = self.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let filteredGroups = query.isEmpty ? groups : groups.filter { group in
+        let filteredGroups = query.isEmpty ? access.visibleGroups : access.visibleGroups.filter { group in
             group.representative.providerName.localizedCaseInsensitiveContains(query)
                 || group.providerID.localizedCaseInsensitiveContains(query)
         }
         return ScrollView {
             LazyVStack(spacing: 16) {
+                if access.isLimited {
+                    FreeProviderSelectorView(
+                        groups: groups,
+                        selectedProviderID: self.$freeSelectedProviderID,
+                        effectiveSelectedProviderID: access.effectiveSelectedProviderID)
+                }
+
                 MockProviderBanner(snapshot: self.snapshot)
                 ForEach(filteredGroups) { group in
                     // Within-group linkage candidate: surface on the
@@ -273,6 +287,12 @@ private struct ProviderListView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("provider-group-\(group.providerID)")
+                }
+
+                if access.isLimited, access.lockedCount > 0 {
+                    QuotaKitProLockedSummaryView(
+                        store: self.proEntitlementStore,
+                        lockedProviderCount: access.lockedCount)
                 }
 
                 if filteredGroups.isEmpty {
@@ -1714,113 +1734,6 @@ private struct SettingSummaryRow: View {
     }
 }
 
-private struct QuotaKitProSettingsView: View {
-    let store: ProEntitlementStore
-
-    private var isBusy: Bool {
-        self.store.isPurchasing || self.store.isRestoring
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: self.store.isProUnlocked ? "checkmark.seal.fill" : "seal.fill")
-                    .font(.title2)
-                    .foregroundStyle(self.store.isProUnlocked ? .green : Color.accentColor)
-                    .frame(width: 28)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text("QuotaKit Pro")
-                            .font(.headline)
-                        Spacer()
-                        Text(self.store.statusText)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(self.store.isProUnlocked ? .green : .secondary)
-                    }
-
-                    Text(self.summaryText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-
-            if !self.store.isProUnlocked {
-                Text("Unlock the official iOS companion features and support ongoing QuotaKit maintenance.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(FeatureGate.allCases.prefix(5)) { feature in
-                            Label(feature.title, systemImage: "lock.open.fill")
-                                .font(.caption2)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(.tint.opacity(0.10), in: Capsule())
-                        }
-                    }
-                }
-            }
-
-            if case .error(let message) = self.store.state {
-                Label(message, systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            }
-
-            HStack(spacing: 10) {
-                Button {
-                    Task { await self.store.purchase() }
-                } label: {
-                    if self.store.isPurchasing {
-                        ProgressView()
-                    } else {
-                        Label(self.buyButtonTitle, systemImage: self.store.isProUnlocked ? "checkmark" : "cart.fill")
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(self.store.isProUnlocked || self.isBusy || self.store.state == .productUnavailable)
-
-                Button {
-                    Task { await self.store.restorePurchases() }
-                } label: {
-                    if self.store.isRestoring {
-                        ProgressView()
-                    } else {
-                        Text("Restore")
-                    }
-                }
-                .buttonStyle(.bordered)
-                .disabled(self.isBusy)
-            }
-        }
-        .padding(.vertical, 4)
-    }
-
-    private var buyButtonTitle: String {
-        self.store.isProUnlocked ? String(localized: "Unlocked") : self.store.displayPrice
-    }
-
-    private var summaryText: String {
-        switch self.store.state {
-        case .loading:
-            return String(localized: "Checking your Pro status.")
-        case .locked:
-            return "\(ProductConfig.launchPriceCopy) · Lifetime unlock. No subscription."
-        case .unlocked:
-            return String(localized: "Lifetime unlock is active on this Apple ID.")
-        case .pending:
-            return String(localized: "Purchase is pending approval or completion.")
-        case .productUnavailable:
-            return String(localized: "QuotaKit Pro is not available from the App Store right now.")
-        case .error:
-            return String(localized: "Could not update Pro status.")
-        }
-    }
-}
-
 private struct AboutSyncDetailView: View {
     let usageData: SyncedUsageData
 
@@ -2552,12 +2465,13 @@ private enum MobileReleaseNotesCatalog {
         ReleaseNotesVersion(
             version: "1.11.1",
             status: String(localized: "Latest"),
-            summary: String(localized: "The Daily Spend chart on the Cost tab now scrolls through your full accumulated history instead of cramming every day into one screen."),
+            summary: String(localized: "The Daily Spend chart on the Cost tab now scrolls through your full accumulated history, and QuotaKit Pro now has its first Free-vs-Pro provider display behavior."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
                         String(localized: "Daily Spend chart — shows a clean ~30-day window and scrolls left to reveal your full cost history (30 / 90 / 365-day windows); the latest day stays pinned to the right edge."),
+                        String(localized: "QuotaKit Pro — Free mode shows one selected synced provider on iPhone, while Pro and demo mode keep the full provider list; the Pro section now clearly presents the $4.99 lifetime unlock."),
                     ]),
             ]),
         ReleaseNotesVersion(
@@ -3252,20 +3166,4 @@ private struct CostSettingsView: View {
 #Preview("Empty State") {
     ContentView(usageData: PreviewData.makeEmptyUsageData())
         .environment(ProEntitlementStore.preview(state: .locked))
-}
-
-#Preview("QuotaKit Pro Locked") {
-    List {
-        Section {
-            QuotaKitProSettingsView(store: .preview(state: .locked))
-        }
-    }
-}
-
-#Preview("QuotaKit Pro Unlocked") {
-    List {
-        Section {
-            QuotaKitProSettingsView(store: .preview(state: .unlocked(source: .storeKit)))
-        }
-    }
 }
