@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Archive the iOS app (CodexBarMobile) and upload to App Store Connect
+# Archive the iOS app (QuotaKit) and upload to App Store Connect
 # (which dispatches to TestFlight) via Xcode's cloud-signing flow.
 #
 # How it works:
@@ -25,7 +25,7 @@
 # xcodebuild falls back to Xcode's session credentials (higher privilege)
 # and the upload works.
 #
-# Usage: ./Scripts/upload_ios_testflight.sh
+# Usage: QUOTAKIT_TEAM_ID=YOURTEAM ./Scripts/upload_ios_testflight.sh
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -39,7 +39,8 @@ echo "==> Pre-flight lint (Swift + i18n)..."
 "$ROOT/Scripts/lint.sh" lint
 
 STAMP=$(date +%Y%m%d-%H%M%S)
-ARCHIVE_PATH="/tmp/CodexBarMobile-$STAMP.xcarchive"
+ARCHIVE_PATH="/tmp/QuotaKit-$STAMP.xcarchive"
+TEAM_ID="${QUOTAKIT_TEAM_ID:?Set QUOTAKIT_TEAM_ID to a QuotaKit-owned Apple team ID.}"
 # `.plist` suffix after the mktemp X's makes the template literal on
 # macOS (BSD mktemp only substitutes trailing X's) — drop the suffix.
 OPTIONS_PLIST=$(mktemp /tmp/cbm-export-options.XXXXXX)
@@ -52,7 +53,7 @@ cat > "$OPTIONS_PLIST" <<PLIST
     <key>method</key>
     <string>app-store-connect</string>
     <key>teamID</key>
-    <string>3TUERHN53E</string>
+    <string>${TEAM_ID}</string>
     <key>destination</key>
     <string>upload</string>
     <key>uploadSymbols</key>
@@ -66,7 +67,7 @@ PLIST
 trap 'rm -f "$OPTIONS_PLIST"' EXIT
 
 BUILD=$(grep CURRENT_PROJECT_VERSION CodexBarMobile/project.yml | head -1 | awk '{print $2}' | tr -d '"')
-echo "==> Archiving CodexBarMobile (Build $BUILD)..."
+echo "==> Archiving QuotaKit iOS (Build $BUILD)..."
 xcodebuild archive \
   -project CodexBarMobile/CodexBarMobile.xcodeproj \
   -scheme CodexBarMobile \

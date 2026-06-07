@@ -11,7 +11,7 @@ import Testing
 /// `try?` swallowed the throw, and the user lost data on every hydrate.
 ///
 /// These tests pin down the factory contract — `CloudSyncConstants.makeJSONEncoder/Decoder`
-/// must produce a matched pair, and every CodexBar `Sync*` type that contains
+/// must produce a matched pair, and every QuotaKit `Sync*` type that contains
 /// `Date` must round-trip through it. New types added to the wire format MUST
 /// add a round-trip test here.
 @Suite("JSON codec factory consistency")
@@ -28,6 +28,19 @@ struct JSONCodecConsistencyTests {
         let encoded = try CloudSyncConstants.makeJSONEncoder().encode(original)
         let decoded = try CloudSyncConstants.makeJSONDecoder().decode(Box.self, from: encoded)
         #expect(decoded == original)
+    }
+
+    @Test("Product sync constants use QuotaKit-owned identifiers")
+    func productSyncConstantsUseQuotaKitIdentifiers() {
+        #expect(ProductConfig.appName == "QuotaKit")
+        #expect(CloudSyncConstants.containerIdentifier == "iCloud.com.columbuslabs.quotakit")
+        #expect(ProductConfig.appGroupIdentifier == "group.com.columbuslabs.quotakit")
+        #expect(ProductConfig.iOSBundleIdentifier == "com.columbuslabs.quotakit.ios")
+        #expect(ProductConfig.iOSPushExtensionBundleIdentifier == "com.columbuslabs.quotakit.ios.pushextension")
+        #expect(ProductConfig.syncFrameworkBundleIdentifier == "com.columbuslabs.quotakit.sync")
+        #expect(ProductConfig.storeKitLifetimeProductID == "com.columbuslabs.quotakit.pro.lifetime")
+        #expect(CloudSyncConstants.deviceIDKey == "com.columbuslabs.quotakit.sync.deviceID")
+        #expect(CloudSyncConstants.kvsSnapshotKey == "com.columbuslabs.quotakit.usage.snapshot")
     }
 
     @Test("Default JSONDecoder cannot read what factory encoder produced — proves factory ISN'T the default")

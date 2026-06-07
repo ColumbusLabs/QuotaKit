@@ -2,9 +2,11 @@
 xcuserdata/
 .swiftpm/xcode/xcshareddata/
 .codexbar/config.json
+.quotakit/config.json
 *.env
 *.local
 .codexbar-release.local.env
+.quotakit-release.local.env
 
 # Build products
 .build/

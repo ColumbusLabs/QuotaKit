@@ -1,11 +1,12 @@
 import Foundation
+import CodexBarSync
 import SwiftData
 
 /// Builds and caches the app-wide `ModelContainer`.
 ///
 /// P2a behavior:
 /// - Store path prefers the App Group container
-///   (`group.com.o1xhack.codexbar`), falling back to the app sandbox
+///   (`group.com.columbuslabs.quotakit`), falling back to the app sandbox
 ///   Application Support directory when the entitlement is absent. This makes
 ///   the factory work in unit tests + simulator without any provisioning change,
 ///   while the shipping app (which has the App Group entitlement) still lands
@@ -19,10 +20,10 @@ import SwiftData
 enum ModelContainerFactory {
     /// App Group identifier shared with the menu bar counterpart. See
     /// `Scripts/package_app.sh:142` on the Mac side.
-    static let appGroupID = "group.com.o1xhack.codexbar"
+    static let appGroupID = ProductConfig.appGroupIdentifier
 
     /// Default SQLite filename inside whichever container we land on.
-    static let storeFilename = "CodexBarStore.sqlite"
+    static let storeFilename = "QuotaKitStore.sqlite"
 
     // `NSLock` is reference-type and inherently thread-safe; access to
     // `sharedContainer` is serialised by the lock below, so marking the

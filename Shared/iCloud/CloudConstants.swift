@@ -12,7 +12,7 @@ public enum CloudSyncConstants {
     /// records still exist under the old container, just nobody reads them)
     /// and forces re-pairing across Mac + iOS. Never change without a
     /// user-migration plan.
-    public static let containerIdentifier = "iCloud.com.o1xhack.codexbar"
+    public static let containerIdentifier = ProductConfig.iCloudContainerIdentifier
 
     /// The CloudKit record type for per-device usage snapshots.
     ///
@@ -86,7 +86,7 @@ public enum CloudSyncConstants {
     // through the mismatched pair lost its `Date` fields. Centralising the
     // construction here prevents future drift.
 
-    /// JSONEncoder configured for CodexBar wire formats. Uses ISO8601 dates so
+    /// JSONEncoder configured for QuotaKit wire formats. Uses ISO8601 dates so
     /// Mac↔iOS, CloudKit-payload↔SwiftData-blob, and SwiftData-blob↔SwiftData-blob
     /// round-trips all agree on `Date` representation.
     public static func makeJSONEncoder() -> JSONEncoder {
@@ -95,7 +95,7 @@ public enum CloudSyncConstants {
         return encoder
     }
 
-    /// JSONDecoder configured for CodexBar wire formats. Pair with
+    /// JSONDecoder configured for QuotaKit wire formats. Pair with
     /// `makeJSONEncoder()` — never construct `JSONDecoder()` directly for
     /// CodexBar types.
     public static func makeJSONDecoder() -> JSONDecoder {
@@ -143,12 +143,12 @@ public enum CloudSyncConstants {
     public static let quotaTransitionRestoredSubscriptionID = "quota-transition-restored"
 
     /// UserDefaults key for the stable device UUID (persisted on each Mac).
-    public static let deviceIDKey = "com.codexbar.sync.deviceID"
+    public static let deviceIDKey = ProductConfig.stableDeviceIDKey
 
     // MARK: - Legacy KVS (kept for backward compatibility during transition)
 
     /// The key used in NSUbiquitousKeyValueStore for the usage snapshot.
-    public static let kvsSnapshotKey = "com.codexbar.usage.snapshot"
+    public static let kvsSnapshotKey = ProductConfig.kvsSnapshotKey
 
     /// Maximum allowed payload size for NSUbiquitousKeyValueStore (1 MB).
     public static let maxKVSPayloadBytes = 1_048_576

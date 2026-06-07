@@ -508,7 +508,7 @@ struct MobilePane: View {
     /// and dumps every entry as plain text into `lastTestResult` so the user can
     /// copy from the Mac UI without hopping to the iPhone and screenshotting.
     ///
-    /// The Mac and iOS app share `com.codexbar.shared` as their
+    /// The Mac and iOS app share `com.columbuslabs.quotakit.shared` as their
     /// `ubiquity-kvstore-identifier`, so `NSUbiquitousKeyValueStore.default`
     /// resolves to the same iCloud-backed KV store on both sides.
     private func dumpIOSNSELog() {

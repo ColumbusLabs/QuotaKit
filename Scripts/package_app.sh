@@ -125,12 +125,12 @@ if [[ -f "$ICON_SOURCE" ]]; then
   iconutil --convert icns --output "$ICON_TARGET" "$ICON_SOURCE"
 fi
 
-BUNDLE_ID="com.o1xhack.codexbar"
-RELEASE_BRANCH="${CODEXBAR_RELEASE_BRANCH:-mobile-dev}"
-FEED_URL="https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/${RELEASE_BRANCH}/appcast.xml"
+BUNDLE_ID="com.columbuslabs.quotakit.mac"
+RELEASE_BRANCH="${QUOTAKIT_RELEASE_BRANCH:-${CODEXBAR_RELEASE_BRANCH:-mobile-dev}}"
+FEED_URL="https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/${RELEASE_BRANCH}/appcast.xml"
 AUTO_CHECKS=true
 if [[ "$LOWER_CONF" == "debug" ]]; then
-  BUNDLE_ID="com.o1xhack.codexbar.debug"
+  BUNDLE_ID="com.columbuslabs.quotakit.mac.debug"
   FEED_URL=""
   AUTO_CHECKS=false
 fi
@@ -139,16 +139,14 @@ if [[ "$SIGNING_MODE" == "adhoc" ]]; then
   AUTO_CHECKS=false
 fi
 WIDGET_BUNDLE_ID="${BUNDLE_ID}.widget"
-# Our fork's signing team. Upstream uses Y5PE65HELJ (steipete); we override
-# to o1xhack's team ID. APP_TEAM_ID is referenced in CFBundleInfo plist
-# embeds (CodexBarTeamID key) at line ~324 / ~420 — required for app group
-# discovery between the main app and Widget extension.
-APP_TEAM_ID="${APP_TEAM_ID:-3TUERHN53E}"
-APP_GROUP_ID="group.com.o1xhack.codexbar"
-ICLOUD_KVS_ID="${CODEXBAR_ICLOUD_KVS_ID:-3TUERHN53E.com.codexbar.shared}"
+# QuotaKit-owned signing/team values must be supplied by release env. The
+# placeholder default prevents accidental packaging under upstream credentials.
+APP_TEAM_ID="${APP_TEAM_ID:-QUOTAKIT_TEAM_ID}"
+APP_GROUP_ID="group.com.columbuslabs.quotakit"
+ICLOUD_KVS_ID="${QUOTAKIT_ICLOUD_KVS_ID:-${CODEXBAR_ICLOUD_KVS_ID:-${APP_TEAM_ID}.com.columbuslabs.quotakit.shared}}"
 INCLUDE_SHARED_ENTITLEMENTS=1
 if [[ "$BUNDLE_ID" == *".debug"* ]]; then
-  APP_GROUP_ID="group.com.o1xhack.codexbar.debug"
+  APP_GROUP_ID="group.com.columbuslabs.quotakit.debug"
 fi
 if [[ "$SIGNING_MODE" == "adhoc" ]]; then
   INCLUDE_SHARED_ENTITLEMENTS=0
@@ -166,7 +164,7 @@ NEEDS_GET_TASK_ALLOW=0
 if [[ "$ALLOW_LLDB" == "1" ]]; then
   NEEDS_GET_TASK_ALLOW=1
 elif [[ "$SIGNING_MODE" != "adhoc" ]]; then
-  _EFFECTIVE_ID="${APP_IDENTITY:-Developer ID Application: Yuxiao Wang (3TUERHN53E)}"
+  _EFFECTIVE_ID="${APP_IDENTITY:-}"
   if [[ "$_EFFECTIVE_ID" == "Apple Development:"* ]]; then
     NEEDS_GET_TASK_ALLOW=1
   fi
@@ -178,9 +176,9 @@ cat > "$APP_ENTITLEMENTS" <<PLIST
 <dict>
     $(if [[ "$INCLUDE_SHARED_ENTITLEMENTS" == "1" ]]; then cat <<EOF
 <key>com.apple.application-identifier</key>
-    <string>3TUERHN53E.${BUNDLE_ID}</string>
+    <string>${APP_TEAM_ID}.${BUNDLE_ID}</string>
     <key>com.apple.developer.team-identifier</key>
-    <string>3TUERHN53E</string>
+    <string>${APP_TEAM_ID}</string>
     <key>com.apple.security.application-groups</key>
     <array>
         <string>${APP_GROUP_ID}</string>
@@ -193,7 +191,7 @@ cat > "$APP_ENTITLEMENTS" <<PLIST
     </array>
     <key>com.apple.developer.icloud-container-identifiers</key>
     <array>
-        <string>iCloud.com.o1xhack.codexbar</string>
+        <string>iCloud.com.columbuslabs.quotakit</string>
     </array>
     <key>com.apple.developer.icloud-container-environment</key>
     <string>Production</string>
@@ -229,8 +227,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key><string>CodexBar</string>
-    <key>CFBundleDisplayName</key><string>CodexBar</string>
+    <key>CFBundleName</key><string>QuotaKit</string>
+    <key>CFBundleDisplayName</key><string>QuotaKit</string>
     <key>CFBundleIdentifier</key><string>${BUNDLE_ID}</string>
     <key>CFBundleExecutable</key><string>CodexBar</string>
     <key>CFBundlePackageType</key><string>APPL</string>
@@ -239,9 +237,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>LSUIElement</key><true/>
     <key>CFBundleIconFile</key><string>Icon</string>
-    <key>NSHumanReadableCopyright</key><string>Based on CodexBar by Peter Steinberger. © 2026 Yuxiao Wang. MIT License.</string>
+    <key>NSHumanReadableCopyright</key><string>QuotaKit includes upstream CodexBar code. MIT License notices are preserved.</string>
     <key>SUFeedURL</key><string>${FEED_URL}</string>
-    <key>SUPublicEDKey</key><string>eBPpE8Yx+2Dbl/viiieSBqdfSC8t20g657Dgas+Xw3o=</string>
+    <key>SUPublicEDKey</key><string>TODO_QUOTAKIT_SPARKLE_PUBLIC_ED_KEY</string>
     <key>SUEnableAutomaticChecks</key><${AUTO_CHECKS}/>
     <key>CodexMobileVersion</key><string>${MOBILE_VERSION}</string>
     <key>CodexBuildTimestamp</key><string>${BUILD_TIMESTAMP}</string>
@@ -426,7 +424,11 @@ elif [[ "$ALLOW_LLDB" == "1" ]]; then
   CODESIGN_ID="-"
   CODESIGN_ARGS=(--force --sign "$CODESIGN_ID")
 else
-  CODESIGN_ID="${APP_IDENTITY:-Developer ID Application: Yuxiao Wang (3TUERHN53E)}"
+  if [[ -z "${APP_IDENTITY:-}" ]]; then
+    echo "ERROR: Set APP_IDENTITY to a QuotaKit-owned Developer ID identity." >&2
+    exit 1
+  fi
+  CODESIGN_ID="$APP_IDENTITY"
   if [[ "$CODESIGN_ID" == "Apple Development:"* ]]; then
     CODESIGN_ARGS=(--force --sign "$CODESIGN_ID")
   else

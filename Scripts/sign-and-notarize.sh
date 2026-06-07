@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="CodexBar"
-APP_IDENTITY="Developer ID Application: Yuxiao Wang (3TUERHN53E)"
+APP_NAME="QuotaKit"
+APP_IDENTITY="${APP_IDENTITY:-}"
 APP_BUNDLE="CodexBar.app"
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 source "$ROOT/version.env"
-# Load local-only release secrets from ~/.codexbar-secrets if available.
+# Load local-only release secrets from ~/.quotakit-secrets if available.
 source "$ROOT/Scripts/load-release-secrets.sh"
+if [[ -z "$APP_IDENTITY" ]]; then
+  echo "Set APP_IDENTITY to a QuotaKit-owned Developer ID identity." >&2
+  exit 1
+fi
 RELEASE_ASSET_BASENAME="${APP_NAME}-${MARKETING_VERSION}-mobile.${MOBILE_VERSION}"
 ZIP_NAME="${RELEASE_ASSET_BASENAME}.zip"
 DSYM_ZIP="${RELEASE_ASSET_BASENAME}.dSYM.zip"
-RELEASE_STAGE_DIR=$(mktemp -d /tmp/codexbar-release.XXXXXX)
+RELEASE_STAGE_DIR=$(mktemp -d /tmp/quotakit-release.XXXXXX)
 STAGED_APP_BUNDLE="${RELEASE_STAGE_DIR}/${APP_BUNDLE}"
 
 if [[ -z "${APP_STORE_CONNECT_KEY_ID:-}" || -z "${APP_STORE_CONNECT_ISSUER_ID:-}" ]]; then
@@ -41,9 +45,9 @@ fi
 # its own mobile-suffixed ZIP_NAME / DSYM_ZIP (defined near the top), so we do
 # NOT use upstream's codexbar_app_zip_name (which drops the -mobile.X suffix
 # that release.sh / make_appcast expect).
-NOTARIZATION_TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/codexbar-notarize.XXXXXX")
+NOTARIZATION_TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/quotakit-notarize.XXXXXX")
 chmod 700 "$NOTARIZATION_TEMP_DIR"
-API_KEY_PATH="$NOTARIZATION_TEMP_DIR/codexbar-api-key.p8"
+API_KEY_PATH="$NOTARIZATION_TEMP_DIR/quotakit-api-key.p8"
 NOTARIZATION_ZIP="$NOTARIZATION_TEMP_DIR/${APP_NAME}Notarize.zip"
 trap 'rm -rf "$NOTARIZATION_TEMP_DIR" "$RELEASE_STAGE_DIR"' EXIT
 
