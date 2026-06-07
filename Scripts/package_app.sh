@@ -9,6 +9,9 @@ LOWER_CONF=$(printf "%s" "$CONF" | tr '[:upper:]' '[:lower:]')
 
 # Load version info
 source "$ROOT/version.env"
+if [[ -f "$ROOT/.mac-release.env" ]]; then
+  source "$ROOT/.mac-release.env"
+fi
 
 # Clean build only when explicitly requested (slower).
 if [[ "${CODEXBAR_FORCE_CLEAN:-0}" == "1" ]]; then
@@ -138,6 +141,13 @@ if [[ "$SIGNING_MODE" == "adhoc" ]]; then
   FEED_URL=""
   AUTO_CHECKS=false
 fi
+SPARKLE_PUBLIC_ED_KEY="${SPARKLE_PUBLIC_ED_KEY:-${MAC_RELEASE_SUPUBLIC_ED_KEY:-}}"
+if [[ "$LOWER_CONF" != "debug" && "$SIGNING_MODE" != "adhoc" ]]; then
+  if [[ -z "$SPARKLE_PUBLIC_ED_KEY" || "$SPARKLE_PUBLIC_ED_KEY" == TODO_* ]]; then
+    echo "ERROR: Set MAC_RELEASE_SUPUBLIC_ED_KEY in .mac-release.env or SPARKLE_PUBLIC_ED_KEY in the release environment." >&2
+    exit 1
+  fi
+fi
 WIDGET_BUNDLE_ID="${BUNDLE_ID}.widget"
 # QuotaKit-owned signing/team values must be supplied by release env. The
 # placeholder default prevents accidental packaging under upstream credentials.
@@ -239,7 +249,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleIconFile</key><string>Icon</string>
     <key>NSHumanReadableCopyright</key><string>QuotaKit includes upstream CodexBar code. MIT License notices are preserved.</string>
     <key>SUFeedURL</key><string>${FEED_URL}</string>
-    <key>SUPublicEDKey</key><string>TODO_QUOTAKIT_SPARKLE_PUBLIC_ED_KEY</string>
+    <key>SUPublicEDKey</key><string>${SPARKLE_PUBLIC_ED_KEY}</string>
     <key>SUEnableAutomaticChecks</key><${AUTO_CHECKS}/>
     <key>CodexMobileVersion</key><string>${MOBILE_VERSION}</string>
     <key>CodexBuildTimestamp</key><string>${BUILD_TIMESTAMP}</string>

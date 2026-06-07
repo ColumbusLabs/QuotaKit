@@ -2,17 +2,21 @@
 set -euo pipefail
 
 APP_NAME="QuotaKit"
+APP_EXECUTABLE="CodexBar"
 APP_IDENTITY="${APP_IDENTITY:-}"
 APP_BUNDLE="CodexBar.app"
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 source "$ROOT/version.env"
+if [[ -f "$ROOT/.mac-release.env" ]]; then
+  source "$ROOT/.mac-release.env"
+fi
 # Load local-only release secrets from ~/.quotakit-secrets if available.
 source "$ROOT/Scripts/load-release-secrets.sh"
 if [[ -z "$APP_IDENTITY" ]]; then
   echo "Set APP_IDENTITY to a QuotaKit-owned Developer ID identity." >&2
   exit 1
 fi
-RELEASE_ASSET_BASENAME="${APP_NAME}-${MARKETING_VERSION}-mobile.${MOBILE_VERSION}"
+RELEASE_ASSET_BASENAME="${MAC_RELEASE_APP_NAME:-$APP_NAME}-macos-universal-${MARKETING_VERSION}"
 ZIP_NAME="${RELEASE_ASSET_BASENAME}.zip"
 DSYM_ZIP="${RELEASE_ASSET_BASENAME}.dSYM.zip"
 RELEASE_STAGE_DIR=$(mktemp -d /tmp/quotakit-release.XXXXXX)
@@ -126,7 +130,7 @@ stapler validate "$APP_BUNDLE"
 # (POSIX 163). The only way to catch this class of failure is to
 # actually try to launch the binary.
 echo "Launch verification — direct exec of stapled bundle, must stay alive 2s"
-"$APP_BUNDLE/Contents/MacOS/$APP_NAME" >/dev/null 2>&1 &
+"$APP_BUNDLE/Contents/MacOS/$APP_EXECUTABLE" >/dev/null 2>&1 &
 LAUNCH_TEST_PID=$!
 sleep 2
 if kill -0 "$LAUNCH_TEST_PID" 2>/dev/null; then
@@ -147,7 +151,7 @@ else
   echo "  (entitlements with com.apple.application-identifier require it)." >&2
   echo "" >&2
   echo "  Inspect: ls -la \"$APP_BUNDLE/Contents/embedded.provisionprofile\"" >&2
-  echo "  Reproduce:  \"$APP_BUNDLE/Contents/MacOS/$APP_NAME\"" >&2
+  echo "  Reproduce:  \"$APP_BUNDLE/Contents/MacOS/$APP_EXECUTABLE\"" >&2
   echo "" >&2
   echo "  Refusing to publish — removing $ZIP_NAME." >&2
   rm -f "$ZIP_NAME"
@@ -157,7 +161,7 @@ fi
 echo "Packaging dSYM"
 FIRST_ARCH="${ARCH_LIST[0]}"
 PREFERRED_ARCH_DIR=".build/${FIRST_ARCH}-apple-macosx/release"
-DSYM_PATH="${PREFERRED_ARCH_DIR}/${APP_NAME}.dSYM"
+DSYM_PATH="${PREFERRED_ARCH_DIR}/${APP_EXECUTABLE}.dSYM"
 if [[ ! -d "$DSYM_PATH" ]]; then
   echo "Missing dSYM at $DSYM_PATH" >&2
   exit 1
@@ -166,10 +170,10 @@ if [[ ${#ARCH_LIST[@]} -gt 1 ]]; then
   MERGED_DSYM="${PREFERRED_ARCH_DIR}/${APP_NAME}.dSYM-universal"
   rm -rf "$MERGED_DSYM"
   cp -R "$DSYM_PATH" "$MERGED_DSYM"
-  DWARF_PATH="${MERGED_DSYM}/Contents/Resources/DWARF/${APP_NAME}"
+  DWARF_PATH="${MERGED_DSYM}/Contents/Resources/DWARF/${APP_EXECUTABLE}"
   BINARIES=()
   for ARCH in "${ARCH_LIST[@]}"; do
-    ARCH_DSYM=".build/${ARCH}-apple-macosx/release/${APP_NAME}.dSYM/Contents/Resources/DWARF/${APP_NAME}"
+    ARCH_DSYM=".build/${ARCH}-apple-macosx/release/${APP_EXECUTABLE}.dSYM/Contents/Resources/DWARF/${APP_EXECUTABLE}"
     if [[ ! -f "$ARCH_DSYM" ]]; then
       echo "Missing dSYM for ${ARCH} at $ARCH_DSYM" >&2
       exit 1
