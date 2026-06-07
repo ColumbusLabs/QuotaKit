@@ -43,13 +43,13 @@ xcodebuild -project CodexBarMobile.xcodeproj \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-Use `jj` for commits:
+Use normal Git for commits:
 
 ```bash
-jj status
-jj describe -m "message"
-jj bookmark set main -r @
-jj git push --bookmark main
+git status --short --branch
+git add -A
+git commit -m "message"
+git push origin main
 ```
 
 ## Upstream History

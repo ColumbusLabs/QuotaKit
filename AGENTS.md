@@ -19,7 +19,7 @@ Use this sequence for feature and fix work:
 3. Implementation: keep changes scoped and buildable.
 4. Testing: run the narrowest useful checks, then broader checks when shared behavior changes.
 5. Documentation: update changelogs, release notes, and research status as needed.
-6. Commit: bump iOS build numbers only when preparing a jj change for push.
+6. Commit: bump iOS build numbers only when preparing a Git commit for push.
 7. Release: archive/upload only when explicitly requested.
 
 ## iOS Documentation Rules
@@ -31,14 +31,13 @@ Use this sequence for feature and fix work:
 
 ## Version Control
 
-This repo uses Jujutsu colocated with git. Use `jj` for commits.
+Use normal Git only for this repository. Do not use alternate VCS wrappers for QuotaKit commits or pushes.
 
 ```bash
-jj status
-jj log --limit 10
-jj describe -m "message"
-jj bookmark set main -r @
-jj git push --bookmark main
+git status --short --branch
+git add -A
+git commit -m "message"
+git push origin main
 ```
 
 Do not push to `upstream`. Push QuotaKit work to `origin`, which is `https://github.com/ColumbusLabs/QuotaKit.git`.

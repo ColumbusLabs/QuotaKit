@@ -13,4 +13,4 @@ Quick orientation:
 - Shared sync layer: `Shared/`
 - Mac internals: `Sources/`, `Package.swift`, and related targets still use inherited implementation names
 
-Use `jj` for commits and push the `main` bookmark to `origin`.
+Use normal Git for commits and push `main` to `origin`.
