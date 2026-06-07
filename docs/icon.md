@@ -25,7 +25,7 @@ Requirements:
 
 Usage:
 ```bash
-./Scripts/build_icon.sh Icon.icon CodexBar
+./Scripts/build_icon.sh Icon.icon QuotaKit
 ```
 Outputs `Icon.icns` at repo root.
 

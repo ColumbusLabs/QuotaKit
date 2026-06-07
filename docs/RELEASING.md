@@ -33,7 +33,7 @@ SwiftPM-only; package/sign/notarize manually (no Xcode project). Sparkle feed is
 
 ## Icon (glass .icon → .icns)
 ```
-./Scripts/build_icon.sh Icon.icon CodexBar
+./Scripts/build_icon.sh Icon.icon QuotaKit
 ```
 Uses Xcode’s `ictool` + transparent padding + iconset → Icon.icns.
 

@@ -6,10 +6,10 @@
     {
       "layers" : [
         {
-          "image-name" : "codexbar.png",
-          "name" : "codexbar",
+          "image-name" : "quotakit.png",
+          "name" : "quotakit",
           "position" : {
-            "scale" : 1.4,
+            "scale" : 1,
             "translation-in-points" : [
               0,
               0
@@ -19,11 +19,11 @@
       ],
       "shadow" : {
         "kind" : "neutral",
-        "opacity" : 0.5
+        "opacity" : 0
       },
       "translucency" : {
-        "enabled" : true,
-        "value" : 0.5
+        "enabled" : false,
+        "value" : 0
       }
     }
   ],
