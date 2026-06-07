@@ -91,7 +91,7 @@ audit_parser_version() {
     return 0
   fi
 
-  local base="${PARSER_LINT_BASE:-origin/mobile-dev}"
+  local base="${PARSER_LINT_BASE:-origin/HEAD}"
 
   # If the base ref isn't in the local repo (typical in shallow CI
   # checkouts), try to fetch it. We MUST NOT silently skip — a missing
@@ -112,9 +112,11 @@ audit_parser_version() {
       return 0
     fi
     echo "ERROR: parser-version audit can't find base ref '$base'." >&2
-    echo "       In CI, ensure your checkout fetches origin/mobile-dev" >&2
-    echo "       (e.g., actions/checkout@v4 with fetch-depth: 0)." >&2
-    echo "       Locally, run: git fetch origin mobile-dev" >&2
+    echo "       In CI, set PARSER_LINT_BASE to the event base commit/branch" >&2
+    echo "       and ensure actions/checkout fetches enough history for it." >&2
+    echo "       Locally, fetch the intended base ref, for example:" >&2
+    echo "         git fetch origin main" >&2
+    echo "       or run with PARSER_LINT_BASE=origin/main." >&2
     echo "       To intentionally skip (e.g., on a fresh fork clone with" >&2
     echo "       no network), set ALLOW_MISSING_BASE=1." >&2
     return 1
