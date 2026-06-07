@@ -36,6 +36,31 @@ enum MobileSettingsKeys {
     /// is on, aggregates the ledger over this trailing window. Picker offers
     /// 7 / 30 / 90 / 365; default 30 (matches the historical blob window).
     static let cwlWindowDays = "cwlWindowDays"
+
+    // Observatory UI remodel
+    static let appearanceMode = "appearanceMode"
+    static let usageCardDensity = "usageCardDensity"
+}
+
+enum UsageCardDensity: String, CaseIterable, Identifiable {
+    case comfortable
+    case compact
+
+    var id: String { self.rawValue }
+
+    var title: String {
+        switch self {
+        case .comfortable: String(localized: "Comfortable")
+        case .compact: String(localized: "Compact")
+        }
+    }
+
+    var ringSize: CGFloat {
+        switch self {
+        case .comfortable: 88
+        case .compact: 72
+        }
+    }
 }
 
 enum UsagePercentDisplayMode: String, CaseIterable, Identifiable {

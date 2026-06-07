@@ -147,16 +147,19 @@ private struct UsageTab: View {
                 }
             }
             .navigationTitle(self.isDemoMode ? String(localized: "QuotaKit (Demo)") : String(localized: "QuotaKit"))
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if self.isDemoMode {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             self.isDemoMode = false
                         } label: {
-                            Text("Exit Demo")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
+                            QKStatusChip(
+                                text: String(localized: "Exit Demo"),
+                                style: .demo,
+                                systemImage: "xmark.circle.fill")
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -170,6 +173,7 @@ struct ProviderListView: View {
     let snapshot: SyncedUsageSnapshot
     let usageData: SyncedUsageData
     let isDemoMode: Bool
+    @Environment(\.quotaKitTheme) private var theme
     @Environment(ProEntitlementStore.self) private var proEntitlementStore
     @AppStorage(MobileSettingsKeys.freeSelectedProviderID) private var freeSelectedProviderID = ""
     /// Local per-launch suppression of linkage prompts the user clicked
@@ -238,6 +242,8 @@ struct ProviderListView: View {
         }
         return ScrollView {
             LazyVStack(spacing: 16) {
+                self.usageHeaderChip
+
                 if access.isLimited {
                     FreeProviderSelectorView(
                         groups: groups,
@@ -311,11 +317,12 @@ struct ProviderListView: View {
                         .padding(.vertical, 32)
                 }
 
-                // Sync status at scroll bottom
                 if self.isDemoMode {
-                    Label("Showing demo data", systemImage: "sparkles")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    QKStatusChip(
+                        text: String(localized: "Demo · synthetic data"),
+                        style: .demo,
+                        systemImage: "sparkles")
+                        .frame(maxWidth: .infinity)
                         .padding(.top, 4)
                 } else {
                     SyncStatusBar(usageData: self.usageData)
@@ -326,6 +333,7 @@ struct ProviderListView: View {
             .padding(.top, 8)
             .padding(.bottom, 24)
         }
+        .background(self.theme.canvas)
         .refreshable {
             await self.usageData.refresh()
         }
@@ -334,6 +342,24 @@ struct ProviderListView: View {
             text: self.$searchText,
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text("Search providers"))
+    }
+
+    @ViewBuilder
+    private var usageHeaderChip: some View {
+        if self.isDemoMode {
+            QKStatusChip(text: String(localized: "Demo mode"), style: .demo, systemImage: "play.circle.fill")
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else if let snapshot = self.usageData.snapshot {
+            let age = Date().timeIntervalSince(snapshot.syncTimestamp)
+            let isStale = age > 3600
+            QKStatusChip(
+                text: isStale
+                    ? String(localized: "Stale · pull to refresh")
+                    : String(localized: "Live · synced from Mac"),
+                style: isStale ? .stale : .live,
+                systemImage: isStale ? "clock.badge.exclamationmark" : "checkmark.circle.fill")
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 
@@ -351,24 +377,19 @@ private struct SoftScrollEdgeModifier: ViewModifier {
 // MARK: - Sync Status Bar
 
 private struct SyncStatusBar: View {
+    @Environment(\.quotaKitTheme) private var theme
     let usageData: SyncedUsageData
 
     var body: some View {
-        VStack(spacing: 4) {
-            if let snapshot = self.usageData.snapshot {
-                HStack(spacing: 6) {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Text(snapshot.syncTimestamp.formatted(.relative(presentation: .named)))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-
-                Text("Data pushed by Mac · Pull to check for updates")
-                    .font(.caption2)
-                    .foregroundStyle(.quaternary)
-            }
+        if let snapshot = self.usageData.snapshot {
+            let age = Date().timeIntervalSince(snapshot.syncTimestamp)
+            let isStale = age > 3600
+            QKStatusChip(
+                text: String(
+                    format: String(localized: "Synced %@"),
+                    snapshot.syncTimestamp.formatted(.relative(presentation: .named))),
+                style: isStale ? .stale : .live,
+                systemImage: "arrow.triangle.2.circlepath")
         }
     }
 }
@@ -460,16 +481,19 @@ struct CostTab: View {
                 }
             }
             .navigationTitle(self.isDemoMode ? String(localized: "Cost (Demo)") : String(localized: "Cost"))
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if self.isDemoMode {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             self.isDemoMode = false
                         } label: {
-                            Text("Exit Demo")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
+                            QKStatusChip(
+                                text: String(localized: "Exit Demo"),
+                                style: .demo,
+                                systemImage: "xmark.circle.fill")
                         }
+                        .buttonStyle(.plain)
                     }
                 }
                 if self.currentInsights != nil, self.isCostDashboardUnlocked, self.isShareUnlocked {
@@ -510,6 +534,7 @@ struct ProFeatureLockedStateView: View {
 }
 
 private struct CostDashboardView: View {
+    @Environment(\.quotaKitTheme) private var theme
     let insights: CostDashboardInsights
     let usageData: SyncedUsageData
     let isDemoMode: Bool
@@ -580,21 +605,23 @@ private struct CostDashboardView: View {
                 }
 
                 if self.isDemoMode {
-                    Label("Showing demo data", systemImage: "sparkles")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    QKStatusChip(
+                        text: String(localized: "Demo · synthetic data"),
+                        style: .demo,
+                        systemImage: "sparkles")
+                        .frame(maxWidth: .infinity)
                         .padding(.top, 4)
-                        .frame(maxWidth: .infinity, alignment: .center)
                 } else {
                     SyncStatusBar(usageData: self.usageData)
                         .padding(.top, 4)
-                        .frame(maxWidth: .infinity, alignment: .center)
+                        .frame(maxWidth: .infinity)
                 }
             }
             .padding(.horizontal, 20)
             .padding(.top, 8)
             .padding(.bottom, 24)
         }
+        .background(self.theme.canvas)
         .refreshable {
             await self.usageData.refresh()
         }
@@ -603,39 +630,20 @@ private struct CostDashboardView: View {
 
     private var summarySection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Overview")
-                .font(.headline)
+            QKSectionHeader(title: "Overview")
                 .padding(.top, 4)
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                CostMetricCard(
-                    // Reflect the Mac's configurable 1–365 day window (gap F).
-                    title: self.insights.historyDays.flatMap {
-                        $0 == 30 ? nil : LocalizedStringResource("\($0) Days")
-                    } ?? "30 Days",
-                    value: Self.formatUSD(self.insights.total30DayCost),
-                    subtitle: self.insights.total30DayTokens > 0 ? Self
-                        .formatTokens(self.insights.total30DayTokens) : nil,
-                    tintColor: .orange)
-
-                CostMetricCard(
-                    title: "Today",
-                    value: Self.formatUSD(self.insights.totalTodayCost),
-                    subtitle: self.providersActiveSubtitle,
-                    tintColor: .mint)
-
-                CostMetricCard(
-                    title: "Top Driver",
-                    value: Self.formatUSD(self.insights.topProvider?.thirtyDayCost ?? 0),
-                    subtitle: self.topDriverSubtitle,
-                    tintColor: providerTint(for: self.insights.topProvider?.provider))
-
-                CostMetricCard(
-                    title: "Active Days",
-                    value: "\(self.insights.activeDayCount)",
-                    subtitle: self.activeDaySubtitle,
-                    tintColor: .blue)
-            }
+            CostHeroStrip(
+                total30DayCost: Self.formatUSD(self.insights.total30DayCost),
+                tokenSubtitle: self.insights.total30DayTokens > 0
+                    ? Self.formatTokens(self.insights.total30DayTokens)
+                    : String(localized: "No token data"),
+                todayValue: Self.formatUSD(self.insights.totalTodayCost),
+                todaySubtitle: self.providersActiveSubtitle,
+                topDriverValue: Self.formatUSD(self.insights.topProvider?.thirtyDayCost ?? 0),
+                topDriverSubtitle: self.topDriverSubtitle ?? String(localized: "No data"),
+                activeDaysValue: "\(self.insights.activeDayCount)",
+                activeDaysSubtitle: self.activeDaySubtitle ?? String(localized: "No active days"))
         }
     }
 
@@ -704,9 +712,10 @@ private struct CostDashboardView: View {
             HStack(spacing: 4) {
                 Text("Daily Spend")
                     .font(.headline)
+                    .foregroundStyle(self.theme.textPrimary)
                 Text("(USD)")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(self.theme.textMuted)
             }
             .padding(.top, 4)
             .accessibilityElement(children: .combine)
@@ -718,7 +727,7 @@ private struct CostDashboardView: View {
                     BarMark(
                         x: .value(String(localized: "Date"), point.date),
                         y: .value(String(localized: "Cost"), point.costUSD))
-                        .foregroundStyle(Color.orange.gradient)
+                        .foregroundStyle(self.theme.spendWarm.gradient)
                         .cornerRadius(4)
                 case .line:
                     AreaMark(
@@ -726,7 +735,7 @@ private struct CostDashboardView: View {
                         y: .value(String(localized: "Cost"), point.costUSD))
                         .foregroundStyle(
                             LinearGradient(
-                                colors: [Color.orange.opacity(0.35), Color.orange.opacity(0.04)],
+                                colors: [self.theme.spendWarm.opacity(0.35), self.theme.spendWarm.opacity(0.02)],
                                 startPoint: .top,
                                 endPoint: .bottom))
                         .interpolationMethod(.catmullRom)
@@ -734,20 +743,20 @@ private struct CostDashboardView: View {
                     LineMark(
                         x: .value(String(localized: "Date"), point.date),
                         y: .value(String(localized: "Cost"), point.costUSD))
-                        .foregroundStyle(Color.orange)
+                        .foregroundStyle(self.theme.spendWarm)
                         .lineStyle(.init(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
                         .interpolationMethod(.catmullRom)
                 }
 
                 if let selectedPoint = self.selectedPoint, selectedPoint.id == point.id {
                     RuleMark(x: .value(String(localized: "Selected Date"), selectedPoint.date))
-                        .foregroundStyle(Color.orange.opacity(0.35))
+                        .foregroundStyle(self.theme.spendWarm.opacity(0.35))
                         .lineStyle(.init(lineWidth: 1, dash: [4, 4]))
 
                     PointMark(
                         x: .value(String(localized: "Selected Date"), selectedPoint.date),
                         y: .value(String(localized: "Selected Cost"), selectedPoint.costUSD))
-                        .foregroundStyle(Color.orange)
+                        .foregroundStyle(self.theme.spendWarm)
                         .symbolSize(80)
                 }
             }
@@ -795,24 +804,31 @@ private struct CostDashboardView: View {
             }
             .frame(height: 220)
             .padding(16)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(self.theme.chartPlot, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(self.theme.border, lineWidth: 1)
+            }
 
             if let selectedPoint = self.selectedPoint {
                 HStack {
                     Text(Self.shortDate(selectedPoint.date))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(self.theme.textMuted)
                     Spacer()
                     Text(Self.formatUSD(selectedPoint.costUSD))
                         .font(.caption.monospacedDigit())
-                        .fontWeight(.medium)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(self.theme.textPrimary)
                     if selectedPoint.totalTokens > 0 {
                         Text("· \(Self.formatTokens(selectedPoint.totalTokens))")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(self.theme.textMuted)
                     }
                 }
-                .padding(.horizontal, 4)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(self.theme.surfaceElevated, in: Capsule())
             } else {
                 HStack(spacing: 12) {
                     Label(
@@ -823,7 +839,7 @@ private struct CostDashboardView: View {
                         systemImage: "calendar")
                 }
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(self.theme.textMuted)
             }
         }
     }
@@ -851,17 +867,12 @@ private struct CostDashboardView: View {
         let tailAmount = tail.reduce(0) { $0 + $1.amountUSD }
 
         return VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .font(.headline)
+            QKSectionHeader(title: title, subtitle: subtitle)
                 .padding(.top, 4)
 
-            Text(subtitle)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
             VStack(spacing: 12) {
-                ForEach(visible) { row in
-                    CostBreakdownRowView(row: row, total: total)
+                ForEach(Array(visible.enumerated()), id: \.element.id) { index, row in
+                    CostBreakdownRowView(row: row, total: total, rank: index + 1)
                 }
                 if usesOthers {
                     NavigationLink {
@@ -1300,39 +1311,54 @@ struct CostDashboardInsights {
 /// design is shared between the capped section preview (top 5) and the
 /// drill-down full-list view that opens when the user taps "Others".
 private struct CostBreakdownRowView: View {
+    @Environment(\.quotaKitTheme) private var theme
     let row: CostBreakdownRow
     let total: Double
+    var rank: Int?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Circle()
-                    .fill(row.color)
-                    .frame(width: 10, height: 10)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(row.label)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    if let subtitle = row.subtitle {
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+        QKSurfaceCard(elevation: .surface, accentColor: self.row.color, cornerRadius: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    if let rank, rank <= 3 {
+                        Text("#\(rank)")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(self.theme.textMuted)
+                            .frame(width: 22, alignment: .leading)
                     }
+
+                    Circle()
+                        .fill(self.row.color)
+                        .frame(width: 8, height: 8)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(self.row.label)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(self.theme.textPrimary)
+                        if let subtitle = self.row.subtitle {
+                            Text(subtitle)
+                                .font(.caption)
+                                .foregroundStyle(self.theme.textMuted)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    CostBreakdownMetricColumn(
+                        amountText: CostFormatting.usd(self.row.amountUSD),
+                        shareText: Self.shareText(self.row.amountUSD, total: self.total))
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
 
-                CostBreakdownMetricColumn(
-                    amountText: CostFormatting.usd(row.amountUSD),
-                    shareText: Self.shareText(row.amountUSD, total: total))
+                UsageProgressBarView(
+                    progressFraction: Self.ratio(self.row.amountUSD, total: self.total),
+                    tintColor: self.row.color,
+                    trackColor: self.theme.border,
+                    markerPercents: [],
+                    pacePercent: nil,
+                    paceColor: .clear)
             }
-
-            ProgressView(value: Self.ratio(row.amountUSD, total: total))
-                .tint(row.color)
-                .scaleEffect(y: 1.8, anchor: .center)
+            .padding(14)
         }
-        .padding(14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     fileprivate static func ratio(_ value: Double, total: Double) -> Double {
@@ -1351,42 +1377,49 @@ private struct CostBreakdownRowView: View {
 /// full list. Visually mirrors `CostBreakdownRowView` with a muted grey dot
 /// and a trailing chevron to suggest tappability.
 private struct OthersBreakdownRowView: View {
+    @Environment(\.quotaKitTheme) private var theme
     let count: Int
     let amountUSD: Double
     let total: Double
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Circle()
-                    .fill(Color.secondary.opacity(0.5))
-                    .frame(width: 10, height: 10)
+        QKSurfaceCard(elevation: .surface, cornerRadius: 16, dashedBorder: true) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Circle()
+                        .fill(self.theme.textMuted.opacity(0.5))
+                        .frame(width: 8, height: 8)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Others")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    Text("+\(count) more")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Others")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(self.theme.textPrimary)
+                        Text("+\(self.count) more")
+                            .font(.caption)
+                            .foregroundStyle(self.theme.textMuted)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    CostBreakdownMetricColumn(
+                        amountText: CostFormatting.usd(self.amountUSD),
+                        shareText: CostBreakdownRowView.shareText(self.amountUSD, total: self.total))
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(self.theme.textMuted)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
 
-                CostBreakdownMetricColumn(
-                    amountText: CostFormatting.usd(amountUSD),
-                    shareText: CostBreakdownRowView.shareText(amountUSD, total: total))
-
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tertiary)
+                UsageProgressBarView(
+                    progressFraction: CostBreakdownRowView.ratio(self.amountUSD, total: self.total),
+                    tintColor: self.theme.textMuted.opacity(0.5),
+                    trackColor: self.theme.border,
+                    markerPercents: [],
+                    pacePercent: nil,
+                    paceColor: .clear)
             }
-
-            ProgressView(value: CostBreakdownRowView.ratio(amountUSD, total: total))
-                .tint(Color.secondary.opacity(0.5))
-                .scaleEffect(y: 1.8, anchor: .center)
+            .padding(14)
         }
-        .padding(14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 
@@ -1394,6 +1427,7 @@ private struct OthersBreakdownRowView: View {
 /// dashboard. Lists every entry in the section (same `CostBreakdownRowView`
 /// style) inside the Cost tab's existing NavigationStack.
 private struct FullBreakdownListView: View {
+    @Environment(\.quotaKitTheme) private var theme
     let title: LocalizedStringResource
     let rows: [CostBreakdownRow]
     let total: Double
@@ -1401,17 +1435,17 @@ private struct FullBreakdownListView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
-                ForEach(rows) { row in
-                    CostBreakdownRowView(row: row, total: total)
+                ForEach(self.rows) { row in
+                    CostBreakdownRowView(row: row, total: self.total)
                 }
             }
             .padding()
         }
-        .navigationTitle(Text(title))
+        .navigationTitle(Text(self.title))
         #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
         #endif
-        .background(Color(.systemGroupedBackground))
+        .background(self.theme.canvas)
     }
 }
 
@@ -1469,12 +1503,13 @@ private struct OthersBudgetRowView: View {
 /// Drill-down view for the Budgets section. Shows every budget in the same
 /// row design as the capped preview.
 private struct FullBudgetListView: View {
+    @Environment(\.quotaKitTheme) private var theme
     let rows: [CostBudgetRow]
 
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
-                ForEach(rows) { row in
+                ForEach(self.rows) { row in
                     BudgetRowView(row: row)
                 }
             }
@@ -1484,7 +1519,7 @@ private struct FullBudgetListView: View {
         #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
         #endif
-        .background(Color(.systemGroupedBackground))
+        .background(self.theme.canvas)
     }
 }
 
@@ -1590,145 +1625,166 @@ private func providerTint(for provider: ProviderUsageSnapshot?) -> Color {
 private struct SettingsTab: View {
     let usageData: SyncedUsageData
     let isDemoMode: Bool
+    @Environment(\.quotaKitTheme) private var theme
     @Environment(ProEntitlementStore.self) private var proEntitlementStore
+    @AppStorage(MobileSettingsKeys.appearanceMode) private var appearanceModeRaw =
+        AppearanceMode.dark.rawValue
     @State private var showingSetupGuide = false
+
+    private var appearanceMode: Binding<AppearanceMode> {
+        Binding(
+            get: { AppearanceMode(rawValue: self.appearanceModeRaw) ?? .dark },
+            set: { self.appearanceModeRaw = $0.rawValue })
+    }
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    QuotaKitProSettingsView(store: self.proEntitlementStore)
-                }
-
-                Section {
-                    Button {
-                        self.showingSetupGuide = true
-                    } label: {
-                        SettingSummaryRow(
-                            title: "Setup Guide",
-                            symbolName: "sparkles",
-                            summary: String(localized: "Walk through how QuotaKit syncs from Mac to iPhone"))
-                    }
-                    .tint(.primary)
-
-                    NavigationLink {
-                        AboutSyncDetailView(usageData: self.usageData)
-                    } label: {
-                        SettingSummaryRow(
-                            title: "About & Sync",
-                            symbolName: "iphone.and.arrow.forward",
-                            summary: "\(String(localized: "iPhone")) \(self.mobileVersionSummary) · \(String(localized: "Mac")) \(self.macVersionSummary)")
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    QKSectionHeader(title: "Appearance")
+                    QKSurfaceCard {
+                        QKSettingsPickerRow(
+                            title: "Theme",
+                            selection: self.appearanceMode,
+                            options: AppearanceMode.allCases.map { ($0, $0.title) })
+                            .padding(16)
                     }
 
-                    NavigationLink {
-                        ReleaseNotesView()
-                    } label: {
-                        SettingSummaryRow(
-                            title: "Release Notes",
-                            symbolName: "text.document",
-                            summary: String(localized: "Latest updates and version history"))
-                    }
-                }
-
-                Section {
-                    NavigationLink {
-                        UsageSettingsView()
-                    } label: {
-                        SettingSummaryRow(
-                            title: "Usage Setting",
-                            symbolName: "chart.bar.fill",
-                            summary: String(localized: "Configure the Usage page"))
+                    QKSurfaceCard {
+                        QuotaKitProSettingsView(store: self.proEntitlementStore)
+                            .padding(16)
                     }
 
-                    NavigationLink {
-                        CostSettingsView(isDemoMode: self.isDemoMode)
-                    } label: {
-                        SettingSummaryRow(
-                            title: "Cost Setting",
-                            symbolName: "dollarsign.circle.fill",
-                            summary: String(localized: "Configure the Cost page"))
-                    }
-                }
-
-                Section("Company") {
-                    Link(destination: URL(string: "https://github.com/ColumbusLabs")!) {
-                        Label {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Columbus Labs")
-                                    .fontWeight(.medium)
-                                Text("github.com/ColumbusLabs")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                    QKSectionHeader(title: "Setup")
+                    QKSurfaceCard {
+                        VStack(spacing: 0) {
+                            Button {
+                                self.showingSetupGuide = true
+                            } label: {
+                                SettingSummaryRow(
+                                    title: "Setup Guide",
+                                    symbolName: "sparkles",
+                                    summary: String(localized: "Walk through how QuotaKit syncs from Mac to iPhone"))
                             }
-                        } icon: {
-                            Image(systemName: "building.2.fill")
-                        }
-                    }
-                }
+                            .buttonStyle(.plain)
 
-                Section("Developer") {
-                    NavigationLink {
-                        DeveloperToolsView(usageData: self.usageData)
-                    } label: {
-                        SettingSummaryRow(
-                            title: "Developer Tools",
-                            symbolName: "wrench.and.screwdriver",
-                            summary: String(localized: "Sync inspector, push diagnostic, and more"))
-                    }
-                }
+                            Divider().opacity(0.3)
 
-                if MockProviderDetector.hasAnyMock(in: self.usageData.snapshot) {
-                    Section("Diagnostics") {
-                        HStack(alignment: .top, spacing: 12) {
-                            Image(systemName: "testtube.2")
-                                .foregroundStyle(.purple)
-                                .frame(width: 24)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Mock Data Active")
-                                    .fontWeight(.medium)
-                                Text(
-                                    "\(MockProviderDetector.mockCount(in: self.usageData.snapshot)) synthetic providers from Mac. Toggle off in Mac QuotaKit → Settings → Mobile → Debug · Mock Provider Data; iPhone updates within ~30s.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
+                            NavigationLink {
+                                AboutSyncDetailView(usageData: self.usageData)
+                            } label: {
+                                SettingSummaryRow(
+                                    title: "About & Sync",
+                                    symbolName: "iphone.and.arrow.forward",
+                                    summary: "\(String(localized: "iPhone")) \(self.mobileVersionSummary) · \(String(localized: "Mac")) \(self.macVersionSummary)")
+                            }
+
+                            Divider().opacity(0.3)
+
+                            NavigationLink {
+                                ReleaseNotesView()
+                            } label: {
+                                SettingSummaryRow(
+                                    title: "Release Notes",
+                                    symbolName: "text.document",
+                                    summary: String(localized: "Latest updates and version history"))
                             }
                         }
-                        .padding(.vertical, 4)
+                        .padding(16)
                     }
-                }
 
-                Section("Open Source") {
-                    Link(destination: URL(string: "https://github.com/ColumbusLabs/QuotaKit")!) {
-                        Label {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("ColumbusLabs/QuotaKit")
-                                    .fontWeight(.medium)
-                                Text("Official QuotaKit repository")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                    QKSectionHeader(title: "Pages")
+                    QKSurfaceCard {
+                        VStack(spacing: 0) {
+                            NavigationLink {
+                                UsageSettingsView()
+                            } label: {
+                                SettingSummaryRow(
+                                    title: "Usage Setting",
+                                    symbolName: "chart.bar.fill",
+                                    summary: String(localized: "Configure the Usage page"))
                             }
-                        } icon: {
-                            Image(systemName: "chevron.left.forwardslash.chevron.right")
+
+                            Divider().opacity(0.3)
+
+                            NavigationLink {
+                                CostSettingsView(isDemoMode: self.isDemoMode)
+                            } label: {
+                                SettingSummaryRow(
+                                    title: "Cost Setting",
+                                    symbolName: "dollarsign.circle.fill",
+                                    summary: String(localized: "Configure the Cost page"))
+                            }
+                        }
+                        .padding(16)
+                    }
+
+                    QKSectionHeader(title: "Company")
+                    QKSurfaceCard {
+                        Link(destination: URL(string: "https://github.com/ColumbusLabs")!) {
+                            SettingSummaryRow(
+                                title: "Columbus Labs",
+                                symbolName: "building.2.fill",
+                                summary: "github.com/ColumbusLabs")
+                        }
+                        .padding(16)
+                    }
+
+                    QKSectionHeader(title: "Developer")
+                    QKSurfaceCard {
+                        NavigationLink {
+                            DeveloperToolsView(usageData: self.usageData)
+                        } label: {
+                            SettingSummaryRow(
+                                title: "Developer Tools",
+                                symbolName: "wrench.and.screwdriver",
+                                summary: String(localized: "Sync inspector, push diagnostic, and more"))
+                        }
+                        .padding(16)
+                    }
+
+                    if MockProviderDetector.hasAnyMock(in: self.usageData.snapshot) {
+                        QKSectionHeader(title: "Diagnostics")
+                        QKSurfaceCard {
+                            QKStatusChip(
+                                text: String(
+                                    format: String(localized: "Mock · %lld synthetic providers active"),
+                                    MockProviderDetector.mockCount(in: self.usageData.snapshot)),
+                                style: .mock,
+                                systemImage: "testtube.2")
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(16)
                         }
                     }
 
-                    Link(destination: URL(string: "https://github.com/steipete/CodexBar")!) {
-                        Label {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("steipete/CodexBar")
-                                    .fontWeight(.medium)
-                                Text("Original Mac app — MIT License")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                    QKSectionHeader(title: "Open Source")
+                    QKSurfaceCard {
+                        VStack(spacing: 0) {
+                            Link(destination: URL(string: "https://github.com/ColumbusLabs/QuotaKit")!) {
+                                SettingSummaryRow(
+                                    title: "ColumbusLabs/QuotaKit",
+                                    symbolName: "chevron.left.forwardslash.chevron.right",
+                                    summary: "Official QuotaKit repository")
                             }
-                        } icon: {
-                            Image(systemName: "arrow.triangle.branch")
+
+                            Divider().opacity(0.3)
+
+                            Link(destination: URL(string: "https://github.com/steipete/CodexBar")!) {
+                                SettingSummaryRow(
+                                    title: "steipete/CodexBar",
+                                    symbolName: "arrow.triangle.branch",
+                                    summary: "Original Mac app — MIT License")
+                            }
                         }
+                        .padding(16)
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
             }
-            .contentMargins(.top, 12, for: .scrollContent)
+            .background(self.theme.canvas)
             .navigationTitle("Setting")
+            .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: self.$showingSetupGuide) {
                 NavigationStack {
                     OnboardingView()
@@ -1757,6 +1813,7 @@ private struct SettingsTab: View {
 }
 
 private struct SettingSummaryRow: View {
+    @Environment(\.quotaKitTheme) private var theme
     let title: LocalizedStringResource
     let symbolName: String
     let summary: String
@@ -1764,20 +1821,22 @@ private struct SettingSummaryRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: self.symbolName)
-                .font(.title3)
-                .foregroundStyle(.tint)
-                .frame(width: 24, height: 24)
-                .padding(.top, 2)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(self.theme.accent)
+                .frame(width: 32, height: 32)
+                .background(self.theme.surfaceElevated, in: Circle())
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(self.title)
                     .font(.body)
                     .fontWeight(.semibold)
+                    .foregroundStyle(self.theme.textPrimary)
 
                 Text(self.summary)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(self.theme.textMuted)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 4)
     }
@@ -2995,249 +3054,16 @@ private struct ReleaseNotesBadge: View {
     }
 }
 
-private struct UsageSettingsView: View {
-    @AppStorage(MobileSettingsKeys.usageCostChartStyle) private var usageCostChartStyleRawValue = CostChartStyle.bars
-        .rawValue
-    @AppStorage(MobileSettingsKeys.showRemainingUsage) private var showRemainingUsage =
-        UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode.remaining.rawValue
-    @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidePersonalInfo = false
-    @AppStorage(MobileSettingsKeys.hideQuotaWarningMarkers) private var hideQuotaWarningMarkers = false
-    @AppStorage(MobileSettingsKeys.showProviderChangelogLinks) private var showProviderChangelogLinks = false
-
-    var body: some View {
-        List {
-            Section {
-                Toggle("Show remaining usage", isOn: self.$showRemainingUsage)
-                    .toggleStyle(.switch)
-                    .font(.body)
-                    .fontWeight(.medium)
-                    .accessibilityIdentifier("show-remaining-usage-toggle")
-            } header: {
-                Text("Usage")
-            } footer: {
-                Text("Display the quota you have left instead of the quota you have used on usage cards.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section {
-                Picker("Chart Style", selection: self.usageChartStyle) {
-                    ForEach(CostChartStyle.allCases) { style in
-                        Text(style.title).tag(style)
-                    }
-                }
-                .pickerStyle(.menu)
-            } header: {
-                Text("Charts")
-            } footer: {
-                Text("Press and hold on the chart to inspect the exact value for a given day.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section {
-                Toggle(isOn: self.$hideQuotaWarningMarkers) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("setting_hide_quota_markers_title")
-                        Text("setting_hide_quota_markers_subtitle")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .accessibilityIdentifier("hide-quota-warning-markers-toggle")
-                Toggle(isOn: self.$showProviderChangelogLinks) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("setting_show_changelog_links_title")
-                        Text("setting_show_changelog_links_subtitle")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .accessibilityIdentifier("show-provider-changelog-links-toggle")
-            } header: {
-                Text("setting_section_warnings_links")
-            }
-
-            Section {
-                Toggle(isOn: self.$hidePersonalInfo) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Hide personal information")
-                        Text("Obscure email addresses in the Usage page.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            } header: {
-                Text("Privacy")
-            }
-        }
-        .navigationTitle("Usage Setting")
-        .listStyle(.insetGrouped)
-    }
-
-    private var usageChartStyle: Binding<CostChartStyle> {
-        Binding(
-            get: { CostChartStyle(rawValue: self.usageCostChartStyleRawValue) ?? .bars },
-            set: { self.usageCostChartStyleRawValue = $0.rawValue })
-    }
-}
-
-struct CostSettingsView: View {
-    let isDemoMode: Bool
-
-    @AppStorage(MobileSettingsKeys.dashboardCostChartStyle) private var dashboardCostChartStyleRawValue =
-        CostChartStyle.line.rawValue
-    @AppStorage(MobileSettingsKeys.openCostByDefault) private var openCostByDefault = false
-    @Environment(ProEntitlementStore.self) private var proEntitlementStore
-
-    // Round 6 / P4b — Cost Window Ledger controls.
-    @Environment(\.modelContext) private var modelContext
-    @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = false
-    @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = 30
-    @State private var showClearLedgerConfirm = false
-
-    private var isCostHistoryUnlocked: Bool {
-        ProFeatureAccess.isUnlocked(
-            .usageHistory,
-            isDemoMode: self.isDemoMode,
-            isProUnlocked: self.proEntitlementStore.isProUnlocked)
-    }
-
-    var body: some View {
-        List {
-            Section {
-                Toggle(isOn: self.$cwlEnabled) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Local cost history")
-                        Text("Keep a longer cost history on this iPhone, independent of the Mac's window. Builds up as the Mac keeps syncing.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .disabled(!self.isCostHistoryUnlocked)
-
-                if self.cwlEnabled, self.isCostHistoryUnlocked {
-                    Picker("History window", selection: self.$cwlWindowDays) {
-                        Text("7 Days").tag(7)
-                        Text("30 Days").tag(30)
-                        Text("90 Days").tag(90)
-                        Text("365 Days").tag(365)
-                    }
-                    .pickerStyle(.menu)
-                }
-
-                if !self.isCostHistoryUnlocked {
-                    ProFeatureLockedCard(
-                        store: self.proEntitlementStore,
-                        feature: .usageHistory,
-                        message: String(localized: "Unlock QuotaKit Pro to keep extended local cost history and choose longer history windows on this iPhone."))
-                }
-            } header: {
-                Text("Cost History")
-            }
-
-            if let diagnostics = self.ledgerDiagnostics, diagnostics.rowCount > 0 {
-                Section("Local Ledger") {
-                    LabeledContent("Days collected", value: "\(diagnostics.dayCount)")
-                    LabeledContent("Providers", value: "\(diagnostics.providerCount)")
-                    if diagnostics.deviceCount > 1 {
-                        LabeledContent("Devices", value: "\(diagnostics.deviceCount)")
-                    }
-                    if let earliest = diagnostics.earliestDayKey {
-                        LabeledContent("Since", value: earliest)
-                    }
-                }
-
-                Section {
-                    Button(role: .destructive) {
-                        self.showClearLedgerConfirm = true
-                    } label: {
-                        Text("Clear local cost history")
-                    }
-                    .confirmationDialog(
-                        Text("Clear local cost history?"),
-                        isPresented: self.$showClearLedgerConfirm,
-                        titleVisibility: .visible)
-                    {
-                        Button("Clear", role: .destructive) {
-                            try? CostLedgerService.clearAll(in: self.modelContext)
-                        }
-                        Button("Cancel", role: .cancel) {}
-                    } message: {
-                        Text("Deletes the on-device cost ledger only. Synced data is unaffected; history rebuilds as the Mac keeps syncing.")
-                    }
-                }
-            }
-
-            Section("Charts") {
-                Picker("Chart Style", selection: self.dashboardChartStyle) {
-                    ForEach(CostChartStyle.allCases) { style in
-                        Text(style.title).tag(style)
-                    }
-                }
-                .pickerStyle(.menu)
-            }
-
-            Section {
-                Toggle(isOn: self.$openCostByDefault) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Open Cost by default")
-                        Text("Launch the app on the Cost tab next time.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .disabled(!self.isCostHistoryUnlocked)
-
-                if !self.isCostHistoryUnlocked {
-                    Text("QuotaKit Pro is required to launch directly into the Cost dashboard.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Section {
-                Text("Press and hold on the chart to inspect the exact value for a given day.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .navigationTitle("Cost Setting")
-        .onChange(of: self.cwlEnabled) { _, isOn in
-            // First enable: import the existing blob history into the ledger so
-            // the dashboard has data immediately instead of waiting for the next
-            // Mac sync. On failure, revert the toggle (CWL stays off, blob path
-            // keeps working). Idempotent — re-enabling is a cheap no-op.
-            guard isOn else { return }
-            do {
-                try CostLedgerService.seedFromExistingBlobs(in: self.modelContext)
-            } catch {
-                self.cwlEnabled = false
-            }
-        }
-    }
-
-    /// Read-on-render ledger diagnostics for the Settings panel. O(rows);
-    /// fine for a settings screen. `try?` → nil on any read error (panel hides).
-    private var ledgerDiagnostics: CostLedgerDiagnostics? {
-        try? CostLedgerService.diagnostics(in: self.modelContext)
-    }
-
-    private var dashboardChartStyle: Binding<CostChartStyle> {
-        Binding(
-            get: { CostChartStyle(rawValue: self.dashboardCostChartStyleRawValue) ?? .line },
-            set: { self.dashboardCostChartStyleRawValue = $0.rawValue })
-    }
-}
-
 // MARK: - Previews
 
 #Preview("With Data") {
     ContentView(usageData: PreviewData.makeSyncedUsageData())
         .environment(ProEntitlementStore.preview(state: .locked))
+        .quotaKitThemed()
 }
 
 #Preview("Empty State") {
     ContentView(usageData: PreviewData.makeEmptyUsageData())
         .environment(ProEntitlementStore.preview(state: .locked))
+        .quotaKitThemed()
 }

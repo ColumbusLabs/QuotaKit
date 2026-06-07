@@ -1,10 +1,17 @@
 import CodexBarSync
 import SwiftUI
 
+enum UsageCardLayout {
+    case standard
+    case compact
+}
+
 struct UsageCardView: View {
+    @Environment(\.quotaKitTheme) private var theme
     let label: String
     let window: SyncRateWindow
     var tintColor: Color = .blue
+    var layout: UsageCardLayout = .standard
     var percentageAccessibilityIdentifier: String?
     /// Quota warning thresholds expressed as **remaining percent**, as
     /// resolved by Mac's `SettingsStore` per (provider, window). `nil`
@@ -24,11 +31,11 @@ struct UsageCardView: View {
     @AppStorage(MobileSettingsKeys.hideQuotaWarningMarkers) private var hideQuotaWarningMarkers = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: self.layout == .compact ? 6 : 10) {
             // Header row
             HStack(alignment: .firstTextBaseline) {
                 Text(self.label)
-                    .font(.subheadline)
+                    .font(self.layout == .compact ? .caption.weight(.semibold) : .subheadline)
                     .fontWeight(.semibold)
                 if self.shouldShowWarningIcon {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -46,6 +53,7 @@ struct UsageCardView: View {
             UsageProgressBarView(
                 progressFraction: self.displayMode.progressFraction(for: self.window),
                 tintColor: self.usageColor,
+                trackColor: self.theme.border,
                 markerPercents: self.markerDisplayPercents,
                 pacePercent: self.paceDisplayPercent,
                 paceColor: self.paceStripeColor)
@@ -101,11 +109,11 @@ struct UsageCardView: View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(self.displayMode.percentageValueText(for: self.window))
-                    .font(.title2.monospacedDigit())
+                    .font(self.layout == .compact ? .headline.monospacedDigit() : .title2.monospacedDigit())
                     .fontWeight(.bold)
 
                 Text(self.displayMode.percentSuffix)
-                    .font(.title3)
+                    .font(self.layout == .compact ? .subheadline : .title3)
                     .fontWeight(.bold)
             }
             .foregroundColor(self.usageColor)
@@ -233,9 +241,10 @@ struct UsageCardView: View {
     }
 }
 
-private struct UsageProgressBarView: View {
+struct UsageProgressBarView: View {
     let progressFraction: Double
     let tintColor: Color
+    var trackColor: Color = Color.secondary.opacity(0.18)
     let markerPercents: [Double]
     let pacePercent: Double?
     let paceColor: Color
@@ -245,7 +254,7 @@ private struct UsageProgressBarView: View {
             let height = geo.size.height
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Color.secondary.opacity(0.18))
+                    .fill(self.trackColor)
                 Capsule()
                     .fill(self.tintColor)
                     .frame(width: geo.size.width * self.progressFraction.clamped(to: 0...1))
@@ -282,7 +291,7 @@ private extension Double {
     }
 }
 
-private struct PercentageAccessibilityIdentifierModifier: ViewModifier {
+struct PercentageAccessibilityIdentifierModifier: ViewModifier {
     let identifier: String?
 
     @ViewBuilder

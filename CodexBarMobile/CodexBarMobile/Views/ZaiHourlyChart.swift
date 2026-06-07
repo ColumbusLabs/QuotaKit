@@ -91,7 +91,7 @@ struct ZaiHourlyChart: View {
             }
         }
         .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .qkCardBackground(cornerRadius: 14)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("zai-hourly-chart")
     }

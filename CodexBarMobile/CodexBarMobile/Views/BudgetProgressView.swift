@@ -60,7 +60,7 @@ struct BudgetProgressView: View {
             }
         }
         .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .qkCardBackground(cornerRadius: 14)
     }
 
     private var formattedUsed: String {

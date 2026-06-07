@@ -3,6 +3,7 @@ import SwiftUI
 import UIKit
 
 struct OnboardingView: View {
+    @Environment(\.quotaKitTheme) private var theme
     var onDemo: (() -> Void)?
 
     private let steps: [(icon: String, title: LocalizedStringResource, detail: LocalizedStringResource)] = [
@@ -13,84 +14,83 @@ struct OnboardingView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 32) {
-                // Header
+            VStack(spacing: 24) {
                 VStack(spacing: 12) {
                     Image(systemName: "chart.bar.xaxis")
-                        .font(.system(size: 56))
-                        .foregroundStyle(.tint)
+                        .font(.system(size: 48, weight: .semibold))
+                        .foregroundStyle(self.theme.accent)
+                        .frame(width: 80, height: 80)
+                        .background(self.theme.surfaceElevated, in: Circle())
 
                     Text("Welcome to QuotaKit")
-                        .font(.title)
-                        .fontWeight(.bold)
+                        .font(.title.weight(.bold))
+                        .foregroundStyle(self.theme.textPrimary)
 
                     Text("Monitor your AI coding tool usage on iPhone.\nRequires the QuotaKit Mac app.")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(self.theme.textMuted)
                         .multilineTextAlignment(.center)
                 }
                 .padding(.top, 24)
 
-                // Mac setup starts on the Mac; this block gives iPhone users
-                // a handoff path instead of pretending the phone can install it.
-                VStack(spacing: 8) {
-                    Image(systemName: "laptopcomputer.and.arrow.down")
-                        .font(.title2)
-                        .foregroundStyle(.tint)
-                    Text("Mac setup required")
-                        .font(.subheadline.weight(.semibold))
-                    Text("QuotaKit needs the Mac app to collect usage. Share this setup link to your Mac or copy it to open there.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                    Text(ProductConfig.macSetupDisplayURL)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.tint)
-                        .textSelection(.enabled)
+                QKSurfaceCard(elevation: .elevated) {
+                    VStack(spacing: 8) {
+                        Image(systemName: "laptopcomputer.and.arrow.down")
+                            .font(.title2)
+                            .foregroundStyle(self.theme.accent)
+                        Text("Mac setup required")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(self.theme.textPrimary)
+                        Text("QuotaKit needs the Mac app to collect usage. Share this setup link to your Mac or copy it to open there.")
+                            .font(.caption)
+                            .foregroundStyle(self.theme.textMuted)
+                            .multilineTextAlignment(.center)
+                        Text(ProductConfig.macSetupDisplayURL)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(self.theme.accent)
+                            .textSelection(.enabled)
+                    }
+                    .padding(16)
                 }
-                .padding()
-                .background(.tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
 
-                // Steps
-                VStack(spacing: 20) {
+                VStack(spacing: 12) {
                     ForEach(Array(self.steps.enumerated()), id: \.offset) { index, step in
-                        HStack(alignment: .top, spacing: 16) {
-                            ZStack {
-                                Circle()
-                                    .fill(.tint.opacity(0.12))
-                                    .frame(width: 44, height: 44)
+                        QKSurfaceCard {
+                            HStack(alignment: .top, spacing: 16) {
                                 Image(systemName: step.icon)
-                                    .font(.system(size: 18))
-                                    .foregroundStyle(.tint)
-                            }
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundStyle(self.theme.accent)
+                                    .frame(width: 40, height: 40)
+                                    .background(self.theme.surfaceElevated, in: Circle())
 
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("\(String(localized: "Step")) \(index + 1)")
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(.tint)
-                                Text(step.title)
-                                    .font(.headline)
-                                Text(step.detail)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("\(String(localized: "Step")) \(index + 1)")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(self.theme.accent)
+                                    Text(step.title)
+                                        .font(.headline)
+                                        .foregroundStyle(self.theme.textPrimary)
+                                    Text(step.detail)
+                                        .font(.subheadline)
+                                        .foregroundStyle(self.theme.textMuted)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(16)
                         }
                     }
                 }
-                .padding(.horizontal, 4)
 
-                // Actions
                 VStack(spacing: 12) {
                     MacSetupLinkActions(prominentShare: true)
 
                     if let onDemo {
                         Button(action: onDemo) {
                             Label("Preview with Demo Data", systemImage: "play.fill")
-                                .font(.subheadline)
+                                .font(.subheadline.weight(.semibold))
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.borderedProminent)
+                        .tint(self.theme.accent)
                         .controlSize(.regular)
                     }
                 }
@@ -98,6 +98,7 @@ struct OnboardingView: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 40)
         }
+        .background(self.theme.canvas)
     }
 }
 

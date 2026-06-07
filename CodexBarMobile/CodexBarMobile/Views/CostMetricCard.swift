@@ -31,7 +31,7 @@ struct CostMetricCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .qkCardBackground(cornerRadius: 14)
     }
 
     private func valueText(font: Font) -> some View {

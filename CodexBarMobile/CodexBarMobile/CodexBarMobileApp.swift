@@ -26,6 +26,8 @@ struct CodexBarMobileApp: App {
             defaults.removeObject(forKey: MobileSettingsKeys.freeSelectedProviderID)
             defaults.removeObject(forKey: ProEntitlementCacheStore.key)
             defaults.removeObject(forKey: "onboardingSeenVersion")
+            defaults.removeObject(forKey: MobileSettingsKeys.appearanceMode)
+            defaults.removeObject(forKey: MobileSettingsKeys.usageCardDensity)
         }
 
         if arguments.contains("UI_TEST_SKIP_ONBOARDING") {
@@ -43,6 +45,7 @@ struct CodexBarMobileApp: App {
         WindowGroup {
             ContentView(usageData: usageData)
                 .environment(self.proEntitlementStore)
+                .quotaKitThemed()
                 .onAppear {
                     guard !Self.isAutomatedTestLaunch else { return }
                     self.proEntitlementStore.start()

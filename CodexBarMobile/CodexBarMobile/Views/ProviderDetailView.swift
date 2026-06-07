@@ -554,7 +554,7 @@ struct ProviderDetailView: View {
             // the smallest supported device.
             .frame(height: 200)
             .padding(16)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .qkCardBackground(cornerRadius: 14)
 
             if let selectedDate, let point = daily.first(where: { $0.dayKey == selectedDate }) {
                 VStack(alignment: .leading, spacing: 2) {

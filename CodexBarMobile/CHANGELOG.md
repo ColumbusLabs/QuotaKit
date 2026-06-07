@@ -5,6 +5,16 @@ Notable changes to the QuotaKit iOS companion app are documented here.
 Older build-by-build notes remain in Git history. This file now focuses on the
 current Columbus Labs product surface and recent release history.
 
+## [Unreleased] — Observatory UI remodel
+
+### Changed
+
+- Full Observatory dark-first UI redesign across Usage, Cost, and Settings tabs.
+- New design system with themed surfaces, ring gauges on usage cards, cost hero
+  strip, and panel-based settings.
+- Appearance picker (Dark / Light / System) with dark as the default for new installs.
+- Usage card density toggle (Comfortable / Compact) in Usage Settings.
+
 ## [1.11.1 (159)] — 2026-06-07 — QuotaKit logo refresh
 
 ### Changed

@@ -48,10 +48,7 @@ struct FreeProviderSelectorView: View {
             .buttonStyle(.bordered)
         }
         .padding(14)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(.quaternary, lineWidth: 1))
+        .qkCardBackground(elevation: .elevated, cornerRadius: 12)
         .accessibilityIdentifier("free-provider-selector")
     }
 }
@@ -81,11 +78,7 @@ struct QuotaKitProLockedSummaryView: View {
             lockedMessage: self.lockedMessage,
             unlockedMessage: String(localized: "All synced provider cards are unlocked."),
             showsFeatureList: false)
-            .padding(16)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(.quaternary, lineWidth: 1))
+            .qkCardBackground(elevation: .elevated, cornerRadius: 12)
             .accessibilityIdentifier("quotakit-pro-locked-summary")
     }
 
@@ -107,11 +100,7 @@ struct ProFeatureLockedCard: View {
             lockedMessage: self.message,
             unlockedMessage: String(localized: "This Pro feature is unlocked."),
             showsFeatureList: false)
-            .padding(16)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(.quaternary, lineWidth: 1))
+            .qkCardBackground(elevation: .elevated, cornerRadius: 12)
             .accessibilityIdentifier("pro-feature-locked-\(self.feature.rawValue)")
     }
 }

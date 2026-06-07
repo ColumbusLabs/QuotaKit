@@ -32,6 +32,11 @@ struct ProviderUsageView: View {
     var onDismissMergeCandidate: ((MultiAccountLinkageCandidate) -> Void)?
     var onRevokeLinkage: ((ProviderAccountLinkage) -> Void)?
     @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidePersonalInfo = false
+    @AppStorage(MobileSettingsKeys.usageCardDensity) private var densityRaw =
+        UsageCardDensity.comfortable.rawValue
+    @AppStorage(MobileSettingsKeys.showRemainingUsage) private var showRemainingUsage =
+        UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode.remaining.rawValue
+    @Environment(\.quotaKitTheme) private var theme
 
     /// True when this is a synthetic mock provider injected by Mac's
     /// `MockProviderInjector` (per `MockProviderDetector`). Drives the
@@ -41,75 +46,60 @@ struct ProviderUsageView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Provider header
-            providerHeader
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
-                .padding(.bottom, 16)
+        QKSurfaceCard(
+            elevation: .surface,
+            accentColor: self.isMockProvider ? .purple : self.providerColor,
+            cornerRadius: 16)
+        {
+            VStack(alignment: .leading, spacing: 0) {
+                self.providerHeader
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
+                    .padding(.bottom, 16)
 
-            // Usage metrics — dynamic count per provider
-            VStack(spacing: 10) {
-                ForEach(Array(self.provider.allRateWindows.enumerated()), id: \.offset) { index, window in
-                    let warning = self.provider.quotaWarning(forWindowIndex: index)
-                    UsageCardView(
-                        label: window.label ?? self.defaultLabel(at: index),
-                        window: window,
-                        tintColor: self.providerColor,
-                        percentageAccessibilityIdentifier: "usage-card-percent-\(self.provider.providerID)-\(index)",
-                        quotaWarningThresholds: warning.thresholds,
-                        quotaWarningsEnabled: warning.enabled)
+                self.usageMetricsSection
+                    .padding(.horizontal, 16)
+
+                if let message = self.provider.statusMessage {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.bubble.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(.red)
+                        Text(message)
+                            .font(.subheadline)
+                            .foregroundStyle(self.theme.textMuted)
+                            .lineLimit(3)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
                 }
-            }
-            .padding(.horizontal, 16)
 
-            // Error / status message
-            if let message = self.provider.statusMessage {
-                HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.bubble.fill")
-                        .font(.subheadline)
-                        .foregroundStyle(.red)
-                    Text(message)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(3)
+                HStack {
+                    if let cost = self.provider.costSummary {
+                        self.costTeaserText(cost)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(self.theme.textMuted)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
-            }
 
-            // Cost teaser + tap chevron
-            HStack {
-                if let cost = self.provider.costSummary {
-                    self.costTeaserText(cost)
+                if let candidate = self.linkageCandidate,
+                   let onConfirm = self.onConfirmMerge
+                {
+                    self.linkagePromptSection(
+                        candidate: candidate,
+                        onConfirm: onConfirm,
+                        onDismiss: self.onDismissMergeCandidate ?? { _ in })
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
                 }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
 
-            // Inline linkage candidate prompt (Research/019 §7 + §9). Shown
-            // ONLY when a `MultiAccountLinkageCandidate` was passed in AND
-            // the dismiss callback is wired. The card's primary content
-            // stays visible above; this is a sub-region the user can
-            // confirm/dismiss.
-            if let candidate = self.linkageCandidate,
-               let onConfirm = self.onConfirmMerge
-            {
-                self.linkagePromptSection(
-                    candidate: candidate,
-                    onConfirm: onConfirm,
-                    onDismiss: self.onDismissMergeCandidate ?? { _ in })
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
+                Spacer().frame(height: 20)
             }
-
-            Spacer().frame(height: 20)
         }
-        .modifier(ProviderCardBackgroundModifier(isMock: self.isMockProvider))
         .contextMenu {
             if let active = self.activeLinkage, let onRevoke = self.onRevokeLinkage {
                 Button(role: .destructive) {
@@ -128,8 +118,9 @@ struct ProviderUsageView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 Text(self.provider.providerName)
-                    .font(.title3)
-                    .fontWeight(.bold)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(self.theme.textPrimary)
 
                 if let count = self.accountCount, count > 1 {
                     // Multi-account group indicator. Mirrors Mac's
@@ -174,7 +165,8 @@ struct ProviderUsageView: View {
                         .fontWeight(.medium)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(.quaternary, in: Capsule())
+                        .background(self.theme.surfaceElevated, in: Capsule())
+                        .foregroundStyle(self.theme.textMuted)
                 }
             }
 
@@ -182,6 +174,62 @@ struct ProviderUsageView: View {
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
+    }
+
+    @ViewBuilder
+    private var usageMetricsSection: some View {
+        let windows = Array(self.provider.allRateWindows.enumerated())
+        let density = UsageCardDensity(rawValue: self.densityRaw) ?? .comfortable
+        let displayMode: UsagePercentDisplayMode = self.showRemainingUsage ? .remaining : .used
+
+        if windows.isEmpty {
+            EmptyView()
+        } else if windows.count == 1, let first = windows.first {
+            UsageRingGauge(
+                label: first.element.label ?? self.defaultLabel(at: first.offset),
+                percent: displayMode.displayedPercent(for: first.element),
+                tintColor: self.usageColor(for: first.element),
+                size: density.ringSize,
+                accessibilityValue: displayMode.percentageText(for: first.element))
+                .frame(maxWidth: .infinity)
+                .modifier(PercentageAccessibilityIdentifierModifier(
+                    identifier: "usage-card-percent-\(self.provider.providerID)-\(first.offset)"))
+        } else {
+            HStack(alignment: .top, spacing: 14) {
+                if let first = windows.first {
+                    UsageRingGauge(
+                        label: first.element.label ?? self.defaultLabel(at: first.offset),
+                        percent: displayMode.displayedPercent(for: first.element),
+                        tintColor: self.usageColor(for: first.element),
+                        size: density.ringSize,
+                        accessibilityValue: displayMode.percentageText(for: first.element))
+                        .modifier(PercentageAccessibilityIdentifierModifier(
+                            identifier: "usage-card-percent-\(self.provider.providerID)-\(first.offset)"))
+                }
+
+                VStack(spacing: density == .compact ? 6 : 10) {
+                    ForEach(windows.dropFirst(), id: \.offset) { index, window in
+                        let warning = self.provider.quotaWarning(forWindowIndex: index)
+                        UsageCardView(
+                            label: window.label ?? self.defaultLabel(at: index),
+                            window: window,
+                            tintColor: self.usageColor(for: window),
+                            layout: .compact,
+                            percentageAccessibilityIdentifier:
+                                "usage-card-percent-\(self.provider.providerID)-\(index)",
+                            quotaWarningThresholds: warning.thresholds,
+                            quotaWarningsEnabled: warning.enabled)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private func usageColor(for window: SyncRateWindow) -> Color {
+        if window.usedPercent >= 90 { return .red }
+        if window.usedPercent >= 70 { return .orange }
+        return self.providerColor
     }
 
     // MARK: - Helpers
@@ -303,8 +351,8 @@ struct ProviderUsageView: View {
 
         if !parts.isEmpty {
             Text(parts.joined(separator: " · "))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(self.theme.textMuted)
         }
     }
 
@@ -345,38 +393,6 @@ private enum MobilePersonalInfoRedactor {
             options: [],
             range: range,
             withTemplate: Self.emailPlaceholder)
-    }
-}
-
-/// Unified with Cost tab's card style — `.ultraThinMaterial` on all iOS versions.
-///
-/// Commit `408ce6f25` (2026-03-19) had drive-by replaced the original
-/// `.regularMaterial + glassEffect` pair with `.thickMaterial`. On a solid
-/// `systemGroupedBackground`, material thickness is visually indistinguishable
-/// (verified by user inspection 2026-04-20), but `.thickMaterial` costs
-/// significantly more on first-frame GPU compositing — large Gaussian blur
-/// radius, heavier tint overlay, independent compositing pass per card.
-///
-/// Matching Cost's `.ultraThinMaterial` (`CostMetricCard.swift:38`,
-/// `ContentView.swift:563,641`, `BudgetProgressView.swift:57`) cuts the
-/// Usage-tab first-render cost users perceived as ~1s blank after cold start.
-private struct ProviderCardBackgroundModifier: ViewModifier {
-    /// True when the card holds synthetic mock data — overlays a purple
-    /// accent border so the user sees the mock signal even without
-    /// reading the MOCK badge or the email subtitle.
-    let isMock: Bool
-
-    func body(content: Content) -> some View {
-        if self.isMock {
-            content
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .strokeBorder(Color.purple.opacity(0.40), lineWidth: 1.5))
-        } else {
-            content
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        }
     }
 }
 

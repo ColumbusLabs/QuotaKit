@@ -25,7 +25,7 @@ struct PerplexityCreditsCard: View {
             self.legend
         }
         .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .qkCardBackground(cornerRadius: 14)
     }
 
     // MARK: - Header (title + Pro/Max badge + renewal countdown)

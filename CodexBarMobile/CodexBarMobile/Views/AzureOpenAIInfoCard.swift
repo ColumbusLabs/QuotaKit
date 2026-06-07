@@ -29,7 +29,7 @@ struct AzureOpenAIInfoCard: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .qkCardBackground(cornerRadius: 14)
     }
 
     @ViewBuilder

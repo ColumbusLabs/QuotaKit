@@ -26,7 +26,7 @@ struct ClaudeExtraUsageCard: View {
             }
         }
         .padding(14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .qkCardBackground(cornerRadius: 14)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("claude-extra-usage-card")
     }

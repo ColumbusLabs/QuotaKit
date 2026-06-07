@@ -204,7 +204,7 @@ struct UtilizationAggregateView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(8)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .qkCardBackground(cornerRadius: 10)
     }
 
     // MARK: - Daily Chart
@@ -322,7 +322,7 @@ struct UtilizationAggregateView: View {
                 .scaleEffect(y: 1.8, anchor: .center)
         }
         .padding(14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .qkCardBackground(cornerRadius: 16)
     }
 
     /// "Others" row at the bottom of the capped Subscription Utilization
@@ -364,7 +364,7 @@ struct UtilizationAggregateView: View {
                 .scaleEffect(y: 1.8, anchor: .center)
         }
         .padding(14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .qkCardBackground(cornerRadius: 16)
     }
 
     /// Drill-down view shown when the user taps the Others row of the
@@ -375,12 +375,13 @@ struct UtilizationAggregateView: View {
     /// inverted view is still accessible from the section preview and
     /// duplicating the @AppStorage logic here would risk drift.
     private struct FullProviderUtilizationListView: View {
+        @Environment(\.quotaKitTheme) private var theme
         let shares: [ProviderShare]
 
         var body: some View {
             ScrollView {
                 VStack(spacing: 12) {
-                    ForEach(shares) { row in
+                    ForEach(self.shares) { row in
                         Self.shareRow(row)
                     }
                 }
@@ -390,7 +391,7 @@ struct UtilizationAggregateView: View {
             #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
-            .background(Color(.systemGroupedBackground))
+            .background(self.theme.canvas)
         }
 
         private static func shareRow(_ row: ProviderShare) -> some View {
@@ -421,7 +422,7 @@ struct UtilizationAggregateView: View {
                     .scaleEffect(y: 1.8, anchor: .center)
             }
             .padding(14)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .qkCardBackground(cornerRadius: 16)
         }
     }
 

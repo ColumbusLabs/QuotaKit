@@ -33,7 +33,7 @@ struct OpenCodeGoZenBalanceCard: View {
                 .foregroundStyle(self.tintColor.opacity(0.7))
         }
         .padding(14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .qkCardBackground(cornerRadius: 14)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("opencodego-zen-balance-card")
     }

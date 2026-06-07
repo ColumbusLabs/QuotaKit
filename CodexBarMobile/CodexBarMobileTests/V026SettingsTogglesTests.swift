@@ -19,12 +19,16 @@ final class V026SettingsTogglesTests: XCTestCase {
         let d = UserDefaults.standard
         d.removeObject(forKey: MobileSettingsKeys.hideQuotaWarningMarkers)
         d.removeObject(forKey: MobileSettingsKeys.showProviderChangelogLinks)
+        d.removeObject(forKey: MobileSettingsKeys.appearanceMode)
+        d.removeObject(forKey: MobileSettingsKeys.usageCardDensity)
     }
 
     override func tearDown() {
         let d = UserDefaults.standard
         d.removeObject(forKey: MobileSettingsKeys.hideQuotaWarningMarkers)
         d.removeObject(forKey: MobileSettingsKeys.showProviderChangelogLinks)
+        d.removeObject(forKey: MobileSettingsKeys.appearanceMode)
+        d.removeObject(forKey: MobileSettingsKeys.usageCardDensity)
         super.tearDown()
     }
 
@@ -67,5 +71,17 @@ final class V026SettingsTogglesTests: XCTestCase {
         XCTAssertTrue(UserDefaults.standard.bool(forKey: MobileSettingsKeys.showProviderChangelogLinks))
         UserDefaults.standard.set(false, forKey: MobileSettingsKeys.showProviderChangelogLinks)
         XCTAssertFalse(UserDefaults.standard.bool(forKey: MobileSettingsKeys.showProviderChangelogLinks))
+    }
+
+    func testAppearanceModeKeyMatchesContract() {
+        XCTAssertEqual(MobileSettingsKeys.appearanceMode, "appearanceMode")
+    }
+
+    func testUsageCardDensityKeyMatchesContract() {
+        XCTAssertEqual(MobileSettingsKeys.usageCardDensity, "usageCardDensity")
+    }
+
+    func testAppearanceModeDefaultsToUnset() {
+        XCTAssertNil(UserDefaults.standard.string(forKey: MobileSettingsKeys.appearanceMode))
     }
 }
