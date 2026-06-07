@@ -27,7 +27,8 @@ Dark-first "Observatory" design: mission-control aesthetic for AI quota and spen
 - `QKSurfaceCard.swift` — replaces material cards
 - `QKSectionHeader.swift` — section labels
 - `QKStatusChip.swift` — demo/sync/mock chips
-- `UsageRingGauge.swift` — primary quota ring
+- `SyncFreshnessChip.swift` — unified sync/demo status chips
+- `QuotaUsageColor.swift` — canonical 70/90% quota bar colors
 - `QKMetricDisplay.swift` — monospaced hero numbers
 - `CostHeroStrip.swift` — Cost tab hero
 
@@ -35,7 +36,7 @@ Dark-first "Observatory" design: mission-control aesthetic for AI quota and spen
 
 - [x] Theme + appearance preference
 - [x] Shared primitives
-- [x] Usage tab (ring + bars, status chips)
+- [x] Usage tab (themed bar cards, status chips)
 - [x] Cost tab (hero strip, chart, breakdown rows)
 - [x] Settings (panel cards)
 - [x] ProviderDetailView + specialty cards

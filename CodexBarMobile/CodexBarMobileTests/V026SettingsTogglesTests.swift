@@ -20,7 +20,6 @@ final class V026SettingsTogglesTests: XCTestCase {
         d.removeObject(forKey: MobileSettingsKeys.hideQuotaWarningMarkers)
         d.removeObject(forKey: MobileSettingsKeys.showProviderChangelogLinks)
         d.removeObject(forKey: MobileSettingsKeys.appearanceMode)
-        d.removeObject(forKey: MobileSettingsKeys.usageCardDensity)
     }
 
     override func tearDown() {
@@ -28,7 +27,6 @@ final class V026SettingsTogglesTests: XCTestCase {
         d.removeObject(forKey: MobileSettingsKeys.hideQuotaWarningMarkers)
         d.removeObject(forKey: MobileSettingsKeys.showProviderChangelogLinks)
         d.removeObject(forKey: MobileSettingsKeys.appearanceMode)
-        d.removeObject(forKey: MobileSettingsKeys.usageCardDensity)
         super.tearDown()
     }
 
@@ -75,10 +73,6 @@ final class V026SettingsTogglesTests: XCTestCase {
 
     func testAppearanceModeKeyMatchesContract() {
         XCTAssertEqual(MobileSettingsKeys.appearanceMode, "appearanceMode")
-    }
-
-    func testUsageCardDensityKeyMatchesContract() {
-        XCTAssertEqual(MobileSettingsKeys.usageCardDensity, "usageCardDensity")
     }
 
     func testAppearanceModeDefaultsToUnset() {

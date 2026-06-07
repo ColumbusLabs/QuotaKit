@@ -46,7 +46,7 @@ struct UsageCardView: View {
                 }
                 Spacer()
                 self.percentageLabel
-                    .modifier(PercentageAccessibilityIdentifierModifier(
+                    .modifier(AccessibilityIdentifierModifier(
                         identifier: self.percentageAccessibilityIdentifier))
             }
 
@@ -223,21 +223,7 @@ struct UsageCardView: View {
     }
 
     private var usageColor: Color {
-        // 70% (orange warning) / 90% (red critical) thresholds chosen to
-        // match the industry-standard quota-warning bands users see on
-        // AWS / Azure / GCP dashboards and Apple's built-in Storage UI.
-        // These are also the same thresholds used by `BudgetProgressView`;
-        // keeping them in sync means every quota-like display across the
-        // app turns the same color at the same percentage, so "orange"
-        // always reads as "getting close" and "red" as "critical".
-        // Changing here requires changing BudgetProgressView symmetrically.
-        if self.window.usedPercent >= 90 {
-            return .red
-        } else if self.window.usedPercent >= 70 {
-            return .orange
-        } else {
-            return self.tintColor
-        }
+        QuotaUsageColor.color(usedPercent: self.window.usedPercent, tint: self.tintColor)
     }
 }
 
@@ -288,19 +274,6 @@ struct UsageProgressBarView: View {
 private extension Double {
     func clamped(to range: ClosedRange<Double>) -> Double {
         min(max(self, range.lowerBound), range.upperBound)
-    }
-}
-
-struct PercentageAccessibilityIdentifierModifier: ViewModifier {
-    let identifier: String?
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if let identifier {
-            content.accessibilityIdentifier(identifier)
-        } else {
-            content
-        }
     }
 }
 

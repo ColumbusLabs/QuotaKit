@@ -10,10 +10,11 @@ current Columbus Labs product surface and recent release history.
 ### Changed
 
 - Full Observatory dark-first UI redesign across Usage, Cost, and Settings tabs.
-- New design system with themed surfaces, ring gauges on usage cards, cost hero
-  strip, and panel-based settings.
+- New design system with themed surfaces, line progress bars on usage cards, cost
+  hero strip, and panel-based settings.
 - Appearance picker (Dark / Light / System) with dark as the default for new installs.
-- Usage card density toggle (Comfortable / Compact) in Usage Settings.
+- Unified sync status chips across Usage and Cost tabs (single demo indicator, shared
+  stale threshold).
 
 ## [1.11.1 (159)] — 2026-06-07 — QuotaKit logo refresh
 

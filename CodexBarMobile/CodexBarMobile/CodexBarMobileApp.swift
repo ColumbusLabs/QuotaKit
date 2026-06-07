@@ -27,7 +27,6 @@ struct CodexBarMobileApp: App {
             defaults.removeObject(forKey: ProEntitlementCacheStore.key)
             defaults.removeObject(forKey: "onboardingSeenVersion")
             defaults.removeObject(forKey: MobileSettingsKeys.appearanceMode)
-            defaults.removeObject(forKey: MobileSettingsKeys.usageCardDensity)
         }
 
         if arguments.contains("UI_TEST_SKIP_ONBOARDING") {

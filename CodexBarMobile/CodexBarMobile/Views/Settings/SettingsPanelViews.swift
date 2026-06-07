@@ -21,19 +21,7 @@ struct QKSettingsToggleRow: View {
             }
         }
         .toggleStyle(.switch)
-        .modifier(SettingsAccessibilityIdentifierModifier(identifier: self.accessibilityIdentifier))
-    }
-}
-
-private struct SettingsAccessibilityIdentifierModifier: ViewModifier {
-    let identifier: String?
-
-    func body(content: Content) -> some View {
-        if let identifier {
-            content.accessibilityIdentifier(identifier)
-        } else {
-            content
-        }
+        .modifier(AccessibilityIdentifierModifier(identifier: self.accessibilityIdentifier))
     }
 }
 
@@ -68,8 +56,6 @@ struct UsageSettingsView: View {
     @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidePersonalInfo = false
     @AppStorage(MobileSettingsKeys.hideQuotaWarningMarkers) private var hideQuotaWarningMarkers = false
     @AppStorage(MobileSettingsKeys.showProviderChangelogLinks) private var showProviderChangelogLinks = false
-    @AppStorage(MobileSettingsKeys.usageCardDensity) private var usageCardDensityRaw =
-        UsageCardDensity.comfortable.rawValue
 
     var body: some View {
         ScrollView {
@@ -81,15 +67,6 @@ struct UsageSettingsView: View {
                         subtitle: "Display the quota you have left instead of the quota you have used on usage cards.",
                         isOn: self.$showRemainingUsage,
                         accessibilityIdentifier: "show-remaining-usage-toggle")
-                        .padding(16)
-                }
-
-                QKSectionHeader(title: "Layout")
-                QKSurfaceCard {
-                    QKSettingsPickerRow(
-                        title: "Card density",
-                        selection: self.usageCardDensity,
-                        options: UsageCardDensity.allCases.map { ($0, $0.title) })
                         .padding(16)
                 }
 
@@ -141,12 +118,6 @@ struct UsageSettingsView: View {
         Binding(
             get: { CostChartStyle(rawValue: self.usageCostChartStyleRawValue) ?? .bars },
             set: { self.usageCostChartStyleRawValue = $0.rawValue })
-    }
-
-    private var usageCardDensity: Binding<UsageCardDensity> {
-        Binding(
-            get: { UsageCardDensity(rawValue: self.usageCardDensityRaw) ?? .comfortable },
-            set: { self.usageCardDensityRaw = $0.rawValue })
     }
 }
 

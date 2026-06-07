@@ -85,6 +85,16 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
         XCTAssertNotNil(self.renderToImage(view))
     }
 
+    func testDemoUsageListRendersWhenProIsLocked() {
+        let view = ProviderListView(
+            snapshot: PreviewData.sampleSnapshot,
+            usageData: PreviewData.makeSyncedUsageData(),
+            isDemoMode: true)
+            .environment(ProEntitlementStore.preview(state: .locked))
+
+        XCTAssertNotNil(self.renderToImage(view))
+    }
+
     func testLockedProviderDetailRendersProCard() {
         let view = NavigationStack {
             ProviderDetailView(provider: PreviewData.claudeProvider)
@@ -133,7 +143,7 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
     }
 
     private func renderToImage<V: View>(_ view: V) -> UIImage? {
-        let renderer = ImageRenderer(content: view.frame(width: 390, height: 900))
+        let renderer = ImageRenderer(content: view.frame(width: 390, height: 900).quotaKitThemed())
         renderer.scale = 2.0
         return renderer.uiImage
     }

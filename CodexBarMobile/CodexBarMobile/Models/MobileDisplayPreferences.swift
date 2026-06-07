@@ -39,28 +39,6 @@ enum MobileSettingsKeys {
 
     // Observatory UI remodel
     static let appearanceMode = "appearanceMode"
-    static let usageCardDensity = "usageCardDensity"
-}
-
-enum UsageCardDensity: String, CaseIterable, Identifiable {
-    case comfortable
-    case compact
-
-    var id: String { self.rawValue }
-
-    var title: String {
-        switch self {
-        case .comfortable: String(localized: "Comfortable")
-        case .compact: String(localized: "Compact")
-        }
-    }
-
-    var ringSize: CGFloat {
-        switch self {
-        case .comfortable: 88
-        case .compact: 72
-        }
-    }
 }
 
 enum UsagePercentDisplayMode: String, CaseIterable, Identifiable {

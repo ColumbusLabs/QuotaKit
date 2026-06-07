@@ -242,7 +242,10 @@ struct ProviderListView: View {
         }
         return ScrollView {
             LazyVStack(spacing: 16) {
-                self.usageHeaderChip
+                SyncStatusChipView(
+                    placement: .header,
+                    isDemoMode: self.isDemoMode,
+                    snapshot: self.usageData.snapshot)
 
                 if access.isLimited {
                     FreeProviderSelectorView(
@@ -317,17 +320,12 @@ struct ProviderListView: View {
                         .padding(.vertical, 32)
                 }
 
-                if self.isDemoMode {
-                    QKStatusChip(
-                        text: String(localized: "Demo · synthetic data"),
-                        style: .demo,
-                        systemImage: "sparkles")
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 4)
-                } else {
-                    SyncStatusBar(usageData: self.usageData)
-                        .padding(.top, 4)
-                }
+                SyncStatusChipView(
+                    placement: .footer,
+                    isDemoMode: self.isDemoMode,
+                    snapshot: self.usageData.snapshot)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 4)
             }
             .padding(.horizontal, 20)
             .padding(.top, 8)
@@ -344,23 +342,6 @@ struct ProviderListView: View {
             prompt: Text("Search providers"))
     }
 
-    @ViewBuilder
-    private var usageHeaderChip: some View {
-        if self.isDemoMode {
-            QKStatusChip(text: String(localized: "Demo mode"), style: .demo, systemImage: "play.circle.fill")
-                .frame(maxWidth: .infinity, alignment: .leading)
-        } else if let snapshot = self.usageData.snapshot {
-            let age = Date().timeIntervalSince(snapshot.syncTimestamp)
-            let isStale = age > 3600
-            QKStatusChip(
-                text: isStale
-                    ? String(localized: "Stale · pull to refresh")
-                    : String(localized: "Live · synced from Mac"),
-                style: isStale ? .stale : .live,
-                systemImage: isStale ? "clock.badge.exclamationmark" : "checkmark.circle.fill")
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
 }
 
 /// Applies `.scrollEdgeEffectStyle(.soft)` on iOS 26+, no-op on older systems.
@@ -370,26 +351,6 @@ private struct SoftScrollEdgeModifier: ViewModifier {
             content.scrollEdgeEffectStyle(.soft, for: .top)
         } else {
             content
-        }
-    }
-}
-
-// MARK: - Sync Status Bar
-
-private struct SyncStatusBar: View {
-    @Environment(\.quotaKitTheme) private var theme
-    let usageData: SyncedUsageData
-
-    var body: some View {
-        if let snapshot = self.usageData.snapshot {
-            let age = Date().timeIntervalSince(snapshot.syncTimestamp)
-            let isStale = age > 3600
-            QKStatusChip(
-                text: String(
-                    format: String(localized: "Synced %@"),
-                    snapshot.syncTimestamp.formatted(.relative(presentation: .named))),
-                style: isStale ? .stale : .live,
-                systemImage: "arrow.triangle.2.circlepath")
         }
     }
 }
@@ -604,18 +565,12 @@ private struct CostDashboardView: View {
                     self.budgetSection
                 }
 
-                if self.isDemoMode {
-                    QKStatusChip(
-                        text: String(localized: "Demo · synthetic data"),
-                        style: .demo,
-                        systemImage: "sparkles")
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 4)
-                } else {
-                    SyncStatusBar(usageData: self.usageData)
-                        .padding(.top, 4)
-                        .frame(maxWidth: .infinity)
-                }
+                SyncStatusChipView(
+                    placement: .footer,
+                    isDemoMode: self.isDemoMode,
+                    snapshot: self.usageData.snapshot)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 4)
             }
             .padding(.horizontal, 20)
             .padding(.top, 8)

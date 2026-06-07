@@ -32,10 +32,6 @@ struct ProviderUsageView: View {
     var onDismissMergeCandidate: ((MultiAccountLinkageCandidate) -> Void)?
     var onRevokeLinkage: ((ProviderAccountLinkage) -> Void)?
     @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidePersonalInfo = false
-    @AppStorage(MobileSettingsKeys.usageCardDensity) private var densityRaw =
-        UsageCardDensity.comfortable.rawValue
-    @AppStorage(MobileSettingsKeys.showRemainingUsage) private var showRemainingUsage =
-        UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode.remaining.rawValue
     @Environment(\.quotaKitTheme) private var theme
 
     /// True when this is a synthetic mock provider injected by Mac's
@@ -178,58 +174,19 @@ struct ProviderUsageView: View {
 
     @ViewBuilder
     private var usageMetricsSection: some View {
-        let windows = Array(self.provider.allRateWindows.enumerated())
-        let density = UsageCardDensity(rawValue: self.densityRaw) ?? .comfortable
-        let displayMode: UsagePercentDisplayMode = self.showRemainingUsage ? .remaining : .used
-
-        if windows.isEmpty {
-            EmptyView()
-        } else if windows.count == 1, let first = windows.first {
-            UsageRingGauge(
-                label: first.element.label ?? self.defaultLabel(at: first.offset),
-                percent: displayMode.displayedPercent(for: first.element),
-                tintColor: self.usageColor(for: first.element),
-                size: density.ringSize,
-                accessibilityValue: displayMode.percentageText(for: first.element))
-                .frame(maxWidth: .infinity)
-                .modifier(PercentageAccessibilityIdentifierModifier(
-                    identifier: "usage-card-percent-\(self.provider.providerID)-\(first.offset)"))
-        } else {
-            HStack(alignment: .top, spacing: 14) {
-                if let first = windows.first {
-                    UsageRingGauge(
-                        label: first.element.label ?? self.defaultLabel(at: first.offset),
-                        percent: displayMode.displayedPercent(for: first.element),
-                        tintColor: self.usageColor(for: first.element),
-                        size: density.ringSize,
-                        accessibilityValue: displayMode.percentageText(for: first.element))
-                        .modifier(PercentageAccessibilityIdentifierModifier(
-                            identifier: "usage-card-percent-\(self.provider.providerID)-\(first.offset)"))
-                }
-
-                VStack(spacing: density == .compact ? 6 : 10) {
-                    ForEach(windows.dropFirst(), id: \.offset) { index, window in
-                        let warning = self.provider.quotaWarning(forWindowIndex: index)
-                        UsageCardView(
-                            label: window.label ?? self.defaultLabel(at: index),
-                            window: window,
-                            tintColor: self.usageColor(for: window),
-                            layout: .compact,
-                            percentageAccessibilityIdentifier:
-                                "usage-card-percent-\(self.provider.providerID)-\(index)",
-                            quotaWarningThresholds: warning.thresholds,
-                            quotaWarningsEnabled: warning.enabled)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(spacing: 10) {
+            ForEach(Array(self.provider.allRateWindows.enumerated()), id: \.offset) { index, window in
+                let warning = self.provider.quotaWarning(forWindowIndex: index)
+                UsageCardView(
+                    label: window.label ?? self.defaultLabel(at: index),
+                    window: window,
+                    tintColor: self.providerColor,
+                    percentageAccessibilityIdentifier:
+                        "usage-card-percent-\(self.provider.providerID)-\(index)",
+                    quotaWarningThresholds: warning.thresholds,
+                    quotaWarningsEnabled: warning.enabled)
             }
         }
-    }
-
-    private func usageColor(for window: SyncRateWindow) -> Color {
-        if window.usedPercent >= 90 { return .red }
-        if window.usedPercent >= 70 { return .orange }
-        return self.providerColor
     }
 
     // MARK: - Helpers
