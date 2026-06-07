@@ -40,11 +40,5 @@ struct QKStatusChip: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(self.tint.opacity(0.12), in: Capsule())
-        .overlay(alignment: .leading) {
-            Capsule()
-                .fill(self.tint)
-                .frame(width: 3)
-                .padding(.vertical, 4)
-        }
     }
 }

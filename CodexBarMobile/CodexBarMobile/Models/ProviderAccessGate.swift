@@ -12,7 +12,8 @@ enum ProviderAccessGate {
         groups: [ProviderAccountGroup],
         isDemoMode: Bool,
         isProUnlocked: Bool,
-        selectedProviderID: String?) -> ProviderAccessResult
+        selectedProviderID: String?,
+        isRemotelyDisabled: Bool = false) -> ProviderAccessResult
     {
         guard !groups.isEmpty else {
             return ProviderAccessResult(
@@ -22,7 +23,7 @@ enum ProviderAccessGate {
                 isLimited: false)
         }
 
-        if isDemoMode || isProUnlocked || groups.count == 1 {
+        if !isRemotelyDisabled, isDemoMode || isProUnlocked || groups.count == 1 {
             return ProviderAccessResult(
                 visibleGroups: groups,
                 lockedCount: 0,

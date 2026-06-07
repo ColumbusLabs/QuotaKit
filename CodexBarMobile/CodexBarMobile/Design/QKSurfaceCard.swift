@@ -58,14 +58,5 @@ struct QKSurfaceCard<Content: View>: View {
                 elevation: self.elevation,
                 cornerRadius: self.cornerRadius,
                 dashed: self.dashedBorder)
-            .overlay(alignment: .leading) {
-                if let accent = self.accentColor {
-                    RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(accent)
-                        .frame(width: 4)
-                        .padding(.vertical, 12)
-                        .padding(.leading, 0)
-                }
-            }
     }
 }

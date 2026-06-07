@@ -29,6 +29,7 @@ public enum ProductConfig {
 
     public static let macSetupURL = URL(string: "https://columbus-labs.com/quotakit/mac")!
     public static let macSetupDisplayURL = "columbus-labs.com/quotakit/mac"
+    public static let remoteConfigURL = URL(string: "https://columbus-labs.com/quotakit/config/ios.json")!
 
     public static let logSubsystem = "com.columbuslabs.quotakit"
 }

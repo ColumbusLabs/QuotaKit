@@ -47,39 +47,56 @@ struct ContentView: View {
         self.onboardingSeenVersion != self.currentVersion
     }
 
+    private var hasSyncedData: Bool {
+        self.usageData.snapshot != nil
+    }
+
     var body: some View {
-        TabView(selection: self.$selectedTab) {
-            UsageTab(usageData: self.usageData, isDemoMode: self.$isDemoMode)
-                .tag(MobileRootTab.usage)
-                .tabItem {
-                    Label("Usage", systemImage: "chart.bar.fill")
+        Group {
+            if !self.hasSyncedData && !self.isDemoMode {
+                NavigationStack {
+                    OnboardingView(onDemo: {
+                        self.onboardingSeenVersion = self.currentVersion
+                        self.isDemoMode = true
+                    })
+                    .navigationTitle("")
+                    .navigationBarTitleDisplayMode(.inline)
                 }
+            } else {
+                TabView(selection: self.$selectedTab) {
+                    UsageTab(usageData: self.usageData, isDemoMode: self.$isDemoMode)
+                        .tag(MobileRootTab.usage)
+                        .tabItem {
+                            Label("Usage", systemImage: "chart.bar.fill")
+                        }
 
-            CostTab(usageData: self.usageData, isDemoMode: self.$isDemoMode)
-                .tag(MobileRootTab.cost)
-                .tabItem {
-                    Label("Cost", systemImage: "dollarsign.circle.fill")
-                }
+                    CostTab(usageData: self.usageData, isDemoMode: self.$isDemoMode)
+                        .tag(MobileRootTab.cost)
+                        .tabItem {
+                            Label("Cost", systemImage: "dollarsign.circle.fill")
+                        }
 
-            SettingsTab(
-                usageData: self.usageData,
-                isDemoMode: self.isDemoMode)
-                .tag(MobileRootTab.settings)
-                .tabItem {
-                    Label("Setting", systemImage: "gearshape")
+                    SettingsTab(
+                        usageData: self.usageData,
+                        isDemoMode: self.isDemoMode)
+                        .tag(MobileRootTab.settings)
+                        .tabItem {
+                            Label("Setting", systemImage: "gearshape")
+                        }
                 }
-        }
-        .modifier(TabBarMinimizeModifier())
-        .fullScreenCover(isPresented: .init(
-            get: { self.shouldShowOnboarding },
-            set: { if !$0 { self.onboardingSeenVersion = self.currentVersion } }))
-        {
-            OnboardingSheet(onDismiss: {
-                self.onboardingSeenVersion = self.currentVersion
-            }, onDemo: {
-                self.onboardingSeenVersion = self.currentVersion
-                self.isDemoMode = true
-            })
+                .modifier(TabBarMinimizeModifier())
+                .fullScreenCover(isPresented: .init(
+                    get: { self.hasSyncedData && self.shouldShowOnboarding },
+                    set: { if !$0 { self.onboardingSeenVersion = self.currentVersion } }))
+                {
+                    OnboardingSheet(onDismiss: {
+                        self.onboardingSeenVersion = self.currentVersion
+                    }, onDemo: {
+                        self.onboardingSeenVersion = self.currentVersion
+                        self.isDemoMode = true
+                    })
+                }
+            }
         }
     }
 }
@@ -146,7 +163,7 @@ private struct UsageTab: View {
                     OnboardingView(onDemo: { self.isDemoMode = true })
                 }
             }
-            .navigationTitle(self.isDemoMode ? String(localized: "QuotaKit (Demo)") : String(localized: "QuotaKit"))
+            .navigationTitle(self.isDemoMode || self.displaySnapshot == nil ? "" : String(localized: "QuotaKit"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if self.isDemoMode {
@@ -154,12 +171,14 @@ private struct UsageTab: View {
                         Button {
                             self.isDemoMode = false
                         } label: {
-                            QKStatusChip(
-                                text: String(localized: "Exit Demo"),
-                                style: .demo,
-                                systemImage: "xmark.circle.fill")
+                            Image(systemName: "xmark")
+                                .font(.headline.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 34, height: 34)
+                                .background(.thinMaterial, in: Circle())
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(Text("Exit demo preview"))
                     }
                 }
             }
@@ -175,6 +194,7 @@ struct ProviderListView: View {
     let isDemoMode: Bool
     @Environment(\.quotaKitTheme) private var theme
     @Environment(ProEntitlementStore.self) private var proEntitlementStore
+    @Environment(RemoteConfigStore.self) private var remoteConfigStore
     @AppStorage(MobileSettingsKeys.freeSelectedProviderID) private var freeSelectedProviderID = ""
     /// Local per-launch suppression of linkage prompts the user clicked
     /// "Keep separate" on. Persisted only across the current session —
@@ -230,11 +250,13 @@ struct ProviderListView: View {
             groups: groups,
             isDemoMode: self.isDemoMode,
             isProUnlocked: self.proEntitlementStore.isProUnlocked,
-            selectedProviderID: self.freeSelectedProviderID.isEmpty ? nil : self.freeSelectedProviderID)
+            selectedProviderID: self.freeSelectedProviderID.isEmpty ? nil : self.freeSelectedProviderID,
+            isRemotelyDisabled: self.remoteConfigStore.isDisabled(.unlimitedProviders))
         let advancedMergeUnlocked = ProFeatureAccess.isUnlocked(
             .advancedMergeViews,
             isDemoMode: self.isDemoMode,
-            isProUnlocked: self.proEntitlementStore.isProUnlocked)
+            isProUnlocked: self.proEntitlementStore.isProUnlocked,
+            isRemotelyDisabled: self.remoteConfigStore.isDisabled(.advancedMergeViews))
         let query = self.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         let filteredGroups = query.isEmpty ? access.visibleGroups : access.visibleGroups.filter { group in
             group.representative.providerName.localizedCaseInsensitiveContains(query)
@@ -242,10 +264,14 @@ struct ProviderListView: View {
         }
         return ScrollView {
             LazyVStack(spacing: 16) {
-                SyncStatusChipView(
-                    placement: .header,
-                    isDemoMode: self.isDemoMode,
-                    snapshot: self.usageData.snapshot)
+                if self.isDemoMode {
+                    DemoPreviewBanner(snapshot: self.snapshot)
+                } else {
+                    SyncStatusChipView(
+                        placement: .header,
+                        isDemoMode: false,
+                        snapshot: self.usageData.snapshot)
+                }
 
                 if access.isLimited {
                     FreeProviderSelectorView(
@@ -254,7 +280,6 @@ struct ProviderListView: View {
                         effectiveSelectedProviderID: access.effectiveSelectedProviderID)
                 }
 
-                MockProviderBanner(snapshot: self.snapshot)
                 ForEach(filteredGroups) { group in
                     // Within-group linkage candidate: surface on the
                     // group row if ANY account in the group has one
@@ -284,6 +309,7 @@ struct ProviderListView: View {
                             accountCount: group.hasMultipleAccounts ? group.accounts.count : nil,
                             linkageCandidate: advancedMergeUnlocked ? candidate : nil,
                             activeLinkage: advancedMergeUnlocked ? activeLinkage : nil,
+                            showsSyntheticDataIndicator: !self.isDemoMode,
                             onConfirmMerge: advancedMergeUnlocked ? { c in
                                 Task { @MainActor in
                                     await self.usageData.confirmLinkage(
@@ -361,6 +387,7 @@ struct CostTab: View {
     let usageData: SyncedUsageData
     @Binding var isDemoMode: Bool
     @Environment(ProEntitlementStore.self) private var proEntitlementStore
+    @Environment(RemoteConfigStore.self) private var remoteConfigStore
     @State private var showShareSheet = false
 
     // Round 6 / P4b — Cost Window Ledger dispatch. When `cwlEnabled` and not
@@ -405,14 +432,16 @@ struct CostTab: View {
         ProFeatureAccess.isUnlocked(
             .fullCostDashboard,
             isDemoMode: self.isDemoMode,
-            isProUnlocked: self.proEntitlementStore.isProUnlocked)
+            isProUnlocked: self.proEntitlementStore.isProUnlocked,
+            isRemotelyDisabled: self.remoteConfigStore.isDisabled(.fullCostDashboard))
     }
 
     private var isShareUnlocked: Bool {
         ProFeatureAccess.isUnlocked(
             .shareCards,
             isDemoMode: self.isDemoMode,
-            isProUnlocked: self.proEntitlementStore.isProUnlocked)
+            isProUnlocked: self.proEntitlementStore.isProUnlocked,
+            isRemotelyDisabled: self.remoteConfigStore.isDisabled(.shareCards))
     }
 
     var body: some View {
@@ -441,7 +470,7 @@ struct CostTab: View {
                     OnboardingView(onDemo: { self.isDemoMode = true })
                 }
             }
-            .navigationTitle(self.isDemoMode ? String(localized: "Cost (Demo)") : String(localized: "Cost"))
+            .navigationTitle(self.isDemoMode || self.displaySnapshot == nil ? "" : String(localized: "Cost"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if self.isDemoMode {
@@ -449,12 +478,14 @@ struct CostTab: View {
                         Button {
                             self.isDemoMode = false
                         } label: {
-                            QKStatusChip(
-                                text: String(localized: "Exit Demo"),
-                                style: .demo,
-                                systemImage: "xmark.circle.fill")
+                            Image(systemName: "xmark")
+                                .font(.headline.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 34, height: 34)
+                                .background(.thinMaterial, in: Circle())
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(Text("Exit demo preview"))
                     }
                 }
                 if self.currentInsights != nil, self.isCostDashboardUnlocked, self.isShareUnlocked {
@@ -510,7 +541,9 @@ private struct CostDashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                MockProviderBanner(snapshot: self.usageData.snapshot)
+                if self.isDemoMode {
+                    DemoPreviewBanner(snapshot: self.usageData.snapshot)
+                }
                 self.summarySection
 
                 if !self.insights.providerRows.isEmpty {
@@ -1582,6 +1615,7 @@ private struct SettingsTab: View {
     let isDemoMode: Bool
     @Environment(\.quotaKitTheme) private var theme
     @Environment(ProEntitlementStore.self) private var proEntitlementStore
+    @Environment(RemoteConfigStore.self) private var remoteConfigStore
     @AppStorage(MobileSettingsKeys.appearanceMode) private var appearanceModeRaw =
         AppearanceMode.dark.rawValue
     @State private var showingSetupGuide = false
@@ -1608,6 +1642,22 @@ private struct SettingsTab: View {
                     QKSurfaceCard {
                         QuotaKitProSettingsView(store: self.proEntitlementStore)
                             .padding(16)
+                    }
+
+                    if let announcement = self.remoteConfigStore.activeAnnouncement {
+                        QKSectionHeader(title: "Announcement")
+                        QKSurfaceCard {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(announcement.title)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(self.theme.textPrimary)
+                                Text(announcement.body)
+                                    .font(.caption)
+                                    .foregroundStyle(self.theme.textMuted)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(16)
+                        }
                     }
 
                     QKSectionHeader(title: "Setup")
@@ -1799,6 +1849,7 @@ private struct SettingSummaryRow: View {
 
 private struct AboutSyncDetailView: View {
     let usageData: SyncedUsageData
+    @Environment(RemoteConfigStore.self) private var remoteConfigStore
 
     private var appDisplayVersion: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
@@ -1836,6 +1887,35 @@ private struct AboutSyncDetailView: View {
                 } else {
                     LabeledContent("Mac App", value: String(localized: "Not synced"))
                 }
+            }
+
+            Section {
+                LabeledContent("Status", value: self.remoteConfigStore.configStatusSummary)
+                LabeledContent("Config Version", value: self.remoteConfigStore.config.configVersion)
+                if let fetchedAt = self.remoteConfigStore.lastFetchedAt {
+                    LabeledContent("Last Updated", value: fetchedAt.formatted(.relative(presentation: .named)))
+                }
+                LabeledContent("Setup URL", value: self.remoteConfigStore.setupDisplayURL)
+                LabeledContent("Disabled Features", value: self.disabledFeaturesSummary)
+                if let lastError = self.remoteConfigStore.lastError {
+                    Text(lastError)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+                Button {
+                    Task { await self.remoteConfigStore.refresh() }
+                } label: {
+                    if self.remoteConfigStore.isRefreshing {
+                        ProgressView()
+                    } else {
+                        Label("Refresh Remote Config", systemImage: "arrow.clockwise")
+                    }
+                }
+                .disabled(self.remoteConfigStore.isRefreshing)
+            } header: {
+                Text("Remote Config")
+            } footer: {
+                Text("Public Columbus Labs configuration for safe OTA guardrails. It cannot change app code or access provider credentials.")
             }
 
             // MARK: Mac Update Prompt
@@ -1976,6 +2056,15 @@ private struct AboutSyncDetailView: View {
     }
 
     @AppStorage(MobileSettingsKeys.showProviderChangelogLinks) private var showProviderChangelogLinks = false
+
+    private var disabledFeaturesSummary: String {
+        let knownDisabled = FeatureGate.allCases
+            .filter { self.remoteConfigStore.isDisabled($0) }
+            .map(\.title)
+        return knownDisabled.isEmpty
+            ? String(localized: "None")
+            : knownDisabled.joined(separator: ", ")
+    }
 
     private var syncStatusIcon: some View {
         Group {
@@ -2537,6 +2626,7 @@ private enum MobileReleaseNotesCatalog {
                         String(localized: "QuotaKit Pro — Free mode keeps one selected synced provider plus basic quota details, while Pro and demo mode unlock the full provider list, cost dashboard, history charts, share/export actions, advanced merge controls, and visible quota alerts."),
                         String(localized: "Widgets and pace — QuotaKit Pro adds Home Screen and Lock Screen widgets backed only by sanitized iPhone-side snapshot data, and Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers."),
                         String(localized: "Branding and setup — iOS screens, the app icon, share cards, update prompts, and Mac setup now use QuotaKit. The iPhone shares a Columbus Labs setup page for Mac installation instead of sending you straight to GitHub."),
+                        String(localized: "Remote guardrails — Columbus Labs can now update safe setup links, announcements, and feature kill switches over the air while native app changes still go through TestFlight/App Store."),
                     ]),
             ]),
         ReleaseNotesVersion(
@@ -3014,11 +3104,13 @@ private struct ReleaseNotesBadge: View {
 #Preview("With Data") {
     ContentView(usageData: PreviewData.makeSyncedUsageData())
         .environment(ProEntitlementStore.preview(state: .locked))
+        .environment(RemoteConfigStore())
         .quotaKitThemed()
 }
 
 #Preview("Empty State") {
     ContentView(usageData: PreviewData.makeEmptyUsageData())
         .environment(ProEntitlementStore.preview(state: .locked))
+        .environment(RemoteConfigStore())
         .quotaKitThemed()
 }

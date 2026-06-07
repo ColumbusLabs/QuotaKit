@@ -5,7 +5,7 @@ Notable changes to the QuotaKit iOS companion app are documented here.
 Older build-by-build notes remain in Git history. This file now focuses on the
 current Columbus Labs product surface and recent release history.
 
-## [Unreleased] — Observatory UI remodel
+## [1.11.1 (160)] — 2026-06-07 — Observatory UI and remote guardrails
 
 ### Changed
 
@@ -15,13 +15,16 @@ current Columbus Labs product surface and recent release history.
 - Appearance picker (Dark / Light / System) with dark as the default for new installs.
 - Unified sync status chips across Usage and Cost tabs (single demo indicator, shared
   stale threshold).
+- Added public Columbus Labs remote config guardrails for safe setup-link overrides,
+  announcements, and feature kill switches. Native app changes still require a
+  TestFlight/App Store build.
 
 ## [1.11.1 (159)] — 2026-06-07 — QuotaKit logo refresh
 
 ### Changed
 
 - App icons, Mac release icons, static docs artwork, and the Columbus Labs
-  setup-page asset now use the new QuotaKit logo.
+  setup-page asset now use the black-and-gold QuotaKit logo.
 - Onboarding and legacy sync/update prompts now share or copy the Columbus Labs
   setup page (`columbus-labs.com/quotakit/mac`) instead of sending iPhone users
   directly to a GitHub Mac download.

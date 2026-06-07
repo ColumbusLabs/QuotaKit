@@ -129,6 +129,7 @@ struct CostSettingsView: View {
         CostChartStyle.line.rawValue
     @AppStorage(MobileSettingsKeys.openCostByDefault) private var openCostByDefault = false
     @Environment(ProEntitlementStore.self) private var proEntitlementStore
+    @Environment(RemoteConfigStore.self) private var remoteConfigStore
     @Environment(\.modelContext) private var modelContext
     @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = false
     @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = 30
@@ -138,7 +139,8 @@ struct CostSettingsView: View {
         ProFeatureAccess.isUnlocked(
             .usageHistory,
             isDemoMode: self.isDemoMode,
-            isProUnlocked: self.proEntitlementStore.isProUnlocked)
+            isProUnlocked: self.proEntitlementStore.isProUnlocked,
+            isRemotelyDisabled: self.remoteConfigStore.isDisabled(.usageHistory))
     }
 
     var body: some View {

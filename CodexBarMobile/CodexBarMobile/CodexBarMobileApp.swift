@@ -8,8 +8,10 @@ import UserNotifications
 @main
 struct CodexBarMobileApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @Environment(\.scenePhase) private var scenePhase
     @State private var usageData: SyncedUsageData
     @State private var proEntitlementStore = ProEntitlementStore()
+    @State private var remoteConfigStore = RemoteConfigStore()
 
     init() {
         let arguments = ProcessInfo.processInfo.arguments
@@ -44,9 +46,11 @@ struct CodexBarMobileApp: App {
         WindowGroup {
             ContentView(usageData: usageData)
                 .environment(self.proEntitlementStore)
+                .environment(self.remoteConfigStore)
                 .quotaKitThemed()
                 .onAppear {
                     guard !Self.isAutomatedTestLaunch else { return }
+                    self.remoteConfigStore.start()
                     self.proEntitlementStore.start()
                     usageData.startObserving()
                     if self.proEntitlementStore.isProUnlocked {
@@ -64,6 +68,10 @@ struct CodexBarMobileApp: App {
                         await ProNotificationCoordinator.shared.reconcile(
                             isProUnlocked: isUnlocked)
                     }
+                }
+                .onChange(of: self.scenePhase) { _, phase in
+                    guard phase == .active, !Self.isAutomatedTestLaunch else { return }
+                    Task { await self.remoteConfigStore.refresh() }
                 }
         }
         // P2a: attach SwiftData container. Views do not yet use @Query;

@@ -11,7 +11,7 @@ QuotaKit is privacy-first software with a local Mac collector and an iOS compani
 - iOS companion app: free install with optional Pro lifetime unlock.
 - Pro product ID: `com.columbuslabs.quotakit.pro.lifetime`.
 - No subscription logic in v1.
-- No hosted backend in v1.
+- No hosted backend for user data in v1. QuotaKit may read public Columbus Labs static config for non-secret OTA guardrails.
 - No analytics by default.
 - No credential sync ever.
 
@@ -23,6 +23,7 @@ QuotaKit is privacy-first software with a local Mac collector and an iOS compani
 | CloudKit private database | Sanitized usage snapshots, provider/account labels, quota/cost/history summaries, device metadata needed for sync, quota transition notification records | Provider credentials, access tokens, refresh tokens, API keys, cookies, browser sessions, raw provider responses |
 | iOS app | Sanitized CloudKit snapshots, local demo data, StoreKit entitlements, local SwiftData/cache derived from sanitized snapshots | Provider endpoints, provider credentials, Mac keychain/config files, browser storage |
 | iOS widgets/NSE | Sanitized iOS-side cache or CloudKit notification records | Provider credentials, Mac app group files, browser storage |
+| Columbus Labs remote config | Public setup URLs, feature kill-switch IDs, app announcements, build recommendations | User data, provider credentials, StoreKit entitlement grants, executable code |
 
 ## Credential Rules
 

@@ -32,3 +32,4 @@ This directory contains research documents for QuotaKit iOS features and sync wo
 | 029 | Widget Thermos Fixes (provisioning, Pro reload, localization, upgrade migrations, snapshot hardening) | `done` | Phase 0 provisioning | [029-widget-thermos-fixes.md](029-widget-thermos-fixes.md) | 2026-06-07 |
 | 030 | Mac Setup Handoff (Columbus Labs setup page + iPhone share/copy flow) | `done` | — | [030-mac-setup-handoff.md](030-mac-setup-handoff.md) | 2026-06-07 |
 | 031 | Mac Pace Parity (deficit/reserve pace labels + expected-usage stripe on iOS cards/widgets) | `done` | — | [031-mac-pace-parity.md](031-mac-pace-parity.md) | 2026-06-07 |
+| 032 | Remote Config OTA Guardrails (public Columbus Labs config for setup URL overrides, feature kill switches, and announcements) | `done` | — | [032-remote-config-ota-guardrails.md](032-remote-config-ota-guardrails.md) | 2026-06-07 |

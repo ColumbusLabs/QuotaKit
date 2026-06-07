@@ -28,6 +28,7 @@ struct ProviderUsageView: View {
     /// — a context menu "Unmerge accounts" item writes the inverse
     /// LinkageRecord. nil → no unmerge available.
     var activeLinkage: ProviderAccountLinkage?
+    var showsSyntheticDataIndicator = true
     var onConfirmMerge: ((MultiAccountLinkageCandidate) -> Void)?
     var onDismissMergeCandidate: ((MultiAccountLinkageCandidate) -> Void)?
     var onRevokeLinkage: ((ProviderAccountLinkage) -> Void)?
@@ -44,7 +45,7 @@ struct ProviderUsageView: View {
     var body: some View {
         QKSurfaceCard(
             elevation: .surface,
-            accentColor: self.isMockProvider ? .purple : self.providerColor,
+            accentColor: self.usesSyntheticDataTreatment ? .purple : self.providerColor,
             cornerRadius: 16)
         {
             VStack(alignment: .leading, spacing: 0) {
@@ -130,7 +131,7 @@ struct ProviderUsageView: View {
                         .accessibilityIdentifier("provider-account-count")
                 }
 
-                if self.isMockProvider {
+                if self.usesSyntheticDataTreatment {
                     MockBadgeView()
                 }
 
@@ -193,6 +194,10 @@ struct ProviderUsageView: View {
 
     private var providerColor: Color {
         ProviderColorPalette.color(for: self.provider.providerID)
+    }
+
+    private var usesSyntheticDataTreatment: Bool {
+        self.showsSyntheticDataIndicator && self.isMockProvider
     }
 
     /// Selects the subtitle string under the provider name. Prefers the

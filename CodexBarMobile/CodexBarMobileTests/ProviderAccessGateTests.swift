@@ -33,6 +33,24 @@ final class ProviderAccessGateTests: XCTestCase {
         XCTAssertFalse(result.isLimited)
     }
 
+    func testRemoteDisableLimitsUnlimitedProvidersEvenWhenUnlocked() {
+        let groups = [
+            Self.group(id: "codex"),
+            Self.group(id: "claude"),
+        ]
+
+        let result = ProviderAccessGate.resolve(
+            groups: groups,
+            isDemoMode: true,
+            isProUnlocked: true,
+            selectedProviderID: "claude",
+            isRemotelyDisabled: true)
+
+        XCTAssertEqual(result.visibleGroups.map(\.providerID), ["claude"])
+        XCTAssertEqual(result.lockedCount, 1)
+        XCTAssertTrue(result.isLimited)
+    }
+
     func testFreeRealDataWithSelectedProviderShowsOneAndLocksRest() {
         let groups = [
             Self.group(id: "codex"),

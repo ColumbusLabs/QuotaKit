@@ -27,6 +27,7 @@ This inventory classifies data that QuotaKit may read, store, sync, or display. 
 | CloudKit container | `iCloud.com.columbuslabs.quotakit` | Public identifier, private user database contents |
 | KVS suffix | `com.columbuslabs.quotakit.shared` | Public identifier, private KVS contents |
 | StoreKit product | `com.columbuslabs.quotakit.pro.lifetime` | Public identifier |
+| Remote config URL | `https://columbus-labs.com/quotakit/config/ios.json` | Public |
 
 ## Mac Local Inputs
 
@@ -61,6 +62,7 @@ Forbidden in all CloudKit/KVS fields: provider credentials, access tokens, refre
 | StoreKit entitlement cache | Local private | Caches Pro display state only; not credential-bearing. |
 | Share cards | Derived display | Must omit credentials and avoid provider affiliation claims. |
 | Widgets/notifications | Derived display | Must read sanitized iOS-side data only. |
+| Remote config cache | Public / derived display | Public Columbus Labs JSON cached locally for setup URL overrides, known feature kill switches, announcements, and build recommendations. Must not contain user data or credentials. |
 
 ## Release And Signing Data
 

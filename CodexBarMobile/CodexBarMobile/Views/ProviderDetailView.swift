@@ -11,6 +11,7 @@ struct ProviderDetailView: View {
     let group: ProviderAccountGroup
     let isDemoMode: Bool
     @Environment(ProEntitlementStore.self) private var proEntitlementStore
+    @Environment(RemoteConfigStore.self) private var remoteConfigStore
 
     @State private var selectedAccountIndex: Int = 0
 
@@ -62,14 +63,16 @@ struct ProviderDetailView: View {
         ProFeatureAccess.isUnlocked(
             .usageHistory,
             isDemoMode: self.isDemoMode,
-            isProUnlocked: self.proEntitlementStore.isProUnlocked)
+            isProUnlocked: self.proEntitlementStore.isProUnlocked,
+            isRemotelyDisabled: self.remoteConfigStore.isDisabled(.usageHistory))
     }
 
     private var isCostDetailUnlocked: Bool {
         ProFeatureAccess.isUnlocked(
             .fullCostDashboard,
             isDemoMode: self.isDemoMode,
-            isProUnlocked: self.proEntitlementStore.isProUnlocked)
+            isProUnlocked: self.proEntitlementStore.isProUnlocked,
+            isRemotelyDisabled: self.remoteConfigStore.isDisabled(.fullCostDashboard))
     }
 
     private var hasLockedDetailContent: Bool {
@@ -633,6 +636,7 @@ struct ProviderDetailView: View {
         ProviderDetailView(provider: PreviewData.claudeProvider)
     }
     .environment(ProEntitlementStore.preview(state: .unlocked(source: .storeKit)))
+    .environment(RemoteConfigStore())
 }
 
 #Preview("No Cost Data") {
@@ -640,4 +644,5 @@ struct ProviderDetailView: View {
         ProviderDetailView(provider: PreviewData.cursorProvider)
     }
     .environment(ProEntitlementStore.preview(state: .unlocked(source: .storeKit)))
+    .environment(RemoteConfigStore())
 }
