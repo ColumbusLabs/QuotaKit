@@ -1,7 +1,7 @@
 import Foundation
 
 /// Append-only ring buffer of NSE invocation entries persisted to the
-/// `group.com.o1xhack.codexbar` App Group's shared `UserDefaults`. The NSE
+/// `group.com.columbuslabs.quotakit.mac` App Group's shared `UserDefaults`. The NSE
 /// (`CodexBarMobilePushExtension`) writes one entry per push it receives,
 /// the host app's Push Setup diagnostic view reads them — no IPC needed
 /// because the App Group container is the shared sandbox.

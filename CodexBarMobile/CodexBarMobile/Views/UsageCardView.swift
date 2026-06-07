@@ -43,30 +43,12 @@ struct UsageCardView: View {
                         identifier: self.percentageAccessibilityIdentifier))
             }
 
-            // Progress bar with threshold marker overlay
-            // `scaleEffect(y: 2)` makes SwiftUI's 1pt-tall native ProgressView
-            // render as ~2pt — large enough to be visible and satisfy a
-            // minimum-touch-target hint on iOS but still compact enough to
-            // fit inside the card's 12pt vertical spacing. Removing this
-            // makes the bar near-invisible on Retina displays.
-            ProgressView(value: self.displayMode.progressFraction(for: self.window))
-                .tint(self.usageColor)
-                .scaleEffect(y: 2, anchor: .center)
-                .overlay(alignment: .leading) {
-                    if self.quotaWarningsEnabled, !self.hideQuotaWarningMarkers, !self.markerUsedPercents.isEmpty {
-                        GeometryReader { geo in
-                            ForEach(self.markerUsedPercents, id: \.self) { usedPercent in
-                                Rectangle()
-                                    .fill(Color.secondary)
-                                    .frame(width: 1.5, height: 8)
-                                    .offset(
-                                        x: geo.size.width * CGFloat(usedPercent) / 100.0 - 0.75,
-                                        y: -3)
-                                    .accessibilityHidden(true)
-                            }
-                        }
-                    }
-                }
+            UsageProgressBarView(
+                progressFraction: self.displayMode.progressFraction(for: self.window),
+                tintColor: self.usageColor,
+                markerPercents: self.markerDisplayPercents,
+                pacePercent: self.paceDisplayPercent,
+                paceColor: self.paceStripeColor)
 
             // Reset info
             if let resetsAt = self.window.resetsAt {
@@ -85,6 +67,29 @@ struct UsageCardView: View {
                         .font(.caption)
                 }
                 .foregroundStyle(.secondary)
+            }
+
+            if let pace = self.window.pace {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        self.paceLeftLabel(pace.leftLabel)
+                        Spacer(minLength: 8)
+                        if let rightLabel = pace.rightLabel, !rightLabel.isEmpty {
+                            self.paceRightLabel(rightLabel)
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        self.paceLeftLabel(pace.leftLabel)
+                        if let rightLabel = pace.rightLabel, !rightLabel.isEmpty {
+                            self.paceRightLabel(rightLabel)
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("usage.pace")
             }
         }
         .padding(.horizontal, 4)
@@ -119,6 +124,22 @@ struct UsageCardView: View {
         self.showRemainingUsage ? .remaining : .used
     }
 
+    private func paceLeftLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.caption)
+            .fontWeight(.semibold)
+            .foregroundStyle(self.paceTextColor)
+            .lineLimit(1)
+    }
+
+    private func paceRightLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.caption)
+            .fontWeight(.medium)
+            .foregroundStyle(Color.primary.opacity(0.72))
+            .lineLimit(1)
+    }
+
     /// Marker x-positions on the bar, in **used percent** units (0…100).
     /// Mac's `QuotaWarningConfig` stores **remaining percent** (e.g.
     /// `[50, 20]` = "warn at 50% remaining" + "warn at 20% remaining"),
@@ -137,6 +158,51 @@ struct UsageCardView: View {
             .map { 100 - max(0, min(100, $0)) }
             .filter { $0 > 0 && $0 < 100 }
         return Array(Set(mapped)).sorted()
+    }
+
+    private var markerDisplayPercents: [Double] {
+        guard self.quotaWarningsEnabled, !self.hideQuotaWarningMarkers else { return [] }
+        return self.markerUsedPercents.map { usedPercent in
+            switch self.displayMode {
+            case .used:
+                Double(usedPercent)
+            case .remaining:
+                Double(100 - usedPercent)
+            }
+        }
+    }
+
+    var paceDisplayPercent: Double? {
+        guard let pace = self.window.pace else { return nil }
+        return Self.paceDisplayPercent(for: pace, displayMode: self.displayMode)
+    }
+
+    static func paceDisplayPercent(
+        for pace: SyncUsagePace,
+        displayMode: UsagePercentDisplayMode) -> Double?
+    {
+        guard pace.stage != .onTrack else { return nil }
+        let expected = pace.expectedUsedPercent.clamped(to: 0...100)
+        switch displayMode {
+        case .used:
+            return expected
+        case .remaining:
+            return 100 - expected
+        }
+    }
+
+    private var paceStripeColor: Color {
+        guard let pace = self.window.pace else { return .clear }
+        if pace.deltaPercent > 0 { return .red }
+        if pace.deltaPercent < 0 { return .green }
+        return self.tintColor
+    }
+
+    private var paceTextColor: Color {
+        guard let pace = self.window.pace else { return .secondary }
+        if pace.deltaPercent > 0 { return .red }
+        if pace.deltaPercent < 0 { return .green }
+        return self.tintColor
     }
 
     /// True once the user crosses the most critical warning threshold —
@@ -164,6 +230,55 @@ struct UsageCardView: View {
         } else {
             return self.tintColor
         }
+    }
+}
+
+private struct UsageProgressBarView: View {
+    let progressFraction: Double
+    let tintColor: Color
+    let markerPercents: [Double]
+    let pacePercent: Double?
+    let paceColor: Color
+
+    var body: some View {
+        GeometryReader { geo in
+            let height = geo.size.height
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.secondary.opacity(0.18))
+                Capsule()
+                    .fill(self.tintColor)
+                    .frame(width: geo.size.width * self.progressFraction.clamped(to: 0...1))
+
+                ForEach(self.markerPercents, id: \.self) { percent in
+                    Rectangle()
+                        .fill(Color.secondary)
+                        .frame(width: 1.5, height: height + 4)
+                        .offset(x: geo.size.width * percent.clamped(to: 0...100) / 100.0 - 0.75)
+                        .accessibilityHidden(true)
+                }
+
+                if let pacePercent {
+                    HStack(spacing: 1) {
+                        ForEach(0..<3, id: \.self) { _ in
+                            Rectangle()
+                                .fill(self.paceColor)
+                                .frame(width: 1.5, height: height + 5)
+                        }
+                    }
+                    .offset(x: geo.size.width * pacePercent.clamped(to: 0...100) / 100.0 - 2.75)
+                    .accessibilityHidden(true)
+                }
+            }
+        }
+        .frame(height: 5)
+        .accessibilityHidden(true)
+    }
+}
+
+private extension Double {
+    func clamped(to range: ClosedRange<Double>) -> Double {
+        min(max(self, range.lowerBound), range.upperBound)
     }
 }
 

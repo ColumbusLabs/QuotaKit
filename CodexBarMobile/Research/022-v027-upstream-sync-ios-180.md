@@ -159,7 +159,7 @@ Resolution strategy per file recorded inline in Phase A below.
 - TestFlight upload
 - Re-bundle Mac release with MOBILE_VERSION=1.8.0 → sparkle:version `65.1.1.8.0`
 - Publish appcast on `mobile-dev`
-- Publish GitHub release on `o1xhack/CodexBar-Mobile`
+- Publish GitHub release on `ColumbusLabs/QuotaKit`
 
 ---
 

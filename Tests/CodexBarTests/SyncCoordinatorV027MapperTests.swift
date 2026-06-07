@@ -290,6 +290,45 @@ struct SyncCoordinatorV027MapperTests {
         }
     }
 
+    @Test("Sync pace mapper preserves Mac session deficit text and numeric fields")
+    func syncPacePreservesSessionDeficit() throws {
+        let now = Date(timeIntervalSince1970: 0)
+        let window = RateWindow(
+            usedPercent: 80,
+            windowMinutes: 300,
+            resetsAt: now.addingTimeInterval(2 * 3600),
+            resetDescription: nil)
+        let pace = try #require(UsagePaceText.sessionPace(provider: .claude, window: window, now: now))
+        let detail = try #require(UsagePaceText.sessionDetail(provider: .claude, window: window, now: now))
+
+        let syncPace = SyncCoordinator.syncUsagePace(from: pace, detail: detail)
+
+        #expect(syncPace.stage == .farAhead)
+        #expect(syncPace.deltaPercent == 20)
+        #expect(syncPace.expectedUsedPercent == 60)
+        #expect(syncPace.actualUsedPercent == 80)
+        #expect(syncPace.leftLabel == "20% in deficit")
+        #expect(syncPace.rightLabel == "Projected empty in 45m")
+    }
+
+    @Test("Sync pace mapper preserves Mac weekly reserve text")
+    func syncPacePreservesWeeklyReserve() throws {
+        let now = Date(timeIntervalSince1970: 0)
+        let window = RateWindow(
+            usedPercent: 10,
+            windowMinutes: 10080,
+            resetsAt: now.addingTimeInterval(4 * 24 * 3600),
+            resetDescription: nil)
+        let pace = try #require(UsagePace.weekly(window: window, now: now))
+        let detail = UsagePaceText.weeklyDetail(pace: pace, now: now)
+
+        let syncPace = SyncCoordinator.syncUsagePace(from: pace, detail: detail)
+
+        #expect(syncPace.stage == .farBehind)
+        #expect(syncPace.leftLabel == "33% in reserve")
+        #expect(syncPace.rightLabel == "Lasts until reset")
+    }
+
     // MARK: - Fixture builders
 
     private static func adminBucket(

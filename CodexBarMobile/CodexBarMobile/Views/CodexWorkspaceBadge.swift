@@ -10,6 +10,7 @@ import SwiftUI
 struct CodexWorkspaceBadge: View {
     let context: SyncCodexWorkspaceContext
     let tintColor: Color
+    var showsPace: Bool = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -24,7 +25,7 @@ struct CodexWorkspaceBadge: View {
                     Spacer()
                 }
             }
-            if let label = context.weeklyPaceLabel, !label.isEmpty {
+            if self.showsPace, let label = context.weeklyPaceLabel, !label.isEmpty {
                 HStack(spacing: 6) {
                     Image(systemName: self.paceIconName)
                         .font(.caption)

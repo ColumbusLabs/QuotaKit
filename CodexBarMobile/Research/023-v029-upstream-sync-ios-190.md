@@ -4,7 +4,7 @@
 **Date:** 2026-05-25
 **Target release tag:** `v0.29.0-mobile.1.9.0`
 **Branch:** `upstream-sync/v0.29.0-mobile.1.9.0`
-**Tracking issue:** [#10](https://github.com/o1xhack/CodexBar-Mobile/issues/10)
+**Tracking issue:** [#10](https://github.com/ColumbusLabs/QuotaKit/issues/10)
 
 ---
 
@@ -110,7 +110,7 @@ therefore registration + cosmetics + mock, not new view templates.
 - version.env already bumped. Run `docs/cloudkit-deploy-audit.md` audit (new
   fields? likely none → no Production deploy, but verify).
 - `Scripts/sign-and-notarize.sh` → `make_appcast.sh` (sparkle `68.1.1.9.0`).
-- `gh release create --draft v0.29.0-mobile.1.9.0` on o1xhack/CodexBar-Mobile.
+- `gh release create --draft v0.29.0-mobile.1.9.0` on ColumbusLabs/QuotaKit.
 - **Needs user Mac + Developer ID + Sparkle key + App Store Connect key.**
 
 ### Phase E — Mac end-to-end test + regression

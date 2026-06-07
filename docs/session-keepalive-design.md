@@ -25,7 +25,7 @@
 ## Proposed Solution: Unified Session Keepalive System
 
 ### Alternative Names (Better than "Warmup")
-1. **Session Keepalive** ✅ (current Augment terminology)
+1. **Session Keepalive** (current Augment terminology)
 2. **Session Refresh** (more accurate - we're refreshing, not warming)
 3. **Auto-Refresh** (simple, user-friendly)
 4. **Session Maintenance** (professional, clear intent)
@@ -228,4 +228,3 @@ Settings → Providers → Augment
    - Pro: Transparency, user knows it's working
    - Con: Clutters UI
    - **Recommendation:** Show in Settings only, not menu bar
-

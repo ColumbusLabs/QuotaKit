@@ -24,6 +24,45 @@ struct MobileDisplayFormattingTests {
         #expect(UsagePercentDisplayMode.remaining.percentageText(for: window) == "22% \(String(localized: "left"))")
     }
 
+    @Test("Pace marker uses expected used percent in used mode")
+    func paceMarkerUsedMode() {
+        let pace = SyncUsagePace(
+            stage: .ahead,
+            deltaPercent: 8,
+            expectedUsedPercent: 42,
+            actualUsedPercent: 50,
+            leftLabel: "8% in deficit",
+            rightLabel: nil)
+
+        #expect(UsageCardView.paceDisplayPercent(for: pace, displayMode: .used) == 42)
+    }
+
+    @Test("Pace marker uses inverse expected percent in remaining mode")
+    func paceMarkerRemainingMode() {
+        let pace = SyncUsagePace(
+            stage: .behind,
+            deltaPercent: -8,
+            expectedUsedPercent: 42,
+            actualUsedPercent: 34,
+            leftLabel: "8% in reserve",
+            rightLabel: nil)
+
+        #expect(UsageCardView.paceDisplayPercent(for: pace, displayMode: .remaining) == 58)
+    }
+
+    @Test("On-track pace has no marker")
+    func onTrackPaceMarkerHidden() {
+        let pace = SyncUsagePace(
+            stage: .onTrack,
+            deltaPercent: 0,
+            expectedUsedPercent: 42,
+            actualUsedPercent: 42,
+            leftLabel: "On pace",
+            rightLabel: nil)
+
+        #expect(UsageCardView.paceDisplayPercent(for: pace, displayMode: .used) == nil)
+    }
+
     @Test("Axis formatter uses clean integer ticks for large values")
     func axisFormatterLargeValues() {
         #expect(MobileChartAxisFormatter.axisValues(for: [12.4, 64.3, 152.71]) == [0, 50, 100, 150, 200])

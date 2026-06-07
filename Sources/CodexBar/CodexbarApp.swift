@@ -22,7 +22,7 @@ struct CodexBarApp: App {
         let storedLevel = CodexBarLog.parseLevel(UserDefaults.standard.string(forKey: "debugLogLevel")) ?? .verbose
         let level = CodexBarLog.parseLevel(env["CODEXBAR_LOG_LEVEL"]) ?? storedLevel
         CodexBarLog.bootstrapIfNeeded(.init(
-            destination: .oslog(subsystem: "com.o1xhack.codexbar"),
+            destination: .oslog(subsystem: "com.columbuslabs.quotakit"),
             level: level,
             json: false))
 

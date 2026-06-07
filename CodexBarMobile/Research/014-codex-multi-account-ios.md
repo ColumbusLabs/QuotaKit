@@ -1,4 +1,3 @@
-# iOS 1.3.0 · T5 · Codex 多账号卡片 UI 精修 — 调研
 
 **Status:** ready
 **Date:** 2026-04-21
@@ -339,6 +338,5 @@ Extract a pure func `ProviderUsageView.Subtitle.select(provider:, siblingCountWi
 2. **`ForEach` identity stability.** When a user switches active Codex account on Mac, a card's `cardIdentityKey` changes (different email), which SwiftUI sees as card removed + card inserted. That's visually correct (animated card swap), but any per-card `@State` in `ProviderUsageView` would reset. Today the view has no meaningful state, so safe.
 3. **accessibilityIdentifier uniqueness.** Currently `"provider-card-codex"` is used by a UI test (search for this string in `CodexBarMobileUITests`). Changing to `"provider-card-codex|a@b.com"` could break it — need to grep UI tests before the rename. **TODO for Developer:** verify `grep -r "provider-card-" CodexBarMobile/` and update any assertions.
 4. **Privacy redactor on the ordinal fallback.** `"Codex 2"` contains no PII, so `hidePersonalInfo` has no effect. Don't accidentally route it through `redactEmail`. The design above already keeps them separate.
-5. **Localization of "Codex 2".** Some languages expect a different order (e.g., Japanese might want "2番目のCodex"). Using `"%@ %lld"` format leaves this translatable, but QA should review zh-Hans/zh-Hant/ja once.
 6. **Mac 0.20.2 ghost-provider filter.** `SyncCoordinator.isGhostProvider` (line 264) skips providers with no signal + no email. Two-card scenarios assume both cards carry at least one of: rate window, cost, error, or email. Multi-account where one account is entirely dormant → that one is filtered on the Mac side and never reaches iOS. Fine; document this as expected.
 7. **View-helper test placement.** Pure subtitle selector lives on `ProviderUsageView`. Extracting a nested `enum Subtitle { static func select(...) }` keeps it testable without SwiftUI hosting — recommended over ViewInspector to avoid a test-only dependency.

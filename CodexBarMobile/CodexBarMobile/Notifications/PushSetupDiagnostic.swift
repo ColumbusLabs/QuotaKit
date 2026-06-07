@@ -60,6 +60,12 @@ final class PushSetupDiagnostic {
     /// `alertBody` per group, so the output stays concise while still letting
     /// a reader spot whether a specific group is missing / has drifted text.
     func refreshSubscriptionList() async {
+        guard !CloudKitRuntimeGate.isDisabledForLocalLaunch else {
+            self.subscriptionList = "CloudKit disabled for local simulator launch"
+            self.lastUpdated = Date()
+            return
+        }
+
         let container = CKContainer(identifier: CloudSyncConstants.containerIdentifier)
         // Must match QuotaTransitionSubscriptions which uses privateCloudDatabase
         let db = container.privateCloudDatabase

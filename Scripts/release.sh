@@ -19,17 +19,21 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 
 source "$ROOT/version.env"
+if [[ -f "$ROOT/.mac-release.env" ]]; then
+  source "$ROOT/.mac-release.env"
+fi
 source "$ROOT/Scripts/load-release-secrets.sh"
 source "$ROOT/Scripts/sparkle_helpers.sh"
 
 APPCAST="$ROOT/appcast.xml"
-APP_NAME="CodexBar"
-RELEASE_ASSET_BASENAME="${APP_NAME}-${MARKETING_VERSION}-mobile.${MOBILE_VERSION}"
-ARTIFACT_PREFIX="CodexBar-"
-BUNDLE_ID="com.o1xhack.codexbar"
-RELEASE_BRANCH="${CODEXBAR_RELEASE_BRANCH:-mobile-dev}"
-FEED_URL="https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/${RELEASE_BRANCH}/appcast.xml"
-TAG="v${MARKETING_VERSION}-mobile.${MOBILE_VERSION}"
+APP_NAME="${MAC_RELEASE_APP_NAME:-QuotaKit}"
+RELEASE_REPO="${MAC_RELEASE_REPO:-ColumbusLabs/QuotaKit}"
+RELEASE_ASSET_BASENAME="${APP_NAME}-macos-universal-${MARKETING_VERSION}"
+ARTIFACT_PREFIX="${APP_NAME}-macos-"
+BUNDLE_ID="${MAC_RELEASE_BUNDLE_ID:-com.columbuslabs.quotakit.mac}"
+RELEASE_BRANCH="${QUOTAKIT_RELEASE_BRANCH:-main}"
+FEED_URL="https://raw.githubusercontent.com/${RELEASE_REPO}/${RELEASE_BRANCH}/appcast.xml"
+TAG="v${MARKETING_VERSION}"
 RELEASE_TITLE="${APP_NAME} ${MARKETING_VERSION} Mobile ${MOBILE_VERSION}"
 
 phase1() {
@@ -61,7 +65,7 @@ phase1() {
 
   local KEY_FILE NOTES_FILE
   KEY_FILE=$(clean_key "$SPARKLE_PRIVATE_KEY_FILE")
-  NOTES_FILE=$(mktemp /tmp/codexbar-notes.XXXXXX)
+  NOTES_FILE=$(mktemp /tmp/quotakit-notes.XXXXXX)
   # Eager-expand paths into the trap so the cleanup still works after
   # phase1's local scope is gone (set -u would otherwise fail on unbound
   # $KEY_FILE / $NOTES_FILE when the EXIT trap fires post-return).
@@ -76,30 +80,24 @@ phase1() {
   # gh allows multiple drafts for the same logical tag (the tag doesn't
   # actually materialize on GitHub until the draft is published), so a
   # previous failed phase 1 can leave an orphan draft that sits next to
-  # any fresh one we create. Sweep those out before creating the new draft
-  # so the user doesn't see two "CodexBar 0.20.x" entries in the UI.
-  orphan_ids=$(gh api "repos/o1xhack/CodexBar-Mobile/releases" \
+  # any fresh one we create. Sweep those out before creating the new draft.
+  orphan_ids=$(gh api "repos/${RELEASE_REPO}/releases" \
     --jq ".[] | select(.tag_name == \"$TAG\" and .draft == true) | .id" 2>/dev/null || true)
   for id in $orphan_ids; do
     echo "Cleaning up orphan draft id=$id for $TAG (from a previous phase 1 run)."
-    gh api -X DELETE "repos/o1xhack/CodexBar-Mobile/releases/$id" >/dev/null
+    gh api -X DELETE "repos/${RELEASE_REPO}/releases/$id" >/dev/null
   done
 
-  # Pin --repo to our fork explicitly. Without it, gh inspects local
-  # remotes and may pick the upstream remote (steipete/CodexBar) since
-  # both `origin` (o1xhack/CodexBar-Mobile) and `upstream` exist —
-  # which fails with "tag exists locally but has not been pushed to
-  # steipete/CodexBar". Fork tags only live on origin; hard-code the
-  # repo to match the orphan-cleanup gh api call above.
+  # Pin --repo explicitly so gh never picks the inherited upstream remote.
   gh release create "$TAG" \
     "${RELEASE_ASSET_BASENAME}.zip" "${RELEASE_ASSET_BASENAME}.dSYM.zip" \
-    --repo o1xhack/CodexBar-Mobile \
+    --repo "$RELEASE_REPO" \
     --draft \
     --title "${RELEASE_TITLE}" \
     --notes-file "$NOTES_FILE"
 
   local draft_url
-  draft_url=$(gh release view "$TAG" --repo o1xhack/CodexBar-Mobile --json url -q .url)
+  draft_url=$(gh release view "$TAG" --repo "$RELEASE_REPO" --json url -q .url)
 
   cat <<EOF
 
@@ -131,12 +129,12 @@ phase2() {
   fi
 
   local is_draft
-  if ! is_draft=$(gh release view "$TAG" --repo o1xhack/CodexBar-Mobile --json isDraft -q .isDraft 2>&1); then
+  if ! is_draft=$(gh release view "$TAG" --repo "$RELEASE_REPO" --json isDraft -q .isDraft 2>&1); then
     err "No release found for tag $TAG. Run phase 1 first (./Scripts/release.sh)."
   fi
   if [[ "$is_draft" == "true" ]]; then
     echo "Publishing draft release $TAG..."
-    gh release edit "$TAG" --repo o1xhack/CodexBar-Mobile --draft=false
+    gh release edit "$TAG" --repo "$RELEASE_REPO" --draft=false
   else
     echo "Release $TAG is already published; proceeding to appcast generation."
   fi
@@ -149,7 +147,7 @@ phase2() {
 
   SPARKLE_PRIVATE_KEY_FILE="$KEY_FILE" \
     SPARKLE_RELEASE_VERSION="$MARKETING_VERSION" \
-    SPARKLE_DOWNLOAD_URL_PREFIX="https://github.com/o1xhack/CodexBar-Mobile/releases/download/${TAG}/" \
+    SPARKLE_DOWNLOAD_URL_PREFIX="https://github.com/${RELEASE_REPO}/releases/download/${TAG}/" \
     "$ROOT/Scripts/make_appcast.sh" \
     "${RELEASE_ASSET_BASENAME}.zip" \
     "$FEED_URL"
@@ -167,7 +165,7 @@ phase2() {
     "$ROOT/Scripts/test_live_update.sh" "$PREV_TAG" "$TAG"
   fi
 
-  check_assets "$TAG" "$ARTIFACT_PREFIX"
+  QUOTAKIT_RELEASE_REPO="$RELEASE_REPO" check_assets "$TAG" "$ARTIFACT_PREFIX"
   # Note: the release tag was already pushed in phase 1
   # (git push -f origin "$TAG"). Running `git push origin --tags` here
   # tries to push ALL local tags — including the upstream tag namespace
@@ -179,7 +177,7 @@ phase2() {
 ============================================================
 Phase 2 complete — Release ${MARKETING_VERSION} is LIVE.
 
-  Release:    https://github.com/o1xhack/CodexBar-Mobile/releases/tag/$TAG
+  Release:    https://github.com/${RELEASE_REPO}/releases/tag/$TAG
   Appcast:    $FEED_URL
   CFBundle:   ${BUILD_NUMBER}.${MOBILE_VERSION}
 

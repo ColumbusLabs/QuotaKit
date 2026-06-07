@@ -123,7 +123,7 @@ resolve_signing_mode() {
     return
   fi
 
-  # Our fork is signed under o1xhack's Developer ID; upstream's identity is
+  # QuotaKit is signed under the Columbus Labs release identity; upstream's identity is
   # listed as a last-resort fallback in case a developer has only the
   # upstream cert installed.
   local candidate=""
@@ -280,10 +280,10 @@ kill_claude_probes
 # (adhoc signature changes on every build, making old keychain entries inaccessible)
 if [[ "${SIGNING_MODE:-adhoc}" == "adhoc" && "${CLEAR_ADHOC_KEYCHAIN}" == "1" ]]; then
   log "==> Clearing CodexBar keychain entries (adhoc signing)"
-  # Clear our fork-owned bundle ID keychain entries (note we use com.o1xhack
+  # Clear QuotaKit-owned bundle ID keychain entries.
   # not com.steipete) when developers explicitly want a clean reset.
-  delete_keychain_service_items "com.o1xhack.CodexBar"
-  delete_keychain_service_items "com.o1xhack.codexbar.cache"
+  delete_keychain_service_items "com.columbuslabs.quotakit.mac"
+  delete_keychain_service_items "com.columbuslabs.quotakit.mac.cache"
 elif [[ "${SIGNING_MODE:-adhoc}" == "adhoc" ]]; then
   log "==> Preserving CodexBar keychain entries (pass --clear-adhoc-keychain to reset adhoc keychain state)"
 fi

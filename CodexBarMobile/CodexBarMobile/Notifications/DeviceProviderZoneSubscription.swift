@@ -28,6 +28,11 @@ final class DeviceProviderZoneSubscription {
     /// `DeviceProvidersZone`. Safe to call on every launch and every
     /// `CKAccountChangedNotification`.
     func setupIfNeeded() async {
+        guard !CloudKitRuntimeGate.isDisabledForLocalLaunch else {
+            print("[QuotaKit Push] device-provider subscription skipped: CloudKit disabled")
+            return
+        }
+
         let database = CKContainer(identifier: containerIdentifier).privateCloudDatabase
 
         // Ensure the zone exists. If no Mac has written here yet the zone

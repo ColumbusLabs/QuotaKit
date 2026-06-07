@@ -72,8 +72,8 @@ Cached cookies:
 
 ### Auggie CLI Integration
 
-If the `auggie` CLI is installed, CodexBar will prefer `auggie account status` for usage data and avoid browser prompts.
-When the CLI is unavailable or not authenticated, CodexBar falls back to browser cookies.
+If the `auggie` CLI is installed, QuotaKit will prefer `auggie account status` for usage data and avoid browser prompts.
+When the CLI is unavailable or not authenticated, QuotaKit falls back to browser cookies.
 
 ### Automatic Session Keepalive
 
@@ -101,7 +101,7 @@ The provider fetches data from:
 **Solution**:
 1. Open [app.augmentcode.com](https://app.augmentcode.com) in Chrome, Chrome Beta, or Arc
 2. Sign in to your Augment account
-3. Return to CodexBar and click "Refresh" in the menu
+3. Return to QuotaKit and click "Refresh" in the menu
 
 ### "Session has expired"
 
@@ -110,7 +110,7 @@ The provider fetches data from:
 **Solution**:
 1. Visit [app.augmentcode.com](https://app.augmentcode.com)
 2. Log out and log back in
-3. Return to CodexBar - it will automatically import fresh cookies
+3. Return to QuotaKit - it will automatically import fresh cookies
 4. If needed, use the menu action **Refresh Session** to force a re-import
 
 ### Cookies not importing from Chrome Beta
@@ -130,7 +130,7 @@ If automatic import fails, you can manually paste cookies:
 2. Go to **Application → Cookies → https://app.augmentcode.com**
 3. Copy all cookie values
 4. Format as: `cookie1=value1; cookie2=value2; ...`
-5. In CodexBar: **Settings → Providers → Augment → Cookie Source → Manual**
+5. In QuotaKit: **Settings → Providers → Augment → Cookie Source → Manual**
 6. Paste the cookie header
 
 ## Debug Mode
@@ -161,10 +161,10 @@ This displays:
 
 The provider implements RFC 6265 cookie semantics:
 
-- ✅ Exact match: `app.augmentcode.com` → `app.augmentcode.com`
-- ✅ Parent domain: `augmentcode.com` → `app.augmentcode.com`
-- ✅ Wildcard: `.augmentcode.com` → `app.augmentcode.com`
-- ❌ Different subdomain: `auth.augmentcode.com` ❌→ `app.augmentcode.com`
+- Exact match: `app.augmentcode.com` -> `app.augmentcode.com`
+- Parent domain: `augmentcode.com` -> `app.augmentcode.com`
+- Wildcard: `.augmentcode.com` -> `app.augmentcode.com`
+- Different subdomain: `auth.augmentcode.com` is rejected for `app.augmentcode.com`
 
 This prevents cookies from other subdomains being sent to the API.
 

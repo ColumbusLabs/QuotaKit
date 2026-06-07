@@ -8,7 +8,6 @@ read_when:
 
 # StepFun provider
 
-StepFun (阶跃星辰) is a web-based provider. Usage data comes from the Step Plan rate limit API,
 authenticated via an Oasis-Token obtained through a username + password login flow.
 
 ## Data sources

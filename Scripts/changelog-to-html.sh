@@ -60,9 +60,9 @@ markdown_to_html() {
 
 version_content=$(extract_version_section "$VERSION" "$CHANGELOG_FILE")
 if [[ -z "$version_content" ]]; then
-  echo "<h2>CodexBar $VERSION</h2>"
-  echo "<p>Latest CodexBar update.</p>"
-  echo "<p><a href=\"https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md\">View full changelog</a></p>"
+  echo "<h2>QuotaKit $VERSION</h2>"
+  echo "<p>Latest QuotaKit update.</p>"
+  echo "<p><a href=\"https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md\">View full changelog</a></p>"
   exit 0
 fi
 
@@ -72,9 +72,9 @@ if [[ -f "$SCRIPT_DIR/../version.env" ]]; then
   source "$SCRIPT_DIR/../version.env"
 fi
 if [[ -n "$MOBILE_VERSION" ]]; then
-  echo "<h2>CodexBar ${VERSION}-Mobile ${MOBILE_VERSION}</h2>"
+  echo "<h2>QuotaKit ${VERSION} Mobile ${MOBILE_VERSION}</h2>"
 else
-  echo "<h2>CodexBar $VERSION</h2>"
+  echo "<h2>QuotaKit $VERSION</h2>"
 fi
 
 in_list=false
@@ -113,4 +113,4 @@ if [[ "$in_list" == true ]]; then
   echo "</ul>"
 fi
 
-echo "<p><a href=\"https://github.com/o1xhack/CodexBar-Mobile/blob/main/CHANGELOG.md\">View full changelog</a></p>"
+echo "<p><a href=\"https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md\">View full changelog</a></p>"

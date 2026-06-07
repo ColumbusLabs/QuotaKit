@@ -5,9 +5,9 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 source "$ROOT/Scripts/load-release-secrets.sh"
 source "$ROOT/Scripts/sparkle_helpers.sh"
 ZIP=${1:?
-"Usage: $0 CodexBar-<ver>.zip"}
-RELEASE_BRANCH=${CODEXBAR_RELEASE_BRANCH:-mobile-dev}
-FEED_URL=${2:-"https://raw.githubusercontent.com/o1xhack/CodexBar-Mobile/${RELEASE_BRANCH}/appcast.xml"}
+"Usage: $0 QuotaKit-macos-<arch>-<ver>.zip"}
+RELEASE_BRANCH=${QUOTAKIT_RELEASE_BRANCH:-main}
+FEED_URL=${2:-"https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/${RELEASE_BRANCH}/appcast.xml"}
 PRIVATE_KEY_FILE=${SPARKLE_PRIVATE_KEY_FILE:-}
 SPARKLE_CHANNEL=${SPARKLE_CHANNEL:-}
 if [[ -z "$PRIVATE_KEY_FILE" ]]; then
@@ -25,7 +25,7 @@ ZIP_BASE="${ZIP_NAME%.zip}"
 VERSION=${SPARKLE_RELEASE_VERSION:-}
 if [[ -z "$VERSION" ]]; then
   if [[ "$ZIP_NAME" == *"-mobile."* && -f "$ROOT/version.env" ]]; then
-    # Fork release assets append the mobile companion version to the file name.
+    # Historical fork release assets appended the mobile companion version to the file name.
     VERSION=$(source "$ROOT/version.env" && printf "%s" "$MARKETING_VERSION")
   elif [[ "$ZIP_NAME" =~ ^CodexBar-([0-9]+(\.[0-9]+){1,2}([-.][^.]*)?)\.zip$ ]]; then
     VERSION="${BASH_REMATCH[1]}"
@@ -56,7 +56,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-DOWNLOAD_URL_PREFIX=${SPARKLE_DOWNLOAD_URL_PREFIX:-"https://github.com/o1xhack/CodexBar-Mobile/releases/download/v${VERSION}/"}
+DOWNLOAD_URL_PREFIX=${SPARKLE_DOWNLOAD_URL_PREFIX:-"https://github.com/ColumbusLabs/QuotaKit/releases/download/v${VERSION}/"}
 
 # Sparkle provides generate_appcast; ensure it's on PATH (via SwiftPM build of Sparkle's bin) or Xcode dmg
 if ! command -v generate_appcast >/dev/null; then
@@ -64,7 +64,7 @@ if ! command -v generate_appcast >/dev/null; then
   exit 1
 fi
 
-WORK_DIR=$(mktemp -d /tmp/codexbar-appcast.XXXXXX)
+WORK_DIR=$(mktemp -d /tmp/quotakit-appcast.XXXXXX)
 
 cp "$ROOT/appcast.xml" "$WORK_DIR/appcast.xml"
 cp "$ZIP" "$WORK_DIR/$ZIP_NAME"

@@ -1832,16 +1832,14 @@ private struct AboutSyncDetailView: View {
                             .font(.title2)
                             .foregroundStyle(.orange)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Mac Update Available")
+                            Text("Update QuotaKit on your Mac")
                                 .font(.subheadline.weight(.semibold))
-                            Text("Your Mac is using legacy sync. Update QuotaKit on Mac to unlock CloudKit multi-device sync.")
+                            Text("Your Mac is using legacy sync. Open the setup link on your Mac to install the current QuotaKit build and enable CloudKit multi-device sync.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    Link(destination: URL(string: "https://github.com/ColumbusLabs/QuotaKit/releases")!) {
-                        Label("Download Latest Mac Version", systemImage: "arrow.down.circle")
-                    }
+                    MacSetupLinkActions(prominentShare: false)
                 }
             }
 
@@ -2523,8 +2521,8 @@ private enum MobileReleaseNotesCatalog {
                     items: [
                         String(localized: "Daily Spend chart — shows a clean ~30-day window and scrolls left to reveal your full cost history (30 / 90 / 365-day windows); the latest day stays pinned to the right edge."),
                         String(localized: "QuotaKit Pro — Free mode keeps one selected synced provider plus basic quota details, while Pro and demo mode unlock the full provider list, cost dashboard, history charts, share/export actions, advanced merge controls, and visible quota alerts."),
-                        String(localized: "Widgets — QuotaKit Pro adds Home Screen and Lock Screen widgets backed only by sanitized iPhone-side snapshot data, reload immediately after Pro unlock, migrate safely from prior CodexBar local caches, and localize across all four supported languages."),
-                        String(localized: "Branding — iOS screens, setup text, share cards, and update prompts now use QuotaKit while preserving upstream attribution where it belongs."),
+                        String(localized: "Widgets and pace — QuotaKit Pro adds Home Screen and Lock Screen widgets backed only by sanitized iPhone-side snapshot data, and Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers."),
+                        String(localized: "Branding and setup — iOS screens, share cards, update prompts, and Mac setup now use QuotaKit. The iPhone shares a Columbus Labs setup page for Mac installation instead of sending you straight to GitHub."),
                     ]),
             ]),
         ReleaseNotesVersion(
@@ -2709,8 +2707,8 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Important"),
                     items: [
-                        String(localized: "Our GitHub repo was renamed from `o1xhack/CodexBar` to `o1xhack/CodexBar-Mobile` to differentiate from the upstream Mac repo. Existing download links keep working via redirect; nothing in your iCloud sync setup needs to change."),
-                        String(localized: "Update Mac CodexBar to **0.23.4 (Build 58.4.1.3.1) or later** for the new providers and accurate Cost numbers — earlier 0.23.x has a Codex parser bug. Download: [github.com/o1xhack/CodexBar-Mobile/releases](https://github.com/o1xhack/CodexBar-Mobile/releases)."),
+                        String(localized: "QuotaKit is now distributed by Columbus Labs. Use the Mac setup page for current downloads and setup instructions: columbus-labs.com/quotakit/mac."),
+                        String(localized: "Open the QuotaKit Mac setup page to install the current Mac build for new providers and accurate Cost numbers: columbus-labs.com/quotakit/mac."),
                     ]),
                 .init(
                     title: String(localized: "What's New"),
@@ -2741,7 +2739,7 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Important"),
                     items: [
-                        String(localized: "Update Mac CodexBar to **0.23.4 (Build 58.4.1.3.1) or later** for the new providers and accurate Cost numbers — earlier 0.23.x has a Codex parser bug. Download: [github.com/o1xhack/CodexBar-Mobile/releases](https://github.com/o1xhack/CodexBar-Mobile/releases)."),
+                        String(localized: "Open the QuotaKit Mac setup page to install the current Mac build for new providers and accurate Cost numbers: columbus-labs.com/quotakit/mac."),
                     ]),
                 .init(
                     title: String(localized: "What's New"),
@@ -2772,7 +2770,7 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Important"),
                     items: [
-                        String(localized: "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.3.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar-Mobile/releases."),
+                        String(localized: "Open the QuotaKit Mac setup page to install the current Mac build for Perplexity credit breakdowns and other synced provider improvements: columbus-labs.com/quotakit/mac."),
                     ]),
                 .init(
                     title: String(localized: "What's New"),
@@ -2799,14 +2797,14 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Important"),
                     items: [
-                        String(localized: "You must update CodexBar on Mac to 0.19.0 (Build 54.1.2.0) or later to use this release. Subscription Utilization data collection and Mac→iOS push notifications both depend on Mac-side changes in that version. Download from github.com/o1xhack/CodexBar-Mobile/releases."),
+                        String(localized: "Open the QuotaKit Mac setup page to install the current Mac build. Subscription Utilization and Mac-to-iPhone push notifications depend on the paired Mac app: columbus-labs.com/quotakit/mac."),
                     ]),
                 .init(
                     title: String(localized: "What's New"),
                     items: [
                         String(localized: "Subscription Utilization visualization — see how much of each session / weekly / opus quota you're using, per provider and across all providers. 30-day daily bar chart in the Cost tab with Today / This Week / 14 Days / 30 Days summary cards, plus a utilization history chart on every provider detail page."),
                         String(localized: "Multi-Mac data merge — if you run CodexBar on more than one Mac, data from all of them is deduped by hour and combined on iPhone, so your iPhone charts stay consistent regardless of which Mac was last active."),
-                        String(localized: "Push notifications from Mac — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a localized notification that includes the provider name (e.g. \"Codex session quota depleted\" / \"Codex 的会话额度已耗尽\"). Background App Refresh does not need to be enabled."),
+                        String(localized: "Push notifications from Mac — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a notification that includes the provider name. Background App Refresh does not need to be enabled."),
                     ]),
                 .init(
                     title: String(localized: "Improvements"),
@@ -2822,7 +2820,7 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Important"),
                     items: [
-                        String(localized: "Version 1.1.0 requires the latest CodexBar Mac app (0.18.0-mobile-1.1.0 or later) to unlock CloudKit sync. Download it from GitHub: github.com/o1xhack/CodexBar-Mobile/releases"),
+                        String(localized: "Open the QuotaKit Mac setup page to install the current Mac build and unlock CloudKit sync: columbus-labs.com/quotakit/mac"),
                     ]),
                 .init(
                     title: String(localized: "What's New"),

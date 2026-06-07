@@ -1,7 +1,7 @@
 # Mock-First Quality Infrastructure (Mac 0.23.5+ / iOS 1.5.2+)
 
 **Status**: Live (Mac 0.23.5 / iOS 1.5.2 + later)
-**Owner**: o1xhack/CodexBar-Mobile contributors
+**Owner**: ColumbusLabs/QuotaKit contributors
 **Architecture decision date**: 2026-05-03
 
 ---

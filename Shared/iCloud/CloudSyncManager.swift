@@ -236,9 +236,9 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         let isXCTestHost = environment["XCTestConfigurationFilePath"] != nil
             || environment["XCTestBundlePath"] != nil
         // iOS entitlements are guaranteed by the provisioning profile for
-        // signed app runs. Hosted simulator unit tests may disable signing,
-        // so they must not touch CKContainer during app bootstrap.
-        available = !isXCTestHost
+        // signed app runs. Hosted simulator unit tests and unsigned local UI
+        // smoke tests must not touch CKContainer during app bootstrap.
+        available = !isXCTestHost && environment["QUOTAKIT_DISABLE_CLOUDKIT"] != "1"
         #endif
         if available {
             let c = CKContainer(identifier: CloudSyncConstants.containerIdentifier)

@@ -515,40 +515,41 @@ final class SyncCoordinator {
         sharedUtilizationHistory: [SyncUtilizationSeries]?) -> ProviderUsageSnapshot
     {
         // Build dynamic rate windows array with labels from metadata.
+        let paceNow = Date()
         var rateWindows: [SyncRateWindow] = []
         if let p = snapshot?.primary {
-            rateWindows.append(SyncRateWindow(
+            rateWindows.append(self.syncRateWindow(
+                provider: provider,
                 label: metadata?.sessionLabel,
-                usedPercent: p.usedPercent,
-                windowMinutes: p.windowMinutes,
-                resetsAt: p.resetsAt,
-                resetDescription: p.resetDescription))
+                window: p,
+                role: .session,
+                now: paceNow))
         }
         if let s = snapshot?.secondary {
-            rateWindows.append(SyncRateWindow(
+            rateWindows.append(self.syncRateWindow(
+                provider: provider,
                 label: metadata?.weeklyLabel,
-                usedPercent: s.usedPercent,
-                windowMinutes: s.windowMinutes,
-                resetsAt: s.resetsAt,
-                resetDescription: s.resetDescription))
+                window: s,
+                role: .weekly,
+                now: paceNow))
         }
         if let metadata, metadata.supportsOpus, let t = snapshot?.tertiary {
-            rateWindows.append(SyncRateWindow(
+            rateWindows.append(self.syncRateWindow(
+                provider: provider,
                 label: metadata.opusLabel ?? "Sonnet",
-                usedPercent: t.usedPercent,
-                windowMinutes: t.windowMinutes,
-                resetsAt: t.resetsAt,
-                resetDescription: t.resetDescription))
+                window: t,
+                role: .other,
+                now: paceNow))
         }
         // Extra (named) rate windows from upstream — Claude Designs / Daily
         // Routines / Web Sonnet, Cursor Extra usage, etc.
         for extra in snapshot?.extraRateWindows ?? [] {
-            rateWindows.append(SyncRateWindow(
+            rateWindows.append(self.syncRateWindow(
+                provider: provider,
                 label: extra.title,
-                usedPercent: extra.window.usedPercent,
-                windowMinutes: extra.window.windowMinutes,
-                resetsAt: extra.window.resetsAt,
-                resetDescription: extra.window.resetDescription))
+                window: extra.window,
+                role: .other,
+                now: paceNow))
         }
 
         // Legacy primary/secondary for backward compat with older iOS builds.
@@ -691,6 +692,87 @@ final class SyncCoordinator {
             azureOpenAIInfo: Self.mapAzureOpenAIInfo(provider: provider, snapshot: snapshot),
             alibabaTokenPlan: Self.mapAlibabaTokenPlan(provider: provider, snapshot: snapshot),
             deepSeekUsage: Self.mapDeepSeekUsage(provider: provider, snapshot: snapshot))
+    }
+
+    private enum SyncPaceWindowRole {
+        case session
+        case weekly
+        case other
+    }
+
+    private func syncRateWindow(
+        provider: UsageProvider,
+        label: String?,
+        window: RateWindow,
+        role: SyncPaceWindowRole,
+        now: Date) -> SyncRateWindow
+    {
+        SyncRateWindow(
+            label: label,
+            usedPercent: window.usedPercent,
+            windowMinutes: window.windowMinutes,
+            resetsAt: window.resetsAt,
+            resetDescription: window.resetDescription,
+            pace: self.syncUsagePace(provider: provider, window: window, role: role, now: now))
+    }
+
+    private func syncUsagePace(
+        provider: UsageProvider,
+        window: RateWindow,
+        role: SyncPaceWindowRole,
+        now: Date) -> SyncUsagePace?
+    {
+        switch role {
+        case .session:
+            if provider == .abacus {
+                return self.store.weeklyPace(provider: provider, window: window, now: now)
+                    .map { Self.syncUsagePace(from: $0, detail: UsagePaceText.weeklyDetail(pace: $0, now: now)) }
+            }
+            guard let pace = UsagePaceText.sessionPace(provider: provider, window: window, now: now) else {
+                return nil
+            }
+            guard let detail = UsagePaceText.sessionDetail(provider: provider, window: window, now: now) else {
+                return nil
+            }
+            return Self.syncUsagePace(from: pace, detail: detail)
+        case .weekly:
+            return self.store.weeklyPace(provider: provider, window: window, now: now)
+                .map { Self.syncUsagePace(from: $0, detail: UsagePaceText.weeklyDetail(pace: $0, now: now)) }
+        case .other:
+            return nil
+        }
+    }
+
+    static func syncUsagePace(
+        from pace: UsagePace,
+        detail: UsagePaceText.WeeklyDetail) -> SyncUsagePace
+    {
+        SyncUsagePace(
+            stage: self.syncStage(from: pace.stage),
+            deltaPercent: pace.deltaPercent,
+            expectedUsedPercent: detail.expectedUsedPercent,
+            actualUsedPercent: pace.actualUsedPercent,
+            leftLabel: detail.leftLabel,
+            rightLabel: detail.rightLabel)
+    }
+
+    private static func syncStage(from stage: UsagePace.Stage) -> SyncUsagePace.Stage {
+        switch stage {
+        case .onTrack:
+            .onTrack
+        case .slightlyAhead:
+            .slightlyAhead
+        case .ahead:
+            .ahead
+        case .farAhead:
+            .farAhead
+        case .slightlyBehind:
+            .slightlyBehind
+        case .behind:
+            .behind
+        case .farBehind:
+            .farBehind
+        }
     }
 
     // MARK: - v0.26 envelope mappers (private)

@@ -79,7 +79,7 @@ Mac A (deviceID: uuid-aaa)          Mac B (deviceID: uuid-bbb)
 ## CloudKit Record Schema
 
 **Record Type:** `DeviceSnapshot`
-**Container:** `iCloud.com.o1xhack.codexbar`
+**Container:** `iCloud.com.columbuslabs.quotakit.mac`
 **Environment:** Production (both Mac and iOS)
 
 | Field | Type | Description |
@@ -121,7 +121,7 @@ When iOS fetches snapshots from multiple Macs:
 
 **Mac (`Scripts/package_app.sh`):**
 - `com.apple.developer.icloud-services`: CloudKit
-- `com.apple.developer.icloud-container-identifiers`: iCloud.com.o1xhack.codexbar
+- `com.apple.developer.icloud-container-identifiers`: iCloud.com.columbuslabs.quotakit.mac
 - `com.apple.developer.icloud-container-environment`: Production
 
 **iOS (`CodexBarMobile.entitlements`):**

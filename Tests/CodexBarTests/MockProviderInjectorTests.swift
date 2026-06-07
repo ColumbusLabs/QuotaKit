@@ -98,6 +98,25 @@ struct MockProviderInjectorTests {
         }
     }
 
+    @Test("Mock snapshots include pace metadata for visible QA rows")
+    func mockSnapshotsIncludePaceMetadata() {
+        let snapshots = MockProviderInjector.allMocks()
+        let codexAlice = snapshots.first {
+            $0.providerID == "codex" && $0.accountEmail == "café-mock@codex.test"
+        }
+        let claudePersonal = snapshots.first {
+            $0.providerID == "claude" && $0.accountEmail == "personal-mock@claude.test"
+        }
+        let simpleCursor = snapshots.first {
+            $0.providerID == "cursor" && $0.accountEmail == "team-mock@cursor.test"
+        }
+
+        #expect(codexAlice?.primary?.pace?.leftLabel == "15% in reserve")
+        #expect(codexAlice?.secondary?.pace?.leftLabel == "12% in deficit")
+        #expect(claudePersonal?.primary?.pace?.leftLabel == "On pace")
+        #expect(simpleCursor?.primary?.pace != nil)
+    }
+
     @Test("All mock account emails use `.test` TLD (RFC 6761 reserved)")
     func allMockEmailsAreReservedTLD() {
         self.resetActivationState()

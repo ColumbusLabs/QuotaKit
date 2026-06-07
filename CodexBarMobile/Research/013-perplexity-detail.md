@@ -1,4 +1,3 @@
-# 013 · iOS 1.3.0 · T3 · Perplexity 详情页 3 段式信用展示 — 调研
 
 - Status: `ready`
 - Date: 2026-04-21

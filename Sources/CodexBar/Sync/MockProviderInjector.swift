@@ -141,6 +141,46 @@ enum MockProviderInjector {
         return rich + simple
     }
 
+    private static func mockPace(
+        usedPercent: Double,
+        expectedUsedPercent: Double,
+        rightLabel: String? = nil) -> SyncUsagePace
+    {
+        let delta = usedPercent - expectedUsedPercent
+        let roundedDelta = Int(delta.rounded(.toNearestOrAwayFromZero))
+        let stage: SyncUsagePace.Stage
+        let leftLabel: String
+        if roundedDelta >= 20 {
+            stage = .farBehind
+            leftLabel = "\(roundedDelta)% in deficit"
+        } else if roundedDelta >= 10 {
+            stage = .behind
+            leftLabel = "\(roundedDelta)% in deficit"
+        } else if roundedDelta > 0 {
+            stage = .slightlyBehind
+            leftLabel = "\(roundedDelta)% in deficit"
+        } else if roundedDelta <= -20 {
+            stage = .farAhead
+            leftLabel = "\(abs(roundedDelta))% in reserve"
+        } else if roundedDelta <= -10 {
+            stage = .ahead
+            leftLabel = "\(abs(roundedDelta))% in reserve"
+        } else if roundedDelta < 0 {
+            stage = .slightlyAhead
+            leftLabel = "\(abs(roundedDelta))% in reserve"
+        } else {
+            stage = .onTrack
+            leftLabel = "On pace"
+        }
+        return SyncUsagePace(
+            stage: stage,
+            deltaPercent: delta,
+            expectedUsedPercent: expectedUsedPercent,
+            actualUsedPercent: usedPercent,
+            leftLabel: leftLabel,
+            rightLabel: rightLabel)
+    }
+
     /// True when mock provider injection is active. **Env var
     /// `CODEXBAR_MOCK_PROVIDERS` MUST be set on launch** — without it
     /// this always returns false regardless of UserDefaults state.
@@ -364,13 +404,21 @@ enum MockProviderInjector {
                 usedPercent: 35,
                 windowMinutes: 300,
                 resetsAt: self.nowReference.addingTimeInterval(2700),
-                resetDescription: "in 45 min"),
+                resetDescription: "in 45 min",
+                pace: Self.mockPace(
+                    usedPercent: 35,
+                    expectedUsedPercent: 50,
+                    rightLabel: "Lasts until reset")),
             secondary: SyncRateWindow(
                 label: "Weekly",
                 usedPercent: 60,
                 windowMinutes: 10080,
                 resetsAt: self.nowReference.addingTimeInterval(345_600),
-                resetDescription: "in 4 days"),
+                resetDescription: "in 4 days",
+                pace: Self.mockPace(
+                    usedPercent: 60,
+                    expectedUsedPercent: 48,
+                    rightLabel: "Runs out in 4d")),
             accountEmail: "café-mock@codex.test",
             loginMethod: "Pro $200",
             statusMessage: nil,
@@ -392,12 +440,20 @@ enum MockProviderInjector {
                     label: "5h", usedPercent: 35,
                     windowMinutes: 300,
                     resetsAt: self.nowReference.addingTimeInterval(2700),
-                    resetDescription: "in 45 min"),
+                    resetDescription: "in 45 min",
+                    pace: Self.mockPace(
+                        usedPercent: 35,
+                        expectedUsedPercent: 50,
+                        rightLabel: "Lasts until reset")),
                 SyncRateWindow(
                     label: "Weekly", usedPercent: 60,
                     windowMinutes: 10080,
                     resetsAt: self.nowReference.addingTimeInterval(345_600),
-                    resetDescription: "in 4 days"),
+                    resetDescription: "in 4 days",
+                    pace: Self.mockPace(
+                        usedPercent: 60,
+                        expectedUsedPercent: 48,
+                        rightLabel: "Runs out in 4d")),
             ],
             utilizationHistory: nil,
             perplexityCredits: nil,
@@ -417,13 +473,21 @@ enum MockProviderInjector {
                 usedPercent: 75,
                 windowMinutes: 300,
                 resetsAt: self.nowReference.addingTimeInterval(1800),
-                resetDescription: "in 30 min"),
+                resetDescription: "in 30 min",
+                pace: self.mockPace(
+                    usedPercent: 75,
+                    expectedUsedPercent: 55,
+                    rightLabel: "Projected empty in 30m")),
             secondary: SyncRateWindow(
                 label: "Weekly",
                 usedPercent: 100, // boundary: fully consumed
                 windowMinutes: 10080,
                 resetsAt: self.nowReference.addingTimeInterval(345_600),
-                resetDescription: "in 4 days"),
+                resetDescription: "in 4 days",
+                pace: self.mockPace(
+                    usedPercent: 100,
+                    expectedUsedPercent: 48,
+                    rightLabel: "Projected empty now")),
             accountEmail: "bob-mock@codex.test",
             loginMethod: "Pro $20",
             statusMessage: nil,
@@ -440,12 +504,20 @@ enum MockProviderInjector {
                     label: "5h", usedPercent: 75,
                     windowMinutes: 300,
                     resetsAt: self.nowReference.addingTimeInterval(1800),
-                    resetDescription: "in 30 min"),
+                    resetDescription: "in 30 min",
+                    pace: self.mockPace(
+                        usedPercent: 75,
+                        expectedUsedPercent: 55,
+                        rightLabel: "Projected empty in 30m")),
                 SyncRateWindow(
                     label: "Weekly", usedPercent: 100, // boundary
                     windowMinutes: 10080,
                     resetsAt: self.nowReference.addingTimeInterval(345_600),
-                    resetDescription: "in 4 days"),
+                    resetDescription: "in 4 days",
+                    pace: self.mockPace(
+                        usedPercent: 100,
+                        expectedUsedPercent: 48,
+                        rightLabel: "Projected empty now")),
             ],
             utilizationHistory: nil,
             perplexityCredits: nil,
@@ -465,13 +537,21 @@ enum MockProviderInjector {
                 usedPercent: 0, // boundary: fresh / just reset
                 windowMinutes: 300,
                 resetsAt: self.nowReference.addingTimeInterval(14400),
-                resetDescription: "in 4 hours"),
+                resetDescription: "in 4 hours",
+                pace: self.mockPace(
+                    usedPercent: 0,
+                    expectedUsedPercent: 0,
+                    rightLabel: "Lasts until reset")),
             secondary: SyncRateWindow(
                 label: "Weekly",
                 usedPercent: 12,
                 windowMinutes: 10080,
                 resetsAt: self.nowReference.addingTimeInterval(345_600),
-                resetDescription: "in 4 days"),
+                resetDescription: "in 4 days",
+                pace: self.mockPace(
+                    usedPercent: 12,
+                    expectedUsedPercent: 48,
+                    rightLabel: "Lasts until reset")),
             accountEmail: "carol-mock@codex.test",
             loginMethod: "Plus $20",
             statusMessage: nil,
@@ -488,12 +568,20 @@ enum MockProviderInjector {
                     label: "5h", usedPercent: 0, // boundary
                     windowMinutes: 300,
                     resetsAt: self.nowReference.addingTimeInterval(14400),
-                    resetDescription: "in 4 hours"),
+                    resetDescription: "in 4 hours",
+                    pace: self.mockPace(
+                        usedPercent: 0,
+                        expectedUsedPercent: 0,
+                        rightLabel: "Lasts until reset")),
                 SyncRateWindow(
                     label: "Weekly", usedPercent: 12,
                     windowMinutes: 10080,
                     resetsAt: self.nowReference.addingTimeInterval(345_600),
-                    resetDescription: "in 4 days"),
+                    resetDescription: "in 4 days",
+                    pace: self.mockPace(
+                        usedPercent: 12,
+                        expectedUsedPercent: 48,
+                        rightLabel: "Lasts until reset")),
             ],
             utilizationHistory: nil,
             perplexityCredits: nil,
@@ -518,13 +606,21 @@ enum MockProviderInjector {
                 usedPercent: 50,
                 windowMinutes: 300,
                 resetsAt: self.nowReference.addingTimeInterval(3600),
-                resetDescription: "in 1 hour"),
+                resetDescription: "in 1 hour",
+                pace: self.mockPace(
+                    usedPercent: 50,
+                    expectedUsedPercent: 50,
+                    rightLabel: "Lasts until reset")),
             secondary: SyncRateWindow(
                 label: "Weekly Sonnet",
                 usedPercent: 65,
                 windowMinutes: 10080,
                 resetsAt: self.nowReference.addingTimeInterval(259_200),
-                resetDescription: "in 3 days"),
+                resetDescription: "in 3 days",
+                pace: self.mockPace(
+                    usedPercent: 65,
+                    expectedUsedPercent: 48,
+                    rightLabel: "Runs out in 3d")),
             accountEmail: "personal-mock@claude.test",
             loginMethod: "Pro $20",
             statusMessage: nil,
@@ -541,17 +637,29 @@ enum MockProviderInjector {
                     label: "5h", usedPercent: 50,
                     windowMinutes: 300,
                     resetsAt: self.nowReference.addingTimeInterval(3600),
-                    resetDescription: "in 1 hour"),
+                    resetDescription: "in 1 hour",
+                    pace: self.mockPace(
+                        usedPercent: 50,
+                        expectedUsedPercent: 50,
+                        rightLabel: "Lasts until reset")),
                 SyncRateWindow(
                     label: "Weekly Sonnet", usedPercent: 65,
                     windowMinutes: 10080,
                     resetsAt: self.nowReference.addingTimeInterval(259_200),
-                    resetDescription: "in 3 days"),
+                    resetDescription: "in 3 days",
+                    pace: self.mockPace(
+                        usedPercent: 65,
+                        expectedUsedPercent: 48,
+                        rightLabel: "Runs out in 3d")),
                 SyncRateWindow(
                     label: "Weekly Opus", usedPercent: 90,
                     windowMinutes: 10080,
                     resetsAt: self.nowReference.addingTimeInterval(259_200),
-                    resetDescription: "in 3 days"),
+                    resetDescription: "in 3 days",
+                    pace: self.mockPace(
+                        usedPercent: 90,
+                        expectedUsedPercent: 48,
+                        rightLabel: "Projected empty soon")),
             ],
             utilizationHistory: nil,
             perplexityCredits: nil,
@@ -569,13 +677,21 @@ enum MockProviderInjector {
                 usedPercent: 22,
                 windowMinutes: 300,
                 resetsAt: self.nowReference.addingTimeInterval(7200),
-                resetDescription: "in 2 hours"),
+                resetDescription: "in 2 hours",
+                pace: self.mockPace(
+                    usedPercent: 22,
+                    expectedUsedPercent: 35,
+                    rightLabel: "Lasts until reset")),
             secondary: SyncRateWindow(
                 label: "Weekly Sonnet",
                 usedPercent: 38,
                 windowMinutes: 10080,
                 resetsAt: self.nowReference.addingTimeInterval(259_200),
-                resetDescription: "in 3 days"),
+                resetDescription: "in 3 days",
+                pace: self.mockPace(
+                    usedPercent: 38,
+                    expectedUsedPercent: 48,
+                    rightLabel: "Lasts until reset")),
             accountEmail: "work-mock@claude.test",
             loginMethod: "Team $30",
             statusMessage: nil,
@@ -592,12 +708,20 @@ enum MockProviderInjector {
                     label: "5h", usedPercent: 22,
                     windowMinutes: 300,
                     resetsAt: self.nowReference.addingTimeInterval(7200),
-                    resetDescription: "in 2 hours"),
+                    resetDescription: "in 2 hours",
+                    pace: self.mockPace(
+                        usedPercent: 22,
+                        expectedUsedPercent: 35,
+                        rightLabel: "Lasts until reset")),
                 SyncRateWindow(
                     label: "Weekly Sonnet", usedPercent: 38,
                     windowMinutes: 10080,
                     resetsAt: self.nowReference.addingTimeInterval(259_200),
-                    resetDescription: "in 3 days"),
+                    resetDescription: "in 3 days",
+                    pace: self.mockPace(
+                        usedPercent: 38,
+                        expectedUsedPercent: 48,
+                        rightLabel: "Lasts until reset")),
             ],
             utilizationHistory: nil,
             perplexityCredits: nil,
@@ -619,7 +743,11 @@ enum MockProviderInjector {
             usedPercent: 32,
             windowMinutes: 1440,
             resetsAt: Self.nowReference.addingTimeInterval(28800),
-            resetDescription: "in 8 hours")
+            resetDescription: "in 8 hours",
+            pace: Self.mockPace(
+                usedPercent: 32,
+                expectedUsedPercent: 66,
+                rightLabel: "Lasts until reset"))
         return ProviderUsageSnapshot(
             providerID: "perplexity",
             providerName: "Perplexity (Pro · Mock)",
@@ -727,13 +855,21 @@ enum MockProviderInjector {
                 usedPercent: 45,
                 windowMinutes: 300,
                 resetsAt: now.addingTimeInterval(3600),
-                resetDescription: "in 1 hour"),
+                resetDescription: "in 1 hour",
+                pace: Self.mockPace(
+                    usedPercent: 45,
+                    expectedUsedPercent: 50,
+                    rightLabel: "Lasts until reset")),
             secondary: SyncRateWindow(
                 label: "Weekly",
                 usedPercent: 70,
                 windowMinutes: 10080,
                 resetsAt: now.addingTimeInterval(518_400),
-                resetDescription: "in 6 days"),
+                resetDescription: "in 6 days",
+                pace: Self.mockPace(
+                    usedPercent: 70,
+                    expectedUsedPercent: 30,
+                    rightLabel: "Runs out before reset")),
             accountEmail: "lanes-mock@synthetic.test",
             loginMethod: "Builder",
             statusMessage: nil,
@@ -751,17 +887,29 @@ enum MockProviderInjector {
                     label: "5h", usedPercent: 45,
                     windowMinutes: 300,
                     resetsAt: now.addingTimeInterval(3600),
-                    resetDescription: "in 1 hour"),
+                    resetDescription: "in 1 hour",
+                    pace: Self.mockPace(
+                        usedPercent: 45,
+                        expectedUsedPercent: 50,
+                        rightLabel: "Lasts until reset")),
                 SyncRateWindow(
                     label: "Weekly", usedPercent: 70,
                     windowMinutes: 10080,
                     resetsAt: now.addingTimeInterval(518_400),
-                    resetDescription: "in 6 days"),
+                    resetDescription: "in 6 days",
+                    pace: Self.mockPace(
+                        usedPercent: 70,
+                        expectedUsedPercent: 30,
+                        rightLabel: "Runs out before reset")),
                 SyncRateWindow(
                     label: "Search hourly", usedPercent: 25,
                     windowMinutes: 60,
                     resetsAt: now.addingTimeInterval(900),
-                    resetDescription: "in 15 min"),
+                    resetDescription: "in 15 min",
+                    pace: Self.mockPace(
+                        usedPercent: 25,
+                        expectedUsedPercent: 75,
+                        rightLabel: "Lasts until reset")),
             ],
             utilizationHistory: [
                 SyncUtilizationSeries(
@@ -1578,7 +1726,11 @@ enum MockProviderInjector {
                 usedPercent: usage,
                 windowMinutes: profile.primaryWindowMinutes,
                 resetsAt: now.addingTimeInterval(profile.primaryResetsInSeconds),
-                resetDescription: profile.primaryResetDescription)
+                resetDescription: profile.primaryResetDescription,
+                pace: Self.mockPace(
+                    usedPercent: usage,
+                    expectedUsedPercent: 50,
+                    rightLabel: usage >= 70 ? "Projected empty soon" : "Lasts until reset"))
             primary = window
             rateWindows.append(window)
         } else {
@@ -1591,7 +1743,11 @@ enum MockProviderInjector {
                 usedPercent: secondaryProfile.usedPercent,
                 windowMinutes: secondaryProfile.windowMinutes,
                 resetsAt: now.addingTimeInterval(secondaryProfile.resetsInSeconds),
-                resetDescription: secondaryProfile.resetDescription)
+                resetDescription: secondaryProfile.resetDescription,
+                pace: Self.mockPace(
+                    usedPercent: secondaryProfile.usedPercent,
+                    expectedUsedPercent: 48,
+                    rightLabel: secondaryProfile.usedPercent >= 70 ? "Runs out before reset" : "Lasts until reset"))
             secondary = window
             rateWindows.append(window)
         }

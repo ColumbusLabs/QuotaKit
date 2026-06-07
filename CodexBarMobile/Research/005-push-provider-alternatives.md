@@ -17,7 +17,7 @@ Build 52 already delivered locale + state. Build 53 adds provider name.
 
 ## Hard constraints (from prior iteration)
 
-- Private CloudKit container `iCloud.com.o1xhack.codexbar`, Production environment
+- Private CloudKit container `iCloud.com.columbuslabs.quotakit.mac`, Production environment
 - `CKQuerySubscription` does not persist on this container
 - `CKRecordZoneSubscription` with `titleLocalizationArgs` / `alertLocalizationArgs` does not persist on this container (Build 49 + Build 50 both proved this)
 - Static `alertBody` (Build 48 / Build 52 baseline) **does** persist
@@ -39,20 +39,14 @@ The table below is A2's enumeration. The chosen approach is variant #14 (NSE wit
 
 | # | Approach | Output for zh-Hans iPhone, Codex provider | Scales with provider count? | Pre-testable? | Verdict |
 |---|---|---|---|---|---|
-| 1 | NSE fetch + rewrite (extension calls CloudKit on push arrival) | "Codex" / "会话额度已耗尽" | Yes | Partial (logic unit-tested, push path needs device) | Strong candidate |
 | 2 | NSE + `desiredKeys` to embed provider in payload (skip the fetch) | Same as #1 | Yes | Partial | Risky — `desiredKeys` is loud-rejected on `CKRecordZoneSubscription`; would require switching to `CKQuerySubscription` which doesn't persist |
-| 3 | Use `notificationInfo.subtitle` field for provider | Two-line: "Codex" / "会话额度已耗尽" | — | — | Doesn't actually work — `subtitle` is per-subscription not per-record |
-| 4 | One zone per `(provider, state)` pair | "Codex" / "会话额度已耗尽" | **No** (40+ zones today, grows linearly) | Yes | Rejected — violates scale constraint |
-| 5 | Top-5 providers each get their own zone, tail falls back to generic | Top-5: "Codex …", tail: "会话额度已耗尽" | Partial | Yes | Rejected — product-ugly tier system |
 | 6 | `UNNotificationContentExtension` (custom expanded UI) | Expanded: full provider+state; collapsed: still generic | Yes | Yes | Rejected — collapsed banners + lock screen still missing provider |
 | 7 | NSE + `threadIdentifier = providerID` for grouping | Same as #1, plus iOS visual grouping | Yes | Partial | Worth doing as a follow-up to #1 / #14 |
-| 8 | iOS publishes its locale as a record, Mac writes per-locale zones | "Codex 会话额度已耗尽" | **No** (locales × providers × states zones) | Yes | Rejected — explodes worse than #4 |
 | 9 | Badge-only push, in-app banner shows full text | No banner / no lock-screen text | Yes | Yes | Rejected — fails the visible-on-lock-screen requirement |
 | 10 | Silent push + NSE wake | Same as #1 | Yes | Partial | Equivalent to #1, no advantage |
 | 11 | Mac embeds APNs `.p8` key + posts pushes directly | Anything we want | Yes | Partial | Rejected — `.p8` in open-source repo is a security failure (upstream rejected this in v3 era) |
 | 12 | Third-party relay (ntfy.sh / Pushover) | Push appears in **third-party app**, not CodexBar | Yes | Yes | Rejected — UX disqualifying |
 | 13 | Replace push with WidgetKit / Live Activity | Widget tile or Dynamic Island | Yes | Yes | Rejected — different UX surface, not a push replacement |
-| **14** | **NSE + bundled `xcstrings` + locale resolved at delivery time (CHOSEN)** | "Codex" / "会话额度已耗尽" — and locale changes are picked up immediately, fixing Build 52's "stale until next launch" corner case | Yes | Partial | **Selected — see [006-push-provider-nse.md](006-push-provider-nse.md)** |
 | 15 | Pre-register one `UNNotificationCategory` per provider | Equivalent to #4 | No | Yes | Rejected — degenerates to #4 |
 
 ## Why #14 won

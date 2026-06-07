@@ -72,6 +72,14 @@ private struct QuotaKitWidgetSmallView: View {
                 Text(String(localized: "quota left"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                if let paceText = window.pace?.widgetDisplayText {
+                    Text(paceText)
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundStyle(window.pace?.widgetColor ?? Color.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
             } else {
                 Text(self.provider.statusMessage ?? String(localized: "No quota window"))
                     .font(.caption)
@@ -106,7 +114,7 @@ private struct QuotaKitWidgetMediumView: View {
                             .font(.subheadline)
                             .fontWeight(.medium)
                             .lineLimit(1)
-                        Text(provider.primaryWindow?.title ?? provider.statusMessage ?? String(localized: "No quota window"))
+                        Text(provider.widgetSubtitle)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -115,9 +123,19 @@ private struct QuotaKitWidgetMediumView: View {
                     Spacer()
 
                     if let remaining = provider.primaryWindow?.remainingPercent {
-                        Text("\(Int(remaining.rounded()))%")
-                            .font(.subheadline.monospacedDigit())
-                            .fontWeight(.semibold)
+                        VStack(alignment: .trailing, spacing: 1) {
+                            Text("\(Int(remaining.rounded()))%")
+                                .font(.subheadline.monospacedDigit())
+                                .fontWeight(.semibold)
+                            if let paceText = provider.primaryWindow?.pace?.widgetShortText {
+                                Text(paceText)
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                                    .foregroundStyle(provider.primaryWindow?.pace?.widgetColor ?? Color.secondary)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.75)
+                            }
+                        }
                     } else {
                         Image(systemName: provider.isError ? "exclamationmark.triangle" : "minus")
                             .foregroundStyle(.secondary)
@@ -145,6 +163,14 @@ private struct QuotaKitWidgetAccessoryRectangularView: View {
                     Int64(window.remainingPercent.rounded()),
                     window.title))
                     .font(.caption)
+                    .lineLimit(1)
+                if let paceText = window.pace?.widgetDisplayText {
+                    Text(paceText)
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundStyle(window.pace?.widgetColor ?? Color.secondary)
+                        .lineLimit(1)
+                }
             } else {
                 Text(provider.statusMessage ?? String(localized: "No quota window"))
                     .font(.caption)
@@ -247,7 +273,14 @@ enum QuotaKitWidgetPreviewData {
                         title: "Session",
                         usedPercent: 37,
                         remainingPercent: 63,
-                        resetsAt: Date(timeIntervalSince1970: 1_803_018_000)),
+                        resetsAt: Date(timeIntervalSince1970: 1_803_018_000),
+                        pace: .init(
+                            stage: .slightlyBehind,
+                            deltaPercent: -5,
+                            expectedUsedPercent: 42,
+                            actualUsedPercent: 37,
+                            leftLabel: "5% in reserve",
+                            rightLabel: "Lasts until reset")),
                 ]),
             .init(
                 id: "claude",
@@ -260,7 +293,45 @@ enum QuotaKitWidgetPreviewData {
                         title: "Session",
                         usedPercent: 61,
                         remainingPercent: 39,
-                        resetsAt: Date(timeIntervalSince1970: 1_803_012_000)),
+                        resetsAt: Date(timeIntervalSince1970: 1_803_012_000),
+                        pace: .init(
+                            stage: .ahead,
+                            deltaPercent: 11,
+                            expectedUsedPercent: 50,
+                            actualUsedPercent: 61,
+                            leftLabel: "11% in deficit",
+                            rightLabel: "Projected empty in 2h")),
                 ]),
         ])
+}
+
+private extension QuotaKitWidgetSnapshot.Provider {
+    var widgetSubtitle: String {
+        guard let window = self.primaryWindow else {
+            return self.statusMessage ?? String(localized: "No quota window")
+        }
+        if let paceText = window.pace?.widgetDisplayText {
+            return "\(window.title) · \(paceText)"
+        }
+        return window.title
+    }
+}
+
+private extension SyncUsagePace {
+    var widgetDisplayText: String {
+        if let rightLabel, !rightLabel.isEmpty {
+            return "\(self.leftLabel) · \(rightLabel)"
+        }
+        return self.leftLabel
+    }
+
+    var widgetShortText: String {
+        self.leftLabel
+    }
+
+    var widgetColor: Color {
+        if self.deltaPercent > 0 { return .red }
+        if self.deltaPercent < 0 { return .green }
+        return .secondary
+    }
 }

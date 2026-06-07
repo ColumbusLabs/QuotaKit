@@ -44,6 +44,23 @@ enum PreviewData {
         return f
     }()
 
+    private static func pace(
+        stage: SyncUsagePace.Stage,
+        deltaPercent: Double,
+        expectedUsedPercent: Double,
+        actualUsedPercent: Double,
+        leftLabel: String,
+        rightLabel: String? = nil) -> SyncUsagePace
+    {
+        SyncUsagePace(
+            stage: stage,
+            deltaPercent: deltaPercent,
+            expectedUsedPercent: expectedUsedPercent,
+            actualUsedPercent: actualUsedPercent,
+            leftLabel: leftLabel,
+            rightLabel: rightLabel)
+    }
+
     // MARK: - Providers
 
     static let claudeProvider = ProviderUsageSnapshot(
@@ -54,13 +71,27 @@ enum PreviewData {
             usedPercent: 13,
             windowMinutes: 300,
             resetsAt: Date().addingTimeInterval(3600 * 2.5),
-            resetDescription: nil),
+            resetDescription: nil,
+            pace: pace(
+                stage: .ahead,
+                deltaPercent: -27,
+                expectedUsedPercent: 40,
+                actualUsedPercent: 13,
+                leftLabel: "27% in reserve",
+                rightLabel: "Lasts until reset")),
         secondary: SyncRateWindow(
             label: "Weekly",
             usedPercent: 16,
             windowMinutes: 10080,
             resetsAt: Date().addingTimeInterval(3600 * 24 * 4),
-            resetDescription: nil),
+            resetDescription: nil,
+            pace: pace(
+                stage: .farAhead,
+                deltaPercent: -33,
+                expectedUsedPercent: 49,
+                actualUsedPercent: 16,
+                leftLabel: "33% in reserve",
+                rightLabel: "Lasts until reset")),
         accountEmail: "user@example.com",
         loginMethod: "Max",
         statusMessage: nil,
@@ -87,19 +118,39 @@ enum PreviewData {
                 usedPercent: 13,
                 windowMinutes: 300,
                 resetsAt: Date().addingTimeInterval(3600 * 2.5),
-                resetDescription: nil),
+                resetDescription: nil,
+                pace: pace(
+                    stage: .ahead,
+                    deltaPercent: -27,
+                    expectedUsedPercent: 40,
+                    actualUsedPercent: 13,
+                    leftLabel: "27% in reserve",
+                    rightLabel: "Lasts until reset")),
             SyncRateWindow(
                 label: "Weekly",
                 usedPercent: 16,
                 windowMinutes: 10080,
                 resetsAt: Date().addingTimeInterval(3600 * 24 * 4),
-                resetDescription: nil),
+                resetDescription: nil,
+                pace: pace(
+                    stage: .farAhead,
+                    deltaPercent: -33,
+                    expectedUsedPercent: 49,
+                    actualUsedPercent: 16,
+                    leftLabel: "33% in reserve",
+                    rightLabel: "Lasts until reset")),
             SyncRateWindow(
                 label: "Sonnet",
                 usedPercent: 1,
                 windowMinutes: 300,
                 resetsAt: Date().addingTimeInterval(3600 * 4.5),
-                resetDescription: nil),
+                resetDescription: nil,
+                pace: pace(
+                    stage: .onTrack,
+                    deltaPercent: 0,
+                    expectedUsedPercent: 1,
+                    actualUsedPercent: 1,
+                    leftLabel: "On pace")),
         ])
 
     static let cursorProvider = ProviderUsageSnapshot(
@@ -109,12 +160,26 @@ enum PreviewData {
             usedPercent: 78,
             windowMinutes: 180,
             resetsAt: Date().addingTimeInterval(3600),
-            resetDescription: nil),
+            resetDescription: nil,
+            pace: pace(
+                stage: .behind,
+                deltaPercent: 18,
+                expectedUsedPercent: 60,
+                actualUsedPercent: 78,
+                leftLabel: "18% in deficit",
+                rightLabel: "Projected empty in 45m")),
         secondary: SyncRateWindow(
             usedPercent: 55,
             windowMinutes: 10080,
             resetsAt: Date().addingTimeInterval(3600 * 24 * 2),
-            resetDescription: nil),
+            resetDescription: nil,
+            pace: pace(
+                stage: .slightlyBehind,
+                deltaPercent: 7,
+                expectedUsedPercent: 48,
+                actualUsedPercent: 55,
+                leftLabel: "7% in deficit",
+                rightLabel: "Runs out in 3d")),
         accountEmail: "dev@cursor.sh",
         loginMethod: "Business",
         statusMessage: nil,
@@ -144,7 +209,14 @@ enum PreviewData {
             usedPercent: 92,
             windowMinutes: 60,
             resetsAt: Date().addingTimeInterval(600),
-            resetDescription: nil),
+            resetDescription: nil,
+            pace: pace(
+                stage: .farBehind,
+                deltaPercent: 42,
+                expectedUsedPercent: 50,
+                actualUsedPercent: 92,
+                leftLabel: "42% in deficit",
+                rightLabel: "Projected empty in 6m")),
         secondary: nil,
         accountEmail: "user@openrouter.ai",
         loginMethod: "Credits",
@@ -168,12 +240,25 @@ enum PreviewData {
             usedPercent: 5,
             windowMinutes: 180,
             resetsAt: Date().addingTimeInterval(3600 * 2),
-            resetDescription: nil),
+            resetDescription: nil,
+            pace: pace(
+                stage: .ahead,
+                deltaPercent: -28,
+                expectedUsedPercent: 33,
+                actualUsedPercent: 5,
+                leftLabel: "28% in reserve",
+                rightLabel: "Lasts until reset")),
         secondary: SyncRateWindow(
             usedPercent: 12,
             windowMinutes: 10080,
             resetsAt: Date().addingTimeInterval(3600 * 24 * 5),
-            resetDescription: "Resets every Monday"),
+            resetDescription: "Resets every Monday",
+            pace: pace(
+                stage: .onTrack,
+                deltaPercent: 0,
+                expectedUsedPercent: 12,
+                actualUsedPercent: 12,
+                leftLabel: "On pace")),
         accountEmail: "user@openai.com",
         loginMethod: "Plus",
         statusMessage: nil,
@@ -203,19 +288,19 @@ enum PreviewData {
         lastUpdated: Date().addingTimeInterval(-90),
         costSummary: SyncCostSummary(
             sessionCostUSD: 0.04,
-            sessionTokens: 1_200,
+            sessionTokens: 1200,
             last30DaysCostUSD: 1.40,
             last30DaysTokens: 320_000,
-            daily: makeDaily(baseCost: 0.05, tokenBase: 9_000, modelMix: [("kiro-sonnet", 1.0)])),
+            daily: makeDaily(baseCost: 0.05, tokenBase: 9000, modelMix: [("kiro-sonnet", 1.0)])),
         kiroCredits: SyncKiroCredits(
             planName: "Pro",
             creditsUsed: 320,
-            creditsTotal: 1_000,
+            creditsTotal: 1000,
             creditsPercent: 32,
             bonusUsed: 45,
             bonusTotal: 200,
             bonusExpiryDays: 19,
-            resetsAt: Date().addingTimeInterval(86_400 * 11)))
+            resetsAt: Date().addingTimeInterval(86400 * 11)))
 
     static let bedrockProvider = ProviderUsageSnapshot(
         providerID: "bedrock",
@@ -229,10 +314,13 @@ enum PreviewData {
         lastUpdated: Date().addingTimeInterval(-120),
         costSummary: SyncCostSummary(
             sessionCostUSD: 0.55,
-            sessionTokens: 12_000,
+            sessionTokens: 12000,
             last30DaysCostUSD: 19.10,
             last30DaysTokens: 5_300_000,
-            daily: makeDaily(baseCost: 0.80, tokenBase: 180_000, modelMix: [("anthropic.claude-3-5-sonnet", 0.75), ("amazon.titan", 0.25)])),
+            daily: makeDaily(
+                baseCost: 0.80,
+                tokenBase: 180_000,
+                modelMix: [("anthropic.claude-3-5-sonnet", 0.75), ("amazon.titan", 0.25)])),
         bedrockCost: SyncBedrockCost(
             monthlySpendUSD: 19.10,
             monthlyBudgetUSD: 50.0,
@@ -259,10 +347,10 @@ enum PreviewData {
         lastUpdated: Date().addingTimeInterval(-60),
         costSummary: SyncCostSummary(
             sessionCostUSD: 0.06,
-            sessionTokens: 2_400,
+            sessionTokens: 2400,
             last30DaysCostUSD: 1.20,
             last30DaysTokens: 200_000,
-            daily: makeDaily(baseCost: 0.08, tokenBase: 6_800, modelMix: [("kimi-k2-instruct", 1.0)])),
+            daily: makeDaily(baseCost: 0.08, tokenBase: 6800, modelMix: [("kimi-k2-instruct", 1.0)])),
         moonshotBalance: SyncMoonshotBalance(
             balanceAmount: 58.40,
             balanceCurrency: "CNY",
@@ -282,13 +370,13 @@ enum PreviewData {
                 label: "Session",
                 usedPercent: 28,
                 windowMinutes: 300,
-                resetsAt: Date().addingTimeInterval(3_600 * 3),
+                resetsAt: Date().addingTimeInterval(3600 * 3),
                 resetDescription: "in 3h"),
             secondary: SyncRateWindow(
                 label: "Weekly",
                 usedPercent: 42,
-                windowMinutes: 10_080,
-                resetsAt: Date().addingTimeInterval(86_400 * 4),
+                windowMinutes: 10080,
+                resetsAt: Date().addingTimeInterval(86400 * 4),
                 resetDescription: "in 4 days"),
             accountEmail: "dev-mock@zai.test",
             loginMethod: "API",
@@ -300,10 +388,10 @@ enum PreviewData {
                 modelSeries: [
                     SyncZaiModelSeries(
                         modelName: "glm-4.6",
-                        tokens: (0..<24).map { ($0 % 4 == 0) ? Int.random(in: 1_500...6_000) : nil }),
+                        tokens: (0..<24).map { ($0 % 4 == 0) ? Int.random(in: 1500...6000) : nil }),
                     SyncZaiModelSeries(
                         modelName: "glm-4.6-plus",
-                        tokens: (0..<24).map { ($0 % 3 == 1) ? Int.random(in: 800...3_000) : nil }),
+                        tokens: (0..<24).map { ($0 % 3 == 1) ? Int.random(in: 800...3000) : nil }),
                 ]))
     }()
 
@@ -319,22 +407,22 @@ enum PreviewData {
         lastUpdated: Date().addingTimeInterval(-180),
         costSummary: nil,
         openAIAPIDashboard: SyncOpenAIAPIDashboard(
-            last30Days: SyncOpenAISummary(totalCostUSD: 142.33, totalRequests: 4_201, totalTokens: 1_234_567),
-            last7Days: SyncOpenAISummary(totalCostUSD: 38.50, totalRequests: 1_103, totalTokens: 312_000),
-            latestDay: SyncOpenAISummary(totalCostUSD: 5.21, totalRequests: 142, totalTokens: 45_321),
+            last30Days: SyncOpenAISummary(totalCostUSD: 142.33, totalRequests: 4201, totalTokens: 1_234_567),
+            last7Days: SyncOpenAISummary(totalCostUSD: 38.50, totalRequests: 1103, totalTokens: 312_000),
+            latestDay: SyncOpenAISummary(totalCostUSD: 5.21, totalRequests: 142, totalTokens: 45321),
             dailyBuckets: (1...30).map { day in
                 SyncOpenAIDailyBucket(
                     dayKey: String(format: "2026-04-%02d", day),
                     costUSD: Double.random(in: 0.5...8.0),
                     requests: Int.random(in: 50...300),
-                    inputTokens: Int.random(in: 1_000...50_000),
-                    cachedInputTokens: Int.random(in: 0...10_000),
-                    outputTokens: Int.random(in: 200...10_000),
-                    totalTokens: Int.random(in: 1_200...60_000))
+                    inputTokens: Int.random(in: 1000...50000),
+                    cachedInputTokens: Int.random(in: 0...10000),
+                    outputTokens: Int.random(in: 200...10000),
+                    totalTokens: Int.random(in: 1200...60000))
             },
             topModels: [
-                SyncOpenAIModelBreakdown(modelName: "gpt-5", requests: 2_100, totalTokens: 800_000, costUSD: 0),
-                SyncOpenAIModelBreakdown(modelName: "gpt-5.5", requests: 1_400, totalTokens: 380_000, costUSD: 0),
+                SyncOpenAIModelBreakdown(modelName: "gpt-5", requests: 2100, totalTokens: 800_000, costUSD: 0),
+                SyncOpenAIModelBreakdown(modelName: "gpt-5.5", requests: 1400, totalTokens: 380_000, costUSD: 0),
                 SyncOpenAIModelBreakdown(modelName: "gpt-4o-mini", requests: 540, totalTokens: 110_000, costUSD: 0),
             ],
             topLineItems: [
@@ -349,8 +437,8 @@ enum PreviewData {
         primary: SyncRateWindow(
             label: "Weekly",
             usedPercent: 35,
-            windowMinutes: 10_080,
-            resetsAt: Date().addingTimeInterval(86_400 * 4),
+            windowMinutes: 10080,
+            resetsAt: Date().addingTimeInterval(86400 * 4),
             resetDescription: "in 4 days"),
         secondary: nil,
         accountEmail: "primary-mock@antigravity.test",
@@ -360,8 +448,14 @@ enum PreviewData {
         lastUpdated: Date().addingTimeInterval(-45),
         antigravityAccounts: SyncMultiAccountList(
             accounts: [
-                SyncMultiAccountEntry(email: "primary-mock@antigravity.test", isActive: true, expiresAt: Date().addingTimeInterval(3_600 * 12)),
-                SyncMultiAccountEntry(email: "alt-mock@antigravity.test", isActive: false, expiresAt: Date().addingTimeInterval(3_600 * 36)),
+                SyncMultiAccountEntry(
+                    email: "primary-mock@antigravity.test",
+                    isActive: true,
+                    expiresAt: Date().addingTimeInterval(3600 * 12)),
+                SyncMultiAccountEntry(
+                    email: "alt-mock@antigravity.test",
+                    isActive: false,
+                    expiresAt: Date().addingTimeInterval(3600 * 36)),
             ],
             activeIndex: 0))
 

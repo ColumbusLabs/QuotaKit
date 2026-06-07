@@ -3,25 +3,25 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CodexBar — every AI coding limit in your menu bar</title>
+    <title>QuotaKit — every AI coding limit in your menu bar</title>
     <meta
       name="description"
       content="A tiny macOS menu bar app that tracks AI coding-provider usage windows, credits, costs, and resets across 40+ providers — Codex, OpenAI, Claude, Cursor, Gemini, Copilot, Grok, and more."
     />
     <meta name="theme-color" content="#0a0a0c" />
-    <link rel="canonical" href="https://codexbar.app/" />
+    <link rel="canonical" href="https://columbus-labs.com/quotakit/mac" />
 
-    <meta property="og:title" content="CodexBar" />
+    <meta property="og:title" content="QuotaKit" />
     <meta
       property="og:description"
       content="Track usage windows, credits, and resets across 40+ AI coding providers from your macOS menu bar."
     />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://codexbar.app/" />
-    <meta property="og:image" content="https://codexbar.app/social.png" />
+    <meta property="og:url" content="https://columbus-labs.com/quotakit/mac" />
+    <meta property="og:image" content="https://columbus-labs.com/quotakit/macsocial.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta name="twitter:image" content="https://codexbar.app/social.png" />
+    <meta name="twitter:image" content="https://columbus-labs.com/quotakit/macsocial.png" />
     <meta name="twitter:card" content="summary_large_image" />
 
     <link rel="icon" href="./icon.png" type="image/png" />
@@ -49,13 +49,13 @@
       <span class="trace t4"></span>
     </div>
     <header class="masthead">
-      <a class="brand" href="./" aria-label="CodexBar">
+      <a class="brand" href="./" aria-label="QuotaKit">
         <img class="mark" src="./icon.png" alt="" width="28" height="28" />
-        <span class="wordmark">CodexBar</span>
+        <span class="wordmark">QuotaKit</span>
       </a>
       <nav class="nav" aria-label="Primary">
-        <a class="nav-link" href="https://github.com/steipete/CodexBar/blob/main/docs/providers.md">Docs</a>
-        <a class="nav-link" href="https://github.com/steipete/CodexBar">Source</a>
+        <a class="nav-link" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/providers.md">Docs</a>
+        <a class="nav-link" href="https://github.com/ColumbusLabs/QuotaKit">Source</a>
         <button class="theme-toggle" type="button" aria-label="Switch color theme" aria-pressed="false" title="Switch color theme">
           <svg class="sun" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
             <circle cx="8" cy="8" r="2.75" />
@@ -65,7 +65,7 @@
             <path d="M13.2 10.1A5.8 5.8 0 0 1 5.9 2.8a6 6 0 1 0 7.3 7.3Z" />
           </svg>
         </button>
-        <a class="btn primary" href="https://github.com/steipete/CodexBar/releases/latest">Download</a>
+        <a class="btn primary" href="https://github.com/ColumbusLabs/QuotaKit/releases/latest">Download</a>
       </nav>
     </header>
 
@@ -73,13 +73,13 @@
       <section class="lede">
         <h1>Every AI coding limit, <span class="grad">in your menu&nbsp;bar.</span></h1>
         <p class="dek">
-          CodexBar tracks usage windows, credit balances, and reset countdowns across the providers you actually pay for —
+          QuotaKit tracks usage windows, credit balances, and reset countdowns across the providers you actually pay for —
           one status item each, or merge them into one.
         </p>
         <div class="actions">
-          <a class="btn primary lg" href="https://github.com/steipete/CodexBar/releases/latest">Download for macOS</a>
+          <a class="btn primary lg" href="https://github.com/ColumbusLabs/QuotaKit/releases/latest">Download for macOS</a>
           <div class="brew" role="group" aria-label="Homebrew install command">
-            <code id="brew-cmd">brew install --cask steipete/tap/codexbar</code>
+            <code id="brew-cmd">Download from GitHub Releases</code>
             <button class="brew-copy" type="button" aria-label="Copy to clipboard" title="Copy">
               <svg class="ic" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <rect x="5" y="5" width="9" height="9" rx="1.5" />
@@ -100,94 +100,94 @@
           <p>Popular providers become status items with their own usage windows, reset countdowns, charts, and provider menus.</p>
         </header>
         <ul class="grid">
-        <li><a class="provider" style="--brand:#49A3B0" href="https://github.com/steipete/CodexBar/blob/main/docs/codex.md">
+        <li><a class="provider" style="--brand:#49A3B0" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/codex.md">
           <img class="chip-logo no-bg" src="./logos/codex.svg" data-dark-src="./logos/codex-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Codex</span><span class="auth">OAuth</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#CC7C5E" href="https://github.com/steipete/CodexBar/blob/main/docs/claude.md">
+        <li><a class="provider" style="--brand:#CC7C5E" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/claude.md">
           <img class="chip-logo" src="./logos/claude.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Claude</span><span class="auth">OAuth</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#1A1A1A" href="https://github.com/steipete/CodexBar/blob/main/docs/cursor.md">
+        <li><a class="provider" style="--brand:#1A1A1A" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/cursor.md">
           <img class="chip-logo" src="./logos/cursor.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Cursor</span><span class="auth">Cookies</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#3B82F6" href="https://github.com/steipete/CodexBar/blob/main/docs/opencode.md">
+        <li><a class="provider" style="--brand:#3B82F6" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/opencode.md">
           <img class="chip-logo preserve-color" src="./logos/opencode.svg" data-dark-src="./logos/opencode-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">OpenCode</span><span class="auth">Cookies + Go</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#FF6A00" href="https://github.com/steipete/CodexBar/blob/main/docs/alibaba-coding-plan.md">
+        <li><a class="provider" style="--brand:#FF6A00" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/alibaba-coding-plan.md">
           <img class="chip-logo" src="./logos/alibaba.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Alibaba</span><span class="auth">Cookies</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#AB87EA" href="https://github.com/steipete/CodexBar/blob/main/docs/gemini.md">
+        <li><a class="provider" style="--brand:#AB87EA" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/gemini.md">
           <img class="chip-logo" src="./logos/gemini.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Gemini</span><span class="auth">OAuth</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#60BA7E" href="https://github.com/steipete/CodexBar/blob/main/docs/antigravity.md">
+        <li><a class="provider" style="--brand:#60BA7E" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/antigravity.md">
           <img class="chip-logo" src="./logos/antigravity.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Antigravity</span><span class="auth">Local</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#FF6B35" href="https://github.com/steipete/CodexBar/blob/main/docs/factory.md">
+        <li><a class="provider" style="--brand:#FF6B35" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/factory.md">
           <img class="chip-logo no-bg" src="./logos/droid.svg" data-dark-src="./logos/droid-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Droid</span><span class="auth">Cookies</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#A855F7" href="https://github.com/steipete/CodexBar/blob/main/docs/copilot.md">
+        <li><a class="provider" style="--brand:#A855F7" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/copilot.md">
           <img class="chip-logo" src="./logos/copilot.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Copilot</span><span class="auth">Device flow</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#E85A6A" href="https://github.com/steipete/CodexBar/blob/main/docs/zai.md">
+        <li><a class="provider" style="--brand:#E85A6A" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/zai.md">
           <img class="chip-logo no-bg" src="./logos/zai.svg" data-dark-src="./logos/zai-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">z.ai</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#FE6060" href="https://github.com/steipete/CodexBar/blob/main/docs/minimax.md">
+        <li><a class="provider" style="--brand:#FE6060" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/minimax.md">
           <img class="chip-logo" src="./logos/minimax.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">MiniMax</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#FE603C" href="https://github.com/steipete/CodexBar/blob/main/docs/kimi.md">
+        <li><a class="provider" style="--brand:#FE603C" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/kimi.md">
           <img class="chip-logo" src="./logos/kimi.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Kimi</span><span class="auth">Token</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#4C00FF" href="https://github.com/steipete/CodexBar/blob/main/docs/kimi-k2.md">
+        <li><a class="provider" style="--brand:#4C00FF" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/kimi-k2.md">
           <img class="chip-logo" src="./logos/kimi-k2.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Kimi K2</span><span class="auth">Legacy API</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#f8f676" href="https://github.com/steipete/CodexBar/blob/main/docs/kilo.md">
+        <li><a class="provider" style="--brand:#f8f676" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/kilo.md">
           <img class="chip-logo no-bg" src="./logos/kilo.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Kilo</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#FF9900;--ink:#0a0a0c" href="https://github.com/steipete/CodexBar/blob/main/docs/kiro.md">
+        <li><a class="provider" style="--brand:#FF9900;--ink:#0a0a0c" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/kiro.md">
           <img class="chip-logo no-bg" src="./logos/kiro.svg" data-dark-src="./logos/kiro-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Kiro</span><span class="auth">CLI</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#4285F4" href="https://github.com/steipete/CodexBar/blob/main/docs/vertexai.md">
+        <li><a class="provider" style="--brand:#4285F4" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/vertexai.md">
           <img class="chip-logo" src="./logos/vertex-ai.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Vertex AI</span><span class="auth">gcloud</span></span>
         </a></li>
-        <li><a class="provider logo-dark" style="--brand:#6366F1" href="https://github.com/steipete/CodexBar/blob/main/docs/augment.md">
+        <li><a class="provider logo-dark" style="--brand:#6366F1" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/augment.md">
           <img class="chip-logo" src="./logos/augment.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Augment</span><span class="auth">CLI</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#DC2626" href="https://github.com/steipete/CodexBar/blob/main/docs/amp.md">
+        <li><a class="provider" style="--brand:#DC2626" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/amp.md">
           <img class="chip-logo" src="./logos/amp.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Amp</span><span class="auth">Cookies</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#888888" href="https://github.com/steipete/CodexBar/blob/main/docs/ollama.md">
+        <li><a class="provider" style="--brand:#888888" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/ollama.md">
           <img class="chip-logo" src="./logos/ollama.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Ollama</span><span class="auth">API key + Cookies</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#141414" href="https://github.com/steipete/CodexBar/blob/main/docs/providers.md#fetch-strategies-current">
+        <li><a class="provider" style="--brand:#141414" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/providers.md#fetch-strategies-current">
           <img class="chip-logo" src="./logos/synthetic.svg" data-dark-src="./logos/synthetic-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Synthetic</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#FF3399" href="https://github.com/steipete/CodexBar/blob/main/docs/jetbrains.md">
+        <li><a class="provider" style="--brand:#FF3399" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/jetbrains.md">
           <img class="chip-logo" src="./logos/jetbrains-ai.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">JetBrains AI</span><span class="auth">Local</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#7B68EE" href="https://github.com/steipete/CodexBar/blob/main/docs/warp.md">
+        <li><a class="provider" style="--brand:#7B68EE" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/warp.md">
           <img class="chip-logo" src="./logos/warp.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Warp</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#EAEAE6;--ink:#0a0a0c" href="https://github.com/steipete/CodexBar/blob/main/docs/elevenlabs.md">
+        <li><a class="provider" style="--brand:#EAEAE6;--ink:#0a0a0c" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/elevenlabs.md">
           <img class="chip-logo" src="./logos/elevenlabs.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">ElevenLabs</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#6467F2" href="https://github.com/steipete/CodexBar/blob/main/docs/openrouter.md">
+        <li><a class="provider" style="--brand:#6467F2" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/openrouter.md">
           <img class="chip-logo" src="./logos/openrouter.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">OpenRouter</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#20B2AA" href="https://github.com/steipete/CodexBar/blob/main/docs/providers.md#fetch-strategies-current">
+        <li><a class="provider" style="--brand:#20B2AA" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/providers.md#fetch-strategies-current">
           <img class="chip-logo" src="./logos/perplexity.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Perplexity</span><span class="auth">Cookies</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#38BDF8" href="https://github.com/steipete/CodexBar/blob/main/docs/abacus.md">
+        <li><a class="provider" style="--brand:#38BDF8" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/abacus.md">
           <img class="chip-logo no-bg" src="./logos/abacus-ai.png" data-dark-src="./logos/abacus-ai-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Abacus AI</span><span class="auth">Cookies</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#FF500F" href="https://github.com/steipete/CodexBar/blob/main/docs/providers.md#fetch-strategies-current">
+        <li><a class="provider" style="--brand:#FF500F" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/providers.md#fetch-strategies-current">
           <img class="chip-logo" src="./logos/mistral.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Mistral</span><span class="auth">Cookies</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#527DF0" href="https://github.com/steipete/CodexBar/blob/main/docs/deepseek.md">
+        <li><a class="provider" style="--brand:#527DF0" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/deepseek.md">
           <img class="chip-logo" src="./logos/deepseek.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">DeepSeek</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider" style="--brand:#44C800;--ink:#0a0a0c" href="https://github.com/steipete/CodexBar/blob/main/docs/codebuff.md">
+        <li><a class="provider" style="--brand:#44C800;--ink:#0a0a0c" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/codebuff.md">
           <img class="chip-logo no-bg" src="./logos/codebuff.png" data-dark-src="./logos/codebuff-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Codebuff</span><span class="auth">API key</span></span>
         </a></li>
-        <li><a class="provider add" href="https://github.com/steipete/CodexBar/blob/main/docs/provider.md">
+        <li><a class="provider add" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/provider.md">
           <span class="chip">+</span><span class="meta"><span class="name">Your provider</span><span class="auth">Authoring guide</span></span>
         </a></li>
         </ul>
@@ -195,7 +195,7 @@
 
       <section class="showcase">
       <figure class="shot">
-        <img src="./codexbar.png" alt="CodexBar menu bar popover showing provider tiles with usage bars, reset countdowns, and credit details." />
+        <img src="./codexbar.png" alt="QuotaKit menu bar popover showing provider tiles with usage bars, reset countdowns, and credit details." />
       </figure>
       <div class="features">
         <article>
@@ -221,22 +221,22 @@
       <article class="block">
         <h3>Install &amp; updates</h3>
         <p>
-          Universal app via <a href="https://github.com/steipete/CodexBar/releases/latest">GitHub Releases</a> with Sparkle auto-updates, or
-          <code>brew install --cask steipete/tap/codexbar</code> for Apple Silicon (updates via <code>brew upgrade</code>).
+          Universal app via <a href="https://github.com/ColumbusLabs/QuotaKit/releases/latest">GitHub Releases</a> with Sparkle auto-updates, or
+          <code>Download from GitHub Releases</code> for Apple Silicon (updates via <code>brew upgrade</code>).
         </p>
       </article>
       <article class="block">
         <h3>CLI</h3>
         <p>
           A bundled <code>codexbar</code> binary plus standalone tarballs for macOS and Linux on each release. On Linux:
-          <code>brew install steipete/tap/codexbar</code>.
+          <code>Download from GitHub Releases</code>.
         </p>
       </article>
       <article class="block">
         <h3>Privacy</h3>
         <p>
           Reuses existing provider sessions — OAuth, device flow, API keys, browser cookies, local files — so no passwords are stored.
-          Audit notes in <a href="https://github.com/steipete/CodexBar/issues/12">issue #12</a>.
+          Audit notes in <a href="https://github.com/ColumbusLabs/QuotaKit/issues/12">issue #12</a>.
         </p>
       </article>
       <article class="block">
@@ -251,10 +251,10 @@
 
     <footer class="foot">
       <p>
-        Built by <a href="https://steipete.me">Peter Steinberger</a> ·
-        <a href="https://github.com/steipete/CodexBar/blob/main/CHANGELOG.md">Changelog</a> ·
-        <a href="https://github.com/steipete/CodexBar/blob/main/LICENSE">MIT</a> ·
-        <a href="https://trimmy.app">trimmy.app</a>
+        Built by <a href="https://columbus-labs.com">Columbus Labs</a> ·
+        <a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">Changelog</a> ·
+        <a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/LICENSE">MIT</a> ·
+
       </p>
     </footer>
 

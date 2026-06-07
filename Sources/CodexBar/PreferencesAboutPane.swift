@@ -54,7 +54,7 @@ struct AboutPane: View {
             }
 
             VStack(spacing: 2) {
-                Text("CodexBar")
+                Text("QuotaKit")
                     .font(.title3).bold()
                 Text(String(format: L("version_format"), self.versionString))
                     .foregroundStyle(.secondary)
@@ -72,10 +72,9 @@ struct AboutPane: View {
                 AboutLinkRow(
                     icon: "chevron.left.slash.chevron.right",
                     title: L("link_github"),
-                    url: "https://github.com/o1xhack/CodexBar-Mobile")
-                AboutLinkRow(icon: "globe", title: L("link_website"), url: "https://codexbarios.o1xhack.com")
-                AboutLinkRow(icon: "bird", title: L("link_twitter"), url: "https://x.com/o1xhack")
-                AboutLinkRow(icon: "envelope", title: L("link_email"), url: "mailto:o1xhack@gmail.com")
+                    url: "https://github.com/ColumbusLabs/QuotaKit")
+                AboutLinkRow(icon: "globe", title: L("link_website"), url: "https://columbus-labs.com/quotakit/mac")
+                AboutLinkRow(icon: "building.2", title: "Columbus Labs", url: "https://columbus-labs.com")
             }
             .padding(.top, 8)
             .frame(maxWidth: .infinity)
@@ -114,7 +113,7 @@ struct AboutPane: View {
                     .foregroundStyle(.secondary)
             }
 
-            Text("Based on CodexBar by Peter Steinberger. © 2026 Yuxiao Wang. MIT License.")
+            Text("QuotaKit by Columbus Labs. Based on CodexBar by Peter Steinberger. MIT License.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .padding(.top, 4)
@@ -152,7 +151,7 @@ struct AboutPane: View {
     }
 
     private func openProjectHome() {
-        guard let url = URL(string: "https://github.com/o1xhack/CodexBar") else { return }
+        guard let url = URL(string: "https://github.com/ColumbusLabs/QuotaKit") else { return }
         NSWorkspace.shared.open(url)
     }
 }

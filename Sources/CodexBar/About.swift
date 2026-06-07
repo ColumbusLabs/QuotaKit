@@ -25,15 +25,15 @@ func showAbout() {
         ])
     }
 
-    let credits =
-        NSMutableAttributedString(string: "Based on CodexBar by Peter Steinberger\n© 2026 Yuxiao Wang — MIT License\n")
-    credits.append(makeLink("GitHub", urlString: "https://github.com/o1xhack/CodexBar"))
+    let credits = NSMutableAttributedString(
+        string: "QuotaKit by Columbus Labs\n" +
+            "Based on CodexBar by Peter Steinberger\n" +
+            "MIT License\n")
+    credits.append(makeLink("GitHub", urlString: "https://github.com/ColumbusLabs/QuotaKit"))
     credits.append(separator)
-    credits.append(makeLink("Website", urlString: "https://codexbarios.o1xhack.com"))
+    credits.append(makeLink("Website", urlString: "https://columbus-labs.com/quotakit/mac"))
     credits.append(separator)
-    credits.append(makeLink("Twitter", urlString: "https://x.com/o1xhack"))
-    credits.append(separator)
-    credits.append(makeLink("Email", urlString: "mailto:o1xhack@gmail.com"))
+    credits.append(makeLink("Columbus Labs", urlString: "https://columbus-labs.com"))
     if let buildTimestamp, let formatted = formattedBuildTimestamp(buildTimestamp) {
         var builtLine = "Built \(formatted)"
         if let gitCommit, !gitCommit.isEmpty, gitCommit != "unknown" {
@@ -50,7 +50,7 @@ func showAbout() {
     }
 
     let options: [NSApplication.AboutPanelOptionKey: Any] = [
-        .applicationName: "CodexBar",
+        .applicationName: "QuotaKit",
         .applicationVersion: versionString,
         .version: versionString,
         .credits: credits,

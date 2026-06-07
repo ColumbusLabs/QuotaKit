@@ -1,10 +1,12 @@
+import CodexBarSync
 import SwiftUI
+import UIKit
 
 struct OnboardingView: View {
     var onDemo: (() -> Void)?
 
     private let steps: [(icon: String, title: LocalizedStringResource, detail: LocalizedStringResource)] = [
-        ("laptopcomputer.and.arrow.down", "Install QuotaKit on Mac", "Download from the GitHub release page and move to Applications."),
+        ("laptopcomputer.and.arrow.down", "Open setup on your Mac", "Open the setup link on your Mac, then download QuotaKit and move it to Applications."),
         ("gearshape", "Enable iCloud Sync", "Open QuotaKit on your Mac → Settings → turn on iCloud Sync."),
         ("icloud.and.arrow.up", "Wait for Sync", "Usage data will appear here automatically once your Mac pushes data to iCloud."),
     ]
@@ -29,22 +31,25 @@ struct OnboardingView: View {
                 }
                 .padding(.top, 24)
 
-                // Upgrade notice — kept evergreen by mirroring the
-                // Release Notes Important section. Update text + bump
-                // version requirement on every marketing-version cut.
+                // Mac setup starts on the Mac; this block gives iPhone users
+                // a handoff path instead of pretending the phone can install it.
                 VStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.arrow.circlepath")
+                    Image(systemName: "laptopcomputer.and.arrow.down")
                         .font(.title2)
-                        .foregroundStyle(.orange)
-                    Text("v1.2.0 — New Mac App Required")
+                        .foregroundStyle(.tint)
+                    Text("Mac setup required")
                         .font(.subheadline.weight(.semibold))
-                    Text("Subscription Utilization and Mac→iPhone push notifications need a recent QuotaKit Mac build. Get it from github.com/ColumbusLabs/QuotaKit/releases.")
+                    Text("QuotaKit needs the Mac app to collect usage. Share this setup link to your Mac or copy it to open there.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
+                    Text(ProductConfig.macSetupDisplayURL)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.tint)
+                        .textSelection(.enabled)
                 }
                 .padding()
-                .background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                .background(.tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
 
                 // Steps
                 VStack(spacing: 20) {
@@ -78,13 +83,7 @@ struct OnboardingView: View {
 
                 // Actions
                 VStack(spacing: 12) {
-                    Link(destination: URL(string: "https://github.com/ColumbusLabs/QuotaKit/releases")!) {
-                        Label("Download Mac App", systemImage: "arrow.down.circle.fill")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                    MacSetupLinkActions(prominentShare: true)
 
                     if let onDemo {
                         Button(action: onDemo) {
@@ -104,4 +103,55 @@ struct OnboardingView: View {
 
 #Preview {
     OnboardingView(onDemo: {})
+}
+
+struct MacSetupLinkActions: View {
+    let prominentShare: Bool
+    @State private var didCopySetupLink = false
+
+    var body: some View {
+        VStack(spacing: 12) {
+            if self.prominentShare {
+                ShareLink(item: ProductConfig.macSetupURL) {
+                    Label("Share Mac Setup Link", systemImage: "square.and.arrow.up")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+            } else {
+                ShareLink(item: ProductConfig.macSetupURL) {
+                    Label("Share Mac Setup Link", systemImage: "square.and.arrow.up")
+                }
+                .buttonStyle(.bordered)
+            }
+
+            Button {
+                self.copySetupLink()
+            } label: {
+                if self.didCopySetupLink {
+                    Label("Copied Setup Link", systemImage: "checkmark.circle.fill")
+                } else {
+                    Label("Copy Setup Link", systemImage: "doc.on.doc")
+                }
+            }
+            .buttonStyle(.bordered)
+            .controlSize(self.prominentShare ? .regular : .small)
+        }
+    }
+
+    private func copySetupLink() {
+        UIPasteboard.general.string = ProductConfig.macSetupURL.absoluteString
+        withAnimation {
+            self.didCopySetupLink = true
+        }
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            await MainActor.run {
+                withAnimation {
+                    self.didCopySetupLink = false
+                }
+            }
+        }
+    }
 }

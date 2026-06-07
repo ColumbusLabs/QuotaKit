@@ -27,5 +27,8 @@ public enum ProductConfig {
     public static let storeKitLifetimeProductID = "com.columbuslabs.quotakit.pro.lifetime"
     public static let launchPriceCopy = "$4.99 lifetime"
 
+    public static let macSetupURL = URL(string: "https://columbus-labs.com/quotakit/mac")!
+    public static let macSetupDisplayURL = "columbus-labs.com/quotakit/mac"
+
     public static let logSubsystem = "com.columbuslabs.quotakit"
 }

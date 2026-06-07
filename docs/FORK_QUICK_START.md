@@ -1,76 +1,57 @@
 ---
-summary: "o1xhack fork quick start: differences from upstream, iOS companion app, and key commands."
+summary: "QuotaKit quick start: Columbus Labs product boundary, inherited internals, and common commands."
 read_when:
-  - Onboarding to the fork workflow
-  - Reviewing fork-specific changes
+  - Onboarding to QuotaKit development
+  - Checking which public repo identity should be used
 ---
 
-# CodexBar Fork — Quick Start
+# QuotaKit Quick Start
 
-**Fork Maintainer:** Yuxiao Wang ([o1xhack](https://x.com/o1xhack))
-**Original Author:** Peter Steinberger ([steipete](https://twitter.com/steipete))
-**Fork Repository:** https://github.com/o1xhack/CodexBar-Mobile
-**Branch:** `mobile-dev`
+QuotaKit is the Columbus Labs product in this repository. The repository preserves upstream CodexBar history and still has inherited internal target names, but public product copy, releases, support links, and setup flows should use QuotaKit / Columbus Labs.
 
----
+## Product Boundary
 
-## What Makes This Fork Different?
+- Product: QuotaKit
+- Company: Columbus Labs
+- Repository: `https://github.com/ColumbusLabs/QuotaKit`
+- Setup page: `https://columbus-labs.com/quotakit/mac`
+- Mac bundle ID: `com.columbuslabs.quotakit.mac`
+- iOS bundle ID: `com.columbuslabs.quotakit.ios`
+- CloudKit container: `iCloud.com.columbuslabs.quotakit`
 
-### iOS Companion App
-The primary addition is **CodexBar Mobile** — an iOS app that syncs usage data from Mac via iCloud CloudKit.
-
-- Multi-device sync: multiple Macs → one iPhone
-- Session quota push notifications (depleted/restored)
-- Cost dashboard with daily charts, model breakdowns
-- Subscription utilization history charts
-- 4-language localization (en/zh-Hans/zh-Hant/ja)
-
-### Mac Changes (vs Upstream)
-- **Signing:** Developer ID: Yuxiao Wang (3TUERHN53E)
-- **Bundle ID:** com.o1xhack.codexbar
-- **Sparkle feed:** Points to o1xhack/CodexBar-Mobile mobile-dev branch
-- **Build number:** Composite `BUILD_NUMBER.MOBILE_VERSION` (e.g. 54.1.1.0)
-- **CloudKit sync:** SyncCoordinator pushes usage data to CloudKit
-- **About page:** Fork links (GitHub, website, Twitter, email)
-
-## Key Files
+## Key Areas
 
 | Path | Purpose |
 |------|---------|
-| `CLAUDE.md` | Project overview + Todoist integration rules |
-| `AGENTS.md` | Complete 7-step development workflow |
-| `CodexBarMobile/` | iOS app (Xcode project via xcodegen) |
-| `Shared/` | Shared sync layer (Mac + iOS) |
-| `docs/RELEASING-MOBILE.md` | Mac release workflow for the fork |
-| `docs/ios-cloudkit-sync.md` | CloudKit sync architecture |
-| `plan.md` | Feature tracking and roadmap |
+| `AGENTS.md` | Current development workflow |
+| `CodexBarMobile/` | iOS app and XcodeGen project |
+| `Shared/` | Shared sync layer |
+| `Sources/` | Mac app and provider internals |
+| `.mac-release.env` | QuotaKit Mac release defaults |
+| `version.env` | Current Mac/mobile/upstream version alignment |
 
-## Quick Commands
-
-```bash
-# Mac build
-swift build
-
-# Mac test
-swift test
-
-# iOS build
-cd CodexBarMobile && xcodegen generate && xcodebuild -scheme CodexBarMobile build
-
-# Mac release (sign + notarize)
-./Scripts/sign-and-notarize.sh
-
-# iOS TestFlight
-cd CodexBarMobile && xcodebuild archive ... && xcodebuild -exportArchive ...
-```
-
-## Upstream Sync
+## Common Commands
 
 ```bash
-git fetch upstream
-git merge v0.XX.0 --allow-unrelated-histories
-# Resolve conflicts: keep our fork files, take upstream for Sources/Tests
-swift build && swift test
+./Scripts/lint.sh lint
+
+cd CodexBarMobile
+xcodegen generate
+xcodebuild -project CodexBarMobile.xcodeproj \
+  -scheme CodexBarMobile \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  CODE_SIGNING_ALLOWED=NO build
 ```
 
-See `docs/RELEASING-MOBILE.md` for the full release workflow.
+Use `jj` for commits:
+
+```bash
+jj status
+jj describe -m "message"
+jj bookmark set main -r @
+jj git push --bookmark main
+```
+
+## Upstream History
+
+Upstream references are valid in credits, inherited implementation notes, and sync planning. They should not be used for QuotaKit install, support, release, appcast, or public product links.

@@ -108,6 +108,48 @@ struct SyncModelTests {
         #expect(window.remainingPercent == 0)
     }
 
+    @Test("SyncRateWindow decodes old payloads with nil pace")
+    func rateWindowOldPayloadDecodesNilPace() throws {
+        let json = """
+        {
+            "label": "Weekly",
+            "usedPercent": 42,
+            "windowMinutes": 10080,
+            "resetsAt": "2023-11-14T22:13:20Z"
+        }
+        """
+
+        let window = try CloudSyncConstants.makeJSONDecoder()
+            .decode(SyncRateWindow.self, from: Data(json.utf8))
+
+        #expect(window.pace == nil)
+        #expect(window.usedPercent == 42)
+    }
+
+    @Test("SyncRateWindow round-trips populated pace")
+    func rateWindowPaceRoundTrip() throws {
+        let pace = SyncUsagePace(
+            stage: .ahead,
+            deltaPercent: 7,
+            expectedUsedPercent: 43,
+            actualUsedPercent: 50,
+            leftLabel: "7% in deficit",
+            rightLabel: "Runs out in 3d")
+        let window = SyncRateWindow(
+            label: "Weekly",
+            usedPercent: 50,
+            windowMinutes: 10_080,
+            resetsAt: Date(timeIntervalSince1970: 1_700_000_000),
+            resetDescription: nil,
+            pace: pace)
+
+        let data = try CloudSyncConstants.makeJSONEncoder().encode(window)
+        let decoded = try CloudSyncConstants.makeJSONDecoder().decode(SyncRateWindow.self, from: data)
+
+        #expect(decoded.pace == pace)
+        #expect(decoded.pace?.leftLabel == "7% in deficit")
+    }
+
     @Test("Empty provider list encodes correctly")
     func emptyProviders() throws {
         let synced = SyncedUsageSnapshot(

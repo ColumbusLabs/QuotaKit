@@ -1,4 +1,4 @@
-<!-- ⚠ This template is required. Delete sections that don't apply, but
+<!-- This template is required. Delete sections that don't apply, but
      don't delete the headers — reviewers depend on the consistent
      structure. -->
 
@@ -11,10 +11,10 @@
 <!-- Why is this change needed? Link to Todoist task / issue / Research
      doc when relevant. -->
 
-## Mock-first quality (Mac 0.23.5+)
+## Mock-first quality
 
 <!--
-This section is a *blocking* checklist. CodexBar's mock-first
+This section is a blocking checklist. QuotaKit's mock-first
 infrastructure (`Sources/CodexBar/Sync/MockProviderInjector.swift`)
 exists so every change can be tested without real provider
 subscriptions. PRs that skip this section will be requested back.
@@ -58,5 +58,3 @@ Tick the appropriate boxes:
 <!-- Drag screenshots here for UI changes. For behavior changes,
      attach `swift test` output, log excerpts, or
      `./Scripts/install_app.sh release` smoke-test confirmation. -->
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)

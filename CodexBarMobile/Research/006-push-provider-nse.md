@@ -8,7 +8,6 @@
 
 For every Mac→iOS quota push, iOS now displays:
 - **Title**: provider name ("Codex", "Claude", "Cursor", …) — fetched fresh per push from the triggering record
-- **Body**: locale-resolved state text ("会话额度已耗尽" / "Session quota depleted" / etc.) — same as Build 52
 - **Sound**: default
 
 The text density and information shown matches Mac's local notification format ("Codex session depleted" + body) while respecting iPhone-side localization conventions (short title + descriptive body in user's locale).
@@ -39,7 +38,6 @@ content.title = providerName
     ↓
 contentHandler(content)
     ↓
-🔔 Lock screen / banner shows "Codex" + "会话额度已耗尽"
 ```
 
 ## Key design choices
@@ -49,9 +47,9 @@ contentHandler(content)
 | Attribute | Value |
 |---|---|
 | Type | `app-extension` (UNNotificationServiceExtension) |
-| Bundle ID | `com.o1xhack.codexbar.mobile.pushextension` |
+| Bundle ID | `com.columbuslabs.quotakit.ios.pushextension` |
 | Embedded in | `CodexBarMobile.app` (main app target depends on extension) |
-| Entitlements | iCloud-services = CloudKit; container = `iCloud.com.o1xhack.codexbar`; environment = Production |
+| Entitlements | iCloud-services = CloudKit; container = `iCloud.com.columbuslabs.quotakit.mac`; environment = Production |
 | Required because | Push payload cannot carry per-record `providerName` on this CloudKit container; extension must fetch the record fresh |
 
 ### 2. `shouldSendMutableContent = true` on the subscription
@@ -132,7 +130,6 @@ User-facing QA on iPhone after TestFlight install:
 4. Settings → Developer Tools → Push Setup → tap **Refresh** — `Subscription List` should show 3 subs: `device-snapshot-changes`, `quota-transition-depleted`, `quota-transition-restored` (same as Build 52)
 5. Mac → Preferences → Mobile → DEV **Codex Depleted** — iPhone push should show:
    - Title: "Codex"
-   - Body: "Session quota depleted" / "会话额度已耗尽" (per iPhone language)
 6. Repeat for Codex Restored, Claude Depleted, Claude Restored
 7. Continue Build 52's regression baseline: Background App Refresh OFF + app force-quit → push still arrives with the new title
 

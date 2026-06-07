@@ -103,7 +103,7 @@ jobs:
             const upstreamSummary = `${{ steps.check.outputs.upstream_summary }}`;
             const quotioSummary = `${{ steps.check.outputs.quotio_summary }}`;
             
-            const body = `## 🔄 Upstream Changes Detected
+            const body = `## Upstream Changes Detected
             
             **steipete/CodexBar:** ${upstreamCommits} new commits
             **quotio:** ${quotioCommits} new commits (last 7 days)
@@ -119,7 +119,7 @@ jobs:
             ${quotioSummary}
             \`\`\`
             
-            ### 📋 Review Actions
+            ### Review Actions
             
             **Review upstream changes:**
             \`\`\`bash
@@ -137,7 +137,7 @@ jobs:
             git log -p ${quotioRef} --since='7 days ago'
             \`\`\`
             
-            ### 🔗 Links
+            ### Links
             - [steipete commits](https://github.com/steipete/CodexBar/compare/${context.sha}...steipete:CodexBar:${upstreamBranch})
             - [quotio commits](https://github.com/nguyenphutrong/quotio/commits/${quotioBranch})
             
@@ -167,14 +167,14 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issues.data[0].number,
-                body: `🔄 Updated with latest changes (${upstreamCommits} upstream, ${quotioCommits} quotio)`
+                body: `Updated with latest changes (${upstreamCommits} upstream, ${quotioCommits} quotio)`
               });
             } else {
               // Create new issue
               await github.rest.issues.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                title: '🔄 Upstream Changes Available for Review',
+                title: 'Upstream Changes Available for Review',
                 body: body,
                 labels: ['upstream-sync', 'needs-review']
               });
@@ -183,6 +183,6 @@ jobs:
       - name: No changes detected
         if: steps.check.outputs.upstream_commits == 0 && steps.check.outputs.quotio_commits == 0
         run: |
-          echo "✅ No new upstream changes detected"
+          echo "No new upstream changes detected"
           echo "steipete/CodexBar: up to date"
           echo "quotio: no commits in last 7 days"

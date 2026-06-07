@@ -1,6 +1,6 @@
 # Launch Inventory
 
-Generated: 2026-06-07  
+Generated: 2026-06-07
 Scope: repository inventory for turning the current `CodexBar` / `CodexBarMobile` fork into the privacy-first QuotaKit product. This document records the upstream baseline and the first QuotaKit safety decisions.
 
 ## Product Decisions To Preserve
@@ -20,9 +20,9 @@ Scope: repository inventory for turning the current `CodexBar` / `CodexBarMobile
 ## Repository Baseline
 
 - Intended fork remote: `https://github.com/ColumbusLabs/QuotaKit.git`.
-- Seed/source branch inspected locally: upstream `o1xhack/CodexBar-Mobile` `mobile-dev`, commit `ad04882801040a1c585bd156fc442cd0434452d1`.
+- Seed/source branch inspected locally: upstream `ColumbusLabs/QuotaKit` `mobile-dev`, commit `ad04882801040a1c585bd156fc442cd0434452d1`.
 - Local `origin` is `ColumbusLabs/QuotaKit`; that remote currently has no refs from `git ls-remote`.
-- Upstream remote is `https://github.com/o1xhack/CodexBar-Mobile.git`.
+- Upstream remote is `https://github.com/ColumbusLabs/QuotaKit.git`.
 
 ## 1. Targets And Packages
 
@@ -51,11 +51,11 @@ Dependencies include Sparkle, Commander, Swift Crypto, Swift Log, Swift Syntax, 
 
 | Target | Bundle ID | Purpose |
 | --- | --- | --- |
-| `CodexBarMobile` | `com.o1xhack.codexbar.mobile` | Main iOS companion app. Reads CloudKit/KVS snapshots, stores local SwiftData cost ledger, shows synced cards, notifications, diagnostics, share cards, utilization/cost views. |
-| `CodexBarMobilePushExtension` | `com.o1xhack.codexbar.mobile.pushextension` | Notification Service Extension that enriches CloudKit quota transition notifications. |
-| `CodexBarSync` | `com.o1xhack.codexbar.sync` | iOS framework wrapping shared `../Shared` sync layer. |
-| `CodexBarMobileTests` | `com.o1xhack.codexbar.mobile.tests` | iOS unit tests. |
-| `CodexBarMobileUITests` | `com.o1xhack.codexbar.mobile.uitests` | iOS UI tests. |
+| `CodexBarMobile` | `com.columbuslabs.quotakit.ios` | Main iOS companion app. Reads CloudKit/KVS snapshots, stores local SwiftData cost ledger, shows synced cards, notifications, diagnostics, share cards, utilization/cost views. |
+| `CodexBarMobilePushExtension` | `com.columbuslabs.quotakit.ios.pushextension` | Notification Service Extension that enriches CloudKit quota transition notifications. |
+| `CodexBarSync` | `com.columbuslabs.quotakit.sync` | iOS framework wrapping shared `../Shared` sync layer. |
+| `CodexBarMobileTests` | `com.columbuslabs.quotakit.ios.tests` | iOS unit tests. |
+| `CodexBarMobileUITests` | `com.columbuslabs.quotakit.ios.uitests` | iOS UI tests. |
 
 `CodexBarMobile/Package.swift` also defines a standalone package for `CodexBarSync`, `CodexBarMobile`, and `CodexBarMobileTests`, but the signed app/archive path is the Xcode project.
 
@@ -71,13 +71,13 @@ These were the active upstream/fork identifiers at inventory time. They must not
 
 | Surface | Current value |
 | --- | --- |
-| CloudKit container | `iCloud.com.o1xhack.codexbar` |
+| CloudKit container | `iCloud.com.columbuslabs.quotakit.mac` |
 | Legacy KVS identifier | `$(TeamIdentifierPrefix)com.codexbar.shared` on iOS; `3TUERHN53E.com.codexbar.shared` in macOS packaging by default |
-| iOS app bundle | `com.o1xhack.codexbar.mobile` |
-| iOS push extension bundle | `com.o1xhack.codexbar.mobile.pushextension` |
-| macOS release bundle | `com.o1xhack.codexbar` |
-| macOS debug bundle | `com.o1xhack.codexbar.debug` |
-| macOS app group | `group.com.o1xhack.codexbar` in packaging, while `AppGroupSupport` computes `group.<team>.com.steipete.codexbar` |
+| iOS app bundle | `com.columbuslabs.quotakit.ios` |
+| iOS push extension bundle | `com.columbuslabs.quotakit.ios.pushextension` |
+| macOS release bundle | `com.columbuslabs.quotakit.mac` |
+| macOS debug bundle | `com.columbuslabs.quotakit.mac.debug` |
+| macOS app group | `group.com.columbuslabs.quotakit.mac` in packaging, while `AppGroupSupport` computes `group.<team>.com.steipete.codexbar` |
 | Current signing team hardcode | `3TUERHN53E` |
 | Upstream legacy team hardcode | `Y5PE65HELJ` |
 
@@ -86,7 +86,7 @@ These were the active upstream/fork identifiers at inventory time. They must not
 - `CodexBarMobile/CodexBarMobile/CodexBarMobile.entitlements`
   - `aps-environment = development`
   - `com.apple.developer.icloud-container-environment = Production`
-  - `com.apple.developer.icloud-container-identifiers = iCloud.com.o1xhack.codexbar`
+  - `com.apple.developer.icloud-container-identifiers = iCloud.com.columbuslabs.quotakit.mac`
   - `com.apple.developer.icloud-services = CloudKit`
   - `com.apple.developer.ubiquity-kvstore-identifier = $(TeamIdentifierPrefix)com.codexbar.shared`
 - `CodexBarMobile/CodexBarMobilePushExtension/PushExtension.entitlements`
@@ -345,11 +345,11 @@ QuotaKit Pro widget work should create iOS widget targets that read sanitized iO
 - `Scripts/release.sh`
   - Phase 1: clean worktree, changelog/appcast checks, lint, optional tests, sign/notarize, tag, draft GitHub release.
   - Phase 2: publish draft, generate signed Sparkle appcast, commit/push `appcast.xml`, verify assets.
-  - Hardcoded to `o1xhack/CodexBar-Mobile`, `mobile-dev`, `CodexBar`, and current release tag shape.
+  - Hardcoded to `ColumbusLabs/QuotaKit`, `mobile-dev`, `CodexBar`, and current release tag shape.
 - `Scripts/make_appcast.sh`, `Scripts/verify_appcast.sh`, `Scripts/sparkle_helpers.sh`
   - Sparkle appcast generation/verification.
 - `appcast.xml`
-  - Current feed points to o1xhack and older steipete release entries.
+  - Previous feed pointed to inherited release entries.
 - `docs/sparkle.md`, `docs/RELEASING.md`
   - Current release docs and assumptions.
 
@@ -381,13 +381,13 @@ QuotaKit Pro widget work should create iOS widget targets that read sanitized iO
 
 Must be changed before QuotaKit launch:
 
-- App names: `CodexBar`, `CodexBarMobile`, `CodexBar iOS`, `CodexBarWidget`, `CodexBar CLI`.
-- README/App Store copy that presents "CodexBar iOS" and "CodexBar".
+- Inherited internal names still appear in target/module names such as `CodexBar`, `CodexBarMobile`, `CodexBarWidget`, and `CodexBarCLI`.
+- Public README/App Store copy should present QuotaKit.
 - App Store ID URL: `https://apps.apple.com/app/id6760216772`.
-- Website: `https://codexbarios.o1xhack.com`.
-- Social link: `https://x.com/o1xhack`.
-- GitHub URLs: `o1xhack/CodexBar-Mobile`, `steipete/CodexBar`.
-- Share card QR URL: `CodexBarMobile/CodexBarMobile/Views/CyberShareCardView.swift` uses `https://codexbarios.o1xhack.com`.
+- Website: `https://columbus-labs.com/quotakit/mac`.
+- Social link: `https://columbus-labs.com`.
+- GitHub URLs: `ColumbusLabs/QuotaKit`, `steipete/CodexBar`.
+- Share card QR URL: `CodexBarMobile/CodexBarMobile/Views/CyberShareCardView.swift` uses `https://columbus-labs.com/quotakit/mac`.
 - App copy in `CodexBarMobile/CodexBarMobile/ContentView.swift`, `OnboardingView.swift`, localizations, App Store metadata, screenshots, release notes, appcast, docs.
 - Provider-logo/brand-heavy UI assets under `Sources/CodexBar/Resources/provider-icons` and mobile views. Provider icons can remain as provider identifiers if legally safe, but cannot become primary app branding.
 
@@ -395,16 +395,16 @@ Must be changed before QuotaKit launch:
 
 Must be changed via a constants/config slice, not scattered edits:
 
-- `com.o1xhack.codexbar`
-- `com.o1xhack.codexbar.debug`
-- `com.o1xhack.codexbar.mobile`
-- `com.o1xhack.codexbar.mobile.pushextension`
-- `com.o1xhack.codexbar.sync`
-- `com.o1xhack.codexbar.mobile.tests`
-- `com.o1xhack.codexbar.mobile.uitests`
-- `group.com.o1xhack.codexbar`
-- `group.com.o1xhack.codexbar.debug`
-- `iCloud.com.o1xhack.codexbar`
+- `com.columbuslabs.quotakit.mac`
+- `com.columbuslabs.quotakit.mac.debug`
+- `com.columbuslabs.quotakit.ios`
+- `com.columbuslabs.quotakit.ios.pushextension`
+- `com.columbuslabs.quotakit.sync`
+- `com.columbuslabs.quotakit.ios.tests`
+- `com.columbuslabs.quotakit.ios.uitests`
+- `group.com.columbuslabs.quotakit.mac`
+- `group.com.columbuslabs.quotakit.mac.debug`
+- `iCloud.com.columbuslabs.quotakit.mac`
 - `3TUERHN53E.com.codexbar.shared`
 - `$(TeamIdentifierPrefix)com.codexbar.shared`
 - `com.codexbar.sync.deviceID`
@@ -439,8 +439,8 @@ Final IDs should be confirmed against Apple Developer portal availability before
 4. Token-account support is broad. Ensure token values and raw headers never enter `ProviderUsageSnapshot`, `ProviderUsageEnvelope`, `WidgetSnapshot`, SwiftData, diagnostics, or share cards.
 5. Local config `~/.codexbar/config.json` can contain API keys/cookies. Moving to QuotaKit should not migrate or upload this file without explicit user action.
 6. The iOS app currently includes advanced full-sync views and notifications. Free mode must gate provider count/features without suppressing privacy/security/restore/troubleshooting screens.
-7. Existing release scripts contain real team and release assumptions for o1xhack. Accidental use could publish/update the wrong product/feed.
-8. `AppGroupSupport` currently computes `group.<team>.com.steipete.codexbar` while packaging uses `group.com.o1xhack.codexbar`. This deserves a dedicated audit before relying on widgets.
+7. Existing release scripts previously contained inherited release assumptions. Accidental use could publish/update the wrong product/feed.
+8. `AppGroupSupport` currently computes `group.<team>.com.steipete.codexbar` while packaging uses `group.com.columbuslabs.quotakit.mac`. This deserves a dedicated audit before relying on widgets.
 9. Logs/debug exports can disclose account emails, paths, provider availability, endpoint failures, and possibly snippets of provider responses if fetchers are not consistently redacted.
 10. Provider affiliation risk is high: current copy leads with Codex/OpenAI/Claude/Cursor provider names and icons. QuotaKit must use neutral branding and avoid implying provider endorsement.
 
@@ -455,66 +455,66 @@ Final IDs should be confirmed against Apple Developer portal availability before
 - Keep manual refresh and one-provider free sync simple; avoid background provider enabling on iOS.
 - Add a CloudKit delete/reset flow for user data in the new product.
 - Keep logs redacted with `EmailRedaction` and expand redaction to tokens, cookie names/values, bearer headers, paths where needed.
-- Remove or quarantine o1xhack/steipete release scripts until ProductConfig and signing constants are deliberately updated.
+- Remove or quarantine inherited release scripts until ProductConfig and signing constants are deliberately updated.
 
 ## 10. Proposed First Milestone Issue List
 
 ### Milestone 0: Inventory and safety baseline
 
-1. Add launch inventory document.  
+1. Add launch inventory document.
    Acceptance: `docs/launch-inventory.md` exists and covers targets, CloudKit, sync, secrets, endpoints, widgets, release scripts, branding, risks, and next issues.
-2. Confirm product naming and ID authority.  
+2. Confirm product naming and ID authority.
    Acceptance: final public name, internal name, bundle ID prefix, app group, CloudKit container, website/support/privacy URLs, and Apple team are approved.
-3. Decide migration posture from `iCloud.com.o1xhack.codexbar`.  
+3. Decide migration posture from `iCloud.com.columbuslabs.quotakit.mac`.
    Acceptance: either fresh-container launch with no legacy migration, or a deliberate import/migration story.
 
 ### Milestone 1: Security and product config foundation
 
-4. Add `docs/security-model.md`.  
+4. Add `docs/security-model.md`.
    Acceptance: credential boundary, local-only provider reading, CloudKit snapshot contract, iOS data sources, browser-cookie risk, and no-backend/no-analytics posture are explicit.
-5. Add `docs/data-inventory.md`.  
+5. Add `docs/data-inventory.md`.
    Acceptance: every CloudKit, KVS, SwiftData, widget, share-card, log/debug, and local config field is classified.
-6. Add `Shared/App/ProductConfig.swift` or equivalent.  
+6. Add `Shared/App/ProductConfig.swift` or equivalent.
    Acceptance: public app name, internal product name, bundle IDs, app group, CloudKit container, KVS ID, URLs, and StoreKit product IDs live behind one constants layer.
-7. Replace hardcoded CloudKit container references with `ProductConfig`.  
-   Acceptance: `rg "iCloud.com.o1xhack.codexbar|com.o1xhack.codexbar|com.codexbar.shared"` shows only documented legacy references/tests after the change.
-8. Add sync constants/JSON codec tests.  
+7. Replace hardcoded CloudKit container references with `ProductConfig`.
+   Acceptance: `rg "iCloud.com.columbuslabs.quotakit.mac|com.columbuslabs.quotakit.mac|com.codexbar.shared"` shows only documented legacy references/tests after the change.
+8. Add sync constants/JSON codec tests.
    Acceptance: tests prove CloudKit IDs resolve from config and `CloudSyncConstants.makeJSONEncoder/Decoder` still round-trip Dates and key sync models.
 
 ### Milestone 2: StoreKit foundation
 
-9. Add StoreKit 2 purchase service for `com.columbuslabs.quotakit.pro.lifetime`.  
+9. Add StoreKit 2 purchase service for `com.columbuslabs.quotakit.pro.lifetime`.
    Acceptance: product load, purchase, entitlement listener, verification, restore, and errors are covered.
-10. Add `ProEntitlementStore` with local entitlement cache.  
+10. Add `ProEntitlementStore` with local entitlement cache.
     Acceptance: cached Pro state restores offline display state but never grants credential access.
-11. Add `FeatureGate` enum and feature checks.  
+11. Add `FeatureGate` enum and feature checks.
     Acceptance: gates cover unlimited providers, Home Screen widgets, Lock Screen widgets, notifications, cost dashboard, history charts, share cards, exports, advanced merging.
-12. Add functional paywall/settings UI without final art.  
+12. Add functional paywall/settings UI without final art.
     Acceptance: locked/unlocked previews, restore purchases, `$4.99 lifetime` launch copy, no subscription copy/logic.
-13. Add StoreKit test configuration.  
+13. Add StoreKit test configuration.
     Acceptance: local StoreKit tests/previews can simulate locked, purchased, restored, and failed states.
 
 ### Milestone 3: Free/Pro behavior
 
-14. Implement iOS free-mode provider limit.  
+14. Implement iOS free-mode provider limit.
     Acceptance: demo mode always works; real synced data shows one selected provider; privacy/security/restore/troubleshooting remain accessible.
-15. Gate Pro iOS widgets and notifications.  
+15. Gate Pro iOS widgets and notifications.
     Status: code complete in build 155 (Pro reload, unified app-group cache, localization, upgrade migrations, snapshot hardening). Apple Developer provisioning for the widget bundle ID and app group remains pending — see [029-widget-thermos-fixes.md](../CodexBarMobile/Research/029-widget-thermos-fixes.md) Phase 0.
     Acceptance: widgets/notifications explain Pro requirement without reading credentials or creating provider fetch paths on iOS.
-16. Gate cost dashboard, history, share cards, exports, and advanced merges.  
+16. Gate cost dashboard, history, share cards, exports, and advanced merges.
     Status: complete for existing iOS surfaces. Free real-data mode shows locked states or suppresses advanced controls; Pro and demo mode keep the full current feature surface.
     Acceptance: Pro sees full features; free sees calm locked states and useful basics.
 
 ### Milestone 4: Branding and release readiness
 
-17. Rebrand app/UI/docs/assets while preserving MIT attribution.  
-    Status: in progress. Current iOS display names, onboarding/setup/privacy/settings/share surfaces, and new widget copy use QuotaKit; historical release notes, upstream attribution, internal target/module names, and Mac-side release docs still retain CodexBar/o1xhack/steipete where appropriate until the dedicated launch-readiness pass.
+17. Rebrand app/UI/docs/assets while preserving MIT attribution.
+    Status: in progress. Current iOS display names, onboarding/setup/privacy/settings/share surfaces, and new widget copy use QuotaKit; historical release notes, upstream attribution, internal target/module names, and Mac-side release docs retain inherited names where appropriate until the dedicated launch-readiness pass.
     Acceptance: no primary branding uses Codex/OpenAI/Claude/Cursor/Anthropic/provider logos or implies affiliation.
-18. Replace signing/release scripts with QuotaKit-safe placeholders.  
-    Acceptance: scripts cannot publish to o1xhack/steipete feeds/releases by accident.
-19. Provision Apple identifiers and CloudKit schema.  
+18. Replace signing/release scripts with QuotaKit-safe placeholders.
+    Acceptance: scripts cannot publish to inherited feeds/releases by accident.
+19. Provision Apple identifiers and CloudKit schema.
     Acceptance: new IDs exist in Apple Developer portal; dev and production CloudKit environments are understood; entitlements match.
-20. Add privacy disclosure and data deletion controls.  
+20. Add privacy disclosure and data deletion controls.
     Acceptance: user can see synced data classes and clear local/CloudKit state.
 
 ## Stop Point

@@ -141,6 +141,14 @@ final class QuotaTransitionSubscriptions {
     /// every launch and on every `CKAccountChangedNotification`.
     func setupIfNeeded() async {
         let diag = await PushSetupDiagnostic.shared
+        guard !CloudKitRuntimeGate.isDisabledForLocalLaunch else {
+            await diag.recordPermission("CloudKit disabled for local simulator launch")
+            await diag.recordDepletedSub("quota alert subscriptions skipped")
+            await diag.recordRestoredSub("")
+            await diag.refreshSubscriptionList()
+            return
+        }
+
         let container = CKContainer(identifier: containerIdentifier)
         let database = container.privateCloudDatabase
 
@@ -238,6 +246,14 @@ final class QuotaTransitionSubscriptions {
 
     func removeManagedSubscriptions() async {
         let diag = await PushSetupDiagnostic.shared
+        guard !CloudKitRuntimeGate.isDisabledForLocalLaunch else {
+            await diag.recordPermission("CloudKit disabled for local simulator launch")
+            await diag.recordDepletedSub("quota alert cleanup skipped")
+            await diag.recordRestoredSub("")
+            await diag.refreshSubscriptionList()
+            return
+        }
+
         let database = CKContainer(identifier: containerIdentifier).privateCloudDatabase
         let managedIDs = Set(Self.managedSubscriptionIDs(
             providerIDs: QuotaProviderList.providers.map(\.id))
@@ -288,6 +304,10 @@ final class QuotaTransitionSubscriptions {
     /// first provider's depleted zone. Representative of the real subs since
     /// all of them share the same subscription type + alertBody-only payload.
     func runPersistenceTest() async -> String {
+        guard !CloudKitRuntimeGate.isDisabledForLocalLaunch else {
+            return "CloudKit disabled for local simulator launch"
+        }
+
         let container = CKContainer(identifier: containerIdentifier)
         let database = container.privateCloudDatabase
         let testID = "ios-persistence-test"

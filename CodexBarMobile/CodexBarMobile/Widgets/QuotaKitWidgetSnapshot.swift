@@ -3,7 +3,7 @@ import Foundation
 import os
 
 struct QuotaKitWidgetSnapshot: Codable, Equatable, Sendable {
-    static let currentSchemaVersion = 1
+    static let currentSchemaVersion = 2
 
     struct Provider: Codable, Equatable, Identifiable, Sendable {
         struct Window: Codable, Equatable, Sendable {
@@ -11,6 +11,7 @@ struct QuotaKitWidgetSnapshot: Codable, Equatable, Sendable {
             let usedPercent: Double
             let remainingPercent: Double
             let resetsAt: Date?
+            let pace: SyncUsagePace?
         }
 
         let id: String
@@ -90,7 +91,8 @@ enum QuotaKitWidgetSnapshotBuilder {
                     title: window.label ?? String(localized: "Quota"),
                     usedPercent: window.usedPercent,
                     remainingPercent: window.remainingPercent,
-                    resetsAt: window.resetsAt)
+                    resetsAt: window.resetsAt,
+                    pace: window.pace)
             })
     }
 

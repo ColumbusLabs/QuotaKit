@@ -214,9 +214,13 @@ struct ProviderDetailView: View {
                 }
                 if self.provider.providerID == "codex",
                    let codexWorkspace = self.provider.codexWorkspace,
-                   (codexWorkspace.workspaceName?.isEmpty == false || codexWorkspace.weeklyPaceLabel?.isEmpty == false)
+                   (codexWorkspace.workspaceName?.isEmpty == false ||
+                       (!self.hasRateWindowPace && codexWorkspace.weeklyPaceLabel?.isEmpty == false))
                 {
-                    CodexWorkspaceBadge(context: codexWorkspace, tintColor: self.providerColor)
+                    CodexWorkspaceBadge(
+                        context: codexWorkspace,
+                        tintColor: self.providerColor,
+                        showsPace: !self.hasRateWindowPace)
                 }
 
                 // Claude peak-hours indicator (Anthropic peak window
@@ -390,6 +394,10 @@ struct ProviderDetailView: View {
         default:
             false
         }
+    }
+
+    private var hasRateWindowPace: Bool {
+        self.provider.allRateWindows.contains { $0.pace != nil }
     }
 
     // MARK: - Rate Limits

@@ -1,6 +1,6 @@
-# Feature Research
+# QuotaKit iOS Research
 
-This directory contains research documents for features being considered for CodexBar Mobile (iOS).
+This directory contains research documents for QuotaKit iOS features and sync work.
 
 ## Status Legend
 
@@ -30,3 +30,5 @@ This directory contains research documents for features being considered for Cod
 | 027 | QuotaKit Pro Gates (cost/history/share/merge/visible notification gates + launch tracking notes) | `done` | — | [027-quotakit-pro-gates.md](027-quotakit-pro-gates.md) | 2026-06-07 |
 | 028 | iOS Widgets + QuotaKit Branding Cleanup (Pro-gated widgets backed by sanitized iOS cache + user-facing brand cleanup) | `done` | — | [028-ios-widgets-branding.md](028-ios-widgets-branding.md) | 2026-06-07 |
 | 029 | Widget Thermos Fixes (provisioning, Pro reload, localization, upgrade migrations, snapshot hardening) | `done` | Phase 0 provisioning | [029-widget-thermos-fixes.md](029-widget-thermos-fixes.md) | 2026-06-07 |
+| 030 | Mac Setup Handoff (Columbus Labs setup page + iPhone share/copy flow) | `done` | — | [030-mac-setup-handoff.md](030-mac-setup-handoff.md) | 2026-06-07 |
+| 031 | Mac Pace Parity (deficit/reserve pace labels + expected-usage stripe on iOS cards/widgets) | `done` | — | [031-mac-pace-parity.md](031-mac-pace-parity.md) | 2026-06-07 |

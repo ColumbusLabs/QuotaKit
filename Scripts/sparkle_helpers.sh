@@ -30,7 +30,7 @@ err() { echo "ERROR: $*" >&2; exit 1; }
 
 # ---------------------------------------------------------------------------
 # require_clean_worktree
-#   Aborts if there are uncommitted changes in the CodexBar working tree.
+#   Aborts if there are uncommitted changes in the QuotaKit working tree.
 # ---------------------------------------------------------------------------
 require_clean_worktree() {
   if [[ -n "$(git -C "$_SPARKLE_HELPERS_ROOT" status --porcelain)" ]]; then
@@ -193,10 +193,8 @@ check_assets() {
   local tag=$1 prefix=$2
   local missing=0
   local assets
-  # --repo pinned to fork explicitly. Without it, gh inspects local
-  # remotes and may pick the upstream remote (steipete/CodexBar)
-  # which doesn't have our fork's tags. See feedback_gh_release_repo_pin.md.
-  assets=$(gh release view "$tag" --repo o1xhack/CodexBar-Mobile --json assets -q '.assets[].name' 2>&1) || {
+  local repo="${QUOTAKIT_RELEASE_REPO:-ColumbusLabs/QuotaKit}"
+  assets=$(gh release view "$tag" --repo "$repo" --json assets -q '.assets[].name' 2>&1) || {
     err "gh release view failed for $tag: $assets"
   }
   for suffix in ".zip" ".dSYM.zip"; do

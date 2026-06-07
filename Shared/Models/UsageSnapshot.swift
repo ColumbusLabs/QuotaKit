@@ -1,5 +1,42 @@
 import Foundation
 
+/// Mac-resolved pace metadata for a rate-limit window. Text fields are
+/// produced by the Mac renderer so iOS matches the menu card exactly.
+public struct SyncUsagePace: Codable, Sendable, Equatable {
+    public enum Stage: String, Codable, Sendable, Equatable {
+        case onTrack
+        case slightlyAhead
+        case ahead
+        case farAhead
+        case slightlyBehind
+        case behind
+        case farBehind
+    }
+
+    public let stage: Stage
+    public let deltaPercent: Double
+    public let expectedUsedPercent: Double
+    public let actualUsedPercent: Double
+    public let leftLabel: String
+    public let rightLabel: String?
+
+    public init(
+        stage: Stage,
+        deltaPercent: Double,
+        expectedUsedPercent: Double,
+        actualUsedPercent: Double,
+        leftLabel: String,
+        rightLabel: String?)
+    {
+        self.stage = stage
+        self.deltaPercent = deltaPercent
+        self.expectedUsedPercent = expectedUsedPercent
+        self.actualUsedPercent = actualUsedPercent
+        self.leftLabel = leftLabel
+        self.rightLabel = rightLabel
+    }
+}
+
 /// A single rate-limit window snapshot for iCloud sync.
 public struct SyncRateWindow: Codable, Sendable, Equatable {
     public let label: String?
@@ -7,6 +44,7 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
     public let windowMinutes: Int?
     public let resetsAt: Date?
     public let resetDescription: String?
+    public let pace: SyncUsagePace?
 
     public var remainingPercent: Double {
         max(0, 100 - self.usedPercent)
@@ -17,13 +55,15 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
         usedPercent: Double,
         windowMinutes: Int?,
         resetsAt: Date?,
-        resetDescription: String?)
+        resetDescription: String?,
+        pace: SyncUsagePace? = nil)
     {
         self.label = label
         self.usedPercent = usedPercent
         self.windowMinutes = windowMinutes
         self.resetsAt = resetsAt
         self.resetDescription = resetDescription
+        self.pace = pace
     }
 
     public init(from decoder: Decoder) throws {
@@ -33,6 +73,7 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
         self.windowMinutes = try container.decodeIfPresent(Int.self, forKey: .windowMinutes)
         self.resetsAt = try container.decodeIfPresent(Date.self, forKey: .resetsAt)
         self.resetDescription = try container.decodeIfPresent(String.self, forKey: .resetDescription)
+        self.pace = try container.decodeIfPresent(SyncUsagePace.self, forKey: .pace)
     }
 }
 

@@ -5228,35 +5228,6 @@
         }
       }
     },
-    "Our GitHub repo was renamed from `o1xhack/CodexBar` to `o1xhack/CodexBar-Mobile` to differentiate from the upstream Mac repo. Existing download links keep working via redirect; nothing in your iCloud sync setup needs to change.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Our GitHub repo was renamed from `o1xhack/CodexBar` to `o1xhack/CodexBar-Mobile` to differentiate from the upstream Mac repo. Existing download links keep working via redirect; nothing in your iCloud sync setup needs to change."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "我们的 GitHub 仓库已从 `o1xhack/CodexBar` 重命名为 `o1xhack/CodexBar-Mobile`，以与上游 Mac 仓库区分。原有下载链接通过重定向继续可用，iCloud 同步配置无需变动。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "我們的 GitHub 倉庫已從 `o1xhack/CodexBar` 更名為 `o1xhack/CodexBar-Mobile`，以與上游 Mac 倉庫區分。原有下載連結透過重定向繼續可用，iCloud 同步設定無需變動。"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "GitHub リポジトリ名を `o1xhack/CodexBar` から `o1xhack/CodexBar-Mobile` に変更しました（上流の Mac リポジトリと区別するため）。既存のダウンロードリンクはリダイレクトで引き続き動作し、iCloud 同期の設定変更は不要です。"
-          }
-        }
-      }
-    },
     "Overview": {
       "localizations": {
         "en": {
@@ -6152,34 +6123,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "來自 Mac 的推送通知 —— 當 Mac 上工作階段額度耗盡或恢復可用時，iPhone 將以自己的語言收到通知。"
-          }
-        }
-      }
-    },
-    "Push notifications from Mac — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a localized notification that includes the provider name (e.g. \"Codex session quota depleted\" / \"Codex 的会话额度已耗尽\"). Background App Refresh does not need to be enabled.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Push notifications from Mac — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a localized notification that includes the provider name (e.g. \"Codex session quota depleted\" / \"Codex 的会话额度已耗尽\"). Background App Refresh does not need to be enabled."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mac からのプッシュ通知 — いずれかの Mac でセッションクォータが 0% になったとき、または再び利用可能になったとき、iPhone はプロバイダ名を含むローカライズされた通知を受け取ります (例:「Codex のセッション枠を使い切りました」)。Background App Refresh を有効化する必要はありません。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "来自 Mac 的推送通知 —— 当你的任何一台 Mac 上会话额度耗尽或恢复可用时，iPhone 会收到一条已本地化的通知，内容包含 Provider 名称（如“Codex 的会话额度已耗尽”）。不需要启用 Background App Refresh。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "來自 Mac 的推送通知 —— 當你的任何一台 Mac 上工作階段額度耗盡或恢復可用時，iPhone 會收到一條已本地化的通知，內容包含 Provider 名稱（如「Codex 的工作階段額度已耗盡」）。不需要啟用 Background App Refresh。"
           }
         }
       }
@@ -7909,31 +7852,31 @@
         }
       }
     },
-    "Subscription Utilization and Mac→iPhone push notifications need CodexBar Mac 0.19.0 (Build 54.1.2.0) or later. Get it from github.com/o1xhack/CodexBar-Mobile/releases.": {
+    "Subscription Utilization and Mac→iPhone push notifications need CodexBar Mac 0.19.0 (Build 54.1.2.0) or later. Get it from github.com/ColumbusLabs/QuotaKit/releases.": {
       "comment": "Setup Guide upgrade-notice body. Mirrors the Release Notes Important section.",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Subscription Utilization and Mac→iPhone push notifications need CodexBar Mac 0.19.0 (Build 54.1.2.0) or later. Get it from github.com/o1xhack/CodexBar-Mobile/releases."
+            "value": "Subscription Utilization and Mac→iPhone push notifications need CodexBar Mac 0.19.0 (Build 54.1.2.0) or later. Get it from github.com/ColumbusLabs/QuotaKit/releases."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "サブスクリプション利用率と Mac→iPhone プッシュ通知には CodexBar Mac 0.19.0 (Build 54.1.2.0) 以降が必要です。github.com/o1xhack/CodexBar-Mobile/releases から入手してください。"
+            "value": "サブスクリプション利用率と Mac→iPhone プッシュ通知には CodexBar Mac 0.19.0 (Build 54.1.2.0) 以降が必要です。github.com/ColumbusLabs/QuotaKit/releases から入手してください。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "订阅利用率和 Mac→iPhone 推送通知需要 Mac 版 CodexBar 升级到 0.19.0 (Build 54.1.2.0) 或更新版本。从 github.com/o1xhack/CodexBar-Mobile/releases 下载。"
+            "value": "订阅利用率和 Mac→iPhone 推送通知需要 Mac 版 CodexBar 升级到 0.19.0 (Build 54.1.2.0) 或更新版本。从 github.com/ColumbusLabs/QuotaKit/releases 下载。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "訂閱利用率和 Mac→iPhone 推送通知需要 Mac 版 CodexBar 升級到 0.19.0 (Build 54.1.2.0) 或更新版本。從 github.com/o1xhack/CodexBar-Mobile/releases 下載。"
+            "value": "訂閱利用率和 Mac→iPhone 推送通知需要 Mac 版 CodexBar 升級到 0.19.0 (Build 54.1.2.0) 或更新版本。從 github.com/ColumbusLabs/QuotaKit/releases 下載。"
           }
         }
       }
@@ -8948,63 +8891,6 @@
         }
       }
     },
-    "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.3.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar-Mobile/releases.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Update CodexBar on Mac to 0.20.3 (Build 55.3.1.3.0) or later to see Perplexity's structured credit breakdown (recurring / promo / purchased pools + Pro/Max plan + renewal countdown). Older Mac versions fall back to the legacy 3-bar rendering on the Perplexity detail page. Download from github.com/o1xhack/CodexBar-Mobile/releases."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "将 Mac 端 CodexBar 更新到 0.20.3（Build 55.3.1.3.0）或更高版本，才能在 Perplexity 详情页看到结构化的信用额度细分（月度 / 赠送 / 购买三段 + Pro/Max 套餐徽章 + 续期倒计时）。老版本 Mac 仍显示旧的 3 条柱图。下载地址：github.com/o1xhack/CodexBar-Mobile/releases。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "將 Mac 端 CodexBar 更新到 0.20.3（Build 55.3.1.3.0）或更高版本，才能在 Perplexity 詳情頁看到結構化的信用額度細分（月度 / 贈送 / 購買三段 + Pro/Max 套餐徽章 + 續期倒數計時）。舊版 Mac 仍顯示舊的 3 條柱圖。下載地址：github.com/o1xhack/CodexBar-Mobile/releases。"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Perplexity の構造化されたクレジット内訳（月次 / プロモ / 購入の 3 プール + Pro/Max プラン + 更新カウントダウン）を表示するには、Mac の CodexBar を 0.20.3（Build 55.3.1.3.0）以降に更新してください。古い Mac バージョンでは Perplexity 詳細ページは従来の 3 バー表示にフォールバックします。ダウンロード：github.com/o1xhack/CodexBar-Mobile/releases"
-          }
-        }
-      }
-    },
-    "Update Mac CodexBar to **0.23.4 (Build 58.4.1.3.1) or later** for the new providers and accurate Cost numbers — earlier 0.23.x has a Codex parser bug. Download: [github.com/o1xhack/CodexBar-Mobile/releases](https://github.com/o1xhack/CodexBar-Mobile/releases).": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Update Mac CodexBar to **0.23.4 (Build 58.4.1.3.1) or later** for the new providers and accurate Cost numbers — earlier 0.23.x has a Codex parser bug. Download: [github.com/o1xhack/CodexBar-Mobile/releases](https://github.com/o1xhack/CodexBar-Mobile/releases)."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mac 端 CodexBar 升到 **0.23.4（Build 58.4.1.3.1）或更高**，才能看到新增 provider 并保证 Cost 数字准确 —— 更早 0.23.x 有 Codex 解析器 bug。下载：[github.com/o1xhack/CodexBar-Mobile/releases](https://github.com/o1xhack/CodexBar-Mobile/releases)。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mac 端 CodexBar 升到 **0.23.4（Build 58.4.1.3.1）或更高**，才能看到新增 provider 並保證 Cost 數字準確 —— 更早 0.23.x 有 Codex 解析器 bug。下載：[github.com/o1xhack/CodexBar-Mobile/releases](https://github.com/o1xhack/CodexBar-Mobile/releases)。"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mac の CodexBar を **0.23.4（Build 58.4.1.3.1）以降** にアップデートしてください。新しいプロバイダーと正確な Cost 数値のために必要です。以前の 0.23.x には Codex パーサーのバグがありました。ダウンロード：[github.com/o1xhack/CodexBar-Mobile/releases](https://github.com/o1xhack/CodexBar-Mobile/releases)。"
-          }
-        }
-      }
-    },
     "Update Mac CodexBar to 0.23.6 (latest) for both fixes to take effect.": {
       "extractionState": "manual",
       "localizations": {
@@ -9485,62 +9371,6 @@
         }
       }
     },
-    "Version 1.1.0 requires the latest CodexBar Mac app (0.18.0-mobile-1.1.0 or later) to unlock CloudKit sync. Download it from GitHub: github.com/o1xhack/CodexBar-Mobile/releases": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Version 1.1.0 requires the latest CodexBar Mac app (0.18.0-mobile-1.1.0 or later) to unlock CloudKit sync. Download it from GitHub: github.com/o1xhack/CodexBar-Mobile/releases"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "バージョン 1.1.0 では、CloudKit 同期を有効にするため最新の Mac 版 CodexBar (0.18.0-mobile-1.1.0 以降) が必要です。GitHub からダウンロード: github.com/o1xhack/CodexBar-Mobile/releases"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "版本 1.1.0 需要最新的 Mac 版 CodexBar（0.18.0-mobile-1.1.0 或更新）才能启用 CloudKit 同步。从 GitHub 下载: github.com/o1xhack/CodexBar-Mobile/releases"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "版本 1.1.0 需要最新的 Mac 版 CodexBar（0.18.0-mobile-1.1.0 或更新）才能啟用 CloudKit 同步。從 GitHub 下載: github.com/o1xhack/CodexBar-Mobile/releases"
-          }
-        }
-      }
-    },
-    "Version 1.2.0 works best with the latest CodexBar Mac app (0.19.0 or later). Utilization History sync relies on Mac-side fixes shipped in that release. Download from GitHub: github.com/o1xhack/CodexBar-Mobile/releases": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Version 1.2.0 works best with the latest CodexBar Mac app (0.19.0 or later). Utilization History sync relies on Mac-side fixes shipped in that release. Download from GitHub: github.com/o1xhack/CodexBar-Mobile/releases"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "バージョン 1.2.0 は最新の CodexBar Mac アプリ（0.19.0 以降）で最も良く動作します。利用率履歴の同期はそのリリースで提供される Mac 側の修正に依存します。GitHub からダウンロード: github.com/o1xhack/CodexBar-Mobile/releases"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1.2.0 版本建议搭配最新的 CodexBar Mac 应用（0.19.0 或更高版本）使用。利用率历史同步依赖于该版本中的 Mac 端修复。从 GitHub 下载：github.com/o1xhack/CodexBar-Mobile/releases"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1.2.0 版本建議搭配最新的 CodexBar Mac 應用程式（0.19.0 或更高版本）使用。使用率歷史同步依賴於該版本中的 Mac 端修復。從 GitHub 下載：github.com/o1xhack/CodexBar-Mobile/releases"
-          }
-        }
-      }
-    },
     "Versions": {
       "localizations": {
         "en": {
@@ -9903,34 +9733,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "是，同一個帳號"
-          }
-        }
-      }
-    },
-    "You must update CodexBar on Mac to 0.19.0 (Build 54.1.2.0) or later to use this release. Subscription Utilization data collection and Mac→iOS push notifications both depend on Mac-side changes in that version. Download from github.com/o1xhack/CodexBar-Mobile/releases.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You must update CodexBar on Mac to 0.19.0 (Build 54.1.2.0) or later to use this release. Subscription Utilization data collection and Mac→iOS push notifications both depend on Mac-side changes in that version. Download from github.com/o1xhack/CodexBar-Mobile/releases."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "このリリースを使用するには、Mac 版 CodexBar を 0.19.0 (Build 54.1.2.0) 以降に更新する必要があります。サブスクリプション利用率のデータ収集と Mac→iOS プッシュ通知は、いずれもこの Mac 版の変更に依存しています。github.com/o1xhack/CodexBar-Mobile/releases からダウンロードしてください。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "必须将 Mac 版 CodexBar 更新到 0.19.0（Build 54.1.2.0）或更新版本才能使用本次更新。利用率数据采集和 Mac→iPhone 推送通知都依赖该版本的 Mac 端改动。从 github.com/o1xhack/CodexBar-Mobile/releases 下载。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "必須將 Mac 版 CodexBar 更新到 0.19.0（Build 54.1.2.0）或更新版本才能使用本次更新。利用率資料採集和 Mac→iPhone 推送通知都依賴該版本的 Mac 端改動。從 github.com/o1xhack/CodexBar-Mobile/releases 下載。"
           }
         }
       }
@@ -16781,6 +16583,523 @@
           "stringUnit": {
             "state": "translated",
             "value": "品牌 —— iOS 介面、設定文字、分享卡片和更新提示現在使用 QuotaKit，同時在合適位置保留上游署名。"
+          }
+        }
+      }
+    },
+    "Branding and setup — iOS screens, share cards, update prompts, and Mac setup now use QuotaKit. The iPhone shares a Columbus Labs setup page for Mac installation instead of sending you straight to GitHub.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Branding and setup — iOS screens, share cards, update prompts, and Mac setup now use QuotaKit. The iPhone shares a Columbus Labs setup page for Mac installation instead of sending you straight to GitHub."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブランディングとセットアップ — iOS 画面、共有カード、更新案内、Mac セットアップを QuotaKit に統一しました。iPhone からは GitHub に直接送るのではなく、Columbus Labs の Mac セットアップページを共有します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "品牌与设置 —— iOS 界面、分享卡片、更新提示和 Mac 设置现在都使用 QuotaKit。iPhone 会分享 Columbus Labs 的 Mac 设置页面，而不是直接把你带到 GitHub。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "品牌與設定 —— iOS 介面、分享卡片、更新提示和 Mac 設定現在都使用 QuotaKit。iPhone 會分享 Columbus Labs 的 Mac 設定頁面，而不是直接把你帶到 GitHub。"
+          }
+        }
+      }
+    },
+    "Copied Setup Link": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copied Setup Link"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セットアップリンクをコピーしました"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已复制设置链接"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已複製設定連結"
+          }
+        }
+      }
+    },
+    "Copy Setup Link": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy Setup Link"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セットアップリンクをコピー"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制设置链接"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複製設定連結"
+          }
+        }
+      }
+    },
+    "Mac setup required": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac setup required"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac のセットアップが必要です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要设置 Mac"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要設定 Mac"
+          }
+        }
+      }
+    },
+    "Open setup on your Mac": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open setup on your Mac"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac でセットアップを開く"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Mac 上打开设置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Mac 上開啟設定"
+          }
+        }
+      }
+    },
+    "Open the setup link on your Mac, then download QuotaKit and move it to Applications.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the setup link on your Mac, then download QuotaKit and move it to Applications."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac でセットアップリンクを開き、QuotaKit をダウンロードして Applications に移動してください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Mac 上打开设置链接，然后下载 QuotaKit 并移到“应用程序”文件夹。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Mac 上開啟設定連結，然後下載 QuotaKit 並移到「應用程式」資料夾。"
+          }
+        }
+      }
+    },
+    "QuotaKit needs the Mac app to collect usage. Share this setup link to your Mac or copy it to open there.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit needs the Mac app to collect usage. Share this setup link to your Mac or copy it to open there."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit が使用状況を集めるには Mac アプリが必要です。このセットアップリンクを Mac に共有するか、コピーして Mac で開いてください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit 需要 Mac 应用来收集用量。把这个设置链接分享到 Mac，或复制后在 Mac 上打开。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit 需要 Mac 應用程式來收集用量。把這個設定連結分享到 Mac，或複製後在 Mac 上開啟。"
+          }
+        }
+      }
+    },
+    "Share Mac Setup Link": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Share Mac Setup Link"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac セットアップリンクを共有"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分享 Mac 设置链接"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分享 Mac 設定連結"
+          }
+        }
+      }
+    },
+    "Update QuotaKit on your Mac": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update QuotaKit on your Mac"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac の QuotaKit をアップデート"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新 Mac 上的 QuotaKit"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新 Mac 上的 QuotaKit"
+          }
+        }
+      }
+    },
+    "Your Mac is using legacy sync. Open the setup link on your Mac to install the current QuotaKit build and enable CloudKit multi-device sync.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your Mac is using legacy sync. Open the setup link on your Mac to install the current QuotaKit build and enable CloudKit multi-device sync."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お使いの Mac は旧式の同期を使用しています。Mac でセットアップリンクを開き、最新の QuotaKit ビルドをインストールして CloudKit マルチデバイス同期を有効にしてください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的 Mac 正在使用旧版同步。请在 Mac 上打开设置链接，安装当前 QuotaKit 构建并启用 CloudKit 多设备同步。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的 Mac 正在使用舊版同步。請在 Mac 上開啟設定連結，安裝目前的 QuotaKit 建置並啟用 CloudKit 多裝置同步。"
+          }
+        }
+      }
+    },
+    "QuotaKit is now distributed by Columbus Labs. Use the Mac setup page for current downloads and setup instructions: columbus-labs.com/quotakit/mac.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit is now distributed by Columbus Labs. Use the Mac setup page for current downloads and setup instructions: columbus-labs.com/quotakit/mac."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit is now distributed by Columbus Labs. Use the Mac setup page for current downloads and setup instructions: columbus-labs.com/quotakit/mac."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit is now distributed by Columbus Labs. Use the Mac setup page for current downloads and setup instructions: columbus-labs.com/quotakit/mac."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit is now distributed by Columbus Labs. Use the Mac setup page for current downloads and setup instructions: columbus-labs.com/quotakit/mac."
+          }
+        }
+      }
+    },
+    "Open the QuotaKit Mac setup page to install the current Mac build for new providers and accurate Cost numbers: columbus-labs.com/quotakit/mac.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build for new providers and accurate Cost numbers: columbus-labs.com/quotakit/mac."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build for new providers and accurate Cost numbers: columbus-labs.com/quotakit/mac."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build for new providers and accurate Cost numbers: columbus-labs.com/quotakit/mac."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build for new providers and accurate Cost numbers: columbus-labs.com/quotakit/mac."
+          }
+        }
+      }
+    },
+    "Open the QuotaKit Mac setup page to install the current Mac build for Perplexity credit breakdowns and other synced provider improvements: columbus-labs.com/quotakit/mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build for Perplexity credit breakdowns and other synced provider improvements: columbus-labs.com/quotakit/mac."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build for Perplexity credit breakdowns and other synced provider improvements: columbus-labs.com/quotakit/mac."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build for Perplexity credit breakdowns and other synced provider improvements: columbus-labs.com/quotakit/mac."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build for Perplexity credit breakdowns and other synced provider improvements: columbus-labs.com/quotakit/mac."
+          }
+        }
+      }
+    },
+    "Open the QuotaKit Mac setup page to install the current Mac build. Subscription Utilization and Mac-to-iPhone push notifications depend on the paired Mac app: columbus-labs.com/quotakit/mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build. Subscription Utilization and Mac-to-iPhone push notifications depend on the paired Mac app: columbus-labs.com/quotakit/mac."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build. Subscription Utilization and Mac-to-iPhone push notifications depend on the paired Mac app: columbus-labs.com/quotakit/mac."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build. Subscription Utilization and Mac-to-iPhone push notifications depend on the paired Mac app: columbus-labs.com/quotakit/mac."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build. Subscription Utilization and Mac-to-iPhone push notifications depend on the paired Mac app: columbus-labs.com/quotakit/mac."
+          }
+        }
+      }
+    },
+    "Open the QuotaKit Mac setup page to install the current Mac build and unlock CloudKit sync: columbus-labs.com/quotakit/mac": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build and unlock CloudKit sync: columbus-labs.com/quotakit/mac"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build and unlock CloudKit sync: columbus-labs.com/quotakit/mac"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build and unlock CloudKit sync: columbus-labs.com/quotakit/mac"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build and unlock CloudKit sync: columbus-labs.com/quotakit/mac"
+          }
+        }
+      }
+    },
+    "Open the QuotaKit Mac setup page to install the current Mac build. Utilization History sync relies on paired Mac-side support: columbus-labs.com/quotakit/mac": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build. Utilization History sync relies on paired Mac-side support: columbus-labs.com/quotakit/mac"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build. Utilization History sync relies on paired Mac-side support: columbus-labs.com/quotakit/mac"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build. Utilization History sync relies on paired Mac-side support: columbus-labs.com/quotakit/mac"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build. Utilization History sync relies on paired Mac-side support: columbus-labs.com/quotakit/mac"
+          }
+        }
+      }
+    },
+    "Push notifications from Mac — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a notification that includes the provider name. Background App Refresh does not need to be enabled.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push notifications from Mac — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a notification that includes the provider name. Background App Refresh does not need to be enabled."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push notifications from Mac — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a notification that includes the provider name. Background App Refresh does not need to be enabled."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push notifications from Mac — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a notification that includes the provider name. Background App Refresh does not need to be enabled."
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push notifications from Mac — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a notification that includes the provider name. Background App Refresh does not need to be enabled."
+          }
+        }
+      }
+    },
+    "Widgets and pace — QuotaKit Pro adds Home Screen and Lock Screen widgets backed only by sanitized iPhone-side snapshot data, and Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widgets and pace — QuotaKit Pro adds Home Screen and Lock Screen widgets backed only by sanitized iPhone-side snapshot data, and Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェットとペース — QuotaKit Pro は整理済みの iPhone 側スナップショットだけを使うホーム画面/ロック画面ウィジェットを追加し、Usage カードは Mac アプリと同じ赤字/余裕のペース表示、予測される使い切り時刻、期待使用量マーカーを表示します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小组件与进度 —— QuotaKit Pro 添加了仅基于已清理 iPhone 端快照数据的主屏幕和锁屏小组件，Usage 卡片现在也会像 Mac 应用一样显示赤字/余量进度、预计耗尽时间和预期用量标记。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小工具與進度 —— QuotaKit Pro 新增了僅使用已清理 iPhone 端快照資料的主畫面與鎖定畫面小工具，Usage 卡片現在也會像 Mac App 一樣顯示赤字/餘量進度、預計用盡時間與預期用量標記。"
           }
         }
       }

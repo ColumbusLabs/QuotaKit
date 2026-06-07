@@ -8,7 +8,6 @@
 
 iPhone push for a Mac→iOS quota transition displays:
 - **Title**: `CodexBar` (iOS default — cannot be reliably overridden on this container without a `UNNotificationServiceExtension`, and the extension-based Build 53 approach did not fire).
-- **Body**: `{Provider} session quota depleted` / `{Provider} session quota restored` (localized to the iPhone's own language). On a Chinese iPhone: "Claude 的会话额度已耗尽" / "Claude 的会话额度已恢复".
 - **Sound**: default.
 
 All three fields resolved at **subscription creation time on iPhone** and shipped to CloudKit as literal strings — no server-side substitution, no service extension, no `titleLocalizationArgs`, no `desiredKeys`.
@@ -54,10 +53,8 @@ All three fields resolved at **subscription creation time on iPhone** and shippe
   CloudKit server:
     sees record creation in Quota-claude-depletedZone
     finds the matching CKRecordZoneSubscription
-    reads its static alertBody = "Claude 的会话额度已耗尽" (for a Chinese iPhone)
     packages it into an APNs alert push
     ↓
-  iPhone displays:  "CodexBar" / "Claude 的会话额度已耗尽"
 ```
 
 The zone name is the **single join point** between Mac and iPhone. Both ends independently compute the same string via `QuotaProviderList.quotaZoneName(...)`. No text flows from Mac to iPhone at push time.
