@@ -134,7 +134,7 @@ enum CostShareService {
               let pngData = image.pngData() else { return nil }
 
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("CodexBar-Share-\(period.rawValue).png")
+            .appendingPathComponent("QuotaKit-Share-\(period.rawValue).png")
         do {
             try pngData.write(to: url)
             return url

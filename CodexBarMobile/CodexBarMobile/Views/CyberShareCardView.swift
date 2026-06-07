@@ -1,6 +1,6 @@
 import SwiftUI
 
-private let qrURL = "https://codexbarios.o1xhack.com"
+private let qrURL = "https://github.com/ColumbusLabs/QuotaKit"
 /// Matches `CostShareCardView` dimensions (3:4 aspect, 390×520pt). Two
 /// theme variants share the same canvas so users can toggle between them
 /// without the resulting image dimensions changing — important for social

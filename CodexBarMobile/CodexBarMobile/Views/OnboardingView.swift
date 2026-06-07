@@ -4,8 +4,8 @@ struct OnboardingView: View {
     var onDemo: (() -> Void)?
 
     private let steps: [(icon: String, title: LocalizedStringResource, detail: LocalizedStringResource)] = [
-        ("laptopcomputer.and.arrow.down", "Install CodexBar on Mac", "Download from the GitHub release page and move to Applications."),
-        ("gearshape", "Enable iCloud Sync", "Open CodexBar on your Mac → Settings → turn on iCloud Sync."),
+        ("laptopcomputer.and.arrow.down", "Install QuotaKit on Mac", "Download from the GitHub release page and move to Applications."),
+        ("gearshape", "Enable iCloud Sync", "Open QuotaKit on your Mac → Settings → turn on iCloud Sync."),
         ("icloud.and.arrow.up", "Wait for Sync", "Usage data will appear here automatically once your Mac pushes data to iCloud."),
     ]
 
@@ -18,11 +18,11 @@ struct OnboardingView: View {
                         .font(.system(size: 56))
                         .foregroundStyle(.tint)
 
-                    Text("Welcome to CodexBar")
+                    Text("Welcome to QuotaKit")
                         .font(.title)
                         .fontWeight(.bold)
 
-                    Text("Monitor your AI coding tool usage on iPhone.\nRequires the CodexBar Mac app.")
+                    Text("Monitor your AI coding tool usage on iPhone.\nRequires the QuotaKit Mac app.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -38,7 +38,7 @@ struct OnboardingView: View {
                         .foregroundStyle(.orange)
                     Text("v1.2.0 — New Mac App Required")
                         .font(.subheadline.weight(.semibold))
-                    Text("Subscription Utilization and Mac→iPhone push notifications need CodexBar Mac 0.19.0 (Build 54.1.2.0) or later. Get it from github.com/o1xhack/CodexBar-Mobile/releases.")
+                    Text("Subscription Utilization and Mac→iPhone push notifications need a recent QuotaKit Mac build. Get it from github.com/ColumbusLabs/QuotaKit/releases.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -78,7 +78,7 @@ struct OnboardingView: View {
 
                 // Actions
                 VStack(spacing: 12) {
-                    Link(destination: URL(string: "https://github.com/o1xhack/CodexBar-Mobile/releases")!) {
+                    Link(destination: URL(string: "https://github.com/ColumbusLabs/QuotaKit/releases")!) {
                         Label("Download Mac App", systemImage: "arrow.down.circle.fill")
                             .font(.headline)
                             .frame(maxWidth: .infinity)

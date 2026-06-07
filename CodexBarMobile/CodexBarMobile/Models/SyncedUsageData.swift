@@ -131,14 +131,27 @@ final class SyncedUsageData {
     /// UserDefaults key for the local linkage cache. Re-derived from
     /// CloudKit on every full fetch; the local copy exists only to bridge
     /// the cold-start gap before that first CloudKit round-trip returns.
-    nonisolated private static let linkageCacheDefaultsKey = "com.codexbar.linkageCache.v1"
+    nonisolated private static let linkageCacheDefaultsKey = "com.columbuslabs.quotakit.linkageCache.v1"
+    nonisolated private static let legacyLinkageCacheDefaultsKey = "com.codexbar.linkageCache.v1"
 
     nonisolated static func loadCachedLinkages() -> [ProviderAccountLinkage] {
-        guard let data = UserDefaults.standard.data(forKey: Self.linkageCacheDefaultsKey) else {
-            return []
+        if let linkages = Self.decodeCachedLinkages(forKey: Self.linkageCacheDefaultsKey) {
+            return linkages
+        }
+        if let legacy = Self.decodeCachedLinkages(forKey: Self.legacyLinkageCacheDefaultsKey) {
+            Self.saveCachedLinkages(legacy)
+            UserDefaults.standard.removeObject(forKey: Self.legacyLinkageCacheDefaultsKey)
+            return legacy
+        }
+        return []
+    }
+
+    nonisolated private static func decodeCachedLinkages(forKey key: String) -> [ProviderAccountLinkage]? {
+        guard let data = UserDefaults.standard.data(forKey: key) else {
+            return nil
         }
         let decoder = CloudSyncConstants.makeJSONDecoder()
-        return (try? decoder.decode([ProviderAccountLinkage].self, from: data)) ?? []
+        return try? decoder.decode([ProviderAccountLinkage].self, from: data)
     }
 
     nonisolated static func saveCachedLinkages(_ linkages: [ProviderAccountLinkage]) {
@@ -195,13 +208,13 @@ final class SyncedUsageData {
         }
 
         // 2. Subscribe to silent-push-triggered incremental refresh.
-        //    AppDelegate posts .codexBarProviderZoneDidChange on every
+        //    AppDelegate posts .quotaKitProviderZoneDidChange on every
         //    DeviceProvidersZone push. Token retained on `silentPushObserver`
         //    so deinit can remove it cleanly.
         if !isObservingSilentPush {
             isObservingSilentPush = true
             self.silentPushObserver = NotificationCenter.default.addObserver(
-                forName: .codexBarProviderZoneDidChange,
+                forName: .quotaKitProviderZoneDidChange,
                 object: nil,
                 queue: .main)
             { [weak self] _ in
@@ -371,6 +384,7 @@ final class SyncedUsageData {
                 self.syncStatus = .noData
             }
             self.snapshot = nil
+            WidgetSnapshotPublisher.clear()
             return
         }
 
@@ -379,6 +393,7 @@ final class SyncedUsageData {
         {
             self.snapshot = merged
             self.syncStatus = .synced(ago: Date().timeIntervalSince(merged.syncTimestamp))
+            WidgetSnapshotPublisher.publish(from: merged)
 
             // Persist the merged per-device view to SwiftData for next cold
             // start (P3 hydrate). This seeds the "legacy bucket" of the
@@ -519,6 +534,7 @@ final class SyncedUsageData {
 
         if deviceSnapshots.isEmpty {
             self.snapshot = nil
+            WidgetSnapshotPublisher.clear()
             if case .syncing = self.syncStatus {
                 // don't clobber an in-flight syncing state
             } else {
@@ -531,6 +547,7 @@ final class SyncedUsageData {
         {
             self.snapshot = merged
             self.syncStatus = .synced(ago: Date().timeIntervalSince(merged.syncTimestamp))
+            WidgetSnapshotPublisher.publish(from: merged)
         } else {
             self.syncStatus = .incompatibleData
         }

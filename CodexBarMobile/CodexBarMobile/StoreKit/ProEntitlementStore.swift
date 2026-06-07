@@ -56,11 +56,11 @@ final class ProEntitlementStore {
 
     init(
         service: any ProPurchaseServicing = StoreKitPurchaseService(),
-        defaults: UserDefaults = .standard)
+        defaults: UserDefaults? = nil)
     {
         self.service = service
-        self.defaults = defaults
-        if ProEntitlementCacheStore.load(defaults: defaults) != nil {
+        self.defaults = defaults ?? ProEntitlementCacheStore.appGroupDefaults() ?? .standard
+        if ProEntitlementCacheStore.load(defaults: self.defaults) != nil {
             self.state = .unlocked(source: .cache)
         } else {
             self.state = .loading

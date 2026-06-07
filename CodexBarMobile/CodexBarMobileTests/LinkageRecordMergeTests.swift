@@ -318,7 +318,7 @@ struct LinkageRecordMergeTests {
 
     @Test("Cached linkages round-trip through UserDefaults")
     func cachedLinkageRoundTrip() {
-        let cacheKey = "com.codexbar.linkageCache.v1"
+        let cacheKey = "com.columbuslabs.quotakit.linkageCache.v1"
         let defaults = UserDefaults.standard
         defer { defaults.removeObject(forKey: cacheKey) }
 
@@ -341,10 +341,38 @@ struct LinkageRecordMergeTests {
 
     @Test("Empty cache loads as empty array")
     func emptyLinkageCache() {
-        let cacheKey = "com.codexbar.linkageCache.v1"
+        let cacheKey = "com.columbuslabs.quotakit.linkageCache.v1"
         UserDefaults.standard.removeObject(forKey: cacheKey)
         let loaded = SyncedUsageData.loadCachedLinkages()
         #expect(loaded.isEmpty)
+    }
+
+    @Test("Legacy linkage cache migrates to QuotaKit key")
+    func legacyLinkageCacheMigration() {
+        let newKey = "com.columbuslabs.quotakit.linkageCache.v1"
+        let legacyKey = "com.codexbar.linkageCache.v1"
+        let defaults = UserDefaults.standard
+        defer {
+            defaults.removeObject(forKey: newKey)
+            defaults.removeObject(forKey: legacyKey)
+        }
+        defaults.removeObject(forKey: newKey)
+
+        let original = ProviderAccountLinkage(
+            recordID: "legacy-linkage-1",
+            providerID: "codex",
+            linkedIdentifiers: ["codex:email:legacy@example.com"],
+            confirmedAt: Date(timeIntervalSince1970: 1_700_000_100),
+            confirmedFromDeviceID: "iPhone-Legacy",
+            unmerge: false)
+        let data = try! CloudSyncConstants.makeJSONEncoder().encode([original])
+        defaults.set(data, forKey: legacyKey)
+
+        let loaded = SyncedUsageData.loadCachedLinkages()
+        #expect(loaded.count == 1)
+        #expect(loaded.first == original)
+        #expect(defaults.data(forKey: legacyKey) == nil)
+        #expect(defaults.data(forKey: newKey) != nil)
     }
 
     // MARK: - Helpers

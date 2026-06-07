@@ -134,7 +134,7 @@ private struct UsageTab: View {
                     if MockProviderDetector.filteredProviders(from: snapshot).isEmpty {
                         EmptyStateView(
                             title: "No Providers Enabled",
-                            message: "Enable providers in CodexBar on your Mac to see usage data here.",
+                            message: "Enable providers in QuotaKit on your Mac to see usage data here.",
                             systemImage: "slider.horizontal.3")
                     } else {
                         ProviderListView(
@@ -146,7 +146,7 @@ private struct UsageTab: View {
                     OnboardingView(onDemo: { self.isDemoMode = true })
                 }
             }
-            .navigationTitle(self.isDemoMode ? String(localized: "CodexBar (Demo)") : String(localized: "CodexBar"))
+            .navigationTitle(self.isDemoMode ? String(localized: "QuotaKit (Demo)") : String(localized: "QuotaKit"))
             .toolbar {
                 if self.isDemoMode {
                     ToolbarItem(placement: .topBarTrailing) {
@@ -452,7 +452,7 @@ struct CostTab: View {
                     } else {
                         EmptyStateView(
                             title: "No Cost Data Yet",
-                            message: "Enable cost collection in CodexBar on your Mac to see provider spend, breakdowns, and budgets here.",
+                            message: "Enable cost collection in QuotaKit on your Mac to see provider spend, breakdowns, and budgets here.",
                             systemImage: "dollarsign.gauge.chart.lefthalf.righthalf")
                     }
                 } else {
@@ -1607,7 +1607,7 @@ private struct SettingsTab: View {
                         SettingSummaryRow(
                             title: "Setup Guide",
                             symbolName: "sparkles",
-                            summary: String(localized: "Walk through how CodexBar syncs from Mac to iPhone"))
+                            summary: String(localized: "Walk through how QuotaKit syncs from Mac to iPhone"))
                     }
                     .tint(.primary)
 
@@ -1650,18 +1650,18 @@ private struct SettingsTab: View {
                     }
                 }
 
-                Section("Developer") {
-                    Link(destination: URL(string: "https://x.com/o1xhack")!) {
+                Section("Company") {
+                    Link(destination: URL(string: "https://github.com/ColumbusLabs")!) {
                         Label {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Yuxiao")
+                                Text("Columbus Labs")
                                     .fontWeight(.medium)
-                                Text("@o1xhack on X")
+                                Text("github.com/ColumbusLabs")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
                         } icon: {
-                            Image(systemName: "person.fill")
+                            Image(systemName: "building.2.fill")
                         }
                     }
                 }
@@ -1687,7 +1687,7 @@ private struct SettingsTab: View {
                                 Text("Mock Data Active")
                                     .fontWeight(.medium)
                                 Text(
-                                    "\(MockProviderDetector.mockCount(in: self.usageData.snapshot)) synthetic providers from Mac. Toggle off in Mac CodexBar → Settings → Mobile → Debug · Mock Provider Data; iPhone updates within ~30s.")
+                                    "\(MockProviderDetector.mockCount(in: self.usageData.snapshot)) synthetic providers from Mac. Toggle off in Mac QuotaKit → Settings → Mobile → Debug · Mock Provider Data; iPhone updates within ~30s.")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .fixedSize(horizontal: false, vertical: true)
@@ -1698,12 +1698,12 @@ private struct SettingsTab: View {
                 }
 
                 Section("Open Source") {
-                    Link(destination: URL(string: "https://github.com/o1xhack/CodexBar-Mobile")!) {
+                    Link(destination: URL(string: "https://github.com/ColumbusLabs/QuotaKit")!) {
                         Label {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("o1xhack/CodexBar-Mobile")
+                                Text("ColumbusLabs/QuotaKit")
                                     .fontWeight(.medium)
-                                Text("Install the Mac app from this repo")
+                                Text("Official QuotaKit repository")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -1834,12 +1834,12 @@ private struct AboutSyncDetailView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Mac Update Available")
                                 .font(.subheadline.weight(.semibold))
-                            Text("Your Mac is using legacy sync. Update CodexBar on Mac to unlock CloudKit multi-device sync.")
+                            Text("Your Mac is using legacy sync. Update QuotaKit on Mac to unlock CloudKit multi-device sync.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    Link(destination: URL(string: "https://github.com/o1xhack/CodexBar-Mobile/releases")!) {
+                    Link(destination: URL(string: "https://github.com/ColumbusLabs/QuotaKit/releases")!) {
                         Label("Download Latest Mac Version", systemImage: "arrow.down.circle")
                     }
                 }
@@ -1912,7 +1912,7 @@ private struct AboutSyncDetailView: View {
                                 // which specific Mac to update.
                                 if let version = device.appVersion {
                                     HStack(spacing: 6) {
-                                        Text("CodexBar \(version)")
+                                        Text("QuotaKit \(version)")
                                             .font(.caption2)
                                             .foregroundStyle(.tertiary)
                                         if self.isDeviceOutdated(device) {
@@ -2035,7 +2035,7 @@ private struct AboutSyncDetailView: View {
             return nil
         case .syncing: return nil
         case .noData: return String(localized: "Waiting for Mac to push data")
-        case .incompatibleData: return String(localized: "Please update CodexBar on Mac")
+        case .incompatibleData: return String(localized: "Please update QuotaKit on Mac")
         case .error: return nil
         }
     }
@@ -2516,13 +2516,15 @@ private enum MobileReleaseNotesCatalog {
         ReleaseNotesVersion(
             version: "1.11.1",
             status: String(localized: "Latest"),
-            summary: String(localized: "The Daily Spend chart on the Cost tab now scrolls through your full accumulated history, and QuotaKit Pro now gates provider, cost, history, sharing, merge, and visible notification features for real synced data."),
+            summary: String(localized: "QuotaKit Pro now gates provider, cost, history, sharing, merge, notifications, and iOS widgets for real synced data, with a cleaner QuotaKit-branded iOS experience."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
                         String(localized: "Daily Spend chart — shows a clean ~30-day window and scrolls left to reveal your full cost history (30 / 90 / 365-day windows); the latest day stays pinned to the right edge."),
                         String(localized: "QuotaKit Pro — Free mode keeps one selected synced provider plus basic quota details, while Pro and demo mode unlock the full provider list, cost dashboard, history charts, share/export actions, advanced merge controls, and visible quota alerts."),
+                        String(localized: "Widgets — QuotaKit Pro adds Home Screen and Lock Screen widgets backed only by sanitized iPhone-side snapshot data, reload immediately after Pro unlock, migrate safely from prior CodexBar local caches, and localize across all four supported languages."),
+                        String(localized: "Branding — iOS screens, setup text, share cards, and update prompts now use QuotaKit while preserving upstream attribution where it belongs."),
                     ]),
             ]),
         ReleaseNotesVersion(

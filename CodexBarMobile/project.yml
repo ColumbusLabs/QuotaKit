@@ -37,7 +37,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.columbuslabs.quotakit.sync
         GENERATE_INFOPLIST_FILE: true
         MARKETING_VERSION: "1.11.1"
-        CURRENT_PROJECT_VERSION: "153"
+        CURRENT_PROJECT_VERSION: "156"
 
   CodexBarMobilePushExtension:
     type: app-extension
@@ -58,7 +58,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.columbuslabs.quotakit.ios.pushextension
         MARKETING_VERSION: "1.11.1"
-        CURRENT_PROJECT_VERSION: "153"
+        CURRENT_PROJECT_VERSION: "156"
         DEVELOPMENT_TEAM: QUOTAKIT_TEAM_ID
         INFOPLIST_FILE: CodexBarMobilePushExtension/Info.plist
         CODE_SIGN_ENTITLEMENTS: CodexBarMobilePushExtension/PushExtension.entitlements
@@ -75,15 +75,40 @@ targets:
     dependencies:
       - target: CodexBarSync
       - target: CodexBarMobilePushExtension
+      - target: CodexBarMobileWidgets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.columbuslabs.quotakit.ios
         MARKETING_VERSION: "1.11.1"
-        CURRENT_PROJECT_VERSION: "153"
+        CURRENT_PROJECT_VERSION: "156"
         DEVELOPMENT_TEAM: QUOTAKIT_TEAM_ID
         INFOPLIST_FILE: CodexBarMobile/Info.plist
         CODE_SIGN_ENTITLEMENTS: CodexBarMobile/CodexBarMobile.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_EMIT_LOC_STRINGS: true
+
+  CodexBarMobileWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: CodexBarMobileWidgets
+        excludes:
+          - "**/.DS_Store"
+      - path: CodexBarMobile/Widgets/QuotaKitWidgetSnapshot.swift
+      - path: CodexBarMobile/Widgets/QuotaKitWidgetViews.swift
+      - path: CodexBarMobile/StoreKit/ProEntitlementCache.swift
+      - path: CodexBarMobile/Localizable.xcstrings
+    dependencies:
+      - target: CodexBarSync
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.columbuslabs.quotakit.ios.widgets
+        MARKETING_VERSION: "1.11.1"
+        CURRENT_PROJECT_VERSION: "156"
+        DEVELOPMENT_TEAM: QUOTAKIT_TEAM_ID
+        INFOPLIST_FILE: CodexBarMobileWidgets/Info.plist
+        CODE_SIGN_ENTITLEMENTS: CodexBarMobileWidgets/QuotaKitWidgets.entitlements
+        SKIP_INSTALL: true
         SWIFT_EMIT_LOC_STRINGS: true
 
   CodexBarMobileTests:

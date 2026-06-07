@@ -25,6 +25,9 @@ enum ModelContainerFactory {
     /// Default SQLite filename inside whichever container we land on.
     static let storeFilename = "QuotaKitStore.sqlite"
 
+    static let storeMigrationFlagKey = "com.columbuslabs.quotakit.storeMigrated.v1"
+    private static let legacyStoreSubdirectoryNames = ["CodexBar", "QuotaKit"]
+
     // `NSLock` is reference-type and inherently thread-safe; access to
     // `sharedContainer` is serialised by the lock below, so marking the
     // stored state `nonisolated(unsafe)` is correct under Swift 6 strict
@@ -37,6 +40,7 @@ enum ModelContainerFactory {
         lock.lock()
         defer { lock.unlock() }
         if let existing = sharedContainer { return existing }
+        Self.migrateLegacyStoreIfNeeded()
         let container = Self.makeContainer(at: Self.defaultStoreURL())
         sharedContainer = container
         return container
@@ -101,9 +105,89 @@ enum ModelContainerFactory {
             }
             return appSupport
         }()
-        let dir = base.appendingPathComponent("CodexBar", isDirectory: true)
+        let dir = base.appendingPathComponent("QuotaKit", isDirectory: true)
         try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent(Self.storeFilename, isDirectory: false)
+    }
+
+    /// Copies a pre-app-group SwiftData store into the shared container once.
+    static func migrateLegacyStoreIfNeeded(
+        fileManager: FileManager = .default,
+        defaults: UserDefaults = .standard)
+    {
+        guard !defaults.bool(forKey: Self.storeMigrationFlagKey) else { return }
+
+        let targetURL = Self.defaultStoreURL()
+        if fileManager.fileExists(atPath: targetURL.path) {
+            defaults.set(true, forKey: Self.storeMigrationFlagKey)
+            return
+        }
+
+        guard let legacyURL = Self.legacyStoreURL(fileManager: fileManager),
+              fileManager.fileExists(atPath: legacyURL.path)
+        else {
+            defaults.set(true, forKey: Self.storeMigrationFlagKey)
+            return
+        }
+
+        do {
+            try Self.copyStoreFiles(
+                from: legacyURL,
+                to: targetURL,
+                fileManager: fileManager)
+            defaults.set(true, forKey: Self.storeMigrationFlagKey)
+        } catch {
+            print("[QuotaKit SwiftData] Legacy store migration failed: \(error)")
+        }
+    }
+
+    static func copyStoreFiles(
+        from sourceURL: URL,
+        to targetURL: URL,
+        fileManager: FileManager = .default) throws
+    {
+        try fileManager.createDirectory(
+            at: targetURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        for suffix in ["", "-wal", "-shm"] {
+            let source = URL(fileURLWithPath: sourceURL.path + suffix)
+            let destination = URL(fileURLWithPath: targetURL.path + suffix)
+            guard fileManager.fileExists(atPath: source.path) else { continue }
+            if fileManager.fileExists(atPath: destination.path) {
+                try fileManager.removeItem(at: destination)
+            }
+            try fileManager.copyItem(at: source, to: destination)
+        }
+    }
+
+    static func legacyStoreURL(
+        fileManager: FileManager = .default,
+        applicationSupportRoot: URL? = nil) -> URL?
+    {
+        let appSupport: URL
+        if let applicationSupportRoot {
+            appSupport = applicationSupportRoot
+        } else {
+            do {
+                appSupport = try fileManager.url(
+                    for: .applicationSupportDirectory,
+                    in: .userDomainMask,
+                    appropriateFor: nil,
+                    create: false)
+            } catch {
+                return nil
+            }
+        }
+
+        for subdir in Self.legacyStoreSubdirectoryNames {
+            let candidate = appSupport
+                .appendingPathComponent(subdir, isDirectory: true)
+                .appendingPathComponent(Self.storeFilename, isDirectory: false)
+            if fileManager.fileExists(atPath: candidate.path) {
+                return candidate
+            }
+        }
+        return nil
     }
 
     /// Remove the SQLite file + its WAL/SHM sidecars. Safe if files are absent.

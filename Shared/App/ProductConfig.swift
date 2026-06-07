@@ -12,6 +12,7 @@ public enum ProductConfig {
     public static let macDebugBundleIdentifier = "com.columbuslabs.quotakit.mac.debug"
     public static let iOSBundleIdentifier = "com.columbuslabs.quotakit.ios"
     public static let iOSPushExtensionBundleIdentifier = "com.columbuslabs.quotakit.ios.pushextension"
+    public static let iOSWidgetsBundleIdentifier = "com.columbuslabs.quotakit.ios.widgets"
     public static let syncFrameworkBundleIdentifier = "com.columbuslabs.quotakit.sync"
 
     public static let appGroupIdentifier = "group.com.columbuslabs.quotakit"

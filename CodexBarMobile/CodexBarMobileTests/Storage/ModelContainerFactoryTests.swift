@@ -63,4 +63,53 @@ struct ModelContainerFactoryTests {
         let parent = url.deletingLastPathComponent()
         #expect(FileManager.default.fileExists(atPath: parent.path))
     }
+
+    @Test("Legacy store discovery finds Application Support CodexBar store")
+    func testLegacyStoreURLFindsCodexBarDirectory() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("QuotaKitTests-Legacy-\(UUID().uuidString)", isDirectory: true)
+        let legacyDir = root.appendingPathComponent("CodexBar", isDirectory: true)
+        try FileManager.default.createDirectory(at: legacyDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let legacyStore = legacyDir.appendingPathComponent(ModelContainerFactory.storeFilename)
+        FileManager.default.createFile(atPath: legacyStore.path, contents: Data([0x01]))
+
+        let discovered = ModelContainerFactory.legacyStoreURL(
+            applicationSupportRoot: root)
+
+        #expect(discovered?.lastPathComponent == ModelContainerFactory.storeFilename)
+        #expect(discovered?.deletingLastPathComponent().lastPathComponent == "CodexBar")
+    }
+
+    @Test("Copy store files duplicates sqlite sidecars")
+    func testCopyStoreFilesDuplicatesSidecars() throws {
+        let sourceRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("QuotaKitTests-CopySource-\(UUID().uuidString)", isDirectory: true)
+        let targetRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("QuotaKitTests-CopyTarget-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: sourceRoot, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: targetRoot, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: sourceRoot)
+            try? FileManager.default.removeItem(at: targetRoot)
+        }
+
+        let sourceURL = sourceRoot.appendingPathComponent(ModelContainerFactory.storeFilename)
+        for suffix in ["", "-wal", "-shm"] {
+            FileManager.default.createFile(
+                atPath: sourceURL.path + suffix,
+                contents: Data([0xAB]))
+        }
+
+        let targetURL = targetRoot
+            .appendingPathComponent("QuotaKit", isDirectory: true)
+            .appendingPathComponent(ModelContainerFactory.storeFilename)
+
+        try ModelContainerFactory.copyStoreFiles(from: sourceURL, to: targetURL)
+
+        for suffix in ["", "-wal", "-shm"] {
+            #expect(FileManager.default.fileExists(atPath: targetURL.path + suffix))
+        }
+    }
 }

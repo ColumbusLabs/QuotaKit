@@ -499,7 +499,7 @@ Final IDs should be confirmed against Apple Developer portal availability before
 14. Implement iOS free-mode provider limit.  
     Acceptance: demo mode always works; real synced data shows one selected provider; privacy/security/restore/troubleshooting remain accessible.
 15. Gate Pro iOS widgets and notifications.  
-    Status: visible quota notifications are gated for Pro, silent CloudKit sync remains free, and locked cleanup removes managed quota-alert subscriptions. Home Screen and Lock Screen widgets are still pending.
+    Status: code complete in build 155 (Pro reload, unified app-group cache, localization, upgrade migrations, snapshot hardening). Apple Developer provisioning for the widget bundle ID and app group remains pending — see [029-widget-thermos-fixes.md](../CodexBarMobile/Research/029-widget-thermos-fixes.md) Phase 0.
     Acceptance: widgets/notifications explain Pro requirement without reading credentials or creating provider fetch paths on iOS.
 16. Gate cost dashboard, history, share cards, exports, and advanced merges.  
     Status: complete for existing iOS surfaces. Free real-data mode shows locked states or suppresses advanced controls; Pro and demo mode keep the full current feature surface.
@@ -508,6 +508,7 @@ Final IDs should be confirmed against Apple Developer portal availability before
 ### Milestone 4: Branding and release readiness
 
 17. Rebrand app/UI/docs/assets while preserving MIT attribution.  
+    Status: in progress. Current iOS display names, onboarding/setup/privacy/settings/share surfaces, and new widget copy use QuotaKit; historical release notes, upstream attribution, internal target/module names, and Mac-side release docs still retain CodexBar/o1xhack/steipete where appropriate until the dedicated launch-readiness pass.
     Acceptance: no primary branding uses Codex/OpenAI/Claude/Cursor/Anthropic/provider logos or implies affiliation.
 18. Replace signing/release scripts with QuotaKit-safe placeholders.  
     Acceptance: scripts cannot publish to o1xhack/steipete feeds/releases by accident.

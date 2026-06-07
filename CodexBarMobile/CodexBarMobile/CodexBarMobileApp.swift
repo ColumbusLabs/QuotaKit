@@ -47,6 +47,9 @@ struct CodexBarMobileApp: App {
                     guard !Self.isAutomatedTestLaunch else { return }
                     self.proEntitlementStore.start()
                     usageData.startObserving()
+                    if self.proEntitlementStore.isProUnlocked {
+                        WidgetTimelineRefresher.reloadAllTimelines()
+                    }
                     Task {
                         await ProNotificationCoordinator.shared.reconcile(
                             isProUnlocked: self.proEntitlementStore.isProUnlocked)
@@ -54,6 +57,7 @@ struct CodexBarMobileApp: App {
                 }
                 .onChange(of: self.proEntitlementStore.isProUnlocked) { _, isUnlocked in
                     guard !Self.isAutomatedTestLaunch else { return }
+                    WidgetTimelineRefresher.reloadAllTimelines()
                     Task {
                         await ProNotificationCoordinator.shared.reconcile(
                             isProUnlocked: isUnlocked)
@@ -79,8 +83,8 @@ extension Notification.Name {
     /// Posted by AppDelegate when a silent CloudKit push arrives from the
     /// per-provider zone. `SyncedUsageData` listens and triggers its
     /// cache-based incremental refresh (Research/011 v2).
-    static let codexBarProviderZoneDidChange = Notification.Name(
-        "com.o1xhack.codexbar.providerZoneDidChange")
+    static let quotaKitProviderZoneDidChange = Notification.Name(
+        "com.columbuslabs.quotakit.providerZoneDidChange")
 }
 
 // MARK: - AppDelegate
@@ -148,7 +152,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             return
         }
         NotificationCenter.default.post(
-            name: .codexBarProviderZoneDidChange, object: nil)
+            name: .quotaKitProviderZoneDidChange, object: nil)
         completionHandler(.newData)
     }
 
@@ -192,7 +196,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         print("[CodexBar Push v2] iCloud account changed — re-running subscription setup")
         Task { @MainActor in
             await ProNotificationCoordinator.shared.reconcile(
-                isProUnlocked: ProEntitlementCacheStore.load(defaults: .standard) != nil)
+                isProUnlocked: ProEntitlementCacheStore.load() != nil)
         }
     }
 

@@ -139,7 +139,7 @@ struct UtilizationHistoryView: View {
     }
 
     private var emptyState: some View {
-        Text("No utilization data yet. Keep CodexBar running on your Mac to start recording.")
+        Text("No utilization data yet. Keep QuotaKit running on your Mac to start recording.")
             .font(.caption)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .center)

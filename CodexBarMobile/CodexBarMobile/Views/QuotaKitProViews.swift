@@ -63,7 +63,7 @@ struct QuotaKitProSettingsView: View {
         QuotaKitProPanel(
             store: self.store,
             title: "QuotaKit Pro",
-            lockedMessage: String(localized: "Unlock the official iOS companion features and support ongoing QuotaKit maintenance."),
+            lockedMessage: String(localized: "Unlock the official iOS companion features, including Home Screen and Lock Screen widgets, and support ongoing QuotaKit maintenance."),
             unlockedMessage: String(localized: "Lifetime unlock is active on this Apple ID."),
             showsFeatureList: true)
             .padding(.vertical, 4)

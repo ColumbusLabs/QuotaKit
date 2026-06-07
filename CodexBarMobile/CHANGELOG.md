@@ -1,6 +1,61 @@
-# Changelog — CodexBar Mobile (iOS)
+# Changelog — QuotaKit iOS
 
-All notable changes to the CodexBar iOS companion app will be documented in this file.
+All notable changes to the QuotaKit iOS companion app will be documented in this file.
+
+## [1.11.1 (156)] — 2026-06-07 — Widget architecture cleanup
+
+### Changed
+
+- **StoreKit/WidgetKit boundary** — Pro cache persistence no longer triggers widget reloads;
+  the widget extension no longer compiles `WidgetTimelineRefresher`. Pro transitions reload
+  from `CodexBarMobileApp`; snapshot writes reload from `WidgetSnapshotPublisher` when
+  encoded payload changes.
+- **Widget store API** — removed production `baseDirectory` test hook; DEBUG-only
+  `*ForTesting` helpers cover round-trip store tests. Snapshot debounce compares encoded
+  `Data` instead of deprecated `hashValue`.
+
+---
+
+## [1.11.1 (155)] — 2026-06-07 — Widget Thermos hardening
+
+### Fixed
+
+- **Widget Pro refresh** — Pro purchase, restore, and revoke now reload widget timelines
+  immediately instead of waiting for the 30-minute WidgetKit policy.
+- **Unified Pro cache** — the app and widget extension share one app-group Pro entitlement
+  cache with migration from the legacy standard-defaults and widget-only cache keys.
+- **Upgrade migrations** — linkage cache and SwiftData store paths migrate forward from
+  CodexBar-era keys/locations so 153→155 upgrades keep local merges and cold-start data.
+- **Widget localization** — widget target now emits localized strings for all four
+  supported languages, including Lock Screen accessory formats and dynamic price copy.
+
+### Changed
+
+- **Widget snapshot hardening** — snapshots now carry `schemaVersion`, omit unused cost
+  fields, redact email-like `statusMessage` content, publish only for Pro users, debounce
+  timeline reloads when JSON is unchanged, and log app-group I/O failures.
+- **Architecture cleanup** — widget publishing moved out of `SyncedUsageData` into
+  `WidgetSnapshotPublisher`; timeline reloads centralized in `WidgetTimelineRefresher`.
+
+---
+
+## [1.11.1 (154)] — 2026-06-07 — iOS widgets and QuotaKit branding
+
+### Added
+
+- **QuotaKit Pro widgets** — added the iOS WidgetKit extension target with Home Screen
+  small/medium widgets and Lock Screen rectangular/circular widgets. Installed widgets
+  read only sanitized iOS app-group snapshot JSON plus the local Pro entitlement cache;
+  Free real-data widgets show a calm QuotaKit Pro locked state.
+- **Sanitized widget cache** — iOS now writes widget-safe provider/window/cost summaries
+  after CloudKit/SwiftData refresh and clears stale widget data when no synced snapshots
+  remain. The widget payload excludes account emails, tokens, cookies, API keys, raw
+  provider responses, browser paths, and Mac app-group data.
+- **QuotaKit user-facing branding cleanup** — iOS display names, onboarding/setup,
+  Settings, share cards, update prompts, and new widget copy now use QuotaKit / Columbus
+  Labs naming while preserving upstream attribution in historical/license surfaces.
+
+---
 
 ## [1.11.1 (153)] — 2026-06-07 — QuotaKit Pro feature gates
 
@@ -14,7 +69,8 @@ All notable changes to the CodexBar iOS companion app will be documented in this
   experience, while quota alert permission/subscriptions are only created for Pro and
   managed alert subscriptions are cleaned up when locked.
 - **Launch tracking notes** — added the 027 research note and refreshed the launch
-  inventory so completed Pro gates and pending widget/release work stay easy to audit.
+  inventory so completed Pro gates, widgets, and pending launch-readiness work stay easy
+  to audit.
 
 ---
 

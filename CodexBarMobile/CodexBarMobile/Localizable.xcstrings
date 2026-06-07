@@ -15711,6 +15711,1079 @@
           }
         }
       }
+    },
+    "QuotaKit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit"
+          }
+        }
+      }
+    },
+    "QuotaKit (Demo)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit (Demo)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit（デモ）"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit（演示）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit（示範）"
+          }
+        }
+      }
+    },
+    "quota left": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "quota left"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残り quota"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "quota 剩余"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "quota 剩餘"
+          }
+        }
+      }
+    },
+    "No quota window": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No quota window"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "quota ウィンドウなし"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无 quota 窗口"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暫無 quota 視窗"
+          }
+        }
+      }
+    },
+    "Quota": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quota"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quota"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quota"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quota"
+          }
+        }
+      }
+    },
+    "Unlock widgets": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock widgets"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェットを解除"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解锁小组件"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解鎖小工具"
+          }
+        }
+      }
+    },
+    "Widgets are included with the $4.99 lifetime unlock.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widgets are included with the $4.99 lifetime unlock."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェットは $4.99 の買い切りアンロックに含まれます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小组件包含在 $4.99 终身解锁中。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小工具包含在 $4.99 終身解鎖中。"
+          }
+        }
+      }
+    },
+    "Widgets are included with the %@ lifetime unlock.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widgets are included with the %@ lifetime unlock."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェットは %@ の買い切りアンロックに含まれます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小组件包含在 %@ 终身解锁中。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小工具包含在 %@ 終身解鎖中。"
+          }
+        }
+      }
+    },
+    "%lld%% left · %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld%% left · %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残り %lld%% · %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剩余 %lld%% · %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剩餘 %lld%% · %@"
+          }
+        }
+      }
+    },
+    "Open the app after Mac sync": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the app after Mac sync"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 同期後にアプリを開く"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 同步后打开 App"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 同步後打開 App"
+          }
+        }
+      }
+    },
+    "Open the app after your Mac syncs to refresh widget data.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the app after your Mac syncs to refresh widget data."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac の同期後にアプリを開くとウィジェットデータが更新されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 同步后打开 App 以刷新小组件数据。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 同步後打開 App 以重新整理小工具資料。"
+          }
+        }
+      }
+    },
+    "See synced quota status from your Mac.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See synced quota status from your Mac."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac から同期された quota 状態を確認できます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看从 Mac 同步的 quota 状态。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看從 Mac 同步的 quota 狀態。"
+          }
+        }
+      }
+    },
+    "Unlock the official iOS companion features, including Home Screen and Lock Screen widgets, and support ongoing QuotaKit maintenance.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock the official iOS companion features, including Home Screen and Lock Screen widgets, and support ongoing QuotaKit maintenance."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ホーム画面とロック画面ウィジェットを含む公式 iOS コンパニオン機能を解除し、QuotaKit の継続的なメンテナンスを支援できます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解锁官方 iOS 伴侣功能，包括主屏幕和锁屏小组件，并支持 QuotaKit 的持续维护。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解鎖官方 iOS 伴侶功能，包括主畫面與鎖定畫面小工具，並支持 QuotaKit 的持續維護。"
+          }
+        }
+      }
+    },
+    "Company": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Company"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会社"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公司"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公司"
+          }
+        }
+      }
+    },
+    "Columbus Labs": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Columbus Labs"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Columbus Labs"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Columbus Labs"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Columbus Labs"
+          }
+        }
+      }
+    },
+    "github.com/ColumbusLabs": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "github.com/ColumbusLabs"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "github.com/ColumbusLabs"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "github.com/ColumbusLabs"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "github.com/ColumbusLabs"
+          }
+        }
+      }
+    },
+    "QuotaKit %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit %@"
+          }
+        }
+      }
+    },
+    "QuotaKit %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit %lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit %lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit %lld"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit %lld"
+          }
+        }
+      }
+    },
+    "QuotaKit Widgets": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit Widgets"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit ウィジェット"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit 小组件"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit 小工具"
+          }
+        }
+      }
+    },
+    "QuotaKit Push Extension": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit Push Extension"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit プッシュ拡張"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit 推送扩展"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit 推播擴充"
+          }
+        }
+      }
+    },
+    "Enable providers in QuotaKit on your Mac to see usage data here.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable providers in QuotaKit on your Mac to see usage data here."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac の QuotaKit で provider を有効にすると、ここに使用データが表示されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Mac 版 QuotaKit 中启用 provider 后，这里才会显示使用数据。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Mac 版 QuotaKit 中啟用 provider 後，這裡才會顯示使用資料。"
+          }
+        }
+      }
+    },
+    "Enable cost collection in QuotaKit on your Mac to see provider spend, breakdowns, and budgets here.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable cost collection in QuotaKit on your Mac to see provider spend, breakdowns, and budgets here."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac の QuotaKit でコスト収集を有効にすると、ここでプロバイダごとの支出、内訳、予算を確認できます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Mac 版 QuotaKit 中启用费用收集后，这里会显示 provider 支出、细分和预算。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Mac 版 QuotaKit 中啟用費用收集後，這裡會顯示 provider 支出、細分和預算。"
+          }
+        }
+      }
+    },
+    "Walk through how QuotaKit syncs from Mac to iPhone": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Walk through how QuotaKit syncs from Mac to iPhone"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit が Mac から iPhone に同期する流れを確認"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "了解 QuotaKit 如何从 Mac 同步到 iPhone"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "了解 QuotaKit 如何從 Mac 同步到 iPhone"
+          }
+        }
+      }
+    },
+    "%lld synthetic providers from Mac. Toggle off in Mac QuotaKit → Settings → Mobile → Debug · Mock Provider Data; iPhone updates within ~30s.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld synthetic providers from Mac. Toggle off in Mac QuotaKit → Settings → Mobile → Debug · Mock Provider Data; iPhone updates within ~30s."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac から %lld 個の合成プロバイダー。Mac QuotaKit → 設定 → Mobile → Debug · Mock Provider Data でオフに切り替えると、iPhone は約 30 秒以内に更新されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个模拟 provider 来自 Mac。在 Mac QuotaKit → 设置 → Mobile → Debug · Mock Provider Data 关闭后，iPhone 会在约 30 秒内更新。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個模擬 provider 來自 Mac。在 Mac QuotaKit → 設定 → Mobile → Debug · Mock Provider Data 關閉後，iPhone 會在約 30 秒內更新。"
+          }
+        }
+      }
+    },
+    "Official QuotaKit repository": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Official QuotaKit repository"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit 公式リポジトリ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit 官方仓库"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit 官方倉庫"
+          }
+        }
+      }
+    },
+    "Your Mac is using legacy sync. Update QuotaKit on Mac for faster, more reliable provider updates.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your Mac is using legacy sync. Update QuotaKit on Mac for faster, more reliable provider updates."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac が従来の同期を使用しています。Mac の QuotaKit を更新すると、より高速で信頼性の高い provider 更新を利用できます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的 Mac 正在使用旧版同步。更新 Mac 版 QuotaKit 可获得更快、更可靠的 provider 更新。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的 Mac 正在使用舊版同步。更新 Mac 版 QuotaKit 可獲得更快、更可靠的 provider 更新。"
+          }
+        }
+      }
+    },
+    "Please update QuotaKit on Mac": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Please update QuotaKit on Mac"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac の QuotaKit を更新してください"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请更新 Mac 版 QuotaKit"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請更新 Mac 版 QuotaKit"
+          }
+        }
+      }
+    },
+    "Install QuotaKit on Mac": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install QuotaKit on Mac"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac に QuotaKit をインストール"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Mac 上安装 QuotaKit"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Mac 上安裝 QuotaKit"
+          }
+        }
+      }
+    },
+    "Open QuotaKit on your Mac → Settings → turn on iCloud Sync.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open QuotaKit on your Mac → Settings → turn on iCloud Sync."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac で QuotaKit → 設定を開き、iCloud 同期をオンにします。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Mac 上打开 QuotaKit → 设置 → 开启 iCloud 同步。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 Mac 上打開 QuotaKit → 設定 → 開啟 iCloud 同步。"
+          }
+        }
+      }
+    },
+    "Welcome to QuotaKit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welcome to QuotaKit"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit へようこそ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "欢迎使用 QuotaKit"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "歡迎使用 QuotaKit"
+          }
+        }
+      }
+    },
+    "Monitor your AI coding tool usage on iPhone.\nRequires the QuotaKit Mac app.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monitor your AI coding tool usage on iPhone.\nRequires the QuotaKit Mac app."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone で AI コーディングツールの使用状況を確認できます。\nQuotaKit Mac App が必要です。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 iPhone 上查看 AI 编程工具的使用情况。\n需要安装 QuotaKit Mac App。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 iPhone 上查看 AI 編程工具的使用情況。\n需要安裝 QuotaKit Mac App。"
+          }
+        }
+      }
+    },
+    "Subscription Utilization and Mac→iPhone push notifications need a recent QuotaKit Mac build. Get it from github.com/ColumbusLabs/QuotaKit/releases.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscription Utilization and Mac→iPhone push notifications need a recent QuotaKit Mac build. Get it from github.com/ColumbusLabs/QuotaKit/releases."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サブスクリプション利用率と Mac→iPhone プッシュ通知には新しい QuotaKit Mac ビルドが必要です。github.com/ColumbusLabs/QuotaKit/releases から入手してください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "订阅利用率和 Mac→iPhone 推送通知需要较新的 QuotaKit Mac 构建。从 github.com/ColumbusLabs/QuotaKit/releases 获取。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "訂閱利用率和 Mac→iPhone 推播通知需要較新的 QuotaKit Mac 建置。從 github.com/ColumbusLabs/QuotaKit/releases 取得。"
+          }
+        }
+      }
+    },
+    "No utilization data yet. Keep QuotaKit running on your Mac to start recording.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No utilization data yet. Keep QuotaKit running on your Mac to start recording."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "利用率データはまだありません。Mac で QuotaKit を起動したままにすると記録が始まります。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无使用率数据。保持 Mac 上的 QuotaKit 运行即可开始记录。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暫無使用率資料。保持 Mac 上的 QuotaKit 執行即可開始記錄。"
+          }
+        }
+      }
+    },
+    "Mac QuotaKit → Settings → Mobile → Debug · Mock Provider Data": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac QuotaKit → Settings → Mobile → Debug · Mock Provider Data"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac QuotaKit → 設定 → Mobile → Debug · Mock Provider Data"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac QuotaKit → 设置 → Mobile → Debug · Mock Provider Data"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac QuotaKit → 設定 → Mobile → Debug · Mock Provider Data"
+          }
+        }
+      }
+    },
+    "QuotaKit Pro now gates provider, cost, history, sharing, merge, notifications, and iOS widgets for real synced data, with a cleaner QuotaKit-branded iOS experience.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit Pro now gates provider, cost, history, sharing, merge, notifications, and iOS widgets for real synced data, with a cleaner QuotaKit-branded iOS experience."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit Pro は、実データ同期時の provider、コスト、履歴、共有、マージ、通知、iOS ウィジェットを制御し、iOS 体験も QuotaKit ブランドに整えました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit Pro 现在会为真实同步数据中的 provider、费用、历史、分享、合并、通知和 iOS 小组件提供门控，并带来更清晰的 QuotaKit 品牌 iOS 体验。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit Pro 現在會為真實同步資料中的 provider、費用、歷史、分享、合併、通知和 iOS 小工具提供門控，並帶來更清晰的 QuotaKit 品牌 iOS 體驗。"
+          }
+        }
+      }
+    },
+    "Widgets — QuotaKit Pro adds Home Screen and Lock Screen widgets backed only by sanitized iPhone-side snapshot data, reload immediately after Pro unlock, migrate safely from prior CodexBar local caches, and localize across all four supported languages.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widgets — QuotaKit Pro adds Home Screen and Lock Screen widgets backed only by sanitized iPhone-side snapshot data, reload immediately after Pro unlock, migrate safely from prior CodexBar local caches, and localize across all four supported languages."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェット — QuotaKit Pro のホーム画面/ロック画面ウィジェットは整理済み iPhone 側スナップショットのみを使用し、Pro 解除後すぐに更新され、旧 CodexBar ローカルキャッシュから安全に移行し、4 言語すべてにローカライズされます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小组件 —— QuotaKit Pro 的主屏幕和锁屏小组件只读取经过清理的 iPhone 端快照，Pro 解锁后会立即刷新，并可从旧 CodexBar 本地缓存安全迁移，且支持全部四种语言。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小工具 —— QuotaKit Pro 的主畫面與鎖定畫面小工具只讀取經過清理的 iPhone 端快照，Pro 解鎖後會立即重新整理，並可從舊 CodexBar 本地快取安全移轉，且支援全部四種語言。"
+          }
+        }
+      }
+    },
+    "Branding — iOS screens, setup text, share cards, and update prompts now use QuotaKit while preserving upstream attribution where it belongs.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Branding — iOS screens, setup text, share cards, and update prompts now use QuotaKit while preserving upstream attribution where it belongs."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブランディング — iOS 画面、セットアップ文言、共有カード、更新案内を QuotaKit に更新し、必要な場所では上流への帰属も残しています。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "品牌 —— iOS 界面、设置文字、分享卡片和更新提示现在使用 QuotaKit，同时在合适位置保留上游署名。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "品牌 —— iOS 介面、設定文字、分享卡片和更新提示現在使用 QuotaKit，同時在合適位置保留上游署名。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

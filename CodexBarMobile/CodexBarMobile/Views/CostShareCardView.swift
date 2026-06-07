@@ -1,6 +1,6 @@
 import SwiftUI
 
-private let qrURL = "https://codexbarios.o1xhack.com"
+private let qrURL = "https://github.com/ColumbusLabs/QuotaKit"
 /// Fixed share-card dimensions (3:4 aspect, iPhone 15-ish width). This is the
 /// canvas size the card renders INTO — `UIImage` export + social-network
 /// previews depend on the exact pixel dimensions after 2×/3× scale. Changing
@@ -101,13 +101,13 @@ private struct QRFooter: View {
                 .if(theme.isDark) { $0.colorInvert() }
                 .clipShape(RoundedRectangle(cornerRadius: 6))
             VStack(alignment: .leading, spacing: 3) {
-                Text("CodexBar")
+                Text("QuotaKit")
                     .font(.subheadline.bold())
                     .foregroundStyle(theme.foreground)
                 Text(String(localized: "Track your AI coding costs"))
                     .font(.caption)
                     .foregroundStyle(theme.secondary)
-                Text("codexbarios.o1xhack.com")
+                Text("github.com/ColumbusLabs/QuotaKit")
                     .font(.caption2)
                     .foregroundStyle(theme.tertiary)
             }
