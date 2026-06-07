@@ -20,6 +20,8 @@ schemes:
       targets:
         - name: CodexBarMobileTests
         - name: CodexBarMobileUITests
+    run:
+      storeKitConfiguration: StoreKit/QuotaKit.storekit
 
 targets:
   CodexBarSync:
@@ -69,6 +71,7 @@ targets:
       - path: CodexBarMobile
         excludes:
           - "**/.DS_Store"
+      - path: StoreKit/QuotaKit.storekit
     dependencies:
       - target: CodexBarSync
       - target: CodexBarMobilePushExtension

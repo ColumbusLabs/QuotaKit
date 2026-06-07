@@ -210,7 +210,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     private let providerZone = CKRecordZone(zoneName: CloudSyncConstants.providerZoneName)
 
     // Legacy KVS
-    private let kvsStore = NSUbiquitousKeyValueStore.default
+    private lazy var kvsStore = NSUbiquitousKeyValueStore.default
     private var kvsObserverToken: NSObjectProtocol?
 
     #if canImport(OSLog)
@@ -232,8 +232,13 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             }
         }
         #else
-        // iOS entitlements are guaranteed by the provisioning profile.
-        available = true
+        let environment = ProcessInfo.processInfo.environment
+        let isXCTestHost = environment["XCTestConfigurationFilePath"] != nil
+            || environment["XCTestBundlePath"] != nil
+        // iOS entitlements are guaranteed by the provisioning profile for
+        // signed app runs. Hosted simulator unit tests may disable signing,
+        // so they must not touch CKContainer during app bootstrap.
+        available = !isXCTestHost
         #endif
         if available {
             let c = CKContainer(identifier: CloudSyncConstants.containerIdentifier)

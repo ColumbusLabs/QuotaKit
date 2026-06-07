@@ -9,6 +9,7 @@ import UserNotifications
 struct CodexBarMobileApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var usageData: SyncedUsageData
+    @State private var proEntitlementStore = ProEntitlementStore()
 
     init() {
         let arguments = ProcessInfo.processInfo.arguments
@@ -22,6 +23,7 @@ struct CodexBarMobileApp: App {
             defaults.removeObject(forKey: MobileSettingsKeys.openCostByDefault)
             defaults.removeObject(forKey: MobileSettingsKeys.usagePercentDisplayMode)
             defaults.removeObject(forKey: MobileSettingsKeys.showRemainingUsage)
+            defaults.removeObject(forKey: ProEntitlementCacheStore.key)
             defaults.removeObject(forKey: "onboardingSeenVersion")
         }
 
@@ -29,7 +31,7 @@ struct CodexBarMobileApp: App {
             UserDefaults.standard.set(currentVersion, forKey: "onboardingSeenVersion")
         }
 
-        if arguments.contains("UI_TEST_PREVIEW_DATA") {
+        if Self.isAutomatedTestLaunch {
             _usageData = State(initialValue: PreviewData.makeSyncedUsageData())
         } else {
             _usageData = State(initialValue: SyncedUsageData())
@@ -39,8 +41,10 @@ struct CodexBarMobileApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(usageData: usageData)
+                .environment(self.proEntitlementStore)
                 .onAppear {
-                    guard !ProcessInfo.processInfo.arguments.contains("UI_TEST_PREVIEW_DATA") else { return }
+                    guard !Self.isAutomatedTestLaunch else { return }
+                    self.proEntitlementStore.start()
                     usageData.startObserving()
                 }
         }
@@ -48,6 +52,14 @@ struct CodexBarMobileApp: App {
         // this makes the mainContext available for P2b migration and ensures
         // the container is bootstrapped at launch for parallel-write.
         .modelContainer(ModelContainerFactory.shared())
+    }
+
+    private static var isAutomatedTestLaunch: Bool {
+        let arguments = ProcessInfo.processInfo.arguments
+        let environment = ProcessInfo.processInfo.environment
+        return arguments.contains("UI_TEST_PREVIEW_DATA")
+            || environment["XCTestConfigurationFilePath"] != nil
+            || environment["XCTestBundlePath"] != nil
     }
 }
 
@@ -80,8 +92,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
 
+        let environment = ProcessInfo.processInfo.environment
         let isTestLaunch = ProcessInfo.processInfo.arguments.contains("UI_TEST_RESET_DEFAULTS")
             || ProcessInfo.processInfo.arguments.contains("UI_TEST_PREVIEW_DATA")
+            || environment["XCTestConfigurationFilePath"] != nil
+            || environment["XCTestBundlePath"] != nil
         guard !isTestLaunch else { return true }
 
         // 1. Request notification permission on first launch (Decision A — option 1).
