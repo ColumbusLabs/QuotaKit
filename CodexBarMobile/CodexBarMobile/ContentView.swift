@@ -574,10 +574,10 @@ private struct CostDashboardView: View {
     /// Visible window on the Cost-tab daily-spend chart. 30 days is the user's
     /// cost-cycle mental model (monthly bills, budget windows) and matches
     /// `UtilizationAggregateView.windowSize` + `UtilizationHistoryView.windowSize`
-    /// so every chart in the app tells the same 30-day story. iOS 1.9.0: this
-    /// is now the *minimum* visible width — `visibleDayCount` widens the chart
-    /// to the data span when a longer CWL window is active, and `axisStrideDays`
-    /// keeps the label density readable.
+    /// so every chart in the app tells the same 30-day story. This is the
+    /// *maximum* on-screen viewport — `visibleDayCount` caps the visible window
+    /// here, and the rest of a longer CWL window (50 / 90 / 365) scrolls
+    /// horizontally instead of cramming every day into one screen.
     private static let chartVisibleDays: Int = 30
 
     /// Leading edge of the initial visible window, placed so the newest point
@@ -591,17 +591,20 @@ private struct CostDashboardView: View {
             byAdding: .day, value: -(self.visibleDayCount - 1), to: last) ?? last
     }
 
-    /// Visible width of the daily-spend chart, in days. Follows the actual data
-    /// span so a wider CWL window (7 / 30 / 90 / 365) genuinely widens the
-    /// chart instead of staying pinned to a 30-day viewport. Floors at
-    /// `chartVisibleDays` so the CWL-off / short-history case is unchanged.
+    /// Visible width of the daily-spend chart, in days — the on-screen *viewport*,
+    /// NOT the data span. Capped at `chartVisibleDays` (30) so bars stay readable;
+    /// the full accumulated history (e.g. a 50/90-day CWL window) scrolls
+    /// horizontally via `.chartScrollableAxes`. With fewer than 30 days of data the
+    /// window shrinks to the span so the chart isn't padded with empty space.
+    /// (Previously this widened to the span — which crammed 50+ overlapping,
+    /// non-scrollable bars into one screen; see the cost-chart scroll fix.)
     private var visibleDayCount: Int {
         let points = self.insights.dailyPoints
         guard let first = points.first?.date, let last = points.last?.date else {
             return Self.chartVisibleDays
         }
         let span = Calendar.current.dateComponents([.day], from: first, to: last).day ?? 0
-        return max(Self.chartVisibleDays, span + 1)
+        return min(Self.chartVisibleDays, span + 1)
     }
 
     /// Axis label stride in days — weekly for short windows, coarser for long
