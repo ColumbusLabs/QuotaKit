@@ -37,10 +37,21 @@ if [[ -z "${APP_STORE_CONNECT_API_KEY_FILE:-}" && -n "${APP_STORE_CONNECT_KEY_ID
   fi
 fi
 
+if [[ -z "${APP_TEAM_ID:-}" && -n "${APP_IDENTITY:-}" ]]; then
+  if [[ "$APP_IDENTITY" =~ \(([A-Z0-9]{10})\)$ ]]; then
+    APP_TEAM_ID="${BASH_REMATCH[1]}"
+  fi
+fi
+if [[ -z "${QUOTAKIT_TEAM_ID:-}" && -n "${APP_TEAM_ID:-}" ]]; then
+  QUOTAKIT_TEAM_ID="$APP_TEAM_ID"
+fi
+
 export SPARKLE_PRIVATE_KEY_FILE
 export APP_STORE_CONNECT_API_KEY_FILE
 export APP_STORE_CONNECT_API_KEY_P8
 export APP_STORE_CONNECT_KEY_ID
 export APP_STORE_CONNECT_ISSUER_ID
 export APP_IDENTITY
+export APP_TEAM_ID
+export QUOTAKIT_TEAM_ID
 export QUOTAKIT_RELEASE_SECRETS_LOADED=1

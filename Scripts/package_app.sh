@@ -151,7 +151,7 @@ fi
 WIDGET_BUNDLE_ID="${BUNDLE_ID}.widget"
 # QuotaKit-owned signing/team values must be supplied by release env. The
 # placeholder default prevents accidental packaging under upstream credentials.
-APP_TEAM_ID="${APP_TEAM_ID:-QUOTAKIT_TEAM_ID}"
+APP_TEAM_ID="${APP_TEAM_ID:-${QUOTAKIT_TEAM_ID:-QUOTAKIT_TEAM_ID}}"
 APP_GROUP_ID="group.com.columbuslabs.quotakit"
 ICLOUD_KVS_ID="${QUOTAKIT_ICLOUD_KVS_ID:-${CODEXBAR_ICLOUD_KVS_ID:-${APP_TEAM_ID}.com.columbuslabs.quotakit.shared}}"
 INCLUDE_SHARED_ENTITLEMENTS=1
