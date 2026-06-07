@@ -499,8 +499,10 @@ Final IDs should be confirmed against Apple Developer portal availability before
 14. Implement iOS free-mode provider limit.  
     Acceptance: demo mode always works; real synced data shows one selected provider; privacy/security/restore/troubleshooting remain accessible.
 15. Gate Pro iOS widgets and notifications.  
+    Status: visible quota notifications are gated for Pro, silent CloudKit sync remains free, and locked cleanup removes managed quota-alert subscriptions. Home Screen and Lock Screen widgets are still pending.
     Acceptance: widgets/notifications explain Pro requirement without reading credentials or creating provider fetch paths on iOS.
 16. Gate cost dashboard, history, share cards, exports, and advanced merges.  
+    Status: complete for existing iOS surfaces. Free real-data mode shows locked states or suppresses advanced controls; Pro and demo mode keep the full current feature surface.
     Acceptance: Pro sees full features; free sees calm locked states and useful basics.
 
 ### Milestone 4: Branding and release readiness

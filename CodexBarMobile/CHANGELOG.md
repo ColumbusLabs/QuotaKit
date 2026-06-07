@@ -2,6 +2,22 @@
 
 All notable changes to the CodexBar iOS companion app will be documented in this file.
 
+## [1.11.1 (153)] — 2026-06-07 — QuotaKit Pro feature gates
+
+### Added
+
+- **QuotaKit Pro feature gates** — Free real-data mode now locks the full Cost
+  dashboard, usage/cost history charts, share/export actions, advanced merge controls,
+  and visible quota alerts behind the local StoreKit Pro entitlement. Pro and demo mode
+  keep the full current feature surface.
+- **Visible notification gating** — silent CloudKit sync stays free for the selected-provider
+  experience, while quota alert permission/subscriptions are only created for Pro and
+  managed alert subscriptions are cleaned up when locked.
+- **Launch tracking notes** — added the 027 research note and refreshed the launch
+  inventory so completed Pro gates and pending widget/release work stay easy to audit.
+
+---
+
 ## [1.11.1 (152)] — 2026-06-07 — QuotaKit Pro provider gate
 
 ### Added

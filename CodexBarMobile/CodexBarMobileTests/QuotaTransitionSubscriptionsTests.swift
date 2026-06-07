@@ -48,4 +48,38 @@ struct QuotaTransitionSubscriptionsTests {
         #expect((info.titleLocalizationArgs ?? []).isEmpty)
         #expect((info.alertLocalizationArgs ?? []).isEmpty)
     }
+
+    @Test("managed subscription IDs cover every provider state")
+    func managedSubscriptionIDsCoverEveryProviderState() {
+        let ids = QuotaTransitionSubscriptions.managedSubscriptionIDs(providerIDs: ["codex", "claude"])
+
+        #expect(ids == [
+            "quota-codex-depleted-sub",
+            "quota-codex-restored-sub",
+            "quota-codex-warning-sub",
+            "quota-claude-depleted-sub",
+            "quota-claude-restored-sub",
+            "quota-claude-warning-sub",
+        ])
+    }
+
+    @Test("locked Pro notification plan keeps silent sync and removes quota alerts")
+    func lockedNotificationPlanKeepsSilentSyncAndRemovesQuotaAlerts() {
+        let plan = ProNotificationSetupPlanner.plan(isProUnlocked: false)
+
+        #expect(plan.shouldSetupSilentSync)
+        #expect(!plan.shouldRequestAlertPermission)
+        #expect(!plan.shouldSetupQuotaAlerts)
+        #expect(plan.shouldRemoveQuotaAlerts)
+    }
+
+    @Test("unlocked Pro notification plan keeps silent sync and creates quota alerts")
+    func unlockedNotificationPlanKeepsSilentSyncAndCreatesQuotaAlerts() {
+        let plan = ProNotificationSetupPlanner.plan(isProUnlocked: true)
+
+        #expect(plan.shouldSetupSilentSync)
+        #expect(plan.shouldRequestAlertPermission)
+        #expect(plan.shouldSetupQuotaAlerts)
+        #expect(!plan.shouldRemoveQuotaAlerts)
+    }
 }

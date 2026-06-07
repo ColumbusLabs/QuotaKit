@@ -38,7 +38,9 @@ final class MultiAccountTabRenderingTests: XCTestCase {
     }
 
     private func renderToImage<V: View>(_ view: V) -> UIImage? {
-        let renderer = ImageRenderer(content: view.frame(width: 390, height: 800))
+        let renderer = ImageRenderer(content: view
+            .environment(ProEntitlementStore.preview(state: .unlocked(source: .storeKit)))
+            .frame(width: 390, height: 800))
         renderer.scale = 2.0
         return renderer.uiImage
     }

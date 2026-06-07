@@ -133,6 +133,60 @@ final class ProEntitlementStoreTests: XCTestCase {
         XCTAssertTrue(FeatureGate.allCases.allSatisfy(\.requiresPro))
     }
 
+    func testProFeatureAccessLocksEveryV1FeatureForFreeRealData() {
+        for feature in FeatureGate.allCases {
+            XCTAssertFalse(ProFeatureAccess.isUnlocked(
+                feature,
+                isDemoMode: false,
+                isProUnlocked: false))
+            XCTAssertTrue(ProFeatureAccess.isLocked(
+                feature,
+                isDemoMode: false,
+                isProUnlocked: false))
+        }
+    }
+
+    func testProFeatureAccessUnlocksEveryV1FeatureForProRealData() {
+        for feature in FeatureGate.allCases {
+            XCTAssertTrue(ProFeatureAccess.isUnlocked(
+                feature,
+                isDemoMode: false,
+                isProUnlocked: true))
+            XCTAssertFalse(ProFeatureAccess.isLocked(
+                feature,
+                isDemoMode: false,
+                isProUnlocked: true))
+        }
+    }
+
+    func testProFeatureAccessUnlocksEveryV1FeatureForDemoMode() {
+        for feature in FeatureGate.allCases {
+            XCTAssertTrue(ProFeatureAccess.isUnlocked(
+                feature,
+                isDemoMode: true,
+                isProUnlocked: false))
+            XCTAssertFalse(ProFeatureAccess.isLocked(
+                feature,
+                isDemoMode: true,
+                isProUnlocked: false))
+        }
+    }
+
+    func testAdvancedMergeGateUsesSameFreeRealDataPolicy() {
+        XCTAssertFalse(ProFeatureAccess.isUnlocked(
+            .advancedMergeViews,
+            isDemoMode: false,
+            isProUnlocked: false))
+        XCTAssertTrue(ProFeatureAccess.isUnlocked(
+            .advancedMergeViews,
+            isDemoMode: false,
+            isProUnlocked: true))
+        XCTAssertTrue(ProFeatureAccess.isUnlocked(
+            .advancedMergeViews,
+            isDemoMode: true,
+            isProUnlocked: false))
+    }
+
     func testSharedSchemeUsesStoreKitConfigurationForRunAction() throws {
         let schemeXML = try String(
             contentsOf: Self.projectRoot()

@@ -95,9 +95,30 @@ struct QuotaKitProLockedSummaryView: View {
     }
 }
 
+struct ProFeatureLockedCard: View {
+    let store: ProEntitlementStore
+    let feature: FeatureGate
+    let message: String
+
+    var body: some View {
+        QuotaKitProPanel(
+            store: self.store,
+            title: self.feature.title,
+            lockedMessage: self.message,
+            unlockedMessage: String(localized: "This Pro feature is unlocked."),
+            showsFeatureList: false)
+            .padding(16)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(.quaternary, lineWidth: 1))
+            .accessibilityIdentifier("pro-feature-locked-\(self.feature.rawValue)")
+    }
+}
+
 private struct QuotaKitProPanel: View {
     let store: ProEntitlementStore
-    let title: LocalizedStringResource
+    let title: String
     let lockedMessage: String
     let unlockedMessage: String
     let showsFeatureList: Bool

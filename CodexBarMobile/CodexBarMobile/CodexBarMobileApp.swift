@@ -47,6 +47,17 @@ struct CodexBarMobileApp: App {
                     guard !Self.isAutomatedTestLaunch else { return }
                     self.proEntitlementStore.start()
                     usageData.startObserving()
+                    Task {
+                        await ProNotificationCoordinator.shared.reconcile(
+                            isProUnlocked: self.proEntitlementStore.isProUnlocked)
+                    }
+                }
+                .onChange(of: self.proEntitlementStore.isProUnlocked) { _, isUnlocked in
+                    guard !Self.isAutomatedTestLaunch else { return }
+                    Task {
+                        await ProNotificationCoordinator.shared.reconcile(
+                            isProUnlocked: isUnlocked)
+                    }
                 }
         }
         // P2a: attach SwiftData container. Views do not yet use @Query;
@@ -76,10 +87,10 @@ extension Notification.Name {
 
 /// `UIApplicationDelegate` responsibilities:
 ///
-/// 1. Request notification permission on first launch.
-/// 2. Register for remote notifications so CloudKit can dispatch subscriptions.
-/// 3. Configure alert-push (quota transitions) + silent-push (DeviceProvidersZone)
-///    subscriptions.
+/// 1. Register for remote notifications so CloudKit can dispatch subscriptions.
+/// 2. Configure the silent-push DeviceProvidersZone subscription.
+/// 3. Let `ProNotificationCoordinator` configure or remove visible quota
+///    subscriptions after StoreKit entitlement state is known.
 /// 4. Re-run all subscription setup on iCloud account change.
 /// 5. Handle incoming silent pushes on DeviceProvidersZone — post a notification
 ///    so SyncedUsageData can refresh against its in-memory cache.
@@ -100,29 +111,14 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             || environment["XCTestBundlePath"] != nil
         guard !isTestLaunch else { return true }
 
-        // 1. Request notification permission on first launch (Decision A — option 1).
-        Task { @MainActor in
-            let center = UNUserNotificationCenter.current()
-            do {
-                let granted = try await center.requestAuthorization(
-                    options: [.alert, .sound, .badge])
-                let msg = granted ? "✓ granted" : "✗ denied by user"
-                print("[CodexBar Push v2] Notification permission \(msg)")
-                PushSetupDiagnostic.shared.recordPermission(msg)
-            } catch {
-                let msg = "✗ request failed: \(error.localizedDescription)"
-                print("[CodexBar Push v2] \(msg)")
-                PushSetupDiagnostic.shared.recordPermission(msg)
-            }
-        }
-
-        // 2. Register for remote notifications so CloudKit knows the APNs token.
+        // 1. Register for remote notifications so CloudKit knows the APNs token.
+        // Alert permission is requested later by ProNotificationCoordinator
+        // only when QuotaKit Pro is unlocked.
         application.registerForRemoteNotifications()
 
-        // 3. Set up alert-push subscriptions + silent-push subscription on
-        //    DeviceProvidersZone.
+        // 2. Set up silent-push subscription on DeviceProvidersZone. Visible
+        // quota alert subscriptions are gated by ProNotificationCoordinator.
         Task { @MainActor in
-            await QuotaTransitionSubscriptions.shared.setupIfNeeded()
             await DeviceProviderZoneSubscription.shared.setupIfNeeded()
         }
 
@@ -195,8 +191,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     @objc nonisolated private func iCloudAccountChanged() {
         print("[CodexBar Push v2] iCloud account changed — re-running subscription setup")
         Task { @MainActor in
-            await QuotaTransitionSubscriptions.shared.setupIfNeeded()
-            await DeviceProviderZoneSubscription.shared.setupIfNeeded()
+            await ProNotificationCoordinator.shared.reconcile(
+                isProUnlocked: ProEntitlementCacheStore.load(defaults: .standard) != nil)
         }
     }
 

@@ -88,6 +88,7 @@
 		78A8D4ECC85D519DB04C6B07 /* DeepgramUsageCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA293C8F7A388B3FE79C2856 /* DeepgramUsageCard.swift */; };
 		7921A012D44F975F8AFC63DE /* CostShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8515047932479670A9749119 /* CostShareSheet.swift */; };
 		79EAA88F300D60A039EC9FFE /* ProviderAccessGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612D32E6BAAAD2D3828744C8 /* ProviderAccessGateTests.swift */; };
+		7DE87B531A4C930C27E274E2 /* ProNotificationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECF52DD40F8A2A15AE0B3591 /* ProNotificationCoordinator.swift */; };
 		82D12B778494DEEFDCB40A06 /* CostLedgerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20CA4E5C7B1091C018B038D4 /* CostLedgerModels.swift */; };
 		86AF1C1CE9402E616E87F26C /* SwiftDataBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BD0E1383E24DC8971D852C2 /* SwiftDataBridge.swift */; };
 		8A9A4E2E1CA72E072FCBB851 /* MobileDisplayFormattingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CCC87791F1A5C860229EACF /* MobileDisplayFormattingTests.swift */; };
@@ -131,6 +132,7 @@
 		D049C768680FAF4763B7F5B8 /* QuotaProviderList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CECA0608F74E3BA76EE5910 /* QuotaProviderList.swift */; };
 		D0624B0227BF503DC77AC09C /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B47F282E1FA9E215551D09F6 /* Localizable.xcstrings */; };
 		D4DB3A067B095809B2B2DB42 /* OpenAIDashboardSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A9CF0F889610D5155F92ABB /* OpenAIDashboardSection.swift */; };
+		D53B693BEEEC2ECC6BCDF377 /* ProFeatureAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8846A940BF0B583A5FD58500 /* ProFeatureAccess.swift */; };
 		D5E7E85EEE6528E04FDA9446 /* PreviewData.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92153BD74B2B08AE61B76E2 /* PreviewData.swift */; };
 		DCE0242A2B08E8D23B2CCAC1 /* ClaudeAdminUsageCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF5F72C23944E23883A57CA1 /* ClaudeAdminUsageCard.swift */; };
 		E408D96A71E1052A78D540CC /* SyncErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18B11DCC99D3362E7225B2D1 /* SyncErrorTests.swift */; };
@@ -312,6 +314,7 @@
 		82B8A4D1FFD04AA72E89022F /* MobileDisplayPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileDisplayPreferences.swift; sourceTree = "<group>"; };
 		8515047932479670A9749119 /* CostShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostShareSheet.swift; sourceTree = "<group>"; };
 		87DED80F5FABD5A2FBAF5F98 /* UtilizationAggregateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilizationAggregateView.swift; sourceTree = "<group>"; };
+		8846A940BF0B583A5FD58500 /* ProFeatureAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProFeatureAccess.swift; sourceTree = "<group>"; };
 		8D0855CD28B09BC6FE3D911E /* GroqMetricsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroqMetricsCard.swift; sourceTree = "<group>"; };
 		8D15EF2654204A9652A1F59F /* SubscriptionUtilizationCompatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionUtilizationCompatTests.swift; sourceTree = "<group>"; };
 		91D669E4E22F7C5868623D33 /* PushExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PushExtension.entitlements; sourceTree = "<group>"; };
@@ -367,6 +370,7 @@
 		E51BEDB997C80D4064449061 /* SnapshotCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotCache.swift; sourceTree = "<group>"; };
 		E53728795F865E33900DA3C3 /* CodexBarMobileUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexBarMobileUITests.swift; sourceTree = "<group>"; };
 		E8C6050FE3CCE339F505DF43 /* GrokBillingCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokBillingCard.swift; sourceTree = "<group>"; };
+		ECF52DD40F8A2A15AE0B3591 /* ProNotificationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProNotificationCoordinator.swift; sourceTree = "<group>"; };
 		EDC502DDFD85971B90DE8859 /* FeatureGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureGate.swift; sourceTree = "<group>"; };
 		EF276A57786C90968E39BC27 /* StoreKitPurchaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreKitPurchaseService.swift; sourceTree = "<group>"; };
 		F06B5BB1489F508FCD20228A /* DualZoneReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualZoneReaderTests.swift; sourceTree = "<group>"; };
@@ -482,6 +486,7 @@
 				EDC502DDFD85971B90DE8859 /* FeatureGate.swift */,
 				621297A3342874DC1AB4DBE7 /* ProEntitlementCache.swift */,
 				0F5C1E6E8E01433F5A09F2AB /* ProEntitlementStore.swift */,
+				8846A940BF0B583A5FD58500 /* ProFeatureAccess.swift */,
 				EF276A57786C90968E39BC27 /* StoreKitPurchaseService.swift */,
 			);
 			path = StoreKit;
@@ -503,6 +508,7 @@
 			isa = PBXGroup;
 			children = (
 				E16DA26E9BEFB5354A725F99 /* DeviceProviderZoneSubscription.swift */,
+				ECF52DD40F8A2A15AE0B3591 /* ProNotificationCoordinator.swift */,
 				3E96BD45E3A15C7DA40EA93F /* PushSetupDiagnostic.swift */,
 				F2BA90E690B546A77A86EE29 /* QuotaTransitionSubscriptions.swift */,
 			);
@@ -1004,6 +1010,8 @@
 				D5E7E85EEE6528E04FDA9446 /* PreviewData.swift in Sources */,
 				2891B4A408745E69737BD7BC /* ProEntitlementCache.swift in Sources */,
 				34B16FB246F462674E49BE83 /* ProEntitlementStore.swift in Sources */,
+				D53B693BEEEC2ECC6BCDF377 /* ProFeatureAccess.swift in Sources */,
+				7DE87B531A4C930C27E274E2 /* ProNotificationCoordinator.swift in Sources */,
 				FA54D67B708AF38DF8166382 /* ProviderAccessGate.swift in Sources */,
 				537F8FAA96052658292926BC /* ProviderAccountGroup.swift in Sources */,
 				A24E829408C379D88C7715CC /* ProviderColorPalette.swift in Sources */,
@@ -1107,7 +1115,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 153;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1286,7 +1294,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 153;
 				DEVELOPMENT_TEAM = QUOTAKIT_TEAM_ID;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1308,7 +1316,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 153;
 				DEVELOPMENT_TEAM = QUOTAKIT_TEAM_ID;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1346,7 +1354,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 153;
 				DEVELOPMENT_TEAM = QUOTAKIT_TEAM_ID;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1382,7 +1390,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 153;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1406,7 +1414,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 152;
+				CURRENT_PROJECT_VERSION = 153;
 				DEVELOPMENT_TEAM = QUOTAKIT_TEAM_ID;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

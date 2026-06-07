@@ -15509,60 +15509,205 @@
         }
       }
     },
-    "The Daily Spend chart on the Cost tab now scrolls through your full accumulated history, and QuotaKit Pro now has its first Free-vs-Pro provider display behavior.": {
+    "The Daily Spend chart on the Cost tab now scrolls through your full accumulated history, and QuotaKit Pro now gates provider, cost, history, sharing, merge, and visible notification features for real synced data.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The Daily Spend chart on the Cost tab now scrolls through your full accumulated history, and QuotaKit Pro now has its first Free-vs-Pro provider display behavior."
+            "value": "The Daily Spend chart on the Cost tab now scrolls through your full accumulated history, and QuotaKit Pro now gates provider, cost, history, sharing, merge, and visible notification features for real synced data."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "「コスト」タブの Daily Spend グラフが蓄積された全履歴をスクロールできるようになり、QuotaKit Pro には初めて Free / Pro のプロバイダー表示動作が追加されました。"
+            "value": "「コスト」タブの Daily Spend グラフが蓄積された全履歴をスクロールできるようになり、QuotaKit Pro は実同期データのプロバイダー、コスト、履歴、共有、統合、表示通知機能をゲートするようになりました。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "“成本”标签页的 Daily Spend 图表现在可滚动查看完整累积历史，QuotaKit Pro 也加入了首个 Free/Pro 提供商显示行为。"
+            "value": "“成本”标签页的 Daily Spend 图表现在可滚动查看完整累积历史，QuotaKit Pro 也会为真实同步数据限制提供商、成本、历史、分享、合并和可见通知功能。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "「成本」分頁的 Daily Spend 圖表現在可捲動查看完整累積歷史，QuotaKit Pro 也加入了首個 Free/Pro 提供商顯示行為。"
+            "value": "「成本」分頁的 Daily Spend 圖表現在可捲動查看完整累積歷史，QuotaKit Pro 也會為真實同步資料限制提供商、成本、歷史、分享、合併和可見通知功能。"
           }
         }
       }
     },
-    "QuotaKit Pro — Free mode shows one selected synced provider on iPhone, while Pro and demo mode keep the full provider list; the Pro section now clearly presents the $4.99 lifetime unlock.": {
+    "QuotaKit Pro — Free mode keeps one selected synced provider plus basic quota details, while Pro and demo mode unlock the full provider list, cost dashboard, history charts, share/export actions, advanced merge controls, and visible quota alerts.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "QuotaKit Pro — Free mode shows one selected synced provider on iPhone, while Pro and demo mode keep the full provider list; the Pro section now clearly presents the $4.99 lifetime unlock."
+            "value": "QuotaKit Pro — Free mode keeps one selected synced provider plus basic quota details, while Pro and demo mode unlock the full provider list, cost dashboard, history charts, share/export actions, advanced merge controls, and visible quota alerts."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "QuotaKit Pro — Free モードでは iPhone に選択した同期済みプロバイダーを 1 つ表示し、Pro とデモモードでは全プロバイダー一覧を維持します。Pro セクションでは $4.99 のライフタイムアンロックを明確に表示します。"
+            "value": "QuotaKit Pro — Free モードでは、選択した同期済みプロバイダー 1 つと基本的なクォータ詳細を維持します。Pro とデモモードでは、全プロバイダー一覧、コストダッシュボード、履歴グラフ、共有/書き出し、詳細な統合コントロール、表示型クォータ通知が解除されます。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "QuotaKit Pro — Free 模式会在 iPhone 上显示一个已选择的同步提供商，Pro 和演示模式保留完整提供商列表；Pro 区块现在会清楚展示 $4.99 终身解锁。"
+            "value": "QuotaKit Pro — Free 模式保留一个已选择的同步提供商和基础额度详情；Pro 和演示模式解锁完整提供商列表、成本仪表盘、历史图表、分享/导出操作、高级合并控制和可见额度提醒。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "QuotaKit Pro — Free 模式會在 iPhone 上顯示一個已選擇的同步提供商，Pro 和示範模式保留完整提供商列表；Pro 區塊現在會清楚展示 $4.99 終身解鎖。"
+            "value": "QuotaKit Pro — Free 模式保留一個已選擇的同步提供商和基本額度詳情；Pro 和示範模式解鎖完整提供商列表、成本儀表板、歷史圖表、分享/匯出操作、進階合併控制和可見額度提醒。"
+          }
+        }
+      }
+    },
+    "This Pro feature is unlocked.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This Pro feature is unlocked."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この Pro 機能はアンロックされています。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此 Pro 功能已解锁。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此 Pro 功能已解鎖。"
+          }
+        }
+      }
+    },
+    "Unlock QuotaKit Pro to view the full cost dashboard, history charts, share cards, and exports for synced provider data.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock QuotaKit Pro to view the full cost dashboard, history charts, share cards, and exports for synced provider data."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit Pro をアンロックすると、同期済みプロバイダーデータの完全なコストダッシュボード、履歴グラフ、共有カード、エクスポートを表示できます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解锁 QuotaKit Pro 即可查看同步提供商数据的完整成本仪表盘、历史图表、分享卡片和导出功能。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解鎖 QuotaKit Pro 即可查看同步提供商資料的完整成本儀表板、歷史圖表、分享卡片和匯出功能。"
+          }
+        }
+      }
+    },
+    "Unlock QuotaKit Pro to view usage history charts, cost details, budgets, and daily spend for this provider.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock QuotaKit Pro to view usage history charts, cost details, budgets, and daily spend for this provider."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit Pro をアンロックすると、このプロバイダーの使用履歴グラフ、コスト詳細、予算、日別支出を表示できます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解锁 QuotaKit Pro 即可查看此提供商的使用历史图表、成本详情、预算和每日支出。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解鎖 QuotaKit Pro 即可查看此提供商的使用歷史圖表、成本詳情、預算和每日支出。"
+          }
+        }
+      }
+    },
+    "Unlock QuotaKit Pro to keep extended local cost history and choose longer history windows on this iPhone.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock QuotaKit Pro to keep extended local cost history and choose longer history windows on this iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit Pro をアンロックすると、この iPhone に拡張ローカルコスト履歴を保存し、より長い履歴期間を選べます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解锁 QuotaKit Pro 即可在此 iPhone 上保留更长的本地成本历史，并选择更长的历史窗口。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解鎖 QuotaKit Pro 即可在此 iPhone 上保留更長的本機成本歷史，並選擇更長的歷史視窗。"
+          }
+        }
+      }
+    },
+    "QuotaKit Pro is required to launch directly into the Cost dashboard.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit Pro is required to launch directly into the Cost dashboard."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コストダッシュボードを直接開いて起動するには QuotaKit Pro が必要です。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直接启动到成本仪表盘需要 QuotaKit Pro。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直接啟動到成本儀表板需要 QuotaKit Pro。"
           }
         }
       }

@@ -80,6 +80,7 @@ final class PushSetupDiagnostic {
 
         var depleted: [CKSubscription] = []
         var restored: [CKSubscription] = []
+        var warning: [CKSubscription] = []
         var deviceSnapshot: [CKSubscription] = []
         var legacy: [CKSubscription] = []
         var other: [CKSubscription] = []
@@ -90,6 +91,8 @@ final class PushSetupDiagnostic {
                 depleted.append(sub)
             } else if id.hasPrefix("quota-"), id.hasSuffix("-restored-sub") {
                 restored.append(sub)
+            } else if id.hasPrefix("quota-"), id.hasSuffix("-warning-sub") {
+                warning.append(sub)
             } else if id == "device-snapshot-changes" {
                 deviceSnapshot.append(sub)
             } else if id.hasPrefix("quota-transition") {
@@ -111,6 +114,9 @@ final class PushSetupDiagnostic {
         Self.appendGroup(
             label: "quota-*-restored-sub",
             subs: restored, to: &lines)
+        Self.appendGroup(
+            label: "quota-*-warning-sub",
+            subs: warning, to: &lines)
         if !legacy.isEmpty {
             Self.appendGroup(
                 label: "quota-transition-* (LEGACY — should be 0)",

@@ -9,6 +9,8 @@ struct ProviderDetailView: View {
     /// re-renders against the selected snapshot — mirroring Mac's
     /// "click into provider menu → tabs" UX.
     let group: ProviderAccountGroup
+    let isDemoMode: Bool
+    @Environment(ProEntitlementStore.self) private var proEntitlementStore
 
     @State private var selectedAccountIndex: Int = 0
 
@@ -19,17 +21,19 @@ struct ProviderDetailView: View {
     /// haven't been refactored to pass a group yet (e.g., `RawProviderDetailView`
     /// in `ContentView`, SwiftUI previews). Wraps the snapshot in a
     /// 1-element group so the body code path is uniform.
-    init(provider: ProviderUsageSnapshot) {
+    init(provider: ProviderUsageSnapshot, isDemoMode: Bool = false) {
         self.group = ProviderAccountGroup(
             providerID: provider.providerID,
             providerName: provider.providerName,
             accounts: [provider])
+        self.isDemoMode = isDemoMode
     }
 
     /// Multi-account init — preferred path from the post-merge,
     /// post-grouping Usage list.
-    init(group: ProviderAccountGroup) {
+    init(group: ProviderAccountGroup, isDemoMode: Bool = false) {
         self.group = group
+        self.isDemoMode = isDemoMode
     }
 
     /// Computed accessor for the currently-selected snapshot. **All
@@ -52,6 +56,31 @@ struct ProviderDetailView: View {
     /// Drives the MOCK badge in the nav header.
     private var isMockProvider: Bool {
         MockProviderDetector.isMock(self.provider)
+    }
+
+    private var isUsageHistoryUnlocked: Bool {
+        ProFeatureAccess.isUnlocked(
+            .usageHistory,
+            isDemoMode: self.isDemoMode,
+            isProUnlocked: self.proEntitlementStore.isProUnlocked)
+    }
+
+    private var isCostDetailUnlocked: Bool {
+        ProFeatureAccess.isUnlocked(
+            .fullCostDashboard,
+            isDemoMode: self.isDemoMode,
+            isProUnlocked: self.proEntitlementStore.isProUnlocked)
+    }
+
+    private var hasLockedDetailContent: Bool {
+        guard !self.isUsageHistoryUnlocked || !self.isCostDetailUnlocked else { return false }
+        if !self.isCostDetailUnlocked {
+            if self.provider.costSummary != nil || self.provider.budget != nil { return true }
+        }
+        if !self.isUsageHistoryUnlocked {
+            if let history = self.provider.utilizationHistory, !history.isEmpty { return true }
+        }
+        return false
     }
 
     var body: some View {
@@ -199,24 +228,32 @@ struct ProviderDetailView: View {
 
                 // Cost summary grid
                 if let cost = self.provider.costSummary,
-                   cost.sessionCostUSD != nil || cost.last30DaysCostUSD != nil
+                   cost.sessionCostUSD != nil || cost.last30DaysCostUSD != nil,
+                   self.isCostDetailUnlocked
                 {
                     self.costSummarySection(cost)
                 }
 
                 // Budget progress
-                if let budget = self.provider.budget {
+                if let budget = self.provider.budget, self.isCostDetailUnlocked {
                     BudgetProgressView(budget: budget, tintColor: self.providerColor)
                 }
 
                 // Utilization history chart
-                if let history = self.provider.utilizationHistory, !history.isEmpty {
+                if let history = self.provider.utilizationHistory, !history.isEmpty, self.isUsageHistoryUnlocked {
                     UtilizationHistoryView(series: history, tintColor: self.providerColor)
                 }
 
                 // Daily chart
-                if let cost = self.provider.costSummary, !cost.daily.isEmpty {
+                if let cost = self.provider.costSummary, !cost.daily.isEmpty, self.isCostDetailUnlocked {
                     self.dailyChartSection(cost.daily, currencyCode: cost.currencyCode)
+                }
+
+                if self.hasLockedDetailContent {
+                    ProFeatureLockedCard(
+                        store: self.proEntitlementStore,
+                        feature: .usageHistory,
+                        message: String(localized: "Unlock QuotaKit Pro to view usage history charts, cost details, budgets, and daily spend for this provider."))
                 }
             }
             .padding(.horizontal, 20)
@@ -587,10 +624,12 @@ struct ProviderDetailView: View {
     NavigationStack {
         ProviderDetailView(provider: PreviewData.claudeProvider)
     }
+    .environment(ProEntitlementStore.preview(state: .unlocked(source: .storeKit)))
 }
 
 #Preview("No Cost Data") {
     NavigationStack {
         ProviderDetailView(provider: PreviewData.cursorProvider)
     }
+    .environment(ProEntitlementStore.preview(state: .unlocked(source: .storeKit)))
 }

@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 import XCTest
 
@@ -53,6 +54,80 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
             usageData: PreviewData.makeSyncedUsageData(),
             isDemoMode: false)
             .environment(ProEntitlementStore.preview(state: .unlocked(source: .storeKit)))
+
+        XCTAssertNotNil(self.renderToImage(view))
+    }
+
+    func testLockedCostTabRendersProState() {
+        let view = CostTab(
+            usageData: PreviewData.makeSyncedUsageData(),
+            isDemoMode: .constant(false))
+            .environment(ProEntitlementStore.preview(state: .locked))
+
+        XCTAssertNotNil(self.renderToImage(view))
+    }
+
+    func testUnlockedCostTabRendersDashboard() {
+        let view = CostTab(
+            usageData: PreviewData.makeSyncedUsageData(),
+            isDemoMode: .constant(false))
+            .environment(ProEntitlementStore.preview(state: .unlocked(source: .storeKit)))
+
+        XCTAssertNotNil(self.renderToImage(view))
+    }
+
+    func testDemoCostTabRendersDashboardWhenLocked() {
+        let view = CostTab(
+            usageData: PreviewData.makeSyncedUsageData(),
+            isDemoMode: .constant(true))
+            .environment(ProEntitlementStore.preview(state: .locked))
+
+        XCTAssertNotNil(self.renderToImage(view))
+    }
+
+    func testLockedProviderDetailRendersProCard() {
+        let view = NavigationStack {
+            ProviderDetailView(provider: PreviewData.claudeProvider)
+        }
+        .environment(ProEntitlementStore.preview(state: .locked))
+
+        XCTAssertNotNil(self.renderToImage(view))
+    }
+
+    func testUnlockedProviderDetailRendersHistoryAndCostDetails() {
+        let view = NavigationStack {
+            ProviderDetailView(provider: PreviewData.claudeProvider)
+        }
+        .environment(ProEntitlementStore.preview(state: .unlocked(source: .storeKit)))
+
+        XCTAssertNotNil(self.renderToImage(view))
+    }
+
+    func testDemoProviderDetailRendersHistoryAndCostDetailsWhenLocked() {
+        let view = NavigationStack {
+            ProviderDetailView(provider: PreviewData.claudeProvider, isDemoMode: true)
+        }
+        .environment(ProEntitlementStore.preview(state: .locked))
+
+        XCTAssertNotNil(self.renderToImage(view))
+    }
+
+    func testLockedCostSettingsRenders() {
+        let view = NavigationStack {
+            CostSettingsView(isDemoMode: false)
+        }
+        .environment(ProEntitlementStore.preview(state: .locked))
+        .modelContainer(ModelContainerFactory.shared())
+
+        XCTAssertNotNil(self.renderToImage(view))
+    }
+
+    func testDemoCostSettingsRendersUnlockedWhenProIsLocked() {
+        let view = NavigationStack {
+            CostSettingsView(isDemoMode: true)
+        }
+        .environment(ProEntitlementStore.preview(state: .locked))
+        .modelContainer(ModelContainerFactory.shared())
 
         XCTAssertNotNil(self.renderToImage(view))
     }

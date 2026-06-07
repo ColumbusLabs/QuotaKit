@@ -61,7 +61,9 @@ struct ContentView: View {
                     Label("Cost", systemImage: "dollarsign.circle.fill")
                 }
 
-            SettingsTab(usageData: self.usageData)
+            SettingsTab(
+                usageData: self.usageData,
+                isDemoMode: self.isDemoMode)
                 .tag(MobileRootTab.settings)
                 .tabItem {
                     Label("Setting", systemImage: "gearshape")
@@ -225,6 +227,10 @@ struct ProviderListView: View {
             isDemoMode: self.isDemoMode,
             isProUnlocked: self.proEntitlementStore.isProUnlocked,
             selectedProviderID: self.freeSelectedProviderID.isEmpty ? nil : self.freeSelectedProviderID)
+        let advancedMergeUnlocked = ProFeatureAccess.isUnlocked(
+            .advancedMergeViews,
+            isDemoMode: self.isDemoMode,
+            isProUnlocked: self.proEntitlementStore.isProUnlocked)
         let query = self.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         let filteredGroups = query.isEmpty ? access.visibleGroups : access.visibleGroups.filter { group in
             group.representative.providerName.localizedCaseInsensitiveContains(query)
@@ -259,31 +265,33 @@ struct ProviderListView: View {
                     }()
                     let activeLinkage = activeLinkagesByProviderID[group.providerID]?.first
                     NavigationLink {
-                        ProviderDetailView(group: group)
+                        ProviderDetailView(
+                            group: group,
+                            isDemoMode: self.isDemoMode)
                     } label: {
                         ProviderUsageView(
                             provider: group.representative,
                             duplicateOrdinal: nil,
                             accountCount: group.hasMultipleAccounts ? group.accounts.count : nil,
-                            linkageCandidate: candidate,
-                            activeLinkage: activeLinkage,
-                            onConfirmMerge: { c in
+                            linkageCandidate: advancedMergeUnlocked ? candidate : nil,
+                            activeLinkage: advancedMergeUnlocked ? activeLinkage : nil,
+                            onConfirmMerge: advancedMergeUnlocked ? { c in
                                 Task { @MainActor in
                                     await self.usageData.confirmLinkage(
                                         providerID: c.named.providerID,
                                         linkedIdentifiers: c.linkedIdentifiers)
                                 }
-                            },
-                            onDismissMergeCandidate: { c in
+                            } : nil,
+                            onDismissMergeCandidate: advancedMergeUnlocked ? { c in
                                 self.dismissedCandidateKeys.insert(c.hashKey)
-                            },
-                            onRevokeLinkage: { linkage in
+                            } : nil,
+                            onRevokeLinkage: advancedMergeUnlocked ? { linkage in
                                 Task { @MainActor in
                                     await self.usageData.revokeLinkage(
                                         providerID: linkage.providerID,
                                         linkedIdentifiers: linkage.linkedIdentifiers)
                                 }
-                            })
+                            } : nil)
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("provider-group-\(group.providerID)")
@@ -367,9 +375,10 @@ private struct SyncStatusBar: View {
 
 // MARK: - Cost Tab
 
-private struct CostTab: View {
+struct CostTab: View {
     let usageData: SyncedUsageData
     @Binding var isDemoMode: Bool
+    @Environment(ProEntitlementStore.self) private var proEntitlementStore
     @State private var showShareSheet = false
 
     // Round 6 / P4b — Cost Window Ledger dispatch. When `cwlEnabled` and not
@@ -410,15 +419,36 @@ private struct CostTab: View {
         return insights.hasDisplayData ? insights : nil
     }
 
+    private var isCostDashboardUnlocked: Bool {
+        ProFeatureAccess.isUnlocked(
+            .fullCostDashboard,
+            isDemoMode: self.isDemoMode,
+            isProUnlocked: self.proEntitlementStore.isProUnlocked)
+    }
+
+    private var isShareUnlocked: Bool {
+        ProFeatureAccess.isUnlocked(
+            .shareCards,
+            isDemoMode: self.isDemoMode,
+            isProUnlocked: self.proEntitlementStore.isProUnlocked)
+    }
+
     var body: some View {
         NavigationStack {
             Group {
                 if self.displaySnapshot != nil {
                     if let insights = self.currentInsights {
-                        CostDashboardView(
-                            insights: insights,
-                            usageData: self.usageData,
-                            isDemoMode: self.isDemoMode)
+                        if self.isCostDashboardUnlocked {
+                            CostDashboardView(
+                                insights: insights,
+                                usageData: self.usageData,
+                                isDemoMode: self.isDemoMode)
+                        } else {
+                            ProFeatureLockedStateView(
+                                store: self.proEntitlementStore,
+                                feature: .fullCostDashboard,
+                                message: String(localized: "Unlock QuotaKit Pro to view the full cost dashboard, history charts, share cards, and exports for synced provider data."))
+                        }
                     } else {
                         EmptyStateView(
                             title: "No Cost Data Yet",
@@ -442,7 +472,7 @@ private struct CostTab: View {
                         }
                     }
                 }
-                if self.currentInsights != nil {
+                if self.currentInsights != nil, self.isCostDashboardUnlocked, self.isShareUnlocked {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             self.showShareSheet = true
@@ -453,11 +483,29 @@ private struct CostTab: View {
                 }
             }
             .sheet(isPresented: $showShareSheet) {
-                if let insights = self.currentInsights {
+                if let insights = self.currentInsights, self.isShareUnlocked {
                     CostShareSheet(insights: insights)
                 }
             }
         }
+    }
+}
+
+struct ProFeatureLockedStateView: View {
+    let store: ProEntitlementStore
+    let feature: FeatureGate
+    let message: String
+
+    var body: some View {
+        ScrollView {
+            ProFeatureLockedCard(
+                store: self.store,
+                feature: self.feature,
+                message: self.message)
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
+        }
+        .accessibilityIdentifier("pro-feature-locked-state-\(self.feature.rawValue)")
     }
 }
 
@@ -1541,6 +1589,7 @@ private func providerTint(for provider: ProviderUsageSnapshot?) -> Color {
 
 private struct SettingsTab: View {
     let usageData: SyncedUsageData
+    let isDemoMode: Bool
     @Environment(ProEntitlementStore.self) private var proEntitlementStore
     @State private var showingSetupGuide = false
 
@@ -1592,7 +1641,7 @@ private struct SettingsTab: View {
                     }
 
                     NavigationLink {
-                        CostSettingsView()
+                        CostSettingsView(isDemoMode: self.isDemoMode)
                     } label: {
                         SettingSummaryRow(
                             title: "Cost Setting",
@@ -2283,6 +2332,7 @@ private struct DeveloperToolsView: View {
 private struct PushSetupDiagnosticView: View {
     @State private var diag = PushSetupDiagnostic.shared
     @State private var persistenceTestResult: String?
+    @Environment(ProEntitlementStore.self) private var proEntitlementStore
 
     var body: some View {
         List {
@@ -2319,7 +2369,8 @@ private struct PushSetupDiagnosticView: View {
             Section("Actions") {
                 Button("Force Re-run Setup") {
                     Task { @MainActor in
-                        await QuotaTransitionSubscriptions.shared.setupIfNeeded()
+                        await ProNotificationCoordinator.shared.reconcile(
+                            isProUnlocked: self.proEntitlementStore.isProUnlocked)
                     }
                 }
 
@@ -2465,13 +2516,13 @@ private enum MobileReleaseNotesCatalog {
         ReleaseNotesVersion(
             version: "1.11.1",
             status: String(localized: "Latest"),
-            summary: String(localized: "The Daily Spend chart on the Cost tab now scrolls through your full accumulated history, and QuotaKit Pro now has its first Free-vs-Pro provider display behavior."),
+            summary: String(localized: "The Daily Spend chart on the Cost tab now scrolls through your full accumulated history, and QuotaKit Pro now gates provider, cost, history, sharing, merge, and visible notification features for real synced data."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
                         String(localized: "Daily Spend chart — shows a clean ~30-day window and scrolls left to reveal your full cost history (30 / 90 / 365-day windows); the latest day stays pinned to the right edge."),
-                        String(localized: "QuotaKit Pro — Free mode shows one selected synced provider on iPhone, while Pro and demo mode keep the full provider list; the Pro section now clearly presents the $4.99 lifetime unlock."),
+                        String(localized: "QuotaKit Pro — Free mode keeps one selected synced provider plus basic quota details, while Pro and demo mode unlock the full provider list, cost dashboard, history charts, share/export actions, advanced merge controls, and visible quota alerts."),
                     ]),
             ]),
         ReleaseNotesVersion(
@@ -3031,16 +3082,26 @@ private struct UsageSettingsView: View {
     }
 }
 
-private struct CostSettingsView: View {
+struct CostSettingsView: View {
+    let isDemoMode: Bool
+
     @AppStorage(MobileSettingsKeys.dashboardCostChartStyle) private var dashboardCostChartStyleRawValue =
         CostChartStyle.line.rawValue
     @AppStorage(MobileSettingsKeys.openCostByDefault) private var openCostByDefault = false
+    @Environment(ProEntitlementStore.self) private var proEntitlementStore
 
     // Round 6 / P4b — Cost Window Ledger controls.
     @Environment(\.modelContext) private var modelContext
     @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = false
     @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = 30
     @State private var showClearLedgerConfirm = false
+
+    private var isCostHistoryUnlocked: Bool {
+        ProFeatureAccess.isUnlocked(
+            .usageHistory,
+            isDemoMode: self.isDemoMode,
+            isProUnlocked: self.proEntitlementStore.isProUnlocked)
+    }
 
     var body: some View {
         List {
@@ -3053,8 +3114,9 @@ private struct CostSettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                .disabled(!self.isCostHistoryUnlocked)
 
-                if self.cwlEnabled {
+                if self.cwlEnabled, self.isCostHistoryUnlocked {
                     Picker("History window", selection: self.$cwlWindowDays) {
                         Text("7 Days").tag(7)
                         Text("30 Days").tag(30)
@@ -3063,21 +3125,26 @@ private struct CostSettingsView: View {
                     }
                     .pickerStyle(.menu)
                 }
+
+                if !self.isCostHistoryUnlocked {
+                    ProFeatureLockedCard(
+                        store: self.proEntitlementStore,
+                        feature: .usageHistory,
+                        message: String(localized: "Unlock QuotaKit Pro to keep extended local cost history and choose longer history windows on this iPhone."))
+                }
             } header: {
                 Text("Cost History")
             }
 
-            if self.cwlEnabled {
-                if let diagnostics = self.ledgerDiagnostics, diagnostics.rowCount > 0 {
-                    Section("Local Ledger") {
-                        LabeledContent("Days collected", value: "\(diagnostics.dayCount)")
-                        LabeledContent("Providers", value: "\(diagnostics.providerCount)")
-                        if diagnostics.deviceCount > 1 {
-                            LabeledContent("Devices", value: "\(diagnostics.deviceCount)")
-                        }
-                        if let earliest = diagnostics.earliestDayKey {
-                            LabeledContent("Since", value: earliest)
-                        }
+            if let diagnostics = self.ledgerDiagnostics, diagnostics.rowCount > 0 {
+                Section("Local Ledger") {
+                    LabeledContent("Days collected", value: "\(diagnostics.dayCount)")
+                    LabeledContent("Providers", value: "\(diagnostics.providerCount)")
+                    if diagnostics.deviceCount > 1 {
+                        LabeledContent("Devices", value: "\(diagnostics.deviceCount)")
+                    }
+                    if let earliest = diagnostics.earliestDayKey {
+                        LabeledContent("Since", value: earliest)
                     }
                 }
 
@@ -3119,6 +3186,13 @@ private struct CostSettingsView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                }
+                .disabled(!self.isCostHistoryUnlocked)
+
+                if !self.isCostHistoryUnlocked {
+                    Text("QuotaKit Pro is required to launch directly into the Cost dashboard.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
 

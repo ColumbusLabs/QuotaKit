@@ -236,6 +236,54 @@ final class QuotaTransitionSubscriptions {
         await diag.refreshSubscriptionList()
     }
 
+    func removeManagedSubscriptions() async {
+        let diag = await PushSetupDiagnostic.shared
+        let database = CKContainer(identifier: containerIdentifier).privateCloudDatabase
+        let managedIDs = Set(Self.managedSubscriptionIDs(
+            providerIDs: QuotaProviderList.providers.map(\.id))
+            + self.legacySubscriptionIDs)
+
+        let existing: [CKSubscription]
+        do {
+            existing = try await database.allSubscriptions()
+        } catch {
+            let msg = "✗ allSubscriptions failed during Pro cleanup: \(error.localizedDescription)"
+            print("[QuotaKit Push] \(msg)")
+            await diag.recordError(msg)
+            await diag.refreshSubscriptionList()
+            return
+        }
+
+        let idsToDelete = existing
+            .map(\.subscriptionID)
+            .filter { managedIDs.contains($0) }
+
+        guard !idsToDelete.isEmpty else {
+            await diag.recordPermission("Pro required for quota alerts")
+            await diag.recordDepletedSub("✓ no quota alert subscriptions active")
+            await diag.recordRestoredSub("")
+            await diag.refreshSubscriptionList()
+            return
+        }
+
+        do {
+            _ = try await database.modifySubscriptions(
+                saving: [],
+                deleting: idsToDelete)
+            let msg = "✓ removed \(idsToDelete.count) quota alert sub(s) for Free mode"
+            print("[QuotaKit Push] \(msg)")
+            await diag.recordPermission("Pro required for quota alerts")
+            await diag.recordDepletedSub(msg)
+            await diag.recordRestoredSub("")
+        } catch {
+            let msg = "✗ quota alert cleanup failed: \(error.localizedDescription)"
+            print("[QuotaKit Push] \(msg)")
+            await diag.recordError(msg)
+        }
+
+        await diag.refreshSubscriptionList()
+    }
+
     /// Runs a persistence test on a bare `CKRecordZoneSubscription` in the
     /// first provider's depleted zone. Representative of the real subs since
     /// all of them share the same subscription type + alertBody-only payload.
@@ -307,6 +355,16 @@ final class QuotaTransitionSubscriptions {
         info.soundName = "default"
         info.shouldSendMutableContent = true
         return info
+    }
+
+    nonisolated static func managedSubscriptionIDs(providerIDs: [String]) -> [CKSubscription.ID] {
+        providerIDs.flatMap { providerID in
+            [
+                "quota-\(providerID)-depleted-sub",
+                "quota-\(providerID)-restored-sub",
+                "quota-\(providerID)-warning-sub",
+            ]
+        }
     }
 
     private func ensureZoneExists(
