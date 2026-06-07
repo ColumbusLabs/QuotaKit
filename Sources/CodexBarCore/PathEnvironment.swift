@@ -946,9 +946,14 @@ public final class LoginShellPathCache: @unchecked Sendable {
     public static let shared = LoginShellPathCache()
 
     private let lock = NSLock()
+    private let capture: @Sendable (String?, TimeInterval) -> [String]?
     private var captured: [String]?
     private var isCapturing = false
     private var callbacks: [([String]?) -> Void] = []
+
+    init(capture: @escaping @Sendable (String?, TimeInterval) -> [String]? = LoginShellPathCapturer.capture) {
+        self.capture = capture
+    }
 
     public var current: [String]? {
         self.lock.lock()
@@ -981,8 +986,9 @@ public final class LoginShellPathCache: @unchecked Sendable {
         self.isCapturing = true
         self.lock.unlock()
 
+        let capture = self.capture
         DispatchQueue.global(qos: .utility).async { [weak self] in
-            let result = LoginShellPathCapturer.capture(shell: shell, timeout: timeout)
+            let result = capture(shell, timeout)
             guard let self else { return }
 
             self.lock.lock()
@@ -1022,7 +1028,7 @@ public final class LoginShellPathCache: @unchecked Sendable {
         self.isCapturing = true
         self.lock.unlock()
 
-        let result = LoginShellPathCapturer.capture(shell: shell, timeout: timeout)
+        let result = self.capture(shell, timeout)
         self.lock.lock()
         self.captured = result
         self.isCapturing = false

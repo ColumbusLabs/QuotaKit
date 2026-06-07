@@ -45,16 +45,16 @@ struct PathBuilderTests {
     }
 
     @Test
-    func `login shell cache retries after timed out nil capture`() throws {
-        let shell = try Self.makeLoginShellPathScript(
-            delay: 0.2,
-            path: "/login/bin:/usr/bin")
-        defer { try? FileManager.default.removeItem(at: shell) }
+    func `login shell cache retries after timed out nil capture`() {
+        let capture = LoginShellPathCaptureStub([
+            nil,
+            ["/login/bin", "/usr/bin"],
+        ])
 
-        let cache = LoginShellPathCache()
+        let cache = LoginShellPathCache { _, _ in capture.next() }
         let semaphore = DispatchSemaphore(value: 0)
         var firstResult: [String]?
-        cache.captureOnce(shell: shell.path, timeout: 0.01) { result in
+        cache.captureOnce(shell: "/unused", timeout: 0.01) { result in
             firstResult = result
             semaphore.signal()
         }
@@ -63,9 +63,10 @@ struct PathBuilderTests {
         #expect(firstResult == nil)
         #expect(cache.current == nil)
 
-        let recovered = cache.currentOrCapture(shell: shell.path, timeout: 2.0)
+        let recovered = cache.currentOrCapture(shell: "/unused", timeout: 2.0)
         #expect(recovered == ["/login/bin", "/usr/bin"])
         #expect(cache.current == ["/login/bin", "/usr/bin"])
+        #expect(capture.callCount == 2)
     }
 
     @Test
@@ -650,18 +651,28 @@ struct PathBuilderTests {
     private static func shellSingleQuoted(_ value: String) -> String {
         "'\(value.replacingOccurrences(of: "'", with: "'\\''"))'"
     }
+}
 
-    private static func makeLoginShellPathScript(delay: TimeInterval, path: String) throws -> URL {
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("codexbar-login-path-\(UUID().uuidString).sh")
-        let script = """
-        #!/bin/sh
-        sleep \(delay)
-        printf '__CODEXBAR_PATH__%s__CODEXBAR_PATH__' \(self.shellSingleQuoted(path))
-        """
-        try script.write(to: url, atomically: true, encoding: .utf8)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
-        return url
+private final class LoginShellPathCaptureStub: @unchecked Sendable {
+    private let lock = NSLock()
+    private var results: [[String]?]
+    private var callCountStorage = 0
+
+    var callCount: Int {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.callCountStorage
+    }
+
+    init(_ results: [[String]?]) {
+        self.results = results
+    }
+
+    func next() -> [String]? {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        self.callCountStorage += 1
+        return self.results.isEmpty ? nil : self.results.removeFirst()
     }
 }
 
