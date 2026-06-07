@@ -48,6 +48,6 @@
 - [ ] merge sync 分支 → `mobile-dev`（release + appcast 都从 mobile-dev 出）
 - [ ] Sparkle 工具加进 PATH：`export PATH="$PWD/.build/artifacts/sparkle/Sparkle/bin:$PATH"`
 - [ ] `./Scripts/release.sh`（phase1：build + sign + notarize + draft GitHub release）
-- [ ] iOS：`xcodegen generate` → Archive（`-allowProvisioningUpdates`）→ export/upload 到 App Store Connect（TestFlight）
+- [ ] iOS：`./Scripts/ios_testflight_xcode.sh` → Archive（`-allowProvisioningUpdates`）→ export/upload 到 App Store Connect（TestFlight）
 - [ ] 用户 QA 通过后 → `./Scripts/release.sh --finalize`（publish draft + 生成签名 appcast + push 到 mobile-dev）
 - [ ] Todoist：任务移到 **Release**，附 release URL + TestFlight build 号

@@ -153,7 +153,6 @@ final class ProEntitlementStore {
     }
 }
 
-#if DEBUG
 extension ProEntitlementStore {
     static func preview(state: State, product: ProProductInfo? = nil) -> ProEntitlementStore {
         let store = ProEntitlementStore(
@@ -194,4 +193,3 @@ private struct PreviewProPurchaseService: ProPurchaseServicing {
         AsyncStream { $0.finish() }
     }
 }
-#endif
