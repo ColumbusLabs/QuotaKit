@@ -45,7 +45,7 @@ upstream's plain `53` and the fork's `53.1.1.0` occupy different version
 spaces.
 
 ## Release flow
-1) Build & notarize as usual (`./Scripts/sign-and-notarize.sh`), producing notarized `CodexBar-macos-universal-<ver>.zip`.
+1) Build & notarize as usual (`./Scripts/sign-and-notarize.sh`), producing notarized `QuotaKit-macos-universal-<ver>.zip`.
 2) Generate appcast entry with Sparkle `generate_appcast` using the Ed25519 private key; HTML release notes come from `CHANGELOG.md` via `Scripts/changelog-to-html.sh`. For beta releases: set `SPARKLE_CHANNEL=beta` to tag the entry.
 3) Upload `appcast.xml` + zip to GitHub Releases (feed URL stays stable).
 4) Tag/release.

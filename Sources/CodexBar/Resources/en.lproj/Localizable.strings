@@ -302,7 +302,7 @@
 "Subscription Utilization" = "Subscription Utilization";
 "Surprise me" = "Surprise me";
 "Switcher shows icons" = "Switcher shows icons";
-"Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar." = "Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar.";
+"Symlink QuotaKitCLI to /usr/local/bin and /opt/homebrew/bin as quotakit." = "Symlink QuotaKitCLI to /usr/local/bin and /opt/homebrew/bin as quotakit.";
 "System" = "System";
 "Temporarily shows the loading animation after the next refresh." = "Temporarily shows the loading animation after the next refresh.";
 "Tertiary (\\(label))" = "Tertiary (\\(label))";
@@ -519,8 +519,8 @@
 "open_menu_shortcut_title" = "Open menu";
 "open_menu_shortcut_subtitle" = "Trigger the menu bar menu from anywhere.";
 "install_cli" = "Install CLI";
-"install_cli_subtitle" = "Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar.";
-"cli_not_found" = "CodexBarCLI not found in app bundle.";
+"install_cli_subtitle" = "Symlink QuotaKitCLI to /usr/local/bin and /opt/homebrew/bin as quotakit.";
+"cli_not_found" = "QuotaKitCLI not found in app bundle.";
 "no_writable_bin_dirs" = "No writable bin dirs found.";
 "show_debug_settings_title" = "Show Debug Settings";
 "show_debug_settings_subtitle" = "Expose troubleshooting tools in the Debug tab.";

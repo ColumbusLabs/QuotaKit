@@ -330,7 +330,7 @@ QuotaKit Pro widget work should create iOS widget targets that read sanitized iO
 
 - `Scripts/package_app.sh`
   - Builds SwiftPM products.
-  - Creates `CodexBar.app`.
+  - Creates `QuotaKit.app`.
   - Generates Info.plist and entitlements.
   - Embeds CLI/helper/widget.
   - Configures Sparkle feed URL.

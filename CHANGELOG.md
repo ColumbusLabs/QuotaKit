@@ -5,6 +5,20 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## 0.32.4.3 / iOS 1.11.1 — 2026-06-08
+
+### Fixed
+
+- Renamed the shipped Mac app bundle, executable, widget extension, and bundled
+  CLI helper to QuotaKit-branded runtime names.
+- Added a signed Mac disk image with a drag-to-Applications install window for
+  direct downloads.
+
+### Notes
+
+- Sparkle updates continue to use the signed ZIP enclosure for compatibility;
+  direct website downloads use the new DMG installer.
+
 ## 0.32.4.2 / iOS 1.11.1 — 2026-06-07
 
 ### New

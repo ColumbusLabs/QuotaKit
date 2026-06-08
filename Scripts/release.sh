@@ -55,10 +55,11 @@ phase1() {
     echo "Skipping swift test locally (CI gates it on every push; set RUN_SWIFT_TEST=1 to run)."
   fi
 
-  if [[ -f "${ROOT}/${RELEASE_ASSET_BASENAME}.zip" \
+  if [[ -f "${ROOT}/${RELEASE_ASSET_BASENAME}.dmg" \
+     && -f "${ROOT}/${RELEASE_ASSET_BASENAME}.zip" \
      && -f "${ROOT}/${RELEASE_ASSET_BASENAME}.dSYM.zip" ]]; then
     echo "Reusing existing notarized artifacts (delete them to force a fresh build):"
-    ls -lh "${RELEASE_ASSET_BASENAME}.zip" "${RELEASE_ASSET_BASENAME}.dSYM.zip"
+    ls -lh "${RELEASE_ASSET_BASENAME}.dmg" "${RELEASE_ASSET_BASENAME}.zip" "${RELEASE_ASSET_BASENAME}.dSYM.zip"
   else
     "$ROOT/Scripts/sign-and-notarize.sh"
   fi
@@ -90,7 +91,7 @@ phase1() {
 
   # Pin --repo explicitly so gh never picks the inherited upstream remote.
   gh release create "$TAG" \
-    "${RELEASE_ASSET_BASENAME}.zip" "${RELEASE_ASSET_BASENAME}.dSYM.zip" \
+    "${RELEASE_ASSET_BASENAME}.dmg" "${RELEASE_ASSET_BASENAME}.zip" "${RELEASE_ASSET_BASENAME}.dSYM.zip" \
     --repo "$RELEASE_REPO" \
     --draft \
     --title "${RELEASE_TITLE}" \
@@ -109,7 +110,8 @@ Phase 1 complete — DRAFT release is staged (not public yet).
 
 What to verify in the GitHub UI:
   - Title and release notes render correctly
-  - ${RELEASE_ASSET_BASENAME}.zip is present (expect ~10-50 MB)
+  - ${RELEASE_ASSET_BASENAME}.dmg is present (primary manual download)
+  - ${RELEASE_ASSET_BASENAME}.zip is present (Sparkle enclosure)
   - ${RELEASE_ASSET_BASENAME}.dSYM.zip is present
   - Tag matches: $TAG
 
@@ -126,6 +128,9 @@ EOF
 phase2() {
   if [[ ! -f "${ROOT}/${RELEASE_ASSET_BASENAME}.zip" ]]; then
     err "Release zip not found at ${RELEASE_ASSET_BASENAME}.zip. Did phase 1 run?"
+  fi
+  if [[ ! -f "${ROOT}/${RELEASE_ASSET_BASENAME}.dmg" ]]; then
+    err "Release DMG not found at ${RELEASE_ASSET_BASENAME}.dmg. Did phase 1 run?"
   fi
 
   local is_draft

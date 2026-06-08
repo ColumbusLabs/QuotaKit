@@ -10,7 +10,7 @@ private nonisolated(unsafe) var globalChildPID: pid_t = 0
 private nonisolated(unsafe) var globalShouldTerminate: Int32 = 0
 
 private func usageAndExit() -> Never {
-    fputs("Usage: CodexBarClaudeWatchdog -- <binary> [args...]\n", stderr)
+    fputs("Usage: QuotaKitClaudeWatchdog -- <binary> [args...]\n", stderr)
     Darwin.exit(WatchdogExitCode.usage)
 }
 
@@ -78,7 +78,7 @@ let spawnResult: Int32 = childArgv.withUnsafeBufferPointer { buffer in
 }
 
 guard spawnResult == 0, globalChildPID > 0 else {
-    fputs("CodexBarClaudeWatchdog: failed to spawn child: \(childBinary) (rc=\(spawnResult))\n", stderr)
+    fputs("QuotaKitClaudeWatchdog: failed to spawn child: \(childBinary) (rc=\(spawnResult))\n", stderr)
     Darwin.exit(WatchdogExitCode.spawnFailed)
 }
 

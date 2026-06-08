@@ -66,9 +66,9 @@ struct LocalizationBundleTests {
         includeEmptyChineseLocalization: Bool = false) throws -> (root: URL, appBundle: Bundle)
     {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(
-            "codexbar-localization-\(UUID().uuidString)",
+            "quotakit-localization-\(UUID().uuidString)",
             isDirectory: true)
-        let appURL = root.appendingPathComponent("CodexBar.app", isDirectory: true)
+        let appURL = root.appendingPathComponent("QuotaKit.app", isDirectory: true)
         let contentsURL = appURL.appendingPathComponent("Contents", isDirectory: true)
         let resourcesURL = contentsURL.appendingPathComponent("Resources", isDirectory: true)
         try FileManager.default.createDirectory(at: resourcesURL, withIntermediateDirectories: true)
@@ -78,9 +78,9 @@ struct LocalizationBundleTests {
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
         <dict>
-            <key>CFBundleExecutable</key><string>CodexBar</string>
+            <key>CFBundleExecutable</key><string>QuotaKit</string>
             <key>CFBundleIdentifier</key><string>com.steipete.codexbar.tests</string>
-            <key>CFBundleName</key><string>CodexBar</string>
+            <key>CFBundleName</key><string>QuotaKit</string>
             <key>CFBundlePackageType</key><string>APPL</string>
         </dict>
         </plist>

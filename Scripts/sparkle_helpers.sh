@@ -186,7 +186,7 @@ verify_appcast_entry() {
 
 # ---------------------------------------------------------------------------
 # check_assets <tag> <artifact-prefix>
-#   Confirms the GitHub release at <tag> has both the .zip and .dSYM.zip
+#   Confirms the GitHub release at <tag> has the app DMG, app ZIP, and dSYM ZIP
 #   assets matching <prefix>*.
 # ---------------------------------------------------------------------------
 check_assets() {
@@ -197,14 +197,20 @@ check_assets() {
   assets=$(gh release view "$tag" --repo "$repo" --json assets -q '.assets[].name' 2>&1) || {
     err "gh release view failed for $tag: $assets"
   }
-  for suffix in ".zip" ".dSYM.zip"; do
-    if ! printf "%s\n" "$assets" | grep -q "^${prefix}.*${suffix}\$"; then
-      echo "MISSING: ${prefix}*${suffix}" >&2
-      missing=1
-    fi
-  done
+  if ! printf "%s\n" "$assets" | grep -E "^${prefix}.*\\.dmg\$" >/dev/null; then
+    echo "MISSING: ${prefix}*.dmg" >&2
+    missing=1
+  fi
+  if ! printf "%s\n" "$assets" | grep -E "^${prefix}.*\\.zip\$" | grep -vE "\\.dSYM\\.zip\$" >/dev/null; then
+    echo "MISSING: ${prefix}*.zip" >&2
+    missing=1
+  fi
+  if ! printf "%s\n" "$assets" | grep -E "^${prefix}.*\\.dSYM\\.zip\$" >/dev/null; then
+    echo "MISSING: ${prefix}*.dSYM.zip" >&2
+    missing=1
+  fi
   [[ "$missing" -eq 0 ]] || err "GitHub release $tag is missing expected assets."
-  echo "Release $tag assets OK ($prefix*.zip + $prefix*.dSYM.zip present)."
+  echo "Release $tag assets OK ($prefix*.dmg + app zip + dSYM zip present)."
 }
 
 export CODEXBAR_SPARKLE_HELPERS_LOADED=1

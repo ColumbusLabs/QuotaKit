@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP="/Applications/CodexBar.app"
-HELPER="$APP/Contents/Helpers/CodexBarCLI"
-TARGETS=("/usr/local/bin/codexbar" "/opt/homebrew/bin/codexbar")
+APP="/Applications/QuotaKit.app"
+HELPER="$APP/Contents/Helpers/QuotaKitCLI"
+TARGETS=("/usr/local/bin/quotakit" "/opt/homebrew/bin/quotakit")
 
 if [[ ! -x "$HELPER" ]]; then
-  echo "CodexBarCLI helper not found at $HELPER. Please reinstall CodexBar." >&2
+  echo "QuotaKitCLI helper not found at $HELPER. Please reinstall QuotaKit." >&2
   exit 1
 fi
 
@@ -15,7 +15,7 @@ on run argv
   set helperPath to item 1 of argv
   set installCommand to "set -euo pipefail" & linefeed & ¬
     "HELPER=" & quoted form of helperPath & linefeed & ¬
-    "TARGETS=(\"/usr/local/bin/codexbar\" \"/opt/homebrew/bin/codexbar\")" & linefeed & ¬
+    "TARGETS=(\"/usr/local/bin/quotakit\" \"/opt/homebrew/bin/quotakit\")" & linefeed & ¬
     "for t in \"${TARGETS[@]}\"; do" & linefeed & ¬
     "  mkdir -p \"$(dirname \"$t\")\"" & linefeed & ¬
     "  ln -sf \"$HELPER\" \"$t\"" & linefeed & ¬
@@ -26,4 +26,4 @@ on run argv
 end run
 APPLESCRIPT
 
-echo "CodexBar CLI installed. Try: codexbar usage"
+echo "QuotaKit CLI installed. Try: quotakit usage"

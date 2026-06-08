@@ -303,7 +303,7 @@
 "Subscription Utilization" = "Abonnemangsutnyttjande";
 "Surprise me" = "Överraska mig";
 "Switcher shows icons" = "Växlaren visar ikoner";
-"Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar." = "Symlänka CodexBarCLI till /usr/local/bin och /opt/homebrew/bin som codexbar.";
+"Symlink QuotaKitCLI to /usr/local/bin and /opt/homebrew/bin as quotakit." = "Symlink QuotaKitCLI to /usr/local/bin and /opt/homebrew/bin as quotakit.";
 "System" = "System";
 "Temporarily shows the loading animation after the next refresh." = "Visar tillfälligt laddningsanimationen efter nästa uppdatering.";
 "Tertiary (\\(label))" = "Tertiär (\\(label))";
@@ -518,8 +518,8 @@
 "open_menu_shortcut_title" = "Öppna meny";
 "open_menu_shortcut_subtitle" = "Öppna menyradsmenyn var du än är.";
 "install_cli" = "Installera CLI";
-"install_cli_subtitle" = "Symlänka CodexBarCLI till /usr/local/bin och /opt/homebrew/bin som codexbar.";
-"cli_not_found" = "CodexBarCLI hittades inte i apppaketet.";
+"install_cli_subtitle" = "Symlink QuotaKitCLI to /usr/local/bin and /opt/homebrew/bin as quotakit.";
+"cli_not_found" = "QuotaKitCLI not found in app bundle.";
 "no_writable_bin_dirs" = "Inga skrivbara bin-kataloger hittades.";
 "show_debug_settings_title" = "Visa felsökningsinställningar";
 "show_debug_settings_subtitle" = "Visa felsökningsverktyg på fliken Felsök.";

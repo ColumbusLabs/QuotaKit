@@ -134,13 +134,13 @@ jobs:
           hash -r
           swift --version
 
-      - name: Build CodexBarCLI (release, static Swift stdlib)
+      - name: Build QuotaKitCLI (release, static Swift stdlib)
         run: swift build -c release --product CodexBarCLI --static-swift-stdlib
 
       - name: Swift Test (Linux only)
         run: swift test --parallel
 
-      - name: Smoke test CodexBarCLI
+      - name: Smoke test QuotaKitCLI
         shell: bash
         run: |
           set -euo pipefail
@@ -152,5 +152,5 @@ jobs:
             echo "Expected --web to fail on Linux"
             exit 1
           fi
-          "$BIN" usage --provider codex --web 2>&1 | tee /tmp/codexbarcli-stderr.txt >/dev/null || true
-          grep -q "macOS" /tmp/codexbarcli-stderr.txt
+          "$BIN" usage --provider codex --web 2>&1 | tee /tmp/quotakitcli-stderr.txt >/dev/null || true
+          grep -q "macOS" /tmp/quotakitcli-stderr.txt

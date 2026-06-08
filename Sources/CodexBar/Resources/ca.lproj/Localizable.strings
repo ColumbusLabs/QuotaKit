@@ -302,7 +302,7 @@
 "Subscription Utilization" = "Ús de la subscripció";
 "Surprise me" = "Sorprèn-me";
 "Switcher shows icons" = "El selector mostra icones";
-"Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar." = "Crea un enllaç simbòlic de CodexBarCLI a /usr/local/bin i /opt/homebrew/bin com a codexbar.";
+"Symlink QuotaKitCLI to /usr/local/bin and /opt/homebrew/bin as quotakit." = "Symlink QuotaKitCLI to /usr/local/bin and /opt/homebrew/bin as quotakit.";
 "System" = "Sistema";
 "Temporarily shows the loading animation after the next refresh." = "Mostra temporalment l'animació de càrrega després de la propera actualització.";
 "Tertiary (\\(label))" = "Terciari (\\(label))";
@@ -506,8 +506,8 @@
 "open_menu_shortcut_title" = "Obre el menú";
 "open_menu_shortcut_subtitle" = "Obre el menú de la barra de menús des de qualsevol lloc.";
 "install_cli" = "Instal·la la CLI";
-"install_cli_subtitle" = "Crea un enllaç simbòlic de CodexBarCLI a /usr/local/bin i /opt/homebrew/bin com a codexbar.";
-"cli_not_found" = "No s'ha trobat CodexBarCLI al paquet de l'app.";
+"install_cli_subtitle" = "Symlink QuotaKitCLI to /usr/local/bin and /opt/homebrew/bin as quotakit.";
+"cli_not_found" = "QuotaKitCLI not found in app bundle.";
 "no_writable_bin_dirs" = "No s'han trobat directoris bin amb permís d'escriptura.";
 "show_debug_settings_title" = "Mostra la configuració de depuració";
 "show_debug_settings_subtitle" = "Mostra eines de diagnòstic a la pestanya Depuració.";

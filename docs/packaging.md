@@ -10,13 +10,13 @@ read_when:
 ## Scripts
 - `Scripts/package_app.sh`: builds host arch by default; set `ARCHES="arm64 x86_64"` for universal. Verifies slices.
 - `Scripts/compile_and_run.sh`: uses host arch; pass `--release-universal` or `--release-arches="arm64 x86_64"` for release packaging.
-- `Scripts/sign-and-notarize.sh`: signs, notarizes, staples, zips (accepts `ARCHES` for universal).
+- `Scripts/sign-and-notarize.sh`: signs, notarizes, staples, and creates the DMG, ZIP, and dSYM ZIP (accepts `ARCHES` for universal).
 - `Scripts/make_appcast.sh`: wrapper around the shared `mac-release make-appcast` helper; app metadata comes from `.mac-release.env`.
 - `Scripts/changelog-to-html.sh`: converts the per-version changelog section to HTML for Sparkle.
 
 ## Bundle contents
-- `CodexBarWidget.appex` is built by `WidgetExtension/CodexBarWidgetExtension.xcodeproj` as a real macOS app extension, then bundled with app-group entitlements.
-- `CodexBarCLI` copied to `CodexBar.app/Contents/Helpers/` for symlinking.
+- `QuotaKitWidget.appex` is built by `WidgetExtension/CodexBarWidgetExtension.xcodeproj` as a real macOS app extension, then bundled with app-group entitlements.
+- `QuotaKitCLI` is copied to `QuotaKit.app/Contents/Helpers/` for symlinking as `quotakit`.
 - SwiftPM resource bundles (e.g. `KeyboardShortcuts_KeyboardShortcuts.bundle`) copied into `Contents/Resources` (required for `KeyboardShortcuts.Recorder`).
 
 ## Releases

@@ -4,10 +4,10 @@ import Foundation
 extension CodexBarCLI {
     static func usageHelp(version: String) -> String {
         """
-        CodexBar \(version)
+        QuotaKit \(version)
 
         Usage:
-          codexbar usage [--format text|json]
+          quotakit usage [--format text|json]
                        [--json]
                        [--json-only]
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
@@ -40,22 +40,22 @@ extension CodexBarCLI {
           --json-output   Emit machine-readable logs (JSONL) to stderr
 
         Examples:
-          codexbar usage
-          codexbar usage --provider claude
-          codexbar usage --provider gemini
-          codexbar usage --format json --provider all --pretty
-          codexbar usage --provider all --json
-          codexbar usage --status
-          codexbar usage --provider codex --source web --format json --pretty
+          quotakit usage
+          quotakit usage --provider claude
+          quotakit usage --provider gemini
+          quotakit usage --format json --provider all --pretty
+          quotakit usage --provider all --json
+          quotakit usage --status
+          quotakit usage --provider codex --source web --format json --pretty
         """
     }
 
     static func costHelp(version: String) -> String {
         """
-        CodexBar \(version)
+        QuotaKit \(version)
 
         Usage:
-          codexbar cost [--format text|json]
+          quotakit cost [--format text|json]
                        [--json]
                        [--json-only]
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
@@ -67,17 +67,17 @@ extension CodexBarCLI {
           This does not require web or CLI access and uses cached scan results unless --refresh is provided.
 
         Examples:
-          codexbar cost
-          codexbar cost --provider claude --format json --pretty
+          quotakit cost
+          quotakit cost --provider claude --format json --pretty
         """
     }
 
     static func serveHelp(version: String) -> String {
         """
-        CodexBar \(version)
+        QuotaKit \(version)
 
         Usage:
-          codexbar serve [--port <port>] [--refresh-interval <seconds>]
+          quotakit serve [--port <port>] [--refresh-interval <seconds>]
                          [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>]
                          [-v|--verbose]
 
@@ -94,58 +94,58 @@ extension CodexBarCLI {
           GET /cost?provider=codex
 
         Examples:
-          codexbar serve
-          codexbar serve --port 8080 --refresh-interval 60
+          quotakit serve
+          quotakit serve --port 8080 --refresh-interval 60
           curl http://127.0.0.1:8080/usage?provider=all
         """
     }
 
     static func configHelp(version: String) -> String {
         """
-        CodexBar \(version)
+        QuotaKit \(version)
 
         Usage:
-          codexbar config validate [--format text|json]
+          quotakit config validate [--format text|json]
                                  [--json]
                                  [--json-only]
                                  [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>]
                                  [-v|--verbose]
                                  [--pretty]
-          codexbar config dump [--format text|json]
+          quotakit config dump [--format text|json]
                              [--json]
                              [--json-only]
                              [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>]
                              [-v|--verbose]
                              [--pretty]
-          codexbar config providers [--format text|json] [--json] [--json-only] [--pretty]
-          codexbar config enable --provider <name> [--format text|json] [--json] [--json-only] [--pretty]
-          codexbar config disable --provider <name> [--format text|json] [--json] [--json-only] [--pretty]
-          codexbar config set-api-key --provider <name> (--api-key <key>|--stdin)
+          quotakit config providers [--format text|json] [--json] [--json-only] [--pretty]
+          quotakit config enable --provider <name> [--format text|json] [--json] [--json-only] [--pretty]
+          quotakit config disable --provider <name> [--format text|json] [--json] [--json-only] [--pretty]
+          quotakit config set-api-key --provider <name> (--api-key <key>|--stdin)
                                     [--no-enable]
                                     [--format text|json] [--json] [--json-only] [--pretty]
 
         Description:
-          Validate or print the CodexBar config file (default: validate).
+          Validate or print the QuotaKit config file (default: validate).
           providers lists persistent provider enablement.
           enable/disable updates the same provider toggle used by Settings.
           set-api-key stores a provider API key in ~/.codexbar/config.json and enables that provider by default.
 
         Examples:
-          codexbar config validate --format json --pretty
-          codexbar config dump --pretty
-          codexbar config providers
-          codexbar config enable --provider grok
-          codexbar config disable --provider cursor
-          printf '%s' "$ELEVENLABS_API_KEY" | codexbar config set-api-key --provider elevenlabs --stdin
+          quotakit config validate --format json --pretty
+          quotakit config dump --pretty
+          quotakit config providers
+          quotakit config enable --provider grok
+          quotakit config disable --provider cursor
+          printf '%s' "$ELEVENLABS_API_KEY" | quotakit config set-api-key --provider elevenlabs --stdin
         """
     }
 
     static func cacheHelp(version: String) -> String {
         """
-        CodexBar \(version)
+        QuotaKit \(version)
 
         Usage:
-          codexbar cache clear <--cookies|--cost|--all>
+          quotakit cache clear <--cookies|--cost|--all>
                               [--provider <name>]
                               [--format text|json]
                               [--json]
@@ -160,20 +160,20 @@ extension CodexBarCLI {
           Optionally specify --provider with --cookies to clear cookies for a single provider only.
 
         Examples:
-          codexbar cache clear --cookies
-          codexbar cache clear --cookies --provider claude
-          codexbar cache clear --cost
-          codexbar cache clear --all
-          codexbar cache clear --all --format json --pretty
+          quotakit cache clear --cookies
+          quotakit cache clear --cookies --provider claude
+          quotakit cache clear --cost
+          quotakit cache clear --all
+          quotakit cache clear --all --format json --pretty
         """
     }
 
     static func diagnoseHelp(version: String) -> String {
         """
-        CodexBar \(version)
+        QuotaKit \(version)
 
         Usage:
-          codexbar diagnose --provider <name|all> --format json
+          quotakit diagnose --provider <name|all> --format json
                            [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>]
                            [-v|--verbose]
                            [--pretty]
@@ -184,18 +184,18 @@ extension CodexBarCLI {
           account IDs, org IDs, raw responses, and billing-history records.
 
         Examples:
-          codexbar diagnose --provider minimax --format json --pretty
-          codexbar diagnose --provider claude --format json --pretty
-          codexbar diagnose --provider all --format json
+          quotakit diagnose --provider minimax --format json --pretty
+          quotakit diagnose --provider claude --format json --pretty
+          quotakit diagnose --provider all --format json
         """
     }
 
     static func rootHelp(version: String) -> String {
         """
-        CodexBar \(version)
+        QuotaKit \(version)
 
         Usage:
-          codexbar [--format text|json]
+          quotakit [--format text|json]
                   [--json]
                   [--json-only]
                   [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
@@ -203,24 +203,24 @@ extension CodexBarCLI {
                   [--account <label>] [--account-index <index>] [--all-accounts]
                   [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth|api>]
                   [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug] [--augment-debug]
-          codexbar cost [--format text|json]
+          quotakit cost [--format text|json]
                        [--json]
                        [--json-only]
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                        [--provider \(ProviderHelp.list)] [--no-color] [--pretty] [--refresh]
-          codexbar serve [--port <port>] [--refresh-interval <seconds>]
+          quotakit serve [--port <port>] [--refresh-interval <seconds>]
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
-          codexbar config <validate|dump|providers> [--format text|json]
+          quotakit config <validate|dump|providers> [--format text|json]
                                         [--json]
                                         [--json-only]
                                         [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>]
                                         [-v|--verbose]
                                         [--pretty]
-          codexbar config enable --provider <name>
-          codexbar config disable --provider <name>
-          codexbar config set-api-key --provider <name> (--api-key <key>|--stdin)
-          codexbar cache clear <--cookies|--cost|--all> [--provider <name>]
-          codexbar diagnose --provider <name|all> --format json [--pretty]
+          quotakit config enable --provider <name>
+          quotakit config disable --provider <name>
+          quotakit config set-api-key --provider <name> (--api-key <key>|--stdin)
+          quotakit cache clear <--cookies|--cost|--all> [--provider <name>]
+          quotakit diagnose --provider <name|all> --format json [--pretty]
 
         Global flags:
           -h, --help      Show help
@@ -231,18 +231,18 @@ extension CodexBarCLI {
           --json-output   Emit machine-readable logs (JSONL) to stderr
 
         Examples:
-          codexbar
-          codexbar --format json --provider all --pretty
-          codexbar --provider all --json
-          codexbar --provider gemini
-          codexbar cost --provider claude --format json --pretty
-          codexbar serve --port 8080
-          codexbar config validate --format json --pretty
-          codexbar config enable --provider grok
-          codexbar config set-api-key --provider elevenlabs --stdin
-          codexbar cache clear --cookies
-          codexbar diagnose --provider minimax --format json --pretty
-          codexbar diagnose --provider all --format json
+          quotakit
+          quotakit --format json --provider all --pretty
+          quotakit --provider all --json
+          quotakit --provider gemini
+          quotakit cost --provider claude --format json --pretty
+          quotakit serve --port 8080
+          quotakit config validate --format json --pretty
+          quotakit config enable --provider grok
+          quotakit config set-api-key --provider elevenlabs --stdin
+          quotakit cache clear --cookies
+          quotakit diagnose --provider minimax --format json --pretty
+          quotakit diagnose --provider all --format json
         """
     }
 }

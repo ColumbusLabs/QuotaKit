@@ -55,7 +55,7 @@ Manus supports multiple accounts via the standard token-account mechanism. Add e
 ## CLI
 
 ```bash
-codexbar usage --provider manus --verbose
+quotakit usage --provider manus --verbose
 ```
 
 ## Troubleshooting

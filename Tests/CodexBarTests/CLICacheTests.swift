@@ -27,6 +27,6 @@ struct CLICacheTests {
         let help = CodexBarCLI.cacheHelp(version: "0.0.0")
 
         #expect(help.contains("--provider with --cookies"))
-        #expect(help.contains("codexbar cache clear --cookies --provider claude"))
+        #expect(help.contains("quotakit cache clear --cookies --provider claude"))
     }
 }

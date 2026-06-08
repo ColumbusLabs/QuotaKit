@@ -38,9 +38,9 @@ struct CLIProviderSelectionTests {
         #expect(root.contains("--log-level"))
         #expect(usage.contains("--verbose"))
         #expect(root.contains("--verbose"))
-        #expect(usage.contains("codexbar usage --provider gemini"))
-        #expect(usage.contains("codexbar usage --format json --provider all --pretty"))
-        #expect(root.contains("codexbar --provider gemini"))
+        #expect(usage.contains("quotakit usage --provider gemini"))
+        #expect(usage.contains("quotakit usage --format json --provider all --pretty"))
+        #expect(root.contains("quotakit --provider gemini"))
     }
 
     @Test

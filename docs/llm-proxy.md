@@ -14,7 +14,7 @@ CodexBar reads aggregate usage from an LLM-API-Key-Proxy compatible `/v1/quota-s
 Store the API key:
 
 ```bash
-printf '%s' "$LLM_PROXY_API_KEY" | codexbar config set-api-key --provider llmproxy --stdin
+printf '%s' "$LLM_PROXY_API_KEY" | quotakit config set-api-key --provider llmproxy --stdin
 ```
 
 Set the base URL with `LLM_PROXY_BASE_URL`, or add `enterpriseHost` to the provider config:

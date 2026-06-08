@@ -28,7 +28,7 @@ public enum KeychainCacheStore {
 
     private static let log = CodexBarLog.logger(LogCategories.keychainCache)
     private static let cacheService = "com.steipete.codexbar.cache"
-    private static let cacheLabel = "CodexBar Cache"
+    private static let cacheLabel = "QuotaKit Cache"
     private nonisolated(unsafe) static var globalServiceOverride: String?
     @TaskLocal private static var serviceOverride: String?
     #if DEBUG && os(macOS)
@@ -345,6 +345,7 @@ public enum KeychainCacheStore {
             ?? executableURL.flatMap(self.appBundleURL(containing:))
         if let appBundle {
             append(appBundle.path)
+            append(appBundle.appendingPathComponent("Contents/Helpers/QuotaKitCLI").path)
             append(appBundle.appendingPathComponent("Contents/Helpers/CodexBarCLI").path)
         }
         if let executableURL {

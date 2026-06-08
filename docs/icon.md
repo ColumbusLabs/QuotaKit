@@ -1,7 +1,7 @@
 ---
 summary: "Convert macOS .icon bundles to CodexBar .icns via Scripts/build_icon.sh and ictool."
 read_when:
-  - Updating the CodexBar app icon or asset pipeline
+  - Updating the QuotaKit app icon or asset pipeline
   - Preparing release builds that need a refreshed icns
 ---
 

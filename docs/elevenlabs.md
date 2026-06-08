@@ -24,7 +24,7 @@ The ElevenLabs provider reads subscription usage from the ElevenLabs API using a
 Store the API key without opening Settings:
 
 ```bash
-printf '%s' "$ELEVENLABS_API_KEY" | codexbar config set-api-key --provider elevenlabs --stdin
+printf '%s' "$ELEVENLABS_API_KEY" | quotakit config set-api-key --provider elevenlabs --stdin
 ```
 
 This trims the piped key, writes it to `~/.codexbar/config.json` with restrictive permissions, and enables ElevenLabs by default. Use `--no-enable` to save the key without enabling the provider.
@@ -56,7 +56,7 @@ For tests or self-hosted/proxy setups, override the API base URL with `ELEVENLAB
 
 ### "Missing ElevenLabs API key"
 
-Set the key with `codexbar config set-api-key --provider elevenlabs --stdin`, add it in **Settings -> Providers -> ElevenLabs**, set `ELEVENLABS_API_KEY`, or configure an ElevenLabs token account.
+Set the key with `quotakit config set-api-key --provider elevenlabs --stdin`, add it in **Settings -> Providers -> ElevenLabs**, set `ELEVENLABS_API_KEY`, or configure an ElevenLabs token account.
 
 ### "ElevenLabs API error"
 

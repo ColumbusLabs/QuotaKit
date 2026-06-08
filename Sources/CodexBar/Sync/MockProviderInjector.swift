@@ -62,11 +62,11 @@ import Foundation
 /// environment variable `CODEXBAR_MOCK_PROVIDERS` set:
 ///
 /// 1. **Quick test (env var truthy)** — `CODEXBAR_MOCK_PROVIDERS=1
-///    open -a /Applications/CodexBar.app`. Mocks active immediately;
+///    open -a /Applications/QuotaKit.app`. Mocks active immediately;
 ///    Settings → Mobile → Debug · Mock Provider Data section appears
 ///    so you can toggle off without restarting if needed.
 /// 2. **Persistent UI control** — `CODEXBAR_MOCK_PROVIDERS=0
-///    open -a /Applications/CodexBar.app`. Section appears, mocks
+///    open -a /Applications/QuotaKit.app`. Section appears, mocks
 ///    initially OFF, UI toggle drives the actual state (persisted in
 ///    UserDefaults). Subsequent debug-launches honor the toggle state.
 ///

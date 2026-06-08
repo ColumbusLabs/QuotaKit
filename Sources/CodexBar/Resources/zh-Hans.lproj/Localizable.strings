@@ -311,7 +311,7 @@
 "Subscription Utilization" = "订阅使用率";
 "Surprise me" = "给我惊喜";
 "Switcher shows icons" = "切换器显示图标";
-"Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar." = "将 CodexBarCLI 作为 codexbar 符号链接到 /usr/local/bin 和 /opt/homebrew/bin。";
+"Symlink QuotaKitCLI to /usr/local/bin and /opt/homebrew/bin as quotakit." = "Symlink QuotaKitCLI to /usr/local/bin and /opt/homebrew/bin as quotakit.";
 "System" = "系统";
 "Temporarily shows the loading animation after the next refresh." = "下次刷新后临时显示加载动画。";
 "Tertiary (\\(label))" = "第三（\\(label)）";
@@ -506,8 +506,8 @@
 "open_menu_shortcut_title" = "打开菜单";
 "open_menu_shortcut_subtitle" = "从任意位置触发菜单栏菜单。";
 "install_cli" = "安装 CLI";
-"install_cli_subtitle" = "将 CodexBarCLI 作为 codexbar 符号链接到 /usr/local/bin 和 /opt/homebrew/bin。";
-"cli_not_found" = "在应用包中未找到 CodexBarCLI。";
+"install_cli_subtitle" = "Symlink QuotaKitCLI to /usr/local/bin and /opt/homebrew/bin as quotakit.";
+"cli_not_found" = "QuotaKitCLI not found in app bundle.";
 "no_writable_bin_dirs" = "未找到可写的 bin 目录。";
 "show_debug_settings_title" = "显示调试设置";
 "show_debug_settings_subtitle" = "在“调试”标签中显示故障排除工具。";

@@ -13,6 +13,18 @@ if [[ -f "$ROOT/.mac-release.env" ]]; then
   source "$ROOT/.mac-release.env"
 fi
 
+APP_DISPLAY_NAME="${MAC_RELEASE_APP_NAME:-QuotaKit}"
+APP_EXECUTABLE_NAME="${MAC_RELEASE_APP_EXECUTABLE:-QuotaKit}"
+APP_BUNDLE_NAME="${APP_DISPLAY_NAME}.app"
+APP_SWIFTPM_PRODUCT="${MAC_RELEASE_APP_SWIFTPM_PRODUCT:-CodexBar}"
+CLI_SWIFTPM_PRODUCT="${MAC_RELEASE_CLI_SWIFTPM_PRODUCT:-CodexBarCLI}"
+CLI_EXECUTABLE_NAME="${MAC_RELEASE_CLI_EXECUTABLE:-QuotaKitCLI}"
+WATCHDOG_SWIFTPM_PRODUCT="${MAC_RELEASE_WATCHDOG_SWIFTPM_PRODUCT:-CodexBarClaudeWatchdog}"
+WATCHDOG_EXECUTABLE_NAME="${MAC_RELEASE_WATCHDOG_EXECUTABLE:-QuotaKitClaudeWatchdog}"
+WIDGET_PRODUCT_NAME="${MAC_RELEASE_WIDGET_PRODUCT_NAME:-QuotaKitWidget}"
+WIDGET_EXTENSION_PROJECT_NAME="${MAC_RELEASE_WIDGET_PROJECT_NAME:-CodexBarWidgetExtension}"
+WIDGET_EXTENSION_SCHEME="${MAC_RELEASE_WIDGET_SCHEME:-CodexBarWidgetExtension}"
+
 # Clean build only when explicitly requested (slower).
 if [[ "${CODEXBAR_FORCE_CLEAN:-0}" == "1" ]]; then
   if [[ -d "$ROOT/.build" ]]; then
@@ -113,8 +125,8 @@ for ARCH in "${ARCH_LIST[@]}"; do
 done
 
 # Build the app bundle in /tmp to avoid Dropbox adding resource forks during signing
-APP_FINAL="$ROOT/CodexBar.app"
-APP="/tmp/codexbar-build-$$/CodexBar.app"
+APP_FINAL="$ROOT/${APP_BUNDLE_NAME}"
+APP="/tmp/quotakit-build-$$/${APP_BUNDLE_NAME}"
 STAGED_APP_PATH="${CODEXBAR_STAGED_APP_PATH:-}"
 INSTALL_APP_PATH="${CODEXBAR_INSTALL_PATH:-}"
 rm -rf "$APP_FINAL" "$(dirname "$APP")"
@@ -162,8 +174,8 @@ if [[ "$SIGNING_MODE" == "adhoc" ]]; then
   INCLUDE_SHARED_ENTITLEMENTS=0
 fi
 ENTITLEMENTS_DIR="$ROOT/.build/entitlements"
-APP_ENTITLEMENTS="${ENTITLEMENTS_DIR}/CodexBar.entitlements"
-WIDGET_ENTITLEMENTS="${ENTITLEMENTS_DIR}/CodexBarWidget.entitlements"
+APP_ENTITLEMENTS="${ENTITLEMENTS_DIR}/${APP_EXECUTABLE_NAME}.entitlements"
+WIDGET_ENTITLEMENTS="${ENTITLEMENTS_DIR}/${WIDGET_PRODUCT_NAME}.entitlements"
 mkdir -p "$ENTITLEMENTS_DIR"
 if [[ "$ALLOW_LLDB" == "1" && "$LOWER_CONF" != "debug" ]]; then
   echo "ERROR: CODEXBAR_ALLOW_LLDB requires debug configuration" >&2
@@ -237,10 +249,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key><string>QuotaKit</string>
-    <key>CFBundleDisplayName</key><string>QuotaKit</string>
+    <key>CFBundleName</key><string>${APP_DISPLAY_NAME}</string>
+    <key>CFBundleDisplayName</key><string>${APP_DISPLAY_NAME}</string>
     <key>CFBundleIdentifier</key><string>${BUNDLE_ID}</string>
-    <key>CFBundleExecutable</key><string>CodexBar</string>
+    <key>CFBundleExecutable</key><string>${APP_EXECUTABLE_NAME}</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>${MARKETING_VERSION}</string>
     <key>CFBundleVersion</key><string>${BUILD_NUMBER}.${MOBILE_VERSION}</string>
@@ -327,7 +339,7 @@ install_binary() {
 
 ensure_widget_extension_project() {
   local spec="$ROOT/WidgetExtension/project.yml"
-  local project_dir="$ROOT/WidgetExtension/CodexBarWidgetExtension.xcodeproj"
+  local project_dir="$ROOT/WidgetExtension/${WIDGET_EXTENSION_PROJECT_NAME}.xcodeproj"
   if command -v xcodegen >/dev/null 2>&1; then
     xcodegen generate --spec "$spec" --project "$ROOT/WidgetExtension" --quiet
   elif [[ ! -f "$project_dir/project.pbxproj" ]]; then
@@ -345,16 +357,16 @@ build_widget_extension() {
   ensure_widget_extension_project
 
   local derived_dir="$ROOT/.build/xcode-widget-extension-${LOWER_CONF}"
-  local project_dir="$ROOT/WidgetExtension/CodexBarWidgetExtension.xcodeproj"
+  local project_dir="$ROOT/WidgetExtension/${WIDGET_EXTENSION_PROJECT_NAME}.xcodeproj"
   local build_log="$derived_dir/xcodebuild.log"
   local timeout_seconds="${CODEXBAR_WIDGET_EXTENSION_TIMEOUT_SECONDS:-900}"
   local archs="${ARCH_LIST[*]}"
 
   mkdir -p "$derived_dir"
-  echo "Building CodexBarWidget Xcode extension (${xcode_conf}, ${archs})." >&2
+  echo "Building ${WIDGET_PRODUCT_NAME} Xcode extension (${xcode_conf}, ${archs})." >&2
   xcodebuild \
     -project "$project_dir" \
-    -scheme CodexBarWidgetExtension \
+    -scheme "$WIDGET_EXTENSION_SCHEME" \
     -configuration "$xcode_conf" \
     -destination "generic/platform=macOS" \
     -derivedDataPath "$derived_dir" \
@@ -378,24 +390,24 @@ build_widget_extension() {
       kill "$xcodebuild_pid" 2>/dev/null || true
       wait "$xcodebuild_pid" 2>/dev/null || true
       tail -80 "$build_log" >&2 || true
-      echo "ERROR: Timed out building CodexBarWidget extension after ${timeout_seconds}s" >&2
+      echo "ERROR: Timed out building ${WIDGET_PRODUCT_NAME} extension after ${timeout_seconds}s" >&2
       exit 1
     fi
     sleep 5
     elapsed=$((elapsed + 5))
     if (( elapsed > 0 && elapsed % 60 == 0 )); then
-      echo "Still building CodexBarWidget extension (${elapsed}s)..." >&2
+      echo "Still building ${WIDGET_PRODUCT_NAME} extension (${elapsed}s)..." >&2
     fi
   done
   if ! wait "$xcodebuild_pid"; then
     tail -120 "$build_log" >&2 || true
-    echo "ERROR: Failed to build CodexBarWidget extension" >&2
+    echo "ERROR: Failed to build ${WIDGET_PRODUCT_NAME} extension" >&2
     exit 1
   fi
 
-  local appex="$derived_dir/Build/Products/${xcode_conf}/CodexBarWidget.appex"
-  if [[ ! -f "$appex/Contents/MacOS/CodexBarWidget" ]]; then
-    echo "ERROR: Missing Xcode-built CodexBarWidget.appex at ${appex}" >&2
+  local appex="$derived_dir/Build/Products/${xcode_conf}/${WIDGET_PRODUCT_NAME}.appex"
+  if [[ ! -f "$appex/Contents/MacOS/${WIDGET_PRODUCT_NAME}" ]]; then
+    echo "ERROR: Missing Xcode-built ${WIDGET_PRODUCT_NAME}.appex at ${appex}" >&2
     exit 1
   fi
   echo "$appex"
@@ -404,28 +416,28 @@ build_widget_extension() {
 install_widget_extension() {
   local src_appex
   src_appex="$(build_widget_extension)"
-  local widget_app="$APP/Contents/PlugIns/CodexBarWidget.appex"
+  local widget_app="$APP/Contents/PlugIns/${WIDGET_PRODUCT_NAME}.appex"
   rm -rf "$widget_app"
   mkdir -p "$APP/Contents/PlugIns"
   cp -R "$src_appex" "$widget_app"
-  verify_binary_arches "$widget_app/Contents/MacOS/CodexBarWidget" "${ARCH_LIST[@]}"
+  verify_binary_arches "$widget_app/Contents/MacOS/${WIDGET_PRODUCT_NAME}" "${ARCH_LIST[@]}"
 }
 
-install_binary "CodexBar" "$APP/Contents/MacOS/CodexBar"
-# Ship CodexBarCLI alongside the app for easy symlinking.
-if [[ -n "$(resolve_binary_path "CodexBarCLI" "${ARCH_LIST[0]}")" ]]; then
-  install_binary "CodexBarCLI" "$APP/Contents/Helpers/CodexBarCLI"
+install_binary "$APP_SWIFTPM_PRODUCT" "$APP/Contents/MacOS/${APP_EXECUTABLE_NAME}"
+# Ship QuotaKitCLI alongside the app for easy symlinking.
+if [[ -n "$(resolve_binary_path "$CLI_SWIFTPM_PRODUCT" "${ARCH_LIST[0]}")" ]]; then
+  install_binary "$CLI_SWIFTPM_PRODUCT" "$APP/Contents/Helpers/${CLI_EXECUTABLE_NAME}"
 fi
-# Watchdog helper: ensures `claude` probes die when CodexBar crashes/gets killed.
-if [[ -n "$(resolve_binary_path "CodexBarClaudeWatchdog" "${ARCH_LIST[0]}")" ]]; then
-  install_binary "CodexBarClaudeWatchdog" "$APP/Contents/Helpers/CodexBarClaudeWatchdog"
+# Watchdog helper: ensures `claude` probes die when QuotaKit crashes/gets killed.
+if [[ -n "$(resolve_binary_path "$WATCHDOG_SWIFTPM_PRODUCT" "${ARCH_LIST[0]}")" ]]; then
+  install_binary "$WATCHDOG_SWIFTPM_PRODUCT" "$APP/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}"
 fi
 install_widget_extension
 # Embed Sparkle.framework
 if [[ -d ".build/$CONF/Sparkle.framework" ]]; then
   COPYFILE_DISABLE=1 cp -R ".build/$CONF/Sparkle.framework" "$APP/Contents/Frameworks/"
   chmod -R u+w "$APP/Contents/Frameworks/Sparkle.framework"
-  install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/CodexBar"
+  install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/${APP_EXECUTABLE_NAME}"
   SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
 if [[ "$SIGNING_MODE" == "adhoc" ]]; then
   CODESIGN_ID="-"
@@ -470,7 +482,7 @@ copy_app_bundle() {
 seal_app_bundle_copy() {
   local bundle="$1"
   local sparkle="${bundle}/Contents/Frameworks/Sparkle.framework"
-  local widget="${bundle}/Contents/PlugIns/CodexBarWidget.appex"
+  local widget="${bundle}/Contents/PlugIns/${WIDGET_PRODUCT_NAME}.appex"
 
   if [[ "$SIGNING_MODE" == "adhoc" ]]; then
     xattr -cr "$bundle" 2>/dev/null || true
@@ -488,15 +500,15 @@ seal_app_bundle_copy() {
       resign "$sparkle"
     fi
 
-    if [[ -f "${bundle}/Contents/Helpers/CodexBarCLI" ]]; then
-      resign "${bundle}/Contents/Helpers/CodexBarCLI"
+    if [[ -f "${bundle}/Contents/Helpers/${CLI_EXECUTABLE_NAME}" ]]; then
+      resign "${bundle}/Contents/Helpers/${CLI_EXECUTABLE_NAME}"
     fi
-    if [[ -f "${bundle}/Contents/Helpers/CodexBarClaudeWatchdog" ]]; then
-      resign "${bundle}/Contents/Helpers/CodexBarClaudeWatchdog"
+    if [[ -f "${bundle}/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}" ]]; then
+      resign "${bundle}/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}"
     fi
 
     if [[ -d "$widget" ]]; then
-      resign "${widget}/Contents/MacOS/CodexBarWidget"
+      resign "${widget}/Contents/MacOS/${WIDGET_PRODUCT_NAME}"
       codesign --force --sign - \
         --entitlements "$WIDGET_ENTITLEMENTS" \
         "$widget"
@@ -522,15 +534,15 @@ seal_app_bundle_copy() {
     resign "$sparkle"
   fi
 
-  if [[ -f "${bundle}/Contents/Helpers/CodexBarCLI" ]]; then
-    resign "${bundle}/Contents/Helpers/CodexBarCLI"
+  if [[ -f "${bundle}/Contents/Helpers/${CLI_EXECUTABLE_NAME}" ]]; then
+    resign "${bundle}/Contents/Helpers/${CLI_EXECUTABLE_NAME}"
   fi
-  if [[ -f "${bundle}/Contents/Helpers/CodexBarClaudeWatchdog" ]]; then
-    resign "${bundle}/Contents/Helpers/CodexBarClaudeWatchdog"
+  if [[ -f "${bundle}/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}" ]]; then
+    resign "${bundle}/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}"
   fi
 
   if [[ -d "$widget" ]]; then
-    resign "${widget}/Contents/MacOS/CodexBarWidget"
+    resign "${widget}/Contents/MacOS/${WIDGET_PRODUCT_NAME}"
     codesign "${CODESIGN_ARGS[@]}" \
       --entitlements "$WIDGET_ENTITLEMENTS" \
       "$widget"
@@ -569,8 +581,8 @@ if [[ ! -f "$APP/Contents/Resources/Icon-classic.icns" ]]; then
 fi
 
 # SwiftPM resource bundles (e.g. KeyboardShortcuts) are emitted next to the built binary.
-CODEXBAR_BINARY="$(resolve_binary_path "CodexBar" "${ARCH_LIST[0]}")"
-PREFERRED_BUILD_DIR="$(dirname "${CODEXBAR_BINARY:-$(build_product_path "CodexBar" "${ARCH_LIST[0]}")}")"
+CODEXBAR_BINARY="$(resolve_binary_path "$APP_SWIFTPM_PRODUCT" "${ARCH_LIST[0]}")"
+PREFERRED_BUILD_DIR="$(dirname "${CODEXBAR_BINARY:-$(build_product_path "$APP_SWIFTPM_PRODUCT" "${ARCH_LIST[0]}")}")"
 shopt -s nullglob
 SWIFTPM_BUNDLES=("${PREFERRED_BUILD_DIR}/"*.bundle)
 shopt -u nullglob
@@ -598,19 +610,19 @@ xattr -cr "$APP" 2>/dev/null || true
 find "$APP" -name '._*' -delete 2>/dev/null || true
 
 # Sign helper binaries if present
-if [[ -f "${APP}/Contents/Helpers/CodexBarCLI" ]]; then
-  resign "${APP}/Contents/Helpers/CodexBarCLI"
+if [[ -f "${APP}/Contents/Helpers/${CLI_EXECUTABLE_NAME}" ]]; then
+  resign "${APP}/Contents/Helpers/${CLI_EXECUTABLE_NAME}"
 fi
-if [[ -f "${APP}/Contents/Helpers/CodexBarClaudeWatchdog" ]]; then
-  resign "${APP}/Contents/Helpers/CodexBarClaudeWatchdog"
+if [[ -f "${APP}/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}" ]]; then
+  resign "${APP}/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}"
 fi
 
 # Sign widget extension if present
-if [[ -d "${APP}/Contents/PlugIns/CodexBarWidget.appex" ]]; then
-  resign "${APP}/Contents/PlugIns/CodexBarWidget.appex/Contents/MacOS/CodexBarWidget"
+if [[ -d "${APP}/Contents/PlugIns/${WIDGET_PRODUCT_NAME}.appex" ]]; then
+  resign "${APP}/Contents/PlugIns/${WIDGET_PRODUCT_NAME}.appex/Contents/MacOS/${WIDGET_PRODUCT_NAME}"
   codesign "${CODESIGN_ARGS[@]}" \
     --entitlements "$WIDGET_ENTITLEMENTS" \
-    "$APP/Contents/PlugIns/CodexBarWidget.appex"
+    "$APP/Contents/PlugIns/${WIDGET_PRODUCT_NAME}.appex"
 fi
 
 # Embed provisioning profile.
@@ -620,7 +632,10 @@ fi
 # spctl / notarization / stapler but fails to launch with "Launchd job
 # spawn failed" (POSIX 163). Fail loud here instead of shipping a
 # broken bundle that only breaks on the user's Mac.
-PROVISION_PROFILE="$ROOT/Provisioning/CodexBar_Dev.provisionprofile"
+PROVISION_PROFILE="$ROOT/Provisioning/QuotaKit_Dev.provisionprofile"
+if [[ ! -f "$PROVISION_PROFILE" && -f "$ROOT/Provisioning/CodexBar_Dev.provisionprofile" ]]; then
+  PROVISION_PROFILE="$ROOT/Provisioning/CodexBar_Dev.provisionprofile"
+fi
 if [[ "${CONF}" == "release" && "${SIGNING_MODE:-}" != "adhoc" ]]; then
   if [[ ! -f "$PROVISION_PROFILE" ]]; then
     echo "FATAL: provisioning profile not found at $PROVISION_PROFILE" >&2

@@ -13,9 +13,9 @@ extension CodexBarCLI {
 
     static func printVersion() -> Never {
         if let version = currentVersion() {
-            print("CodexBar \(version)")
+            print("QuotaKit \(version)")
         } else {
-            print("CodexBar")
+            print("QuotaKit")
         }
         Self.platformExit(0)
     }
@@ -104,7 +104,8 @@ extension CodexBarCLI {
     static func normalizedBundleVersion(_ raw: String?) -> String? {
         guard let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines),
               !trimmed.isEmpty,
-              trimmed != "CodexBar"
+              trimmed != "CodexBar",
+              trimmed != "QuotaKit"
         else { return nil }
         return trimmed
     }

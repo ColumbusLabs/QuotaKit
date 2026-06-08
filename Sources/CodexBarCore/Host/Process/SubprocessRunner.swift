@@ -14,7 +14,7 @@ public enum SubprocessRunnerError: LocalizedError, Sendable {
     public var errorDescription: String? {
         switch self {
         case let .binaryNotFound(binary):
-            return "Missing CLI '\(binary)'. Install it and restart CodexBar."
+            return "Missing CLI '\(binary)'. Install it and restart QuotaKit."
         case let .launchFailed(details):
             return "Failed to launch process: \(details)"
         case let .timedOut(label):

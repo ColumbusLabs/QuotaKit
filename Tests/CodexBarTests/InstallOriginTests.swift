@@ -8,10 +8,10 @@ struct InstallOriginTests {
         #expect(
             InstallOrigin
                 .isHomebrewCask(
-                    appBundleURL: URL(fileURLWithPath: "/opt/homebrew/Caskroom/codexbar/1.0.0/CodexBar.app")))
+                    appBundleURL: URL(fileURLWithPath: "/opt/homebrew/Caskroom/quotakit/1.0.0/QuotaKit.app")))
         #expect(
             InstallOrigin
-                .isHomebrewCask(appBundleURL: URL(fileURLWithPath: "/usr/local/Caskroom/codexbar/1.0.0/CodexBar.app")))
-        #expect(!InstallOrigin.isHomebrewCask(appBundleURL: URL(fileURLWithPath: "/Applications/CodexBar.app")))
+                .isHomebrewCask(appBundleURL: URL(fileURLWithPath: "/usr/local/Caskroom/quotakit/1.0.0/QuotaKit.app")))
+        #expect(!InstallOrigin.isHomebrewCask(appBundleURL: URL(fileURLWithPath: "/Applications/QuotaKit.app")))
     }
 }

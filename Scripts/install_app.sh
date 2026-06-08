@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-INSTALL_PATH="${CODEXBAR_INSTALL_PATH:-/Applications/CodexBar.app}"
+INSTALL_PATH="${CODEXBAR_INSTALL_PATH:-/Applications/QuotaKit.app}"
 SIGNING_MODE="${CODEXBAR_SIGNING:-}"
 
 detect_signing_identity() {

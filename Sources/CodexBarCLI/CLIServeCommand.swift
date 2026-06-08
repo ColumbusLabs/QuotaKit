@@ -253,7 +253,7 @@ extension CodexBarCLI {
 
         do {
             try await server.run {
-                Self.writeStderr("CodexBar server listening on http://127.0.0.1:\(port)\n")
+                Self.writeStderr("QuotaKit server listening on http://127.0.0.1:\(port)\n")
             }
         } catch {
             Self.exit(code: .failure, message: error.localizedDescription, output: output, kind: .runtime)

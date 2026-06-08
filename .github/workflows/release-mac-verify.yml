@@ -108,13 +108,13 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/release-verify/unzipped
           ditto -x -k "/tmp/release-verify/${{ steps.ver.outputs.zip }}" /tmp/release-verify/unzipped
-          ls -la /tmp/release-verify/unzipped/CodexBar.app/Contents/
+          ls -la /tmp/release-verify/unzipped/QuotaKit.app/Contents/
 
       - name: Verify embedded.provisionprofile is present
         if: steps.gate.outputs.skip != 'true'
         run: |
           set -euo pipefail
-          PROFILE=/tmp/release-verify/unzipped/CodexBar.app/Contents/embedded.provisionprofile
+          PROFILE=/tmp/release-verify/unzipped/QuotaKit.app/Contents/embedded.provisionprofile
           if [[ ! -f "$PROFILE" ]]; then
             echo "::error::Contents/embedded.provisionprofile MISSING from release zip."
             echo "::error::AMFI will reject the binary at launch (POSIX 163)."
@@ -126,18 +126,18 @@ jobs:
 
       - name: spctl assess (Gatekeeper)
         if: steps.gate.outputs.skip != 'true'
-        run: spctl -a -t exec -vv /tmp/release-verify/unzipped/CodexBar.app
+        run: spctl -a -t exec -vv /tmp/release-verify/unzipped/QuotaKit.app
 
       - name: Stapler validate
         if: steps.gate.outputs.skip != 'true'
-        run: xcrun stapler validate /tmp/release-verify/unzipped/CodexBar.app
+        run: xcrun stapler validate /tmp/release-verify/unzipped/QuotaKit.app
 
       - name: Launch test (must stay alive 5s)
         if: steps.gate.outputs.skip != 'true'
         run: |
           set -euo pipefail
-          APP=/tmp/release-verify/unzipped/CodexBar.app
-          "$APP/Contents/MacOS/CodexBar" >/dev/null 2>&1 &
+          APP=/tmp/release-verify/unzipped/QuotaKit.app
+          "$APP/Contents/MacOS/QuotaKit" >/dev/null 2>&1 &
           PID=$!
           sleep 5
           if kill -0 "$PID" 2>/dev/null; then

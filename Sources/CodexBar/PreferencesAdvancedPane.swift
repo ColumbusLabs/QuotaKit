@@ -108,7 +108,7 @@ extension AdvancedPane {
         self.isInstallingCLI = true
         defer { self.isInstallingCLI = false }
 
-        let helperURL = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/CodexBarCLI")
+        let helperURL = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/QuotaKitCLI")
         let fm = FileManager.default
         guard fm.fileExists(atPath: helperURL.path) else {
             self.cliStatus = L("cli_not_found")
@@ -116,8 +116,8 @@ extension AdvancedPane {
         }
 
         let destinations = [
-            "/usr/local/bin/codexbar",
-            "/opt/homebrew/bin/codexbar",
+            "/usr/local/bin/quotakit",
+            "/opt/homebrew/bin/quotakit",
         ]
 
         var results: [String] = []

@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Reset CodexBar: kill running instances, build, package, relaunch, verify.
+# Reset QuotaKit: kill running instances, build, package, relaunch, verify.
 
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_BUNDLE="${ROOT_DIR}/CodexBar.app"
-STAGED_APP_BUNDLE="${TMPDIR:-/tmp}/codexbar-staged/CodexBar.app"
+APP_BUNDLE="${ROOT_DIR}/QuotaKit.app"
+STAGED_APP_BUNDLE="${TMPDIR:-/tmp}/quotakit-staged/QuotaKit.app"
 INSTALL_APP_BUNDLE="${CODEXBAR_INSTALL_PATH:-}"
-APP_PROCESS_PATTERN="CodexBar.app/Contents/MacOS/CodexBar"
+APP_PROCESS_PATTERN="QuotaKit.app/Contents/MacOS/QuotaKit"
 DEBUG_PROCESS_PATTERN="${ROOT_DIR}/.build/debug/CodexBar"
 RELEASE_PROCESS_PATTERN="${ROOT_DIR}/.build/release/CodexBar"
 LOCK_KEY="$(printf '%s' "${ROOT_DIR}" | shasum -a 256 | cut -c1-8)"
-LOCK_DIR="${TMPDIR:-/tmp}/codexbar-compile-and-run-${LOCK_KEY}"
+LOCK_DIR="${TMPDIR:-/tmp}/quotakit-compile-and-run-${LOCK_KEY}"
 LOCK_PID_FILE="${LOCK_DIR}/pid"
 WAIT_FOR_LOCK=0
 RUN_TESTS=0
@@ -204,11 +204,12 @@ kill_claude_probes() {
   pkill -9 -f "claude (/status|/usage) --allowed-tools" 2>/dev/null || true
 }
 
-kill_all_codexbar() {
+kill_all_quotakit() {
   is_running() {
     pgrep -f "${APP_PROCESS_PATTERN}" >/dev/null 2>&1 \
       || pgrep -f "${DEBUG_PROCESS_PATTERN}" >/dev/null 2>&1 \
       || pgrep -f "${RELEASE_PROCESS_PATTERN}" >/dev/null 2>&1 \
+      || pgrep -x "QuotaKit" >/dev/null 2>&1 \
       || pgrep -x "CodexBar" >/dev/null 2>&1
   }
 
@@ -217,6 +218,7 @@ kill_all_codexbar() {
     pkill -f "${APP_PROCESS_PATTERN}" 2>/dev/null || true
     pkill -f "${DEBUG_PROCESS_PATTERN}" 2>/dev/null || true
     pkill -f "${RELEASE_PROCESS_PATTERN}" 2>/dev/null || true
+    pkill -x "QuotaKit" 2>/dev/null || true
     pkill -x "CodexBar" 2>/dev/null || true
     if ! is_running; then
       return 0
@@ -228,6 +230,7 @@ kill_all_codexbar() {
   pkill -9 -f "${APP_PROCESS_PATTERN}" 2>/dev/null || true
   pkill -9 -f "${DEBUG_PROCESS_PATTERN}" 2>/dev/null || true
   pkill -9 -f "${RELEASE_PROCESS_PATTERN}" 2>/dev/null || true
+  pkill -9 -x "QuotaKit" 2>/dev/null || true
   pkill -9 -x "CodexBar" 2>/dev/null || true
 
   for _ in {1..25}; do
@@ -237,7 +240,7 @@ kill_all_codexbar() {
     sleep 0.2
   done
 
-  fail "Failed to kill all CodexBar instances."
+  fail "Failed to kill all QuotaKit instances."
 }
 
 # 1) Ensure a single runner instance.
@@ -271,21 +274,21 @@ fi
 
 acquire_lock
 
-# 2) Kill all running CodexBar instances (debug, release, bundled).
-log "==> Killing existing CodexBar instances"
-kill_all_codexbar
+# 2) Kill all running QuotaKit instances (debug, release, bundled).
+log "==> Killing existing QuotaKit instances"
+kill_all_quotakit
 kill_claude_probes
 
 # 2.5) Optionally delete keychain entries to avoid permission prompts with adhoc signing
 # (adhoc signature changes on every build, making old keychain entries inaccessible)
 if [[ "${SIGNING_MODE:-adhoc}" == "adhoc" && "${CLEAR_ADHOC_KEYCHAIN}" == "1" ]]; then
-  log "==> Clearing CodexBar keychain entries (adhoc signing)"
+  log "==> Clearing QuotaKit keychain entries (adhoc signing)"
   # Clear QuotaKit-owned bundle ID keychain entries.
   # not com.steipete) when developers explicitly want a clean reset.
   delete_keychain_service_items "com.columbuslabs.quotakit.mac"
   delete_keychain_service_items "com.columbuslabs.quotakit.mac.cache"
 elif [[ "${SIGNING_MODE:-adhoc}" == "adhoc" ]]; then
-  log "==> Preserving CodexBar keychain entries (pass --clear-adhoc-keychain to reset adhoc keychain state)"
+  log "==> Preserving QuotaKit keychain entries (pass --clear-adhoc-keychain to reset adhoc keychain state)"
 fi
 
 # 3) Package (release build happens inside package_app.sh).
@@ -327,14 +330,14 @@ fi
 log "==> launch app"
 if ! open "${LAUNCH_BUNDLE}"; then
   log "WARN: launch app returned non-zero; falling back to direct binary launch."
-  "${LAUNCH_BUNDLE}/Contents/MacOS/CodexBar" >/dev/null 2>&1 &
+  "${LAUNCH_BUNDLE}/Contents/MacOS/QuotaKit" >/dev/null 2>&1 &
   disown
 fi
 
 # 5) Verify the app stays up for at least a moment (launch can be >1s on some systems).
 for _ in {1..10}; do
   if pgrep -f "${APP_PROCESS_PATTERN}" >/dev/null 2>&1; then
-    log "OK: CodexBar is running."
+    log "OK: QuotaKit is running."
     exit 0
   fi
   sleep 0.4
