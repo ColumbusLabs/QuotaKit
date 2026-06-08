@@ -5,6 +5,7 @@
 set -e
 
 FEATURE_NAME=$1
+UPSTREAM_URL="https://github.com/steipete/CodexBar.git"
 
 # Colors
 RED='\033[0;31m'
@@ -26,6 +27,17 @@ fi
 BRANCH_NAME="upstream-pr/$FEATURE_NAME"
 
 echo -e "${BLUE}==> Fetching latest upstream...${NC}"
+if git remote get-url upstream >/dev/null 2>&1; then
+    current_upstream_url=$(git remote get-url upstream)
+    if [ "$current_upstream_url" != "$UPSTREAM_URL" ]; then
+        echo -e "${YELLOW}Updating upstream remote from $current_upstream_url to $UPSTREAM_URL${NC}"
+        git remote set-url upstream "$UPSTREAM_URL"
+    fi
+else
+    echo -e "${YELLOW}Adding upstream remote...${NC}"
+    git remote add upstream "$UPSTREAM_URL"
+fi
+git remote set-url --push upstream DISABLED
 git fetch upstream
 
 echo -e "${BLUE}==> Creating upstream PR branch from upstream/main...${NC}"
@@ -75,4 +87,3 @@ echo "6. Create PR on GitHub:"
 echo "   ${GREEN}https://github.com/steipete/CodexBar/compare/main...topoffunnel:$BRANCH_NAME${NC}"
 echo ""
 echo -e "${YELLOW}Remember: Keep PRs small and focused for better merge chances!${NC}"
-

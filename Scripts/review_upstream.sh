@@ -7,6 +7,8 @@ set -euo pipefail
 UPSTREAM=${1:-upstream}
 DATE=$(date +%Y%m%d)
 BRANCH_NAME="upstream-sync/${UPSTREAM}-${DATE}"
+STEIPETE_URL="https://github.com/steipete/CodexBar.git"
+QUOTIO_URL="https://github.com/nguyenphutrong/quotio.git"
 
 # Colors
 RED='\033[0;31m'
@@ -25,8 +27,15 @@ ensure_remote() {
     local remote=$1
     local url=$2
     local origin_url
+    local current_url
 
     if git remote get-url "$remote" >/dev/null 2>&1; then
+        current_url=$(git remote get-url "$remote")
+        if [ "$current_url" != "$url" ]; then
+            echo -e "${YELLOW}Remote '$remote' points to $current_url; updating to $url.${NC}" >&2
+            git remote set-url "$remote" "$url"
+        fi
+        git remote set-url --push "$remote" DISABLED
         echo "$remote"
         return 0
     fi
@@ -47,6 +56,7 @@ ensure_remote() {
 
     echo -e "${YELLOW}Adding $remote remote...${NC}" >&2
     git remote add "$remote" "$url"
+    git remote set-url --push "$remote" DISABLED
     echo "$remote"
 }
 
@@ -76,8 +86,8 @@ remote_default_branch() {
 }
 
 case "$UPSTREAM" in
-    upstream) REMOTE=$(ensure_remote upstream "https://github.com/steipete/CodexBar.git") ;;
-    quotio) REMOTE=$(ensure_remote quotio "https://github.com/nguyenphutrong/quotio.git") ;;
+    upstream) REMOTE=$(ensure_remote upstream "$STEIPETE_URL") ;;
+    quotio) REMOTE=$(ensure_remote quotio "$QUOTIO_URL") ;;
 esac
 
 echo -e "${BLUE}==> Fetching latest from $UPSTREAM...${NC}"

@@ -5,6 +5,7 @@
 set -euo pipefail
 
 AREA=${1:-all}
+QUOTIO_URL="https://github.com/nguyenphutrong/quotio.git"
 
 # Colors
 RED='\033[0;31m'
@@ -14,11 +15,18 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 echo -e "${BLUE}==> Fetching latest quotio...${NC}"
-git fetch quotio 2>/dev/null || {
+if git remote get-url quotio >/dev/null 2>&1; then
+    current_quotio_url=$(git remote get-url quotio)
+    if [ "$current_quotio_url" != "$QUOTIO_URL" ]; then
+        echo -e "${YELLOW}Updating quotio remote from $current_quotio_url to $QUOTIO_URL${NC}"
+        git remote set-url quotio "$QUOTIO_URL"
+    fi
+else
     echo -e "${YELLOW}Adding quotio remote...${NC}"
-    git remote add quotio https://github.com/nguyenphutrong/quotio.git
-    git fetch quotio
-}
+    git remote add quotio "$QUOTIO_URL"
+fi
+git remote set-url --push quotio DISABLED
+git fetch quotio --no-tags --prune
 remote_default_branch() {
     local remote=$1
     local branch=""

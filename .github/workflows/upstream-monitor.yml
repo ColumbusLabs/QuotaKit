@@ -2,8 +2,8 @@ name: Monitor Upstream Changes
 
 on:
   schedule:
-    # Run Monday and Thursday at 9 AM UTC
-    - cron: '0 9 * * 1,4'
+    # Run daily at 9 AM UTC
+    - cron: '0 9 * * *'
   workflow_dispatch:
     inputs:
       target:
@@ -36,10 +36,24 @@ jobs:
       
       - name: Add upstream remotes
         run: |
-          git remote add upstream https://github.com/steipete/CodexBar.git || true
-          git remote add quotio https://github.com/nguyenphutrong/quotio.git || true
-          git fetch upstream
-          git fetch quotio
+          set -euo pipefail
+          ensure_remote_url() {
+            local remote="$1"
+            local url="$2"
+
+            if git remote get-url "$remote" >/dev/null 2>&1; then
+              git remote set-url "$remote" "$url"
+            else
+              git remote add "$remote" "$url"
+            fi
+            git remote set-url --push "$remote" DISABLED
+          }
+
+          ensure_remote_url upstream https://github.com/steipete/CodexBar.git
+          ensure_remote_url quotio https://github.com/nguyenphutrong/quotio.git
+          git fetch upstream --no-tags --prune
+          git fetch upstream '+refs/tags/v*:refs/tags/upstream/v*' --prune
+          git fetch quotio --no-tags --prune
       
       - name: Check for new commits
         id: check
@@ -69,11 +83,19 @@ jobs:
           QUOTIO_BRANCH=$(remote_default_branch quotio)
           UPSTREAM_REF="upstream/${UPSTREAM_BRANCH}"
           QUOTIO_REF="quotio/${QUOTIO_BRANCH}"
+          UPSTREAM_VERSION=$(awk -F= '$1 == "UPSTREAM_VERSION" {print $2; exit}' version.env)
+          UPSTREAM_BASE_REF="upstream/${UPSTREAM_VERSION}"
+          if [ -z "$UPSTREAM_VERSION" ] || ! git rev-parse --verify -q "$UPSTREAM_BASE_REF" >/dev/null; then
+            echo "Could not resolve UPSTREAM_VERSION=${UPSTREAM_VERSION:-<unset>} from version.env" >&2
+            exit 1
+          fi
           echo "upstream_ref=$UPSTREAM_REF" >> $GITHUB_OUTPUT
+          echo "upstream_version=$UPSTREAM_VERSION" >> $GITHUB_OUTPUT
+          echo "upstream_base_ref=$UPSTREAM_BASE_REF" >> $GITHUB_OUTPUT
           echo "quotio_ref=$QUOTIO_REF" >> $GITHUB_OUTPUT
 
-          # Count new commits in upstream
-          UPSTREAM_NEW=$(git log --oneline "main..${UPSTREAM_REF}" --no-merges 2>/dev/null | wc -l | tr -d ' ')
+          # Count new commits since the upstream version last recorded in version.env.
+          UPSTREAM_NEW=$(git log --oneline "${UPSTREAM_BASE_REF}..${UPSTREAM_REF}" --no-merges 2>/dev/null | wc -l | tr -d ' ')
           echo "upstream_commits=$UPSTREAM_NEW" >> $GITHUB_OUTPUT
           
           # Count new commits in quotio (last 7 days)
@@ -82,7 +104,7 @@ jobs:
           
           # Get commit summaries
           echo "upstream_summary<<EOF" >> $GITHUB_OUTPUT
-          git log --oneline "main..${UPSTREAM_REF}" --no-merges 2>/dev/null | head -10 >> $GITHUB_OUTPUT || echo "No commits" >> $GITHUB_OUTPUT
+          git log --oneline "${UPSTREAM_BASE_REF}..${UPSTREAM_REF}" --no-merges 2>/dev/null | head -10 >> $GITHUB_OUTPUT || echo "No commits" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
           
           echo "quotio_summary<<EOF" >> $GITHUB_OUTPUT
@@ -97,6 +119,8 @@ jobs:
             const upstreamCommits = '${{ steps.check.outputs.upstream_commits }}';
             const quotioCommits = '${{ steps.check.outputs.quotio_commits }}';
             const upstreamRef = '${{ steps.check.outputs.upstream_ref }}';
+            const upstreamVersion = '${{ steps.check.outputs.upstream_version }}';
+            const upstreamBaseRef = '${{ steps.check.outputs.upstream_base_ref }}';
             const quotioRef = '${{ steps.check.outputs.quotio_ref }}';
             const upstreamBranch = upstreamRef.replace('upstream/', '');
             const quotioBranch = quotioRef.replace('quotio/', '');
@@ -105,9 +129,9 @@ jobs:
             
             const body = `## Upstream Changes Detected
             
-            **steipete/CodexBar:** ${upstreamCommits} new commits
+            **steipete/CodexBar:** ${upstreamCommits} new commits since \`${upstreamVersion}\`
             **quotio:** ${quotioCommits} new commits (last 7 days)
-            **Source refs:** ${upstreamRef}, ${quotioRef}
+            **Source refs:** ${upstreamBaseRef}..${upstreamRef}, ${quotioRef}
             
             ### steipete/CodexBar Recent Commits
             \`\`\`
@@ -133,12 +157,12 @@ jobs:
             
             **View detailed diffs:**
             \`\`\`bash
-            git diff main..${upstreamRef}
+            git diff ${upstreamBaseRef}..${upstreamRef}
             git log -p ${quotioRef} --since='7 days ago'
             \`\`\`
             
             ### Links
-            - [steipete commits](https://github.com/steipete/CodexBar/compare/${context.sha}...steipete:CodexBar:${upstreamBranch})
+            - [steipete commits](https://github.com/steipete/CodexBar/compare/${upstreamVersion}...steipete:CodexBar:${upstreamBranch})
             - [quotio commits](https://github.com/nguyenphutrong/quotio/commits/${quotioBranch})
             
             ---
