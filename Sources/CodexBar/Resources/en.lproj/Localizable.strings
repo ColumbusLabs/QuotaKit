@@ -79,7 +79,7 @@
 "Codex login failed" = "Codex login failed";
 "Codex login timed out" = "Codex login timed out";
 "CodexBar Lifecycle Keepalive" = "CodexBar Lifecycle Keepalive";
-"CodexBar can't show its menu bar icon" = "CodexBar can't show its menu bar icon";
+"QuotaKit can't show its menu bar icon" = "QuotaKit can't show its menu bar icon";
 "CodexBar could not read managed account storage. " = "CodexBar could not read managed account storage. ";
 "Configure…" = "Configure…";
 "Connected" = "Connected";
@@ -605,7 +605,7 @@
 "login_shell_path" = "Login shell PATH (startup capture)";
 "cleared" = "Cleared.";
 "no_fetch_attempts" = "No fetch attempts yet.";
-"macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. CodexBar is running, but macOS may be hiding its icon. Open Menu Bar settings and turn CodexBar on." = "macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. CodexBar is running, but macOS may be hiding its icon. Open Menu Bar settings and turn CodexBar on.";
+"macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. QuotaKit is running, but macOS may be hiding its icon. Open Menu Bar settings and turn QuotaKit on." = "macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. QuotaKit is running, but macOS may be hiding its icon. Open Menu Bar settings and turn QuotaKit on.";
 
 /* Metric preferences */
 "metric_pref_automatic" = "Automatic";

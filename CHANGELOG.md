@@ -5,6 +5,14 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## 0.32.4.4 / iOS 1.11.1 — 2026-06-08
+
+### Fixed
+
+- Show the QuotaKit app symbol in the Mac menu bar before the first quota
+  snapshot is available, instead of rendering an empty initial status item.
+- Updated the menu bar visibility guidance to use QuotaKit product naming.
+
 ## 0.32.4.3 / iOS 1.11.1 — 2026-06-08
 
 ### Fixed

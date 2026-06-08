@@ -4,6 +4,7 @@ import QuartzCore
 
 extension StatusItemController {
     private static let loadingPercentEpsilon = 0.0001
+    private static let appStatusIconSize = NSSize(width: 18, height: 18)
     private static let blinkActiveTickInterval: Duration = .milliseconds(75)
     private static let blinkIdleFallbackInterval: Duration = .seconds(1)
     static let loadingAnimationFPS: Double = 30.0
@@ -319,6 +320,13 @@ extension StatusItemController {
             }
             return .none
         }()
+        let shouldUseAppIconFallback =
+            primary == nil
+                && weekly == nil
+                && credits == nil
+                && morphProgress == nil
+                && (!needsAnimation || phase == nil)
+                && !statusIndicator.hasIssue
         if showBrandPercent,
            let brand = ProviderBrandIcon.image(for: primaryProvider)
         {
@@ -351,6 +359,26 @@ extension StatusItemController {
         }
 
         self.setButtonTitle(nil, for: button)
+        if shouldUseAppIconFallback,
+           let appIcon = Self.appStatusIconForMenuBar()
+        {
+            let signature = [
+                "mode=appIcon",
+                "provider=\(primaryProvider.rawValue)",
+                "style=\(String(describing: style))",
+                "stale=\(stale ? "1" : "0")",
+                "warningFlash=\(warningFlash ? "1" : "0")",
+                "anim=\(needsAnimation ? "1" : "0")",
+            ].joined(separator: "|")
+            if self.shouldSkipMergedIconRender(signature) {
+                self.noteIconPerfRender(skipped: true)
+                return true
+            }
+            self.setButtonImage(
+                warningFlash ? Self.quotaWarningFlashImage(base: appIcon) : appIcon, for: button)
+            self.noteIconPerfRender(skipped: false)
+            return false
+        }
         if let morphProgress {
             let signature = [
                 "mode=morph",
@@ -634,6 +662,40 @@ extension StatusItemController {
     nonisolated static func buttonTitle(_ title: String?, hasImage: Bool) -> String {
         guard let title, !title.isEmpty else { return "" }
         return hasImage ? " \(title)" : title
+    }
+
+    static func appStatusIconForMenuBar(
+        bundle: Bundle = .main,
+        applicationIcon: NSImage? = NSApp.applicationIconImage)
+        -> NSImage?
+    {
+        let source =
+            self.iconImage(named: "Icon", bundle: bundle)
+            ?? self.iconImage(named: "Icon-classic", bundle: bundle)
+            ?? self.iconImage(named: "Icon-classic", bundle: .module)
+            ?? applicationIcon
+        guard let source else { return nil }
+
+        let image = NSImage(size: self.appStatusIconSize)
+        image.lockFocus()
+        NSGraphicsContext.current?.imageInterpolation = .high
+        source.draw(
+            in: NSRect(origin: .zero, size: self.appStatusIconSize),
+            from: .zero,
+            operation: .sourceOver,
+            fraction: 1,
+            respectFlipped: false,
+            hints: [.interpolation: NSImageInterpolation.high])
+        image.unlockFocus()
+        image.isTemplate = false
+        return image
+    }
+
+    private static func iconImage(named name: String, bundle: Bundle) -> NSImage? {
+        if let url = bundle.url(forResource: name, withExtension: "icns") {
+            return NSImage(contentsOf: url)
+        }
+        return NSImage(named: NSImage.Name(name))
     }
 
     func menuBarDisplayText(for provider: UsageProvider, snapshot: UsageSnapshot?) -> String? {

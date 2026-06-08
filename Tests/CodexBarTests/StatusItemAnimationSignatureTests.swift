@@ -14,6 +14,47 @@ struct StatusItemAnimationSignatureTests {
     }
 
     @Test
+    func `merged icon falls back to app icon before first quota snapshot`() throws {
+        let suite = "StatusItemAnimationSignatureTests-merged-app-icon-fallback"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .codex
+        settings.menuBarShowsBrandIconWithPercent = false
+
+        if let codexMeta = ProviderRegistry.shared.metadata[.codex] {
+            settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        controller.applyIcon(phase: nil)
+
+        let button = try #require(controller.statusItem.button)
+        #expect(controller.lastAppliedMergedIconRenderSignature?.contains("mode=appIcon") == true)
+        #expect(button.image != nil)
+        #expect(button.image?.isTemplate == false)
+        #expect(button.title.isEmpty)
+        #expect(button.imagePosition == .imageOnly)
+    }
+
+    @Test
     func `merged render signature changes when unified icon style changes`() throws {
         let suite = "StatusItemAnimationSignatureTests-merged-style-signature"
         let defaults = try #require(UserDefaults(suiteName: suite))

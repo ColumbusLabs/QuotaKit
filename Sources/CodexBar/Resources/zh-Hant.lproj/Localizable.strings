@@ -623,10 +623,10 @@
 "refresh_15min" = "15 分鐘";
 "refresh_30min" = "30 分鐘";
 "not_found" = "找不到";
-"CodexBar can't show its menu bar icon" = "CodexBar 無法顯示選單列圖示";
+"QuotaKit can't show its menu bar icon" = "QuotaKit 無法顯示選單列圖示";
 "Dismiss" = "關閉";
 "Open Menu Bar Settings" = "開啟選單列設定";
-"macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. CodexBar is running, but macOS may be hiding its icon. Open Menu Bar settings and turn CodexBar on." = "macOS Tahoe 可能會在「系統設定」→「選單列」→「允許顯示在選單列」中封鎖選單列 App。CodexBar 正在執行，但 macOS 可能隱藏了它的圖示。請開啟選單列設定並啟用 CodexBar。";
+"macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. QuotaKit is running, but macOS may be hiding its icon. Open Menu Bar settings and turn QuotaKit on." = "macOS Tahoe 可能會在「系統設定」→「選單列」→「允許顯示在選單列」中封鎖選單列 App。QuotaKit 正在執行，但 macOS 可能隱藏了它的圖示。請開啟選單列設定並啟用 QuotaKit。";
 "cost_header_estimated" = "費用（估算）";
 "cost_estimate_hint" = "根據本機記錄估算 · 可能與帳單不同";
 "copilot_device_code" = "裝置代碼已複製到剪貼簿：%1$@\n\n請到以下網址驗證：%2$@";

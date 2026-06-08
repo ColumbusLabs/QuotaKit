@@ -167,10 +167,10 @@ enum MenuBarVisibilityWatcher {
         self.markGuidanceShown(defaults: defaults, now: now)
 
         let alert = NSAlert()
-        alert.messageText = L("CodexBar can't show its menu bar icon")
+        alert.messageText = L("QuotaKit can't show its menu bar icon")
         alert.informativeText = L(
             "macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. "
-                + "CodexBar is running, but macOS may be hiding its icon. Open Menu Bar settings and turn CodexBar on.")
+                + "QuotaKit is running, but macOS may be hiding its icon. Open Menu Bar settings and turn QuotaKit on.")
         alert.alertStyle = .warning
         alert.addButton(withTitle: L("Open Menu Bar Settings"))
         alert.addButton(withTitle: L("Dismiss"))

@@ -79,7 +79,7 @@
 "Codex login failed" = "Falha no login do Codex";
 "Codex login timed out" = "Tempo esgotado no login do Codex";
 "CodexBar Lifecycle Keepalive" = "Keepalive do ciclo de vida do CodexBar";
-"CodexBar can't show its menu bar icon" = "O CodexBar não consegue mostrar o ícone na barra de menus";
+"QuotaKit can't show its menu bar icon" = "O QuotaKit não consegue mostrar o ícone na barra de menus";
 "CodexBar could not read managed account storage. " = "O CodexBar não conseguiu ler o armazenamento de contas gerenciadas. ";
 "Configure…" = "Configurar…";
 "Connected" = "Conectado";
@@ -603,7 +603,7 @@
 "login_shell_path" = "PATH do shell de login (captura na inicialização)";
 "cleared" = "Limpo.";
 "no_fetch_attempts" = "Ainda sem tentativas de busca.";
-"macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. CodexBar is running, but macOS may be hiding its icon. Open Menu Bar settings and turn CodexBar on." = "O macOS Tahoe pode bloquear apps da barra de menus em Ajustes do Sistema → Barra de Menus → Permitir na Barra de Menus. O CodexBar está em execução, mas o macOS pode estar ocultando seu ícone. Abra os ajustes da Barra de Menus e ative o CodexBar.";
+"macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. QuotaKit is running, but macOS may be hiding its icon. Open Menu Bar settings and turn QuotaKit on." = "O macOS Tahoe pode bloquear apps da barra de menus em Ajustes do Sistema → Barra de Menus → Permitir na Barra de Menus. O QuotaKit está em execução, mas o macOS pode estar ocultando seu ícone. Abra os ajustes da Barra de Menus e ative o QuotaKit.";
 
 /* Metric preferences */
 "metric_pref_automatic" = "Automático";
