@@ -4,5 +4,46 @@
         <title>QuotaKit</title>
         <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
         <description>QuotaKit for Mac updates distributed by Columbus Labs.</description>
+        <item>
+            <title>0.32.4.2</title>
+            <pubDate>Sun, 07 Jun 2026 21:21:11 -0400</pubDate>
+            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
+            <sparkle:version>79.2.1.11.1</sparkle:version>
+            <sparkle:shortVersionString>0.32.4.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuotaKit 0.32.4.2 Mobile 1.11.1</h2>
+<h3>Changed</h3>
+<ul>
+<li>Reframed the public repository around QuotaKit and Columbus Labs.</li>
+<li>Updated release scripts, appcast metadata, setup links, support links, and About</li>
+</ul>
+  surfaces to point at <code>ColumbusLabs/QuotaKit</code> and <code>columbus-labs.com/quotakit/mac</code>.
+<ul>
+<li>Replaced inherited fork/setup documentation with QuotaKit-specific guidance.</li>
+<li>Removed stale standalone localized release-note artifacts that no longer represent</li>
+</ul>
+  the current product surface.
+<ul>
+<li>Added the Columbus Labs Mac setup handoff at</li>
+</ul>
+  <code>https://columbus-labs.com/quotakit/mac</code>.
+<ul>
+<li>Updated iOS onboarding and update prompts so iPhone users share or copy the setup</li>
+</ul>
+  page instead of being sent directly to a GitHub download page.
+<ul>
+<li>Kept the actual Mac artifact distribution on GitHub Releases while making the</li>
+</ul>
+  user-facing handoff branded and Mac-first.
+<h3>Notes</h3>
+<ul>
+<li>Historical upstream commits and contributor attribution remain in Git history.</li>
+<li>Internal target names such as <code>CodexBar</code> and <code>CodexBarCore</code> are still implementation</li>
+</ul>
+  identifiers; they are not the public product name.
+<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.2/QuotaKit-macos-universal-0.32.4.2.zip" length="47981662" type="application/octet-stream" sparkle:edSignature="Vht2sZPGPaq2QScxmcb3PNCba+2kXBr3LDlbAAG2V1dKvUEGOSHA2DWyBd0QwLW9oOfT6AI3IrlMwt9jgk4MAA=="/>
+        </item>
     </channel>
 </rss>
