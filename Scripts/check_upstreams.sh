@@ -1,13 +1,10 @@
 #!/usr/bin/env bash
-# Check for new changes in upstream repositories
-# Usage: ./Scripts/check_upstreams.sh [upstream|quotio|all]
+# Check for new changes in Pete's upstream repository
+# Usage: ./Scripts/check_upstreams.sh
 
 set -euo pipefail
 
-TARGET=${1:-all}
-DAYS=${2:-7}
 UPSTREAM_URL="https://github.com/steipete/CodexBar.git"
-QUOTIO_URL="https://github.com/nguyenphutrong/quotio.git"
 
 # Colors for output
 RED='\033[0;31m'
@@ -35,16 +32,9 @@ ensure_remote_url() {
     git remote set-url --push "$remote" DISABLED
 }
 
-if [ "$TARGET" = "all" ] || [ "$TARGET" = "upstream" ]; then
-    ensure_remote_url upstream "$UPSTREAM_URL"
-    git fetch upstream --no-tags --prune
-    git fetch upstream '+refs/tags/v*:refs/tags/upstream/v*' --prune
-fi
-
-if [ "$TARGET" = "all" ] || [ "$TARGET" = "quotio" ]; then
-    ensure_remote_url quotio "$QUOTIO_URL"
-    git fetch quotio --no-tags --prune
-fi
+ensure_remote_url upstream "$UPSTREAM_URL"
+git fetch upstream --no-tags --prune
+git fetch upstream '+refs/tags/v*:refs/tags/upstream/v*' --prune
 
 echo ""
 
@@ -73,71 +63,35 @@ remote_default_branch() {
     exit 1
 }
 
-# Check upstream (steipete)
-if [ "$TARGET" = "all" ] || [ "$TARGET" = "upstream" ]; then
-    echo -e "${BLUE}==> Upstream (steipete/CodexBar) changes:${NC}"
-    UPSTREAM_BRANCH=$(remote_default_branch upstream)
-    UPSTREAM_REF="upstream/${UPSTREAM_BRANCH}"
-    UPSTREAM_VERSION=$(awk -F= '$1 == "UPSTREAM_VERSION" {print $2; exit}' version.env)
-    UPSTREAM_BASE_REF="upstream/${UPSTREAM_VERSION}"
-    if [ -z "$UPSTREAM_VERSION" ] || ! git rev-parse --verify -q "$UPSTREAM_BASE_REF" >/dev/null; then
-        echo -e "${RED}Error: Could not resolve UPSTREAM_VERSION=${UPSTREAM_VERSION:-<unset>} from version.env.${NC}" >&2
-        exit 1
-    fi
-    
-    UPSTREAM_COUNT=$(git log --oneline "${UPSTREAM_BASE_REF}..${UPSTREAM_REF}" --no-merges 2>/dev/null | wc -l | tr -d ' ')
-    
-    if [ "$UPSTREAM_COUNT" -gt 0 ]; then
-        echo -e "${GREEN}Found $UPSTREAM_COUNT new commits since $UPSTREAM_VERSION${NC}"
-        echo ""
-        git log --oneline --graph "${UPSTREAM_BASE_REF}..${UPSTREAM_REF}" --no-merges | head -20 || true
-        echo ""
-        echo -e "${YELLOW}Files changed:${NC}"
-        git diff --stat "${UPSTREAM_BASE_REF}..${UPSTREAM_REF}" | tail -20 || true
-    else
-        echo -e "${GREEN}No new commits since $UPSTREAM_VERSION${NC}"
-    fi
-    echo ""
+echo -e "${BLUE}==> Upstream (steipete/CodexBar) changes:${NC}"
+UPSTREAM_BRANCH=$(remote_default_branch upstream)
+UPSTREAM_REF="upstream/${UPSTREAM_BRANCH}"
+UPSTREAM_VERSION=$(awk -F= '$1 == "UPSTREAM_VERSION" {print $2; exit}' version.env)
+UPSTREAM_BASE_REF="upstream/${UPSTREAM_VERSION}"
+if [ -z "$UPSTREAM_VERSION" ] || ! git rev-parse --verify -q "$UPSTREAM_BASE_REF" >/dev/null; then
+    echo -e "${RED}Error: Could not resolve UPSTREAM_VERSION=${UPSTREAM_VERSION:-<unset>} from version.env.${NC}" >&2
+    exit 1
 fi
 
-# Check quotio
-if [ "$TARGET" = "all" ] || [ "$TARGET" = "quotio" ]; then
-    echo -e "${BLUE}==> Quotio changes (last $DAYS days):${NC}"
-    QUOTIO_BRANCH=$(remote_default_branch quotio)
-    QUOTIO_REF="quotio/${QUOTIO_BRANCH}"
-    
-    QUOTIO_COUNT=$(git log --oneline "$QUOTIO_REF" --since="$DAYS days ago" 2>/dev/null | wc -l | tr -d ' ')
-    
-    if [ "$QUOTIO_COUNT" -gt 0 ]; then
-        echo -e "${GREEN}Found $QUOTIO_COUNT commits in last $DAYS days${NC}"
-        echo ""
-        git log --oneline --graph "$QUOTIO_REF" --since="$DAYS days ago" | head -20 || true
-        echo ""
-        echo -e "${YELLOW}Recent file changes:${NC}"
-        # Show changes from last 10 commits
-        git diff --stat "${QUOTIO_REF}~10..${QUOTIO_REF}" 2>/dev/null | tail -20 || echo "Unable to show diff"
-    else
-        echo -e "${GREEN}No new commits in last $DAYS days${NC}"
-    fi
+UPSTREAM_COUNT=$(git log --oneline "${UPSTREAM_BASE_REF}..${UPSTREAM_REF}" --no-merges 2>/dev/null | wc -l | tr -d ' ')
+
+if [ "$UPSTREAM_COUNT" -gt 0 ]; then
+    echo -e "${GREEN}Found $UPSTREAM_COUNT new commits since $UPSTREAM_VERSION${NC}"
     echo ""
+    git log --oneline --graph "${UPSTREAM_BASE_REF}..${UPSTREAM_REF}" --no-merges | head -20 || true
+    echo ""
+    echo -e "${YELLOW}Files changed:${NC}"
+    git diff --stat "${UPSTREAM_BASE_REF}..${UPSTREAM_REF}" | tail -20 || true
+else
+    echo -e "${GREEN}No new commits since $UPSTREAM_VERSION${NC}"
 fi
+echo ""
 
 # Summary
 echo -e "${BLUE}==> Summary${NC}"
-if [ "$TARGET" = "all" ] || [ "$TARGET" = "upstream" ]; then
-    echo "Upstream commits since $UPSTREAM_VERSION: $UPSTREAM_COUNT"
-fi
-if [ "$TARGET" = "all" ] || [ "$TARGET" = "quotio" ]; then
-    echo "Quotio commits (${DAYS}d): $QUOTIO_COUNT"
-fi
+echo "Upstream commits since $UPSTREAM_VERSION: $UPSTREAM_COUNT"
 
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo "  Review upstream: ./Scripts/review_upstream.sh upstream"
-echo "  Review quotio:   ./Scripts/review_upstream.sh quotio"
-if [ "$TARGET" = "all" ] || [ "$TARGET" = "upstream" ]; then
-    echo "  Detailed diff:   git diff upstream/$UPSTREAM_VERSION..<resolved-remote>/<default-branch>"
-else
-    echo "  Detailed diff:   git diff <base>..<resolved-remote>/<default-branch>"
-fi
-echo "  View quotio:     ./Scripts/analyze_quotio.sh"
+echo "  Detailed diff:   git diff upstream/$UPSTREAM_VERSION..upstream/$UPSTREAM_BRANCH"

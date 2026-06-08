@@ -373,7 +373,7 @@ QuotaKit Pro widget work should create iOS widget targets that read sanitized iO
 - `.github/workflows/release-mac-verify.yml`
   - Verifies published Mac release zips launch on clean macOS runner.
 - `.github/workflows/upstream-monitor.yml`
-  - Monitors `steipete/CodexBar` and `nguyenphutrong/quotio` style upstreams.
+  - Monitors Pete's `steipete/CodexBar` upstream against `version.env`.
 
 ## 8. Existing Branding And Bundle Identifiers To Change
 

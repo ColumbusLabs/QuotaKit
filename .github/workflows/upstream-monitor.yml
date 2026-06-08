@@ -9,12 +9,10 @@ on:
       target:
         description: 'Which upstream to check'
         required: false
-        default: 'all'
+        default: 'upstream'
         type: choice
         options:
-          - all
           - upstream
-          - quotio
 
 jobs:
   check-upstreams:
@@ -50,10 +48,8 @@ jobs:
           }
 
           ensure_remote_url upstream https://github.com/steipete/CodexBar.git
-          ensure_remote_url quotio https://github.com/nguyenphutrong/quotio.git
           git fetch upstream --no-tags --prune
           git fetch upstream '+refs/tags/v*:refs/tags/upstream/v*' --prune
-          git fetch quotio --no-tags --prune
       
       - name: Check for new commits
         id: check
@@ -80,9 +76,7 @@ jobs:
           }
 
           UPSTREAM_BRANCH=$(remote_default_branch upstream)
-          QUOTIO_BRANCH=$(remote_default_branch quotio)
           UPSTREAM_REF="upstream/${UPSTREAM_BRANCH}"
-          QUOTIO_REF="quotio/${QUOTIO_BRANCH}"
           UPSTREAM_VERSION=$(awk -F= '$1 == "UPSTREAM_VERSION" {print $2; exit}' version.env)
           UPSTREAM_BASE_REF="upstream/${UPSTREAM_VERSION}"
           if [ -z "$UPSTREAM_VERSION" ] || ! git rev-parse --verify -q "$UPSTREAM_BASE_REF" >/dev/null; then
@@ -92,55 +86,36 @@ jobs:
           echo "upstream_ref=$UPSTREAM_REF" >> $GITHUB_OUTPUT
           echo "upstream_version=$UPSTREAM_VERSION" >> $GITHUB_OUTPUT
           echo "upstream_base_ref=$UPSTREAM_BASE_REF" >> $GITHUB_OUTPUT
-          echo "quotio_ref=$QUOTIO_REF" >> $GITHUB_OUTPUT
 
           # Count new commits since the upstream version last recorded in version.env.
           UPSTREAM_NEW=$(git log --oneline "${UPSTREAM_BASE_REF}..${UPSTREAM_REF}" --no-merges 2>/dev/null | wc -l | tr -d ' ')
           echo "upstream_commits=$UPSTREAM_NEW" >> $GITHUB_OUTPUT
           
-          # Count new commits in quotio (last 7 days)
-          QUOTIO_NEW=$(git log --oneline "$QUOTIO_REF" --since="7 days ago" 2>/dev/null | wc -l | tr -d ' ')
-          echo "quotio_commits=$QUOTIO_NEW" >> $GITHUB_OUTPUT
-          
           # Get commit summaries
           echo "upstream_summary<<EOF" >> $GITHUB_OUTPUT
           git log --oneline "${UPSTREAM_BASE_REF}..${UPSTREAM_REF}" --no-merges 2>/dev/null | head -10 >> $GITHUB_OUTPUT || echo "No commits" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          
-          echo "quotio_summary<<EOF" >> $GITHUB_OUTPUT
-          git log --oneline "$QUOTIO_REF" --since="7 days ago" 2>/dev/null | head -10 >> $GITHUB_OUTPUT || echo "No commits" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
       
       - name: Create or update issue
-        if: steps.check.outputs.upstream_commits > 0 || steps.check.outputs.quotio_commits > 0
+        if: steps.check.outputs.upstream_commits > 0
         uses: actions/github-script@v8
         with:
           script: |
             const upstreamCommits = '${{ steps.check.outputs.upstream_commits }}';
-            const quotioCommits = '${{ steps.check.outputs.quotio_commits }}';
             const upstreamRef = '${{ steps.check.outputs.upstream_ref }}';
             const upstreamVersion = '${{ steps.check.outputs.upstream_version }}';
             const upstreamBaseRef = '${{ steps.check.outputs.upstream_base_ref }}';
-            const quotioRef = '${{ steps.check.outputs.quotio_ref }}';
             const upstreamBranch = upstreamRef.replace('upstream/', '');
-            const quotioBranch = quotioRef.replace('quotio/', '');
             const upstreamSummary = `${{ steps.check.outputs.upstream_summary }}`;
-            const quotioSummary = `${{ steps.check.outputs.quotio_summary }}`;
             
             const body = `## Upstream Changes Detected
             
             **steipete/CodexBar:** ${upstreamCommits} new commits since \`${upstreamVersion}\`
-            **quotio:** ${quotioCommits} new commits (last 7 days)
-            **Source refs:** ${upstreamBaseRef}..${upstreamRef}, ${quotioRef}
+            **Source refs:** ${upstreamBaseRef}..${upstreamRef}
             
             ### steipete/CodexBar Recent Commits
             \`\`\`
             ${upstreamSummary}
-            \`\`\`
-            
-            ### quotio Recent Commits
-            \`\`\`
-            ${quotioSummary}
             \`\`\`
             
             ### Review Actions
@@ -150,20 +125,13 @@ jobs:
             ./Scripts/review_upstream.sh upstream
             \`\`\`
             
-            **Review quotio changes:**
-            \`\`\`bash
-            ./Scripts/analyze_quotio.sh
-            \`\`\`
-            
             **View detailed diffs:**
             \`\`\`bash
             git diff ${upstreamBaseRef}..${upstreamRef}
-            git log -p ${quotioRef} --since='7 days ago'
             \`\`\`
             
             ### Links
             - [steipete commits](https://github.com/steipete/CodexBar/compare/${upstreamVersion}...steipete:CodexBar:${upstreamBranch})
-            - [quotio commits](https://github.com/nguyenphutrong/quotio/commits/${quotioBranch})
             
             ---
             *Auto-generated by upstream-monitor workflow*
@@ -191,7 +159,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issues.data[0].number,
-                body: `Updated with latest changes (${upstreamCommits} upstream, ${quotioCommits} quotio)`
+                body: `Updated with latest steipete/CodexBar changes (${upstreamCommits} upstream commits since ${upstreamVersion})`
               });
             } else {
               // Create new issue
@@ -205,8 +173,7 @@ jobs:
             }
       
       - name: No changes detected
-        if: steps.check.outputs.upstream_commits == 0 && steps.check.outputs.quotio_commits == 0
+        if: steps.check.outputs.upstream_commits == 0
         run: |
           echo "No new upstream changes detected"
           echo "steipete/CodexBar: up to date"
-          echo "quotio: no commits in last 7 days"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Create a review branch for upstream changes
-# Usage: ./Scripts/review_upstream.sh [upstream|quotio]
+# Usage: ./Scripts/review_upstream.sh [upstream]
 
 set -euo pipefail
 
@@ -8,7 +8,6 @@ UPSTREAM=${1:-upstream}
 DATE=$(date +%Y%m%d)
 BRANCH_NAME="upstream-sync/${UPSTREAM}-${DATE}"
 STEIPETE_URL="https://github.com/steipete/CodexBar.git"
-QUOTIO_URL="https://github.com/nguyenphutrong/quotio.git"
 
 # Colors
 RED='\033[0;31m'
@@ -17,9 +16,9 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-if [ "$UPSTREAM" != "upstream" ] && [ "$UPSTREAM" != "quotio" ]; then
-    echo -e "${RED}Error: Must specify 'upstream' or 'quotio'${NC}"
-    echo "Usage: ./Scripts/review_upstream.sh [upstream|quotio]"
+if [ "$UPSTREAM" != "upstream" ]; then
+    echo -e "${RED}Error: Must specify 'upstream'${NC}"
+    echo "Usage: ./Scripts/review_upstream.sh [upstream]"
     exit 1
 fi
 
@@ -85,10 +84,7 @@ remote_default_branch() {
     exit 1
 }
 
-case "$UPSTREAM" in
-    upstream) REMOTE=$(ensure_remote upstream "$STEIPETE_URL") ;;
-    quotio) REMOTE=$(ensure_remote quotio "$QUOTIO_URL") ;;
-esac
+REMOTE=$(ensure_remote upstream "$STEIPETE_URL")
 
 echo -e "${BLUE}==> Fetching latest from $UPSTREAM...${NC}"
 git fetch "$REMOTE" --prune
