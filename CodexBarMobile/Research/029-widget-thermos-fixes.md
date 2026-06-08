@@ -36,13 +36,13 @@ Close all P0–P3 Thermos review findings from the iOS WidgetKit + QuotaKit bran
 - [x] Store round-trip test with injectable `baseDirectory`
 - [x] Removed `displaySnapshot` passthrough on `QuotaKitWidgetEntry`
 
-## Phase 0 — Apple Developer provisioning (manual, still pending)
+## Phase 0 — Apple Developer provisioning (manual, complete)
 
-- [ ] Register app group `group.com.columbuslabs.quotakit`
-- [ ] Enable App Groups on main + widget App IDs
-- [ ] Regenerate Dev + Distribution profiles
-- [ ] Archive verify `CodexBarMobileWidgets.appex` embedded
-- [ ] App Store Connect widget extension + privacy labels
+- [x] Register app group `group.com.columbuslabs.quotakit`
+- [x] Enable App Groups on main + widget App IDs
+- [x] Regenerate/fetch Dev + Distribution profiles through Xcode automatic provisioning
+- [x] Archive verify `CodexBarMobileWidgets.appex` embedded
+- [x] App Store Connect widget extension + privacy labels
 
 ## Phase 5 — QA
 
@@ -52,10 +52,11 @@ Close all P0–P3 Thermos review findings from the iOS WidgetKit + QuotaKit bran
 | Purchase → widget unlock immediately | needs device QA |
 | Upgrade 153→155 migrations | needs device QA |
 | zh-Hans / ja widget copy | needs simulator locale QA |
-| Lock Screen accessories on device | needs device QA + Phase 0 |
+| Lock Screen accessories on device | needs device QA |
 
 ## Verification Notes
 
 - `xcodegen generate` succeeded after `project.yml` widget target updates.
 - `xcodebuild test -scheme CodexBarMobile CODE_SIGNING_ALLOWED=NO -skip-testing:CodexBarMobileUITests` passed (446 tests).
 - New/updated tests: `QuotaKitWidgetTests` (sanitization, pro-cache migration, store I/O), `LinkageRecordMergeTests` (legacy linkage migration), `ModelContainerFactoryTests` (legacy path discovery + sidecar copy).
+- 2026-06-08 provisioning pass: Apple Developer lists QuotaKit iOS, push, widget, Mac App IDs and the QuotaKit app group under Columbus Labs team `78PXX669LQ`; main iOS and widget App IDs have App Groups enabled. `Scripts/ios_testflight_xcode.sh --team-id 78PXX669LQ --skip-lint --archive-only` succeeded and verified `CodexBarMobileWidgets.appex` in the archive. A local App Store Connect export produced `CodexBarMobile.ipa`; exported entitlements include `group.com.columbuslabs.quotakit` on the app and widget, `iCloud.com.columbuslabs.quotakit`, CloudKit Production, and production push on the app. App Store Connect privacy metadata for QuotaKit app `6777747568` is published with privacy policy `https://columbus-labs.com/privacy` and "Data Not Collected" based on the current no-backend/no-analytics/private-iCloud sync model.

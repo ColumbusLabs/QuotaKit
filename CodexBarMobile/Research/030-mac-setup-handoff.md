@@ -16,11 +16,11 @@ Use a branded handoff URL:
 https://columbus-labs.com/quotakit/mac
 ```
 
-The iPhone app shares or copies this setup URL. The Columbus Labs page explains the Mac-first setup and then links to the latest signed/notarized GitHub release for the actual Mac artifact.
+The iPhone app shares or copies this setup URL. The Columbus Labs page explains the Mac-first setup and makes the primary CTA a direct download for the latest signed/notarized Mac ZIP, with GitHub Releases kept as the secondary path for notes and older builds.
 
 ## Implementation
 
-- Columbus Labs site adds `/quotakit/mac` with QuotaKit branding, Mac setup steps, and a `Download QuotaKit for Mac` CTA.
+- Columbus Labs site adds `/quotakit/mac` with QuotaKit branding, Mac setup steps, and a direct `Download QuotaKit for Mac` CTA.
 - `ProductConfig` owns the canonical setup URL and display string.
 - `OnboardingView` no longer presents a phone-side Mac download button. It presents share/copy handoff actions.
 - The legacy KVS update prompt reuses the same share/copy actions.

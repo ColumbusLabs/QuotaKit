@@ -37,7 +37,7 @@
         } catch (_) {}
       })();
     </script>
-    <link rel="stylesheet" href="./site.css?v=8" />
+    <link rel="stylesheet" href="./site.css?v=9" />
   </head>
   <body>
     <div class="backdrop" aria-hidden="true">
@@ -65,7 +65,7 @@
             <path d="M13.2 10.1A5.8 5.8 0 0 1 5.9 2.8a6 6 0 1 0 7.3 7.3Z" />
           </svg>
         </button>
-        <a class="btn primary" href="https://github.com/ColumbusLabs/QuotaKit/releases/latest">Download</a>
+        <a class="btn primary" href="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.2/QuotaKit-macos-universal-0.32.4.2.zip">Download</a>
       </nav>
     </header>
 
@@ -77,21 +77,10 @@
           one status item each, or merge them into one.
         </p>
         <div class="actions">
-          <a class="btn primary lg" href="https://github.com/ColumbusLabs/QuotaKit/releases/latest">Download for macOS</a>
-          <div class="brew" role="group" aria-label="Homebrew install command">
-            <code id="brew-cmd">Download from GitHub Releases</code>
-            <button class="brew-copy" type="button" aria-label="Copy to clipboard" title="Copy">
-              <svg class="ic" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="5" y="5" width="9" height="9" rx="1.5" />
-                <path d="M5 11H3.5A1.5 1.5 0 0 1 2 9.5v-7A1.5 1.5 0 0 1 3.5 1h7A1.5 1.5 0 0 1 12 2.5V5" />
-              </svg>
-              <svg class="ok" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <polyline points="3 8 6 11 13 4" />
-              </svg>
-            </button>
-          </div>
+          <a class="btn primary lg" href="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.2/QuotaKit-macos-universal-0.32.4.2.zip">Download QuotaKit for Mac</a>
+          <a class="btn secondary lg" href="https://github.com/ColumbusLabs/QuotaKit/releases/latest">View GitHub Releases</a>
         </div>
-        <p class="fineprint">Free &amp; open source · macOS 14+ · Universal on GitHub Releases · Apple Silicon via Homebrew</p>
+        <p class="fineprint">Free &amp; open source · macOS 14+ · Universal app · QuotaKit Mac 0.32.4.2</p>
       </section>
 
       <section class="providers" aria-labelledby="providers-h">
@@ -221,15 +210,15 @@
       <article class="block">
         <h3>Install &amp; updates</h3>
         <p>
-          Universal app via <a href="https://github.com/ColumbusLabs/QuotaKit/releases/latest">GitHub Releases</a> with Sparkle auto-updates, or
-          <code>Download from GitHub Releases</code> for Apple Silicon (updates via <code>brew upgrade</code>).
+          Download the universal Mac app directly from this page, move it to Applications, and keep it current with Sparkle auto-updates.
+          GitHub Releases remains available for release notes and older builds.
         </p>
       </article>
       <article class="block">
         <h3>CLI</h3>
         <p>
-          A bundled <code>codexbar</code> binary plus standalone tarballs for macOS and Linux on each release. On Linux:
-          <code>Download from GitHub Releases</code>.
+          A bundled <code>codexbar</code> binary ships with the Mac app. Release archives and supporting artifacts remain available on
+          <a href="https://github.com/ColumbusLabs/QuotaKit/releases/latest">GitHub Releases</a>.
         </p>
       </article>
       <article class="block">
@@ -309,16 +298,6 @@
         }
         updateThemeUI();
 
-        var btn = document.querySelector('.brew-copy');
-        if (!btn) return;
-        btn.addEventListener('click', function () {
-          var text = document.getElementById('brew-cmd').textContent;
-          if (!navigator.clipboard) return;
-          navigator.clipboard.writeText(text).then(function () {
-            btn.classList.add('copied');
-            setTimeout(function () { btn.classList.remove('copied'); }, 1500);
-          });
-        });
       })();
     </script>
   </body>

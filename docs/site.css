@@ -398,6 +398,16 @@ code {
   color: var(--bg);
 }
 
+.btn.secondary {
+  background: color-mix(in srgb, var(--bg-elev) 76%, transparent);
+  color: var(--ink-1);
+}
+
+.btn.secondary:hover {
+  background: var(--bg-elev-2);
+  color: var(--ink-1);
+}
+
 .btn.lg {
   padding: 11px 20px;
   font-size: 15px;
@@ -445,63 +455,6 @@ code {
   gap: 12px;
   margin: 28px 0 14px;
   align-items: center;
-}
-
-.brew {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 6px 6px 14px;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
-  background: var(--bg-elev);
-  font-size: 13.5px;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-.brew code {
-  background: none;
-  padding: 0;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.brew-copy {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  margin: 0;
-  border: 0;
-  background: transparent;
-  border-radius: 999px;
-  color: var(--ink-2);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 140ms ease, color 140ms ease;
-}
-
-.brew-copy:hover {
-  background: var(--bg-elev-2);
-  color: var(--ink-1);
-}
-
-.brew-copy .ok {
-  display: none;
-}
-
-.brew-copy.copied .ic {
-  display: none;
-}
-
-.brew-copy.copied .ok {
-  display: inline;
-  color: #16a34a;
 }
 
 .fineprint {
@@ -764,16 +717,10 @@ code {
   line-height: 1.5;
 }
 
-.detail .block code,
-.lede .brew code {
+.detail .block code {
   background: var(--bg-elev-2);
   padding: 2px 6px;
   border-radius: 5px;
-}
-
-.lede .brew code {
-  background: none;
-  padding: 0;
 }
 
 .lede a,
@@ -858,9 +805,6 @@ code {
     align-items: stretch;
   }
   .lede .actions .btn {
-    width: 100%;
-  }
-  .brew {
     width: 100%;
   }
   .grid {
