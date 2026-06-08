@@ -69,36 +69,29 @@ Uploads not handled automatically—commit/publish appcast + zip to the feed loc
 ./Scripts/release.sh
 ```
 
-## Homebrew (Cask)
-CodexBar ships a Homebrew **Cask** in `../homebrew-tap`. When installed via Homebrew, CodexBar disables Sparkle and the app
-must be updated via `brew`.
-
-After publishing the GitHub release, `.github/workflows/release-cli.yml` builds the CLI tarballs, uploads `CodexBarCLI-v<version>-{macos-arm64,macos-x86_64,linux-aarch64,linux-x86_64}.tar.gz` plus checksums, then dispatches the Homebrew tap update for both the CLI formula and app cask. If the final dispatch is rate-limited, the tarballs and app zip may still be present; rerun or manually update the tap formula/cask from the published assets.
+## Distribution
+QuotaKit's first public Mac release path is GitHub Releases plus Sparkle.
+There is no Homebrew release or public CLI artifact lane in this repository
+unless Columbus Labs intentionally adds one later.
 
 ## Checklist (quick)
-- [ ] Read both this file and `~/Projects/agent-scripts/docs/RELEASING-MAC.md`; resolve any conflicts toward CodexBar’s specifics.
-- [ ] Update versions (scripts/Info.plist, CHANGELOG, About text) — changelog top section must be finalized; release script pulls notes from it automatically.
+- [ ] Confirm `.mac-release.env` points to `ColumbusLabs/QuotaKit`, `QuotaKit`, and `https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml`.
+- [ ] Update versions (`version.env`, CHANGELOG, About text) — changelog top section must be finalized; release script pulls notes from it automatically.
 - [ ] `swiftformat`, `swiftlint`, `swift test` (zero warnings/errors)
 - [ ] `./Scripts/build_icon.sh` if icon changed
 - [ ] `./Scripts/sign-and-notarize.sh`
 - [ ] Generate Sparkle appcast via `Scripts/release.sh` or `Scripts/make_appcast.sh`; use `SPARKLE_PRIVATE_KEY_FILE` only if overriding Keychain signing.
   - Upload the dSYM archive alongside the app zip on the GitHub release; the release script now automates this and will fail if it’s missing.
-  - After publishing the release and the Release CLI workflow finishes, run `Scripts/check-release-assets.sh <tag>` to confirm the app zip, dSYM zip, CLI tarballs, and CLI checksums are present on GitHub.
-  - Generate the appcast + HTML release notes: `./Scripts/make_appcast.sh CodexBar-macos-universal-<ver>.zip https://raw.githubusercontent.com/steipete/CodexBar/main/appcast.xml`
+  - After publishing the release, run `Scripts/check-release-assets.sh <tag>` to confirm the app zip and dSYM zip are present on GitHub.
+  - Generate the appcast + HTML release notes: `./Scripts/make_appcast.sh QuotaKit-macos-universal-<ver>.zip https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml`
   - Beta channel: prefix the command with `SPARKLE_CHANNEL=beta` to tag the entry.
   - Verify the enclosure signature + size: `./Scripts/verify_appcast.sh <ver>`
 - [ ] Upload zip + appcast to feed; publish tag + GitHub release so Sparkle URL is live (avoid 404)
-- [ ] Homebrew tap: wait for the Release CLI workflow to update `../homebrew-tap/Casks/codexbar.rb` (app zip url + sha256) and `../homebrew-tap/Formula/codexbar.rb` (CLI tarball urls + sha256), then verify:
-  - `gh run watch <release-cli-run-id> --exit-status`
-  - `Scripts/check-release-assets.sh v<version>`
-  - `brew uninstall --cask codexbar || true`
-  - `brew untap steipete/tap || true; brew tap steipete/tap`
-  - `brew install --cask steipete/tap/codexbar && open -a CodexBar`
 - [ ] Version continuity: confirm the new version is the immediate next patch/minor (no gaps) and CHANGELOG has no skipped numbers (e.g., after 0.2.0 use 0.2.1, not 0.2.2)
 - [ ] Changelog sanity: single top-level title, no duplicate version sections, versions strictly descending with no repeats
-- [ ] Release pages: title format `CodexBar <version>`, notes as Markdown list (no stray blank lines)
+- [ ] Release pages: title format `QuotaKit Mac <version>`, notes as Markdown list (no stray blank lines)
 - [ ] Changelog/release notes are user-facing: avoid internal-only bullets (build numbers, script bumps) and keep entries concise
-- [ ] Download uploaded `CodexBar-macos-universal-<ver>.zip`, unzip via `ditto`, run, and verify signature (`spctl -a -t exec -vv CodexBar.app` + `stapler validate`)
+- [ ] Download uploaded `QuotaKit-macos-universal-<ver>.zip`, unzip via `ditto`, run, and verify signature (`spctl -a -t exec -vv CodexBar.app` + `stapler validate`)
 - [ ] Confirm `appcast.xml` points to the new zip/version and renders the HTML release notes (not escaped tags)
 - [ ] Verify on GitHub Releases: assets present (zip, appcast), release notes match changelog, version/tag correct
 - [ ] Open the appcast URL in browser to confirm the new entry is visible and enclosure URL is reachable

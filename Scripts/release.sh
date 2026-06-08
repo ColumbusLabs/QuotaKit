@@ -34,7 +34,7 @@ BUNDLE_ID="${MAC_RELEASE_BUNDLE_ID:-com.columbuslabs.quotakit.mac}"
 RELEASE_BRANCH="${QUOTAKIT_RELEASE_BRANCH:-main}"
 FEED_URL="https://raw.githubusercontent.com/${RELEASE_REPO}/${RELEASE_BRANCH}/appcast.xml"
 TAG="v${MARKETING_VERSION}"
-RELEASE_TITLE="${APP_NAME} ${MARKETING_VERSION} Mobile ${MOBILE_VERSION}"
+RELEASE_TITLE="${APP_NAME} Mac ${MARKETING_VERSION}"
 
 phase1() {
   require_clean_worktree

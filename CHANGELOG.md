@@ -7,26 +7,24 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ## 0.32.4.2 / iOS 1.11.1 — 2026-06-07
 
-### Changed
+### New
 
-- Reframed the public repository around QuotaKit and Columbus Labs.
-- Updated release scripts, appcast metadata, setup links, support links, and About
-  surfaces to point at `ColumbusLabs/QuotaKit` and `columbus-labs.com/quotakit/mac`.
-- Replaced inherited fork/setup documentation with QuotaKit-specific guidance.
-- Removed stale standalone localized release-note artifacts that no longer represent
-  the current product surface.
-- Added the Columbus Labs Mac setup handoff at
-  `https://columbus-labs.com/quotakit/mac`.
-- Updated iOS onboarding and update prompts so iPhone users share or copy the setup
-  page instead of being sent directly to a GitHub download page.
-- Kept the actual Mac artifact distribution on GitHub Releases while making the
-  user-facing handoff branded and Mac-first.
+- Published the first Columbus Labs Mac download for QuotaKit.
+- Added a signed and notarized universal macOS build for Apple silicon and Intel Macs.
+- Added the Mac setup page at `https://columbus-labs.com/quotakit/mac`.
+
+### How it works
+
+- Install QuotaKit on your Mac, move it to Applications, and turn on iCloud Sync.
+- The iPhone app reads synced AI quota, usage, cost, history, widget, and alert
+  summaries from iCloud after the Mac app is set up.
+- Provider credentials and browser sessions stay local to the Mac. QuotaKit syncs
+  sanitized usage summaries, not provider secrets.
 
 ### Notes
 
-- Historical upstream commits and contributor attribution remain in Git history.
-- Internal target names such as `CodexBar` and `CodexBarCore` are still implementation
-  identifiers; they are not the public product name.
+- Mac updates are distributed through GitHub Releases and Sparkle.
+- This release pairs the Mac app with iOS 1.11.1.
 
 ## 0.32.4.1 / iOS 1.11.0 — 2026-06-03
 
