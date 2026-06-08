@@ -116,6 +116,7 @@ struct SyncCoordinatorTests {
         let store = self.makeUsageStore(settings: settings)
         let mock = MockSyncPusher()
         mock.nextResult = .failure("iCloud sync unavailable")
+        mock.nextPerProviderResult = .failure("provider sync unavailable")
         let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
 
         await coordinator.pushCurrentSnapshot()
@@ -123,8 +124,96 @@ struct SyncCoordinatorTests {
         if mock.pushCount > 0 {
             #expect(coordinator.lastSyncTime != nil)
             #expect(coordinator.lastSyncSucceeded == false)
-            #expect(coordinator.lastSyncMessage == "iCloud sync unavailable")
+            #expect(coordinator.lastSyncMessage?.contains("iCloud sync unavailable") == true)
+            #expect(coordinator.lastSyncMessageIsWarning == false)
         }
+    }
+
+    @Test
+    func cloudKitProductionSchemaMessageExtractsRecordType() {
+        let message =
+            "Error saving record <CKRecordID: 0x123; recordName=ABC, " +
+            "zoneID=DeviceSnapshotsZone:__defaultOwner__> to server: " +
+            "Cannot create new type DeviceSnapshot in production schema"
+
+        #expect(CloudSyncError.missingProductionRecordType(in: message) == "DeviceSnapshot")
+        #expect(
+            CloudSyncError.productionSchemaMissingRecordType("DeviceSnapshot")
+                .description
+                .contains("iCloud.com.columbuslabs.quotakit"))
+    }
+
+    @Test
+    func legacySchemaFailureWithPerProviderSuccessReportsPartialSuccess() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-schema-partial")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+
+        let store = self.makeUsageStore(settings: settings)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 100,
+                sessionCostUSD: 0.1,
+                last30DaysTokens: 1000,
+                last30DaysCostUSD: 1.0,
+                daily: [],
+                updatedAt: Date()),
+            provider: .codex)
+
+        let schemaMessage = CloudSyncError
+            .productionSchemaMissingRecordType("DeviceSnapshot")
+            .description
+        let mock = MockSyncPusher()
+        mock.nextResult = .failure(schemaMessage)
+        mock.nextPerProviderResult = .success
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        await coordinator.pushCurrentSnapshot()
+
+        #expect(mock.pushCount == 1)
+        #expect(mock.perProviderCallCount == 1)
+        #expect(coordinator.lastSyncSucceeded == true)
+        #expect(coordinator.lastSyncMessageIsWarning == true)
+        #expect(coordinator.lastSyncMessage?.contains("iPhone sync completed") == true)
+        #expect(coordinator.lastSyncMessage?.contains("DeviceSnapshot") == true)
+    }
+
+    @Test
+    func legacyAndPerProviderFailuresReportFullFailure() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-both-fail")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+
+        let store = self.makeUsageStore(settings: settings)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 100,
+                sessionCostUSD: 0.1,
+                last30DaysTokens: 1000,
+                last30DaysCostUSD: 1.0,
+                daily: [],
+                updatedAt: Date()),
+            provider: .codex)
+
+        let mock = MockSyncPusher()
+        mock.nextResult = .failure("legacy unavailable")
+        mock.nextPerProviderResult = .failure("provider unavailable")
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        await coordinator.pushCurrentSnapshot()
+
+        #expect(mock.pushCount == 1)
+        #expect(mock.perProviderCallCount == 1)
+        #expect(coordinator.lastSyncSucceeded == false)
+        #expect(coordinator.lastSyncMessageIsWarning == false)
+        #expect(coordinator.lastSyncMessage?.contains("legacy unavailable") == true)
+        #expect(coordinator.lastSyncMessage?.contains("provider unavailable") == true)
     }
 
     @Test
@@ -774,6 +863,9 @@ struct SyncCoordinatorTests {
         // The 2 stranded mocks are NOT in current cycle's emit set
         // (only real codex). Whole-provider gone (claude / cursor not
         // in any current record) → 1-cycle delete.
+        for _ in 0..<20 where mock.deleteCallCount == 0 {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
         #expect(mock.deleteCallCount == 1)
         let deletedNames = Set(mock.deletedRecordNamesAcrossCalls.flatMap(\.self))
         #expect(deletedNames.contains(strandedMockA))

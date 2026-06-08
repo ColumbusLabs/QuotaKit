@@ -40,6 +40,7 @@ phase1() {
   require_clean_worktree
   ensure_changelog_finalized "$MARKETING_VERSION"
   ensure_appcast_monotonic "$APPCAST" "$MARKETING_VERSION" "$BUILD_NUMBER"
+  "$ROOT/Scripts/verify-cloudkit-schema.sh"
 
   "$ROOT/Scripts/lint.sh" lint
 

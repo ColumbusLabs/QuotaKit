@@ -29,6 +29,7 @@ final class SyncCoordinator {
     private(set) var lastSyncTime: Date?
     private(set) var lastSyncSucceeded: Bool = true
     private(set) var lastSyncMessage: String?
+    private(set) var lastSyncMessageIsWarning: Bool = false
     private(set) var isSyncing: Bool = false
 
     /// Stable device UUID for this Mac, persisted across app launches.
@@ -203,6 +204,7 @@ final class SyncCoordinator {
 
         let enabledProviders = self.store.enabledProviders()
         guard !enabledProviders.isEmpty else { return }
+        guard !self.isSyncing else { return }
 
         self.isSyncing = true
         defer { self.isSyncing = false }
@@ -271,31 +273,33 @@ final class SyncCoordinator {
             appVersion: appVersion,
             mobileVersion: mobileVersion)
 
-        let result = await self.syncManager.pushSnapshot(synced)
-        self.lastSyncTime = Date()
-        self.lastSyncSucceeded = result.succeeded
-        self.lastSyncMessage = result.message
+        let legacyResult = await self.syncManager.pushSnapshot(synced)
 
         // P4: additive per-provider write to DeviceProvidersZone. Diff against
-        // the in-memory hash cache so unchanged providers are skipped. Failure
-        // here is logged but does NOT override `lastSyncSucceeded` — the
-        // legacy-zone write is still authoritative while iOS readers haven't
-        // migrated yet (see Research/010).
+        // the in-memory hash cache so unchanged providers are skipped.
+        // Status is derived from both writes below: if either CloudKit path
+        // succeeds the user's iPhone can still get fresh data, but the UI keeps
+        // the failed path visible as an actionable warning.
         let (envelopes, hashUpdates) = self.buildPerProviderDelta(
             from: providerSnapshots, synced: synced)
+        var perProviderResult: SyncPushResult?
         if !envelopes.isEmpty {
-            let perProviderResult =
+            let result =
                 await self.syncManager.pushPerProviderRecords(envelopes)
-            if perProviderResult.succeeded {
+            perProviderResult = result
+            if result.succeeded {
                 for (key, hash) in hashUpdates {
                     self.lastProviderHashes[key] = hash
                 }
             } else {
                 print(
                     "[CodexBar Sync] per-provider write failed: " +
-                        (perProviderResult.message ?? "unknown"))
+                        (result.message ?? "unknown"))
             }
         }
+        self.updateSyncStatus(
+            legacyResult: legacyResult,
+            perProviderResult: perProviderResult)
 
         // L1 ghost-records cleanup. Compute the composites we just pushed
         // (i.e. all currently-enabled, non-ghost providers regardless of
@@ -343,6 +347,51 @@ final class SyncCoordinator {
         }
         self.lastPushedRecordNames = currentRecordNames
         self.pushHistorySeeded = true
+    }
+
+    private func updateSyncStatus(
+        legacyResult: SyncPushResult,
+        perProviderResult: SyncPushResult?)
+    {
+        self.lastSyncTime = Date()
+        self.lastSyncMessageIsWarning = false
+
+        switch (legacyResult.succeeded, perProviderResult?.succeeded) {
+        case (true, nil), (true, .some(true)):
+            self.lastSyncSucceeded = true
+            self.lastSyncMessage = nil
+        case (false, .some(true)):
+            self.lastSyncSucceeded = true
+            self.lastSyncMessageIsWarning = true
+            self.lastSyncMessage =
+                "iPhone sync completed through provider records. " +
+                "Legacy snapshot sync still needs attention: " +
+                Self.syncMessage(legacyResult)
+        case (true, .some(false)):
+            self.lastSyncSucceeded = true
+            self.lastSyncMessageIsWarning = true
+            self.lastSyncMessage =
+                "Legacy snapshot synced. Provider-level iPhone sync needs attention: " +
+                Self.syncMessage(perProviderResult)
+        case (false, nil):
+            self.lastSyncSucceeded = false
+            self.lastSyncMessage = Self.syncMessage(legacyResult)
+        case (false, .some(false)):
+            self.lastSyncSucceeded = false
+            self.lastSyncMessage =
+                "Legacy snapshot sync failed: \(Self.syncMessage(legacyResult)) " +
+                "Provider-level sync failed: \(Self.syncMessage(perProviderResult))"
+        }
+    }
+
+    private static func syncMessage(_ result: SyncPushResult?) -> String {
+        guard let message = result?.message?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !message.isEmpty
+        else {
+            return "unknown error"
+        }
+        return message
     }
 
     /// Determine which records must be deleted from CloudKit this cycle.

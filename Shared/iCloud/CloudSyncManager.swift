@@ -101,6 +101,7 @@ public enum CloudSyncError: Error, Sendable, CustomStringConvertible {
     case networkUnavailable
     case notAuthenticated
     case quotaExceeded
+    case productionSchemaMissingRecordType(String)
     case serverError(String)
     case decodingFailed(String)
     case unknown(String)
@@ -113,6 +114,10 @@ public enum CloudSyncError: Error, Sendable, CustomStringConvertible {
             "iCloud account not signed in"
         case .quotaExceeded:
             "iCloud storage quota exceeded"
+        case .productionSchemaMissingRecordType(let recordType):
+            "CloudKit Production schema is missing record type \(recordType). " +
+                "Deploy CloudKit schema changes to Production for " +
+                "\(CloudSyncConstants.containerIdentifier), then try Sync Now again."
         case .serverError(let msg):
             "Server error: \(msg)"
         case .decodingFailed(let msg):
@@ -123,6 +128,12 @@ public enum CloudSyncError: Error, Sendable, CustomStringConvertible {
     }
 
     public init(from ckError: CKError) {
+        let diagnosticMessage = Self.diagnosticMessage(from: ckError)
+        if let recordType = Self.missingProductionRecordType(in: diagnosticMessage) {
+            self = .productionSchemaMissingRecordType(recordType)
+            return
+        }
+
         switch ckError.code {
         case .networkUnavailable, .networkFailure:
             self = .networkUnavailable
@@ -135,6 +146,34 @@ public enum CloudSyncError: Error, Sendable, CustomStringConvertible {
         default:
             self = .unknown(ckError.localizedDescription)
         }
+    }
+
+    public static func missingProductionRecordType(in message: String) -> String? {
+        guard let start = message.range(
+            of: "Cannot create new type ",
+            options: [.caseInsensitive])
+        else { return nil }
+        let remainder = message[start.upperBound...]
+        guard let end = remainder.range(
+            of: " in production schema",
+            options: [.caseInsensitive])
+        else { return nil }
+        let recordType = remainder[..<end.lowerBound]
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return recordType.isEmpty ? nil : recordType
+    }
+
+    private static func diagnosticMessage(from ckError: CKError) -> String {
+        let userInfoMessages = ckError.userInfo.values.compactMap { value -> String? in
+            if let string = value as? String {
+                return string
+            }
+            if let error = value as? NSError {
+                return error.localizedDescription
+            }
+            return nil
+        }
+        return ([ckError.localizedDescription] + userInfoMessages).joined(separator: "\n")
     }
 }
 

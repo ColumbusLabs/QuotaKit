@@ -645,7 +645,10 @@ struct MobilePane: View {
             if let message = self.syncCoordinator.lastSyncMessage, !message.isEmpty {
                 Text(message)
                     .font(.footnote)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(
+                        self.syncCoordinator.lastSyncMessageIsWarning
+                            ? Color.orange
+                            : Color.red)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
