@@ -2,7 +2,7 @@
 
 QuotaKit is a Columbus Labs app for tracking AI quota, usage, and spend across the tools you use. The Mac app gathers provider data locally, syncs it through iCloud, and the iPhone app turns that data into clear status views, alerts, share cards, and widgets.
 
-This repository is the Columbus Labs QuotaKit codebase. It is derived from CodexBar/CodexBar-Mobile, but QuotaKit releases, bundle identifiers, iCloud containers, StoreKit products, and setup links are owned by Columbus Labs.
+This repository is the Columbus Labs QuotaKit codebase. It preserves upstream CodexBar history, but QuotaKit releases, bundle identifiers, iCloud containers, StoreKit products, and setup links are owned by Columbus Labs.
 
 ## Get QuotaKit
 

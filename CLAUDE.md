@@ -8,7 +8,7 @@ Quick orientation:
 - Company: Columbus Labs
 - Public setup page: `https://columbus-labs.com/quotakit/mac`
 - Origin repo: `https://github.com/ColumbusLabs/QuotaKit.git`
-- Upstream history: inherited from CodexBar / CodexBar-Mobile and intentionally preserved
+- Upstream history: inherited from CodexBar and intentionally preserved
 - iOS app: `CodexBarMobile/`
 - Shared sync layer: `Shared/`
 - Mac internals: `Sources/`, `Package.swift`, and related targets still use inherited implementation names
