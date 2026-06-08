@@ -73,6 +73,50 @@ struct StatusMenuSwitcherRefreshTests {
         #expect(Self.switcherButtons(in: menu).first { $0.tag == nextProviderButton.tag }?.state == .on)
     }
 
+    @Test
+    func `tab switch does not replace quota indicator constraints`() {
+        let switcher = ProviderSwitcherView(
+            providers: [.codex, .claude],
+            selected: .provider(.codex),
+            includesOverview: false,
+            width: 310,
+            showsIcons: false,
+            iconProvider: { _ in NSImage() },
+            weeklyRemainingProvider: { _ in 75.0 },
+            onSelect: { _ in })
+
+        let initialConstraints = switcher._test_quotaIndicatorConstraintIdentifiers()
+        #expect(initialConstraints.count == 2, "both providers should have quota indicators")
+
+        switcher.updateQuotaIndicators()
+
+        let afterFirstCall = switcher._test_quotaIndicatorConstraintIdentifiers()
+        #expect(afterFirstCall == initialConstraints, "same ratio: constraints must not be replaced")
+    }
+
+    @Test
+    func `quota indicator constraints are replaced when ratio changes`() {
+        var currentRemaining = 75.0
+        let switcher = ProviderSwitcherView(
+            providers: [.codex, .claude],
+            selected: .provider(.codex),
+            includesOverview: false,
+            width: 310,
+            showsIcons: false,
+            iconProvider: { _ in NSImage() },
+            weeklyRemainingProvider: { _ in currentRemaining },
+            onSelect: { _ in })
+
+        let initialConstraints = switcher._test_quotaIndicatorConstraintIdentifiers()
+        #expect(initialConstraints.count == 2)
+
+        currentRemaining = 40.0
+        switcher.updateQuotaIndicators()
+
+        let afterDataChange = switcher._test_quotaIndicatorConstraintIdentifiers()
+        #expect(afterDataChange != initialConstraints, "changed ratio: constraints should be replaced")
+    }
+
     private static func makeSettings() -> SettingsStore {
         let suite = "StatusMenuSwitcherRefreshTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!

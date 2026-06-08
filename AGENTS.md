@@ -70,7 +70,7 @@ xcodebuild -project CodexBarMobile/CodexBarMobile.xcodeproj \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-Never run checks that can display macOS Keychain prompts unless the user explicitly asks for live provider validation. Prefer parser tests, stubs, test stores, or no-UI keychain queries.
+Never run tests/checks or ad-hoc validation that can display macOS Keychain prompts unless the user explicitly asks for live provider validation; use parser tests, stubs, test stores, or `KeychainNoUIQuery`.
 
 ## Release Configuration
 

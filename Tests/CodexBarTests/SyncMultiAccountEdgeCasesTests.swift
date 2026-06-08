@@ -18,6 +18,7 @@ struct SyncMultiAccountEdgeCasesTests {
     private func makeSettingsStore(suite: String) -> SettingsStore {
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
+        defaults.set(true, forKey: "providerDetectionCompleted")
         // Ensure mock-provider injection is off — MockProviderInjector
         // reads UserDefaults.standard (process-wide) so a parallel test
         // suite that flipped the flag could leak into our SyncCoordinator
@@ -26,11 +27,13 @@ struct SyncMultiAccountEdgeCasesTests {
         UserDefaults.standard.removeObject(
             forKey: MockProviderInjector.userDefaultsKey)
         let configStore = testConfigStore(suiteName: suite)
-        return SettingsStore(
+        let settings = SettingsStore(
             userDefaults: defaults,
             configStore: configStore,
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.providerDetectionCompleted = true
+        return settings
     }
 
     private func makeUsageStore(settings: SettingsStore) -> UsageStore {

@@ -613,11 +613,14 @@ final class ProviderSwitcherView: NSView {
             let key = ObjectIdentifier(button)
             if let remaining {
                 if var indicator = self.quotaIndicators[key] {
-                    Self.updateQuotaIndicatorFill(
-                        indicator: &indicator,
-                        remainingPercent: remaining,
-                        selection: segment.selection)
-                    self.quotaIndicators[key] = indicator
+                    let newRatio = Self.quotaIndicatorRatio(remainingPercent: remaining)
+                    if newRatio != indicator.fillRatio {
+                        Self.updateQuotaIndicatorFill(
+                            indicator: &indicator,
+                            remainingPercent: remaining,
+                            selection: segment.selection)
+                        self.quotaIndicators[key] = indicator
+                    }
                 } else {
                     self.addQuotaIndicator(to: button, selection: segment.selection, remainingPercent: remaining)
                 }
@@ -689,6 +692,12 @@ final class ProviderSwitcherView: NSView {
     func _test_quotaIndicatorFillFrames() -> [NSRect] {
         self.buttons.compactMap { button in
             self.quotaIndicators[ObjectIdentifier(button)]?.fill.frame
+        }
+    }
+
+    func _test_quotaIndicatorConstraintIdentifiers() -> [ObjectIdentifier] {
+        self.buttons.compactMap { button in
+            self.quotaIndicators[ObjectIdentifier(button)].map { ObjectIdentifier($0.fillWidthConstraint) }
         }
     }
     #endif

@@ -113,7 +113,6 @@ extension StatusItemController {
         else {
             return false
         }
-        self.applyIcon(phase: nil)
         return true
     }
 }

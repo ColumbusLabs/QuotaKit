@@ -1,6 +1,17 @@
 import CodexBarCore
 
 extension StatusItemController {
+    func refreshProviderSelectionDependentUI(refreshOpenMenus: Bool = false) {
+        #if DEBUG
+        guard !self.isReleasedForTesting else { return }
+        #endif
+        self.invalidateMenus(refreshOpenMenus: refreshOpenMenus)
+        self.updateAnimationState()
+        self.updateBlinkingState()
+        let phase: Double? = self.needsMenuBarIconAnimation() ? self.animationPhase : nil
+        self.applyIcon(phase: phase)
+    }
+
     func navigateProviderSwitcher(_ direction: StatusItemMenuProviderNavigationDirection) {
         guard self.shouldMergeIcons else { return }
         let enabledProviders = self.store.enabledProvidersForDisplay()
@@ -36,8 +47,7 @@ extension StatusItemController {
             self.lastMenuProvider = provider
         }
         self.lastMergedSwitcherSelection = selection
-        self.invalidateMenus(refreshOpenMenus: true)
-        self.applyIcon(phase: nil)
+        self.refreshProviderSelectionDependentUI(refreshOpenMenus: true)
     }
 
     private func navigationResolvedProvider(enabledProviders: [UsageProvider]) -> UsageProvider? {

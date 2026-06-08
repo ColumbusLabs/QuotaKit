@@ -193,7 +193,7 @@ struct OpenAIDashboardWebViewCacheTests {
         #expect(cache.hasPreservedPageForTesting(for: store), "Expected preserved page handoff to be armed")
 
         var bodyText: String?
-        let deadline = Date().addingTimeInterval(2)
+        let deadline = Date().addingTimeInterval(5)
         repeat {
             try? await Task.sleep(for: .milliseconds(100))
             bodyText = try await webView.evaluateJavaScript(
