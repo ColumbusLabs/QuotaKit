@@ -9,8 +9,14 @@ QuotaKit currently tracks three version lanes.
 - `MARKETING_VERSION`: Mac app version.
 - `BUILD_NUMBER`: Mac build number.
 - `MOBILE_VERSION`: paired iOS companion version.
-- `UPSTREAM_VERSION`: last upstream CodexBar version incorporated.
-- `UPSTREAM_SYNC_DATE`: date that upstream alignment was last confirmed.
+- `UPSTREAM_VERSION`: last upstream CodexBar version shipped to users.
+- `UPSTREAM_SYNC_DATE`: date that shipped upstream alignment was last confirmed.
+- `UPSTREAM_MONITOR_BASE`: last upstream CodexBar commit already merged or reviewed for the daily monitor.
+
+`UPSTREAM_VERSION` is release-facing and should only advance after users can get
+the corresponding QuotaKit release. `UPSTREAM_MONITOR_BASE` is workflow-facing
+and should advance when an upstream sync PR lands, so the daily monitor only
+reopens issues for newly-arrived Pete upstream commits.
 
 The Mac release tag for Columbus Labs releases is:
 
