@@ -3,6 +3,7 @@ import SwiftUI
 enum QKStatusChipStyle {
     case live
     case stale
+    case error
     case demo
     case mock
     case neutral
@@ -14,12 +15,14 @@ struct QKStatusChip: View {
     var style: QKStatusChipStyle = .neutral
     var systemImage: String?
     var accentColor: Color?
+    var isLoading = false
 
     private var tint: Color {
         if let accentColor { return accentColor }
         switch self.style {
         case .live: return Color.green
         case .stale: return Color.orange
+        case .error: return Color.red
         case .demo: return self.theme.accent
         case .mock: return Color.purple
         case .neutral: return self.theme.textMuted
@@ -28,7 +31,11 @@ struct QKStatusChip: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            if let systemImage {
+            if self.isLoading {
+                ProgressView()
+                    .controlSize(.mini)
+                    .tint(self.tint)
+            } else if let systemImage {
                 Image(systemName: systemImage)
                     .font(.caption2.weight(.semibold))
             }

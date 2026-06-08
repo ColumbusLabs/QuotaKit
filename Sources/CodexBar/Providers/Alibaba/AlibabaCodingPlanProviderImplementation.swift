@@ -90,7 +90,7 @@ struct AlibabaCodingPlanProviderImplementation: ProviderImplementation {
             ProviderSettingsFieldDescriptor(
                 id: "alibaba-coding-plan-api-key",
                 title: "API key",
-                subtitle: "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio.",
+                subtitle: "Stored in ~/.quotakit/config.json. Paste your Coding Plan API key from Model Studio.",
                 kind: .secure,
                 placeholder: "cpk-...",
                 binding: context.stringBinding(\.alibabaCodingPlanAPIToken),

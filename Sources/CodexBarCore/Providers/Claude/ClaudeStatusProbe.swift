@@ -433,12 +433,12 @@ public struct ClaudeStatusProbe: Sendable {
             }
             if let folderHint {
                 return """
-                Claude CLI is waiting for a folder trust prompt (\(folderHint)). CodexBar tries to auto-accept this, \
+                Claude CLI is waiting for a folder trust prompt (\(folderHint)). QuotaKit tries to auto-accept this, \
                 but if it keeps appearing run: `cd "\(folderHint)" && claude` and choose “Yes, proceed”, then retry.
                 """
             }
             return """
-            Claude CLI is waiting for a folder trust prompt. CodexBar tries to auto-accept this, but if it keeps \
+            Claude CLI is waiting for a folder trust prompt. QuotaKit tries to auto-accept this, but if it keeps \
             appearing open `claude` once, choose “Yes, proceed”, then retry.
             """
         }

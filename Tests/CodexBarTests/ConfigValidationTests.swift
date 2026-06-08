@@ -103,11 +103,51 @@ struct ConfigValidationTests {
     }
 
     @Test
-    func `config store default url honors environment override`() {
+    func `config store default url honors preferred environment override`() {
         let url = CodexBarConfigStore.defaultURL(environment: [
-            CodexBarConfigStore.pathEnvironmentKey: "~/tmp/codexbar-test-config.json",
+            CodexBarConfigStore.pathEnvironmentKey: "~/tmp/quotakit-test-config.json",
+        ])
+
+        #expect(url.path.hasSuffix("/tmp/quotakit-test-config.json"))
+    }
+
+    @Test
+    func `config store default url uses quotakit directory`() {
+        let home = URL(fileURLWithPath: "/tmp/quotakit-home", isDirectory: true)
+        let url = CodexBarConfigStore.defaultURL(home: home, environment: [:])
+
+        #expect(url.path == "/tmp/quotakit-home/.quotakit/config.json")
+    }
+
+    @Test
+    func `config store legacy environment override still works`() {
+        let url = CodexBarConfigStore.defaultURL(environment: [
+            CodexBarConfigStore.legacyPathEnvironmentKey: "~/tmp/codexbar-test-config.json",
         ])
 
         #expect(url.path.hasSuffix("/tmp/codexbar-test-config.json"))
+    }
+
+    @Test
+    func `config store migrates legacy default config when preferred config is absent`() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("quotakit-config-migration-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let legacyURL = CodexBarConfigStore.legacyDefaultURL(home: root)
+        try FileManager.default.createDirectory(
+            at: legacyURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        let config = CodexBarConfig.makeDefault()
+        let data = try JSONEncoder().encode(config)
+        try data.write(to: legacyURL)
+
+        let preferredURL = CodexBarConfigStore.defaultURL(home: root, environment: [:])
+        let store = CodexBarConfigStore(fileURL: preferredURL)
+        let loaded = try store.load()
+
+        #expect(loaded != nil)
+        #expect(FileManager.default.fileExists(atPath: preferredURL.path))
+        #expect(FileManager.default.fileExists(atPath: legacyURL.path))
     }
 }

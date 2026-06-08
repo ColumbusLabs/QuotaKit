@@ -65,7 +65,7 @@ struct MoonshotProviderImplementation: ProviderImplementation {
             ProviderSettingsFieldDescriptor(
                 id: "moonshot-api-key",
                 title: "API key",
-                subtitle: "Stored in ~/.codexbar/config.json.",
+                subtitle: "Stored in ~/.quotakit/config.json.",
                 kind: .secure,
                 placeholder: "sk-...",
                 binding: context.stringBinding(\.moonshotAPIToken),

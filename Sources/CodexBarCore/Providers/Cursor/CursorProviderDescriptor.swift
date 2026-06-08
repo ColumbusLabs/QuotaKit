@@ -29,7 +29,7 @@ public enum CursorProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .cursor,
                 iconResourceName: "ProviderIcon-cursor",
-                color: ProviderColor(red: 0 / 255, green: 191 / 255, blue: 165 / 255)),
+                color: ProviderColor(red: 0, green: 0, blue: 0)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Cursor cost summary is not supported." }),

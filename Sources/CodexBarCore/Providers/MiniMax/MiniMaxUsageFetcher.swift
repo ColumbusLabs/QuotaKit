@@ -117,7 +117,7 @@ public struct MiniMaxUsageFetcher: Sendable {
         request.setValue("Bearer \(apiToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("CodexBar", forHTTPHeaderField: "MM-API-Source")
+        request.setValue("QuotaKit", forHTTPHeaderField: "MM-API-Source")
 
         let response: ProviderHTTPResponse
         do {

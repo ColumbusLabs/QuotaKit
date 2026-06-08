@@ -181,6 +181,10 @@ check_codex_parser_hash() {
   "${ROOT_DIR}/Scripts/regenerate-codex-parser-hash.sh" --check
 }
 
+audit_customer_branding() {
+  python3 "${ROOT_DIR}/Scripts/audit_customer_branding.py"
+}
+
 cmd="${1:-lint}"
 
 case "$cmd" in
@@ -189,6 +193,7 @@ case "$cmd" in
     "${BIN_DIR}/swiftformat" Sources Tests --lint
     "${BIN_DIR}/swiftlint" --strict
     audit_xcstrings
+    audit_customer_branding
     audit_parser_version
     check_codex_parser_hash
     ;;
@@ -205,8 +210,11 @@ case "$cmd" in
   audit-parser-hash)
     check_codex_parser_hash
     ;;
+  audit-customer-branding)
+    audit_customer_branding
+    ;;
   *)
-    printf 'Usage: %s [lint|format|audit-i18n|audit-parser-version|audit-parser-hash]\n' "$(basename "$0")" >&2
+    printf 'Usage: %s [lint|format|audit-i18n|audit-parser-version|audit-parser-hash|audit-customer-branding]\n' "$(basename "$0")" >&2
     exit 2
     ;;
 esac

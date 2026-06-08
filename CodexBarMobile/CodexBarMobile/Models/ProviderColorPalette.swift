@@ -24,35 +24,25 @@ enum ProviderColorPalette {
             .lowercased()
             .replacingOccurrences(of: " ", with: "")
 
+        // Mirrors the Mac ProviderDescriptorRegistry branding colors for
+        // customer-facing provider UI. Keep narrow matches before broad ones.
+        //
         // Specific new providers from upstream v0.20 — these come first
         // because `opencodego.contains("opencode")` would otherwise grab the
         // more general rule below and collapse Go into Zen's blue.
         if normalized.contains("perplexity") {
-            // Perplexity brand teal (#21808D) — distinct from Claude orange
-            // and Codex purple.
-            return Color(red: 0.13, green: 0.50, blue: 0.55)
+            return Color(red: 32 / 255, green: 178 / 255, blue: 170 / 255)
         }
         if normalized.contains("opencodego") {
-            // Mint — visually distinct from OpenCode Zen's blue so a user
-            // with both products enabled can tell the cards apart at a glance.
-            return .mint
+            return Color(red: 59 / 255, green: 130 / 255, blue: 246 / 255)
         }
 
         // Specific new providers from upstream v0.21 / v0.23 (iOS 1.5.0).
         if normalized.contains("abacus") {
-            // Abacus AI — brown/amber (#8B5E3C). Distinct from Claude's
-            // orange-tan (warmer hue) and from any of the existing colors.
-            // Picked to evoke the wooden-bead-counter abacus association
-            // while staying readable in dark mode against neutral cards.
-            return Color(red: 0.55, green: 0.37, blue: 0.24)
+            return Color(red: 56 / 255, green: 189 / 255, blue: 248 / 255)
         }
         if normalized.contains("mistral") {
-            // Mistral — vibrant red (#E63946). Mistral's official brand
-            // color is fire-orange (#FF7A00) but that collides with
-            // Claude's orange-tan; shifting to red preserves the warm-tone
-            // brand intent while staying visually distinct in the card
-            // grid and the 30-day utilization stacked bar chart.
-            return Color(red: 0.90, green: 0.22, blue: 0.27)
+            return Color(red: 255 / 255, green: 80 / 255, blue: 15 / 255)
         }
 
         // Specific new providers from upstream v0.24 / v0.25 (iOS 1.6.0).
@@ -60,72 +50,35 @@ enum ProviderColorPalette {
         // from v0.25) inherits the existing ChatGPT-green rule below since
         // both share the `openai` providerID.
         //
-        // Color choices avoid the existing palette zones (claude orange-tan,
-        // codex/cursor purple, openai/chatgpt green, gemini cyan, openrouter
-        // indigo, perplexity teal, opencodego mint, opencode blue,
-        // abacus brown, mistral red).
         if normalized.contains("windsurf") {
-            // Windsurf (Codeium) — navy (#1A3372). Distinct from the
-            // opencode `.blue` fallback (deeper, more saturated).
-            return Color(red: 0.10, green: 0.20, blue: 0.45)
+            return Color(red: 52 / 255, green: 232 / 255, blue: 187 / 255)
         }
         if normalized.contains("codebuff") {
-            // Codebuff — olive (#808833). Distinguishes from gemini cyan
-            // and the .green ChatGPT/OpenAI rule below. Substring "code" is
-            // shared with `commandcode` (both have their own `if`); neither
-            // matches the broader `code` substring (there is no such rule).
-            return Color(red: 0.50, green: 0.55, blue: 0.20)
+            return Color(red: 68 / 255, green: 255 / 255, blue: 0 / 255)
         }
         if normalized.contains("deepseek") {
-            // DeepSeek — royal blue (#4D6BFE). DeepSeek's official brand
-            // color. Distinct from the .blue opencode fallback (more
-            // saturated, brighter).
-            return Color(red: 0.30, green: 0.42, blue: 1.0)
+            return Color(red: 0.32, green: 0.49, blue: 0.94)
         }
         if normalized.contains("manus") {
-            // Manus — violet (#8B40BF). Sits between codex purple (which
-            // is .purple, ~ #800080) and a redder magenta; keeps the
-            // "agent-tool" cluster visually grouped while remaining distinct.
-            return Color(red: 0.55, green: 0.25, blue: 0.75)
+            return Color(red: 52 / 255, green: 50 / 255, blue: 45 / 255)
         }
         if normalized.contains("mimo") {
-            // Xiaomi MiMo — bright orange (#FF8C00). Xiaomi's brand orange
-            // is close to Claude orange-tan; shifted brighter / more saturated
-            // so the two are distinguishable in dark mode and stacked charts.
-            return Color(red: 1.0, green: 0.55, blue: 0.0)
+            return Color(red: 1.0, green: 105 / 255, blue: 0)
         }
         if normalized.contains("doubao") {
-            // Doubao (ByteDance/Volcengine) — hot pink (#FF6699). Avoids
-            // the red zone Mistral owns and the warm-orange Claude/MiMo
-            // zone, while staying in the "warm-toned brand" family.
-            return Color(red: 1.0, green: 0.40, blue: 0.60)
+            return Color(red: 51 / 255, green: 112 / 255, blue: 255 / 255)
         }
         if normalized.contains("commandcode") {
-            // Command Code — slate gray (#66728A). Neutral / professional
-            // tone since Command Code is a CLI billing tool; distinct from
-            // every brand-colored provider. Also a hedge: substring "code"
-            // is shared with codebuff (above) and `codex` (below), but the
-            // specificity of `commandcode.contains("commandcode")` matches
-            // here first; `commandcode.contains("codex") == false`.
-            return Color(red: 0.40, green: 0.45, blue: 0.54)
+            return Color(red: 0, green: 0, blue: 0)
         }
         if normalized.contains("stepfun") {
-            // StepFun — bright violet (#A659F2). The brighter cousin of
-            // Manus violet; placed AFTER manus so the brighter shade lights
-            // up for stepfun specifically.
-            return Color(red: 0.65, green: 0.35, blue: 0.95)
+            return Color(red: 0.13, green: 0.59, blue: 0.95)
         }
         if normalized.contains("crof") {
-            // Crof — amber (#D9A61A). Sits between Abacus brown (cooler)
-            // and the yellow zone; deliberately bright so it doesn't read
-            // as "mustard" against neutral cards.
-            return Color(red: 0.85, green: 0.65, blue: 0.10)
+            return Color(red: 0.18, green: 0.67, blue: 0.58)
         }
         if normalized.contains("venice") {
-            // Venice — plum (#8C5990). A pinker / warmer purple than
-            // Codex (.purple) or Manus violet; keeps the multi-provider
-            // purple cluster legible at a glance.
-            return Color(red: 0.55, green: 0.35, blue: 0.55)
+            return Color(red: 0.2, green: 0.6, blue: 1.0)
         }
 
         // iOS 1.8.0 — upstream v0.27.0 new providers (5 picks).
@@ -135,28 +88,13 @@ enum ProviderColorPalette {
         // pure-voice teal, Deepgram brand purple, LLM Proxy neutral
         // slate since it's a meta-provider).
         if normalized.contains("grok") {
-            // xAI Grok — charcoal black (#1A1A1A). Matches Grok brand
-            // identity (xAI "X" minimalist black on white). Distinct
-            // from any colored brand in the palette; reads as neutral
-            // strong card frame in dark + light mode.
-            return Color(red: 0.10, green: 0.10, blue: 0.12)
+            return Color(red: 16 / 255, green: 163 / 255, blue: 127 / 255)
         }
         if normalized.contains("groq") {
-            // GroqCloud — orange-red (#F55036). GroqCloud official
-            // brand uses orange and red gradients. Distinct from
-            // Mistral red (#E63946 — pure red) and MiMo orange
-            // (#FF8C00 — pure orange) by sitting between them. Note
-            // specificity: `grok` matched above, so reaching this
-            // line requires `groq` (with q).
-            return Color(red: 0.96, green: 0.31, blue: 0.21)
+            return Color(red: 245 / 255, green: 104 / 255, blue: 68 / 255)
         }
         if normalized.contains("elevenlabs") {
-            // ElevenLabs — pure black-and-white brand → use a
-            // soft sage-green (#7AAE82). Distinct from gemini cyan,
-            // codebuff olive, and the OpenAI greens. Evokes "voice
-            // / audio waveform" without colliding with existing
-            // palette zones.
-            return Color(red: 0.48, green: 0.68, blue: 0.51)
+            return Color(red: 0.92, green: 0.92, blue: 0.90)
         }
         if normalized.contains("deepgram") {
             // Deepgram — brand purple (#7C3AED). Distinct from
@@ -166,12 +104,7 @@ enum ProviderColorPalette {
             return Color(red: 0.49, green: 0.23, blue: 0.93)
         }
         if normalized.contains("llmproxy") || normalized.contains("llm-proxy") {
-            // LLM Proxy — neutral slate-blue (#5C7A99). LLM Proxy is
-            // a meta-provider that aggregates upstream models, so
-            // intentionally neutral / "infrastructure" tone. Distinct
-            // from commandcode slate-gray (#66728A — warmer / more
-            // gray) by being slightly cooler / bluer.
-            return Color(red: 0.36, green: 0.48, blue: 0.60)
+            return Color(red: 36 / 255, green: 180 / 255, blue: 126 / 255)
         }
 
         // iOS 1.9.0 — upstream v0.28.0+v0.29.0 new providers (3 picks).
@@ -185,24 +118,18 @@ enum ProviderColorPalette {
             return Color(red: 0.0, green: 0.47, blue: 0.83)
         }
         if normalized.contains("alibabatokenplan") {
-            // Alibaba Token Plan (Bailian) — Alibaba orange (#F26A0D).
-            // Sits in the warm-orange family (MiMo/Bedrock) but redder so the
-            // Bailian quota card reads distinctly. The base `alibaba` (Qwen)
-            // provider keeps the .blue fallback — it is a different product.
-            return Color(red: 0.95, green: 0.42, blue: 0.05)
+            return Color(red: 1.0, green: 106 / 255, blue: 0)
+        }
+        if normalized.contains("alibaba") {
+            return Color(red: 1.0, green: 106 / 255, blue: 0)
         }
         if normalized.contains("t3chat") {
-            // T3 Chat — rose-pink (#E84A99). T3's brand accent is a pink /
-            // magenta; placed apart from doubao hot-pink and antigravity
-            // magenta by being a brighter rose.
-            return Color(red: 0.91, green: 0.29, blue: 0.60)
+            return Color(red: 245 / 255, green: 102 / 255, blue: 71 / 255)
         }
 
         // iOS 1.7.0 — upstream v0.26.0 new providers.
         if normalized.contains("moonshot") || normalized.contains("kimi-api") {
-            // Moonshot / Kimi API — deep indigo (#3C4FE0). Distinct
-            // from Kimi (existing) cooler blue and Antigravity.
-            return Color(red: 0.24, green: 0.31, blue: 0.88)
+            return Color(red: 32 / 255, green: 93 / 255, blue: 235 / 255)
         }
         if normalized.contains("bedrock") {
             // AWS Bedrock — AWS-orange (#FF9900). The most recognizable
@@ -214,42 +141,75 @@ enum ProviderColorPalette {
         // back to .blue otherwise). Adding distinct tints so the
         // multi-card grid stays legible.
         if normalized.contains("kiro") {
-            // Kiro — emerald (#3F9D7C). Stands apart from gemini cyan
-            // and the openrouter purple cluster.
-            return Color(red: 0.25, green: 0.62, blue: 0.49)
+            return Color(red: 255 / 255, green: 153 / 255, blue: 0 / 255)
         }
         if normalized.contains("zai") || normalized.contains("z.ai") {
-            // z.ai — slate teal (#2E7080). Cooler than perplexity teal,
-            // warmer than gemini cyan.
-            return Color(red: 0.18, green: 0.44, blue: 0.50)
+            return Color(red: 232 / 255, green: 90 / 255, blue: 106 / 255)
         }
         if normalized.contains("antigravity") {
-            // Antigravity — saturated magenta (#C8358A). Distinct from
-            // the purple cluster (Codex/Cursor) and from venice plum.
-            return Color(red: 0.78, green: 0.21, blue: 0.54)
+            return Color(red: 96 / 255, green: 186 / 255, blue: 126 / 255)
+        }
+        if normalized.contains("factory") || normalized.contains("droid") {
+            return Color(red: 255 / 255, green: 107 / 255, blue: 53 / 255)
+        }
+        if normalized.contains("copilot") {
+            return Color(red: 168 / 255, green: 85 / 255, blue: 247 / 255)
+        }
+        if normalized.contains("kimik2") || normalized.contains("kimik2unofficial") {
+            return Color(red: 76 / 255, green: 0 / 255, blue: 255 / 255)
+        }
+        if normalized.contains("kimi") {
+            return Color(red: 254 / 255, green: 96 / 255, blue: 60 / 255)
+        }
+        if normalized.contains("minimax") {
+            return Color(red: 254 / 255, green: 96 / 255, blue: 60 / 255)
+        }
+        if normalized.contains("kilo") {
+            return Color(red: 242 / 255, green: 112 / 255, blue: 39 / 255)
+        }
+        if normalized.contains("vertexai") || normalized.contains("vertex") {
+            return Color(red: 66 / 255, green: 133 / 255, blue: 244 / 255)
+        }
+        if normalized.contains("augment") {
+            return Color(red: 99 / 255, green: 102 / 255, blue: 241 / 255)
+        }
+        if normalized.contains("jetbrains") {
+            return Color(red: 255 / 255, green: 51 / 255, blue: 153 / 255)
+        }
+        if normalized.contains("amp") {
+            return Color(red: 220 / 255, green: 38 / 255, blue: 38 / 255)
+        }
+        if normalized.contains("ollama") {
+            return Color(red: 136 / 255, green: 136 / 255, blue: 136 / 255)
+        }
+        if normalized.contains("synthetic") {
+            return Color(red: 20 / 255, green: 20 / 255, blue: 20 / 255)
+        }
+        if normalized.contains("warp") {
+            return Color(red: 147 / 255, green: 139 / 255, blue: 180 / 255)
         }
 
         // Existing provider mappings — preserved from pre-1.3.0 behavior.
         if normalized.contains("claude") || normalized.contains("anthropic") {
-            return Color(red: 0.82, green: 0.55, blue: 0.28)
+            return Color(red: 204 / 255, green: 124 / 255, blue: 94 / 255)
         }
-        if normalized.contains("codex") || normalized.contains("cursor") {
-            return .purple
+        if normalized.contains("codex") {
+            return Color(red: 73 / 255, green: 163 / 255, blue: 176 / 255)
+        }
+        if normalized.contains("cursor") {
+            return Color(red: 0, green: 0, blue: 0)
         }
         if normalized.contains("openai") || normalized.contains("chatgpt") {
-            return .green
+            return Color(red: 0.06, green: 0.51, blue: 0.43)
         }
         if normalized.contains("gemini") {
-            return .cyan
+            return Color(red: 171 / 255, green: 135 / 255, blue: 234 / 255)
         }
         if normalized.contains("openrouter") {
-            return Color(red: 0.42, green: 0.35, blue: 0.83)
+            return Color(red: 100 / 255, green: 103 / 255, blue: 242 / 255)
         }
         if normalized.contains("opencode") {
-            // OpenCode Zen (the original `opencode` ID). Kept at blue which
-            // is also the implicit fallback, but making it explicit keeps
-            // the matrix readable when a future provider claims the fallback.
-            return .blue
+            return Color(red: 59 / 255, green: 130 / 255, blue: 246 / 255)
         }
         return .blue
     }

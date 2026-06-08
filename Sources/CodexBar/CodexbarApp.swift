@@ -31,7 +31,7 @@ struct CodexBarApp: App {
         let gitCommit = Bundle.main.object(forInfoDictionaryKey: "CodexGitCommit") as? String ?? "unknown"
         let buildTimestamp = Bundle.main.object(forInfoDictionaryKey: "CodexBuildTimestamp") as? String ?? "unknown"
         CodexBarLog.logger(LogCategories.app).info(
-            "CodexBar starting",
+            "QuotaKit starting",
             metadata: [
                 "version": version,
                 "build": build,
@@ -324,7 +324,7 @@ private func makeUpdaterController() -> UpdaterProviding {
 
     if InstallOrigin.isHomebrewCask(appBundleURL: bundleURL) {
         return DisabledUpdaterController(
-            unavailableReason: "Updates managed by Homebrew. Run: brew upgrade --cask steipete/tap/codexbar")
+            unavailableReason: "Updates managed by Homebrew. Run the Homebrew upgrade command for QuotaKit.")
     }
 
     guard isDeveloperIDSigned(bundleURL: bundleURL) else {

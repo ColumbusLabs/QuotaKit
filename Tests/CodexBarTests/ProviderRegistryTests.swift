@@ -29,4 +29,18 @@ struct ProviderRegistryTests {
 
         #expect(zaiIndex < minimaxIndex)
     }
+
+    @Test
+    func `priority provider brand colors match QuotaKit palette`() {
+        expectColor(.codex, red: 73 / 255, green: 163 / 255, blue: 176 / 255)
+        expectColor(.claude, red: 204 / 255, green: 124 / 255, blue: 94 / 255)
+        expectColor(.cursor, red: 0, green: 0, blue: 0)
+    }
+}
+
+private func expectColor(_ provider: UsageProvider, red: Double, green: Double, blue: Double) {
+    let color = ProviderDescriptorRegistry.descriptor(for: provider).branding.color
+    #expect(abs(color.red - red) < 0.001, "\(provider.rawValue) red channel changed")
+    #expect(abs(color.green - green) < 0.001, "\(provider.rawValue) green channel changed")
+    #expect(abs(color.blue - blue) < 0.001, "\(provider.rawValue) blue channel changed")
 }

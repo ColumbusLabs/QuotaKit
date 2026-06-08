@@ -18,7 +18,7 @@ struct WarpProviderImplementation: ProviderImplementation {
             ProviderSettingsFieldDescriptor(
                 id: "warp-api-token",
                 title: "API key",
-                subtitle: "Stored in ~/.codexbar/config.json. In Warp, open Settings > Platform > API Keys, "
+                subtitle: "Stored in ~/.quotakit/config.json. In Warp, open Settings > Platform > API Keys, "
                     + "then create one.",
                 kind: .secure,
                 placeholder: "wk-...",

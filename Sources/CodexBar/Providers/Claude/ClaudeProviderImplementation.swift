@@ -69,7 +69,7 @@ struct ClaudeProviderImplementation: ProviderImplementation {
         let subtitle = if context.settings.debugDisableKeychainAccess {
             "Inactive while \"Disable Keychain access\" is enabled in Advanced."
         } else {
-            "Use /usr/bin/security to read Claude credentials and avoid CodexBar keychain prompts."
+            "Use /usr/bin/security to read Claude credentials and avoid QuotaKit keychain prompts."
         }
 
         let promptFreeBinding = Binding(
@@ -193,7 +193,7 @@ struct ClaudeProviderImplementation: ProviderImplementation {
             ProviderSettingsFieldDescriptor(
                 id: "claude-admin-api-key",
                 title: "Admin API key",
-                subtitle: "Stored in ~/.codexbar/config.json. Requires an Anthropic Admin API key.",
+                subtitle: "Stored in ~/.quotakit/config.json. Requires an Anthropic Admin API key.",
                 kind: .secure,
                 placeholder: "sk-ant-admin...",
                 binding: context.stringBinding(\.claudeAdminAPIKey),

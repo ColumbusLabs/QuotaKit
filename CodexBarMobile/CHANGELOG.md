@@ -15,6 +15,8 @@ current Columbus Labs product surface and recent release history.
 - Appearance picker (Dark / Light / System) with dark as the default for new installs.
 - Unified sync status chips across Usage and Cost tabs (single demo indicator, shared
   stale threshold).
+- Sync freshness chips now tick live, can be tapped to refresh, and keep showing
+  refreshing or failed-refresh state after pull-to-refresh releases.
 - Added public Columbus Labs remote config guardrails for safe setup-link overrides,
   announcements, and feature kill switches. Native app changes still require a
   TestFlight/App Store build.

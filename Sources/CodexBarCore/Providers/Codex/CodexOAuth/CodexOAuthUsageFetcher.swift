@@ -243,7 +243,7 @@ public enum CodexOAuthUsageFetcher {
         request.httpMethod = "GET"
         request.timeoutInterval = 30
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("CodexBar", forHTTPHeaderField: "User-Agent")
+        request.setValue("QuotaKit", forHTTPHeaderField: "User-Agent")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         if let accountId, !accountId.isEmpty {

@@ -18,7 +18,7 @@ struct KimiK2ProviderImplementation: ProviderImplementation {
             ProviderSettingsFieldDescriptor(
                 id: "kimi-k2-api-token",
                 title: "API key",
-                subtitle: "Stored in ~/.codexbar/config.json. For the official Kimi API, use Moonshot / Kimi API.",
+                subtitle: "Stored in ~/.quotakit/config.json. For the official Kimi API, use Moonshot / Kimi API.",
                 kind: .secure,
                 placeholder: "Paste API key…",
                 binding: context.stringBinding(\.kimiK2APIToken),
@@ -29,7 +29,9 @@ struct KimiK2ProviderImplementation: ProviderImplementation {
                         style: .link,
                         isVisible: nil,
                         perform: {
-                            if let url = URL(string: "https://github.com/steipete/CodexBar/blob/main/docs/kimi-k2.md") {
+                            if let url =
+                                URL(string: "https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/kimi-k2.md")
+                            {
                                 NSWorkspace.shared.open(url)
                             }
                         }),

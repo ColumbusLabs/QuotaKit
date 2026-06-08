@@ -1198,7 +1198,7 @@ public enum ClaudeOAuthCredentialsStore {
         }
 
         self.saveToCacheKeychain(jsonData, owner: .codexbar)
-        self.log.debug("Saved refreshed credentials to CodexBar keychain cache")
+        self.log.debug("Saved refreshed credentials to QuotaKit keychain cache")
     }
 
     /// Response from the OAuth token refresh endpoint

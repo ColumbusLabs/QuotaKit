@@ -215,7 +215,7 @@ public struct OpenRouterUsageFetcher: Sendable {
     private static let debugFullErrorBodiesEnvKey = "CODEXBAR_DEBUG_OPENROUTER_ERROR_BODIES"
     private static let httpRefererEnvKey = "OPENROUTER_HTTP_REFERER"
     private static let clientTitleEnvKey = "OPENROUTER_X_TITLE"
-    private static let defaultClientTitle = "CodexBar"
+    private static let defaultClientTitle = "QuotaKit"
 
     /// Fetches credits usage from OpenRouter using the provided API key
     public static func fetchUsage(

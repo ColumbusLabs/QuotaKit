@@ -11,6 +11,11 @@ struct MenuCardProviderRegressionTests {
     }
 
     @Test
+    func `cursor progress color stays visible while descriptor brand stays black`() {
+        #expect(UsageMenuCardView.Model.progressColor(for: .cursor) == Color(nsColor: .labelColor))
+    }
+
+    @Test
     func `open router model shows daily and weekly key spend`() throws {
         let now = Date()
         let metadata = try #require(ProviderDefaults.metadata[.openrouter])

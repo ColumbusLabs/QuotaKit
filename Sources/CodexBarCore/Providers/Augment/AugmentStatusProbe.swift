@@ -247,7 +247,7 @@ public enum AugmentStatusProbeError: LocalizedError, Sendable {
     public var errorDescription: String? {
         switch self {
         case .notLoggedIn:
-            "Not logged in to Augment. Please log in via the CodexBar menu."
+            "Not logged in to Augment. Please log in via the QuotaKit menu."
         case let .networkError(msg):
             "Augment API error: \(msg)"
         case let .parseFailed(msg):
@@ -273,7 +273,7 @@ public actor AugmentSessionStore {
         let fm = FileManager.default
         let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? fm.temporaryDirectory
-        let dir = appSupport.appendingPathComponent("CodexBar", isDirectory: true)
+        let dir = appSupport.appendingPathComponent("QuotaKit", isDirectory: true)
         try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
         self.fileURL = dir.appendingPathComponent("augment-session.json")
 

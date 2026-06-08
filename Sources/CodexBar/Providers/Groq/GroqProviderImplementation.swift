@@ -28,7 +28,7 @@ struct GroqProviderImplementation: ProviderImplementation {
             ProviderSettingsFieldDescriptor(
                 id: "groq-api-key",
                 title: "API key",
-                subtitle: "Stored in ~/.codexbar/config.json. Metrics require Groq Enterprise Prometheus access.",
+                subtitle: "Stored in ~/.quotakit/config.json. Metrics require Groq Enterprise Prometheus access.",
                 kind: .secure,
                 placeholder: "gsk_...",
                 binding: context.stringBinding(\.groqAPIKey),

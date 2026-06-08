@@ -6,8 +6,8 @@ import SwiftData
 
 /// Detailed sync status for UI display.
 enum SyncStatus: Sendable, Equatable {
-    /// Successfully synced, showing how long ago.
-    case synced(ago: TimeInterval)
+    /// Successfully synced at the Mac-confirmed snapshot timestamp.
+    case synced(lastConfirmedSync: Date)
     /// Currently fetching data from CloudKit.
     case syncing
     /// Sync failed with a specific error message.
@@ -59,6 +59,12 @@ final class SyncedUsageData {
 
     /// Number of Mac devices contributing data.
     var deviceCount: Int { deviceSnapshots.count }
+
+    /// True while a user-visible full refresh is in flight.
+    var isRefreshing: Bool {
+        if case .syncing = self.syncStatus { return true }
+        return false
+    }
 
     // MARK: - Private state
 
@@ -392,7 +398,7 @@ final class SyncedUsageData {
             deviceSnapshots, linkages: self.providerLinkages)
         {
             self.snapshot = merged
-            self.syncStatus = .synced(ago: Date().timeIntervalSince(merged.syncTimestamp))
+            self.syncStatus = .synced(lastConfirmedSync: merged.syncTimestamp)
             WidgetSnapshotPublisher.publish(from: merged)
 
             // Persist the merged per-device view to SwiftData for next cold
@@ -546,7 +552,7 @@ final class SyncedUsageData {
             deviceSnapshots, linkages: self.providerLinkages)
         {
             self.snapshot = merged
-            self.syncStatus = .synced(ago: Date().timeIntervalSince(merged.syncTimestamp))
+            self.syncStatus = .synced(lastConfirmedSync: merged.syncTimestamp)
             WidgetSnapshotPublisher.publish(from: merged)
         } else {
             self.syncStatus = .incompatibleData
@@ -564,18 +570,7 @@ final class SyncedUsageData {
     var syncAge: String? {
         guard let timestamp = snapshot?.syncTimestamp else { return nil }
         let interval = Date().timeIntervalSince(timestamp)
-        if interval < 60 {
-            return String(localized: "Just now")
-        } else if interval < 3600 {
-            let minutes = Int(interval / 60)
-            return "\(minutes.formatted()) \(String(localized: "min ago"))"
-        } else if interval < 86400 {
-            let hours = Int(interval / 3600)
-            return "\(hours.formatted())\(String(localized: "h ago"))"
-        } else {
-            let days = Int(interval / 86400)
-            return "\(days.formatted())\(String(localized: "d ago"))"
-        }
+        return SyncFreshnessFormatter.ageText(elapsed: interval)
     }
 
     /// Names of all Mac devices contributing data.

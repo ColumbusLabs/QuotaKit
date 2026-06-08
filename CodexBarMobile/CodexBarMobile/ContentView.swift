@@ -270,7 +270,11 @@ struct ProviderListView: View {
                     SyncStatusChipView(
                         placement: .header,
                         isDemoMode: false,
-                        snapshot: self.usageData.snapshot)
+                        snapshot: self.usageData.snapshot,
+                        syncStatus: self.usageData.syncStatus,
+                        refreshAction: {
+                            Task { await self.usageData.refresh() }
+                        })
                 }
 
                 if access.isLimited {
@@ -349,7 +353,11 @@ struct ProviderListView: View {
                 SyncStatusChipView(
                     placement: .footer,
                     isDemoMode: self.isDemoMode,
-                    snapshot: self.usageData.snapshot)
+                    snapshot: self.usageData.snapshot,
+                    syncStatus: self.usageData.syncStatus,
+                    refreshAction: self.isDemoMode ? nil : {
+                        Task { await self.usageData.refresh() }
+                    })
                     .frame(maxWidth: .infinity)
                     .padding(.top, 4)
             }
@@ -601,7 +609,11 @@ private struct CostDashboardView: View {
                 SyncStatusChipView(
                     placement: .footer,
                     isDemoMode: self.isDemoMode,
-                    snapshot: self.usageData.snapshot)
+                    snapshot: self.usageData.snapshot,
+                    syncStatus: self.usageData.syncStatus,
+                    refreshAction: self.isDemoMode ? nil : {
+                        Task { await self.usageData.refresh() }
+                    })
                     .frame(maxWidth: .infinity)
                     .padding(.top, 4)
             }
@@ -1939,28 +1951,30 @@ private struct AboutSyncDetailView: View {
 
             // MARK: Sync Status
             Section {
-                HStack {
-                    self.syncStatusIcon
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(self.syncStatusTitle)
-                            .font(.body)
-                        if let detail = self.syncStatusDetail {
-                            Text(detail)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                TimelineView(.periodic(from: .now, by: 1)) { timeline in
+                    HStack {
+                        self.syncStatusIcon
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(self.syncStatusTitle)
+                                .font(.body)
+                            if let detail = self.syncStatusDetail(now: timeline.date) {
+                                Text(detail)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
-                    }
-                    Spacer()
-                    Button {
-                        Task { await self.usageData.refresh() }
-                    } label: {
-                        if case .syncing = self.usageData.syncStatus {
-                            ProgressView()
-                        } else {
-                            Image(systemName: "arrow.clockwise")
+                        Spacer()
+                        Button {
+                            Task { await self.usageData.refresh() }
+                        } label: {
+                            if self.usageData.isRefreshing {
+                                ProgressView()
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                            }
                         }
+                        .disabled(self.usageData.isRefreshing)
                     }
-                    .disabled(self.usageData.syncStatus == .syncing)
                 }
             } header: {
                 Text("Sync Status")
@@ -2126,18 +2140,22 @@ private struct AboutSyncDetailView: View {
         return CloudSyncReader.semverLessThan(deviceVersion, latestVersion)
     }
 
-    private var syncStatusDetail: String? {
+    private func syncStatusDetail(now: Date) -> String? {
         switch self.usageData.syncStatus {
-        case .synced(let ago):
-            if ago < 60 { return String(localized: "Last synced just now") }
-            if let snapshot = self.usageData.snapshot {
-                return String(localized: "Last synced \(snapshot.syncTimestamp.formatted(.relative(presentation: .named)))")
-            }
-            return nil
-        case .syncing: return nil
+        case .synced(let lastConfirmedSync):
+            return SyncFreshnessFormatter.lastSyncedText(
+                since: lastConfirmedSync,
+                now: now)
+        case .syncing:
+            return SyncFreshnessFormatter.refreshingText(
+                lastConfirmedSync: self.usageData.snapshot?.syncTimestamp,
+                now: now)
         case .noData: return String(localized: "Waiting for Mac to push data")
         case .incompatibleData: return String(localized: "Please update QuotaKit on Mac")
-        case .error: return nil
+        case .error:
+            return SyncFreshnessFormatter.refreshFailedText(
+                lastConfirmedSync: self.usageData.snapshot?.syncTimestamp,
+                now: now)
         }
     }
 }
@@ -2626,6 +2644,7 @@ private enum MobileReleaseNotesCatalog {
                         String(localized: "QuotaKit Pro — Free mode keeps one selected synced provider plus basic quota details, while Pro and demo mode unlock the full provider list, cost dashboard, history charts, share/export actions, advanced merge controls, and visible quota alerts."),
                         String(localized: "Widgets and pace — QuotaKit Pro adds Home Screen and Lock Screen widgets backed only by sanitized iPhone-side snapshot data, and Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers."),
                         String(localized: "Branding and setup — iOS screens, the app icon, share cards, update prompts, and Mac setup now use QuotaKit. The iPhone shares a Columbus Labs setup page for Mac installation instead of sending you straight to GitHub."),
+                        String(localized: "Sync refresh feedback — pull-to-refresh and the synced-time chip now show a visible refreshing state until iCloud finishes, and the last-synced age keeps counting from the Mac-confirmed sync time."),
                         String(localized: "Remote guardrails — Columbus Labs can now update safe setup links, announcements, and feature kill switches over the air while native app changes still go through TestFlight/App Store."),
                     ]),
             ]),

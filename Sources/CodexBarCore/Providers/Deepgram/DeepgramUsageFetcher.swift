@@ -15,7 +15,7 @@ public enum DeepgramUsageError: LocalizedError, Sendable {
     public var errorDescription: String? {
         switch self {
         case .missingAPIKey:
-            "Missing Deepgram API key. Set apiKey in ~/.codexbar/config.json or DEEPGRAM_API_KEY."
+            "Missing Deepgram API key. Set apiKey in ~/.quotakit/config.json or DEEPGRAM_API_KEY."
         case .invalidCredentials:
             "Deepgram API key is invalid or expired."
         case .invalidProjectID:

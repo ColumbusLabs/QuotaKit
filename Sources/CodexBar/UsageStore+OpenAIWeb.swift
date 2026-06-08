@@ -612,7 +612,7 @@ extension UsageStore {
             OpenAIDashboardFetcher.evictAllCachedWebViews()
             logger("OpenAI web refresh timed out; skipping immediate background retry.")
             await self.applyOpenAIDashboardFailure(
-                message: "OpenAI web dashboard refresh timed out. CodexBar will retry after the refresh cooldown.",
+                message: "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown.",
                 expectedGuard: context.expectedGuard,
                 refreshTaskToken: context.refreshTaskToken,
                 routingTargetEmail: context.targetEmail)

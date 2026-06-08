@@ -27,7 +27,7 @@ func showAbout() {
 
     let credits = NSMutableAttributedString(
         string: "QuotaKit by Columbus Labs\n" +
-            "Based on CodexBar by Peter Steinberger\n" +
+            "Includes MIT-licensed upstream components\n" +
             "MIT License\n")
     credits.append(makeLink("GitHub", urlString: "https://github.com/ColumbusLabs/QuotaKit"))
     credits.append(separator)

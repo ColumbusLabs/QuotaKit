@@ -41,7 +41,7 @@ public enum OllamaUsageError: LocalizedError, Sendable {
     public var errorDescription: String? {
         switch self {
         case .missingAPIKey:
-            "Missing Ollama API key. Set apiKey in ~/.codexbar/config.json or OLLAMA_API_KEY."
+            "Missing Ollama API key. Set apiKey in ~/.quotakit/config.json or OLLAMA_API_KEY."
         case .notLoggedIn:
             "Not logged in to Ollama. Please log in via ollama.com/settings."
         case .invalidCredentials:
@@ -702,7 +702,7 @@ public enum OllamaAPIUsageFetcher {
         request.timeoutInterval = Self.timeoutSeconds
         request.setValue("Bearer \(trimmed)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("CodexBar/1.0", forHTTPHeaderField: "User-Agent")
+        request.setValue("QuotaKit/1.0", forHTTPHeaderField: "User-Agent")
 
         let response: ProviderHTTPResponse
         do {

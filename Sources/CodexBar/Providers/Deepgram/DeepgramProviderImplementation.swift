@@ -31,7 +31,7 @@ struct DeepgramProviderImplementation: ProviderImplementation {
             ProviderSettingsFieldDescriptor(
                 id: "deepgram-api-key",
                 title: "API key",
-                subtitle: "Stored in ~/.codexbar/config.json. Get your key from console.deepgram.com.",
+                subtitle: "Stored in ~/.quotakit/config.json. Get your key from console.deepgram.com.",
                 kind: .secure,
                 placeholder: "dg_...",
                 binding: context.stringBinding(\.deepgramAPIKey),

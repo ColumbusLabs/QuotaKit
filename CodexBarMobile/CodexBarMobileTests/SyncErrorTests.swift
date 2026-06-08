@@ -80,7 +80,7 @@ struct SyncErrorTests {
 
     @Test("SyncStatus.synced isError returns false")
     func statusSyncedNotError() {
-        let status = SyncStatus.synced(ago: 60)
+        let status = SyncStatus.synced(lastConfirmedSync: Date(timeIntervalSince1970: 1_800_000_000))
         #expect(status.isError == false)
     }
 
@@ -88,6 +88,75 @@ struct SyncErrorTests {
     func statusSyncingNotError() {
         let status = SyncStatus.syncing
         #expect(status.isError == false)
+    }
+
+    // MARK: - Sync Freshness Formatting
+
+    @Test("Sync freshness formatter ticks seconds from confirmed sync")
+    func freshnessFormatterTicksSeconds() {
+        let syncedAt = Date(timeIntervalSince1970: 1_800_000_000)
+
+        #expect(SyncFreshnessFormatter.ageText(
+            since: syncedAt,
+            now: syncedAt.addingTimeInterval(3.2)) == "3 sec ago")
+        #expect(SyncFreshnessFormatter.ageText(
+            since: syncedAt,
+            now: syncedAt.addingTimeInterval(4.1)) == "4 sec ago")
+    }
+
+    @Test("Sync freshness formatter handles minute hour and day thresholds")
+    func freshnessFormatterThresholds() {
+        let syncedAt = Date(timeIntervalSince1970: 1_800_000_000)
+
+        #expect(SyncFreshnessFormatter.ageText(
+            since: syncedAt,
+            now: syncedAt.addingTimeInterval(60)) == "1 min ago")
+        #expect(SyncFreshnessFormatter.ageText(
+            since: syncedAt,
+            now: syncedAt.addingTimeInterval(3600)) == "1h ago")
+        #expect(SyncFreshnessFormatter.ageText(
+            since: syncedAt,
+            now: syncedAt.addingTimeInterval(86400)) == "1d ago")
+    }
+
+    @Test("Refreshing label preserves last confirmed sync age")
+    func refreshingLabelPreservesLastConfirmedSyncAge() {
+        let syncedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let now = syncedAt.addingTimeInterval(12)
+
+        #expect(SyncFreshnessFormatter.refreshingText(
+            lastConfirmedSync: syncedAt,
+            now: now) == "Refreshing · last synced 12 sec ago")
+    }
+
+    @Test("Refresh failed label preserves last confirmed sync age")
+    func refreshFailedLabelPreservesLastConfirmedSyncAge() {
+        let syncedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let now = syncedAt.addingTimeInterval(120)
+
+        #expect(SyncFreshnessFormatter.refreshFailedText(
+            lastConfirmedSync: syncedAt,
+            now: now) == "Refresh failed · last synced 2 min ago")
+    }
+
+    @Test("Sync freshness state uses injected now for stale resolution")
+    func freshnessStateUsesInjectedNowForStaleResolution() {
+        let syncedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let status = SyncStatus.synced(lastConfirmedSync: syncedAt)
+
+        let fresh = SyncFreshnessState.resolve(
+            isDemoMode: false,
+            snapshot: nil,
+            syncStatus: status,
+            now: syncedAt.addingTimeInterval(120))
+        let stale = SyncFreshnessState.resolve(
+            isDemoMode: false,
+            snapshot: nil,
+            syncStatus: status,
+            now: syncedAt.addingTimeInterval(SyncFreshnessState.staleThreshold + 1))
+
+        #expect(fresh?.isStale == false)
+        #expect(stale?.isStale == true)
     }
 
     // MARK: - MultiDeviceSyncResult

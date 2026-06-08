@@ -18,7 +18,7 @@ struct DoubaoProviderImplementation: ProviderImplementation {
             ProviderSettingsFieldDescriptor(
                 id: "doubao-api-token",
                 title: "API key",
-                subtitle: "Stored in ~/.codexbar/config.json. Get your API key from the Volcengine "
+                subtitle: "Stored in ~/.quotakit/config.json. Get your API key from the Volcengine "
                     + "Ark console.",
                 kind: .secure,
                 placeholder: "ark-...",

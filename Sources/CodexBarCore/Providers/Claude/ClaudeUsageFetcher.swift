@@ -202,7 +202,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         {
             throw ClaudeUsageError.oauthFailed(
                 "Claude OAuth token expired, but background repair is suppressed when Keychain prompt policy "
-                    + "is set to only prompt on user action. Open the CodexBar menu or click Refresh to retry.")
+                    + "is set to only prompt on user action. Open the QuotaKit menu or click Refresh to retry.")
         }
     }
 

@@ -13,9 +13,9 @@ public enum LLMProxyUsageError: LocalizedError, Sendable {
     public var errorDescription: String? {
         switch self {
         case .missingCredentials:
-            "Missing LLM Proxy API key. Set apiKey in ~/.codexbar/config.json or LLM_PROXY_API_KEY."
+            "Missing LLM Proxy API key. Set apiKey in ~/.quotakit/config.json or LLM_PROXY_API_KEY."
         case .missingBaseURL:
-            "Missing LLM Proxy base URL. Set enterpriseHost in ~/.codexbar/config.json or LLM_PROXY_BASE_URL."
+            "Missing LLM Proxy base URL. Set enterpriseHost in ~/.quotakit/config.json or LLM_PROXY_BASE_URL."
         case .invalidURL:
             "LLM Proxy URL is invalid."
         case let .apiError(message):

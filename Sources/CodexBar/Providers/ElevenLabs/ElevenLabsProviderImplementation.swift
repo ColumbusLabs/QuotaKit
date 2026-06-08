@@ -33,7 +33,7 @@ struct ElevenLabsProviderImplementation: ProviderImplementation {
             ProviderSettingsFieldDescriptor(
                 id: "elevenlabs-api-key",
                 title: "API key",
-                subtitle: "Stored in ~/.codexbar/config.json. Get your key from elevenlabs.io/app/settings/api-keys.",
+                subtitle: "Stored in ~/.quotakit/config.json. Get your key from elevenlabs.io/app/settings/api-keys.",
                 kind: .secure,
                 placeholder: "xi-...",
                 binding: context.stringBinding(\.elevenLabsAPIKey),

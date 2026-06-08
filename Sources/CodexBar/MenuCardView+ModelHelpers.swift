@@ -30,7 +30,7 @@ extension UsageMenuCardView.Model {
     }
 
     static func progressColor(for provider: UsageProvider) -> Color {
-        if provider == .elevenlabs {
+        if provider == .cursor || provider == .elevenlabs {
             return Color(nsColor: .labelColor)
         }
 

@@ -53,7 +53,7 @@ public enum AlibabaTokenPlanSettingsError: LocalizedError, Sendable {
         switch self {
         case let .missingCookie(details):
             let base = "No Alibaba Token Plan session cookies found in browsers. " +
-                "Sign in to Bailian in Chrome, allow CodexBar to access Chrome Safe Storage in Keychain Access, " +
+                "Sign in to Bailian in Chrome, allow QuotaKit to access Chrome Safe Storage in Keychain Access, " +
                 "or paste a manual Cookie header."
             guard let details, !details.isEmpty else { return base }
             return "\(base) \(details)"

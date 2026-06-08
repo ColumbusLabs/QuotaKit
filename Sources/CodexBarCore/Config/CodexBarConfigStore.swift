@@ -8,17 +8,18 @@ public enum CodexBarConfigStoreError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .invalidURL:
-            "Invalid CodexBar config path."
+            "Invalid QuotaKit config path."
         case let .decodeFailed(details):
-            "Failed to decode CodexBar config: \(details)"
+            "Failed to decode QuotaKit config: \(details)"
         case let .encodeFailed(details):
-            "Failed to encode CodexBar config: \(details)"
+            "Failed to encode QuotaKit config: \(details)"
         }
     }
 }
 
 public struct CodexBarConfigStore: @unchecked Sendable {
-    public static let pathEnvironmentKey = "CODEXBAR_CONFIG"
+    public static let pathEnvironmentKey = "QUOTAKIT_CONFIG"
+    public static let legacyPathEnvironmentKey = "CODEXBAR_CONFIG"
 
     public let fileURL: URL
     private let fileManager: FileManager
@@ -29,6 +30,9 @@ public struct CodexBarConfigStore: @unchecked Sendable {
     }
 
     public func load() throws -> CodexBarConfig? {
+        if !self.fileManager.fileExists(atPath: self.fileURL.path) {
+            try self.copyLegacyDefaultConfigIfNeeded()
+        }
         guard self.fileManager.fileExists(atPath: self.fileURL.path) else { return nil }
         let data = try Data(contentsOf: self.fileURL)
         let decoder = JSONDecoder()
@@ -82,9 +86,46 @@ public struct CodexBarConfigStore: @unchecked Sendable {
             let expanded = (override as NSString).expandingTildeInPath
             return URL(fileURLWithPath: expanded)
         }
+        if let override = environment[legacyPathEnvironmentKey]?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !override.isEmpty
+        {
+            let expanded = (override as NSString).expandingTildeInPath
+            return URL(fileURLWithPath: expanded)
+        }
         return home
+            .appendingPathComponent(".quotakit", isDirectory: true)
+            .appendingPathComponent("config.json")
+    }
+
+    public static func legacyDefaultURL(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
+        home
             .appendingPathComponent(".codexbar", isDirectory: true)
             .appendingPathComponent("config.json")
+    }
+
+    private func copyLegacyDefaultConfigIfNeeded() throws {
+        guard self.fileURL.lastPathComponent == "config.json",
+              self.fileURL.deletingLastPathComponent().lastPathComponent == ".quotakit"
+        else {
+            return
+        }
+
+        let home = self.fileURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let legacyURL = Self.legacyDefaultURL(home: home)
+        guard self.fileManager.fileExists(atPath: legacyURL.path),
+              !self.fileManager.fileExists(atPath: self.fileURL.path)
+        else {
+            return
+        }
+
+        let directory = self.fileURL.deletingLastPathComponent()
+        if !self.fileManager.fileExists(atPath: directory.path) {
+            try self.fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        }
+        try self.fileManager.copyItem(at: legacyURL, to: self.fileURL)
+        try self.applySecurePermissionsIfNeeded()
     }
 
     private func applySecurePermissionsIfNeeded() throws {

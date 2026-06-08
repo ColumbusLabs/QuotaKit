@@ -109,7 +109,7 @@ struct OllamaProviderImplementation: ProviderImplementation {
             ProviderSettingsFieldDescriptor(
                 id: "ollama-api-key",
                 title: "API key",
-                subtitle: "Stored in ~/.codexbar/config.json. Get your key from Ollama settings.",
+                subtitle: "Stored in ~/.quotakit/config.json. Get your key from Ollama settings.",
                 kind: .secure,
                 placeholder: "ollama-...",
                 binding: context.stringBinding(\.ollamaAPIToken),
