@@ -5,6 +5,32 @@
         <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
         <description>QuotaKit for Mac updates distributed by Columbus Labs.</description>
         <item>
+            <title>0.32.4.3</title>
+            <pubDate>Mon, 08 Jun 2026 13:16:24 -0400</pubDate>
+            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
+            <sparkle:version>79.3.1.11.1</sparkle:version>
+            <sparkle:shortVersionString>0.32.4.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuotaKit 0.32.4.3 Mobile 1.11.1</h2>
+<h3>Fixed</h3>
+<ul>
+<li>Renamed the shipped Mac app bundle, executable, widget extension, and bundled</li>
+</ul>
+  CLI helper to QuotaKit-branded runtime names.
+<ul>
+<li>Added a signed Mac disk image with a drag-to-Applications install window for</li>
+</ul>
+  direct downloads.
+<h3>Notes</h3>
+<ul>
+<li>Sparkle updates continue to use the signed ZIP enclosure for compatibility;</li>
+</ul>
+  direct website downloads use the new DMG installer.
+<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.3/QuotaKit-macos-universal-0.32.4.3.zip" length="47981092" type="application/octet-stream" sparkle:edSignature="b2gOjSpVX/x/gn8iqB5a4+YQJEi6cGwHYn1Ajx6HYT4y3naXOiOoE8aCWDrheeLezifUGGrDb3oy4OmIsDToBw=="/>
+        </item>
+        <item>
             <title>0.32.4.2</title>
             <pubDate>Sun, 07 Jun 2026 21:21:11 -0400</pubDate>
             <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
