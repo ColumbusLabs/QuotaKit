@@ -11,7 +11,7 @@ enum MobileChartAxisFormatter {
     /// Default 4 ticks balances readability vs. space on a 220pt-tall mobile
     /// chart — 3 feels sparse on tall charts, 5+ crowds labels into each
     /// other at the narrow device width. Caller can override for wider-screen
-    /// share card exports.
+    /// share card rendering.
     static func axisValues(for values: [Double], targetTickCount: Int = 4) -> [Double] {
         let maxValue = max(values.max() ?? 0, 0)
         let step = self.axisStep(for: maxValue, targetTickCount: targetTickCount)

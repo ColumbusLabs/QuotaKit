@@ -196,6 +196,7 @@ struct ProviderListView: View {
     @Environment(ProEntitlementStore.self) private var proEntitlementStore
     @Environment(RemoteConfigStore.self) private var remoteConfigStore
     @AppStorage(MobileSettingsKeys.freeSelectedProviderID) private var freeSelectedProviderID = ""
+    @AppStorage(MobileSettingsKeys.freeSelectedProviderLockedUntil) private var freeSelectedProviderLockedUntil = 0.0
     /// Local per-launch suppression of linkage prompts the user clicked
     /// "Keep separate" on. Persisted only across the current session —
     /// next launch re-evaluates so a user who reconsidered can confirm.
@@ -281,6 +282,7 @@ struct ProviderListView: View {
                     FreeProviderSelectorView(
                         groups: groups,
                         selectedProviderID: self.$freeSelectedProviderID,
+                        selectedProviderLockedUntil: self.$freeSelectedProviderLockedUntil,
                         effectiveSelectedProviderID: access.effectiveSelectedProviderID)
                 }
 
@@ -466,7 +468,7 @@ struct CostTab: View {
                             ProFeatureLockedStateView(
                                 store: self.proEntitlementStore,
                                 feature: .fullCostDashboard,
-                                message: String(localized: "Unlock QuotaKit Pro to view the full cost dashboard, history charts, share cards, and exports for synced provider data."))
+                                message: String(localized: "Unlock QuotaKit Pro to view the full cost dashboard, history charts, and share cards for synced provider data."))
                         }
                     } else {
                         EmptyStateView(
@@ -2656,7 +2658,7 @@ private enum MobileReleaseNotesCatalog {
                     title: String(localized: "What's New"),
                     items: [
                         String(localized: "Daily Spend chart — shows a clean ~30-day window and scrolls left to reveal your full cost history (30 / 90 / 365-day windows); the latest day stays pinned to the right edge."),
-                        String(localized: "QuotaKit Pro — Free mode keeps one selected synced provider plus basic quota details, while Pro and demo mode unlock the full provider list, cost dashboard, history charts, share/export actions, advanced merge controls, and visible quota alerts."),
+                        String(localized: "QuotaKit Pro — Free mode keeps one selected synced provider plus basic quota details, while Pro and demo mode unlock the full provider list, cost dashboard, history charts, share actions, advanced merge controls, and visible quota alerts."),
                         String(localized: "Widgets and pace — QuotaKit Pro adds Home Screen and Lock Screen widgets backed only by sanitized iPhone-side snapshot data, and Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers."),
                         String(localized: "Branding and setup — iOS screens, the app icon, share cards, update prompts, and Mac setup now use QuotaKit. The iPhone shares a Columbus Labs setup page for Mac installation instead of sending you straight to GitHub."),
                         String(localized: "Sync polish — provider colors now stay distinct and readable in both appearances, and the synced-time chip keeps its status available to VoiceOver while refreshing."),

@@ -9,7 +9,6 @@ enum FeatureGate: String, CaseIterable, Identifiable, Sendable {
     case usageHistory
     case shareCards
     case advancedMergeViews
-    case exports
 
     var id: String { self.rawValue }
 
@@ -17,7 +16,7 @@ enum FeatureGate: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .unlimitedProviders: String(localized: "Unlimited provider cards")
+        case .unlimitedProviders: String(localized: "Unlimited providers")
         case .homeScreenWidgets: String(localized: "Home Screen widgets")
         case .lockScreenWidgets: String(localized: "Lock Screen widgets")
         case .notifications: String(localized: "Quota notifications")
@@ -25,7 +24,6 @@ enum FeatureGate: String, CaseIterable, Identifiable, Sendable {
         case .usageHistory: String(localized: "Usage history charts")
         case .shareCards: String(localized: "Share cards")
         case .advancedMergeViews: String(localized: "Advanced merge views")
-        case .exports: String(localized: "Export features")
         }
     }
 }

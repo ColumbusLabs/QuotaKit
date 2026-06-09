@@ -4,22 +4,36 @@ import SwiftUI
 struct FreeProviderSelectorView: View {
     let groups: [ProviderAccountGroup]
     @Binding var selectedProviderID: String
+    @Binding var selectedProviderLockedUntil: Double
     let effectiveSelectedProviderID: String?
+    private static let selectionLockDuration: TimeInterval = 7 * 24 * 60 * 60
 
     private var selectedGroup: ProviderAccountGroup? {
         guard let effectiveSelectedProviderID else { return nil }
         return self.groups.first { $0.providerID == effectiveSelectedProviderID }
     }
 
+    private var lockExpirationDate: Date? {
+        guard !self.selectedProviderID.isEmpty,
+              self.selectedProviderID == self.effectiveSelectedProviderID
+        else { return nil }
+        let date = Date(timeIntervalSince1970: self.selectedProviderLockedUntil)
+        return date > Date() ? date : nil
+    }
+
+    private var isSelectionLocked: Bool {
+        self.lockExpirationDate != nil
+    }
+
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "1.circle.fill")
-                .font(.title3)
+            Image(systemName: "checkmark.circle.fill")
+                .font(.headline)
                 .foregroundStyle(.tint)
                 .frame(width: 24)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text("Free provider")
+                Text("Selected provider")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Text(self.selectedGroup?.providerName ?? String(localized: "Choose a provider"))
@@ -33,6 +47,9 @@ struct FreeProviderSelectorView: View {
                 ForEach(self.groups) { group in
                     Button {
                         self.selectedProviderID = group.providerID
+                        self.selectedProviderLockedUntil = Date()
+                            .addingTimeInterval(Self.selectionLockDuration)
+                            .timeIntervalSince1970
                     } label: {
                         if group.providerID == self.effectiveSelectedProviderID {
                             Label(group.providerName, systemImage: "checkmark")
@@ -42,14 +59,23 @@ struct FreeProviderSelectorView: View {
                     }
                 }
             } label: {
-                Label("Change", systemImage: "slider.horizontal.3")
+                Label(self.changeLabel, systemImage: self.isSelectionLocked ? "lock.fill" : "slider.horizontal.3")
                     .font(.caption.weight(.semibold))
             }
             .buttonStyle(.bordered)
+            .disabled(self.isSelectionLocked)
         }
         .padding(14)
         .qkCardBackground(elevation: .elevated, cornerRadius: 12)
         .accessibilityIdentifier("free-provider-selector")
+    }
+
+    private var changeLabel: LocalizedStringResource {
+        if let lockExpirationDate {
+            let formattedDate = lockExpirationDate.formatted(.dateTime.month(.abbreviated).day())
+            return LocalizedStringResource("Locked until \(formattedDate)")
+        }
+        return "Change"
     }
 }
 
@@ -82,7 +108,7 @@ struct QuotaKitProLockedSummaryView: View {
     }
 
     private var lockedMessage: String {
-        String(localized: "Free mode shows one synced provider. Pro unlocks all of your providers, plus widgets, cost history, sharing, and alerts.")
+        String(localized: "Free mode shows one synced provider. Pro unlocks all providers you've connected, plus widgets, cost history, sharing, and alerts.")
     }
 }
 

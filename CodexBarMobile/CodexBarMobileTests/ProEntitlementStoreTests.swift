@@ -128,7 +128,6 @@ final class ProEntitlementStoreTests: XCTestCase {
             .usageHistory,
             .shareCards,
             .advancedMergeViews,
-            .exports,
         ])
         XCTAssertTrue(FeatureGate.allCases.allSatisfy(\.requiresPro))
     }

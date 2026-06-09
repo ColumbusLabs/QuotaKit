@@ -14789,31 +14789,31 @@
         }
       }
     },
-    "Hidden synced provider groups: %lld. Upgrade once to unlock unlimited provider cards, widgets, alerts, history, share cards, and export features.": {
+    "Hidden synced provider groups: %lld. Upgrade once to unlock unlimited providers, widgets, alerts, history, and share cards.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Hidden synced provider groups: %lld. Upgrade once to unlock unlimited provider cards, widgets, alerts, history, share cards, and export features."
+            "value": "Hidden synced provider groups: %lld. Upgrade once to unlock unlimited providers, widgets, alerts, history, and share cards."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "非表示の同期済みプロバイダーグループ: %lld。1 回のアップグレードで、無制限のプロバイダーカード、ウィジェット、アラート、履歴、共有カード、エクスポート機能をアンロックできます。"
+            "value": "非表示の同期済みプロバイダーグループ: %lld。1 回のアップグレードで、無制限のプロバイダー、ウィジェット、アラート、履歴、共有カードをアンロックできます。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "已隐藏的同步提供商组：%lld。一次升级即可解锁无限提供商卡片、小组件、提醒、历史记录、分享卡片和导出功能。"
+            "value": "已隐藏的同步提供商组：%lld。一次升级即可解锁无限提供商、小组件、提醒、历史记录和分享卡片。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "已隱藏的同步提供商群組：%lld。一次升級即可解鎖無限提供商卡片、小工具、提醒、歷史記錄、分享卡片和匯出功能。"
+            "value": "已隱藏的同步提供商群組：%lld。一次升級即可解鎖無限提供商、小工具、提醒、歷史記錄和分享卡片。"
           }
         }
       }
@@ -15021,31 +15021,31 @@
         }
       }
     },
-    "Unlimited provider cards": {
+    "Unlimited providers": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Unlimited provider cards"
+            "value": "Unlimited providers"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "無制限のプロバイダーカード"
+            "value": "無制限のプロバイダー"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "无限提供商卡片"
+            "value": "无限提供商"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "無限提供商卡片"
+            "value": "無限提供商"
           }
         }
       }
@@ -15253,35 +15253,6 @@
         }
       }
     },
-    "Export features": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Export features"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "エクスポート機能"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "导出功能"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "匯出功能"
-          }
-        }
-      }
-    },
     "%@ · Lifetime unlock. No subscription.": {
       "extractionState": "manual",
       "localizations": {
@@ -15340,31 +15311,31 @@
         }
       }
     },
-    "QuotaKit Pro — Free mode keeps one selected synced provider plus basic quota details, while Pro and demo mode unlock the full provider list, cost dashboard, history charts, share/export actions, advanced merge controls, and visible quota alerts.": {
+    "QuotaKit Pro — Free mode keeps one selected synced provider plus basic quota details, while Pro and demo mode unlock the full provider list, cost dashboard, history charts, share actions, advanced merge controls, and visible quota alerts.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "QuotaKit Pro — Free mode keeps one selected synced provider plus basic quota details, while Pro and demo mode unlock the full provider list, cost dashboard, history charts, share/export actions, advanced merge controls, and visible quota alerts."
+            "value": "QuotaKit Pro — Free mode keeps one selected synced provider plus basic quota details, while Pro and demo mode unlock the full provider list, cost dashboard, history charts, share actions, advanced merge controls, and visible quota alerts."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "QuotaKit Pro — Free モードでは、選択した同期済みプロバイダー 1 つと基本的なクォータ詳細を維持します。Pro とデモモードでは、全プロバイダー一覧、コストダッシュボード、履歴グラフ、共有/書き出し、詳細な統合コントロール、表示型クォータ通知が解除されます。"
+            "value": "QuotaKit Pro — Free モードでは、選択した同期済みプロバイダー 1 つと基本的なクォータ詳細を維持します。Pro とデモモードでは、全プロバイダー一覧、コストダッシュボード、履歴グラフ、共有アクション、詳細な統合コントロール、表示型クォータ通知が解除されます。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "QuotaKit Pro — Free 模式保留一个已选择的同步提供商和基础额度详情；Pro 和演示模式解锁完整提供商列表、成本仪表盘、历史图表、分享/导出操作、高级合并控制和可见额度提醒。"
+            "value": "QuotaKit Pro — Free 模式保留一个已选择的同步提供商和基础额度详情；Pro 和演示模式解锁完整提供商列表、成本仪表盘、历史图表、分享操作、高级合并控制和可见额度提醒。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "QuotaKit Pro — Free 模式保留一個已選擇的同步提供商和基本額度詳情；Pro 和示範模式解鎖完整提供商列表、成本儀表板、歷史圖表、分享/匯出操作、進階合併控制和可見額度提醒。"
+            "value": "QuotaKit Pro — Free 模式保留一個已選擇的同步提供商和基本額度詳情；Pro 和示範模式解鎖完整提供商列表、成本儀表板、歷史圖表、分享操作、進階合併控制和可見額度提醒。"
           }
         }
       }
@@ -15398,31 +15369,31 @@
         }
       }
     },
-    "Unlock QuotaKit Pro to view the full cost dashboard, history charts, share cards, and exports for synced provider data.": {
+    "Unlock QuotaKit Pro to view the full cost dashboard, history charts, and share cards for synced provider data.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Unlock QuotaKit Pro to view the full cost dashboard, history charts, share cards, and exports for synced provider data."
+            "value": "Unlock QuotaKit Pro to view the full cost dashboard, history charts, and share cards for synced provider data."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "QuotaKit Pro をアンロックすると、同期済みプロバイダーデータの完全なコストダッシュボード、履歴グラフ、共有カード、エクスポートを表示できます。"
+            "value": "QuotaKit Pro をアンロックすると、同期済みプロバイダーデータの完全なコストダッシュボード、履歴グラフ、共有カードを表示できます。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "解锁 QuotaKit Pro 即可查看同步提供商数据的完整成本仪表盘、历史图表、分享卡片和导出功能。"
+            "value": "解锁 QuotaKit Pro 即可查看同步提供商数据的完整成本仪表盘、历史图表和分享卡片。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "解鎖 QuotaKit Pro 即可查看同步提供商資料的完整成本儀表板、歷史圖表、分享卡片和匯出功能。"
+            "value": "解鎖 QuotaKit Pro 即可查看同步提供商資料的完整成本儀表板、歷史圖表和分享卡片。"
           }
         }
       }

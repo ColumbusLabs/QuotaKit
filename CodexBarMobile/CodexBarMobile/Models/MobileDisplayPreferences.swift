@@ -12,6 +12,9 @@ enum MobileSettingsKeys {
     /// not a per-account/card identity, because Free mode unlocks one provider
     /// group including its account tabs.
     static let freeSelectedProviderID = "freeSelectedProviderID"
+    /// Unix timestamp until which the Free real-data provider selection cannot
+    /// be changed again. Empty/0 means the user has not locked in a choice.
+    static let freeSelectedProviderLockedUntil = "freeSelectedProviderLockedUntil"
     // iOS 1.7.0 — mirrors upstream v0.26.0 / v0.26.1 settings.
     /// When `true`, the warning tick-marks on each usage bar are
     /// suppressed (the quota warning notification still fires — only

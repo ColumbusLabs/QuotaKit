@@ -11,6 +11,7 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
     override func setUp() {
         super.setUp()
         UserDefaults.standard.removeObject(forKey: MobileSettingsKeys.freeSelectedProviderID)
+        UserDefaults.standard.removeObject(forKey: MobileSettingsKeys.freeSelectedProviderLockedUntil)
         UserDefaults.standard.removePersistentDomain(forName: Self.remoteConfigSuiteName)
         UserDefaults(suiteName: Self.remoteConfigSuiteName)?
             .removePersistentDomain(forName: Self.remoteConfigSuiteName)
@@ -18,6 +19,7 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
 
     override func tearDown() {
         UserDefaults.standard.removeObject(forKey: MobileSettingsKeys.freeSelectedProviderID)
+        UserDefaults.standard.removeObject(forKey: MobileSettingsKeys.freeSelectedProviderLockedUntil)
         super.tearDown()
     }
 

@@ -69,7 +69,7 @@ current Columbus Labs product surface and recent release history.
 
 ### Added
 
-- Added QuotaKit Pro gates for the full cost dashboard, history charts, share/export
+- Added QuotaKit Pro gates for the full cost dashboard, history charts, share
   actions, advanced merge controls, visible quota alerts, and widgets.
 - Kept silent CloudKit sync free for the selected-provider experience.
 
