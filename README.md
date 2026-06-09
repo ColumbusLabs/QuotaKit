@@ -76,6 +76,8 @@ Columbus Labs maintains QuotaKit as a product fork with its own releases, setup 
 
 The Git history intentionally preserves upstream commits and contributors. That is why GitHub may show thousands of historical commits and many contributors even though Columbus Labs owns the QuotaKit product boundary.
 
+See [OPEN_SOURCE_CREDITS.md](OPEN_SOURCE_CREDITS.md) for recommended user-facing attribution copy and QuotaKit's product-boundary guidance.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
