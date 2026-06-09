@@ -329,6 +329,17 @@ final class SyncedUsageData {
             }
         }
 
+        self.applyFullFetchResults(
+            perProvider: per,
+            legacy: legacy,
+            kvsFallback: reader.latestKVSSnapshot())
+    }
+
+    func applyFullFetchResults(
+        perProvider per: MultiDeviceSyncResult,
+        legacy: MultiDeviceSyncResult,
+        kvsFallback: SyncedUsageSnapshot?
+    ) {
         // Unpack results per zone. `.error` means transient failure — DO NOT
         // wipe that bucket, preserve whatever was cached before (Codex
         // review P1). `.empty` / `.success` are authoritative and DO replace
@@ -356,11 +367,7 @@ final class SyncedUsageData {
         // unreachable. Surface the error in status but leave `snapshot`
         // pointing at whatever was hydrated / from last successful fetch.
         if perArg == nil && legacyArg == nil {
-            if let firstError {
-                self.syncStatus = .error(message: firstError.description)
-            } else {
-                self.syncStatus = .noData
-            }
+            self.applyRefreshFailureStatus(firstError)
             return
         }
 
@@ -378,18 +385,19 @@ final class SyncedUsageData {
 
         if deviceSnapshots.isEmpty {
             // Totally empty cloud result. Last-resort KVS fallback.
-            if let kvsSnapshot = reader.latestKVSSnapshot() {
+            if let kvsSnapshot = kvsFallback {
                 self.cache.seedFromColdStart([kvsSnapshot])
                 self.usingKVSFallback = true
                 self.republishFromCache()
                 return
             }
-            if let firstError {
-                self.syncStatus = .error(message: firstError.description)
-            } else {
-                self.syncStatus = .noData
+            if firstError != nil, let snapshot {
+                self.applyRefreshFailureStatus(firstError)
+                WidgetSnapshotPublisher.publish(from: snapshot)
+                return
             }
             self.snapshot = nil
+            self.syncStatus = firstError.map { .error(message: $0.description) } ?? .noData
             WidgetSnapshotPublisher.clear()
             return
         }
@@ -556,6 +564,22 @@ final class SyncedUsageData {
             WidgetSnapshotPublisher.publish(from: merged)
         } else {
             self.syncStatus = .incompatibleData
+        }
+    }
+
+    private func applyRefreshFailureStatus(_ error: CloudSyncError?) {
+        if let snapshot {
+            // Refresh failures are not data failures. Keep cached Mac data in
+            // the normal freshness model so a transient CloudKit/indexing blip
+            // does not make the app look broken while the user still has data.
+            self.syncStatus = .synced(lastConfirmedSync: snapshot.syncTimestamp)
+            return
+        }
+
+        if let error {
+            self.syncStatus = .error(message: error.description)
+        } else {
+            self.syncStatus = .noData
         }
     }
 

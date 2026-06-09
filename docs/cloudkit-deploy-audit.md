@@ -34,6 +34,14 @@ Mac-to-iOS sync depends on these Production record types in
 `DeviceProviderSnapshot.deviceID` must be queryable because the Mac startup
 reconcile queries provider records for the current device.
 
+`DeviceSnapshot.recordName`, `DeviceProviderSnapshot.recordName`, and
+`ProviderAccountLinkage.recordName` must also be queryable. iOS full-refresh
+paths issue whole-record-type CloudKit queries for those records, and
+Production rejects those reads with `Field 'recordName' is not marked
+queryable` when the built-in record-name index is missing. CloudKit Dashboard
+labels the field `recordName`; schema exports may represent the same index as
+`___recordID`.
+
 If a release build shows `Cannot create new type DeviceSnapshot in production
 schema`, Production schema has not been deployed. Open CloudKit Dashboard,
 select `iCloud.com.columbuslabs.quotakit`, and use **Schema -> Deploy Schema

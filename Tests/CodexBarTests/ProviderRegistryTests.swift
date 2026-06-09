@@ -35,6 +35,25 @@ struct ProviderRegistryTests {
         expectColor(.codex, red: 73 / 255, green: 163 / 255, blue: 176 / 255)
         expectColor(.claude, red: 204 / 255, green: 124 / 255, blue: 94 / 255)
         expectColor(.cursor, red: 0, green: 0, blue: 0)
+        expectColor(.grok, red: 26 / 255, green: 26 / 255, blue: 26 / 255)
+        expectColor(.commandcode, red: 71 / 255, green: 85 / 255, blue: 105 / 255)
+        expectColor(.opencodego, red: 52 / 255, green: 211 / 255, blue: 153 / 255)
+    }
+
+    @Test
+    func `provider brand colors stay visually distinct`() {
+        let descriptors = ProviderDescriptorRegistry.all
+
+        for leftIndex in descriptors.indices {
+            for rightIndex in descriptors.index(after: leftIndex)..<descriptors.endIndex {
+                let left = descriptors[leftIndex]
+                let right = descriptors[rightIndex]
+                let delta = abs(left.branding.color.red - right.branding.color.red)
+                    + abs(left.branding.color.green - right.branding.color.green)
+                    + abs(left.branding.color.blue - right.branding.color.blue)
+                #expect(delta > 0.10, "\(left.id.rawValue) and \(right.id.rawValue) colors are too close")
+            }
+        }
     }
 }
 

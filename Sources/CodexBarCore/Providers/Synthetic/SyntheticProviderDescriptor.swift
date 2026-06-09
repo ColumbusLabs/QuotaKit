@@ -26,7 +26,7 @@ public enum SyntheticProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .synthetic,
                 iconResourceName: "ProviderIcon-synthetic",
-                color: ProviderColor(red: 20 / 255, green: 20 / 255, blue: 20 / 255)),
+                color: ProviderColor(red: 42 / 255, green: 42 / 255, blue: 42 / 255)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Synthetic cost summary is not supported." }),

@@ -119,12 +119,22 @@ require_queryable_field() {
   fi
 }
 
+require_queryable_record_name() {
+  local record_type="$1"
+  if ! queryable_field_exists "$record_type" "recordName" \
+      && ! queryable_field_exists "$record_type" "___recordID"
+  then
+    failures+=("missing queryable index: ${record_type}.recordName")
+  fi
+}
+
 require_record_type "DeviceSnapshot"
 require_field "DeviceSnapshot" "deviceName"
 require_field "DeviceSnapshot" "deviceID"
 require_field "DeviceSnapshot" "appVersion"
 require_field "DeviceSnapshot" "syncTimestamp"
 require_field "DeviceSnapshot" "payload"
+require_queryable_record_name "DeviceSnapshot"
 
 require_record_type "DeviceProviderSnapshot"
 require_field "DeviceProviderSnapshot" "deviceID"
@@ -136,6 +146,7 @@ require_field "DeviceProviderSnapshot" "lastUpdated"
 require_field "DeviceProviderSnapshot" "encodingVersion"
 require_field "DeviceProviderSnapshot" "payload"
 require_queryable_field "DeviceProviderSnapshot" "deviceID"
+require_queryable_record_name "DeviceProviderSnapshot"
 
 require_record_type "ProviderAccountLinkage"
 require_field "ProviderAccountLinkage" "providerID"
@@ -143,6 +154,7 @@ require_field "ProviderAccountLinkage" "linkedIdentifiers"
 require_field "ProviderAccountLinkage" "confirmedAt"
 require_field "ProviderAccountLinkage" "confirmedFromDeviceID"
 require_field "ProviderAccountLinkage" "unmerge"
+require_queryable_record_name "ProviderAccountLinkage"
 
 require_record_type "QuotaTransition"
 require_field "QuotaTransition" "providerName"

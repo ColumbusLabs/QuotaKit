@@ -29,7 +29,7 @@ public enum CommandCodeProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .commandcode,
                 iconResourceName: "ProviderIcon-commandcode",
-                color: ProviderColor(red: 0 / 255, green: 0 / 255, blue: 0 / 255)),
+                color: ProviderColor(red: 71 / 255, green: 85 / 255, blue: 105 / 255)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Command Code cost summary is not yet supported." }),

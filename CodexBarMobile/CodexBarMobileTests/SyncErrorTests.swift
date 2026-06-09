@@ -58,6 +58,22 @@ struct SyncErrorTests {
         }
     }
 
+    @Test("Queryable recordName error maps to Production index issue")
+    func queryableRecordNameError() {
+        let ckError = CKError(
+            .invalidArguments,
+            userInfo: [
+                NSLocalizedDescriptionKey: "Field 'recordName' is not marked queryable",
+            ])
+        let syncError = CloudSyncError(from: ckError)
+
+        if case .productionSchemaMissingQueryableIndex(let fieldName) = syncError {
+            #expect(fieldName == "recordName")
+        } else {
+            Issue.record("Expected .productionSchemaMissingQueryableIndex, got \(syncError)")
+        }
+    }
+
     // MARK: - SyncStatus properties
 
     @Test("SyncStatus.error isError returns true")
@@ -88,6 +104,59 @@ struct SyncErrorTests {
     func statusSyncingNotError() {
         let status = SyncStatus.syncing
         #expect(status.isError == false)
+    }
+
+    // MARK: - Full fetch state handling
+
+    @Test("Authoritative empty full fetch clears cached snapshot and shows no data")
+    @MainActor
+    func authoritativeEmptyFullFetchClearsCachedSnapshot() {
+        let data = SyncedUsageData()
+        data.snapshot = PreviewData.sampleSnapshot
+        data.syncStatus = .synced(lastConfirmedSync: PreviewData.sampleSnapshot.syncTimestamp)
+
+        data.applyFullFetchResults(
+            perProvider: .empty,
+            legacy: .empty,
+            kvsFallback: nil)
+
+        #expect(data.snapshot == nil)
+        #expect(data.deviceSnapshots.isEmpty)
+        #expect(data.syncStatus == .noData)
+    }
+
+    @Test("Full fetch error preserves cached snapshot and synced status")
+    @MainActor
+    func fullFetchErrorPreservesCachedSnapshot() {
+        let data = SyncedUsageData()
+        data.snapshot = PreviewData.sampleSnapshot
+        data.syncStatus = .syncing
+
+        data.applyFullFetchResults(
+            perProvider: .error(.productionSchemaMissingQueryableIndex("recordName")),
+            legacy: .error(.networkUnavailable),
+            kvsFallback: nil)
+
+        #expect(data.snapshot == PreviewData.sampleSnapshot)
+        #expect(data.syncStatus == .synced(lastConfirmedSync: PreviewData.sampleSnapshot.syncTimestamp))
+    }
+
+    @Test("Cold full fetch production index error surfaces as error status")
+    @MainActor
+    func coldProductionIndexErrorSurfacesAsError() {
+        let data = SyncedUsageData()
+
+        data.applyFullFetchResults(
+            perProvider: .error(.productionSchemaMissingQueryableIndex("recordName")),
+            legacy: .error(.networkUnavailable),
+            kvsFallback: nil)
+
+        #expect(data.snapshot == nil)
+        if case .error(let message) = data.syncStatus {
+            #expect(message.contains("recordName"))
+        } else {
+            Issue.record("Expected .error, got \(data.syncStatus)")
+        }
     }
 
     // MARK: - Sync Freshness Formatting

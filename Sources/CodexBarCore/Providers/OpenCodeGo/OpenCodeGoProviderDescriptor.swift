@@ -27,7 +27,7 @@ public enum OpenCodeGoProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .opencodego,
                 iconResourceName: "ProviderIcon-opencodego",
-                color: ProviderColor(red: 59 / 255, green: 130 / 255, blue: 246 / 255)),
+                color: ProviderColor(red: 52 / 255, green: 211 / 255, blue: 153 / 255)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "OpenCode Go cost summary is not supported." }),

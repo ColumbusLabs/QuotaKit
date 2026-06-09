@@ -17,6 +17,9 @@ current Columbus Labs product surface and recent release history.
   stale threshold).
 - Sync freshness chips now tick live, can be tapped to refresh, and keep showing
   refreshing or failed-refresh state after pull-to-refresh releases.
+- Provider tints now mirror the Mac registry without near-collisions, stay
+  readable in light and dark appearances, and keep synced-time VoiceOver status
+  intact when the chip is tappable.
 - Added public Columbus Labs remote config guardrails for safe setup-link overrides,
   announcements, and feature kill switches. Native app changes still require a
   TestFlight/App Store build.

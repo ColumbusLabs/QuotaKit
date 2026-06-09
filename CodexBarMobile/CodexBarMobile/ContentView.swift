@@ -218,7 +218,7 @@ struct ProviderListView: View {
             among: liveProviders,
             appVersionForProvider: { provider in
                 // Find which device-snapshot this provider came from to
-                // report its CodexBar version in the §9 hint. Falls back
+                // report its QuotaKit version in the §9 hint. Falls back
                 // to the merged snapshot's appVersion (the highest across
                 // devices) — that's at least the "ceiling" of what other
                 // Mac versions could be in play.
@@ -1876,7 +1876,7 @@ private struct AboutSyncDetailView: View {
                 if let snapshot = self.usageData.snapshot {
                     LabeledContent("Mac App", value: snapshot.appVersion ?? String(localized: "Unknown"))
                     // When multiple Macs sync and at least one runs an older
-                    // CodexBar version than the highest, surface a subtle hint
+                    // QuotaKit version than the highest, surface a subtle hint
                     // under the Mac App row. Prompts the user to update the
                     // older Mac so both sides can emit new-schema sync data
                     // (perplexityCredits, loginMethod, budget, etc. — all the
@@ -1951,7 +1951,11 @@ private struct AboutSyncDetailView: View {
 
             // MARK: Sync Status
             Section {
-                TimelineView(.periodic(from: .now, by: 1)) { timeline in
+                TimelineView(.periodic(
+                    from: .now,
+                    by: SyncFreshnessTimeline.cadence(
+                        since: self.syncStatusTimelineReferenceDate)))
+                { timeline in
                     HStack {
                         self.syncStatusIcon
                         VStack(alignment: .leading, spacing: 2) {
@@ -2138,6 +2142,17 @@ private struct AboutSyncDetailView: View {
               let latestVersion = self.usageData.snapshot?.appVersion
         else { return false }
         return CloudSyncReader.semverLessThan(deviceVersion, latestVersion)
+    }
+
+    private var syncStatusTimelineReferenceDate: Date? {
+        switch self.usageData.syncStatus {
+        case .synced(let lastConfirmedSync):
+            lastConfirmedSync
+        case .syncing, .error:
+            self.usageData.snapshot?.syncTimestamp
+        case .noData, .incompatibleData:
+            nil
+        }
     }
 
     private func syncStatusDetail(now: Date) -> String? {
@@ -2644,14 +2659,14 @@ private enum MobileReleaseNotesCatalog {
                         String(localized: "QuotaKit Pro — Free mode keeps one selected synced provider plus basic quota details, while Pro and demo mode unlock the full provider list, cost dashboard, history charts, share/export actions, advanced merge controls, and visible quota alerts."),
                         String(localized: "Widgets and pace — QuotaKit Pro adds Home Screen and Lock Screen widgets backed only by sanitized iPhone-side snapshot data, and Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers."),
                         String(localized: "Branding and setup — iOS screens, the app icon, share cards, update prompts, and Mac setup now use QuotaKit. The iPhone shares a Columbus Labs setup page for Mac installation instead of sending you straight to GitHub."),
-                        String(localized: "Sync refresh feedback — pull-to-refresh and the synced-time chip now show a visible refreshing state until iCloud finishes, and the last-synced age keeps counting from the Mac-confirmed sync time."),
+                        String(localized: "Sync polish — provider colors now stay distinct and readable in both appearances, and the synced-time chip keeps its status available to VoiceOver while refreshing."),
                         String(localized: "Remote guardrails — Columbus Labs can now update safe setup links, announcements, and feature kill switches over the air while native app changes still go through TestFlight/App Store."),
                     ]),
             ]),
         ReleaseNotesVersion(
             version: "1.11.0",
             status: "",
-            summary: String(localized: "Quieter, more accurate provider data synced from your Mac — Antigravity quota rows without the noise, correct Copilot usage on zero-entitlement plans, fixed Augment parsing, and steadier Claude readings — from the CodexBar 0.32.4 sync."),
+            summary: String(localized: "Quieter, more accurate provider data synced from your Mac — Antigravity quota rows without the noise, correct Copilot usage on zero-entitlement plans, fixed Augment parsing, and steadier Claude readings — from the QuotaKit Mac 0.32.4 sync."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
@@ -2666,13 +2681,13 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.32.4 (fork build 79.1 or later). iPhone 1.11.0 stays forward-compatible with older Mac builds — these refinements simply arrive once Mac is updated."),
+                        String(localized: "Update QuotaKit Mac to 0.32.4 (fork build 79.1 or later). iPhone 1.11.0 stays forward-compatible with older Mac builds — these refinements simply arrive once Mac is updated."),
                     ]),
             ]),
         ReleaseNotesVersion(
             version: "1.10.0",
             status: "",
-            summary: String(localized: "DeepSeek web-session usage and cost on your iPhone, Codex Spark and Antigravity per-model quota lanes synced through, and cost cards that show request counts in the right currency — from the CodexBar 0.31.0 sync."),
+            summary: String(localized: "DeepSeek web-session usage and cost on your iPhone, Codex Spark and Antigravity per-model quota lanes synced through, and cost cards that show request counts in the right currency — from the QuotaKit Mac 0.31.0 sync."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
@@ -2686,13 +2701,13 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.31.0 (fork build 73.2 or later) to surface the DeepSeek card and the Codex Spark / Antigravity lanes. iPhone 1.10.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is updated."),
+                        String(localized: "Update QuotaKit Mac to 0.31.0 (fork build 73.2 or later) to surface the DeepSeek card and the Codex Spark / Antigravity lanes. iPhone 1.10.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is updated."),
                     ]),
             ]),
         ReleaseNotesVersion(
             version: "1.9.0",
             status: "",
-            summary: String(localized: "Three new providers (Azure OpenAI, Alibaba Token Plan, T3 Chat) from the CodexBar 0.29.0 sync — plus richer detail across many providers: the iPhone now surfaces more of what your Mac already tracks."),
+            summary: String(localized: "Three new providers (Azure OpenAI, Alibaba Token Plan, T3 Chat) from the QuotaKit Mac 0.29.0 sync — plus richer detail across many providers: the iPhone now surfaces more of what your Mac already tracks."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
@@ -2705,7 +2720,7 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.29.0 (fork build 68.1 or later) to see the three new providers. iPhone 1.9.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is on 0.29.0."),
+                        String(localized: "Update QuotaKit Mac to 0.29.0 (fork build 68.1 or later) to see the three new providers. iPhone 1.9.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is on 0.29.0."),
                     ]),
             ]),
         ReleaseNotesVersion(
@@ -2734,7 +2749,7 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.27.0 (fork build 65.3 or later) for the full v0.27 surface including the quota account identity push title and Codex workspace badge. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x and 65.1 / 65.2 — newer tiles just stay hidden / fall back to the older title format until Mac is on 65.3."),
+                        String(localized: "Update QuotaKit Mac to 0.27.0 (fork build 65.3 or later) for the full v0.27 surface including the quota account identity push title and Codex workspace badge. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x and 65.1 / 65.2 — newer tiles just stay hidden / fall back to the older title format until Mac is on 65.3."),
                     ]),
             ]),
         ReleaseNotesVersion(
@@ -2756,7 +2771,7 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.26.1 (fork build 63.2 or later). iPhone 1.7.0 is also forward-compatible with Mac 0.25.2 — new cards just stay hidden until Mac is on the new build."),
+                        String(localized: "Update QuotaKit Mac to 0.26.1 (fork build 63.2 or later). iPhone 1.7.0 is also forward-compatible with Mac 0.25.2 — new cards just stay hidden until Mac is on the new build."),
                     ]),
             ]),
         ReleaseNotesVersion(
@@ -2767,7 +2782,7 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "What's New"),
                     items: [
-                        String(localized: "11 new providers from Mac CodexBar v0.24/v0.25 — Windsurf, Codebuff, DeepSeek, Manus, Xiaomi MiMo, Doubao, Command Code, StepFun, Crof, Venice, OpenAI API. Each renders in its own brand color across Usage / Cost / Subscription tabs and on the provider detail page."),
+                        String(localized: "11 new providers from QuotaKit Mac v0.24/v0.25 — Windsurf, Codebuff, DeepSeek, Manus, Xiaomi MiMo, Doubao, Command Code, StepFun, Crof, Venice, OpenAI API. Each renders in its own brand color across Usage / Cost / Subscription tabs and on the provider detail page."),
                         String(localized: "Push notifications expanded to cover the 11 new providers — your iPhone now pings on their quota events the same way it does for the existing 27."),
                         String(localized: "Claude peak-hours indicator on the Claude detail page — quick glance at whether you're inside Anthropic's published 8am-2pm ET peak window or how long until the next one starts."),
                         String(localized: "Quota warning markers on every usage bar — tick marks at the thresholds you set on Mac (default 50% / 20% remaining) and a warning icon when you cross the most critical one. Per-provider customization on Mac flows through transparently."),
@@ -2776,7 +2791,7 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.25.2 or later for the warning push. New providers work from 0.25.1."),
+                        String(localized: "Update QuotaKit Mac to 0.25.2 or later for the warning push. New providers work from 0.25.1."),
                     ]),
             ]),
         ReleaseNotesVersion(
@@ -2791,12 +2806,12 @@ private enum MobileReleaseNotesCatalog {
                         String(localized: "Claude Designs / Daily Routines / Web Sonnet usage bars on the Claude detail page; Cursor Extra budget gauge on the Cursor page."),
                         String(localized: "Synthetic 5h / weekly tokens / search hourly labels render correctly instead of generic fallbacks."),
                         String(localized: "Codex Pro $100 plan badge; estimated cost for newly-released models marked with *."),
-                        String(localized: "Two Macs on different CodexBar versions during a rolling upgrade now show a single card per account."),
+                        String(localized: "Two Macs on different QuotaKit versions during a rolling upgrade now show a single card per account."),
                     ]),
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Requires CodexBar for Mac 0.23.4 or later for the new providers."),
+                        String(localized: "Requires QuotaKit for Mac 0.23.4 or later for the new providers."),
                     ]),
             ]),
         ReleaseNotesVersion(
@@ -2819,7 +2834,7 @@ private enum MobileReleaseNotesCatalog {
                 .init(
                     title: String(localized: "Required Mac version"),
                     items: [
-                        String(localized: "Update Mac CodexBar to 0.23.6 for these changes to take effect."),
+                        String(localized: "Update QuotaKit Mac to 0.23.6 for these changes to take effect."),
                     ]),
             ]),
         ReleaseNotesVersion(
@@ -2844,7 +2859,7 @@ private enum MobileReleaseNotesCatalog {
                         String(localized: "Codex Pro $100 plan badge — the new Pro $100 / prolite plan names from upstream v0.21 sync through and display in the account-info capsule on each Codex card."),
                         String(localized: "Color palette extended — Abacus uses a warm brown tone, Mistral a vibrant red. Both stay distinct from existing provider colors across cards, charts, and the share image."),
                         String(localized: "Estimated cost for newly-released models — when Mac sees a model name that isn't in its pricing table yet, it uses the closest known model's rate as a temporary estimate and marks the value with * on the Provider Detail cost card. Stops Daily Spend from quietly dropping to $0 the day a fresh model name appears."),
-                        String(localized: "Two Macs, one card — when your two Macs are on different CodexBar versions during a rolling upgrade, your iPhone now correctly shows a single card per account rather than duplicates. Works for accounts whose email contains non-ASCII characters (café@…) too."),
+                        String(localized: "Two Macs, one card — when your two Macs are on different QuotaKit versions during a rolling upgrade, your iPhone now correctly shows a single card per account rather than duplicates. Works for accounts whose email contains non-ASCII characters (café@…) too."),
                     ]),
                 .init(
                     title: String(localized: "Under the hood"),
@@ -2875,7 +2890,7 @@ private enum MobileReleaseNotesCatalog {
                         String(localized: "Codex Pro $100 plan badge — the new Pro $100 / prolite plan names from upstream v0.21 sync through and display in the account-info capsule on each Codex card."),
                         String(localized: "Color palette extended — Abacus uses a warm brown tone, Mistral a vibrant red. Both stay distinct from existing provider colors across cards, charts, and the share image."),
                         String(localized: "Estimated cost for newly-released models — when Mac sees a model name that isn't in its pricing table yet, it uses the closest known model's rate as a temporary estimate and marks the value with * on the Provider Detail cost card. Stops Daily Spend from quietly dropping to $0 the day a fresh model name appears."),
-                        String(localized: "Two Macs, one card — when your two Macs are on different CodexBar versions during a rolling upgrade, your iPhone now correctly shows a single card per account rather than duplicates. Works for accounts whose email contains non-ASCII characters (café@…) too."),
+                        String(localized: "Two Macs, one card — when your two Macs are on different QuotaKit versions during a rolling upgrade, your iPhone now correctly shows a single card per account rather than duplicates. Works for accounts whose email contains non-ASCII characters (café@…) too."),
                     ]),
                 .init(
                     title: String(localized: "Under the hood"),
@@ -2926,7 +2941,7 @@ private enum MobileReleaseNotesCatalog {
                     title: String(localized: "What's New"),
                     items: [
                         String(localized: "Subscription Utilization visualization — see how much of each session / weekly / opus quota you're using, per provider and across all providers. 30-day daily bar chart in the Cost tab with Today / This Week / 14 Days / 30 Days summary cards, plus a utilization history chart on every provider detail page."),
-                        String(localized: "Multi-Mac data merge — if you run CodexBar on more than one Mac, data from all of them is deduped by hour and combined on iPhone, so your iPhone charts stay consistent regardless of which Mac was last active."),
+                        String(localized: "Multi-Mac data merge — if you run QuotaKit on more than one Mac, data from all of them is deduped by hour and combined on iPhone, so your iPhone charts stay consistent regardless of which Mac was last active."),
                         String(localized: "Push notifications from Mac — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a notification that includes the provider name. Background App Refresh does not need to be enabled."),
                     ]),
                 .init(
@@ -2964,7 +2979,7 @@ private enum MobileReleaseNotesCatalog {
         ReleaseNotesVersion(
             version: "1.0.0 (21)",
             status: "",
-            summary: String(localized: "The first App Store release. Works with CodexBar on Mac."),
+            summary: String(localized: "The first App Store release. Works with QuotaKit on Mac."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),

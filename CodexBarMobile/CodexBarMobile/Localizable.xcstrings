@@ -227,30 +227,30 @@
         }
       }
     },
-    "%lld synthetic providers from Mac. Toggle off in Mac CodexBar → Settings → Mobile → Debug · Mock Provider Data; iPhone updates within ~30s.": {
+    "%lld synthetic providers from Mac. Toggle off in QuotaKit Mac → Settings → Mobile → Debug · Mock Provider Data; iPhone updates within ~30s.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld synthetic providers from Mac. Toggle off in Mac CodexBar → Settings → Mobile → Debug · Mock Provider Data; iPhone updates within ~30s."
+            "value": "%lld synthetic providers from Mac. Toggle off in QuotaKit Mac → Settings → Mobile → Debug · Mock Provider Data; iPhone updates within ~30s."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac から %lld 個の合成プロバイダー。Mac CodexBar → 設定 → Mobile → Debug · Mock Provider Data でオフに切り替えると、iPhone は約 30 秒以内に更新されます。"
+            "value": "Mac から %lld 個の合成プロバイダー。QuotaKit Mac → 設定 → Mobile → Debug · Mock Provider Data でオフに切り替えると、iPhone は約 30 秒以内に更新されます。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld 个模拟 provider 来自 Mac。在 Mac CodexBar → 设置 → Mobile → Debug · Mock Provider Data 关闭后，iPhone 会在约 30 秒内更新。"
+            "value": "%lld 个模拟 provider 来自 Mac。在 QuotaKit Mac → 设置 → Mobile → Debug · Mock Provider Data 关闭后，iPhone 会在约 30 秒内更新。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld 個模擬 provider 來自 Mac。在 Mac CodexBar → 設定 → Mobile → Debug · Mock Provider Data 關閉後，iPhone 會在約 30 秒內更新。"
+            "value": "%lld 個模擬 provider 來自 Mac。在 QuotaKit Mac → 設定 → Mobile → Debug · Mock Provider Data 關閉後，iPhone 會在約 30 秒內更新。"
           }
         }
       }
@@ -425,30 +425,30 @@
         }
       }
     },
-    "11 new providers from Mac CodexBar v0.24/v0.25 — Windsurf, Codebuff, DeepSeek, Manus, Xiaomi MiMo, Doubao, Command Code, StepFun, Crof, Venice, OpenAI API. Each renders in its own brand color across Usage / Cost / Subscription tabs and on the provider detail page.": {
+    "11 new providers from QuotaKit Mac v0.24/v0.25 — Windsurf, Codebuff, DeepSeek, Manus, Xiaomi MiMo, Doubao, Command Code, StepFun, Crof, Venice, OpenAI API. Each renders in its own brand color across Usage / Cost / Subscription tabs and on the provider detail page.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "11 new providers from Mac CodexBar v0.24/v0.25 — Windsurf, Codebuff, DeepSeek, Manus, Xiaomi MiMo, Doubao, Command Code, StepFun, Crof, Venice, OpenAI API. Each renders in its own brand color across Usage / Cost / Subscription tabs and on the provider detail page."
+            "value": "11 new providers from QuotaKit Mac v0.24/v0.25 — Windsurf, Codebuff, DeepSeek, Manus, Xiaomi MiMo, Doubao, Command Code, StepFun, Crof, Venice, OpenAI API. Each renders in its own brand color across Usage / Cost / Subscription tabs and on the provider detail page."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac CodexBar v0.24/v0.25 で追加された 11 個の新プロバイダー（Windsurf、Codebuff、DeepSeek、Manus、Xiaomi MiMo、Doubao、Command Code、StepFun、Crof、Venice、OpenAI API）。Usage / Cost / Subscription タブとプロバイダー詳細ページで、それぞれのブランドカラーで表示されます。"
+            "value": "QuotaKit Mac v0.24/v0.25 で追加された 11 個の新プロバイダー（Windsurf、Codebuff、DeepSeek、Manus、Xiaomi MiMo、Doubao、Command Code、StepFun、Crof、Venice、OpenAI API）。Usage / Cost / Subscription タブとプロバイダー詳細ページで、それぞれのブランドカラーで表示されます。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac CodexBar v0.24/v0.25 加入的 11 个新 provider —— Windsurf、Codebuff、DeepSeek、Manus、Xiaomi MiMo、Doubao、Command Code、StepFun、Crof、Venice、OpenAI API。iOS 端 Usage / Cost / Subscription 各 tab 和 provider 详情页都按各自品牌色渲染。"
+            "value": "QuotaKit Mac v0.24/v0.25 加入的 11 个新 provider —— Windsurf、Codebuff、DeepSeek、Manus、Xiaomi MiMo、Doubao、Command Code、StepFun、Crof、Venice、OpenAI API。iOS 端 Usage / Cost / Subscription 各 tab 和 provider 详情页都按各自品牌色渲染。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac CodexBar v0.24/v0.25 加入的 11 個新 provider —— Windsurf、Codebuff、DeepSeek、Manus、Xiaomi MiMo、Doubao、Command Code、StepFun、Crof、Venice、OpenAI API。iOS 端 Usage / Cost / Subscription 各 tab 與 provider 詳情頁皆按各自品牌色渲染。"
+            "value": "QuotaKit Mac v0.24/v0.25 加入的 11 個新 provider —— Windsurf、Codebuff、DeepSeek、Manus、Xiaomi MiMo、Doubao、Command Code、StepFun、Crof、Venice、OpenAI API。iOS 端 Usage / Cost / Subscription 各 tab 與 provider 詳情頁皆按各自品牌色渲染。"
           }
         }
       }
@@ -1523,58 +1523,58 @@
         }
       }
     },
-    "CodexBar": {
+    "QuotaKit": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "CodexBar"
+            "value": "QuotaKit"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "CodexBar"
+            "value": "QuotaKit"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "CodexBar"
+            "value": "QuotaKit"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "CodexBar"
+            "value": "QuotaKit"
           }
         }
       }
     },
-    "CodexBar (Demo)": {
+    "QuotaKit (Demo)": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "CodexBar (Demo)"
+            "value": "QuotaKit (Demo)"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "CodexBar（デモ）"
+            "value": "QuotaKit（デモ）"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "CodexBar（演示）"
+            "value": "QuotaKit（演示）"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "CodexBar（示範）"
+            "value": "QuotaKit（示範）"
           }
         }
       }
@@ -2533,30 +2533,30 @@
         }
       }
     },
-    "Enable cost collection in CodexBar on your Mac to see provider spend, breakdowns, and budgets here.": {
+    "Enable cost collection in QuotaKit on your Mac to see provider spend, breakdowns, and budgets here.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enable cost collection in CodexBar on your Mac to see provider spend, breakdowns, and budgets here."
+            "value": "Enable cost collection in QuotaKit on your Mac to see provider spend, breakdowns, and budgets here."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac の CodexBar でコスト収集を有効にすると、ここでプロバイダごとの支出、内訳、予算を確認できます。"
+            "value": "Mac の QuotaKit でコスト収集を有効にすると、ここでプロバイダごとの支出、内訳、予算を確認できます。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在 Mac 版 CodexBar 中启用费用收集后，这里会显示 provider 支出、细分和预算。"
+            "value": "在 Mac 版 QuotaKit 中启用费用收集后，这里会显示 provider 支出、细分和预算。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "在 Mac 版 CodexBar 中啟用費用收集後，這裡會顯示 provider 支出、細分和預算。"
+            "value": "在 Mac 版 QuotaKit 中啟用費用收集後，這裡會顯示 provider 支出、細分和預算。"
           }
         }
       }
@@ -2589,30 +2589,30 @@
         }
       }
     },
-    "Enable providers in CodexBar on your Mac to see usage data here.": {
+    "Enable providers in QuotaKit on your Mac to see usage data here.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enable providers in CodexBar on your Mac to see usage data here."
+            "value": "Enable providers in QuotaKit on your Mac to see usage data here."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac の CodexBar で provider を有効にすると、ここに使用データが表示されます。"
+            "value": "Mac の QuotaKit で provider を有効にすると、ここに使用データが表示されます。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在 Mac 版 CodexBar 中启用 provider 后，这里才会显示使用数据。"
+            "value": "在 Mac 版 QuotaKit 中启用 provider 后，这里才会显示使用数据。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "在 Mac 版 CodexBar 中啟用 provider 後，這裡才會顯示使用資料。"
+            "value": "在 Mac 版 QuotaKit 中啟用 provider 後，這裡才會顯示使用資料。"
           }
         }
       }
@@ -3236,30 +3236,30 @@
         }
       }
     },
-    "Install CodexBar on Mac": {
+    "Install QuotaKit on Mac": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Install CodexBar on Mac"
+            "value": "Install QuotaKit on Mac"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac に CodexBar をインストール"
+            "value": "Mac に QuotaKit をインストール"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在 Mac 上安装 CodexBar"
+            "value": "在 Mac 上安装 QuotaKit"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "在 Mac 上安裝 CodexBar"
+            "value": "在 Mac 上安裝 QuotaKit"
           }
         }
       }
@@ -4219,30 +4219,30 @@
         }
       }
     },
-    "Monitor your AI coding tool usage on iPhone.\nRequires the CodexBar Mac app.": {
+    "Monitor your AI coding tool usage on iPhone.\nRequires the QuotaKit Mac app.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Monitor your AI coding tool usage on iPhone.\nRequires the CodexBar Mac app."
+            "value": "Monitor your AI coding tool usage on iPhone.\nRequires the QuotaKit Mac app."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "iPhone で AI コーディングツールの使用状況を確認できます。\nCodexBar Mac App が必要です。"
+            "value": "iPhone で AI コーディングツールの使用状況を確認できます。\nQuotaKit Mac App が必要です。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在 iPhone 上查看 AI 编程工具的使用情况。\n需要安装 CodexBar Mac App。"
+            "value": "在 iPhone 上查看 AI 编程工具的使用情况。\n需要安装 QuotaKit Mac App。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "在 iPhone 上查看 AI 編程工具的使用情況。\n需要安裝 CodexBar Mac App。"
+            "value": "在 iPhone 上查看 AI 編程工具的使用情況。\n需要安裝 QuotaKit Mac App。"
           }
         }
       }
@@ -4303,30 +4303,30 @@
         }
       }
     },
-    "Multi-Mac data merge — if you run CodexBar on more than one Mac, data from all of them is deduped by hour and combined on iPhone, so your iPhone charts stay consistent regardless of which Mac was last active.": {
+    "Multi-Mac data merge — if you run QuotaKit on more than one Mac, data from all of them is deduped by hour and combined on iPhone, so your iPhone charts stay consistent regardless of which Mac was last active.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Multi-Mac data merge — if you run CodexBar on more than one Mac, data from all of them is deduped by hour and combined on iPhone, so your iPhone charts stay consistent regardless of which Mac was last active."
+            "value": "Multi-Mac data merge — if you run QuotaKit on more than one Mac, data from all of them is deduped by hour and combined on iPhone, so your iPhone charts stay consistent regardless of which Mac was last active."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "複数 Mac のデータ統合 — 複数の Mac で CodexBar を使用している場合、すべての Mac のデータが時間単位で重複排除され iPhone 上で統合されます。最後にアクティブだった Mac に関わらず、iPhone のチャートは一貫して表示されます。"
+            "value": "複数 Mac のデータ統合 — 複数の Mac で QuotaKit を使用している場合、すべての Mac のデータが時間単位で重複排除され iPhone 上で統合されます。最後にアクティブだった Mac に関わらず、iPhone のチャートは一貫して表示されます。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "多 Mac 数据合并 —— 如果你在多台 Mac 上使用 CodexBar，所有 Mac 的数据现在都会在 iPhone 上按小时去重后合并，不管最后活跃的是哪台 Mac，iPhone 图表都一致。"
+            "value": "多 Mac 数据合并 —— 如果你在多台 Mac 上使用 QuotaKit，所有 Mac 的数据现在都会在 iPhone 上按小时去重后合并，不管最后活跃的是哪台 Mac，iPhone 图表都一致。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "多 Mac 資料合併 —— 如果你在多台 Mac 上使用 CodexBar，所有 Mac 的資料現在都會在 iPhone 上按小時去重後合併，不管最後活躍的是哪台 Mac，iPhone 圖表都一致。"
+            "value": "多 Mac 資料合併 —— 如果你在多台 Mac 上使用 QuotaKit，所有 Mac 的資料現在都會在 iPhone 上按小時去重後合併，不管最後活躍的是哪台 Mac，iPhone 圖表都一致。"
           }
         }
       }
@@ -4723,30 +4723,30 @@
         }
       }
     },
-    "No utilization data yet. Keep CodexBar running on your Mac to start recording.": {
+    "No utilization data yet. Keep QuotaKit running on your Mac to start recording.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No utilization data yet. Keep CodexBar running on your Mac to start recording."
+            "value": "No utilization data yet. Keep QuotaKit running on your Mac to start recording."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "利用率データがまだありません。Mac で CodexBar を起動したままにしてください。"
+            "value": "利用率データがまだありません。Mac で QuotaKit を起動したままにしてください。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "暂无利用率数据。请保持 Mac 上的 CodexBar 运行以开始记录。"
+            "value": "暂无利用率数据。请保持 Mac 上的 QuotaKit 运行以开始记录。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "尚無利用率資料。請保持 Mac 上的 CodexBar 運行以開始記錄。"
+            "value": "尚無利用率資料。請保持 Mac 上的 QuotaKit 運行以開始記錄。"
           }
         }
       }
@@ -4975,30 +4975,30 @@
         }
       }
     },
-    "Open CodexBar on your Mac → Settings → turn on iCloud Sync.": {
+    "Open QuotaKit on your Mac → Settings → turn on iCloud Sync.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Open CodexBar on your Mac → Settings → turn on iCloud Sync."
+            "value": "Open QuotaKit on your Mac → Settings → turn on iCloud Sync."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac で CodexBar を開き、→ Settings → iCloud Sync をオンにしてください。"
+            "value": "Mac で QuotaKit を開き、→ Settings → iCloud Sync をオンにしてください。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在 Mac 上打开 CodexBar → Settings → 打开 iCloud Sync。"
+            "value": "在 Mac 上打开 QuotaKit → Settings → 打开 iCloud Sync。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "在 Mac 上開啟 CodexBar → Settings → 打開 iCloud Sync。"
+            "value": "在 Mac 上開啟 QuotaKit → Settings → 打開 iCloud Sync。"
           }
         }
       }
@@ -5510,30 +5510,30 @@
         }
       }
     },
-    "Please update CodexBar on Mac": {
+    "Please update QuotaKit on Mac": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Please update CodexBar on Mac"
+            "value": "Please update QuotaKit on Mac"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "请在 Mac 端更新 CodexBar"
+            "value": "请在 Mac 端更新 QuotaKit"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "請在 Mac 端更新 CodexBar"
+            "value": "請在 Mac 端更新 QuotaKit"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac の CodexBar をアップデートしてください"
+            "value": "Mac の QuotaKit をアップデートしてください"
           }
         }
       }
@@ -6615,30 +6615,30 @@
         }
       }
     },
-    "Recognises five new providers from Mac CodexBar 0.27.0 (Grok, ElevenLabs, Deepgram, GroqCloud, LLM Proxy) with distinct brand colours, and surfaces Kiro overage usage on the Kiro card when your plan is exhausted.": {
+    "Recognises five new providers from QuotaKit Mac 0.27.0 (Grok, ElevenLabs, Deepgram, GroqCloud, LLM Proxy) with distinct brand colours, and surfaces Kiro overage usage on the Kiro card when your plan is exhausted.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Recognises five new providers from Mac CodexBar 0.27.0 (Grok, ElevenLabs, Deepgram, GroqCloud, LLM Proxy) with distinct brand colours, and surfaces Kiro overage usage on the Kiro card when your plan is exhausted."
+            "value": "Recognises five new providers from QuotaKit Mac 0.27.0 (Grok, ElevenLabs, Deepgram, GroqCloud, LLM Proxy) with distinct brand colours, and surfaces Kiro overage usage on the Kiro card when your plan is exhausted."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "识别 Mac CodexBar 0.27.0 的五个新厂商（Grok、ElevenLabs、Deepgram、GroqCloud、LLM Proxy），分别配以独特品牌色；当 Kiro 套餐用尽时，Kiro 卡片显示超额用量。"
+            "value": "识别 QuotaKit Mac 0.27.0 的五个新厂商（Grok、ElevenLabs、Deepgram、GroqCloud、LLM Proxy），分别配以独特品牌色；当 Kiro 套餐用尽时，Kiro 卡片显示超额用量。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "識別 Mac CodexBar 0.27.0 的五個新廠商（Grok、ElevenLabs、Deepgram、GroqCloud、LLM Proxy），分別配以獨特品牌色；當 Kiro 方案用盡時，Kiro 卡片顯示超額用量。"
+            "value": "識別 QuotaKit Mac 0.27.0 的五個新廠商（Grok、ElevenLabs、Deepgram、GroqCloud、LLM Proxy），分別配以獨特品牌色；當 Kiro 方案用盡時，Kiro 卡片顯示超額用量。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac CodexBar 0.27.0 で追加された 5 つの新プロバイダ（Grok、ElevenLabs、Deepgram、GroqCloud、LLM Proxy）をそれぞれのブランドカラーで認識し、Kiro プランが上限に達するとカード上に超過分の使用量を表示します。"
+            "value": "QuotaKit Mac 0.27.0 で追加された 5 つの新プロバイダ（Grok、ElevenLabs、Deepgram、GroqCloud、LLM Proxy）をそれぞれのブランドカラーで認識し、Kiro プランが上限に達するとカード上に超過分の使用量を表示します。"
           }
         }
       }
@@ -6728,30 +6728,30 @@
         }
       }
     },
-    "Requires CodexBar for Mac 0.23.4 or later for the new providers.": {
+    "Requires QuotaKit for Mac 0.23.4 or later for the new providers.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Requires CodexBar for Mac 0.23.4 or later for the new providers."
+            "value": "Requires QuotaKit for Mac 0.23.4 or later for the new providers."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "新プロバイダーを利用するには macOS 用 CodexBar 0.23.4 以降が必要です。"
+            "value": "新プロバイダーを利用するには macOS 用 QuotaKit 0.23.4 以降が必要です。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "需 macOS CodexBar 0.23.4 或更新版本以启用新 provider 支持。"
+            "value": "需 macOS QuotaKit 0.23.4 或更新版本以启用新 provider 支持。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "需 macOS CodexBar 0.23.4 或更新版本以啟用新 provider 支援。"
+            "value": "需 macOS QuotaKit 0.23.4 或更新版本以啟用新 provider 支援。"
           }
         }
       }
@@ -7852,31 +7852,31 @@
         }
       }
     },
-    "Subscription Utilization and Mac→iPhone push notifications need CodexBar Mac 0.19.0 (Build 54.1.2.0) or later. Get it from github.com/ColumbusLabs/QuotaKit/releases.": {
+    "Subscription Utilization and Mac→iPhone push notifications need QuotaKit Mac 0.19.0 (Build 54.1.2.0) or later. Get it from github.com/ColumbusLabs/QuotaKit/releases.": {
       "comment": "Setup Guide upgrade-notice body. Mirrors the Release Notes Important section.",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Subscription Utilization and Mac→iPhone push notifications need CodexBar Mac 0.19.0 (Build 54.1.2.0) or later. Get it from github.com/ColumbusLabs/QuotaKit/releases."
+            "value": "Subscription Utilization and Mac→iPhone push notifications need QuotaKit Mac 0.19.0 (Build 54.1.2.0) or later. Get it from github.com/ColumbusLabs/QuotaKit/releases."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "サブスクリプション利用率と Mac→iPhone プッシュ通知には CodexBar Mac 0.19.0 (Build 54.1.2.0) 以降が必要です。github.com/ColumbusLabs/QuotaKit/releases から入手してください。"
+            "value": "サブスクリプション利用率と Mac→iPhone プッシュ通知には QuotaKit Mac 0.19.0 (Build 54.1.2.0) 以降が必要です。github.com/ColumbusLabs/QuotaKit/releases から入手してください。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "订阅利用率和 Mac→iPhone 推送通知需要 Mac 版 CodexBar 升级到 0.19.0 (Build 54.1.2.0) 或更新版本。从 github.com/ColumbusLabs/QuotaKit/releases 下载。"
+            "value": "订阅利用率和 Mac→iPhone 推送通知需要 Mac 版 QuotaKit 升级到 0.19.0 (Build 54.1.2.0) 或更新版本。从 github.com/ColumbusLabs/QuotaKit/releases 下载。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "訂閱利用率和 Mac→iPhone 推送通知需要 Mac 版 CodexBar 升級到 0.19.0 (Build 54.1.2.0) 或更新版本。從 github.com/ColumbusLabs/QuotaKit/releases 下載。"
+            "value": "訂閱利用率和 Mac→iPhone 推送通知需要 Mac 版 QuotaKit 升級到 0.19.0 (Build 54.1.2.0) 或更新版本。從 github.com/ColumbusLabs/QuotaKit/releases 下載。"
           }
         }
       }
@@ -8358,58 +8358,58 @@
         }
       }
     },
-    "The first App Store release. Works with CodexBar on Mac.": {
+    "The first App Store release. Works with QuotaKit on Mac.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The first App Store release. Works with CodexBar on Mac."
+            "value": "The first App Store release. Works with QuotaKit on Mac."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "初の App Store リリース。Mac 版 CodexBar と連携。"
+            "value": "初の App Store リリース。Mac 版 QuotaKit と連携。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "首个 App Store 正式版本，搭配 Mac 上的 CodexBar 使用。"
+            "value": "首个 App Store 正式版本，搭配 Mac 上的 QuotaKit 使用。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "首個 App Store 正式版本，搭配 Mac 上的 CodexBar 使用。"
+            "value": "首個 App Store 正式版本，搭配 Mac 上的 QuotaKit 使用。"
           }
         }
       }
     },
-    "The first iPhone companion app for CodexBar with iCloud Key-Value Store sync from Mac.": {
+    "The first iPhone companion app for QuotaKit with iCloud Key-Value Store sync from Mac.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The first iPhone companion app for CodexBar with iCloud Key-Value Store sync from Mac."
+            "value": "The first iPhone companion app for QuotaKit with iCloud Key-Value Store sync from Mac."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac から iCloud Key-Value Store で同期する、CodexBar 初の iPhone コンパニオン App です。"
+            "value": "Mac から iCloud Key-Value Store で同期する、QuotaKit 初の iPhone コンパニオン App です。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "CodexBar 首个 iPhone 配套 App，可通过 iCloud 键值存储从 Mac 同步数据。"
+            "value": "QuotaKit 首个 iPhone 配套 App，可通过 iCloud 键值存储从 Mac 同步数据。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "CodexBar 首個 iPhone 配套 App，可透過 iCloud 鍵值儲存從 Mac 同步資料。"
+            "value": "QuotaKit 首個 iPhone 配套 App，可透過 iCloud 鍵值儲存從 Mac 同步資料。"
           }
         }
       }
@@ -8722,59 +8722,59 @@
         }
       }
     },
-    "Two Macs on different CodexBar versions during a rolling upgrade now show a single card per account.": {
+    "Two Macs on different QuotaKit versions during a rolling upgrade now show a single card per account.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Two Macs on different CodexBar versions during a rolling upgrade now show a single card per account."
+            "value": "Two Macs on different QuotaKit versions during a rolling upgrade now show a single card per account."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "2 台の Mac が異なる CodexBar バージョンで稼働しているローリングアップグレード中も、同じアカウントが 1 枚のカードにまとまります。"
+            "value": "2 台の Mac が異なる QuotaKit バージョンで稼働しているローリングアップグレード中も、同じアカウントが 1 枚のカードにまとまります。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "两台 Mac 跑不同 CodexBar 版本时，同一账号合并为一张卡。"
+            "value": "两台 Mac 跑不同 QuotaKit 版本时，同一账号合并为一张卡。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "兩台 Mac 跑不同 CodexBar 版本時，同一帳號合併為一張卡片。"
+            "value": "兩台 Mac 跑不同 QuotaKit 版本時，同一帳號合併為一張卡片。"
           }
         }
       }
     },
-    "Two Macs, one card — when your two Macs are on different CodexBar versions during a rolling upgrade, your iPhone now correctly shows a single card per account rather than duplicates. Works for accounts whose email contains non-ASCII characters (café@…) too.": {
+    "Two Macs, one card — when your two Macs are on different QuotaKit versions during a rolling upgrade, your iPhone now correctly shows a single card per account rather than duplicates. Works for accounts whose email contains non-ASCII characters (café@…) too.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Two Macs, one card — when your two Macs are on different CodexBar versions during a rolling upgrade, your iPhone now correctly shows a single card per account rather than duplicates. Works for accounts whose email contains non-ASCII characters (café@…) too."
+            "value": "Two Macs, one card — when your two Macs are on different QuotaKit versions during a rolling upgrade, your iPhone now correctly shows a single card per account rather than duplicates. Works for accounts whose email contains non-ASCII characters (café@…) too."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "双 Mac、一张卡 —— 两台 Mac 跑不同版本的 CodexBar（升级过渡期）时，iPhone 现在能把同一账号正确合并成一张卡，而不是每个 Mac 版本一张。邮箱含非 ASCII 字符（café@…）的账号也涵盖。"
+            "value": "双 Mac、一张卡 —— 两台 Mac 跑不同版本的 QuotaKit（升级过渡期）时，iPhone 现在能把同一账号正确合并成一张卡，而不是每个 Mac 版本一张。邮箱含非 ASCII 字符（café@…）的账号也涵盖。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "雙 Mac、一張卡 —— 兩台 Mac 跑不同版本的 CodexBar（升級過渡期）時，iPhone 現在能把同一帳號正確合併成一張卡，而不是每個 Mac 版本一張。郵箱含非 ASCII 字元（café@…）的帳號也涵蓋。"
+            "value": "雙 Mac、一張卡 —— 兩台 Mac 跑不同版本的 QuotaKit（升級過渡期）時，iPhone 現在能把同一帳號正確合併成一張卡，而不是每個 Mac 版本一張。郵箱含非 ASCII 字元（café@…）的帳號也涵蓋。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "2 台の Mac、1 枚のカード —— 2 台の Mac が異なるバージョンの CodexBar を実行中（アップグレード移行期）でも、iPhone は同一アカウントを 1 枚のカードに正しくまとめて表示するようになりました（バージョンごとに別々ではなく）。メールアドレスに非 ASCII 文字（café@…）が含まれるアカウントも対応します。"
+            "value": "2 台の Mac、1 枚のカード —— 2 台の Mac が異なるバージョンの QuotaKit を実行中（アップグレード移行期）でも、iPhone は同一アカウントを 1 枚のカードに正しくまとめて表示するようになりました（バージョンごとに別々ではなく）。メールアドレスに非 ASCII 文字（café@…）が含まれるアカウントも対応します。"
           }
         }
       }
@@ -8891,229 +8891,229 @@
         }
       }
     },
-    "Update Mac CodexBar to 0.23.6 (latest) for both fixes to take effect.": {
+    "Update QuotaKit Mac to 0.23.6 (latest) for both fixes to take effect.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update Mac CodexBar to 0.23.6 (latest) for both fixes to take effect."
+            "value": "Update QuotaKit Mac to 0.23.6 (latest) for both fixes to take effect."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac の CodexBar を 0.23.6（最新）に更新すると、両方の修正が有効になります。"
+            "value": "Mac の QuotaKit を 0.23.6（最新）に更新すると、両方の修正が有効になります。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "把 Mac 端的 CodexBar 升级到 0.23.6（最新版），两项修复都会生效。"
+            "value": "把 Mac 端的 QuotaKit 升级到 0.23.6（最新版），两项修复都会生效。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "把 Mac 端的 CodexBar 升級到 0.23.6（最新版），兩項修復都會生效。"
+            "value": "把 Mac 端的 QuotaKit 升級到 0.23.6（最新版），兩項修復都會生效。"
           }
         }
       }
     },
-    "Update Mac CodexBar to 0.23.6 (latest) for both the new visual treatment and the fixes to take effect.": {
+    "Update QuotaKit Mac to 0.23.6 (latest) for both the new visual treatment and the fixes to take effect.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update Mac CodexBar to 0.23.6 (latest) for both the new visual treatment and the fixes to take effect."
+            "value": "Update QuotaKit Mac to 0.23.6 (latest) for both the new visual treatment and the fixes to take effect."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac の CodexBar を 0.23.6（最新）に更新すると、新しい視覚処理と修正の両方が有効になります。"
+            "value": "Mac の QuotaKit を 0.23.6（最新）に更新すると、新しい視覚処理と修正の両方が有効になります。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "把 Mac 端的 CodexBar 升级到 0.23.6（最新版），新的视觉效果和修复都会生效。"
+            "value": "把 Mac 端的 QuotaKit 升级到 0.23.6（最新版），新的视觉效果和修复都会生效。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "把 Mac 端的 CodexBar 升級到 0.23.6（最新版），新的視覺效果和修復都會生效。"
+            "value": "把 Mac 端的 QuotaKit 升級到 0.23.6（最新版），新的視覺效果和修復都會生效。"
           }
         }
       }
     },
-    "Update Mac CodexBar to 0.23.6 for these changes to take effect.": {
+    "Update QuotaKit Mac to 0.23.6 for these changes to take effect.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update Mac CodexBar to 0.23.6 for these changes to take effect."
+            "value": "Update QuotaKit Mac to 0.23.6 for these changes to take effect."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "これらの変更を有効にするには、Mac の CodexBar を 0.23.6 に更新してください。"
+            "value": "これらの変更を有効にするには、Mac の QuotaKit を 0.23.6 に更新してください。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "需搭配 Mac CodexBar 0.23.6。"
+            "value": "需搭配 QuotaKit Mac 0.23.6。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "需搭配 Mac CodexBar 0.23.6。"
+            "value": "需搭配 QuotaKit Mac 0.23.6。"
           }
         }
       }
     },
-    "Update Mac CodexBar to 0.25.1 or later for the new providers and push notifications.": {
+    "Update QuotaKit Mac to 0.25.1 or later for the new providers and push notifications.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update Mac CodexBar to 0.25.1 or later for the new providers and push notifications."
+            "value": "Update QuotaKit Mac to 0.25.1 or later for the new providers and push notifications."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "新プロバイダーとプッシュ通知の利用には macOS 用 CodexBar 0.25.1 以降が必要です。"
+            "value": "新プロバイダーとプッシュ通知の利用には macOS 用 QuotaKit 0.25.1 以降が必要です。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "新 provider 与推送通知需更新 Mac CodexBar 至 0.25.1 或更新版本。"
+            "value": "新 provider 与推送通知需更新 QuotaKit Mac 至 0.25.1 或更新版本。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "新 provider 與推送通知需更新 Mac CodexBar 至 0.25.1 或更新版本。"
+            "value": "新 provider 與推送通知需更新 QuotaKit Mac 至 0.25.1 或更新版本。"
           }
         }
       }
     },
-    "Update Mac CodexBar to 0.25.2 or later for the warning push. New providers work from 0.25.1.": {
+    "Update QuotaKit Mac to 0.25.2 or later for the warning push. New providers work from 0.25.1.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update Mac CodexBar to 0.25.2 or later for the warning push. New providers work from 0.25.1."
+            "value": "Update QuotaKit Mac to 0.25.2 or later for the warning push. New providers work from 0.25.1."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "警告プッシュ通知の利用には macOS 用 CodexBar 0.25.2 以降が必要です。新プロバイダーは 0.25.1 から利用できます。"
+            "value": "警告プッシュ通知の利用には macOS 用 QuotaKit 0.25.2 以降が必要です。新プロバイダーは 0.25.1 から利用できます。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "警告推送需更新 Mac CodexBar 至 0.25.2 或更新版本；新 provider 从 0.25.1 起可用。"
+            "value": "警告推送需更新 QuotaKit Mac 至 0.25.2 或更新版本；新 provider 从 0.25.1 起可用。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "警告推送需更新 Mac CodexBar 至 0.25.2 或更新版本；新 provider 自 0.25.1 起可用。"
+            "value": "警告推送需更新 QuotaKit Mac 至 0.25.2 或更新版本；新 provider 自 0.25.1 起可用。"
           }
         }
       }
     },
-    "Update Mac CodexBar to 0.26.1 (fork build 63.2 or later). iPhone 1.7.0 is also forward-compatible with Mac 0.25.2 — new cards just stay hidden until Mac is on the new build.": {
+    "Update QuotaKit Mac to 0.26.1 (fork build 63.2 or later). iPhone 1.7.0 is also forward-compatible with Mac 0.25.2 — new cards just stay hidden until Mac is on the new build.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update Mac CodexBar to 0.26.1 (fork build 63.2 or later). iPhone 1.7.0 is also forward-compatible with Mac 0.25.2 — new cards just stay hidden until Mac is on the new build."
+            "value": "Update QuotaKit Mac to 0.26.1 (fork build 63.2 or later). iPhone 1.7.0 is also forward-compatible with Mac 0.25.2 — new cards just stay hidden until Mac is on the new build."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "请将 Mac 端 CodexBar 升级到 0.26.1（fork build 63.2 或更新）。iPhone 1.7.0 与 Mac 0.25.2 也保持向前兼容 —— 新卡片在 Mac 升级前会自动隐藏。"
+            "value": "请将 Mac 端 QuotaKit 升级到 0.26.1（fork build 63.2 或更新）。iPhone 1.7.0 与 Mac 0.25.2 也保持向前兼容 —— 新卡片在 Mac 升级前会自动隐藏。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "請將 Mac 端 CodexBar 升級到 0.26.1（fork build 63.2 或更新）。iPhone 1.7.0 與 Mac 0.25.2 也保持向前相容 —— 新卡片在 Mac 升級前會自動隱藏。"
+            "value": "請將 Mac 端 QuotaKit 升級到 0.26.1（fork build 63.2 或更新）。iPhone 1.7.0 與 Mac 0.25.2 也保持向前相容 —— 新卡片在 Mac 升級前會自動隱藏。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac の CodexBar を 0.26.1（fork build 63.2 以降）にアップデートしてください。iPhone 1.7.0 は Mac 0.25.2 とも前方互換性があり、新しいカードは Mac がアップデートされるまで非表示になります。"
+            "value": "Mac の QuotaKit を 0.26.1（fork build 63.2 以降）にアップデートしてください。iPhone 1.7.0 は Mac 0.25.2 とも前方互換性があり、新しいカードは Mac がアップデートされるまで非表示になります。"
           }
         }
       }
     },
-    "Update Mac CodexBar to 0.27.0 (fork build 65.1 or later) for the new dedicated cards and Kiro overage data. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x — new cards just stay hidden until Mac is on the new build.": {
+    "Update QuotaKit Mac to 0.27.0 (fork build 65.1 or later) for the new dedicated cards and Kiro overage data. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x — new cards just stay hidden until Mac is on the new build.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update Mac CodexBar to 0.27.0 (fork build 65.1 or later) for the new dedicated cards and Kiro overage data. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x — new cards just stay hidden until Mac is on the new build."
+            "value": "Update QuotaKit Mac to 0.27.0 (fork build 65.1 or later) for the new dedicated cards and Kiro overage data. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x — new cards just stay hidden until Mac is on the new build."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "请将 Mac CodexBar 更新到 0.27.0（fork 构建 65.1 及更新）以启用专属卡片和 Kiro 超额数据。iPhone 1.8.0 仍向前兼容 Mac 0.26.x —— 新卡片在 Mac 升级前保持隐藏。"
+            "value": "请将 QuotaKit Mac 更新到 0.27.0（fork 构建 65.1 及更新）以启用专属卡片和 Kiro 超额数据。iPhone 1.8.0 仍向前兼容 Mac 0.26.x —— 新卡片在 Mac 升级前保持隐藏。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "請將 Mac CodexBar 更新到 0.27.0（fork 建置 65.1 及更新）以啟用專屬卡片和 Kiro 超額資料。iPhone 1.8.0 仍向前相容 Mac 0.26.x —— 新卡片在 Mac 升級前保持隱藏。"
+            "value": "請將 QuotaKit Mac 更新到 0.27.0（fork 建置 65.1 及更新）以啟用專屬卡片和 Kiro 超額資料。iPhone 1.8.0 仍向前相容 Mac 0.26.x —— 新卡片在 Mac 升級前保持隱藏。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "新しい専用カードと Kiro 超過分データを利用するには、Mac CodexBar を 0.27.0（fork ビルド 65.1 以上）に更新してください。iPhone 1.8.0 は Mac 0.26.x との上方互換性を保ち、Mac が新ビルドになるまで新カードは非表示のままです。"
+            "value": "新しい専用カードと Kiro 超過分データを利用するには、QuotaKit Mac を 0.27.0（fork ビルド 65.1 以上）に更新してください。iPhone 1.8.0 は Mac 0.26.x との上方互換性を保ち、Mac が新ビルドになるまで新カードは非表示のままです。"
           }
         }
       }
     },
-    "Update Mac CodexBar to 0.27.0 (fork build 65.1 or later) for the new providers and Kiro overage data. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x — new fields just stay hidden until Mac is on the new build.": {
+    "Update QuotaKit Mac to 0.27.0 (fork build 65.1 or later) for the new providers and Kiro overage data. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x — new fields just stay hidden until Mac is on the new build.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update Mac CodexBar to 0.27.0 (fork build 65.1 or later) for the new providers and Kiro overage data. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x — new fields just stay hidden until Mac is on the new build."
+            "value": "Update QuotaKit Mac to 0.27.0 (fork build 65.1 or later) for the new providers and Kiro overage data. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x — new fields just stay hidden until Mac is on the new build."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "请将 Mac CodexBar 更新到 0.27.0（fork 构建 65.1 及更新）以启用新厂商及 Kiro 超额数据。iPhone 1.8.0 仍向前兼容 Mac 0.26.x —— 新字段在 Mac 升级前保持隐藏。"
+            "value": "请将 QuotaKit Mac 更新到 0.27.0（fork 构建 65.1 及更新）以启用新厂商及 Kiro 超额数据。iPhone 1.8.0 仍向前兼容 Mac 0.26.x —— 新字段在 Mac 升级前保持隐藏。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "請將 Mac CodexBar 更新到 0.27.0（fork 建置 65.1 及更新）以啟用新廠商及 Kiro 超額資料。iPhone 1.8.0 仍向前相容 Mac 0.26.x —— 新欄位在 Mac 升級前保持隱藏。"
+            "value": "請將 QuotaKit Mac 更新到 0.27.0（fork 建置 65.1 及更新）以啟用新廠商及 Kiro 超額資料。iPhone 1.8.0 仍向前相容 Mac 0.26.x —— 新欄位在 Mac 升級前保持隱藏。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "新しいプロバイダと Kiro の超過分データを利用するには、Mac CodexBar を 0.27.0（fork ビルド 65.1 以上）に更新してください。iPhone 1.8.0 は Mac 0.26.x との上方互換性を保ち、Mac が新ビルドになるまで新フィールドは非表示のままです。"
+            "value": "新しいプロバイダと Kiro の超過分データを利用するには、QuotaKit Mac を 0.27.0（fork ビルド 65.1 以上）に更新してください。iPhone 1.8.0 は Mac 0.26.x との上方互換性を保ち、Mac が新ビルドになるまで新フィールドは非表示のままです。"
           }
         }
       }
@@ -9539,30 +9539,30 @@
         }
       }
     },
-    "Walk through how CodexBar syncs from Mac to iPhone": {
+    "Walk through how QuotaKit syncs from Mac to iPhone": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Walk through how CodexBar syncs from Mac to iPhone"
+            "value": "Walk through how QuotaKit syncs from Mac to iPhone"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "CodexBar が Mac から iPhone にどう同期するかを案内します"
+            "value": "QuotaKit が Mac から iPhone にどう同期するかを案内します"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "带你了解 CodexBar 如何从 Mac 同步到 iPhone"
+            "value": "带你了解 QuotaKit 如何从 Mac 同步到 iPhone"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "帶你了解 CodexBar 如何從 Mac 同步到 iPhone"
+            "value": "帶你了解 QuotaKit 如何從 Mac 同步到 iPhone"
           }
         }
       }
@@ -9595,30 +9595,30 @@
         }
       }
     },
-    "Welcome to CodexBar": {
+    "Welcome to QuotaKit": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Welcome to CodexBar"
+            "value": "Welcome to QuotaKit"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "CodexBar へようこそ"
+            "value": "QuotaKit へようこそ"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "欢迎使用 CodexBar"
+            "value": "欢迎使用 QuotaKit"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "歡迎使用 CodexBar"
+            "value": "歡迎使用 QuotaKit"
           }
         }
       }
@@ -9737,30 +9737,30 @@
         }
       }
     },
-    "Your Mac is using legacy sync. Update CodexBar on Mac to unlock CloudKit multi-device sync.": {
+    "Your Mac is using legacy sync. Update QuotaKit on Mac to unlock CloudKit multi-device sync.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Your Mac is using legacy sync. Update CodexBar on Mac to unlock CloudKit multi-device sync."
+            "value": "Your Mac is using legacy sync. Update QuotaKit on Mac to unlock CloudKit multi-device sync."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac は旧式の同期方式を使用しています。CodexBar Mac アプリを更新して CloudKit マルチデバイス同期を有効にしてください。"
+            "value": "Mac は旧式の同期方式を使用しています。QuotaKit Mac アプリを更新して CloudKit マルチデバイス同期を有効にしてください。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "你的 Mac 正在使用旧版同步。更新 Mac 端 CodexBar 以启用 CloudKit 多设备同步。"
+            "value": "你的 Mac 正在使用旧版同步。更新 Mac 端 QuotaKit 以启用 CloudKit 多设备同步。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "你的 Mac 正在使用舊版同步。更新 Mac 端 CodexBar 以啟用 CloudKit 多裝置同步。"
+            "value": "你的 Mac 正在使用舊版同步。更新 Mac 端 QuotaKit 以啟用 CloudKit 多裝置同步。"
           }
         }
       }
@@ -10942,7 +10942,7 @@
       }
     },
     "linkage-prompt-detail": {
-      "comment": "Inline prompt detail when iOS can't determine the older Mac's CodexBar version.",
+      "comment": "Inline prompt detail when iOS can't determine the older Mac's QuotaKit version.",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -10971,30 +10971,30 @@
       }
     },
     "linkage-prompt-detail-with-version": {
-      "comment": "Inline prompt detail when iOS knows the older Mac's CodexBar version. %@ = CodexBar version string (e.g. '0.23.6').",
+      "comment": "Inline prompt detail when iOS knows the older Mac's QuotaKit version. %@ = QuotaKit version string (e.g. '0.23.6').",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The other Mac (CodexBar %@) is on an older version that doesn't share account identifiers, so iOS can't auto-link the cards. Confirm if it's the same login. Updating the other Mac to the latest CodexBar makes this automatic."
+            "value": "The other Mac (QuotaKit %@) is on an older version that doesn't share account identifiers, so iOS can't auto-link the cards. Confirm if it's the same login. Updating the other Mac to the latest QuotaKit makes this automatic."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "もう一方の Mac (CodexBar %@) は古いバージョンでアカウント識別子を共有していないため、iOS が自動でリンクできません。同じログインの場合は確認してください。もう一方の Mac を最新の CodexBar に更新すると自動的に統合されます。"
+            "value": "もう一方の Mac (QuotaKit %@) は古いバージョンでアカウント識別子を共有していないため、iOS が自動でリンクできません。同じログインの場合は確認してください。もう一方の Mac を最新の QuotaKit に更新すると自動的に統合されます。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "另一台 Mac（CodexBar %@）版本较旧，不会共享账号标识，iOS 无法自动合并。如果是同一个账号请确认。把另一台 Mac 升级到最新版本后会自动识别。"
+            "value": "另一台 Mac（QuotaKit %@）版本较旧，不会共享账号标识，iOS 无法自动合并。如果是同一个账号请确认。把另一台 Mac 升级到最新版本后会自动识别。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "另一台 Mac（CodexBar %@）版本較舊，不會共享帳號識別碼，iOS 無法自動合併。如果是同一個帳號請確認。把另一台 Mac 升級到最新版本後會自動辨識。"
+            "value": "另一台 Mac（QuotaKit %@）版本較舊，不會共享帳號識別碼，iOS 無法自動合併。如果是同一個帳號請確認。把另一台 Mac 升級到最新版本後會自動辨識。"
           }
         }
       }
@@ -12653,30 +12653,30 @@
         }
       }
     },
-    "Update Mac CodexBar to 0.27.0 (fork build 65.3 or later) for the full v0.27 surface including the quota account identity push title and Codex workspace badge. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x and 65.1 / 65.2 — newer tiles just stay hidden / fall back to the older title format until Mac is on 65.3.": {
+    "Update QuotaKit Mac to 0.27.0 (fork build 65.3 or later) for the full v0.27 surface including the quota account identity push title and Codex workspace badge. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x and 65.1 / 65.2 — newer tiles just stay hidden / fall back to the older title format until Mac is on 65.3.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update Mac CodexBar to 0.27.0 (fork build 65.3 or later) for the full v0.27 surface including the quota account identity push title and Codex workspace badge. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x and 65.1 / 65.2 — newer tiles just stay hidden / fall back to the older title format until Mac is on 65.3."
+            "value": "Update QuotaKit Mac to 0.27.0 (fork build 65.3 or later) for the full v0.27 surface including the quota account identity push title and Codex workspace badge. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x and 65.1 / 65.2 — newer tiles just stay hidden / fall back to the older title format until Mac is on 65.3."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "请将 Mac 端 CodexBar 升级到 0.27.0（fork 构建号 65.3 或更高），以启用完整的 v0.27 功能，包括带账号身份的额度推送标题和 Codex 工作区徽章。iPhone 1.8.0 同时向后兼容 Mac 0.26.x 和 65.1 / 65.2 —— 新增卡片在 Mac 升级到 65.3 之前会自动隐藏 / 回退到旧标题格式。"
+            "value": "请将 Mac 端 QuotaKit 升级到 0.27.0（fork 构建号 65.3 或更高），以启用完整的 v0.27 功能，包括带账号身份的额度推送标题和 Codex 工作区徽章。iPhone 1.8.0 同时向后兼容 Mac 0.26.x 和 65.1 / 65.2 —— 新增卡片在 Mac 升级到 65.3 之前会自动隐藏 / 回退到旧标题格式。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "請將 Mac 端 CodexBar 升級到 0.27.0（fork 建置號 65.3 或更高），以啟用完整的 v0.27 功能，包括帶帳號身份的額度推送標題和 Codex 工作區徽章。iPhone 1.8.0 同時向後相容 Mac 0.26.x 和 65.1 / 65.2 —— 新增卡片在 Mac 升級到 65.3 之前會自動隱藏 / 回退到舊標題格式。"
+            "value": "請將 Mac 端 QuotaKit 升級到 0.27.0（fork 建置號 65.3 或更高），以啟用完整的 v0.27 功能，包括帶帳號身份的額度推送標題和 Codex 工作區徽章。iPhone 1.8.0 同時向後相容 Mac 0.26.x 和 65.1 / 65.2 —— 新增卡片在 Mac 升級到 65.3 之前會自動隱藏 / 回退到舊標題格式。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "完全な v0.27 機能 (アカウント識別子付きの利用量プッシュタイトルや Codex ワークスペースバッジを含む) を有効化するには、Mac CodexBar を 0.27.0 (フォークビルド 65.3 以降) にアップデートしてください。iPhone 1.8.0 は Mac 0.26.x および 65.1 / 65.2 とも引き続き互換性があり、新しいタイルは Mac が 65.3 になるまで自動的に非表示 / 古いタイトル形式にフォールバックします。"
+            "value": "完全な v0.27 機能 (アカウント識別子付きの利用量プッシュタイトルや Codex ワークスペースバッジを含む) を有効化するには、QuotaKit Mac を 0.27.0 (フォークビルド 65.3 以降) にアップデートしてください。iPhone 1.8.0 は Mac 0.26.x および 65.1 / 65.2 とも引き続き互換性があり、新しいタイルは Mac が 65.3 になるまで自動的に非表示 / 古いタイトル形式にフォールバックします。"
           }
         }
       }
@@ -12821,30 +12821,30 @@
         }
       }
     },
-    "Update Mac CodexBar to 0.27.0 (fork build 65.2 or later) for the new dedicated cards plus the v0.27 existing-provider extensions. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x and 65.1 — new tiles just stay hidden until Mac is on 65.2.": {
+    "Update QuotaKit Mac to 0.27.0 (fork build 65.2 or later) for the new dedicated cards plus the v0.27 existing-provider extensions. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x and 65.1 — new tiles just stay hidden until Mac is on 65.2.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update Mac CodexBar to 0.27.0 (fork build 65.2 or later) for the new dedicated cards plus the v0.27 existing-provider extensions. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x and 65.1 — new tiles just stay hidden until Mac is on 65.2."
+            "value": "Update QuotaKit Mac to 0.27.0 (fork build 65.2 or later) for the new dedicated cards plus the v0.27 existing-provider extensions. iPhone 1.8.0 also remains forward-compatible with Mac 0.26.x and 65.1 — new tiles just stay hidden until Mac is on 65.2."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "请将 Mac 端 CodexBar 升级到 0.27.0（fork 构建号 65.2 或更高），以启用新的专属卡片和 v0.27 现有 provider 扩展。iPhone 1.8.0 同时向后兼容 Mac 0.26.x 和 65.1 —— 新增卡片在 Mac 升级到 65.2 之前会自动隐藏。"
+            "value": "请将 Mac 端 QuotaKit 升级到 0.27.0（fork 构建号 65.2 或更高），以启用新的专属卡片和 v0.27 现有 provider 扩展。iPhone 1.8.0 同时向后兼容 Mac 0.26.x 和 65.1 —— 新增卡片在 Mac 升级到 65.2 之前会自动隐藏。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "請將 Mac 端 CodexBar 升級到 0.27.0（fork 建置號 65.2 或更高），以啟用新的專屬卡片和 v0.27 現有 provider 擴充。iPhone 1.8.0 同時向後相容 Mac 0.26.x 和 65.1 —— 新增卡片在 Mac 升級到 65.2 之前會自動隱藏。"
+            "value": "請將 Mac 端 QuotaKit 升級到 0.27.0（fork 建置號 65.2 或更高），以啟用新的專屬卡片和 v0.27 現有 provider 擴充。iPhone 1.8.0 同時向後相容 Mac 0.26.x 和 65.1 —— 新增卡片在 Mac 升級到 65.2 之前會自動隱藏。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "新しい専用カードと v0.27 既存プロバイダ拡張を有効にするため、Mac CodexBar を 0.27.0 (フォークビルド 65.2 以降) にアップデートしてください。iPhone 1.8.0 は Mac 0.26.x および 65.1 とも引き続き互換性があり、新しいタイルは Mac が 65.2 になるまで自動的に非表示になります。"
+            "value": "新しい専用カードと v0.27 既存プロバイダ拡張を有効にするため、QuotaKit Mac を 0.27.0 (フォークビルド 65.2 以降) にアップデートしてください。iPhone 1.8.0 は Mac 0.26.x および 65.1 とも引き続き互換性があり、新しいタイルは Mac が 65.2 になるまで自動的に非表示になります。"
           }
         }
       }
@@ -12961,30 +12961,30 @@
         }
       }
     },
-    "Update Mac CodexBar to 0.29.0 (fork build 68.1 or later) to see the three new providers. iPhone 1.9.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is on 0.29.0.": {
+    "Update QuotaKit Mac to 0.29.0 (fork build 68.1 or later) to see the three new providers. iPhone 1.9.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is on 0.29.0.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update Mac CodexBar to 0.29.0 (fork build 68.1 or later) to see the three new providers. iPhone 1.9.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is on 0.29.0."
+            "value": "Update QuotaKit Mac to 0.29.0 (fork build 68.1 or later) to see the three new providers. iPhone 1.9.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is on 0.29.0."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "3 つの新しいプロバイダーを表示するには、Mac の CodexBar を 0.29.0（fork build 68.1 以降）に更新してください。iPhone 1.9.0 は古い Mac ビルドと前方互換性があり、Mac が 0.29.0 になるまで新しいカードは非表示のままです。"
+            "value": "3 つの新しいプロバイダーを表示するには、Mac の QuotaKit を 0.29.0（fork build 68.1 以降）に更新してください。iPhone 1.9.0 は古い Mac ビルドと前方互換性があり、Mac が 0.29.0 になるまで新しいカードは非表示のままです。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "将 Mac 端 CodexBar 更新到 0.29.0（fork build 68.1 或更新）才能看到这三个新 provider。iPhone 1.9.0 与旧版 Mac 保持向前兼容 —— 在 Mac 升级到 0.29.0 之前，新卡片只是保持隐藏。"
+            "value": "将 Mac 端 QuotaKit 更新到 0.29.0（fork build 68.1 或更新）才能看到这三个新 provider。iPhone 1.9.0 与旧版 Mac 保持向前兼容 —— 在 Mac 升级到 0.29.0 之前，新卡片只是保持隐藏。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "將 Mac 端 CodexBar 更新到 0.29.0（fork build 68.1 或更新）才能看到這三個新 provider。iPhone 1.9.0 與舊版 Mac 保持向前相容 —— 在 Mac 升級到 0.29.0 之前，新卡片只是保持隱藏。"
+            "value": "將 Mac 端 QuotaKit 更新到 0.29.0（fork build 68.1 或更新）才能看到這三個新 provider。iPhone 1.9.0 與舊版 Mac 保持向前相容 —— 在 Mac 升級到 0.29.0 之前，新卡片只是保持隱藏。"
           }
         }
       }
@@ -13409,30 +13409,30 @@
         }
       }
     },
-    "Three new providers (Azure OpenAI, Alibaba Token Plan, T3 Chat) from the CodexBar 0.29.0 sync — plus richer detail across many providers: the iPhone now surfaces more of what your Mac already tracks.": {
+    "Three new providers (Azure OpenAI, Alibaba Token Plan, T3 Chat) from the QuotaKit Mac 0.29.0 sync — plus richer detail across many providers: the iPhone now surfaces more of what your Mac already tracks.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Three new providers (Azure OpenAI, Alibaba Token Plan, T3 Chat) from the CodexBar 0.29.0 sync — plus richer detail across many providers: the iPhone now surfaces more of what your Mac already tracks."
+            "value": "Three new providers (Azure OpenAI, Alibaba Token Plan, T3 Chat) from the QuotaKit Mac 0.29.0 sync — plus richer detail across many providers: the iPhone now surfaces more of what your Mac already tracks."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "来自 CodexBar 0.29.0 同步的三个新 provider（Azure OpenAI、Alibaba Token Plan、T3 Chat）—— 外加多个 provider 的更丰富详情：iPhone 现在能展示更多 Mac 已经在追踪的数据。"
+            "value": "来自 QuotaKit 0.29.0 同步的三个新 provider（Azure OpenAI、Alibaba Token Plan、T3 Chat）—— 外加多个 provider 的更丰富详情：iPhone 现在能展示更多 Mac 已经在追踪的数据。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "來自 CodexBar 0.29.0 同步的三個新 provider（Azure OpenAI、Alibaba Token Plan、T3 Chat）—— 外加多個 provider 的更豐富詳情：iPhone 現在能展示更多 Mac 已經在追蹤的資料。"
+            "value": "來自 QuotaKit 0.29.0 同步的三個新 provider（Azure OpenAI、Alibaba Token Plan、T3 Chat）—— 外加多個 provider 的更豐富詳情：iPhone 現在能展示更多 Mac 已經在追蹤的資料。"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "CodexBar 0.29.0 同期による 3 つの新しいプロバイダー（Azure OpenAI、Alibaba Token Plan、T3 Chat）に加え、多くのプロバイダーでより詳しい情報を表示します。iPhone が Mac で追跡中のデータをより多く表示するようになりました。"
+            "value": "QuotaKit 0.29.0 同期による 3 つの新しいプロバイダー（Azure OpenAI、Alibaba Token Plan、T3 Chat）に加え、多くのプロバイダーでより詳しい情報を表示します。iPhone が Mac で追跡中のデータをより多く表示するようになりました。"
           }
         }
       }
@@ -14026,30 +14026,30 @@
         }
       }
     },
-    "DeepSeek web-session usage and cost on your iPhone, Codex Spark and Antigravity per-model quota lanes synced through, and cost cards that show request counts in the right currency — from the CodexBar 0.31.0 sync.": {
+    "DeepSeek web-session usage and cost on your iPhone, Codex Spark and Antigravity per-model quota lanes synced through, and cost cards that show request counts in the right currency — from the QuotaKit Mac 0.31.0 sync.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "DeepSeek web-session usage and cost on your iPhone, Codex Spark and Antigravity per-model quota lanes synced through, and cost cards that show request counts in the right currency — from the CodexBar 0.31.0 sync."
+            "value": "DeepSeek web-session usage and cost on your iPhone, Codex Spark and Antigravity per-model quota lanes synced through, and cost cards that show request counts in the right currency — from the QuotaKit Mac 0.31.0 sync."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "DeepSeek の Web セッション使用状況とコストを iPhone で確認。Codex Spark と Antigravity のモデル別クォータが同期され、コストカードはリクエスト数を正しい通貨で表示します — CodexBar 0.31.0 の同期による更新です。"
+            "value": "DeepSeek の Web セッション使用状況とコストを iPhone で確認。Codex Spark と Antigravity のモデル別クォータが同期され、コストカードはリクエスト数を正しい通貨で表示します — QuotaKit 0.31.0 の同期による更新です。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "DeepSeek 网页会话的用量与成本现可在 iPhone 上查看，Codex Spark 与 Antigravity 的分模型配额通道同步透传，成本卡按正确币种显示请求数 —— 来自 CodexBar 0.31.0 同步。"
+            "value": "DeepSeek 网页会话的用量与成本现可在 iPhone 上查看，Codex Spark 与 Antigravity 的分模型配额通道同步透传，成本卡按正确币种显示请求数 —— 来自 QuotaKit 0.31.0 同步。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "DeepSeek 網頁工作階段的用量與成本現可在 iPhone 上檢視，Codex Spark 與 Antigravity 的分模型配額通道同步透傳，成本卡按正確幣別顯示請求數 —— 來自 CodexBar 0.31.0 同步。"
+            "value": "DeepSeek 網頁工作階段的用量與成本現可在 iPhone 上檢視，Codex Spark 與 Antigravity 的分模型配額通道同步透傳，成本卡按正確幣別顯示請求數 —— 來自 QuotaKit 0.31.0 同步。"
           }
         }
       }
@@ -14194,58 +14194,58 @@
         }
       }
     },
-    "Update Mac CodexBar to 0.31.0 (fork build 73.2 or later) to surface the DeepSeek card and the Codex Spark / Antigravity lanes. iPhone 1.10.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is updated.": {
+    "Update QuotaKit Mac to 0.31.0 (fork build 73.2 or later) to surface the DeepSeek card and the Codex Spark / Antigravity lanes. iPhone 1.10.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is updated.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update Mac CodexBar to 0.31.0 (fork build 73.2 or later) to surface the DeepSeek card and the Codex Spark / Antigravity lanes. iPhone 1.10.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is updated."
+            "value": "Update QuotaKit Mac to 0.31.0 (fork build 73.2 or later) to surface the DeepSeek card and the Codex Spark / Antigravity lanes. iPhone 1.10.0 stays forward-compatible with older Mac builds — the new cards simply stay hidden until Mac is updated."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "DeepSeek カードと Codex Spark／Antigravity レーンを表示するには、Mac 版 CodexBar を 0.31.0（fork build 73.2 以降）に更新してください。iPhone 1.10.0 は古い Mac ビルドとも前方互換で、新しいカードは Mac を更新するまで非表示のままです。"
+            "value": "DeepSeek カードと Codex Spark／Antigravity レーンを表示するには、Mac 版 QuotaKit を 0.31.0（fork build 73.2 以降）に更新してください。iPhone 1.10.0 は古い Mac ビルドとも前方互換で、新しいカードは Mac を更新するまで非表示のままです。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "将 Mac 版 CodexBar 更新到 0.31.0（fork build 73.2 或更高）即可显示 DeepSeek 卡片以及 Codex Spark / Antigravity 通道。iPhone 1.10.0 仍向前兼容旧版 Mac —— 新卡片会先隐藏，待 Mac 更新后自动出现。"
+            "value": "将 Mac 版 QuotaKit 更新到 0.31.0（fork build 73.2 或更高）即可显示 DeepSeek 卡片以及 Codex Spark / Antigravity 通道。iPhone 1.10.0 仍向前兼容旧版 Mac —— 新卡片会先隐藏，待 Mac 更新后自动出现。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "將 Mac 版 CodexBar 更新到 0.31.0（fork build 73.2 或更高）即可顯示 DeepSeek 卡片以及 Codex Spark / Antigravity 通道。iPhone 1.10.0 仍向前相容舊版 Mac —— 新卡片會先隱藏，待 Mac 更新後自動出現。"
+            "value": "將 Mac 版 QuotaKit 更新到 0.31.0（fork build 73.2 或更高）即可顯示 DeepSeek 卡片以及 Codex Spark / Antigravity 通道。iPhone 1.10.0 仍向前相容舊版 Mac —— 新卡片會先隱藏，待 Mac 更新後自動出現。"
           }
         }
       }
     },
-    "Quieter, more accurate provider data synced from your Mac — Antigravity quota rows without the noise, correct Copilot usage on zero-entitlement plans, fixed Augment parsing, and steadier Claude readings — from the CodexBar 0.32.4 sync.": {
+    "Quieter, more accurate provider data synced from your Mac — Antigravity quota rows without the noise, correct Copilot usage on zero-entitlement plans, fixed Augment parsing, and steadier Claude readings — from the QuotaKit Mac 0.32.4 sync.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Quieter, more accurate provider data synced from your Mac — Antigravity quota rows without the noise, correct Copilot usage on zero-entitlement plans, fixed Augment parsing, and steadier Claude readings — from the CodexBar 0.32.4 sync."
+            "value": "Quieter, more accurate provider data synced from your Mac — Antigravity quota rows without the noise, correct Copilot usage on zero-entitlement plans, fixed Augment parsing, and steadier Claude readings — from the QuotaKit Mac 0.32.4 sync."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac から同期される provider データがより静かで正確に — Antigravity のクォータ行からノイズを除去、zero-entitlement プランでの Copilot 使用率を修正、Augment の解析を修正、Claude の表示も安定。CodexBar 0.32.4 の同期による更新です。"
+            "value": "Mac から同期される provider データがより静かで正確に — Antigravity のクォータ行からノイズを除去、zero-entitlement プランでの Copilot 使用率を修正、Augment の解析を修正、Claude の表示も安定。QuotaKit 0.32.4 の同期による更新です。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "从 Mac 同步来的 provider 数据更干净、更准确 —— Antigravity 配额行去除噪声、修正 zero-entitlement 套餐的 Copilot 用量、修复 Augment 解析、Claude 读数更稳。来自 CodexBar 0.32.4 同步。"
+            "value": "从 Mac 同步来的 provider 数据更干净、更准确 —— Antigravity 配额行去除噪声、修正 zero-entitlement 套餐的 Copilot 用量、修复 Augment 解析、Claude 读数更稳。来自 QuotaKit 0.32.4 同步。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "從 Mac 同步來的 provider 資料更乾淨、更準確 —— Antigravity 配額行去除雜訊、修正 zero-entitlement 方案的 Copilot 用量、修復 Augment 解析、Claude 讀數更穩。來自 CodexBar 0.32.4 同步。"
+            "value": "從 Mac 同步來的 provider 資料更乾淨、更準確 —— Antigravity 配額行去除雜訊、修正 zero-entitlement 方案的 Copilot 用量、修復 Augment 解析、Claude 讀數更穩。來自 QuotaKit 0.32.4 同步。"
           }
         }
       }
@@ -14390,30 +14390,30 @@
         }
       }
     },
-    "Update Mac CodexBar to 0.32.4 (fork build 79.1 or later). iPhone 1.11.0 stays forward-compatible with older Mac builds — these refinements simply arrive once Mac is updated.": {
+    "Update QuotaKit Mac to 0.32.4 (fork build 79.1 or later). iPhone 1.11.0 stays forward-compatible with older Mac builds — these refinements simply arrive once Mac is updated.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Update Mac CodexBar to 0.32.4 (fork build 79.1 or later). iPhone 1.11.0 stays forward-compatible with older Mac builds — these refinements simply arrive once Mac is updated."
+            "value": "Update QuotaKit Mac to 0.32.4 (fork build 79.1 or later). iPhone 1.11.0 stays forward-compatible with older Mac builds — these refinements simply arrive once Mac is updated."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac 版 CodexBar を 0.32.4（fork build 79.1 以降）に更新してください。iPhone 1.11.0 は古い Mac ビルドとも前方互換で、これらの改善は Mac を更新すると反映されます。"
+            "value": "Mac 版 QuotaKit を 0.32.4（fork build 79.1 以降）に更新してください。iPhone 1.11.0 は古い Mac ビルドとも前方互換で、これらの改善は Mac を更新すると反映されます。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "将 Mac 版 CodexBar 更新到 0.32.4（fork build 79.1 或更高）。iPhone 1.11.0 仍向前兼容旧版 Mac —— 这些改进会在 Mac 更新后到达。"
+            "value": "将 Mac 版 QuotaKit 更新到 0.32.4（fork build 79.1 或更高）。iPhone 1.11.0 仍向前兼容旧版 Mac —— 这些改进会在 Mac 更新后到达。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "將 Mac 版 CodexBar 更新到 0.32.4（fork build 79.1 或更高）。iPhone 1.11.0 仍向前相容舊版 Mac —— 這些改進會在 Mac 更新後到達。"
+            "value": "將 Mac 版 QuotaKit 更新到 0.32.4（fork build 79.1 或更高）。iPhone 1.11.0 仍向前相容舊版 Mac —— 這些改進會在 Mac 更新後到達。"
           }
         }
       }
@@ -16529,31 +16529,31 @@
         }
       }
     },
-    "Widgets — QuotaKit Pro adds Home Screen and Lock Screen widgets backed only by sanitized iPhone-side snapshot data, reload immediately after Pro unlock, migrate safely from prior CodexBar local caches, and localize across all four supported languages.": {
+    "Widgets — QuotaKit Pro adds Home Screen and Lock Screen widgets backed only by sanitized iPhone-side snapshot data, reload immediately after Pro unlock, migrate safely from prior QuotaKit local caches, and localize across all four supported languages.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Widgets — QuotaKit Pro adds Home Screen and Lock Screen widgets backed only by sanitized iPhone-side snapshot data, reload immediately after Pro unlock, migrate safely from prior CodexBar local caches, and localize across all four supported languages."
+            "value": "Widgets — QuotaKit Pro adds Home Screen and Lock Screen widgets backed only by sanitized iPhone-side snapshot data, reload immediately after Pro unlock, migrate safely from prior QuotaKit local caches, and localize across all four supported languages."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ウィジェット — QuotaKit Pro のホーム画面/ロック画面ウィジェットは整理済み iPhone 側スナップショットのみを使用し、Pro 解除後すぐに更新され、旧 CodexBar ローカルキャッシュから安全に移行し、4 言語すべてにローカライズされます。"
+            "value": "ウィジェット — QuotaKit Pro のホーム画面/ロック画面ウィジェットは整理済み iPhone 側スナップショットのみを使用し、Pro 解除後すぐに更新され、旧 QuotaKit ローカルキャッシュから安全に移行し、4 言語すべてにローカライズされます。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "小组件 —— QuotaKit Pro 的主屏幕和锁屏小组件只读取经过清理的 iPhone 端快照，Pro 解锁后会立即刷新，并可从旧 CodexBar 本地缓存安全迁移，且支持全部四种语言。"
+            "value": "小组件 —— QuotaKit Pro 的主屏幕和锁屏小组件只读取经过清理的 iPhone 端快照，Pro 解锁后会立即刷新，并可从旧 QuotaKit 本地缓存安全迁移，且支持全部四种语言。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "小工具 —— QuotaKit Pro 的主畫面與鎖定畫面小工具只讀取經過清理的 iPhone 端快照，Pro 解鎖後會立即重新整理，並可從舊 CodexBar 本地快取安全移轉，且支援全部四種語言。"
+            "value": "小工具 —— QuotaKit Pro 的主畫面與鎖定畫面小工具只讀取經過清理的 iPhone 端快照，Pro 解鎖後會立即重新整理，並可從舊 QuotaKit 本地快取安全移轉，且支援全部四種語言。"
           }
         }
       }
@@ -17829,31 +17829,31 @@
         }
       }
     },
-    "Sync refresh feedback — pull-to-refresh and the synced-time chip now show a visible refreshing state until iCloud finishes, and the last-synced age keeps counting from the Mac-confirmed sync time.": {
+    "Sync polish — provider colors now stay distinct and readable in both appearances, and the synced-time chip keeps its status available to VoiceOver while refreshing.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sync refresh feedback — pull-to-refresh and the synced-time chip now show a visible refreshing state until iCloud finishes, and the last-synced age keeps counting from the Mac-confirmed sync time."
+            "value": "Sync polish — provider colors now stay distinct and readable in both appearances, and the synced-time chip keeps its status available to VoiceOver while refreshing."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "同期更新のフィードバック — 引っ張って更新したときや同期時刻チップをタップしたとき、iCloud が完了するまで更新中の状態を表示し、最終同期の経過時間は Mac で確認された同期時刻から数え続けます。"
+            "value": "同期の磨き込み — provider 色は両方の表示モードで見分けやすく読みやすいままになり、同期時刻チップは更新中も VoiceOver で状態を確認できます。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "同步刷新反馈 —— 下拉刷新和同步时间标签现在会在 iCloud 完成前持续显示刷新状态，且上次同步时间会从 Mac 确认的同步时间开始持续计时。"
+            "value": "同步细节优化 —— provider 颜色现在在两种外观下都保持清晰可辨，同步时间标签在刷新时也会继续向 VoiceOver 提供状态。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "同步更新回饋 —— 下拉更新和同步時間標籤現在會在 iCloud 完成前持續顯示更新狀態，且上次同步時間會從 Mac 確認的同步時間開始持續計時。"
+            "value": "同步細節優化 —— provider 顏色現在在兩種外觀下都保持清晰可辨，同步時間標籤在更新時也會繼續向 VoiceOver 提供狀態。"
           }
         }
       }

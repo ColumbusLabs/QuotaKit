@@ -34,3 +34,4 @@ This directory contains research documents for QuotaKit iOS features and sync wo
 | 031 | Mac Pace Parity (deficit/reserve pace labels + expected-usage stripe on iOS cards/widgets) | `done` | — | [031-mac-pace-parity.md](031-mac-pace-parity.md) | 2026-06-07 |
 | 032 | Remote Config OTA Guardrails (public Columbus Labs config for setup URL overrides, feature kill switches, and announcements) | `done` | — | [032-remote-config-ota-guardrails.md](032-remote-config-ota-guardrails.md) | 2026-06-07 |
 | 033 | iOS Refresh Feedback (tappable sync chip, persistent refresh state, live last-synced age) | `done` | — | [033-ios-refresh-feedback.md](033-ios-refresh-feedback.md) | 2026-06-08 |
+| 034 | Review Findings Fix Bundle (provider color parity, adaptive tints, sync accessibility, branding audit hardening) | `done` | — | [034-review-findings-fix-bundle.md](034-review-findings-fix-bundle.md) | 2026-06-09 |
