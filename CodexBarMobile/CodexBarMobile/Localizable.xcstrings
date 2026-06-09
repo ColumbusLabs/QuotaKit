@@ -18641,6 +18641,64 @@
         }
       }
     },
+    "Checking purchase status.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking purchase status."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "購入状況を確認しています。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在检查购买状态。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在檢查購買狀態。"
+          }
+        }
+      }
+    },
+    "Free mode shows one synced provider. Pro unlocks all providers you've connected, plus widgets, cost history, sharing, and alerts.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Free mode shows one synced provider. Pro unlocks all providers you've connected, plus widgets, cost history, sharing, and alerts."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Free モードでは同期済みプロバイダーを 1 つ表示します。Pro では接続済みのすべてのプロバイダーに加えて、ウィジェット、コスト履歴、共有、アラートをアンロックできます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Free 模式显示一个已同步的提供商。Pro 可解锁你已连接的所有提供商，以及小组件、成本历史、分享和提醒。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Free 模式顯示一個已同步的提供商。Pro 可解鎖你已連接的所有提供商，以及小工具、成本歷史、分享和提醒。"
+          }
+        }
+      }
+    },
     "Remote guardrails — Columbus Labs can now update safe setup links, announcements, and feature kill switches over the air while native app changes still go through TestFlight/App Store.": {
       "extractionState": "manual",
       "localizations": {
