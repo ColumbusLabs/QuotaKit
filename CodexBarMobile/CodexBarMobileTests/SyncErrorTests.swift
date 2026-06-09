@@ -58,6 +58,22 @@ struct SyncErrorTests {
         }
     }
 
+    @Test("Queryable recordName error maps to Production index issue")
+    func queryableRecordNameError() {
+        let ckError = CKError(
+            .invalidArguments,
+            userInfo: [
+                NSLocalizedDescriptionKey: "Field 'recordName' is not marked queryable",
+            ])
+        let syncError = CloudSyncError(from: ckError)
+
+        if case .productionSchemaMissingQueryableIndex(let fieldName) = syncError {
+            #expect(fieldName == "recordName")
+        } else {
+            Issue.record("Expected .productionSchemaMissingQueryableIndex, got \(syncError)")
+        }
+    }
+
     // MARK: - SyncStatus properties
 
     @Test("SyncStatus.error isError returns true")

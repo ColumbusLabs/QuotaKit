@@ -356,11 +356,7 @@ final class SyncedUsageData {
         // unreachable. Surface the error in status but leave `snapshot`
         // pointing at whatever was hydrated / from last successful fetch.
         if perArg == nil && legacyArg == nil {
-            if let firstError {
-                self.syncStatus = .error(message: firstError.description)
-            } else {
-                self.syncStatus = .noData
-            }
+            self.applyRefreshFailureStatus(firstError)
             return
         }
 
@@ -384,10 +380,10 @@ final class SyncedUsageData {
                 self.republishFromCache()
                 return
             }
-            if let firstError {
-                self.syncStatus = .error(message: firstError.description)
-            } else {
-                self.syncStatus = .noData
+            self.applyRefreshFailureStatus(firstError)
+            if firstError != nil, let snapshot {
+                WidgetSnapshotPublisher.publish(from: snapshot)
+                return
             }
             self.snapshot = nil
             WidgetSnapshotPublisher.clear()
@@ -556,6 +552,22 @@ final class SyncedUsageData {
             WidgetSnapshotPublisher.publish(from: merged)
         } else {
             self.syncStatus = .incompatibleData
+        }
+    }
+
+    private func applyRefreshFailureStatus(_ error: CloudSyncError?) {
+        if let snapshot {
+            // Refresh failures are not data failures. Keep cached Mac data in
+            // the normal freshness model so a transient CloudKit/indexing blip
+            // does not make the app look broken while the user still has data.
+            self.syncStatus = .synced(lastConfirmedSync: snapshot.syncTimestamp)
+            return
+        }
+
+        if let error {
+            self.syncStatus = .error(message: error.description)
+        } else {
+            self.syncStatus = .noData
         }
     }
 

@@ -102,6 +102,7 @@ public enum CloudSyncError: Error, Sendable, CustomStringConvertible {
     case notAuthenticated
     case quotaExceeded
     case productionSchemaMissingRecordType(String)
+    case productionSchemaMissingQueryableIndex(String)
     case serverError(String)
     case decodingFailed(String)
     case unknown(String)
@@ -118,6 +119,10 @@ public enum CloudSyncError: Error, Sendable, CustomStringConvertible {
             "CloudKit Production schema is missing record type \(recordType). " +
                 "Deploy CloudKit schema changes to Production for " +
                 "\(CloudSyncConstants.containerIdentifier), then try Sync Now again."
+        case .productionSchemaMissingQueryableIndex(let fieldName):
+            "CloudKit Production index for \(fieldName) is not ready yet. " +
+                "Deploy the queryable index for " +
+                "\(CloudSyncConstants.containerIdentifier), then try Sync Now again."
         case .serverError(let msg):
             "Server error: \(msg)"
         case .decodingFailed(let msg):
@@ -131,6 +136,10 @@ public enum CloudSyncError: Error, Sendable, CustomStringConvertible {
         let diagnosticMessage = Self.diagnosticMessage(from: ckError)
         if let recordType = Self.missingProductionRecordType(in: diagnosticMessage) {
             self = .productionSchemaMissingRecordType(recordType)
+            return
+        }
+        if let fieldName = Self.missingProductionQueryableIndex(in: diagnosticMessage) {
+            self = .productionSchemaMissingQueryableIndex(fieldName)
             return
         }
 
@@ -161,6 +170,22 @@ public enum CloudSyncError: Error, Sendable, CustomStringConvertible {
         let recordType = remainder[..<end.lowerBound]
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return recordType.isEmpty ? nil : recordType
+    }
+
+    public static func missingProductionQueryableIndex(in message: String) -> String? {
+        guard message.range(
+            of: "not marked queryable",
+            options: [.caseInsensitive]) != nil
+        else { return nil }
+
+        let quotedField = #/Field\s+'([^']+)'/#
+        if let match = message.firstMatch(of: quotedField) {
+            return String(match.1)
+        }
+        if message.range(of: "recordName", options: [.caseInsensitive]) != nil {
+            return "recordName"
+        }
+        return nil
     }
 
     private static func diagnosticMessage(from ckError: CKError) -> String {
