@@ -17,11 +17,7 @@ struct OnboardingView: View {
         ScrollView {
             VStack(spacing: 24) {
                 VStack(spacing: 12) {
-                    Image(systemName: "chart.bar.xaxis")
-                        .font(.system(size: 48, weight: .semibold))
-                        .foregroundStyle(self.theme.accent)
-                        .frame(width: 80, height: 80)
-                        .background(self.theme.surfaceElevated, in: Circle())
+                    QuotaKitAppLogo()
 
                     Text("Welcome to QuotaKit")
                         .font(.title.weight(.bold))
@@ -97,6 +93,43 @@ struct OnboardingView: View {
         .quotaKitThemed()
 }
 
+private struct QuotaKitAppLogo: View {
+    @Environment(\.quotaKitTheme) private var theme
+
+    var body: some View {
+        Group {
+            if let icon = Self.primaryIcon {
+                Image(uiImage: icon)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                Image(systemName: "chart.bar.xaxis")
+                    .font(.system(size: 48, weight: .semibold))
+                    .foregroundStyle(self.theme.accent)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(self.theme.surfaceElevated)
+            }
+        }
+        .frame(width: 82, height: 82)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .shadow(color: self.theme.accent.opacity(0.32), radius: 18, y: 8)
+        .accessibilityLabel("QuotaKit app logo")
+    }
+
+    private static var primaryIcon: UIImage? {
+        guard
+            let icons = Bundle.main.object(forInfoDictionaryKey: "CFBundleIcons") as? [String: Any],
+            let primaryIcon = icons["CFBundlePrimaryIcon"] as? [String: Any],
+            let iconFiles = primaryIcon["CFBundleIconFiles"] as? [String],
+            let iconName = iconFiles.last
+        else {
+            return nil
+        }
+
+        return UIImage(named: iconName)
+    }
+}
+
 private struct OnboardingActionRow: View {
     @Environment(\.quotaKitTheme) private var theme
     @Environment(RemoteConfigStore.self) private var remoteConfigStore
@@ -108,14 +141,16 @@ private struct OnboardingActionRow: View {
                 OnboardingActionLabel(title: "Share with Mac", systemImage: "square.and.arrow.up")
             }
             .buttonStyle(.borderedProminent)
-            .tint(self.theme.accent)
+            .tint(self.theme.accent.opacity(0.92))
+            .foregroundStyle(Color.black.opacity(0.88))
             .frame(maxWidth: .infinity)
 
             Button(action: self.onDemo) {
                 OnboardingActionLabel(title: "Demo Preview", systemImage: "play.fill")
             }
             .buttonStyle(.borderedProminent)
-            .tint(self.theme.accent)
+            .tint(self.theme.accent.opacity(0.92))
+            .foregroundStyle(Color.black.opacity(0.88))
             .frame(maxWidth: .infinity)
         }
         .controlSize(.regular)
@@ -154,12 +189,15 @@ struct MacSetupLinkActions: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(QuotaKitTheme.brandAccent.opacity(0.92))
+                .foregroundStyle(Color.black.opacity(0.88))
                 .controlSize(.large)
             } else {
                 ShareLink(item: self.remoteConfigStore.setupURL) {
                     Label("Share Mac Setup Link", systemImage: "square.and.arrow.up")
                 }
                 .buttonStyle(.bordered)
+                .tint(QuotaKitTheme.brandAccent)
             }
 
             Button {
@@ -172,6 +210,7 @@ struct MacSetupLinkActions: View {
                 }
             }
             .buttonStyle(.bordered)
+            .tint(QuotaKitTheme.brandAccent)
             .controlSize(self.prominentShare ? .regular : .small)
         }
     }

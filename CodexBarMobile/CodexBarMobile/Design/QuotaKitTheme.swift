@@ -43,6 +43,8 @@ struct QuotaKitTheme: Equatable {
     let chartPlot: Color
     let isDark: Bool
 
+    static let brandAccent = Color(red: 1.0, green: 0.73, blue: 0.08)
+
     func fill(for elevation: QKElevation) -> Color {
         switch elevation {
         case .surface: self.surface
@@ -62,7 +64,7 @@ struct QuotaKitTheme: Equatable {
         border: Color.white.opacity(0.06),
         textPrimary: Color(red: 0.941, green: 0.949, blue: 0.961),
         textMuted: Color(red: 0.545, green: 0.573, blue: 0.627),
-        accent: Color(red: 0.357, green: 0.549, blue: 1.0),
+        accent: QuotaKitTheme.brandAccent,
         spendWarm: Color(red: 0.95, green: 0.55, blue: 0.22),
         chartPlot: Color(red: 0.059, green: 0.071, blue: 0.094),
         isDark: true)
@@ -74,7 +76,7 @@ struct QuotaKitTheme: Equatable {
         border: Color.black.opacity(0.08),
         textPrimary: Color(red: 0.067, green: 0.067, blue: 0.067),
         textMuted: Color(red: 0.420, green: 0.447, blue: 0.502),
-        accent: Color(red: 0.231, green: 0.435, blue: 0.910),
+        accent: QuotaKitTheme.brandAccent,
         spendWarm: Color(red: 0.92, green: 0.48, blue: 0.12),
         chartPlot: Color(red: 0.925, green: 0.933, blue: 0.949),
         isDark: false)

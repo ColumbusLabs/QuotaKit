@@ -74,17 +74,15 @@ struct QuotaKitProLockedSummaryView: View {
     var body: some View {
         QuotaKitProPanel(
             store: self.store,
-            title: "QuotaKit Pro",
+            title: "Unlock all providers",
             lockedMessage: self.lockedMessage,
             unlockedMessage: String(localized: "All synced provider cards are unlocked."),
             showsFeatureList: false)
-            .qkCardBackground(elevation: .elevated, cornerRadius: 12)
             .accessibilityIdentifier("quotakit-pro-locked-summary")
     }
 
     private var lockedMessage: String {
-        let format = String(localized: "Hidden synced provider groups: %lld. Upgrade once to unlock unlimited provider cards, widgets, alerts, history, share cards, and export features.")
-        return String.localizedStringWithFormat(format, self.lockedProviderCount)
+        String(localized: "Free mode shows one synced provider. Pro unlocks all of your providers, plus widgets, cost history, sharing, and alerts.")
     }
 }
 
@@ -100,7 +98,6 @@ struct ProFeatureLockedCard: View {
             lockedMessage: self.message,
             unlockedMessage: String(localized: "This Pro feature is unlocked."),
             showsFeatureList: false)
-            .qkCardBackground(elevation: .elevated, cornerRadius: 12)
             .accessibilityIdentifier("pro-feature-locked-\(self.feature.rawValue)")
     }
 }
@@ -111,36 +108,35 @@ private struct QuotaKitProPanel: View {
     let lockedMessage: String
     let unlockedMessage: String
     let showsFeatureList: Bool
+    @Environment(\.quotaKitTheme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: self.store.isProUnlocked ? "checkmark.seal.fill" : "seal.fill")
-                    .font(.title2)
-                    .foregroundStyle(self.store.isProUnlocked ? .green : Color.accentColor)
-                    .frame(width: 28)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: self.store.isProUnlocked ? "checkmark.seal.fill" : "lock.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(self.iconColor)
+                    .frame(width: 28, height: 28)
+                    .background(self.iconColor.opacity(0.14), in: Circle())
 
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(self.title)
-                            .font(.headline)
-                        Spacer()
-                        Text(self.store.statusText)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(self.store.isProUnlocked ? .green : .secondary)
-                    }
+                    Text(self.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(self.theme.textPrimary)
 
                     Text(self.summaryText)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(self.theme.textMuted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                Spacer(minLength: 0)
             }
 
             if !self.store.isProUnlocked {
                 Text(self.lockedMessage)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(self.theme.textMuted)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 if self.showsFeatureList {
                     QuotaKitProFeatureList()
@@ -148,7 +144,7 @@ private struct QuotaKitProPanel: View {
             } else {
                 Text(self.unlockedMessage)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(self.theme.textMuted)
             }
 
             if case .error(let message) = self.store.state {
@@ -159,12 +155,21 @@ private struct QuotaKitProPanel: View {
 
             QuotaKitProPurchaseControls(store: self.store)
         }
+        .padding(14)
+        .background {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(self.theme.fill(for: .elevated))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(self.iconColor.opacity(self.store.isProUnlocked ? 0.45 : 0.75), lineWidth: 1)
+        }
     }
 
     private var summaryText: String {
         switch self.store.state {
         case .loading:
-            return String(localized: "Checking your Pro status.")
+            return String(localized: "Checking purchase status.")
         case .locked:
             let format = String(localized: "%@ · Lifetime unlock. No subscription.")
             return String.localizedStringWithFormat(format, ProductConfig.launchPriceCopy)
@@ -177,6 +182,10 @@ private struct QuotaKitProPanel: View {
         case .error:
             return String(localized: "Could not update Pro status.")
         }
+    }
+
+    private var iconColor: Color {
+        self.store.isProUnlocked ? .green : self.theme.accent
     }
 }
 
@@ -218,6 +227,8 @@ private struct QuotaKitProPurchaseControls: View {
                 }
             }
             .buttonStyle(.borderedProminent)
+            .tint(QuotaKitTheme.brandAccent.opacity(0.92))
+            .foregroundStyle(Color.black.opacity(0.88))
             .disabled(self.store.isProUnlocked || self.isBusy || self.store.state == .productUnavailable)
 
             Button {
@@ -230,6 +241,7 @@ private struct QuotaKitProPurchaseControls: View {
                 }
             }
             .buttonStyle(.bordered)
+            .tint(QuotaKitTheme.brandAccent)
             .disabled(self.isBusy)
         }
     }

@@ -295,10 +295,10 @@ extension ShareCardData {
         activeDays: 24,
         avgDailyCost: 22.58,
         providers: [
-            .init(name: "Claude", cost: 401.30, share: 0.74, color: Color(red: 0.82, green: 0.55, blue: 0.28)),
-            .init(name: "Codex", cost: 109.33, share: 0.20, color: .purple),
-            .init(name: "ChatGPT", cost: 19.40, share: 0.04, color: .green),
-            .init(name: "OpenRouter", cost: 11.80, share: 0.02, color: Color(red: 0.42, green: 0.35, blue: 0.83)),
+            .init(name: "Claude", cost: 401.30, share: 0.74, color: Self.providerColor(for: "claude")),
+            .init(name: "Codex", cost: 109.33, share: 0.20, color: Self.providerColor(for: "codex")),
+            .init(name: "ChatGPT", cost: 19.40, share: 0.04, color: Self.providerColor(for: "chatgpt")),
+            .init(name: "OpenRouter", cost: 11.80, share: 0.02, color: Self.providerColor(for: "openrouter")),
         ],
         topModels: [
             .init(label: "claude-opus-4-6", cost: 308.20, share: 0.57),
@@ -327,9 +327,9 @@ extension ShareCardData {
         activeDays: 1,
         avgDailyCost: 78.56,
         providers: [
-            .init(name: "Claude", cost: 57.14, share: 0.73, color: Color(red: 0.82, green: 0.55, blue: 0.28)),
-            .init(name: "Codex", cost: 20.49, share: 0.26, color: .purple),
-            .init(name: "ChatGPT", cost: 0.92, share: 0.01, color: .green),
+            .init(name: "Claude", cost: 57.14, share: 0.73, color: Self.providerColor(for: "claude")),
+            .init(name: "Codex", cost: 20.49, share: 0.26, color: Self.providerColor(for: "codex")),
+            .init(name: "ChatGPT", cost: 0.92, share: 0.01, color: Self.providerColor(for: "chatgpt")),
         ],
         topModels: [
             .init(label: "claude-opus-4-6", cost: 44.10, share: 0.56),
@@ -346,9 +346,9 @@ extension ShareCardData {
         activeDays: 6,
         avgDailyCost: 30.71,
         providers: [
-            .init(name: "Claude", cost: 138.20, share: 0.75, color: Color(red: 0.82, green: 0.55, blue: 0.28)),
-            .init(name: "Codex", cost: 35.86, share: 0.19, color: .purple),
-            .init(name: "ChatGPT", cost: 10.20, share: 0.06, color: .green),
+            .init(name: "Claude", cost: 138.20, share: 0.75, color: Self.providerColor(for: "claude")),
+            .init(name: "Codex", cost: 35.86, share: 0.19, color: Self.providerColor(for: "codex")),
+            .init(name: "ChatGPT", cost: 10.20, share: 0.06, color: Self.providerColor(for: "chatgpt")),
         ],
         topModels: [
             .init(label: "claude-opus-4-6", cost: 106.40, share: 0.58),
