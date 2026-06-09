@@ -241,7 +241,9 @@ final class UsageStore {
     @ObservationIgnored var storageRefreshTask: Task<Void, Never>?
     @ObservationIgnored var storageRefreshGeneration: UInt64 = 0
     @ObservationIgnored var storageRefreshInFlightSignature: String?
+    @ObservationIgnored var storageRefreshInFlightRequestKey: String?
     @ObservationIgnored var lastStorageRefreshSignature: String?
+    @ObservationIgnored var lastStorageRefreshRequestKey: String?
     @ObservationIgnored var lastStorageRefreshAt: Date?
     @ObservationIgnored var managedCodexAccountsForStorageOverride: [ManagedCodexAccount]?
     @ObservationIgnored private var pathDebugRefreshTask: Task<Void, Never>?

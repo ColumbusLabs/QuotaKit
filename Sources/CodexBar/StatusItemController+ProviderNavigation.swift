@@ -1,11 +1,33 @@
 import CodexBarCore
 
 extension StatusItemController {
-    func refreshProviderSelectionDependentUI(refreshOpenMenus: Bool = false) {
+    func refreshProviderSelectionDependentUI(
+        refreshOpenMenus: Bool = false,
+        deferRendering: Bool = false)
+    {
         #if DEBUG
         guard !self.isReleasedForTesting else { return }
         #endif
         self.invalidateMenus(refreshOpenMenus: refreshOpenMenus)
+        if deferRendering {
+            self.scheduleProviderSelectionUIRefresh()
+            return
+        }
+        self.refreshProviderSelectionRendering()
+    }
+
+    private func scheduleProviderSelectionUIRefresh() {
+        self.providerSelectionUIRefreshTask?.cancel()
+        self.providerSelectionUIRefreshTask = Task { @MainActor [weak self] in
+            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(16))
+            guard !Task.isCancelled, let self else { return }
+            self.refreshProviderSelectionRendering()
+            self.providerSelectionUIRefreshTask = nil
+        }
+    }
+
+    private func refreshProviderSelectionRendering() {
         self.updateAnimationState()
         self.updateBlinkingState()
         let phase: Double? = self.needsMenuBarIconAnimation() ? self.animationPhase : nil
@@ -37,17 +59,19 @@ extension StatusItemController {
         let delta = direction == .next ? 1 : -1
         let nextIndex = (currentIndex + delta + selections.count) % selections.count
         let selection = selections[nextIndex]
-        switch selection {
-        case .overview:
-            self.settings.mergedMenuLastSelectedWasOverview = true
-            self.lastMenuProvider = self.navigationResolvedProvider(enabledProviders: enabledProviders) ?? .codex
-        case let .provider(provider):
-            self.settings.mergedMenuLastSelectedWasOverview = false
-            self.selectedMenuProvider = provider
-            self.lastMenuProvider = provider
+        self.preservingMergedSwitcherContentCachesDuringInvalidation {
+            switch selection {
+            case .overview:
+                self.settings.mergedMenuLastSelectedWasOverview = true
+                self.lastMenuProvider = self.navigationResolvedProvider(enabledProviders: enabledProviders) ?? .codex
+            case let .provider(provider):
+                self.settings.mergedMenuLastSelectedWasOverview = false
+                self.selectedMenuProvider = provider
+                self.lastMenuProvider = provider
+            }
+            self.lastMergedSwitcherSelection = selection
+            self.refreshProviderSelectionDependentUI(refreshOpenMenus: true, deferRendering: true)
         }
-        self.lastMergedSwitcherSelection = selection
-        self.refreshProviderSelectionDependentUI(refreshOpenMenus: true)
     }
 
     private func navigationResolvedProvider(enabledProviders: [UsageProvider]) -> UsageProvider? {

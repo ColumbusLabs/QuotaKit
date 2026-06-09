@@ -11,8 +11,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 - Synced trusted upstream CodexBar Mac improvements after `v0.32.4`, including
   Codex account/auth hardening, MiniMax quota fixes, menu performance updates,
-  Claude probe cleanup, Antigravity/Alibaba/Cursor fixes, and additional Mac
-  localizations.
+  merged provider-switching hang fixes, Claude probe cleanup,
+  Antigravity/Alibaba/Cursor fixes, and additional Mac localizations.
 
 ## 0.32.4.4 / iOS 1.11.1 — 2026-06-08
 

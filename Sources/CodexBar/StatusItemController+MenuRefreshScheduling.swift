@@ -3,7 +3,7 @@ import CodexBarCore
 import QuartzCore
 
 extension StatusItemController {
-    private static let providerSwitcherMenuRebuildDebounceNanoseconds: UInt64 = 45_000_000
+    private static let providerSwitcherMenuRebuildDebounceNanoseconds: UInt64 = 0
 
     func didMenuAdjunctReadinessChange() -> Bool {
         let signature = self.menuAdjunctReadinessSignature()

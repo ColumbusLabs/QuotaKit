@@ -119,6 +119,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var menuVersions: [ObjectIdentifier: Int] = [:]
     var menuReadinessSignatures: [ObjectIdentifier: String] = [:]
     var menuCardHeightCache: [MenuCardHeightCacheKey: CGFloat] = [:]
+    var measuredStandardMenuWidthCache: [String: CGFloat] = [:]
     var lastMenuAdjunctReadinessSignature = ""
     var lastMenuAdjunctReadinessBaselineVersion = 0
     var rootOpenHandledMenuObservationSignature: String?
@@ -142,6 +143,8 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var highlightedMenuItems: [ObjectIdentifier: NSMenuItem] = [:]
     var providerSwitcherShortcutEventMonitor: ProviderSwitcherShortcutEventMonitor?
     var providerSwitcherShortcutMenuID: ObjectIdentifier?
+    var providerSwitcherPointerInteractionMenuID: ObjectIdentifier?
+    var pendingProviderSwitcherPointerRebuild: PendingProviderSwitcherRebuild?
     var hasPreparedForAppShutdown = false
     var scheduleQuitTermination: (@escaping @MainActor () -> Void) -> Void = { operation in
         DispatchQueue.main.async {
@@ -221,12 +224,19 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var lastSwitcherProviders: [UsageProvider] = []
     /// Tracks which switcher tab state was used for the current merged-menu switcher instance.
     var lastMergedSwitcherSelection: ProviderSwitcherSelection?
+    /// Tracks which provider/overview content is currently attached below the merged-menu switcher.
+    var lastMergedMenuContentSelection: ProviderSwitcherSelection?
     /// Tracks the visible Codex account switcher contents for merged-menu smart updates.
     var lastCodexAccountMenuDisplay: CodexAccountMenuDisplay?
     /// Tracks the visible token account switcher contents for merged-menu smart updates.
     var lastTokenAccountMenuDisplay: TokenAccountMenuDisplay?
+    /// Keeps detached merged-menu tab content reusable while the same menu remains open.
+    var mergedSwitcherContentCaches: [ObjectIdentifier: [ProviderSwitcherSelection: CachedMergedSwitcherMenuContent]]
+        = [:]
+    var preservesMergedSwitcherContentCachesDuringInvalidation = false
     /// Monotonic token used to ignore stale deferred provider-switcher menu rebuilds.
     var providerSwitcherUpdateToken = 0
+    var providerSelectionUIRefreshTask: Task<Void, Never>?
     var lastAppliedMergedIconRenderSignature: String?
     var lastAppliedProviderIconRenderSignatures: [UsageProvider: String] = [:]
     var lastObservedStoreIconWorkSignature: String?

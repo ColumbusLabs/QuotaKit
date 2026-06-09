@@ -16,6 +16,7 @@ struct StatusMenuSwitcherClickTests {
         let suite = "StatusMenuSwitcherClickTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
+        defaults.set(true, forKey: "providerDetectionCompleted")
         let configStore = testConfigStore(suiteName: suite)
         return SettingsStore(
             userDefaults: defaults,
@@ -130,7 +131,69 @@ struct StatusMenuSwitcherClickTests {
     }
 
     @Test
-    func `merged switcher runtime click refreshes icon without waiting for menu rebuild`() throws {
+    func `merged switcher commits selection on matching mouse up`() throws {
+        var selections: [ProviderSwitcherSelection] = []
+        let switcher = ProviderSwitcherView(
+            providers: [.codex, .claude],
+            selected: .provider(.codex),
+            includesOverview: true,
+            width: 320,
+            showsIcons: false,
+            iconProvider: { _ in NSImage() },
+            weeklyRemainingProvider: { _ in nil },
+            onSelect: { selections.append($0) })
+
+        #expect(switcher._test_simulateMouseDown(buttonTag: 0))
+        #expect(selections.isEmpty)
+        let mouseUp = try #require(switcher._test_mouseUpEvent(buttonTag: 0))
+        #expect(switcher.handleMenuTrackingMouseUp(mouseUp))
+        #expect(selections == [.overview])
+    }
+
+    @Test
+    func `menu tracking routes switcher pointer sequence before AppKit menu dispatch`() throws {
+        var selected: ProviderSwitcherSelection?
+        let switcher = ProviderSwitcherView(
+            providers: [.codex, .claude],
+            selected: .provider(.codex),
+            includesOverview: true,
+            width: 320,
+            showsIcons: false,
+            iconProvider: { _ in NSImage() },
+            weeklyRemainingProvider: { _ in nil },
+            onSelect: { selected = $0 })
+        let menu = StatusItemMenu()
+        let item = NSMenuItem()
+        item.view = switcher
+        item.isEnabled = false
+        menu.addItem(item)
+
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        let fetcher = UsageFetcher()
+        let controller = StatusItemController(
+            store: UsageStore(
+                fetcher: fetcher,
+                browserDetection: BrowserDetection(cacheTTL: 0),
+                settings: settings),
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+        defer { controller.releaseStatusItemsForTesting() }
+
+        let mouseDown = try #require(switcher._test_mouseDownEvent(buttonTag: 0))
+        let mouseUp = try #require(switcher._test_mouseUpEvent(buttonTag: 0))
+        #expect(controller.handleProviderSwitcherTrackingEvent(mouseDown, menu: menu))
+        #expect(selected == nil)
+        #expect(controller.handleProviderSwitcherTrackingEvent(mouseUp, menu: menu))
+        #expect(selected == .overview)
+    }
+
+    @Test
+    func `merged switcher runtime click defers icon rendering until after event handling`() async throws {
         let previousMenuCardRendering = StatusItemController.menuCardRenderingEnabled
         let previousMenuRefresh = StatusItemController.menuRefreshEnabled
         StatusItemController.menuCardRenderingEnabled = false
@@ -175,6 +238,8 @@ struct StatusMenuSwitcherClickTests {
         #expect(switcher._test_simulateRuntimeClick(buttonTag: 2))
 
         #expect(settings.selectedMenuProvider == .claude)
+        #expect(controller.lastAppliedMergedIconRenderSignature?.contains("provider=codex") == true)
+        await controller.providerSelectionUIRefreshTask?.value
         #expect(controller.lastAppliedMergedIconRenderSignature?.contains("provider=claude") == true)
     }
 
@@ -236,7 +301,7 @@ struct StatusMenuSwitcherClickTests {
     }
 
     @Test
-    func `merged switcher runtime click updates loading animation state`() throws {
+    func `merged switcher runtime click updates loading animation state after event handling`() async throws {
         let previousMenuCardRendering = StatusItemController.menuCardRenderingEnabled
         let previousMenuRefresh = StatusItemController.menuRefreshEnabled
         StatusItemController.menuCardRenderingEnabled = false
@@ -287,12 +352,14 @@ struct StatusMenuSwitcherClickTests {
         let switcher = try #require(menu.items.first?.view as? ProviderSwitcherView)
         #expect(switcher._test_simulateRuntimeClick(buttonTag: 2))
         #expect(settings.selectedMenuProvider == .claude)
+        await controller.providerSelectionUIRefreshTask?.value
         #expect(controller.needsMenuBarIconAnimation() == true)
         #expect(controller.animationDriver != nil)
         #expect(controller.lastAppliedMergedIconRenderSignature?.contains("provider=claude") == true)
 
         #expect(switcher._test_simulateRuntimeClick(buttonTag: 1))
         #expect(settings.selectedMenuProvider == .codex)
+        await controller.providerSelectionUIRefreshTask?.value
         #expect(controller.needsMenuBarIconAnimation() == false)
         #expect(controller.animationDriver == nil)
         #expect(controller.lastAppliedMergedIconRenderSignature?.contains("provider=codex") == true)
