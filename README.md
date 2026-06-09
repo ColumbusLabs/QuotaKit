@@ -14,14 +14,6 @@ Install QuotaKit on your Mac first. After iCloud Sync is enabled on the Mac, the
 
 ## Highlights
 
-<p align="center">
-  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/01-overview.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/01-overview.png" alt="QuotaKit overview" width="180"></a>
-  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/02-cost-overview.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/02-cost-overview.png" alt="Cost overview" width="180"></a>
-  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/03-daily-spend.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/03-daily-spend.png" alt="Daily spend" width="180"></a>
-  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/04-model-mix.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/04-model-mix.png" alt="Model mix" width="180"></a>
-  <a href="CodexBarMobile/AppStoreScreenshots/v1-styled-en/05-share-cards.png"><img src="CodexBarMobile/AppStoreScreenshots/v1-styled-en/05-share-cards.png" alt="Share cards" width="180"></a>
-</p>
-
 - Multi-provider quota tracking for Codex, Claude, Cursor, Gemini, Grok, OpenAI, Vertex AI, Mistral, Perplexity, OpenRouter, ElevenLabs, Deepgram, and more.
 - iCloud sync from Mac to iPhone, including quota windows, reset timing, provider status, spend, and account metadata.
 - iPhone alerts when a provider runs out of quota or becomes available again.
