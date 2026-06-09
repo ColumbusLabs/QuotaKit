@@ -185,6 +185,10 @@ audit_customer_branding() {
   python3 "${ROOT_DIR}/Scripts/audit_customer_branding.py"
 }
 
+audit_provider_palette() {
+  python3 "${ROOT_DIR}/Scripts/audit_provider_palette.py"
+}
+
 cmd="${1:-lint}"
 
 case "$cmd" in
@@ -194,6 +198,7 @@ case "$cmd" in
     "${BIN_DIR}/swiftlint" --strict
     audit_xcstrings
     audit_customer_branding
+    audit_provider_palette
     audit_parser_version
     check_codex_parser_hash
     ;;
@@ -213,8 +218,11 @@ case "$cmd" in
   audit-customer-branding)
     audit_customer_branding
     ;;
+  audit-provider-palette)
+    audit_provider_palette
+    ;;
   *)
-    printf 'Usage: %s [lint|format|audit-i18n|audit-parser-version|audit-parser-hash|audit-customer-branding]\n' "$(basename "$0")" >&2
+    printf 'Usage: %s [lint|format|audit-i18n|audit-parser-version|audit-parser-hash|audit-customer-branding|audit-provider-palette]\n' "$(basename "$0")" >&2
     exit 2
     ;;
 esac

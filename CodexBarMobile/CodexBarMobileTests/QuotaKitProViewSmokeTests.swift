@@ -6,10 +6,14 @@ import XCTest
 
 @MainActor
 final class QuotaKitProViewSmokeTests: XCTestCase {
+    nonisolated private static let remoteConfigSuiteName = "com.columbuslabs.quotakit.tests.pro-smoke"
 
     override func setUp() {
         super.setUp()
         UserDefaults.standard.removeObject(forKey: MobileSettingsKeys.freeSelectedProviderID)
+        UserDefaults.standard.removePersistentDomain(forName: Self.remoteConfigSuiteName)
+        UserDefaults(suiteName: Self.remoteConfigSuiteName)?
+            .removePersistentDomain(forName: Self.remoteConfigSuiteName)
     }
 
     override func tearDown() {
@@ -143,7 +147,10 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
     }
 
     private func renderToImage<V: View>(_ view: V) -> UIImage? {
-        let renderer = ImageRenderer(content: view.frame(width: 390, height: 900).quotaKitThemed())
+        let renderer = ImageRenderer(content: view
+            .environment(RemoteConfigStore(defaults: UserDefaults(suiteName: Self.remoteConfigSuiteName)))
+            .frame(width: 390, height: 900)
+            .quotaKitThemed())
         renderer.scale = 2.0
         return renderer.uiImage
     }

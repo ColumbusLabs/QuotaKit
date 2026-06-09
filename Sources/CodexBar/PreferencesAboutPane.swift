@@ -113,7 +113,7 @@ struct AboutPane: View {
                     .foregroundStyle(.secondary)
             }
 
-            Text("QuotaKit by Columbus Labs. Includes MIT-licensed upstream components.")
+            Text("QuotaKit by Columbus Labs. QuotaKit is built in part from CodexBar by Peter Steinberger, licensed under the MIT License.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .padding(.top, 4)

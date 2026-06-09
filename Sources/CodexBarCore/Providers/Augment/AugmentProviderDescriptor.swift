@@ -52,7 +52,7 @@ public enum AugmentProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .augment,
                 iconResourceName: "ProviderIcon-augment",
-                color: ProviderColor(red: 99 / 255, green: 102 / 255, blue: 241 / 255)),
+                color: ProviderColor(red: 139 / 255, green: 92 / 255, blue: 246 / 255)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Augment cost summary is not supported." }),

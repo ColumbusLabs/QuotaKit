@@ -27,7 +27,7 @@ public enum MiniMaxProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .minimax,
                 iconResourceName: "ProviderIcon-minimax",
-                color: ProviderColor(red: 254 / 255, green: 96 / 255, blue: 60 / 255)),
+                color: ProviderColor(red: 239 / 255, green: 68 / 255, blue: 68 / 255)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "MiniMax cost summary is not supported." }),

@@ -41,7 +41,7 @@ public enum MiMoProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .mimo,
                 iconResourceName: "ProviderIcon-mimo",
-                color: ProviderColor(red: 1.0, green: 105 / 255, blue: 0)),
+                color: ProviderColor(red: 249 / 255, green: 115 / 255, blue: 22 / 255)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Xiaomi MiMo cost summary is not supported." }),

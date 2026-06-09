@@ -19,8 +19,8 @@ Use this sequence for feature and fix work:
 3. Implementation: keep changes scoped and buildable.
 4. Testing: run the narrowest useful checks, then broader checks when shared behavior changes.
 5. Documentation: update changelogs, release notes, and research status as needed.
-6. Commit: bump iOS build numbers only when preparing a Git commit for push.
-7. Release: archive/upload only when explicitly requested.
+6. Commit: keep build numbers unchanged for ordinary branch or PR commits.
+7. Release: bump iOS build numbers only when preparing an actual TestFlight/App Store build; archive/upload only when explicitly requested.
 
 ## iOS Documentation Rules
 
@@ -44,12 +44,15 @@ Do not push to `upstream`. Push QuotaKit work to `origin`, which is `https://git
 
 ## iOS Build Numbers
 
-When preparing a pushed iOS change:
+When preparing an actual iOS build for TestFlight or App Store distribution:
 
 1. Open `CodexBarMobile/project.yml`.
 2. Increment every `CURRENT_PROJECT_VERSION` value by 1.
 3. Do not change `MARKETING_VERSION` unless explicitly requested.
 4. Run `cd CodexBarMobile && xcodegen generate`.
+
+Do not bump build numbers for routine local commits, review branches, PR updates,
+or merges that are not being archived/uploaded as a new iOS build.
 
 ## Localization
 

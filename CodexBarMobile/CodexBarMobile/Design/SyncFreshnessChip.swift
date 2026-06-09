@@ -120,6 +120,17 @@ enum SyncFreshnessFormatter {
     }
 }
 
+enum SyncFreshnessTimeline {
+    static func cadence(since timestamp: Date?, now: Date = Date()) -> TimeInterval {
+        guard let timestamp else { return 60 }
+        let interval = max(0, now.timeIntervalSince(timestamp))
+        if interval < 60 { return 1 }
+        if interval < 3600 { return 60 }
+        if interval < 86400 { return 300 }
+        return 3600
+    }
+}
+
 struct SyncStatusChipView: View {
     let placement: SyncFreshnessPlacement
     let isDemoMode: Bool
@@ -132,8 +143,22 @@ struct SyncStatusChipView: View {
         return false
     }
 
+    private var timelineReferenceDate: Date? {
+        switch self.syncStatus {
+        case .synced(let lastConfirmedSync):
+            lastConfirmedSync
+        case .syncing, .error:
+            self.snapshot?.syncTimestamp
+        case .noData, .incompatibleData:
+            self.snapshot?.syncTimestamp
+        }
+    }
+
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { timeline in
+        TimelineView(.periodic(
+            from: .now,
+            by: SyncFreshnessTimeline.cadence(since: self.timelineReferenceDate)))
+        { timeline in
             if let state = SyncFreshnessState.resolve(
                 isDemoMode: self.isDemoMode,
                 snapshot: self.snapshot,
@@ -164,7 +189,7 @@ struct SyncStatusChipView: View {
             }
             .buttonStyle(.plain)
             .disabled(self.isRefreshing)
-            .accessibilityLabel(Text("Refresh synced data"))
+            .accessibilityHint(Text("Refresh synced data"))
         } else {
             content()
         }

@@ -29,9 +29,9 @@ public enum DeepgramProviderDescriptor {
                 iconStyle: .deepgram,
                 iconResourceName: "ProviderIcon-deepgram",
                 color: ProviderColor(
-                    red: 100 / 255,
-                    green: 103 / 255,
-                    blue: 242 / 255)),
+                    red: 0.49,
+                    green: 0.23,
+                    blue: 0.93)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: {

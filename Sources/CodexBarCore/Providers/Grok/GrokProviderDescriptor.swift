@@ -29,7 +29,7 @@ public enum GrokProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .grok,
                 iconResourceName: "ProviderIcon-grok",
-                color: ProviderColor(red: 16 / 255, green: 163 / 255, blue: 127 / 255)),
+                color: ProviderColor(red: 26 / 255, green: 26 / 255, blue: 26 / 255)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Grok cost summary is not supported yet." }),

@@ -28,7 +28,7 @@ public enum T3ChatProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .t3chat,
                 iconResourceName: "ProviderIcon-t3chat",
-                color: ProviderColor(red: 245 / 255, green: 102 / 255, blue: 71 / 255)),
+                color: ProviderColor(red: 219 / 255, green: 39 / 255, blue: 119 / 255)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "T3 Chat cost summary is not supported." }),
