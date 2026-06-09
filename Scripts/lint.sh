@@ -182,6 +182,7 @@ check_codex_parser_hash() {
 }
 
 audit_customer_branding() {
+  python3 "${ROOT_DIR}/Scripts/audit_customer_branding.py" --self-test
   python3 "${ROOT_DIR}/Scripts/audit_customer_branding.py"
 }
 

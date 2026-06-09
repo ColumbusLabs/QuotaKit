@@ -17,8 +17,29 @@ COLOR_RE = re.compile(
     r"ProviderColor\(\s*red:\s*(?P<red>[^,\)]+),\s*green:\s*(?P<green>[^,\)]+),\s*blue:\s*(?P<blue>[^,\)]+)\)"
 )
 MOBILE_ENTRY_RE = re.compile(
-    r'\(\["(?P<id>[^"]+)"(?:[^\)]*)RawColor\(red:\s*(?P<red>[^,\)]+),\s*green:\s*(?P<green>[^,\)]+),\s*blue:\s*(?P<blue>[^,\)]+)\)\)'
+    r'\(\[(?P<aliases>[^\]]+)\],\s*RawColor\(red:\s*(?P<red>[^,\)]+),\s*green:\s*(?P<green>[^,\)]+),\s*blue:\s*(?P<blue>[^,\)]+)\)\)'
 )
+MOBILE_ALIAS_TARGETS = {
+    "11labs": "elevenlabs",
+    "abacusai": "abacus",
+    "ampcode": "amp",
+    "anthropic": "claude",
+    "bailian": "alibaba",
+    "bailiantokenplan": "alibabatokenplan",
+    "alibabatoken": "alibabatokenplan",
+    "chatgpt": "openai",
+    "droid": "factory",
+    "eleven": "elevenlabs",
+    "groqapi": "groq",
+    "groqcloud": "groq",
+    "kimiapi": "moonshot",
+    "kimik2unofficial": "kimik2",
+    "moonshotkimiapi": "moonshot",
+    "syntheticnew": "synthetic",
+    "t3": "t3chat",
+    "vertex": "vertexai",
+    "xiaomimimo": "mimo",
+}
 
 
 def evaluate_channel(expression: str) -> float:
@@ -49,17 +70,27 @@ def mac_colors() -> dict[str, tuple[float, float, float]]:
     return colors
 
 
-def mobile_colors() -> dict[str, tuple[float, float, float]]:
+def mobile_palette() -> tuple[
+    dict[str, tuple[float, float, float]],
+    dict[str, str],
+]:
     text = MOBILE_PALETTE.read_text(encoding="utf-8")
-    return {
-        match.group("id"): parse_color(match)
-        for match in MOBILE_ENTRY_RE.finditer(text)
-    }
+    colors: dict[str, tuple[float, float, float]] = {}
+    aliases: dict[str, str] = {}
+    for match in MOBILE_ENTRY_RE.finditer(text):
+        parsed_aliases = re.findall(r'"([^"]+)"', match.group("aliases"))
+        if not parsed_aliases:
+            continue
+        canonical = parsed_aliases[0]
+        colors[canonical] = parse_color(match)
+        for alias in parsed_aliases[1:]:
+            aliases[alias] = canonical
+    return colors, aliases
 
 
 def main() -> int:
     mac = mac_colors()
-    mobile = mobile_colors()
+    mobile, aliases = mobile_palette()
     failures: list[str] = []
 
     for provider, mac_color in sorted(mac.items()):
@@ -71,9 +102,19 @@ def main() -> int:
             failures.append(
                 f"{provider}: Mac {mac_color!r} != mobile {mobile_color!r}")
 
-    extra = sorted(set(mobile) - set(mac) - {"chatgpt", "anthropic", "bailian", "vertex"})
+    extra = sorted(set(mobile) - set(mac))
     for provider in extra:
         failures.append(f"{provider}: mobile canonical alias has no Mac descriptor")
+
+    for alias, canonical in sorted(aliases.items()):
+        expected = MOBILE_ALIAS_TARGETS.get(alias)
+        if expected != canonical:
+            failures.append(
+                f"{alias}: mobile alias points to {canonical!r}, expected {expected!r}")
+
+    missing_aliases = sorted(set(MOBILE_ALIAS_TARGETS) - set(aliases))
+    for alias in missing_aliases:
+        failures.append(f"{alias}: expected mobile alias is missing")
 
     if failures:
         print("ERROR: provider palette parity audit failed:", file=sys.stderr)

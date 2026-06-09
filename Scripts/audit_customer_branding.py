@@ -107,6 +107,22 @@ def disallowed_token_count(text: str) -> int:
     return count
 
 
+def string_unit_values(node: object) -> list[str]:
+    values: list[str] = []
+    if isinstance(node, dict):
+        string_unit = node.get("stringUnit")
+        if isinstance(string_unit, dict):
+            value = string_unit.get("value")
+            if isinstance(value, str):
+                values.append(value)
+        for child in node.values():
+            values.extend(string_unit_values(child))
+    elif isinstance(node, list):
+        for child in node:
+            values.extend(string_unit_values(child))
+    return values
+
+
 def disallowed_swift_literal_on_line(line: str, literal_match: re.Match[str]) -> bool:
     """Check only tokens inside a Swift literal, using the full source line for allowlist context."""
     literal_start, literal_end = literal_match.span()
@@ -139,10 +155,11 @@ def audit_xcstrings_values() -> list[str]:
         strings = data.get("strings", {})
         for key, entry in strings.items():
             for locale, localization in entry.get("localizations", {}).items():
-                value = localization.get("stringUnit", {}).get("value", "")
-                if disallowed_token_count(value):
-                    failures.append(
-                        f"{relative(path)}:{locale}: localized value for {key[:80]!r} contains legacy branding")
+                for value in string_unit_values(localization):
+                    if disallowed_token_count(value):
+                        failures.append(
+                            f"{relative(path)}:{locale}: localized value for {key[:80]!r} contains legacy branding")
+                        break
     return failures
 
 
@@ -211,6 +228,9 @@ def audit_app_bundle() -> list[str]:
 
 
 def main() -> int:
+    if sys.argv[1:] == ["--self-test"]:
+        return self_test()
+
     failures = audit_localizable_values()
     failures.extend(audit_xcstrings_values())
     failures.extend(audit_swift_literals())
@@ -226,6 +246,29 @@ def main() -> int:
         return 1
 
     print("customer branding audit: no visible CodexBar leaks")
+    return 0
+
+
+def self_test() -> int:
+    fixture = {
+        "variations": {
+            "plural": {
+                "one": {"stringUnit": {"value": "QuotaKit has one update"}},
+                "other": {"stringUnit": {"value": "CodexBar has %lld updates"}},
+            }
+        }
+    }
+    values = string_unit_values(fixture)
+    if values != ["QuotaKit has one update", "CodexBar has %lld updates"]:
+        print("ERROR: self-test failed to traverse nested string units", file=sys.stderr)
+        return 1
+    if sum(disallowed_token_count(value) for value in values) != 1:
+        print("ERROR: self-test failed to detect nested legacy branding", file=sys.stderr)
+        return 1
+    if disallowed_token_count("CodexBar") != 1:
+        print("ERROR: self-test must audit values, not keys", file=sys.stderr)
+        return 1
+    print("customer branding audit self-test: ok")
     return 0
 
 

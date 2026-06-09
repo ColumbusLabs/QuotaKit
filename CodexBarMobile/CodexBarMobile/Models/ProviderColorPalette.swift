@@ -13,7 +13,7 @@ enum ProviderColorPalette {
 
         var color: Color {
             Color(uiColor: UIColor { traits in
-                let adapted = self.adapted(forDarkMode: traits.userInterfaceStyle == .dark)
+                let adapted = self.adaptedComponents(forDarkMode: traits.userInterfaceStyle == .dark)
                 return UIColor(
                     red: adapted.red,
                     green: adapted.green,
@@ -26,9 +26,17 @@ enum ProviderColorPalette {
             0.2126 * self.red + 0.7152 * self.green + 0.0722 * self.blue
         }
 
-        private func adapted(forDarkMode isDarkMode: Bool) -> RawColor {
-            if isDarkMode, self.luminance < 0.22 {
-                return self.mixed(with: RawColor(red: 1, green: 1, blue: 1), amount: 0.48)
+        func adaptedComponents(forDarkMode isDarkMode: Bool) -> RawColor {
+            if isDarkMode {
+                if self.luminance < 0.08 {
+                    return self.mixed(with: RawColor(red: 1, green: 1, blue: 1), amount: 0.40)
+                }
+                if self.luminance < 0.14 {
+                    return self.mixed(with: RawColor(red: 1, green: 1, blue: 1), amount: 0.44)
+                }
+                if self.luminance < 0.22 {
+                    return self.mixed(with: RawColor(red: 1, green: 1, blue: 1), amount: 0.21)
+                }
             }
             if !isDarkMode, self.luminance > 0.82 {
                 return self.mixed(with: RawColor(red: 0, green: 0, blue: 0), amount: 0.42)

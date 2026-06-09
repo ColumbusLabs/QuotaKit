@@ -97,32 +97,16 @@ struct ProviderColorPaletteTests {
 
     @Test("Known provider colors stay visually distinct")
     func knownProviderColorsStayDistinct() {
-        let providers = [
-            "codex", "openai", "azureopenai", "claude", "cursor", "opencode", "opencodego",
-            "alibaba", "alibabatokenplan", "factory", "gemini", "antigravity", "copilot",
-            "zai", "minimax", "manus", "kimi", "kilo", "kiro", "vertexai", "augment",
-            "jetbrains", "kimik2", "moonshot", "amp", "t3chat", "ollama", "synthetic",
-            "warp", "openrouter", "elevenlabs", "windsurf", "perplexity", "mimo",
-            "doubao", "abacus", "mistral", "deepseek", "codebuff", "crof", "venice",
-            "commandcode", "stepfun", "bedrock", "grok", "groq", "llmproxy", "deepgram",
-        ]
-        let allowedSharedBrandPairs: Set<Set<String>> = []
+        expectDistinctColors(
+            providers: knownDistinctProviders,
+            color: { ProviderColorPalette.rawColor(for: $0)! })
+    }
 
-        for leftIndex in providers.indices {
-            for rightIndex in providers.index(after: leftIndex)..<providers.endIndex {
-                let left = providers[leftIndex]
-                let right = providers[rightIndex]
-                if allowedSharedBrandPairs.contains([left, right]) {
-                    continue
-                }
-                let leftColor = ProviderColorPalette.rawColor(for: left)!
-                let rightColor = ProviderColorPalette.rawColor(for: right)!
-                let delta = abs(leftColor.red - rightColor.red)
-                    + abs(leftColor.green - rightColor.green)
-                    + abs(leftColor.blue - rightColor.blue)
-                #expect(delta > 0.10, "\(left) and \(right) must stay visually distinct (delta: \(delta))")
-            }
-        }
+    @Test("Dark-mode adapted provider colors stay visually distinct")
+    func darkModeProviderColorsStayDistinct() {
+        expectDistinctColors(
+            providers: knownDistinctProviders,
+            color: { ProviderColorPalette.rawColor(for: $0)!.adaptedComponents(forDarkMode: true) })
     }
 
     @Test("Unknown and empty provider IDs still fall back at render time")
@@ -138,4 +122,32 @@ private func expectColor(_ provider: String, red: Double, green: Double, blue: D
     #expect(abs((color?.red ?? -1) - red) < 0.001, "\(provider) red channel did not match")
     #expect(abs((color?.green ?? -1) - green) < 0.001, "\(provider) green channel did not match")
     #expect(abs((color?.blue ?? -1) - blue) < 0.001, "\(provider) blue channel did not match")
+}
+
+private let knownDistinctProviders = [
+    "codex", "openai", "azureopenai", "claude", "cursor", "opencode", "opencodego",
+    "alibaba", "alibabatokenplan", "factory", "gemini", "antigravity", "copilot",
+    "zai", "minimax", "manus", "kimi", "kilo", "kiro", "vertexai", "augment",
+    "jetbrains", "kimik2", "moonshot", "amp", "t3chat", "ollama", "synthetic",
+    "warp", "openrouter", "elevenlabs", "windsurf", "perplexity", "mimo",
+    "doubao", "abacus", "mistral", "deepseek", "codebuff", "crof", "venice",
+    "commandcode", "stepfun", "bedrock", "grok", "groq", "llmproxy", "deepgram",
+]
+
+private func expectDistinctColors(
+    providers: [String],
+    color: (String) -> ProviderColorPalette.RawColor
+) {
+    for leftIndex in providers.indices {
+        for rightIndex in providers.index(after: leftIndex)..<providers.endIndex {
+            let left = providers[leftIndex]
+            let right = providers[rightIndex]
+            let leftColor = color(left)
+            let rightColor = color(right)
+            let delta = abs(leftColor.red - rightColor.red)
+                + abs(leftColor.green - rightColor.green)
+                + abs(leftColor.blue - rightColor.blue)
+            #expect(delta > 0.10, "\(left) and \(right) must stay visually distinct (delta: \(delta))")
+        }
+    }
 }

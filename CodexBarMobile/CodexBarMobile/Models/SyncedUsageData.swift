@@ -329,6 +329,17 @@ final class SyncedUsageData {
             }
         }
 
+        self.applyFullFetchResults(
+            perProvider: per,
+            legacy: legacy,
+            kvsFallback: reader.latestKVSSnapshot())
+    }
+
+    func applyFullFetchResults(
+        perProvider per: MultiDeviceSyncResult,
+        legacy: MultiDeviceSyncResult,
+        kvsFallback: SyncedUsageSnapshot?
+    ) {
         // Unpack results per zone. `.error` means transient failure — DO NOT
         // wipe that bucket, preserve whatever was cached before (Codex
         // review P1). `.empty` / `.success` are authoritative and DO replace
@@ -374,18 +385,19 @@ final class SyncedUsageData {
 
         if deviceSnapshots.isEmpty {
             // Totally empty cloud result. Last-resort KVS fallback.
-            if let kvsSnapshot = reader.latestKVSSnapshot() {
+            if let kvsSnapshot = kvsFallback {
                 self.cache.seedFromColdStart([kvsSnapshot])
                 self.usingKVSFallback = true
                 self.republishFromCache()
                 return
             }
-            self.applyRefreshFailureStatus(firstError)
             if firstError != nil, let snapshot {
+                self.applyRefreshFailureStatus(firstError)
                 WidgetSnapshotPublisher.publish(from: snapshot)
                 return
             }
             self.snapshot = nil
+            self.syncStatus = firstError.map { .error(message: $0.description) } ?? .noData
             WidgetSnapshotPublisher.clear()
             return
         }
