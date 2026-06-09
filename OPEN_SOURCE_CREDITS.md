@@ -6,7 +6,7 @@ QuotaKit is maintained by Columbus Labs as a product fork. The QuotaKit product 
 
 ## User-Facing Attribution
 
-Use this copy anywhere QuotaKit presents open-source credits in the app, website, App Store support materials, or release notes:
+Use this as baseline copy anywhere QuotaKit presents open-source credits in the app, website, App Store support materials, or release notes:
 
 > QuotaKit is built in part from CodexBar by Peter Steinberger, licensed under the MIT License. QuotaKit adds Columbus Labs’ iCloud sync, iPhone companion app, dashboards, alerts, widgets, share cards, setup flow, releases, and support.
 
