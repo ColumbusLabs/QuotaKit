@@ -15639,60 +15639,31 @@
         }
       }
     },
-    "Widgets are included with the $4.99 lifetime unlock.": {
+    "Widgets are included with %@.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Widgets are included with the $4.99 lifetime unlock."
+            "value": "Widgets are included with %@."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ウィジェットは $4.99 の買い切りアンロックに含まれます。"
+            "value": "ウィジェットは %@ に含まれます。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "小组件包含在 $4.99 终身解锁中。"
+            "value": "小组件包含在 %@ 中。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "小工具包含在 $4.99 終身解鎖中。"
-          }
-        }
-      }
-    },
-    "Widgets are included with the %@ lifetime unlock.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Widgets are included with the %@ lifetime unlock."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ウィジェットは %@ の買い切りアンロックに含まれます。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "小组件包含在 %@ 终身解锁中。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "小工具包含在 %@ 終身解鎖中。"
+            "value": "小工具包含在 %@ 中。"
           }
         }
       }

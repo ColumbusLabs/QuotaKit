@@ -1,40 +1,7 @@
-import AppIntents
 import SwiftUI
 import WidgetKit
 
-extension QuotaKitWidgetUsageWindow: AppEnum {
-    static var typeDisplayRepresentation: TypeDisplayRepresentation {
-        TypeDisplayRepresentation(name: "Usage Window")
-    }
-
-    static var caseDisplayRepresentations: [QuotaKitWidgetUsageWindow: DisplayRepresentation] {
-        [
-            .session: DisplayRepresentation(title: "Session"),
-            .weekly: DisplayRepresentation(title: "Weekly"),
-        ]
-    }
-}
-
-struct QuotaKitWidgetConfigurationIntent: WidgetConfigurationIntent {
-    static let title: LocalizedStringResource = "QuotaKit"
-    static let description = IntentDescription("Choose whether this widget shows session or weekly quota usage.")
-    static var parameterSummary: some ParameterSummary {
-        Summary("Show \(\.$usageWindow)")
-    }
-
-    @Parameter(title: "Usage Window", default: QuotaKitWidgetUsageWindow.session)
-    var usageWindow: QuotaKitWidgetUsageWindow
-
-    init(usageWindow: QuotaKitWidgetUsageWindow = .session) {
-        self.usageWindow = usageWindow
-    }
-
-    init() {
-        self.init(usageWindow: .session)
-    }
-}
-
-struct QuotaKitWidgetProvider: AppIntentTimelineProvider {
+struct QuotaKitWidgetProvider: TimelineProvider {
     func placeholder(in context: Context) -> QuotaKitWidgetEntry {
         QuotaKitWidgetEntry(
             date: Date(),
@@ -43,35 +10,35 @@ struct QuotaKitWidgetProvider: AppIntentTimelineProvider {
             isPreview: true)
     }
 
-    func snapshot(
-        for configuration: QuotaKitWidgetConfigurationIntent,
-        in context: Context) async -> QuotaKitWidgetEntry
+    func getSnapshot(
+        in context: Context,
+        completion: @escaping (QuotaKitWidgetEntry) -> Void)
     {
-        self.makeEntry(
-            isPreview: context.isPreview,
-            usageWindow: configuration.usageWindow)
+        completion(self.makeEntry(isPreview: context.isPreview))
     }
 
-    func timeline(
-        for configuration: QuotaKitWidgetConfigurationIntent,
-        in context: Context) async -> Timeline<QuotaKitWidgetEntry>
+    func getTimeline(
+        in context: Context,
+        completion: @escaping (Timeline<QuotaKitWidgetEntry>) -> Void)
     {
-        let entry = self.makeEntry(
-            isPreview: context.isPreview,
-            usageWindow: configuration.usageWindow)
-        return Timeline(
+        let entry = self.makeEntry(isPreview: context.isPreview)
+        completion(Timeline(
             entries: [entry],
-            policy: .after(Date().addingTimeInterval(30 * 60)))
+            policy: .after(Date().addingTimeInterval(30 * 60))))
     }
 
-    private func makeEntry(
-        isPreview: Bool,
-        usageWindow: QuotaKitWidgetUsageWindow) -> QuotaKitWidgetEntry
-    {
+    private func makeEntry(isPreview: Bool) -> QuotaKitWidgetEntry {
         let isProUnlocked = ProEntitlementCacheStore.load() != nil
-        let snapshot = isPreview ? QuotaKitWidgetPreviewData.snapshot : QuotaKitWidgetSnapshotStore.load()
+        let storedSnapshot = QuotaKitWidgetSnapshotStore.load()
         #if DEBUG && targetEnvironment(simulator)
-        let isUnlocked = isPreview || isProUnlocked || snapshot != nil
+        let snapshot = isPreview
+            ? QuotaKitWidgetPreviewData.snapshot
+            : storedSnapshot ?? QuotaKitWidgetPreviewData.simulatorSnapshot
+        #else
+        let snapshot = isPreview ? QuotaKitWidgetPreviewData.snapshot : storedSnapshot
+        #endif
+        #if DEBUG && targetEnvironment(simulator)
+        let isUnlocked = isPreview || isProUnlocked || snapshot.primaryProvider != nil
         #else
         let isUnlocked = isPreview || isProUnlocked
         #endif
@@ -79,8 +46,7 @@ struct QuotaKitWidgetProvider: AppIntentTimelineProvider {
             date: Date(),
             snapshot: snapshot,
             isUnlocked: isUnlocked,
-            isPreview: isPreview,
-            usageWindow: usageWindow)
+            isPreview: isPreview)
     }
 }
 
@@ -95,9 +61,8 @@ struct QuotaKitProviderWidget: Widget {
     private let kind = "QuotaKitProviderWidget"
 
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(
+        StaticConfiguration(
             kind: self.kind,
-            intent: QuotaKitWidgetConfigurationIntent.self,
             provider: QuotaKitWidgetProvider())
         { entry in
             QuotaKitWidgetView(entry: entry)
