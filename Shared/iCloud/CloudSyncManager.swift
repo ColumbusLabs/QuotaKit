@@ -285,25 +285,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
 
     private init() {
         // Probe for CloudKit entitlement before touching CKContainer.
-        var available = false
-        #if os(macOS)
-        // SecTaskCopyValueForEntitlement reads the actual code-signing entitlements.
-        if let task = SecTaskCreateFromSelf(nil) {
-            let value = SecTaskCopyValueForEntitlement(
-                task, "com.apple.developer.icloud-services" as CFString, nil)
-            if let services = value as? [String], services.contains("CloudKit") {
-                available = true
-            }
-        }
-        #else
-        let environment = ProcessInfo.processInfo.environment
-        let isXCTestHost = environment["XCTestConfigurationFilePath"] != nil
-            || environment["XCTestBundlePath"] != nil
-        // iOS entitlements are guaranteed by the provisioning profile for
-        // signed app runs. Hosted simulator unit tests and unsigned local UI
-        // smoke tests must not touch CKContainer during app bootstrap.
-        available = !isXCTestHost && environment["QUOTAKIT_DISABLE_CLOUDKIT"] != "1"
-        #endif
+        let available = Self.isCloudKitAvailableForCurrentProcess()
         if available {
             let c = CKContainer(identifier: CloudSyncConstants.containerIdentifier)
             self._container = c
@@ -313,6 +295,35 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             self._privateDatabase = nil
         }
         self.cloudKitAvailable = available
+    }
+
+    private static func isCloudKitAvailableForCurrentProcess() -> Bool {
+        let environment = ProcessInfo.processInfo.environment
+        guard environment["QUOTAKIT_DISABLE_CLOUDKIT"] != "1" else { return false }
+        #if os(macOS)
+        return Self.hasCloudKitEntitlement()
+        #elseif targetEnvironment(simulator)
+        // CKContainer(identifier:) hard-crashes when the current executable is
+        // missing the CloudKit entitlement. Simulator builds, especially the
+        // repo's documented CODE_SIGNING_ALLOWED=NO path, can run without that
+        // entitlement, so local simulator sync falls back to KVS/demo data.
+        return false
+        #else
+        let isXCTestHost = environment["XCTestConfigurationFilePath"] != nil
+            || environment["XCTestBundlePath"] != nil
+        return !isXCTestHost
+        #endif
+    }
+
+    private static func hasCloudKitEntitlement() -> Bool {
+        #if os(macOS) && canImport(Security)
+        guard let task = SecTaskCreateFromSelf(nil) else { return false }
+        let value = SecTaskCopyValueForEntitlement(
+            task, "com.apple.developer.icloud-services" as CFString, nil)
+        return (value as? [String])?.contains("CloudKit") ?? false
+        #else
+        return false
+        #endif
     }
 
     // MARK: - CloudKit Write (Mac side)

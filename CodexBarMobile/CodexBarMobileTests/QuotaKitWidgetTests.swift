@@ -232,6 +232,63 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(QuotaKitWidgetSnapshotStore.filename, "quotakit-widget-snapshot.json")
     }
 
+    func testWidgetUsageWindowResolvesNonSessionLabelsByStableSlot() {
+        let provider = QuotaKitWidgetSnapshot.Provider(
+            id: "claude",
+            providerName: "Claude",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: nil,
+            isError: false,
+            windows: [
+                .init(
+                    title: "5-hour",
+                    usedPercent: 61,
+                    remainingPercent: 39,
+                    resetsAt: nil,
+                    pace: nil),
+                .init(
+                    title: "7-day",
+                    usedPercent: 20,
+                    remainingPercent: 80,
+                    resetsAt: nil,
+                    pace: nil),
+            ])
+
+        XCTAssertEqual(provider.window(for: .session)?.title, "5-hour")
+        XCTAssertEqual(provider.window(for: .weekly)?.title, "7-day")
+    }
+
+    func testWidgetUsageWindowPrefersFirstExplicitWeeklyLane() {
+        let provider = QuotaKitWidgetSnapshot.Provider(
+            id: "claude",
+            providerName: "Claude",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: nil,
+            isError: false,
+            windows: [
+                .init(
+                    title: "5-hour",
+                    usedPercent: 61,
+                    remainingPercent: 39,
+                    resetsAt: nil,
+                    pace: nil),
+                .init(
+                    title: "Weekly Sonnet",
+                    usedPercent: 20,
+                    remainingPercent: 80,
+                    resetsAt: nil,
+                    pace: nil),
+                .init(
+                    title: "Weekly Opus",
+                    usedPercent: 35,
+                    remainingPercent: 65,
+                    resetsAt: nil,
+                    pace: nil),
+            ])
+
+        XCTAssertEqual(provider.window(for: .weekly)?.title, "Weekly Sonnet")
+    }
+
     func testLockedWidgetPlaceholderRendersForAllFamilies() {
         for family in Self.widgetFamilies {
             let view = QuotaKitWidgetView(
@@ -258,6 +315,41 @@ final class QuotaKitWidgetTests: XCTestCase {
         }
     }
 
+    func testUnlockedSmallWidgetRendersCleanGlanceLayout() {
+        let provider = QuotaKitWidgetPreviewData.snapshot.providers[0]
+        XCTAssertEqual(provider.window(for: .session)?.title, "Session")
+
+        let view = QuotaKitWidgetView(
+            entry: .init(
+                date: Date(),
+                snapshot: QuotaKitWidgetPreviewData.snapshot,
+                isUnlocked: true,
+                isPreview: false),
+            overrideFamily: .systemSmall)
+
+        XCTAssertNotNil(
+            self.renderSmallWidgetToImage(view),
+            "Expected paid small widget glance layout to render")
+    }
+
+    func testUnlockedSmallWidgetRendersWeeklyConfiguration() {
+        let provider = QuotaKitWidgetPreviewData.snapshot.providers[0]
+        XCTAssertEqual(provider.window(for: .weekly)?.title, "Weekly")
+
+        let view = QuotaKitWidgetView(
+            entry: .init(
+                date: Date(),
+                snapshot: QuotaKitWidgetPreviewData.snapshot,
+                isUnlocked: true,
+                isPreview: false,
+                usageWindow: .weekly),
+            overrideFamily: .systemSmall)
+
+        XCTAssertNotNil(
+            self.renderSmallWidgetToImage(view),
+            "Expected paid small widget weekly configuration to render")
+    }
+
     func testEmptyWidgetRendersWithoutCrashing() {
         for family in Self.widgetFamilies {
             let view = QuotaKitWidgetView(
@@ -280,6 +372,12 @@ final class QuotaKitWidgetTests: XCTestCase {
 
     private func renderToImage(_ view: some View) -> UIImage? {
         let renderer = ImageRenderer(content: view.frame(width: 360, height: 180))
+        renderer.scale = 2.0
+        return renderer.uiImage
+    }
+
+    private func renderSmallWidgetToImage(_ view: some View) -> UIImage? {
+        let renderer = ImageRenderer(content: view.frame(width: 170, height: 170))
         renderer.scale = 2.0
         return renderer.uiImage
     }

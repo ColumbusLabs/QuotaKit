@@ -1524,6 +1524,7 @@
       }
     },
     "QuotaKit": {
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1552,6 +1553,7 @@
       }
     },
     "QuotaKit (Demo)": {
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2534,6 +2536,7 @@
       }
     },
     "Enable cost collection in QuotaKit on your Mac to see provider spend, breakdowns, and budgets here.": {
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2590,6 +2593,7 @@
       }
     },
     "Enable providers in QuotaKit on your Mac to see usage data here.": {
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -3237,6 +3241,7 @@
       }
     },
     "Install QuotaKit on Mac": {
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4220,6 +4225,7 @@
       }
     },
     "Monitor your AI coding tool usage on iPhone.\nRequires the QuotaKit Mac app.": {
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4724,6 +4730,7 @@
       }
     },
     "No utilization data yet. Keep QuotaKit running on your Mac to start recording.": {
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4734,19 +4741,19 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "利用率データがまだありません。Mac で QuotaKit を起動したままにしてください。"
+            "value": "利用率データはまだありません。Mac で QuotaKit を起動したままにすると記録が始まります。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "暂无利用率数据。请保持 Mac 上的 QuotaKit 运行以开始记录。"
+            "value": "暂无使用率数据。保持 Mac 上的 QuotaKit 运行即可开始记录。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "尚無利用率資料。請保持 Mac 上的 QuotaKit 運行以開始記錄。"
+            "value": "暫無使用率資料。保持 Mac 上的 QuotaKit 執行即可開始記錄。"
           }
         }
       }
@@ -4976,6 +4983,7 @@
       }
     },
     "Open QuotaKit on your Mac → Settings → turn on iCloud Sync.": {
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -4986,19 +4994,19 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mac で QuotaKit を開き、→ Settings → iCloud Sync をオンにしてください。"
+            "value": "Mac で QuotaKit → 設定を開き、iCloud 同期をオンにします。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在 Mac 上打开 QuotaKit → Settings → 打开 iCloud Sync。"
+            "value": "在 Mac 上打开 QuotaKit → 设置 → 开启 iCloud 同步。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "在 Mac 上開啟 QuotaKit → Settings → 打開 iCloud Sync。"
+            "value": "在 Mac 上打開 QuotaKit → 設定 → 開啟 iCloud 同步。"
           }
         }
       }
@@ -5511,6 +5519,7 @@
       }
     },
     "Please update QuotaKit on Mac": {
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -5518,22 +5527,22 @@
             "value": "Please update QuotaKit on Mac"
           }
         },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac の QuotaKit を更新してください"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "请在 Mac 端更新 QuotaKit"
+            "value": "请更新 Mac 版 QuotaKit"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "請在 Mac 端更新 QuotaKit"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mac の QuotaKit をアップデートしてください"
+            "value": "請更新 Mac 版 QuotaKit"
           }
         }
       }
@@ -9540,6 +9549,7 @@
       }
     },
     "Walk through how QuotaKit syncs from Mac to iPhone": {
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -9550,19 +9560,19 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "QuotaKit が Mac から iPhone にどう同期するかを案内します"
+            "value": "QuotaKit が Mac から iPhone に同期する流れを確認"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "带你了解 QuotaKit 如何从 Mac 同步到 iPhone"
+            "value": "了解 QuotaKit 如何从 Mac 同步到 iPhone"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "帶你了解 QuotaKit 如何從 Mac 同步到 iPhone"
+            "value": "了解 QuotaKit 如何從 Mac 同步到 iPhone"
           }
         }
       }
@@ -9596,6 +9606,7 @@
       }
     },
     "Welcome to QuotaKit": {
+      "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -10937,6 +10948,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "剩餘"
+          }
+        }
+      }
+    },
+    "Choose whether this widget shows session or weekly quota usage.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose whether this widget shows session or weekly quota usage."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このウィジェットにセッションまたは週間のクォータ使用量を表示するか選びます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择此小组件显示会话还是每周配额使用量。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選擇此小工具顯示工作階段或每週配額使用量。"
+          }
+        }
+      }
+    },
+    "Usage Window": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage Window"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用ウィンドウ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用窗口"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用時段"
           }
         }
       }
@@ -15485,93 +15552,6 @@
         }
       }
     },
-    "QuotaKit": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "QuotaKit"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "QuotaKit"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "QuotaKit"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "QuotaKit"
-          }
-        }
-      }
-    },
-    "QuotaKit (Demo)": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "QuotaKit (Demo)"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "QuotaKit（デモ）"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "QuotaKit（演示）"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "QuotaKit（示範）"
-          }
-        }
-      }
-    },
-    "quota left": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "quota left"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "残り quota"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "quota 剩余"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "quota 剩餘"
-          }
-        }
-      }
-    },
     "No quota window": {
       "extractionState": "manual",
       "localizations": {
@@ -16065,93 +16045,6 @@
         }
       }
     },
-    "Enable providers in QuotaKit on your Mac to see usage data here.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enable providers in QuotaKit on your Mac to see usage data here."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mac の QuotaKit で provider を有効にすると、ここに使用データが表示されます。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在 Mac 版 QuotaKit 中启用 provider 后，这里才会显示使用数据。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在 Mac 版 QuotaKit 中啟用 provider 後，這裡才會顯示使用資料。"
-          }
-        }
-      }
-    },
-    "Enable cost collection in QuotaKit on your Mac to see provider spend, breakdowns, and budgets here.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enable cost collection in QuotaKit on your Mac to see provider spend, breakdowns, and budgets here."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mac の QuotaKit でコスト収集を有効にすると、ここでプロバイダごとの支出、内訳、予算を確認できます。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在 Mac 版 QuotaKit 中启用费用收集后，这里会显示 provider 支出、细分和预算。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在 Mac 版 QuotaKit 中啟用費用收集後，這裡會顯示 provider 支出、細分和預算。"
-          }
-        }
-      }
-    },
-    "Walk through how QuotaKit syncs from Mac to iPhone": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Walk through how QuotaKit syncs from Mac to iPhone"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "QuotaKit が Mac から iPhone に同期する流れを確認"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "了解 QuotaKit 如何从 Mac 同步到 iPhone"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "了解 QuotaKit 如何從 Mac 同步到 iPhone"
-          }
-        }
-      }
-    },
     "%lld synthetic providers from Mac. Toggle off in Mac QuotaKit → Settings → Mobile → Debug · Mock Provider Data; iPhone updates within ~30s.": {
       "extractionState": "manual",
       "localizations": {
@@ -16239,151 +16132,6 @@
         }
       }
     },
-    "Please update QuotaKit on Mac": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Please update QuotaKit on Mac"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mac の QuotaKit を更新してください"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "请更新 Mac 版 QuotaKit"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "請更新 Mac 版 QuotaKit"
-          }
-        }
-      }
-    },
-    "Install QuotaKit on Mac": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Install QuotaKit on Mac"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mac に QuotaKit をインストール"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在 Mac 上安装 QuotaKit"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在 Mac 上安裝 QuotaKit"
-          }
-        }
-      }
-    },
-    "Open QuotaKit on your Mac → Settings → turn on iCloud Sync.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open QuotaKit on your Mac → Settings → turn on iCloud Sync."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mac で QuotaKit → 設定を開き、iCloud 同期をオンにします。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在 Mac 上打开 QuotaKit → 设置 → 开启 iCloud 同步。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在 Mac 上打開 QuotaKit → 設定 → 開啟 iCloud 同步。"
-          }
-        }
-      }
-    },
-    "Welcome to QuotaKit": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Welcome to QuotaKit"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "QuotaKit へようこそ"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "欢迎使用 QuotaKit"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "歡迎使用 QuotaKit"
-          }
-        }
-      }
-    },
-    "Monitor your AI coding tool usage on iPhone.\nRequires the QuotaKit Mac app.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Monitor your AI coding tool usage on iPhone.\nRequires the QuotaKit Mac app."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iPhone で AI コーディングツールの使用状況を確認できます。\nQuotaKit Mac App が必要です。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在 iPhone 上查看 AI 编程工具的使用情况。\n需要安装 QuotaKit Mac App。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在 iPhone 上查看 AI 編程工具的使用情況。\n需要安裝 QuotaKit Mac App。"
-          }
-        }
-      }
-    },
     "Subscription Utilization and Mac→iPhone push notifications need a recent QuotaKit Mac build. Get it from github.com/ColumbusLabs/QuotaKit/releases.": {
       "extractionState": "manual",
       "localizations": {
@@ -16409,35 +16157,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "訂閱利用率和 Mac→iPhone 推播通知需要較新的 QuotaKit Mac 建置。從 github.com/ColumbusLabs/QuotaKit/releases 取得。"
-          }
-        }
-      }
-    },
-    "No utilization data yet. Keep QuotaKit running on your Mac to start recording.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No utilization data yet. Keep QuotaKit running on your Mac to start recording."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "利用率データはまだありません。Mac で QuotaKit を起動したままにすると記録が始まります。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "暂无使用率数据。保持 Mac 上的 QuotaKit 运行即可开始记录。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "暫無使用率資料。保持 Mac 上的 QuotaKit 執行即可開始記錄。"
           }
         }
       }
@@ -17042,35 +16761,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Push notifications from Mac — when a session quota hits 0% or becomes available again on any of your Macs, your iPhone receives a notification that includes the provider name. Background App Refresh does not need to be enabled."
-          }
-        }
-      }
-    },
-    "Widgets and pace — QuotaKit Pro adds Home Screen and Lock Screen widgets backed only by sanitized iPhone-side snapshot data, and Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Widgets and pace — QuotaKit Pro adds Home Screen and Lock Screen widgets backed only by sanitized iPhone-side snapshot data, and Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ウィジェットとペース — QuotaKit Pro は整理済みの iPhone 側スナップショットだけを使うホーム画面/ロック画面ウィジェットを追加し、Usage カードは Mac アプリと同じ赤字/余裕のペース表示、予測される使い切り時刻、期待使用量マーカーを表示します。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "小组件与进度 —— QuotaKit Pro 添加了仅基于已清理 iPhone 端快照数据的主屏幕和锁屏小组件，Usage 卡片现在也会像 Mac 应用一样显示赤字/余量进度、预计耗尽时间和预期用量标记。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "小工具與進度 —— QuotaKit Pro 新增了僅使用已清理 iPhone 端快照資料的主畫面與鎖定畫面小工具，Usage 卡片現在也會像 Mac App 一樣顯示赤字/餘量進度、預計用盡時間與預期用量標記。"
           }
         }
       }
@@ -18724,6 +18414,92 @@
           "stringUnit": {
             "state": "translated",
             "value": "遠端護欄 — Columbus Labs 現在可以透過 OTA 更新安全的設定連結、公告和功能停用開關；原生 App 變更仍會透過 TestFlight/App Store 發佈。"
+          }
+        }
+      }
+    },
+    "Synced %@ ago": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synced %@ ago"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 前に同期"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@前同步"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@前同步"
+          }
+        }
+      }
+    },
+    "Show ${usageWindow}": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show ${usageWindow}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${usageWindow} を表示"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示 ${usageWindow}"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顯示 ${usageWindow}"
+          }
+        }
+      }
+    },
+    "Widgets and pace — QuotaKit Pro adds refreshed Home Screen and Lock Screen widgets with Session / Weekly configuration, sanitized iPhone-side snapshot data, sync-age badges, quota bars, and pace chips; Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widgets and pace — QuotaKit Pro adds refreshed Home Screen and Lock Screen widgets with Session / Weekly configuration, sanitized iPhone-side snapshot data, sync-age badges, quota bars, and pace chips; Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェットとペース — QuotaKit Pro では、Session / Weekly 設定、サニタイズ済みの iPhone 側スナップショットデータ、同期経過バッジ、クォータバー、ペースチップを備えた刷新されたホーム画面とロック画面のウィジェットを利用できます。使用量カードも Mac アプリに合わせ、赤字/予備のペースラベル、予測される使い切り時刻、期待使用量マーカーを表示します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小组件和节奏 — QuotaKit Pro 新增了焕新的主屏幕和锁屏小组件，支持 Session / Weekly 配置、经过清理的 iPhone 端快照数据、同步时间徽章、配额条和节奏标签；使用量卡片也与 Mac App 保持一致，显示超额/余量节奏标签、预计耗尽时间和预期使用量标记。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小工具和節奏 — QuotaKit Pro 新增了更新後的主畫面和鎖定畫面小工具，支援 Session / Weekly 設定、已清理的 iPhone 端快照資料、同步時間徽章、配額列和節奏標籤；使用量卡片也與 Mac App 保持一致，顯示超額/餘量節奏標籤、預計用盡時間和預期使用量標記。"
           }
         }
       }

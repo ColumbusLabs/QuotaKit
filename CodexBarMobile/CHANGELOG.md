@@ -5,6 +5,13 @@ Notable changes to the QuotaKit iOS companion app are documented here.
 Older build-by-build notes remain in Git history. This file now focuses on the
 current Columbus Labs product surface and recent release history.
 
+## [1.11.1 (163)] — 2026-06-09 — Paid widget refinement
+
+### Changed
+
+- Refined QuotaKit Pro widgets with session/weekly usage configuration and
+  cleaner paid quota glance layouts.
+
 ## [1.11.1 (160)] — 2026-06-07 — Observatory UI and remote guardrails
 
 ### Changed

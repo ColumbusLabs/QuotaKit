@@ -1,7 +1,40 @@
+import AppIntents
 import SwiftUI
 import WidgetKit
 
-struct QuotaKitWidgetProvider: TimelineProvider {
+extension QuotaKitWidgetUsageWindow: AppEnum {
+    static var typeDisplayRepresentation: TypeDisplayRepresentation {
+        TypeDisplayRepresentation(name: "Usage Window")
+    }
+
+    static var caseDisplayRepresentations: [QuotaKitWidgetUsageWindow: DisplayRepresentation] {
+        [
+            .session: DisplayRepresentation(title: "Session"),
+            .weekly: DisplayRepresentation(title: "Weekly"),
+        ]
+    }
+}
+
+struct QuotaKitWidgetConfigurationIntent: WidgetConfigurationIntent {
+    static let title: LocalizedStringResource = "QuotaKit"
+    static let description = IntentDescription("Choose whether this widget shows session or weekly quota usage.")
+    static var parameterSummary: some ParameterSummary {
+        Summary("Show \(\.$usageWindow)")
+    }
+
+    @Parameter(title: "Usage Window", default: QuotaKitWidgetUsageWindow.session)
+    var usageWindow: QuotaKitWidgetUsageWindow
+
+    init(usageWindow: QuotaKitWidgetUsageWindow = .session) {
+        self.usageWindow = usageWindow
+    }
+
+    init() {
+        self.init(usageWindow: .session)
+    }
+}
+
+struct QuotaKitWidgetProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> QuotaKitWidgetEntry {
         QuotaKitWidgetEntry(
             date: Date(),
@@ -10,31 +43,44 @@ struct QuotaKitWidgetProvider: TimelineProvider {
             isPreview: true)
     }
 
-    func getSnapshot(
-        in context: Context,
-        completion: @escaping (QuotaKitWidgetEntry) -> Void)
+    func snapshot(
+        for configuration: QuotaKitWidgetConfigurationIntent,
+        in context: Context) async -> QuotaKitWidgetEntry
     {
-        completion(self.makeEntry(isPreview: context.isPreview))
+        self.makeEntry(
+            isPreview: context.isPreview,
+            usageWindow: configuration.usageWindow)
     }
 
-    func getTimeline(
-        in context: Context,
-        completion: @escaping (Timeline<QuotaKitWidgetEntry>) -> Void)
+    func timeline(
+        for configuration: QuotaKitWidgetConfigurationIntent,
+        in context: Context) async -> Timeline<QuotaKitWidgetEntry>
     {
-        let entry = self.makeEntry(isPreview: context.isPreview)
-        completion(Timeline(
+        let entry = self.makeEntry(
+            isPreview: context.isPreview,
+            usageWindow: configuration.usageWindow)
+        return Timeline(
             entries: [entry],
-            policy: .after(Date().addingTimeInterval(30 * 60))))
+            policy: .after(Date().addingTimeInterval(30 * 60)))
     }
 
-    private func makeEntry(isPreview: Bool) -> QuotaKitWidgetEntry {
+    private func makeEntry(
+        isPreview: Bool,
+        usageWindow: QuotaKitWidgetUsageWindow) -> QuotaKitWidgetEntry
+    {
         let isProUnlocked = ProEntitlementCacheStore.load() != nil
+        let snapshot = isPreview ? QuotaKitWidgetPreviewData.snapshot : QuotaKitWidgetSnapshotStore.load()
+        #if DEBUG && targetEnvironment(simulator)
+        let isUnlocked = isPreview || isProUnlocked || snapshot != nil
+        #else
         let isUnlocked = isPreview || isProUnlocked
+        #endif
         return QuotaKitWidgetEntry(
             date: Date(),
-            snapshot: isPreview ? QuotaKitWidgetPreviewData.snapshot : QuotaKitWidgetSnapshotStore.load(),
+            snapshot: snapshot,
             isUnlocked: isUnlocked,
-            isPreview: isPreview)
+            isPreview: isPreview,
+            usageWindow: usageWindow)
     }
 }
 
@@ -49,14 +95,16 @@ struct QuotaKitProviderWidget: Widget {
     private let kind = "QuotaKitProviderWidget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(
+        AppIntentConfiguration(
             kind: self.kind,
+            intent: QuotaKitWidgetConfigurationIntent.self,
             provider: QuotaKitWidgetProvider())
         { entry in
             QuotaKitWidgetView(entry: entry)
         }
         .configurationDisplayName(String(localized: "QuotaKit"))
         .description(String(localized: "See synced quota status from your Mac."))
+        .contentMarginsDisabled()
         .supportedFamilies([
             .systemSmall,
             .systemMedium,
@@ -68,6 +116,22 @@ struct QuotaKitProviderWidget: Widget {
 
 #if DEBUG
 #Preview(as: .systemSmall) {
+    QuotaKitProviderWidget()
+} timeline: {
+    QuotaKitWidgetEntry(
+        date: Date(),
+        snapshot: QuotaKitWidgetPreviewData.snapshot,
+        isUnlocked: true,
+        isPreview: true)
+    QuotaKitWidgetEntry(
+        date: Date(),
+        snapshot: QuotaKitWidgetPreviewData.snapshot,
+        isUnlocked: true,
+        isPreview: true,
+        usageWindow: .weekly)
+}
+
+#Preview(as: .systemMedium) {
     QuotaKitProviderWidget()
 } timeline: {
     QuotaKitWidgetEntry(
