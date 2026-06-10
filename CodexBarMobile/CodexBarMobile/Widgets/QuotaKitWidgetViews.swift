@@ -45,50 +45,141 @@ struct QuotaKitWidgetView: View {
     }
 }
 
+/// Brand colors local to the widget target: `Design/` sources are not
+/// compiled into the widget extension, so the accent mirrors
+/// `QuotaKitTheme.brandAccent` and the ramp mirrors `QuotaUsageColor`.
+private enum WidgetPalette {
+    static let brandAccent = Color(red: 1.0, green: 0.73, blue: 0.08)
+
+    static func quotaRamp(usedPercent: Double) -> Color {
+        if usedPercent >= 90 { return .red }
+        if usedPercent >= 70 { return .orange }
+        return .green
+    }
+}
+
+private struct WidgetBrandHeader: View {
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(WidgetPalette.brandAccent)
+                .frame(width: 6, height: 6)
+            Text(String(localized: "QuotaKit"))
+                .font(.caption2)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct WidgetQuotaBar: View {
+    let usedPercent: Double
+    var height: CGFloat = 6
+
+    private var fillFraction: CGFloat {
+        CGFloat(max(0, min(100, 100 - self.usedPercent)) / 100)
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(.quaternary)
+                Capsule()
+                    .fill(WidgetPalette.quotaRamp(usedPercent: self.usedPercent))
+                    .frame(width: max(self.height, proxy.size.width * self.fillFraction))
+            }
+        }
+        .frame(height: self.height)
+    }
+}
+
+private struct WidgetPaceChip: View {
+    let pace: SyncUsagePace
+    var compact = false
+
+    var body: some View {
+        if let deltaText = self.pace.widgetDeltaText {
+            HStack(spacing: 2) {
+                Image(systemName: self.pace.deltaPercent < 0
+                    ? "arrowtriangle.up.fill"
+                    : "arrowtriangle.down.fill")
+                    .font(.system(size: self.compact ? 6 : 7, weight: .bold))
+                Text(deltaText)
+                    .font(self.compact ? .caption2.monospacedDigit() : .caption.monospacedDigit())
+                    .fontWeight(.semibold)
+            }
+            .foregroundStyle(self.pace.widgetColor)
+            .padding(.horizontal, self.compact ? 5 : 7)
+            .padding(.vertical, self.compact ? 2 : 3)
+            .background(self.pace.widgetColor.opacity(0.13), in: Capsule())
+            .lineLimit(1)
+        }
+    }
+}
+
 private struct QuotaKitWidgetSmallView: View {
     let provider: QuotaKitWidgetSnapshot.Provider
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(String(localized: "QuotaKit"))
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 0) {
+            WidgetBrandHeader()
 
-            Spacer(minLength: 0)
+            Spacer(minLength: 4)
 
             Text(self.provider.providerName)
                 .font(.headline)
-                .lineLimit(2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
 
             if let window = self.provider.primaryWindow {
-                Gauge(value: window.remainingPercent, in: 0...100) {
-                    Text(window.title)
-                } currentValueLabel: {
-                    Text("\(Int(window.remainingPercent.rounded()))%")
-                }
-                .gaugeStyle(.accessoryCircularCapacity)
-
-                Text(String(localized: "quota left"))
+                Text(window.title)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Spacer(minLength: 4)
+
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    HStack(alignment: .firstTextBaseline, spacing: 1) {
+                        Text("\(Int(window.remainingPercent.rounded()))")
+                            .font(.system(size: 34, weight: .bold, design: .rounded).monospacedDigit())
+                        Text(verbatim: "%")
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                    Spacer(minLength: 2)
+
+                    if let pace = window.pace {
+                        WidgetPaceChip(pace: pace)
+                    }
+                }
+                .padding(.bottom, 7)
+
+                WidgetQuotaBar(usedPercent: window.usedPercent)
+
                 if let paceText = window.pace?.widgetDisplayText {
                     Text(paceText)
                         .font(.caption2)
                         .fontWeight(.medium)
                         .foregroundStyle(window.pace?.widgetColor ?? Color.secondary)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                        .minimumScaleFactor(0.75)
+                        .padding(.top, 7)
                 }
             } else {
+                Spacer(minLength: 4)
                 Text(self.provider.statusMessage ?? String(localized: "No quota window"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                    .lineLimit(3)
+                Spacer(minLength: 0)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .padding()
     }
 }
 
@@ -96,56 +187,52 @@ private struct QuotaKitWidgetMediumView: View {
     let snapshot: QuotaKitWidgetSnapshot
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 11) {
             HStack {
-                Text(String(localized: "QuotaKit"))
-                    .font(.headline)
+                WidgetBrandHeader()
                 Spacer()
                 Text(self.snapshot.generatedAt, style: .time)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
 
             let providers = Array(self.snapshot.providers.prefix(3))
             ForEach(providers) { provider in
-                HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(provider.providerName)
                             .font(.subheadline)
-                            .fontWeight(.medium)
+                            .fontWeight(.semibold)
                             .lineLimit(1)
                         Text(provider.widgetSubtitle)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
-                    }
 
-                    Spacer()
+                        Spacer(minLength: 6)
 
-                    if let remaining = provider.primaryWindow?.remainingPercent {
-                        VStack(alignment: .trailing, spacing: 1) {
-                            Text("\(Int(remaining.rounded()))%")
+                        if let window = provider.primaryWindow {
+                            if let pace = window.pace {
+                                WidgetPaceChip(pace: pace, compact: true)
+                            }
+                            Text("\(Int(window.remainingPercent.rounded()))%")
                                 .font(.subheadline.monospacedDigit())
                                 .fontWeight(.semibold)
-                            if let paceText = provider.primaryWindow?.pace?.widgetShortText {
-                                Text(paceText)
-                                    .font(.caption2)
-                                    .fontWeight(.medium)
-                                    .foregroundStyle(provider.primaryWindow?.pace?.widgetColor ?? Color.secondary)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.75)
-                            }
+                        } else {
+                            Image(systemName: provider.isError ? "exclamationmark.triangle" : "minus")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
-                    } else {
-                        Image(systemName: provider.isError ? "exclamationmark.triangle" : "minus")
-                            .foregroundStyle(.secondary)
+                    }
+
+                    if let window = provider.primaryWindow {
+                        WidgetQuotaBar(usedPercent: window.usedPercent, height: 4)
                     }
                 }
             }
 
             Spacer(minLength: 0)
         }
-        .padding()
     }
 }
 
@@ -213,19 +300,23 @@ private struct QuotaKitWidgetLockedView: View {
                     .font(.caption)
             }
         default:
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 0) {
+                WidgetBrandHeader()
+                Spacer(minLength: 8)
                 Image(systemName: "lock.fill")
-                    .font(.title2)
+                    .font(.title3)
+                    .foregroundStyle(WidgetPalette.brandAccent)
+                    .padding(.bottom, 6)
                 Text(String(localized: "QuotaKit Pro"))
                     .font(.headline)
+                    .padding(.bottom, 2)
                 Text(String(
                     format: String(localized: "Widgets are included with the %@ lifetime unlock."),
                     ProductConfig.launchPriceCopy))
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .padding()
         }
     }
 }
@@ -245,15 +336,18 @@ private struct QuotaKitWidgetEmptyView: View {
                     .font(.caption)
             }
         default:
-            VStack(alignment: .leading, spacing: 8) {
-                Text(String(localized: "QuotaKit"))
-                    .font(.headline)
+            VStack(alignment: .leading, spacing: 0) {
+                WidgetBrandHeader()
+                Spacer(minLength: 8)
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 6)
                 Text(String(localized: "Open the app after your Mac syncs to refresh widget data."))
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            .padding()
         }
     }
 }
@@ -310,9 +404,6 @@ private extension QuotaKitWidgetSnapshot.Provider {
         guard let window = self.primaryWindow else {
             return self.statusMessage ?? String(localized: "No quota window")
         }
-        if let paceText = window.pace?.widgetDisplayText {
-            return "\(window.title) · \(paceText)"
-        }
         return window.title
     }
 }
@@ -325,8 +416,12 @@ private extension SyncUsagePace {
         return self.leftLabel
     }
 
-    var widgetShortText: String {
-        self.leftLabel
+    /// Signed delta with reserve framed as positive ("+81%" = 81% of the
+    /// window still in reserve versus expected pace); nil when on pace.
+    var widgetDeltaText: String? {
+        let reserve = Int((-self.deltaPercent).rounded())
+        guard reserve != 0 else { return nil }
+        return String(format: "%+d%%", reserve)
     }
 
     var widgetColor: Color {

@@ -77,6 +77,16 @@ struct QuotaKitProviderWidget: Widget {
         isPreview: true)
 }
 
+#Preview(as: .systemMedium) {
+    QuotaKitProviderWidget()
+} timeline: {
+    QuotaKitWidgetEntry(
+        date: Date(),
+        snapshot: QuotaKitWidgetPreviewData.snapshot,
+        isUnlocked: true,
+        isPreview: true)
+}
+
 #Preview(as: .accessoryRectangular) {
     QuotaKitProviderWidget()
 } timeline: {
