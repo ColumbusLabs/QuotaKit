@@ -1,7 +1,34 @@
+import AppIntents
 import SwiftUI
 import WidgetKit
 
-struct QuotaKitWidgetProvider: TimelineProvider {
+enum QuotaWindowOption: String, CaseIterable, AppEnum {
+    case primary
+    case secondary
+
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Quota Window")
+    static let caseDisplayRepresentations: [QuotaWindowOption: DisplayRepresentation] = [
+        .primary: "Primary (session / 5-hour)",
+        .secondary: "Secondary (weekly)",
+    ]
+
+    var slot: QuotaKitWidgetWindowSlot {
+        switch self {
+        case .primary: .primary
+        case .secondary: .secondary
+        }
+    }
+}
+
+struct QuotaKitWidgetConfigurationIntent: WidgetConfigurationIntent {
+    static let title: LocalizedStringResource = "QuotaKit Widget"
+    static let description = IntentDescription("Choose which rate-limit window the widget shows.")
+
+    @Parameter(title: "Quota window", default: .primary)
+    var window: QuotaWindowOption
+}
+
+struct QuotaKitWidgetProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> QuotaKitWidgetEntry {
         QuotaKitWidgetEntry(
             date: Date(),
@@ -10,31 +37,39 @@ struct QuotaKitWidgetProvider: TimelineProvider {
             isPreview: true)
     }
 
-    func getSnapshot(
-        in context: Context,
-        completion: @escaping (QuotaKitWidgetEntry) -> Void)
+    func snapshot(
+        for configuration: QuotaKitWidgetConfigurationIntent,
+        in context: Context) async -> QuotaKitWidgetEntry
     {
-        completion(self.makeEntry(isPreview: context.isPreview))
+        self.makeEntry(
+            isPreview: context.isPreview,
+            windowSlot: configuration.window.slot)
     }
 
-    func getTimeline(
-        in context: Context,
-        completion: @escaping (Timeline<QuotaKitWidgetEntry>) -> Void)
+    func timeline(
+        for configuration: QuotaKitWidgetConfigurationIntent,
+        in context: Context) async -> Timeline<QuotaKitWidgetEntry>
     {
-        let entry = self.makeEntry(isPreview: context.isPreview)
-        completion(Timeline(
+        let entry = self.makeEntry(
+            isPreview: context.isPreview,
+            windowSlot: configuration.window.slot)
+        return Timeline(
             entries: [entry],
-            policy: .after(Date().addingTimeInterval(30 * 60))))
+            policy: .after(Date().addingTimeInterval(30 * 60)))
     }
 
-    private func makeEntry(isPreview: Bool) -> QuotaKitWidgetEntry {
+    private func makeEntry(
+        isPreview: Bool,
+        windowSlot: QuotaKitWidgetWindowSlot) -> QuotaKitWidgetEntry
+    {
         let isProUnlocked = ProEntitlementCacheStore.load() != nil
         let isUnlocked = isPreview || isProUnlocked
         return QuotaKitWidgetEntry(
             date: Date(),
             snapshot: isPreview ? QuotaKitWidgetPreviewData.snapshot : QuotaKitWidgetSnapshotStore.load(),
             isUnlocked: isUnlocked,
-            isPreview: isPreview)
+            isPreview: isPreview,
+            windowSlot: windowSlot)
     }
 }
 
@@ -49,8 +84,9 @@ struct QuotaKitProviderWidget: Widget {
     private let kind = "QuotaKitProviderWidget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(
+        AppIntentConfiguration(
             kind: self.kind,
+            intent: QuotaKitWidgetConfigurationIntent.self,
             provider: QuotaKitWidgetProvider())
         { entry in
             QuotaKitWidgetView(entry: entry)
@@ -75,6 +111,12 @@ struct QuotaKitProviderWidget: Widget {
         snapshot: QuotaKitWidgetPreviewData.snapshot,
         isUnlocked: true,
         isPreview: true)
+    QuotaKitWidgetEntry(
+        date: Date(),
+        snapshot: QuotaKitWidgetPreviewData.snapshot,
+        isUnlocked: true,
+        isPreview: true,
+        windowSlot: .secondary)
 }
 
 #Preview(as: .systemMedium) {

@@ -2,11 +2,31 @@ import CodexBarSync
 import SwiftUI
 import WidgetKit
 
+/// Which rate-limit window a configured widget shows. Mirrors the
+/// Mac-synced window order: primary is the session/5-hour window,
+/// secondary is the weekly window when the provider reports one.
+enum QuotaKitWidgetWindowSlot: String, Sendable {
+    case primary
+    case secondary
+}
+
 struct QuotaKitWidgetEntry: TimelineEntry {
     let date: Date
     let snapshot: QuotaKitWidgetSnapshot?
     let isUnlocked: Bool
     let isPreview: Bool
+    var windowSlot: QuotaKitWidgetWindowSlot = .primary
+}
+
+extension QuotaKitWidgetSnapshot.Provider {
+    func window(for slot: QuotaKitWidgetWindowSlot) -> Window? {
+        switch slot {
+        case .primary:
+            return self.windows.first
+        case .secondary:
+            return self.windows.count > 1 ? self.windows[1] : self.windows.first
+        }
+    }
 }
 
 struct QuotaKitWidgetView: View {
@@ -29,13 +49,21 @@ struct QuotaKitWidgetView: View {
             {
                 switch family {
                 case .systemMedium:
-                    QuotaKitWidgetMediumView(snapshot: snapshot)
+                    QuotaKitWidgetMediumView(
+                        snapshot: snapshot,
+                        windowSlot: self.entry.windowSlot)
                 case .accessoryRectangular:
-                    QuotaKitWidgetAccessoryRectangularView(provider: provider)
+                    QuotaKitWidgetAccessoryRectangularView(
+                        provider: provider,
+                        windowSlot: self.entry.windowSlot)
                 case .accessoryCircular:
-                    QuotaKitWidgetAccessoryCircularView(provider: provider)
+                    QuotaKitWidgetAccessoryCircularView(
+                        provider: provider,
+                        windowSlot: self.entry.windowSlot)
                 default:
-                    QuotaKitWidgetSmallView(provider: provider)
+                    QuotaKitWidgetSmallView(
+                        provider: provider,
+                        windowSlot: self.entry.windowSlot)
                 }
             } else {
                 QuotaKitWidgetEmptyView(family: family)
@@ -94,6 +122,34 @@ private struct WidgetQuotaBar: View {
     }
 }
 
+/// Live data-age indicator. The relative `Text` style keeps counting up
+/// between timeline refreshes without re-rendering the widget.
+private struct WidgetSyncBadge: View {
+    let lastSynced: Date
+    var compact = false
+
+    /// Mirrors `SyncFreshnessState.staleThreshold`; evaluated when the
+    /// timeline entry renders, so the tint can lag until the next refresh.
+    private var isStale: Bool {
+        Date().timeIntervalSince(self.lastSynced) > 3600
+    }
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .font(.system(size: 8, weight: .semibold))
+            if self.compact {
+                Text(self.lastSynced, style: .relative)
+            } else {
+                Text("Synced \(self.lastSynced, style: .relative) ago")
+            }
+        }
+        .font(.caption2)
+        .foregroundStyle(self.isStale ? AnyShapeStyle(.orange) : AnyShapeStyle(.tertiary))
+        .lineLimit(1)
+    }
+}
+
 private struct WidgetPaceChip: View {
     let pace: SyncUsagePace
     var compact = false
@@ -120,10 +176,15 @@ private struct WidgetPaceChip: View {
 
 private struct QuotaKitWidgetSmallView: View {
     let provider: QuotaKitWidgetSnapshot.Provider
+    let windowSlot: QuotaKitWidgetWindowSlot
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            WidgetBrandHeader()
+            HStack {
+                WidgetBrandHeader()
+                Spacer(minLength: 6)
+                WidgetSyncBadge(lastSynced: self.provider.lastUpdated, compact: true)
+            }
 
             Spacer(minLength: 4)
 
@@ -132,7 +193,7 @@ private struct QuotaKitWidgetSmallView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
 
-            if let window = self.provider.primaryWindow {
+            if let window = self.provider.window(for: self.windowSlot) {
                 Text(window.title)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -185,33 +246,35 @@ private struct QuotaKitWidgetSmallView: View {
 
 private struct QuotaKitWidgetMediumView: View {
     let snapshot: QuotaKitWidgetSnapshot
+    let windowSlot: QuotaKitWidgetWindowSlot
 
     var body: some View {
         VStack(alignment: .leading, spacing: 11) {
             HStack {
                 WidgetBrandHeader()
                 Spacer()
-                Text(self.snapshot.generatedAt, style: .time)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                WidgetSyncBadge(lastSynced: self.snapshot.generatedAt)
             }
 
             let providers = Array(self.snapshot.providers.prefix(3))
             ForEach(providers) { provider in
+                let window = provider.window(for: self.windowSlot)
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(provider.providerName)
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .lineLimit(1)
-                        Text(provider.widgetSubtitle)
+                        Text(window?.title
+                            ?? provider.statusMessage
+                            ?? String(localized: "No quota window"))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
 
                         Spacer(minLength: 6)
 
-                        if let window = provider.primaryWindow {
+                        if let window {
                             if let pace = window.pace {
                                 WidgetPaceChip(pace: pace, compact: true)
                             }
@@ -225,7 +288,7 @@ private struct QuotaKitWidgetMediumView: View {
                         }
                     }
 
-                    if let window = provider.primaryWindow {
+                    if let window {
                         WidgetQuotaBar(usedPercent: window.usedPercent, height: 4)
                     }
                 }
@@ -238,13 +301,14 @@ private struct QuotaKitWidgetMediumView: View {
 
 private struct QuotaKitWidgetAccessoryRectangularView: View {
     let provider: QuotaKitWidgetSnapshot.Provider
+    let windowSlot: QuotaKitWidgetWindowSlot
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(provider.providerName)
                 .font(.headline)
                 .lineLimit(1)
-            if let window = provider.primaryWindow {
+            if let window = provider.window(for: self.windowSlot) {
                 Text(String(
                     format: String(localized: "%lld%% left · %@"),
                     Int64(window.remainingPercent.rounded()),
@@ -269,9 +333,10 @@ private struct QuotaKitWidgetAccessoryRectangularView: View {
 
 private struct QuotaKitWidgetAccessoryCircularView: View {
     let provider: QuotaKitWidgetSnapshot.Provider
+    let windowSlot: QuotaKitWidgetWindowSlot
 
     var body: some View {
-        if let window = provider.primaryWindow {
+        if let window = provider.window(for: self.windowSlot) {
             Gauge(value: window.remainingPercent, in: 0...100) {
                 Text(String(localized: "Quota"))
             } currentValueLabel: {
@@ -375,6 +440,18 @@ enum QuotaKitWidgetPreviewData {
                             actualUsedPercent: 37,
                             leftLabel: "5% in reserve",
                             rightLabel: "Lasts until reset")),
+                    .init(
+                        title: "Weekly",
+                        usedPercent: 18,
+                        remainingPercent: 82,
+                        resetsAt: Date(timeIntervalSince1970: 1_803_400_000),
+                        pace: .init(
+                            stage: .slightlyBehind,
+                            deltaPercent: -9,
+                            expectedUsedPercent: 27,
+                            actualUsedPercent: 18,
+                            leftLabel: "9% in reserve",
+                            rightLabel: "Lasts until reset")),
                 ]),
             .init(
                 id: "claude",
@@ -397,15 +474,6 @@ enum QuotaKitWidgetPreviewData {
                             rightLabel: "Projected empty in 2h")),
                 ]),
         ])
-}
-
-private extension QuotaKitWidgetSnapshot.Provider {
-    var widgetSubtitle: String {
-        guard let window = self.primaryWindow else {
-            return self.statusMessage ?? String(localized: "No quota window")
-        }
-        return window.title
-    }
 }
 
 private extension SyncUsagePace {
