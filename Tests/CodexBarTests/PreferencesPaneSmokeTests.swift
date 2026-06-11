@@ -87,7 +87,8 @@ struct PreferencesPaneSmokeTests {
         #expect(UserDefaults.standard.string(forKey: "appLanguage") == "ja")
         #expect(L("language_title") == "言語")
         #expect(L("start_at_login_title") == "ログイン時に起動")
-        #expect(L("quit_app") == "CodexBar を終了")
+        // Fork: ja.lproj displayed values are rebranded to QuotaKit.
+        #expect(L("quit_app") == "QuotaKit を終了")
     }
 
     private static func makeSettingsStore(suite: String) -> SettingsStore {
