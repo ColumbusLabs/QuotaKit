@@ -101,6 +101,13 @@ final class StatusMenuTokenAccountSwitcherTests: XCTestCase {
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = false
+        // Fork: iCloud sync defaults on and fans out a fetch per token
+        // account, so the global refresh alone would put two fetches in
+        // flight. Disable it so this test exercises upstream's
+        // single-selected-account path and its refresh-coalescing
+        // assertion; the sync fan-out is covered by
+        // ShouldFetchAllTokenAccountsTests.
+        settings.iCloudSyncEnabled = false
         self.enableOnlyClaude(settings)
         settings.addTokenAccount(provider: .claude, label: "Primary", token: "Bearer sk-ant-oat-primary")
         settings.addTokenAccount(provider: .claude, label: "Secondary", token: "Bearer sk-ant-oat-secondary")
