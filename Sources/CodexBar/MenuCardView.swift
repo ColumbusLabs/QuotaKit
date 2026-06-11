@@ -143,7 +143,7 @@ struct UsageMenuCardView: View {
                 Divider()
             }
 
-            if self.model.metrics.isEmpty {
+            if !self.model.usesStackedDetailLayout {
                 if let dashboard = self.model.inlineUsageDashboard {
                     InlineUsageDashboardContent(model: dashboard)
                 } else if !self.model.usageNotes.isEmpty {
@@ -172,6 +172,10 @@ struct UsageMenuCardView: View {
                                 InlineUsageDashboardContent(model: dashboard)
                             } else if !self.model.usageNotes.isEmpty {
                                 UsageNotesContent(notes: self.model.usageNotes)
+                            } else if let placeholder = self.model.placeholder {
+                                Text(placeholder)
+                                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+                                    .font(.subheadline)
                             }
                         }
                     }
@@ -244,9 +248,7 @@ struct UsageMenuCardView: View {
     }
 
     private var hasDetails: Bool {
-        self.model.hasUsageContent ||
-            self.model.tokenUsage != nil ||
-            self.model.providerCost != nil
+        self.model.hasUsageContent || self.model.usesStackedDetailLayout
     }
 }
 
@@ -322,17 +324,7 @@ private struct CopyIconButton: View {
 
     var body: some View {
         Button {
-            self.copyToPasteboard()
-            withAnimation(.easeOut(duration: 0.12)) {
-                self.didCopy = true
-            }
-            self.resetTask?.cancel()
-            self.resetTask = Task { @MainActor in
-                try? await Task.sleep(for: .seconds(0.9))
-                withAnimation(.easeOut(duration: 0.2)) {
-                    self.didCopy = false
-                }
-            }
+            self.handleCopy()
         } label: {
             Image(systemName: self.didCopy ? "checkmark" : "doc.on.doc")
                 .font(.caption2.weight(.semibold))
@@ -343,10 +335,16 @@ private struct CopyIconButton: View {
         .accessibilityLabel(self.didCopy ? L("Copied") : L("Copy error"))
     }
 
-    private func copyToPasteboard() {
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(self.copyText, forType: .string)
+    private func handleCopy() {
+        let text = self.copyText
+        self.resetTask?.cancel()
+        MenuPasteboardCopy.perform(text, completion: {
+            self.didCopy = true
+            self.resetTask = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(0.9))
+                self.didCopy = false
+            }
+        })
     }
 }
 
@@ -1049,7 +1047,7 @@ extension UsageMenuCardView.Model {
             return (lastError.trimmingCharacters(in: .whitespacesAndNewlines), .error)
         }
 
-        if isRefreshing, snapshot == nil {
+        if isRefreshing {
             return ("\(L("Refreshing"))…", .loading)
         }
 
@@ -1219,9 +1217,16 @@ extension UsageMenuCardView.Model {
         if input.provider == .factory, snapshot.tertiary != nil {
             return ("5-hour", L("Weekly"), L("Monthly"), true)
         }
-        let primaryLabel = input.provider == .grok
-            ? GrokProviderDescriptor.primaryLabel(window: snapshot.primary) ?? input.metadata.sessionLabel
-            : input.metadata.sessionLabel
+        // Legacy request-based Cursor plans track a request quota, not the token-based "Total" pool —
+        // relabel the primary bar so it reads as a request count instead of a dollar percentage.
+        let primaryLabel = if input.provider == .cursor, snapshot.cursorRequests != nil {
+            "Requests"
+        } else if input.provider == .grok {
+            GrokProviderDescriptor.primaryLabel(window: snapshot.primary) ?? input.metadata
+                .sessionLabel
+        } else {
+            input.metadata.sessionLabel
+        }
         return (
             L(primaryLabel),
             L(input.metadata.weeklyLabel),
@@ -1325,6 +1330,14 @@ extension UsageMenuCardView.Model {
             primaryDetailRight = paceDetail.rightLabel
             primaryPacePercent = paceDetail.pacePercent
             primaryPaceOnTop = paceDetail.paceOnTop
+        }
+        // Legacy request-based Cursor plans: surface the raw used/limit quota on its own line,
+        // since the percentage bar and pace detail alone never spell out the request cap.
+        if input.provider == .cursor, let requests = input.snapshot?.cursorRequests {
+            primaryDetailText = String(
+                format: L("Request quota: %@ / %@"),
+                "\(requests.used)",
+                "\(requests.limit)")
         }
         if input.provider == .synthetic,
            let regen = Self.syntheticRollingRegenDetail(

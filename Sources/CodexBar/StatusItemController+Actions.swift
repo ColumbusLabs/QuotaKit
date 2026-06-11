@@ -42,7 +42,9 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
     }
 
     func refreshOpenMenusAfterExplicitStoreAction() {
-        self.invalidateMenus(refreshOpenMenus: true)
+        self.invalidateMenus(
+            refreshOpenMenus: true,
+            deferOpenParentMenuRebuild: true)
     }
 
     @objc func refreshNow() {
@@ -184,7 +186,7 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
 
     @objc func openTerminalCommand(_ sender: NSMenuItem) {
         let command = sender.representedObject as? String ?? "claude"
-        Self.openTerminal(command: command)
+        self.openTerminal(command: command)
     }
 
     @objc func openLoginToProvider(_ sender: NSMenuItem) {
@@ -348,25 +350,48 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
         }
     }
 
-    private static func openTerminal(command: String) {
-        let escaped = command
-            .replacingOccurrences(of: "\\\\", with: "\\\\\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-        let script = """
-        tell application "Terminal"
-            activate
-            do script "\(escaped)"
-        end tell
-        """
-        if let appleScript = NSAppleScript(source: script) {
+    func openTerminal(command: String) {
+        let terminal = self.settings.terminalApp
+
+        if terminal == .iTerm, !terminal.isInstalled {
+            CodexBarLog.logger(LogCategories.terminal).warning(
+                "iTerm is not installed, falling back to Terminal.app",
+                metadata: ["terminal": terminal.rawValue])
+            Self.openTerminalInDefaultTerminal(command: command)
+            return
+        }
+
+        if Self.executeAppleScript(terminal.appleScript(command: command)) {
+            return
+        }
+        guard terminal != .terminal else { return }
+
+        CodexBarLog.logger(LogCategories.terminal).warning(
+            "\(terminal.label) AppleScript failed, falling back to Terminal.app",
+            metadata: ["terminal": terminal.rawValue])
+        Self.openTerminalInDefaultTerminal(command: command)
+    }
+
+    private static func openTerminalInDefaultTerminal(command: String) {
+        self.executeAppleScript(TerminalApp.terminal.appleScript(command: command))
+    }
+
+    /// Executes an AppleScript and returns `true` on success, `false` on failure.
+    @discardableResult
+    private static func executeAppleScript(_ source: String) -> Bool {
+        if let appleScript = NSAppleScript(source: source) {
             var error: NSDictionary?
             appleScript.executeAndReturnError(&error)
             if let error {
                 CodexBarLog.logger(LogCategories.terminal).error(
-                    "Failed to open Terminal",
+                    "Failed to execute AppleScript",
                     metadata: ["error": String(describing: error)])
+                return false
             }
+            return true
         }
+        CodexBarLog.logger(LogCategories.terminal).error("Failed to compile AppleScript")
+        return false
     }
 
     private func resolvedShortcutProvider() -> UsageProvider {

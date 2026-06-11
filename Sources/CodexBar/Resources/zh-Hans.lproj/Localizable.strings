@@ -820,6 +820,8 @@
 
 "language_ukrainian" = "乌克兰语";
 
+"language_japanese" = "日语";
+
 "start_at_login_title" = "开机启动";
 
 "start_at_login_subtitle" = "启动 Mac 时自动打开 QuotaKit。";
@@ -1808,7 +1810,7 @@
 
 "Auth source" = "认证来源";
 
-"Automatic imports Chrome browser cookies from Xiaomi MiMo." = "自动导入 Xiaomi MiMo 的 Chrome 浏览器 Cookie。";
+"Automatic imports browser cookies from Xiaomi MiMo." = "自动导入 Xiaomi MiMo 的浏览器 Cookie。";
 
 "Automatic imports Windsurf session data from Chromium browser localStorage." = "自动从 Chromium 浏览器 localStorage 导入 Windsurf 会话数据。";
 
@@ -2008,6 +2010,8 @@
 
 "Re-auth" = "重新认证";
 
+"Re-login at claude.ai" = "重新登录 claude.ai";
+
 "Re-authenticating…" = "正在重新认证…";
 
 "Refresh Session" = "刷新会话";
@@ -2120,3 +2124,5 @@
 
 
 "language_vietnamese" = "越南语";
+
+"Request quota: %@ / %@" = "请求额度：%@ / %@";

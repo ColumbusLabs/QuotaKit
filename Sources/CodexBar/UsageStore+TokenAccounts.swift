@@ -96,7 +96,7 @@ extension UsageStore {
             projection.visibleAccounts.count > 1
     }
 
-    func refreshCodexVisibleAccountsForMenu() async {
+    func refreshCodexVisibleAccountsForMenu(generation: UInt64? = nil) async {
         let projection = self.freshCodexVisibleAccountProjectionForAccountRefresh()
         let accounts = self.limitedCodexVisibleAccounts(
             projection.visibleAccounts,
@@ -152,6 +152,7 @@ extension UsageStore {
 
         let currentProjection = self.freshCodexVisibleAccountProjectionForAccountRefresh(
             requireLiveManagedAuthFor: managedAccountIDsWithReadableAuthAtStart)
+        guard self.isCurrentProviderRefreshGeneration(.codex, generation: generation) else { return }
         let currentSnapshots = snapshots.compactMap { snapshot -> CodexAccountUsageSnapshot? in
             guard let currentAccount = Self.currentCodexVisibleAccount(
                 matching: snapshot.account,
@@ -209,7 +210,8 @@ extension UsageStore {
                     selectedOutcome,
                     account: currentSelectedAccount,
                     snapshot: currentSelectedSnapshot,
-                    sourceLabel: selectedSourceLabel)
+                    sourceLabel: selectedSourceLabel,
+                    generation: generation)
             }
         } else {
             _ = self.prepareCodexAccountScopedRefreshIfNeeded()
@@ -407,7 +409,11 @@ extension UsageStore {
         }
     }
 
-    func refreshTokenAccounts(provider: UsageProvider, accounts: [ProviderTokenAccount]) async {
+    func refreshTokenAccounts(
+        provider: UsageProvider,
+        accounts: [ProviderTokenAccount],
+        generation: UInt64? = nil) async
+    {
         let selectedAccount = self.settings.selectedTokenAccount(for: provider)
         let limitedAccounts = self.limitedTokenAccounts(accounts, selected: selectedAccount)
         let effectiveSelected = selectedAccount ?? limitedAccounts.first
@@ -426,6 +432,7 @@ extension UsageStore {
         var sawAnyNonCancellationOutcome = false
 
         let results = await self.fetchTokenAccountOutcomes(provider: provider, accounts: limitedAccounts)
+        guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else { return }
         for result in results {
             let account = result.account
             let outcome = result.outcome
@@ -466,9 +473,11 @@ extension UsageStore {
                 selectedOutcome,
                 provider: provider,
                 account: effectiveSelected,
-                fallbackSnapshot: selectedSnapshot)
+                fallbackSnapshot: selectedSnapshot,
+                generation: generation)
         }
 
+        guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else { return }
         await self.recordFetchedTokenAccountPlanUtilizationHistory(
             provider: provider,
             samples: historySamples,
@@ -653,6 +662,9 @@ extension UsageStore {
             codexActiveSourceOverride: codexActiveSourceOverride)
         let fetcher = ProviderRegistry.makeFetcher(base: self.codexFetcher, provider: provider, env: env)
         let verbose = self.settings.isVerboseLoggingEnabled
+        let contextProvider = provider
+        let originalAccountToken = account?.token
+        let originalManualToken = provider == .stepfun ? self.settings.stepfunToken : nil
         return ProviderFetchContext(
             runtime: .app,
             sourceMode: sourceMode,
@@ -667,19 +679,26 @@ extension UsageStore {
             claudeFetcher: self.claudeFetcher,
             browserDetection: self.browserDetection,
             selectedTokenAccountID: account?.id,
-            tokenAccountTokenUpdater: { [weak settings = self.settings] provider, accountID, token in
+            tokenAccountTokenUpdater: { [weak self] provider, accountID, token in
                 await MainActor.run {
-                    settings?.updateTokenAccount(
+                    guard let self, provider == contextProvider,
+                          self.settings.tokenAccounts(for: provider)
+                              .first(where: { $0.id == accountID })?.token == originalAccountToken
+                    else {
+                        return
+                    }
+                    self.settings.updateTokenAccount(
                         provider: provider,
                         accountID: accountID,
                         token: token)
                 }
             },
-            providerManualTokenUpdater: { [weak settings = self.settings] provider, token in
+            providerManualTokenUpdater: { [weak self] provider, token in
                 await MainActor.run {
-                    if provider == .stepfun {
-                        settings?.stepfunToken = token
-                    }
+                    guard let self, provider == .stepfun,
+                          self.settings.stepfunToken == originalManualToken
+                    else { return }
+                    self.settings.stepfunToken = token
                 }
             },
             costUsageHistoryDays: self.settings.costUsageHistoryDays)
@@ -1162,8 +1181,10 @@ extension UsageStore {
         _ outcome: ProviderFetchOutcome,
         account: CodexVisibleAccount,
         snapshot: UsageSnapshot?,
-        sourceLabel: String?) async
+        sourceLabel: String?,
+        generation: UInt64? = nil) async
     {
+        guard self.isCurrentProviderRefreshGeneration(.codex, generation: generation) else { return }
         self.lastFetchAttempts[.codex] = outcome.attempts
         switch outcome.result {
         case .success:
@@ -1180,6 +1201,7 @@ extension UsageStore {
             self.rememberLiveSystemCodexEmailIfNeeded(snapshot.accountEmail(for: .codex))
             self.seedCodexAccountScopedRefreshGuard(accountEmail: account.email)
             await self.recordPlanUtilizationHistorySample(provider: .codex, snapshot: snapshot)
+            guard self.isCurrentProviderRefreshGeneration(.codex, generation: generation) else { return }
             self.recordCodexHistoricalSampleIfNeeded(snapshot: snapshot)
         case let .failure(error):
             guard let message = self.tokenAccountErrorMessage(error) else {
@@ -1203,11 +1225,14 @@ extension UsageStore {
         _ outcome: ProviderFetchOutcome,
         provider: UsageProvider,
         account: ProviderTokenAccount?,
-        fallbackSnapshot: UsageSnapshot?) async
+        fallbackSnapshot: UsageSnapshot?,
+        generation: UInt64? = nil) async
     {
         await MainActor.run {
+            guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else { return }
             self.lastFetchAttempts[provider] = outcome.attempts
         }
+        guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else { return }
         switch outcome.result {
         case let .success(result):
             let scoped = result.usage.scoped(to: provider)
@@ -1217,6 +1242,9 @@ extension UsageStore {
                 scoped
             }
             let backfilled = await MainActor.run {
+                guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else {
+                    return nil as UsageSnapshot?
+                }
                 let backfilled = labeled.backfillingResetTimes(from: self.lastKnownResetSnapshots[provider])
                 self.handleQuotaWarningTransitions(provider: provider, snapshot: backfilled)
                 self.handleSessionQuotaTransition(provider: provider, snapshot: backfilled)
@@ -1227,6 +1255,7 @@ extension UsageStore {
                 self.failureGates[provider]?.recordSuccess()
                 return backfilled
             }
+            guard let backfilled else { return }
             await self.recordPlanUtilizationHistorySample(
                 provider: provider,
                 snapshot: backfilled,

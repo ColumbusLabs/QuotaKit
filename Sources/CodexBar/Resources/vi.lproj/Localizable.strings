@@ -804,6 +804,8 @@
 
 "language_ukrainian" = "Tiếng Ukraina";
 
+"language_japanese" = "Tiếng Nhật";
+
 "start_at_login_title" = "Bắt đầu khi đăng nhập";
 
 "start_at_login_subtitle" = "Tự động mở QuotaKit khi bạn khởi động máy Mac.";
@@ -1784,7 +1786,7 @@
 
 "Auth source" = "Nguồn xác thực";
 
-"Automatic imports Chrome browser cookies from Xiaomi MiMo." = "Tự động nhập cookie trình duyệt Chrome từ Xiaomi MiMo.";
+"Automatic imports browser cookies from Xiaomi MiMo." = "Tự động nhập cookie trình duyệt từ Xiaomi MiMo.";
 
 "Automatic imports Windsurf session data from Chromium browser localStorage." = "Tự động nhập dữ liệu phiên Windsurf từ localStorage của trình duyệt Chrome.";
 
@@ -1983,6 +1985,8 @@
 "Project ID" = "ID dự án";
 
 "Re-auth" = "Xác thực lại";
+
+"Re-login at claude.ai" = "Đăng nhập lại vào claude.ai";
 
 "Re-authenticating…" = "Xác thực lại…";
 

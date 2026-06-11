@@ -65,7 +65,7 @@ extension UsageStore {
                 self.startTimer()
                 self.updateProviderRuntimes()
                 await self.refreshHistoricalDatasetIfNeeded()
-                await self.refresh()
+                await self.refreshForSettingsChange()
             }
         }
     }
@@ -229,6 +229,11 @@ final class UsageStore {
     @ObservationIgnored var providerSpecs: [UsageProvider: ProviderSpec] = [:]
     @ObservationIgnored let providerMetadata: [UsageProvider: ProviderMetadata]
     @ObservationIgnored var providerRuntimes: [UsageProvider: any ProviderRuntime] = [:]
+    @ObservationIgnored var providerRefreshTasks: [UsageProvider: [ProviderRefreshTaskState]] = [:]
+    @ObservationIgnored var providerRefreshTaskGeneration: UInt64 = 0
+    @ObservationIgnored var providerRefreshWaiterGeneration: UInt64 = 0
+    @ObservationIgnored var latestProviderRefreshGenerations: [UsageProvider: UInt64] = [:]
+    @ObservationIgnored var providerRefreshCounts: [UsageProvider: Int] = [:]
     @ObservationIgnored private var providerAvailabilityCache: [UsageProvider: ProviderAvailabilityCacheEntry] = [:]
     @ObservationIgnored var accountInfoCache: [UsageProvider: AccountInfoCacheEntry] = [:]
     @ObservationIgnored private var timerTask: Task<Void, Never>?
@@ -553,8 +558,8 @@ final class UsageStore {
 
     func runRefresh(
         forceTokenUsage: Bool = false,
-        startupConnectivityRetryAttempt: Int?)
-        async
+        startupConnectivityRetryAttempt: Int?,
+        coalesceProviderRefreshesOverride: Bool? = nil) async
     {
         guard !self.isRefreshing else { return }
         self.prepareRefreshState()
@@ -587,7 +592,12 @@ final class UsageStore {
 
             await withTaskGroup(of: Void.self) { group in
                 for provider in refreshProviders {
-                    group.addTask { await self.refreshProvider(provider) }
+                    group.addTask {
+                        await self.refreshProvider(
+                            provider,
+                            coalesceIfRefreshing: coalesceProviderRefreshesOverride ??
+                                (ProviderInteractionContext.current == .background))
+                    }
                     if availableRefreshProviders.contains(provider) {
                         group.addTask { await self.refreshStatus(provider) }
                     }
@@ -1161,7 +1171,7 @@ extension UsageStore {
                         configToken: nil,
                         hasEnvToken: deepSeekHasEnvToken,
                         hasTokenAccount: deepSeekHasTokenAccount)
-                case .gemini, .antigravity, .opencode, .opencodego, .alibabatokenplan, .factory, .copilot,
+                case .gemini, .antigravity, .opencode, .opencodego, .alibabatokenplan, .factory, .copilot, .devin,
                      .vertexai, .kilo, .kiro, .kimi, .kimik2, .moonshot, .jetbrains, .perplexity, .mimo, .doubao,
                      .abacus, .mistral, .codebuff, .crof, .windsurf, .venice, .manus, .commandcode, .stepfun, .bedrock,
                      .grok, .groq, .t3chat, .llmproxy, .deepgram:

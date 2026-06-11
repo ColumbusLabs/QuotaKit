@@ -87,12 +87,13 @@ public struct AntigravityStatusSnapshot: Sendable {
         }
 
         let normalized = Self.normalizedModels(self.modelQuotas)
-        let summaryModels: [AntigravityNormalizedModel] = switch self.source {
+        let summaryCandidates: [AntigravityNormalizedModel] = switch self.source {
         case .local:
             normalized
         case .remote:
             normalized.filter(Self.isRemoteSummaryCandidate)
         }
+        let summaryModels = summaryCandidates.filter { $0.quota.remainingFraction != nil }
         let primaryQuota = Self.representative(for: .claude, in: summaryModels)
         let secondaryQuota = Self.representative(for: .geminiPro, in: summaryModels)
         let tertiaryQuota = Self.representative(for: .geminiFlash, in: summaryModels)

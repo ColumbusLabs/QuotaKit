@@ -804,6 +804,8 @@
 
 "language_ukrainian" = "Українська";
 
+"language_japanese" = "Japanese";
+
 "start_at_login_title" = "Start at Login";
 
 "start_at_login_subtitle" = "Automatically opens QuotaKit when you start your Mac.";
@@ -1831,7 +1833,7 @@
 
 "Auth source" = "Auth source";
 
-"Automatic imports Chrome browser cookies from Xiaomi MiMo." = "Automatic imports Chrome browser cookies from Xiaomi MiMo.";
+"Automatic imports browser cookies from Xiaomi MiMo." = "Automatic imports browser cookies from Xiaomi MiMo.";
 
 "Automatic imports Windsurf session data from Chromium browser localStorage." = "Automatic imports Windsurf session data from Chromium browser localStorage.";
 
@@ -2031,6 +2033,8 @@
 
 "Re-auth" = "Re-auth";
 
+"Re-login at claude.ai" = "Re-login at claude.ai";
+
 "Re-authenticating…" = "Re-authenticating…";
 
 "Refresh Session" = "Refresh Session";
@@ -2143,3 +2147,9 @@
 
 
 "language_vietnamese" = "Vietnamese";
+
+"Request quota: %@ / %@" = "Request quota: %@ / %@";
+
+"terminal_app_subtitle" = "Terminal used by the Open Terminal action";
+
+"terminal_app_title" = "Default Terminal";

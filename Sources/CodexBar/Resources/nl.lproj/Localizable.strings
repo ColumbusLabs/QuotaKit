@@ -802,6 +802,8 @@
 
 "language_ukrainian" = "Oekraïens";
 
+"language_japanese" = "Japans";
+
 "language_swedish" = "Zweeds";
 
 "language_vietnamese" = "Vietnamees";
@@ -1786,7 +1788,7 @@
 
 "Auth source" = "Authenticatiebron";
 
-"Automatic imports Chrome browser cookies from Xiaomi MiMo." = "Importeert automatisch Chrome-browsercookies van Xiaomi MiMo.";
+"Automatic imports browser cookies from Xiaomi MiMo." = "Importeert automatisch browsercookies van Xiaomi MiMo.";
 
 "Automatic imports Windsurf session data from Chromium browser localStorage." = "Automatische import van windsurfsessiegegevens uit de Chromium-browser localStorage.";
 
@@ -1985,6 +1987,8 @@
 "Project ID" = "Project-ID";
 
 "Re-auth" = "Opnieuw verifiëren";
+
+"Re-login at claude.ai" = "Opnieuw aanmelden bij claude.ai";
 
 "Re-authenticating…" = "Opnieuw authenticeren…";
 

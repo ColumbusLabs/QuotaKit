@@ -53,7 +53,8 @@ extension StatusItemController {
             self.lastMenuProvider = provider
             self.refreshProviderSelectionDependentUI(deferRendering: true)
         }
-        self.populateMenu(menu, provider: provider)
-        self.markMenuFresh(menu)
+        // Custom-view clicks stay open and rebuild next turn. Standard menu-item activation can close;
+        // menuWillOpen then renders the saved provider without doing structural work inside the action.
+        self.requestProviderSwitcherMenuRebuild(menu, provider: provider)
     }
 }
