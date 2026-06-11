@@ -5,6 +5,36 @@
         <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
         <description>QuotaKit for Mac updates distributed by Columbus Labs.</description>
         <item>
+            <title>0.32.4.5</title>
+            <pubDate>Thu, 11 Jun 2026 13:06:33 -0400</pubDate>
+            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
+            <sparkle:version>79.5.1.11.1</sparkle:version>
+            <sparkle:shortVersionString>0.32.4.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuotaKit 0.32.4.5 Mobile 1.11.1</h2>
+<h3>Changed</h3>
+<ul>
+<li>Synced trusted upstream CodexBar Mac improvements after <code>v0.32.4</code>, including</li>
+</ul>
+  Codex account/auth hardening, MiniMax quota fixes, menu performance updates,
+  merged provider-switching hang fixes, Claude probe cleanup,
+  Antigravity/Alibaba/Cursor fixes, and additional Mac localizations.
+<ul>
+<li>Synced upstream CodexBar Mac improvements through <code>0.33.1</code> development,</li>
+</ul>
+  including a security fix that blocks credentialed provider redirects leaving
+  the original HTTPS origin, a new Devin usage provider, Cursor legacy
+  request-quota and Full Disk Access hint fixes, Copilot unlimited chat quota
+  display, Codex cost visibility without quotas, updated Claude usage pricing
+  and web session recovery, Doubao false-exhaustion fixes, cost scanner
+  threading and cancellation overhauls, broad menu performance and
+  width-stability work, a configurable terminal app for Open Terminal, expanded
+  MiMo browser support, and Japanese localization.
+<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.5/QuotaKit-macos-universal-0.32.4.5.zip" length="49625514" type="application/octet-stream" sparkle:edSignature="FiQICfRrzoMA0xnfGd6G4J6Xhdz5lOqi3kRmPxhP6TfzXH54QUYYnyOuR6bFD3V2oIK7foPChL203WhOPyI8AQ=="/>
+        </item>
+        <item>
             <title>0.32.4.4</title>
             <pubDate>Mon, 08 Jun 2026 14:38:02 -0400</pubDate>
             <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
@@ -49,35 +79,6 @@
 <p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.3/QuotaKit-macos-universal-0.32.4.3.zip" length="47981092" type="application/octet-stream" sparkle:edSignature="b2gOjSpVX/x/gn8iqB5a4+YQJEi6cGwHYn1Ajx6HYT4y3naXOiOoE8aCWDrheeLezifUGGrDb3oy4OmIsDToBw=="/>
-        </item>
-        <item>
-            <title>0.32.4.2</title>
-            <pubDate>Sun, 07 Jun 2026 21:21:11 -0400</pubDate>
-            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
-            <sparkle:version>79.2.1.11.1</sparkle:version>
-            <sparkle:shortVersionString>0.32.4.2</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>QuotaKit Mac 0.32.4.2</h2>
-<h3>New</h3>
-<ul>
-<li>Published the first Columbus Labs Mac download for QuotaKit.</li>
-<li>Added a signed and notarized universal macOS build for Apple silicon and Intel Macs.</li>
-<li>Added the Mac setup page at <a href="https://columbus-labs.com/quotakit/mac">columbus-labs.com/quotakit/mac</a>.</li>
-</ul>
-<h3>How it works</h3>
-<ul>
-<li>Install QuotaKit on your Mac, move it to Applications, and turn on iCloud Sync.</li>
-<li>The iPhone app reads synced AI quota, usage, cost, history, widget, and alert summaries from iCloud after the Mac app is set up.</li>
-<li>Provider credentials and browser sessions stay local to the Mac. QuotaKit syncs sanitized usage summaries, not provider secrets.</li>
-</ul>
-<h3>Notes</h3>
-<ul>
-<li>Mac updates are distributed through GitHub Releases and Sparkle.</li>
-<li>This release pairs the Mac app with iOS 1.11.1.</li>
-</ul>
-<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.2/QuotaKit-macos-universal-0.32.4.2.zip" length="47981662" type="application/octet-stream" sparkle:edSignature="Vht2sZPGPaq2QScxmcb3PNCba+2kXBr3LDlbAAG2V1dKvUEGOSHA2DWyBd0QwLW9oOfT6AI3IrlMwt9jgk4MAA=="/>
         </item>
     </channel>
 </rss>
