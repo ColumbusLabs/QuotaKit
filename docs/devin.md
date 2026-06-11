@@ -18,7 +18,7 @@ The Devin provider tracks included daily and weekly usage quotas from
 3. Enable **Devin** in **Settings → Providers**.
 
 Automatic mode reads only the Devin session and organization metadata from Chrome localStorage. It does not scan other
-browsers. CodexBar sends the session token only to `https://app.devin.ai`.
+browsers. QuotaKit sends the session token only to `https://app.devin.ai`.
 
 ## Manual Auth
 
@@ -33,11 +33,11 @@ Environment overrides:
 
 ## Data Source
 
-CodexBar requests:
+QuotaKit requests:
 
 ```text
 GET https://app.devin.ai/api/<internal-org-id>/billing/quota/usage
 ```
 
 The response supplies daily and weekly usage percentages plus reset timestamps. If Devin changes or expires the browser
-session, sign in again and refresh CodexBar.
+session, sign in again and refresh QuotaKit.
