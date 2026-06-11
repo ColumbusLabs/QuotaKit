@@ -415,12 +415,21 @@ struct CostTab: View {
         return self.usageData.snapshot
     }
 
-    /// Synchronous computed insights. `CostDashboardInsights.init` is O(providers × daily × breakdowns)
-    /// which is fine to recompute per render here — Cost tab has no hover/selection state that would
-    /// trigger frequent re-renders. (Hover-heavy views UtilizationAggregateView / UtilizationHistoryView
-    /// use `@State` + `.task(id:)` caching because hover changes selection state every frame.)
-    /// Synchronous compute ensures first render has data for UI tests and user-perceived responsiveness.
-    private var currentInsights: CostDashboardInsights? {
+    /// Memo cache for `resolvedInsights()`. `CostDashboardInsights.init` is
+    /// O(providers × daily × breakdowns), and the CWL path adds a SwiftData
+    /// ledger fetch + re-aggregation on the main thread — the old computed
+    /// property re-ran all of that 2–3× per body evaluation (content +
+    /// toolbar + share sheet) and again on every unrelated state change.
+    /// Cached with the same synchronous-resolve + `.onChange(initial:)`
+    /// store pattern as `UtilizationHistoryView` so the first frame still
+    /// renders with data (UI-test contract) while repeat renders hit the
+    /// cache. `cachedInsights` may legitimately be nil (no display data);
+    /// `cachedInsightsKey` alone decides cache validity.
+    @State private var cachedInsightsKey = ""
+    @State private var cachedInsights: CostDashboardInsights?
+
+    /// The expensive aggregation. Callers go through `resolvedInsights()`.
+    private func computeInsights() -> CostDashboardInsights? {
         guard let snapshot = self.displaySnapshot else { return nil }
         let insights: CostDashboardInsights
         // CWL path only outside demo mode (demo uses a synthetic snapshot with
@@ -436,6 +445,52 @@ struct CostTab: View {
             insights = CostDashboardInsights(snapshot: snapshot)
         }
         return insights.hasDisplayData ? insights : nil
+    }
+
+    /// Inputs that can change what `computeInsights()` returns:
+    /// - demo mode renders a static sample snapshot (snapshot identity is
+    ///   irrelevant while it's on),
+    /// - `SnapshotIdentityKey` covers provider set + data freshness (the
+    ///   ledger is written in lockstep with snapshot publication inside
+    ///   `applyFullFetchResults`, so it needs no separate key component),
+    /// - the CWL toggle + window change the aggregation source,
+    /// - `todayKey` flips the "Today" totals at midnight.
+    static func insightsCacheKey(
+        isDemoMode: Bool,
+        snapshotKey: SnapshotIdentityKey?,
+        cwlEnabled: Bool,
+        cwlWindowDays: Int,
+        todayKey: String) -> String
+    {
+        let snapshotPart: String = if isDemoMode {
+            "demo"
+        } else if let snapshotKey {
+            "\(snapshotKey.providerIDs)@\(snapshotKey.lastUpdated.timeIntervalSince1970)"
+        } else {
+            "none"
+        }
+        let sourcePart = (cwlEnabled && !isDemoMode) ? "cwl\(cwlWindowDays)" : "blob"
+        return "\(snapshotPart)|\(sourcePart)|\(todayKey)"
+    }
+
+    private var insightsCacheKey: String {
+        Self.insightsCacheKey(
+            isDemoMode: self.isDemoMode,
+            snapshotKey: self.usageData.snapshotIdentityKey,
+            cwlEnabled: self.cwlEnabled,
+            cwlWindowDays: self.cwlWindowDays,
+            todayKey: CostDashboardInsights.todayDayKey())
+    }
+
+    /// Cache hit → stored value; miss → synchronous compute so the current
+    /// frame is never empty. The `.onChange(initial: true)` in `body`
+    /// stores the value right after, so a miss costs at most one extra
+    /// compute per data change instead of one per render.
+    private func resolvedInsights() -> CostDashboardInsights? {
+        if self.cachedInsightsKey == self.insightsCacheKey {
+            return self.cachedInsights
+        }
+        return self.computeInsights()
     }
 
     private var isCostDashboardUnlocked: Bool {
@@ -455,10 +510,13 @@ struct CostTab: View {
     }
 
     var body: some View {
+        // Resolve ONCE per body evaluation — content, toolbar, and share
+        // sheet all read this local instead of re-running the aggregation.
+        let insights = self.resolvedInsights()
         NavigationStack {
             Group {
                 if self.displaySnapshot != nil {
-                    if let insights = self.currentInsights {
+                    if let insights {
                         if self.isCostDashboardUnlocked {
                             CostDashboardView(
                                 insights: insights,
@@ -498,7 +556,7 @@ struct CostTab: View {
                         .accessibilityLabel(Text("Exit demo preview"))
                     }
                 }
-                if self.currentInsights != nil, self.isCostDashboardUnlocked, self.isShareUnlocked {
+                if insights != nil, self.isCostDashboardUnlocked, self.isShareUnlocked {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             self.showShareSheet = true
@@ -509,10 +567,15 @@ struct CostTab: View {
                 }
             }
             .sheet(isPresented: $showShareSheet) {
-                if let insights = self.currentInsights, self.isShareUnlocked {
+                if let insights, self.isShareUnlocked {
                     CostShareSheet(insights: insights)
                 }
             }
+        }
+        .onChange(of: self.insightsCacheKey, initial: true) { _, newKey in
+            guard self.cachedInsightsKey != newKey else { return }
+            self.cachedInsightsKey = newKey
+            self.cachedInsights = self.computeInsights()
         }
     }
 }
@@ -699,10 +762,21 @@ private struct CostDashboardView: View {
     /// Locale-independent "M/d" formatter (e.g. "4/18"), matching
     /// UtilizationHistoryView's axis style. Avoids `.dateTime` which rearranges
     /// to "d/M" on en_GB and similar locales.
-    private static func dailyAxisLabel(for date: Date) -> String {
+    ///
+    /// Static cached instance: this runs per axis label per chart re-render,
+    /// and `chartXSelection` scrubbing re-renders every drag frame — a fresh
+    /// `DateFormatter()` per call put allocator + locale-load work on the
+    /// 60 Hz scrub path. Read-only after configuration and only touched from
+    /// view-body rendering (main actor), same contract as
+    /// `CostLedgerService.utcDayKeyFormatter`.
+    private static let dailyAxisLabelFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "M/d"
-        return formatter.string(from: date)
+        return formatter
+    }()
+
+    private static func dailyAxisLabel(for date: Date) -> String {
+        Self.dailyAxisLabelFormatter.string(from: date)
     }
 
     private var trendSection: some View {
@@ -1306,6 +1380,15 @@ struct CostDashboardInsights {
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter
     }()
+
+    /// Today's wire-format day key from the same pinned formatter the
+    /// aggregation itself uses for "today" matching. Exposed so CostTab's
+    /// insights memo key flips at exactly the same midnight boundary as the
+    /// aggregation — a divergent formatter could cache stale "today" totals
+    /// across the day rollover. Main-actor only (see formatter doc above).
+    static func todayDayKey(now: Date = Date()) -> String {
+        Self.dayKeyFormatter.string(from: now)
+    }
 }
 
 /// Renders one row of the Cost dashboard's contribution lists (Provider Share /
@@ -2663,6 +2746,7 @@ private enum MobileReleaseNotesCatalog {
                         String(localized: "Branding and setup — iOS screens, the app icon, share cards, update prompts, and Mac setup now use QuotaKit. The iPhone shares a Columbus Labs setup page for Mac installation instead of sending you straight to GitHub."),
                         String(localized: "Sync polish — provider colors now stay distinct and readable in both appearances, and the synced-time chip keeps its status available to VoiceOver while refreshing."),
                         String(localized: "Remote guardrails — Columbus Labs can now update safe setup links, announcements, and feature kill switches over the air while native app changes still go through TestFlight/App Store."),
+                        String(localized: "Performance — synced data refreshes automatically when you return to the app, the Cost dashboard loads faster, and chart scrubbing stays smooth."),
                     ]),
             ]),
         ReleaseNotesVersion(

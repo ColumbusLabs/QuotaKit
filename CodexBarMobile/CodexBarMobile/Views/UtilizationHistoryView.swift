@@ -363,24 +363,39 @@ struct UtilizationHistoryView: View {
         }
     }
 
-    private static func axisLabel(for date: Date) -> String {
-        // **Intentionally locale-free compact numeric format.**
-        // Bars are 10pt wide; labels need to read as `"4/23"` in every
-        // interface language. `setLocalizedDateFormatFromTemplate("Md")`
-        // yields `"4月23日"` in Simplified Chinese — three CJK glyphs —
-        // which overflows the narrow bar spacing. Do NOT "localize" this
-        // without first solving the layout constraint. See Build 84
-        // revert in CHANGELOG for full context.
+    /// **Intentionally locale-free compact numeric format.**
+    /// Bars are 10pt wide; labels need to read as `"4/23"` in every
+    /// interface language. `setLocalizedDateFormatFromTemplate("Md")`
+    /// yields `"4月23日"` in Simplified Chinese — three CJK glyphs —
+    /// which overflows the narrow bar spacing. Do NOT "localize" this
+    /// without first solving the layout constraint. See Build 84
+    /// revert in CHANGELOG for full context.
+    ///
+    /// Static cached instances (this + `fullDateFormatter`): both run on the
+    /// chart-scrub hot path — `chartXSelection` re-renders every drag frame,
+    /// re-evaluating axis labels and the selected-bar caption, and a fresh
+    /// `DateFormatter()` per call dropped frames on the 60 Hz scrub. Read-only
+    /// after configuration, only touched from view-body rendering (main
+    /// actor) — same contract as `CostLedgerService.utcDayKeyFormatter`.
+    private static let axisLabelFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "M/d"
-        return formatter.string(from: date)
-    }
+        return formatter
+    }()
 
-    private static func fullDateLabel(_ date: Date) -> String {
+    private static let fullDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
-        return formatter.string(from: date)
+        return formatter
+    }()
+
+    private static func axisLabel(for date: Date) -> String {
+        Self.axisLabelFormatter.string(from: date)
+    }
+
+    private static func fullDateLabel(_ date: Date) -> String {
+        Self.fullDateFormatter.string(from: date)
     }
 }
 

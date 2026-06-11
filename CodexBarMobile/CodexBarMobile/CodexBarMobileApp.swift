@@ -73,6 +73,13 @@ struct CodexBarMobileApp: App {
                 .onChange(of: self.scenePhase) { _, phase in
                     guard phase == .active, !Self.isAutomatedTestLaunch else { return }
                     Task { await self.remoteConfigStore.refresh() }
+                    // Foreground freshness: refresh synced usage when the
+                    // last completed refresh is stale. Quick app switches
+                    // no-op via the staleness gate; the launch-time fetch
+                    // from `startObserving()` is coalesced with this one
+                    // inside SyncedUsageData, so cold start never double-
+                    // fetches.
+                    Task { await self.usageData.refreshIfStale() }
                 }
         }
         // P2a: attach SwiftData container. Views do not yet use @Query;

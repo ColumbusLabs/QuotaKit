@@ -5,6 +5,23 @@ Notable changes to the QuotaKit iOS companion app are documented here.
 Older build-by-build notes remain in Git history. This file now focuses on the
 current Columbus Labs product surface and recent release history.
 
+## [Unreleased] — Mobile UX performance bundle
+
+### Changed
+
+- Synced usage data now refreshes automatically when the app returns to the
+  foreground (staleness-gated at 60 s), so reopening the app shows current Mac
+  data without a manual pull-to-refresh. Quick app switches skip the network
+  round-trip, and the foreground fetch coalesces with the launch fetch.
+- Cost dashboard insights are now memoized on the snapshot identity key
+  instead of being re-aggregated 2–3× per render (the Cost Window Ledger path
+  previously re-ran a SwiftData fetch + re-aggregation on the main thread per
+  access). First-frame rendering stays synchronous — the prior async-cache
+  regression (empty first render) does not apply.
+- Chart axis date labels (Cost Daily Spend, Subscription Utilization history)
+  now use cached `DateFormatter` instances instead of allocating one per label
+  per frame, keeping chart scrubbing smooth.
+
 ## [1.11.1 (163)] — 2026-06-10 — Paid widget refinement
 
 ### Changed

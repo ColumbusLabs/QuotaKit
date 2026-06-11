@@ -18474,6 +18474,35 @@
           }
         }
       }
+    },
+    "Performance — synced data refreshes automatically when you return to the app, the Cost dashboard loads faster, and chart scrubbing stays smooth.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Performance — synced data refreshes automatically when you return to the app, the Cost dashboard loads faster, and chart scrubbing stays smooth."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "パフォーマンス — アプリに戻ると同期データが自動的に更新され、コストダッシュボードの読み込みが速くなり、チャートのなぞり操作もスムーズになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "性能 —— 返回应用时同步数据会自动刷新，成本仪表盘加载更快，图表滑动查看更流畅。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "效能 —— 返回 App 時同步資料會自動重新整理，成本儀表板載入更快，圖表滑動檢視更流暢。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

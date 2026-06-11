@@ -198,8 +198,123 @@ struct ViewCacheIdentityTests {
         #expect(display.last?.name == "P4")
     }
 
-    // Note: Hotspot 5 (CostTab) reverted to synchronous compute — no cache identity needed.
-    // See ContentView.swift CostTab.currentInsights; Cost tab has no hover interaction so
-    // per-render recompute cost is acceptable. Async cache caused UI test failures because
-    // first render had cachedInsights=nil and rendered nothing until .task(id:) fired.
+    // MARK: - Hotspot 5: CostTab insights memo key
+    //
+    // History: the first CostTab cache attempt used async `.task(id:)` and was
+    // reverted — first render had cachedInsights=nil and rendered nothing until
+    // the task fired, breaking UI tests. The current memo uses the
+    // synchronous-resolve-on-miss + `.onChange(initial: true)` store pattern
+    // (same as UtilizationHistoryView.resolvedPoints), so the first frame
+    // always computes inline and these tests only need to pin key semantics.
+
+    @Test("CostTab key: same inputs → same key")
+    func costInsights_sameInput_sameKey() {
+        let snapshotKey = SnapshotIdentityKey.make(
+            providerIDs: ["claude", "codex"],
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000))
+        let k1 = CostTab.insightsCacheKey(
+            isDemoMode: false, snapshotKey: snapshotKey,
+            cwlEnabled: false, cwlWindowDays: 30, todayKey: "2026-06-11")
+        let k2 = CostTab.insightsCacheKey(
+            isDemoMode: false, snapshotKey: snapshotKey,
+            cwlEnabled: false, cwlWindowDays: 30, todayKey: "2026-06-11")
+        #expect(k1 == k2)
+    }
+
+    @Test("CostTab key: snapshot refresh (lastUpdated bump) → different key")
+    func costInsights_snapshotBump_differentKey() {
+        let k1 = CostTab.insightsCacheKey(
+            isDemoMode: false,
+            snapshotKey: SnapshotIdentityKey.make(
+                providerIDs: ["claude"],
+                lastUpdated: Date(timeIntervalSince1970: 1_700_000_000)),
+            cwlEnabled: false, cwlWindowDays: 30, todayKey: "2026-06-11")
+        let k2 = CostTab.insightsCacheKey(
+            isDemoMode: false,
+            snapshotKey: SnapshotIdentityKey.make(
+                providerIDs: ["claude"],
+                lastUpdated: Date(timeIntervalSince1970: 1_700_000_060)),
+            cwlEnabled: false, cwlWindowDays: 30, todayKey: "2026-06-11")
+        #expect(k1 != k2)
+    }
+
+    @Test("CostTab key: CWL toggle and window changes → different keys")
+    func costInsights_cwlSettings_differentKeys() {
+        let snapshotKey = SnapshotIdentityKey.make(
+            providerIDs: ["claude"],
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000))
+        let blob = CostTab.insightsCacheKey(
+            isDemoMode: false, snapshotKey: snapshotKey,
+            cwlEnabled: false, cwlWindowDays: 30, todayKey: "2026-06-11")
+        let cwl30 = CostTab.insightsCacheKey(
+            isDemoMode: false, snapshotKey: snapshotKey,
+            cwlEnabled: true, cwlWindowDays: 30, todayKey: "2026-06-11")
+        let cwl90 = CostTab.insightsCacheKey(
+            isDemoMode: false, snapshotKey: snapshotKey,
+            cwlEnabled: true, cwlWindowDays: 90, todayKey: "2026-06-11")
+        #expect(blob != cwl30)
+        #expect(cwl30 != cwl90)
+    }
+
+    @Test("CostTab key: CWL window is irrelevant while CWL is off")
+    func costInsights_cwlWindowIgnoredWhenOff() {
+        let snapshotKey = SnapshotIdentityKey.make(
+            providerIDs: ["claude"],
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000))
+        let k1 = CostTab.insightsCacheKey(
+            isDemoMode: false, snapshotKey: snapshotKey,
+            cwlEnabled: false, cwlWindowDays: 30, todayKey: "2026-06-11")
+        let k2 = CostTab.insightsCacheKey(
+            isDemoMode: false, snapshotKey: snapshotKey,
+            cwlEnabled: false, cwlWindowDays: 90, todayKey: "2026-06-11")
+        #expect(k1 == k2)
+    }
+
+    @Test("CostTab key: day rollover → different key")
+    func costInsights_dayRollover_differentKey() {
+        let snapshotKey = SnapshotIdentityKey.make(
+            providerIDs: ["claude"],
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000))
+        let k1 = CostTab.insightsCacheKey(
+            isDemoMode: false, snapshotKey: snapshotKey,
+            cwlEnabled: false, cwlWindowDays: 30, todayKey: "2026-06-11")
+        let k2 = CostTab.insightsCacheKey(
+            isDemoMode: false, snapshotKey: snapshotKey,
+            cwlEnabled: false, cwlWindowDays: 30, todayKey: "2026-06-12")
+        #expect(k1 != k2)
+    }
+
+    @Test("CostTab key: demo mode masks snapshot identity and CWL source")
+    func costInsights_demoMode_stableKey() {
+        let k1 = CostTab.insightsCacheKey(
+            isDemoMode: true,
+            snapshotKey: SnapshotIdentityKey.make(
+                providerIDs: ["claude"],
+                lastUpdated: Date(timeIntervalSince1970: 1_700_000_000)),
+            cwlEnabled: true, cwlWindowDays: 90, todayKey: "2026-06-11")
+        let k2 = CostTab.insightsCacheKey(
+            isDemoMode: true,
+            snapshotKey: nil,
+            cwlEnabled: false, cwlWindowDays: 30, todayKey: "2026-06-11")
+        #expect(k1 == k2)
+    }
+
+    @Test("CostTab key: nil snapshot vs demo vs real snapshot are distinct")
+    func costInsights_snapshotStates_distinct() {
+        let real = CostTab.insightsCacheKey(
+            isDemoMode: false,
+            snapshotKey: SnapshotIdentityKey.make(
+                providerIDs: ["claude"],
+                lastUpdated: Date(timeIntervalSince1970: 1_700_000_000)),
+            cwlEnabled: false, cwlWindowDays: 30, todayKey: "2026-06-11")
+        let none = CostTab.insightsCacheKey(
+            isDemoMode: false, snapshotKey: nil,
+            cwlEnabled: false, cwlWindowDays: 30, todayKey: "2026-06-11")
+        let demo = CostTab.insightsCacheKey(
+            isDemoMode: true, snapshotKey: nil,
+            cwlEnabled: false, cwlWindowDays: 30, todayKey: "2026-06-11")
+        #expect(real != none)
+        #expect(none != demo)
+        #expect(real != demo)
+    }
 }

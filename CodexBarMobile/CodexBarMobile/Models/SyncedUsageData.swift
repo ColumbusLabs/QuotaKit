@@ -90,6 +90,15 @@ final class SyncedUsageData {
     /// from Build 68 review.
     private var inFlightRefresh: Task<Void, Never>?
 
+    /// Wall-clock time the last refresh (full fetch OR incremental delta)
+    /// finished. Drives the foreground staleness gate in `refreshIfStale()`
+    /// — quick app switches (Settings round-trip, notification peek) should
+    /// NOT re-hit CloudKit when data is seconds old, but reopening after
+    /// minutes in the background should refresh without requiring a manual
+    /// pull. Recorded on completion (not start) so an in-flight refresh
+    /// that gets coalesced still counts as "fresh" when it lands.
+    private var lastRefreshCompletedAt: Date?
+
     /// NotificationCenter token for the silent-push observer; held so the
     /// observer can be removed if `stopObserving()` is added later. Today
     /// `SyncedUsageData` is created once at `@main` via `@State` and lives
@@ -333,6 +342,7 @@ final class SyncedUsageData {
             perProvider: per,
             legacy: legacy,
             kvsFallback: reader.latestKVSSnapshot())
+        self.lastRefreshCompletedAt = Date()
     }
 
     func applyFullFetchResults(
@@ -536,6 +546,7 @@ final class SyncedUsageData {
 
         // 5. Republish merged view.
         self.republishFromCache()
+        self.lastRefreshCompletedAt = Date()
     }
 
     // MARK: - Republish helper
@@ -588,6 +599,43 @@ final class SyncedUsageData {
     /// Force-refreshes data from CloudKit (full fetch).
     func refresh() async {
         await fetchFromCloudKit()
+    }
+
+    /// Default foreground-staleness threshold for `refreshIfStale()`.
+    /// 60 s balances freshness against CloudKit traffic: silent pushes
+    /// already cover the seconds-scale window while the app is active, so
+    /// the gate only needs to catch the "backgrounded long enough for iOS
+    /// to drop / defer pushes" case without re-fetching on every quick
+    /// app switch.
+    nonisolated static let foregroundStaleThreshold: TimeInterval = 60
+
+    /// Pure decision for the foreground auto-refresh gate. `nil`
+    /// `lastRefreshCompletedAt` (no refresh has ever finished — e.g. cold
+    /// start raced ahead of the first fetch) always refreshes.
+    nonisolated static func shouldAutoRefresh(
+        lastRefreshCompletedAt: Date?,
+        now: Date,
+        threshold: TimeInterval = SyncedUsageData.foregroundStaleThreshold) -> Bool
+    {
+        guard let lastRefreshCompletedAt else { return true }
+        return now.timeIntervalSince(lastRefreshCompletedAt) >= threshold
+    }
+
+    /// Refresh on app foreground, but only when the last completed refresh
+    /// is older than `threshold`. Called from the `scenePhase == .active`
+    /// transition so reopening the app shows current Mac data without a
+    /// manual pull-to-refresh. Cheap no-op when data is fresh; otherwise
+    /// funnels through `coalesceRefresh`, so the launch-time full fetch and
+    /// this call never run in parallel.
+    func refreshIfStale(
+        threshold: TimeInterval = SyncedUsageData.foregroundStaleThreshold) async
+    {
+        guard Self.shouldAutoRefresh(
+            lastRefreshCompletedAt: self.lastRefreshCompletedAt,
+            now: Date(),
+            threshold: threshold)
+        else { return }
+        await self.fetchFromCloudKit()
     }
 
     /// Returns the age of the last sync in a human-readable format, or nil if no sync exists.
