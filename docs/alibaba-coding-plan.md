@@ -15,7 +15,7 @@ Alibaba Coding Plan supports both browser-session and API-key paths, but the sup
 2) Manual cookie header from Settings.
 3) Environment variable `ALIBABA_CODING_PLAN_COOKIE`.
 
-When the RPC endpoint returns `ConsoleNeedLogin`, CodexBar treats that as a console-session requirement. In API mode it is surfaced as an explicit API-path limitation; in `auto` mode fallback remains observable through the fetch-attempt chain.
+When the RPC endpoint returns `ConsoleNeedLogin`, QuotaKit treats that as a console-session requirement. In API mode it is surfaced as an explicit API-path limitation; in `auto` mode fallback remains observable through the fetch-attempt chain.
 
 ## Token sources (fallback order)
 1) Config token (`~/.codexbar/config.json` -> `providers[].apiKey` for provider `alibaba`).
@@ -31,18 +31,20 @@ When the RPC endpoint returns `ConsoleNeedLogin`, CodexBar treats that as a cons
   - `POST /data/api.json?action=zeldaEasy.broadscope-bailian.codingPlan.queryCodingPlanInstanceInfoV2&product=broadscope-bailian&api=queryCodingPlanInstanceInfoV2`
 - Region is selected in Preferences -> Providers -> Alibaba Coding Plan -> Gateway region.
 - Auto fallback behavior:
-  - If International fails with credential/host-style API errors, CodexBar retries China mainland once.
+  - If International fails with credential/host-style API errors, QuotaKit retries China mainland once.
 
 ### CN API-key limitation (known)
 - In some China mainland accounts/environments, the current Alibaba `/data/api.json` coding-plan endpoint can still return console-login-required responses (`ConsoleNeedLogin`) even when an API key is configured.
 - In that case, API-key mode may not be functionally available for that account/endpoint, and web session mode is required.
-- CodexBar now surfaces this as an API error in API mode (instead of a cookie-login-required message) so the limitation is explicit.
+- QuotaKit now surfaces this as an API error in API mode (instead of a cookie-login-required message) so the limitation is explicit.
 
 ## Overrides
 - Override host base: `ALIBABA_CODING_PLAN_HOST`
   - Example: `ALIBABA_CODING_PLAN_HOST=modelstudio.console.alibabacloud.com`
 - Override full quota URL: `ALIBABA_CODING_PLAN_QUOTA_URL`
-  - Example: `ALIBABA_CODING_PLAN_QUOTA_URL=https://example.com/data/api.json?action=...`
+  - Example: `ALIBABA_CODING_PLAN_QUOTA_URL=https://modelstudio.console.alibabacloud.com/data/api.json?action=...`
+- Security policy: endpoint overrides are only accepted when they use `https://`, omit userinfo, and do not contain encoded host delimiters. Custom HTTPS proxy/test domains continue to work for compatibility, but `http://` endpoints are rejected so cookies and API credentials are not sent in cleartext.
+- Strict provider-host mode: set `ALIBABA_CODING_PLAN_REQUIRE_PROVIDER_ENDPOINT_OVERRIDES=true` to additionally reject custom proxy/test domains and only accept the known Alibaba Coding Plan console and RPC hosts.
 
 ## Request headers
 - `Authorization: Bearer <api_key>`
@@ -59,7 +61,7 @@ When the RPC endpoint returns `ConsoleNeedLogin`, CodexBar treats that as a cons
   - `perWeekUsedQuota` + `perWeekTotalQuota` + `perWeekQuotaNextRefreshTime` -> secondary (weekly)
   - `perBillMonthUsedQuota` + `perBillMonthTotalQuota` + `perBillMonthQuotaNextRefreshTime` -> tertiary (monthly)
 - Each window maps to `usedPercent = used / total * 100` (bounded to valid range).
-- If the payload proves the plan is active but does not expose defensible quota counters, CodexBar preserves the visible plan state without manufacturing a normal quantitative quota window.
+- If the payload proves the plan is active but does not expose defensible quota counters, QuotaKit preserves the visible plan state without manufacturing a normal quantitative quota window.
 - If neither real counters nor a defensible active-plan fallback signal exist, parsing fails explicitly instead of degrading to fake `0%` usage.
 
 ## Dashboard links

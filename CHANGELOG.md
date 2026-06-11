@@ -5,6 +5,19 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Upcoming
+
+### Changed
+
+- Synced upstream CodexBar Mac improvements through `0.33.1` development
+  (post-`0.33.0` tip), including security fixes that reject insecure or
+  malformed provider endpoint overrides (OpenRouter, Codebuff, Groq,
+  ElevenLabs, MiniMax, Alibaba) and malformed provider hosts before sending
+  credentials, clearer Claude Web reauthentication guidance, per-request CLI
+  serve config reload, scroll-wheel Overview highlighting, merged dropdown
+  positioning stability, switcher segment height fixes, and incremental
+  Codex priority-turn resolution.
+
 ## 0.32.4.5 / iOS 1.11.1 — 2026-06-11
 
 ### Changed

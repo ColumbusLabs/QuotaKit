@@ -37,6 +37,9 @@ public struct MiniMaxUsageFetcher: Sendable {
         guard let cookie = MiniMaxCookieHeader.normalized(from: cookieHeader) else {
             throw MiniMaxUsageError.invalidCredentials
         }
+        if let rejectedKey = MiniMaxSettingsReader.rejectedEndpointOverrideKey(environment: environment) {
+            throw ProviderEndpointOverrideError.minimax(rejectedKey)
+        }
 
         let context = WebFetchContext(
             cookie: cookie,
@@ -621,11 +624,7 @@ public struct MiniMaxUsageFetcher: Sendable {
             return components.url
         }
 
-        if let url = URL(string: cleaned), url.scheme != nil {
-            if let composed = compose(url) { return composed }
-            return url
-        }
-        guard let base = URL(string: "https://\(cleaned)") else { return nil }
+        guard let base = ProviderEndpointOverrideValidator.normalizedHTTPSURL(from: cleaned) else { return nil }
         return compose(base)
     }
 

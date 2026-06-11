@@ -6,6 +6,13 @@ import Testing
 @MainActor
 @Suite(.serialized)
 struct ClaudeWebRecoveryMenuTests {
+    @Test
+    func `unauthorized error explains how to restore web usage`() {
+        #expect(
+            ClaudeWebAPIFetcher.FetchError.unauthorized.localizedDescription ==
+                "Sign in to claude.ai (or refresh Claude cookies) to load usage data.")
+    }
+
     private func makeSettings() -> SettingsStore {
         let suite = "ClaudeWebRecoveryMenuTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!

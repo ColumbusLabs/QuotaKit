@@ -2,6 +2,7 @@ import Commander
 import Foundation
 import Testing
 @testable import CodexBarCLI
+@testable import CodexBarCore
 
 struct CLIServeRouterTests {
     @Test
@@ -139,6 +140,29 @@ struct CLIServeRouterTests {
     }
 
     @Test
+    func `serve config snapshot reflects provider changes`() throws {
+        let store = testConfigStore(suiteName: "CLIServeRouterTests-serve-config-freshness-\(UUID().uuidString)")
+        defer { try? store.deleteIfPresent() }
+        var firstConfig = CodexBarConfig.makeDefault()
+        firstConfig.setProviderConfig(ProviderConfig(id: .opencodego, enabled: false))
+        try store.save(firstConfig)
+
+        let firstSnapshot = try CodexBarCLI.loadServeConfigSnapshot(configStore: store)
+
+        var secondConfig = firstConfig
+        secondConfig.setProviderConfig(ProviderConfig(id: .opencodego, enabled: true))
+        try store.save(secondConfig)
+        let secondSnapshot = try CodexBarCLI.loadServeConfigSnapshot(configStore: store)
+
+        #expect(!firstSnapshot.config.enabledProviders().contains(.opencodego))
+        #expect(secondSnapshot.config.enabledProviders().contains(.opencodego))
+        #expect(firstSnapshot.cacheToken != secondSnapshot.cacheToken)
+        #expect(
+            CodexBarCLI.serveCacheKey(kind: "usage", provider: nil, configToken: firstSnapshot.cacheToken) !=
+                CodexBarCLI.serveCacheKey(kind: "usage", provider: nil, configToken: secondSnapshot.cacheToken))
+    }
+
+    @Test
     func `serve cache skips provider error payloads`() {
         let success = CLILocalHTTPResponse(
             status: .ok,
@@ -187,6 +211,31 @@ struct CLIServeRouterTests {
         #expect(Set(responses.map(Self.bodyString)).count == 1)
         #expect(responses.allSatisfy { $0.status == .ok })
         #expect(responses.allSatisfy { Self.bodyString($0).contains("\"call\":1") })
+    }
+
+    @Test
+    func `serve cache prunes expired config token entries`() async throws {
+        let cache = CLIServeResponseCache()
+
+        _ = await CodexBarCLI.cachedServeResponse(
+            key: "usage::old-config",
+            cache: cache,
+            refreshInterval: 0.001)
+        {
+            Self.response(#"[{"provider":"codex","config":"old"}]"#)
+        }
+        #expect(await cache.cachedEntryCount() == 1)
+
+        try await Task.sleep(nanoseconds: 20_000_000)
+        _ = await CodexBarCLI.cachedServeResponse(
+            key: "usage::new-config",
+            cache: cache,
+            refreshInterval: 60)
+        {
+            Self.response(#"[{"provider":"codex","config":"new"}]"#)
+        }
+
+        #expect(await cache.cachedEntryCount() == 1)
     }
 
     @Test

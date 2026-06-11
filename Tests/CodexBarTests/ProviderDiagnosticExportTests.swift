@@ -101,6 +101,31 @@ struct ProviderDiagnosticExportTests {
     }
 
     @Test
+    func `diagnostic error maps Alibaba invalid endpoint override to configuration`() {
+        let error = ProviderEndpointOverrideError.alibabaCodingPlan("ALIBABA_CODING_PLAN_QUOTA_URL")
+        let diag = ProviderDiagnosticError(from: error, authConfigured: true)
+
+        #expect(diag.category == "configuration")
+        #expect(diag.safeDescription == "Configuration issue - check provider source and settings")
+    }
+
+    @Test
+    func `endpoint override fetch attempt stays in configuration category`() {
+        let error = ProviderEndpointOverrideError.minimax("MINIMAX_HOST")
+        let attempt = ProviderFetchAttempt(
+            strategyID: "minimax.web",
+            kind: .web,
+            wasAvailable: true,
+            errorDescription: error.localizedDescription)
+
+        let diagError = ProviderDiagnosticError(from: error, authConfigured: true)
+        let diagAttempt = ProviderDiagnosticFetchAttempt(from: attempt)
+
+        #expect(diagError.category == "configuration")
+        #expect(diagAttempt.errorCategory == "configuration")
+    }
+
+    @Test
     func `no available strategy maps missing auth to auth category`() {
         let error = ProviderFetchError.noAvailableStrategy(.minimax)
         let diag = ProviderDiagnosticError(from: error, authConfigured: false)
