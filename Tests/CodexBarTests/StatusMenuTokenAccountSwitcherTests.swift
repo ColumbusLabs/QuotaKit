@@ -101,6 +101,13 @@ final class StatusMenuTokenAccountSwitcherTests: XCTestCase {
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = false
+        // Fork: iCloud sync defaults on and fans out a fetch per token
+        // account, so the global refresh alone would put two fetches in
+        // flight. Disable it so this test exercises upstream's
+        // single-selected-account path and its refresh-coalescing
+        // assertion; the sync fan-out is covered by
+        // ShouldFetchAllTokenAccountsTests.
+        settings.iCloudSyncEnabled = false
         self.enableOnlyClaude(settings)
         settings.addTokenAccount(provider: .claude, label: "Primary", token: "Bearer sk-ant-oat-primary")
         settings.addTokenAccount(provider: .claude, label: "Secondary", token: "Bearer sk-ant-oat-secondary")
@@ -131,10 +138,15 @@ final class StatusMenuTokenAccountSwitcherTests: XCTestCase {
         let switcher = try XCTUnwrap(menu.items.compactMap { $0.view as? TokenAccountSwitcherView }.first)
 
         let selectionTask = try XCTUnwrap(switcher._test_select(index: 1))
-        await blocker.waitUntilStarted(count: 2)
         XCTAssertEqual(settings.tokenAccountsData(for: .claude)?.clampedActiveIndex(), 1)
+        for _ in 0..<40 {
+            await Task.yield()
+        }
+        let startedBeforeDrain = await blocker.startedCallCount()
+        XCTAssertEqual(startedBeforeDrain, 1)
 
         await blocker.resumeAll(with: .success(self.snapshot(percent: 17)))
+        await blocker.waitUntilStarted(count: 2)
         await selectionTask.value
         await refreshTask.value
         let startedCallCount = await blocker.startedCallCount()

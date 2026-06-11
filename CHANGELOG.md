@@ -13,6 +13,15 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   Codex account/auth hardening, MiniMax quota fixes, menu performance updates,
   merged provider-switching hang fixes, Claude probe cleanup,
   Antigravity/Alibaba/Cursor fixes, and additional Mac localizations.
+- Synced upstream CodexBar Mac improvements through `0.33.1` development,
+  including a security fix that blocks credentialed provider redirects leaving
+  the original HTTPS origin, a new Devin usage provider, Cursor legacy
+  request-quota and Full Disk Access hint fixes, Copilot unlimited chat quota
+  display, Codex cost visibility without quotas, updated Claude usage pricing
+  and web session recovery, Doubao false-exhaustion fixes, cost scanner
+  threading and cancellation overhauls, broad menu performance and
+  width-stability work, a configurable terminal app for Open Terminal, expanded
+  MiMo browser support, and Japanese localization.
 
 ## 0.32.4.4 / iOS 1.11.1 — 2026-06-08
 

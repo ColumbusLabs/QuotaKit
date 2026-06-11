@@ -6,112 +6,6 @@ import Testing
 
 extension StatusMenuTests {
     @Test
-    func `opening fresh menu does not schedule deferred refresh`() async {
-        self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
-        settings.statusChecksEnabled = false
-        settings.refreshFrequency = .manual
-        settings.mergeIcons = false
-        self.enableOnlyCodex(settings)
-
-        let store = self.makeCodexStore(settings: settings, dashboardAuthorized: false)
-        var providerRefreshCount = 0
-        var refreshInteractions: [ProviderInteraction] = []
-        store._test_providerRefreshOverride = { provider in
-            guard provider == .codex else { return }
-            refreshInteractions.append(ProviderInteractionContext.current)
-            providerRefreshCount += 1
-        }
-        defer { store._test_providerRefreshOverride = nil }
-
-        let controller = StatusItemController(
-            store: store,
-            settings: settings,
-            account: UsageFetcher().loadAccountInfo(),
-            updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection(),
-            statusBar: self.makeStatusBarForTesting())
-        defer { controller.releaseStatusItemsForTesting() }
-        StatusItemController.setClosedMenuPreparationDelayForTesting(.zero)
-        defer { StatusItemController.resetClosedMenuPreparationDelayForTesting() }
-
-        controller.menuRefreshEnabledOverrideForTesting = true
-        StatusItemController.setDeferredMenuInteractionRefreshDelayForTesting(.zero)
-        defer { StatusItemController.resetDeferredMenuInteractionRefreshDelayForTesting() }
-
-        let menu = controller.makeMenu()
-        controller.menuWillOpen(menu)
-
-        for _ in 0..<20 {
-            await Task.yield()
-        }
-        #expect(providerRefreshCount == 0)
-        #expect(!controller.deferredMenuInteractionRefreshPending)
-
-        controller.menuDidClose(menu)
-        for _ in 0..<40 {
-            await Task.yield()
-        }
-
-        #expect(providerRefreshCount == 0)
-        #expect(refreshInteractions.isEmpty)
-    }
-
-    @Test
-    func `menu open with missing data defers automatic refresh until tracking ends`() async {
-        self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
-        settings.statusChecksEnabled = false
-        settings.refreshFrequency = .manual
-        settings.mergeIcons = false
-        self.enableOnlyCodex(settings)
-
-        let store = self.makeCodexStore(settings: settings, dashboardAuthorized: false)
-        store._setSnapshotForTesting(nil, provider: .codex)
-        var providerRefreshCount = 0
-        var refreshInteractions: [ProviderInteraction] = []
-        store._test_providerRefreshOverride = { provider in
-            guard provider == .codex else { return }
-            refreshInteractions.append(ProviderInteractionContext.current)
-            providerRefreshCount += 1
-        }
-        defer { store._test_providerRefreshOverride = nil }
-
-        let controller = StatusItemController(
-            store: store,
-            settings: settings,
-            account: UsageFetcher().loadAccountInfo(),
-            updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection(),
-            statusBar: self.makeStatusBarForTesting())
-        defer { controller.releaseStatusItemsForTesting() }
-        StatusItemController.setClosedMenuPreparationDelayForTesting(.zero)
-        defer { StatusItemController.resetClosedMenuPreparationDelayForTesting() }
-
-        controller.menuRefreshEnabledOverrideForTesting = true
-        StatusItemController.setDeferredMenuInteractionRefreshDelayForTesting(.zero)
-        defer { StatusItemController.resetDeferredMenuInteractionRefreshDelayForTesting() }
-
-        let menu = controller.makeMenu()
-        controller.menuWillOpen(menu)
-
-        for _ in 0..<20 {
-            await Task.yield()
-        }
-        #expect(providerRefreshCount == 0)
-        #expect(controller.deferredMenuInteractionRefreshPending)
-
-        controller.menuDidClose(menu)
-        for _ in 0..<40 where providerRefreshCount == 0 {
-            await Task.yield()
-        }
-
-        #expect(providerRefreshCount == 1)
-        #expect(refreshInteractions == [.background])
-        #expect(!controller.deferredMenuInteractionRefreshPending)
-    }
-
-    @Test
     func `store observation marks open menu stale without rebuilding during tracking`() async {
         self.disableMenuCardsForTesting()
         let settings = self.makeSettings()
@@ -193,10 +87,20 @@ extension StatusMenuTests {
         let menu = controller.makeMenu()
         controller.mergedMenu = menu
         controller.statusItem.menu = menu
+        for _ in 0..<20 {
+            await Task.yield()
+        }
 
         controller.populateMenu(menu, provider: nil)
         controller.markMenuFresh(menu)
         let key = ObjectIdentifier(menu)
+        for _ in 0..<40 {
+            await Task.yield()
+        }
+        controller.populateMenu(menu, provider: nil)
+        controller.markMenuFresh(menu)
+        controller.cancelAllClosedMenuRebuilds()
+        controller.closedMenusDeferredUntilNextOpen.removeAll(keepingCapacity: false)
         let openedVersion = controller.menuVersions[key]
 
         // Background data-refresh tick (stale allowed): closed prep is skipped entirely, so
@@ -256,6 +160,12 @@ extension StatusMenuTests {
         controller.populateMenu(menu, provider: nil)
         controller.markMenuFresh(menu)
         let key = ObjectIdentifier(menu)
+        for _ in 0..<40 {
+            await Task.yield()
+        }
+        controller.populateMenu(menu, provider: nil)
+        controller.markMenuFresh(menu)
+        controller.cancelAllClosedMenuRebuilds()
         let openedVersion = controller.menuVersions[key]
 
         controller.invalidateMenus(allowStaleContentDuringDataRefresh: true)
@@ -270,6 +180,9 @@ extension StatusMenuTests {
         controller.menuWillOpen(menu)
         defer { controller.menuDidClose(menu) }
 
+        for _ in 0..<40 where controller.menuVersions[key] != controller.menuContentVersion {
+            await Task.yield()
+        }
         #expect(controller.menuVersions[key] == controller.menuContentVersion)
     }
 
@@ -629,7 +542,7 @@ extension StatusMenuTests {
     }
 
     @Test
-    func `explicit store actions refresh a visible open menu`() async {
+    func `explicit store actions defer visible parent menu rebuild`() async {
         self.disableMenuCardsForTesting()
         let settings = self.makeSettings()
         settings.statusChecksEnabled = false
@@ -660,17 +573,18 @@ extension StatusMenuTests {
         defer { controller._test_openMenuRebuildObserver = nil }
 
         controller.refreshOpenMenusAfterExplicitStoreAction()
-        for _ in 0..<20 where rebuildCount == 0 {
+        for _ in 0..<20 {
             await Task.yield()
         }
 
         #expect(controller.menuContentVersion != openedVersion)
-        #expect(rebuildCount == 1)
-        #expect(controller.menuVersions[key] != openedVersion)
+        #expect(rebuildCount == 0)
+        #expect(controller.menuVersions[key] == openedVersion)
+        #expect(controller.parentMenuRebuildsDeferredDuringTracking.contains(key))
     }
 
     @Test
-    func `repeated explicit store actions coalesce to one open menu rebuild`() async {
+    func `repeated explicit store actions keep parent rebuild deferred`() async {
         self.disableMenuCardsForTesting()
         let settings = self.makeSettings()
         settings.statusChecksEnabled = false
@@ -703,16 +617,17 @@ extension StatusMenuTests {
         controller.refreshOpenMenusAfterExplicitStoreAction()
         controller.refreshOpenMenusAfterExplicitStoreAction()
 
-        for _ in 0..<20 where rebuildCount == 0 {
+        for _ in 0..<20 {
             await Task.yield()
         }
 
-        #expect(rebuildCount == 1)
-        #expect(controller.menuVersions[key] == controller.menuContentVersion)
+        #expect(rebuildCount == 0)
+        #expect(controller.menuVersions[key] != controller.menuContentVersion)
+        #expect(controller.parentMenuRebuildsDeferredDuringTracking.contains(key))
     }
 
     @Test
-    func `explicit refresh rebuilds stale parent after hosted submenu closes`() async {
+    func `explicit refresh keeps stale parent deferred after hosted submenu closes`() async {
         self.disableMenuCardsForTesting()
         let settings = self.makeSettings()
         settings.statusChecksEnabled = false
@@ -755,13 +670,14 @@ extension StatusMenuTests {
         #expect(controller.menuVersions[menuKey] == openedVersion)
 
         controller.menuDidClose(submenu)
-        for _ in 0..<20 where rebuildCount == 0 {
+        for _ in 0..<20 {
             await Task.yield()
         }
 
         #expect(controller.openMenus[submenuKey] == nil)
-        #expect(rebuildCount == 1)
-        #expect(controller.menuVersions[menuKey] == controller.menuContentVersion)
+        #expect(rebuildCount == 0)
+        #expect(controller.menuVersions[menuKey] == openedVersion)
+        #expect(controller.parentMenuRebuildsDeferredDuringTracking.contains(menuKey))
     }
 
     @Test

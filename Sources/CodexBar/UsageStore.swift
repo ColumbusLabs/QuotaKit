@@ -65,7 +65,7 @@ extension UsageStore {
                 self.startTimer()
                 self.updateProviderRuntimes()
                 await self.refreshHistoricalDatasetIfNeeded()
-                await self.refresh()
+                await self.refreshForSettingsChange()
             }
         }
     }
@@ -229,6 +229,11 @@ final class UsageStore {
     @ObservationIgnored var providerSpecs: [UsageProvider: ProviderSpec] = [:]
     @ObservationIgnored let providerMetadata: [UsageProvider: ProviderMetadata]
     @ObservationIgnored var providerRuntimes: [UsageProvider: any ProviderRuntime] = [:]
+    @ObservationIgnored var providerRefreshTasks: [UsageProvider: [ProviderRefreshTaskState]] = [:]
+    @ObservationIgnored var providerRefreshTaskGeneration: UInt64 = 0
+    @ObservationIgnored var providerRefreshWaiterGeneration: UInt64 = 0
+    @ObservationIgnored var latestProviderRefreshGenerations: [UsageProvider: UInt64] = [:]
+    @ObservationIgnored var providerRefreshCounts: [UsageProvider: Int] = [:]
     @ObservationIgnored private var providerAvailabilityCache: [UsageProvider: ProviderAvailabilityCacheEntry] = [:]
     @ObservationIgnored var accountInfoCache: [UsageProvider: AccountInfoCacheEntry] = [:]
     @ObservationIgnored private var timerTask: Task<Void, Never>?
@@ -553,8 +558,8 @@ final class UsageStore {
 
     func runRefresh(
         forceTokenUsage: Bool = false,
-        startupConnectivityRetryAttempt: Int?)
-        async
+        startupConnectivityRetryAttempt: Int?,
+        coalesceProviderRefreshesOverride: Bool? = nil) async
     {
         guard !self.isRefreshing else { return }
         self.prepareRefreshState()
@@ -587,7 +592,12 @@ final class UsageStore {
 
             await withTaskGroup(of: Void.self) { group in
                 for provider in refreshProviders {
-                    group.addTask { await self.refreshProvider(provider) }
+                    group.addTask {
+                        await self.refreshProvider(
+                            provider,
+                            coalesceIfRefreshing: coalesceProviderRefreshesOverride ??
+                                (ProviderInteractionContext.current == .background))
+                    }
                     if availableRefreshProviders.contains(provider) {
                         group.addTask { await self.refreshStatus(provider) }
                     }
@@ -1161,7 +1171,7 @@ extension UsageStore {
                         configToken: nil,
                         hasEnvToken: deepSeekHasEnvToken,
                         hasTokenAccount: deepSeekHasTokenAccount)
-                case .gemini, .antigravity, .opencode, .opencodego, .alibabatokenplan, .factory, .copilot,
+                case .gemini, .antigravity, .opencode, .opencodego, .alibabatokenplan, .factory, .copilot, .devin,
                      .vertexai, .kilo, .kiro, .kimi, .kimik2, .moonshot, .jetbrains, .perplexity, .mimo, .doubao,
                      .abacus, .mistral, .codebuff, .crof, .windsurf, .venice, .manus, .commandcode, .stepfun, .bedrock,
                      .grok, .groq, .t3chat, .llmproxy, .deepgram:
@@ -1283,70 +1293,6 @@ extension UsageStore {
             interaction: ProviderInteractionContext.current,
             refreshPhase: ProviderRefreshContext.current)
         #endif
-    }
-
-    private struct APIKeyDebugContext {
-        let label: String
-        let resolution: ProviderTokenResolution?
-        let configToken: String?
-        let hasEnvToken: Bool
-        let hasTokenAccount: Bool
-    }
-
-    private func openAIAPIKeyDebugContext(processEnvironment: [String: String]) -> APIKeyDebugContext {
-        let config = self.settings.providerConfig(for: .openai)
-        let environment = ProviderConfigEnvironment.applyAPIKeyOverride(
-            base: processEnvironment,
-            provider: .openai,
-            config: config)
-        return APIKeyDebugContext(
-            label: "OPENAI_API_KEY",
-            resolution: ProviderTokenResolver.openAIAPIResolution(environment: environment),
-            configToken: config?.sanitizedAPIKey,
-            hasEnvToken: OpenAIAPISettingsReader.apiKey(environment: processEnvironment) != nil,
-            hasTokenAccount: false)
-    }
-
-    private func azureOpenAIAPIKeyDebugContext(processEnvironment: [String: String]) -> APIKeyDebugContext {
-        let config = self.settings.providerConfig(for: .azureopenai)
-        let environment = ProviderConfigEnvironment.applyProviderConfigOverrides(
-            base: processEnvironment,
-            provider: .azureopenai,
-            config: config)
-        return APIKeyDebugContext(
-            label: "AZURE_OPENAI_API_KEY",
-            resolution: ProviderTokenResolver.azureOpenAIResolution(environment: environment),
-            configToken: config?.sanitizedAPIKey,
-            hasEnvToken: AzureOpenAISettingsReader.apiKey(environment: processEnvironment) != nil,
-            hasTokenAccount: false)
-    }
-
-    private func openRouterAPIKeyDebugContext(processEnvironment: [String: String]) -> APIKeyDebugContext {
-        let config = self.settings.providerConfig(for: .openrouter)
-        let environment = ProviderConfigEnvironment.applyAPIKeyOverride(
-            base: processEnvironment,
-            provider: .openrouter,
-            config: config)
-        return APIKeyDebugContext(
-            label: "OPENROUTER_API_KEY",
-            resolution: ProviderTokenResolver.openRouterResolution(environment: environment),
-            configToken: config?.sanitizedAPIKey,
-            hasEnvToken: OpenRouterSettingsReader.apiToken(environment: processEnvironment) != nil,
-            hasTokenAccount: false)
-    }
-
-    private func elevenLabsAPIKeyDebugContext(processEnvironment: [String: String]) -> APIKeyDebugContext {
-        let config = self.settings.providerConfig(for: .elevenlabs)
-        let environment = ProviderConfigEnvironment.applyAPIKeyOverride(
-            base: processEnvironment,
-            provider: .elevenlabs,
-            config: config)
-        return APIKeyDebugContext(
-            label: "ELEVENLABS_API_KEY",
-            resolution: ProviderTokenResolver.elevenLabsResolution(environment: environment),
-            configToken: config?.sanitizedAPIKey,
-            hasEnvToken: ElevenLabsSettingsReader.apiKey(environment: processEnvironment) != nil,
-            hasTokenAccount: false)
     }
 
     private nonisolated static func apiKeyDebugLine(_ context: APIKeyDebugContext) -> String {

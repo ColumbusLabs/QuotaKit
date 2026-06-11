@@ -119,6 +119,7 @@ enum ProviderColorPalette {
             (["groq", "groqcloud", "groqapi"], RawColor(red: 245 / 255, green: 104 / 255, blue: 68 / 255)),
             (["llmproxy"], RawColor(red: 36 / 255, green: 180 / 255, blue: 126 / 255)),
             (["deepgram"], RawColor(red: 0.49, green: 0.23, blue: 0.93)),
+            (["devin"], RawColor(red: 70 / 255, green: 180 / 255, blue: 130 / 255)),
         ]
 
         var table: [String: RawColor] = [:]

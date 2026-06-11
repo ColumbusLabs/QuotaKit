@@ -52,8 +52,11 @@ extension StatusItemController {
         }
         self.openMenuInvalidationRetryTask?.cancel()
         self.openMenuInvalidationRetryTask = nil
+        self.codexAccountMenuProjectionRevalidationTask?.cancel()
+        self.codexAccountMenuProjectionRevalidationTask = nil
         self.providerSelectionUIRefreshTask?.cancel()
         self.providerSelectionUIRefreshTask = nil
+        self.deferredMergedIconRenderAfterTracking = false
         self.providerSwitcherPointerInteractionMenuID = nil
         self.pendingProviderSwitcherPointerRebuild = nil
     }

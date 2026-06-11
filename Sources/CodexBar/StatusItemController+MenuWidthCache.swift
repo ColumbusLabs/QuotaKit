@@ -1,7 +1,50 @@
 import AppKit
+import CodexBarCore
 
 extension StatusItemController {
     private static let measuredStandardMenuWidthCacheLimit = 96
+
+    func menuCardWidth(
+        for providers: [UsageProvider],
+        selectedProvider: UsageProvider?,
+        descriptor: MenuDescriptor) -> CGFloat
+    {
+        let sectionSets: [[MenuDescriptor.Section]] = if self.shouldMergeIcons, providers.count > 1 {
+            providers.map { provider in
+                if provider == selectedProvider {
+                    return descriptor.sections
+                }
+                return self.makeMenuDescriptor(
+                    provider: provider,
+                    includeContextualActions: true).sections
+            }
+        } else {
+            [descriptor.sections]
+        }
+        return self.measuredMenuCardWidth(for: sectionSets)
+    }
+
+    func measuredMenuCardWidth(for sectionSets: [[MenuDescriptor.Section]]) -> CGFloat {
+        let baselineWidth = Self.menuCardBaseWidth
+        return sectionSets.reduce(baselineWidth) { width, sections in
+            max(width, self.measuredStandardMenuWidth(for: sections, baseWidth: baselineWidth))
+        }
+    }
+
+    func makeMenuDescriptor(
+        provider: UsageProvider?,
+        includeContextualActions: Bool) -> MenuDescriptor
+    {
+        MenuDescriptor.build(
+            provider: provider,
+            store: self.store,
+            settings: self.settings,
+            account: self.account,
+            managedCodexAccountCoordinator: self.managedCodexAccountCoordinator,
+            codexAccountPromotionCoordinator: self.codexAccountPromotionCoordinator,
+            updateReady: self.updater.updateStatus.isUpdateReady,
+            includeContextualActions: includeContextualActions)
+    }
 
     func measuredStandardMenuWidth(for sections: [MenuDescriptor.Section], baseWidth: CGFloat) -> CGFloat {
         let cacheKey = self.measuredStandardMenuWidthCacheKey(for: sections, baseWidth: baseWidth)

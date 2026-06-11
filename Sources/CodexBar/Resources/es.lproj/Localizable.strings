@@ -804,6 +804,8 @@
 
 "language_ukrainian" = "Ucraniano";
 
+"language_japanese" = "Japonés";
+
 "start_at_login_title" = "Abrir al iniciar sesión";
 
 "start_at_login_subtitle" = "Abre QuotaKit automáticamente al iniciar tu Mac.";
@@ -1500,7 +1502,7 @@
 
 "Auth source" = "Fuente de autenticación";
 
-"Automatic imports Chrome browser cookies from Xiaomi MiMo." = "Importa automáticamente las cookies de Chrome desde Xiaomi MiMo.";
+"Automatic imports browser cookies from Xiaomi MiMo." = "Importa automáticamente las cookies del navegador desde Xiaomi MiMo.";
 
 "Automatic imports Windsurf session data from Chromium browser localStorage." = "Importa automáticamente datos de sesión de Windsurf desde localStorage de Chromium.";
 
@@ -1699,6 +1701,8 @@
 "Project ID" = "ID de proyecto";
 
 "Re-auth" = "Reautenticar";
+
+"Re-login at claude.ai" = "Volver a iniciar sesión en claude.ai";
 
 "Re-authenticating…" = "Reautenticando…";
 

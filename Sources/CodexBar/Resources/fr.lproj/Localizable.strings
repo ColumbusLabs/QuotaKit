@@ -804,6 +804,8 @@
 
 "language_ukrainian" = "Ukrainien";
 
+"language_japanese" = "Japonais";
+
 "language_vietnamese" = "Vietnamien";
 
 "start_at_login_title" = "Lancer à l'ouverture de session";
@@ -1786,7 +1788,7 @@
 
 "Auth source" = "Source d'authentification";
 
-"Automatic imports Chrome browser cookies from Xiaomi MiMo." = "Importe automatiquement les cookies du navigateur Chrome de Xiaomi MiMo.";
+"Automatic imports browser cookies from Xiaomi MiMo." = "Importe automatiquement les cookies du navigateur de Xiaomi MiMo.";
 
 "Automatic imports Windsurf session data from Chromium browser localStorage." = "Importe automatiquement les données de session Windsurf à partir du navigateur Chromium localStorage.";
 
@@ -1985,6 +1987,8 @@
 "Project ID" = "ID du projet";
 
 "Re-auth" = "Se reconnecter";
+
+"Re-login at claude.ai" = "Se reconnecter à claude.ai";
 
 "Re-authenticating…" = "Réauthentification…";
 

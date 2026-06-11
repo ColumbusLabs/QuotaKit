@@ -4,7 +4,7 @@ import Testing
 
 struct CostUsageCacheTests {
     @Test
-    func `cache file URL uses provider-specific artifact version`() {
+    func `cache file URL uses provider artifact versions`() {
         let root = URL(fileURLWithPath: "/tmp/codexbar-cost-cache", isDirectory: true)
 
         let codexURL = CostUsageCacheIO.cacheFileURL(provider: .codex, cacheRoot: root)
@@ -13,11 +13,11 @@ struct CostUsageCacheTests {
 
         // Codex: upstream bumped to 8 in v0.27.0 (further pricing/parser
         // changes: JSONL shape benchmark + per-event token usage). Claude
-        // /Vertex: fork's 2 → 3 bump (0.23.1 era, gained claude-opus-4-7
-        // + fallback resolver) retained — upstream still at 2.
+        // /Vertex: upstream bumped to 4 with the 0.33 Claude pricing
+        // correction, superseding fork's prior 2 → 3 history.
         #expect(codexURL.lastPathComponent == "codex-v8.json")
-        #expect(claudeURL.lastPathComponent == "claude-v3.json")
-        #expect(vertexURL.lastPathComponent == "vertexai-v3.json")
+        #expect(claudeURL.lastPathComponent == "claude-v4.json")
+        #expect(vertexURL.lastPathComponent == "vertexai-v4.json")
     }
 
     // MARK: - Pricing fingerprint mechanism
@@ -237,6 +237,26 @@ struct CostUsageCacheTests {
 
         #expect(loaded.lastScanUnixMs == 0)
         #expect(loaded.days.isEmpty)
+    }
+
+    @Test
+    func `current codex cache accepts parser compatible 0_33 producer`() throws {
+        let root = try self.makeTemporaryCacheRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        var cache = CostUsageCache()
+        cache.lastScanUnixMs = 123
+        cache.days = ["2026-05-18": ["gpt-5.5": [1, 2, 3]]]
+        CostUsageCacheIO.save(
+            provider: .codex,
+            cache: cache,
+            cacheRoot: root,
+            producerKey: "codex:cu:p3c27f997569eb3c5")
+
+        let loaded = CostUsageCacheIO.load(provider: .codex, cacheRoot: root)
+
+        #expect(loaded.lastScanUnixMs == 123)
+        #expect(loaded.days["2026-05-18"]?["gpt-5.5"] == [1, 2, 3])
     }
 
     @Test

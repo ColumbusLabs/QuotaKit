@@ -806,6 +806,8 @@
 
 "language_ukrainian" = "Ukrainska";
 
+"language_japanese" = "Japanska";
+
 "start_at_login_title" = "Starta vid inloggning";
 
 "start_at_login_subtitle" = "Öppnar QuotaKit automatiskt när du startar din Mac.";
@@ -1978,6 +1980,8 @@
 
 "Re-auth" = "Autentisera igen";
 
+"Re-login at claude.ai" = "Logga in igen på claude.ai";
+
 "cache-miss input" = "cachemiss-indata";
 
 "Day" = "Dag";
@@ -2060,7 +2064,7 @@
 
 "Auth source" = "Autentiseringskälla";
 
-"Automatic imports Chrome browser cookies from Xiaomi MiMo." = "Importerar Chrome-cookies från Xiaomi MiMo automatiskt.";
+"Automatic imports browser cookies from Xiaomi MiMo." = "Importerar webbläsarcookies från Xiaomi MiMo automatiskt.";
 
 "No usage configured." = "Ingen användning konfigurerad.";
 

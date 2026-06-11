@@ -36,6 +36,12 @@ extension UsageStore {
     }
 
     func planUtilizationHistory(for provider: UsageProvider) -> [PlanUtilizationSeriesHistory] {
+        self.planUtilizationHistorySelection(for: provider).histories
+    }
+
+    func planUtilizationHistorySelection(for provider: UsageProvider)
+        -> (accountKey: String?, histories: [PlanUtilizationSeriesHistory])
+    {
         var providerBuckets = self.planUtilizationHistory[provider] ?? PlanUtilizationHistoryBuckets()
         let originalProviderBuckets = providerBuckets
         let accountKey = self.resolvePlanUtilizationAccountKey(
@@ -50,7 +56,7 @@ extension UsageStore {
                 await self.planUtilizationPersistenceCoordinator.enqueue(snapshotToPersist)
             }
         }
-        return providerBuckets.histories(for: accountKey)
+        return (accountKey, providerBuckets.histories(for: accountKey))
     }
 
     func codexPlanUtilizationHistories(forVisibleAccount account: CodexVisibleAccount)
@@ -86,6 +92,11 @@ extension UsageStore {
         return isRefreshing
             && self.snapshots[provider] == nil
             && self.error(for: provider) == nil
+    }
+
+    func shouldShowRefreshingMenuCardIndicator(for provider: UsageProvider) -> Bool {
+        let isRefreshing = self.isRefreshing || self.refreshingProviders.contains(provider)
+        return isRefreshing && self.error(for: provider) == nil
     }
 
     func shouldHidePlanUtilizationMenuItem(for provider: UsageProvider) -> Bool {
