@@ -301,7 +301,9 @@ struct StatusItemAnimationSignatureTests {
         controller.menuDidClose(menu)
 
         #expect(controller.animationDriver == nil)
-        #expect(controller.lastAppliedMergedIconRenderSignature?.contains("primary=nil") == true)
+        // Fork: with no snapshot data the deferred render applies the
+        // QuotaKit app-icon fallback, whose signature has no primary field.
+        #expect(controller.lastAppliedMergedIconRenderSignature?.contains("mode=appIcon") == true)
     }
 
     @Test
