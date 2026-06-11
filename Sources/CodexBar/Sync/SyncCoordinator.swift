@@ -1904,7 +1904,10 @@ final class SyncCoordinator {
              // (deployment validation), Alibaba Token Plan (Bailian quota),
              // and T3 Chat (web session) all surface pre-computed numbers
              // from their own APIs — never via the local pricing tables.
-             .azureopenai, .alibabatokenplan, .t3chat:
+             .azureopenai, .alibabatokenplan, .t3chat,
+             // Upstream 0.33 new provider. Devin quota numbers come from
+             // its own API — never via the local pricing tables.
+             .devin:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".
