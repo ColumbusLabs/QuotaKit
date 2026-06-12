@@ -31,8 +31,13 @@ enum QuotaKitWidgetDisplayModeStore {
         UserDefaults(suiteName: appGroupIdentifier)
     }
 
-    static func load(defaults: UserDefaults? = nil) -> QuotaKitWidgetDisplayMode {
-        let storage = defaults ?? self.appGroupDefaults() ?? .standard
+    static func load(
+        defaults: UserDefaults? = nil,
+        appGroupDefaults: () -> UserDefaults? = { Self.appGroupDefaults() }) -> QuotaKitWidgetDisplayMode
+    {
+        guard let storage = defaults ?? appGroupDefaults() else {
+            return .both
+        }
         guard let rawValue = storage.string(forKey: Self.key),
               let mode = QuotaKitWidgetDisplayMode(rawValue: rawValue)
         else {
@@ -43,9 +48,27 @@ enum QuotaKitWidgetDisplayModeStore {
 
     static func save(
         _ mode: QuotaKitWidgetDisplayMode,
-        defaults: UserDefaults? = nil)
+        defaults: UserDefaults? = nil,
+        appGroupDefaults: () -> UserDefaults? = { Self.appGroupDefaults() })
     {
-        let storage = defaults ?? self.appGroupDefaults() ?? .standard
+        guard let storage = defaults ?? appGroupDefaults() else {
+            return
+        }
         storage.set(mode.rawValue, forKey: Self.key)
+    }
+}
+
+enum QuotaKitWidgetEntryDisplayModeResolver {
+    static func resolve(
+        isPreview: Bool,
+        defaults: UserDefaults? = nil,
+        appGroupDefaults: () -> UserDefaults? = { QuotaKitWidgetDisplayModeStore.appGroupDefaults() })
+        -> QuotaKitWidgetDisplayMode
+    {
+        isPreview
+            ? .both
+            : QuotaKitWidgetDisplayModeStore.load(
+                defaults: defaults,
+                appGroupDefaults: appGroupDefaults)
     }
 }

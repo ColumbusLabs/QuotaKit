@@ -12,6 +12,8 @@ current Columbus Labs product surface and recent release history.
 - QuotaKit widgets now show both Session and Weekly quota windows by default
   when both are available, with a Usage Settings picker to switch all widgets to
   Both, Session, or Weekly display.
+- Widgets now show freshness from the phone's last synced usage timestamp, and
+  refresh timelines more aggressively so stale data is visible quickly.
 
 ## [1.11.1 (164)] — 2026-06-11 — Mobile UX performance bundle
 

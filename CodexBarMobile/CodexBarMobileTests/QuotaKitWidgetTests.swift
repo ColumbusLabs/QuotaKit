@@ -25,6 +25,10 @@ final class QuotaKitWidgetTests: XCTestCase {
             decoded.generatedAt.timeIntervalSince1970,
             snapshot.generatedAt.timeIntervalSince1970,
             accuracy: 0.001)
+        XCTAssertEqual(
+            decoded.lastSyncedAt.timeIntervalSince1970,
+            PreviewData.sampleSnapshot.syncTimestamp.timeIntervalSince1970,
+            accuracy: 1.0)
         XCTAssertEqual(decoded.providers.count, snapshot.providers.count)
         XCTAssertEqual(decoded.primaryProvider?.providerName, "z.ai")
         XCTAssertTrue(decoded.providers.contains { $0.providerName == "Claude" })
@@ -61,10 +65,11 @@ final class QuotaKitWidgetTests: XCTestCase {
             .decode(QuotaKitWidgetSnapshot.self, from: Data(json.utf8))
 
         XCTAssertEqual(decoded.schemaVersion, 1)
+        XCTAssertEqual(decoded.lastSyncedAt, decoded.generatedAt)
         XCTAssertNil(decoded.primaryProvider?.primaryWindow?.pace)
     }
 
-    func testWidgetSnapshotV2PreservesPace() throws {
+    func testWidgetSnapshotV3PreservesPaceAndLastSyncedAt() throws {
         let pace = SyncUsagePace(
             stage: .behind,
             deltaPercent: -8,
@@ -74,6 +79,7 @@ final class QuotaKitWidgetTests: XCTestCase {
             rightLabel: "Lasts until reset")
         let snapshot = QuotaKitWidgetSnapshot(
             generatedAt: Date(timeIntervalSince1970: 1_803_000_000),
+            lastSyncedAt: Date(timeIntervalSince1970: 1_802_999_900),
             providers: [
                 .init(
                     id: "codex",
@@ -95,8 +101,39 @@ final class QuotaKitWidgetTests: XCTestCase {
         let decoded = try CloudSyncConstants.makeJSONDecoder()
             .decode(QuotaKitWidgetSnapshot.self, from: data)
 
-        XCTAssertEqual(decoded.schemaVersion, 2)
+        XCTAssertEqual(decoded.schemaVersion, 3)
+        XCTAssertEqual(decoded.lastSyncedAt, Date(timeIntervalSince1970: 1_802_999_900))
         XCTAssertEqual(decoded.primaryProvider?.primaryWindow?.pace, pace)
+    }
+
+    func testWidgetSnapshotV2PayloadFallsBackToGeneratedAtForLastSyncedAt() throws {
+        let json = """
+        {
+            "schemaVersion": 2,
+            "generatedAt": "2026-02-21T00:00:00Z",
+            "providers": [
+                {
+                    "id": "codex",
+                    "providerName": "Codex",
+                    "lastUpdated": "2026-02-21T00:00:00Z",
+                    "isError": false,
+                    "windows": [
+                        {
+                            "title": "Weekly",
+                            "usedPercent": 42,
+                            "remainingPercent": 58
+                        }
+                    ]
+                }
+            ]
+        }
+        """
+
+        let decoded = try CloudSyncConstants.makeJSONDecoder()
+            .decode(QuotaKitWidgetSnapshot.self, from: Data(json.utf8))
+
+        XCTAssertEqual(decoded.schemaVersion, 2)
+        XCTAssertEqual(decoded.lastSyncedAt, decoded.generatedAt)
     }
 
     func testPreviewDemoSnapshotIncludesVisiblePace() {
@@ -232,6 +269,87 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(QuotaKitWidgetSnapshotStore.filename, "quotakit-widget-snapshot.json")
     }
 
+    func testWidgetPublisherReloadsWhenSyncTimestampChanges() {
+        let generatedAt = Date(timeIntervalSince1970: 1_803_000_300)
+        let firstSync = Date(timeIntervalSince1970: 1_803_000_000)
+        let secondSync = Date(timeIntervalSince1970: 1_803_000_120)
+        let first = SyncedUsageSnapshot(
+            providers: PreviewData.sampleSnapshot.providers,
+            syncTimestamp: firstSync,
+            deviceName: PreviewData.sampleSnapshot.deviceName)
+        let second = SyncedUsageSnapshot(
+            providers: PreviewData.sampleSnapshot.providers,
+            syncTimestamp: secondSync,
+            deviceName: PreviewData.sampleSnapshot.deviceName)
+        var savedSnapshots: [QuotaKitWidgetSnapshot] = []
+        var reloadCount = 0
+
+        WidgetSnapshotPublisher.publish(
+            from: first,
+            generatedAt: generatedAt,
+            isProUnlocked: true,
+            saveSnapshot: { savedSnapshots.append($0) },
+            reloadTimelines: { reloadCount += 1 })
+        WidgetSnapshotPublisher.publish(
+            from: first,
+            generatedAt: generatedAt.addingTimeInterval(60),
+            isProUnlocked: true,
+            saveSnapshot: { savedSnapshots.append($0) },
+            reloadTimelines: { reloadCount += 1 })
+        WidgetSnapshotPublisher.publish(
+            from: second,
+            generatedAt: generatedAt.addingTimeInterval(120),
+            isProUnlocked: true,
+            saveSnapshot: { savedSnapshots.append($0) },
+            reloadTimelines: { reloadCount += 1 })
+
+        XCTAssertEqual(reloadCount, 2)
+        XCTAssertEqual(savedSnapshots.map(\.lastSyncedAt), [firstSync, firstSync, secondSync])
+    }
+
+    func testWidgetTimelineScheduleRefreshesEveryFiveMinutesByDefault() {
+        let now = Date(timeIntervalSince1970: 1_803_000_000)
+
+        XCTAssertEqual(
+            QuotaKitWidgetTimelineSchedule.nextRefreshDate(after: now, lastSyncedAt: nil),
+            now.addingTimeInterval(5 * 60))
+    }
+
+    func testWidgetTimelineScheduleRefreshesAtStaleBoundaryWhenSooner() {
+        let lastSyncedAt = Date(timeIntervalSince1970: 1_803_000_000)
+        let now = lastSyncedAt.addingTimeInterval(59 * 60)
+
+        XCTAssertEqual(
+            QuotaKitWidgetTimelineSchedule.nextRefreshDate(after: now, lastSyncedAt: lastSyncedAt),
+            lastSyncedAt.addingTimeInterval(60 * 60 + 1))
+    }
+
+    func testWidgetTimelineScheduleUsesRegularRefreshAfterStaleBoundary() {
+        let lastSyncedAt = Date(timeIntervalSince1970: 1_803_000_000)
+        let now = lastSyncedAt.addingTimeInterval(61 * 60)
+
+        XCTAssertEqual(
+            QuotaKitWidgetTimelineSchedule.nextRefreshDate(after: now, lastSyncedAt: lastSyncedAt),
+            now.addingTimeInterval(5 * 60))
+    }
+
+    func testWidgetFreshnessThresholdMatchesAppFreshnessThreshold() {
+        XCTAssertEqual(
+            QuotaKitWidgetTimelineSchedule.staleThreshold,
+            SyncFreshnessState.staleThreshold)
+    }
+
+    func testWidgetSyncBadgeFreshnessUsesStrictStaleThreshold() {
+        let syncedAt = Date(timeIntervalSince1970: 1_803_000_000)
+
+        XCTAssertFalse(WidgetSyncBadgeFreshness.isStale(
+            lastSynced: syncedAt,
+            now: syncedAt.addingTimeInterval(QuotaKitWidgetTimelineSchedule.staleThreshold)))
+        XCTAssertTrue(WidgetSyncBadgeFreshness.isStale(
+            lastSynced: syncedAt,
+            now: syncedAt.addingTimeInterval(QuotaKitWidgetTimelineSchedule.staleThreshold + 1)))
+    }
+
     func testWidgetDisplayModeStoreDefaultsToBothForMissingAndInvalidValues() {
         let defaults = Self.makeDefaults()
         defer { defaults.removeObject(forKey: QuotaKitWidgetDisplayModeStore.key) }
@@ -253,6 +371,59 @@ final class QuotaKitWidgetTests: XCTestCase {
             XCTAssertEqual(defaults.string(forKey: QuotaKitWidgetDisplayModeStore.key), mode.rawValue)
             XCTAssertEqual(QuotaKitWidgetDisplayModeStore.load(defaults: defaults), mode)
         }
+    }
+
+    func testWidgetDisplayModeStoreDoesNotFallBackToStandardDefaults() {
+        UserDefaults.standard.set(
+            QuotaKitWidgetDisplayMode.weekly.rawValue,
+            forKey: QuotaKitWidgetDisplayModeStore.key)
+        defer { UserDefaults.standard.removeObject(forKey: QuotaKitWidgetDisplayModeStore.key) }
+
+        XCTAssertEqual(
+            QuotaKitWidgetDisplayModeStore.load(appGroupDefaults: { nil }),
+            .both)
+
+        UserDefaults.standard.removeObject(forKey: QuotaKitWidgetDisplayModeStore.key)
+        QuotaKitWidgetDisplayModeStore.save(.weekly, appGroupDefaults: { nil })
+
+        XCTAssertNil(UserDefaults.standard.string(forKey: QuotaKitWidgetDisplayModeStore.key))
+    }
+
+    func testWidgetEntryDisplayModeResolverUsesBothForPreviewEntries() {
+        let defaults = Self.makeDefaults()
+        defaults.set(
+            QuotaKitWidgetDisplayMode.weekly.rawValue,
+            forKey: QuotaKitWidgetDisplayModeStore.key)
+
+        XCTAssertEqual(
+            QuotaKitWidgetEntryDisplayModeResolver.resolve(
+                isPreview: true,
+                defaults: defaults),
+            .both)
+    }
+
+    func testWidgetEntryDisplayModeResolverLoadsStoredModeForNonPreviewEntries() {
+        let defaults = Self.makeDefaults()
+        defaults.set(
+            QuotaKitWidgetDisplayMode.session.rawValue,
+            forKey: QuotaKitWidgetDisplayModeStore.key)
+
+        XCTAssertEqual(
+            QuotaKitWidgetEntryDisplayModeResolver.resolve(
+                isPreview: false,
+                defaults: defaults),
+            .session)
+    }
+
+    func testWidgetEntryDisplayModeResolverDefaultsInvalidNonPreviewModeToBoth() {
+        let defaults = Self.makeDefaults()
+        defaults.set("daily", forKey: QuotaKitWidgetDisplayModeStore.key)
+
+        XCTAssertEqual(
+            QuotaKitWidgetEntryDisplayModeResolver.resolve(
+                isPreview: false,
+                defaults: defaults),
+            .both)
     }
 
     func testWidgetUsageWindowResolvesNonSessionLabelsByStableSlot() {
@@ -391,6 +562,92 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(windows.map(\.window.title), ["5-hour", "7-day"])
     }
 
+    func testWidgetBothModeLabelsUseResolvedDisplayModes() {
+        let provider = QuotaKitWidgetSnapshot.Provider(
+            id: "claude",
+            providerName: "Claude",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: nil,
+            isError: false,
+            windows: [
+                .init(
+                    title: "5-hour",
+                    usedPercent: 61,
+                    remainingPercent: 39,
+                    resetsAt: nil,
+                    pace: nil),
+                .init(
+                    title: "7-day",
+                    usedPercent: 20,
+                    remainingPercent: 80,
+                    resetsAt: nil,
+                    pace: nil),
+            ])
+
+        let windows = provider.displayWindows(for: .both)
+
+        XCTAssertEqual(windows.map(\.title), ["Session", "Weekly"])
+    }
+
+    func testAccessoryRectangularBothModeDetailTextUsesResolvedDisplayModes() {
+        let provider = QuotaKitWidgetSnapshot.Provider(
+            id: "claude",
+            providerName: "Claude",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: nil,
+            isError: false,
+            windows: [
+                .init(
+                    title: "5-hour",
+                    usedPercent: 61,
+                    remainingPercent: 39,
+                    resetsAt: nil,
+                    pace: nil),
+                .init(
+                    title: "7-day",
+                    usedPercent: 20,
+                    remainingPercent: 80,
+                    resetsAt: nil,
+                    pace: nil),
+            ])
+
+        let detailText = QuotaKitWidgetAccessoryRectangularPresentation.detailText(
+            for: provider,
+            displayMode: .both)
+
+        XCTAssertEqual(detailText, "Session 39% · Weekly 80%")
+        XCTAssertFalse(detailText.contains("5-hour"))
+        XCTAssertFalse(detailText.contains("7-day"))
+    }
+
+    func testWidgetBothModeKeepsPrimaryWindowWhenWeeklyIsExplicitSecondWindow() {
+        let provider = QuotaKitWidgetSnapshot.Provider(
+            id: "claude",
+            providerName: "Claude",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: nil,
+            isError: false,
+            windows: [
+                .init(
+                    title: "Quota",
+                    usedPercent: 61,
+                    remainingPercent: 39,
+                    resetsAt: nil,
+                    pace: nil),
+                .init(
+                    title: "Weekly",
+                    usedPercent: 20,
+                    remainingPercent: 80,
+                    resetsAt: nil,
+                    pace: nil),
+            ])
+
+        let windows = provider.displayWindows(for: .both)
+
+        XCTAssertEqual(windows.map(\.mode), [.session, .weekly])
+        XCTAssertEqual(windows.map(\.window.title), ["Quota", "Weekly"])
+    }
+
     func testWidgetBothModePreservesWeeklyOnlyWindowMode() {
         let provider = QuotaKitWidgetSnapshot.Provider(
             id: "claude",
@@ -412,6 +669,73 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(windows.count, 1)
         XCTAssertEqual(windows.first?.mode, .weekly)
         XCTAssertEqual(windows.first?.window.title, "Weekly")
+    }
+
+    func testWidgetBothModeDoesNotTreatDailyWindowAsWeekly() {
+        let provider = QuotaKitWidgetSnapshot.Provider(
+            id: "claude",
+            providerName: "Claude",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: nil,
+            isError: false,
+            windows: [
+                .init(
+                    title: "Daily",
+                    usedPercent: 20,
+                    remainingPercent: 80,
+                    resetsAt: nil,
+                    pace: nil),
+            ])
+
+        let windows = provider.displayWindows(for: .both)
+
+        XCTAssertEqual(windows.count, 1)
+        XCTAssertEqual(windows.first?.mode, .session)
+        XCTAssertEqual(windows.first?.window.title, "Daily")
+    }
+
+    func testWidgetCircularBothModeUsesSessionOrPrimaryFallback() {
+        let provider = QuotaKitWidgetSnapshot.Provider(
+            id: "claude",
+            providerName: "Claude",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: nil,
+            isError: false,
+            windows: [
+                .init(
+                    title: "5-hour",
+                    usedPercent: 61,
+                    remainingPercent: 39,
+                    resetsAt: nil,
+                    pace: nil),
+                .init(
+                    title: "7-day",
+                    usedPercent: 20,
+                    remainingPercent: 80,
+                    resetsAt: nil,
+                    pace: nil),
+            ])
+
+        XCTAssertEqual(provider.window(for: .both)?.title, "5-hour")
+    }
+
+    func testWidgetCircularBothModeFallsBackToWeeklyOnlyWindow() {
+        let provider = QuotaKitWidgetSnapshot.Provider(
+            id: "claude",
+            providerName: "Claude",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: nil,
+            isError: false,
+            windows: [
+                .init(
+                    title: "Weekly",
+                    usedPercent: 20,
+                    remainingPercent: 80,
+                    resetsAt: nil,
+                    pace: nil),
+            ])
+
+        XCTAssertEqual(provider.window(for: .both)?.title, "Weekly")
     }
 
     func testWidgetBothModeReturnsNoWindowsWhenProviderHasNoWindows() {
@@ -464,6 +788,89 @@ final class QuotaKitWidgetTests: XCTestCase {
                 overrideFamily: family)
             XCTAssertNotNil(self.renderToImage(view), "Expected both-mode widget to render for \(family)")
         }
+    }
+
+    func testWidgetFreshnessRendersForVisibleTimestampFamilies() {
+        let snapshot = QuotaKitWidgetSnapshot(
+            generatedAt: Date(timeIntervalSince1970: 1_803_000_300),
+            lastSyncedAt: Date(timeIntervalSince1970: 1_803_000_000),
+            providers: QuotaKitWidgetPreviewData.snapshot.providers)
+
+        for family in Self.timestampWidgetFamilies {
+            let view = QuotaKitWidgetView(
+                entry: .init(
+                    date: Date(timeIntervalSince1970: 1_803_000_300),
+                    snapshot: snapshot,
+                    isUnlocked: true,
+                    isPreview: false,
+                    displayMode: .both),
+                overrideFamily: family)
+
+            XCTAssertNotNil(
+                self.renderToImage(view),
+                "Expected synced timestamp widget to render for \(family)")
+        }
+    }
+
+    func testAccessoryRectangularFreshnessRendersInConstrainedFrame() throws {
+        let snapshot = QuotaKitWidgetSnapshot(
+            generatedAt: Date(timeIntervalSince1970: 1_803_000_300),
+            lastSyncedAt: Date(timeIntervalSince1970: 1_803_000_000),
+            providers: QuotaKitWidgetPreviewData.snapshot.providers)
+        let view = QuotaKitWidgetView(
+            entry: .init(
+                date: Date(timeIntervalSince1970: 1_803_000_300),
+                snapshot: snapshot,
+                isUnlocked: true,
+                isPreview: false,
+                displayMode: .session),
+            overrideFamily: .accessoryRectangular)
+
+        let image = try XCTUnwrap(
+            self.renderAccessoryRectangularWidgetToImage(view),
+            "Expected accessory rectangular widget freshness to render in a constrained frame")
+        self.assertAccessoryRectangularWidgetRowsAreVisible(in: image)
+    }
+
+    func testAccessoryRectangularBothModeFreshnessRendersInConstrainedFrame() throws {
+        let snapshot = QuotaKitWidgetSnapshot(
+            generatedAt: Date(timeIntervalSince1970: 1_803_000_300),
+            lastSyncedAt: Date(timeIntervalSince1970: 1_803_000_000),
+            providers: [
+                .init(
+                    id: "claude",
+                    providerName: "Claude Enterprise",
+                    lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+                    statusMessage: nil,
+                    isError: false,
+                    windows: [
+                        .init(
+                            title: "5-hour",
+                            usedPercent: 61,
+                            remainingPercent: 39,
+                            resetsAt: nil,
+                            pace: nil),
+                        .init(
+                            title: "7-day",
+                            usedPercent: 20,
+                            remainingPercent: 80,
+                            resetsAt: nil,
+                            pace: nil),
+                    ]),
+            ])
+        let view = QuotaKitWidgetView(
+            entry: .init(
+                date: Date(timeIntervalSince1970: 1_803_000_300),
+                snapshot: snapshot,
+                isUnlocked: true,
+                isPreview: false,
+                displayMode: .both),
+            overrideFamily: .accessoryRectangular)
+
+        let image = try XCTUnwrap(
+            self.renderAccessoryRectangularWidgetToImage(view),
+            "Expected both-mode accessory rectangular widget freshness to render in a constrained frame")
+        self.assertAccessoryRectangularWidgetRowsAreVisible(in: image)
     }
 
     func testUnlockedSmallWidgetRendersCleanGlanceLayout() {
@@ -522,6 +929,12 @@ final class QuotaKitWidgetTests: XCTestCase {
         .accessoryCircular,
     ]
 
+    private static let timestampWidgetFamilies: [WidgetFamily] = [
+        .systemSmall,
+        .systemMedium,
+        .accessoryRectangular,
+    ]
+
     private func renderToImage(_ view: some View) -> UIImage? {
         let renderer = ImageRenderer(content: view.frame(width: 360, height: 180))
         renderer.scale = 2.0
@@ -532,6 +945,83 @@ final class QuotaKitWidgetTests: XCTestCase {
         let renderer = ImageRenderer(content: view.frame(width: 170, height: 170))
         renderer.scale = 2.0
         return renderer.uiImage
+    }
+
+    private func renderAccessoryRectangularWidgetToImage(_ view: some View) -> UIImage? {
+        let renderer = ImageRenderer(content: view.frame(width: 160, height: 50))
+        renderer.scale = 2.0
+        return renderer.uiImage
+    }
+
+    private func assertAccessoryRectangularWidgetRowsAreVisible(
+        in image: UIImage,
+        file: StaticString = #filePath,
+        line: UInt = #line)
+    {
+        let visibleRows = [
+            ("provider row", 0..<22, 45),
+            ("quota row", 18..<36, 30),
+            ("sync row", 34..<50, 16),
+        ].map { name, yRange, minimumVisiblePixels in
+            (name, self.visiblePixelCount(in: image, yPointRange: yRange), minimumVisiblePixels)
+        }
+
+        for (name, visiblePixels, minimumVisiblePixels) in visibleRows {
+            XCTAssertGreaterThan(
+                visiblePixels,
+                minimumVisiblePixels,
+                "Expected \(name) to have visible rendered content in accessory rectangular widget",
+                file: file,
+                line: line)
+        }
+    }
+
+    private func visiblePixelCount(in image: UIImage, yPointRange: Range<CGFloat>) -> Int {
+        guard let cgImage = image.cgImage else { return 0 }
+
+        let width = cgImage.width
+        let height = cgImage.height
+        let bytesPerPixel = 4
+        let bytesPerRow = width * bytesPerPixel
+        var bytes = [UInt8](repeating: 0, count: height * bytesPerRow)
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
+
+        guard let context = CGContext(
+            data: &bytes,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: bytesPerRow,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo)
+        else {
+            return 0
+        }
+
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+        let scale = image.scale > 0
+            ? image.scale
+            : CGFloat(width) / max(image.size.width, 1)
+        let yStart = max(0, Int((yPointRange.lowerBound * scale).rounded(.down)))
+        let yEnd = min(height, Int((yPointRange.upperBound * scale).rounded(.up)))
+        guard yStart < yEnd else { return 0 }
+
+        var visiblePixels = 0
+        for y in yStart..<yEnd {
+            for x in 0..<width {
+                let offset = y * bytesPerRow + x * bytesPerPixel
+                let red = bytes[offset]
+                let green = bytes[offset + 1]
+                let blue = bytes[offset + 2]
+                let alpha = bytes[offset + 3]
+                if alpha > 8, max(red, green, blue) > 24 {
+                    visiblePixels += 1
+                }
+            }
+        }
+        return visiblePixels
     }
 
     private static func makeDefaults(

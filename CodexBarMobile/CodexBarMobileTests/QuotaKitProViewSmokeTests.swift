@@ -154,22 +154,49 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
 
     func testUsageSettingsRendersWidgetDisplayPicker() {
         let view = NavigationStack {
-            UsageSettingsView()
+            UsageSettingsView(initialWidgetDisplayMode: .both)
         }
         .environment(ProEntitlementStore.preview(state: .unlocked(source: .storeKit)))
 
         XCTAssertNotNil(self.renderToImage(view))
     }
 
-    func testUsageSettingsWidgetDisplaySaveWritesAppGroupRawValue() throws {
-        let defaults = try XCTUnwrap(QuotaKitWidgetDisplayModeStore.appGroupDefaults())
-        defaults.removeObject(forKey: QuotaKitWidgetDisplayModeStore.key)
+    func testUsageSettingsWidgetDisplayOptionsIncludeAllModes() {
+        let options = UsageSettingsView.widgetDisplayModeOptions
 
-        UsageSettingsView.saveWidgetDisplayMode(.weekly)
+        XCTAssertEqual(options.map(\.0), [.both, .session, .weekly])
+        XCTAssertEqual(options.map(\.1), ["Both", "Session", "Weekly"])
+    }
+
+    func testUsageSettingsWidgetDisplayBindingSavesChangedValueOnce() {
+        var currentMode = QuotaKitWidgetDisplayMode.both
+        var savedModes: [QuotaKitWidgetDisplayMode] = []
+        let binding = UsageSettingsView.widgetDisplayModeBinding(
+            value: Binding(
+                get: { currentMode },
+                set: { currentMode = $0 }),
+            save: { savedModes.append($0) })
+
+        binding.wrappedValue = .weekly
+        binding.wrappedValue = .weekly
+
+        XCTAssertEqual(currentMode, .weekly)
+        XCTAssertEqual(savedModes, [.weekly])
+    }
+
+    func testUsageSettingsWidgetDisplaySaveWritesRawValueAndReloadsTimelines() {
+        let defaults = UserDefaults(suiteName: "quotakit.usage-settings.\(UUID().uuidString)")!
+        var reloadCount = 0
+
+        UsageSettingsView.saveWidgetDisplayMode(
+            .weekly,
+            defaults: defaults,
+            reloadTimelines: { reloadCount += 1 })
 
         XCTAssertEqual(
             defaults.string(forKey: QuotaKitWidgetDisplayModeStore.key),
             QuotaKitWidgetDisplayMode.weekly.rawValue)
+        XCTAssertEqual(reloadCount, 1)
     }
 
     private func renderToImage<V: View>(_ view: V) -> UIImage? {

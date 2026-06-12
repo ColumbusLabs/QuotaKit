@@ -65,9 +65,14 @@ struct UsageSettingsView: View {
     @AppStorage(MobileSettingsKeys.hideQuotaWarningMarkers) private var hideQuotaWarningMarkers = false
     @AppStorage(MobileSettingsKeys.showProviderChangelogLinks) private var showProviderChangelogLinks = false
     @State private var widgetDisplayMode: QuotaKitWidgetDisplayMode
+    private let saveWidgetDisplayModeAction: (QuotaKitWidgetDisplayMode) -> Void
 
-    init() {
-        _widgetDisplayMode = State(initialValue: QuotaKitWidgetDisplayModeStore.load())
+    init(
+        initialWidgetDisplayMode: QuotaKitWidgetDisplayMode = QuotaKitWidgetDisplayModeStore.load(),
+        saveWidgetDisplayMode: @escaping (QuotaKitWidgetDisplayMode) -> Void = { UsageSettingsView.saveWidgetDisplayMode($0) })
+    {
+        _widgetDisplayMode = State(initialValue: initialWidgetDisplayMode)
+        self.saveWidgetDisplayModeAction = saveWidgetDisplayMode
     }
 
     var body: some View {
@@ -89,7 +94,7 @@ struct UsageSettingsView: View {
                         title: "Widget quota window",
                         subtitle: "Choose whether widgets show session, weekly, or both quota windows.",
                         selection: self.widgetDisplayModeBinding,
-                        options: QuotaKitWidgetDisplayMode.allCases.map { ($0, $0.localizedTitle) })
+                        options: Self.widgetDisplayModeOptions)
                         .padding(16)
                 }
 
@@ -144,18 +149,39 @@ struct UsageSettingsView: View {
     }
 
     private var widgetDisplayModeBinding: Binding<QuotaKitWidgetDisplayMode> {
+        Self.widgetDisplayModeBinding(
+            value: self.$widgetDisplayMode,
+            save: self.saveWidgetDisplayModeAction)
+    }
+
+    static var widgetDisplayModeOptions: [(QuotaKitWidgetDisplayMode, String)] {
+        QuotaKitWidgetDisplayMode.allCases.map { ($0, $0.localizedTitle) }
+    }
+
+    static func widgetDisplayModeBinding(
+        value: Binding<QuotaKitWidgetDisplayMode>,
+        save: @escaping (QuotaKitWidgetDisplayMode) -> Void) -> Binding<QuotaKitWidgetDisplayMode>
+    {
         Binding(
-            get: { self.widgetDisplayMode },
+            get: { value.wrappedValue },
             set: { newValue in
-                guard newValue != self.widgetDisplayMode else { return }
-                self.widgetDisplayMode = newValue
-                Self.saveWidgetDisplayMode(newValue)
+                guard newValue != value.wrappedValue else { return }
+                value.wrappedValue = newValue
+                save(newValue)
             })
     }
 
-    static func saveWidgetDisplayMode(_ mode: QuotaKitWidgetDisplayMode) {
-        QuotaKitWidgetDisplayModeStore.save(mode)
-        WidgetTimelineRefresher.reloadAllTimelines()
+    static func saveWidgetDisplayMode(
+        _ mode: QuotaKitWidgetDisplayMode,
+        defaults: UserDefaults? = nil,
+        appGroupDefaults: () -> UserDefaults? = { QuotaKitWidgetDisplayModeStore.appGroupDefaults() },
+        reloadTimelines: () -> Void = WidgetTimelineRefresher.reloadAllTimelines)
+    {
+        QuotaKitWidgetDisplayModeStore.save(
+            mode,
+            defaults: defaults,
+            appGroupDefaults: appGroupDefaults)
+        reloadTimelines()
     }
 }
 

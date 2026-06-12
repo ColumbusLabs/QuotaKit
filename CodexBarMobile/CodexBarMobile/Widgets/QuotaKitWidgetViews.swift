@@ -18,6 +18,10 @@ struct QuotaKitWidgetDisplayWindow: Identifiable, Equatable {
     var id: String {
         "\(self.mode.rawValue)-\(self.window.title)"
     }
+
+    var title: String {
+        self.mode.localizedTitle
+    }
 }
 
 extension QuotaKitWidgetSnapshot.Provider {
@@ -35,12 +39,12 @@ extension QuotaKitWidgetSnapshot.Provider {
     func displayWindows(for displayMode: QuotaKitWidgetDisplayMode) -> [QuotaKitWidgetDisplayWindow] {
         switch displayMode {
         case .both:
-            let explicitWeekly = self.windows.first(where: Self.isWeeklyWindow)
-            let session = self.sessionWindow(allowPrimaryFallback: explicitWeekly == nil)
+            let weekly = self.weeklyWindow(allowPrimaryFallback: false)
+            let session = self.sessionWindowForBothMode(weekly: weekly)
             var result = session.map {
                 [QuotaKitWidgetDisplayWindow(mode: .session, window: $0)]
             } ?? []
-            if let weekly = self.weeklyWindow(allowPrimaryFallback: false),
+            if let weekly,
                session.map({ weekly != $0 }) ?? true
             {
                 result.append(QuotaKitWidgetDisplayWindow(mode: .weekly, window: weekly))
@@ -56,6 +60,19 @@ extension QuotaKitWidgetSnapshot.Provider {
     private func sessionWindow(allowPrimaryFallback: Bool) -> Window? {
         self.windows.first(where: Self.isSessionWindow)
             ?? (allowPrimaryFallback ? self.windows.first : nil)
+    }
+
+    private func sessionWindowForBothMode(weekly: Window?) -> Window? {
+        if let explicitSession = self.windows.first(where: Self.isSessionWindow) {
+            return explicitSession
+        }
+        if let weekly,
+           let primary = self.windows.first,
+           primary != weekly
+        {
+            return primary
+        }
+        return weekly == nil ? self.windows.first : nil
     }
 
     private func weeklyWindow(allowPrimaryFallback: Bool) -> Window? {
@@ -74,8 +91,44 @@ extension QuotaKitWidgetSnapshot.Provider {
     private static func isWeeklyWindow(_ window: Window) -> Bool {
         let title = window.title.localizedLowercase
         return title.contains("week")
-            || title.contains("day")
+            || Self.hasNumericDayLabel(title)
             || title.contains(String(localized: "Weekly").localizedLowercase)
+    }
+
+    private static func hasNumericDayLabel(_ title: String) -> Bool {
+        let normalized = title
+            .replacingOccurrences(of: "-", with: " ")
+            .replacingOccurrences(of: "_", with: " ")
+        let tokens = normalized.split { character in
+            !character.isLetter && !character.isNumber
+        }
+
+        var previousToken: Substring?
+        for token in tokens {
+            let tokenText = String(token)
+            if (tokenText == "day" || tokenText == "days"),
+               previousToken?.allSatisfy(\.isNumber) == true
+            {
+                return true
+            }
+
+            if tokenText.hasSuffix("day") {
+                let prefix = tokenText.dropLast(3)
+                if !prefix.isEmpty, prefix.allSatisfy(\.isNumber) {
+                    return true
+                }
+            }
+
+            if tokenText.hasSuffix("days") {
+                let prefix = tokenText.dropLast(4)
+                if !prefix.isEmpty, prefix.allSatisfy(\.isNumber) {
+                    return true
+                }
+            }
+
+            previousToken = token
+        }
+        return false
     }
 }
 
@@ -105,6 +158,7 @@ struct QuotaKitWidgetView: View {
                 case .accessoryRectangular:
                     QuotaKitWidgetAccessoryRectangularView(
                         provider: provider,
+                        lastSyncedAt: snapshot.lastSyncedAt,
                         displayMode: self.entry.displayMode)
                 case .accessoryCircular:
                     QuotaKitWidgetAccessoryCircularView(
@@ -113,6 +167,7 @@ struct QuotaKitWidgetView: View {
                 default:
                     QuotaKitWidgetSmallView(
                         provider: provider,
+                        lastSyncedAt: snapshot.lastSyncedAt,
                         displayMode: self.entry.displayMode)
                 }
             } else {
@@ -170,24 +225,37 @@ private struct WidgetUsageBar: View {
 
 /// Live data-age indicator. The relative `Text` style keeps counting up
 /// between timeline refreshes without re-rendering the widget.
+enum WidgetSyncBadgeFreshness {
+    static func isStale(lastSynced: Date, now: Date = Date()) -> Bool {
+        now.timeIntervalSince(lastSynced) > QuotaKitWidgetTimelineSchedule.staleThreshold
+    }
+}
+
 private struct WidgetSyncBadge: View {
     let lastSynced: Date
+    var showsIcon = true
+    var compact = false
 
     /// Mirrors `SyncFreshnessState.staleThreshold`; evaluated when the
     /// timeline entry renders, so the tint can lag until the next refresh.
     private var isStale: Bool {
-        Date().timeIntervalSince(self.lastSynced) > 3600
+        WidgetSyncBadgeFreshness.isStale(lastSynced: self.lastSynced)
     }
 
     var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: "arrow.triangle.2.circlepath")
-                .font(.system(size: 8, weight: .semibold))
-            Text("Synced \(self.lastSynced, style: .relative) ago")
+        HStack(spacing: self.compact ? 2 : 3) {
+            if self.showsIcon {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: self.compact ? 7 : 8, weight: .semibold))
+            }
+            Text(String(localized: "Synced"))
+                + Text(verbatim: " ")
+                + Text(self.lastSynced, style: .relative)
         }
-        .font(.caption2)
+        .font(self.compact ? .system(size: 9, weight: .medium) : .caption2)
         .foregroundStyle(self.isStale ? AnyShapeStyle(.orange) : AnyShapeStyle(.tertiary))
         .lineLimit(1)
+        .minimumScaleFactor(0.75)
     }
 }
 
@@ -222,7 +290,7 @@ private struct WidgetCompactWindowRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(self.displayWindow.window.title)
+                Text(self.displayWindow.title)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -248,7 +316,7 @@ private struct WidgetCompactWindowColumn: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(self.displayWindow.window.title)
+                Text(self.displayWindow.title)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -269,6 +337,7 @@ private struct WidgetCompactWindowColumn: View {
 
 private struct QuotaKitWidgetSmallView: View {
     let provider: QuotaKitWidgetSnapshot.Provider
+    let lastSyncedAt: Date
     let displayMode: QuotaKitWidgetDisplayMode
 
     var body: some View {
@@ -282,9 +351,10 @@ private struct QuotaKitWidgetSmallView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                 Spacer(minLength: 6)
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.tertiary)
+                WidgetSyncBadge(
+                    lastSynced: self.lastSyncedAt,
+                    showsIcon: false,
+                    compact: true)
             }
 
             if self.displayMode == .both {
@@ -392,7 +462,7 @@ private struct QuotaKitWidgetMediumView: View {
             HStack {
                 WidgetBrandHeader()
                 Spacer()
-                WidgetSyncBadge(lastSynced: self.snapshot.generatedAt)
+                WidgetSyncBadge(lastSynced: self.snapshot.lastSyncedAt)
             }
 
             let providers = Array(self.snapshot.providers.prefix(3))
@@ -466,7 +536,7 @@ private struct QuotaKitWidgetMediumView: View {
         if self.displayMode == .both,
            !displayWindows.isEmpty
         {
-            return displayWindows.map(\.window.title).joined(separator: " · ")
+            return displayWindows.map(\.title).joined(separator: " · ")
         }
         return window?.title
             ?? provider.statusMessage
@@ -474,8 +544,37 @@ private struct QuotaKitWidgetMediumView: View {
     }
 }
 
+enum QuotaKitWidgetAccessoryRectangularPresentation {
+    static func detailText(
+        for provider: QuotaKitWidgetSnapshot.Provider,
+        displayMode: QuotaKitWidgetDisplayMode) -> String
+    {
+        if displayMode == .both {
+            let displayWindows = provider.displayWindows(for: displayMode)
+            guard !displayWindows.isEmpty else {
+                return provider.statusMessage ?? String(localized: "No quota window")
+            }
+            return displayWindows.map { displayWindow in
+                String(
+                    format: String(localized: "%@ %lld%%"),
+                    displayWindow.title,
+                    Int64(displayWindow.window.remainingPercent.rounded()))
+            }.joined(separator: " · ")
+        }
+
+        guard let window = provider.window(for: displayMode) else {
+            return provider.statusMessage ?? String(localized: "No quota window")
+        }
+        return String(
+            format: String(localized: "%lld%% left · %@"),
+            Int64(window.remainingPercent.rounded()),
+            window.title)
+    }
+}
+
 private struct QuotaKitWidgetAccessoryRectangularView: View {
     let provider: QuotaKitWidgetSnapshot.Provider
+    let lastSyncedAt: Date
     let displayMode: QuotaKitWidgetDisplayMode
 
     var body: some View {
@@ -483,42 +582,16 @@ private struct QuotaKitWidgetAccessoryRectangularView: View {
             Text(provider.providerName)
                 .font(.headline)
                 .lineLimit(1)
-            if self.displayMode == .both {
-                let displayWindows = provider.displayWindows(for: self.displayMode)
-                if displayWindows.isEmpty {
-                    Text(provider.statusMessage ?? String(localized: "No quota window"))
-                        .font(.caption)
-                        .lineLimit(1)
-                } else {
-                    Text(displayWindows.map { displayWindow in
-                        String(
-                            format: String(localized: "%@ %lld%%"),
-                            displayWindow.window.title,
-                            Int64(displayWindow.window.remainingPercent.rounded()))
-                    }.joined(separator: " · "))
-                        .font(.caption)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                }
-            } else if let window = provider.window(for: self.displayMode) {
-                Text(String(
-                    format: String(localized: "%lld%% left · %@"),
-                    Int64(window.remainingPercent.rounded()),
-                    window.title))
-                    .font(.caption)
-                    .lineLimit(1)
-                if let paceText = window.pace?.widgetDisplayText {
-                    Text(paceText)
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .foregroundStyle(window.pace?.widgetColor ?? Color.secondary)
-                        .lineLimit(1)
-                }
-            } else {
-                Text(provider.statusMessage ?? String(localized: "No quota window"))
-                    .font(.caption)
-                    .lineLimit(1)
-            }
+            Text(QuotaKitWidgetAccessoryRectangularPresentation.detailText(
+                for: self.provider,
+                displayMode: self.displayMode))
+                .font(.caption)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+            WidgetSyncBadge(
+                lastSynced: self.lastSyncedAt,
+                showsIcon: false,
+                compact: true)
         }
     }
 }

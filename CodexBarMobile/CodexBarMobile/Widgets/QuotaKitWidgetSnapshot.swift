@@ -3,7 +3,7 @@ import Foundation
 import os
 
 struct QuotaKitWidgetSnapshot: Codable, Equatable, Sendable {
-    static let currentSchemaVersion = 2
+    static let currentSchemaVersion = 3
 
     struct Provider: Codable, Equatable, Identifiable, Sendable {
         struct Window: Codable, Equatable, Sendable {
@@ -28,15 +28,18 @@ struct QuotaKitWidgetSnapshot: Codable, Equatable, Sendable {
 
     let schemaVersion: Int
     let generatedAt: Date
+    let lastSyncedAt: Date
     let providers: [Provider]
 
     init(
         schemaVersion: Int = QuotaKitWidgetSnapshot.currentSchemaVersion,
         generatedAt: Date,
+        lastSyncedAt: Date? = nil,
         providers: [Provider])
     {
         self.schemaVersion = schemaVersion
         self.generatedAt = generatedAt
+        self.lastSyncedAt = lastSyncedAt ?? generatedAt
         self.providers = providers
     }
 
@@ -44,6 +47,8 @@ struct QuotaKitWidgetSnapshot: Codable, Equatable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
         self.generatedAt = try container.decode(Date.self, forKey: .generatedAt)
+        self.lastSyncedAt = try container.decodeIfPresent(Date.self, forKey: .lastSyncedAt)
+            ?? self.generatedAt
         self.providers = try container.decode([Provider].self, forKey: .providers)
     }
 
@@ -54,6 +59,7 @@ struct QuotaKitWidgetSnapshot: Codable, Equatable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case schemaVersion
         case generatedAt
+        case lastSyncedAt
         case providers
     }
 }
@@ -74,6 +80,7 @@ enum QuotaKitWidgetSnapshotBuilder {
 
         return QuotaKitWidgetSnapshot(
             generatedAt: generatedAt,
+            lastSyncedAt: snapshot.syncTimestamp,
             providers: providers)
     }
 
@@ -113,6 +120,24 @@ enum QuotaKitWidgetSnapshotBuilder {
         }
 
         return message
+    }
+}
+
+enum QuotaKitWidgetTimelineSchedule {
+    static let refreshInterval: TimeInterval = 5 * 60
+    static let staleThreshold: TimeInterval = 60 * 60
+
+    static func nextRefreshDate(after date: Date, lastSyncedAt: Date?) -> Date {
+        let regularRefresh = date.addingTimeInterval(Self.refreshInterval)
+        guard let lastSyncedAt else {
+            return regularRefresh
+        }
+
+        let staleTransition = lastSyncedAt.addingTimeInterval(Self.staleThreshold + 1)
+        guard staleTransition > date, staleTransition < regularRefresh else {
+            return regularRefresh
+        }
+        return staleTransition
     }
 }
 

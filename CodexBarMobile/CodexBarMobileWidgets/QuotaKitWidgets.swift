@@ -24,7 +24,9 @@ struct QuotaKitWidgetProvider: TimelineProvider {
         let entry = self.makeEntry(isPreview: context.isPreview)
         completion(Timeline(
             entries: [entry],
-            policy: .after(Date().addingTimeInterval(30 * 60))))
+            policy: .after(QuotaKitWidgetTimelineSchedule.nextRefreshDate(
+                after: entry.date,
+                lastSyncedAt: entry.snapshot?.lastSyncedAt))))
     }
 
     private func makeEntry(isPreview: Bool) -> QuotaKitWidgetEntry {
@@ -47,7 +49,7 @@ struct QuotaKitWidgetProvider: TimelineProvider {
             snapshot: snapshot,
             isUnlocked: isUnlocked,
             isPreview: isPreview,
-            displayMode: isPreview ? .both : QuotaKitWidgetDisplayModeStore.load())
+            displayMode: QuotaKitWidgetEntryDisplayModeResolver.resolve(isPreview: isPreview))
     }
 }
 
